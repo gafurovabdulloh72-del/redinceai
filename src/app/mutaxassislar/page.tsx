@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { RotateCcw, SearchX, Sparkles, UserPlus } from "lucide-react";
-import { ButtonLink, EmptyState } from "@/components/ui";
+import { RotateCcw, SearchX, UserPlus } from "lucide-react";
+import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { Filters, MobileFilters, SortSelect } from "@/components/specialists/Filters";
 import { ActiveFilters } from "@/components/specialists/ActiveFilters";
@@ -104,20 +104,21 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
   return (
     <div className="container-x">
       {/* ---------- Sarlavha ---------- */}
-      <header className="max-w-3xl">
-        <span className="glass-weak glass-pill inline-flex items-center gap-2 px-3.5 py-1.5 text-[12px] font-semibold text-tint">
-          <Sparkles size={14} /> O'zbekiston bo'ylab · {REGIONS.length} ta hudud
-        </span>
-        <h1 className="mt-4 text-[28px] font-bold leading-[1.05] tracking-tight text-fg sm:text-4xl">Mutaxassislar</h1>
-        <p className="mt-2.5 text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">
-          Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx va tajriba bo'yicha filtrlang, o'zingizga mosini toping.
-        </p>
-      </header>
+      <PageHeader
+        size="lg"
+        eyebrow={`O'zbekiston bo'ylab · ${REGIONS.length} ta hudud`}
+        title={
+          <>
+            Mutaxassislar <span className="accent-serif text-accent">ro'yxati</span>
+          </>
+        }
+        description="Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx va tajriba bo'yicha filtrlang, o'zingizga mosini toping."
+      />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-12">
+      <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
         {/* ---------- Yon panel (desktop) ---------- */}
         <aside className="hidden lg:col-span-3 lg:block">
-          <div className="glass sticky top-24 overflow-hidden">
+          <div className="card sticky top-24 overflow-hidden">
             <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto p-5">
               <Suspense fallback={<FiltersFallback />}>
                 <Filters categoryCounts={categoryStats} regionCounts={regionCounts} />
@@ -131,7 +132,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           {/* Asboblar qatori */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p id="sp-results-title" className="text-[15px] text-fg-2">
-              <span className="text-[22px] font-bold tabular-nums text-fg">{total}</span> ta mutaxassis
+              <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{total}</span> ta mutaxassis
               {total > 0 && pages > 1 && (
                 <span className="text-fg-3">
                   {" "}
@@ -178,7 +179,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
               <EmptyState
                 icon={UserPlus}
                 title="Hali mutaxassislar yo'q"
-                description="Birinchi bo'lib profil oching — mijozlar sizni xaritadan topsin."
+                description="Birinchi bo'lib profil oching — mijozlar sizni shu yerda topsin."
                 action={
                   <ButtonLink href="/auth/royxat?role=specialist" size="sm">
                     <UserPlus size={14} /> Mutaxassis sifatida qo'shilish

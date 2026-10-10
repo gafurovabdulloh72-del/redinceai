@@ -148,11 +148,11 @@ export function ReviewForm({
                   onFocus={() => setHover(n)}
                   onBlur={() => setHover(0)}
                   onClick={() => setRating(n)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-fg/6 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/50"
+                  className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-fg/6 active:scale-90"
                 >
                   <Star
                     size={22}
-                    className={cn("transition-all duration-150", active ? "fill-ios-orange text-ios-orange scale-110" : "text-fg-4")}
+                    className={cn("transition-all duration-150", active ? "fill-accent-3 text-accent-3 scale-110" : "text-fg-4")}
                   />
                 </button>
               );

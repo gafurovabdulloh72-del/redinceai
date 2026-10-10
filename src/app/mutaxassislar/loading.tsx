@@ -5,15 +5,15 @@ export default function Loading() {
     <div className="container-x" aria-busy="true" aria-label="Yuklanmoqda">
       {/* Sarlavha skeleti */}
       <div className="max-w-3xl">
-        <div className="h-7 w-52 skeleton !rounded-full" />
-        <div className="mt-4 h-9 w-64 skeleton sm:h-10" />
-        <div className="mt-3 h-4 w-full max-w-xl skeleton" />
+        <div className="h-4 w-52 skeleton" />
+        <div className="mt-5 h-10 w-80 max-w-full skeleton sm:h-14" />
+        <div className="mt-4 h-4 w-full max-w-xl skeleton" />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-12">
+      <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
         {/* Yon panel skeleti */}
         <aside className="hidden lg:col-span-3 lg:block">
-          <div className="glass sticky top-24 space-y-4 p-5">
+          <div className="card sticky top-24 space-y-4 p-5">
             <div className="h-6 w-28 skeleton" />
             <div className="h-11 w-full skeleton !rounded-[18px]" />
             <div className="flex flex-wrap gap-1.5">

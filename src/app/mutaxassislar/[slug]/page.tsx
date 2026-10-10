@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
-  BadgeCheck,
   Briefcase,
   CalendarDays,
   Eye,
@@ -17,7 +16,7 @@ import {
   Sparkles,
   Youtube,
 } from "lucide-react";
-import { Avatar, ButtonLink, InsetGroup, InsetRow, SectionHeading, Stars } from "@/components/ui";
+import { Avatar, ButtonLink, InsetGroup, InsetRow, SectionHeading, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { PortfolioGallery } from "@/components/specialists/PortfolioGallery";
@@ -76,16 +75,18 @@ export default async function SpecialistPage({ params }: { params: Params }) {
   const sp = await getSpecialistBySlug(slug);
   if (!sp) notFound();
 
-  // Ko'rishlar soni — natijani kutmaymiz, xatolik sahifani buzmasin
-  try {
-    void bumpViewCount(sp.id).catch(() => {});
-  } catch {
-    /* noop */
-  }
-
   const [viewer, similar] = await Promise.all([getCurrentUser(), getSimilarSpecialists(sp, 4)]);
 
   const isOwner = Boolean(viewer && viewer.id === sp.userId);
+
+  // Ko'rishlar soni — egasining o'zi ochganda hisoblanmaydi; natijani kutmaymiz, xatolik sahifani buzmasin
+  if (!isOwner) {
+    try {
+      void bumpViewCount(sp.id).catch(() => {});
+    } catch {
+      /* noop */
+    }
+  }
   const myReview = viewer ? sp.reviews.find((r) => r.authorId === viewer.id) : null;
   const canReview = Boolean(viewer) && !isOwner;
   const profilePath = `/mutaxassislar/${sp.slug}`;
@@ -168,34 +169,37 @@ export default async function SpecialistPage({ params }: { params: Params }) {
 
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
           <div className="relative z-10 -mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={112} className="ring-4 !ring-[var(--glass-strong)] text-[36px]" />
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={112} className="ring-4 !ring-[var(--surface)] text-[36px]" />
             <div className="min-w-0 flex-1 sm:pb-1">
-              <h1 className="flex flex-wrap items-center gap-2 text-[28px] font-bold leading-tight tracking-tight text-fg sm:text-4xl">
-                <span className="break-words">{sp.user.name}</span>
-                {sp.isVerified && <BadgeCheck size={26} className="shrink-0 fill-ios-blue text-white" aria-label="Tasdiqlangan profil" />}
+              <h1 className="break-words text-[28px] font-semibold leading-tight tracking-tight text-fg sm:text-4xl">
+                {sp.user.name}
+                {sp.isVerified && <VerifiedBadge size={24} className="ml-1.5 inline-block align-[-3px]" />}
               </h1>
               <p className="mt-1 text-[16px] text-fg-2 sm:text-[17px]">{sp.title}</p>
               <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-3">
                 <span className="inline-flex items-center gap-1">
-                  <MapPin size={13} className="text-tint" />
+                  <MapPin size={13} className="text-accent" />
                   {sp.city}
                   {region && (sp.city !== region.capital || region.slug !== "toshkent-shahri") && <span>· {region.name}</span>}
                 </span>
                 <Stars value={sp.rating} count={sp.reviewCount} size={13} />
               </p>
             </div>
-            <div className="flex shrink-0 gap-2 sm:pb-1">
-              <ShareButton title={`${sp.user.name} — ${sp.title}`} size="sm" />
+            <div className="hidden shrink-0 gap-2 sm:flex sm:pb-1">
+              <ShareButton title={`${sp.user.name} — ${sp.title}`} size="sm" variant="outline" />
             </div>
           </div>
 
-          <ul className="mt-5 flex flex-wrap gap-2">
+          <ul className="mt-5 flex flex-wrap items-center gap-2">
             {metaChips.map((m) => (
-              <li key={m.text} className="glass-weak glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-fg-2">
-                <m.icon size={13} className="text-tint" />
+              <li key={m.text} className="card-outline pill inline-flex min-h-8 items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-fg-2">
+                <m.icon size={13} className="text-accent" />
                 {m.text}
               </li>
             ))}
+            <li className="ml-auto sm:hidden">
+              <ShareButton title={`${sp.user.name} — ${sp.title}`} size="sm" variant="outline" />
+            </li>
           </ul>
         </div>
       </section>
@@ -270,9 +274,10 @@ export default async function SpecialistPage({ params }: { params: Params }) {
                   rating: r.rating,
                   text: r.text,
                   createdAt: r.createdAt.getTime(),
+                  authorId: r.authorId,
                   author: r.author,
                 }))}
-                highlightAuthorName={myReview ? viewer?.name : null}
+                highlightAuthorId={viewer?.id ?? null}
               />
             </div>
           </section>
@@ -283,7 +288,7 @@ export default async function SpecialistPage({ params }: { params: Params }) {
           <div className="space-y-4 lg:sticky lg:top-28">
             <div className="glass-strong animate-fade-up p-5 sm:p-6" style={{ animationDelay: "60ms" }}>
               <p className="text-[12px] font-semibold uppercase tracking-wide text-fg-3">Narx</p>
-              <p className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</p>
+              <p className="mt-1 font-display text-[28px] font-semibold leading-tight tracking-tight text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</p>
               <p className="mt-1 text-[13px] text-fg-3">
                 {sp.priceFrom || sp.priceTo ? "Yakuniy narx loyiha hajmiga qarab kelishiladi." : "Narx loyihaga qarab belgilanadi."}
               </p>
@@ -294,7 +299,7 @@ export default async function SpecialistPage({ params }: { params: Params }) {
                     <Settings size={18} /> Profilni tahrirlash
                   </ButtonLink>
                 ) : (
-                  <ButtonLink href={`/buyurtma/${sp.id}`} size="lg" className="w-full">
+                  <ButtonLink href={`/buyurtma/${sp.id}`} variant="accent" size="lg" className="w-full">
                     Buyurtma berish <ArrowRight size={18} />
                   </ButtonLink>
                 )}
@@ -305,15 +310,15 @@ export default async function SpecialistPage({ params }: { params: Params }) {
 
               <ul className="mt-5 grid grid-cols-3 divide-x divide-hairline border-t border-hairline pt-4 text-center">
                 <li>
-                  <p className="text-[17px] font-bold text-fg">{sp.rating > 0 ? sp.rating.toFixed(1) : "—"}</p>
+                  <p className="font-display text-[17px] font-semibold text-fg">{sp.rating > 0 ? sp.rating.toFixed(1) : "—"}</p>
                   <p className="text-[11px] text-fg-3">Reyting</p>
                 </li>
                 <li>
-                  <p className="text-[17px] font-bold text-fg">{sp.reviewCount}</p>
+                  <p className="font-display text-[17px] font-semibold text-fg">{sp.reviewCount}</p>
                   <p className="text-[11px] text-fg-3">Sharh</p>
                 </li>
                 <li>
-                  <p className="text-[17px] font-bold text-fg">{sp.portfolio.length}</p>
+                  <p className="font-display text-[17px] font-semibold text-fg">{sp.portfolio.length}</p>
                   <p className="text-[11px] text-fg-3">Ish</p>
                 </li>
               </ul>

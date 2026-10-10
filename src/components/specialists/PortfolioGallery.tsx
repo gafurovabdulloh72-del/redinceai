@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ArrowUpRight, ChevronLeft, ChevronRight, ImageIcon, Images, Link2, Play, X } from "lucide-react";
 import { EmptyState } from "@/components/ui";
 import { SafeImage } from "./SafeImage";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
 
 export interface GalleryItem {
@@ -107,7 +108,7 @@ export function PortfolioGallery({ items }: { items: GalleryItem[] }) {
 
           if (item.type === "link") {
             return (
-              <a key={item.id} href={item.url} target="_blank" rel="noreferrer noopener" className={tileCls} aria-label={`${item.title} — yangi oynada ochish`}>
+              <a key={item.id} href={item.url} target="_blank" rel="noreferrer noopener" className={tileCls} aria-label={`${item.title} — yangi oynada ochiladi`}>
                 {inner}
               </a>
             );
@@ -149,23 +150,22 @@ function Lightbox({
   const item = items[index];
   const total = items.length;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const restoreRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [broken, setBroken] = useState(false);
 
   const prev = useCallback(() => onNavigate((index - 1 + total) % total), [index, total, onNavigate]);
   const next = useCallback(() => onNavigate((index + 1) % total), [index, total, onNavigate]);
 
+  // Fokus dialog ichida qoladi (Tab aylanadi), yopilganda avvalgi elementga qaytadi
+  useFocusTrap(dialogRef, mounted, closeRef);
+
   useEffect(() => {
     setMounted(true);
-    restoreRef.current = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = window.setTimeout(() => closeRef.current?.focus(), 30);
     return () => {
       document.body.style.overflow = prevOverflow;
-      window.clearTimeout(t);
-      restoreRef.current?.focus?.();
     };
   }, []);
 
@@ -188,10 +188,11 @@ function Lightbox({
 
   const node = (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={item.title}
-      className="glass-strong fixed inset-0 z-[100] flex flex-col !rounded-none !border-0"
+      className="card-elevated fixed inset-0 z-[100] flex flex-col !rounded-none !border-0"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -217,7 +218,7 @@ function Lightbox({
             type="button"
             onClick={onClose}
             aria-label="Yopish (Esc)"
-            className="glass glass-pill glass-hover flex h-10 w-10 items-center justify-center text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/60"
+            className="card pill card-hover flex h-10 w-10 items-center justify-center text-fg"
           >
             <X size={18} />
           </button>
@@ -232,7 +233,7 @@ function Lightbox({
               type="button"
               onClick={prev}
               aria-label="Oldingi"
-              className="glass glass-pill glass-hover absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:left-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/60"
+              className="card pill card-hover absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:left-6"
             >
               <ChevronLeft size={20} />
             </button>
@@ -240,7 +241,7 @@ function Lightbox({
               type="button"
               onClick={next}
               aria-label="Keyingi"
-              className="glass glass-pill glass-hover absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:right-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/60"
+              className="card pill card-hover absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:right-6"
             >
               <ChevronRight size={20} />
             </button>

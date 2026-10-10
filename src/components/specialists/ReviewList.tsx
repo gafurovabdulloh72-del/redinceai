@@ -1,20 +1,22 @@
 import { MessageSquareText } from "lucide-react";
 import { Avatar, EmptyState, Stars } from "@/components/ui";
-import { timeAgo } from "@/lib/utils";
+import { formatDateTime, timeAgo } from "@/lib/utils";
 
 export interface ReviewListItem {
   id: string;
   rating: number;
   text: string;
   createdAt: Date | number | string;
+  /** Muallif identifikatori — "Siz" belgisi ism emas, id bo'yicha aniqlanadi */
+  authorId?: string;
   author: { name: string; avatarUrl: string | null };
 }
 
 /**
  * Sharhlar ro'yxati (server va client'da ishlaydi).
- * Har bir sharh — alohida shisha karta: avatar, ism, yulduzlar, vaqt va matn.
+ * Har bir sharh — alohida karta: avatar, ism, yulduzlar, vaqt va matn.
  */
-export function ReviewList({ reviews, highlightAuthorName }: { reviews: ReviewListItem[]; highlightAuthorName?: string | null }) {
+export function ReviewList({ reviews, highlightAuthorId }: { reviews: ReviewListItem[]; highlightAuthorId?: string | null }) {
   if (reviews.length === 0) {
     return (
       <EmptyState
@@ -28,7 +30,7 @@ export function ReviewList({ reviews, highlightAuthorName }: { reviews: ReviewLi
   return (
     <ul className="space-y-3">
       {reviews.map((r, i) => {
-        const mine = highlightAuthorName != null && r.author.name === highlightAuthorName;
+        const mine = highlightAuthorId != null && r.authorId === highlightAuthorId;
         return (
           <li
             key={r.id}
@@ -36,14 +38,16 @@ export function ReviewList({ reviews, highlightAuthorName }: { reviews: ReviewLi
             style={{ animationDelay: `${Math.min(i, 6) * 60}ms`, animationDuration: "0.5s" }}
           >
             <div className="flex items-start gap-3">
-              <Avatar name={r.author.name} src={r.author.avatarUrl} size={40} />
+              <Avatar name={r.author.name} src={r.author.avatarUrl} size={40} decorative />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <p className="flex items-center gap-2 truncate text-[15px] font-semibold text-fg">
                     {r.author.name}
                     {mine && <span className="rounded-full bg-tint-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tint">Siz</span>}
                   </p>
-                  <time className="text-[12px] text-fg-3">{timeAgo(r.createdAt)}</time>
+                  <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
+                    {timeAgo(r.createdAt)}
+                  </time>
                 </div>
                 <div className="mt-1">
                   <Stars value={r.rating} size={13} showValue={false} />

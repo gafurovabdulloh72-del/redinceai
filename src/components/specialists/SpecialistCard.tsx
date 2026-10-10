@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight, BadgeCheck, MapPin } from "lucide-react";
-import { Avatar, Stars } from "@/components/ui";
+import { ArrowUpRight, MapPin } from "lucide-react";
+import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { SafeImage } from "./SafeImage";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import { formatPriceRange, hashHue } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
@@ -11,55 +12,47 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
+  const gradient = `linear-gradient(135deg, hsl(${hue} 60% 62%), ${cat?.accent ?? "#ff5a36"} 70%)`;
 
   return (
     <Link href={`/mutaxassislar/${sp.slug}`} className="card card-hover group block overflow-hidden">
-      {/* Muqova */}
+      {/* Muqova — rasm yuklanmasa gradient (buzilgan rasm belgisi ko'rinmaydi) */}
       <div className="relative aspect-[16/10] overflow-hidden bg-surface-3">
-        {sp.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={sp.coverUrl}
-            alt=""
-            loading={priority ? "eager" : "lazy"}
-            className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
-          />
-        ) : (
-          <div
-            className="h-full w-full transition duration-700 group-hover:scale-[1.04]"
-            style={{
-              background: `linear-gradient(135deg, hsl(${hue} 60% 62%), ${cat?.accent ?? "#ff5a36"} 70%)`,
-            }}
-          />
-        )}
+        <SafeImage
+          src={sp.coverUrl ?? undefined}
+          alt=""
+          loading={priority ? "eager" : "lazy"}
+          className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
+          fallback={<div className="absolute inset-0 transition duration-700 ease-out group-hover:scale-[1.04]" style={{ background: gradient }} />}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0" />
 
-        {/* Kategoriya chip */}
+        {/* Kategoriya chip — blur'siz, qattiq yuza */}
         {cat && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-ink/75 px-2.5 py-1 text-[11px] font-semibold text-ink-fg">
             <CategoryIcon icon={cat.icon} size={12} />
             {cat.name}
           </span>
         )}
         {!sp.isAvailable && (
-          <span className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">Band</span>
+          <span className="absolute right-3 top-3 rounded-full bg-ink/75 px-2.5 py-1 text-[11px] font-semibold text-ink-fg/90">Band</span>
         )}
 
         {/* Avatar + ism (muqova ustida) */}
         <div className="absolute inset-x-4 bottom-3 flex items-end justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={40} className="!ring-white/60" />
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={40} decorative className="!ring-white/60" />
             <div className="min-w-0">
               <h3 className="flex items-center gap-1 truncate font-display text-[15px] font-semibold text-white">
                 <span className="truncate">{sp.user.name}</span>
-                {sp.isVerified && <BadgeCheck size={15} className="shrink-0 fill-accent text-white" aria-label="Tasdiqlangan" />}
+                {sp.isVerified && <VerifiedBadge size={15} />}
               </h3>
               <p className="flex items-center gap-1 text-[11px] text-white/80">
                 <MapPin size={11} /> {place}
               </p>
             </div>
           </div>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black opacity-0 transition duration-300 group-hover:opacity-100">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-fg opacity-0 transition duration-300 group-hover:opacity-100">
             <ArrowUpRight size={16} />
           </span>
         </div>

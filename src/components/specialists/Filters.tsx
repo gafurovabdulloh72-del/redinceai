@@ -3,9 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpDown, BadgeCheck, Search, SlidersHorizontal, X } from "lucide-react";
-import { Button, Spinner } from "@/components/ui";
+import { ArrowUpDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, EXPERIENCE_LEVELS, REGIONS } from "@/lib/constants";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -134,8 +135,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition active:scale-[0.97]",
-        active ? "glass-tint" : "bg-fg/5 text-fg-2 hover:bg-fg/9 hover:text-fg",
+        "inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition active:scale-[0.97]",
+        active ? "btn-ink" : "bg-fg/5 text-fg-2 hover:bg-fg/9 hover:text-fg",
       )}
     >
       {children}
@@ -147,28 +148,9 @@ function Count({ n, active }: { n: number; active: boolean }) {
   return <span className={cn("text-[11px] tabular-nums", active ? "opacity-80" : "text-fg-4")}>{n}</span>;
 }
 
-/** iOS uslubidagi switch */
+/** Studio switch: 44×26 pill, yoqilganda "siyoh" rangda (globals.css → .switch) */
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full transition-colors duration-300",
-        checked ? "bg-ios-green" : "bg-fg/15",
-      )}
-    >
-      <span
-        className={cn(
-          "absolute left-[2px] top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.25),0_1px_1px_rgba(0,0,0,0.08)] transition-transform duration-300",
-          checked && "translate-x-5",
-        )}
-      />
-    </button>
-  );
+  return <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className="switch" />;
 }
 
 function ActiveBadge({ n }: { n: number }) {
@@ -323,9 +305,9 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
           onPointerUp={price.flush}
           onKeyUp={price.flush}
           aria-valuetext={priceNum > 0 ? `${formatPrice(priceNum, { compact: true })} gacha` : "Cheklanmagan"}
-          style={{ backgroundImage: `linear-gradient(to right, var(--tint) ${pct}%, transparent ${pct}%)` }}
+          style={{ backgroundImage: `linear-gradient(to right, var(--accent) ${pct}%, transparent ${pct}%)` }}
           className={cn(
-            "h-1.5 w-full cursor-pointer appearance-none rounded-full bg-fg/10 outline-none focus-visible:ring-4 focus-visible:ring-tint/20",
+            "h-1.5 w-full cursor-pointer appearance-none rounded-full bg-fg/10",
             "[&::-webkit-slider-thumb]:h-[26px] [&::-webkit-slider-thumb]:w-[26px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_0.5px_rgba(0,0,0,0.08)] [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:active:scale-110",
             "[&::-moz-range-thumb]:h-[26px] [&::-moz-range-thumb]:w-[26px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_2px_8px_rgba(0,0,0,0.28)]",
           )}
@@ -350,7 +332,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       {/* Tasdiqlangan */}
       <div className="glass-weak flex items-center justify-between gap-3 !rounded-[18px] px-3.5 py-2.5 !shadow-none">
         <span className="flex items-center gap-2.5">
-          <BadgeCheck size={20} className="shrink-0 fill-ios-blue text-white" />
+          <VerifiedBadge size={20} />
           <span>
             <span className="block text-[14px] font-medium text-fg">Tasdiqlanganlar</span>
             <span className="block text-[12px] text-fg-3">Tekshiruvdan o'tgan profillar</span>
@@ -403,11 +385,15 @@ export function MobileFilters({
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const { reset, activeCount } = useUrlFilters();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fokus varaq ichida qoladi, yopilganda "Filtrlar" tugmasiga qaytadi
+  useFocusTrap(sheetRef, mounted && open);
 
   useEffect(() => {
     if (!open) return;
@@ -435,9 +421,10 @@ export function MobileFilters({
         open &&
         createPortal(
           <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-labelledby="sp-filters-title">
-            <button type="button" aria-label="Yopish" onClick={close} className="absolute inset-0 bg-black/35 backdrop-blur-[3px]" />
+            <button type="button" aria-label="Yopish" onClick={close} className="absolute inset-0 bg-black/40" />
             <div
-              className="glass-strong absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col !rounded-b-none !rounded-t-[28px] animate-fade-up"
+              ref={sheetRef}
+              className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col !rounded-b-none !rounded-t-[28px] animate-fade-up"
               style={{ animationDuration: "0.35s" }}
             >
               <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-fg/15" />
