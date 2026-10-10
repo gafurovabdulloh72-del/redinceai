@@ -15,6 +15,16 @@ const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || "file:
 const authToken = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || undefined;
 process.env.DATABASE_URL = url;
 
+// Vercel'da fayl bazasi ishlamaydi (read-only serverless) — aniq xabar bilan to'xtaymiz
+if (process.env.VERCEL && url.startsWith("file:")) {
+  const seen = Object.keys(process.env).filter((k) => /TURSO|DATABASE|LIBSQL/i.test(k));
+  console.error(
+    "✗ Vercel'da masofaviy baza kerak. DATABASE_URL yoki TURSO_DATABASE_URL topilmadi.\n" +
+      "  Vercel → Storage → Turso ni loyihaga ulang (Connect) yoki env'larni qo'lda kiriting.\n" +
+      `  Topilgan env nomlari: ${seen.length ? seen.join(", ") : "(yo'q)"}`,
+  );
+  process.exit(1);
+}
 if (url.startsWith("file:")) mkdirSync(path.dirname(url.slice(5)), { recursive: true });
 if (process.env.UPLOAD_DIR) mkdirSync(process.env.UPLOAD_DIR, { recursive: true });
 

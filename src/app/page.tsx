@@ -1,31 +1,32 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, MessageSquareText, Play, Sparkles } from "lucide-react";
-import { UzbekistanMap } from "@/components/map/UzbekistanMap";
-import { HomeMapSection } from "@/components/map/HomeMapSection";
+import { ArrowRight, BadgeCheck, Compass, MessageSquareText, Play, Sparkles } from "lucide-react";
+import { HeroShowcase } from "@/components/home/HeroShowcase";
+import { RegionGrid } from "@/components/home/RegionGrid";
+import { CategoryBento } from "@/components/home/CategoryBento";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
-import { CATEGORIES, REGIONS } from "@/lib/constants";
-import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
+import { CATEGORIES } from "@/lib/constants";
+import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats, listSpecialists } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [regionStats, categoryStats, featured, site] = await Promise.all([
+  const [regionStats, categoryStats, featured, site, leadTop] = await Promise.all([
     getRegionStats(),
     getCategoryStats(),
     getFeaturedSpecialists(6),
     getSiteStats(),
+    listSpecialists({ category: CATEGORIES[0].slug, sort: "rating", page: 1, limit: 3 }),
   ]);
-  const counts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
 
   return (
     <>
       {/* ================= HERO ================= */}
       <section className="container-x">
-        <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-6">
+        <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-6">
-            <span className="eyebrow">O'zbekiston ijodkorlar xaritasi</span>
+            <span className="eyebrow">O'zbekiston ijodkorlar platformasi</span>
             <h1 className="display-xl mt-6 text-[36px] text-fg min-[420px]:text-[40px] sm:text-[58px] lg:text-[64px] xl:text-[76px]">
               Hududingizdagi
               <br />
@@ -34,25 +35,26 @@ export default async function HomePage() {
               toping
             </h1>
             <p className="mt-7 max-w-lg text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">
-              Videograf, montajor, dizayner va boshqa ijodkorlar — 14 ta hudud bo'ylab. Xaritada viloyatni bosing, portfolio va narxlarni ko'ring, to'g'ridan-to'g'ri buyurtma bering.
+              Videograf, montajor, dizayner va boshqa ijodkorlar — 14 ta hudud bo'ylab. Hududingizni tanlang, portfolio va narxlarni solishtiring, to'g'ridan-to'g'ri buyurtma bering.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <ButtonLink href="/xarita" variant="accent" size="lg" className="sm:min-w-[210px]">
-                <MapPinned size={18} /> Xaritani ochish
+              <ButtonLink href="/mutaxassislar" variant="accent" size="lg" className="sm:min-w-[210px]">
+                Mutaxassis topish <ArrowRight size={18} />
               </ButtonLink>
-              <ButtonLink href="/mutaxassislar" variant="outline" size="lg">
-                Mutaxassislar ro'yxati <ArrowRight size={16} />
+              <ButtonLink href="#hududlar" variant="outline" size="lg">
+                <Compass size={17} /> Hududlar bo'yicha
               </ButtonLink>
             </div>
 
             {/* Ishonch qatori */}
             <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
               <div className="flex items-center">
-                <div className="flex -space-x-2.5">
-                  {featured.slice(0, 4).map((sp) => (
-                    <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={36} className="!ring-bg" />
+                <div className="flex -space-x-2">
+                  {featured.slice(0, 3).map((sp) => (
+                    <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={28} decorative className="!ring-bg" />
                   ))}
+                  <span className="flex h-7 items-center rounded-full bg-ink px-2 text-[11px] font-bold text-ink-fg ring-2 ring-bg">+{Math.max(0, site.specialists - 3)}</span>
                 </div>
                 <div className="ml-3 leading-tight">
                   <p className="font-display text-[15px] font-semibold text-fg">{site.specialists}+ mutaxassis</p>
@@ -69,24 +71,9 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Xarita */}
-          <div className="relative lg:col-span-6">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[70%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-[90px] dark:bg-accent/20" />
-            <UzbekistanMap counts={counts} variant="hero" linkTo="mutaxassislar" showLabels={false} className="w-full py-4 lg:-mr-6 lg:w-[112%] lg:max-w-none" />
-            <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-2 sm:bottom-4 sm:left-4">
-              <span className="card flex items-center gap-2 !rounded-full px-3 py-1.5 text-[11px] font-semibold text-fg-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-70 animate-pulse-ring" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-                </span>
-                Jonli xarita — hududni bosing
-              </span>
-            </div>
-            <div className="pointer-events-none absolute right-2 top-2 hidden items-center gap-1.5 sm:flex">
-              <span className="text-[11px] font-semibold text-fg-3">kam</span>
-              <span className="h-2 w-24 rounded-full" style={{ background: "linear-gradient(90deg, var(--surface-3), var(--accent))" }} />
-              <span className="text-[11px] font-semibold text-fg-3">ko'p</span>
-            </div>
+          {/* Ijodkorlar kollaji */}
+          <div className="relative pb-5 lg:col-span-6">
+            <HeroShowcase items={featured.slice(0, 3)} total={site.specialists} />
           </div>
         </div>
       </section>
@@ -104,18 +91,23 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= INTERAKTIV XARITA ================= */}
-      <section id="xarita" className="container-x mt-20 sm:mt-28">
+      {/* ================= HUDUDLAR ================= */}
+      <section id="hududlar" className="container-x mt-20 scroll-mt-28 sm:mt-28">
         <SectionHeading
-          eyebrow="Interaktiv xarita"
+          eyebrow="Hududlar"
           title={
             <>
-              Hududni tanlang — <span className="accent-serif text-accent">mutaxassislar</span> chiqadi
+              Shahringiz bo'yicha <span className="accent-serif text-accent">qidiring</span>
             </>
           }
-          description="14 ta hudud. Rang qancha to'q bo'lsa, u yerda shuncha ko'p ijodkor bor. Bosing — yo'nalishlar bo'yicha taqsimot va ro'yxat ochiladi."
+          description="14 ta hudud — har birida nechta ijodkor borligi jonli hisoblanadi. Hududni bosing, ro'yxat shu hudud bo'yicha ochiladi."
+          action={
+            <ButtonLink href="/mutaxassislar" variant="outline" size="sm">
+              Butun O'zbekiston <ArrowRight size={14} />
+            </ButtonLink>
+          }
         />
-        <HomeMapSection stats={regionStats} total={site.specialists} />
+        <RegionGrid stats={regionStats} />
       </section>
 
       {/* ================= YO'NALISHLAR (bento) ================= */}
@@ -130,37 +122,7 @@ export default async function HomePage() {
             </ButtonLink>
           }
         />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {CATEGORIES.map((c, i) => (
-            <Link
-              key={c.slug}
-              href={`/mutaxassislar?category=${c.slug}`}
-              className={`card card-hover group relative overflow-hidden p-5 sm:p-6 ${i === 0 ? "col-span-2 lg:row-span-2" : ""}`}
-            >
-              <span
-                className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full opacity-[0.14] blur-3xl transition-opacity duration-500 group-hover:opacity-30"
-                style={{ background: c.accent }}
-              />
-              <span
-                className="flex h-12 w-12 items-center justify-center rounded-[14px] text-white transition-transform duration-500 group-hover:-rotate-6"
-                style={{ background: c.accent, boxShadow: `0 12px 28px -12px ${c.accent}` }}
-              >
-                <CategoryIcon icon={c.icon} size={22} />
-              </span>
-              <h3 className={`mt-5 font-display font-semibold text-fg ${i === 0 ? "text-[24px] sm:text-[30px]" : "text-[17px]"}`}>{c.name}</h3>
-              <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-fg-3">{c.description}</p>
-              <div className="mt-5 flex items-center justify-between">
-                <span className="font-display text-[22px] font-semibold text-fg">
-                  {categoryStats[c.slug] ?? 0}
-                  <span className="ml-1 text-[12px] font-medium text-fg-3">mutaxassis</span>
-                </span>
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg">
-                  <ArrowUpRight size={15} />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <CategoryBento categoryStats={categoryStats} regionStats={regionStats} leadTop={leadTop.items} />
       </section>
 
       {/* ================= TAVSIYA ETILGANLAR ================= */}
@@ -191,7 +153,7 @@ export default async function HomePage() {
         <SectionHeading eyebrow="Qanday ishlaydi" title="Uch qadam — va mutaxassis topildi" />
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            { icon: MapPinned, n: "01", title: "Hududni tanlang", text: "Xaritada viloyatni bosing yoki shaharni qidiring. Yaqin atrofdagi ijodkorlar chiqadi." },
+            { icon: Compass, n: "01", title: "Hududni tanlang", text: "Shahringizni tanlang yoki ro'yxatda yo'nalish va narx bo'yicha filtrlang. Yaqin atrofdagi ijodkorlar chiqadi." },
             { icon: Play, n: "02", title: "Portfolioni ko'ring", text: "Ishlar, narxlar, tajriba va haqiqiy mijozlar sharhlari — hammasi bitta sahifada." },
             { icon: MessageSquareText, n: "03", title: "Buyurtma bering", text: "Loyihani yozing — mutaxassis qabul qiladi va to'g'ridan-to'g'ri bog'lanadi." },
           ].map((s) => (
@@ -207,23 +169,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= HUDUDLAR ================= */}
-      <section className="container-x mt-20 sm:mt-28">
-        <SectionHeading eyebrow="Hududlar" title="Shahringiz bo'yicha qidiring" />
-        <div className="flex flex-wrap gap-2.5">
-          {REGIONS.map((r) => (
-            <Link
-              key={r.slug}
-              href={`/mutaxassislar?region=${r.slug}`}
-              className="card card-hover inline-flex items-center gap-2 !rounded-full px-4 py-2 text-[14px] font-medium text-fg"
-            >
-              {r.short}
-              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent">{regionStats[r.slug]?.total ?? 0}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* ================= CTA ================= */}
       <section className="container-x mt-20 sm:mt-28">
         <div className="grain relative overflow-hidden rounded-[32px] bg-ink px-6 py-14 text-ink-fg sm:px-12 sm:py-20">
@@ -233,7 +178,7 @@ export default async function HomePage() {
             <div className="lg:col-span-8">
               <span className="eyebrow !text-ink-fg/60">Mutaxassislar uchun</span>
               <h2 className="display-xl mt-5 text-[34px] sm:text-[48px] lg:text-[56px]">
-                Siz ijodkormisiz? <span className="accent-serif text-accent">Xaritada</span> paydo bo'ling.
+                Siz ijodkormisiz? <span className="accent-serif text-accent">Ro'yxatda</span> paydo bo'ling.
               </h2>
               <p className="mt-5 max-w-xl text-[15px] text-ink-fg/70 sm:text-[17px]">
                 Bepul ro'yxatdan o'ting, portfolio joylang, narxlaringizni belgilang. Buyurtmalar to'g'ridan-to'g'ri kabinetingizga keladi.

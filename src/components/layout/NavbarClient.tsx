@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Compass, Home, LayoutDashboard, LogOut, Map, Settings, ShieldCheck, Users, UserRound } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Compass, Home, LayoutDashboard, LogOut, MapPin, ShieldCheck, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -18,10 +18,12 @@ export interface NavUser {
 }
 
 const NAV = [
-  { href: "/", label: "Bosh sahifa", icon: Home, exact: true },
-  { href: "/xarita", label: "Xarita", icon: Map },
-  { href: "/mutaxassislar", label: "Mutaxassislar", icon: Users },
+  { href: "/", label: "Bosh sahifa", icon: Home, exact: true, desktopOnly: false },
+  { href: "/mutaxassislar", label: "Mutaxassislar", icon: Users, exact: false, desktopOnly: false },
+  { href: "/#hududlar", label: "Hududlar", icon: MapPin, exact: true, desktopOnly: true },
 ];
+
+const ROLE_LABEL = { admin: "Administrator", specialist: "Mutaxassis", client: "Mijoz" } as const;
 
 export function NavbarClient({ user }: { user: NavUser | null }) {
   const pathname = usePathname();
@@ -29,6 +31,7 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -44,11 +47,49 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
     const onDown = (e: PointerEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
     window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    // Birinchi menyu bandiga fokus
+    const t = window.setTimeout(() => menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus(), 20);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(t);
+    };
   }, [open]);
 
-  const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
+  /** Menyu ichida ↑/↓ bilan yurish, Home/End */
+  const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      items[(i + 1) % items.length]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(i - 1 + items.length) % items.length]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      items[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      items[items.length - 1]?.focus();
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
+
+  const isActive = (href: string, exact?: boolean) => {
+    if (href.includes("#")) return false;
+    return exact ? pathname === href : pathname.startsWith(href);
+  };
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -89,38 +130,39 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle className="hidden sm:flex" />
+            <ThemeToggle />
             {user ? (
-              <div className="relative" ref={menuRef}>
+              <div className="relative" ref={menuRef} onKeyDown={onMenuKey}>
                 <button
+                  ref={triggerRef}
                   type="button"
                   onClick={() => setOpen((v) => !v)}
-                  className="card card-hover flex h-11 items-center gap-2 !rounded-full pl-1 pr-3"
+                  className="card card-hover flex h-10 items-center gap-2 !rounded-full pl-1 pr-1 sm:h-11 sm:pr-3"
                   aria-haspopup="menu"
                   aria-expanded={open}
+                  aria-label={`${user.name} — hisob menyusi`}
                 >
-                  <Avatar name={user.name} src={user.avatarUrl} size={34} />
+                  <Avatar name={user.name} src={user.avatarUrl} size={32} decorative />
                   <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg sm:block">{user.name.split(" ")[0]}</span>
                 </button>
 
                 {open && (
                   <div
                     role="menu"
+                    aria-label="Hisob"
                     className="card-elevated absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden !rounded-[20px] p-1.5 animate-fade-up"
                     style={{ animationDuration: "0.22s" }}
                   >
                     <div className="px-3 py-2.5">
                       <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
-                      <p className="text-xs text-fg-3">
-                        {user.role === "admin" ? "Administrator" : user.role === "specialist" ? "Mutaxassis" : "Mijoz"}
-                      </p>
+                      <p className="text-xs text-fg-3">{ROLE_LABEL[user.role]}</p>
                     </div>
                     <div className="my-1 h-px bg-line" />
                     <MenuItem href="/kabinet" icon={LayoutDashboard}>Kabinet</MenuItem>
                     {user.role === "specialist" && user.specialistSlug && (
-                      <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Mening profilim</MenuItem>
+                      <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Ommaviy profil</MenuItem>
                     )}
-                    <MenuItem href="/kabinet/profil" icon={Settings}>Sozlamalar</MenuItem>
+                    <MenuItem href="/kabinet/profil" icon={UserRound}>Profil</MenuItem>
                     {user.role === "admin" && <MenuItem href="/admin" icon={ShieldCheck}>Admin panel</MenuItem>}
                     <div className="my-1 h-px bg-line" />
                     <button
@@ -139,7 +181,7 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
                 <Link href="/auth/kirish" className="hidden h-11 items-center rounded-full px-4 text-[14px] font-semibold text-fg-2 transition hover:text-fg sm:inline-flex">
                   Kirish
                 </Link>
-                <Link href="/auth/royxat" className="btn-ink inline-flex h-11 items-center rounded-full px-5 text-[14px] font-semibold">
+                <Link href="/auth/royxat" className="btn-ink inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold sm:h-11 sm:px-5">
                   Boshlash
                 </Link>
               </>
@@ -154,15 +196,19 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
         style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
         aria-label="Mobil navigatsiya"
       >
-        {[...NAV, { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false }].map((n) => {
+        {[
+          ...NAV.filter((n) => !n.desktopOnly),
+          { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false, desktopOnly: false },
+        ].map((n) => {
           const active = isActive(n.href, n.exact);
           const Icon = n.icon;
           return (
             <Link
               key={n.href}
               href={n.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-w-[64px] flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[10px] font-semibold transition",
+                "flex min-w-[72px] flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[10px] font-semibold transition",
                 active ? "btn-ink" : "text-fg-3",
               )}
             >

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Star, type LucideIcon } from "lucide-react";
 import { cn, hashHue, initials } from "@/lib/utils";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
@@ -83,11 +83,12 @@ export function Badge({
     neutral: "bg-fg/6 text-fg-2",
     accent: "bg-accent-soft text-accent",
     ink: "bg-ink text-ink-fg",
-    blue: "bg-ios-blue/12 text-ios-blue",
+    /* "blue" moslik uchun qoldirilgan — endi accent-2 (binafsha) ohangida */
+    blue: "bg-accent-2-soft text-accent-2",
     green: "bg-ios-green/14 text-[#15803d] dark:text-ios-green",
     orange: "bg-ios-orange/14 text-[#c2410c] dark:text-ios-orange",
     pink: "bg-ios-pink/12 text-ios-pink",
-    purple: "bg-ios-purple/14 text-[#7e22ce] dark:text-ios-purple",
+    purple: "bg-accent-2-soft text-accent-2",
     glass: "border border-line bg-surface text-fg-2",
   };
   return (
@@ -100,6 +101,11 @@ export function Badge({
   );
 }
 
+/** Tasdiqlangan profil belgisi — butun ilovada bitta rang (accent) */
+export function VerifiedBadge({ size = 16, className, label = "Tasdiqlangan profil" }: { size?: number; className?: string; label?: string }) {
+  return <BadgeCheck size={size} className={cn("shrink-0 fill-accent text-white", className)} aria-label={label} role="img" />;
+}
+
 /* ------------------------------------------------------------------ */
 /* Avatar                                                              */
 /* ------------------------------------------------------------------ */
@@ -108,17 +114,21 @@ export function Avatar({
   src,
   size = 40,
   className,
+  decorative = false,
 }: {
   name: string;
   src?: string | null;
   size?: number;
   className?: string;
+  /** Yonida ism ko'rsatilgan bo'lsa — ekran o'quvchi uchun ikki marta o'qilmasin */
+  decorative?: boolean;
 }) {
   const hue = hashHue(name);
   return (
     <span
-      aria-label={name}
-      role="img"
+      aria-label={decorative ? undefined : name}
+      aria-hidden={decorative || undefined}
+      role={decorative ? undefined : "img"}
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-display font-semibold text-white ring-2 ring-surface shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)]",
         className,
@@ -144,15 +154,16 @@ export function Avatar({
 /* Stars                                                               */
 /* ------------------------------------------------------------------ */
 export function Stars({ value, size = 14, showValue = true, count }: { value: number; size?: number; showValue?: boolean; count?: number }) {
+  const label = value > 0 ? `Reyting: 5 dan ${value.toFixed(1)}${count != null ? `, ${count} ta sharh` : ""}` : "Hali baholanmagan";
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex gap-px">
+    <span className="inline-flex items-center gap-1.5" role="img" aria-label={label}>
+      <span className="inline-flex gap-px" aria-hidden="true">
         {[1, 2, 3, 4, 5].map((i) => (
           <Star key={i} size={size} className={cn(i <= Math.round(value) ? "fill-accent-3 text-accent-3" : "text-fg-4")} />
         ))}
       </span>
       {showValue && (
-        <span className="text-xs font-semibold text-fg-2">
+        <span className="text-xs font-semibold text-fg-2" aria-hidden="true">
           {value > 0 ? value.toFixed(1) : "—"}
           {count != null && <span className="font-normal text-fg-3"> ({count})</span>}
         </span>
@@ -195,6 +206,46 @@ export function SectionHeading({
       </div>
       {action}
     </div>
+  );
+}
+
+/**
+ * Sahifa sarlavhasi — bosh sahifadagi uslub: eyebrow + display-xl + (ixtiyoriy) accent-serif so'z.
+ * Ro'yxat, kabinet, buyurtma va auth sahifalarida bir xil ishlatiladi.
+ */
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  action,
+  size = "md",
+  className,
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  /** md — kabinet/auth (34/44px), lg — ommaviy sahifalar (34/48/56px) */
+  size?: "md" | "lg";
+  className?: string;
+}) {
+  return (
+    <header className={cn("flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between", className)}>
+      <div className="min-w-0 max-w-3xl">
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+        <h1
+          className={cn(
+            "display-xl text-fg",
+            eyebrow ? "mt-5" : undefined,
+            size === "lg" ? "text-[34px] sm:text-[48px] lg:text-[56px]" : "text-[32px] sm:text-[40px] lg:text-[44px]",
+          )}
+        >
+          {title}
+        </h1>
+        {description && <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{description}</p>}
+      </div>
+      {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
+    </header>
   );
 }
 
@@ -254,6 +305,7 @@ export function InsetGroup({ title, children, className }: { title?: string; chi
 }
 
 export function InsetRow({ label, value, icon: Icon, href }: { label: string; value?: ReactNode; icon?: LucideIcon; href?: string }) {
+  const external = !!href && /^https?:\/\//i.test(href);
   const inner = (
     <>
       {Icon && (
@@ -261,13 +313,16 @@ export function InsetRow({ label, value, icon: Icon, href }: { label: string; va
           <Icon size={15} />
         </span>
       )}
-      <span className="flex-1 text-[15px] text-fg">{label}</span>
+      <span className="flex-1 text-[15px] text-fg">
+        {label}
+        {external && <span className="sr-only"> (yangi oynada)</span>}
+      </span>
       {value && <span className="text-[15px] text-fg-3">{value}</span>}
     </>
   );
-  const cls = "flex items-center gap-3 px-4 py-3";
+  const cls = "flex min-h-12 items-center gap-3 px-4 py-3";
   return href ? (
-    <a href={href} target="_blank" rel="noreferrer" className={cn(cls, "transition hover:bg-fg/4")}>
+    <a href={href} target={external ? "_blank" : undefined} rel={external ? "noreferrer noopener" : undefined} className={cn(cls, "transition hover:bg-fg/4")}>
       {inner}
     </a>
   ) : (

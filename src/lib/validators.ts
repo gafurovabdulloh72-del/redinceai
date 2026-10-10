@@ -51,12 +51,13 @@ const phone = z
   .string()
   .trim()
   .regex(/^\+?[\d\s()-]{9,16}$/, "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)");
+export const optionalPhone = phone.optional().or(z.literal(""));
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
   email: z.string().trim().toLowerCase().email("Email noto'g'ri"),
   password: z.string().min(6, "Parol kamida 6 ta belgi").max(100),
-  phone: phone.optional().or(z.literal("")),
+  phone: optionalPhone,
   role: z.enum(["client", "specialist"]).default("client"),
 });
 
@@ -65,16 +66,28 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Parolni kiriting"),
 });
 
+/** Faqat http(s) yoki o'zimizning /uploads/ yo'li — javascript:, data:, ftp: va h.k. rad etiladi */
+export const HTTP_OR_UPLOAD_RE = /^(https?:\/\/[^\s]+|\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif))$/i;
+const URL_MSG = "Havola http:// yoki https:// bilan boshlanishi kerak";
+
+export const httpUrl = z.string().trim().max(500).refine((v) => HTTP_OR_UPLOAD_RE.test(v), URL_MSG);
+
 const optionalUrl = z
   .string()
   .trim()
   .max(300)
-  .refine((v) => v === "" || /^https?:\/\//i.test(v), "Havola http:// yoki https:// bilan boshlanishi kerak")
+  .refine((v) => v === "" || HTTP_OR_UPLOAD_RE.test(v), URL_MSG)
   .optional()
   .or(z.literal(""));
 
-export const specialistProfileSchema = z.object({
-  title: z.string().trim().min(5, "Sarlavha kamida 5 ta belgi").max(90),
+export const specialistProfileSchema = z
+  .object({
+  title: z
+    .string()
+    .trim()
+    .min(5, "Sarlavha kamida 5 ta belgi")
+    .max(90)
+    .refine((v) => !/—\s*yangi mutaxassis$/i.test(v), "Haqiqiy sarlavha yozing (masalan: To'y videografi)"),
   category: z.enum(categorySlugs),
   regionSlug: z.enum(regionSlugs),
   city: z.string().trim().min(2).max(60),
@@ -90,14 +103,25 @@ export const specialistProfileSchema = z.object({
   website: optionalUrl,
   coverUrl: optionalUrl,
   isAvailable: z.boolean().default(true),
-});
+  })
+  .refine((d) => d.priceTo == null || d.priceTo === 0 || d.priceTo >= d.priceFrom, {
+    message: "Maksimal narx minimaldan kam bo'lmasin",
+    path: ["priceTo"],
+  });
 
 export const portfolioItemSchema = z.object({
   title: z.string().trim().min(2).max(100),
   type: z.enum(["image", "video", "link"]),
-  url: z.string().trim().url("Havola noto'g'ri").max(500),
+  url: httpUrl,
   thumbnailUrl: optionalUrl,
   description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+/** Akkaunt ma'lumotlari (PATCH /api/profile) */
+export const accountSchema = z.object({
+  name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
+  phone: optionalPhone,
+  avatarUrl: optionalUrl,
 });
 
 export const orderSchema = z.object({

@@ -74,7 +74,7 @@ export const EXPERIENCE_LEVELS = [
 
 export const SITE = {
   name: "Redince",
-  tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",
+  tagline: "O'zbekiston ijodkorlar platformasi",
   description:
-    "Redince — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",
+    "Redince — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Hududingizni tanlang, portfolio va narxlarni solishtiring, to'g'ridan-to'g'ri buyurtma bering.",
 };

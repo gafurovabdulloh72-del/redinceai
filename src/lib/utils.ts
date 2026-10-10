@@ -25,7 +25,8 @@ function frac0(n: number) {
 export function formatPrice(amount: number | null | undefined, opts: { compact?: boolean } = {}) {
   if (amount == null) return "—";
   if (opts.compact) {
-    if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)} mln so'm`;
+    // Kasr ajratuvchi — vergul (formatNumber bilan bir xil): "1,5 mln so'm"
+    if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1).replace(".", ",")} mln so'm`;
     if (amount >= 1_000) return `${Math.round(amount / 1_000)} ming so'm`;
   }
   return `${formatNumber(amount)} so'm`;
@@ -33,6 +34,7 @@ export function formatPrice(amount: number | null | undefined, opts: { compact?:
 
 export function formatPriceRange(from: number, to?: number | null) {
   if (!from && !to) return "Kelishiladi";
+  if (!from && to) return `${formatPrice(to, { compact: true })} gacha`;
   if (to && to > from) return `${formatPrice(from, { compact: true })} – ${formatPrice(to, { compact: true })}`;
   return `${formatPrice(from, { compact: true })} dan`;
 }
@@ -97,6 +99,37 @@ function tashkentParts(date: Date | number | string) {
   if (!Number.isFinite(ms)) return null;
   const t = new Date(ms + TASHKENT_OFFSET_MS);
   return { y: t.getUTCFullYear(), mo: t.getUTCMonth(), d: t.getUTCDate(), h: t.getUTCHours(), mi: t.getUTCMinutes() };
+}
+
+/** Toshkent vaqti bo'yicha joriy soat (0–23) — server UTC bo'lsa ham to'g'ri */
+export function tashkentHour(now = Date.now()) {
+  return new Date(now + TASHKENT_OFFSET_MS).getUTCHours();
+}
+
+/** Kun vaqtiga qarab salomlashuv (Toshkent vaqti) */
+export function greetingFor(hour = tashkentHour()) {
+  if (hour < 6) return "Xayrli tun";
+  if (hour < 12) return "Xayrli tong";
+  if (hour < 18) return "Xayrli kun";
+  return "Xayrli kech";
+}
+
+/** Ichki yo'l tekshiruvi: faqat "/..." bilan boshlanadigan, boshqa domenga olib ketmaydigan manzil */
+export function safeInternalPath(next: string | null | undefined, origin = "http://local.invalid"): string | undefined {
+  if (!next || typeof next !== "string") return undefined;
+  if (!next.startsWith("/") || /[\\\u0000-\u001f]/.test(next)) return undefined;
+  try {
+    const u = new URL(next, origin);
+    if (u.origin !== origin) return undefined;
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return undefined;
+  }
+}
+
+/** LIKE uchun % va _ belgilarini ekranlash (escape '\\' bilan ishlatiladi) */
+export function escapeLike(term: string) {
+  return term.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
 /** "10-oktabr, 2026" */

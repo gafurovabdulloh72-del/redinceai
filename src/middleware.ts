@@ -2,10 +2,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "redince_session";
+const ROLES = new Set(["client", "specialist", "admin"]);
 
 function secret() {
   const s = process.env.AUTH_SECRET;
-  return new TextEncoder().encode(s && s.length >= 16 ? s : "dev-only-insecure-secret-change-me-please-123456");
+  if (!s || s.length < 16) {
+    // src/lib/auth.ts bilan bir xil qoida: productionda maxfiy kalit majburiy
+    if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan");
+    return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
+  }
+  return new TextEncoder().encode(s);
 }
 
 async function readRole(req: NextRequest): Promise<string | null> {
@@ -13,7 +19,20 @@ async function readRole(req: NextRequest): Promise<string | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    return (payload.role as string) ?? "client";
+    const role = typeof payload.role === "string" && ROLES.has(payload.role) ? payload.role : "client";
+    return role;
+  } catch {
+    return null;
+  }
+}
+
+/** Faqat ichki yo'l ("/..." bilan boshlanadi, "//" yoki "\" emas, boshqa domenga olib ketmaydi) */
+function safeNext(raw: string | null, origin: string): string | null {
+  if (!raw || !raw.startsWith("/") || /[\\\u0000-\u001f]/.test(raw)) return null;
+  try {
+    const u = new URL(raw, origin);
+    if (u.origin !== origin) return null;
+    return u.pathname + u.search + u.hash;
   } catch {
     return null;
   }
@@ -39,11 +58,10 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Kirgan foydalanuvchini auth sahifalaridan kabinetga yo'naltiramiz
+  // Kirgan foydalanuvchini auth sahifalaridan kabinetga (yoki ?next= manzilga) yo'naltiramiz
   if (role && pathname.startsWith("/auth/")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/kabinet";
-    url.search = "";
+    const next = safeNext(req.nextUrl.searchParams.get("next"), req.nextUrl.origin);
+    const url = new URL(next ?? "/kabinet", req.nextUrl.origin);
     return NextResponse.redirect(url);
   }
 

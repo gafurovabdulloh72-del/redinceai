@@ -1,15 +1,7 @@
-import type { Metadata } from "next";
-import { MapExplorer } from "@/components/map/MapExplorer";
-import { CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
-import { getCategoryStats, getRegionStats } from "@/lib/queries";
+import { redirect } from "next/navigation";
+import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "Xarita",
-  description:
-    "O'zbekistonning 14 ta hududi bo'ylab videograf, montajor, dizayner va boshqa ijodkorlarni interaktiv xaritadan toping. Hududni bosing — mutaxassislar ro'yxati chiqadi.",
-};
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -18,35 +10,14 @@ function first(v: string | string[] | undefined) {
   return typeof s === "string" && s !== "" ? s : null;
 }
 
-export default async function MapPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+/** Xarita olib tashlandi — eski /xarita havolalari ro'yxatga (filtrlar saqlangan holda) yo'naltiriladi */
+export default async function MapRedirect({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const sp = await searchParams;
-  const [stats, categoryStats] = await Promise.all([getRegionStats(), getCategoryStats()]);
-
-  // Noma'lum slug'lar e'tiborsiz qoldiriladi
-  const regionParam = first(sp.region);
-  const categoryParam = first(sp.category);
-  const initialRegion = regionParam && REGION_BY_SLUG[regionParam] ? regionParam : null;
-  const initialCategory = categoryParam && CATEGORY_BY_SLUG[categoryParam] ? categoryParam : null;
-
-  const total = REGIONS.reduce((acc, r) => acc + (stats[r.slug]?.total ?? 0), 0);
-
-  return (
-    <div className="container-x">
-      <header className="max-w-3xl">
-        <span className="eyebrow">
-          Jonli xarita · {REGIONS.length} hudud · {total} mutaxassis
-        </span>
-        <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px] lg:text-[56px]">
-          Hududni tanlang — <span className="accent-serif text-accent">ijodkorlar</span> chiqadi
-        </h1>
-        <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">
-          Viloyatni bosing — o'sha yerdagi eng yaxshi mutaxassislar ro'yxati ochiladi. Yo'nalishni tanlasangiz, xarita ranglari ham shu yo'nalish bo'yicha o'zgaradi.
-        </p>
-      </header>
-
-      <div className="mt-8 sm:mt-10">
-        <MapExplorer stats={stats} categoryStats={categoryStats} initialRegion={initialRegion} initialCategory={initialCategory} />
-      </div>
-    </div>
-  );
+  const p = new URLSearchParams();
+  const region = first(sp.region);
+  const category = first(sp.category);
+  if (region && REGION_BY_SLUG[region]) p.set("region", region);
+  if (category && CATEGORY_BY_SLUG[category]) p.set("category", category);
+  const qs = p.toString();
+  redirect(qs ? `/mutaxassislar?${qs}` : "/mutaxassislar");
 }

@@ -1,9 +1,11 @@
 import "server-only";
-import { and, asc, count, desc, eq, inArray, like, lte, or, sql, type SQL } from "drizzle-orm";
+import { cache } from "react";
+import { and, asc, count, desc, eq, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, REGIONS } from "./constants";
+import { escapeLike } from "./utils";
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassislar ro'yxati                                              */
@@ -18,14 +20,16 @@ export async function listSpecialists(filter: SpecialistFilter) {
   if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
 
   if (filter.q) {
-    const term = `%${filter.q.toLowerCase()}%`;
-    const userMatch = db.select({ id: users.id }).from(users).where(like(sql`lower(${users.name})`, term));
+    // % va _ belgilarini ekranlaymiz — "%" so'rovi hamma qatorni qaytarmasin
+    const term = `%${escapeLike(filter.q.toLowerCase())}%`;
+    const likeEsc = (col: SQL) => sql`${col} like ${term} escape '\\'`;
+    const userMatch = db.select({ id: users.id }).from(users).where(likeEsc(sql`lower(${users.name})`));
     conds.push(
       or(
-        like(sql`lower(${specialists.title})`, term),
-        like(sql`lower(${specialists.bio})`, term),
-        like(sql`lower(${specialists.city})`, term),
-        like(sql`lower(${specialists.skills})`, term),
+        likeEsc(sql`lower(${specialists.title})`),
+        likeEsc(sql`lower(${specialists.bio})`),
+        likeEsc(sql`lower(${specialists.city})`),
+        likeEsc(sql`lower(${specialists.skills})`),
         inArray(specialists.userId, userMatch),
       )!,
     );
@@ -74,7 +78,8 @@ export type SpecialistListItem = Awaited<ReturnType<typeof listSpecialists>>["it
 /* ------------------------------------------------------------------ */
 /* Bitta profil                                                        */
 /* ------------------------------------------------------------------ */
-export async function getSpecialistBySlug(slug: string) {
+/** generateMetadata + sahifa bitta so'rovda ikki marta chaqiradi — cache() bilan bir marta o'qiladi */
+export const getSpecialistBySlug = cache(async (slug: string) => {
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.slug, slug),
     with: {
@@ -87,7 +92,16 @@ export async function getSpecialistBySlug(slug: string) {
     },
   });
   return sp ?? null;
-}
+});
+
+/** Buyurtma sahifasi uchun qisqa profil (metadata + sahifa — bir marta) */
+export const getSpecialistBrief = cache(async (id: string) => {
+  const sp = await db.query.specialists.findFirst({
+    where: eq(specialists.id, id),
+    with: { user: { columns: { name: true, avatarUrl: true } } },
+  });
+  return sp ?? null;
+});
 
 export type SpecialistDetail = NonNullable<Awaited<ReturnType<typeof getSpecialistBySlug>>>;
 

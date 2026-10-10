@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
@@ -8,6 +9,7 @@ import { users, type User } from "./db/schema";
 
 export const SESSION_COOKIE = "redince_session";
 const SESSION_DAYS = 30;
+const ROLES: ReadonlyArray<User["role"]> = ["client", "specialist", "admin"];
 
 function secret() {
   const s = process.env.AUTH_SECRET;
@@ -59,22 +61,26 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
   try {
     const { payload } = await jwtVerify(token, secret());
     if (!payload.sub) return null;
-    return { sub: payload.sub, role: payload.role as User["role"], name: String(payload.name ?? "") };
+    const role = ROLES.includes(payload.role as User["role"]) ? (payload.role as User["role"]) : "client";
+    return { sub: payload.sub, role, name: String(payload.name ?? "") };
   } catch {
     return null;
   }
 }
 
-/** Faqat JWT'dagi ma'lumot (bazaga murojaat qilmaydi) */
-export async function getSession(): Promise<SessionPayload | null> {
+/** Faqat JWT'dagi ma'lumot (bazaga murojaat qilmaydi). Bitta so'rov ichida keshlanadi. */
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionToken(token);
-}
+});
 
-/** Bazadagi to'liq foydalanuvchi (parolsiz) */
-export async function getCurrentUser() {
+/**
+ * Bazadagi to'liq foydalanuvchi (parolsiz). React cache() — Navbar, layout va sahifa
+ * bitta so'rovda chaqirsa ham baza bir marta o'qiladi.
+ */
+export const getCurrentUser = cache(async () => {
   const session = await getSession();
   if (!session) return null;
   const user = await db.query.users.findFirst({
@@ -83,6 +89,18 @@ export async function getCurrentUser() {
     with: { specialist: true },
   });
   return user ?? null;
-}
+});
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+/**
+ * Himoyalangan sahifa uchun yo'naltirish manzili:
+ * - cookie yo'q → /auth/kirish?next=…
+ * - cookie bor, lekin foydalanuvchi bazada yo'q (eski cookie) → cookie'ni tozalab, keyin kirishga
+ *   (aks holda /kabinet ↔ /auth/kirish cheksiz aylanib qoladi)
+ */
+export async function loginRedirectPath(next: string) {
+  const session = await getSession();
+  const q = `?next=${encodeURIComponent(next)}`;
+  return session ? `/api/auth/logout${q}` : `/auth/kirish${q}`;
+}

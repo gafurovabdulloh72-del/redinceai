@@ -13,7 +13,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: `${base}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
-    { url: `${base}/xarita`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/mutaxassislar`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     ...REGIONS.map((r) => ({ url: `${base}/mutaxassislar?region=${r.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 })),
     ...CATEGORIES.map((c) => ({ url: `${base}/mutaxassislar?category=${c.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 })),

@@ -1,12 +1,15 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { specialists, users } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { createSession, hashPassword } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { registerSchema } from "@/lib/validators";
-import { slugify, uid } from "@/lib/utils";
-import { REGIONS } from "@/lib/constants";
+import { uid } from "@/lib/utils";
 
+/**
+ * Ro'yxatdan o'tish. Mutaxassis uchun bo'sh "placeholder" profil YARATILMAYDI —
+ * profil kabinetda (PUT /api/profile) to'ldirilgach ommaviy ro'yxatda paydo bo'ladi.
+ */
 export const POST = handler(async (req) => {
   const input = await parseBody(req, registerSchema);
 
@@ -22,21 +25,6 @@ export const POST = handler(async (req) => {
     passwordHash: await hashPassword(input.password),
     role: input.role,
   });
-
-  // Mutaxassis uchun bo'sh profil yaratamiz — keyin kabinetda to'ldiradi
-  if (input.role === "specialist") {
-    const base = slugify(input.name) || "mutaxassis";
-    await db.insert(specialists).values({
-      id: uid(),
-      userId: id,
-      slug: `${base}-${id.slice(0, 6)}`,
-      title: `${input.name} — yangi mutaxassis`,
-      category: "videograf",
-      regionSlug: REGIONS[0].slug,
-      city: REGIONS[0].capital,
-      isAvailable: false,
-    });
-  }
 
   await createSession({ id, role: input.role, name: input.name });
   return ok({ id, name: input.name, role: input.role }, { status: 201 });

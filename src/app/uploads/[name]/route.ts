@@ -22,6 +22,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
         "Content-Type": MIME[ext] ?? "application/octet-stream",
         "Content-Length": String(s.size),
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch {

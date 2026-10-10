@@ -56,12 +56,6 @@
   --glass-shadow-strong: rgba(18, 18, 19, 0.18);
   --glass-inner: transparent;
 
-  --map-base: #ffffff;
-  --map-line: #ffffff;
-  --map-slab: #d6d0c4;
-  --map-slab-top: #e4dfd5;
-  --map-slab-line: rgba(255, 255, 255, 0.6);
-
   color-scheme: light;
 }
 
@@ -101,12 +95,6 @@
   --glass-border-soft: var(--line);
   --glass-shadow: rgba(0, 0, 0, 0.35);
   --glass-shadow-strong: rgba(0, 0, 0, 0.6);
-
-  --map-base: #2b2b33;
-  --map-line: #0a0a0c;
-  --map-slab: #0f0f13;
-  --map-slab-top: #17171c;
-  --map-slab-line: rgba(255, 255, 255, 0.05);
 
   color-scheme: dark;
 }
@@ -222,6 +210,19 @@ h1, h2, h3, .font-display {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--line-2) transparent;
+}
+
+/* Yagona fokus halqasi — barcha interaktiv elementlar uchun (ikkala rejimda ko'rinadi) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+.field:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 /* ---------- Yuzalar (component layer) ---------- */
@@ -461,6 +462,14 @@ h1, h2, h3, .font-display {
   }
 }
 
+/* Gorizontal aylanadigan qatorlar: o'ng chetda yumshoq so'nish (aylanishi mumkinligiga ishora) */
+@utility scroll-fade {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 1rem;
+}
+
 @utility grain {
   &::after {
     content: "";
@@ -473,29 +482,38 @@ h1, h2, h3, .font-display {
   }
 }
 
-/* ---------- Xarita ---------- */
-.region-path {
-  cursor: pointer;
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease, opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-  outline: none;
-}
-.map-pulse {
-  transform-box: fill-box;
-  transform-origin: center;
-  opacity: 0;
-  animation: map-pulse 2.6s ease-out infinite;
-}
-@keyframes map-pulse {
-  0% { transform: scale(0.6); opacity: 0.55; }
-  100% { transform: scale(2.8); opacity: 0; }
-}
-.region-path:hover {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent)) brightness(1.06);
-}
-.region-path.is-active {
-  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 75%, transparent)) brightness(1.08);
+/* ---------- Switch (Studio uslubi: 44×26 pill, yoqilganda "siyoh") ---------- */
+@layer components {
+  .switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 26px;
+    border-radius: 9999px;
+    background: var(--surface-3);
+    border: 1px solid var(--line-2);
+    transition: background 0.25s ease, border-color 0.25s ease;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--fg-3);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.25s ease;
+  }
+  .switch[aria-checked="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .switch[aria-checked="true"]::after {
+    background: var(--ink-fg);
+    transform: translateX(18px);
+  }
 }
 
 /* ---------- Harakatni kamaytirish ---------- */
