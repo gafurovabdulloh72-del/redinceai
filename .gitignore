@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# database (local sqlite)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+drizzle/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# uploads
+public/uploads/*
+!public/uploads/.gitkeep
+
+# misc
+.DS_Store
+*.tsbuildinfo
+npm-debug.log*
