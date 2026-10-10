@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "start:railway": "sh scripts/start.sh",
     "db:seed:ifempty": "tsx src/lib/db/seed.ts --if-empty",
-    "vercel-build": "drizzle-kit push --force && tsx src/lib/db/seed.ts --if-empty && next build"
+    "vercel-build": "node scripts/db-prepare.mjs && next build",
+    "db:prepare": "node scripts/db-prepare.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
