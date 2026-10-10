@@ -34,6 +34,16 @@ export function isPayable(order: Pick<Order, "status" | "paymentState" | "amount
   return order.status !== "cancelled" && order.paymentState === "awaiting" && Boolean(order.amount && order.amount > 0);
 }
 
+/** Provayder (Payme/Click) tomonida jarayondagi to'lov: 'pending' va 12 soatdan eskirmagan */
+export const PROVIDER_PENDING_TTL_MS = 12 * 60 * 60 * 1000;
+export async function findInFlightProviderPayment(orderId: string): Promise<Payment | null> {
+  const rows = await db.query.payments.findMany({
+    where: and(eq(payments.orderId, orderId), eq(payments.state, "pending"), inArray(payments.provider, ["payme", "click"])),
+  });
+  const now = Date.now();
+  return rows.find((p) => now - (p.providerCreateTime ?? p.createdAt.getTime()) <= PROVIDER_PENDING_TTL_MS) ?? null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Yo'naltirish havolalari                                             */
 /* ------------------------------------------------------------------ */
@@ -79,6 +89,13 @@ export async function createCheckout(opts: { order: OrderWithParties; provider: 
   if (order.status === "cancelled") throw new ApiError(400, "Bekor qilingan buyurtma uchun to'lov qilib bo'lmaydi");
   if (order.paymentState === "paid" || order.paymentState === "released") throw new ApiError(400, "Bu buyurtma allaqachon to'langan");
   if (!isPayable(order) || !order.amount) throw new ApiError(400, "Avval mutaxassis narx belgilashi kerak");
+
+  // Provayder tomonida jarayondagi tranzaksiya bo'lsa — ikkinchi to'lov ochilmaydi
+  const inFlight = await findInFlightProviderPayment(order.id);
+  if (inFlight) {
+    if (inFlight.provider === provider) return { payment: inFlight, redirectUrl: buildRedirectUrl(inFlight, opts.origin) };
+    throw new ApiError(409, "Bu buyurtma uchun boshqa usul orqali to'lov jarayonda. Avval uni yakunlang yoki bekor bo'lishini kuting");
+  }
 
   const settings = await getSettings();
   const pct = order.commissionPct ?? settings.commissionPct;

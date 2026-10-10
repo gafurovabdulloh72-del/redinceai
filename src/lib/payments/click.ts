@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, type Payment } from "@/lib/db/schema";
 import { uid } from "@/lib/utils";
-import { paymentsEnv } from "./config";
+import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
 import { isPayable, markPaid } from "./service";
 
@@ -81,7 +81,7 @@ async function findByClickId(clickTransId: string) {
 /* ---------- Prepare ---------- */
 async function prepare(f: Fields, secret: string) {
   const sign = md5(f.click_trans_id + f.service_id + secret + f.merchant_trans_id + f.amount + f.action + f.sign_time);
-  if (sign !== (f.sign_string ?? "").toLowerCase()) return respond(f, CLICK_ERR.SIGN);
+  if (!safeEqual(sign, (f.sign_string ?? "").toLowerCase())) return respond(f, CLICK_ERR.SIGN);
 
   const order = await db.query.orders.findFirst({ where: eq(orders.id, f.merchant_trans_id) });
   if (!order) return respond(f, CLICK_ERR.USER_NOT_FOUND);
@@ -141,7 +141,7 @@ async function prepare(f: Fields, secret: string) {
 /* ---------- Complete ---------- */
 async function complete(f: Fields, secret: string) {
   const sign = md5(f.click_trans_id + f.service_id + secret + f.merchant_trans_id + f.merchant_prepare_id + f.amount + f.action + f.sign_time);
-  if (sign !== (f.sign_string ?? "").toLowerCase()) return respond(f, CLICK_ERR.SIGN);
+  if (!safeEqual(sign, (f.sign_string ?? "").toLowerCase())) return respond(f, CLICK_ERR.SIGN);
 
   const order = await db.query.orders.findFirst({ where: eq(orders.id, f.merchant_trans_id) });
   if (!order) return respond(f, CLICK_ERR.USER_NOT_FOUND);

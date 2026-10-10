@@ -3,7 +3,7 @@ import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, type Payment } from "@/lib/db/schema";
 import { uid } from "@/lib/utils";
-import { paymentsEnv } from "./config";
+import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
 import { isPayable, markPaid, refundPayment } from "./service";
 
@@ -81,7 +81,7 @@ function checkAuth(req: Request): boolean {
   if (idx < 0) return false;
   const login = decoded.slice(0, idx);
   const pass = decoded.slice(idx + 1);
-  return login === "Paycom" && pass === key;
+  return login === "Paycom" && safeEqual(pass, key);
 }
 
 /* ---------- Yordamchilar ---------- */

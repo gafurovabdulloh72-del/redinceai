@@ -4,7 +4,7 @@ import { orders, payments } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderAmountSchema } from "@/lib/validators";
 import { notify } from "@/lib/notifications";
-import { loadOrderWithParties, orderHref } from "@/lib/payments/service";
+import { findInFlightProviderPayment, loadOrderWithParties, orderHref } from "@/lib/payments/service";
 import { getSettings, splitAmount } from "@/lib/payments/settings";
 import { formatPrice } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   if (!isOwner && session.role !== "admin") throw new ApiError(403, "Narxni faqat mutaxassis belgilaydi");
   if (order.status !== "accepted" && order.status !== "in_progress") throw new ApiError(400, "Narx faqat qabul qilingan buyurtmaga belgilanadi");
   if (order.paymentState === "paid" || order.paymentState === "released") throw new ApiError(400, "To'langan buyurtma narxini o'zgartirib bo'lmaydi");
+  if (await findInFlightProviderPayment(id)) throw new ApiError(409, "Mijoz to'lovni boshlagan — provayder tomonida jarayonda. Yakunlanishini yoki bekor bo'lishini kuting");
 
   const settings = await getSettings();
   if (amount < settings.minOrderAmount) throw new ApiError(422, "Summa juda kichik", { amount: `Kamida ${formatPrice(settings.minOrderAmount)}` });

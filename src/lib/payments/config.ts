@@ -1,5 +1,13 @@
 import "server-only";
+import { timingSafeEqual } from "node:crypto";
 import type { PaymentProvider } from "@/lib/constants";
+
+/** Doimiy vaqtli taqqoslash (imzo/kalit) — timing hujumlariga qarshi */
+export function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 /**
  * To'lov provayderlari sozlamalari (env). Faqat sozlangan provayderlar UI'da chiqadi.
@@ -60,6 +68,8 @@ export function availableProviders(): PaymentProvider[] {
 export function siteOrigin(headers?: Headers | null, fallbackUrl?: string): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (env) return env.replace(/\/+$/, "");
+  // Vercel production: barqaror domen (sarlavhalarga bog'liq emas)
+  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (headers) {
     const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
     const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host");

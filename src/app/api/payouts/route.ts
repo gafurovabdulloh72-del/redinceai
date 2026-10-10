@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { payouts, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
@@ -49,9 +49,20 @@ export const POST = handler(async (req) => {
 
   const id = uid();
   await db.insert(payouts).values({ id, specialistId: sp.id, amount: input.amount, method: input.method, details, state: "requested" });
+
+  // Parallel so'rovlarga qarshi qayta tekshiruv: bitta ochiq so'rov va balans manfiy bo'lmasin
+  const fresh = await getSpecialistBalance(sp.id);
+  const [{ n: openCount }] = await db
+    .select({ n: count() })
+    .from(payouts)
+    .where(and(eq(payouts.specialistId, sp.id), inArray(payouts.state, ["requested", "approved"])));
+  if (Number(openCount) > 1 || fresh.released - fresh.pendingPayouts - fresh.paidOut < 0) {
+    await db.delete(payouts).where(eq(payouts.id, id));
+    throw new ApiError(409, "So'rov takrorlandi yoki balans o'zgardi. Sahifani yangilab, qayta urinib ko'ring");
+  }
+
   await audit(session.sub, "payout_requested", { targetType: "payout", targetId: id, meta: { amount: input.amount, method: input.method } }, req);
   await notifyAdmins("payout_requested", `Yangi pul chiqarish so'rovi: ${formatPrice(input.amount)}`, `${session.name} — ${details}`, "/admin#payoutlar");
 
-  const fresh = await getSpecialistBalance(sp.id);
   return ok({ id, amount: input.amount, state: "requested", method: input.method, details, balance: fresh }, { status: 201 });
 });
