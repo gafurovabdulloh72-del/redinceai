@@ -4,23 +4,24 @@ import { cn, hashHue, initials } from "@/lib/utils";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
-/* Button — iOS pill tugmalar                                          */
+/* Button                                                              */
 /* ------------------------------------------------------------------ */
-type Variant = "primary" | "glass" | "ghost" | "outline" | "danger" | "tint-soft";
+type Variant = "primary" | "accent" | "glass" | "ghost" | "outline" | "danger" | "tint-soft";
 type Size = "sm" | "md" | "lg" | "icon";
 
 const variantClass: Record<Variant, string> = {
-  primary: "glass-tint font-semibold",
-  glass: "glass glass-pill glass-hover text-fg font-semibold",
-  "tint-soft": "bg-tint-soft text-tint font-semibold hover:brightness-110 active:scale-[0.97] transition",
+  primary: "btn-ink font-semibold",
+  accent: "btn-accent font-semibold",
+  glass: "card card-hover !rounded-full text-fg font-semibold",
+  "tint-soft": "bg-accent-soft text-accent font-semibold hover:brightness-105 active:scale-[0.97] transition",
   ghost: "text-fg-2 hover:bg-fg/6 hover:text-fg active:scale-[0.97] transition",
-  outline: "border border-hairline text-fg-2 hover:border-tint/50 hover:text-tint active:scale-[0.97] transition",
-  danger: "bg-ios-red text-white font-semibold shadow-[0_8px_24px_-8px_rgba(255,69,58,0.7)] hover:brightness-110 active:scale-[0.97] transition",
+  outline: "border border-line-2 text-fg hover:border-fg hover:bg-fg/4 active:scale-[0.97] transition",
+  danger: "bg-ios-red text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
 };
 const sizeClass: Record<Size, string> = {
   sm: "h-9 px-3.5 text-[13px] gap-1.5",
-  md: "h-11 px-5 text-[15px] gap-2",
-  lg: "h-13 px-7 text-base gap-2.5",
+  md: "h-11 px-5 text-[14px] gap-2",
+  lg: "h-13 px-7 text-[15px] gap-2.5",
   icon: "h-10 w-10 p-0",
 };
 
@@ -74,18 +75,20 @@ export function Badge({
   style,
 }: {
   children: ReactNode;
-  tone?: "neutral" | "blue" | "green" | "orange" | "pink" | "purple" | "glass";
+  tone?: "neutral" | "blue" | "green" | "orange" | "pink" | "purple" | "glass" | "accent" | "ink";
   className?: string;
   style?: CSSProperties;
 }) {
   const tones = {
     neutral: "bg-fg/6 text-fg-2",
-    blue: "bg-ios-blue/14 text-ios-blue",
-    green: "bg-ios-green/16 text-[#1f9d46] dark:text-ios-green",
-    orange: "bg-ios-orange/18 text-[#b86a00] dark:text-ios-orange",
-    pink: "bg-ios-pink/14 text-ios-pink",
-    purple: "bg-ios-purple/16 text-[#8e3bbd] dark:text-ios-purple",
-    glass: "glass-weak glass-pill text-fg-2 !shadow-none",
+    accent: "bg-accent-soft text-accent",
+    ink: "bg-ink text-ink-fg",
+    blue: "bg-ios-blue/12 text-ios-blue",
+    green: "bg-ios-green/14 text-[#15803d] dark:text-ios-green",
+    orange: "bg-ios-orange/14 text-[#c2410c] dark:text-ios-orange",
+    pink: "bg-ios-pink/12 text-ios-pink",
+    purple: "bg-ios-purple/14 text-[#7e22ce] dark:text-ios-purple",
+    glass: "border border-line bg-surface text-fg-2",
   };
   return (
     <span
@@ -112,33 +115,28 @@ export function Avatar({
   className?: string;
 }) {
   const hue = hashHue(name);
-  const ring = "ring-2 ring-white/70 dark:ring-white/15 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)]";
-  if (src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={name}
-        width={size}
-        height={size}
-        className={cn("shrink-0 rounded-full object-cover", ring, className)}
-        style={{ width: size, height: size }}
-      />
-    );
-  }
   return (
-    <div
+    <span
       aria-label={name}
-      className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-white", ring, className)}
+      role="img"
+      className={cn(
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-display font-semibold text-white ring-2 ring-surface shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)]",
+        className,
+      )}
       style={{
         width: size,
         height: size,
-        fontSize: Math.max(11, size * 0.36),
-        background: `linear-gradient(145deg, hsl(${hue} 80% 62%), hsl(${(hue + 45) % 360} 75% 48%))`,
+        fontSize: Math.max(11, size * 0.34),
+        background: `linear-gradient(145deg, hsl(${hue} 70% 55%), hsl(${(hue + 50) % 360} 70% 42%))`,
       }}
     >
       {initials(name)}
-    </div>
+      {src && (
+        // Rasm yuklanmasa alt="" tufayli hech narsa chizilmaydi — ostidagi bosh harflar ko'rinadi
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" width={size} height={size} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      )}
+    </span>
   );
 }
 
@@ -150,7 +148,7 @@ export function Stars({ value, size = 14, showValue = true, count }: { value: nu
     <span className="inline-flex items-center gap-1.5">
       <span className="inline-flex gap-px">
         {[1, 2, 3, 4, 5].map((i) => (
-          <Star key={i} size={size} className={cn(i <= Math.round(value) ? "fill-ios-orange text-ios-orange" : "text-fg-4")} />
+          <Star key={i} size={size} className={cn(i <= Math.round(value) ? "fill-accent-3 text-accent-3" : "text-fg-4")} />
         ))}
       </span>
       {showValue && (
@@ -164,10 +162,10 @@ export function Stars({ value, size = 14, showValue = true, count }: { value: nu
 }
 
 /* ------------------------------------------------------------------ */
-/* Glass Card / Section                                                */
+/* Card / Section                                                      */
 /* ------------------------------------------------------------------ */
 export function Card({ children, className, hover = false }: { children: ReactNode; className?: string; hover?: boolean }) {
-  return <div className={cn("glass", hover && "glass-hover", className)}>{children}</div>;
+  return <div className={cn("card", hover && "card-hover", className)}>{children}</div>;
 }
 
 export function SectionHeading({
@@ -191,13 +189,9 @@ export function SectionHeading({
       )}
     >
       <div className={cn("max-w-2xl", align === "center" && "mx-auto")}>
-        {eyebrow && (
-          <span className="glass-weak glass-pill mb-3 inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-tint">
-            {eyebrow}
-          </span>
-        )}
-        <h2 className="text-[28px] font-bold leading-[1.1] tracking-tight text-fg sm:text-4xl lg:text-[44px]">{title}</h2>
-        {description && <p className="mt-3 text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{description}</p>}
+        {eyebrow && <span className={cn("eyebrow mb-4", align === "center" && "justify-center")}>{eyebrow}</span>}
+        <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[36px] lg:text-[44px]">{title}</h2>
+        {description && <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
       </div>
       {action}
     </div>
@@ -216,13 +210,13 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="glass-weak flex flex-col items-center justify-center px-6 py-14 text-center">
+    <div className="card-outline flex flex-col items-center justify-center px-6 py-14 text-center">
       {Icon && (
-        <div className="glass mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] text-tint">
+        <div className="card mb-4 flex h-14 w-14 items-center justify-center !rounded-[18px] text-accent">
           <Icon size={24} />
         </div>
       )}
-      <h3 className="text-[17px] font-semibold text-fg">{title}</h3>
+      <h3 className="font-display text-[17px] font-semibold text-fg">{title}</h3>
       {description && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -240,8 +234,8 @@ export function Spinner({ className }: { className?: string }) {
 
 export function Stat({ value, label, accent }: { value: ReactNode; label: string; accent?: string }) {
   return (
-    <div className="glass px-5 py-4">
-      <div className="text-[28px] font-bold leading-none tracking-tight text-fg sm:text-[34px]" style={accent ? { color: accent } : undefined}>
+    <div className="card px-5 py-4">
+      <div className="font-display text-[28px] font-semibold leading-none tracking-tight text-fg sm:text-[34px]" style={accent ? { color: accent } : undefined}>
         {value}
       </div>
       <div className="mt-2 text-xs font-medium text-fg-3">{label}</div>
@@ -249,12 +243,12 @@ export function Stat({ value, label, accent }: { value: ReactNode; label: string
   );
 }
 
-/** iOS uslubidagi inset guruh (Settings ro'yxati kabi) */
+/** Ro'yxat guruhi (sozlamalar ro'yxati kabi) */
 export function InsetGroup({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
     <section className={className}>
-      {title && <h3 className="mb-2 px-4 text-[13px] font-semibold uppercase tracking-wide text-fg-3">{title}</h3>}
-      <div className="glass divide-y divide-hairline overflow-hidden">{children}</div>
+      {title && <h3 className="mb-2 px-4 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{title}</h3>}
+      <div className="card divide-y divide-line overflow-hidden">{children}</div>
     </section>
   );
 }
@@ -263,7 +257,7 @@ export function InsetRow({ label, value, icon: Icon, href }: { label: string; va
   const inner = (
     <>
       {Icon && (
-        <span className="glass-tint flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
+        <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
           <Icon size={15} />
         </span>
       )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { BadgeCheck, MapPin } from "lucide-react";
-import { Avatar, Badge, Stars } from "@/components/ui";
+import { ArrowUpRight, BadgeCheck, MapPin } from "lucide-react";
+import { Avatar, Stars } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import { formatPriceRange, hashHue } from "@/lib/utils";
@@ -10,80 +10,82 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
+  const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
 
   return (
-    <Link href={`/mutaxassislar/${sp.slug}`} className="glass glass-hover group block overflow-hidden">
+    <Link href={`/mutaxassislar/${sp.slug}`} className="card card-hover group block overflow-hidden">
       {/* Muqova */}
-      <div className="relative h-28 overflow-hidden rounded-t-[inherit]">
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-3">
         {sp.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={sp.coverUrl}
             alt=""
             loading={priority ? "eager" : "lazy"}
-            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
           />
         ) : (
           <div
-            className="h-full w-full transition duration-700 group-hover:scale-105"
+            className="h-full w-full transition duration-700 group-hover:scale-[1.04]"
             style={{
-              background: `linear-gradient(135deg, hsl(${hue} 85% 72%), ${cat?.accent ?? "#7c5cff"} 60%, hsl(${(hue + 60) % 360} 80% 65%))`,
+              background: `linear-gradient(135deg, hsl(${hue} 60% 62%), ${cat?.accent ?? "#ff5a36"} 70%)`,
             }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-        <div className="absolute left-3 top-3 flex gap-1.5">
-          {cat && (
-            <span className="glass-strong glass-pill inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-fg">
-              <CategoryIcon icon={cat.icon} size={12} style={{ color: cat.accent }} />
-              {cat.name}
-            </span>
-          )}
-        </div>
-        {!sp.isAvailable && (
-          <span className="glass-strong glass-pill absolute right-3 top-3 px-2.5 py-1 text-[11px] font-semibold text-fg-2">Band</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0" />
+
+        {/* Kategoriya chip */}
+        {cat && (
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+            <CategoryIcon icon={cat.icon} size={12} />
+            {cat.name}
+          </span>
         )}
+        {!sp.isAvailable && (
+          <span className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">Band</span>
+        )}
+
+        {/* Avatar + ism (muqova ustida) */}
+        <div className="absolute inset-x-4 bottom-3 flex items-end justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={40} className="!ring-white/60" />
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-1 truncate font-display text-[15px] font-semibold text-white">
+                <span className="truncate">{sp.user.name}</span>
+                {sp.isVerified && <BadgeCheck size={15} className="shrink-0 fill-accent text-white" aria-label="Tasdiqlangan" />}
+              </h3>
+              <p className="flex items-center gap-1 text-[11px] text-white/80">
+                <MapPin size={11} /> {place}
+              </p>
+            </div>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black opacity-0 transition duration-300 group-hover:opacity-100">
+            <ArrowUpRight size={16} />
+          </span>
+        </div>
       </div>
 
       {/* Tana */}
-      <div className="relative px-4 pb-4 pt-0">
-        <div className="-mt-7 mb-2.5 flex items-end justify-between">
-          <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={56} className="ring-4 !ring-[var(--glass-strong)]" />
-          <Stars value={sp.rating} count={sp.reviewCount} size={12} />
-        </div>
-
-        <h3 className="flex items-center gap-1.5 text-[16px] font-semibold leading-tight text-fg">
-          <span className="truncate">{sp.user.name}</span>
-          {sp.isVerified && <BadgeCheck size={16} className="shrink-0 fill-ios-blue text-white" aria-label="Tasdiqlangan" />}
-        </h3>
-        <p className="mt-0.5 line-clamp-1 text-[13px] text-fg-2">{sp.title}</p>
-
-        <p className="mt-2 flex items-center gap-1 text-[12px] text-fg-3">
-          <MapPin size={12} className="text-tint" />
-          {sp.city}
-          {region && sp.city !== region.capital && <span>· {region.short}</span>}
-          {region && sp.city === region.capital && region.slug !== "toshkent-shahri" && <span>· {region.short}</span>}
-        </p>
+      <div className="px-4 pb-4 pt-3.5">
+        <p className="line-clamp-1 text-[14px] font-medium text-fg">{sp.title}</p>
 
         {sp.skills.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {sp.skills.slice(0, 3).map((s) => (
-              <Badge key={s} tone="neutral" className="!py-0.5 text-[11px] font-medium">
+              <span key={s} className="rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-fg-2">
                 {s}
-              </Badge>
+              </span>
             ))}
-            {sp.skills.length > 3 && <span className="text-[11px] text-fg-4">+{sp.skills.length - 3}</span>}
+            {sp.skills.length > 3 && <span className="self-center text-[11px] text-fg-4">+{sp.skills.length - 3}</span>}
           </div>
         )}
 
-        <div className="mt-3.5 flex items-center justify-between border-t border-hairline pt-3">
+        <div className="mt-3.5 flex items-center justify-between border-t border-line pt-3">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wide text-fg-4">Narx</p>
-            <p className="text-[14px] font-semibold text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-fg-4">Narx</p>
+            <p className="font-display text-[14px] font-semibold text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</p>
           </div>
-          <span className="glass-tint inline-flex h-8 items-center rounded-full px-3.5 text-[12px] font-semibold opacity-90 transition group-hover:opacity-100">
-            Profil
-          </span>
+          <Stars value={sp.rating} count={sp.reviewCount} size={12} />
         </div>
       </div>
     </Link>
@@ -92,10 +94,9 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
 
 export function SpecialistCardSkeleton() {
   return (
-    <div className="glass overflow-hidden">
-      <div className="skeleton h-28 !rounded-none" />
-      <div className="px-4 pb-4">
-        <div className="-mt-7 mb-3 h-14 w-14 rounded-full skeleton" />
+    <div className="card overflow-hidden">
+      <div className="skeleton aspect-[16/10] !rounded-none" />
+      <div className="px-4 pb-4 pt-3.5">
         <div className="h-4 w-2/3 skeleton" />
         <div className="mt-2 h-3 w-full skeleton" />
         <div className="mt-4 h-3 w-1/2 skeleton" />

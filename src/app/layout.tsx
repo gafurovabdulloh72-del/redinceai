@@ -1,11 +1,32 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { LiquidBackground } from "@/components/layout/LiquidBackground";
-import { GlassPointer } from "@/components/layout/GlassPointer";
+import { Backdrop } from "@/components/layout/Backdrop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { SITE } from "@/lib/constants";
+
+const unbounded = localFont({
+  src: "../fonts/Unbounded.woff2",
+  variable: "--font-unbounded",
+  weight: "200 900",
+  display: "swap",
+});
+const manrope = localFont({
+  src: "../fonts/Manrope.woff2",
+  variable: "--font-manrope",
+  weight: "200 800",
+  display: "swap",
+});
+const instrument = localFont({
+  src: [
+    { path: "../fonts/InstrumentSerif-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/InstrumentSerif-Italic.woff2", weight: "400", style: "italic" },
+  ],
+  variable: "--font-instrument",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -24,8 +45,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef0f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#06070c" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f4ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -34,13 +55,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning>
+    <html lang="uz" suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
-        <LiquidBackground />
-        <GlassPointer />
+        <Backdrop />
         <Navbar />
         <main className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
         <Footer />

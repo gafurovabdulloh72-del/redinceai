@@ -9,8 +9,6 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "i.ytimg.com" },
     ],
   },
-  // three.js + drei ship ESM; keep them out of the server bundle to avoid duplicate instances
-  transpilePackages: ["three"],
 };
 
 export default nextConfig;

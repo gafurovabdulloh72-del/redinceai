@@ -1,147 +1,179 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   REDINCE — Liquid Glass design system (iOS 26 ilhomida)
-   - Shaffof "shisha" materiallar: blur + saturate + specular chekka
-   - Jonli gradient fon (shisha nimanidir sindirishi kerak)
-   - Pill shaklidagi boshqaruv elementlari, konsentrik radiuslar
-   - Yorug' va qorong'u rejim (prefers-color-scheme + data-theme)
+   REDINCE — "Studio" dizayn tizimi
+   Kinematik, editorial, premium. Ikki rejim: Paper (yorug') va Noir (qorong'u).
+   - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (italic urg'u)
+   - Ranglar: iliq neytral yuzalar + coral→binafsha accent
+   - Yuzalar: aniq (blur'siz) kartalar, nozik chiziqlar, yumshoq soyalar
+   Eslatma: eski .glass* sinflari moslik uchun saqlangan — endi ular oddiy
+   "surface" kartalar sifatida ishlaydi.
    ===================================================================== */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* ---------- Runtime (rejimga bog'liq) tokenlar ---------- */
+/* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
-  --bg: #eef0f7;
-  --bg-2: #e4e7f2;
-  --fg: #0b0d14;
-  --fg-2: #454b5c;
-  --fg-3: #7b8197;
-  --fg-4: #a4a9ba;
+  --bg: #f6f4ee;
+  --bg-2: #eeebe3;
+  --surface: #ffffff;
+  --surface-2: #faf8f3;
+  --surface-3: #f0ede6;
+  --fg: #121213;
+  --fg-2: #4b4a47;
+  --fg-3: #7d7b75;
+  --fg-4: #b3b0a8;
 
-  --glass: rgba(255, 255, 255, 0.52);
-  --glass-strong: rgba(255, 255, 255, 0.74);
-  --glass-weak: rgba(255, 255, 255, 0.3);
-  --glass-border: rgba(255, 255, 255, 0.78);
-  --glass-border-soft: rgba(255, 255, 255, 0.45);
-  --glass-specular: rgba(255, 255, 255, 1);
-  --glass-shadow: rgba(24, 34, 68, 0.16);
-  --glass-shadow-strong: rgba(24, 34, 68, 0.26);
-  --glass-inner: rgba(255, 255, 255, 0.9);
-  --hairline: rgba(10, 12, 20, 0.08);
+  --line: rgba(18, 18, 19, 0.08);
+  --line-2: rgba(18, 18, 19, 0.16);
+  --hairline: var(--line);
 
-  --tint: #0a84ff;
-  --tint-2: #5e5ce6;
-  --tint-soft: rgba(10, 132, 255, 0.14);
+  --accent: #ff5a36;
+  --accent-2: #7b61ff;
+  --accent-3: #ffb800;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(255, 90, 54, 0.12);
+  --accent-2-soft: rgba(123, 97, 255, 0.12);
 
-  --blob-1: #7aa7ff;
-  --blob-2: #c58cff;
-  --blob-3: #ff9ac0;
-  --blob-4: #ffc48a;
-  --blob-5: #86e3ff;
+  --ink: #121213;
+  --ink-fg: #ffffff;
+
+  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04), 0 8px 24px -12px rgba(18, 18, 19, 0.12);
+  --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.05), 0 24px 48px -20px rgba(18, 18, 19, 0.22);
+  --shadow-accent: 0 16px 40px -14px rgba(255, 90, 54, 0.55);
+
+  /* Moslik: eski komponentlar ishlatadigan nomlar */
+  --tint: var(--accent);
+  --tint-2: var(--accent-2);
+  --tint-soft: var(--accent-soft);
+  --glass: var(--surface);
+  --glass-strong: var(--surface);
+  --glass-weak: var(--surface-2);
+  --glass-border: var(--line-2);
+  --glass-border-soft: var(--line);
+  --glass-specular: transparent;
+  --glass-shadow: rgba(18, 18, 19, 0.08);
+  --glass-shadow-strong: rgba(18, 18, 19, 0.18);
+  --glass-inner: transparent;
+
+  --map-base: #ffffff;
+  --map-line: #ffffff;
+  --map-slab: #d6d0c4;
+  --map-slab-top: #e4dfd5;
+  --map-slab-line: rgba(255, 255, 255, 0.6);
 
   color-scheme: light;
 }
 
 [data-theme="dark"] {
-  --bg: #06070c;
-  --bg-2: #0c0e16;
-  --fg: #f4f5fa;
-  --fg-2: #b7bccb;
-  --fg-3: #818799;
-  --fg-4: #5c6274;
+  --bg: #0a0a0c;
+  --bg-2: #0e0e11;
+  --surface: #141418;
+  --surface-2: #1a1a1f;
+  --surface-3: #222228;
+  --fg: #f4f2ec;
+  --fg-2: #bdbab2;
+  --fg-3: #85837c;
+  --fg-4: #585750;
 
-  --glass: rgba(26, 28, 40, 0.5);
-  --glass-strong: rgba(30, 32, 46, 0.72);
-  --glass-weak: rgba(26, 28, 40, 0.3);
-  --glass-border: rgba(255, 255, 255, 0.16);
-  --glass-border-soft: rgba(255, 255, 255, 0.09);
-  --glass-specular: rgba(255, 255, 255, 0.55);
-  --glass-shadow: rgba(0, 0, 0, 0.45);
-  --glass-shadow-strong: rgba(0, 0, 0, 0.65);
-  --glass-inner: rgba(255, 255, 255, 0.22);
-  --hairline: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.16);
+  --hairline: var(--line);
 
-  --tint: #3d9bff;
-  --tint-2: #7d7aff;
-  --tint-soft: rgba(61, 155, 255, 0.18);
+  --accent: #ff6b47;
+  --accent-2: #8f79ff;
+  --accent-3: #ffc234;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(255, 107, 71, 0.16);
+  --accent-2-soft: rgba(143, 121, 255, 0.16);
 
-  --blob-1: #2b4fd8;
-  --blob-2: #7a35d6;
-  --blob-3: #c93478;
-  --blob-4: #d9752c;
-  --blob-5: #1c8fb8;
+  --ink: #f4f2ec;
+  --ink-fg: #0a0a0c;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.8);
+  --shadow-accent: 0 16px 44px -14px rgba(255, 107, 71, 0.6);
+
+  --glass: var(--surface);
+  --glass-strong: var(--surface-2);
+  --glass-weak: var(--surface);
+  --glass-border: var(--line-2);
+  --glass-border-soft: var(--line);
+  --glass-shadow: rgba(0, 0, 0, 0.35);
+  --glass-shadow-strong: rgba(0, 0, 0, 0.6);
+
+  --map-base: #2b2b33;
+  --map-line: #0a0a0c;
+  --map-slab: #0f0f13;
+  --map-slab-top: #17171c;
+  --map-slab-line: rgba(255, 255, 255, 0.05);
 
   color-scheme: dark;
 }
 
 /* ---------- Tailwind tokenlar ---------- */
 @theme inline {
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, ui-sans-serif,
-    system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-unbounded), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), "Times New Roman", Georgia, serif;
 
   --color-bg: var(--bg);
   --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-fg: var(--fg);
   --color-fg-2: var(--fg-2);
   --color-fg-3: var(--fg-3);
   --color-fg-4: var(--fg-4);
-  --color-hairline: var(--hairline);
-  --color-tint: var(--tint);
-  --color-tint-2: var(--tint-2);
-  --color-tint-soft: var(--tint-soft);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-hairline: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-fg: var(--ink-fg);
 
-  /* iOS tizim ranglari */
-  --color-ios-blue: #0a84ff;
-  --color-ios-indigo: #5e5ce6;
-  --color-ios-purple: #bf5af2;
-  --color-ios-pink: #ff375f;
-  --color-ios-red: #ff453a;
-  --color-ios-orange: #ff9f0a;
-  --color-ios-yellow: #ffd60a;
-  --color-ios-green: #30d158;
-  --color-ios-mint: #63e6e2;
-  --color-ios-teal: #40c8e0;
-  --color-ios-cyan: #64d2ff;
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2-soft: var(--accent-2-soft);
 
-  --radius-ios: 22px;
-  --radius-ios-lg: 28px;
-  --radius-ios-xl: 36px;
+  /* Moslik */
+  --color-tint: var(--accent);
+  --color-tint-2: var(--accent-2);
+  --color-tint-soft: var(--accent-soft);
 
-  --animate-blob-1: blob-1 26s ease-in-out infinite alternate;
-  --animate-blob-2: blob-2 32s ease-in-out infinite alternate;
-  --animate-blob-3: blob-3 29s ease-in-out infinite alternate;
-  --animate-blob-4: blob-4 35s ease-in-out infinite alternate;
+  /* Semantik ranglar (iOS nomlari moslik uchun saqlangan) */
+  --color-ios-blue: #3b82f6;
+  --color-ios-indigo: #6366f1;
+  --color-ios-purple: #a855f7;
+  --color-ios-pink: #ec4899;
+  --color-ios-red: #ef4444;
+  --color-ios-orange: #f97316;
+  --color-ios-yellow: #f59e0b;
+  --color-ios-green: #22c55e;
+  --color-ios-mint: #2dd4bf;
+  --color-ios-teal: #14b8a6;
+  --color-ios-cyan: #06b6d4;
+
+  --radius-card: 24px;
+  --radius-card-lg: 32px;
+
   --animate-float: float 7s ease-in-out infinite;
   --animate-float-slow: float 11s ease-in-out infinite;
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-shimmer: shimmer 1.8s linear infinite;
   --animate-pulse-ring: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-spin-slow: spin 18s linear infinite;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-drift: drift 22s ease-in-out infinite alternate;
 
-  @keyframes blob-1 {
-    from { transform: translate(-10%, -8%) scale(1); }
-    to { transform: translate(14%, 10%) scale(1.18); }
-  }
-  @keyframes blob-2 {
-    from { transform: translate(8%, 6%) scale(1.1); }
-    to { transform: translate(-14%, -12%) scale(0.92); }
-  }
-  @keyframes blob-3 {
-    from { transform: translate(-6%, 12%) scale(0.95); }
-    to { transform: translate(10%, -10%) scale(1.15); }
-  }
-  @keyframes blob-4 {
-    from { transform: translate(12%, -6%) scale(1.05); }
-    to { transform: translate(-10%, 12%) scale(0.9); }
-  }
   @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-14px) rotate(1.5deg); }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
   }
   @keyframes fade-up {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }
   }
   @keyframes shimmer {
@@ -150,7 +182,15 @@
   }
   @keyframes pulse-ring {
     0% { transform: scale(0.8); opacity: 0.9; }
-    100% { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes drift {
+    from { transform: translate(-4%, -3%) scale(1); }
+    to { transform: translate(5%, 4%) scale(1.12); }
   }
 }
 
@@ -159,191 +199,155 @@ html {
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
 }
-
-body {
-  @apply bg-bg text-fg antialiased;
-  font-feature-settings: "cv11", "ss01", "ss03";
-  letter-spacing: -0.01em;
+html, body {
+  overflow-x: clip;
 }
 
-h1, h2, h3, h4 {
-  letter-spacing: -0.025em;
+body {
+  @apply bg-bg text-fg font-sans antialiased;
+  letter-spacing: -0.005em;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  font-weight: 600;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--tint) 35%, transparent);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--fg) 18%, transparent) transparent;
+  scrollbar-color: var(--line-2) transparent;
 }
 
-/* ---------- Liquid Glass materiallar ---------- */
+/* ---------- Yuzalar (component layer) ---------- */
 @layer components {
-  /* Asosiy shisha panel: blur + to'yinganlik + chekkadagi yorug'lik aksi */
+  /* Karta — asosiy yuza */
   .glass,
-  .glass-strong,
-  .glass-weak {
+  .card {
     position: relative;
-    isolation: isolate;
-    background: var(--glass);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid var(--glass-border-soft);
-    box-shadow:
-      inset 0 1px 0 0 var(--glass-inner),
-      inset 0 -1px 0 0 color-mix(in srgb, var(--glass-inner) 25%, transparent),
-      0 1px 2px var(--glass-shadow),
-      0 18px 48px -18px var(--glass-shadow-strong);
-    border-radius: var(--radius-ios-lg);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-1);
     transition:
-      background 0.35s ease,
-      box-shadow 0.35s ease,
       transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-      border-color 0.35s ease;
+      box-shadow 0.35s ease,
+      border-color 0.35s ease,
+      background 0.3s ease;
   }
-  .glass-strong {
-    background: var(--glass-strong);
-    -webkit-backdrop-filter: blur(36px) saturate(200%);
-    backdrop-filter: blur(36px) saturate(200%);
-  }
-  .glass-weak {
-    background: var(--glass-weak);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    backdrop-filter: blur(18px) saturate(160%);
-  }
-
-  /* Specular halqa: chekka bo'ylab yorug'lik aksi (gradient border maskasi) */
-  .glass::before,
-  .glass-strong::before,
-  .glass-weak::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      var(--specular-angle, 135deg),
-      var(--glass-specular) 0%,
-      color-mix(in srgb, var(--glass-specular) 20%, transparent) 30%,
-      color-mix(in srgb, var(--glass-specular) 6%, transparent) 55%,
-      color-mix(in srgb, var(--glass-specular) 60%, transparent) 100%
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Yuqoridan tushayotgan yumshoq yorug'lik (sheen) */
-  .glass::after,
-  .glass-strong::after,
-  .glass-weak::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      radial-gradient(
-        120% 80% at var(--mx, 30%) var(--my, 0%),
-        color-mix(in srgb, var(--glass-specular) 26%, transparent) 0%,
-        transparent 55%
-      );
-    pointer-events: none;
-    z-index: 0;
-    transition: opacity 0.4s ease;
-  }
-
-  .glass > *,
-  .glass-strong > *,
-  .glass-weak > * {
+  /* Ko'tarilgan yuza */
+  .glass-strong,
+  .card-elevated {
     position: relative;
-    z-index: 2;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-2);
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+  /* Yengil yuza (fon bilan bir xil, faqat kontur) */
+  .glass-weak,
+  .card-outline {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  [data-theme="dark"] .glass-weak,
+  [data-theme="dark"] .card-outline {
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
   }
 
-  /* Interaktiv shisha: hover'da ko'tariladi, yorug'lik kuchayadi */
-  .glass-hover:hover {
+  .glass-hover:hover,
+  .card-hover:hover {
     transform: translateY(-3px);
-    background: color-mix(in srgb, var(--glass) 70%, var(--glass-strong));
-    box-shadow:
-      inset 0 1px 0 0 var(--glass-inner),
-      inset 0 -1px 0 0 color-mix(in srgb, var(--glass-inner) 25%, transparent),
-      0 2px 4px var(--glass-shadow),
-      0 28px 60px -20px var(--glass-shadow-strong);
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-2);
   }
-  .glass-hover:active {
+  .glass-hover:active,
+  .card-hover:active {
     transform: translateY(-1px) scale(0.995);
   }
 
-  /* Pill (kapsula) */
-  .glass-pill {
+  .glass-pill,
+  .pill {
     border-radius: 9999px;
   }
 
-  /* Tintlangan shisha (asosiy tugma, tanlangan holat) */
-  .glass-tint {
+  /* Asosiy tugma — "siyoh" (yorug'da qora, qorong'uda oq) */
+  .glass-tint,
+  .btn-ink {
     position: relative;
-    isolation: isolate;
-    color: #fff;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
-      linear-gradient(135deg, var(--tint), var(--tint-2));
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-      0 10px 30px -8px color-mix(in srgb, var(--tint) 65%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    backdrop-filter: blur(16px) saturate(180%);
+    color: var(--ink-fg);
+    background: var(--ink);
+    border: 1px solid transparent;
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, filter 0.3s ease;
   }
-  .glass-tint:hover {
-    filter: brightness(1.06) saturate(1.05);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-      0 16px 40px -10px color-mix(in srgb, var(--tint) 75%, transparent);
+  .glass-tint:hover,
+  .btn-ink:hover {
+    filter: brightness(1.12);
+    box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--ink) 50%, transparent);
   }
-  .glass-tint:active {
+  .glass-tint:active,
+  .btn-ink:active {
     transform: scale(0.97);
   }
 
-  /* Shisha input */
+  /* Accent gradient tugma */
+  .btn-accent {
+    position: relative;
+    color: #fff;
+    background: linear-gradient(100deg, var(--accent) 0%, #ff3d6e 55%, var(--accent-2) 120%);
+    background-size: 160% 100%;
+    background-position: 0% 0%;
+    border: 1px solid transparent;
+    box-shadow: var(--shadow-accent);
+    transition: background-position 0.5s ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+  }
+  .btn-accent:hover {
+    background-position: 100% 0%;
+  }
+  .btn-accent:active {
+    transform: scale(0.97);
+  }
+
+  /* Input */
   .field {
     width: 100%;
-    border-radius: 18px;
-    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    padding: 0.7rem 0.95rem;
     font-size: 0.9375rem;
     color: var(--fg);
-    background: color-mix(in srgb, var(--glass-weak) 80%, transparent);
-    border: 1px solid var(--glass-border-soft);
-    box-shadow:
-      inset 0 1px 2px color-mix(in srgb, var(--fg) 6%, transparent),
-      inset 0 1px 0 color-mix(in srgb, var(--glass-inner) 50%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
-    backdrop-filter: blur(14px) saturate(160%);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  [data-theme="dark"] .field {
+    background: var(--surface);
   }
   .field::placeholder {
     color: var(--fg-4);
   }
+  .field:hover {
+    border-color: var(--line-2);
+  }
   .field:focus {
-    border-color: color-mix(in srgb, var(--tint) 60%, transparent);
-    box-shadow:
-      inset 0 1px 2px color-mix(in srgb, var(--fg) 6%, transparent),
-      0 0 0 4px color-mix(in srgb, var(--tint) 18%, transparent);
-    background: var(--glass);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    background: var(--surface);
   }
   select.field {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='%238a90a4' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='%238a8780' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 0.9rem center;
+    background-position: right 0.85rem center;
     padding-right: 2.5rem;
   }
   .field-label {
@@ -356,20 +360,20 @@ h1, h2, h3, h4 {
   .field-error {
     margin-top: 0.3rem;
     font-size: 0.75rem;
-    color: #ff453a;
+    color: #ef4444;
   }
 
-  /* iOS segment boshqaruvi */
+  /* Segment (tab) boshqaruvi */
   .segment {
     display: inline-flex;
-    padding: 3px;
+    padding: 4px;
     gap: 2px;
     border-radius: 9999px;
-    background: color-mix(in srgb, var(--fg) 7%, transparent);
-    border: 1px solid var(--hairline);
+    background: var(--surface-3);
+    border: 1px solid var(--line);
   }
   .segment-item {
-    padding: 0.4rem 0.9rem;
+    padding: 0.45rem 0.95rem;
     border-radius: 9999px;
     font-size: 0.8125rem;
     font-weight: 600;
@@ -377,12 +381,53 @@ h1, h2, h3, h4 {
     transition: background 0.25s, color 0.25s, box-shadow 0.25s;
     white-space: nowrap;
   }
-  .segment-item[data-active="true"] {
+  .segment-item:hover {
     color: var(--fg);
-    background: var(--glass-strong);
-    box-shadow:
-      inset 0 1px 0 var(--glass-inner),
-      0 2px 8px var(--glass-shadow);
+  }
+  .segment-item[data-active="true"] {
+    color: var(--ink-fg);
+    background: var(--ink);
+    box-shadow: var(--shadow-1);
+  }
+
+  /* Navigatsiya paneli — yagona blur ishlatiladigan joy */
+  .nav-bar {
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line);
+  }
+
+  /* Katta display sarlavha */
+  .display-xl {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 0.98;
+  }
+  /* Italic serif urg'u so'z */
+  .accent-serif {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  /* Kichik ustki yozuv */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+  }
+  .eyebrow::before {
+    content: "";
+    width: 1.5rem;
+    height: 1px;
+    background: var(--accent);
   }
 }
 
@@ -392,23 +437,18 @@ h1, h2, h3, h4 {
 }
 
 @utility text-gradient {
-  background: linear-gradient(92deg, var(--tint) 0%, var(--tint-2) 45%, #bf5af2 100%);
+  background: linear-gradient(95deg, var(--accent) 0%, #ff3d6e 45%, var(--accent-2) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 @utility hairline-b {
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--line);
 }
 
 @utility skeleton {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--fg) 6%, transparent) 25%,
-    color-mix(in srgb, var(--fg) 12%, transparent) 50%,
-    color-mix(in srgb, var(--fg) 6%, transparent) 75%
-  );
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
   border-radius: 14px;
@@ -421,20 +461,41 @@ h1, h2, h3, h4 {
   }
 }
 
+@utility grain {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
 /* ---------- Xarita ---------- */
 .region-path {
   cursor: pointer;
-  transition:
-    fill 0.3s ease,
-    stroke 0.3s ease,
-    filter 0.3s ease,
-    opacity 0.3s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease, opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  outline: none;
+}
+.map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: map-pulse 2.6s ease-out infinite;
+}
+@keyframes map-pulse {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(2.8); opacity: 0; }
 }
 .region-path:hover {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--tint) 55%, transparent)) brightness(1.08);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent)) brightness(1.06);
 }
 .region-path.is-active {
-  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--tint) 80%, transparent)) brightness(1.1);
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 75%, transparent)) brightness(1.08);
 }
 
 /* ---------- Harakatni kamaytirish ---------- */
