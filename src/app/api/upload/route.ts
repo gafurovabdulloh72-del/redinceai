@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { put } from "@vercel/blob";
 import { ApiError, handler, ok, requireSession } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { uploadDir } from "@/lib/uploads";
@@ -28,9 +29,16 @@ export const POST = handler(async (req) => {
   if (!ext) throw new ApiError(415, "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${ext}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  // Vercel: diskka yozib bo'lmaydi — Vercel Blob (BLOB_READ_WRITE_TOKEN avtomatik beriladi)
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`uploads/${name}`, bytes, { access: "public", contentType: file.type, addRandomSuffix: false });
+    return ok({ url: blob.url }, { status: 201 });
+  }
+
   const dir = uploadDir();
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
-
+  await writeFile(path.join(dir, name), bytes);
   return ok({ url: `/uploads/${name}` }, { status: 201 });
 });

@@ -11,8 +11,9 @@ import * as schema from "./schema";
 import { CATEGORIES, REGIONS } from "../constants";
 import { slugify } from "../utils";
 
-mkdirSync("data", { recursive: true });
-const client = createClient({ url: process.env.DATABASE_URL ?? "file:./data/redince.db", authToken: process.env.DATABASE_AUTH_TOKEN });
+const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || "file:./data/redince.db";
+if (url.startsWith("file:")) mkdirSync("data", { recursive: true });
+const client = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN });
 const db = drizzle(client, { schema });
 
 /* ---------- deterministik tasodif ---------- */

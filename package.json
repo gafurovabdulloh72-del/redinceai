@@ -14,10 +14,12 @@
     "db:reset": "rm -f data/redince.db && npm run db:push && npm run db:seed",
     "db:studio": "drizzle-kit studio",
     "start:railway": "sh scripts/start.sh",
-    "db:seed:ifempty": "tsx src/lib/db/seed.ts --if-empty"
+    "db:seed:ifempty": "tsx src/lib/db/seed.ts --if-empty",
+    "vercel-build": "drizzle-kit push --force && tsx src/lib/db/seed.ts --if-empty && next build"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
+    "@vercel/blob": "^2.8.1",
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.44.0",
     "framer-motion": "^12.0.0",

@@ -6,8 +6,16 @@ import * as schema from "./schema";
 
 const globalForDb = globalThis as unknown as { __redinceClient?: Client };
 
+/** DATABASE_URL yoki Vercel Turso integratsiyasi beradigan TURSO_DATABASE_URL */
+export function dbUrl() {
+  return process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || "file:./data/redince.db";
+}
+export function dbAuthToken() {
+  return process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || undefined;
+}
+
 function makeClient(): Client {
-  const url = process.env.DATABASE_URL ?? "file:./data/redince.db";
+  const url = dbUrl();
   // Lokal fayl bo'lsa papkasi mavjudligini ta'minlaymiz (build va birinchi ishga tushishda)
   if (url.startsWith("file:")) {
     try {
@@ -16,7 +24,7 @@ function makeClient(): Client {
       /* read-only FS bo'lsa e'tiborsiz — ulanishda xato chiqadi */
     }
   }
-  return createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
+  return createClient({ url, authToken: dbAuthToken() });
 }
 
 // Dev rejimida HMR paytida ulanishlar ko'payib ketmasligi uchun globalda saqlaymiz
