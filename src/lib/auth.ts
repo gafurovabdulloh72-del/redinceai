@@ -13,11 +13,13 @@ const ROLES: ReadonlyArray<User["role"]> = ["client", "specialist", "admin"];
 
 function secret() {
   const s = process.env.AUTH_SECRET;
-  if (!s || s.length < 16) {
-    if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan");
-    return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
-  }
-  return new TextEncoder().encode(s);
+  if (s && s.length >= 16) return new TextEncoder().encode(s);
+  // AUTH_SECRET berilmagan bo'lsa: Turso tokenidan barqaror, maxfiy kalit hosil qilamiz
+  // (token maxfiy va deploylar orasida o'zgarmaydi — sessiyalar saqlanib qoladi)
+  const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
+  if (derived && derived.length >= 16) return new TextEncoder().encode(`redince-session-v1:${derived}`);
+  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan");
+  return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
 }
 
 export interface SessionPayload {
