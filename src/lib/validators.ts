@@ -164,7 +164,8 @@ export const resetConfirmSchema = z.object({ token: z.string().min(16), newPassw
 
 /* ---------- To'lovlar ---------- */
 export const orderAmountSchema = z.object({
-  amount: z.coerce.number().int().min(50_000, "Kamida 50 000 so'm").max(1_000_000_000),
+  // Pastki chegarani platforma sozlamasi (minOrderAmount) boshqaradi — route xabar beradi
+  amount: z.coerce.number().int().min(1_000, "Kamida 1 000 so'm").max(1_000_000_000),
 });
 export const checkoutSchema = z.object({
   orderId: z.string().min(1),
@@ -208,6 +209,7 @@ export const specialistFilterSchema = z.object({
   q: z.string().trim().max(80).optional(),
   region: z.string().optional(),
   category: z.string().optional(),
+  priceMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().int().min(0).optional(),
   experience: z.string().optional(),
   verified: z.enum(["1", "0"]).optional(),

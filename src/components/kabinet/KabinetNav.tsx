@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { ClipboardList, ExternalLink, Images, LayoutDashboard, LogOut, ShieldCheck, UserRound, type LucideIcon, Wallet, LockKeyhole } from "lucide-react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { ClipboardList, ExternalLink, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -37,13 +37,42 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   security: LockKeyhole,
 };
 
+/** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */
+function useOverflowing(ref: RefObject<HTMLElement | null>) {
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOver(el.scrollWidth > el.clientWidth + 2);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return over;
+}
+
 export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: KabinetNavUser }) {
   const pathname = usePathname();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const rowOver = useOverflowing(rowRef);
 
   const isActive = (item: KabinetNavItem) =>
     item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+  // Mobil: faol pill ko'rinadigan joyga aylantiriladi
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const active = row.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) return;
+    const left = active.offsetLeft - 16;
+    if (left > row.scrollLeft + row.clientWidth - active.offsetWidth - 16 || left < row.scrollLeft) {
+      row.scrollTo({ left: Math.max(0, left), behavior: "auto" });
+    }
+  }, [pathname]);
 
   const logout = async () => {
     if (leaving) return;
@@ -61,9 +90,9 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
     <>
       {/* ---------- Desktop: yopishqoq yon panel ---------- */}
       <div className="hidden lg:sticky lg:top-28 lg:block">
-        <div className="glass-strong p-2.5">
+        <div className="card-elevated p-2.5">
           <div className="flex items-center gap-3 px-2.5 py-3">
-            <Avatar name={user.name} src={user.avatarUrl} size={46} />
+            <Avatar name={user.name} src={user.avatarUrl} size={46} decorative />
             <div className="min-w-0">
               <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
               <p className="truncate text-[12px] text-fg-3">{user.roleLabel}</p>
@@ -71,7 +100,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             </div>
           </div>
 
-          <div className="mx-2 my-1 h-px bg-hairline" />
+          <div className="mx-2 my-1 h-px bg-line" />
 
           <nav aria-label="Kabinet bo'limlari" className="space-y-1 py-1">
             {items.map((item) => {
@@ -83,8 +112,8 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-[14px] font-semibold transition",
-                    active ? "glass-tint" : "text-fg-2 hover:bg-fg/5 hover:text-fg active:scale-[0.99]",
+                    "flex min-h-11 items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-[14px] font-semibold transition",
+                    active ? "btn-ink" : "text-fg-2 hover:bg-fg/5 hover:text-fg active:scale-[0.99]",
                   )}
                 >
                   <Icon size={18} className={active ? undefined : "text-fg-3"} />
@@ -93,7 +122,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none",
-                        active ? "bg-white/25 text-white" : "bg-tint-soft text-tint",
+                        active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white",
                       )}
                     >
                       {item.badge}
@@ -104,13 +133,13 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             })}
           </nav>
 
-          <div className="mx-2 my-1 h-px bg-hairline" />
+          <div className="mx-2 my-1 h-px bg-line" />
 
           <button
             type="button"
             onClick={logout}
             disabled={leaving}
-            className="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left text-[14px] font-semibold text-ios-red transition hover:bg-ios-red/10 disabled:opacity-60"
+            className="flex min-h-11 w-full items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-left text-[14px] font-semibold text-danger transition hover:bg-danger-soft disabled:opacity-60"
           >
             {leaving ? <Spinner /> : <LogOut size={18} />} Chiqish
           </button>
@@ -118,9 +147,9 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
       </div>
 
       {/* ---------- Mobil / planshet: sarlavha + gorizontal pill'lar ---------- */}
-      <div className="lg:hidden">
-        <div className="glass-strong flex items-center gap-3 !rounded-[22px] py-2.5 pl-3 pr-2">
-          <Avatar name={user.name} src={user.avatarUrl} size={40} />
+      <div className="min-w-0 lg:hidden">
+        <div className="card-elevated flex items-center gap-3 py-2.5 pl-3 pr-2">
+          <Avatar name={user.name} src={user.avatarUrl} size={40} decorative />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold leading-tight text-fg">{user.name}</p>
             <p className="truncate text-[12px] text-fg-3">{user.roleLabel}</p>
@@ -130,14 +159,14 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             onClick={logout}
             disabled={leaving}
             aria-label="Chiqish"
-            className="glass glass-pill flex h-9 w-9 shrink-0 items-center justify-center text-ios-red transition active:scale-95 disabled:opacity-60"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger transition hover:bg-danger-soft active:scale-95 disabled:opacity-60"
           >
-            {leaving ? <Spinner /> : <LogOut size={16} />}
+            {leaving ? <Spinner /> : <LogOut size={17} />}
           </button>
         </div>
 
-        <div className="no-scrollbar -mx-4 mt-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
-          <nav aria-label="Kabinet bo'limlari" className="segment">
+        <div ref={rowRef} className={cn("no-scrollbar -mx-4 mt-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6", rowOver && "scroll-fade")}>
+          <nav aria-label="Kabinet bo'limlari" className="flex w-max gap-2">
             {items.map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(item);
@@ -146,13 +175,17 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className="segment-item inline-flex items-center gap-1.5"
-                  data-active={active}
+                  className={cn(
+                    "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[13.5px] font-semibold transition active:scale-[0.97]",
+                    active ? "btn-ink border-transparent" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
+                  )}
                 >
-                  <Icon size={14} className={active ? "text-tint" : "text-fg-3"} />
+                  <Icon size={15} className={active ? undefined : "text-fg-3"} />
                   {item.label}
                   {item.badge ? (
-                    <span className="rounded-full bg-tint-soft px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none text-tint">{item.badge}</span>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white")}>
+                      {item.badge}
+                    </span>
                   ) : null}
                 </Link>
               );

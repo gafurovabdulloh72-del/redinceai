@@ -54,9 +54,11 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
           <span className="inline-flex items-center gap-1">
             <MapPin size={11} /> {place}
           </span>
-          <span className="sm:hidden">
-            <Stars value={sp.rating} count={sp.reviewCount} size={11} />
-          </span>
+        </span>
+        {/* Mobil: narx va reyting meta ostida, bir qatorda */}
+        <span className="mt-1.5 flex items-center justify-between gap-2 sm:hidden">
+          <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg">{priceLine(sp.priceFrom, sp.priceTo)}</span>
+          <Stars value={sp.rating} count={sp.reviewCount} size={11} />
         </span>
       </span>
 
@@ -65,9 +67,6 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
           {priceLine(sp.priceFrom, sp.priceTo)}
         </span>
         <Stars value={sp.rating} count={sp.reviewCount} size={11} />
-      </span>
-      <span className="flex flex-col items-end gap-1 sm:hidden">
-        <span className="whitespace-nowrap font-display text-[13px] font-semibold text-fg">{priceLine(sp.priceFrom, sp.priceTo)}</span>
       </span>
 
       <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg sm:flex">

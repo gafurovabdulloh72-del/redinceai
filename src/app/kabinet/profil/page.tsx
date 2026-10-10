@@ -6,7 +6,7 @@ import { AccountForm } from "@/components/kabinet/AccountForm";
 import { PrivacySettings } from "@/components/kabinet/PrivacySettings";
 import { ProfileForm, type ProfileInitial } from "@/components/kabinet/ProfileForm";
 import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { resolveVisibility } from "@/lib/privacy";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Profil" };
 export default async function ProfilPage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
-  if (!user) redirect("/auth/kirish?next=%2Fkabinet%2Fprofil");
+  if (!user) redirect(await loginRedirectPath("/kabinet/profil"));
 
   const s = user.specialist;
   const initial: ProfileInitial | null = s

@@ -10,7 +10,7 @@ export default function Loading() {
         <div className="mt-4 h-4 w-full max-w-xl skeleton" />
       </div>
 
-      <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
+      <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
         {/* Yon panel skeleti (yig'iladigan guruhlar) */}
         <aside className="hidden lg:col-span-3 lg:block">
           <div className="card sticky top-24 p-5">

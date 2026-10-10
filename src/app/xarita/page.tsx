@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { MapExplorer } from "@/components/map/MapExplorer";
+import { PageHeader } from "@/components/ui";
 import { CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { getCategoryStats, getRegionStats } from "@/lib/queries";
 
@@ -32,17 +33,16 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="container-x">
-      <header className="max-w-3xl">
-        <span className="eyebrow">
-          Jonli xarita · {REGIONS.length} hudud · {total} mutaxassis
-        </span>
-        <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px] lg:text-[56px]">
-          Hududni tanlang — <span className="accent-serif text-accent">ijodkorlar</span> chiqadi
-        </h1>
-        <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">
-          Viloyatni bosing — o'sha yerdagi eng yaxshi mutaxassislar ro'yxati ochiladi. Yo'nalishni tanlasangiz, xarita ranglari ham shu yo'nalish bo'yicha o'zgaradi.
-        </p>
-      </header>
+      <PageHeader
+        size="lg"
+        eyebrow={`Interaktiv xarita · ${REGIONS.length} hudud · ${total} mutaxassis`}
+        title={
+          <>
+            Hududni tanlang — <span className="accent-serif text-accent">ijodkorlar</span> chiqadi
+          </>
+        }
+        description="Viloyatni bosing — o'sha yerdagi eng yaxshi mutaxassislar ro'yxati va hudud statistikasi ochiladi. Yo'nalishni tanlasangiz, xarita ranglari ham shu yo'nalish bo'yicha o'zgaradi."
+      />
 
       <div className="mt-8 sm:mt-10">
         <MapExplorer stats={stats} categoryStats={categoryStats} initialRegion={initialRegion} initialCategory={initialCategory} />

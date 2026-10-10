@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, count, desc, eq, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
@@ -23,6 +23,10 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
   if (filter.experience) conds.push(eq(specialists.experience, filter.experience as "junior"));
   if (filter.verified === "1") conds.push(eq(specialists.isVerified, true));
   if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
+  // priceMin faqat priceMax'dan kichik bo'lsa qo'llanadi (teskari oraliq — e'tiborsiz)
+  if (filter.priceMin && filter.priceMin > 0 && !(filter.priceMax && filter.priceMin >= filter.priceMax)) {
+    conds.push(gte(specialists.priceFrom, filter.priceMin));
+  }
   if (filter.gender) {
     // Jins users jadvalida — subquery orqali
     const byGender = db.select({ id: users.id }).from(users).where(eq(users.gender, filter.gender));

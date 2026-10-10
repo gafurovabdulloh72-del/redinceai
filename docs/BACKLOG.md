@@ -9,29 +9,29 @@
 1. Portfolio URL'ida `javascript:`/`data:` sxemalari — ✅ validatorda tuzatildi (rel="noopener" tekshiruvi ochiq)
 2. `?next=` orqali ochiq redirect (`/\evil.com`) — ✅ tuzatildi
 3. Upload'da MIME mijozdan — ✅ magic-bytes tekshiruvi qo'shildi
-4. Upload'da foydalanuvchi boshiga kvota yo'q
-5. `/uploads/[name]` javobida `X-Content-Type-Options: nosniff` yo'q
-6. Rate limiting yo'q (login/registratsiya brute-force)
-7. CSRF token yo'q (faqat SameSite=Lax)
-8. JWT 30 kun, bekor qilish (revocation) yo'q
-9. Parolni o'zgartirish/tiklash yo'q
+4. Upload'da foydalanuvchi boshiga kvota yo'q — ✅ kunlik kvota (enforceLimit upload)
+5. `/uploads/[name]` javobida `X-Content-Type-Options: nosniff` yo'q — ✅
+6. Rate limiting yo'q (login/registratsiya brute-force) — ✅ rate_limits jadvali
+7. CSRF token yo'q (faqat SameSite=Lax) — ✅ Origin/Sec-Fetch-Site tekshiruvi
+8. JWT 30 kun, bekor qilish (revocation) yo'q — ✅ sessionVersion
+9. Parolni o'zgartirish/tiklash yo'q — ✅
 10. Email tasdiqlash yo'q
-11. Demo hisoblar (admin paroli) login sahifasida ochiq, o'chirish bayrog'i yo'q
+11. Demo hisoblar (admin paroli) login sahifasida ochiq, o'chirish bayrog'i yo'q — ✅ NEXT_PUBLIC_DEMO_ACCOUNTS
 12. `avatarUrl` sxema tekshiruvisiz
-13. Health endpoint xom xato matnini chiqaradi
-14. Admin audit log yo'q
-15. Security headerlar (CSP, HSTS, Referrer-Policy) yo'q
+13. Health endpoint xom xato matnini chiqaradi — ✅
+14. Admin audit log yo'q — ✅ /admin/audit
+15. Security headerlar (CSP, HSTS, Referrer-Policy) yo'q — ✅
 
 ### Auth va sessiya
 16. Bazada yo'q foydalanuvchi cookie'si → cheksiz redirect — ✅ tuzatildi
 17. Kirgan foydalanuvchi `?next=`ni yo'qotardi — ✅ tuzatildi
-18. Rol JWT ichida — admin rolni olsa ham 30 kun eski rol ishlaydi
-19. "Meni eslab qolish" tanlovi yo'q
+18. Rol JWT ichida — admin rolni olsa ham 30 kun eski rol ishlaydi — ✅
+19. "Meni eslab qolish" tanlovi yo'q — ✅
 20. Google/Telegram login yo'q
 21. Telefon normalizatsiyasi (+998) zaif
-22. "Barcha qurilmalardan chiqish" yo'q
-23. Login sahifasida "nega keldingiz" konteksti yo'q
-24. Parol kuchi ko'rsatkichi yo'q, min 6 belgi kam
+22. "Barcha qurilmalardan chiqish" yo'q — ✅
+23. Login sahifasida "nega keldingiz" konteksti yo'q — ✅
+24. Parol kuchi ko'rsatkichi yo'q, min 6 belgi kam — ✅
 
 ### Baza va API
 25. Qidiruvda `%`/`_` wildcard ekranlanmagan
@@ -68,7 +68,7 @@
 52. "Kim kerak?" bento katta plitka 70% bo'sh
 53. `/xarita` desktop chap ustun ~800px bo'sh
 54. Kabinet "So'nggi buyurtmalar" bo'sh cho'ziladi
-55. Auth chap paneli improvizatsiya
+55. Auth chap paneli improvizatsiya — ✅
 56. Sarlavhalar bosh sahifa uslubiga mos emas (qisman ✅)
 57. Accent CTA faqat bosh sahifada
 58. Eski "glass" sinflari qolgan joylar
@@ -95,7 +95,7 @@
 75. Global :focus-visible yo'q — ✅
 76. Yulduz reytinglarida aria nomi yo'q
 77. Lightbox/menyu fokus tutilmaydi — qisman ✅ useFocusTrap
-78. Parolni ko'rsatish tugmasi tabIndex=-1
+78. Parolni ko'rsatish tugmasi tabIndex=-1 — ✅
 79. Kategoriya pill'lari noto'g'ri role="tab"
 80. Avatarlar ismni 2 marta e'lon qiladi
 81. `tel:` havolalar target=_blank
@@ -105,12 +105,12 @@
 83. Mijoz "Mutaxassis bo'lish" → 403 — ✅
 84. Yangi mutaxassis darhol ommaviy — ✅
 85. Ism o'zgarsa slug o'zgarardi — ✅
-86. Buyurtma haqida bildirishnoma yo'q (email/Telegram)
+86. Buyurtma haqida bildirishnoma yo'q (email/Telegram) — ✅ ichki bildirishnomalar API (email/Telegram ochiq)
 87. Ichki chat yo'q
-88. Buyurtmaga deep-link yo'q
-89. Server xatosidan keyin fokus noto'g'ri maydonga o'tmaydi
+88. Buyurtmaga deep-link yo'q — ✅
+89. Server xatosidan keyin fokus noto'g'ri maydonga o'tmaydi — ✅
 90. Sharh uchun "haqiqiy buyurtma" sharti yo'q
-91. Rad etish sababi yo'q
+91. Rad etish sababi yo'q — ✅
 92. Salomlashuv UTC bo'yicha edi — ✅ Toshkent vaqti
 
 ### Kontent
@@ -128,14 +128,14 @@
 ## B. 50 ta qo'shimcha g'oya (mahsulot)
 
 ### Pul va buyurtma
-1. Click/Payme/Uzum to'lov + escrow
+1. Click/Payme/Uzum to'lov + escrow — ✅ Click/Payme + escrow
 2. Shartnoma/invoys PDF
 3. Xizmat paketlari (Basic/Standard/Premium)
 4. Narx kalkulyatori
 5. Band kunlar kalendari va bron
 6. Buyurtma bosqichlari + progress bar
 7. Avans/qoldiq sxemasi
-8. Bekor qilish siyosati, sabab bilan rad etish
+8. Bekor qilish siyosati, sabab bilan rad etish — ✅
 9. "Yana buyurtma berish"
 10. Tender rejimi
 
@@ -276,33 +276,33 @@
 72. "Reyting bo'yicha saralangan" va CTA hizalanmagan
 
 ### Auth
-73. Chap panelda chiplar tasodifiy "suzadi", katta bo'shliq
-74. "bir xaritada" gradient matn — eski uslub
-75. Pastel pushti→binafsha fon palitraga mos emas
-76. Rol kartalari ikonkalari turli uslubda
-77. Demo havolasi coral — CTA bilan raqobat
-78. Forma va panel balandligi teng emas
+73. Chap panelda chiplar tasodifiy "suzadi", katta bo'shliq — ✅
+74. "bir xaritada" gradient matn — eski uslub — ✅
+75. Pastel pushti→binafsha fon palitraga mos emas — ✅
+76. Rol kartalari ikonkalari turli uslubda — ✅
+77. Demo havolasi coral — CTA bilan raqobat — ✅
+78. Forma va panel balandligi teng emas — ✅
 
 ### Kabinet
-79. MOBILDA 629px'ga cho'ziladi — gorizontal siljish, kontent kesiladi (tasdiqlangan)
+79. MOBILDA 629px'ga cho'ziladi — gorizontal siljish, kontent kesiladi (tasdiqlangan) — ✅
 80. Sidebar sticky emas
 81. "So'nggi buyurtmalar" bo'sh oq quti (~350px)
 82. Stat ikonkalari "o'yinchoq" ranglar
 83. "Reyting —" chiziqcha g'alati
 84. "Tezkor amallar" 6 ta bir xil pill — ustuvorlik yo'q
 85. Holat kartasi ranglari aniq emas
-86. Buyurtmalar toq bo'lsa o'ngda bo'shliq
-87. Telefon chipi coral — CTA bilan chalkashadi
-88. "Rad etish" matn vs "Qabul qilish" pill — uslub farqi
+86. Buyurtmalar toq bo'lsa o'ngda bo'shliq — ✅
+87. Telefon chipi coral — CTA bilan chalkashadi — ✅
+88. "Rad etish" matn vs "Qabul qilish" pill — uslub farqi — ✅
 89. Portfolio "Ochish" 17px; o'chirish doirasi og'ir
 90. Profil formasi 3700px bitta ustun, progress yo'q
 
 ### Admin
-91. 20 qator × 3 tugma — shovqin
-92. "20 ta tekshiruvda" coral — xato kabi ko'rinadi
-93. "Boshqaruv markazi" italik — admin uchun ortiqcha
-94. Rol yorliqlari ma'nosi noaniq
-95. Mobil kartalarda ustun sarlavhalari yo'qoladi
+91. 20 qator × 3 tugma — shovqin — ✅
+92. "20 ta tekshiruvda" coral — xato kabi ko'rinadi — ✅
+93. "Boshqaruv markazi" italik — admin uchun ortiqcha — ✅
+94. Rol yorliqlari ma'nosi noaniq — ✅
+95. Mobil kartalarda ustun sarlavhalari yo'qoladi — ✅
 
 ### Qorong'u rejim
 96. Xarita loyqa jigarrang

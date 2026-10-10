@@ -48,7 +48,7 @@ export async function middleware(req: NextRequest) {
   const role = await readRole(req);
 
   // Himoyalangan sahifalar
-  if (pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname.startsWith("/buyurtma")) {
+  if (pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname.startsWith("/buyurtma") || pathname.startsWith("/tolov")) {
     if (!role) {
       const url = req.nextUrl.clone();
       url.pathname = "/auth/kirish";
@@ -80,5 +80,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/kabinet/:path*", "/admin/:path*", "/buyurtma/:path*", "/auth/:path*"],
+  matcher: ["/kabinet/:path*", "/admin/:path*", "/buyurtma/:path*", "/tolov/:path*", "/auth/:path*"],
 };

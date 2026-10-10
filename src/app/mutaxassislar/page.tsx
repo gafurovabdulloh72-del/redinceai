@@ -9,6 +9,7 @@ import { Filters, MobileFilters, SortSelect, ViewToggle } from "@/components/spe
 import { ActiveFilters } from "@/components/specialists/ActiveFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG, REGIONS } from "@/lib/constants";
+import { getSession } from "@/lib/auth";
 import { getCategoryStats, getRegionStats, listSpecialists } from "@/lib/queries";
 import { specialistFilterSchema, type SpecialistFilter } from "@/lib/validators";
 
@@ -134,7 +135,10 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
   const priceMin = parsePriceMin(flat, filter.priceMax);
   const view: View = flat.view === "list" ? "list" : "grid";
 
-  const [result, regionStats, categoryStats] = await Promise.all([listSpecialists(filter), getRegionStats(), getCategoryStats()]);
+  // Kirgan foydalanuvchiga "faqat ro'yxatdan o'tganlarga" darajadagi shahar ko'rinadi
+  const session = await getSession();
+  const viewer = { userId: session?.sub ?? null, role: session?.role ?? null };
+  const [result, regionStats, categoryStats] = await Promise.all([listSpecialists(filter, viewer), getRegionStats(), getCategoryStats()]);
 
   // Mavjud bo'lmagan sahifa so'ralsa — oxirgi sahifaga qaytaramiz
   if (result.total > 0 && filter.page > result.pages) {
@@ -163,7 +167,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
         description="Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx, tajriba va jins bo'yicha filtrlang, o'zingizga mosini toping."
       />
 
-      <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
+      <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
         {/* ---------- Yon panel (desktop) ---------- */}
         <aside className="hidden min-w-0 lg:col-span-3 lg:block">
           <div className="card sticky top-24 overflow-hidden">

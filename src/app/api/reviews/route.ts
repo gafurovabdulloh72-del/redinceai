@@ -4,10 +4,12 @@ import { reviews, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { reviewSchema } from "@/lib/validators";
 import { recalcRating } from "@/lib/queries";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { uid } from "@/lib/utils";
 
 export const POST = handler(async (req) => {
   const session = await requireSession();
+  await enforceLimit("reviews", session.sub);
   const input = await parseBody(req, reviewSchema);
 
   const sp = await db.query.specialists.findFirst({

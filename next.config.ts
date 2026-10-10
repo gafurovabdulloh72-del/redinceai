@@ -57,6 +57,8 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Dev'dagi "N" indikatori mobil tab-barni to'sib qo'yadi (skrinshot QA)
+  devIndicators: false,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },
@@ -65,7 +67,11 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/(.*)", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+      // public/uploads static fayllari (route handler ishlamaganda ham): brauzerda ochilsin, yuklab olinmasin
+      { source: "/uploads/:path*", headers: [{ key: "Content-Disposition", value: "inline" }] },
+    ];
   },
   webpack: (config, { dev }) => {
     if (dev) {

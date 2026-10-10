@@ -128,6 +128,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const canReview = Boolean(viewer) && !isOwner;
   const profilePath = `/mutaxassislar/${raw.slug}`;
   const loginHref = `/auth/kirish?next=${encodeURIComponent(profilePath)}`;
+  // Sharh uchun kirish — login sahifasi kontekstli xabar ko'rsatadi (A23)
+  const reviewLoginHref = `${loginHref}&reason=review`;
   const orderHref = `/buyurtma/${raw.id}`;
   const showOwnerCta = isOwner && !previewMode;
 
@@ -396,7 +398,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 canReview={canReview && !previewMode}
                 isOwner={isOwner}
                 existing={myReview ? { rating: myReview.rating, text: myReview.text } : null}
-                loginHref={loginHref}
+                loginHref={reviewLoginHref}
               />
               <ReviewList
                 reviews={raw.reviews.map((r) => ({

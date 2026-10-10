@@ -4,11 +4,13 @@ import { portfolioItems, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { portfolioItemSchema } from "@/lib/validators";
 import { uid, youtubeId } from "@/lib/utils";
+import { enforceLimit } from "@/lib/security/rate-limit";
 
 const MAX_ITEMS = 30;
 
 export const POST = handler(async (req) => {
   const session = await requireSession(["specialist", "admin"]);
+  await enforceLimit("portfolio", session.sub);
   const input = await parseBody(req, portfolioItemSchema);
 
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true } });
