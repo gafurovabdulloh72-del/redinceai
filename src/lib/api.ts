@@ -1,7 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import type { z } from "zod";
-import { getSession, type SessionPayload } from "./auth";
+import { getVerifiedSession, type SessionPayload } from "./auth";
+import { checkSameOrigin } from "./security/origin";
 import { flattenErrors } from "./validators";
 
 export class ApiError extends Error {
@@ -9,6 +10,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public fields?: Record<string, string>,
+    /** Javobga qo'shiladigan sarlavhalar (masalan, Retry-After) */
+    public headers?: Record<string, string>,
   ) {
     super(message);
   }
@@ -18,25 +21,46 @@ export function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json({ ok: true, data }, init);
 }
 
-export function fail(status: number, message: string, fields?: Record<string, string>) {
-  return NextResponse.json({ ok: false, error: message, fields }, { status });
+export function fail(status: number, message: string, fields?: Record<string, string>, headers?: Record<string, string>) {
+  return NextResponse.json({ ok: false, error: message, fields }, { status, headers });
 }
 
-/** Route handlerlarni o'rab, ApiError va kutilmagan xatolarni JSON'ga aylantiradi */
-export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>) {
+export interface HandlerOptions {
+  /**
+   * CSRF (Origin/Referer) tekshiruvi — standart: yoqilgan. Faqat tashqi tizimlar (Payme/Click
+   * webhook'lari) chaqiradigan route'larda `csrf: false` qo'ying va o'z imzosini tekshiring.
+   */
+  csrf?: boolean;
+}
+
+/**
+ * Route handlerlarni o'rab, ApiError va kutilmagan xatolarni JSON'ga aylantiradi.
+ * GET/HEAD/OPTIONS'dan boshqa usullarda so'rov manbasi (Origin yoki Referer) o'z hostimizga
+ * teng bo'lishi shart — aks holda 403. curl testlarida: -H "Origin: http://localhost:3000".
+ */
+export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, opts: HandlerOptions = {}) {
   return async (req: Request, ctx: Ctx) => {
     try {
+      if (opts.csrf !== false) {
+        const problem = checkSameOrigin(req);
+        if (problem) throw new ApiError(403, `${problem}. Sahifani yangilab, qayta urinib ko'ring`);
+      }
       return await fn(req, ctx);
     } catch (e) {
-      if (e instanceof ApiError) return fail(e.status, e.message, e.fields);
+      if (e instanceof ApiError) return fail(e.status, e.message, e.fields, e.headers);
       console.error("[api]", e);
       return fail(500, "Serverda kutilmagan xatolik");
     }
   };
 }
 
+/**
+ * Sessiya talab qilish. JWT'dagi "sv" (sessiya versiyasi) baza bilan solishtiriladi —
+ * parol o'zgargan yoki "hamma qurilmadan chiqish" qilingan bo'lsa eski cookie ishlamaydi.
+ * Rol ham bazadan olinadi (JWT'dagi eski rol emas).
+ */
 export async function requireSession(roles?: SessionPayload["role"][]) {
-  const session = await getSession();
+  const session = await getVerifiedSession();
   if (!session) throw new ApiError(401, "Avval tizimga kiring");
   if (roles && !roles.includes(session.role)) throw new ApiError(403, "Ruxsat yo'q");
   return session;

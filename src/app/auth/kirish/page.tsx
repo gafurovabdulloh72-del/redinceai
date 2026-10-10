@@ -14,6 +14,5 @@ function first(v: string | string[] | undefined) {
 
 export default async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const next = first(sp.next);
-  return <AuthForm mode="login" next={next} />;
+  return <AuthForm mode="login" next={first(sp.next)} reason={first(sp.reason)} />;
 }

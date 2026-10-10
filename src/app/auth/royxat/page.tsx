@@ -15,6 +15,5 @@ function first(v: string | string[] | undefined) {
 export default async function RegisterPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const role = first(sp.role) === "specialist" ? "specialist" : "client";
-  const next = first(sp.next);
-  return <AuthForm mode="register" defaultRole={role} next={next} />;
+  return <AuthForm mode="register" defaultRole={role} next={first(sp.next)} reason={first(sp.reason)} />;
 }

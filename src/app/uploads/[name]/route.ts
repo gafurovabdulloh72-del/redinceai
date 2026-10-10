@@ -9,6 +9,8 @@ const MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", pn
 /**
  * UPLOAD_DIR ichidagi fayllarni beradi (public/ tashqarisidagi Volume uchun).
  * Dev'da public/uploads mavjud bo'lsa Next uni o'zi beradi — bu route faqat qolgan hollarda ishlaydi.
+ * Xavfsizlik: nom qat'iy regex bilan (path traversal yo'q), nosniff + inline (brauzer faylni
+ * skript/HTML deb talqin qilmaydi), faqat rasm MIME'lari.
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ name: string }> }) {
   const { name } = await ctx.params;
@@ -16,13 +18,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
   const file = path.join(uploadDir(), name);
   try {
     const s = await stat(file);
+    if (!s.isFile()) return new Response("Not found", { status: 404 });
     const ext = name.split(".").pop()!.toLowerCase();
     return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, {
       headers: {
         "Content-Type": MIME[ext] ?? "application/octet-stream",
         "Content-Length": String(s.size),
+        "Content-Disposition": `inline; filename="${name}"`,
         "Cache-Control": "public, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
       },
     });
   } catch {

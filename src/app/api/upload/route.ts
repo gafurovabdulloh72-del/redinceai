@@ -4,6 +4,8 @@ import { put } from "@vercel/blob";
 import { ApiError, handler, ok, requireSession } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { uploadDir } from "@/lib/uploads";
+import { audit } from "@/lib/security/audit";
+import { enforceLimit } from "@/lib/security/rate-limit";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -20,9 +22,12 @@ function sniff(buf: Buffer): { ext: string; mime: string } | null {
  * Oddiy rasm yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
  * Railway'da UPLOAD_DIR=/data/uploads (Volume) — fayllar /uploads/<nom> orqali
  * src/app/uploads/[name]/route.ts tomonidan beriladi.
+ * Kvota: foydalanuvchi boshiga 30 ta fayl / kun (rate_limits). Har yuklash audit jurnaliga yoziladi.
  */
 export const POST = handler(async (req) => {
-  await requireSession();
+  const session = await requireSession();
+  await enforceLimit("upload", session.sub);
+
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) throw new ApiError(400, "Fayl topilmadi");
@@ -37,6 +42,7 @@ export const POST = handler(async (req) => {
   // Vercel: diskka yozib bo'lmaydi — Vercel Blob (BLOB_READ_WRITE_TOKEN avtomatik beriladi)
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const blob = await put(`uploads/${name}`, bytes, { access: "public", contentType: kind.mime, addRandomSuffix: false });
+    await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "blob" } }, req);
     return ok({ url: blob.url }, { status: 201 });
   }
 
@@ -48,6 +54,7 @@ export const POST = handler(async (req) => {
   const dir = uploadDir();
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, name), bytes);
+  await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "disk" } }, req);
   // Nisbiy yo'l saqlanadi — domen/protokol o'zgarsa ham rasm ishlayveradi
   return ok({ url: `/uploads/${name}` }, { status: 201 });
 });

@@ -44,9 +44,9 @@ export function ReviewForm({
 
   if (!canReview) {
     return (
-      <div className="glass flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="card-outline flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="glass-tint flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
             <PencilLine size={20} />
           </span>
           <div>
@@ -54,7 +54,7 @@ export function ReviewForm({
             <p className="mt-0.5 text-[13px] text-fg-3">Fikringizni yozish uchun avval tizimga kiring. Bir daqiqa vaqt oladi.</p>
           </div>
         </div>
-        <ButtonLink href={loginHref} variant="primary" size="md" className="shrink-0">
+        <ButtonLink href={loginHref} variant="outline" size="md" className="shrink-0">
           <LogIn size={16} /> Kirish
         </ButtonLink>
       </div>
@@ -96,7 +96,7 @@ export function ReviewForm({
 
   if (done) {
     return (
-      <div className="glass animate-fade-up flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" style={{ animationDuration: "0.4s" }}>
+      <div className="card animate-fade-up flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" style={{ animationDuration: "0.4s" }}>
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-ios-green/16 text-ios-green">
             <CheckCircle2 size={22} />
@@ -114,9 +114,9 @@ export function ReviewForm({
   }
 
   return (
-    <form onSubmit={submit} className="glass p-5 sm:p-6" noValidate>
+    <form onSubmit={submit} className="card p-5 sm:p-6" noValidate>
       <div className="flex items-start gap-3">
-        <span className="glass-tint flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
           <Star size={20} />
         </span>
         <div>
@@ -132,7 +132,7 @@ export function ReviewForm({
           <div
             role="radiogroup"
             aria-label="Baho (1 dan 5 gacha)"
-            className="glass-weak glass-pill inline-flex items-center gap-0.5 px-2 py-1.5"
+            className="card-outline pill inline-flex items-center gap-0.5 px-2 py-1.5"
             onMouseLeave={() => setHover(0)}
           >
             {[1, 2, 3, 4, 5].map((n) => {

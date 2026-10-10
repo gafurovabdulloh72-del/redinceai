@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, ChevronLeft, ChevronRight, ImageIcon, Images, Link2, Play, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, ImageIcon, Images, Link2, Maximize2, Play, X } from "lucide-react";
 import { EmptyState } from "@/components/ui";
 import { SafeImage } from "./SafeImage";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -16,9 +16,6 @@ export interface GalleryItem {
   thumbnailUrl: string | null;
   description: string | null;
 }
-
-/* Masonry'ga o'xshash ritm: har bir plitka turli nisbatda */
-const ASPECTS = ["aspect-[4/3]", "aspect-[3/4]", "aspect-square", "aspect-[4/3]", "aspect-[4/5]", "aspect-[3/2]"];
 
 function thumbFor(item: GalleryItem) {
   if (item.thumbnailUrl) return item.thumbnailUrl;
@@ -44,13 +41,16 @@ function Thumb({ item, className }: { item: GalleryItem; className?: string }) {
   const hue = hashHue(item.id);
   const Icon = item.type === "video" ? Play : item.type === "link" ? Link2 : ImageIcon;
 
+  // Rasm yo'q/yuklanmadi: tinch neytral yuza + nozik rangli nur (rang-barang gradient o'rniga)
   const fallback = (
     <div
-      className={cn("flex h-full w-full items-center justify-center transition duration-700 group-hover:scale-105", className)}
-      style={{ background: `linear-gradient(135deg, hsl(${hue} 70% 72%), hsl(${(hue + 50) % 360} 70% 56%))` }}
+      className={cn("relative flex h-full w-full items-center justify-center overflow-hidden bg-surface-3 transition duration-700 group-hover:scale-105", className)}
       aria-hidden
     >
-      <Icon size={28} className="text-white/85 drop-shadow" />
+      <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-40 blur-2xl" style={{ background: `hsl(${hue} 70% 60%)` }} />
+      <span className="card flex h-12 w-12 items-center justify-center !rounded-[16px] text-fg-2">
+        <Icon size={20} />
+      </span>
     </div>
   );
 
@@ -77,29 +77,34 @@ export function PortfolioGallery({ items }: { items: GalleryItem[] }) {
 
   return (
     <>
-      <div className="columns-2 gap-3 sm:columns-3 sm:gap-4">
-        {items.map((item, i) => {
-          const aspect = ASPECTS[i % ASPECTS.length];
-          const tileCls = "glass glass-hover group relative mb-3 block w-full break-inside-avoid overflow-hidden !rounded-[20px] p-0 text-left sm:mb-4";
+      {/* Bir xil nisbatli (4:3) grid — bo'sh joysiz, tartibli */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        {items.map((item) => {
+          const tileCls = "card card-hover group relative block w-full overflow-hidden !rounded-[20px] p-0 text-left";
           const inner = (
             <>
-              <div className={cn("relative w-full overflow-hidden rounded-[inherit]", aspect)}>
+              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[inherit] bg-surface-3">
                 <Thumb item={item} />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent opacity-90 transition group-hover:opacity-100" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-90 transition group-hover:opacity-100" />
 
                 {item.type === "video" && (
-                  <span className="glass-strong glass-pill absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-fg transition group-hover:scale-110">
+                  <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-2)] transition group-hover:scale-110">
                     <Play size={18} className="ml-0.5 fill-current" />
                   </span>
                 )}
                 {item.type === "link" && (
-                  <span className="glass-strong glass-pill absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center text-fg">
+                  <span className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-1)]">
                     <ArrowUpRight size={15} />
+                  </span>
+                )}
+                {item.type !== "link" && (
+                  <span className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white opacity-0 transition group-hover:opacity-100">
+                    <Maximize2 size={14} />
                   </span>
                 )}
 
                 <div className="absolute inset-x-0 bottom-0 p-3">
-                  <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-white drop-shadow">{item.title}</p>
+                  <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-white drop-shadow">{item.title}</p>
                   {item.type === "link" && <p className="mt-0.5 truncate text-[11px] text-white/75">{hostOf(item.url)}</p>}
                 </div>
               </div>
@@ -184,7 +189,6 @@ function Lightbox({
   if (!mounted || !item) return null;
 
   const ytId = item.type === "video" ? youtubeId(item.url) : null;
-  const hue = hashHue(item.id);
 
   const node = (
     <div
@@ -199,7 +203,7 @@ function Lightbox({
     >
       {/* Yuqori panel */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
-        <span className="glass glass-pill px-3 py-1 text-[12px] font-semibold tabular-nums text-fg-2">
+        <span className="card pill px-3 py-1 text-[12px] font-semibold tabular-nums text-fg-2">
           {index + 1} / {total}
         </span>
         <div className="flex items-center gap-2">
@@ -208,7 +212,7 @@ function Lightbox({
               href={item.url}
               target="_blank"
               rel="noreferrer noopener"
-              className="glass glass-pill glass-hover hidden h-10 items-center gap-1.5 px-4 text-[13px] font-semibold text-fg sm:inline-flex"
+              className="card pill card-hover hidden h-10 items-center gap-1.5 px-4 text-[13px] font-semibold text-fg sm:inline-flex"
             >
               YouTube'da ochish <ArrowUpRight size={14} />
             </a>
@@ -250,7 +254,7 @@ function Lightbox({
 
         <div key={item.id} className="animate-fade-up flex max-h-full w-full max-w-5xl items-center justify-center" style={{ animationDuration: "0.35s" }}>
           {item.type === "video" && ytId ? (
-            <div className="glass aspect-video w-full overflow-hidden !rounded-[22px] bg-black/80">
+            <div className="card aspect-video w-full overflow-hidden !rounded-[22px] !bg-black/80">
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`}
                 title={item.title}
@@ -260,18 +264,16 @@ function Lightbox({
               />
             </div>
           ) : item.type === "video" ? (
-            <a href={item.url} target="_blank" rel="noreferrer noopener" className="glass glass-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[22px] text-fg">
-              <span className="glass-tint flex h-14 w-14 items-center justify-center rounded-full">
+            <a href={item.url} target="_blank" rel="noreferrer noopener" className="card card-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[22px] text-fg">
+              <span className="btn-ink flex h-14 w-14 items-center justify-center rounded-full">
                 <Play size={22} className="ml-0.5 fill-current" />
               </span>
               <span className="text-[14px] font-semibold">Videoni yangi oynada ochish</span>
             </a>
           ) : broken ? (
-            <div
-              className="flex aspect-[4/3] w-full max-w-2xl items-center justify-center rounded-[22px]"
-              style={{ background: `linear-gradient(135deg, hsl(${hue} 70% 72%), hsl(${(hue + 50) % 360} 70% 56%))` }}
-            >
-              <ImageIcon size={40} className="text-white/85" />
+            <div className="card flex aspect-[4/3] w-full max-w-2xl flex-col items-center justify-center gap-2 !rounded-[22px] text-fg-3">
+              <ImageIcon size={36} />
+              <span className="text-[13px]">Rasm yuklanmadi</span>
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
@@ -287,7 +289,7 @@ function Lightbox({
 
       {/* Izoh */}
       <div className="px-4 pb-5 pt-3 sm:px-6" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
-        <div className="glass mx-auto max-w-2xl px-5 py-3.5 !rounded-[20px]">
+        <div className="card mx-auto max-w-2xl px-5 py-3.5 !rounded-[20px]">
           <p className="text-[15px] font-semibold text-fg">{item.title}</p>
           {item.description && <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-fg-2">{item.description}</p>}
           {total > 1 && <p className="mt-1.5 hidden text-[11px] text-fg-4 sm:block">← → tugmalari bilan o'ting · Esc — yopish</p>}

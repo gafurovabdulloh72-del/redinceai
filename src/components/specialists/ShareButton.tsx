@@ -14,7 +14,8 @@ export function ShareButton({
   url,
   className,
   size = "md",
-  variant = "glass",
+  variant = "outline",
+  iconOnly = false,
 }: {
   title?: string;
   /** Berilmasa — window.location.href */
@@ -22,6 +23,8 @@ export function ShareButton({
   className?: string;
   size?: "sm" | "md" | "lg";
   variant?: "glass" | "ghost" | "tint-soft" | "outline";
+  /** Faqat ikonka (CTA yonidagi kvadrat tugma) */
+  iconOnly?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -34,38 +37,42 @@ export function ShareButton({
   const share = async () => {
     const href = url ?? window.location.href;
     try {
-      await navigator.clipboard.writeText(href);
-      setCopied(true);
-      return;
-    } catch {
-      /* clipboard mavjud emas — share'ga o'tamiz */
-    }
-    try {
-      if (navigator.share) {
+      if (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         await navigator.share({ title: title ?? document.title, url: href });
         setCopied(true);
+        return;
       }
     } catch {
-      /* foydalanuvchi bekor qildi */
+      /* foydalanuvchi bekor qildi — nusxalashga o'tamiz */
+    }
+    try {
+      await navigator.clipboard.writeText(href);
+      setCopied(true);
+    } catch {
+      /* clipboard mavjud emas */
     }
   };
+
+  const sizeCls = size === "lg" ? "h-13 w-13" : size === "sm" ? "h-9 w-9" : "h-11 w-11";
 
   return (
     <Button
       type="button"
       variant={variant}
-      size={size}
+      size={iconOnly ? "icon" : size}
       onClick={share}
       aria-live="polite"
-      className={cn("min-w-[128px] transition-colors", copied && "!text-ios-green", className)}
+      aria-label={iconOnly ? (copied ? "Havola nusxalandi" : "Ulashish") : undefined}
+      title={iconOnly ? "Ulashish" : undefined}
+      className={cn("transition-colors", iconOnly ? cn("shrink-0 !p-0", sizeCls) : "min-w-[128px]", copied && "!text-[#15803d] dark:!text-ios-green", className)}
     >
       {copied ? (
         <>
-          <Check size={16} /> Nusxalandi
+          <Check size={16} /> {!iconOnly && "Nusxalandi"}
         </>
       ) : (
         <>
-          <Share2 size={16} /> Ulashish
+          <Share2 size={16} /> {!iconOnly && "Ulashish"}
         </>
       )}
     </Button>

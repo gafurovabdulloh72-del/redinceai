@@ -19,14 +19,53 @@ function withRuntimeDirsIgnored(prev: unknown): RegExp | string[] {
   return extraGlobs;
 }
 
+/* ------------------------------------------------------------------ */
+/* Xavfsizlik sarlavhalari                                             */
+/* ------------------------------------------------------------------ */
+const isProd = process.env.NODE_ENV === "production";
+
+/** To'lov tizimlari (Payme/Click) checkout sahifalari — iframe va form yuborish uchun */
+const PAYMENT_HOSTS = "https://checkout.paycom.uz https://checkout.test.paycom.uz https://my.click.uz";
+
+const CSP = [
+  "default-src 'self'",
+  // Inline skript: tema init (<head>), Next runtime. 'unsafe-eval' faqat dev (HMR/source map)
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' https:",
+  `frame-src https://www.youtube.com https://www.youtube-nocookie.com ${PAYMENT_HOSTS}`,
+  // Dev'da HMR websocket
+  `connect-src 'self' https:${isProd ? "" : " ws: wss:"}`,
+  "font-src 'self' data:",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  `form-action 'self' ${PAYMENT_HOSTS}`,
+].join("; ");
+
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: CSP },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+  { key: "X-DNS-Prefetch-Control", value: "on" },
+  ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "i.ytimg.com" },
     ],
+  },
+  async headers() {
+    return [{ source: "/(.*)", headers: SECURITY_HEADERS }];
   },
   webpack: (config, { dev }) => {
     if (dev) {

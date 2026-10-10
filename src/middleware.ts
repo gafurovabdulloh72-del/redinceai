@@ -15,6 +15,10 @@ function secret() {
   return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
 }
 
+/**
+ * Faqat JWT imzosi va muddati tekshiriladi (edge'da baza yo'q). Sessiya versiyasi (sv)
+ * sahifa/API darajasida getCurrentUser / requireSession orqali tekshiriladi.
+ */
 async function readRole(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
@@ -57,10 +61,16 @@ export async function middleware(req: NextRequest) {
       url.search = "";
       return NextResponse.redirect(url);
     }
+    // Sahifa (getCurrentUser) eskirgan sessiyani aniqlasa, qayerga qaytishni bilishi uchun yo'lni uzatamiz.
+    // Mijoz yuborgan qiymat e'tiborga olinmaydi (ustidan yoziladi).
+    const reqHeaders = new Headers(req.headers);
+    reqHeaders.set("x-pathname", pathname + search);
+    return NextResponse.next({ request: { headers: reqHeaders } });
   }
 
-  // Kirgan foydalanuvchini auth sahifalaridan kabinetga (yoki ?next= manzilga) yo'naltiramiz
-  if (role && pathname.startsWith("/auth/")) {
+  // Kirgan foydalanuvchini auth sahifalaridan kabinetga (yoki ?next= manzilga) yo'naltiramiz.
+  // Parol tiklash sahifalari istisno: havola emaildan ochilganda sessiya bo'lishi ham mumkin.
+  if (role && pathname.startsWith("/auth/") && !pathname.startsWith("/auth/parol-tiklash")) {
     const next = safeNext(req.nextUrl.searchParams.get("next"), req.nextUrl.origin);
     const url = new URL(next ?? "/kabinet", req.nextUrl.origin);
     return NextResponse.redirect(url);

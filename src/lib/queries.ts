@@ -6,11 +6,16 @@ import { orders, portfolioItems, reviews, specialists, users } from "./db/schema
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, REGIONS } from "./constants";
 import { escapeLike } from "./utils";
+import { GUEST_VIEWER, toListItem, type Viewer } from "./privacy";
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassislar ro'yxati                                              */
 /* ------------------------------------------------------------------ */
-export async function listSpecialists(filter: SpecialistFilter) {
+/**
+ * Ro'yxat: natija elementlari xavfsiz DTO (telefon/email/aloqa vositalari/ish vaqti yo'q).
+ * `viewer` berilsa, "faqat ro'yxatdan o'tganlarga" darajadagi shahar kirgan foydalanuvchiga ko'rinadi.
+ */
+export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer = GUEST_VIEWER) {
   const conds: SQL[] = [];
 
   if (filter.region) conds.push(eq(specialists.regionSlug, filter.region));
@@ -18,6 +23,11 @@ export async function listSpecialists(filter: SpecialistFilter) {
   if (filter.experience) conds.push(eq(specialists.experience, filter.experience as "junior"));
   if (filter.verified === "1") conds.push(eq(specialists.isVerified, true));
   if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
+  if (filter.gender) {
+    // Jins users jadvalida — subquery orqali
+    const byGender = db.select({ id: users.id }).from(users).where(eq(users.gender, filter.gender));
+    conds.push(inArray(specialists.userId, byGender));
+  }
 
   if (filter.q) {
     // % va _ belgilarini ekranlaymiz — "%" so'rovi hamma qatorni qaytarmasin
@@ -66,7 +76,7 @@ export async function listSpecialists(filter: SpecialistFilter) {
   ]);
 
   return {
-    items,
+    items: items.map((sp) => toListItem(sp, viewer)),
     total,
     page: filter.page,
     pages: Math.max(1, Math.ceil(total / filter.limit)),
@@ -83,7 +93,7 @@ export const getSpecialistBySlug = cache(async (slug: string) => {
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.slug, slug),
     with: {
-      user: { columns: { id: true, name: true, avatarUrl: true, phone: true, createdAt: true } },
+      user: { columns: { id: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true } },
       portfolio: { orderBy: [asc(portfolioItems.sortOrder), desc(portfolioItems.createdAt)] },
       reviews: {
         orderBy: [desc(reviews.createdAt)],
@@ -112,8 +122,8 @@ export async function bumpViewCount(id: string) {
     .where(eq(specialists.id, id));
 }
 
-export async function getSimilarSpecialists(sp: { id: string; regionSlug: string; category: string }, limit = 4) {
-  return db.query.specialists.findMany({
+export async function getSimilarSpecialists(sp: { id: string; regionSlug: string; category: string }, limit = 4, viewer: Viewer = GUEST_VIEWER) {
+  const rows = await db.query.specialists.findMany({
     where: and(
       or(eq(specialists.regionSlug, sp.regionSlug), eq(specialists.category, sp.category)),
       sql`${specialists.id} != ${sp.id}`,
@@ -122,6 +132,30 @@ export async function getSimilarSpecialists(sp: { id: string; regionSlug: string
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },
   });
+  return rows.map((r) => toListItem(r, viewer));
+}
+
+/**
+ * Ko'ruvchining shu mutaxassis bilan "haqiqiy" buyurtmasi bormi
+ * (qabul qilingan / jarayonda / bajarilgan) — "orders" darajadagi maydonlar uchun.
+ */
+export async function hasAcceptedOrderWith(clientId: string | null | undefined, specialistId: string): Promise<boolean> {
+  if (!clientId) return false;
+  const row = await db.query.orders.findFirst({
+    where: and(eq(orders.clientId, clientId), eq(orders.specialistId, specialistId), inArray(orders.status, ["accepted", "in_progress", "done"])),
+    columns: { id: true },
+  });
+  return Boolean(row);
+}
+
+/** Sharhlar taqsimoti (5★…1★) — profil sahifasidagi reyting panelida */
+export function ratingDistribution(items: Array<{ rating: number }>): Record<1 | 2 | 3 | 4 | 5, number> {
+  const out = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<1 | 2 | 3 | 4 | 5, number>;
+  for (const r of items) {
+    const k = Math.min(5, Math.max(1, Math.round(r.rating))) as 1 | 2 | 3 | 4 | 5;
+    out[k] += 1;
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */
@@ -169,11 +203,12 @@ export async function getSiteStats() {
 }
 
 export async function getFeaturedSpecialists(limit = 6) {
-  return db.query.specialists.findMany({
+  const rows = await db.query.specialists.findMany({
     orderBy: [desc(specialists.isFeatured), desc(specialists.rating), desc(specialists.reviewCount)],
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },
   });
+  return rows.map((r) => toListItem(r));
 }
 
 /* ------------------------------------------------------------------ */

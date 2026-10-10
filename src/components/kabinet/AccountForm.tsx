@@ -2,23 +2,33 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, Camera, CheckCircle2, Mail, Trash2, UserRound } from "lucide-react";
+import { AlertCircle, Camera, CheckCircle2, Mail, Mars, Trash2, UserRound, Venus } from "lucide-react";
 import { Avatar, Button, Spinner } from "@/components/ui";
+import { GENDERS } from "@/lib/constants";
+
+export type Gender = "male" | "female" | null;
 
 export interface AccountInitial {
   name: string;
   phone: string;
   avatarUrl: string;
   email: string;
+  gender?: Gender;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
+
+const GENDER_OPTIONS: Array<{ value: Gender; label: string; icon?: typeof Venus }> = [
+  ...GENDERS.map((g) => ({ value: g.value as Gender, label: g.label, icon: g.value === "female" ? Venus : Mars })),
+  { value: null, label: "Ko'rsatilmagan" },
+];
 
 export function AccountForm({ initial }: { initial: AccountInitial }) {
   const router = useRouter();
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
+  const [gender, setGender] = useState<Gender>(initial.gender ?? null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -26,7 +36,7 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const dirty = name !== initial.name || phone !== initial.phone || avatarUrl !== initial.avatarUrl;
+  const dirty = name !== initial.name || phone !== initial.phone || avatarUrl !== initial.avatarUrl || gender !== (initial.gender ?? null);
 
   useEffect(() => {
     if (!saved) return;
@@ -65,7 +75,7 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), avatarUrl: avatarUrl.trim() }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), avatarUrl: avatarUrl.trim(), gender }),
       });
       const json = (await res.json()) as ApiResponse<{ updated: boolean }>;
       if (!json.ok) {
@@ -83,14 +93,14 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
   };
 
   return (
-    <form onSubmit={submit} className="glass p-5 sm:p-7" noValidate>
+    <form onSubmit={submit} className="card scroll-mt-28 p-5 sm:p-7" id="akkaunt" noValidate>
       <div className="flex items-start gap-3">
-        <span className="glass-tint flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+        <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
           <UserRound size={20} />
         </span>
         <div>
-          <h2 className="text-[20px] font-bold tracking-tight text-fg">Akkaunt</h2>
-          <p className="mt-0.5 text-[13px] text-fg-3">Ism, telefon va avatar — bular mijozlar va mutaxassislarga ko'rinadi.</p>
+          <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Akkaunt</h2>
+          <p className="mt-0.5 text-[13px] text-fg-3">Ism, telefon, jins va avatar. Telefon va jins kimga ko'rinishini «Maxfiylik» bo'limida sozlaysiz.</p>
         </div>
       </div>
 
@@ -99,14 +109,14 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
         <div className="relative">
           <Avatar name={name || initial.name || "?"} src={avatarUrl || null} size={84} className="text-[28px]" />
           {uploading && (
-            <span className="glass-strong absolute inset-0 flex items-center justify-center rounded-full">
+            <span className="card-elevated absolute inset-0 flex items-center justify-center !rounded-full">
               <Spinner />
             </span>
           )}
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="glass" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
               <Camera size={14} /> {avatarUrl ? "Rasmni almashtirish" : "Rasm yuklash"}
             </Button>
             {avatarUrl && (
@@ -163,9 +173,38 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
             placeholder="+998 90 123 45 67"
             aria-invalid={Boolean(errors.phone)}
           />
-          {errors.phone ? <p className="field-error">{errors.phone}</p> : <p className="mt-1 text-[12px] text-fg-4">Mutaxassis profilida «Aloqa» bo'limida ko'rinadi.</p>}
+          {errors.phone ? <p className="field-error">{errors.phone}</p> : <p className="mt-1 text-[12px] text-fg-4">Standart: faqat ro'yxatdan o'tganlarga ko'rinadi.</p>}
         </div>
-        <div className="sm:col-span-2">
+
+        {/* Jins */}
+        <div>
+          <span className="field-label" id="acc-gender-label">
+            Jins <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+          </span>
+          <div className="segment flex w-full sm:inline-flex sm:w-auto" role="radiogroup" aria-labelledby="acc-gender-label">
+            {GENDER_OPTIONS.map((g) => {
+              const active = gender === g.value;
+              const Icon = g.icon;
+              return (
+                <button
+                  key={String(g.value)}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  data-active={active}
+                  onClick={() => setGender(g.value)}
+                  className="segment-item inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 sm:flex-none"
+                >
+                  {Icon && <Icon size={13} />}
+                  {g.label}
+                </button>
+              );
+            })}
+          </div>
+          {errors.gender ? <p className="field-error">{errors.gender}</p> : <p className="mt-1.5 text-[12px] text-fg-4">Mijozlar ro'yxatda jins bo'yicha saralashi mumkin.</p>}
+        </div>
+
+        <div>
           <label htmlFor="acc-email" className="field-label">
             Email
           </label>
@@ -183,10 +222,10 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-[13px]" aria-live="polite">
           {saved ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-[#1f9d46] dark:text-ios-green">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
               <CheckCircle2 size={15} /> Saqlandi
             </span>
           ) : dirty ? (

@@ -56,13 +56,19 @@ export const PUT = handler(async (req) => {
   return ok({ id, slug }, { status: 201 });
 });
 
-/** Umumiy akkaunt ma'lumotlari (ism, telefon, avatar) */
+/** Umumiy akkaunt ma'lumotlari (ism, telefon, avatar, jins) */
 export const PATCH = handler(async (req) => {
   const session = await requireSession();
   const input = await parseBody(req, accountSchema);
   await db
     .update(users)
-    .set({ name: input.name, phone: input.phone || null, avatarUrl: input.avatarUrl || null })
+    .set({
+      name: input.name,
+      phone: input.phone || null,
+      avatarUrl: input.avatarUrl || null,
+      // Jins: kalit yuborilmasa — tegilmaydi; null yuborilsa — "ko'rsatilmagan"
+      ...(input.gender !== undefined ? { gender: input.gender ?? null } : {}),
+    })
     .where(eq(users.id, session.sub));
   return ok({ updated: true });
 });
