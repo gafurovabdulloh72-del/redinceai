@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { BadgeCheck, Briefcase, MapPin, Search, Wallet, X, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Briefcase, MapPin, Search, UserRound, Wallet, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import { buildHref } from "./Pagination";
 
@@ -9,17 +9,22 @@ export interface ActiveFilterValues {
   q?: string;
   category?: string;
   region?: string;
+  priceMin?: number;
   priceMax?: number;
   experience?: string;
   verified?: "1" | "0";
+  gender?: "male" | "female";
 }
 
 interface ChipDef {
-  key: keyof ActiveFilterValues;
+  /** Olib tashlanadigan URL kalitlari (narx oralig'i — ikkita) */
+  keys: string[];
   label: string;
   icon?: LucideIcon;
   node?: React.ReactNode;
 }
+
+const short = (n: number) => formatPrice(n, { compact: true }).replace(" so'm", "");
 
 export function ActiveFilters({
   filter,
@@ -35,27 +40,33 @@ export function ActiveFilters({
 }) {
   const chips: ChipDef[] = [];
 
-  if (filter.q) chips.push({ key: "q", label: `“${filter.q}”`, icon: Search });
+  if (filter.q) chips.push({ keys: ["q"], label: `“${filter.q}”`, icon: Search });
   if (filter.category) {
     const c = CATEGORY_BY_SLUG[filter.category];
     chips.push({
-      key: "category",
+      keys: ["category"],
       label: c?.name ?? filter.category,
-      node: c ? <CategoryIcon icon={c.icon} size={13} style={{ color: c.accent }} /> : undefined,
+      node: c ? <CategoryIcon icon={c.icon} size={13} className="text-fg-3" /> : undefined,
     });
   }
-  if (filter.region) chips.push({ key: "region", label: REGION_BY_SLUG[filter.region]?.name ?? filter.region, icon: MapPin });
-  if (filter.priceMax && filter.priceMax > 0) chips.push({ key: "priceMax", label: `${formatPrice(filter.priceMax, { compact: true })} gacha`, icon: Wallet });
+  if (filter.region) chips.push({ keys: ["region"], label: REGION_BY_SLUG[filter.region]?.name ?? filter.region, icon: MapPin });
+  const min = filter.priceMin && filter.priceMin > 0 ? filter.priceMin : 0;
+  const max = filter.priceMax && filter.priceMax > 0 ? filter.priceMax : 0;
+  if (min || max) {
+    const label = min && max ? `${short(min)} – ${short(max)} so'm` : min ? `${short(min)} so'mdan` : `${short(max)} so'mgacha`;
+    chips.push({ keys: ["priceMin", "priceMax"], label, icon: Wallet });
+  }
   if (filter.experience) {
     const e = EXPERIENCE_LEVELS.find((l) => l.value === filter.experience);
-    chips.push({ key: "experience", label: e?.label ?? filter.experience, icon: Briefcase });
+    chips.push({ keys: ["experience"], label: e?.label ?? filter.experience, icon: Briefcase });
   }
-  if (filter.verified === "1") chips.push({ key: "verified", label: "Tasdiqlangan", icon: BadgeCheck });
+  if (filter.gender) chips.push({ keys: ["gender"], label: GENDERS.find((g) => g.value === filter.gender)?.label ?? filter.gender, icon: UserRound });
+  if (filter.verified === "1") chips.push({ keys: ["verified"], label: "Tasdiqlangan", icon: BadgeCheck });
 
   if (chips.length === 0) return null;
 
-  const removeHref = (key: string) => buildHref(basePath, { ...query, [key]: undefined, page: undefined });
-  const clearHref = buildHref(basePath, { sort: query.sort, limit: query.limit });
+  const removeHref = (keys: string[]) => buildHref(basePath, { ...query, ...Object.fromEntries(keys.map((k) => [k, undefined])), page: undefined });
+  const clearHref = buildHref(basePath, { sort: query.sort, limit: query.limit, view: query.view });
 
   return (
     <div className={className}>
@@ -63,16 +74,16 @@ export function ActiveFilters({
         {chips.map((c) => {
           const Icon = c.icon;
           return (
-            <li key={c.key}>
+            <li key={c.keys.join("+")}>
               <Link
-                href={removeHref(c.key)}
+                href={removeHref(c.keys)}
                 scroll={false}
                 aria-label={`${c.label} filtrini olib tashlash`}
-                className="glass glass-pill glass-hover group inline-flex h-8 items-center gap-1.5 pl-3 pr-2 text-[13px] font-medium text-fg"
+                className="card card-hover group inline-flex h-9 items-center gap-1.5 !rounded-full pl-3 pr-1.5 text-[13px] font-medium text-fg"
               >
-                {Icon ? <Icon size={13} className="text-tint" /> : c.node}
-                <span className="max-w-[160px] truncate">{c.label}</span>
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-fg/8 text-fg-3 transition group-hover:bg-ios-red/15 group-hover:text-ios-red">
+                {Icon ? <Icon size={13} className="text-fg-3" /> : c.node}
+                <span className="max-w-[180px] truncate">{c.label}</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg/6 text-fg-3 transition group-hover:bg-danger-soft group-hover:text-danger">
                   <X size={12} />
                 </span>
               </Link>
@@ -81,7 +92,7 @@ export function ActiveFilters({
         })}
         {chips.length > 1 && (
           <li>
-            <Link href={clearHref} scroll={false} className="inline-flex h-8 items-center rounded-full px-3 text-[13px] font-semibold text-tint transition hover:bg-tint-soft">
+            <Link href={clearHref} scroll={false} className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-accent transition hover:bg-accent-soft">
               Hammasini tozalash
             </Link>
           </li>

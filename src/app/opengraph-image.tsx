@@ -26,29 +26,10 @@ export default function OpenGraphImage() {
           position: "relative",
         }}
       >
-        {/* Coral nur */}
-        <div
-          style={{
-            position: "absolute",
-            right: -160,
-            top: -200,
-            width: 640,
-            height: 640,
-            borderRadius: 9999,
-            background: "radial-gradient(closest-side, rgba(255,90,54,0.55), rgba(255,90,54,0))",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: -220,
-            bottom: -260,
-            width: 620,
-            height: 620,
-            borderRadius: 9999,
-            background: "radial-gradient(closest-side, rgba(123,97,255,0.35), rgba(123,97,255,0))",
-          }}
-        />
+        {/* Coral va binafsha nur (satori: oddiy doiralar, opacity bilan) */}
+        <div style={{ position: "absolute", right: -220, top: -260, width: 760, height: 760, borderRadius: 9999, background: "#ff5a36", opacity: 0.28 }} />
+        <div style={{ position: "absolute", right: -60, top: -100, width: 440, height: 440, borderRadius: 9999, background: "#ff5a36", opacity: 0.22 }} />
+        <div style={{ position: "absolute", left: -260, bottom: -300, width: 680, height: 680, borderRadius: 9999, background: "#7b61ff", opacity: 0.16 }} />
         {/* Nozik to'r */}
         <div
           style={{
@@ -94,8 +75,9 @@ export default function OpenGraphImage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 92, fontWeight: 700, lineHeight: 0.98, letterSpacing: -4 }}>
             <span>Ijodkorlarni</span>
-            <span>
-              <span style={{ color: "#ff5a36", fontStyle: "italic", fontWeight: 400, fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: -2 }}>xaritada</span> toping
+            <span style={{ display: "flex" }}>
+              <span style={{ color: "#ff5a36", fontWeight: 500, letterSpacing: -3 }}>xaritada</span>
+              <span style={{ marginLeft: 26 }}>toping</span>
             </span>
           </div>
           <div style={{ display: "flex", fontSize: 26, color: "rgba(255,255,255,0.72)", maxWidth: 820, lineHeight: 1.35 }}>

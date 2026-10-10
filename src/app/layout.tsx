@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Backdrop } from "@/components/layout/Backdrop";
+import { BackToTop } from "@/components/layout/BackToTop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { SITE } from "@/lib/constants";
 
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
         <main className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
         <Footer />
+        <BackToTop />
       </body>
     </html>
   );

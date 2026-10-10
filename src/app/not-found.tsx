@@ -17,7 +17,7 @@ export default function NotFound() {
         <span className="pointer-events-none absolute -top-32 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-accent/20 blur-[90px]" />
         <svg
           viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
-          className="pointer-events-none absolute -bottom-10 -right-16 h-auto w-[60%] text-fg opacity-[0.05] dark:opacity-[0.07]"
+          className="pointer-events-none absolute -bottom-8 -right-14 h-auto w-[52%] text-fg opacity-[0.05] sm:w-[60%] dark:opacity-[0.07]"
           aria-hidden="true"
         >
           {REGION_SHAPES.map((r) => (

@@ -6,6 +6,7 @@ import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ButtonLink, SectionHeading } from "@/components/ui";
+import { AvatarImage } from "@/components/ui/AvatarImage";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
 
@@ -56,9 +57,8 @@ export default async function HomePage() {
                 <div className="flex items-center">
                   <div className="flex -space-x-2.5">
                     {withAvatar.map((sp) => (
-                      <span key={sp.id} className="h-8 w-8 overflow-hidden rounded-full bg-surface-3 ring-2 ring-bg" aria-hidden="true">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={sp.user.avatarUrl!} alt="" width={32} height={32} loading="lazy" className="h-full w-full object-cover" />
+                      <span key={sp.id} className="relative h-8 w-8 overflow-hidden rounded-full bg-surface-3 ring-2 ring-bg" aria-hidden="true">
+                        <AvatarImage src={sp.user.avatarUrl!} size={32} />
                       </span>
                     ))}
                   </div>

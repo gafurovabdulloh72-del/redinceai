@@ -59,7 +59,7 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
               </td>
               <td className="px-3 py-3 text-fg-2">{r.counterpart}</td>
               <td className="px-3 py-3 text-fg-2">{PROVIDER_LABEL[r.provider]}</td>
-              <td className="px-3 py-3 text-right tabular-nums">
+              <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
                 <span className="block font-semibold text-fg">{formatPrice(main(r))}</span>
                 {role === "specialist" && <span className="block text-[11px] text-fg-4">{sub(r)}</span>}
               </td>

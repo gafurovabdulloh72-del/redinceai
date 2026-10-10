@@ -96,6 +96,7 @@
   --map-slab-top: #e4dfd5;
   --map-slab-line: rgba(255, 255, 255, 0.6);
   --map-label-bg: #ffffff;
+  --map-sheen: 0.55; /* ustki yorug'lik qatlami kuchi */
 
   color-scheme: light;
 }
@@ -156,6 +157,7 @@
   --map-slab-top: #15151a;
   --map-slab-line: rgba(255, 255, 255, 0.05);
   --map-label-bg: #1f1f26;
+  --map-sheen: 0.2;
 
   color-scheme: dark;
 }
@@ -660,9 +662,9 @@ select:focus-visible {
   &::before {
     content: "";
     position: absolute;
-    top: 3.9rem;
-    left: calc(100% - 1rem);
-    width: calc(2rem + 1px);
+    top: 3.3rem;
+    left: calc(100% + 1px);
+    width: calc(2rem - 2px);
     border-top: 2px dashed var(--line-2);
   }
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, Star, type LucideIcon } from "lucide-react";
 import { cn, hashHue, initials } from "@/lib/utils";
+import { AvatarImage } from "./AvatarImage";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
@@ -206,11 +207,8 @@ export function Avatar({
       }}
     >
       {initials(name)}
-      {src && (
-        // Rasm yuklanmasa alt="" tufayli hech narsa chizilmaydi — ostidagi bosh harflar ko'rinadi
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" width={size} height={size} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-      )}
+      {/* Rasm yuklanmasa chizilmaydi — ostidagi bosh harflar ko'rinadi */}
+      {src && <AvatarImage src={src} size={size} />}
     </span>
   );
 }

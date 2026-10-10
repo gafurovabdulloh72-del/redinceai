@@ -356,6 +356,168 @@ async function main() {
   console.log("   • mutaxassis@redince.uz  (mutaxassis)");
   console.log("   • mijoz@redince.uz       (mijoz)");
   console.log(`   • ${process.env.ADMIN_EMAIL ?? "admin@redince.uz"}  (admin, parol: ${process.env.ADMIN_PASSWORD ?? "admin12345"})`);
+
+  /* ---------- to'lovlar va payoutlar (eskrou namunasi) ---------- */
+  // Bajarilgan buyurtmalar — to'langan va mijoz qabul qilgan (released); bittasi eskrouda (paid);
+  // bittasi narx belgilangan, to'lov kutilmoqda (awaiting). Demo mutaxassisga: released + paid + payout so'rovi.
+  const pct = PLATFORM_DEFAULTS.commissionPct;
+  const splitSeed = (amount: number) => {
+    const commissionAmount = Math.round((amount * pct) / 100);
+    return { commissionPct: pct, commissionAmount, netAmount: amount - commissionAmount };
+  };
+  const roundAmt = (n: number) => Math.max(PLATFORM_DEFAULTS.minOrderAmount, Math.round(n / 50_000) * 50_000);
+  const providersSeed = ["payme", "click", "manual"] as const;
+  const seededOrders = await db.query.orders.findMany({ columns: { id: true, clientId: true, specialistId: true, status: true, budget: true, createdAt: true } });
+  let paymentsMade = 0;
+
+  for (const o of seededOrders.filter((x) => x.status === "done").slice(0, 5)) {
+    const amount = roundAmt(o.budget ?? 1_000_000);
+    const paidAt = new Date(o.createdAt.getTime() + 2 * DAY);
+    const releasedAt = new Date(paidAt.getTime() + 5 * DAY);
+    const provider = providersSeed[paymentsMade % providersSeed.length];
+    await db.insert(schema.payments).values({
+      id: uid(),
+      orderId: o.id,
+      clientId: o.clientId,
+      specialistId: o.specialistId,
+      amount,
+      ...splitSeed(amount),
+      provider,
+      state: "released",
+      providerTxnId: `${provider}-seed-${paymentsMade + 1}`,
+      providerState: 2,
+      providerCreateTime: paidAt.getTime(),
+      performTime: paidAt.getTime(),
+      paidAt,
+      releasedAt,
+      createdAt: paidAt,
+      updatedAt: releasedAt,
+    });
+    await db.update(schema.orders).set({ amount, paymentState: "released", commissionPct: pct, completedAt: releasedAt }).where(eq(schema.orders.id, o.id));
+    paymentsMade++;
+  }
+
+  const inProgressOrder = seededOrders.find((x) => x.status === "in_progress");
+  if (inProgressOrder) {
+    const amount = roundAmt(inProgressOrder.budget ?? 1_000_000);
+    const paidAt = new Date(now - 3 * DAY);
+    await db.insert(schema.payments).values({
+      id: uid(),
+      orderId: inProgressOrder.id,
+      clientId: inProgressOrder.clientId,
+      specialistId: inProgressOrder.specialistId,
+      amount,
+      ...splitSeed(amount),
+      provider: "payme",
+      state: "paid",
+      providerTxnId: `payme-seed-escrow`,
+      providerState: 2,
+      providerCreateTime: paidAt.getTime(),
+      performTime: paidAt.getTime(),
+      paidAt,
+      createdAt: paidAt,
+      updatedAt: paidAt,
+    });
+    await db.update(schema.orders).set({ amount, paymentState: "paid", commissionPct: pct }).where(eq(schema.orders.id, inProgressOrder.id));
+    paymentsMade++;
+  }
+
+  const acceptedOrder = seededOrders.find((x) => x.status === "accepted");
+  if (acceptedOrder) {
+    await db.update(schema.orders).set({ amount: roundAmt(acceptedOrder.budget ?? 800_000), paymentState: "awaiting", commissionPct: pct }).where(eq(schema.orders.id, acceptedOrder.id));
+  }
+
+  if (demoUser?.specialist) {
+    const spId = demoUser.specialist.id;
+    const demoClientId = clientIds[clientIds.length - 1]; // mijoz@redince.uz
+    // Yakunlangan: 2 000 000 so'm → 1 800 000 balansga tushgan
+    const o1 = uid();
+    const paid1 = new Date(now - 12 * DAY);
+    const rel1 = new Date(now - 6 * DAY);
+    await db.insert(schema.orders).values({
+      id: o1,
+      clientId: demoClientId,
+      specialistId: spId,
+      title: "Reklama roligi uchun 2D motion animatsiya",
+      description: "30 soniyalik reklama roligi uchun logo animatsiya, titrlar va infografika. Brend kitob bor, referenslar yuboraman.",
+      budget: 2_000_000,
+      deadline: "2 hafta ichida",
+      contactPhone: "+998901112233",
+      status: "done",
+      amount: 2_000_000,
+      paymentState: "released",
+      commissionPct: pct,
+      completedAt: rel1,
+      createdAt: new Date(now - 14 * DAY),
+      updatedAt: rel1,
+    });
+    await db.insert(schema.payments).values({
+      id: uid(),
+      orderId: o1,
+      clientId: demoClientId,
+      specialistId: spId,
+      amount: 2_000_000,
+      ...splitSeed(2_000_000),
+      provider: "click",
+      state: "released",
+      providerTxnId: "click-seed-demo-1",
+      providerState: 2,
+      providerCreateTime: paid1.getTime(),
+      performTime: paid1.getTime(),
+      paidAt: paid1,
+      releasedAt: rel1,
+      createdAt: paid1,
+      updatedAt: rel1,
+    });
+    // Jarayonda: 800 000 so'm eskrouda
+    const o2 = uid();
+    const paid2 = new Date(now - 2 * DAY);
+    await db.insert(schema.orders).values({
+      id: o2,
+      clientId: demoClientId,
+      specialistId: spId,
+      title: "YouTube kanal uchun intro va outro",
+      description: "Texnologiya kanali uchun 8 soniyalik intro va 15 soniyalik outro. Kanal ranglari: to'q ko'k va oq.",
+      budget: 800_000,
+      deadline: "1 hafta ichida",
+      contactPhone: "+998901112233",
+      status: "in_progress",
+      amount: 800_000,
+      paymentState: "paid",
+      commissionPct: pct,
+      createdAt: new Date(now - 4 * DAY),
+      updatedAt: paid2,
+    });
+    await db.insert(schema.payments).values({
+      id: uid(),
+      orderId: o2,
+      clientId: demoClientId,
+      specialistId: spId,
+      amount: 800_000,
+      ...splitSeed(800_000),
+      provider: "payme",
+      state: "paid",
+      providerTxnId: "payme-seed-demo-2",
+      providerState: 2,
+      providerCreateTime: paid2.getTime(),
+      performTime: paid2.getTime(),
+      paidAt: paid2,
+      createdAt: paid2,
+      updatedAt: paid2,
+    });
+    // Pul chiqarish so'rovi (admin navbatida ko'rinadi)
+    await db.insert(schema.payouts).values({
+      id: uid(),
+      specialistId: spId,
+      amount: 500_000,
+      method: "card",
+      details: "8600 **** **** 4321",
+      state: "requested",
+      createdAt: new Date(now - DAY),
+    });
+    paymentsMade += 2;
+  }
+  console.log(`  To'lovlar: ${paymentsMade} ta namuna (released/paid), 1 ta payout so'rovi, 1 ta buyurtma to'lov kutmoqda.`);
 }
 
 main()

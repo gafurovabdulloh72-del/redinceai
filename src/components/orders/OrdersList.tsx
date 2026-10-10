@@ -764,6 +764,14 @@ function OrderCard({
         </div>
       )}
 
+      {/* Mijoz: narx hali belgilanmagan */}
+      {!isSpecialist && active && o.paymentState === "none" && (
+        <p className="mt-3 flex items-start gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-[12px] leading-snug text-fg-2">
+          <Hourglass size={14} className="mt-0.5 shrink-0 text-warning" />
+          Mutaxassis narx belgilashini kuting — shundan so'ng bu yerda «To'lash» tugmasi chiqadi. Pul eskrouda saqlanadi.
+        </p>
+      )}
+
       {/* Yakuniy izohlar */}
       {!isSpecialist && o.status === "done" && !canAccept && (
         <p className="mt-4 border-t border-line pt-3 text-[12px] text-fg-3">

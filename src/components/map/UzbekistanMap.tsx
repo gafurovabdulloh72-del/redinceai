@@ -229,7 +229,7 @@ export function UzbekistanMap({
           </desc>
           <defs>
             <linearGradient id={`${uid}-sheen`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
+              <stop offset="0%" stopColor="#fff" style={{ stopOpacity: "var(--map-sheen)" }} />
               <stop offset="40%" stopColor="#fff" stopOpacity="0.08" />
               <stop offset="100%" stopColor="#fff" stopOpacity="0" />
             </linearGradient>

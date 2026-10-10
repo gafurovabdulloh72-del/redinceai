@@ -26,7 +26,8 @@ function pageWindow(page: number, pages: number, delta = 1): Array<number | "…
   return out;
 }
 
-const pill = "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-[14px] font-semibold tabular-nums transition";
+/* 44px pill — bosish maydoni mobil uchun yetarli */
+const pill = "inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3.5 text-[14px] font-semibold tabular-nums transition";
 
 function PageLink({
   href,
@@ -45,20 +46,20 @@ function PageLink({
 }) {
   if (disabled) {
     return (
-      <span aria-disabled="true" className={cn(pill, "glass glass-pill text-fg-4 opacity-50")}>
+      <span aria-disabled="true" className={cn(pill, "border border-line text-fg-4 opacity-50")}>
         {children}
       </span>
     );
   }
   if (active) {
     return (
-      <span aria-current="page" className={cn(pill, "glass-tint")}>
+      <span aria-current="page" className={cn(pill, "btn-ink")}>
         {children}
       </span>
     );
   }
   return (
-    <Link href={href} rel={rel} aria-label={label} className={cn(pill, "glass glass-pill glass-hover text-fg-2 hover:text-fg")}>
+    <Link href={href} rel={rel} aria-label={label} scroll className={cn(pill, "card card-hover text-fg-2 hover:text-fg")}>
       {children}
     </Link>
   );
@@ -84,26 +85,31 @@ export function Pagination({
   const items = pageWindow(page, pages);
 
   return (
-    <nav aria-label="Sahifalar" className={cn("flex flex-wrap items-center justify-center gap-2", className)}>
-      <PageLink href={href(page - 1)} disabled={page <= 1} label="Oldingi sahifa" rel="prev">
-        <ChevronLeft size={18} />
-      </PageLink>
+    <nav aria-label="Sahifalar" className={cn("flex flex-col items-center gap-3", className)}>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <PageLink href={href(page - 1)} disabled={page <= 1} label="Oldingi sahifa" rel="prev">
+          <ChevronLeft size={18} />
+        </PageLink>
 
-      {items.map((it, i) =>
-        it === "…" ? (
-          <span key={`gap-${i}`} className="w-6 text-center text-fg-4" aria-hidden="true">
-            …
-          </span>
-        ) : (
-          <PageLink key={it} href={href(it)} active={it === page} label={`${it}-sahifa`}>
-            {it}
-          </PageLink>
-        ),
-      )}
+        {items.map((it, i) =>
+          it === "…" ? (
+            <span key={`gap-${i}`} className="w-6 text-center text-fg-4" aria-hidden="true">
+              …
+            </span>
+          ) : (
+            <PageLink key={it} href={href(it)} active={it === page} label={`${it}-sahifa`}>
+              {it}
+            </PageLink>
+          ),
+        )}
 
-      <PageLink href={href(page + 1)} disabled={page >= pages} label="Keyingi sahifa" rel="next">
-        <ChevronRight size={18} />
-      </PageLink>
+        <PageLink href={href(page + 1)} disabled={page >= pages} label="Keyingi sahifa" rel="next">
+          <ChevronRight size={18} />
+        </PageLink>
+      </div>
+      <p className="text-[12px] text-fg-4">
+        {page} / {pages} sahifa
+      </p>
     </nav>
   );
 }

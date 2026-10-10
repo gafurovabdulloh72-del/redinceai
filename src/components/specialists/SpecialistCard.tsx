@@ -60,8 +60,8 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
         <div className="flex items-start gap-3">
           <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={44} decorative className="-mt-9 !ring-surface" />
           <div className="min-w-0 flex-1 pt-0.5">
-            <h3 className="font-display text-[15px] font-semibold leading-tight text-fg">
-              <span className="line-clamp-2">{sp.user.name}</span>
+            <h3 className="line-clamp-2 font-display text-[15px] font-semibold leading-tight text-fg">
+              {sp.user.name}
               {sp.isVerified && <VerifiedBadge size={15} className="ml-1 inline-block align-[-2px]" />}
             </h3>
             <p className="mt-0.5 flex items-center gap-1 text-[12px] text-fg-3">
