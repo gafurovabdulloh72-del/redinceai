@@ -188,3 +188,247 @@
 48. Ochiq API hamkorlar uchun
 49. Kengaytirilgan admin panel
 50. A/B test + PostHog
+
+## C. 100 ta vizual kamchilik (skrinshotlar asosida, 2026-10-10)
+
+### Dizayn tizimi
+1. Ikki accent tili aralash: coral (Studio) va iOS-ko'k (tasdiq belgisi, kabinet ikonkalari)
+2. Kabinet stat ikonkalari 4 xil yorqin rang (ko'k/sariq/binafsha/yashil) — palitraga yot
+3. Kategoriya ranglari (8 ta) umumiy palitra bilan kelishilmagan — "rang bayrami"
+4. Rasm yo'q muqovalarda sun'iy gradientlar — sayt "demo" ko'rinadi
+5. Gradient tugma (coral→pushti→binafsha) logotip coral'iga 100% mos emas
+6. Soyalar yorug'da juda yumshoq, qorong'uda ko'rinmaydi — ierarxiya yo'qoladi
+7. Fon to'ri (grid) faqat yuqorida, pastda to'satdan yo'qoladi
+8. Fon nur dog'lari ba'zi sahifalarda kontent orqasida chalg'itadi
+9. Radiuslar aralash: 14/18/22/24/32px
+10. Ikonka o'lchamlari nomuvofiq (12–22px)
+11. Chiziqli (lucide) va to'ldirilgan ikonkalar aralash
+12. fg-4 rangi yorug'da AA kontrastdan o'tmaydi
+13. Unbounded juda keng — uzun so'zlar chekkaga yopishadi
+14. Italik serif urg'u tizimli emas (ba'zi sarlavhalarda bor, ba'zilarida yo'q)
+15. Vertikal ritm sahifalar orasida har xil (mt-20/28, p-5/6/7/8)
+
+### Navbar / Footer
+16. Navbar kapsulasi 1440px'da bo'sh markaz bilan osilib turadi
+17. Navbar blur foni yorug'da fon bilan qo'shilib ketadi, chegara yo'q
+18. Kirganda avatar kapsulasi "Boshlash" tugmasidan boshqa balandlikda
+19. Faol havola ostidagi coral chiziq juda ingichka
+20. Pastki tab-bar iOS safe-area bilan tekshirilmagan
+21. Tab-bar elementlari kengligi teng emas, faol pill og'ir
+22. Footer ustunlari balandligi har xil, "Platforma" ustuni yetim
+23. "geoBoundaries" matni foydalanuvchiga ma'nosiz
+24. Footer kartasi fondan deyarli farq qilmaydi
+25. Logo orqasidagi coral blur kichik o'lchamda dog'ga o'xshaydi
+
+### Bosh sahifa
+26. Hero sarlavha 4 qator — CTA birinchi ekrandan tushadi
+27. Hero xaritasi matn bilan vertikal markazlashmagan
+28. Perspektivali xaritada kichik hududlar va raqam pill'lari o'qilmaydi
+29. "kam→ko'p" legenda xaritadan uzilgan, yolg'iz
+30. Avatar stack bosh harflari ustma-ust — o'qilmaydi
+31. Ishonch qatori tartibsiz 2 qatorga sinadi
+32. Marquee chetlari so'nmaydi, keskin kesiladi
+33. Marquee sarlavhasiz — nima ekani tushunarsiz
+34. Kasb pill'lari o'ngda kesiladi (scroll ishorasi yo'q)
+35. Xarita yorliqlari (Samarqand/Jizzax/Sirdaryo/Toshkent sh.) ustma-ust
+36. Yon panel "Eng faol hududlar" ostida bo'sh joy
+37. "Kim kerak?" katta plitka 70% bo'sh
+38. Bento ikonkalari 8 xil rang — ko'z charchaydi
+39. Tavsiya kartalari gradientlari bir-biridan ajralmaydi
+40. "Uch qadam" kartalari tekis va zaif
+41. 14 ta hudud chipi tartibsiz sinadi
+42. CTA bloki qorong'uda yorug'ga inversiya — kutilmagan
+43. CTA'dagi kontur tugma deyarli ko'rinmaydi
+44. Sahifa 6200px — takrorlanuvchi ro'yxatlar
+45. "Jonli xarita" pill'i yolg'iz, "jonli"lik ko'rinmaydi
+
+### Ro'yxat
+46. Sticky filtr paneli 1440px'da ham kesiladi
+47. Narx slayderi bitta tutqich, "Cheklanmagan" osilgan
+48. "Tasdiqlanganlar" switch boshqa filtrlardan uslubi farq qiladi
+49. 16:10 muqova juda baland — ekranga 1.5 qator sig'adi
+50. Ism qisqartiriladi ("Nargiza Jo'ra…")
+51. Narx 2 qatorga bo'linib yulduzlarni siqadi
+52. "Band" va kategoriya chiplari muqova yuqorisini band qiladi
+53. "+2" ko'nikma chipi bosilmaydi, ma'lumot bermaydi
+54. Pagination raqamlari kichik
+55. Saralash select'i va natija soni bog'lanmagan
+
+### Profil
+56. Gradient muqova "demo" hissi beradi
+57. Tasdiq belgisi ism oxirida yolg'iz; avatar muqova chetidan chiqadi
+58. Meta chiplar bir xil kulrang — ahamiyat farqlanmaydi
+59. "Ulashish" tugmasi kontekstsiz
+60. Narx kartasi/CTA sticky emas — pastda yo'qoladi
+61. Portfolio masonry notekis, bo'sh joylar
+62. Portfolio plita nomlari kichik, ikonka zaif
+63. 1 ta sharh bilan bo'lim bo'sh; reyting ikki marta takrorlanadi
+64. "Kirish" qora pill asosiy CTA bilan raqobatlashadi
+65. "O'xshash" kartalar asosiy ro'yxatdan farq qilmaydi
+66. Breadcrumb juda kichik va och
+
+### Xarita sahifasi
+67. Chap ustun ostida ~800px bo'shliq
+68. Hudud chiplari o'ngda kesiladi
+69. Tanlangan hudud binafsha, qolganlari coral — ikki rang tili
+70. Ro'yxatda narx 2 qator, "NARX" yorlig'i ortiqcha
+71. Kasb pill'lari 3 qatorga sinadi — og'ir
+72. "Reyting bo'yicha saralangan" va CTA hizalanmagan
+
+### Auth
+73. Chap panelda chiplar tasodifiy "suzadi", katta bo'shliq
+74. "bir xaritada" gradient matn — eski uslub
+75. Pastel pushti→binafsha fon palitraga mos emas
+76. Rol kartalari ikonkalari turli uslubda
+77. Demo havolasi coral — CTA bilan raqobat
+78. Forma va panel balandligi teng emas
+
+### Kabinet
+79. MOBILDA 629px'ga cho'ziladi — gorizontal siljish, kontent kesiladi (tasdiqlangan)
+80. Sidebar sticky emas
+81. "So'nggi buyurtmalar" bo'sh oq quti (~350px)
+82. Stat ikonkalari "o'yinchoq" ranglar
+83. "Reyting —" chiziqcha g'alati
+84. "Tezkor amallar" 6 ta bir xil pill — ustuvorlik yo'q
+85. Holat kartasi ranglari aniq emas
+86. Buyurtmalar toq bo'lsa o'ngda bo'shliq
+87. Telefon chipi coral — CTA bilan chalkashadi
+88. "Rad etish" matn vs "Qabul qilish" pill — uslub farqi
+89. Portfolio "Ochish" 17px; o'chirish doirasi og'ir
+90. Profil formasi 3700px bitta ustun, progress yo'q
+
+### Admin
+91. 20 qator × 3 tugma — shovqin
+92. "20 ta tekshiruvda" coral — xato kabi ko'rinadi
+93. "Boshqaruv markazi" italik — admin uchun ortiqcha
+94. Rol yorliqlari ma'nosi noaniq
+95. Mobil kartalarda ustun sarlavhalari yo'qoladi
+
+### Qorong'u rejim
+96. Xarita loyqa jigarrang
+97. Kartalar fon bilan qo'shiladi — chegara ingichka
+98. CTA bloki katta oq to'rtburchak
+99. Gradient muqovalar juda yorqin
+100. Soyalar yo'q — chuqurlik hissi yo'q
+
+## D. 100 ta vizual qo'shimcha g'oya
+
+### Dizayn tizimi
+1. Figma/Storybook dizayn-tokenlar hujjati
+2. Bitta accent + neytral palitra, kategoriya ranglari pastel/monoxrom
+3. 8px spacing grid
+4. 3 darajali radius tizimi (12/20/28)
+5. 3 darajali soya tizimi (ikkala rejim uchun)
+6. Ikonka 2 o'lcham (16/20) qoidasi
+7. Tipografika shkalasi (8 daraja) va qat'iy ishlatish qoidasi
+8. Motion tokenlari (davomiylik/easing)
+9. Yagona focus-ring uslubi
+10. Maxsus illyustratsiya to'plami (bo'sh holatlar, 404, onboarding)
+11. Brendga xos ikonka to'plami (kategoriyalar uchun)
+12. Skeleton tizimi har bir komponent uchun
+13. Toast/snackbar tizimi
+14. Badge/chip tizimi (holat ranglari semantik)
+15. Grafik/diagramma uslubi (kabinet, admin)
+
+### Navbar / Footer
+16. Navbar max-w bilan ixcham, scroll'da kichrayadi
+17. Mobilda "Buyurtma berish" suzuvchi FAB (profil sahifasida)
+18. Footer ixchamlashtirish, 2 qatorli
+19. Til almashtirgich (UZ/ЎЗ/RU)
+20. Footer'da Telegram/Instagram ikonkalari
+21. "Yuqoriga" tugmasi uzun sahifalarda
+22. Breadcrumb barcha ichki sahifalarda, kattaroq
+
+### Bosh sahifa
+23. Real foto/video hero (ijodkorlar ish jarayoni)
+24. Hero'da qidiruv maydoni + hudud dropdown
+25. Animatsiyali hisoblagich raqamlar (58 → count-up)
+26. Xaritada hover'da hudud nomi va soni kattaroq
+27. "Qanday ishlaydi" interaktiv (scroll'da bosqich yonadi)
+28. Mijozlar fikri karuseli (foto + iqtibos)
+29. Hamkor brendlar logolari qatori
+30. FAQ accordion
+31. "Yangi qo'shilganlar" jonli lenta
+32. Kategoriya kartalarida foto fon
+33. "Hafta mutaxassisi" bloki
+34. Video showreel (portfolio montaji)
+35. Mobilda sticky "Xaritani ochish" CTA
+36. Scroll progress indikatori
+37. Hero'dagi marquee'ga sarlavha va so'nuvchi chetlar
+38. Bento'da katta plitkaga foto/stat
+39. Hududlar chiplari o'rniga mini-xarita + ro'yxat
+40. Dark CTA blokini ikkala rejimda ham qorong'u qilish
+
+### Ro'yxat
+41. Ro'yxat/grid ko'rinish almashtirgich
+42. Karta hover'da portfolio mini-preview (3 rasm)
+43. "Tez ko'rish" modal (quick view)
+44. Saralash chip'lar sifatida
+45. Ikki tutqichli narx slayderi
+46. Filtr soni badge ("3 ta filtr")
+47. Saqlangan filtrlar
+48. Ro'yxat yonida kichik xarita (split view)
+49. "Yangi" badge (7 kun ichida qo'shilgan)
+50. Taqqoslash checkbox + panel
+51. Cheksiz scroll + "Yana yuklash"
+52. Karta muqovasini 4:3 qilib, ismni to'liq ko'rsatish
+
+### Profil
+53. Sticky narx/CTA karta (desktop) va pastki bar (mobil)
+54. Lightbox'da YouTube/Instagram video
+55. Tab'lar: Portfolio / Sharhlar / Haqida
+56. Tasdiq belgisi tooltip ("Shaxsi tasdiqlangan")
+57. Band kunlar kalendari
+58. Xizmat paketlari kartalari (3 ta)
+59. "Javob vaqti: ~1 soat" indikatori
+60. Ijtimoiy isbot qatori (buyurtmalar soni, takroriy mijozlar)
+61. Ulashish sheet (Telegram, nusxa, QR)
+62. Muqova parallaks
+63. "Ish jarayoni" timeline (brif → montaj → topshirish)
+64. Portfolio uchun bir xil nisbatli grid + "Oldin/Keyin"
+65. Sharhlar uchun reyting taqsimoti (5★ 60%, 4★ 30%…)
+66. "Ushbu mutaxassisni ko'rganlar yana ko'rdi" bloki
+
+### Xarita
+67. Zoom/pan + "Farg'ona vodiysi" lupa
+68. Mini-xarita navigatori
+69. Tuman darajasi (drill-down)
+70. Klaster markerlar (son bilan)
+71. Hudud hover'da yon karta (top-3 mutaxassis)
+72. Hududlar orasida animatsiyali o'tish
+73. Interaktiv legenda (bosib filtrlash)
+74. Heatmap rejimi
+75. "Mening joylashuvim" tugmasi
+76. Hudud bosilganda zoom-in animatsiya
+
+### Kabinet
+77. Onboarding checklist + progress ring (profil 60% to'ldirilgan)
+78. Statistika sparkline'lari (ko'rishlar 7 kun)
+79. Bildirishnomalar qo'ng'irog'i + dropdown
+80. Buyurtmalar kanban ko'rinishi
+81. Buyurtma tafsilot drawer'i (sahifadan chiqmasdan)
+82. Chat paneli
+83. Faollik timeline
+84. Avatar kesish (cropper)
+85. Muqova muharriri (joylashuv/zoom)
+86. Portfolio drag&drop tartiblash
+87. Mobil kabinet uchun alohida ixcham layout
+88. Bo'sh holatlar uchun illyustratsiya + CTA
+
+### Auth
+89. Telegram/Google tugmalari
+90. Ro'yxatdan o'tish stepper (3 qadam)
+91. Chap panelda real illyustratsiya/foto
+92. Parol kuchi indikatori
+
+### Admin
+93. Filtr/qidiruvli data-table
+94. Ommaviy amallar (bulk)
+95. Diagrammalar (ro'yxatdan o'tish, buyurtmalar dinamikasi)
+96. Moderatsiya navbati kartalari (oldindan ko'rish bilan)
+
+### Qorong'u rejim va harakat
+97. Qorong'u xarita palitrasi (ko'k-kulrang asos, coral urg'u)
+98. Sahifalar orasida yumshoq o'tish animatsiyasi
+99. "Harakatni kamaytirish" sozlamasi
+100. Vaqtga qarab avtomatik rejim (kechqurun Noir)
