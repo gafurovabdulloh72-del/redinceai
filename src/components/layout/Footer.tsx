@@ -1,69 +1,70 @@
 import Link from "next/link";
-import { ArrowUpRight, Send } from "lucide-react";
-import { CATEGORIES, REGIONS, SITE } from "@/lib/constants";
+import { Instagram, Send, Youtube } from "lucide-react";
+import { SITE } from "@/lib/constants";
 import { Logo } from "./Logo";
 
+const LINKS = [
+  { href: "/xarita", label: "Xarita" },
+  { href: "/mutaxassislar", label: "Mutaxassislar" },
+  { href: "/auth/royxat?role=specialist", label: "Mutaxassis bo'lish" },
+  { href: "/kabinet", label: "Kabinet" },
+];
+
+const SOCIAL = [
+  { href: "https://t.me/redince", label: "Telegram", icon: Send },
+  { href: "https://instagram.com/redince", label: "Instagram", icon: Instagram },
+  { href: "https://youtube.com/@redince", label: "YouTube", icon: Youtube },
+];
+
+/** Ixcham 2 qatorli footer: logo + havolalar + ijtimoiy tarmoqlar / huquq + manba eslatmasi */
 export function Footer() {
   return (
-    <footer className="container-x mt-28 pb-28 md:pb-10">
-      <div className="card-outline overflow-hidden !rounded-[32px]">
-        {/* Katta CTA qatori */}
-        <div className="flex flex-col gap-6 border-b border-line p-6 sm:p-10 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+    <footer className="container-x mt-24 pb-28 sm:mt-28 md:pb-10">
+      <div className="card-outline overflow-hidden !rounded-card-lg">
+        {/* 1-qator */}
+        <div className="flex flex-col gap-5 px-5 py-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
             <Logo />
-            <p className="mt-5 max-w-md text-[15px] leading-relaxed text-fg-2">{SITE.description}</p>
+            <p className="max-w-sm text-[13px] leading-snug text-fg-3">{SITE.tagline}. Videograf, montajor, dizayner — 14 ta hudud, bitta xarita.</p>
           </div>
-          <a
-            href="https://t.me/redince"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-ink inline-flex h-12 items-center gap-2 self-start rounded-full px-6 text-[14px] font-semibold"
-          >
-            <Send size={15} /> Telegram kanal <ArrowUpRight size={15} />
-          </a>
-        </div>
 
-        <div className="grid gap-10 p-6 sm:p-10 md:grid-cols-12">
-          <div className="md:col-span-4">
-            <h4 className="eyebrow mb-5">Yo'nalishlar</h4>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[14px] text-fg-2">
-              {CATEGORIES.map((c) => (
-                <li key={c.slug}>
-                  <Link href={`/mutaxassislar?category=${c.slug}`} className="transition hover:text-accent">
-                    {c.plural}
-                  </Link>
-                </li>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <nav aria-label="Footer havolalari" className="flex flex-wrap gap-x-5 gap-y-2">
+              {LINKS.map((l) => (
+                <Link key={l.href} href={l.href} className="inline-flex min-h-8 items-center text-[13.5px] font-medium text-fg-2 transition hover:text-fg">
+                  {l.label}
+                </Link>
               ))}
-            </ul>
-          </div>
-
-          <div className="md:col-span-5">
-            <h4 className="eyebrow mb-5">Hududlar</h4>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[14px] text-fg-2 sm:grid-cols-3">
-              {REGIONS.map((r) => (
-                <li key={r.slug}>
-                  <Link href={`/mutaxassislar?region=${r.slug}`} className="transition hover:text-accent">
-                    {r.short}
-                  </Link>
-                </li>
+            </nav>
+            <div className="flex items-center gap-1.5" aria-label="Ijtimoiy tarmoqlar">
+              {SOCIAL.map((s) => (
+                <a
+                  key={s.href}
+                  href={s.href}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  aria-label={`${s.label} (yangi oynada)`}
+                  className="card flex h-10 w-10 items-center justify-center !rounded-full text-fg-2 transition hover:text-fg"
+                >
+                  <s.icon size={16} />
+                </a>
               ))}
-            </ul>
-          </div>
-
-          <div className="md:col-span-3">
-            <h4 className="eyebrow mb-5">Platforma</h4>
-            <ul className="space-y-2.5 text-[14px] text-fg-2">
-              <li><Link href="/xarita" className="transition hover:text-accent">Xarita</Link></li>
-              <li><Link href="/mutaxassislar" className="transition hover:text-accent">Mutaxassislar</Link></li>
-              <li><Link href="/auth/royxat?role=specialist" className="transition hover:text-accent">Mutaxassis bo'lish</Link></li>
-              <li><Link href="/kabinet" className="transition hover:text-accent">Kabinet</Link></li>
-            </ul>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-start justify-between gap-2 border-t border-line px-6 py-5 text-xs text-fg-3 sm:flex-row sm:items-center sm:px-10">
-          <span>© {new Date().getFullYear()} {SITE.name}. Barcha huquqlar himoyalangan.</span>
-          <span>Xarita ma'lumotlari: geoBoundaries (CC BY 4.0)</span>
+        {/* 2-qator */}
+        <div className="flex flex-col items-start justify-between gap-1.5 border-t border-line px-5 py-4 text-[12px] text-fg-3 sm:flex-row sm:items-center sm:px-8">
+          <span>
+            © {new Date().getFullYear()} {SITE.name}. Barcha huquqlar himoyalangan.
+          </span>
+          <span className="text-fg-4">
+            Xarita chegaralari —{" "}
+            <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:underline">
+              geoBoundaries
+            </a>
+            , CC BY 4.0
+          </span>
         </div>
       </div>
     </footer>

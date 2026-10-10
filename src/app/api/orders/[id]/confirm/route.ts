@@ -1,0 +1,27 @@
+import { ApiError, handler, ok, requireSession } from "@/lib/api";
+import { loadOrderWithParties, releaseOrder } from "@/lib/payments/service";
+
+/**
+ * Mijoz ishni qabul qiladi (buyurtma 'done' holatida): completedAt, eskroudagi pul mutaxassisga (released).
+ * Idempotent: qayta chaqirilsa holat o'zgarmaydi.
+ */
+export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
+  const session = await requireSession();
+  const { id } = await ctx.params;
+  const order = await loadOrderWithParties(id);
+  if (!order) throw new ApiError(404, "Buyurtma topilmadi");
+  if (order.clientId !== session.sub && session.role !== "admin") throw new ApiError(403, "Ishni faqat buyurtmachi qabul qiladi");
+  if (order.status !== "done") throw new ApiError(400, "Mutaxassis avval ishni yakunlashi kerak");
+
+  if (order.completedAt && order.paymentState !== "paid") {
+    return ok({ id, paymentState: order.paymentState, completedAt: order.completedAt.getTime(), released: 0 });
+  }
+  const { released } = await releaseOrder(id, session.sub, req);
+  const fresh = await loadOrderWithParties(id);
+  return ok({
+    id,
+    paymentState: fresh?.paymentState ?? order.paymentState,
+    completedAt: fresh?.completedAt?.getTime() ?? Date.now(),
+    released: released.reduce((s, p) => s + p.netAmount, 0),
+  });
+});

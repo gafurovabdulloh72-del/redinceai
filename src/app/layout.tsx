@@ -28,20 +28,32 @@ const instrument = localFont({
   display: "swap",
 });
 
+const TITLE = `${SITE.name} — ${SITE.tagline}`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
-    default: `${SITE.name} — ${SITE.tagline}`,
+    default: TITLE,
     template: `%s · ${SITE.name}`,
   },
   description: SITE.description,
+  applicationName: SITE.name,
   keywords: ["videograf", "montajor", "dizayner", "O'zbekiston", "Toshkent", "Samarqand", "freelancer", "video montaj"],
   openGraph: {
-    title: `${SITE.name} — ${SITE.tagline}`,
+    title: TITLE,
     description: SITE.description,
     type: "website",
     locale: "uz_UZ",
+    siteName: SITE.name,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: TITLE }],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: SITE.description,
+    images: ["/opengraph-image"],
+  },
+  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {

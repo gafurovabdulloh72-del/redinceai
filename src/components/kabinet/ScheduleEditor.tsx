@@ -186,7 +186,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
                     {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold uppercase text-accent">bugun</span>}
                   </span>
                   {day.enabled ? (
-                    <div className="flex basis-full items-center gap-2 pl-[56px] sm:ml-auto sm:basis-auto sm:pl-0">
+                    <div className="flex basis-full items-center gap-2 sm:ml-auto sm:basis-auto">
                       <label className="sr-only" htmlFor={`sch-${d.key}-from`}>
                         {d.label} boshlanishi
                       </label>
@@ -194,7 +194,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
                         id={`sch-${d.key}-from`}
                         type="time"
                         step={300}
-                        className={cn("field !w-[112px] !py-2 tabular-nums", err && "!border-ios-red")}
+                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-ios-red")}
                         value={day.from}
                         onChange={(e) => setDay(d.key, { from: e.target.value })}
                         aria-invalid={Boolean(err)}
@@ -207,7 +207,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
                         id={`sch-${d.key}-to`}
                         type="time"
                         step={300}
-                        className={cn("field !w-[112px] !py-2 tabular-nums", err && "!border-ios-red")}
+                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-ios-red")}
                         value={day.to}
                         onChange={(e) => setDay(d.key, { to: e.target.value })}
                         aria-invalid={Boolean(err)}
@@ -216,7 +216,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
                   ) : (
                     <span className="ml-auto text-[12px] text-fg-4">Dam olish kuni</span>
                   )}
-                  {err && <p className="field-error basis-full pl-[56px] !mt-0">{err}</p>}
+                  {err && <p className="field-error basis-full !mt-0">{err}</p>}
                 </li>
               );
             })}

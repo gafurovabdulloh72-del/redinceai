@@ -1,28 +1,30 @@
 /**
  * Fon: Paper (yorug') rejimda iliq qog'oz + juda nozik to'r; Noir (qorong'u) rejimda
  * chuqur qora + yumshoq nur dog'lari. Faqat CSS, sekin "drift" animatsiya.
+ * To'r butun balandlik bo'ylab asta so'nadi (yuqorida to'satdan tugamaydi), nur dog'lari
+ * kontent orqasida chalg'itmasligi uchun past opacity.
  */
 export function Backdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-bg">
       {/* Nur dog'lari */}
       <div
-        className="absolute -right-[20%] -top-[30%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.22] blur-[120px] animate-drift dark:opacity-[0.28]"
+        className="absolute -right-[20%] -top-[30%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.16] blur-[120px] animate-drift dark:opacity-[0.22]"
         style={{ background: "radial-gradient(closest-side, var(--accent), transparent 70%)" }}
       />
       <div
-        className="absolute -bottom-[35%] -left-[25%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.18] blur-[130px] animate-drift dark:opacity-[0.26]"
+        className="absolute -bottom-[35%] -left-[25%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.1] blur-[130px] animate-drift dark:opacity-[0.16]"
         style={{ background: "radial-gradient(closest-side, var(--accent-2), transparent 70%)", animationDelay: "-11s" }}
       />
-      {/* Nozik to'r — faqat yuqori qismda */}
+      {/* Nozik to'r — yuqoridan pastga asta so'nadi */}
       <div
-        className="absolute inset-x-0 top-0 h-[70vh] opacity-[0.5] dark:opacity-[0.35]"
+        className="absolute inset-0 opacity-[0.55] dark:opacity-[0.4]"
         style={{
           backgroundImage:
             "linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px)",
           backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 80%)",
-          WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 80%)",
+          maskImage: "linear-gradient(180deg, black 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.15) 70%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(180deg, black 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.15) 70%, transparent 100%)",
         }}
       />
       {/* Donachalar */}

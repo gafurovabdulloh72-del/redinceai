@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { MAP_VIEWBOX, REGION_SHAPES } from "./regions-geo";
@@ -12,8 +12,10 @@ import { cn } from "@/lib/utils";
  * O'zbekiston xaritasi — premium 2D.
  * - Hudud bo'yicha gradient bo'yoq (mutaxassislar soni)
  * - Ostida qalin "plita" (yengil 3D hissi), hover'da hudud ko'tariladi
- * - Pulsatsiya qiluvchi markerlar, tooltip
+ * - Pulsatsiya qiluvchi markerlar, tooltip (sichqoncha: hover, sensor: bosish)
  * - variant="hero": perspektiva bilan qiyshaytirilgan, sichqonchaga ergashadi
+ * - Yorliqlar: oddiy kollziya tekshiruvi (ustma-ust tushsa pastga suriladi), 640px'dan tor xaritada yashirin
+ * - A11y: <svg> ichidagi har bir hudud role="button" (svg'ning o'zi role="img" EMAS — ichidagi tugmalar AT uchun ochiq)
  */
 
 const LABEL_OFFSET: Record<string, [number, number]> = {
@@ -29,6 +31,25 @@ const LABEL_OFFSET: Record<string, [number, number]> = {
   qashqadaryo: [0, 8],
   samarqand: [8, -4],
 };
+
+/** Yorliqlar ustma-ust tushmasligi uchun: oldingi qutilar bilan kesishsa 16px pastga suriladi */
+function layoutLabels(items: { slug: string; x: number; y: number; w: number; h: number }[]) {
+  const placed: { x: number; y: number; w: number; h: number }[] = [];
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const it of items) {
+    let y = it.y;
+    let guard = 0;
+    const hits = (yy: number) =>
+      placed.some((p) => it.x - it.w / 2 < p.x + p.w / 2 && it.x + it.w / 2 > p.x - p.w / 2 && yy - it.h / 2 < p.y + p.h / 2 && yy + it.h / 2 > p.y - p.h / 2);
+    while (hits(y) && guard < 6) {
+      y += 16;
+      guard++;
+    }
+    placed.push({ x: it.x, y, w: it.w, h: it.h });
+    out[it.slug] = { x: it.x, y };
+  }
+  return out;
+}
 
 export interface UzbekistanMapProps {
   stats?: Record<string, RegionStat>;
@@ -48,6 +69,7 @@ export interface UzbekistanMapProps {
 }
 
 const SLAB = 18; // plita qalinligi (viewBox birligida)
+const LABEL_MIN_WIDTH = 640; // shu kenglikdan tor xaritada yorliqlar yashiriladi (px)
 
 export function UzbekistanMap({
   stats,
@@ -66,8 +88,14 @@ export function UzbekistanMap({
   const [hover, setHover] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [width, setWidth] = useState<number>(0);
   const wrap = useRef<HTMLDivElement>(null);
+  const touchTip = useRef(false);
+  const suppressClick = useRef(false);
+  const armedSlug = useRef<string | null>(null);
   const uid = useId().replace(/:/g, "");
+  const titleId = `${uid}-title`;
+  const descId = `${uid}-desc`;
 
   const count = (slug: string) => counts?.[slug] ?? stats?.[slug]?.total ?? 0;
   const max = useMemo(() => Math.max(1, ...REGION_SHAPES.map((r) => count(r.slug))), [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -82,16 +110,64 @@ export function UzbekistanMap({
   const activeRegion = active ? REGION_BY_SLUG[active] : undefined;
   const activeStat = active ? stats?.[active] : undefined;
 
+  /* Xarita kengligini kuzatamiz — yorliqlar faqat yetarli kenglikda */
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setWidth(e.contentRect.width);
+    });
+    ro.observe(el);
+    setWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  /* Sensorli qurilmada: tooltip ochiq bo'lsa, xaritadan tashqariga bosilganda yopiladi */
+  useEffect(() => {
+    if (!tip || !touchTip.current) return;
+    const onDown = (e: Event) => {
+      if (!wrap.current?.contains(e.target as Node)) {
+        setHover(null);
+        setTip(null);
+        touchTip.current = false;
+        armedSlug.current = null;
+      }
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [tip]);
+
   const onMove = (e: MouseEvent<SVGSVGElement>) => {
+    if (touchTip.current) return;
     const r = e.currentTarget.getBoundingClientRect();
     setTip({ x: e.clientX - r.left, y: e.clientY - r.top });
   };
   const onWrapMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!isHero || !wrap.current) return;
+    if (!isHero || !wrap.current || e.pointerType === "touch") return;
     const r = wrap.current.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width - 0.5;
     const py = (e.clientY - r.top) / r.height - 0.5;
     setTilt({ x: px, y: py });
+  };
+  const onRegionPointerDown = (e: PointerEvent<SVGPathElement>, slug: string) => {
+    if (e.pointerType !== "touch") return;
+    const r = wrap.current?.getBoundingClientRect();
+    if (!r) return;
+    touchTip.current = true;
+    setHover(slug);
+    setTip({ x: e.clientX - r.left, y: e.clientY - r.top });
+    /* Sahifaga o'tuvchi rejimda: 1-bosish — tooltip, 2-bosish (shu hudud) — o'tish */
+    if (!onSelect && armedSlug.current !== slug) {
+      armedSlug.current = slug;
+      suppressClick.current = true;
+    }
+  };
+  const onRegionClick = (slug: string) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    pick(slug);
   };
 
   const pick = (slug: string) => {
@@ -102,6 +178,24 @@ export function UzbekistanMap({
   };
 
   const vb = `-24 -24 ${MAP_VIEWBOX.width + 48} ${MAP_VIEWBOX.height + 48 + SLAB}`;
+  const labelsOn = showLabels && !isHero && !compact && width >= LABEL_MIN_WIDTH;
+
+  /* Yorliq joylashuvi (kollziya tekshiruvi bilan) */
+  const labels = useMemo(() => {
+    if (!labelsOn) return null;
+    const items = REGION_SHAPES.map((r) => {
+      const n = count(r.slug);
+      const [ox, oy] = LABEL_OFFSET[r.slug] ?? [0, 0];
+      const label = REGION_BY_SLUG[r.slug]?.short ?? r.name;
+      const w = label.length * 7.4 + (n > 0 ? String(n).length * 8 + 18 : 14);
+      return { slug: r.slug, label, n, w, h: 22, x: r.cx + ox, y: r.cy + oy + (n > 0 ? 18 : 0) };
+    });
+    const pos = layoutLabels(items);
+    return items.map((it) => ({ ...it, ...pos[it.slug] }));
+  }, [labelsOn, stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tipW = 224;
+  const tipLeft = tip ? Math.max(0, Math.min(tip.x + 16, (wrap.current?.clientWidth ?? 600) - tipW - 8)) : 0;
 
   return (
     <div
@@ -123,12 +217,16 @@ export function UzbekistanMap({
           className="h-auto w-full overflow-visible"
           onMouseMove={onMove}
           onMouseLeave={() => {
+            if (touchTip.current) return;
             setHover(null);
             setTip(null);
           }}
-          role="img"
-          aria-label="O'zbekiston hududlari xaritasi"
+          aria-labelledby={`${titleId} ${descId}`}
         >
+          <title id={titleId}>O'zbekiston hududlari xaritasi</title>
+          <desc id={descId}>
+            14 ta hudud. Har bir hudud — tugma: bosilganda yoki Enter tugmasida o'sha hududdagi {unitLabel}lar ro'yxati ochiladi. Jami {total} ta.
+          </desc>
           <defs>
             <linearGradient id={`${uid}-sheen`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
@@ -137,7 +235,7 @@ export function UzbekistanMap({
             </linearGradient>
             <linearGradient id={`${uid}-sel`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="var(--accent)" />
-              <stop offset="100%" stopColor="var(--accent-2)" />
+              <stop offset="100%" stopColor="#ff3d6e" />
             </linearGradient>
             <radialGradient id={`${uid}-glow`} cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.35" />
@@ -157,10 +255,10 @@ export function UzbekistanMap({
           </defs>
 
           {/* Orqa nur */}
-          {isHero && <ellipse cx={MAP_VIEWBOX.width / 2} cy={MAP_VIEWBOX.height / 2 + 40} rx={560} ry={300} fill={`url(#${uid}-glow)`} />}
+          {isHero && <ellipse cx={MAP_VIEWBOX.width / 2} cy={MAP_VIEWBOX.height / 2 + 40} rx={560} ry={300} fill={`url(#${uid}-glow)`} aria-hidden="true" />}
 
           {/* Plita (qalinlik): bir nechta qatlam pastga siljitilgan */}
-          <g filter={`url(#${uid}-shadow)`}>
+          <g filter={`url(#${uid}-shadow)`} aria-hidden="true">
             {Array.from({ length: isHero ? 6 : 3 }).map((_, i, arr) => {
               const n = arr.length;
               const dy = ((n - i) / n) * SLAB;
@@ -175,15 +273,15 @@ export function UzbekistanMap({
             })}
           </g>
 
-          {/* Ustki yuzalar */}
-          <g>
+          {/* Ustki yuzalar — har biri tugma */}
+          <g role="group" aria-label="Hududlar">
             {REGION_SHAPES.map((r) => {
               const n = count(r.slug);
               const t = n / max;
               const isSel = selected === r.slug;
               const isHov = hover === r.slug;
               const pct = Math.round(8 + Math.pow(t, 0.7) * 78);
-              const fill = isSel ? `url(#${uid}-sel)` : `color-mix(in srgb, var(--accent) ${pct}%, var(--map-base))`;
+              const fill = isSel ? `url(#${uid}-sel)` : `color-mix(in srgb, var(--accent) ${pct}%, var(--map-fill-0))`;
               return (
                 <path
                   key={r.slug}
@@ -196,11 +294,19 @@ export function UzbekistanMap({
                   filter={isSel || isHov ? `url(#${uid}-lift)` : undefined}
                   style={{ transform: isSel || isHov ? "translateY(-8px)" : undefined }}
                   opacity={active && !isSel && !isHov ? 0.9 : 1}
-                  onMouseEnter={() => setHover(r.slug)}
-                  onClick={() => pick(r.slug)}
+                  onMouseEnter={() => {
+                    if (!touchTip.current) setHover(r.slug);
+                  }}
+                  onPointerDown={(e) => onRegionPointerDown(e, r.slug)}
+                  onClick={() => onRegionClick(r.slug)}
                   tabIndex={0}
                   role="button"
-                  aria-label={`${r.name}: ${n} ta mutaxassis`}
+                  aria-label={`${r.name}: ${n} ta ${unitLabel}`}
+                  aria-pressed={onSelect ? isSel : undefined}
+                  onFocus={() => setHover(r.slug)}
+                  onBlur={() => {
+                    if (!touchTip.current) setHover(null);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
@@ -213,18 +319,19 @@ export function UzbekistanMap({
           </g>
 
           {/* Yorug'lik qatlami */}
-          <g clipPath={`url(#${uid}-clip)`} pointerEvents="none">
+          <g clipPath={`url(#${uid}-clip)`} pointerEvents="none" aria-hidden="true">
             <rect x={-24} y={-24} width={MAP_VIEWBOX.width + 48} height={MAP_VIEWBOX.height + 48} fill={`url(#${uid}-sheen)`} style={{ mixBlendMode: "soft-light" }} />
           </g>
 
           {/* Markerlar */}
-          <g pointerEvents="none">
+          <g pointerEvents="none" aria-hidden="true">
             {REGION_SHAPES.map((r, i) => {
               const n = count(r.slug);
               if (n === 0) return null;
               const t = n / max;
               const base = (isHero ? 7 : 5) + Math.sqrt(t) * (isHero ? 10 : 7);
               const isSel = selected === r.slug;
+              const pillW = String(n).length * 10 + 20;
               return (
                 <g key={r.slug} transform={`translate(${r.cx}, ${r.cy})`}>
                   <circle r={base} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45}s` }} />
@@ -232,8 +339,8 @@ export function UzbekistanMap({
                   <circle r={base * 0.55} fill={isSel ? "#fff" : "var(--accent)"} stroke="var(--map-base)" strokeWidth={2} />
                   {isHero && topSlugs.includes(r.slug) && (
                     <g transform={`translate(${(LABEL_OFFSET[r.slug]?.[0] ?? 0) + base + 6}, ${(LABEL_OFFSET[r.slug]?.[1] ?? 0) * 0.6})`}>
-                      <rect x={0} y={-11} width={String(n).length * 8 + 16} height={22} rx={11} fill="var(--ink)" />
-                      <text x={8} y={0} dominantBaseline="central" fontSize={12} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
+                      <rect x={0} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
+                      <text x={pillW / 2} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
                         {n}
                       </text>
                     </g>
@@ -243,29 +350,23 @@ export function UzbekistanMap({
             })}
           </g>
 
-          {/* Yorliqlar (panel rejimida) */}
-          {showLabels && !isHero && !compact && (
-            <g pointerEvents="none" className="hidden sm:block">
-              {REGION_SHAPES.map((r) => {
-                const n = count(r.slug);
-                const [ox, oy] = LABEL_OFFSET[r.slug] ?? [0, 0];
-                const label = REGION_BY_SLUG[r.slug]?.short ?? r.name;
-                const w = label.length * 7.4 + (n > 0 ? String(n).length * 8 + 18 : 14);
-                return (
-                  <g key={r.slug} transform={`translate(${r.cx + ox}, ${r.cy + oy + (n > 0 ? 18 : 0)})`}>
-                    <rect x={-w / 2} y={-11} width={w} height={22} rx={11} fill="var(--surface)" stroke="var(--line)" />
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={11.5} fontWeight={600} fill="var(--fg)" style={{ letterSpacing: "-0.01em" }}>
-                      {label}
-                      {n > 0 && (
-                        <tspan fill="var(--accent)" fontWeight={800}>
-                          {" "}
-                          {n}
-                        </tspan>
-                      )}
-                    </text>
-                  </g>
-                );
-              })}
+          {/* Yorliqlar (panel rejimida, yetarli kenglikda) */}
+          {labels && (
+            <g pointerEvents="none" aria-hidden="true">
+              {labels.map((l) => (
+                <g key={l.slug} transform={`translate(${l.x}, ${l.y})`}>
+                  <rect x={-l.w / 2} y={-11} width={l.w} height={22} rx={11} fill="var(--map-label-bg)" stroke="var(--line-2)" />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={11.5} fontWeight={600} fill="var(--fg)" style={{ letterSpacing: "-0.01em" }}>
+                    {l.label}
+                    {l.n > 0 && (
+                      <tspan fill="var(--accent)" fontWeight={800}>
+                        {" "}
+                        {l.n}
+                      </tspan>
+                    )}
+                  </text>
+                </g>
+              ))}
             </g>
           )}
         </svg>
@@ -274,15 +375,12 @@ export function UzbekistanMap({
       {/* Tooltip */}
       {tip && activeRegion && hover && (
         <div
-          className="card-elevated pointer-events-none absolute z-10 w-56 !rounded-[18px] p-3.5 animate-fade-up"
-          style={{
-            left: Math.min(tip.x + 16, (wrap.current?.clientWidth ?? 600) - 232),
-            top: Math.max(0, tip.y - 110),
-            animationDuration: "0.18s",
-          }}
+          className="card-floating pointer-events-none absolute z-10 w-56 p-3.5 animate-fade-up"
+          role="status"
+          style={{ left: tipLeft, top: Math.max(0, tip.y - 110), animationDuration: "0.18s" }}
         >
           <div className="flex items-center gap-2.5">
-            <span className="btn-ink flex h-8 w-8 items-center justify-center rounded-[10px]">
+            <span className="icon-tile icon-tile-sm">
               <MapPin size={14} />
             </span>
             <div className="min-w-0">
@@ -292,7 +390,7 @@ export function UzbekistanMap({
           </div>
           <p className="mt-2.5 text-[13px] text-fg-2">
             <span className="font-display text-[20px] font-semibold text-accent">{count(activeRegion.slug)}</span> ta {unitLabel}
-            {total > 0 && count(activeRegion.slug) > 0 && <span className="text-fg-4"> · {Math.round((count(activeRegion.slug) / total) * 100)}%</span>}
+            {total > 0 && count(activeRegion.slug) > 0 && <span className="text-fg-3"> · {Math.round((count(activeRegion.slug) / total) * 100)}%</span>}
           </p>
           {!counts && activeStat && activeStat.total > 0 && (
             <ul className="mt-1.5 space-y-0.5">
@@ -307,7 +405,9 @@ export function UzbekistanMap({
                 ))}
             </ul>
           )}
-          <p className="mt-2 text-[11px] font-semibold text-accent">Bosing → ro'yxat</p>
+          <p className="mt-2 text-[11px] font-semibold text-accent">
+            {onSelect ? (selected === hover ? "Tanlangan · yana bosing → bekor" : "Bosing → tanlash") : touchTip.current ? "Yana bosing → ro'yxat" : "Bosing → ro'yxat"}
+          </p>
         </div>
       )}
     </div>

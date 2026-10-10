@@ -4,10 +4,12 @@
    REDINCE — "Studio" dizayn tizimi
    Kinematik, editorial, premium. Ikki rejim: Paper (yorug') va Noir (qorong'u).
    - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (italic urg'u)
-   - Ranglar: iliq neytral yuzalar + coral→binafsha accent
-   - Yuzalar: aniq (blur'siz) kartalar, nozik chiziqlar, yumshoq soyalar
-   Eslatma: eski .glass* sinflari moslik uchun saqlangan — endi ular oddiy
-   "surface" kartalar sifatida ishlaydi.
+   - Ranglar: iliq neytral yuzalar + bitta coral accent (binafsha — ikkilamchi)
+   - Yuzalar: aniq (blur'siz) kartalar, nozik chiziqlar, 3 darajali soya
+   - Radius: 3 daraja (--r-sm 12 / --r-md 20 / --r-lg 28)
+   - Harakat: --dur-* / --ease-* tokenlar
+   Eslatma: eski .glass* / tint* sinflari moslik uchun saqlangan — endi ular
+   oddiy "surface" kartalar sifatida ishlaydi.
    ===================================================================== */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -21,8 +23,8 @@
   --surface-3: #f0ede6;
   --fg: #121213;
   --fg-2: #4b4a47;
-  --fg-3: #7d7b75;
-  --fg-4: #b3b0a8;
+  --fg-3: #6f6d67; /* AA (4.5+) oq va qog'oz fonida */
+  --fg-4: #8c8982; /* AA katta matn / UI (3+) */
 
   --line: rgba(18, 18, 19, 0.08);
   --line-2: rgba(18, 18, 19, 0.16);
@@ -30,17 +32,47 @@
 
   --accent: #ff5a36;
   --accent-2: #7b61ff;
-  --accent-3: #ffb800;
+  --accent-3: #f0b43c;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 90, 54, 0.12);
   --accent-2-soft: rgba(123, 97, 255, 0.12);
 
+  /* Semantik holat ranglari — palitraga moslashtirilgan (muted) */
+  --success: #2f9e6e;
+  --success-soft: rgba(47, 158, 110, 0.14);
+  --warning: #d9892f;
+  --warning-soft: rgba(217, 137, 47, 0.14);
+  --danger: #dc4a3f;
+  --danger-soft: rgba(220, 74, 63, 0.12);
+  --info: #5f86c4;
+  --info-soft: rgba(95, 134, 196, 0.14);
+
   --ink: #121213;
   --ink-fg: #ffffff;
 
+  /* Radius — 3 daraja */
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 28px;
+
+  /* Soya — 3 daraja */
   --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04), 0 8px 24px -12px rgba(18, 18, 19, 0.12);
   --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.05), 0 24px 48px -20px rgba(18, 18, 19, 0.22);
+  --shadow-3: 0 4px 10px rgba(18, 18, 19, 0.06), 0 40px 80px -24px rgba(18, 18, 19, 0.3);
   --shadow-accent: 0 16px 40px -14px rgba(255, 90, 54, 0.55);
+  --card-inset: inset 0 0 0 0 transparent;
+
+  /* Harakat */
+  --dur-1: 150ms;
+  --dur-2: 260ms;
+  --dur-3: 450ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Fokus halqasi */
+  --focus-ring: var(--accent);
+  --focus-ring-offset: 3px;
 
   /* Moslik: eski komponentlar ishlatadigan nomlar */
   --tint: var(--accent);
@@ -58,10 +90,12 @@
 
   /* Xarita */
   --map-base: #ffffff;
+  --map-fill-0: #ffffff; /* 0 ta mutaxassis bo'lgan hudud */
   --map-line: #ffffff;
   --map-slab: #d6d0c4;
   --map-slab-top: #e4dfd5;
   --map-slab-line: rgba(255, 255, 255, 0.6);
+  --map-label-bg: #ffffff;
 
   color-scheme: light;
 }
@@ -74,26 +108,38 @@
   --surface-3: #222228;
   --fg: #f4f2ec;
   --fg-2: #bdbab2;
-  --fg-3: #85837c;
-  --fg-4: #585750;
+  --fg-3: #8d8b84;
+  --fg-4: #6e6c66;
 
-  --line: rgba(255, 255, 255, 0.08);
-  --line-2: rgba(255, 255, 255, 0.16);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.17);
   --hairline: var(--line);
 
   --accent: #ff6b47;
   --accent-2: #8f79ff;
-  --accent-3: #ffc234;
+  --accent-3: #f5bd4a;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 107, 71, 0.16);
   --accent-2-soft: rgba(143, 121, 255, 0.16);
 
+  --success: #4dbb8a;
+  --success-soft: rgba(77, 187, 138, 0.16);
+  --warning: #e8a04a;
+  --warning-soft: rgba(232, 160, 74, 0.16);
+  --danger: #ef6a5f;
+  --danger-soft: rgba(239, 106, 95, 0.16);
+  --info: #7ea0d8;
+  --info-soft: rgba(126, 160, 216, 0.16);
+
   --ink: #f4f2ec;
   --ink-fg: #0a0a0c;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
-  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.8);
+  /* Noir'da soya + kartaning ustki qirrasida 1px yorug' chiziq (fon bilan ajralishi uchun) */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px -14px rgba(0, 0, 0, 0.65);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 30px 60px -24px rgba(0, 0, 0, 0.85);
+  --shadow-3: 0 6px 14px rgba(0, 0, 0, 0.45), 0 50px 100px -30px rgba(0, 0, 0, 0.95);
   --shadow-accent: 0 16px 44px -14px rgba(255, 107, 71, 0.6);
+  --card-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 
   --glass: var(--surface);
   --glass-strong: var(--surface-2);
@@ -103,11 +149,13 @@
   --glass-shadow: rgba(0, 0, 0, 0.35);
   --glass-shadow-strong: rgba(0, 0, 0, 0.6);
 
-  --map-base: #2b2b33;
+  --map-base: #1b1b22;
+  --map-fill-0: #3a2e2a; /* iliq kulrang — loyqa jigarrang emas */
   --map-line: #0a0a0c;
-  --map-slab: #0f0f13;
-  --map-slab-top: #17171c;
+  --map-slab: #0d0d10;
+  --map-slab-top: #15151a;
   --map-slab-line: rgba(255, 255, 255, 0.05);
+  --map-label-bg: #1f1f26;
 
   color-scheme: dark;
 }
@@ -139,26 +187,47 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-2-soft: var(--accent-2-soft);
 
+  /* Semantik */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
   /* Moslik */
   --color-tint: var(--accent);
   --color-tint-2: var(--accent-2);
   --color-tint-soft: var(--accent-soft);
 
-  /* Semantik ranglar (iOS nomlari moslik uchun saqlangan) */
-  --color-ios-blue: #3b82f6;
-  --color-ios-indigo: #6366f1;
-  --color-ios-purple: #a855f7;
-  --color-ios-pink: #ec4899;
-  --color-ios-red: #ef4444;
-  --color-ios-orange: #f97316;
-  --color-ios-yellow: #f59e0b;
-  --color-ios-green: #22c55e;
-  --color-ios-mint: #2dd4bf;
-  --color-ios-teal: #14b8a6;
-  --color-ios-cyan: #06b6d4;
+  /* Semantik ranglar — iOS nomlari moslik uchun saqlangan, qiymatlari palitraga moslashtirilgan */
+  --color-ios-blue: var(--info);
+  --color-ios-indigo: var(--accent-2);
+  --color-ios-purple: var(--accent-2);
+  --color-ios-pink: #d4709a;
+  --color-ios-red: var(--danger);
+  --color-ios-orange: var(--warning);
+  --color-ios-yellow: var(--accent-3);
+  --color-ios-green: var(--success);
+  --color-ios-mint: #5fb3a1;
+  --color-ios-teal: #4fa3ad;
+  --color-ios-cyan: #4fa3ad;
 
-  --radius-card: 24px;
-  --radius-card-lg: 32px;
+  /* Radius sinflari: rounded-tile (12) / rounded-card (20) / rounded-card-lg (28) */
+  --radius-tile: var(--r-sm);
+  --radius-card: var(--r-md);
+  --radius-card-lg: var(--r-lg);
+
+  /* shadow-e1 / shadow-e2 / shadow-e3 (elevation) */
+  --shadow-e1: var(--shadow-1);
+  --shadow-e2: var(--shadow-2);
+  --shadow-e3: var(--shadow-3);
+
+  /* ease-studio / ease-bounce */
+  --ease-studio: var(--ease-out);
+  --ease-bounce: var(--ease-spring);
 
   --animate-float: float 7s ease-in-out infinite;
   --animate-float-slow: float 11s ease-in-out infinite;
@@ -227,8 +296,8 @@ h1, h2, h3, .font-display {
 
 /* Yagona fokus halqasi — barcha interaktiv elementlar uchun (ikkala rejimda ko'rinadi) */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
   border-radius: inherit;
 }
 .field:focus-visible,
@@ -246,13 +315,13 @@ select:focus-visible {
     position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-1);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-1), var(--card-inset);
     transition:
-      transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-      box-shadow 0.35s ease,
-      border-color 0.35s ease,
-      background 0.3s ease;
+      transform var(--dur-3) var(--ease-out),
+      box-shadow var(--dur-3) ease,
+      border-color var(--dur-3) ease,
+      background var(--dur-2) ease;
   }
   /* Ko'tarilgan yuza */
   .glass-strong,
@@ -260,9 +329,17 @@ select:focus-visible {
     position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-2);
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-2), var(--card-inset);
+    transition: transform var(--dur-3) var(--ease-out), box-shadow var(--dur-3) ease, border-color var(--dur-3) ease;
+  }
+  /* Suzuvchi yuza (menyu, popover, tooltip) */
+  .card-floating {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-3), var(--card-inset);
   }
   /* Yengil yuza (fon bilan bir xil, faqat kontur) */
   .glass-weak,
@@ -270,19 +347,23 @@ select:focus-visible {
     position: relative;
     background: var(--surface-2);
     border: 1px solid var(--line);
-    border-radius: var(--radius-card);
-    transition: background 0.3s ease, border-color 0.3s ease;
+    border-radius: var(--r-md);
+    transition: background var(--dur-2) ease, border-color var(--dur-2) ease;
   }
   [data-theme="dark"] .glass-weak,
   [data-theme="dark"] .card-outline {
     background: color-mix(in srgb, var(--surface) 60%, transparent);
+    box-shadow: var(--card-inset);
   }
 
-  .glass-hover:hover,
-  .card-hover:hover {
-    transform: translateY(-3px);
-    border-color: var(--line-2);
-    box-shadow: var(--shadow-2);
+  /* Hover faqat ko'rsatkichli qurilmalarda — touch'da "yopishib qolmasin" */
+  @media (hover: hover) and (pointer: fine) {
+    .glass-hover:hover,
+    .card-hover:hover {
+      transform: translateY(-3px);
+      border-color: var(--line-2);
+      box-shadow: var(--shadow-2), var(--card-inset);
+    }
   }
   .glass-hover:active,
   .card-hover:active {
@@ -294,6 +375,53 @@ select:focus-visible {
     border-radius: 9999px;
   }
 
+  /* Ikonka plitkalari — barcha bo'limlarda bitta uslub (rangli "o'yinchoq" plitkalar o'rniga) */
+  .icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--r-sm);
+    background: var(--ink);
+    color: var(--ink-fg);
+  }
+  .icon-tile-soft {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .icon-tile-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--fg-2);
+    box-shadow: var(--card-inset);
+  }
+  .icon-tile-sm {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+  }
+  .icon-tile-lg {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 16px;
+  }
+
   /* Asosiy tugma — "siyoh" (yorug'da qora, qorong'uda oq) */
   .glass-tint,
   .btn-ink {
@@ -301,7 +429,7 @@ select:focus-visible {
     color: var(--ink-fg);
     background: var(--ink);
     border: 1px solid transparent;
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, filter 0.3s ease;
+    transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) ease, filter var(--dur-2) ease;
   }
   .glass-tint:hover,
   .btn-ink:hover {
@@ -313,16 +441,16 @@ select:focus-visible {
     transform: scale(0.97);
   }
 
-  /* Accent gradient tugma */
+  /* Accent tugma — coral; ohista chuqurlik (logotip coral'i bilan bir xil ton) */
   .btn-accent {
     position: relative;
     color: #fff;
-    background: linear-gradient(100deg, var(--accent) 0%, #ff3d6e 55%, var(--accent-2) 120%);
+    background: linear-gradient(100deg, var(--accent) 0%, #ff4a55 70%, #ff3d6e 120%);
     background-size: 160% 100%;
     background-position: 0% 0%;
     border: 1px solid transparent;
-    box-shadow: var(--shadow-accent);
-    transition: background-position 0.5s ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+    box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transition: background-position var(--dur-3) ease, transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) ease;
   }
   .btn-accent:hover {
     background-position: 100% 0%;
@@ -334,14 +462,14 @@ select:focus-visible {
   /* Input */
   .field {
     width: 100%;
-    border-radius: 14px;
+    border-radius: var(--r-sm);
     padding: 0.7rem 0.95rem;
     font-size: 0.9375rem;
     color: var(--fg);
     background: var(--surface-2);
     border: 1px solid var(--line);
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    transition: border-color var(--dur-1), box-shadow var(--dur-1), background var(--dur-1);
   }
   [data-theme="dark"] .field {
     background: var(--surface);
@@ -374,7 +502,7 @@ select:focus-visible {
   .field-error {
     margin-top: 0.3rem;
     font-size: 0.75rem;
-    color: #ef4444;
+    color: var(--danger);
   }
 
   /* Segment (tab) boshqaruvi */
@@ -392,7 +520,7 @@ select:focus-visible {
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--fg-2);
-    transition: background 0.25s, color 0.25s, box-shadow 0.25s;
+    transition: background var(--dur-2), color var(--dur-2), box-shadow var(--dur-2);
     white-space: nowrap;
   }
   .segment-item:hover {
@@ -406,10 +534,15 @@ select:focus-visible {
 
   /* Navigatsiya paneli — yagona blur ishlatiladigan joy */
   .nav-bar {
-    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-2);
+    box-shadow: 0 1px 2px rgba(18, 18, 19, 0.04), 0 10px 30px -18px rgba(18, 18, 19, 0.18), var(--card-inset);
+  }
+  [data-theme="dark"] .nav-bar {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    box-shadow: var(--shadow-1), var(--card-inset);
   }
 
   /* Katta display sarlavha */
@@ -443,6 +576,19 @@ select:focus-visible {
     height: 1px;
     background: var(--accent);
   }
+
+  /* Qorong'u CTA bloki — ikkala rejimda ham qora (inversiya yo'q) */
+  .cta-dark {
+    background: #121213;
+    color: #ffffff;
+    --ink: #ffffff;
+    --ink-fg: #121213;
+    --line: rgba(255, 255, 255, 0.12);
+    --line-2: rgba(255, 255, 255, 0.24);
+    --fg: #ffffff;
+    --fg-2: rgba(255, 255, 255, 0.72);
+    --fg-3: rgba(255, 255, 255, 0.55);
+  }
 }
 
 /* ---------- Utility'lar ---------- */
@@ -465,7 +611,7 @@ select:focus-visible {
   background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
-  border-radius: 14px;
+  border-radius: var(--r-sm);
 }
 
 @utility no-scrollbar {
@@ -483,6 +629,20 @@ select:focus-visible {
   scroll-padding-inline: 1rem;
 }
 
+/* Ikkala chetda so'nish (marquee, markazlashgan lentalar) */
+@utility edge-fade {
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+/* Faqat ko'rsatkichli qurilmalarda hover'da ko'rinadigan element (karta strelkasi va h.k.) */
+@utility hover-reveal {
+  opacity: 0;
+  @media (hover: none) {
+    display: none;
+  }
+}
+
 @utility grain {
   &::after {
     content: "";
@@ -492,6 +652,24 @@ select:focus-visible {
     opacity: 0.06;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Uch qadam kartalari orasidagi punktir chiziq (md+) */
+@utility step-line {
+  &::before {
+    content: "";
+    position: absolute;
+    top: 3.9rem;
+    left: calc(100% - 1rem);
+    width: calc(2rem + 1px);
+    border-top: 2px dashed var(--line-2);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .hover-reveal {
+    opacity: 1;
   }
 }
 
@@ -507,7 +685,7 @@ select:focus-visible {
     border-radius: 9999px;
     background: var(--surface-3);
     border: 1px solid var(--line-2);
-    transition: background 0.25s ease, border-color 0.25s ease;
+    transition: background var(--dur-2) ease, border-color var(--dur-2) ease;
   }
   .switch::after {
     content: "";
@@ -517,7 +695,7 @@ select:focus-visible {
     height: 18px;
     border-radius: 9999px;
     background: var(--fg-3);
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.25s ease;
+    transition: transform var(--dur-2) var(--ease-out), background var(--dur-2) ease;
   }
   .switch[aria-checked="true"] {
     background: var(--ink);
@@ -534,7 +712,7 @@ select:focus-visible {
   cursor: pointer;
   transform-box: fill-box;
   transform-origin: center;
-  transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease, opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: fill var(--dur-2) ease, stroke var(--dur-2) ease, filter var(--dur-2) ease, opacity var(--dur-2) ease, transform var(--dur-3) var(--ease-out);
   outline: none;
 }
 .region-path:focus-visible {
@@ -551,8 +729,10 @@ select:focus-visible {
   0% { transform: scale(0.6); opacity: 0.55; }
   100% { transform: scale(2.8); opacity: 0; }
 }
-.region-path:hover {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent)) brightness(1.06);
+@media (hover: hover) and (pointer: fine) {
+  .region-path:hover {
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent)) brightness(1.06);
+  }
 }
 .region-path.is-active {
   filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 75%, transparent)) brightness(1.08);
@@ -564,5 +744,15 @@ select:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .map-pulse {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .animate-marquee {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto;
   }
 }

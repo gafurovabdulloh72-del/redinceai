@@ -79,11 +79,9 @@ export function ContactPanel({
   const lockedCount = rows.filter((r) => r.lock).length;
 
   return (
-    <section className={className} aria-labelledby="aloqa-title">
+    <section className={className} aria-label="Aloqa">
       <div className="mb-2 flex items-center justify-between px-4">
-        <h3 id="aloqa-title" className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">
-          Aloqa
-        </h3>
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Aloqa</h3>
         {lockedCount > 0 && (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-fg-3">
             <Lock size={11} /> {lockedCount} ta yopiq

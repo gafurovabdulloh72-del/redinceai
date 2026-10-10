@@ -1,14 +1,21 @@
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderStatusSchema } from "@/lib/validators";
 import type { OrderStatus } from "@/lib/constants";
+import { notify } from "@/lib/notifications";
+import { loadOrderWithParties, onOrderCancelled, orderHref } from "@/lib/payments/service";
+import { formatPrice } from "@/lib/utils";
 
 /**
  * Status o'zgarishi qoidalari:
- *  - mutaxassis: new -> accepted | cancelled; accepted -> in_progress | cancelled; in_progress -> done
+ *  - mutaxassis: new -> accepted | cancelled; accepted -> in_progress | cancelled; in_progress -> done | cancelled
  *  - mijoz: new | accepted -> cancelled
+ *  - admin: istalgan o'tish
+ * Bekor qilishda ixtiyoriy `reason` (mijoz/mutaxassisga bildirishnomada ko'rsatiladi).
+ * To'langan buyurtma bekor qilinsa pul eskrouda qoladi — admin qaytaradi (bildirishnoma ketadi).
  */
 const SPECIALIST_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["accepted", "cancelled"],
@@ -25,15 +32,14 @@ const CLIENT_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
 };
 
+const schema = orderStatusSchema.extend({ reason: z.string().trim().max(500).optional().or(z.literal("")) });
+
 export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await ctx.params;
-  const { status } = await parseBody(req, orderStatusSchema);
+  const { status, reason } = await parseBody(req, schema);
 
-  const order = await db.query.orders.findFirst({
-    where: eq(orders.id, id),
-    with: { specialist: { columns: { userId: true } } },
-  });
+  const order = await loadOrderWithParties(id);
   if (!order) throw new ApiError(404, "Buyurtma topilmadi");
 
   const isSpecialist = order.specialist.userId === session.sub;
@@ -45,7 +51,53 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     const allowed = (isSpecialist ? SPECIALIST_TRANSITIONS : CLIENT_TRANSITIONS)[order.status];
     if (!allowed.includes(status)) throw new ApiError(400, "Bu holatga o'tkazib bo'lmaydi");
   }
+  if (status === order.status) return ok({ id, status, paymentState: order.paymentState });
 
   await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id));
-  return ok({ id, status });
+
+  const href = orderHref(order.id);
+  const spName = order.specialist.user.name;
+  const why = reason?.trim() ? ` Sabab: ${reason.trim()}` : "";
+
+  switch (status) {
+    case "accepted":
+      await notify(order.clientId, "order_new", `${spName} buyurtmangizni qabul qildi`, `«${order.title}» — mutaxassis tez orada narx belgilaydi, keyin to'lovni eskrou orqali amalga oshirasiz.`, href);
+      break;
+    case "in_progress":
+      await notify(order.clientId, "order_new", "Ish boshlandi", `«${order.title}» — ${spName} ishni boshladi.`, href);
+      break;
+    case "done":
+      await notify(
+        order.clientId,
+        "order_done",
+        "Ish yakunlandi — qabul qiling",
+        order.paymentState === "paid"
+          ? `«${order.title}» — natijani tekshiring va «Ishni qabul qilish»ni bosing. Shunda ${formatPrice(order.amount ?? 0)} mutaxassisga o'tadi.`
+          : `«${order.title}» — ${spName} ishni yakunladi. Natijani tasdiqlang.`,
+        href,
+      );
+      break;
+    case "cancelled": {
+      await onOrderCancelled(order, session.sub, reason?.trim() || null);
+      const byClient = isClient && !isSpecialist;
+      if (byClient || isAdmin) {
+        await notify(order.specialist.userId, "order_cancelled", order.status === "new" ? "Buyurtma bekor qilindi" : "Mijoz buyurtmani bekor qildi", `«${order.title}».${why}`, href);
+      }
+      if (isSpecialist || isAdmin) {
+        await notify(
+          order.clientId,
+          "order_cancelled",
+          order.status === "new" ? `${spName} buyurtmani rad etdi` : "Buyurtma bekor qilindi",
+          `«${order.title}».${why}${order.paymentState === "paid" ? " To'lovingiz admin tomonidan qaytariladi." : ""}`,
+          href,
+        );
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  const fresh = await db.query.orders.findFirst({ where: eq(orders.id, id), columns: { paymentState: true } });
+  return ok({ id, status, paymentState: fresh?.paymentState ?? order.paymentState });
 });

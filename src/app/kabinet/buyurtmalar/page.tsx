@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ClipboardList } from "lucide-react";
-import { OrdersList, type OrderItem } from "@/components/orders/OrdersList";
-import { getCurrentUser } from "@/lib/auth";
+import { ClipboardList, ShieldCheck } from "lucide-react";
+import { OrdersList, type OrderItem, type Tab } from "@/components/orders/OrdersList";
+import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/queries";
+import { availableProviders } from "@/lib/payments/config";
+import { getSettings } from "@/lib/payments/settings";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Buyurtmalar" };
 
-export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ tab?: string; id?: string }> }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
-  if (!user) redirect("/auth/kirish?next=%2Fkabinet%2Fbuyurtmalar");
+  if (!user) redirect(await loginRedirectPath("/kabinet/buyurtmalar"));
 
-  const { asClient, asSpecialist } = await getOrdersForUser(user.id, user.specialist?.id);
+  const [{ asClient, asSpecialist }, settings] = await Promise.all([getOrdersForUser(user.id, user.specialist?.id), getSettings()]);
+  const providers = availableProviders();
 
   // Mutaxassis sifatida kelgan buyurtmalar
   const incoming: OrderItem[] = asSpecialist.map((o) => ({
@@ -24,14 +27,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     deadline: o.deadline,
     contactPhone: o.contactPhone,
     status: o.status,
+    amount: o.amount,
+    paymentState: o.paymentState,
+    commissionPct: o.commissionPct,
+    completedAt: o.completedAt?.getTime() ?? null,
     createdAt: o.createdAt.getTime(),
     updatedAt: o.updatedAt.getTime(),
-    counterpart: {
-      name: o.client.name,
-      avatarUrl: o.client.avatarUrl,
-      subtitle: "Mijoz",
-      href: null,
-    },
+    counterpart: { name: o.client.name, avatarUrl: o.client.avatarUrl, subtitle: "Mijoz", href: null },
   }));
 
   // Mijoz sifatida yuborilgan buyurtmalar
@@ -43,6 +45,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     deadline: o.deadline,
     contactPhone: o.contactPhone,
     status: o.status,
+    amount: o.amount,
+    paymentState: o.paymentState,
+    commissionPct: o.commissionPct,
+    completedAt: o.completedAt?.getTime() ?? null,
     createdAt: o.createdAt.getTime(),
     updatedAt: o.updatedAt.getTime(),
     counterpart: {
@@ -54,25 +60,40 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   }));
 
   const hasSpecialist = Boolean(user.specialist);
-  const initialTab = sp.tab === "mening" ? "outgoing" : sp.tab === "kelgan" && hasSpecialist ? "incoming" : hasSpecialist ? "incoming" : "outgoing";
+  const initialTab: Tab = sp.tab === "mening" ? "outgoing" : sp.tab === "kelgan" && hasSpecialist ? "incoming" : hasSpecialist ? "incoming" : "outgoing";
+  const highlightId = typeof sp.id === "string" && sp.id ? sp.id : null;
+  const awaitingCount = outgoing.filter((o) => o.paymentState === "awaiting" && o.status !== "cancelled").length;
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <span className="glass-weak glass-pill inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-tint">
-            <ClipboardList size={12} /> Kabinet
+      <header className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <span className="eyebrow">
+            <ClipboardList size={13} className="text-accent" /> Kabinet
           </span>
-          <h1 className="mt-3 text-[28px] font-bold leading-tight tracking-tight text-fg sm:text-4xl">Buyurtmalar</h1>
-          <p className="mt-1.5 text-[15px] text-fg-2">
+          <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">Buyurtmalar</h1>
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
             {hasSpecialist
-              ? "Kelgan so'rovlarni qabul qiling, jarayonni boshqaring va yakunlang."
-              : "Yuborgan buyurtmalaringiz holati va mutaxassis bilan aloqa."}
+              ? "Kelgan so'rovlarni qabul qiling, narx belgilang, jarayonni boshqaring. Mijoz to'lovi eskrouda turadi va ish qabul qilingach balansingizga tushadi."
+              : "Yuborgan buyurtmalaringiz holati, narx va to'lov. Pul eskrouda saqlanadi — ish qabul qilingunga qadar mutaxassisga o'tmaydi."}
           </p>
         </div>
-      </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-[12px] font-semibold text-fg-2">
+          <ShieldCheck size={14} className="text-success" />
+          {awaitingCount > 0 ? `${awaitingCount} ta buyurtma to'lov kutmoqda` : `Eskrou · xizmat haqi ${settings.commissionPct}%`}
+        </div>
+      </header>
 
-      <OrdersList incoming={incoming} outgoing={outgoing} hasSpecialist={hasSpecialist} initialTab={initialTab} />
+      <OrdersList
+        incoming={incoming}
+        outgoing={outgoing}
+        hasSpecialist={hasSpecialist}
+        initialTab={initialTab}
+        highlightId={highlightId}
+        providers={providers}
+        commissionPct={settings.commissionPct}
+        minOrderAmount={settings.minOrderAmount}
+      />
     </div>
   );
 }

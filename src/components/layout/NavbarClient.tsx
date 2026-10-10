@@ -44,8 +44,15 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
     const onDown = (e: PointerEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
@@ -56,57 +63,61 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
     router.refresh();
   };
 
+  const tabs = [...NAV, { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false }];
+
   return (
     <>
-      {/* ---------- Yuqori panel ---------- */}
-      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4">
+      {/* ---------- Yuqori panel: max-w-5xl kapsula, scroll'da biroz ixchamlashadi ---------- */}
+      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <nav
           className={cn(
-            "nav-bar container-x flex h-16 items-center justify-between gap-3 !rounded-full pl-4 pr-2 transition-shadow duration-500 sm:pl-5",
-            scrolled && "shadow-[var(--shadow-2)]",
+            "nav-bar mx-auto flex w-full max-w-5xl items-center justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
+            scrolled ? "h-14 shadow-[var(--shadow-2)]" : "h-14 sm:h-16",
           )}
           aria-label="Asosiy navigatsiya"
         >
           <Logo />
 
-          <div className="hidden items-center gap-1 md:flex">
+          <div className="hidden items-center gap-0.5 md:flex">
             {NAV.map((n) => {
               const active = isActive(n.href, n.exact);
               return (
                 <Link
                   key={n.href}
                   href={n.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative rounded-full px-4 py-2 text-[14px] font-semibold transition",
+                    "relative flex h-10 items-center rounded-full px-4 text-[14px] font-semibold transition",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
                 >
                   {n.label}
-                  {active && <span className="absolute inset-x-4 -bottom-0.5 h-[2px] rounded-full bg-accent" />}
+                  {active && <span aria-hidden className="absolute inset-x-4 bottom-1 h-[3px] rounded-full bg-accent" />}
                 </Link>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-2">
-            <ThemeToggle className="hidden sm:flex" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <ThemeToggle />
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
                   onClick={() => setOpen((v) => !v)}
-                  className="card card-hover flex h-11 items-center gap-2 !rounded-full pl-1 pr-3"
+                  className="card card-hover flex h-10 items-center gap-2 !rounded-full pl-1 pr-1.5 sm:pr-3"
                   aria-haspopup="menu"
                   aria-expanded={open}
+                  aria-label={`Hisob menyusi: ${user.name}`}
                 >
-                  <Avatar name={user.name} src={user.avatarUrl} size={34} />
+                  <Avatar name={user.name} src={user.avatarUrl} size={30} decorative />
                   <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg sm:block">{user.name.split(" ")[0]}</span>
                 </button>
 
                 {open && (
                   <div
                     role="menu"
-                    className="card-elevated absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden !rounded-[20px] p-1.5 animate-fade-up"
+                    className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-fade-up"
                     style={{ animationDuration: "0.22s" }}
                   >
                     <div className="px-3 py-2.5">
@@ -127,7 +138,7 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
                       type="button"
                       onClick={logout}
                       role="menuitem"
-                      className="flex w-full items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-left text-[14px] font-medium text-ios-red transition hover:bg-ios-red/10"
+                      className="flex min-h-11 w-full items-center gap-2.5 rounded-tile px-3 py-2.5 text-left text-[14px] font-medium text-danger transition hover:bg-danger-soft"
                     >
                       <LogOut size={16} /> Chiqish
                     </button>
@@ -136,10 +147,10 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
               </div>
             ) : (
               <>
-                <Link href="/auth/kirish" className="hidden h-11 items-center rounded-full px-4 text-[14px] font-semibold text-fg-2 transition hover:text-fg sm:inline-flex">
+                <Link href="/auth/kirish" className="hidden h-10 items-center rounded-full px-4 text-[14px] font-semibold text-fg-2 transition hover:text-fg sm:inline-flex">
                   Kirish
                 </Link>
-                <Link href="/auth/royxat" className="btn-ink inline-flex h-11 items-center rounded-full px-5 text-[14px] font-semibold">
+                <Link href="/auth/royxat" className="btn-ink inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold sm:px-5">
                   Boshlash
                 </Link>
               </>
@@ -148,26 +159,27 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
         </nav>
       </header>
 
-      {/* ---------- Pastki tab-bar (mobil) ---------- */}
+      {/* ---------- Pastki tab-bar (mobil): teng kenglikdagi 4 ta element, safe-area ---------- */}
       <nav
-        className="nav-bar fixed inset-x-3 bottom-3 z-50 flex items-center justify-around !rounded-full px-2 py-1.5 shadow-[var(--shadow-2)] md:hidden"
-        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+        className="nav-bar fixed inset-x-3 bottom-3 z-50 grid grid-cols-4 items-stretch !rounded-full p-1.5 shadow-[var(--shadow-2)] md:hidden"
+        style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Mobil navigatsiya"
       >
-        {[...NAV, { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false }].map((n) => {
+        {tabs.map((n) => {
           const active = isActive(n.href, n.exact);
           const Icon = n.icon;
           return (
             <Link
               key={n.href}
               href={n.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-w-[64px] flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[10px] font-semibold transition",
+                "flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[10.5px] font-semibold transition",
                 active ? "btn-ink" : "text-fg-3",
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-              {n.label}
+              <span className="truncate">{n.label}</span>
             </Link>
           );
         })}
@@ -181,7 +193,7 @@ function MenuItem({ href, icon: Icon, children }: { href: string; icon: typeof H
     <Link
       href={href}
       role="menuitem"
-      className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-[14px] font-medium text-fg transition hover:bg-fg/6"
+      className="flex min-h-11 items-center gap-2.5 rounded-tile px-3 py-2.5 text-[14px] font-medium text-fg transition hover:bg-fg/6"
     >
       <Icon size={16} className="text-fg-3" /> {children}
     </Link>

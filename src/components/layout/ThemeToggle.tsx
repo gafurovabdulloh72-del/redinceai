@@ -17,6 +17,7 @@ function subscribe(cb: () => void) {
   return () => mo.disconnect();
 }
 
+/** Tema almashtirgich — mobil va desktopda bir xil (yuqori panelda), 40px bosish maydoni */
 export function ThemeToggle({ className }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, readTheme, () => "light" as Theme);
 
@@ -34,9 +35,11 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
+      role="switch"
+      aria-checked={theme === "dark"}
       aria-label={theme === "dark" ? "Yorug' rejimga o'tish" : "Qorong'u rejimga o'tish"}
       title={theme === "dark" ? "Yorug' rejim" : "Qorong'u rejim"}
-      className={cn("card card-hover flex h-10 w-10 items-center justify-center !rounded-full text-fg-2 hover:text-fg sm:h-11 sm:w-11", className)}
+      className={cn("card card-hover flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-fg-2 hover:text-fg", className)}
     >
       <span className="relative h-[18px] w-[18px]">
         <Sun size={18} className={cn("absolute inset-0 transition-all duration-500", theme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100")} />

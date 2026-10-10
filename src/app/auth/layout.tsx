@@ -20,10 +20,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   return (
     <div className="container-x">
       <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
+        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.05fr_1fr] lg:items-start">
           {/* ---------- Chap: editorial brend paneli (faqat desktop) ---------- */}
-          <aside className="card relative hidden overflow-hidden p-10 lg:flex lg:flex-col lg:justify-between" aria-hidden="true">
-            <div>
+          <aside className="card relative hidden overflow-hidden p-10 lg:sticky lg:top-28 lg:flex lg:flex-col" aria-hidden="true">
+            <div className="flex-1">
               <Logo />
               <span className="eyebrow mt-12">O'zbekiston ijodkorlar xaritasi</span>
               <h2 className="display-xl mt-5 max-w-md text-[40px] text-fg xl:text-[46px]">
@@ -34,7 +34,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
               </p>
             </div>
 
-            <ul className="my-10 divide-y divide-line border-y border-line">
+            <ul className="mb-8 mt-10 divide-y divide-line border-y border-line">
               {BENEFITS.map((b) => (
                 <li key={b.title} className="flex items-start gap-4 py-4">
                   <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">

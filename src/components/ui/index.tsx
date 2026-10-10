@@ -16,13 +16,13 @@ const variantClass: Record<Variant, string> = {
   "tint-soft": "bg-accent-soft text-accent font-semibold hover:brightness-105 active:scale-[0.97] transition",
   ghost: "text-fg-2 hover:bg-fg/6 hover:text-fg active:scale-[0.97] transition",
   outline: "border border-line-2 text-fg hover:border-fg hover:bg-fg/4 active:scale-[0.97] transition",
-  danger: "bg-ios-red text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
+  danger: "bg-danger text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
 };
 const sizeClass: Record<Size, string> = {
   sm: "h-9 px-3.5 text-[13px] gap-1.5",
   md: "h-11 px-5 text-[14px] gap-2",
   lg: "h-13 px-7 text-[15px] gap-2.5",
-  icon: "h-10 w-10 p-0",
+  icon: "h-11 w-11 p-0",
 };
 
 const base =
@@ -57,6 +57,7 @@ export function ButtonLink({
   children: ReactNode;
   target?: string;
   rel?: string;
+  "aria-label"?: string;
 }) {
   return (
     <Link href={href} className={cn(base, variantClass[variant], sizeClass[size], className)} {...rest}>
@@ -68,6 +69,38 @@ export function ButtonLink({
 /* ------------------------------------------------------------------ */
 /* Badge / Chip                                                        */
 /* ------------------------------------------------------------------ */
+export type BadgeTone =
+  | "neutral"
+  | "accent"
+  | "ink"
+  | "glass"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  /* eski nomlar — moslik uchun (semantik ohanglarga yo'naltirilgan) */
+  | "blue"
+  | "green"
+  | "orange"
+  | "pink"
+  | "purple";
+
+const badgeTones: Record<BadgeTone, string> = {
+  neutral: "bg-fg/6 text-fg-2",
+  accent: "bg-accent-soft text-accent",
+  ink: "bg-ink text-ink-fg",
+  glass: "border border-line bg-surface text-fg-2",
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  danger: "bg-danger-soft text-danger",
+  info: "bg-info-soft text-info",
+  blue: "bg-info-soft text-info",
+  green: "bg-success-soft text-success",
+  orange: "bg-warning-soft text-warning",
+  pink: "bg-accent-soft text-accent",
+  purple: "bg-accent-2-soft text-accent-2",
+};
+
 export function Badge({
   children,
   tone = "neutral",
@@ -75,35 +108,66 @@ export function Badge({
   style,
 }: {
   children: ReactNode;
-  tone?: "neutral" | "blue" | "green" | "orange" | "pink" | "purple" | "glass" | "accent" | "ink";
+  tone?: BadgeTone;
   className?: string;
   style?: CSSProperties;
 }) {
-  const tones = {
-    neutral: "bg-fg/6 text-fg-2",
-    accent: "bg-accent-soft text-accent",
-    ink: "bg-ink text-ink-fg",
-    /* "blue" moslik uchun qoldirilgan — endi accent-2 (binafsha) ohangida */
-    blue: "bg-accent-2-soft text-accent-2",
-    green: "bg-ios-green/14 text-[#15803d] dark:text-ios-green",
-    orange: "bg-ios-orange/14 text-[#c2410c] dark:text-ios-orange",
-    pink: "bg-ios-pink/12 text-ios-pink",
-    purple: "bg-accent-2-soft text-accent-2",
-    glass: "border border-line bg-surface text-fg-2",
-  };
   return (
     <span
       style={style}
-      className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none", tones[tone], className)}
+      className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none", badgeTones[tone], className)}
     >
       {children}
     </span>
   );
 }
 
-/** Tasdiqlangan profil belgisi — butun ilovada bitta rang (accent) */
-export function VerifiedBadge({ size = 16, className, label = "Tasdiqlangan profil" }: { size?: number; className?: string; label?: string }) {
-  return <BadgeCheck size={size} className={cn("shrink-0 fill-accent text-white", className)} aria-label={label} role="img" />;
+/** Tasdiqlangan profil belgisi — butun ilovada bitta rang (accent; qora fonda "ink") */
+export function VerifiedBadge({
+  size = 16,
+  className,
+  label = "Tasdiqlangan profil",
+  tone = "accent",
+}: {
+  size?: number;
+  className?: string;
+  label?: string;
+  tone?: "accent" | "ink";
+}) {
+  return (
+    <BadgeCheck
+      size={size}
+      className={cn("shrink-0", tone === "ink" ? "fill-ink text-ink-fg" : "fill-accent text-white", className)}
+      aria-label={label}
+      role="img"
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Icon tile — ikonka plitkasi (kabinet statlari, bo'lim sarlavhalari) */
+/* ------------------------------------------------------------------ */
+export function IconTile({
+  icon: Icon,
+  tone = "ink",
+  size = "md",
+  className,
+  iconSize,
+}: {
+  icon: LucideIcon;
+  tone?: "ink" | "soft" | "outline";
+  size?: "sm" | "md" | "lg";
+  className?: string;
+  iconSize?: number;
+}) {
+  const toneClass = tone === "soft" ? "icon-tile-soft" : tone === "outline" ? "icon-tile-outline" : "icon-tile";
+  const sizeCls = size === "sm" ? "icon-tile-sm" : size === "lg" ? "icon-tile-lg" : undefined;
+  const px = iconSize ?? (size === "sm" ? 15 : size === "lg" ? 24 : 20);
+  return (
+    <span className={cn(toneClass, sizeCls, className)} aria-hidden="true">
+      <Icon size={px} />
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -137,7 +201,8 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: Math.max(11, size * 0.34),
-        background: `linear-gradient(145deg, hsl(${hue} 70% 55%), hsl(${(hue + 50) % 360} 70% 42%))`,
+        /* Bosh harflar foni — past to'yinganlik, palitraga mos */
+        background: `linear-gradient(145deg, hsl(${hue} 38% 52%), hsl(${(hue + 40) % 360} 36% 40%))`,
       }}
     >
       {initials(name)}
@@ -262,11 +327,7 @@ export function EmptyState({
 }) {
   return (
     <div className="card-outline flex flex-col items-center justify-center px-6 py-14 text-center">
-      {Icon && (
-        <div className="card mb-4 flex h-14 w-14 items-center justify-center !rounded-[18px] text-accent">
-          <Icon size={24} />
-        </div>
-      )}
+      {Icon && <IconTile icon={Icon} tone="soft" size="lg" className="mb-4" />}
       <h3 className="font-display text-[17px] font-semibold text-fg">{title}</h3>
       {description && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
@@ -283,13 +344,16 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function Stat({ value, label, accent }: { value: ReactNode; label: string; accent?: string }) {
+export function Stat({ value, label, accent, icon: Icon }: { value: ReactNode; label: string; accent?: string; icon?: LucideIcon }) {
   return (
-    <div className="card px-5 py-4">
-      <div className="font-display text-[28px] font-semibold leading-none tracking-tight text-fg sm:text-[34px]" style={accent ? { color: accent } : undefined}>
-        {value}
+    <div className="card flex items-start justify-between gap-3 px-5 py-4">
+      <div>
+        <div className="font-display text-[28px] font-semibold leading-none tracking-tight text-fg sm:text-[34px]" style={accent ? { color: accent } : undefined}>
+          {value}
+        </div>
+        <div className="mt-2 text-xs font-medium text-fg-3">{label}</div>
       </div>
-      <div className="mt-2 text-xs font-medium text-fg-3">{label}</div>
+      {Icon && <IconTile icon={Icon} tone="soft" size="sm" />}
     </div>
   );
 }
@@ -308,11 +372,7 @@ export function InsetRow({ label, value, icon: Icon, href }: { label: string; va
   const external = !!href && /^https?:\/\//i.test(href);
   const inner = (
     <>
-      {Icon && (
-        <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
-          <Icon size={15} />
-        </span>
-      )}
+      {Icon && <IconTile icon={Icon} size="sm" />}
       <span className="flex-1 text-[15px] text-fg">
         {label}
         {external && <span className="sr-only"> (yangi oynada)</span>}
