@@ -25,7 +25,7 @@ import { Avatar, Badge, ButtonLink, Stars } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
 import { getOrdersForUser } from "@/lib/queries";
-import { cn, formatPrice, timeAgo } from "@/lib/utils";
+import { cn, formatNumber, formatPrice, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Umumiy" };
@@ -179,7 +179,7 @@ export default async function KabinetPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {sp ? (
           <>
-            <Tile icon={Eye} value={new Intl.NumberFormat("uz-UZ").format(sp.viewCount)} label="Profil ko'rishlar" accent="#0a84ff" href={`/mutaxassislar/${sp.slug}`} />
+            <Tile icon={Eye} value={formatNumber(sp.viewCount)} label="Profil ko'rishlar" accent="#0a84ff" href={`/mutaxassislar/${sp.slug}`} />
             <Tile icon={Star} value={sp.rating > 0 ? sp.rating.toFixed(1) : "—"} label="Reyting" accent="#ff9f0a" />
             <Tile icon={MessageSquareText} value={sp.reviewCount} label="Sharhlar" accent="#bf5af2" href={`/mutaxassislar/${sp.slug}#sharhlar`} />
             <Tile icon={Inbox} value={newIncoming} label="Yangi buyurtmalar" accent="#30d158" href="/kabinet/buyurtmalar?tab=kelgan" />

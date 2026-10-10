@@ -28,7 +28,7 @@ import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG, SITE } from "@/lib/constants";
 import { bumpViewCount, getSimilarSpecialists, getSpecialistBySlug } from "@/lib/queries";
-import { formatDate, formatPriceRange, hashHue } from "@/lib/utils";
+import { formatDate, formatNumber, formatPriceRange, hashHue } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +96,7 @@ export default async function SpecialistPage({ params }: { params: Params }) {
   const hue = hashHue(sp.slug);
   const experience = EXPERIENCE_LEVELS.find((e) => e.value === sp.experience)?.label ?? sp.experience;
   const languages = sp.languages.map((l) => LANGUAGE_LABEL[l] ?? l).join(", ");
-  const views = new Intl.NumberFormat("uz-UZ").format(sp.viewCount);
+  const views = formatNumber(sp.viewCount);
 
   const contacts: Array<{ key: string; label: string; value: string; href: string; icon: typeof Send }> = [];
   if (sp.telegram) contacts.push({ key: "tg", label: "Telegram", value: `@${handle(sp.telegram)}`, href: `https://t.me/${handle(sp.telegram)}`, icon: Send });

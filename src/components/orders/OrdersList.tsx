@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Avatar, Badge, Button, ButtonLink, EmptyState, Spinner } from "@/components/ui";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
-import { cn, formatPrice, timeAgo } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatPrice, timeAgo } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /* Turlar                                                              */
@@ -341,7 +341,7 @@ function OrderCard({
           <span className={cn("h-1.5 w-1.5 rounded-full", o.status === "cancelled" ? "bg-fg-3" : "bg-current")} />
           {ORDER_STATUS_LABEL[o.status]}
         </Badge>
-        <span className="text-[12px] text-fg-4" title={new Date(o.createdAt).toLocaleString("uz-UZ")}>
+        <span className="text-[12px] text-fg-4" title={formatDateTime(o.createdAt)} suppressHydrationWarning>
           {timeAgo(o.createdAt)}
         </span>
       </div>
@@ -444,7 +444,7 @@ function OrderCard({
         <p className="mt-4 border-t border-hairline pt-3 text-[12px] text-fg-4">
           {o.status === "done" ? "Buyurtma muvaffaqiyatli yakunlangan." : "Buyurtma bekor qilingan."}
           {" · "}
-          {new Date(o.updatedAt).toLocaleDateString("uz-UZ")}
+          {formatDate(o.updatedAt)}
         </p>
       )}
     </article>

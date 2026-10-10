@@ -3,13 +3,32 @@ export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+/*
+ * Sana/son formatlash ATAYLAB Intl'siz qilingan: server (Node ICU) va brauzer
+ * (Chromium ICU) "uz-UZ" lokalini turlicha chiqaradi, bu esa hydration
+ * xatolariga olib keladi. Shuning uchun format deterministik va qo'lda.
+ */
+const NBSP = " ";
+
+/** 3500000 -> "3 500 000" (bo'linmas probel bilan) */
+export function formatNumber(n: number) {
+  if (!Number.isFinite(n)) return "0";
+  const sign = n < 0 ? "-" : "";
+  const [int, frac] = Math.abs(n).toFixed(frac0(n)).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  return sign + grouped + (frac ? `,${frac}` : "");
+}
+function frac0(n: number) {
+  return Number.isInteger(n) ? 0 : Math.min(2, (n.toString().split(".")[1] ?? "").length);
+}
+
 export function formatPrice(amount: number | null | undefined, opts: { compact?: boolean } = {}) {
   if (amount == null) return "—";
   if (opts.compact) {
     if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)} mln so'm`;
     if (amount >= 1_000) return `${Math.round(amount / 1_000)} ming so'm`;
   }
-  return `${new Intl.NumberFormat("uz-UZ").format(amount)} so'm`;
+  return `${formatNumber(amount)} so'm`;
 }
 
 export function formatPriceRange(from: number, to?: number | null) {
@@ -46,9 +65,16 @@ export function initials(name: string) {
     .join("");
 }
 
+function toMs(date: Date | number | string) {
+  return typeof date === "object" ? date.getTime() : new Date(date).getTime();
+}
+
+/**
+ * Nisbiy vaqt ("5 daqiqa oldin"). Date.now() ga bog'liq, shuning uchun
+ * klient komponentlarda uni ko'rsatuvchi elementga suppressHydrationWarning qo'ying.
+ */
 export function timeAgo(date: Date | number | string) {
-  const d = typeof date === "object" ? date.getTime() : new Date(date).getTime();
-  const diff = Math.max(0, Date.now() - d);
+  const diff = Math.max(0, Date.now() - toMs(date));
   const m = Math.floor(diff / 60_000);
   if (m < 1) return "hozirgina";
   if (m < 60) return `${m} daqiqa oldin`;
@@ -61,9 +87,30 @@ export function timeAgo(date: Date | number | string) {
   return `${Math.floor(months / 12)} yil oldin`;
 }
 
+const MONTHS_UZ = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+/** O'zbekiston vaqti: UTC+5, yozgi vaqt yo'q — server va brauzerda bir xil natija */
+const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function tashkentParts(date: Date | number | string) {
+  const ms = toMs(date);
+  if (!Number.isFinite(ms)) return null;
+  const t = new Date(ms + TASHKENT_OFFSET_MS);
+  return { y: t.getUTCFullYear(), mo: t.getUTCMonth(), d: t.getUTCDate(), h: t.getUTCHours(), mi: t.getUTCMinutes() };
+}
+
+/** "10-oktabr, 2026" */
 export function formatDate(date: Date | number | string) {
-  const d = typeof date === "object" ? date : new Date(date);
-  return new Intl.DateTimeFormat("uz-UZ", { day: "2-digit", month: "long", year: "numeric" }).format(d);
+  const p = tashkentParts(date);
+  if (!p) return "—";
+  return `${p.d}-${MONTHS_UZ[p.mo]}, ${p.y}`;
+}
+
+/** "10.10.2026, 13:34" (Toshkent vaqti) */
+export function formatDateTime(date: Date | number | string) {
+  const p = tashkentParts(date);
+  if (!p) return "—";
+  return `${pad(p.d)}.${pad(p.mo + 1)}.${p.y}, ${pad(p.h)}:${pad(p.mi)}`;
 }
 
 /** YouTube havolasidan video ID ajratib olish */

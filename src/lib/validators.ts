@@ -1,6 +1,48 @@
 import { z } from "zod";
 import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS } from "./constants";
 
+/* ------------------------------------------------------------------ */
+/* Zod xabarlarini o'zbekchaga o'girish (maxsus message berilmagan hollar) */
+/* ------------------------------------------------------------------ */
+const uzErrorMap: z.ZodErrorMap = (issue, ctx) => {
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.received === "undefined" || issue.received === "null") return { message: "Majburiy maydon" };
+      if (issue.expected === "integer") return { message: "Butun son kiriting" };
+      if (issue.expected === "number") return { message: "Son kiriting" };
+      if (issue.expected === "boolean") return { message: "Ha yoki yo'q bo'lishi kerak" };
+      return { message: "Qiymat turi noto'g'ri" };
+    case z.ZodIssueCode.invalid_enum_value:
+      return { message: "Ro'yxatdagi qiymatlardan birini tanlang" };
+    case z.ZodIssueCode.too_small: {
+      const n = Number(issue.minimum);
+      if (issue.type === "string") return { message: n <= 1 ? "Maydonni to'ldiring" : `Kamida ${n} ta belgi` };
+      if (issue.type === "number") return { message: `Qiymat ${n} dan kam bo'lmasin` };
+      if (issue.type === "array") return { message: n <= 1 ? "Kamida bittasini tanlang" : `Kamida ${n} tasini tanlang` };
+      break;
+    }
+    case z.ZodIssueCode.too_big: {
+      const n = Number(issue.maximum);
+      if (issue.type === "string") return { message: `Ko'pi bilan ${n} ta belgi` };
+      if (issue.type === "number") return { message: `Qiymat ${n} dan oshmasin` };
+      if (issue.type === "array") return { message: `Ko'pi bilan ${n} ta tanlash mumkin` };
+      break;
+    }
+    case z.ZodIssueCode.invalid_string:
+      if (issue.validation === "email") return { message: "Email noto'g'ri" };
+      if (issue.validation === "url") return { message: "Havola noto'g'ri" };
+      return { message: "Format noto'g'ri" };
+    case z.ZodIssueCode.invalid_literal:
+    case z.ZodIssueCode.invalid_union:
+    case z.ZodIssueCode.invalid_union_discriminator:
+      return { message: "Qiymat noto'g'ri" };
+    default:
+      break;
+  }
+  return { message: ctx.defaultError === "Required" ? "Majburiy maydon" : "Qiymat noto'g'ri" };
+};
+z.setErrorMap(uzErrorMap);
+
 const regionSlugs = REGIONS.map((r) => r.slug) as [string, ...string[]];
 const categorySlugs = CATEGORIES.map((c) => c.slug) as [string, ...string[]];
 const experienceValues = EXPERIENCE_LEVELS.map((e) => e.value) as unknown as ["junior", "middle", "senior", "expert"];

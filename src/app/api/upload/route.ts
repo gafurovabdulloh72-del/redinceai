@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ApiError, handler, ok, requireSession } from "@/lib/api";
 import { uid } from "@/lib/utils";
+import { uploadDir } from "@/lib/uploads";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED: Record<string, string> = {
@@ -12,8 +13,9 @@ const ALLOWED: Record<string, string> = {
 };
 
 /**
- * Oddiy rasm yuklash — fayl public/uploads ichiga yoziladi.
- * Productionda S3/R2 kabi obyekt saqlovchiga almashtirish tavsiya etiladi.
+ * Oddiy rasm yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
+ * Railway'da UPLOAD_DIR=/data/uploads (Volume) — fayllar /uploads/<nom> orqali
+ * src/app/uploads/[name]/route.ts tomonidan beriladi.
  */
 export const POST = handler(async (req) => {
   await requireSession();
@@ -26,7 +28,7 @@ export const POST = handler(async (req) => {
   if (!ext) throw new ApiError(415, "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads");
+  const dir = uploadDir();
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
 

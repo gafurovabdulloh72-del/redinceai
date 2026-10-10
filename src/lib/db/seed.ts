@@ -4,7 +4,7 @@
  */
 import { mkdirSync } from "node:fs";
 import { createClient } from "@libsql/client";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
 import * as schema from "./schema";
@@ -118,6 +118,13 @@ function catLabel(slug: string) {
 }
 
 async function main() {
+  if (process.argv.includes("--if-empty")) {
+    const [row] = await db.select({ n: count() }).from(schema.users);
+    if (row.n > 0) {
+      console.log(`→ Bazada ${row.n} ta foydalanuvchi bor — seed o'tkazib yuborildi.`);
+      return;
+    }
+  }
   console.log("→ Eski ma'lumotlar tozalanmoqda...");
   await db.delete(schema.reviews);
   await db.delete(schema.orders);

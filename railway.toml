@@ -1,0 +1,12 @@
+# Railway konfiguratsiyasi — https://docs.railway.com/reference/config-as-code
+# Deploy: GitHub repo'ni ulang, /data ga Volume biriktiring, env'larni kiriting (README → "Railway").
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm run start:railway"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

@@ -8,7 +8,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const now = new Date();
 
-  const specialists = await db.query.specialists.findMany({ columns: { slug: true, updatedAt: true } });
+  // Build vaqtida baza bo'lmasligi mumkin — sitemap shunda ham ishlasin
+  const specialists = await db.query.specialists.findMany({ columns: { slug: true, updatedAt: true } }).catch(() => []);
 
   return [
     { url: `${base}/`, lastModified: now, changeFrequency: "daily", priority: 1 },

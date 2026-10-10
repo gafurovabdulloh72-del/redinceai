@@ -240,7 +240,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                         <p className="whitespace-nowrap font-medium text-fg">{region?.short ?? row.regionSlug}</p>
                         <p className="text-[12px] text-fg-3">{row.city}</p>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-[13px] text-fg-2">{timeAgo(row.createdAt)}</td>
+                      <td className="whitespace-nowrap px-3 py-3.5 text-[13px] text-fg-2" suppressHydrationWarning>{timeAgo(row.createdAt)}</td>
                       <td className="px-5 py-3.5">
                         <Actions row={row} />
                       </td>
@@ -266,7 +266,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                         {row.isFeatured && <Star size={13} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                       </p>
                       <p className="truncate text-[13px] text-fg-2">{row.title}</p>
-                      <p className="mt-0.5 text-[12px] text-fg-3">{timeAgo(row.createdAt)}</p>
+                      <p className="mt-0.5 text-[12px] text-fg-3" suppressHydrationWarning>{timeAgo(row.createdAt)}</p>
                     </div>
                   </div>
 
