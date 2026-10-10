@@ -167,7 +167,7 @@ export default async function SpecialistPage({ params }: { params: Params }) {
         </div>
 
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
-          <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
+          <div className="relative z-10 -mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
             <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={112} className="ring-4 !ring-[var(--glass-strong)] text-[36px]" />
             <div className="min-w-0 flex-1 sm:pb-1">
               <h1 className="flex flex-wrap items-center gap-2 text-[28px] font-bold leading-tight tracking-tight text-fg sm:text-4xl">
