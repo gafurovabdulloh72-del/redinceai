@@ -43,6 +43,8 @@ export interface UzbekistanMapProps {
   showLabels?: boolean;
   compact?: boolean;
   variant?: "panel" | "hero";
+  /** Tooltip'dagi birlik: "mutaxassis" (default) yoki masalan "montajor" */
+  unitLabel?: string;
 }
 
 const SLAB = 18; // plita qalinligi (viewBox birligida)
@@ -58,6 +60,7 @@ export function UzbekistanMap({
   showLabels = true,
   compact = false,
   variant = "panel",
+  unitLabel = "mutaxassis",
 }: UzbekistanMapProps) {
   const router = useRouter();
   const [hover, setHover] = useState<string | null>(null);
@@ -242,7 +245,7 @@ export function UzbekistanMap({
 
           {/* Yorliqlar (panel rejimida) */}
           {showLabels && !isHero && !compact && (
-            <g pointerEvents="none">
+            <g pointerEvents="none" className="hidden sm:block">
               {REGION_SHAPES.map((r) => {
                 const n = count(r.slug);
                 const [ox, oy] = LABEL_OFFSET[r.slug] ?? [0, 0];
@@ -288,10 +291,10 @@ export function UzbekistanMap({
             </div>
           </div>
           <p className="mt-2.5 text-[13px] text-fg-2">
-            <span className="font-display text-[20px] font-semibold text-accent">{count(activeRegion.slug)}</span> ta mutaxassis
-            {total > 0 && <span className="text-fg-4"> · {Math.round((count(activeRegion.slug) / total) * 100)}%</span>}
+            <span className="font-display text-[20px] font-semibold text-accent">{count(activeRegion.slug)}</span> ta {unitLabel}
+            {total > 0 && count(activeRegion.slug) > 0 && <span className="text-fg-4"> · {Math.round((count(activeRegion.slug) / total) * 100)}%</span>}
           </p>
-          {activeStat && activeStat.total > 0 && (
+          {!counts && activeStat && activeStat.total > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {Object.entries(activeStat.byCategory)
                 .sort((a, b) => b[1] - a[1])
