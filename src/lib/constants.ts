@@ -78,3 +78,89 @@ export const SITE = {
   description:
     "Redince — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",
 };
+
+
+/* ------------------------------------------------------------------ */
+/* Maxfiylik, ish vaqti, jins                                          */
+/* ------------------------------------------------------------------ */
+export const VISIBILITY_LEVELS = [
+  { value: "public", label: "Hammaga", description: "Saytga kirgan har kim ko'radi" },
+  { value: "clients", label: "Faqat ro'yxatdan o'tganlarga", description: "Tizimga kirgan foydalanuvchilar ko'radi" },
+  { value: "orders", label: "Faqat buyurtmachilarga", description: "Buyurtmasi qabul qilingan mijozlar ko'radi" },
+  { value: "hidden", label: "Yashirin", description: "Hech kimga ko'rinmaydi" },
+] as const;
+export type VisibilityLevelValue = (typeof VISIBILITY_LEVELS)[number]["value"];
+
+export const VISIBILITY_FIELDS = [
+  { key: "phone", label: "Telefon raqam", default: "clients" },
+  { key: "telegram", label: "Telegram", default: "public" },
+  { key: "instagram", label: "Instagram", default: "public" },
+  { key: "youtube", label: "YouTube", default: "public" },
+  { key: "website", label: "Veb-sayt", default: "public" },
+  { key: "email", label: "Email", default: "hidden" },
+  { key: "schedule", label: "Ish vaqti", default: "public" },
+  { key: "gender", label: "Jins", default: "public" },
+  { key: "city", label: "Shahar", default: "public" },
+] as const;
+export type VisibilityFieldKey = (typeof VISIBILITY_FIELDS)[number]["key"];
+
+export const DEFAULT_VISIBILITY: Record<VisibilityFieldKey, VisibilityLevelValue> = Object.fromEntries(
+  VISIBILITY_FIELDS.map((f) => [f.key, f.default]),
+) as Record<VisibilityFieldKey, VisibilityLevelValue>;
+
+export const WEEKDAYS = [
+  { key: "mon", label: "Dushanba", short: "Du" },
+  { key: "tue", label: "Seshanba", short: "Se" },
+  { key: "wed", label: "Chorshanba", short: "Ch" },
+  { key: "thu", label: "Payshanba", short: "Pa" },
+  { key: "fri", label: "Juma", short: "Ju" },
+  { key: "sat", label: "Shanba", short: "Sh" },
+  { key: "sun", label: "Yakshanba", short: "Ya" },
+] as const;
+export type WeekdayKey = (typeof WEEKDAYS)[number]["key"];
+
+export const GENDERS = [
+  { value: "male", label: "Erkak" },
+  { value: "female", label: "Ayol" },
+] as const;
+
+/* ------------------------------------------------------------------ */
+/* To'lovlar                                                           */
+/* ------------------------------------------------------------------ */
+export const PAYMENT_PROVIDERS = [
+  { value: "payme", label: "Payme", description: "Payme ilovasi yoki karta orqali" },
+  { value: "click", label: "Click", description: "Click ilovasi yoki karta orqali" },
+  { value: "manual", label: "O'tkazma", description: "Karta/bank o'tkazmasi — admin tasdiqlaydi" },
+] as const;
+export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number]["value"];
+
+export const PAYMENT_STATE_LABEL: Record<"created" | "pending" | "paid" | "released" | "cancelled" | "refunded", string> = {
+  created: "Yaratildi",
+  pending: "Kutilmoqda",
+  paid: "To'landi (eskrou)",
+  released: "Mutaxassisga o'tkazildi",
+  cancelled: "Bekor qilindi",
+  refunded: "Qaytarildi",
+};
+
+export const ORDER_PAYMENT_STATE_LABEL: Record<"none" | "awaiting" | "paid" | "released" | "refunded", string> = {
+  none: "Narx kelishilmagan",
+  awaiting: "To'lov kutilmoqda",
+  paid: "To'langan (eskrou)",
+  released: "Yakunlangan, pul o'tkazildi",
+  refunded: "Pul qaytarildi",
+};
+
+export const PAYOUT_STATE_LABEL: Record<"requested" | "approved" | "paid" | "rejected", string> = {
+  requested: "So'ralgan",
+  approved: "Tasdiqlangan",
+  paid: "To'langan",
+  rejected: "Rad etilgan",
+};
+
+/** Platforma sozlamalari kalitlari va standart qiymatlari (admin o'zgartiradi) */
+export const PLATFORM_DEFAULTS = {
+  commissionPct: 10, // mijoz to'lovidan platformaga qoladigan foiz (Upwork uslubi)
+  minPayout: 100_000, // minimal pul chiqarish (so'm)
+  minOrderAmount: 50_000,
+} as const;

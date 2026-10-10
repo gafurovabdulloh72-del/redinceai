@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /* ------------------------------------------------------------------ */
 /* Foydalanuvchilar                                                    */
@@ -14,12 +14,35 @@ export const users = sqliteTable(
     role: text("role", { enum: ["client", "specialist", "admin"] }).notNull().default("client"),
     phone: text("phone"),
     avatarUrl: text("avatar_url"),
+    /** Jins (ixtiyoriy) — ro'yxatda saralash uchun */
+    gender: text("gender", { enum: ["male", "female"] }),
+    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    /** Sessiya versiyasi: oshirilsa barcha eski JWT'lar bekor bo'ladi (parol o'zgarishi, "hamma qurilmadan chiqish") */
+    sessionVersion: integer("session_version").notNull().default(1),
+    passwordChangedAt: integer("password_changed_at", { mode: "timestamp_ms" }),
+    lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
 );
+
+/** Har bir shaxsiy maydon kimga ko'rinadi */
+export type VisibilityLevel = "public" | "clients" | "orders" | "hidden";
+export type VisibilityField = "telegram" | "instagram" | "youtube" | "website" | "phone" | "email" | "schedule" | "gender" | "city";
+export type Visibility = Partial<Record<VisibilityField, VisibilityLevel>>;
+
+/** Haftalik ish vaqti */
+export interface ScheduleDay {
+  enabled: boolean;
+  from: string; // "09:00"
+  to: string; // "18:00"
+}
+export interface Schedule {
+  days: Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", ScheduleDay>;
+  note?: string;
+}
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassis profillari (videograf / montajor / dizayner ...)         */
@@ -51,6 +74,12 @@ export const specialists = sqliteTable(
     youtube: text("youtube"),
     website: text("website"),
     coverUrl: text("cover_url"),
+    /** Maydonlar ko'rinishi (maxfiylik sozlamalari) */
+    visibility: text("visibility", { mode: "json" }).$type<Visibility>().notNull().default({}),
+    /** Ish vaqti jadvali */
+    schedule: text("schedule", { mode: "json" }).$type<Schedule | null>(),
+    /** Ta'tilda: shu sanagacha buyurtma qabul qilmaydi (ISO sana) */
+    vacationUntil: text("vacation_until"),
     isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
     isAvailable: integer("is_available", { mode: "boolean" }).notNull().default(true),
     isFeatured: integer("is_featured", { mode: "boolean" }).notNull().default(false),
@@ -117,6 +146,13 @@ export const orders = sqliteTable(
     status: text("status", { enum: ["new", "accepted", "in_progress", "done", "cancelled"] })
       .notNull()
       .default("new"),
+    /** Kelishilgan narx (so'm) — mutaxassis belgilaydi, mijoz to'laydi */
+    amount: integer("amount"),
+    /** To'lov holati: none → awaiting (to'lov kutilmoqda) → paid (eskrouda) → released (mutaxassisga o'tdi) / refunded */
+    paymentState: text("payment_state", { enum: ["none", "awaiting", "paid", "released", "refunded"] }).notNull().default("none"),
+    /** To'lov paytidagi platforma komissiyasi (%), snapshot */
+    commissionPct: integer("commission_pct"),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -150,6 +186,169 @@ export const reviews = sqliteTable(
 );
 
 /* ------------------------------------------------------------------ */
+/* To'lovlar (eskrou): mijoz → platforma → (komissiya ayrilib) mutaxassis */
+/* ------------------------------------------------------------------ */
+export const payments = sqliteTable(
+  "payments",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    specialistId: text("specialist_id")
+      .notNull()
+      .references(() => specialists.id, { onDelete: "cascade" }),
+    /** Mijoz to'lagan summa (so'm) */
+    amount: integer("amount").notNull(),
+    commissionPct: integer("commission_pct").notNull(),
+    /** Platformaga qoladigan qism (so'm) */
+    commissionAmount: integer("commission_amount").notNull(),
+    /** Mutaxassisga tegishli qism (so'm) */
+    netAmount: integer("net_amount").notNull(),
+    provider: text("provider", { enum: ["payme", "click", "manual"] }).notNull(),
+    state: text("state", { enum: ["created", "pending", "paid", "released", "cancelled", "refunded"] }).notNull().default("created"),
+    /** Provayder tranzaksiya identifikatori (Payme: id, Click: click_trans_id) */
+    providerTxnId: text("provider_txn_id"),
+    /** Payme state: 1 (yaratildi), 2 (bajarildi), -1/-2 (bekor) */
+    providerState: integer("provider_state"),
+    providerCreateTime: integer("provider_create_time"),
+    performTime: integer("perform_time"),
+    cancelTime: integer("cancel_time"),
+    cancelReason: integer("cancel_reason"),
+    meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+    releasedAt: integer("released_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("payments_order_idx").on(t.orderId),
+    index("payments_specialist_idx").on(t.specialistId),
+    index("payments_client_idx").on(t.clientId),
+    uniqueIndex("payments_provider_txn_idx").on(t.provider, t.providerTxnId),
+  ],
+);
+
+/* Mutaxassisga pul chiqarish so'rovlari */
+export const payouts = sqliteTable(
+  "payouts",
+  {
+    id: text("id").primaryKey(),
+    specialistId: text("specialist_id")
+      .notNull()
+      .references(() => specialists.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    state: text("state", { enum: ["requested", "approved", "paid", "rejected"] }).notNull().default("requested"),
+    /** Karta raqami / rekvizitlar (maskalangan ko'rinishda saqlash tavsiya) */
+    method: text("method", { enum: ["card", "bank", "cash"] }).notNull().default("card"),
+    details: text("details").notNull(),
+    note: text("note"),
+    processedBy: text("processed_by").references(() => users.id, { onDelete: "set null" }),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("payouts_specialist_idx").on(t.specialistId)],
+);
+
+/* Platforma sozlamalari (komissiya foizi va h.k.) — key/value */
+export const platformSettings = sqliteTable("platform_settings", {
+  key: text("key").primaryKey(),
+  value: text("value", { mode: "json" }).$type<unknown>().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/* Rate limiting (serverless uchun bazada) */
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  resetAt: integer("reset_at").notNull(),
+});
+
+/* Audit jurnali */
+export const auditLogs = sqliteTable(
+  "audit_logs",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    ip: text("ip"),
+    meta: text("meta", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("audit_actor_idx").on(t.actorId), index("audit_created_idx").on(t.createdAt)],
+);
+
+/* Parolni tiklash tokenlari (faqat hash saqlanadi) */
+export const passwordResets = sqliteTable(
+  "password_resets",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    usedAt: integer("used_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("password_resets_hash_idx").on(t.tokenHash)],
+);
+
+/* Sevimlilar */
+export const favorites = sqliteTable(
+  "favorites",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    specialistId: text("specialist_id")
+      .notNull()
+      .references(() => specialists.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.specialistId] })],
+);
+
+/* Bildirishnomalar */
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    href: text("href"),
+    readAt: integer("read_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.readAt)],
+);
+
+/* ------------------------------------------------------------------ */
 /* Relations                                                           */
 /* ------------------------------------------------------------------ */
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -169,9 +368,29 @@ export const portfolioRelations = relations(portfolioItems, ({ one }) => ({
   specialist: one(specialists, { fields: [portfolioItems.specialistId], references: [specialists.id] }),
 }));
 
-export const ordersRelations = relations(orders, ({ one }) => ({
+export const ordersRelations = relations(orders, ({ one, many }) => ({
   client: one(users, { fields: [orders.clientId], references: [users.id] }),
   specialist: one(specialists, { fields: [orders.specialistId], references: [specialists.id] }),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  order: one(orders, { fields: [payments.orderId], references: [orders.id] }),
+  client: one(users, { fields: [payments.clientId], references: [users.id] }),
+  specialist: one(specialists, { fields: [payments.specialistId], references: [specialists.id] }),
+}));
+
+export const payoutsRelations = relations(payouts, ({ one }) => ({
+  specialist: one(specialists, { fields: [payouts.specialistId], references: [specialists.id] }),
+}));
+
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  user: one(users, { fields: [favorites.userId], references: [users.id] }),
+  specialist: one(specialists, { fields: [favorites.specialistId], references: [specialists.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
@@ -184,3 +403,6 @@ export type Specialist = typeof specialists.$inferSelect;
 export type PortfolioItem = typeof portfolioItems.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Payout = typeof payouts.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

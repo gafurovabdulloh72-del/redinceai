@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS } from "./constants";
+import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS } from "./constants";
 
 /* ------------------------------------------------------------------ */
 /* Zod xabarlarini o'zbekchaga o'girish (maxsus message berilmagan hollar) */
@@ -53,10 +53,18 @@ const phone = z
   .regex(/^\+?[\d\s()-]{9,16}$/, "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)");
 export const optionalPhone = phone.optional().or(z.literal(""));
 
+/** Parol siyosati: kamida 8 belgi, harf va raqam */
+export const strongPassword = z
+  .string()
+  .min(8, "Parol kamida 8 ta belgi")
+  .max(100)
+  .refine((v) => /[a-zA-Z]/.test(v) && /\d/.test(v), "Parolda harf ham, raqam ham bo'lsin");
+
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
   email: z.string().trim().toLowerCase().email("Email noto'g'ri"),
-  password: z.string().min(6, "Parol kamida 6 ta belgi").max(100),
+  password: strongPassword,
+  gender: z.enum(["male", "female"]).optional().nullable(),
   phone: optionalPhone,
   role: z.enum(["client", "specialist"]).default("client"),
 });
@@ -122,6 +130,59 @@ export const accountSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
   phone: optionalPhone,
   avatarUrl: optionalUrl,
+  gender: z.enum(["male", "female"]).optional().nullable(),
+});
+
+/* ---------- Maxfiylik va ish vaqti ---------- */
+const visibilityLevel = z.enum(VISIBILITY_LEVELS.map((l) => l.value) as unknown as ["public", "clients", "orders", "hidden"]);
+export const visibilitySchema = z
+  .object(Object.fromEntries(VISIBILITY_FIELDS.map((f) => [f.key, visibilityLevel.optional()])) as Record<(typeof VISIBILITY_FIELDS)[number]["key"], z.ZodOptional<typeof visibilityLevel>>)
+  .partial();
+
+const timeHHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Vaqt HH:MM ko'rinishida");
+const scheduleDay = z.object({ enabled: z.boolean(), from: timeHHMM, to: timeHHMM });
+export const scheduleSchema = z
+  .object({
+    days: z.object(Object.fromEntries(WEEKDAYS.map((d) => [d.key, scheduleDay])) as Record<(typeof WEEKDAYS)[number]["key"], typeof scheduleDay>),
+    note: z.string().trim().max(200).optional().or(z.literal("")),
+  })
+  .nullable();
+
+export const privacyUpdateSchema = z.object({
+  visibility: visibilitySchema,
+  schedule: scheduleSchema.optional(),
+  vacationUntil: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable().or(z.literal("")),
+});
+
+/* ---------- Parol / sessiya ---------- */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Joriy parolni kiriting"),
+  newPassword: strongPassword,
+});
+export const resetRequestSchema = z.object({ email: z.string().trim().toLowerCase().email("Email noto'g'ri") });
+export const resetConfirmSchema = z.object({ token: z.string().min(16), newPassword: strongPassword });
+
+/* ---------- To'lovlar ---------- */
+export const orderAmountSchema = z.object({
+  amount: z.coerce.number().int().min(50_000, "Kamida 50 000 so'm").max(1_000_000_000),
+});
+export const checkoutSchema = z.object({
+  orderId: z.string().min(1),
+  provider: z.enum(["payme", "click", "manual"]),
+});
+export const payoutRequestSchema = z.object({
+  amount: z.coerce.number().int().min(1),
+  method: z.enum(["card", "bank", "cash"]).default("card"),
+  details: z.string().trim().min(4, "Rekvizitlarni kiriting").max(200),
+});
+export const payoutDecisionSchema = z.object({
+  state: z.enum(["approved", "paid", "rejected"]),
+  note: z.string().trim().max(300).optional().or(z.literal("")),
+});
+export const platformSettingsSchema = z.object({
+  commissionPct: z.coerce.number().int().min(0).max(50),
+  minPayout: z.coerce.number().int().min(0).max(100_000_000),
+  minOrderAmount: z.coerce.number().int().min(0).max(100_000_000),
 });
 
 export const orderSchema = z.object({
@@ -150,6 +211,7 @@ export const specialistFilterSchema = z.object({
   priceMax: z.coerce.number().int().min(0).optional(),
   experience: z.string().optional(),
   verified: z.enum(["1", "0"]).optional(),
+  gender: z.enum(["male", "female"]).optional(),
   sort: z.enum(["rating", "price_asc", "price_desc", "newest", "popular"]).default("rating"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(60).default(24),

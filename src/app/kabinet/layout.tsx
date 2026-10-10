@@ -45,6 +45,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   if (user.specialist) {
     items.push({ href: `/mutaxassislar/${user.specialist.slug}`, label: "Ommaviy profil", icon: "public" });
   }
+  items.push({ href: "/kabinet/tolovlar", label: "To'lovlar", icon: "payments" });
+  items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security" });
   if (user.role === "admin") {
     items.push({ href: "/admin", label: "Admin panel", icon: "admin" });
   }

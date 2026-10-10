@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ClipboardList, ExternalLink, Images, LayoutDashboard, LogOut, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
+import { ClipboardList, ExternalLink, Images, LayoutDashboard, LogOut, ShieldCheck, UserRound, type LucideIcon, Wallet, LockKeyhole } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-export type KabinetNavIcon = "overview" | "orders" | "profile" | "portfolio" | "public" | "admin";
+export type KabinetNavIcon = "overview" | "orders" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
 
 export interface KabinetNavItem {
   href: string;
@@ -33,6 +33,8 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   portfolio: Images,
   public: ExternalLink,
   admin: ShieldCheck,
+  payments: Wallet,
+  security: LockKeyhole,
 };
 
 export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: KabinetNavUser }) {

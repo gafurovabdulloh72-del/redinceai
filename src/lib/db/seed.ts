@@ -8,7 +8,7 @@ import { count, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
 import * as schema from "./schema";
-import { CATEGORIES, REGIONS } from "../constants";
+import { CATEGORIES, PLATFORM_DEFAULTS, REGIONS } from "../constants";
 import { slugify } from "../utils";
 
 const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || "file:./data/redince.db";
@@ -127,6 +127,12 @@ async function main() {
     }
   }
   console.log("→ Eski ma'lumotlar tozalanmoqda...");
+  await db.delete(schema.notifications);
+  await db.delete(schema.favorites);
+  await db.delete(schema.payouts);
+  await db.delete(schema.payments);
+  await db.delete(schema.auditLogs);
+  await db.delete(schema.passwordResets);
   await db.delete(schema.reviews);
   await db.delete(schema.orders);
   await db.delete(schema.portfolioItems);
@@ -162,7 +168,7 @@ async function main() {
   for (const [name, email] of clients) {
     const id = uid();
     clientIds.push(id);
-    await db.insert(schema.users).values({ id, name, email, passwordHash: pass, role: "client", phone: `+99890${between(1000000, 9999999)}`, createdAt: new Date(now - between(5, 180) * DAY) });
+    await db.insert(schema.users).values({ id, name, email, passwordHash: pass, role: "client", gender: /a$/.test(name.split(" ")[0]) ? "female" : "male", phone: `+99890${between(1000000, 9999999)}`, createdAt: new Date(now - between(5, 180) * DAY) });
   }
 
   /* ---------- mutaxassislar ---------- */
@@ -202,6 +208,7 @@ async function main() {
         email: isDemo ? "mutaxassis@redince.uz" : email,
         passwordHash: pass,
         role: "specialist",
+        gender: female ? "female" : "male",
         phone: `+9989${between(0, 9)}${between(1000000, 9999999)}`,
         avatarUrl: rnd() < 0.55 ? `https://i.pravatar.cc/200?u=${slug}` : null,
         createdAt: new Date(now - between(10, 400) * DAY),
@@ -243,6 +250,19 @@ async function main() {
         instagram: rnd() < 0.8 ? slug.replace(/-/g, ".") : null,
         youtube: rnd() < 0.4 ? "https://youtube.com/@" + slug : null,
         coverUrl: rnd() < 0.75 ? `https://picsum.photos/seed/${slug}-cover/900/400` : null,
+        visibility: { phone: rnd() < 0.5 ? "public" : "clients", instagram: rnd() < 0.85 ? "public" : "hidden", email: "hidden" },
+        schedule: {
+          days: {
+            mon: { enabled: true, from: "09:00", to: "18:00" },
+            tue: { enabled: true, from: "09:00", to: "18:00" },
+            wed: { enabled: true, from: "09:00", to: "18:00" },
+            thu: { enabled: true, from: "09:00", to: "18:00" },
+            fri: { enabled: true, from: "09:00", to: "17:00" },
+            sat: { enabled: rnd() < 0.6, from: "10:00", to: "15:00" },
+            sun: { enabled: false, from: "10:00", to: "14:00" },
+          },
+          note: rnd() < 0.4 ? "To'y mavsumida dam olish kunlari ham ishlayman" : "",
+        },
         isVerified: rnd() < 0.6,
         isAvailable: rnd() < 0.85,
         isFeatured: rnd() < 0.15,
@@ -321,6 +341,14 @@ async function main() {
         createdAt: new Date(now - i * DAY),
       });
     }
+  }
+
+  /* ---------- platforma sozlamalari ---------- */
+  for (const [key, value] of Object.entries(PLATFORM_DEFAULTS)) {
+    await db
+      .insert(schema.platformSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: schema.platformSettings.key, set: { value } });
   }
 
   console.log(`✓ Tayyor: ${specialistIds.length} mutaxassis, ${clientIds.length} mijoz, admin.`);
