@@ -137,9 +137,9 @@ function initialState(initial: ProfileInitial | null): FormState {
 /* ------------------------------------------------------------------ */
 function Section({ icon: Icon, title, hint, children }: { icon: LucideIcon; title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="border-t border-hairline pt-6 first:border-t-0 first:pt-0">
+    <section className="border-t border-line pt-6 first:border-t-0 first:pt-0">
       <div className="mb-4 flex items-center gap-2.5">
-        <span className="glass-tint flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
+        <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
           <Icon size={15} />
         </span>
         <div>
@@ -153,26 +153,22 @@ function Section({ icon: Icon, title, hint, children }: { icon: LucideIcon; titl
 }
 
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/50",
-        checked ? "bg-ios-green" : "bg-fg/15",
-      )}
-    >
-      <span
-        className={cn(
-          "absolute left-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-transform duration-300",
-          checked && "translate-x-[20px]",
-        )}
-      />
-    </button>
-  );
+  return <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className="switch" />;
+}
+
+/** Bio uchun yordamchi andozalar — bosilganda matn oxiriga qo'shiladi */
+const BIO_PROMPTS: Array<{ key: string; label: string; text: string }> = [
+  { key: "exp", label: "Tajriba", text: "Tajriba: __ yildan beri __ yo'nalishida ishlayman. Eng ko'p __ loyihalar bilan ishlaganman." },
+  { key: "style", label: "Uslub", text: "Uslub: __ (masalan, kinematik, minimal, yorqin). Har loyihaga mijoz brendi va maqsadidan kelib chiqib yondashaman." },
+  { key: "gear", label: "Jihozlar", text: "Jihozlar va dasturlar: __ (kamera/obyektivlar, dron, yorug'lik; Premiere Pro, DaVinci, After Effects)." },
+  { key: "flow", label: "Ish jarayoni", text: "Ish jarayoni: brif → ssenariy/moodboard → suratga olish → montaj → 2 marta tuzatish → topshirish. Muddat: odatda __ kun." },
+];
+
+/** Avto-balandlik: matn ko'paygan sari textarea o'sadi (skroll o'rniga) */
+function autosize(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(640, Math.max(160, el.scrollHeight + 2))}px`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -203,6 +199,12 @@ export function ProfileForm({
   const [savedSlug, setSavedSlug] = useState<string | null>(null);
   const coverRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLFormElement>(null);
+  const bioRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mavjud bio uzun bo'lsa, ochilganda textarea unga moslashsin
+  useEffect(() => {
+    autosize(bioRef.current);
+  }, [open]);
 
   const set = (patch: Partial<FormState>) => setF((s) => ({ ...s, ...patch }));
 
@@ -356,20 +358,19 @@ export function ProfileForm({
   /* ---------- Mijoz uchun CTA ---------- */
   if (!open) {
     return (
-      <div id="mutaxassis" className="glass-strong relative overflow-hidden p-6 sm:p-8">
-        <span className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-tint/20 blur-3xl" />
-        <span className="pointer-events-none absolute -bottom-20 -right-12 h-56 w-56 rounded-full bg-ios-purple/20 blur-3xl" />
-        <span className="glass-weak glass-pill inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-tint">
-          <Sparkles size={12} /> Ijodkorlar uchun
-        </span>
-        <h2 className="mt-4 text-[24px] font-bold leading-tight tracking-tight text-fg sm:text-[30px]">Mutaxassis bo'lish</h2>
+      <div id="mutaxassis" className="card-elevated relative scroll-mt-28 overflow-hidden p-6 sm:p-8">
+        <span className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl" />
+        <span className="eyebrow">Ijodkorlar uchun</span>
+        <h2 className="mt-4 font-display text-[24px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">
+          Mutaxassis <span className="accent-serif text-accent">bo'lish</span>
+        </h2>
         <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-fg-2">
           Videograf, montajor, dizaynermisiz? Profil oching — mijozlar sizni xaritadan topadi, buyurtmalar to'g'ridan-to'g'ri kabinetingizga keladi. Bepul.
         </p>
         <ul className="mt-4 flex flex-wrap gap-2">
           {["Portfolio", "Narxlar", "Sharhlar", "Xaritada ko'rinish"].map((t) => (
-            <li key={t} className="glass-weak glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-fg-2">
-              <CheckCircle2 size={12} className="text-ios-green" /> {t}
+            <li key={t} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12px] font-medium text-fg-2">
+              <CheckCircle2 size={12} className="text-accent" /> {t}
             </li>
           ))}
         </ul>
@@ -383,22 +384,22 @@ export function ProfileForm({
   const experienceLabel = EXPERIENCE_LEVELS.find((e) => e.value === f.experience)?.label ?? "";
 
   return (
-    <form ref={topRef} id="mutaxassis" onSubmit={submit} className="glass scroll-mt-28 p-5 sm:p-7" noValidate>
+    <form ref={topRef} id="mutaxassis" onSubmit={submit} className="card scroll-mt-28 p-5 sm:p-7" noValidate>
       {/* Sarlavha */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="glass-tint flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
             <Briefcase size={20} />
           </span>
           <div>
-            <h2 className="text-[20px] font-bold tracking-tight text-fg">{mode === "edit" ? "Mutaxassis profili" : "Mutaxassis profilini yaratish"}</h2>
+            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">{mode === "edit" ? "Mutaxassis profili" : "Mutaxassis profilini yaratish"}</h2>
             <p className="mt-0.5 text-[13px] text-fg-3">
               {mode === "edit" ? "Bu ma'lumotlar ommaviy profilingizda va xaritada ko'rinadi." : "Yo'nalish, hudud va narxlarni kiriting — profilingiz xaritada paydo bo'ladi."}
             </p>
           </div>
         </div>
         {initial && (
-          <ButtonLink href={`/mutaxassislar/${initial.slug}`} variant="glass" size="sm" className="shrink-0">
+          <ButtonLink href={`/mutaxassislar/${initial.slug}`} variant="outline" size="sm" className="shrink-0">
             Ommaviy profil <ArrowUpRight size={14} />
           </ButtonLink>
         )}
@@ -408,19 +409,19 @@ export function ProfileForm({
       {savedSlug && (
         <div
           role="status"
-          className="glass-weak mt-5 flex flex-col gap-3 !rounded-[18px] p-4 animate-fade-up sm:flex-row sm:items-center sm:justify-between"
+          className="card-outline mt-5 flex flex-col gap-3 !rounded-[18px] p-4 animate-fade-up sm:flex-row sm:items-center sm:justify-between"
           style={{ animationDuration: "0.35s" }}
         >
           <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
-            <CheckCircle2 size={18} className="text-ios-green" />
+            <CheckCircle2 size={18} className="text-[#15803d] dark:text-ios-green" />
             {mode === "edit" ? "Profil saqlandi" : "Profil yaratildi! Endi portfolio qo'shing."}
           </p>
           <div className="flex gap-2">
-            <Link href={`/mutaxassislar/${savedSlug}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-tint transition hover:opacity-80">
+            <Link href={`/mutaxassislar/${savedSlug}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
               Ommaviy profilni ko'rish <ArrowUpRight size={14} />
             </Link>
             {mode === "create" && (
-              <Link href="/kabinet/portfolio" className="inline-flex items-center gap-1 text-[13px] font-semibold text-tint transition hover:opacity-80">
+              <Link href="/kabinet/portfolio" className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
                 Portfolio <ArrowRight size={14} />
               </Link>
             )}
@@ -469,8 +470,8 @@ export function ProfileForm({
                     aria-checked={active}
                     onClick={() => set({ category: c.slug })}
                     className={cn(
-                      "glass glass-hover flex items-center gap-2.5 !rounded-[18px] p-3 text-left transition",
-                      active && "ring-2 ring-tint/60 !bg-[var(--glass-strong)]",
+                      "card card-hover flex items-center gap-2.5 !rounded-[18px] p-3 text-left transition",
+                      active && "ring-2 ring-accent/60",
                     )}
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] text-white" style={{ background: `linear-gradient(145deg, ${c.accent}, ${c.accent}aa)` }}>
@@ -479,7 +480,7 @@ export function ProfileForm({
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold text-fg">{c.name}</span>
                     </span>
-                    {active && <CheckCircle2 size={16} className="ml-auto shrink-0 text-tint" />}
+                    {active && <CheckCircle2 size={16} className="ml-auto shrink-0 text-accent" />}
                   </button>
                 );
               })}
@@ -558,25 +559,68 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Haqida ============ */}
-        <Section icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, qanday loyihalar bilan ishlaysiz">
+        <Section icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, jihozlar va ish jarayoni — mijoz ishonchini oshiradigan narsalar">
           <div>
-            <label htmlFor="pf-bio" className="field-label">
-              Bio
-            </label>
+            <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
+              <label htmlFor="pf-bio" className="field-label !mb-0">
+                Bio
+              </label>
+              <span className="text-[12px] text-fg-4">Yangi qatorlar profilda saqlanadi</span>
+            </div>
             <textarea
               id="pf-bio"
-              className="field min-h-[140px] resize-y"
+              ref={bioRef}
+              className="field min-h-[160px] resize-none leading-relaxed"
               value={f.bio}
-              onChange={(e) => set({ bio: e.target.value.slice(0, MAX_BIO) })}
+              onChange={(e) => {
+                set({ bio: e.target.value.slice(0, MAX_BIO) });
+                autosize(e.target);
+              }}
               maxLength={MAX_BIO}
-              placeholder="5 yildan beri to'y va reklama videolarini suratga olaman. Sony FX3 va dron bilan ishlayman…"
+              placeholder={
+                "Masalan:\n9 yildan beri to'y va reklama videolarini suratga olaman. Uslubim — kinematik, tabiiy yorug'lik va jonli hissiyotlar.\n\nJihozlar: Sony FX3, 24–70 f/2.8, DJI Mavic 3. Montaj — DaVinci Resolve.\n\nIsh jarayoni: brif → suratga olish → 7 kun ichida montaj → 2 marta tuzatish."
+              }
               aria-invalid={Boolean(errors.bio)}
+              aria-describedby="pf-bio-hint"
             />
             <div className="mt-1 flex items-start justify-between gap-3">
-              {errors.bio ? <p className="field-error !mt-0">{errors.bio}</p> : <span className="text-[12px] text-fg-4">To'liq bio ishonchni oshiradi.</span>}
+              {errors.bio ? (
+                <p className="field-error !mt-0">{errors.bio}</p>
+              ) : (
+                <span id="pf-bio-hint" className="text-[12px] text-fg-4">
+                  {f.bio.trim().length < 80 ? "Kamida 2–3 jumla yozing — to'liq bio ishonchni oshiradi." : "Zo'r! Qisqa abzatslar o'qishni osonlashtiradi."}
+                </span>
+              )}
               <span className={cn("shrink-0 text-[12px] tabular-nums", f.bio.length > MAX_BIO - 100 ? "text-ios-orange" : "text-fg-4")}>
                 {f.bio.length}/{MAX_BIO}
               </span>
+            </div>
+            {/* Yordamchi andozalar */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 inline-flex items-center gap-1 text-[12px] font-semibold text-fg-3">
+                <Sparkles size={12} className="text-accent" /> Nima yozsam bo'ladi?
+              </span>
+              {BIO_PROMPTS.map((pr) => {
+                const used = f.bio.includes(pr.text.split(":")[0] + ":");
+                return (
+                  <button
+                    key={pr.key}
+                    type="button"
+                    disabled={used || f.bio.length + pr.text.length + 2 > MAX_BIO}
+                    onClick={() => {
+                      const sep = f.bio.trim() ? "\n\n" : "";
+                      set({ bio: (f.bio.trimEnd() + sep + pr.text).slice(0, MAX_BIO) });
+                      window.requestAnimationFrame(() => {
+                        autosize(bioRef.current);
+                        bioRef.current?.focus();
+                      });
+                    }}
+                    className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-3 text-[12px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg active:scale-95 disabled:opacity-40"
+                  >
+                    <Plus size={11} /> {pr.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -597,7 +641,7 @@ export function ProfileForm({
                     e.stopPropagation();
                     removeSkill(s);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full bg-tint-soft px-2.5 py-1 text-[12px] font-semibold text-tint transition hover:brightness-110 active:scale-95"
+                  className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent transition hover:brightness-110 active:scale-95"
                   aria-label={`${s} — olib tashlash`}
                 >
                   {s} <X size={12} />
@@ -635,7 +679,7 @@ export function ProfileForm({
           {/* Tillar */}
           <div className="mt-5">
             <span className="field-label">
-              <Languages size={13} className="mr-1 inline -mt-0.5 text-tint" />
+              <Languages size={13} className="mr-1 inline -mt-0.5 text-accent" />
               Muloqot tillari
             </span>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Tillar">
@@ -649,7 +693,7 @@ export function ProfileForm({
                     onClick={() => set({ languages: on ? f.languages.filter((x) => x !== l.code) : [...f.languages, l.code] })}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition active:scale-95",
-                      on ? "glass-tint" : "glass glass-pill text-fg-2 hover:text-fg",
+                      on ? "btn-ink" : "border border-line bg-surface text-fg-2 hover:border-fg hover:text-fg",
                     )}
                   >
                     {on && <CheckCircle2 size={13} />}
@@ -769,7 +813,7 @@ export function ProfileForm({
               </div>
               {errors.coverUrl && <p className="field-error">{errors.coverUrl}</p>}
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button type="button" variant="glass" size="sm" onClick={() => coverRef.current?.click()} disabled={uploading}>
+                <Button type="button" variant="outline" size="sm" onClick={() => coverRef.current?.click()} disabled={uploading}>
                   {uploading ? <Spinner /> : <Camera size={14} />} Rasm yuklash
                 </Button>
                 {f.coverUrl && (
@@ -790,7 +834,7 @@ export function ProfileForm({
               </div>
               <p className="mt-2 text-[12px] text-fg-4">JPG, PNG, WEBP · 5 MB gacha.</p>
             </div>
-            <div className="glass-weak relative h-32 overflow-hidden !rounded-[18px] sm:h-full sm:min-h-[128px]">
+            <div className="card-outline relative h-32 overflow-hidden !rounded-[18px] sm:h-full sm:min-h-[128px]">
               {f.coverUrl ? (
                 <SafeImage
                   key={f.coverUrl}
@@ -814,7 +858,7 @@ export function ProfileForm({
 
         {/* ============ Holat ============ */}
         <Section icon={CheckCircle2} title="Holat">
-          <div className="glass-weak flex items-center justify-between gap-4 !rounded-[18px] px-4 py-3">
+          <div className="card-outline flex items-center justify-between gap-4 !rounded-[18px] px-4 py-3">
             <div>
               <p className="text-[15px] font-semibold text-fg">Buyurtma qabul qilaman</p>
               <p className="text-[12px] text-fg-3">{f.isAvailable ? "Profilda «Bo'sh» belgisi ko'rinadi." : "Profilda «Band» belgisi ko'rinadi, buyurtmalar navbatga tushadi."}</p>
@@ -825,10 +869,10 @@ export function ProfileForm({
       </div>
 
       {/* Pastki panel */}
-      <div className="mt-7 flex flex-col-reverse items-stretch gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-7 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-[13px]" aria-live="polite">
           {savedSlug ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-[#1f9d46] dark:text-ios-green">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
               <CheckCircle2 size={15} /> Saqlandi
             </span>
           ) : dirty ? (

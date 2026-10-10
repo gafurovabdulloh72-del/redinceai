@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PartyPopper, Settings } from "lucide-react";
+import { Briefcase, Clock3, PartyPopper, ShieldCheck, UserRound } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
+import { PrivacySettings } from "@/components/kabinet/PrivacySettings";
 import { ProfileForm, type ProfileInitial } from "@/components/kabinet/ProfileForm";
+import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
 import { getCurrentUser } from "@/lib/auth";
+import { resolveVisibility } from "@/lib/privacy";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Profil" };
@@ -40,19 +44,29 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
   const firstName = user.name.split(" ")[0] || user.name;
   const ctaFirst = !s && user.role === "client";
 
+  const sections = [
+    { href: "#akkaunt", label: "Akkaunt", icon: UserRound },
+    { href: "#mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: Briefcase },
+    ...(s
+      ? [
+          { href: "#maxfiylik", label: "Maxfiylik", icon: ShieldCheck },
+          { href: "#ish-vaqti", label: "Ish vaqti", icon: Clock3 },
+        ]
+      : []),
+  ];
+
   return (
     <div className="animate-fade-up">
       {/* Xush kelibsiz */}
       {welcome && (
-        <div className="glass-strong relative mb-5 overflow-hidden !rounded-[24px] p-5 sm:p-6">
-          <span className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-tint/25 blur-3xl" />
-          <span className="pointer-events-none absolute -bottom-16 left-1/4 h-40 w-40 rounded-full bg-ios-pink/20 blur-3xl" />
+        <div className="card-elevated relative mb-5 overflow-hidden p-5 sm:p-6">
+          <span className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/15 blur-3xl" />
           <div className="relative flex items-start gap-3.5">
-            <span className="glass-tint flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
               <PartyPopper size={20} />
             </span>
             <div>
-              <p className="text-[18px] font-bold leading-tight text-fg">Xush kelibsiz, {firstName}!</p>
+              <p className="font-display text-[18px] font-semibold leading-tight text-fg">Xush kelibsiz, {firstName}!</p>
               <p className="mt-1 text-[14px] leading-snug text-fg-2">
                 {user.role === "specialist" && !s
                   ? "Quyida mutaxassis profilingizni to'ldiring — shunda mijozlar sizni xaritadan topadi."
@@ -67,19 +81,57 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
 
       {/* Sarlavha */}
       <div className="mb-5 sm:mb-6">
-        <span className="glass-weak glass-pill inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-tint">
-          <Settings size={12} /> Sozlamalar
-        </span>
-        <h1 className="mt-3 text-[28px] font-bold leading-tight tracking-tight text-fg sm:text-4xl">Profil</h1>
-        <p className="mt-1.5 text-[15px] text-fg-2">
-          {s ? "Akkaunt va mutaxassis profilingizni shu yerda boshqarasiz." : user.role === "specialist" ? "Avval akkaunt, keyin mutaxassis profilini to'ldiring." : "Akkaunt ma'lumotlaringiz."}
+        <span className="eyebrow">Sozlamalar</span>
+        <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
+          Profil va <span className="accent-serif text-accent">maxfiylik</span>
+        </h1>
+        <p className="mt-3 max-w-xl text-[15px] text-fg-2">
+          {s
+            ? "Akkaunt, mutaxassis profili, kim nimani ko'rishi va ish vaqtingiz — hammasi shu yerda."
+            : user.role === "specialist"
+              ? "Avval akkaunt, keyin mutaxassis profilini to'ldiring."
+              : "Akkaunt ma'lumotlaringiz. Xohlasangiz, mutaxassis profilini ham ochishingiz mumkin."}
         </p>
       </div>
 
+      {/* Bo'limlar bo'ylab tez o'tish */}
+      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ul className="flex w-max gap-1.5">
+          {sections.map((x) => (
+            <li key={x.href}>
+              <Link href={x.href} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+                <x.icon size={14} className="text-accent" /> {x.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
       <div className="space-y-5">
-        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email }} />
+        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null }} />
 
         <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} />
+
+        {s && (
+          <>
+            <PrivacySettings
+              initial={resolveVisibility(s.visibility)}
+              slug={s.slug}
+              present={{
+                phone: Boolean(user.phone),
+                telegram: Boolean(s.telegram),
+                instagram: Boolean(s.instagram),
+                youtube: Boolean(s.youtube),
+                website: Boolean(s.website),
+                email: true,
+                schedule: Boolean(s.schedule),
+                gender: Boolean(user.gender),
+                city: true,
+              }}
+            />
+            <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} />
+          </>
+        )}
       </div>
     </div>
   );
