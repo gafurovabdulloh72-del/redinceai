@@ -4,14 +4,25 @@ import { jwtVerify } from "jose";
 const COOKIE = "redince_session";
 const ROLES = new Set(["client", "specialist", "admin"]);
 
+/** Namunaviy (.env.example / dev) qiymatlar — productionda kalit sifatida qabul qilinmaydi */
+const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+const warnFlag = globalThis as { __redinceSecretWarned?: boolean };
+
+/** src/lib/auth.ts secret() bilan bir xil mantiq (edge'da uni import qilib bo'lmaydi) — birga o'zgartiring */
 function secret() {
+  const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET;
-  if (s && s.length >= 16) return new TextEncoder().encode(s);
+  const usable = Boolean(s && s.length >= 16 && (!prod || !PLACEHOLDER_SECRET.test(s)));
+  if (s && usable) return new TextEncoder().encode(s);
+  if (s && !warnFlag.__redinceSecretWarned) {
+    warnFlag.__redinceSecretWarned = true;
+    console.warn("[auth] AUTH_SECRET qisqa yoki namunaviy qiymat — productionda e'tiborga olinmadi");
+  }
   // AUTH_SECRET berilmagan bo'lsa: Turso tokenidan barqaror, maxfiy kalit hosil qilamiz
   // (token maxfiy va deploylar orasida o'zgarmaydi — sessiyalar saqlanib qoladi)
   const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
   if (derived && derived.length >= 16) return new TextEncoder().encode(`redince-session-v1:${derived}`);
-  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan");
+  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan");
   return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
 }
 
@@ -23,7 +34,7 @@ async function readRole(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
     const role = typeof payload.role === "string" && ROLES.has(payload.role) ? payload.role : "client";
     return role;
   } catch {

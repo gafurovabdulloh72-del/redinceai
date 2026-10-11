@@ -39,6 +39,11 @@ const FILTERS: Array<{ key: FilterKey; label: string; match: (s: PaymentState) =
   { key: "closed", label: "Bekor / qaytarilgan", match: (s) => s === "cancelled" || s === "refunded" },
 ];
 
+/** Mobil ro'yxatda dastlab ko'rsatiladigan qatorlar (uzun sahifa o'rniga «Yana ko'rsatish») */
+const MOBILE_CAP = 10;
+/** Admin buyurtma sahifasi (to'lovlar, tomonlar, jurnal — bir joyda) */
+const orderHref = (orderId: string) => `/admin/buyurtmalar/${orderId}`;
+
 const ACTION_LABEL: Record<Action, string> = { confirm: "Tasdiqlash", release: "Mutaxassisga o'tkazish", refund: "Mijozga qaytarish", cancel: "Bekor qilish" };
 const ACTION_CONFIRM: Record<Action, string> = {
   confirm: "O'tkazma hisobga tushganini tekshirdingizmi? Buyurtma «To'langan (eskrou)» bo'ladi.",
@@ -64,6 +69,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
     setRows(initialRows);
   }
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState<{ id: string; action: Action } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,7 +202,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
               {visible.map((r) => (
                 <tr key={r.id} className={cn("align-top transition hover:bg-fg/3", busy === r.id && "opacity-60")}>
                   <td className="max-w-[220px] px-5 py-3">
-                    <Link href={`/kabinet/buyurtmalar?id=${r.orderId}`} className="block truncate font-semibold text-fg hover:text-accent">
+                    <Link href={orderHref(r.orderId)} className="block truncate font-semibold text-fg hover:text-accent">
                       {r.orderTitle}
                     </Link>
                     <span className="block text-[11px] text-fg-4">{formatDateTime(r.paidAt ?? r.createdAt)}</span>
@@ -229,10 +235,10 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
 
           {/* Mobil */}
           <ul className="divide-y divide-line md:hidden">
-            {visible.map((r) => (
-              <li key={r.id} className={cn("px-4 py-4", busy === r.id && "opacity-60")}>
+            {visible.map((r, i) => (
+              <li key={r.id} className={cn("px-4 py-4", busy === r.id && "opacity-60", i >= MOBILE_CAP && !showAll && "hidden")}>
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/kabinet/buyurtmalar?id=${r.orderId}`} className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">
+                  <Link href={orderHref(r.orderId)} className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">
                     {r.orderTitle}
                   </Link>
                   <Badge tone={PAYMENT_TONE[r.state]} className="shrink-0">
@@ -269,6 +275,13 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
               </li>
             ))}
           </ul>
+          {visible.length > MOBILE_CAP && !showAll && (
+            <div className="border-t border-line p-3 md:hidden">
+              <Button variant="outline" size="md" className="w-full" onClick={() => setShowAll(true)}>
+                Yana {visible.length - MOBILE_CAP} ta ko'rsatish
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

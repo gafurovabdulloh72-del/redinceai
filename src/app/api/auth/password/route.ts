@@ -7,6 +7,7 @@ import { changePasswordSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { invalidatePasswordResets } from "@/lib/security/tokens";
 
 /**
  * Parolni o'zgartirish: joriy parol tekshiriladi, yangi parol siyosatga mos bo'lishi kerak.
@@ -27,6 +28,8 @@ export const POST = handler(async (req) => {
   }
 
   await db.update(users).set({ passwordHash: await hashPassword(input.newPassword), passwordChangedAt: new Date() }).where(eq(users.id, user.id));
+  // Oldin so'ralgan (hali ishlatilmagan) tiklash havolalari yangi parolni qayta o'zgartira olmasin
+  await invalidatePasswordResets(user.id);
   const sv = await bumpSessionVersion(user.id);
   const current = await getSession();
   await createSession({ id: user.id, role: user.role, name: user.name, sessionVersion: sv }, { remember: current?.remember ?? true });

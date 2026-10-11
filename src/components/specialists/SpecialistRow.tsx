@@ -4,7 +4,7 @@ import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "./SafeImage";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { formatPrice, formatPriceRange, hashHue } from "@/lib/utils";
+import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
@@ -22,6 +22,7 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
   const hue = hashHue(sp.slug);
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
   const fallbackBg = `linear-gradient(135deg, hsl(${hue} 22% 30%), ${cat?.accent ?? "#df7a5a"}cc 120%)`;
+  const isNew = isRecent(sp.createdAt, 7);
 
   return (
     <Link href={`/mutaxassislar/${sp.slug}`} className="card card-hover group flex items-center gap-3 p-3 sm:gap-4 sm:p-3.5">
@@ -41,6 +42,7 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
         <span className="flex items-center gap-1.5">
           <span className="truncate font-display text-[15px] font-semibold leading-tight text-fg">{sp.user.name}</span>
           {sp.isVerified && <VerifiedBadge size={15} />}
+          {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">Yangi</span>}
           {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning">Band</span>}
         </span>
         <span className="mt-0.5 block truncate text-[13px] text-fg-2">{sp.title}</span>

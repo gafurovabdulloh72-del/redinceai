@@ -6,7 +6,8 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderStatusSchema } from "@/lib/validators";
 import type { OrderStatus } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
-import { loadOrderWithParties, onOrderCancelled, orderHref } from "@/lib/payments/service";
+import { findInFlightProviderPayment, loadOrderWithParties, onOrderCancelled, orderHref } from "@/lib/payments/service";
+import { audit } from "@/lib/security/audit";
 import { formatPrice } from "@/lib/utils";
 
 /**
@@ -53,7 +54,13 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   }
   if (status === order.status) return ok({ id, status, paymentState: order.paymentState });
 
+  // Payme/Click tomonida jarayondagi to'lov bo'lsa — buyurtmani bekor qilib bo'lmaydi (provayder tranzaksiyasi ichkaridan yopilmaydi)
+  if (status === "cancelled" && (await findInFlightProviderPayment(id))) {
+    throw new ApiError(409, "Mijoz to'lovni boshlagan — provayder tomonida jarayonda. Yakunlanishini yoki bekor bo'lishini kuting");
+  }
+
   await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id));
+  await audit(session.sub, "order_status", { targetType: "order", targetId: id, meta: { from: order.status, to: status, reason: reason?.trim() || undefined } }, req);
 
   const href = orderHref(order.id);
   const spName = order.specialist.user.name;

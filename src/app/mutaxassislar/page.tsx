@@ -8,7 +8,7 @@ import { SpecialistRow } from "@/components/specialists/SpecialistRow";
 import { Filters, MobileFilters, SortSelect, ViewToggle } from "@/components/specialists/Filters";
 import { ActiveFilters } from "@/components/specialists/ActiveFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG, REGIONS } from "@/lib/constants";
+import { REGIONS } from "@/lib/constants";
 import { getSession } from "@/lib/auth";
 import { getCategoryStats, getRegionStats, listSpecialists } from "@/lib/queries";
 import { specialistFilterSchema, type SpecialistFilter } from "@/lib/validators";
@@ -45,38 +45,27 @@ function parseFilter(flat: Record<string, string>): SpecialistFilter {
   }
   const f: SpecialistFilter = res.success ? res.data : specialistFilterSchema.parse({});
 
-  // Noma'lum slug'larni e'tiborsiz qoldiramiz (bo'sh natija o'rniga)
-  if (f.region && !REGION_BY_SLUG[f.region]) f.region = undefined;
-  if (f.category && !CATEGORY_BY_SLUG[f.category]) f.category = undefined;
-  if (f.experience && !EXPERIENCE_LEVELS.some((e) => e.value === f.experience)) f.experience = undefined;
+  // Noma'lum slug'lar sxemada 422 beradi — yuqorida shunchaki tashlab yuborilgan (bo'sh natija o'rniga)
   if (f.verified === "0") f.verified = undefined;
   if (f.priceMax === 0) f.priceMax = undefined;
+  // Teskari oraliq (min >= max) — listSpecialists kabi e'tiborsiz; chip ham chiqmasin
+  if (f.priceMin === 0 || (f.priceMin && f.priceMax && f.priceMin >= f.priceMax)) f.priceMin = undefined;
   if (f.q === "") f.q = undefined;
   return f;
 }
 
-/**
- * Minimal narx (?priceMin=) — sxema hali uni bilmaydi, shuning uchun alohida o'qiladi.
- * Sxemaga qo'shilgach listSpecialists ham uni hisobga oladi; UI va URL allaqachon tayyor.
- */
-function parsePriceMin(flat: Record<string, string>, priceMax?: number): number | undefined {
-  const n = Math.floor(Number(flat.priceMin));
-  if (!Number.isFinite(n) || n <= 0) return undefined;
-  if (priceMax && n >= priceMax) return undefined;
-  return n;
-}
-
 /** Kanonik URL parametrlari (standart qiymatlar yozilmaydi) */
-function filterToQuery(f: SpecialistFilter, extra: { priceMin?: number; view: View }): Record<string, string | undefined> {
+function filterToQuery(f: SpecialistFilter, extra: { view: View }): Record<string, string | undefined> {
   return {
     q: f.q || undefined,
     category: f.category || undefined,
     region: f.region || undefined,
-    priceMin: extra.priceMin ? String(extra.priceMin) : undefined,
+    priceMin: f.priceMin ? String(f.priceMin) : undefined,
     priceMax: f.priceMax ? String(f.priceMax) : undefined,
     experience: f.experience || undefined,
     gender: f.gender || undefined,
     verified: f.verified === "1" ? "1" : undefined,
+    available: f.available === "1" ? "1" : undefined,
     sort: f.sort !== "rating" ? f.sort : undefined,
     view: extra.view === "list" ? "list" : undefined,
     limit: f.limit !== DEFAULT_LIMIT ? String(f.limit) : undefined,
@@ -132,7 +121,6 @@ function EmptyBlock({ title, description, action }: { title: string; description
 export default async function SpecialistsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const flat = flatten(await searchParams);
   const filter = parseFilter(flat);
-  const priceMin = parsePriceMin(flat, filter.priceMax);
   const view: View = flat.view === "list" ? "list" : "grid";
 
   // Kirgan foydalanuvchiga "faqat ro'yxatdan o'tganlarga" darajadagi shahar ko'rinadi
@@ -142,12 +130,22 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
 
   // Mavjud bo'lmagan sahifa so'ralsa — oxirgi sahifaga qaytaramiz
   if (result.total > 0 && filter.page > result.pages) {
-    redirect(buildHref(BASE, { ...filterToQuery(filter, { priceMin, view }), page: result.pages > 1 ? String(result.pages) : undefined }));
+    redirect(buildHref(BASE, { ...filterToQuery(filter, { view }), page: result.pages > 1 ? String(result.pages) : undefined }));
   }
 
-  const query = filterToQuery(filter, { priceMin, view });
+  const query = filterToQuery(filter, { view });
   const regionCounts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
-  const hasFilters = !!(filter.q || filter.category || filter.region || priceMin || filter.priceMax || filter.experience || filter.gender || filter.verified === "1");
+  const hasFilters = !!(
+    filter.q ||
+    filter.category ||
+    filter.region ||
+    filter.priceMin ||
+    filter.priceMax ||
+    filter.experience ||
+    filter.gender ||
+    filter.verified === "1" ||
+    filter.available === "1"
+  );
   const { items, total, page, pages } = result;
   const from = total === 0 ? 0 : (page - 1) * filter.limit + 1;
   const to = Math.min(total, page * filter.limit);
@@ -205,7 +203,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             </div>
           </div>
 
-          <ActiveFilters filter={{ ...filter, priceMin }} query={query} basePath={BASE} className="mt-4" />
+          <ActiveFilters filter={filter} query={query} basePath={BASE} className="mt-4" />
 
           {/* Natijalar */}
           {items.length > 0 ? (

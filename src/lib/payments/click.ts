@@ -6,7 +6,7 @@ import { orders, payments, type Payment } from "@/lib/db/schema";
 import { uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { isPayable, markPaid } from "./service";
+import { findInFlightProviderPayment, isPayable, markPaid } from "./service";
 
 /**
  * Click SHOP API (Prepare / Complete). Hujjat: docs.click.uz/click-api-request
@@ -97,6 +97,9 @@ async function prepare(f: Fields, secret: string) {
 
   if (order.paymentState === "paid" || order.paymentState === "released") return respond(f, CLICK_ERR.ALREADY_PAID);
   if (!isPayable(order) || !order.amount) return respond(f, CLICK_ERR.USER_NOT_FOUND);
+  // Boshqa provayder (Payme) tomonida jarayondagi tranzaksiya bo'lsa — buyurtma hozircha to'lovga yopiq
+  const inFlight = await findInFlightProviderPayment(order.id);
+  if (inFlight && inFlight.provider !== "click") return respond(f, CLICK_ERR.USER_NOT_FOUND);
   if (!amountMatches(f.amount, order.amount)) return respond(f, CLICK_ERR.AMOUNT);
 
   const settings = await getSettings();

@@ -18,6 +18,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
   if (!user) redirect(await loginRedirectPath("/kabinet/profil"));
 
   const s = user.specialist;
+  const visibility = s ? resolveVisibility(s.visibility) : null;
   const initial: ProfileInitial | null = s
     ? {
         slug: s.slug,
@@ -108,14 +109,14 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
       </nav>
 
       <div className="space-y-5">
-        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null }} />
+        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null }} visibility={visibility} />
 
-        <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} />
+        <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} />
 
         {s && (
           <>
             <PrivacySettings
-              initial={resolveVisibility(s.visibility)}
+              initial={visibility ?? resolveVisibility(s.visibility)}
               slug={s.slug}
               present={{
                 phone: Boolean(user.phone),

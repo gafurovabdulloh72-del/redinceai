@@ -4,7 +4,7 @@ import { specialists, type Schedule, type Visibility } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { privacyUpdateSchema } from "@/lib/validators";
 import { WEEKDAYS } from "@/lib/constants";
-import { resolveVisibility, toMinutes } from "@/lib/privacy";
+import { resolveVisibility, tashkentNow, toMinutes } from "@/lib/privacy";
 
 async function ownSpecialist(userId: string) {
   const sp = await db.query.specialists.findFirst({
@@ -61,6 +61,8 @@ export const PUT = handler(async (req) => {
       const [y, m, d] = v.split("-").map(Number);
       const dt = new Date(Date.UTC(y, m - 1, d));
       if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) throw new ApiError(422, "Sana noto'g'ri", { vacationUntil: "Sana noto'g'ri" });
+      // O'tgan sana "ta'til yo'q" degani — saqlamaymiz (isOnVacation: bugun ham ta'til hisoblanadi)
+      if (v < tashkentNow().date) throw new ApiError(422, "Sana o'tib ketgan", { vacationUntil: "Sana o'tib ketgan" });
       if (dt.getTime() > Date.now() + 366 * 24 * 60 * 60 * 1000) throw new ApiError(422, "Sana juda uzoq", { vacationUntil: "Ta'til 1 yildan oshmasin" });
     }
     patch.vacationUntil = v;

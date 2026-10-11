@@ -5,8 +5,7 @@ import { HomeMapSection } from "@/components/map/HomeMapSection";
 import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { ButtonLink, SectionHeading } from "@/components/ui";
-import { AvatarImage } from "@/components/ui/AvatarImage";
+import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
 
@@ -56,10 +55,9 @@ export default async function HomePage() {
               {withAvatar.length >= 3 ? (
                 <div className="flex items-center">
                   <div className="flex -space-x-2.5">
+                    {/* Avatar: rasm yuklanmasa bosh harflar ko'rinadi (bo'sh doira emas) */}
                     {withAvatar.map((sp) => (
-                      <span key={sp.id} className="relative h-8 w-8 overflow-hidden rounded-full bg-surface-3 ring-2 ring-bg" aria-hidden="true">
-                        <AvatarImage src={sp.user.avatarUrl!} size={32} />
-                      </span>
+                      <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={32} decorative className="!ring-bg" />
                     ))}
                   </div>
                   <p className="ml-3 text-[13px] leading-tight text-fg-2">
@@ -240,7 +238,7 @@ export default async function HomePage() {
                 <span className="icon-tile">
                   <s.icon size={20} />
                 </span>
-                <span className="font-display text-[13px] font-semibold text-accent">{s.n}</span>
+                <span className="font-display text-[13px] font-semibold text-accent-text">{s.n}</span>
               </div>
               <h3 className="mt-5 font-display text-[19px] font-semibold text-fg">{s.title}</h3>
               <p className="mt-2 text-[14px] leading-relaxed text-fg-2">{s.text}</p>
@@ -261,7 +259,7 @@ export default async function HomePage() {
                 className="card card-hover inline-flex h-11 snap-start items-center gap-2 !rounded-full px-4 text-[14px] font-medium text-fg"
               >
                 {r.short}
-                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent">{regionStats[r.slug]?.total ?? 0}</span>
+                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-text">{regionStats[r.slug]?.total ?? 0}</span>
               </Link>
             ))}
           </div>

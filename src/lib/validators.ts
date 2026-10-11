@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS } from "./constants";
+import { normalizeUzPhone } from "./utils";
 
 /* ------------------------------------------------------------------ */
 /* Zod xabarlarini o'zbekchaga o'girish (maxsus message berilmagan hollar) */
@@ -50,7 +51,9 @@ const experienceValues = EXPERIENCE_LEVELS.map((e) => e.value) as unknown as ["j
 const phone = z
   .string()
   .trim()
-  .regex(/^\+?[\d\s()-]{9,16}$/, "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)");
+  .regex(/^\+?[\d\s()-]{9,16}$/, "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)")
+  // O'zbekiston raqamlari bazaga kanonik "+998XXXXXXXXX" ko'rinishida tushadi (A21); boshqalari — kiritilganicha
+  .transform((v) => normalizeUzPhone(v) ?? v);
 export const optionalPhone = phone.optional().or(z.literal(""));
 
 /** Parol siyosati: kamida 8 belgi, harf va raqam */
@@ -77,6 +80,9 @@ export const loginSchema = z.object({
 /** Faqat http(s) yoki o'zimizning /uploads/ yo'li — javascript:, data:, ftp: va h.k. rad etiladi */
 export const HTTP_OR_UPLOAD_RE = /^(https?:\/\/[^\s]+|\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif))$/i;
 const URL_MSG = "Havola http:// yoki https:// bilan boshlanishi kerak";
+/** Rasm manzili: faqat https:// yoki /uploads/ — CSP img-src http: rasmlarni bloklaydi (ko'rinmay qoladi) */
+export const IMAGE_URL_RE = /^(https:\/\/[^\s]+|\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif))$/i;
+const IMAGE_URL_MSG = "Rasm havolasi https:// bilan boshlanishi kerak (yoki rasmni yuklang)";
 
 export const httpUrl = z.string().trim().max(500).refine((v) => HTTP_OR_UPLOAD_RE.test(v), URL_MSG);
 
@@ -85,6 +91,14 @@ const optionalUrl = z
   .trim()
   .max(300)
   .refine((v) => v === "" || HTTP_OR_UPLOAD_RE.test(v), URL_MSG)
+  .optional()
+  .or(z.literal(""));
+
+const optionalImageUrl = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => v === "" || IMAGE_URL_RE.test(v), IMAGE_URL_MSG)
   .optional()
   .or(z.literal(""));
 
@@ -109,7 +123,7 @@ export const specialistProfileSchema = z
   instagram: z.string().trim().max(60).optional().or(z.literal("")),
   youtube: optionalUrl,
   website: optionalUrl,
-  coverUrl: optionalUrl,
+  coverUrl: optionalImageUrl,
   isAvailable: z.boolean().default(true),
   })
   .refine((d) => d.priceTo == null || d.priceTo === 0 || d.priceTo >= d.priceFrom, {
@@ -117,19 +131,22 @@ export const specialistProfileSchema = z
     path: ["priceTo"],
   });
 
-export const portfolioItemSchema = z.object({
-  title: z.string().trim().min(2).max(100),
-  type: z.enum(["image", "video", "link"]),
-  url: httpUrl,
-  thumbnailUrl: optionalUrl,
-  description: z.string().trim().max(500).optional().or(z.literal("")),
-});
+export const portfolioItemSchema = z
+  .object({
+    title: z.string().trim().min(2).max(100),
+    type: z.enum(["image", "video", "link"]),
+    url: httpUrl,
+    thumbnailUrl: optionalImageUrl,
+    description: z.string().trim().max(500).optional().or(z.literal("")),
+  })
+  // "Rasm" turidagi ishning manzili rasm sifatida ko'rsatiladi — https bo'lishi shart
+  .refine((d) => d.type !== "image" || IMAGE_URL_RE.test(d.url), { message: IMAGE_URL_MSG, path: ["url"] });
 
 /** Akkaunt ma'lumotlari (PATCH /api/profile) */
 export const accountSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
   phone: optionalPhone,
-  avatarUrl: optionalUrl,
+  avatarUrl: optionalImageUrl,
   gender: z.enum(["male", "female"]).optional().nullable(),
 });
 
@@ -205,14 +222,23 @@ export const reviewSchema = z.object({
   text: z.string().trim().min(10, "Sharh kamida 10 ta belgi").max(1500),
 });
 
+/** DELETE /api/reviews: o'z sharhi (specialistId) yoki admin — boshqa muallifniki (authorId) */
+export const reviewDeleteSchema = z.object({
+  specialistId: z.string().min(1),
+  authorId: z.string().min(1).optional(),
+});
+
 export const specialistFilterSchema = z.object({
   q: z.string().trim().max(80).optional(),
-  region: z.string().optional(),
-  category: z.string().optional(),
+  // Noma'lum slug'lar 422 (API) — sahifa parseFilter'da shunchaki tashlab yuboradi
+  region: z.enum(regionSlugs).optional(),
+  category: z.enum(categorySlugs).optional(),
   priceMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().int().min(0).optional(),
-  experience: z.string().optional(),
+  experience: z.enum(experienceValues).optional(),
   verified: z.enum(["1", "0"]).optional(),
+  /** Hozir buyurtma qabul qiladiganlar: "Band" emas va ta'tilda emas */
+  available: z.enum(["1"]).optional(),
   gender: z.enum(["male", "female"]).optional(),
   sort: z.enum(["rating", "price_asc", "price_desc", "newest", "popular"]).default("rating"),
   page: z.coerce.number().int().min(1).default(1),

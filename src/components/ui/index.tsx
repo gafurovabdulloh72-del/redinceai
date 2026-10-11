@@ -14,7 +14,7 @@ const variantClass: Record<Variant, string> = {
   primary: "btn-ink font-semibold",
   accent: "btn-accent font-semibold",
   glass: "card card-hover !rounded-full text-fg font-semibold",
-  "tint-soft": "bg-accent-soft text-accent font-semibold hover:brightness-105 active:scale-[0.97] transition",
+  "tint-soft": "bg-accent-soft text-accent-text font-semibold hover:brightness-105 active:scale-[0.97] transition",
   ghost: "text-fg-2 hover:bg-fg/6 hover:text-fg active:scale-[0.97] transition",
   outline: "border border-line-2 text-fg hover:border-fg hover:bg-fg/4 active:scale-[0.97] transition",
   danger: "bg-danger text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
@@ -88,7 +88,7 @@ export type BadgeTone =
 
 const badgeTones: Record<BadgeTone, string> = {
   neutral: "bg-fg/6 text-fg-2",
-  accent: "bg-accent-soft text-accent",
+  accent: "bg-accent-soft text-accent-text",
   ink: "bg-ink text-ink-fg",
   glass: "border border-line bg-surface text-fg-2",
   success: "bg-success-soft text-success",
@@ -98,7 +98,7 @@ const badgeTones: Record<BadgeTone, string> = {
   blue: "bg-info-soft text-info",
   green: "bg-success-soft text-success",
   orange: "bg-warning-soft text-warning",
-  pink: "bg-accent-soft text-accent",
+  pink: "bg-accent-soft text-accent-text",
   purple: "bg-accent-2-soft text-accent-2",
 };
 

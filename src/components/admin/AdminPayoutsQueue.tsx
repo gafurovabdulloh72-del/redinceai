@@ -130,9 +130,9 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
           <div className="flex flex-col items-start gap-2 lg:w-[30%] lg:items-end">
             <div className="flex items-center gap-2">
               <Badge tone={PAYOUT_TONE[r.state]}>{PAYOUT_STATE_LABEL[r.state]}</Badge>
-              <span className="text-[11px] text-fg-4" title={formatDateTime(r.processedAt ?? r.createdAt)} suppressHydrationWarning>
+              <time dateTime={new Date(r.processedAt ?? r.createdAt).toISOString()} className="text-[11px] text-fg-4" title={formatDateTime(r.processedAt ?? r.createdAt)} suppressHydrationWarning>
                 {timeAgo(r.processedAt ?? r.createdAt)}
-              </span>
+              </time>
             </div>
             {isOpen && rejecting !== r.id && (
               <div className="flex flex-wrap gap-1.5 lg:justify-end">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Fragment } from "react";
 import { count, eq } from "drizzle-orm";
 import {
   ArrowRight,
@@ -196,6 +197,7 @@ export default async function KabinetPage() {
   if (user.role === "admin") actions.push({ href: "/admin", label: "Admin panel", icon: ShieldCheck });
 
   const region = sp ? REGION_BY_SLUG[sp.regionSlug] : null;
+  const scheduleParts = sp ? scheduleSummary(sp.schedule).split(" · ").filter(Boolean) : [];
 
   return (
     <div className="animate-fade-up">
@@ -368,11 +370,18 @@ export default async function KabinetPage() {
             <h2 id="qa-title" className="font-display text-[17px] font-semibold text-fg">
               Tezkor amallar
             </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
+            {/* Bir xil kenglikdagi ustun: tor kartada ham tartibli; o'rta ekranda 2 ustun (toq bo'lsa oxirgisi to'liq) */}
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
               {actions.map((a, i) => (
-                <ButtonLink key={a.href + a.label} href={a.href} variant={i === 0 ? "accent" : "outline"} size="md" className="!px-4">
-                  <a.icon size={15} />
-                  {a.label}
+                <ButtonLink
+                  key={a.href + a.label}
+                  href={a.href}
+                  variant={i === 0 ? "accent" : "outline"}
+                  size="md"
+                  className={cn("w-full justify-start !px-4", actions.length % 2 === 1 && i === actions.length - 1 && "sm:col-span-2 lg:col-span-1")}
+                >
+                  <a.icon size={15} className="shrink-0" />
+                  <span className="truncate">{a.label}</span>
                 </ButtonLink>
               ))}
             </div>
@@ -427,7 +436,20 @@ export default async function KabinetPage() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <dt className="shrink-0 text-fg-3">Ish vaqti</dt>
-                  <dd className="min-w-0 break-words text-right font-semibold text-fg">{scheduleSummary(sp.schedule) || <span className="font-medium text-fg-3">Ko'rsatilmagan</span>}</dd>
+                  <dd className="min-w-0 text-right font-semibold text-fg">
+                    {/* Har bo'lak bir qatorda; qator faqat bo'laklar orasida uziladi, "·" oldingi qator oxirida qoladi */}
+                    {scheduleParts.length > 0
+                      ? scheduleParts.map((p, i) => (
+                          <Fragment key={`${i}-${p}`}>
+                            {i > 0 && " "}
+                            <span className="whitespace-nowrap">
+                              {p}
+                              {i < scheduleParts.length - 1 && <span className="font-normal text-fg-4"> ·</span>}
+                            </span>
+                          </Fragment>
+                        ))
+                      : <span className="font-medium text-fg-3">Ko'rsatilmagan</span>}
+                  </dd>
                 </div>
               </dl>
 

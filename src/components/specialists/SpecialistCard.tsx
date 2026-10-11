@@ -4,7 +4,7 @@ import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "./SafeImage";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { formatPrice, formatPriceRange, hashHue } from "@/lib/utils";
+import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
@@ -20,13 +20,14 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
+  const isNew = isRecent(sp.createdAt, 7);
   /* Rasm yo'q muqova: past to'yinganlikdagi, palitraga mos ohang (sun'iy rang-barang gradient emas) */
   const fallbackBg = `linear-gradient(135deg, hsl(${hue} 22% 30%), ${cat?.accent ?? "#df7a5a"}cc 120%)`;
 
   return (
     <Link href={`/mutaxassislar/${sp.slug}`} className="card card-hover group block overflow-hidden">
-      {/* Muqova 4:3 — rasm yuklanmasa yumshoq fon (buzilgan rasm belgisi ko'rinmaydi) */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-surface-3">
+      {/* Muqova: telefonda 16:10 (karta ixchamroq, ekranga ko'proq sig'adi), sm+ da 4:3 — rasm yuklanmasa yumshoq fon */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-3 sm:aspect-[4/3]">
         <SafeImage
           src={sp.coverUrl ?? undefined}
           alt=""
@@ -36,17 +37,18 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-black/0" />
 
-        {/* Chiplar: kategoriya — qattiq yuza; "Band" — neytral */}
+        {/* Chiplar: kategoriya — qattiq yuza; "Yangi" (7 kun ichida qo'shilgan) — accent; "Band" — neytral */}
         <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-          {cat ? (
-            <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
-              <CategoryIcon icon={cat.icon} size={12} style={{ color: cat.accent }} />
-              {cat.name}
-            </span>
-          ) : (
-            <span />
-          )}
-          {!sp.isAvailable && <span className="inline-flex h-7 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">Band</span>}
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {cat && (
+              <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
+                <CategoryIcon icon={cat.icon} size={12} style={{ color: cat.accent }} />
+                {cat.name}
+              </span>
+            )}
+            {isNew && <span className="inline-flex h-7 items-center rounded-full bg-accent px-2.5 text-[11px] font-semibold text-white shadow-[var(--shadow-1)]">Yangi</span>}
+          </span>
+          {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">Band</span>}
         </div>
 
         {/* Strelka diski — faqat ko'rsatkichli qurilmalarda, hover'da */}
@@ -103,7 +105,7 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
 export function SpecialistCardSkeleton() {
   return (
     <div className="card overflow-hidden">
-      <div className="skeleton aspect-[4/3] !rounded-none" />
+      <div className="skeleton aspect-[16/10] !rounded-none sm:aspect-[4/3]" />
       <div className="px-4 pb-4 pt-3.5">
         <div className="flex items-start gap-3">
           <div className="-mt-9 h-11 w-11 shrink-0 rounded-full skeleton ring-2 ring-surface" />

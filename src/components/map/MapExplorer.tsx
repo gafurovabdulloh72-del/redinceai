@@ -9,14 +9,15 @@ import { UzbekistanMap } from "./UzbekistanMap";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { Avatar, Badge, Button, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { CATEGORIES, CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
 import type { RegionStat, SpecialistListItem } from "@/lib/queries";
 import { cn, formatPrice, formatPriceRange } from "@/lib/utils";
 
 /**
  * To'liq xarita rejimi: chapda interaktiv xarita (choropleth) + hudud statistikasi,
  * o'ngda yo'nalish filtri + tanlangan hudud bo'yicha mutaxassislar ro'yxati.
- * - Holat (hudud, yo'nalish) URL bilan sinxron: ?region=&category=
+ * - Holat (hudud, yo'nalish, jins) URL bilan sinxron: ?region=&category=&gender=
+ * - Jins faqat ro'yxatni filtrlaydi; xarita ranglari (hudud statistikasi) umumiy qoladi
  * - Yo'nalish tanlansa xarita ranglari shu yo'nalish bo'yicha qayta hisoblanadi
  * - Ro'yxat GET /api/specialists orqali olinadi va kesh qilinadi
  */
@@ -35,26 +36,34 @@ type ApiResponse =
   | { ok: true; data: { items: MapItem[]; total: number; page: number; pages: number } }
   | { ok: false; error: string };
 
+type Gender = (typeof GENDERS)[number]["value"];
+/** Jins segmenti: "" — barchasi */
+const GENDER_OPTIONS: ReadonlyArray<{ value: Gender | ""; label: string }> = [{ value: "", label: "Barchasi" }, ...GENDERS];
+
 export interface MapExplorerProps {
   stats: Record<string, RegionStat>;
   categoryStats: Record<string, number>;
   initialRegion: string | null;
   initialCategory: string | null;
+  initialGender?: Gender | null;
 }
 
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
 /* ------------------------------------------------------------------ */
-function qsOf(region: string | null, category: string | null) {
+function qsOf(region: string | null, category: string | null, gender: Gender | null = null) {
   const p = new URLSearchParams();
   if (region) p.set("region", region);
   if (category) p.set("category", category);
+  if (gender) p.set("gender", gender);
   return p.toString();
 }
 /** Tooltip birligi: "Videograf" → "videograf", lekin "UI/UX dizayner" / "3D artist" o'zgarmaydi */
 const unitOf = (name: string) => (/^[A-Z0-9]{2,}/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1));
 const validRegion = (v: string | null) => (v && REGION_BY_SLUG[v] ? v : null);
 const validCategory = (v: string | null) => (v && CATEGORY_BY_SLUG[v] ? v : null);
+const isGender = (v: string): v is Gender => GENDERS.some((g) => g.value === v);
+const validGender = (v: string | null): Gender | null => (v && isGender(v) ? v : null);
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
 function priceLine(from: number, to?: number | null) {
@@ -279,7 +288,7 @@ function RegionStatsPanel({
 
       {/* Yo'nalishlar bo'yicha */}
       {rows.length > 0 ? (
-        <ul className="mt-5 space-y-2.5" aria-label="Yo'nalishlar bo'yicha">
+        <ul className="mt-5 space-y-1" aria-label="Yo'nalishlar bo'yicha">
           {rows.map(({ c, n }) => {
             const on = category === c.slug;
             const dim = Boolean(category) && !on;
@@ -289,10 +298,10 @@ function RegionStatsPanel({
                   type="button"
                   aria-pressed={on}
                   onClick={() => onPickCategory(on ? null : c.slug)}
-                  className={cn("group block w-full rounded-[10px] text-left transition", dim && "opacity-55 hover:opacity-100")}
+                  className={cn("group block min-h-10 w-full rounded-[10px] py-1.5 text-left transition", dim && "opacity-55 hover:opacity-100")}
                 >
                   <span className="flex items-center justify-between gap-3 text-[13px]">
-                    <span className={cn("inline-flex min-w-0 items-center gap-1.5 font-medium", on ? "text-accent" : "text-fg-2 group-hover:text-fg")}>
+                    <span className={cn("inline-flex min-w-0 items-center gap-1.5 font-medium", on ? "text-accent-text" : "text-fg-2 group-hover:text-fg")}>
                       <CategoryIcon icon={c.icon} size={13} className="shrink-0" />
                       <span className="truncate">{c.plural}</span>
                     </span>
@@ -363,7 +372,7 @@ function RegionStatsPanel({
 /* ------------------------------------------------------------------ */
 /* Asosiy komponent                                                    */
 /* ------------------------------------------------------------------ */
-export function MapExplorer({ stats, categoryStats, initialRegion, initialCategory }: MapExplorerProps) {
+export function MapExplorer({ stats, categoryStats, initialRegion, initialCategory, initialGender = null }: MapExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -372,6 +381,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
 
   const [region, setRegion] = useState<string | null>(initialRegion);
   const [category, setCategory] = useState<string | null>(initialCategory);
+  const [gender, setGender] = useState<Gender | null>(initialGender);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const regionRowRef = useRef<HTMLDivElement>(null);
@@ -380,12 +390,13 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
   const catRowOver = useOverflowing(catRowRef);
 
   /** Biz so'ragan oxirgi URL holati (o'z yangilanishimizni tashqi navigatsiyadan ajratish uchun) */
-  const wanted = useRef(qsOf(initialRegion, initialCategory));
+  const wanted = useRef(qsOf(initialRegion, initialCategory, initialGender));
 
-  const apply = (r: string | null, c: string | null) => {
+  const apply = (r: string | null, c: string | null, g: Gender | null = gender) => {
     setRegion(r);
     setCategory(c);
-    const qs = qsOf(r, c);
+    setGender(g);
+    const qs = qsOf(r, c, g);
     if (qs === wanted.current) return;
     wanted.current = qs;
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }));
@@ -396,11 +407,13 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
     if (isPending) return;
     const r = validRegion(searchParams.get("region"));
     const c = validCategory(searchParams.get("category"));
-    const qs = qsOf(r, c);
+    const g = validGender(searchParams.get("gender"));
+    const qs = qsOf(r, c, g);
     if (qs === wanted.current) return;
     wanted.current = qs;
     setRegion(r);
     setCategory(c);
+    setGender(g);
   }, [searchParams, isPending]);
 
   /* ---------- Hisoblar ---------- */
@@ -424,7 +437,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
   );
 
   /* ---------- Ro'yxat ---------- */
-  const key = qsOf(region, category);
+  const key = qsOf(region, category, gender);
   const cache = useRef(new Map<string, ListState>());
   const [list, setList] = useState<ListState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -446,6 +459,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
     const p = new URLSearchParams({ limit: String(LIMIT), sort: "rating" });
     if (region) p.set("region", region);
     if (category) p.set("category", category);
+    if (gender) p.set("gender", gender);
 
     fetch(`/api/specialists?${p.toString()}`, { signal: ctrl.signal })
       .then(async (res) => {
@@ -463,7 +477,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
         if (!ctrl.signal.aborted) setLoading(false);
       });
     return () => ctrl.abort();
-  }, [key, region, category, attempt]);
+  }, [key, region, category, gender, attempt]);
 
   const retry = () => {
     cache.current.delete(key);
@@ -472,7 +486,10 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
 
   const regionInfo = region ? REGION_BY_SLUG[region] : null;
   const cat = category ? CATEGORY_BY_SLUG[category] : null;
-  const shown = list && !loading ? list.total : region ? countFor(region) : scopeTotal;
+  const genderInfo = gender ? GENDERS.find((g) => g.value === gender) : undefined;
+  /* Jins tanlanganda hudud statistikasida son yo'q — faqat ro'yxat javobidan olamiz */
+  const shown: number | null = list && !loading ? list.total : gender ? (list?.total ?? null) : region ? countFor(region) : scopeTotal;
+  const shownLabel = shown == null ? "…" : String(shown);
   const listHref = `/mutaxassislar${key ? `?${key}` : ""}`;
   const topItems = list?.items.slice(0, 3) ?? [];
 
@@ -504,7 +521,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                 {cat && (
                   <>
                     {" "}
-                    · <span className="text-accent">{cat.plural}</span>
+                    · <span className="text-accent-text">{cat.plural}</span>
                   </>
                 )}
               </span>
@@ -559,9 +576,30 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
       <aside className="flex min-w-0 flex-col gap-4 lg:col-span-5" aria-label="Natijalar paneli">
         {/* Yo'nalish filtri — ko'pi bilan 2 qator, gorizontal aylanadi */}
         <div className="min-w-0">
-          <div className="mb-2 flex items-center justify-between px-1">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Yo'nalish</p>
-            {isPending && <span className="text-[11px] font-medium text-fg-4">Yangilanmoqda…</span>}
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">
+              Yo'nalish
+              {isPending && <span className="ml-2 hidden font-medium normal-case tracking-normal text-fg-4 sm:inline">Yangilanmoqda…</span>}
+            </p>
+            {/* Jins — faqat ro'yxatni filtrlaydi (xarita ranglari umumiy) */}
+            <div className="segment shrink-0" role="radiogroup" aria-label="Jins">
+              {GENDER_OPTIONS.map((g) => {
+                const on = (gender ?? "") === g.value;
+                return (
+                  <button
+                    key={g.value || "all"}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    data-active={on}
+                    onClick={() => apply(region, category, g.value ? g.value : null)}
+                    className="segment-item min-h-[34px] !px-3 !py-1 text-[12px]"
+                  >
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div
             ref={catRowRef}
@@ -600,10 +638,15 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                       <CategoryIcon icon={cat.icon} size={11} /> {cat.name}
                     </Badge>
                   )}
+                  {genderInfo && (
+                    <Badge tone="neutral" className="shrink-0">
+                      {genderInfo.label}
+                    </Badge>
+                  )}
                 </div>
                 <p className="mt-1 text-[13px] text-fg-3" aria-live="polite">
                   {regionInfo ? `Markaz: ${regionInfo.capital} · ` : "Eng yuqori reytinglilar · "}
-                  <span className="font-semibold text-fg-2 tabular-nums">{shown}</span> ta mutaxassis
+                  <span className="font-semibold text-fg-2 tabular-nums">{shownLabel}</span> ta mutaxassis
                 </p>
               </div>
             </div>
@@ -695,6 +738,11 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                     Barcha yo'nalishlar
                   </Button>
                 )}
+                {gender && (
+                  <Button variant="outline" size="sm" onClick={() => apply(region, category, null)}>
+                    Barcha jinslar
+                  </Button>
+                )}
                 <ButtonLink href="/auth/royxat?role=specialist" size="sm">
                   <UserPlus size={14} /> Birinchi bo'lish
                 </ButtonLink>
@@ -709,7 +757,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                 {list && list.total > LIMIT ? `Eng yaxshi ${LIMIT} tasi ko'rsatildi` : "Reyting bo'yicha saralangan"}
               </p>
               <ButtonLink href={listHref} variant="accent" size="sm" className="shrink-0 !h-10">
-                Barchasini ko'rish ({shown}) <ArrowRight size={14} />
+                Barchasini ko'rish ({shownLabel}) <ArrowRight size={14} />
               </ButtonLink>
             </div>
           )}

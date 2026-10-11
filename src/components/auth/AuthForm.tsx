@@ -34,19 +34,24 @@ interface ApiFail {
   fields?: Record<string, string>;
 }
 
-/** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11) */
-const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1";
+/** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11); production bundle'ga hech qachon kirmaydi */
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1" && process.env.NODE_ENV !== "production";
 
 const ROLE_OPTIONS: { value: Role; title: string; subtitle: string; icon: typeof Search }[] = [
   { value: "client", title: "Mijozman", subtitle: "Mutaxassis qidiryapman", icon: Search },
   { value: "specialist", title: "Mutaxassisman", subtitle: "Buyurtma olmoqchiman", icon: Clapperboard },
 ];
 
-const DEMO_ACCOUNTS: { label: string; hint: string; email: string; password: string; icon: typeof UserRound }[] = [
-  { label: "Mutaxassis", hint: "Profil, portfolio, buyurtmalar", email: "mutaxassis@redince.uz", password: "demo12345", icon: Clapperboard },
-  { label: "Mijoz", hint: "Qidiruv va buyurtma berish", email: "mijoz@redince.uz", password: "demo12345", icon: UserRound },
-  { label: "Admin", hint: "Boshqaruv paneli", email: "admin@redince.uz", password: "admin12345", icon: ShieldCheck },
-];
+const DEMO_ACCOUNTS: { label: string; hint: string; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
+  ? [
+      { label: "Mutaxassis", hint: "Profil, portfolio, buyurtmalar", email: "mutaxassis@redince.uz", password: "demo12345", icon: Clapperboard },
+      { label: "Mijoz", hint: "Qidiruv va buyurtma berish", email: "mijoz@redince.uz", password: "demo12345", icon: UserRound },
+      { label: "Admin", hint: "Boshqaruv paneli", email: "admin@redince.uz", password: "admin12345", icon: ShieldCheck },
+    ]
+  : [];
+
+/** Matn ichidagi havola uchun 40px bosish maydoni — ko'rinishi o'zgarmaydi (manfiy margin qatorni kengaytirmaydi) */
+const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent transition hover:brightness-110";
 
 const FIELD_ORDER = ["name", "email", "password", "phone"] as const;
 
@@ -327,7 +332,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
           meter={isRegister}
           labelAside={
             !isRegister ? (
-              <Link href="/auth/parol-tiklash" className="font-semibold text-accent transition hover:brightness-110">
+              <Link href="/auth/parol-tiklash" className={INLINE_LINK}>
                 Parolni unutdingizmi?
               </Link>
             ) : undefined
@@ -436,7 +441,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
       {/* ---------- Sahifalar orasidagi havola ---------- */}
       <p className="mt-6 text-center text-[14px] text-fg-2">
         {isRegister ? "Hisobingiz bormi? " : "Hisob yo'qmi? "}
-        <Link href={withNext(isRegister ? "/auth/kirish" : "/auth/royxat", target)} className="font-semibold text-accent transition hover:brightness-110">
+        <Link href={withNext(isRegister ? "/auth/kirish" : "/auth/royxat", target)} className={INLINE_LINK}>
           {isRegister ? "Kirish" : "Ro'yxatdan o'tish"}
         </Link>
       </p>
@@ -447,7 +452,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-fg-3">
             <Wand2 size={13} className="text-accent" />
             Sinab ko'rmoqchimisiz?{" "}
-            <Link href="/auth/kirish" className="font-semibold text-accent">
+            <Link href="/auth/kirish" className={INLINE_LINK}>
               Demo hisob bilan kiring
             </Link>
           </p>

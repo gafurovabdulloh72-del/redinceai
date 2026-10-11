@@ -7,8 +7,8 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { OrderForm } from "@/components/orders/OrderForm";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { isOnVacation } from "@/lib/privacy";
-import { getSpecialistBrief } from "@/lib/queries";
+import { canView, isOnVacation, resolveVisibility, type Viewer } from "@/lib/privacy";
+import { getSpecialistBrief, hasAcceptedOrderWith } from "@/lib/queries";
 import { formatDate, formatPriceRange } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,13 @@ export default async function OrderPage({ params }: { params: Params }) {
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const vacation = isOnVacation(sp.vacationUntil);
+
+  // Shahar — mutaxassisning maxfiylik tanloviga ko'ra (profil sahifasidagi kabi): yopiq bo'lsa hudud markazi
+  const vis = resolveVisibility(sp.visibility);
+  const viewer: Viewer = { userId: user.id, role: user.role, hasOrder: vis.city === "orders" ? await hasAcceptedOrderWith(user.id, sp.id) : false };
+  const cityVisible = canView(vis.city, viewer);
+  const city = cityVisible ? sp.city : (region?.capital ?? sp.city);
+  const cityApprox = !cityVisible && city !== sp.city;
 
   const steps = [
     { icon: MessageSquareText, t: "So'rov mutaxassis kabinetiga tushadi", d: "U qabul qiladi yoki savollar bilan bog'lanadi." },
@@ -105,8 +112,13 @@ export default async function OrderPage({ params }: { params: Params }) {
                 )}
                 <Badge tone="glass">
                   <MapPin size={11} className="text-fg-3" />
-                  {sp.city}
+                  {city}
                   {region && region.slug !== "toshkent-shahri" && ` · ${region.short}`}
+                  {cityApprox && (
+                    <span className="inline-flex items-center gap-0.5 text-fg-4" title="Aniq shahar yashirin — hudud markazi ko'rsatilgan">
+                      <Lock size={10} /> taxminan
+                    </span>
+                  )}
                 </Badge>
                 {vacation ? (
                   <Badge tone="warning">Ta'tilda</Badge>

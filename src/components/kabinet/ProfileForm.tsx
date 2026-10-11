@@ -29,7 +29,9 @@ import {
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "@/components/specialists/SafeImage";
+import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { CATEGORIES, EXPERIENCE_LEVELS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
+import type { ResolvedVisibility } from "@/lib/privacy";
 import { cn, formatPrice } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -103,14 +105,6 @@ const DEFAULT_REGION = "toshkent-shahri";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
-function toAbsolute(url: string) {
-  try {
-    return new URL(url, window.location.origin).toString();
-  } catch {
-    return url;
-  }
-}
-
 function initialState(initial: ProfileInitial | null): FormState {
   return {
     title: initial?.title ?? "",
@@ -178,11 +172,14 @@ export function ProfileForm({
   initial,
   mode,
   ctaFirst = false,
+  visibility = null,
 }: {
   initial: ProfileInitial | null;
   mode: "create" | "edit";
   /** Mijoz uchun: avval «Mutaxassis bo'lish» kartasi, bosilganda forma ochiladi */
   ctaFirst?: boolean;
+  /** Joriy maxfiylik darajalari — aloqa maydonlari yonida «kimga ko'rinadi» belgisi */
+  visibility?: ResolvedVisibility | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!ctaFirst);
@@ -282,7 +279,8 @@ export function ProfileForm({
         setError(json.error);
         return;
       }
-      set({ coverUrl: toAbsolute(json.data.url) });
+      // Server qaytargan yo'l o'zgarishsiz saqlanadi (/uploads/… — domen bazaga yozilmaydi)
+      set({ coverUrl: json.data.url });
     } catch {
       setError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");
     } finally {
@@ -761,9 +759,12 @@ export function ProfileForm({
         <Section icon={Send} title="Aloqa va havolalar" hint="Mijozlar siz bilan qanday bog'lanadi">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor="pf-telegram" className="field-label">
-                Telegram
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="pf-telegram" className="field-label !mb-0">
+                  Telegram
+                </label>
+                {visibility && <VisibilityChip level={visibility.telegram} />}
+              </div>
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[15px] font-medium text-fg-3">@</span>
                 <input id="pf-telegram" className="field pl-9" value={f.telegram} onChange={(e) => set({ telegram: e.target.value })} maxLength={60} placeholder="username" autoComplete="off" aria-invalid={Boolean(errors.telegram)} />
@@ -771,10 +772,13 @@ export function ProfileForm({
               {errors.telegram && <p className="field-error">{errors.telegram}</p>}
             </div>
             <div>
-              <label htmlFor="pf-instagram" className="field-label">
-                <Instagram size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
-                Instagram
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="pf-instagram" className="field-label !mb-0">
+                  <Instagram size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
+                  Instagram
+                </label>
+                {visibility && <VisibilityChip level={visibility.instagram} />}
+              </div>
               <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[15px] font-medium text-fg-3">@</span>
                 <input id="pf-instagram" className="field pl-9" value={f.instagram} onChange={(e) => set({ instagram: e.target.value })} maxLength={60} placeholder="username" autoComplete="off" aria-invalid={Boolean(errors.instagram)} />
@@ -782,18 +786,24 @@ export function ProfileForm({
               {errors.instagram && <p className="field-error">{errors.instagram}</p>}
             </div>
             <div>
-              <label htmlFor="pf-youtube" className="field-label">
-                <Youtube size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
-                YouTube kanal
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="pf-youtube" className="field-label !mb-0">
+                  <Youtube size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
+                  YouTube kanal
+                </label>
+                {visibility && <VisibilityChip level={visibility.youtube} />}
+              </div>
               <input id="pf-youtube" className="field" type="url" inputMode="url" value={f.youtube} onChange={(e) => set({ youtube: e.target.value })} maxLength={300} placeholder="https://youtube.com/@kanal" aria-invalid={Boolean(errors.youtube)} />
               {errors.youtube && <p className="field-error">{errors.youtube}</p>}
             </div>
             <div>
-              <label htmlFor="pf-website" className="field-label">
-                <Globe size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
-                Veb-sayt
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="pf-website" className="field-label !mb-0">
+                  <Globe size={13} className="mr-1 inline -mt-0.5 text-fg-3" />
+                  Veb-sayt
+                </label>
+                {visibility && <VisibilityChip level={visibility.website} />}
+              </div>
               <input id="pf-website" className="field" type="url" inputMode="url" value={f.website} onChange={(e) => set({ website: e.target.value })} maxLength={300} placeholder="https://" aria-invalid={Boolean(errors.website)} />
               {errors.website && <p className="field-error">{errors.website}</p>}
             </div>

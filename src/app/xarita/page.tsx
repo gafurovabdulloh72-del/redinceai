@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { MapExplorer } from "@/components/map/MapExplorer";
 import { PageHeader } from "@/components/ui";
-import { CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { getCategoryStats, getRegionStats } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,8 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
   const categoryParam = first(sp.category);
   const initialRegion = regionParam && REGION_BY_SLUG[regionParam] ? regionParam : null;
   const initialCategory = categoryParam && CATEGORY_BY_SLUG[categoryParam] ? categoryParam : null;
+  const genderParam = first(sp.gender);
+  const initialGender = GENDERS.find((g) => g.value === genderParam)?.value ?? null;
 
   const total = REGIONS.reduce((acc, r) => acc + (stats[r.slug]?.total ?? 0), 0);
 
@@ -45,7 +47,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
       />
 
       <div className="mt-8 sm:mt-10">
-        <MapExplorer stats={stats} categoryStats={categoryStats} initialRegion={initialRegion} initialCategory={initialCategory} />
+        <MapExplorer stats={stats} categoryStats={categoryStats} initialRegion={initialRegion} initialCategory={initialCategory} initialGender={initialGender} />
       </div>
     </div>
   );

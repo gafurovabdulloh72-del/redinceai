@@ -25,9 +25,13 @@ function frac0(n: number) {
 export function formatPrice(amount: number | null | undefined, opts: { compact?: boolean } = {}) {
   if (amount == null) return "—";
   if (opts.compact) {
-    // Kasr ajratuvchi — vergul (formatNumber bilan bir xil): "1,5 mln so'm"
-    if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1).replace(".", ",")} mln so'm`;
-    if (amount >= 1_000) return `${Math.round(amount / 1_000)} ming so'm`;
+    const k = Math.round(amount / 1_000);
+    if (k >= 1_000) {
+      // Kasr ajratuvchi — vergul (formatNumber bilan bir xil): "1,5 mln so'm"; 999 500+ ham "1 mln" ("1000 ming" emas)
+      const m = Math.round(amount / 100_000) / 10;
+      return `${String(m).replace(".", ",")} mln so'm`;
+    }
+    if (amount >= 1_000) return `${k} ming so'm`;
   }
   return `${formatNumber(amount)} so'm`;
 }
@@ -56,6 +60,27 @@ export function slugify(input: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+}
+
+/** O'zbekiston raqamini kanonik "+998XXXXXXXXX" ko'rinishiga keltiradi; boshqa yoki noto'g'ri raqam — null */
+export function normalizeUzPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 9) return `+998${digits}`;
+  if (digits.length === 12 && digits.startsWith("998")) return `+${digits}`;
+  return null;
+}
+
+/** "+998901234567" → "+998 90 123 45 67"; O'zbekiston raqami bo'lmasa — kiritilganicha */
+export function formatUzPhone(raw: string): string {
+  const n = normalizeUzPhone(raw);
+  if (!n) return raw;
+  return `${n.slice(0, 4)} ${n.slice(4, 6)} ${n.slice(6, 9)} ${n.slice(9, 11)} ${n.slice(11)}`;
+}
+
+/** Sana oxirgi `days` kun ichidami ("Yangi" belgisi uchun) */
+export function isRecent(date: Date | number | string, days = 7) {
+  const ms = toMs(date);
+  return Number.isFinite(ms) && Date.now() - ms < days * 24 * 60 * 60 * 1000;
 }
 
 export function initials(name: string) {

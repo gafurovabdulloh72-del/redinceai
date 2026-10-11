@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Compass, Home, LayoutDashboard, LogOut, Map, Settings, ShieldCheck, Users, UserRound } from "lucide-react";
+import { Compass, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationsBell } from "./NotificationsBell";
 import { cn } from "@/lib/utils";
 
 export interface NavUser {
@@ -23,7 +24,7 @@ const NAV = [
   { href: "/mutaxassislar", label: "Mutaxassislar", icon: Users },
 ];
 
-export function NavbarClient({ user }: { user: NavUser | null }) {
+export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -100,6 +101,7 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
+            {user && <NotificationsBell initialUnread={unread} />}
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button
@@ -131,7 +133,7 @@ export function NavbarClient({ user }: { user: NavUser | null }) {
                     {user.role === "specialist" && user.specialistSlug && (
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Mening profilim</MenuItem>
                     )}
-                    <MenuItem href="/kabinet/profil" icon={Settings}>Sozlamalar</MenuItem>
+                    <MenuItem href="/kabinet/profil" icon={UserCog}>Profil</MenuItem>
                     {user.role === "admin" && <MenuItem href="/admin" icon={ShieldCheck}>Admin panel</MenuItem>}
                     <div className="my-1 h-px bg-line" />
                     <button

@@ -136,7 +136,7 @@ export function ResetRequestForm() {
 
       <p className="mt-6 text-center text-[14px] text-fg-2">
         Esladingizmi?{" "}
-        <Link href="/auth/kirish" className="font-semibold text-accent transition hover:brightness-110">
+        <Link href="/auth/kirish" className="inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent transition hover:brightness-110">
           Kirish
         </Link>
       </p>

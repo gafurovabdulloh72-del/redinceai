@@ -226,7 +226,13 @@ export default async function AdminPage() {
           description={`Har bir to'lovdan ${settings.commissionPct}% komissiya platformaga qoladi; qolgani mijoz ishni qabul qilgach mutaxassis balansiga tushadi.`}
         />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.paymentsCount} ta to'lovdan komissiya`} hintTone="success" />
+          <Tile
+            icon={BadgePercent}
+            value={money(finance.revenue)}
+            label="Platforma daromadi"
+            hint={`${finance.paymentsCount} ta yakunlangan to'lovdan${finance.escrowCommission > 0 ? ` · eskrouda yana ${money(finance.escrowCommission)}` : ""}`}
+            hintTone="success"
+          />
           <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint="Qabul qilinishi kutilmoqda" />
           <Tile icon={Landmark} value={money(finance.payoutsPaid)} label="To'langan payoutlar" hint={`O'tkazilgan jami: ${money(finance.released)}`} />
           <Tile icon={Hourglass} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
@@ -335,9 +341,9 @@ export default async function AdminPage() {
                     <Badge tone={ROLE_TONE[u.role]} className="shrink-0">
                       {ROLE_LABEL[u.role]}
                     </Badge>
-                    <span className="hidden w-24 shrink-0 text-right text-[12px] text-fg-3 sm:block" suppressHydrationWarning>
+                    <time dateTime={new Date(u.createdAt).toISOString()} className="hidden w-24 shrink-0 text-right text-[12px] text-fg-3 sm:block" suppressHydrationWarning>
                       {timeAgo(u.createdAt)}
-                    </span>
+                    </time>
                   </li>
                 ))}
               </ul>
@@ -360,7 +366,9 @@ export default async function AdminPage() {
                 {orders.map((o) => (
                   <li key={o.id} className="flex items-center gap-3 px-5 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-semibold text-fg">{o.title}</p>
+                      <Link href={`/admin/buyurtmalar/${o.id}`} className="block truncate text-[14px] font-semibold text-fg transition hover:text-accent">
+                        {o.title}
+                      </Link>
                       <p className="truncate text-[12px] text-fg-3">
                         {o.client} <span className="text-fg-4">→</span>{" "}
                         <Link href={`/mutaxassislar/${o.specialistSlug}`} className="text-fg-2 transition hover:text-accent">
@@ -368,7 +376,9 @@ export default async function AdminPage() {
                         </Link>
                         {o.amount ? ` · ${formatPrice(o.amount, { compact: true })}` : o.budget ? ` · byudjet ${formatPrice(o.budget, { compact: true })}` : ""}
                         {" · "}
-                        <span suppressHydrationWarning>{timeAgo(o.createdAt)}</span>
+                        <time dateTime={new Date(o.createdAt).toISOString()} suppressHydrationWarning>
+                          {timeAgo(o.createdAt)}
+                        </time>
                       </p>
                     </div>
                     <Badge tone={STATUS_TONE[o.status]} className="shrink-0">

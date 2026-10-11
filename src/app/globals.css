@@ -24,13 +24,14 @@
   --fg: #121213;
   --fg-2: #4b4a47;
   --fg-3: #6f6d67; /* AA (4.5+) oq va qog'oz fonida */
-  --fg-4: #8c8982; /* AA katta matn / UI (3+) */
+  --fg-4: #74726c; /* eng och qadam, lekin 11–12px matn uchun ham AA (oq 4.8, surface-2 4.5) */
 
   --line: rgba(18, 18, 19, 0.08);
   --line-2: rgba(18, 18, 19, 0.16);
   --hairline: var(--line);
 
   --accent: #ff5a36;
+  --accent-text: #c23b21; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.3, accent-soft 4.6 (AA) */
   --accent-2: #7b61ff;
   --accent-3: #f0b43c;
   --accent-ink: #ffffff;
@@ -110,13 +111,14 @@
   --fg: #f4f2ec;
   --fg-2: #bdbab2;
   --fg-3: #8d8b84;
-  --fg-4: #6e6c66;
+  --fg-4: #85837c; /* 11px matn ham AA (surface 4.8, surface-2 4.6) */
 
   --line: rgba(255, 255, 255, 0.09);
   --line-2: rgba(255, 255, 255, 0.17);
   --hairline: var(--line);
 
   --accent: #ff6b47;
+  --accent-text: var(--accent); /* qorong'uda coral'ning o'zi 6.5:1 */
   --accent-2: #8f79ff;
   --accent-3: #f5bd4a;
   --accent-ink: #ffffff;
@@ -151,7 +153,7 @@
   --glass-shadow-strong: rgba(0, 0, 0, 0.6);
 
   --map-base: #1b1b22;
-  --map-fill-0: #3a2e2a; /* iliq kulrang — loyqa jigarrang emas */
+  --map-fill-0: #2c2b31; /* neytral: surface-2 va surface-3 orasida, jigarrang ohangsiz */
   --map-line: #0a0a0c;
   --map-slab: #0d0d10;
   --map-slab-top: #15151a;
@@ -184,6 +186,7 @@
   --color-ink-fg: var(--ink-fg);
 
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
   --color-accent-2: var(--accent-2);
   --color-accent-3: var(--accent-3);
   --color-accent-soft: var(--accent-soft);
@@ -574,6 +577,10 @@ select:focus-visible {
   }
   .eyebrow::before {
     content: "";
+    flex: none;
+    /* Matn ikki qatorga o'tsa ham chiziq birinchi qator o'rtasida qoladi (line-height 1.5) */
+    align-self: flex-start;
+    margin-top: calc(0.75em - 0.5px);
     width: 1.5rem;
     height: 1px;
     background: var(--accent);

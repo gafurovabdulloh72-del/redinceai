@@ -28,10 +28,12 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   if (!NEXT[payout.state].includes(input.state)) throw new ApiError(400, `«${PAYOUT_STATE_LABEL[payout.state]}» holatidan «${PAYOUT_STATE_LABEL[input.state]}»ga o'tkazib bo'lmaydi`);
   if (input.state === "rejected" && !input.note?.trim()) throw new ApiError(422, "Rad etish sababini yozing", { note: "Sabab majburiy" });
 
-  // To'lashdan oldin balans yetarliligini qayta tekshiramiz (o'rtada qaytarish bo'lgan bo'lishi mumkin)
+  // To'lashdan oldin balans yetarliligini qayta tekshiramiz (o'rtada qaytarish bo'lgan bo'lishi mumkin).
+  // `available` 0 dan pastga tushmaydi (clamp), shuning uchun qoplamani boshqa ochiq so'rovlarni ayirib, o'zini qo'shib hisoblaymiz.
   if (input.state === "paid" || input.state === "approved") {
     const b = await getSpecialistBalance(payout.specialistId);
-    if (b.available + payout.amount < payout.amount) throw new ApiError(400, `Mutaxassis balansi yetarli emas (mavjud: ${formatPrice(b.available + payout.amount)})`);
+    const cover = b.released - b.paidOut - (b.pendingPayouts - payout.amount);
+    if (cover < payout.amount) throw new ApiError(400, `Mutaxassis balansi yetarli emas (mavjud: ${formatPrice(Math.max(0, cover))})`);
   }
 
   const now = new Date();

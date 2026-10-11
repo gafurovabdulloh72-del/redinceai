@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
-import { users, type User } from "./db/schema";
+import { rateLimits, users, type User } from "./db/schema";
 import { safeInternalPath } from "./utils";
 
 export { hashPassword, verifyPassword } from "./security/password";
@@ -16,14 +16,40 @@ const REMEMBER_DAYS = 30;
 const SHORT_HOURS = 24;
 const ROLES: ReadonlyArray<User["role"]> = ["client", "specialist", "admin"];
 
+/** .env.example / dev namunaviy qiymatlar — productionda haqiqiy kalit sifatida qabul qilinmaydi */
+const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+/** Jarayon bo'yicha bir marta (dev'da modul har route uchun qayta yuklanadi — globalThis'da saqlaymiz) */
+const warnFlag = globalThis as { __redinceSecretWarned?: boolean };
+function warnSecretOnce(msg: string) {
+  if (warnFlag.__redinceSecretWarned) return;
+  warnFlag.__redinceSecretWarned = true;
+  console.warn(`[auth] ${msg}`);
+}
+
+/**
+ * JWT imzo kaliti (src/middleware.ts secret() bilan bir xil mantiq — ikkalasini birga o'zgartiring).
+ * Qisqa (<16) yoki namunaviy ("change-me…") AUTH_SECRET productionda e'tiborga olinmaydi va bir marta
+ * ogohlantiriladi; dev'da namunaviy qiymat ishlatilaveradi (sessiyalar saqlanib qolsin).
+ */
 function secret() {
+  const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET;
-  if (s && s.length >= 16) return new TextEncoder().encode(s);
+  if (s) {
+    if (s.length < 16) warnSecretOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
+    else if (!PLACEHOLDER_SECRET.test(s)) return new TextEncoder().encode(s);
+    else if (!prod) {
+      warnSecretOnce("AUTH_SECRET namunaviy qiymat — productionda rad etiladi. `openssl rand -base64 48` bilan yarating");
+      return new TextEncoder().encode(s);
+    } else warnSecretOnce("AUTH_SECRET namunaviy (.env.example) qiymat — e'tiborga olinmadi");
+  }
   // AUTH_SECRET berilmagan bo'lsa: Turso tokenidan barqaror, maxfiy kalit hosil qilamiz
   // (token maxfiy va deploylar orasida o'zgarmaydi — sessiyalar saqlanib qoladi)
   const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
-  if (derived && derived.length >= 16) return new TextEncoder().encode(`redince-session-v1:${derived}`);
-  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan");
+  if (derived && derived.length >= 16) {
+    warnSecretOnce("AUTH_SECRET yo'q — sessiya kaliti Turso tokenidan hosil qilinmoqda; token almashsa barcha sessiyalar bekor bo'ladi");
+    return new TextEncoder().encode(`redince-session-v1:${derived}`);
+  }
+  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan");
   return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
 }
 
@@ -35,6 +61,10 @@ export interface SessionPayload {
   sv: number;
   /** "Meni eslab qolish" tanlangan (30 kunlik cookie) */
   remember: boolean;
+  /** JWT berilgan vaqt (soniya) — "Chiqish"da aynan shu tokenni bekor qilish kaliti */
+  iat?: number;
+  /** JWT amal qilish muddati (soniya) */
+  exp?: number;
 }
 
 export interface CreateSessionOptions {
@@ -95,14 +125,45 @@ export async function bumpSessionVersion(userId: string): Promise<number> {
 
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
     if (!payload.sub) return null;
     const role = ROLES.includes(payload.role as User["role"]) ? (payload.role as User["role"]) : "client";
     const sv = typeof payload.sv === "number" ? payload.sv : 0;
-    return { sub: payload.sub, role, name: String(payload.name ?? ""), sv, remember: payload.rm !== false };
+    return {
+      sub: payload.sub,
+      role,
+      name: String(payload.name ?? ""),
+      sv,
+      remember: payload.rm !== false,
+      iat: typeof payload.iat === "number" ? payload.iat : undefined,
+      exp: typeof payload.exp === "number" ? payload.exp : undefined,
+    };
   } catch {
     return null;
   }
+}
+
+/** Bekor qilingan token kaliti (rate_limits jadvali — sxema o'zgarishisiz; resetAt = exp, sweep o'zi tozalaydi) */
+function revokedKey(session: SessionPayload): string | null {
+  return session.iat == null ? null : `revoked:${session.sub}:${session.iat}`;
+}
+
+/**
+ * "Chiqish": aynan shu token (sub+iat) muddati tugaguncha bekor qilinadi — cookie nusxasi ham ishlamaydi.
+ * sessionVersion o'zgarmaydi: boshqa qurilmalar kirgan holda qoladi ("Barcha qurilmalardan chiqish" alohida).
+ */
+export async function revokeSession(session: SessionPayload): Promise<void> {
+  const key = revokedKey(session);
+  if (!key) return;
+  const expSec = session.exp ?? Math.floor(Date.now() / 1000) + REMEMBER_DAYS * 24 * 60 * 60;
+  await db.insert(rateLimits).values({ key, count: 1, resetAt: expSec * 1000 }).onConflictDoNothing();
+}
+
+async function isRevoked(session: SessionPayload): Promise<boolean> {
+  const key = revokedKey(session);
+  if (!key) return false;
+  const row = await db.query.rateLimits.findFirst({ where: eq(rateLimits.key, key), columns: { resetAt: true } });
+  return Boolean(row && row.resetAt > Date.now());
 }
 
 /** Faqat JWT'dagi ma'lumot (bazaga murojaat qilmaydi). Bitta so'rov ichida keshlanadi. */
@@ -149,7 +210,7 @@ export const getVerifiedSession = cache(async (): Promise<SessionPayload | null>
     where: eq(users.id, session.sub),
     columns: { id: true, role: true, name: true, sessionVersion: true },
   });
-  if (!row || row.sessionVersion !== session.sv) {
+  if (!row || row.sessionVersion !== session.sv || (await isRevoked(session))) {
     await onStaleSession();
     return null;
   }
@@ -168,7 +229,7 @@ export const getCurrentUser = cache(async () => {
     columns: { passwordHash: false },
     with: { specialist: true },
   });
-  if (!user || user.sessionVersion !== session.sv) {
+  if (!user || user.sessionVersion !== session.sv || (await isRevoked(session))) {
     await onStaleSession();
     return null;
   }

@@ -17,6 +17,7 @@ import {
   Pencil,
   Phone,
   Play,
+  RotateCcw,
   Search,
   Send,
   ShieldCheck,
@@ -50,6 +51,10 @@ export interface OrderItem {
   /** ms timestamp */
   createdAt: number;
   updatedAt: number;
+  /** Mutaxassis ID (mijoz ko'rinishida «Yana buyurtma berish» uchun) */
+  specialistId?: string | null;
+  /** Buyurtmaning ochiq to'lovi: created — davom ettirish mumkin, pending — tasdiq kutilmoqda */
+  openPayment?: { id: string; provider: PaymentProvider; state: "created" | "pending" } | null;
   /** Qarshi tomon: mutaxassis uchun — mijoz, mijoz uchun — mutaxassis */
   counterpart: {
     name: string;
@@ -515,6 +520,39 @@ function AmountForm({
 }
 
 /* ------------------------------------------------------------------ */
+/* Jarayon chizig'i: Yangi → Qabul qilindi → Jarayonda → Bajarildi     */
+/* ------------------------------------------------------------------ */
+const STEPS = ORDER_STATUSES.filter((s): s is Exclude<OrderStatus, "cancelled"> => s !== "cancelled");
+
+function OrderSteps({ status, paymentState }: { status: OrderStatus; paymentState: OrderPaymentState }) {
+  const cancelled = status === "cancelled";
+  const current = cancelled ? -1 : STEPS.indexOf(status);
+  const last = STEPS.length - 1;
+  return (
+    <ol className={cn("mt-3 flex items-start", cancelled && "opacity-60")} aria-label="Buyurtma bosqichlari">
+      {STEPS.map((s, i) => {
+        const done = !cancelled && i < current;
+        const active = !cancelled && i === current;
+        const finished = active && i === last && (paymentState === "released" || paymentState === "none" || paymentState === "refunded");
+        return (
+          <li key={s} className="relative flex min-w-0 flex-1 flex-col items-center gap-1.5" aria-current={active ? "step" : undefined}>
+            {i > 0 && <span className={cn("absolute right-1/2 top-[5px] h-[2px] w-full", done || active ? "bg-fg" : "bg-line-2")} aria-hidden="true" />}
+            <span
+              className={cn(
+                "relative z-[1] flex h-3 w-3 items-center justify-center rounded-full border-2",
+                done || finished ? "border-fg bg-fg" : active ? "border-accent bg-accent ring-4 ring-accent-soft" : "border-line-2 bg-surface",
+              )}
+              aria-hidden="true"
+            />
+            <span className={cn("max-w-full truncate px-0.5 text-[10px] font-semibold leading-none sm:text-[11px]", active ? "text-fg" : done ? "text-fg-2" : "text-fg-4", cancelled && "line-through")}>{ORDER_STATUS_LABEL[s]}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Bitta buyurtma kartasi                                              */
 /* ------------------------------------------------------------------ */
 function OrderCard({
@@ -568,9 +606,14 @@ function OrderCard({
   const isSpecialist = tab === "incoming";
   const active = o.status === "accepted" || o.status === "in_progress";
   const showPayment = o.amount != null || o.paymentState !== "none";
-  const canSetAmount = isSpecialist && active && (o.paymentState === "none" || o.paymentState === "awaiting");
+  /** /api/orders/[id]/amount bilan bir xil: qabul qilingan/jarayonda, yoki yakunlangan-u mijoz hali qabul qilmagan */
+  const canSetAmount = isSpecialist && (active || (o.status === "done" && !o.completedAt)) && (o.paymentState === "none" || o.paymentState === "awaiting");
   const canPay = !isSpecialist && o.paymentState === "awaiting" && o.amount != null && o.status !== "cancelled";
-  const canAccept = !isSpecialist && o.status === "done" && !o.completedAt && o.paymentState !== "released";
+  /** Qabul qilish: eskroudagi pul bo'lsa (qabuldan keyin to'langan bo'lsa ham) — pulni o'tkazish; aks holda faqat hali yakunlanmagan, qaytarilmagan buyurtma */
+  const canAccept = !isSpecialist && o.status === "done" && (o.paymentState === "paid" || (!o.completedAt && o.paymentState !== "released" && o.paymentState !== "refunded"));
+  const openPayment = canPay ? (o.openPayment ?? null) : null;
+  const pendingPayment = openPayment?.state === "pending" ? openPayment : null;
+  const canReorder = !isSpecialist && closed && Boolean(o.specialistId);
   const net = o.amount != null ? o.amount - Math.round((o.amount * commissionPct) / 100) : null;
 
   return (
@@ -589,12 +632,14 @@ function OrderCard({
           </Badge>
           {showPayment && o.paymentState !== "none" && <Badge tone={ORDER_PAYMENT_TONE[o.paymentState]}>{ORDER_PAYMENT_STATE_LABEL[o.paymentState]}</Badge>}
         </div>
-        <span className="shrink-0 text-[12px] text-fg-4" title={formatDateTime(o.createdAt)} suppressHydrationWarning>
+        <time dateTime={new Date(o.createdAt).toISOString()} className="shrink-0 text-[12px] text-fg-4" title={formatDateTime(o.createdAt)} suppressHydrationWarning>
           {timeAgo(o.createdAt)}
-        </span>
+        </time>
       </div>
 
       <h3 className="mt-2.5 text-[17px] font-semibold leading-snug text-fg">{o.title}</h3>
+
+      <OrderSteps status={o.status} paymentState={o.paymentState} />
 
       {/* Qarshi tomon */}
       <div className="mt-3 flex items-center gap-2.5">
@@ -658,10 +703,14 @@ function OrderCard({
             <p className="font-display text-[18px] font-semibold leading-tight text-fg">{o.amount != null ? formatPrice(o.amount) : "—"}</p>
             {o.amount != null && (
               <p className="mt-0.5 text-[12px] text-fg-3">
-                {isSpecialist ? (
+                {o.status === "cancelled" ? (
+                  o.paymentState === "paid" ? "Buyurtma bekor qilingan — pul admin tomonidan qaytariladi" : o.paymentState === "refunded" ? (isSpecialist ? "Pul mijozga qaytarildi" : "Pul sizga qaytarildi") : "Buyurtma bekor qilingan — to'lov talab qilinmaydi"
+                ) : isSpecialist ? (
                   <>
                     Xizmat haqi {commissionPct}% · sizga <span className="font-semibold text-fg-2">{formatPrice(net ?? 0)}</span>
                   </>
+                ) : pendingPayment ? (
+                  pendingPayment.provider === "manual" ? "O'tkazma haqida xabar oldik — admin tasdig'i kutilmoqda" : "To'lov provayder tomonida tekshirilmoqda"
                 ) : o.paymentState === "paid" ? (
                   "Pul eskrouda — ish qabul qilingach mutaxassisga o'tadi"
                 ) : o.paymentState === "released" ? (
@@ -674,8 +723,14 @@ function OrderCard({
               </p>
             )}
           </div>
-          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]", o.paymentState === "paid" || o.paymentState === "released" ? "bg-success-soft text-success" : "bg-fg/6 text-fg-3")} aria-hidden="true">
-            {o.paymentState === "paid" || o.paymentState === "released" ? <ShieldCheck size={17} /> : <Hourglass size={16} />}
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]",
+              o.paymentState === "paid" || o.paymentState === "released" ? "bg-success-soft text-success" : pendingPayment ? "bg-warning-soft text-warning" : "bg-fg/6 text-fg-3",
+            )}
+            aria-hidden="true"
+          >
+            {o.paymentState === "paid" || o.paymentState === "released" ? <ShieldCheck size={17} /> : o.status === "cancelled" ? <Ban size={16} /> : <Hourglass size={16} />}
           </span>
         </div>
       )}
@@ -738,8 +793,24 @@ function OrderCard({
           ) : (
             <div className="flex flex-col gap-3">
               {canSetAmount && <AmountForm key={`${o.id}-${o.amount ?? "none"}`} order={o} commissionPct={commissionPct} minOrderAmount={minOrderAmount} busy={busy} onSave={onSetAmount} />}
-              <div className="flex flex-wrap gap-2">
-                {canPay && o.amount != null && <PayButton orderId={o.id} amount={o.amount} providers={providers} />}
+              <div className="flex flex-wrap items-center gap-2">
+                {pendingPayment ? (
+                  <>
+                    <Badge tone="warning" className="!py-2 !text-[12px]">
+                      <Hourglass size={12} /> {pendingPayment.provider === "manual" ? "O'tkazma tasdiq kutilmoqda" : "To'lov tekshirilmoqda"}
+                    </Badge>
+                    <Link href={`/tolov/natija?payment=${pendingPayment.id}`} className="inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
+                      Holatni ko'rish <ArrowRight size={14} />
+                    </Link>
+                  </>
+                ) : (
+                  canPay && o.amount != null && <PayButton orderId={o.id} amount={o.amount} providers={providers} />
+                )}
+                {openPayment?.state === "created" && (
+                  <Link href={`/tolov/${openPayment.id}`} className="inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
+                    Davom etish <ArrowRight size={14} />
+                  </Link>
+                )}
                 {canAccept && (
                   <Button size="md" variant={o.paymentState === "paid" ? "accent" : "primary"} onClick={() => onAcceptAsk(true)} disabled={busy}>
                     <CheckCircle2 size={15} /> Ishni qabul qilish
@@ -775,7 +846,7 @@ function OrderCard({
       {/* Yakuniy izohlar */}
       {!isSpecialist && o.status === "done" && !canAccept && (
         <p className="mt-4 border-t border-line pt-3 text-[12px] text-fg-3">
-          {o.paymentState === "released" ? "Ish qabul qilindi, pul mutaxassisga o'tkazildi." : "Buyurtma yakunlangan."}
+          {o.paymentState === "released" ? "Ish qabul qilindi, pul mutaxassisga o'tkazildi." : o.paymentState === "refunded" ? "Buyurtma yakunlangan, to'lov sizga qaytarilgan." : "Buyurtma yakunlangan."}
           {o.completedAt ? ` · ${formatDate(o.completedAt)}` : ` · ${formatDate(o.updatedAt)}`}
         </p>
       )}
@@ -796,6 +867,15 @@ function OrderCard({
           {" · "}
           {formatDate(o.updatedAt)}
         </p>
+      )}
+
+      {/* Mijoz: yopilgan buyurtma — o'sha mutaxassisga bir bosishda yangi buyurtma */}
+      {canReorder && !canAccept && (
+        <div className="mt-3">
+          <ButtonLink href={`/buyurtma/${o.specialistId}`} variant="outline" size="sm">
+            <RotateCcw size={14} /> Yana buyurtma berish
+          </ButtonLink>
+        </div>
       )}
     </article>
   );

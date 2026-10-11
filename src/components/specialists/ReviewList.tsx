@@ -1,6 +1,7 @@
 import { MessageSquareText, Star } from "lucide-react";
 import { Avatar, EmptyState, Stars } from "@/components/ui";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { ReviewDeleteButton } from "./ReviewDeleteButton";
 
 export interface ReviewListItem {
   id: string;
@@ -65,7 +66,18 @@ export function ReviewSummary({
  * Sharhlar ro'yxati (server va client'da ishlaydi).
  * Har bir sharh — alohida karta: avatar, ism, yulduzlar, vaqt va matn.
  */
-export function ReviewList({ reviews, highlightAuthorId }: { reviews: ReviewListItem[]; highlightAuthorId?: string | null }) {
+export function ReviewList({
+  reviews,
+  highlightAuthorId,
+  specialistId,
+  canModerate = false,
+}: {
+  reviews: ReviewListItem[];
+  highlightAuthorId?: string | null;
+  /** Moderatsiya (admin): har bir sharh yonida "O'chirish" — specialistId bilan birga beriladi */
+  specialistId?: string;
+  canModerate?: boolean;
+}) {
   if (reviews.length === 0) {
     return (
       <EmptyState
@@ -94,9 +106,12 @@ export function ReviewList({ reviews, highlightAuthorId }: { reviews: ReviewList
                     {r.author.name}
                     {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">Siz</span>}
                   </p>
-                  <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
-                    {timeAgo(r.createdAt)}
-                  </time>
+                  <span className="flex items-center gap-2">
+                    <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
+                      {timeAgo(r.createdAt)}
+                    </time>
+                    {canModerate && specialistId && r.authorId && <ReviewDeleteButton specialistId={specialistId} authorId={r.authorId} />}
+                  </span>
                 </div>
                 <div className="mt-1">
                   <Stars value={r.rating} size={13} showValue={false} />

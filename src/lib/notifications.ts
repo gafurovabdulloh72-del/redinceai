@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
 import { uid } from "@/lib/utils";
@@ -49,9 +49,20 @@ export async function notify(userId: string, type: NotificationType, title: stri
   }
 }
 
-/** Barcha adminlarga bir xil bildirishnoma (qo'lda to'lov, qaytarish, payout so'rovi) */
-export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null): Promise<void> {
+/**
+ * Barcha adminlarga bir xil bildirishnoma (qo'lda to'lov, qaytarish, payout so'rovi).
+ * `dedupeMs` berilsa, shu muddat ichida bir xil (tur + sarlavha + matn) xabar bo'lsa qayta yozilmaydi —
+ * provayder takroriy chaqiruvlari (masalan Payme CancelTransaction) adminni xabar bilan to'ldirmasin.
+ */
+export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null, opts: { dedupeMs?: number } = {}): Promise<void> {
   try {
+    if (opts.dedupeMs) {
+      const dup = await db.query.notifications.findFirst({
+        where: and(eq(notifications.type, type), eq(notifications.title, title.slice(0, 160)), gt(notifications.createdAt, new Date(Date.now() - opts.dedupeMs))),
+        columns: { id: true },
+      });
+      if (dup) return;
+    }
     const admins = await db.query.users.findMany({ where: eq(users.role, "admin"), columns: { id: true } });
     await Promise.all(admins.map((a) => notify(a.id, type, title, body, href)));
   } catch (e) {

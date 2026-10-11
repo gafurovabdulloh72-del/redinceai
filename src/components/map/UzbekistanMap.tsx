@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
  * - variant="hero": perspektiva bilan qiyshaytirilgan, sichqonchaga ergashadi
  * - Yorliqlar: oddiy kollziya tekshiruvi (ustma-ust tushsa pastga suriladi), 640px'dan tor xaritada yashirin
  * - A11y: <svg> ichidagi har bir hudud role="button" (svg'ning o'zi role="img" EMAS — ichidagi tugmalar AT uchun ochiq)
+ * - Bosish maydoni: kichik hududlar (Toshkent sh., Sirdaryo) ekranda <32px bo'lsa, markazida ko'rinmas
+ *   ≥40px disk; hero'dagi son pill'lari va yorliqlar ham o'z hududini tanlaydi (qo'shni hududni emas)
  */
 
 const LABEL_OFFSET: Record<string, [number, number]> = {
@@ -70,6 +72,26 @@ export interface UzbekistanMapProps {
 
 const SLAB = 18; // plita qalinligi (viewBox birligida)
 const LABEL_MIN_WIDTH = 640; // shu kenglikdan tor xaritada yorliqlar yashiriladi (px)
+const HIT_MIN_PX = 32; // hudud ekranda shundan kichik bo'lsa — qo'shimcha bosish diski
+const HIT_DISC_PX = 40; // diskning ekrandagi diametri (px)
+
+/** Har bir hudud konturining kichik tomoni (viewBox birligida) — yo'l nuqtalaridan bir marta hisoblanadi */
+const REGION_SIZE: Record<string, number> = Object.fromEntries(
+  REGION_SHAPES.map((r) => {
+    const nums = r.d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      minX = Math.min(minX, nums[i]);
+      maxX = Math.max(maxX, nums[i]);
+      minY = Math.min(minY, nums[i + 1]);
+      maxY = Math.max(maxY, nums[i + 1]);
+    }
+    return [r.slug, nums.length ? Math.min(maxX - minX, maxY - minY) : Infinity];
+  }),
+);
 
 export function UzbekistanMap({
   stats,
@@ -149,7 +171,7 @@ export function UzbekistanMap({
     const py = (e.clientY - r.top) / r.height - 0.5;
     setTilt({ x: px, y: py });
   };
-  const onRegionPointerDown = (e: PointerEvent<SVGPathElement>, slug: string) => {
+  const onRegionPointerDown = (e: PointerEvent<SVGElement>, slug: string) => {
     if (e.pointerType !== "touch") return;
     const r = wrap.current?.getBoundingClientRect();
     if (!r) return;
@@ -179,6 +201,22 @@ export function UzbekistanMap({
 
   const vb = `-24 -24 ${MAP_VIEWBOX.width + 48} ${MAP_VIEWBOX.height + 48 + SLAB}`;
   const labelsOn = showLabels && !isHero && !compact && width >= LABEL_MIN_WIDTH;
+
+  /* Ekran piksel / viewBox birligi — kichik hududlar uchun bosish diski o'lchami */
+  const pxPerUnit = width > 0 ? width / (MAP_VIEWBOX.width + 48) : 0.6;
+  const hitR = HIT_DISC_PX / 2 / pxPerUnit;
+  const smallRegions = REGION_SHAPES.filter((r) => REGION_SIZE[r.slug] * pxPerUnit < HIT_MIN_PX);
+
+  /** Markerlar/yorliqlar/disklar uchun umumiy qo'l: hover + sensor + bosish (yo'l bilan bir xil oqim) */
+  const hitProps = (slug: string) => ({
+    pointerEvents: "all" as const,
+    className: "cursor-pointer",
+    onMouseEnter: () => {
+      if (!touchTip.current) setHover(slug);
+    },
+    onPointerDown: (e: PointerEvent<SVGElement>) => onRegionPointerDown(e, slug),
+    onClick: () => onRegionClick(slug),
+  });
 
   /* Yorliq joylashuvi (kollziya tekshiruvi bilan) */
   const labels = useMemo(() => {
@@ -338,7 +376,7 @@ export function UzbekistanMap({
                   <circle r={base} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45 + 1.2}s` }} />
                   <circle r={base * 0.55} fill={isSel ? "#fff" : "var(--accent)"} stroke="var(--map-base)" strokeWidth={2} />
                   {isHero && topSlugs.includes(r.slug) && (
-                    <g transform={`translate(${(LABEL_OFFSET[r.slug]?.[0] ?? 0) + base + 6}, ${(LABEL_OFFSET[r.slug]?.[1] ?? 0) * 0.6})`}>
+                    <g transform={`translate(${(LABEL_OFFSET[r.slug]?.[0] ?? 0) + base + 6}, ${(LABEL_OFFSET[r.slug]?.[1] ?? 0) * 0.6})`} {...hitProps(r.slug)}>
                       <rect x={0} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
                       <text x={pillW / 2} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
                         {n}
@@ -354,7 +392,7 @@ export function UzbekistanMap({
           {labels && (
             <g pointerEvents="none" aria-hidden="true">
               {labels.map((l) => (
-                <g key={l.slug} transform={`translate(${l.x}, ${l.y})`}>
+                <g key={l.slug} transform={`translate(${l.x}, ${l.y})`} {...hitProps(l.slug)}>
                   <rect x={-l.w / 2} y={-11} width={l.w} height={22} rx={11} fill="var(--map-label-bg)" stroke="var(--line-2)" />
                   <text textAnchor="middle" dominantBaseline="central" fontSize={11.5} fontWeight={600} fill="var(--fg)" style={{ letterSpacing: "-0.01em" }}>
                     {l.label}
@@ -366,6 +404,15 @@ export function UzbekistanMap({
                     )}
                   </text>
                 </g>
+              ))}
+            </g>
+          )}
+
+          {/* Kichik hududlar uchun ko'rinmas bosish disklari (yo'llar o'zi AT uchun tugma bo'lib qoladi) */}
+          {smallRegions.length > 0 && (
+            <g aria-hidden="true">
+              {smallRegions.map((r) => (
+                <circle key={r.slug} cx={r.cx} cy={r.cy} r={hitR} fill="transparent" {...hitProps(r.slug)} />
               ))}
             </g>
           )}

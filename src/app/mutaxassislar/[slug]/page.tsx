@@ -31,7 +31,7 @@ import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE } from "@/lib/constants";
 import { GUEST_VIEWER, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
-import { bumpViewCount, getSimilarSpecialists, getSpecialistBySlug, hasAcceptedOrderWith, ratingDistribution } from "@/lib/queries";
+import { bumpViewCount, countCompletedOrders, getSimilarSpecialists, getSpecialistBySlug, hasAcceptedOrderWith, ratingDistribution } from "@/lib/queries";
 import { cn, formatDate, formatNumber, formatPriceRange } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -113,7 +113,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   const sp = filterSpecialistForViewer(raw, effectiveViewer);
   const vis = resolveVisibility(raw.visibility);
-  const similar = await getSimilarSpecialists(raw, 4, effectiveViewer);
+  // O'xshashlar — umumiy ko'ruvchi konteksti: isOwner/hasOrder faqat SHU profilga nisbatan, boshqa profillarga o'tkazilmaydi
+  const [similar, completedOrders] = await Promise.all([
+    getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }),
+    countCompletedOrders(raw.id),
+  ]);
 
   // Ko'rishlar soni: egasi (shu jumladan preview) va botlar hisoblanmaydi; natijani kutmaymiz
   if (!isOwner && !isBotUserAgent(hdrs.get("user-agent"))) {
@@ -125,7 +129,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   }
 
   const myReview = viewer ? raw.reviews.find((r) => r.authorId === viewer.id) : null;
-  const canReview = Boolean(viewer) && !isOwner;
+  // Sharh — faqat shu mutaxassis bilan qabul qilingan buyurtmasi borlardan (server ham tekshiradi); mavjud sharh tahrirlanaveradi
+  const canReview = Boolean(viewer) && !isOwner && (hasOrder || Boolean(myReview));
+  const needsOrder = Boolean(viewer) && !isOwner && !canReview;
   const profilePath = `/mutaxassislar/${raw.slug}`;
   const loginHref = `/auth/kirish?next=${encodeURIComponent(profilePath)}`;
   // Sharh uchun kirish — login sahifasi kontekstli xabar ko'rsatadi (A23)
@@ -199,20 +205,21 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       )}
 
       {/* ================= BREADCRUMB ================= */}
+      {/* Telefonda o'rta bo'g'in (kategoriya) yashiriladi — joriy sahifa nomi (ism) qisqarmasin */}
       <nav aria-label="Yo'l" className="no-scrollbar mb-5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[14px] font-medium text-fg-3">
-        <Link href="/mutaxassislar" className="shrink-0 transition hover:text-fg">
+        <Link href="/mutaxassislar" className="inline-flex min-h-8 shrink-0 items-center transition hover:text-fg">
           Mutaxassislar
         </Link>
         <ChevronRight size={14} aria-hidden className="shrink-0 text-fg-4" />
         {cat && (
           <>
-            <Link href={`/mutaxassislar?category=${cat.slug}`} className="shrink-0 transition hover:text-fg">
+            <Link href={`/mutaxassislar?category=${cat.slug}`} className="hidden min-h-8 shrink-0 items-center transition hover:text-fg sm:inline-flex">
               {cat.plural}
             </Link>
-            <ChevronRight size={14} aria-hidden className="shrink-0 text-fg-4" />
+            <ChevronRight size={14} aria-hidden className="hidden shrink-0 text-fg-4 sm:block" />
           </>
         )}
-        <span className="truncate text-fg" aria-current="page">
+        <span className="min-w-0 truncate text-fg" aria-current="page">
           {sp.user.name}
         </span>
       </nav>
@@ -272,7 +279,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                     </span>
                   )}
                 </span>
-                <Stars value={sp.rating} count={sp.reviewCount} size={13} />
+                {sp.reviewCount > 0 ? (
+                  <Stars value={sp.rating} count={sp.reviewCount} size={13} />
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Stars value={0} size={13} showValue={false} />
+                    <span className="text-[12px] font-medium text-fg-3">Hali baholanmagan</span>
+                  </span>
+                )}
               </p>
             </div>
             {showOwnerCta && (
@@ -396,6 +410,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               <ReviewForm
                 specialistId={raw.id}
                 canReview={canReview && !previewMode}
+                needsOrder={needsOrder}
+                orderHref={orderHref}
                 isOwner={isOwner}
                 existing={myReview ? { rating: myReview.rating, text: myReview.text } : null}
                 loginHref={reviewLoginHref}
@@ -410,6 +426,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   author: r.author,
                 }))}
                 highlightAuthorId={viewer?.id ?? null}
+                specialistId={raw.id}
+                canModerate={isAdmin && !isOwner}
               />
             </div>
           </section>
@@ -432,9 +450,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {!showOwnerCta && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}
               {!showOwnerCta && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangiz navbatga qo'yiladi.</p>}
 
-              <ul className="mt-5 grid grid-cols-3 divide-x divide-line border-t border-line pt-4 text-center">
+              {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
+              <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
                 <li>
-                  <p className="font-display text-[17px] font-semibold text-fg">{sp.rating > 0 ? sp.rating.toFixed(1) : "—"}</p>
+                  <p className="font-display text-[17px] font-semibold text-fg">
+                    {sp.rating > 0 ? sp.rating.toFixed(1) : <span className="text-[13px] font-medium text-fg-3">Hali yo'q</span>}
+                  </p>
                   <p className="text-[11px] text-fg-3">Reyting</p>
                 </li>
                 <li>
@@ -445,6 +466,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   <p className="font-display text-[17px] font-semibold text-fg">{sp.portfolio.length}</p>
                   <p className="text-[11px] text-fg-3">Ish</p>
                 </li>
+                {completedOrders > 0 && (
+                  <li title="Platforma orqali bajarilgan buyurtmalar">
+                    <p className="font-display text-[17px] font-semibold text-fg">{completedOrders}</p>
+                    <p className="text-[11px] text-fg-3">Buyurtma</p>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -516,7 +543,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                         <span className="truncate font-display text-[12px] font-semibold text-fg">{formatPriceRange(s.priceFrom, s.priceTo)}</span>
                         <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-fg-2" aria-label={s.rating > 0 ? `Reyting ${s.rating.toFixed(1)}` : "Hali baholanmagan"}>
                           <Star size={11} className={s.rating > 0 ? "fill-accent-3 text-accent-3" : "text-fg-4"} />
-                          {s.rating > 0 ? s.rating.toFixed(1) : "—"}
+                          {s.rating > 0 ? s.rating.toFixed(1) : <span className="font-medium text-fg-3">Hali yo'q</span>}
                         </span>
                       </div>
                     </div>

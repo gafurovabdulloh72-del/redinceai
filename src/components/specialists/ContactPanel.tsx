@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Globe, Instagram, Lock, LogIn, Mail, Phone, Send, Youtube, type LucideIcon } from "lucide-react";
 import { LOCK_LABEL, type Locked, type LockReason } from "@/lib/privacy";
-import { cn } from "@/lib/utils";
+import { cn, formatUzPhone, normalizeUzPhone } from "@/lib/utils";
 
 export interface ContactValues {
   telegram: string | null;
@@ -47,7 +47,8 @@ export function buildContactRows(c: ContactValues, locked: Locked): Row[] {
     if (v) rows.push({ key, label, icon, ...present(v) });
     else if (locked[key]) rows.push({ key, label, icon, lock: locked[key] });
   };
-  push("phone", "Telefon", Phone, (v) => ({ value: v, href: `tel:${v.replace(/[^\d+]/g, "")}` }));
+  // Ko'rsatishda "+998 90 123 45 67", tel: havolada kanonik raqam (eski yozuvlar ham bir xil ko'rinadi)
+  push("phone", "Telefon", Phone, (v) => ({ value: formatUzPhone(v), href: `tel:${normalizeUzPhone(v) ?? v.replace(/[^\d+]/g, "")}` }));
   push("telegram", "Telegram", Send, (v) => ({ value: `@${handle(v)}`, href: `https://t.me/${handle(v)}`, external: true }));
   push("instagram", "Instagram", Instagram, (v) => ({ value: `@${handle(v)}`, href: `https://instagram.com/${handle(v)}`, external: true }));
   push("youtube", "YouTube", Youtube, (v) => ({ value: prettyUrl(v), href: v, external: true }));

@@ -2,10 +2,11 @@ import "server-only";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, type Payment } from "@/lib/db/schema";
-import { uid } from "@/lib/utils";
+import { notifyAdmins } from "@/lib/notifications";
+import { formatPrice, uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { isPayable, markPaid, refundPayment } from "./service";
+import { findInFlightProviderPayment, isPayable, markPaid, refundPayment } from "./service";
 
 /**
  * Payme Merchant API (JSON-RPC 2.0). Hujjat: developer.help.paycom.uz
@@ -104,12 +105,26 @@ async function validateAccount(params: Json, existing?: Payment | null) {
   const orderId = accountOrderId(params);
   const order = await loadOrder(orderId);
   if (!order) throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+  if (!existing) {
+    // Avval buyurtma holati (narx yo'q / to'langan / bekor) — summa xatosi faqat narx bor-u, mos kelmaganda
+    if (!isPayable(order)) throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+    // Boshqa provayder (Click) tomonida jarayondagi tranzaksiya bo'lsa — ikkinchi to'lov ochilmaydi
+    const inFlight = await findInFlightProviderPayment(order.id);
+    if (inFlight && inFlight.provider !== "payme") throw new RpcError(PAYME_ERR.ORDER_BUSY, "order_id");
+  }
   const amount = num(params.amount);
   if (amount == null) throw new RpcError(PAYME_ERR.WRONG_AMOUNT, "amount");
   const expected = (existing?.amount ?? order.amount ?? 0) * 100;
   if (!expected || amount !== expected) throw new RpcError(PAYME_ERR.WRONG_AMOUNT, "amount");
-  if (!existing && !isPayable(order)) throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
   return order;
+}
+
+/** Payme'ga qaytariladigan holat: ichki holat ustun (ichkaridan bekor qilingan yozuv hech qachon 1 bo'lib ko'rinmasin) */
+function providerStateOf(p: Payment): number {
+  if (p.state === "cancelled") return p.providerState != null && p.providerState < 0 ? p.providerState : STATE.CANCELLED;
+  if (p.state === "refunded") return STATE.CANCELLED_AFTER_PERFORM;
+  if (p.state === "paid" || p.state === "released") return STATE.PERFORMED;
+  return p.providerState ?? (p.state === "pending" ? STATE.CREATED : STATE.CANCELLED);
 }
 
 function txnView(p: Payment) {
@@ -118,7 +133,7 @@ function txnView(p: Payment) {
     perform_time: p.performTime ?? 0,
     cancel_time: p.cancelTime ?? 0,
     transaction: p.id,
-    state: p.providerState ?? (p.state === "paid" || p.state === "released" ? STATE.PERFORMED : p.state === "pending" ? STATE.CREATED : STATE.CANCELLED),
+    state: providerStateOf(p),
     reason: p.cancelReason ?? null,
   };
 }
@@ -235,7 +250,7 @@ async function cancelTransaction(params: Json) {
 
   // Allaqachon bekor — o'sha holatni qaytaramiz
   if (found.state === "cancelled" || found.state === "refunded") {
-    return { transaction: found.id, cancel_time: found.cancelTime ?? 0, state: found.providerState ?? STATE.CANCELLED };
+    return { transaction: found.id, cancel_time: found.cancelTime ?? 0, state: providerStateOf(found) };
   }
   const now = Date.now();
   if (found.state === "pending") {
@@ -247,7 +262,19 @@ async function cancelTransaction(params: Json) {
     return { transaction: row.id, cancel_time: now, state: STATE.CANCELLED };
   }
   if (found.state === "paid") {
-    // Pul hali eskrouda — qaytarish mumkin
+    // Ish topshirilgan (buyurtma 'done') — avtomatik qaytarilmaydi: -31007, nizoni admin ko'rib chiqadi
+    const order = await loadOrder(found.orderId);
+    if (order?.status === "done") {
+      await notifyAdmins(
+        "refund_needed",
+        "Payme qaytarish so'rovi — ish topshirilgan",
+        `«${order.title}» (${formatPrice(found.amount)}) bo'yicha Payme tranzaksiyasini bekor qilish so'raldi, lekin mutaxassis ishni yakunlagan. Nizoni ko'rib chiqing.`,
+        "/admin#tolovlar",
+        { dedupeMs: 6 * 60 * 60 * 1000 },
+      );
+      throw new RpcError(PAYME_ERR.CANNOT_CANCEL);
+    }
+    // Pul hali eskrouda, ish topshirilmagan — qaytarish mumkin
     const row = await refundPayment(found.id, null, reason);
     return { transaction: row.id, cancel_time: row.cancelTime ?? now, state: STATE.CANCELLED_AFTER_PERFORM };
   }

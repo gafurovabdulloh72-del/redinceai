@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, payouts, specialists } from "@/lib/db/schema";
+import type { PaymentProvider } from "@/lib/constants";
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassis balansi                                                  */
@@ -95,12 +96,40 @@ export async function findOpenPayout(specialistId: string) {
   return db.query.payouts.findFirst({ where: and(eq(payouts.specialistId, specialistId), inArray(payouts.state, ["requested", "approved"])) });
 }
 
+export interface OpenPaymentRef {
+  id: string;
+  provider: PaymentProvider;
+  state: "created" | "pending";
+}
+
+/**
+ * Buyurtmalar ro'yxati uchun: har bir buyurtmaning ochiq (created/pending) to'lovi — karta «To'lash» o'rniga
+ * «tasdiq kutilmoqda» / «davom etish» ko'rsatsin. Pending ustun, keyin eng yangisi.
+ */
+export async function listOpenPaymentsForOrders(orderIds: string[]): Promise<Map<string, OpenPaymentRef>> {
+  const out = new Map<string, OpenPaymentRef>();
+  if (!orderIds.length) return out;
+  const rows = await db.query.payments.findMany({
+    where: and(inArray(payments.orderId, orderIds), inArray(payments.state, ["created", "pending"])),
+    orderBy: [desc(payments.createdAt)],
+    columns: { id: true, orderId: true, provider: true, state: true },
+  });
+  for (const r of rows) {
+    const prev = out.get(r.orderId);
+    if (prev && (prev.state === "pending" || r.state === "created")) continue;
+    out.set(r.orderId, { id: r.id, provider: r.provider, state: r.state === "pending" ? "pending" : "created" });
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin                                                               */
 /* ------------------------------------------------------------------ */
 export interface AdminFinance {
-  /** Platforma daromadi: to'langan + o'tkazilgan to'lovlar komissiyasi */
+  /** Platforma daromadi: faqat yakunlangan (released) to'lovlar komissiyasi — eskroudagi qaytarilishi mumkin */
   revenue: number;
+  /** Eskrouda turgan to'lovlar komissiyasi (hali daromad emas) */
+  escrowCommission: number;
   /** Eskrouda turgan sof summa (paid) */
   escrow: number;
   /** Mutaxassislarga o'tkazilgan (released) sof summa */
@@ -112,6 +141,7 @@ export interface AdminFinance {
   payoutsOpenCount: number;
   /** Admin tasdig'ini kutayotgan qo'lda o'tkazmalar */
   manualPending: number;
+  /** Yakunlangan (released) to'lovlar soni — daromad shulardan */
   paymentsCount: number;
 }
 
@@ -119,11 +149,12 @@ export async function getAdminFinance(): Promise<AdminFinance> {
   const [[p], [po]] = await Promise.all([
     db
       .select({
-        revenue: sql<number>`coalesce(sum(case when ${payments.state} in ('paid','released') then ${payments.commissionAmount} else 0 end), 0)`,
+        revenue: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then ${payments.commissionAmount} else 0 end), 0)`,
+        escrowCommission: sql<number>`coalesce(sum(case when ${payments.state} = 'paid' then ${payments.commissionAmount} else 0 end), 0)`,
         escrow: sql<number>`coalesce(sum(case when ${payments.state} = 'paid' then ${payments.netAmount} else 0 end), 0)`,
         released: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then ${payments.netAmount} else 0 end), 0)`,
         manualPending: sql<number>`coalesce(sum(case when ${payments.state} = 'pending' and ${payments.provider} = 'manual' then 1 else 0 end), 0)`,
-        total: sql<number>`count(*)`,
+        total: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then 1 else 0 end), 0)`,
       })
       .from(payments),
     db
@@ -136,6 +167,7 @@ export async function getAdminFinance(): Promise<AdminFinance> {
   ]);
   return {
     revenue: Number(p?.revenue ?? 0),
+    escrowCommission: Number(p?.escrowCommission ?? 0),
     escrow: Number(p?.escrow ?? 0),
     released: Number(p?.released ?? 0),
     manualPending: Number(p?.manualPending ?? 0),
@@ -167,15 +199,14 @@ export async function listAdminPayouts(limit = 40) {
   });
   // Har bir so'rov uchun joriy balans (admin tasdiqlashdan oldin ko'rsin)
   const ids = Array.from(new Set(rows.map((r) => r.specialistId)));
-  const balances = new Map<string, number>();
-  await Promise.all(
-    ids.map(async (id) => {
-      const b = await getSpecialistBalance(id);
-      // Ochiq so'rov balansdan ayrilgan — "qoplanganmi" ko'rsatish uchun so'rov summasini qaytarib qo'shamiz
-      balances.set(id, b.available + b.pendingPayouts);
-    }),
-  );
-  return rows.map((r) => ({ ...r, releasedBalance: balances.get(r.specialistId) ?? 0 }));
+  const balances = new Map<string, SpecialistBalance>();
+  await Promise.all(ids.map(async (id) => balances.set(id, await getSpecialistBalance(id))));
+  return rows.map((r) => {
+    const b = balances.get(r.specialistId);
+    // Qoplama = released − to'langan − boshqa ochiq so'rovlar (clamp'siz: ikkita ochiq so'rov ikkalasi ham "qoplangan" ko'rinmasin)
+    const own = r.state === "requested" || r.state === "approved" ? r.amount : 0;
+    return { ...r, releasedBalance: b ? b.released - b.paidOut - (b.pendingPayouts - own) : 0 };
+  });
 }
 
 /** Mutaxassis profili bo'yicha egasini topish (payout/bildirishnoma uchun) */

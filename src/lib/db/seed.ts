@@ -2,6 +2,7 @@
  * Namuna ma'lumotlar: admin, mijozlar, 14 hudud bo'ylab mutaxassislar, portfolio, sharhlar, buyurtmalar.
  * Ishga tushirish: npm run db:push && npm run db:seed
  */
+import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@libsql/client";
 import { count, eq } from "drizzle-orm";
@@ -126,6 +127,15 @@ async function main() {
       return;
     }
   }
+
+  // Production (Vercel/Railway) birinchi deploy: hammaga ma'lum parollar bilan admin/demo hisob yaratilmasin
+  const prod = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT);
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (prod && (!adminPassword || adminPassword === "admin12345")) {
+    throw new Error("ADMIN_PASSWORD o'rnatilmagan yoki namunaviy (admin12345). Productionda kuchli admin parolini env'da bering.");
+  }
+  // Demo hisoblar xaritani to'ldiradi; productionda DEMO_PASSWORD berilmasa parol tasodifiy (kirish mumkin emas)
+  const demoPassword = process.env.DEMO_PASSWORD || (prod ? randomBytes(18).toString("base64url") : "demo12345");
   console.log("→ Eski ma'lumotlar tozalanmoqda...");
   await db.delete(schema.notifications);
   await db.delete(schema.favorites);
@@ -139,8 +149,8 @@ async function main() {
   await db.delete(schema.specialists);
   await db.delete(schema.users);
 
-  const pass = await bcrypt.hash("demo12345", 10);
-  const adminPass = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? "admin12345", 10);
+  const pass = await bcrypt.hash(demoPassword, 10);
+  const adminPass = await bcrypt.hash(adminPassword || "admin12345", 10);
   const now = Date.now();
   const DAY = 86_400_000;
 
@@ -352,10 +362,12 @@ async function main() {
   }
 
   console.log(`✓ Tayyor: ${specialistIds.length} mutaxassis, ${clientIds.length} mijoz, admin.`);
-  console.log("  Demo kirishlar (parol: demo12345):");
+  // Parollar jurnalga chiqarilmaydi (faqat dev standarti)
+  const demoHint = process.env.DEMO_PASSWORD ? "DEMO_PASSWORD env" : prod ? "tasodifiy — kirish uchun DEMO_PASSWORD env bering" : demoPassword;
+  console.log(`  Demo kirishlar (parol: ${demoHint}):`);
   console.log("   • mutaxassis@redince.uz  (mutaxassis)");
   console.log("   • mijoz@redince.uz       (mijoz)");
-  console.log(`   • ${process.env.ADMIN_EMAIL ?? "admin@redince.uz"}  (admin, parol: ${process.env.ADMIN_PASSWORD ?? "admin12345"})`);
+  console.log(`   • ${process.env.ADMIN_EMAIL ?? "admin@redince.uz"}  (admin, parol: ${adminPassword ? "ADMIN_PASSWORD env" : "admin12345"})`);
 
   /* ---------- to'lovlar va payoutlar (eskrou namunasi) ---------- */
   // Bajarilgan buyurtmalar — to'langan va mijoz qabul qilgan (released); bittasi eskrouda (paid);

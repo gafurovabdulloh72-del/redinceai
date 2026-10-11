@@ -1,4 +1,5 @@
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, inArray, max, sql } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { portfolioItems, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
@@ -16,7 +17,8 @@ export const POST = handler(async (req) => {
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true } });
   if (!sp) throw new ApiError(400, "Avval mutaxassis profilini to'ldiring");
 
-  const [{ n }] = await db.select({ n: count() }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id));
+  // Soni — limit uchun; tartib raqami — maksimal+1 (o'chirishdan keyin soni bilan to'qnashmasin)
+  const [{ n, top }] = await db.select({ n: count(), top: max(portfolioItems.sortOrder) }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id));
   if (n >= MAX_ITEMS) throw new ApiError(400, `Portfolioda ko'pi bilan ${MAX_ITEMS} ta ish bo'lishi mumkin`);
 
   // YouTube video uchun thumbnail avtomatik
@@ -36,7 +38,34 @@ export const POST = handler(async (req) => {
     url: input.url,
     thumbnailUrl,
     description: input.description || null,
-    sortOrder: n,
+    sortOrder: (top ?? -1) + 1,
   });
   return ok({ id }, { status: 201 });
+});
+
+/** Tartibni o'zgartirish: ids — egasining BARCHA ishlari yangi tartibda */
+const reorderSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).min(1).max(MAX_ITEMS) });
+
+export const PATCH = handler(async (req) => {
+  const session = await requireSession(["specialist", "admin"]);
+  const { ids } = await parseBody(req, reorderSchema);
+  if (new Set(ids).size !== ids.length) throw new ApiError(422, "Ro'yxatda takror ish bor");
+
+  const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true } });
+  if (!sp) throw new ApiError(400, "Avval mutaxassis profilini to'ldiring");
+
+  const own = await db.select({ id: portfolioItems.id }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id));
+  const ownIds = new Set(own.map((r) => r.id));
+  if (ids.length !== ownIds.size || ids.some((id) => !ownIds.has(id))) throw new ApiError(409, "Ro'yxat eskirgan — sahifani yangilab, qayta urinib ko'ring");
+
+  // Bitta so'rov: sortOrder = ro'yxatdagi o'rni
+  const cases = sql.join(
+    ids.map((id, i) => sql`when ${id} then ${i}`),
+    sql` `,
+  );
+  await db
+    .update(portfolioItems)
+    .set({ sortOrder: sql`case ${portfolioItems.id} ${cases} else ${portfolioItems.sortOrder} end` })
+    .where(and(eq(portfolioItems.specialistId, sp.id), inArray(portfolioItems.id, ids)));
+  return ok({ reordered: ids.length });
 });

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, LogIn, PencilLine, Star } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, PencilLine, Star, Trash2 } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -15,17 +15,23 @@ const RATING_LABEL: Record<number, string> = {
 };
 
 type ApiResponse = { ok: true; data: { saved: boolean; updated: boolean } } | { ok: false; error: string; fields?: Record<string, string> };
+type DeleteResponse = { ok: true; data: { deleted: boolean } } | { ok: false; error: string };
 
 export function ReviewForm({
   specialistId,
   canReview,
+  needsOrder = false,
+  orderHref,
   existing,
   loginHref,
   isOwner = false,
 }: {
   specialistId: string;
-  /** Kirgan va profil egasi bo'lmagan foydalanuvchi */
+  /** Kirgan, profil egasi bo'lmagan va shu mutaxassis bilan qabul qilingan buyurtmasi bor (yoki sharhi bor) foydalanuvchi */
   canReview: boolean;
+  /** Kirgan, lekin hali buyurtmasi qabul qilinmagan — server ham shu shartni tekshiradi */
+  needsOrder?: boolean;
+  orderHref?: string | null;
   /** Avval qoldirilgan sharh (tahrirlash rejimi) */
   existing?: { rating: number; text: string } | null;
   loginHref: string;
@@ -38,9 +44,31 @@ export function ReviewForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<null | "created" | "updated">(null);
+  const [done, setDone] = useState<null | "created" | "updated" | "deleted">(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (isOwner) return null;
+
+  if (!canReview && needsOrder) {
+    return (
+      <div className="card-outline flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-surface-3 text-fg-2">
+            <ClipboardCheck size={20} />
+          </span>
+          <div>
+            <p className="text-[16px] font-semibold text-fg">Sharh — faqat haqiqiy mijozlardan</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">Shu mutaxassis bilan buyurtmangiz qabul qilingach sharh qoldirishingiz mumkin.</p>
+          </div>
+        </div>
+        {orderHref && (
+          <ButtonLink href={orderHref} variant="outline" size="md" className="shrink-0">
+            Buyurtma berish <ArrowRight size={16} />
+          </ButtonLink>
+        )}
+      </div>
+    );
+  }
 
   if (!canReview) {
     return (
@@ -94,21 +122,48 @@ export function ReviewForm({
     }
   };
 
+  const remove = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/reviews?specialistId=${encodeURIComponent(specialistId)}`, { method: "DELETE" });
+      const json = (await res.json()) as DeleteResponse;
+      if (!json.ok) {
+        setError(json.error);
+        return;
+      }
+      setConfirmDelete(false);
+      setRating(0);
+      setText("");
+      setDone("deleted");
+      router.refresh();
+    } catch {
+      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (done) {
     return (
       <div className="card animate-fade-up flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" style={{ animationDuration: "0.4s" }}>
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-ios-green/16 text-ios-green">
-            <CheckCircle2 size={22} />
+          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]", done === "deleted" ? "bg-surface-3 text-fg-2" : "bg-ios-green/16 text-ios-green")}>
+            {done === "deleted" ? <Trash2 size={20} /> : <CheckCircle2 size={22} />}
           </span>
           <div>
-            <p className="text-[16px] font-semibold text-fg">{done === "updated" ? "Sharhingiz yangilandi" : "Rahmat! Sharhingiz saqlandi"}</p>
-            <p className="mt-0.5 text-[13px] text-fg-3">Fikringiz boshqa mijozlarga to'g'ri tanlov qilishga yordam beradi.</p>
+            <p className="text-[16px] font-semibold text-fg">{done === "deleted" ? "Sharhingiz o'chirildi" : done === "updated" ? "Sharhingiz yangilandi" : "Rahmat! Sharhingiz saqlandi"}</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">
+              {done === "deleted" ? "Xohlasangiz keyinroq yangi sharh qoldirishingiz mumkin." : "Fikringiz boshqa mijozlarga to'g'ri tanlov qilishga yordam beradi."}
+            </p>
           </div>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setDone(null)}>
-          <PencilLine size={14} /> Tahrirlash
-        </Button>
+        {done !== "deleted" && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setDone(null)}>
+            <PencilLine size={14} /> Tahrirlash
+          </Button>
+        )}
       </div>
     );
   }
@@ -198,7 +253,24 @@ export function ReviewForm({
         </div>
       )}
 
-      <div className="mt-5 flex items-center justify-end gap-2">
+      <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+        {/* O'z sharhini o'chirish — inline ikki bosqichli tasdiq (window.confirm emas) */}
+        {existing &&
+          (confirmDelete ? (
+            <div className="mr-auto flex items-center gap-2 animate-fade-up" style={{ animationDuration: "0.2s" }} role="group" aria-label="O'chirishni tasdiqlash">
+              <span className="text-[12px] font-medium text-fg-2">Sharh o'chirilsinmi?</span>
+              <Button type="button" size="sm" variant="danger" className="!h-10" onClick={remove} disabled={busy}>
+                Ha, o'chirish
+              </Button>
+              <Button type="button" size="sm" variant="outline" className="!h-10" onClick={() => setConfirmDelete(false)} autoFocus>
+                Yo'q
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" variant="ghost" size="sm" className="mr-auto text-fg-3" onClick={() => setConfirmDelete(true)} disabled={busy}>
+              <Trash2 size={14} /> O'chirish
+            </Button>
+          ))}
         <Button type="submit" disabled={busy} className="min-w-[160px]">
           {busy ? <Spinner /> : existing ? "Yangilash" : "Sharhni yuborish"}
         </Button>

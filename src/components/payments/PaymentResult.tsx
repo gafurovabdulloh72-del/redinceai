@@ -65,7 +65,7 @@ export function PaymentResult({ paymentId, initial }: { paymentId: string; initi
       case "refunded":
         return { icon: RotateCcw, tone: "bg-fg/6 text-fg-2", title: "Pul qaytarildi", text: `${formatPrice(p.amount)} sizga qaytarildi.` };
       case "cancelled":
-        return { icon: XCircle, tone: "bg-danger-soft text-danger", title: "To'lov amalga oshmadi", text: "To'lov bekor qilindi yoki muddati o'tdi. Qayta urinib ko'rishingiz mumkin." };
+        return { icon: XCircle, tone: "bg-danger-soft text-danger", title: "To'lov amalga oshmadi", text: "To'lov bekor qilindi yoki muddati o'tdi. Buyurtma sahifasidagi «To'lash» tugmasi orqali qayta to'lashingiz mumkin." };
       case "pending":
         return manualPending
           ? { icon: Hourglass, tone: "bg-warning-soft text-warning", title: "Tasdiq kutilmoqda", text: "O'tkazmangiz haqida xabar oldik. Administrator tekshirgach buyurtma «To'langan (eskrou)» holatiga o'tadi va bildirishnoma keladi." }
@@ -112,7 +112,8 @@ export function PaymentResult({ paymentId, initial }: { paymentId: string; initi
         <ButtonLink href={`/kabinet/buyurtmalar?id=${p.orderId}`} variant={p.state === "paid" || p.state === "released" ? "accent" : "primary"} size="lg">
           Buyurtmani ko'rish <ArrowRight size={18} />
         </ButtonLink>
-        {(p.state === "cancelled" || p.state === "created") && (
+        {/* Bekor qilingan to'lov checkout'ga qaytmaydi (/tolov/[id] uni natijaga yo'naltiradi) — qayta to'lash buyurtma kartasidan */}
+        {p.state === "created" && (
           <ButtonLink href={`/tolov/${p.id}`} variant="outline" size="lg">
             <RotateCcw size={16} /> Qayta urinish
           </ButtonLink>

@@ -20,9 +20,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   return (
     <div className="container-x">
       <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.05fr_1fr] lg:items-start">
+        {/* items-stretch: qisqa forma (kirish) panel balandligiga cho'ziladi; panel self-start — o'z balandligida, sticky */}
+        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
           {/* ---------- Chap: editorial brend paneli (faqat desktop) ---------- */}
-          <aside className="card relative hidden overflow-hidden p-10 lg:sticky lg:top-28 lg:flex lg:flex-col" aria-hidden="true">
+          <aside className="card relative hidden overflow-hidden p-10 lg:sticky lg:top-28 lg:flex lg:flex-col lg:self-start" aria-hidden="true">
             <div className="flex-1">
               <Logo />
               <span className="eyebrow mt-12">O'zbekiston ijodkorlar xaritasi</span>

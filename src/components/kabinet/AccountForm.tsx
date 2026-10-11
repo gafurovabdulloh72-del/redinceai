@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, Camera, CheckCircle2, Mail, Mars, Trash2, UserRound, Venus } from "lucide-react";
 import { Avatar, Button, Spinner } from "@/components/ui";
+import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
+import type { ResolvedVisibility } from "@/lib/privacy";
 
 export type Gender = "male" | "female" | null;
 
@@ -23,7 +25,7 @@ const GENDER_OPTIONS: Array<{ value: Gender; label: string; icon?: typeof Venus 
   { value: null, label: "Ko'rsatilmagan" },
 ];
 
-export function AccountForm({ initial }: { initial: AccountInitial }) {
+export function AccountForm({ initial, visibility = null }: { initial: AccountInitial; visibility?: ResolvedVisibility | null }) {
   const router = useRouter();
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
@@ -158,9 +160,12 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
           {errors.name && <p className="field-error">{errors.name}</p>}
         </div>
         <div>
-          <label htmlFor="acc-phone" className="field-label">
-            Telefon <span className="font-normal text-fg-4">(ixtiyoriy)</span>
-          </label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <label htmlFor="acc-phone" className="field-label !mb-0">
+              Telefon <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+            </label>
+            {visibility && <VisibilityChip level={visibility.phone} />}
+          </div>
           <input
             id="acc-phone"
             className="field"
@@ -173,14 +178,17 @@ export function AccountForm({ initial }: { initial: AccountInitial }) {
             placeholder="+998 90 123 45 67"
             aria-invalid={Boolean(errors.phone)}
           />
-          {errors.phone ? <p className="field-error">{errors.phone}</p> : <p className="mt-1 text-[12px] text-fg-4">Standart: faqat ro'yxatdan o'tganlarga ko'rinadi.</p>}
+          {errors.phone ? <p className="field-error">{errors.phone}</p> : <p className="mt-1 text-[12px] text-fg-4">{visibility ? LEVEL_HINT[visibility.phone] : "Standart: faqat ro'yxatdan o'tganlarga ko'rinadi."}</p>}
         </div>
 
         {/* Jins */}
         <div>
-          <span className="field-label" id="acc-gender-label">
-            Jins <span className="font-normal text-fg-4">(ixtiyoriy)</span>
-          </span>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="field-label !mb-0" id="acc-gender-label">
+              Jins <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+            </span>
+            {visibility && <VisibilityChip level={visibility.gender} />}
+          </div>
           <div className="segment flex w-full sm:inline-flex sm:w-auto" role="radiogroup" aria-labelledby="acc-gender-label">
             {GENDER_OPTIONS.map((g) => {
               const active = gender === g.value;

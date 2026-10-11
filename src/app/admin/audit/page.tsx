@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq, sql } from "drizzle-orm";
 import { ArrowLeft, ScrollText } from "lucide-react";
+import { Pagination } from "@/components/specialists/Pagination";
 import { Avatar, Badge, ButtonLink, EmptyState } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -13,14 +14,16 @@ import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Audit jurnali", robots: { index: false, follow: false } };
 
-const LIMIT = 200;
+/** Bir sahifada yozuvlar soni (mobilda har qator karta — 200 ta 25 ming px sahifa qilardi) */
+const LIMIT = 50;
 
-type Tone = "neutral" | "accent" | "ink" | "green" | "orange" | "purple";
+type Tone = "neutral" | "accent" | "ink" | "green" | "orange" | "purple" | "info";
 function toneFor(action: string): Tone {
   if (action === "login_failed") return "orange";
   if (action.startsWith("admin_")) return "ink";
   if (action.startsWith("password_") || action === "logout_all") return "accent";
   if (action.startsWith("payment_") || action.startsWith("payout_")) return "purple";
+  if (action.startsWith("order_")) return "info";
   if (action === "login_success" || action === "register") return "green";
   return "neutral";
 }
@@ -31,14 +34,18 @@ function metaText(meta: Record<string, unknown>) {
   return entries.map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ");
 }
 
-export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<{ action?: string | string[] }> }) {
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<{ action?: string | string[]; page?: string | string[] }> }) {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/audit"));
   if (user.role !== "admin") redirect("/kabinet");
 
   const sp = await searchParams;
-  const raw = Array.isArray(sp.action) ? sp.action[0] : sp.action;
+  const raw = first(sp.action);
   const action = raw && /^[a-z_]{1,40}$/.test(raw) ? raw : undefined;
+  const pageRaw = Number(first(sp.page));
+  const page = Number.isInteger(pageRaw) && pageRaw > 1 ? Math.min(pageRaw, 10_000) : 1;
 
   const [rows, actions] = await Promise.all([
     db
@@ -59,7 +66,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
       .leftJoin(users, eq(auditLogs.actorId, users.id))
       .where(action ? eq(auditLogs.action, action) : undefined)
       .orderBy(desc(auditLogs.createdAt))
-      .limit(LIMIT),
+      .limit(LIMIT)
+      .offset((page - 1) * LIMIT),
     db
       .select({ action: auditLogs.action, n: sql<number>`count(*)` })
       .from(auditLogs)
@@ -68,6 +76,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   ]);
 
   const total = actions.reduce((s, a) => s + Number(a.n), 0);
+  const matching = action ? Number(actions.find((a) => a.action === action)?.n ?? 0) : total;
+  const pages = Math.max(1, Math.ceil(matching / LIMIT));
 
   return (
     <div className="container-x animate-fade-up">
@@ -80,7 +90,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
             Audit <span className="accent-serif text-accent">jurnali</span>
           </h1>
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2">
-            Kirishlar, parol o'zgarishlari, yuklashlar va admin harakatlari — oxirgi {LIMIT} ta yozuv. Jami {total} ta.
+            Kirishlar, parol o'zgarishlari, yuklashlar, buyurtma va to'lov harakatlari — sahifada {LIMIT} tadan. Jami {total} ta{action ? `, tanlangan harakat bo'yicha ${matching} ta` : ""}.
           </p>
         </div>
         <ButtonLink href="/admin" variant="outline" size="sm">
@@ -88,9 +98,9 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
         </ButtonLink>
       </header>
 
-      {/* ---------- Filtr ---------- */}
-      <nav aria-label="Harakat bo'yicha filtr" className="no-scrollbar -mx-4 mt-8 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
-        <div className="segment">
+      {/* ---------- Filtr: mobil/planshetda aylanadi (o'ng chetda so'nish), katta ekranda qatorlarga o'raladi ---------- */}
+      <nav aria-label="Harakat bo'yicha filtr" className="no-scrollbar scroll-fade -mx-4 mt-8 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0 lg:[mask-image:none]">
+        <div className="segment lg:flex-wrap lg:rounded-[24px]">
           <Link href="/admin/audit" className="segment-item inline-flex min-h-[38px] items-center" data-active={!action} aria-current={!action ? "page" : undefined}>
             Barchasi <span className="ml-1.5 text-[11px] opacity-70">{total}</span>
           </Link>
@@ -210,6 +220,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
             </ul>
           </div>
         )}
+        <Pagination page={page} pages={pages} query={{ action }} basePath="/admin/audit" className="mt-6" />
       </section>
     </div>
   );

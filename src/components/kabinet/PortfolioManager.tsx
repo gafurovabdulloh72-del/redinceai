@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Link2, Plus, Play, Trash2, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Link2, Plus, Play, Trash2, X, type LucideIcon } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
@@ -42,6 +42,7 @@ function thumbFor(item: { type: PortfolioType; url: string; thumbnailUrl: string
 }
 
 function hostOf(url: string) {
+  if (url.startsWith("/")) return "Yuklangan rasm";
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
@@ -49,13 +50,8 @@ function hostOf(url: string) {
   }
 }
 
-function toAbsolute(url: string) {
-  try {
-    return new URL(url, window.location.origin).toString();
-  } catch {
-    return url;
-  }
-}
+/** Tartibni saqlashdan oldin kutish (ketma-ket bosishlar bitta so'rovga yig'iladi) */
+const REORDER_DEBOUNCE_MS = 600;
 
 /** Rasm yo'q plita: past to'yinganlikdagi, palitraga mos fon (sun'iy rang-barang gradient emas) */
 function fallbackBg(seed: string) {
@@ -98,7 +94,24 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const visible = items.filter((i) => !removed.includes(i.id));
+  /* ---------- Tartib (mahalliy holat; server ro'yxati o'zgarsa — qayta o'rnatiladi) ---------- */
+  const serverKey = items.map((i) => i.id).join("|");
+  const [orderKey, setOrderKey] = useState(serverKey);
+  const [order, setOrder] = useState<string[]>(() => items.map((i) => i.id));
+  if (orderKey !== serverKey) {
+    setOrderKey(serverKey);
+    setOrder(items.map((i) => i.id));
+  }
+  const [savingOrder, setSavingOrder] = useState(false);
+  const saveTimer = useRef<number | null>(null);
+  const pendingOrder = useRef<string[] | null>(null);
+
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const visible: PortfolioItemDTO[] = [];
+  for (const id of order) {
+    const it = byId.get(id);
+    if (it && !removed.includes(id)) visible.push(it);
+  }
   const full = visible.length >= max;
 
   useEffect(() => {
@@ -107,11 +120,73 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
     return () => window.clearTimeout(t);
   }, [success]);
 
+  const saveOrder = async (ids: string[]) => {
+    setSavingOrder(true);
+    try {
+      const res = await fetch("/api/portfolio", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+      const json = (await res.json()) as ApiResponse<{ reordered: number }>;
+      if (!json.ok) {
+        setError(json.error);
+        setOrder(items.map((i) => i.id));
+        return;
+      }
+      setSuccess("Tartib saqlandi");
+    } catch {
+      setError("Tarmoq xatosi. Tartib saqlanmadi.");
+      setOrder(items.map((i) => i.id));
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  /** Kutayotgan tartibni darhol saqlash (o'chirish/qo'shishdan oldingi refresh uni yo'qotmasin) */
+  const flushOrder = async () => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const ids = pendingOrder.current;
+    pendingOrder.current = null;
+    if (ids) await saveOrder(ids);
+  };
+
+  // Sahifadan chiqib ketilsa — kutayotgan tartib keepalive bilan yuboriladi
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      const ids = pendingOrder.current;
+      if (ids) {
+        pendingOrder.current = null;
+        void fetch("/api/portfolio", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }), keepalive: true }).catch(() => {});
+      }
+    };
+  }, []);
+
+  const move = (id: string, dir: -1 | 1) => {
+    if (deletingId) return;
+    const ids = visible.map((i) => i.id);
+    const from = ids.indexOf(id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    setError(null);
+    setOrder(ids);
+    pendingOrder.current = ids;
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      const next = pendingOrder.current;
+      pendingOrder.current = null;
+      if (next) void saveOrder(next);
+    }, REORDER_DEBOUNCE_MS);
+  };
+
   const remove = async (id: string) => {
     if (deletingId) return;
     setConfirmId(null);
     setError(null);
     setDeletingId(id);
+    await flushOrder();
     setRemoved((r) => [...r, id]);
     try {
       const res = await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
@@ -140,7 +215,13 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
             <p className="font-display text-[16px] font-semibold text-fg">
               {visible.length} / {max} ta ish
             </p>
-            <p className="text-[12px] text-fg-3">{full ? "Limit to'ldi — yangi ish qo'shish uchun eskisini o'chiring." : "Rasm, YouTube video yoki tashqi havola."}</p>
+            <p className="text-[12px] text-fg-3">
+              {full
+                ? "Limit to'ldi — yangi ish qo'shish uchun eskisini o'chiring."
+                : visible.length > 1
+                  ? "Strelkalar bilan tartibni o'zgartiring — birinchi ish profilda oldin chiqadi."
+                  : "Rasm, YouTube video yoki tashqi havola."}
+            </p>
             <div className="mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-fg/8" aria-hidden="true">
               <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
             </div>
@@ -182,7 +263,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
       {/* Qo'shish formasi */}
       {open && !full && (
         <AddForm
-          onAdded={() => {
+          onAdded={async () => {
+            await flushOrder();
             setSuccess("Ish qo'shildi");
             setError(null);
             router.refresh();
@@ -205,7 +287,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         )
       ) : (
         <ul className="grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          {visible.map((item) => {
+          {visible.map((item, idx) => {
             const Icon = TYPE_META[item.type].icon;
             const src = thumbFor(item);
             const fallback = (
@@ -215,13 +297,43 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
             );
             const confirming = confirmId === item.id;
             return (
-              <li key={item.id} className="card group relative flex flex-col overflow-hidden" aria-busy={deletingId === item.id}>
+              <li key={item.id} className="card group relative flex flex-col overflow-hidden" aria-busy={deletingId === item.id || savingOrder}>
                 <div className="relative aspect-[4/3] overflow-hidden bg-surface-3">
                   {src ? <SafeImage src={src} alt={item.title} loading="lazy" fallback={fallback} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" /> : fallback}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
                   <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
+                    <span className="tabular-nums text-fg-3">{idx + 1}</span>
+                    <span className="text-fg-4" aria-hidden="true">
+                      ·
+                    </span>
                     <Icon size={11} className="text-fg-3" /> {TYPE_META[item.type].label}
                   </span>
+                  {/* Tartib: oldinga / orqaga (44px nishonlar, chekkada o'chiq) */}
+                  {visible.length > 1 && (
+                    <div className="absolute right-2.5 top-2.5 inline-flex h-11 overflow-hidden rounded-full bg-surface shadow-[var(--shadow-1)]" role="group" aria-label={`${item.title} — tartib`}>
+                      <button
+                        type="button"
+                        onClick={() => move(item.id, -1)}
+                        disabled={idx === 0 || Boolean(deletingId)}
+                        aria-label={`${item.title} — oldinga ko'chirish`}
+                        title="Oldinga"
+                        className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
+                      >
+                        <ArrowUp size={15} />
+                      </button>
+                      <span className="my-3 w-px bg-line" aria-hidden="true" />
+                      <button
+                        type="button"
+                        onClick={() => move(item.id, 1)}
+                        disabled={idx === visible.length - 1 || Boolean(deletingId)}
+                        aria-label={`${item.title} — orqaga ko'chirish`}
+                        title="Orqaga"
+                        className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
+                      >
+                        <ArrowDown size={15} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-1 flex-col p-3">
@@ -326,7 +438,8 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
         return;
       }
       setProgress(100);
-      setUrl(toAbsolute(json.data.url));
+      // Server qaytargan yo'l o'zgarishsiz saqlanadi (/uploads/… — domen bazaga yozilmaydi)
+      setUrl(json.data.url);
       if (!title.trim()) setTitle(file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").slice(0, 100));
     } catch {
       setError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");

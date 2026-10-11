@@ -1,12 +1,27 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, count, desc, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
-import { CATEGORIES, REGIONS } from "./constants";
+import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
 import { escapeLike } from "./utils";
-import { GUEST_VIEWER, toListItem, type Viewer } from "./privacy";
+import { GUEST_VIEWER, tashkentNow, toListItem, type Viewer } from "./privacy";
+
+/**
+ * Ro'yxat filtrlarida ko'ruvchiga ochiq ko'rinish darajalari — privacy.ts canView() bilan hamohang:
+ * admin — cheklovsiz (null), kirgan — public+clients, mehmon — faqat public.
+ * "orders" darajasi ro'yxat qidiruvida hech qachon mos kelmaydi (buyurtma munosabati bitta mutaxassisga nisbatan).
+ */
+function visibleLevels(viewer: Viewer): string[] | null {
+  if (viewer.role === "admin") return null;
+  return viewer.userId ? ["public", "clients"] : ["public"];
+}
+
+/** JSON `visibility` ustunidagi maydon darajasi (yo'q bo'lsa — DEFAULT_VISIBILITY) */
+function visibilityOf(field: "gender" | "city") {
+  return sql`coalesce(json_extract(${specialists.visibility}, ${`$.${field}`}), ${DEFAULT_VISIBILITY[field]})`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassislar ro'yxati                                              */
@@ -20,17 +35,24 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
 
   if (filter.region) conds.push(eq(specialists.regionSlug, filter.region));
   if (filter.category) conds.push(eq(specialists.category, filter.category));
-  if (filter.experience) conds.push(eq(specialists.experience, filter.experience as "junior"));
+  if (filter.experience) conds.push(eq(specialists.experience, filter.experience));
   if (filter.verified === "1") conds.push(eq(specialists.isVerified, true));
+  if (filter.available === "1") {
+    // Hozir buyurtma qabul qiladiganlar: "Band" emas va ta'tilda emas (isOnVacation bilan bir xil qoida)
+    conds.push(eq(specialists.isAvailable, true), or(isNull(specialists.vacationUntil), lt(specialists.vacationUntil, tashkentNow().date))!);
+  }
   if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
   // priceMin faqat priceMax'dan kichik bo'lsa qo'llanadi (teskari oraliq — e'tiborsiz)
   if (filter.priceMin && filter.priceMin > 0 && !(filter.priceMax && filter.priceMin >= filter.priceMax)) {
     conds.push(gte(specialists.priceFrom, filter.priceMin));
   }
+  // Yashirin jins/shahar filtr yoki qidiruv orqali ham aniqlanmasin (ro'yxat DTO'si ularni maskalaydi)
+  const levels = visibleLevels(viewer);
   if (filter.gender) {
     // Jins users jadvalida — subquery orqali
     const byGender = db.select({ id: users.id }).from(users).where(eq(users.gender, filter.gender));
     conds.push(inArray(specialists.userId, byGender));
+    if (levels) conds.push(inArray(visibilityOf("gender"), levels));
   }
 
   if (filter.q) {
@@ -38,11 +60,12 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
     const term = `%${escapeLike(filter.q.toLowerCase())}%`;
     const likeEsc = (col: SQL) => sql`${col} like ${term} escape '\\'`;
     const userMatch = db.select({ id: users.id }).from(users).where(likeEsc(sql`lower(${users.name})`));
+    const cityLike = likeEsc(sql`lower(${specialists.city})`);
     conds.push(
       or(
         likeEsc(sql`lower(${specialists.title})`),
         likeEsc(sql`lower(${specialists.bio})`),
-        likeEsc(sql`lower(${specialists.city})`),
+        levels ? and(cityLike, inArray(visibilityOf("city"), levels))! : cityLike,
         likeEsc(sql`lower(${specialists.skills})`),
         inArray(specialists.userId, userMatch),
       )!,
@@ -152,6 +175,15 @@ export async function hasAcceptedOrderWith(clientId: string | null | undefined, 
   return Boolean(row);
 }
 
+/** Bajarilgan buyurtmalar soni — profil statistikasi ("Buyurtma" katagi) */
+export async function countCompletedOrders(specialistId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(orders)
+    .where(and(eq(orders.specialistId, specialistId), eq(orders.status, "done")));
+  return row?.n ?? 0;
+}
+
 /** Sharhlar taqsimoti (5★…1★) — profil sahifasidagi reyting panelida */
 export function ratingDistribution(items: Array<{ rating: number }>): Record<1 | 2 | 3 | 4 | 5, number> {
   const out = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<1 | 2 | 3 | 4 | 5, number>;
@@ -218,18 +250,23 @@ export async function getFeaturedSpecialists(limit = 6) {
 /* ------------------------------------------------------------------ */
 /* Kabinet                                                             */
 /* ------------------------------------------------------------------ */
+/**
+ * Kabinet va GET /api/orders. Qo'shilgan tomon qatorlari ataylab cheklangan:
+ * mutaxassisning aloqa/ish vaqti/maxfiylik sozlamalari va mijozning akkaunt telefoni bu yerga chiqmaydi
+ * (mijoz ulashgan raqam — buyurtmaning o'z contactPhone maydoni).
+ */
 export async function getOrdersForUser(userId: string, specialistId?: string | null) {
   const [asClient, asSpecialist] = await Promise.all([
     db.query.orders.findMany({
       where: eq(orders.clientId, userId),
       orderBy: [desc(orders.createdAt)],
-      with: { specialist: { with: { user: { columns: { name: true, avatarUrl: true } } } } },
+      with: { specialist: { columns: { id: true, slug: true, title: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
     }),
     specialistId
       ? db.query.orders.findMany({
           where: eq(orders.specialistId, specialistId),
           orderBy: [desc(orders.createdAt)],
-          with: { client: { columns: { name: true, avatarUrl: true, phone: true } } },
+          with: { client: { columns: { name: true, avatarUrl: true } } },
         })
       : Promise.resolve([]),
   ]);

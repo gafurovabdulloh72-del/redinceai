@@ -33,6 +33,9 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
   }
   const main = (r: PaymentRow) => (role === "specialist" ? r.netAmount : r.amount);
   const sub = (r: PaymentRow) => (role === "specialist" ? `${formatPrice(r.amount)} − ${r.commissionPct}%` : r.provider === "manual" ? "O'tkazma" : PROVIDER_LABEL[r.provider]);
+  /** Mijoz: ochiq to'lovni davom ettirish / holatini kuzatish havolasi */
+  const openLink = (r: PaymentRow) =>
+    role === "client" && r.state === "created" ? { href: `/tolov/${r.id}`, label: "Davom etish" } : role === "client" && r.state === "pending" ? { href: `/tolov/natija?payment=${r.id}`, label: "Holatni ko'rish" } : null;
 
   return (
     <div className="card overflow-hidden">
@@ -65,6 +68,11 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
               </td>
               <td className="px-3 py-3">
                 <Badge tone={PAYMENT_TONE[r.state]}>{PAYMENT_STATE_LABEL[r.state]}</Badge>
+                {openLink(r) && (
+                  <Link href={openLink(r)!.href} className="mt-1 block text-[12px] font-semibold text-accent hover:opacity-80">
+                    {openLink(r)!.label} →
+                  </Link>
+                )}
               </td>
               <td className="whitespace-nowrap px-5 py-3 text-right text-[12px] text-fg-3">
                 <time dateTime={new Date(r.releasedAt ?? r.paidAt ?? r.createdAt).toISOString()}>{formatDateTime(r.releasedAt ?? r.paidAt ?? r.createdAt)}</time>
@@ -107,6 +115,11 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
                 <dd className="text-fg-2">{formatDateTime(r.releasedAt ?? r.paidAt ?? r.createdAt)}</dd>
               </div>
             </dl>
+            {openLink(r) && (
+              <Link href={openLink(r)!.href} className="mt-2 inline-flex min-h-9 items-center text-[13px] font-semibold text-accent">
+                {openLink(r)!.label} →
+              </Link>
+            )}
           </li>
         ))}
       </ul>

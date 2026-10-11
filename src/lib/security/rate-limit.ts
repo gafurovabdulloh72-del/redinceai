@@ -16,6 +16,7 @@ const DAY = 24 * HOUR;
  * Tayyor limitlar. Kalit: `${nom}:${id}` (id — ip yoki userId).
  *   login      — ip+email bo'yicha muvaffaqiyatsiz urinishlar
  *   loginIp    — ip bo'yicha muvaffaqiyatsiz urinishlar
+ *   loginEmail — email bo'yicha (IP'dan mustaqil — proksi sarlavhasini almashtirib chetlab o'tib bo'lmaydi)
  *   register   — ip
  *   reset      — ip (parol tiklash so'rovi)
  *   password   — userId (parolni o'zgartirish)
@@ -24,6 +25,7 @@ const DAY = 24 * HOUR;
 export const RATE_LIMITS = {
   login: { limit: 5, windowMs: 15 * MIN },
   loginIp: { limit: 20, windowMs: 15 * MIN },
+  loginEmail: { limit: 20, windowMs: 15 * MIN },
   register: { limit: 3, windowMs: HOUR },
   reset: { limit: 3, windowMs: HOUR },
   resetConfirm: { limit: 10, windowMs: HOUR },

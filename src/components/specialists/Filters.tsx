@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpDown, ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -17,7 +17,7 @@ export const PRICE_MAX = 20_000_000;
 export const PRICE_STEP = 100_000;
 
 /** URL'dagi "filtr" kalitlari (sort/limit/page/view bunga kirmaydi) */
-export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender"] as const;
+export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available"] as const;
 
 export const SORT_OPTIONS = [
   { value: "rating", label: "Reyting bo'yicha" },
@@ -352,6 +352,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
   const experience = sp.get("experience") ?? "";
   const gender = sp.get("gender") ?? "";
   const verified = sp.get("verified") === "1";
+  const available = sp.get("available") === "1";
 
   const commitQ = useCallback((v: string) => setParams({ q: v || null }, { replace: true }), [setParams]);
   const commitRange = useCallback(
@@ -515,7 +516,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Boshqa */}
-      <Group title="Boshqa" summary={verified ? "Tasdiqlangan" : null}>
+      <Group title="Boshqa" summary={[verified && "Tasdiqlangan", available && "Hozir bo'sh"].filter(Boolean).join(" · ") || null}>
         <div className="flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
           <span className="flex min-w-0 items-center gap-2.5">
             <VerifiedBadge size={20} />
@@ -527,6 +528,17 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
             </span>
           </span>
           <Switch checked={verified} onChange={(v) => setParams({ verified: v ? "1" : null })} label="Faqat tasdiqlangan mutaxassislar" />
+        </div>
+        {/* Mavjudlik (B32): "Band" va ta'tildagilar chiqmaydi */}
+        <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <CheckCircle2 size={20} className="shrink-0 text-success" />
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium text-fg">Faqat hozir bo'shlar</span>
+              <span className="block text-[12px] text-fg-3">Band va ta'tildagilar chiqmaydi</span>
+            </span>
+          </span>
+          <Switch checked={available} onChange={(v) => setParams({ available: v ? "1" : null })} label="Faqat hozir buyurtma qabul qiladiganlar" />
         </div>
       </Group>
     </div>

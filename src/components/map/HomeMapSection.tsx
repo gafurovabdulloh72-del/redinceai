@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Search, Users, X } from "lucide-react";
 import { UzbekistanMap } from "./UzbekistanMap";
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { CATEGORIES, CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import type { RegionStat, SpecialistListItem } from "@/lib/queries";
 import { cn, formatPriceRange } from "@/lib/utils";
 
@@ -15,14 +16,35 @@ import { cn, formatPriceRange } from "@/lib/utils";
  * - yuqorida kasb (kategoriya) pill'lari → xarita shu kasb bo'yicha qayta bo'yaladi
  * - viloyat bosilganda yon panelda o'sha hududdagi (va tanlangan kasbdagi) mutaxassislar ro'yxati chiqadi
  * - yon panel bo'sh turmaydi: eng faol hududlar + yo'nalishlar bo'yicha taqsimot (bar'lar)
+ * - tanlov URL'da saqlanadi (?region=&category=&gender=#xarita) — /xarita kabi; serverga qayta so'rov yo'q
+ *   (history.replaceState Next router bilan sinxron), shuning uchun yangilash/ulashishda holat yo'qolmaydi
+ * - jins faqat ro'yxatni filtrlaydi; xarita ranglari (hudud statistikasi) umumiy qoladi
  */
 
 const LIMIT = 6;
 type ApiResult = { items: SpecialistListItem[]; total: number };
+type Gender = (typeof GENDERS)[number]["value"];
+/** Jins segmenti: "" — barchasi */
+const GENDER_OPTIONS: ReadonlyArray<{ value: Gender | ""; label: string }> = [{ value: "", label: "Barchasi" }, ...GENDERS];
+
+const validRegion = (v: string | null) => (v && REGION_BY_SLUG[v] ? v : null);
+const validCategory = (v: string | null) => (v && CATEGORY_BY_SLUG[v] ? v : null);
+const isGender = (v: string): v is Gender => GENDERS.some((g) => g.value === v);
+const validGender = (v: string | null): Gender | null => (v && isGender(v) ? v : null);
+function qsOf(region: string | null, category: string | null, gender: Gender | null) {
+  const p = new URLSearchParams();
+  if (region) p.set("region", region);
+  if (category) p.set("category", category);
+  if (gender) p.set("gender", gender);
+  return p.toString();
+}
 
 export function HomeMapSection({ stats, total }: { stats: Record<string, RegionStat>; total: number }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(() => validRegion(searchParams.get("region")));
+  const [category, setCategory] = useState<string | null>(() => validCategory(searchParams.get("category")));
+  const [gender, setGender] = useState<Gender | null>(() => validGender(searchParams.get("gender")));
   const [data, setData] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
   const cache = useRef(new Map<string, ApiResult>());
@@ -30,6 +52,33 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
 
   const region = selected ? REGION_BY_SLUG[selected] : null;
   const cat = category ? CATEGORY_BY_SLUG[category] : null;
+  const genderInfo = gender ? GENDERS.find((g) => g.value === gender) : undefined;
+
+  /** Biz yozgan oxirgi URL holati (o'z yangilanishimizni orqaga/oldinga navigatsiyadan ajratish uchun) */
+  const wanted = useRef(qsOf(selected, category, gender));
+  const apply = (r: string | null, c: string | null, g: Gender | null) => {
+    setSelected(r);
+    setCategory(c);
+    setGender(g);
+    const qs = qsOf(r, c, g);
+    if (qs === wanted.current) return;
+    wanted.current = qs;
+    // Ulashilgan havola to'g'ridan-to'g'ri xarita bo'limiga tushsin (#xarita)
+    window.history.replaceState(null, "", qs ? `${pathname}?${qs}#xarita` : pathname);
+  };
+
+  // Tashqi navigatsiya (orqaga/oldinga, havola) → holatni URL'dan olamiz
+  useEffect(() => {
+    const r = validRegion(searchParams.get("region"));
+    const c = validCategory(searchParams.get("category"));
+    const g = validGender(searchParams.get("gender"));
+    const qs = qsOf(r, c, g);
+    if (qs === wanted.current) return;
+    wanted.current = qs;
+    setSelected(r);
+    setCategory(c);
+    setGender(g);
+  }, [searchParams]);
 
   /* Tanlangan kasb bo'yicha hududlar soni (xaritani bo'yash uchun) */
   const counts = useMemo(
@@ -57,13 +106,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
   );
   const catMax = Math.max(1, ...catTotals.map((x) => x.n));
 
-  /* Ro'yxatni yuklash (hudud yoki kasb tanlanganda) */
+  /* Ro'yxatni yuklash (hudud, kasb yoki jins tanlanganda) */
+  const active = Boolean(selected || category || gender);
   useEffect(() => {
-    if (!selected && !category) {
+    if (!selected && !category && !gender) {
       setData(null);
       return;
     }
-    const key = `${selected ?? ""}|${category ?? ""}`;
+    const key = qsOf(selected, category, gender);
     const hit = cache.current.get(key);
     if (hit) {
       setData(hit);
@@ -74,6 +124,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
     const params = new URLSearchParams({ limit: String(LIMIT), sort: "rating" });
     if (selected) params.set("region", selected);
     if (category) params.set("category", category);
+    if (gender) params.set("gender", gender);
     fetch(`/api/specialists?${params}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((json) => {
@@ -86,18 +137,23 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
       .catch(() => {})
       .finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [selected, category]);
+  }, [selected, category, gender]);
 
   /* Mobilda hudud tanlanganda ro'yxatga sirpanish */
   const pickRegion = (slug: string | null) => {
-    setSelected(slug);
+    apply(slug, category, gender);
     if (slug && window.innerWidth < 1024) {
       setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     }
   };
+  const pickCategory = (slug: string | null) => apply(selected, slug, gender);
+  const pickGender = (g: Gender | null) => apply(selected, category, g);
 
-  const listHref = `/mutaxassislar?${new URLSearchParams({ ...(selected ? { region: selected } : {}), ...(category ? { category } : {}) })}`;
+  const qs = qsOf(selected, category, gender);
+  const listHref = `/mutaxassislar${qs ? `?${qs}` : ""}`;
   const unit = cat ? cat.name.toLowerCase() : "mutaxassis";
+  /* Jins tanlanganda hudud statistikasida son yo'q — ro'yxat javobidan olamiz */
+  const headCount: string = gender ? (data ? String(data.total) : "…") : String(countFor(category));
 
   return (
     <div className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
@@ -125,12 +181,12 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
 
           {/* Kasb pill'lari (aylanadigan qator, o'ng chetda so'nish) */}
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar scroll-fade" role="group" aria-label="Yo'nalish tanlash">
-            <CatPill active={!category} onClick={() => setCategory(null)} icon={<Users size={13} />} label="Barchasi" count={countFor(null)} />
+            <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={13} />} label="Barchasi" count={countFor(null)} />
             {CATEGORIES.map((c) => (
               <CatPill
                 key={c.slug}
                 active={category === c.slug}
-                onClick={() => setCategory(category === c.slug ? null : c.slug)}
+                onClick={() => pickCategory(category === c.slug ? null : c.slug)}
                 icon={<CategoryIcon icon={c.icon} size={13} style={{ color: category === c.slug ? undefined : c.accent }} />}
                 label={c.name}
                 count={countFor(c.slug)}
@@ -170,13 +226,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                 <div>
                   <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">{region.name}</h3>
                   <p className="mt-0.5 text-[13px] text-fg-3">
-                    <span className="font-display font-semibold text-accent">{countFor(category)}</span> ta {unit} · {region.capital}
+                    <span className="font-display font-semibold text-accent-text tabular-nums">{headCount}</span> ta {genderInfo ? `${genderInfo.label.toLowerCase()} ` : ""}
+                    {unit} · {region.capital}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setSelected(null)}
+                onClick={() => pickRegion(null)}
                 aria-label="Tanlovni bekor qilish"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg"
               >
@@ -187,18 +244,45 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
             <div className="flex items-start gap-3">
               <span className="icon-tile">{cat ? <CategoryIcon icon={cat.icon} size={20} /> : <Users size={20} />}</span>
               <div>
-                <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">{cat ? `${cat.plural} — butun O'zbekiston` : "Hududni tanlang"}</h3>
+                <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">
+                  {cat ? `${cat.plural} — butun O'zbekiston` : genderInfo ? `${genderInfo.label} mutaxassislar — butun O'zbekiston` : "Hududni tanlang"}
+                </h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-fg-2">
-                  {cat ? "Xaritada viloyatni bosing — shu kasbdagi mutaxassislar o'sha hudud bo'yicha filtrlanadi." : "Xaritadagi istalgan viloyatni bosing — o'sha yerdagi mutaxassislar chiqadi."}
+                  {cat || genderInfo
+                    ? "Xaritada viloyatni bosing — ro'yxat o'sha hudud bo'yicha filtrlanadi."
+                    : "Xaritadagi istalgan viloyatni bosing — o'sha yerdagi mutaxassislar chiqadi."}
                 </p>
               </div>
             </div>
           )}
 
+          {/* Jins — faqat ro'yxatni filtrlaydi (xarita ranglari umumiy) */}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Jins</span>
+            <div className="segment shrink-0" role="radiogroup" aria-label="Jins">
+              {GENDER_OPTIONS.map((g) => {
+                const on = (gender ?? "") === g.value;
+                return (
+                  <button
+                    key={g.value || "all"}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    data-active={on}
+                    onClick={() => pickGender(g.value ? g.value : null)}
+                    className="segment-item min-h-[34px] !px-3 !py-1 text-[12px]"
+                  >
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="my-4 h-px bg-line" />
 
           {/* Tana: ro'yxat yoki top hududlar + taqsimot */}
-          {selected || category ? (
+          {active ? (
             <div className="flex flex-1 flex-col">
               {loading && !data ? (
                 <ul className="space-y-2" aria-busy="true" aria-label="Yuklanmoqda">
@@ -225,9 +309,10 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                   </span>
                   <p className="font-display text-[15px] font-semibold text-fg">Hali topilmadi</p>
                   <p className="mt-1 text-[13px] text-fg-3">
-                    {region ? `${region.short}da` : "Bu yo'nalishda"} hozircha {unit} yo'q.
+                    {region ? `${region.short}da` : cat ? "Bu yo'nalishda" : "Bu filtr bo'yicha"} hozircha {genderInfo ? `${genderInfo.label.toLowerCase()} ` : ""}
+                    {unit} yo'q.
                   </p>
-                  <Link href="/auth/royxat?role=specialist" className="mt-4 inline-flex min-h-10 items-center text-[13px] font-semibold text-accent hover:underline">
+                  <Link href="/auth/royxat?role=specialist" className="mt-4 inline-flex min-h-10 items-center text-[13px] font-semibold text-accent-text hover:underline">
                     Birinchi bo'ling →
                   </Link>
                 </div>
@@ -248,8 +333,8 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                       <button
                         key={c.slug}
                         type="button"
-                        onClick={() => setCategory(c.slug)}
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[12px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
+                        onClick={() => pickCategory(c.slug)}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[12px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
                       >
                         <CategoryIcon icon={c.icon} size={12} style={{ color: c.accent }} />
                         {c.name}
@@ -271,7 +356,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                       onClick={() => pickRegion(r.slug)}
                       className="flex min-h-11 w-full items-center gap-3 rounded-tile px-2 py-1.5 text-left transition hover:bg-fg/5"
                     >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-[12px] font-bold text-accent">{i + 1}</span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-[12px] font-bold text-accent-text">{i + 1}</span>
                       <span className="flex-1 text-[14px] font-medium text-fg">{r.name}</span>
                       <span className="font-display text-[13px] font-semibold text-fg-2">{counts[r.slug] ?? 0}</span>
                     </button>
@@ -282,10 +367,10 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
               {/* Yo'nalishlar bo'yicha taqsimot — bar'lar, panel pastini to'ldiradi */}
               <div className="mt-auto pt-6">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Yo'nalishlar bo'yicha</p>
-                <ul className="space-y-2.5">
+                <ul className="space-y-1">
                   {catTotals.map(({ c, n }) => (
                     <li key={c.slug}>
-                      <button type="button" onClick={() => setCategory(c.slug)} className="group block w-full text-left" aria-label={`${c.plural}: ${n} ta`}>
+                      <button type="button" onClick={() => pickCategory(c.slug)} className="group block min-h-10 w-full py-1.5 text-left" aria-label={`${c.plural}: ${n} ta`}>
                         <span className="flex items-center justify-between text-[12.5px]">
                           <span className="inline-flex items-center gap-1.5 font-medium text-fg-2 transition group-hover:text-fg">
                             <CategoryIcon icon={c.icon} size={12} style={{ color: c.accent }} />

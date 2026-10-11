@@ -38,6 +38,8 @@ async function call<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
+/** Mobil kartalar: dastlab shuncha, qolgani «Yana ko'rsatish» bilan */
+const MOBILE_CAP = 10;
 
 /* ------------------------------------------------------------------ */
 /* Komponent                                                           */
@@ -50,6 +52,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
   const [notice, setNotice] = useState<string | null>(null);
   /** Inline o'chirish tasdig'i (window.confirm o'rniga) */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   // Server yangi ro'yxat bersa (router.refresh) — mahalliy holatni unga moslaymiz
   const [seen, setSeen] = useState(pending);
@@ -134,7 +137,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
       return (
         <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up sm:flex-row sm:items-center" style={{ animationDuration: "0.2s" }}>
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
-            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Butunlay o'chirilsinmi? Portfolio, sharhlar va buyurtmalar ham o'chadi.
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Butunlay o'chirilsinmi? Portfolio, sharhlar va buyurtmalar ham o'chadi. Eskrou/o'tkazilgan to'lovlari yoki ochiq payout so'rovi bo'lsa — o'chirish rad etiladi.
           </p>
           <div className="flex shrink-0 gap-1.5">
             <Button size={compact ? "md" : "sm"} variant="danger" onClick={() => remove(row)} disabled={!!b}>
@@ -254,8 +257,10 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                         <p className="whitespace-nowrap font-medium text-fg">{region?.short ?? row.regionSlug}</p>
                         <p className="text-[12px] text-fg-3">{row.city}</p>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2" suppressHydrationWarning>
-                        {timeAgo(row.createdAt)}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2">
+                        <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
+                          {timeAgo(row.createdAt)}
+                        </time>
                       </td>
                       <td className="px-5 py-2.5">
                         <Actions row={row} />
@@ -269,11 +274,11 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
 
           {/* ---------- Mobil: kartalar (ustun nomlari saqlanadi) ---------- */}
           <ul className="space-y-3 md:hidden">
-            {rows.map((row) => {
+            {rows.map((row, i) => {
               const cat = CATEGORY_BY_SLUG[row.category];
               const region = REGION_BY_SLUG[row.regionSlug];
               return (
-                <li key={row.id} className={cn("card p-4", busy[row.id] && "opacity-60")}>
+                <li key={row.id} className={cn("card p-4", busy[row.id] && "opacity-60", i >= MOBILE_CAP && !showAll && "hidden")}>
                   <div className="flex items-start gap-3">
                     <Avatar name={row.user.name} size={44} decorative />
                     <div className="min-w-0 flex-1">
@@ -282,8 +287,11 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                         {row.isFeatured && <Star size={13} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                       </p>
                       <p className="truncate text-[13px] text-fg-2">{row.title}</p>
-                      <p className="mt-0.5 text-[12px] text-fg-3" suppressHydrationWarning>
-                        Qo'shilgan: {timeAgo(row.createdAt)}
+                      <p className="mt-0.5 text-[12px] text-fg-3">
+                        Qo'shilgan:{" "}
+                        <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
+                          {timeAgo(row.createdAt)}
+                        </time>
                       </p>
                     </div>
                   </div>
@@ -323,6 +331,11 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
               );
             })}
           </ul>
+          {rows.length > MOBILE_CAP && !showAll && (
+            <Button variant="outline" size="md" className="w-full md:hidden" onClick={() => setShowAll(true)}>
+              Yana {rows.length - MOBILE_CAP} ta ko'rsatish
+            </Button>
+          )}
         </>
       )}
       {rows.length > 0 && (

@@ -17,8 +17,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Muvaffaqiyatli JSON javob. API javoblari ko'ruvchiga bog'liq (cookie bo'yicha maskalanadi), shuning uchun
+ * standart `Cache-Control: private, no-store` — umumiy kesh/CDN bir foydalanuvchining DTO'sini boshqasiga bermasin.
+ * Haqiqatan ommaviy, statik ma'lumot uchun init.headers orqali o'z Cache-Control'ingizni bering.
+ */
 export function ok<T>(data: T, init?: ResponseInit) {
-  return NextResponse.json({ ok: true, data }, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has("cache-control")) headers.set("cache-control", "private, no-store");
+  return NextResponse.json({ ok: true, data }, { ...init, headers });
 }
 
 export function fail(status: number, message: string, fields?: Record<string, string>, headers?: Record<string, string>) {
