@@ -432,3 +432,233 @@
 98. Sahifalar orasida yumshoq o'tish animatsiyasi
 99. "Harakatni kamaytirish" sozlamasi
 100. Vaqtga qarab avtomatik rejim (kechqurun Noir)
+
+## E. 100 ta kamchilik (3-raund tekshiruvi, 2026-10-11)
+
+Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backlog) + qo'lda tahlil. ✅ — tuzatilgan.
+
+### Xavfsizlik (auth/sessiya)
+1. Parol tiklash havolasi X-Forwarded-Host sarlavhasidan quriladi — havolani zaharlash mumkin
+2. CSRF Origin tekshiruvi ham shu soxta sarlavhaga ishonadi
+3. Production'da birinchi deploy demo va admin akkauntlarni standart parollar bilan seed qiladi
+4. Demo kirish ma'lumotlari client bundle'ga kiradi (AuthForm)
+5. .env.example dagi AUTH_SECRET placeholder production'da qabul qilinadi
+6. 16 belgidan qisqa AUTH_SECRET indamay e'tiborsiz qoladi, Turso token fallback'iga tushadi
+7. JWT algoritmi (HS256) jwtVerify'da pin qilinmagan
+8. Login lockout X-Forwarded-For birinchi qiymatiga bog'liq — spoof/rotatsiya bilan chetlab o'tiladi
+9. Proksi sarlavhasi bo'lmasa hamma foydalanuvchi bitta "local" limit bucket'ida
+10. CSP script-src 'unsafe-inline' — XSS himoyasi amalda yo'q
+11. connect-src/img-src uchun blanket https: — ma'lumot chiqarib yuborish kanali ochiq
+12. Logout JWT'ni bekor qilmaydi — nusxalangan cookie 30 kun ishlaydi
+13. GET /api/auth/logout — boshqa saytdan majburiy chiqish vektori
+14. Reset so'rovi vaqti mavjud/mavjud bo'lmagan email uchun farq qiladi (timing oracle)
+15. Register 409 bilan email mavjudligini oshkor qiladi
+16. Reset tokenni iste'mol qilish atomik emas (check-then-update)
+17. Parol o'zgarganda eski reset tokenlar bekor qilinmaydi
+18. Upload butun body'ni xotiraga o'qib, keyin 5 MB tekshiradi
+19. JWT fallback kaliti xom Turso token (kalitni qayta ishlatish)
+20. Email tasdiqlash yo'q — "ro'yxatdan o'tganlarga" darajasi tashlanma akkauntga ham ochiq
+21. PUT /api/profile va /api/privacy uchun per-user rate limit yo'q
+22. 2FA (TOTP) yo'q — admin akkaunt faqat parol bilan
+23. Faol sessiyalar ro'yxati yo'q — faqat "hammasidan chiqish"
+
+### Ruxsat va maxfiylik
+24. GET /api/orders mutaxassisning to'liq qatorini qaytaradi (yashirin Instagram, jadval, sozlamalar, userId)
+25. GET /api/orders mijozning akkaunt telefonini mutaxassisga beradi (mijoz tanlagan raqamdan tashqari)
+26. Jins filtri oracle: gender=hidden bo'lsa ham ?gender= bo'yicha topiladi
+27. Matnli qidiruv yashirin shaharni fosh qiladi (LIKE city)
+28. /buyurtma/[id] aniq shaharni ko'rsatadi, city visibility e'tiborsiz
+29. O'xshash mutaxassislar ro'yxati viewer isOwner/hasOrder kontekstini boshqalarga ham qo'llaydi
+30. Viewer'ga bog'liq JSON javoblarda Cache-Control: private / Vary: Cookie yo'q
+31. Sharhni buyurtmasiz istalgan akkaunt yoza oladi — reyting manipulyatsiyasi
+32. Admin mutaxassisni o'chirsa eskrou to'lovlari va payoutlar kaskad bilan yo'qoladi
+33. Sharhni o'chirish yo'q; reyting qayta hisoblanmaydi
+34. Akkauntni o'chirish va ma'lumotlarni eksport qilish (GDPR) yo'q
+35. Email o'zgartirish tasdiqsiz
+
+### To'lov va eskrou
+36. Buyurtma bekor qilinganda Payme/Click jarayondagi tranzaksiya bir tomonlama bekor qilinadi (protokol buzilishi)
+37. Ichki bekor qilish provider_state=1 qoldiradi — CheckTransaction/GetStatement bekor tranzaksiyani faol deb ko'rsatadi
+38. Payme CreateTransaction va Click Prepare boshqa provayderning jarayondagi tranzaksiyasini tekshirmaydi
+39. To'lov mijoz ishni qabul qilgandan keyin tushsa eskrou tiqilib qoladi (release tugmasi yo'q)
+40. Narx o'zgarishi mijoz "To'ladim" degan o'tkazmani bekor qiladi — admin tasdiqlay olmaydi
+41. Payme CancelTransaction ish topshirilgan (done) buyurtmada ham pulni qaytaradi
+42. Bekor qilingan to'lovda "Qayta urinish" redirect loop
+43. Admin payout tasdiqlashdagi balans tekshiruvi tavtologiya (hech qachon ishlamaydi)
+44. markPaid/releaseOrder holatga shartlanmagan — parallel Perform ikki marta audit/bildirishnoma yozadi
+45. Payme noto'lanadigan buyurtma uchun -31001 qaytaradi, -31050 bo'lishi kerak
+46. Bekor qilingan buyurtmada narx qoladi va "Eskrou orqali xavfsiz to'lov" izohi chiqadi
+47. Admin "Platforma daromadi" eskroudagi (qaytarilishi mumkin) komissiyani ham daromad deb sanaydi
+48. Mijoz qabul qilgan buyurtmani to'lashi mumkin, keyin pul chiqarish tugmasi yo'q
+49. Mutaxassis narxsiz buyurtmani "done" qilsa narx hech qachon qo'yilmaydi (eskrou yopiq)
+50. Refund qilingan buyurtmada "Ishni qabul qilish" ko'rinadi va noto'g'ri bildirishnoma ketadi
+51. "To'ladim" (manual pending) holati buyurtma kartasida ko'rinmaydi
+52. To'lov tarixidan /tolov/[id] sahifasiga havola yo'q
+53. Admin refund/cancel sababi UI'dan yuborilmaydi
+54. Payme pending tranzaksiya faqat Payme so'raganda eskiradi — fon tozalash vazifasi yo'q
+55. Payout rekvizitlari faqat maskalangan holda saqlanadi — admin to'liq karta raqamini ko'rmaydi
+56. Nizo (dispute) jarayoni yo'q — faqat adminga bildirishnoma
+57. Avtomatik release (mijoz N kun javob bermasa) yo'q
+58. Qisman/milestone to'lovlar yo'q
+59. Hisob-faktura/chek PDF yo'q
+60. Real Payme/Click kassasi ulanmagan (test rejimi)
+
+### To'g'rilik va ma'lumotlar
+61. Portfolio sortOrder o'chirishdan keyin kolliziya qiladi; kabinet va profil tartibi farq qiladi
+62. API'da noto'g'ri region/category/experience 0 natija, boshqa enum'lar 422
+63. Ro'yxat sahifasi priceMin'ni ikki marta parse qiladi
+64. Yuklangan rasm URL'lari window.location.origin bilan saqlanadi (domen o'zgarsa buziladi)
+65. formatPrice 999 500–999 999 uchun "1000 ming so'm" deydi
+66. vacationUntil o'tgan sana server tomonda qabul qilinadi
+67. Sharh rate limiti validatsiyadan oldin sarflanadi
+68. Bekor qilish sababi faqat bildirishnoma matnida saqlanadi — UI yo'q
+69. Telefon +998 formatiga normalizatsiya qilinmaydi
+70. Kirill qidiruv ishlamaydi (transliteratsiya jadvali bor, ishlatilmaydi)
+71. notify() email yubormaydi (Resend ulangan, faqat parol tiklashda)
+72. Bosh sahifa xarita tanlovi URL'ga yozilmaydi
+73. Bir nechta joyda nisbiy vaqt <time dateTime>siz
+74. Buyurtma holati tarixi saqlanmaydi
+75. rate_limits va audit_logs jadvallari tozalanmaydi (cheksiz o'sadi)
+76. Migratsiya tizimi yo'q (drizzle push --force)
+77. Avtotestlar va CI yo'q
+78. Xatolar monitoringi (Sentry) va analitika yo'q
+79. Backup strategiyasi yo'q
+80. Fayl saqlash Vercel Blob'ga bog'liq, S3/R2 yo'q
+
+### Vizual / UX
+81. Qorong'u rejimda kam sonli hududlar loyqa jigarrang (map-fill-0 issiq jigarrang)
+82. /xarita yorliqlari Toshkent sh. / Toshkent vil. / Jizzax / Sirdaryo ustma-ust
+83. Hero avatar stack rasm yuklanmasa bo'sh doiralar (bosh harf fallback yo'q)
+84. 0 sharhli profilda bo'sh 5 yulduz va "— (0)"
+85. Yangi qo'shilgan mutaxassis uchun "Yangi" belgisi yo'q
+86. Profilda ijtimoiy isbot (N bajarilgan buyurtma) ko'rsatilmaydi
+87. Mobilda kichik hududlarni bosish qiyin, zoom/pan yo'q
+88. Kasb pill'lari o'ngda kesiladi, scroll ishorasi yo'q
+89. 14 hudud chipi tartibsiz sinadi
+90. Tavsiya kartalari gradientlari bir-biridan ajralmaydi
+91. "Uch qadam" kartalari tekis va zaif
+92. CTA bloki qorong'uda yorug'ga inversiya qiladi
+93. Bosh sahifa juda uzun (takrorlanuvchi ro'yxatlar)
+94. Rasmsiz muqovalarda sun'iy gradient — "demo" hissi; seed rasmlari tashqi (bloklanadi)
+95. Profil formasi bitta ustunda juda uzun, bo'limlararo progress yo'q
+96. Portfolio masonry notekis, bo'sh joylar
+97. "+N ko'nikma" chipi bosilmaydi
+98. Saralash select'i va natija soni bog'lanmagan
+99. Ikonka o'lchamlari va radiuslar nomuvofiq (12–22px, 14–32px)
+100. fg-4 rangi yorug'da AA kontrastdan o'tmaydi
+
+## F. 100 ta qo'shimcha (3-raund takliflari)
+
+### Tezkor (ma'lumot qatlami tayyor)
+1. Bildirishnoma qo'ng'irog'i (bell) + o'qilmaganlar soni + ro'yxat
+2. Sevimlilar: yurak tugmasi, API, /kabinet/sevimlilar sahifasi
+3. Portfolio tartiblash (yuqoriga/pastga) va tahrirlash
+4. Sharh faqat buyurtma qabul qilingan mijozdan + "Buyurtma tasdiqlangan" belgisi
+5. Xarita panellarida (bosh sahifa va /xarita) jins filtri
+6. Buyurtma kartasida "O'tkazma yuborildi — tasdiq kutilmoqda" holati va /tolov havolasi
+7. Email bildirishnomalar (Resend) muhim hodisalar uchun
+8. Kirill→lotin transliteratsiya bilan qidiruv
+9. Telefon normalizatsiya (+998) va chiroyli format
+10. Profil uchun dinamik OG rasm (ism, kasb, hudud, reyting)
+11. "Yangi" belgisi (7 kun) kartalarda
+12. Ijtimoiy isbot chip: "N ta bajarilgan buyurtma", "N ta doimiy mijoz"
+13. Bosh sahifa xarita tanlovini URL'ga yozish
+14. Admin refund/cancel uchun sabab maydoni
+15. Bekor qilish sababini buyurtma kartasida ko'rsatish
+
+### To'lov va moliya
+16. Narx taklifi / qarshi taklif (mijoz narxni rad etib o'z taklifini yuboradi)
+17. Milestone (bosqichli) to'lovlar
+18. Avto-release: mijoz 7 kun ichida javob bermasa pul mutaxassisga
+19. Nizo markazi: mijoz/mutaxassis nizo ochadi, admin arbitraj qiladi
+20. Hisob-faktura va chek PDF
+21. Komissiya darajalari (yangi 15%, tajribali 10%, top 7%)
+22. Promo-kod va chegirmalar
+23. Referral dasturi (taklif qilgan → bonus)
+24. Payme/Click saqlangan karta bilan tez to'lov
+25. Uzum Nasiya / bo'lib to'lash
+26. Mijoz depoziti (balans) va qaytarish
+27. Avtomatik payout (bank/merchant API)
+28. Narx qo'yishda "Siz olasiz: X so'm" oldindan ko'rsatkich
+29. Oylik daromad hisoboti PDF mutaxassis uchun
+30. Shoshilinch buyurtma (ustama bilan)
+31. Xizmat paketlari (Basic / Standard / Premium) Fiverr uslubida
+32. Mutaxassis Pro obunasi (ko'proq ko'rinish, statistika)
+33. Profilni ko'tarish (boost) to'lovli
+
+### Buyurtma va muloqot
+34. Ichki chat (matn + fayl)
+35. Buyurtmaga fayl biriktirish (brief, TZ, referens)
+36. Buyurtma holati timeline (tarix bilan)
+37. Muddat yaqinlashganda eslatmalar
+38. SLA: 24 soatda javob bo'lmasa avtomatik eslatma/bekor
+39. Tez javob shablonlari
+40. Video qo'ng'iroq havolasi (Meet/Zoom) buyurtma ichida
+41. Bandlik kalendari va sana bron qilish
+42. "Hozir ochiq" filtri (ish vaqti asosida)
+43. Mutaxassis javobi sharhga
+44. Ko'p mezonli reyting (sifat, muddat, muloqot)
+45. Sharhga rasm/video biriktirish
+46. NPS / "Tavsiya qilaman" so'rovi
+47. Takroriy buyurtma (bir bosishda qayta buyurtma)
+48. Mijozning "Mening mutaxassislarim" ro'yxati
+
+### Qidiruv va xarita
+49. Qidiruv autocompletion (ism, ko'nikma, shahar)
+50. Ko'nikma (skills) bo'yicha filtr
+51. Jihozlar filtri (dron, kamera turi, studiya)
+52. Ish turi filtri (to'y, reklama, korporativ, kontent)
+53. Saqlangan qidiruv va "yangi mutaxassis chiqsa xabar ber"
+54. Taqqoslash (2–3 mutaxassis yonma-yon)
+55. Xaritada zoom/pan va tumanlar darajasi
+56. Xaritada klasterlar / issiqlik xaritasi
+57. "Menga yaqin" geolokatsiya
+58. Xarita uchun klaviatura navigatsiyasi (strelkalar)
+59. Kategoriya/hudud SEO landing sahifalar (/toshkent/videograf)
+60. Sitemap'da kategoriya/hudud sahifalari va lastmod
+
+### Profil va kontent
+61. Portfolio video inline o'ynatish (YouTube/Vimeo), Instagram reels
+62. "Oldin/keyin" slayder (montaj, retush, dizayn)
+63. Portfolio teglari va kategoriyalari
+64. Sertifikatlar/litsenziyalar bo'limi (dron ruxsatnomasi)
+65. Jamoa/studiya profillari (bir nechta a'zo)
+66. QR-kod vizitka va profil uchun qisqa havola
+67. Profil tema/aksent tanlash (vitrina)
+68. Javob tezligi va "oxirgi faollik" ko'rsatkichi
+69. Top Rated nishoni avtomatik (reyting + bajarilgan ishlar)
+70. Narx kalkulyatori (soat/kun/loyiha)
+71. Onboarding wizard (bosqichma-bosqich) yangi mutaxassis uchun
+72. Mijoz uchun "Buyurtma sehrgari" (kategoriya → byudjet → hudud → tavsiya)
+73. Blog/maqolalar va yordam markazi (SEO)
+74. Mijoz e'lonlar doskasi (mijoz e'lon qiladi, mutaxassislar taklif beradi)
+75. Takliflar (proposal) tizimi va kunlik limit
+
+### Xavfsizlik va hisob
+76. Email tasdiqlash (OTP) va SMS tasdiqlash (Eskiz.uz)
+77. 2FA (TOTP) admin va mutaxassislar uchun
+78. Faol sessiyalar ro'yxati (qurilma, IP) va alohida chiqish
+79. Google / Telegram / Apple orqali kirish
+80. Akkauntni o'chirish va ma'lumot eksporti (GDPR)
+81. Nonce asosidagi CSP
+82. Logout'da token denylist
+83. KYC: pasport/ID yuklash va admin tasdiqlash navbati
+84. Oferta/shartnoma qabul qilish (versiyalangan)
+85. Spam/shikoyat (report) tugmasi profil va sharhlarda
+
+### Admin va operatsiya
+86. Admin dashboard grafiklar (daromad, buyurtmalar trendi)
+87. Foydalanuvchini bloklash / ogohlantirish
+88. Sharh moderatsiyasi navbati
+89. Fraud belgilari (bir IP'dan ko'p akkaunt, bir xil karta)
+90. Audit jurnali filtrlari va CSV eksport
+91. Platforma sozlamalari tarixi (kim, qachon o'zgartirdi)
+92. Status sahifasi (uptime) va /api/health DB tekshiruvi
+93. Fon vazifalari (cron): eskirgan Payme pending, rate_limits tozalash, eslatmalar
+94. E2E testlar (Playwright) va CI (GitHub Actions)
+95. Sentry + log aggregatsiya
+96. Rasmlar uchun CDN/optimizatsiya (R2 + next/image)
+97. PWA: offline, web push bildirishnomalar
+98. Rus va kirill tillari (i18n)
+99. USD ekvivalenti ko'rsatish
+100. Telegram bot: bildirishnomalar va tezkor javoblar
