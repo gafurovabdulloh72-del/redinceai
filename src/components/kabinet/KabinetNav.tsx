@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ClipboardList, ExternalLink, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
+import { ClipboardList, ExternalLink, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-export type KabinetNavIcon = "overview" | "orders" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
+export type KabinetNavIcon = "overview" | "orders" | "favorites" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
 
 export interface KabinetNavItem {
   href: string;
@@ -29,6 +29,7 @@ export interface KabinetNavUser {
 const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   overview: LayoutDashboard,
   orders: ClipboardList,
+  favorites: Heart,
   profile: UserRound,
   portfolio: Images,
   public: ExternalLink,
@@ -68,8 +69,9 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
     if (!row) return;
     const active = row.querySelector<HTMLElement>('[aria-current="page"]');
     if (!active) return;
+    // Qator -mx-4/px-4 bilan: pill o'ng chetdan 16px gutter bilan (scroll-fade ostida emas) ko'rinishi kerak
     const left = active.offsetLeft - 16;
-    if (left > row.scrollLeft + row.clientWidth - active.offsetWidth - 16 || left < row.scrollLeft) {
+    if (active.offsetLeft + active.offsetWidth > row.scrollLeft + row.clientWidth - 16 || left < row.scrollLeft) {
       row.scrollTo({ left: Math.max(0, left), behavior: "auto" });
     }
   }, [pathname]);

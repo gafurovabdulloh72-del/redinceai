@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsBell } from "./NotificationsBell";
+import { setFavoritesViewer } from "@/components/specialists/favorites-store";
 import { cn } from "@/lib/utils";
 
 export interface NavUser {
@@ -39,6 +40,10 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
   }, []);
 
   useEffect(() => setOpen(false), [pathname]);
+
+  // Sevimlilar do'koniga ko'ruvchini e'lon qilamiz — kirish/chiqishdan so'ng yurak tugmalari yangilanadi
+  const userId = user?.id ?? null;
+  useEffect(() => setFavoritesViewer(userId), [userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +77,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
       <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <nav
           className={cn(
-            "nav-bar mx-auto flex w-full max-w-5xl items-center justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
+            "nav-bar relative mx-auto flex w-full max-w-5xl items-center justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
             scrolled ? "h-14 shadow-[var(--shadow-2)]" : "h-14 sm:h-16",
           )}
           aria-label="Asosiy navigatsiya"

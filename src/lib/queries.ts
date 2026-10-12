@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
-import { orders, portfolioItems, reviews, specialists, users } from "./db/schema";
+import { favorites, orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
 import { escapeLike } from "./utils";
@@ -111,6 +111,25 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
 }
 
 export type SpecialistListItem = Awaited<ReturnType<typeof listSpecialists>>["items"][number];
+
+/* ------------------------------------------------------------------ */
+/* Sevimlilar                                                          */
+/* ------------------------------------------------------------------ */
+/** Foydalanuvchining sevimli mutaxassislari ID'lari (yurak tugmalari holati uchun) */
+export async function listFavoriteIds(userId: string): Promise<string[]> {
+  const rows = await db.select({ id: favorites.specialistId }).from(favorites).where(eq(favorites.userId, userId));
+  return rows.map((r) => r.id);
+}
+
+/** Sevimli mutaxassislar (oxirgi qo'shilgani birinchi) — ro'yxat DTO'si, ko'ruvchiga moslab maskalangan */
+export async function listFavoriteSpecialists(userId: string, viewer: Viewer = { userId }): Promise<SpecialistListItem[]> {
+  const rows = await db.query.favorites.findMany({
+    where: eq(favorites.userId, userId),
+    orderBy: [desc(favorites.createdAt)],
+    with: { specialist: { with: { user: { columns: { name: true, avatarUrl: true } } } } },
+  });
+  return rows.map((r) => toListItem(r.specialist, viewer));
+}
 
 /* ------------------------------------------------------------------ */
 /* Bitta profil                                                        */

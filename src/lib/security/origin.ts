@@ -1,4 +1,5 @@
 import "server-only";
+import { forwardedHost } from "./request";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -11,10 +12,9 @@ function hostOf(value: string | null): string | null {
   }
 }
 
-/** So'rov o'z hosti (proksi orqasida x-forwarded-host) */
+/** So'rov o'z hosti (faqat ishonchli proksi orqasida x-forwarded-host — TRUST_PROXY, aks holda Host) */
 export function requestHost(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = fwd || req.headers.get("host");
+  const host = forwardedHost(req.headers) || req.headers.get("host");
   if (host) return host.toLowerCase();
   try {
     return new URL(req.url).host.toLowerCase();

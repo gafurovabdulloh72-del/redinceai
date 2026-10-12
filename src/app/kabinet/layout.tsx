@@ -37,6 +37,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   const items: KabinetNavItem[] = [
     { href: "/kabinet", label: "Umumiy", icon: "overview", exact: true },
     { href: "/kabinet/buyurtmalar", label: "Buyurtmalar", icon: "orders", badge: newOrders },
+    { href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" },
     { href: "/kabinet/profil", label: "Profil", icon: "profile" },
   ];
   if (user.specialist || user.role === "specialist") {

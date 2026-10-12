@@ -35,6 +35,7 @@ export const RATE_LIMITS = {
   upload: { limit: 30, windowMs: DAY },
   portfolio: { limit: 60, windowMs: DAY },
   checkout: { limit: 10, windowMs: HOUR },
+  favorites: { limit: 120, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

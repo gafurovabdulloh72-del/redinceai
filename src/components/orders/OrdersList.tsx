@@ -730,7 +730,15 @@ function OrderCard({
             )}
             aria-hidden="true"
           >
-            {o.paymentState === "paid" || o.paymentState === "released" ? <ShieldCheck size={17} /> : o.status === "cancelled" ? <Ban size={16} /> : <Hourglass size={16} />}
+            {o.paymentState === "paid" || o.paymentState === "released" ? (
+              <ShieldCheck size={17} />
+            ) : o.paymentState === "refunded" ? (
+              <RotateCcw size={16} />
+            ) : o.status === "cancelled" ? (
+              <Ban size={16} />
+            ) : (
+              <Hourglass size={16} />
+            )}
           </span>
         </div>
       )}

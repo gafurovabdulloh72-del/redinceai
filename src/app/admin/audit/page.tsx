@@ -207,7 +207,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
                     {r.targetType && (
                       <span className="mr-2">
                         {r.targetType}
-                        {r.targetId ? ` ${r.targetId.slice(0, 8)}` : ""}
+                        {r.targetId ? ` ${r.targetId.slice(0, 12)}` : ""}
                       </span>
                     )}
                     <span className="break-all">{metaText(r.meta)}</span>

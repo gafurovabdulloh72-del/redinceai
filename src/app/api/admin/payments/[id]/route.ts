@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { loadPaymentDetail } from "@/lib/payments/dto";
-import { cancelPayment, markPaid, refundPayment, releaseOrder } from "@/lib/payments/service";
+import { cancelPayment, findInFlightProviderPayment, markPaid, refundPayment, releaseOrder } from "@/lib/payments/service";
 
 const schema = z.object({
   action: z.enum(["confirm", "release", "refund", "cancel"]),
@@ -14,7 +14,10 @@ const schema = z.object({
  *  confirm — qo'lda o'tkazma (pending/created) → paid (eskrou)
  *  release — paid → released (mutaxassis balansiga), buyurtma yakunlanadi
  *  refund  — paid → refunded (mijozga qaytarildi)
- *  cancel  — created/pending → cancelled (pul harakati bo'lmagan)
+ *  cancel  — created/pending → cancelled (pul harakati bo'lmagan). Payme/Click tomonida JARAYONDAGI
+ *            (pending, 12 soatdan eskirmagan) tranzaksiya ichkaridan yopilmaydi — uni faqat provayderning
+ *            CancelTransaction/Complete(error) chaqiruvi yoki muddat o'tishi yopadi (aks holda keyingi
+ *            PerformTransaction -31008 bilan qaytadi) → 409, mijoz/mutaxassis yo'llaridagi kabi.
  */
 export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession(["admin"]);
@@ -43,6 +46,9 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
       return ok({ id: row.id, state: row.state });
     }
     case "cancel": {
+      if (p.provider !== "manual" && p.state === "pending" && (await findInFlightProviderPayment(p.orderId))?.id === p.id) {
+        throw new ApiError(409, "To'lov provayder (Payme/Click) tomonida jarayonda — uni faqat provayder yopadi yoki 12 soatdan keyin eskiradi");
+      }
       const row = await cancelPayment(p.id, 4);
       await audit(session.sub, "admin_payment", { targetType: "payment", targetId: p.id, meta: { action, note: note || undefined } }, req);
       return ok({ id: row.id, state: row.state });

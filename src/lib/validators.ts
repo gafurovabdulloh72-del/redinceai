@@ -228,6 +228,9 @@ export const reviewDeleteSchema = z.object({
   authorId: z.string().min(1).optional(),
 });
 
+/** POST /api/favorites (body) va DELETE /api/favorites (?specialistId=) */
+export const favoriteSchema = z.object({ specialistId: z.string().min(1) });
+
 export const specialistFilterSchema = z.object({
   q: z.string().trim().max(80).optional(),
   // Noma'lum slug'lar 422 (API) — sahifa parseFilter'da shunchaki tashlab yuboradi

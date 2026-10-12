@@ -31,11 +31,38 @@ export function trustedSiteOrigin(): string | null {
   return null;
 }
 
-/** So'rov kelgan tashqi manzil (proksi orqasida ham to'g'ri): https://redince.uz */
+/**
+ * X-Forwarded-Host / X-Forwarded-Proto sarlavhalariga ishonish mumkinmi. Bu sarlavhalarni har qanday mijoz
+ * o'zi yuborishi mumkin, shuning uchun faqat ularni qayta yozadigan ishonchli proksi orqasida hisobga olinadi:
+ * TRUST_PROXY=1 (yoki true/yes) aniq yoqilganda, yoki ma'lum platforma (Vercel / Railway) muhitida.
+ * Aks holda (lokal dev, to'g'ridan-to'g'ri ulanish) faqat Host sarlavhasi ishlatiladi.
+ */
+export function trustProxy(): boolean {
+  const flag = process.env.TRUST_PROXY?.trim().toLowerCase();
+  if (flag) return flag === "1" || flag === "true" || flag === "yes";
+  return Boolean(process.env.VERCEL || process.env.RAILWAY_PUBLIC_DOMAIN);
+}
+
+/** Ishonchli proksi orqasida x-forwarded-host (birinchi qiymat), aks holda null */
+export function forwardedHost(headers: Headers): string | null {
+  if (!trustProxy()) return null;
+  return headers.get("x-forwarded-host")?.split(",")[0]?.trim() || null;
+}
+
+/** Ishonchli proksi orqasida x-forwarded-proto (birinchi qiymat), aks holda null */
+export function forwardedProto(headers: Headers): string | null {
+  if (!trustProxy()) return null;
+  return headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || null;
+}
+
+/**
+ * So'rov kelgan tashqi manzil (ishonchli proksi orqasida ham to'g'ri): https://redince.uz
+ * Eslatma: Next req.url protokolini x-forwarded-proto'dan oladi, shuning uchun localhost/127.* uchun http qat'iy.
+ */
 export function requestOrigin(req: Request): string {
   const url = new URL(req.url);
-  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || url.protocol.replace(":", "");
-  const host = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || req.headers.get("host") || url.host;
+  const host = forwardedHost(req.headers) || req.headers.get("host") || url.host;
+  const proto = forwardedProto(req.headers) || (/^(localhost|127\.)/i.test(host) ? "http" : url.protocol.replace(":", ""));
   return `${proto}://${host}`;
 }
 

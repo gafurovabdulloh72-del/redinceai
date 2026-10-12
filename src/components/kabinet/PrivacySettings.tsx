@@ -265,7 +265,7 @@ export function PrivacySettings({
             <span className="text-fg-4">Hammasi saqlangan</span>
           )}
           {!isDefault && (
-            <button type="button" onClick={() => setV({ ...DEFAULT_VISIBILITY })} className="inline-flex items-center gap-1 text-[12px] font-semibold text-fg-3 transition hover:text-fg">
+            <button type="button" onClick={() => setV({ ...DEFAULT_VISIBILITY })} className="-my-2 inline-flex min-h-9 items-center gap-1 px-1 text-[12px] font-semibold text-fg-3 transition hover:text-fg">
               <RotateCcw size={12} /> Tavsiya etilganga qaytarish
             </button>
           )}

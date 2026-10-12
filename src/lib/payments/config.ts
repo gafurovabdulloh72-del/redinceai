@@ -1,7 +1,7 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import type { PaymentProvider } from "@/lib/constants";
-import { trustedSiteOrigin } from "@/lib/security/request";
+import { forwardedHost, forwardedProto, trustedSiteOrigin } from "@/lib/security/request";
 
 /** Doimiy vaqtli taqqoslash (imzo/kalit) — timing hujumlariga qarshi */
 export function safeEqual(a: string, b: string): boolean {
@@ -64,14 +64,14 @@ export function availableProviders(): PaymentProvider[] {
 
 /**
  * Sayt manzili: sozlamalardan ma'lum ishonchli manzil (NEXT_PUBLIC_SITE_URL → Vercel production → Railway domeni),
- * aks holda so'rov sarlavhalaridan (proksi orqasida ham to'g'ri). Qaytish (return) URL'lari shu asosda tuziladi.
+ * aks holda so'rov sarlavhalaridan (X-Forwarded-* faqat ishonchli proksi orqasida — TRUST_PROXY). Qaytish (return) URL'lari shu asosda tuziladi.
  */
 export function siteOrigin(headers?: Headers | null, fallbackUrl?: string): string {
   const trusted = trustedSiteOrigin();
   if (trusted) return trusted;
   if (headers) {
-    const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-    const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host");
+    const proto = forwardedProto(headers);
+    const host = forwardedHost(headers) || headers.get("host");
     if (host) return `${proto || (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https")}://${host}`;
   }
   if (fallbackUrl) {

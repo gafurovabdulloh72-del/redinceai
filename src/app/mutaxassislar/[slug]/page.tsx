@@ -26,6 +26,7 @@ import { PortfolioGallery } from "@/components/specialists/PortfolioGallery";
 import { ReviewForm } from "@/components/specialists/ReviewForm";
 import { ReviewList, ReviewSummary } from "@/components/specialists/ReviewList";
 import { CoverImage } from "@/components/specialists/CoverImage";
+import { FavoriteButton } from "@/components/specialists/FavoriteButton";
 import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
@@ -311,7 +312,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {m.text}
               </li>
             ))}
-            <li className="ml-auto lg:hidden">
+            <li className="ml-auto flex items-center gap-2 lg:hidden">
+              {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
               <ShareButton title={`${sp.user.name} — ${sp.title}`} size="sm" variant="outline" />
             </li>
           </ul>
@@ -445,6 +447,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
               <div className="mt-5 flex items-stretch gap-2">
                 <div className="min-w-0 flex-1">{cta}</div>
+                {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} variant="outline" size="lg" iconOnly />
               </div>
               {!showOwnerCta && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}

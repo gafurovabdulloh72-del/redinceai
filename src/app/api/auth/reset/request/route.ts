@@ -17,7 +17,8 @@ import { createPasswordReset } from "@/lib/security/tokens";
  *
  * Havola FAQAT ishonchli manzildan tuziladi (NEXT_PUBLIC_SITE_URL / platforma domeni): productionda
  * Host / X-Forwarded-Host sarlavhalari ishlatilmaydi — aks holda hujumchi "Host" ni almashtirib
- * jabrlanuvchining tokenini o'z saytiga yo'naltira olardi (reset-link poisoning). Dev'da localhost dan.
+ * jabrlanuvchining tokenini o'z saytiga yo'naltira olardi (reset-link poisoning). Dev'da Host sarlavhasidan
+ * (X-Forwarded-Host faqat TRUST_PROXY ishonchli proksi orqasida hisobga olinadi — requestOrigin).
  * Token yaratish, xat va audit javobdan KEYIN (after) bajariladi — javob vaqti ham email mavjudligini oshkor qilmaydi.
  */
 export const POST = handler(async (req) => {

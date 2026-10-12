@@ -374,6 +374,14 @@ select:focus-visible {
   .card-hover:active {
     transform: translateY(-1px) scale(0.995);
   }
+  /* Karta ichidagi asosiy havola (yonida tugma bor): fokus halqasi kartaning o'zida chiziladi */
+  .card-link > a:focus-visible {
+    outline: none;
+  }
+  .card-link:has(> a:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
 
   .glass-pill,
   .pill {

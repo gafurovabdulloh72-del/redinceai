@@ -103,7 +103,8 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
   const badge = unread > 99 ? "99+" : String(unread);
 
   return (
-    <div className="relative" ref={wrapRef}>
+    /* Mobil: panel nav kapsulasiga nisbatan (uning kengligida, 12px gutter); sm+: qo'ng'iroq ostida o'ngga tekis */
+    <div className="sm:relative" ref={wrapRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -128,7 +129,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
         <div
           role="dialog"
           aria-label="Bildirishnomalar"
-          className="card-floating absolute right-0 top-[calc(100%+10px)] w-[min(340px,calc(100vw-4.5rem))] origin-top-right overflow-hidden animate-fade-up"
+          className="card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden animate-fade-up sm:left-auto sm:right-0 sm:w-[340px]"
           style={{ animationDuration: "0.22s" }}
         >
           <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">
