@@ -6,17 +6,19 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderStatusSchema } from "@/lib/validators";
 import type { OrderStatus } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
-import { findInFlightProviderPayment, loadOrderWithParties, onOrderCancelled, orderHref } from "@/lib/payments/service";
+import { AUTO_RELEASE_DAYS, autoReleaseDate, findInFlightProviderPayment, loadOrderWithParties, onOrderCancelled, orderHref, recordOrderEvent } from "@/lib/payments/service";
 import { audit } from "@/lib/security/audit";
-import { formatPrice } from "@/lib/utils";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 /**
  * Status o'zgarishi qoidalari:
  *  - mutaxassis: new -> accepted | cancelled; accepted -> in_progress | cancelled; in_progress -> done | cancelled
  *  - mijoz: new | accepted -> cancelled
  *  - admin: istalgan o'tish
- * Bekor qilishda ixtiyoriy `reason` (mijoz/mutaxassisga bildirishnomada ko'rsatiladi).
+ * Bekor qilishda ixtiyoriy `reason` — orders.cancelReason'da saqlanadi va kartada ko'rsatiladi (E68/F15).
  * To'langan buyurtma bekor qilinsa pul eskrouda qoladi — admin qaytaradi (bildirishnoma ketadi).
+ * Har bir o'tish order_events jurnaliga yoziladi (F36). Nizo ochiq bo'lsa tomonlar holatni o'zgartira olmaydi.
+ * To'langan buyurtma 'done' bo'lganda avtomatik qabul muddati (7 kun) belgilanadi (E57/F18).
  */
 const SPECIALIST_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["accepted", "cancelled"],
@@ -53,18 +55,36 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     if (!allowed.includes(status)) throw new ApiError(400, "Bu holatga o'tkazib bo'lmaydi");
   }
   if (status === order.status) return ok({ id, status, paymentState: order.paymentState });
+  if (order.disputeState === "open" && !isAdmin) throw new ApiError(409, "Bu buyurtma bo'yicha nizo ochiq — admin qarorini kuting");
 
   // Payme/Click tomonida jarayondagi to'lov bo'lsa — buyurtmani bekor qilib bo'lmaydi (provayder tranzaksiyasi ichkaridan yopilmaydi)
   if (status === "cancelled" && (await findInFlightProviderPayment(id))) {
     throw new ApiError(409, "Mijoz to'lovni boshlagan — provayder tomonida jarayonda. Yakunlanishini yoki bekor bo'lishini kuting");
   }
 
-  await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id));
-  await audit(session.sub, "order_status", { targetType: "order", targetId: id, meta: { from: order.status, to: status, reason: reason?.trim() || undefined } }, req);
+  const now = new Date();
+  const cleanReason = reason?.trim() || null;
+  // To'langan ish topshirildi — mijoz 7 kun ichida javob bermasa eskrou avtomatik o'tadi
+  const autoRelease = status === "done" && order.paymentState === "paid" ? autoReleaseDate(now.getTime()) : null;
+  await db
+    .update(orders)
+    .set({
+      status,
+      updatedAt: now,
+      ...(status === "cancelled" ? { cancelReason: cleanReason, autoReleaseAt: null } : {}),
+      ...(autoRelease ? { autoReleaseAt: autoRelease } : {}),
+    })
+    .where(eq(orders.id, id));
+  await audit(session.sub, "order_status", { targetType: "order", targetId: id, meta: { from: order.status, to: status, reason: cleanReason ?? undefined } }, req);
+  await recordOrderEvent(id, session.sub, "status", {
+    fromStatus: order.status,
+    toStatus: status,
+    note: status === "cancelled" ? (cleanReason ? `Sabab: ${cleanReason}` : null) : autoRelease ? `Avtomatik qabul: ${formatDate(autoRelease)}` : null,
+  });
 
   const href = orderHref(order.id);
   const spName = order.specialist.user.name;
-  const why = reason?.trim() ? ` Sabab: ${reason.trim()}` : "";
+  const why = cleanReason ? ` Sabab: ${cleanReason}` : "";
 
   switch (status) {
     case "accepted":
@@ -79,13 +99,13 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
         "order_done",
         "Ish yakunlandi — qabul qiling",
         order.paymentState === "paid"
-          ? `«${order.title}» — natijani tekshiring va «Ishni qabul qilish»ni bosing. Shunda ${formatPrice(order.amount ?? 0)} mutaxassisga o'tadi.`
+          ? `«${order.title}» — natijani tekshiring va «Ishni qabul qilish»ni bosing. Shunda ${formatPrice(order.amount ?? 0)} mutaxassisga o'tadi. Javob bo'lmasa ${AUTO_RELEASE_DAYS} kundan keyin (${autoRelease ? formatDate(autoRelease) : ""}) avtomatik qabul qilinadi.`
           : `«${order.title}» — ${spName} ishni yakunladi. Natijani tasdiqlang.`,
         href,
       );
       break;
     case "cancelled": {
-      await onOrderCancelled(order, session.sub, reason?.trim() || null);
+      await onOrderCancelled(order, session.sub, cleanReason);
       const byClient = isClient && !isSpecialist;
       if (byClient || isAdmin) {
         await notify(order.specialist.userId, "order_cancelled", order.status === "new" ? "Buyurtma bekor qilindi" : "Mijoz buyurtmani bekor qildi", `«${order.title}».${why}`, href);
@@ -106,5 +126,5 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   }
 
   const fresh = await db.query.orders.findFirst({ where: eq(orders.id, id), columns: { paymentState: true } });
-  return ok({ id, status, paymentState: fresh?.paymentState ?? order.paymentState });
+  return ok({ id, status, paymentState: fresh?.paymentState ?? order.paymentState, cancelReason: status === "cancelled" ? cleanReason : order.cancelReason, autoReleaseAt: autoRelease?.getTime() ?? (status === "cancelled" ? null : (order.autoReleaseAt?.getTime() ?? null)) });
 });

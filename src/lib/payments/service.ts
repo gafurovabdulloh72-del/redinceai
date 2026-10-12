@@ -1,20 +1,50 @@
 import "server-only";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { orders, payments, type Order, type Payment } from "@/lib/db/schema";
+import { orderEvents, orders, payments, specialists, type Order, type OrderEventType, type Payment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import type { PaymentProvider } from "@/lib/constants";
 import { notify, notifyAdmins } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
-import { formatPrice, uid } from "@/lib/utils";
+import { formatDate, formatPrice, uid } from "@/lib/utils";
 import { isProviderConfigured, paymentsEnv } from "./config";
-import { getSettings, splitAmount } from "./settings";
+import { getSettings, splitAmount, TOP_RATED_MIN_COMPLETED, TOP_RATED_MIN_RATING } from "./settings";
 
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
 /* ------------------------------------------------------------------ */
 export const ACTIVE_PAYMENT_STATES = ["created", "pending"] as const;
 export const orderHref = (orderId: string) => `/kabinet/buyurtmalar?id=${orderId}`;
+export const PROVIDER_NAME: Record<PaymentProvider, string> = { payme: "Payme", click: "Click", manual: "O'tkazma" };
+
+/** Mijoz shuncha kun ichida ishni qabul qilmasa eskrou avtomatik mutaxassisga o'tadi (E57/F18) */
+export const AUTO_RELEASE_DAYS = 7;
+export const autoReleaseDate = (from = Date.now()) => new Date(from + AUTO_RELEASE_DAYS * 24 * 60 * 60 * 1000);
+
+/**
+ * Buyurtma tarixi (order_events): holat/narx/to'lov/nizo/izoh. Hech qachon xato tashlamaydi —
+ * asosiy oqimni jurnal xatosi buzmasin. actorId null = tizim (cron, provayder webhook'i).
+ */
+export async function recordOrderEvent(
+  orderId: string,
+  actorId: string | null | undefined,
+  type: OrderEventType,
+  opts: { fromStatus?: string | null; toStatus?: string | null; note?: string | null } = {},
+): Promise<void> {
+  try {
+    await db.insert(orderEvents).values({
+      id: uid(),
+      orderId,
+      actorId: actorId ?? null,
+      type,
+      fromStatus: opts.fromStatus ?? null,
+      toStatus: opts.toStatus ?? null,
+      note: opts.note ? opts.note.slice(0, 600) : null,
+    });
+  } catch (e) {
+    console.error("[orderEvent]", type, e);
+  }
+}
 
 /** Buyurtma + tomonlar (to'lov oqimida bildirishnoma yuborish uchun) */
 export async function loadOrderWithParties(orderId: string) {
@@ -22,7 +52,7 @@ export async function loadOrderWithParties(orderId: string) {
     where: eq(orders.id, orderId),
     with: {
       client: { columns: { id: true, name: true } },
-      specialist: { columns: { id: true, userId: true, slug: true, title: true }, with: { user: { columns: { name: true, avatarUrl: true } } } },
+      specialist: { columns: { id: true, userId: true, slug: true, title: true, completedCount: true, topRated: true }, with: { user: { columns: { name: true, avatarUrl: true } } } },
     },
   });
   return order ?? null;
@@ -136,6 +166,7 @@ export async function createCheckout(opts: { order: OrderWithParties; provider: 
       .returning();
     payment = row;
     await audit(opts.actorId, "payment_created", { targetType: "payment", targetId: payment.id, meta: { orderId: order.id, provider, amount: order.amount } }, opts.req);
+    await recordOrderEvent(order.id, opts.actorId, "payment", { note: `To'lov boshlandi — ${PROVIDER_NAME[provider]}, ${formatPrice(order.amount)}` });
   }
 
   return { payment, redirectUrl: buildRedirectUrl(payment, opts.origin) };
@@ -159,6 +190,7 @@ export async function markManualSent(payment: Payment, actorId: string, req?: Re
     "/admin#tolovlar",
   );
   await audit(actorId, "payment_created", { targetType: "payment", targetId: payment.id, meta: { manualSent: true } }, req);
+  await recordOrderEvent(payment.orderId, actorId, "payment", { note: `Mijoz o'tkazma yuborganini bildirdi (${formatPrice(payment.amount)}) — admin tasdig'i kutilmoqda` });
   return row;
 }
 
@@ -203,9 +235,12 @@ export async function markPaid(paymentId: string, extra: PaidExtra = {}): Promis
     throw new ApiError(409, "To'lov holati o'zgargan — qayta tasdiqlab bo'lmaydi");
   }
 
+  // Ish allaqachon topshirilgan (done) bo'lsa — avtomatik qabul muddati shu yerdan boshlanadi
+  const orderRow = await db.query.orders.findFirst({ where: eq(orders.id, row.orderId), columns: { status: true, completedAt: true } });
+  const autoRelease = orderRow?.status === "done" ? autoReleaseDate(now.getTime()) : null;
   await db
     .update(orders)
-    .set({ paymentState: "paid", commissionPct: row.commissionPct, updatedAt: now })
+    .set({ paymentState: "paid", commissionPct: row.commissionPct, updatedAt: now, ...(autoRelease ? { autoReleaseAt: autoRelease } : {}) })
     .where(eq(orders.id, row.orderId));
 
   // Boshqa provayder orqali boshlangan, hali to'lanmagan urinishlar (Payme/Click uchun holat -1 deb qaytariladi)
@@ -226,15 +261,27 @@ export async function markPaid(paymentId: string, extra: PaidExtra = {}): Promis
     await notify(order.clientId, "order_paid", "To'lov qabul qilindi", `«${order.title}» — ${formatPrice(row.amount)} eskrouda saqlanmoqda. Ish yakunlangach uni qabul qilasiz.`, orderHref(order.id));
   }
   await audit(extra.actorId ?? null, "payment_paid", { targetType: "payment", targetId: row.id, meta: { orderId: row.orderId, provider: row.provider, amount: row.amount } }, extra.req);
+  await recordOrderEvent(row.orderId, extra.actorId ?? (row.provider === "manual" ? null : row.clientId), "payment", {
+    note: `${PROVIDER_NAME[row.provider]} orqali to'landi — ${formatPrice(row.amount)} eskrouda${autoRelease ? `. Avtomatik qabul: ${formatDate(autoRelease)}` : ""}`,
+  });
   return row;
+}
+
+export interface ReleaseOptions {
+  /** Cron: mijoz muddat ichida javob bermadi (actorId null) */
+  auto?: boolean;
+  /** Admin nizo qarori bilan o'tkazdi */
+  viaDispute?: boolean;
 }
 
 /**
  * Mijoz ishni qabul qildi → eskroudagi pul mutaxassis balansiga (released).
- * Buyurtma: completedAt, paymentState 'released' (to'lov bo'lmasa faqat completedAt).
+ * Buyurtma: completedAt, paymentState 'released' (to'lov bo'lmasa faqat completedAt), autoReleaseAt tozalanadi.
+ * Birinchi yakunlashda mutaxassisning completedCount +1, topRated qayta hisoblanadi (F21/F69).
  */
-export async function releaseOrder(orderId: string, actorId: string | null, req?: Request): Promise<{ released: Payment[] }> {
+export async function releaseOrder(orderId: string, actorId: string | null, req?: Request, opts: ReleaseOptions = {}): Promise<{ released: Payment[] }> {
   const now = new Date();
+  const before = await db.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { completedAt: true, specialistId: true } });
   const paid = await db.query.payments.findMany({ where: and(eq(payments.orderId, orderId), eq(payments.state, "paid")) });
   const released: Payment[] = [];
   for (const p of paid) {
@@ -250,19 +297,48 @@ export async function releaseOrder(orderId: string, actorId: string | null, req?
   }
   await db
     .update(orders)
-    .set({ completedAt: now, updatedAt: now, ...(released.length ? { paymentState: "released" as const } : {}) })
+    .set({ completedAt: before?.completedAt ?? now, autoReleaseAt: null, updatedAt: now, ...(released.length ? { paymentState: "released" as const } : {}) })
     .where(eq(orders.id, orderId));
+
+  // Birinchi yakunlash: bajarilgan buyurtmalar soni + "Top mutaxassis" nishoni
+  if (before && !before.completedAt) {
+    try {
+      const [sp] = await db
+        .update(specialists)
+        .set({ completedCount: sql`${specialists.completedCount} + 1`, updatedAt: now })
+        .where(eq(specialists.id, before.specialistId))
+        .returning({ id: specialists.id, completedCount: specialists.completedCount, rating: specialists.rating, topRated: specialists.topRated });
+      if (sp) {
+        const top = sp.rating >= TOP_RATED_MIN_RATING && sp.completedCount >= TOP_RATED_MIN_COMPLETED;
+        if (top !== sp.topRated) await db.update(specialists).set({ topRated: top }).where(eq(specialists.id, sp.id));
+      }
+    } catch (e) {
+      console.error("[releaseOrder] completedCount", e);
+    }
+  }
+
+  const net = released.reduce((s, p) => s + p.netAmount, 0);
+  const how = opts.auto ? `Avtomatik qabul (${AUTO_RELEASE_DAYS} kun ichida javob bo'lmadi)` : opts.viaDispute ? "Admin nizo qarori" : "Mijoz ishni qabul qildi";
+  await recordOrderEvent(orderId, actorId, "payment", { note: released.length ? `${how} — ${formatPrice(net)} mutaxassis balansiga o'tdi` : `${how} — buyurtma yakunlandi` });
 
   const order = await loadOrderWithParties(orderId);
   if (order) {
-    const net = released.reduce((s, p) => s + p.netAmount, 0);
     await notify(
       order.specialist.userId,
       "order_released",
       released.length ? `Pul balansga tushdi: ${formatPrice(net)}` : "Mijoz ishni qabul qildi",
-      released.length ? `«${order.title}» — mijoz ishni qabul qildi. Pulni «To'lovlar» bo'limidan chiqarib olishingiz mumkin.` : `«${order.title}» yakunlandi.`,
+      released.length ? `«${order.title}» — ${opts.auto ? "mijoz muddat ichida javob bermadi, ish avtomatik qabul qilindi" : opts.viaDispute ? "admin nizoni sizning foydangizga hal qildi" : "mijoz ishni qabul qildi"}. Pulni «To'lovlar» bo'limidan chiqarib olishingiz mumkin.` : `«${order.title}» yakunlandi.`,
       released.length ? "/kabinet/tolovlar" : orderHref(order.id),
     );
+    if (opts.auto && released.length) {
+      await notify(
+        order.clientId,
+        "order_released",
+        "Ish avtomatik qabul qilindi",
+        `«${order.title}» — ${AUTO_RELEASE_DAYS} kun ichida javob bo'lmagani uchun eskroudagi ${formatPrice(order.amount ?? 0)} mutaxassisga o'tkazildi.`,
+        orderHref(order.id),
+      );
+    }
   }
   return { released };
 }
@@ -279,7 +355,8 @@ export async function refundPayment(paymentId: string, actorId: string | null, r
     .set({ state: "refunded", cancelTime: now.getTime(), cancelReason: reason ?? 5, providerState: -2, updatedAt: now })
     .where(eq(payments.id, paymentId))
     .returning();
-  await db.update(orders).set({ paymentState: "refunded", updatedAt: now }).where(eq(orders.id, row.orderId));
+  await db.update(orders).set({ paymentState: "refunded", autoReleaseAt: null, updatedAt: now }).where(eq(orders.id, row.orderId));
+  await recordOrderEvent(row.orderId, actorId, "payment", { note: `${formatPrice(row.amount)} mijozga qaytarildi${actorId ? "" : " (provayder orqali)"}` });
   const order = await loadOrderWithParties(row.orderId);
   if (order) {
     await notify(order.clientId, "payment_refunded", `Pul qaytarildi: ${formatPrice(row.amount)}`, `«${order.title}» bo'yicha to'lovingiz qaytarildi.`, orderHref(order.id));
@@ -290,7 +367,7 @@ export async function refundPayment(paymentId: string, actorId: string | null, r
 }
 
 /** Ochiq (created/pending) to'lovni bekor qilish — pul harakati bo'lmagan */
-export async function cancelPayment(paymentId: string, reason?: number | null): Promise<Payment> {
+export async function cancelPayment(paymentId: string, reason?: number | null, actorId?: string | null): Promise<Payment> {
   const current = await db.query.payments.findFirst({ where: eq(payments.id, paymentId) });
   if (!current) throw new ApiError(404, "To'lov topilmadi");
   if (current.state === "cancelled") return current;
@@ -301,6 +378,7 @@ export async function cancelPayment(paymentId: string, reason?: number | null): 
     .set({ state: "cancelled", cancelTime: now.getTime(), cancelReason: reason ?? null, providerState: -1, updatedAt: now })
     .where(eq(payments.id, paymentId))
     .returning();
+  await recordOrderEvent(row.orderId, actorId ?? null, "payment", { note: `To'lov urinishi bekor qilindi (${PROVIDER_NAME[row.provider]}, ${formatPrice(row.amount)})` });
   return row;
 }
 

@@ -2,6 +2,8 @@ import "server-only";
 import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
+import { sendMail } from "@/lib/security/mailer";
+import { trustedSiteOrigin } from "@/lib/security/request";
 import { uid } from "@/lib/utils";
 
 /**
@@ -16,6 +18,10 @@ import { uid } from "@/lib/utils";
  *  payment_refunded — mijozga: pul qaytarildi
  *  payout           — mutaxassisga: pul chiqarish qarori
  *  payout_requested — adminga: yangi pul chiqarish so'rovi
+ *  refund_needed    — adminga: bekor qilingan to'langan buyurtma / provayder qaytarish so'rovi
+ *  dispute          — tomonlarga/adminga: nizo ochildi yoki hal qilindi
+ *  report           — adminga: shikoyat keldi
+ *  account          — foydalanuvchiga: hisob holati (bloklash va h.k.)
  */
 export type NotificationType =
   | "order_new"
@@ -28,7 +34,41 @@ export type NotificationType =
   | "payment_refunded"
   | "payout"
   | "payout_requested"
-  | "refund_needed";
+  | "refund_needed"
+  | "dispute"
+  | "report"
+  | "account";
+
+/** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */
+const MAIL_TYPES: ReadonlySet<NotificationType> = new Set(["order_amount", "order_paid", "order_done", "order_released", "order_cancelled", "payment_refunded", "payout", "dispute", "account"]);
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+}
+
+/**
+ * Muhim hodisa uchun email (Resend sozlanmagan bo'lsa dev'da konsolga). Havola faqat ishonchli sayt manzili
+ * (NEXT_PUBLIC_SITE_URL va h.k.) ma'lum bo'lsa qo'shiladi. Xato bo'lsa jim — bildirishnoma oqimi buzilmaydi.
+ */
+async function mailNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined): Promise<void> {
+  if (!MAIL_TYPES.has(type)) return;
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { email: true, name: true, notifyEmail: true, isBanned: true } });
+  if (!u || !u.notifyEmail || !u.email) return;
+  const origin = trustedSiteOrigin();
+  const link = origin && href && href.startsWith("/") ? `${origin}${href}` : null;
+  const text = [`Salom, ${u.name}!`, "", title, body ?? "", link ? `\nBatafsil: ${link}` : "", "", "— Redince. Bildirishnomalarni kabinet sozlamalarida o'chirishingiz mumkin."].join("\n");
+  const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
+<div style="max-width:520px;margin:0 auto;padding:32px 20px">
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
+    <p style="font-size:20px;font-weight:700;margin:0 0 12px">${escapeHtml(title)}</p>
+    <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${escapeHtml(u.name)}! ${escapeHtml(body ?? "")}</p>
+    ${link ? `<p style="margin:0 0 20px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#121213;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">Batafsil</a></p>` : ""}
+    <p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">Bildirishnomalarni kabinet sozlamalarida o'chirishingiz mumkin.</p>
+  </div>
+</div></body></html>`;
+  await sendMail({ to: u.email, subject: `Redince — ${title}`, html, text });
+}
 
 /**
  * Foydalanuvchiga bildirishnoma yozish. Hech qachon xato tashlamaydi —
@@ -46,6 +86,11 @@ export async function notify(userId: string, type: NotificationType, title: stri
     });
   } catch (e) {
     console.error("[notify]", type, e);
+  }
+  try {
+    await mailNotification(userId, type, title.slice(0, 160), body, href);
+  } catch (e) {
+    console.error("[notify:mail]", type, e);
   }
 }
 

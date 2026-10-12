@@ -24,28 +24,13 @@ function withRuntimeDirsIgnored(prev: unknown): RegExp | string[] {
 /* ------------------------------------------------------------------ */
 const isProd = process.env.NODE_ENV === "production";
 
-/** To'lov tizimlari (Payme/Click) checkout sahifalari — iframe va form yuborish uchun */
-const PAYMENT_HOSTS = "https://checkout.paycom.uz https://checkout.test.paycom.uz https://my.click.uz";
-
-const CSP = [
-  "default-src 'self'",
-  // Inline skript: tema init (<head>), Next runtime. 'unsafe-eval' faqat dev (HMR/source map)
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "media-src 'self' https:",
-  `frame-src https://www.youtube.com https://www.youtube-nocookie.com ${PAYMENT_HOSTS}`,
-  // Dev'da HMR websocket
-  `connect-src 'self' https:${isProd ? "" : " ws: wss:"}`,
-  "font-src 'self' data:",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  `form-action 'self' ${PAYMENT_HOSTS}`,
-].join("; ");
+/**
+ * Sahifalar uchun CSP (nonce bilan) src/middleware.ts'da har so'rovda tuziladi. Bu yerda faqat statik
+ * sarlavhalar va API javoblari uchun qat'iy CSP (JSON — skript/ramka umuman kerak emas).
+ */
+const API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
 const SECURITY_HEADERS = [
-  { key: "Content-Security-Policy", value: CSP },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -69,6 +54,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/(.*)", headers: SECURITY_HEADERS },
+      { source: "/api/:path*", headers: [{ key: "Content-Security-Policy", value: API_CSP }] },
       // public/uploads static fayllari (route handler ishlamaganda ham): brauzerda ochilsin, yuklab olinmasin
       { source: "/uploads/:path*", headers: [{ key: "Content-Disposition", value: "inline" }] },
     ];

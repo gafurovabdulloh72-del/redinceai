@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowRight, CheckCircle2, Hourglass, RotateCcw, ShieldCheck, Wallet, XCircle } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, FileText, Hourglass, RotateCcw, ShieldCheck, Wallet, XCircle } from "lucide-react";
 import { ButtonLink, Spinner } from "@/components/ui";
 import type { PaymentDto } from "@/lib/payments/dto";
 import { PAYMENT_STATE_LABEL } from "@/lib/constants";
@@ -119,9 +119,14 @@ export function PaymentResult({ paymentId, initial }: { paymentId: string; initi
           </ButtonLink>
         )}
         {(p.state === "paid" || p.state === "released") && (
-          <ButtonLink href="/kabinet/tolovlar" variant="outline" size="lg">
-            To'lovlarim
-          </ButtonLink>
+          <>
+            <ButtonLink href={`/chek/${p.id}`} variant="outline" size="lg">
+              <FileText size={16} /> Chek / PDF
+            </ButtonLink>
+            <ButtonLink href="/kabinet/tolovlar" variant="ghost" size="lg">
+              To'lovlarim
+            </ButtonLink>
+          </>
         )}
       </div>
     </div>

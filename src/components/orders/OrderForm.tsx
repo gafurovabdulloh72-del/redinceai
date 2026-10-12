@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, ArrowLeft, Check, CheckCircle2, ClipboardList, Lock, PhoneCall, Send, ShieldCheck } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { cn, formatPrice } from "@/lib/utils";
@@ -47,6 +47,16 @@ export function OrderForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [doneId, setDoneId] = useState<string | null>(null);
+
+  // «Yana buyurtma berish» (F47): ?title= bilan kelgan sarlavha oldindan to'ldiriladi
+  useEffect(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get("title")?.trim();
+      if (t) setTitle((cur) => cur || t.slice(0, 120));
+    } catch {
+      /* noop */
+    }
+  }, []);
 
   const refs = useRef<Record<FieldKey, HTMLInputElement | HTMLTextAreaElement | null>>({
     title: null,

@@ -72,6 +72,19 @@ export const EXPERIENCE_LEVELS = [
   { value: "expert", label: "Ekspert (6+ yil)" },
 ] as const;
 
+/** "Top mutaxassis" nishoni qoidasi (recalcRating hisoblaydi; seed bilan bir xil) */
+export const TOP_RATED_RULE = { minRating: 4.8, minReviews: 3 } as const;
+
+/** Shikoyat sabablari (POST /api/reports) */
+export const REPORT_REASONS = [
+  { value: "spam", label: "Spam yoki reklama" },
+  { value: "fake", label: "Soxta profil yoki sharh" },
+  { value: "offensive", label: "Haqoratli yoki nomaqbul kontent" },
+  { value: "fraud", label: "Firibgarlik / to'lov bilan bog'liq" },
+  { value: "other", label: "Boshqa" },
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+
 export const SITE = {
   name: "Redince",
   tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",

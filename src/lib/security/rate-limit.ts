@@ -21,6 +21,7 @@ const DAY = 24 * HOUR;
  *   reset      — ip (parol tiklash so'rovi)
  *   password   — userId (parolni o'zgartirish)
  *   orders     — userId · reviews — userId · upload — userId (kunlik) · portfolio — userId (kunlik) · checkout — userId
+ *   profile / privacy — userId (30 / soat) · verifyRequest / verifyConfirm — userId · accountExport / accountDelete — userId
  */
 export const RATE_LIMITS = {
   login: { limit: 5, windowMs: 15 * MIN },
@@ -36,6 +37,15 @@ export const RATE_LIMITS = {
   portfolio: { limit: 60, windowMs: DAY },
   checkout: { limit: 10, windowMs: HOUR },
   favorites: { limit: 120, windowMs: HOUR },
+  /** PUT /api/profile va PUT /api/privacy — userId (30 / soat) */
+  profile: { limit: 30, windowMs: HOUR },
+  privacy: { limit: 30, windowMs: HOUR },
+  /** Email tasdiqlash: kod yuborish — userId; kodni tekshirish — userId (6 xonali kodni terib chiqib bo'lmasin) */
+  verifyRequest: { limit: 5, windowMs: HOUR },
+  verifyConfirm: { limit: 10, windowMs: 15 * MIN },
+  /** Hisob: eksport va o'chirish — userId */
+  accountExport: { limit: 5, windowMs: HOUR },
+  accountDelete: { limit: 5, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

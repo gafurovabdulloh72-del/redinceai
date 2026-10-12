@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createClient } from "@libsql/client";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
 import * as schema from "./schema";
@@ -57,6 +57,18 @@ const SKILLS: Record<string, string[]> = {
   "3d-artist": ["Blender", "3ds Max", "Corona", "V-Ray", "Cinema 4D", "Substance", "Interyer", "Eksteryer", "Mahsulot render", "Unreal Engine"],
   "ui-ux": ["Figma", "Dizayn tizimi", "Prototip", "UX tadqiqot", "Mobil UI", "Web UI", "Framer", "Webflow"],
   ovoz: ["Pro Tools", "Logic Pro", "Audition", "Diktor", "Dublyaj", "Mastering", "Podkast", "Studiya"],
+};
+
+/* Jihozlar — rnd() ishlatilmaydi, shunda ismlar/sluglar o'zgarmay qoladi */
+const EQUIPMENT: Record<string, string[]> = {
+  videograf: ["Sony FX3", "Sony A7 IV", "DJI RS 3", "DJI Mavic 3", "Aputure 300d", "Rode Wireless GO II"],
+  montajor: ["MacBook Pro M3", "Monitor 4K", "RTX 4070", "Stream Deck"],
+  dizayner: ["MacBook Pro", "Wacom Intuos", "iPad Pro + Apple Pencil", "Monitor 4K"],
+  "motion-dizayner": ["MacBook Pro M3 Max", "RTX 4080", "Wacom Cintiq", "Monitor 4K"],
+  fotograf: ["Canon R5", "Sony A7R V", "Sigma 35mm f/1.4", "Godox AD600", "Profoto B10"],
+  "3d-artist": ["RTX 4090", "Ryzen 9 7950X", "64GB RAM", "Wacom Intuos Pro"],
+  "ui-ux": ["MacBook Pro", "iPad Pro", "Monitor 4K"],
+  ovoz: ["Shure SM7B", "Neumann TLM 103", "Focusrite Scarlett", "Akustik studiya"],
 };
 
 const PRICE: Record<string, [number, number]> = {
@@ -138,12 +150,15 @@ async function main() {
   const demoPassword = process.env.DEMO_PASSWORD || (prod ? randomBytes(18).toString("base64url") : "demo12345");
   console.log("→ Eski ma'lumotlar tozalanmoqda...");
   await db.delete(schema.notifications);
+  await db.delete(schema.savedSearches);
+  await db.delete(schema.reports);
   await db.delete(schema.favorites);
   await db.delete(schema.payouts);
   await db.delete(schema.payments);
   await db.delete(schema.auditLogs);
   await db.delete(schema.passwordResets);
   await db.delete(schema.reviews);
+  await db.delete(schema.orderEvents);
   await db.delete(schema.orders);
   await db.delete(schema.portfolioItems);
   await db.delete(schema.specialists);
@@ -255,6 +270,7 @@ async function main() {
         priceTo,
         experience,
         skills: pickN(SKILLS[category], between(3, 7)),
+        equipment: EQUIPMENT[category].slice(0, 2 + (i % 3)),
         languages: rnd() < 0.6 ? ["uz", "ru"] : rnd() < 0.5 ? ["uz", "ru", "en"] : ["uz"],
         telegram: slug.replace(/-/g, "_"),
         instagram: rnd() < 0.8 ? slug.replace(/-/g, ".") : null,
@@ -517,6 +533,30 @@ async function main() {
       createdAt: paid2,
       updatedAt: paid2,
     });
+    // Buyurtma tarixi (order_events) — demo buyurtmalar uchun namuna
+    const specUserId = demoUser.id;
+    await db.insert(schema.orderEvents).values([
+      { id: uid(), orderId: o1, actorId: demoClientId, type: "status", toStatus: "new", createdAt: new Date(now - 14 * DAY) },
+      { id: uid(), orderId: o1, actorId: specUserId, type: "status", fromStatus: "new", toStatus: "accepted", createdAt: new Date(now - 13 * DAY) },
+      { id: uid(), orderId: o1, actorId: specUserId, type: "amount", note: "Narx belgilandi: 2 000 000 so'm", createdAt: new Date(now - 13 * DAY) },
+      { id: uid(), orderId: o1, actorId: demoClientId, type: "payment", note: "Click orqali to'landi — eskrouda", createdAt: paid1 },
+      { id: uid(), orderId: o1, actorId: specUserId, type: "status", fromStatus: "accepted", toStatus: "in_progress", createdAt: new Date(now - 11 * DAY) },
+      { id: uid(), orderId: o1, actorId: specUserId, type: "status", fromStatus: "in_progress", toStatus: "done", createdAt: new Date(now - 7 * DAY) },
+      { id: uid(), orderId: o1, actorId: demoClientId, type: "payment", note: "Mijoz tasdiqladi — mablag' mutaxassisga o'tdi", createdAt: rel1 },
+      { id: uid(), orderId: o2, actorId: demoClientId, type: "status", toStatus: "new", createdAt: new Date(now - 4 * DAY) },
+      { id: uid(), orderId: o2, actorId: specUserId, type: "status", fromStatus: "new", toStatus: "accepted", createdAt: new Date(now - 3 * DAY) },
+      { id: uid(), orderId: o2, actorId: specUserId, type: "amount", note: "Narx belgilandi: 800 000 so'm", createdAt: new Date(now - 3 * DAY) },
+      { id: uid(), orderId: o2, actorId: demoClientId, type: "payment", note: "Payme orqali to'landi — eskrouda", createdAt: paid2 },
+      { id: uid(), orderId: o2, actorId: specUserId, type: "status", fromStatus: "accepted", toStatus: "in_progress", createdAt: paid2 },
+    ]);
+    // Sharhga mutaxassis javobi (namuna)
+    const demoReview = await db.query.reviews.findFirst({ where: eq(schema.reviews.specialistId, spId) });
+    if (demoReview) {
+      await db
+        .update(schema.reviews)
+        .set({ reply: "Rahmat! Siz bilan ishlash juda yoqimli bo'ldi — yana kutib qolaman.", replyAt: new Date(demoReview.createdAt.getTime() + DAY) })
+        .where(eq(schema.reviews.id, demoReview.id));
+    }
     // Pul chiqarish so'rovi (admin navbatida ko'rinadi)
     await db.insert(schema.payouts).values({
       id: uid(),
@@ -530,6 +570,23 @@ async function main() {
     paymentsMade += 2;
   }
   console.log(`  To'lovlar: ${paymentsMade} ta namuna (released/paid), 1 ta payout so'rovi, 1 ta buyurtma to'lov kutmoqda.`);
+
+  /* ---------- bajarilgan buyurtmalar soni (denormalizatsiya) + "Top mutaxassis" nishoni ---------- */
+  const doneCounts = await db
+    .select({ specialistId: schema.orders.specialistId, n: count() })
+    .from(schema.orders)
+    .where(eq(schema.orders.status, "done"))
+    .groupBy(schema.orders.specialistId);
+  for (const row of doneCounts) {
+    await db.update(schema.specialists).set({ completedCount: row.n }).where(eq(schema.specialists.id, row.specialistId));
+  }
+  // Namuna qoidasi: reyting 4.8+ va kamida 3 ta sharh
+  const top = await db
+    .update(schema.specialists)
+    .set({ topRated: true })
+    .where(and(gte(schema.specialists.rating, 4.8), gte(schema.specialists.reviewCount, 3)))
+    .returning({ id: schema.specialists.id });
+  console.log(`  Bajarilgan buyurtmalar: ${doneCounts.length} ta mutaxassisda, Top mutaxassis: ${top.length} ta.`);
 }
 
 main()

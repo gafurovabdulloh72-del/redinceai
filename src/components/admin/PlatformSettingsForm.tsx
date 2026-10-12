@@ -10,6 +10,9 @@ export interface PlatformSettingsValue {
   commissionPct: number;
   minPayout: number;
   minOrderAmount: number;
+  /** Komissiya darajalari (F21): yangi mutaxassis (< 3 bajarilgan buyurtma) va Top mutaxassis */
+  commissionPctNew?: number;
+  commissionPctTop?: number;
 }
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
@@ -19,6 +22,8 @@ const digits = (s: string) => s.replace(/\D/g, "");
 export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsValue }) {
   const router = useRouter();
   const [pct, setPct] = useState(String(initial.commissionPct));
+  const [pctNew, setPctNew] = useState(String(initial.commissionPctNew ?? 15));
+  const [pctTop, setPctTop] = useState(String(initial.commissionPctTop ?? 7));
   const [minPayout, setMinPayout] = useState(formatNumber(initial.minPayout));
   const [minOrder, setMinOrder] = useState(formatNumber(initial.minOrderAmount));
   const [busy, setBusy] = useState(false);
@@ -27,9 +32,16 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
   const [saved, setSaved] = useState(false);
 
   const pctNum = Math.min(100, Number(digits(pct)) || 0);
+  const pctNewNum = Math.min(100, Number(digits(pctNew)) || 0);
+  const pctTopNum = Math.min(100, Number(digits(pctTop)) || 0);
   const minPayoutNum = Number(digits(minPayout)) || 0;
   const minOrderNum = Number(digits(minOrder)) || 0;
-  const dirty = pctNum !== initial.commissionPct || minPayoutNum !== initial.minPayout || minOrderNum !== initial.minOrderAmount;
+  const dirty =
+    pctNum !== initial.commissionPct ||
+    pctNewNum !== (initial.commissionPctNew ?? 15) ||
+    pctTopNum !== (initial.commissionPctTop ?? 7) ||
+    minPayoutNum !== initial.minPayout ||
+    minOrderNum !== initial.minOrderAmount;
   const example = 1_000_000;
 
   useEffect(() => {
@@ -43,6 +55,9 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
     if (busy || !dirty) return;
     const errs: Record<string, string> = {};
     if (pctNum > 50) errs.commissionPct = "Ko'pi bilan 50%";
+    if (pctNewNum > 50) errs.commissionPctNew = "Ko'pi bilan 50%";
+    if (pctTopNum > 50) errs.commissionPctTop = "Ko'pi bilan 50%";
+    if (pctTopNum > pctNum) errs.commissionPctTop = "Top daraja oddiy foizdan katta bo'lmasin";
     if (minOrderNum < 1000) errs.minOrderAmount = "Kamida 1 000 so'm";
     if (minPayoutNum < 1000) errs.minPayout = "Kamida 1 000 so'm";
     if (Object.keys(errs).length) {
@@ -56,7 +71,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
       const res = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commissionPct: pctNum, minPayout: minPayoutNum, minOrderAmount: minOrderNum }),
+        body: JSON.stringify({ commissionPct: pctNum, commissionPctNew: pctNewNum, commissionPctTop: pctTopNum, minPayout: minPayoutNum, minOrderAmount: minOrderNum }),
       });
       const json = (await res.json().catch(() => null)) as ApiResponse<PlatformSettingsValue> | null;
       if (!json || !json.ok) {
@@ -87,14 +102,34 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <div>
-          <label htmlFor="set-pct" className="field-label">
-            Komissiya (%)
+          <label htmlFor="set-pct-new" className="field-label">
+            Yangi mutaxassis (%)
           </label>
           <div className="relative">
-            <input id="set-pct" className="field !pr-10 tabular-nums" inputMode="numeric" value={pct} onChange={(e) => setPct(digits(e.target.value).slice(0, 3))} aria-invalid={Boolean(fields.commissionPct)} />
+            <input id="set-pct-new" className="field !pr-10 tabular-nums" inputMode="numeric" value={pctNew} onChange={(e) => setPctNew(digits(e.target.value).slice(0, 3))} aria-invalid={Boolean(fields.commissionPctNew)} aria-describedby="set-pct-new-hint" />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">%</span>
           </div>
-          {fields.commissionPct && <p className="field-error">{fields.commissionPct}</p>}
+          {fields.commissionPctNew ? <p className="field-error">{fields.commissionPctNew}</p> : <p id="set-pct-new-hint" className="mt-1 text-[11px] text-fg-4">3 tadan kam bajarilgan buyurtma</p>}
+        </div>
+        <div>
+          <label htmlFor="set-pct" className="field-label">
+            Oddiy daraja (%)
+          </label>
+          <div className="relative">
+            <input id="set-pct" className="field !pr-10 tabular-nums" inputMode="numeric" value={pct} onChange={(e) => setPct(digits(e.target.value).slice(0, 3))} aria-invalid={Boolean(fields.commissionPct)} aria-describedby="set-pct-hint" />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">%</span>
+          </div>
+          {fields.commissionPct ? <p className="field-error">{fields.commissionPct}</p> : <p id="set-pct-hint" className="mt-1 text-[11px] text-fg-4">3 va undan ko'p bajarilgan buyurtma</p>}
+        </div>
+        <div>
+          <label htmlFor="set-pct-top" className="field-label">
+            Top mutaxassis (%)
+          </label>
+          <div className="relative">
+            <input id="set-pct-top" className="field !pr-10 tabular-nums" inputMode="numeric" value={pctTop} onChange={(e) => setPctTop(digits(e.target.value).slice(0, 3))} aria-invalid={Boolean(fields.commissionPctTop)} aria-describedby="set-pct-top-hint" />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">%</span>
+          </div>
+          {fields.commissionPctTop ? <p className="field-error">{fields.commissionPctTop}</p> : <p id="set-pct-top-hint" className="mt-1 text-[11px] text-fg-4">Reyting ≥ 4.8 va ≥ 5 bajarilgan buyurtma</p>}
         </div>
         <div>
           <label htmlFor="set-minorder" className="field-label">
@@ -121,8 +156,9 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
       <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-surface-2 px-4 py-3 text-[13px] text-fg-2">
         <BadgePercent size={16} className="mt-0.5 shrink-0 text-accent" />
         <span>
-          Masalan, {formatPrice(example)} buyurtmadan platformaga <span className="font-semibold text-fg">{formatPrice(Math.round((example * pctNum) / 100))}</span>, mutaxassisga{" "}
-          <span className="font-semibold text-fg">{formatPrice(example - Math.round((example * pctNum) / 100))}</span> tushadi.
+          Masalan, {formatPrice(example)} buyurtmadan oddiy darajada platformaga <span className="font-semibold text-fg">{formatPrice(Math.round((example * pctNum) / 100))}</span>, mutaxassisga{" "}
+          <span className="font-semibold text-fg">{formatPrice(example - Math.round((example * pctNum) / 100))}</span> tushadi. Yangi mutaxassis {formatPrice(example - Math.round((example * pctNewNum) / 100))}, top mutaxassis{" "}
+          {formatPrice(example - Math.round((example * pctTopNum) / 100))} oladi. Foiz narx belgilanganda buyurtmaga muhrlanadi.
         </span>
       </p>
 

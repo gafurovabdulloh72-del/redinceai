@@ -62,6 +62,25 @@ export function slugify(input: string) {
     .slice(0, 60);
 }
 
+/** Apostrof variantlari (o' / oʻ / o‘ / o’ / oʼ) — qidiruvda e'tiborsiz */
+const APOSTROPHES_RE = /[ʼ'’‘ʻ`´]/g;
+
+/**
+ * Qidiruv uchun normalizatsiya: kirill → lotin (TRANSLIT jadvali), kichik harf, apostroflar olib tashlanadi,
+ * bo'shliqlar bittaga keltiriladi. "Фарғона" → "fargona", "Farg'ona" → "fargona", "Qo‘qon" → "qoqon".
+ * Bazadagi ustun ham shu tarzda (apostrofsiz, kichik harf) solishtiriladi — ikkala yozuv ham topiladi.
+ */
+export function translit(input: string): string {
+  let s = input.toLowerCase().trim();
+  for (const [from, to] of Object.entries(TRANSLIT)) s = s.split(from).join(to);
+  return s.replace(APOSTROPHES_RE, "").replace(/\s+/g, " ").trim();
+}
+
+/** Faqat apostroflarni olib tashlash (lotin matn uchun; translit'siz) */
+export function stripApostrophes(input: string): string {
+  return input.replace(APOSTROPHES_RE, "");
+}
+
 /** O'zbekiston raqamini kanonik "+998XXXXXXXXX" ko'rinishiga keltiradi; boshqa yoki noto'g'ri raqam — null */
 export function normalizeUzPhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
@@ -77,10 +96,30 @@ export function formatUzPhone(raw: string): string {
   return `${n.slice(0, 4)} ${n.slice(4, 6)} ${n.slice(6, 9)} ${n.slice(9, 11)} ${n.slice(11)}`;
 }
 
+/** Qisqa nomlar (A21/F9): boshqa modullar `normalizePhone` / `formatPhone` deb chaqiradi */
+export const normalizePhone = normalizeUzPhone;
+export const formatPhone = formatUzPhone;
+
 /** Sana oxirgi `days` kun ichidami ("Yangi" belgisi uchun) */
 export function isRecent(date: Date | number | string, days = 7) {
   const ms = toMs(date);
   return Number.isFinite(ms) && Date.now() - ms < days * 24 * 60 * 60 * 1000;
+}
+
+export type ActivityBucket = "today" | "week" | "month";
+export const ACTIVITY_LABEL: Record<ActivityBucket, string> = { today: "bugun", week: "shu hafta", month: "shu oy" };
+
+/** "Oxirgi faollik" chelagi (F68): bugun / shu hafta (7 kun) / shu oy (30 kun); eskiroq yoki noma'lum — null */
+export function activityBucket(date: Date | number | string | null | undefined, now = Date.now()): ActivityBucket | null {
+  if (date == null) return null;
+  const ms = toMs(date);
+  if (!Number.isFinite(ms)) return null;
+  const diff = now - ms;
+  const day = 24 * 60 * 60 * 1000;
+  if (diff < day) return "today";
+  if (diff < 7 * day) return "week";
+  if (diff < 30 * day) return "month";
+  return null;
 }
 
 export function initials(name: string) {

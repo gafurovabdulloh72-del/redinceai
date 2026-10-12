@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, Mail, MapPin, Phone, Star, Trash2, X } from "lucide-react";
+import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, Mail, MapPin, Phone, ShieldBan, ShieldCheck, Star, Trash2, X } from "lucide-react";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
@@ -24,9 +24,13 @@ export interface PendingSpecialist {
   /** ms timestamp */
   createdAt: number;
   user: { name: string; email: string; phone: string | null };
+  /** Egasining users.id — bloklash uchun (berilmasa tugma chiqmaydi) */
+  userId?: string | null;
+  isBanned?: boolean;
+  bannedReason?: string | null;
 }
 
-type Busy = "verify" | "feature" | "delete";
+type Busy = "verify" | "feature" | "delete" | "ban";
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
 async function call<T>(url: string, init: RequestInit): Promise<T> {
@@ -52,6 +56,9 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
   const [notice, setNotice] = useState<string | null>(null);
   /** Inline o'chirish tasdig'i (window.confirm o'rniga) */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  /** Inline bloklash formasi (sabab bilan) */
+  const [banAsk, setBanAsk] = useState<string | null>(null);
+  const [banReason, setBanReason] = useState("");
   const [showAll, setShowAll] = useState(false);
 
   // Server yangi ro'yxat bersa (router.refresh) — mahalliy holatni unga moslaymiz
@@ -128,6 +135,25 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
     }
   };
 
+  const toggleBan = async (row: PendingSpecialist, reason?: string) => {
+    if (!row.userId) return;
+    const next = !row.isBanned;
+    setError(null);
+    setBanAsk(null);
+    mark(row.id, "ban");
+    try {
+      const data = await call<{ isBanned: boolean; bannedReason: string | null }>(`/api/admin/users/${row.userId}`, { method: "PATCH", body: JSON.stringify({ isBanned: next, reason: reason?.trim() || undefined }) });
+      setRows((r) => r.map((x) => (x.id === row.id ? { ...x, isBanned: data.isBanned, bannedReason: data.bannedReason } : x)));
+      setNotice(next ? `${row.user.name} bloklandi — sessiyalari bekor qilindi, profili ro'yxatdan yashirildi` : `${row.user.name} blokdan chiqarildi`);
+      setBanReason("");
+      router.refresh();
+    } catch (e) {
+      setError(msg(e));
+    } finally {
+      mark(row.id, null);
+    }
+  };
+
   /* ---------- Amallar: desktopda ixcham (ikonka tugmalar), mobilda 44px ---------- */
   const Actions = ({ row, compact = false }: { row: PendingSpecialist; compact?: boolean }) => {
     const b = busy[row.id];
@@ -151,11 +177,53 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
       );
     }
 
+    if (banAsk === row.id) {
+      return (
+        <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up" style={{ animationDuration: "0.2s" }}>
+          <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Bloklansinmi? Foydalanuvchi tizimga kira olmaydi, profili ro'yxat va xaritadan yashiriladi. Sabab unga bildirishnomada ko'rinadi.
+          </p>
+          <label htmlFor={`ban-${row.id}`} className="sr-only">
+            Bloklash sababi
+          </label>
+          <input id={`ban-${row.id}`} className="field !min-h-10 !py-1.5 text-[13px]" value={banReason} onChange={(e) => setBanReason(e.target.value)} maxLength={300} placeholder="Sabab: masalan, soxta portfolio, spam" autoFocus />
+          <div className="flex shrink-0 gap-1.5">
+            <Button size={compact ? "md" : "sm"} variant="danger" onClick={() => toggleBan(row, banReason)} disabled={!!b || banReason.trim().length < 3}>
+              {b === "ban" ? <Spinner className="h-3.5 w-3.5" /> : <ShieldBan size={14} />} Bloklash
+            </Button>
+            <Button size={compact ? "md" : "sm"} variant="ghost" onClick={() => setBanAsk(null)} disabled={!!b}>
+              Bekor
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={cn("flex items-center gap-1.5", !compact && "justify-end")}>
         <Button size={compact ? "md" : "sm"} onClick={() => verify(row)} disabled={!!b} className={cn(compact && "flex-1")}>
           {b === "verify" ? <Spinner className="h-3.5 w-3.5" /> : <BadgeCheck size={14} />} Tasdiqlash
         </Button>
+        {row.userId && (
+          <button
+            type="button"
+            onClick={() => {
+              if (row.isBanned) void toggleBan(row);
+              else {
+                setBanAsk(row.id);
+                setBanReason("");
+                setConfirmDelete(null);
+              }
+            }}
+            disabled={!!b}
+            aria-pressed={Boolean(row.isBanned)}
+            aria-label={row.isBanned ? "Blokdan chiqarish" : "Bloklash"}
+            title={row.isBanned ? `Bloklangan${row.bannedReason ? `: ${row.bannedReason}` : ""} — blokdan chiqarish` : "Bloklash"}
+            className={cn(iconBtn, row.isBanned ? "border-danger/50 bg-danger-soft text-danger hover:text-danger" : "hover:border-danger hover:text-danger")}
+          >
+            {b === "ban" ? <Spinner className="h-3.5 w-3.5" /> : row.isBanned ? <ShieldCheck size={15} /> : <ShieldBan size={15} />}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => toggleFeatured(row)}
@@ -229,6 +297,11 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                             <p className="flex items-center gap-1.5 font-semibold text-fg">
                               <span className="truncate">{row.user.name}</span>
                               {row.isFeatured && <Star size={12} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
+                              {row.isBanned && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger" title={row.bannedReason ?? undefined}>
+                                  <ShieldBan size={10} /> Bloklangan
+                                </span>
+                              )}
                             </p>
                             <p className="truncate text-[12px] text-fg-3">{row.title}</p>
                             <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-fg-4">
@@ -285,6 +358,11 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                       <p className="flex items-center gap-1.5 text-[15px] font-semibold text-fg">
                         <span className="truncate">{row.user.name}</span>
                         {row.isFeatured && <Star size={13} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
+                        {row.isBanned && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger">
+                            <ShieldBan size={10} /> Bloklangan
+                          </span>
+                        )}
                       </p>
                       <p className="truncate text-[13px] text-fg-2">{row.title}</p>
                       <p className="mt-0.5 text-[12px] text-fg-3">

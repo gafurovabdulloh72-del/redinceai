@@ -141,8 +141,12 @@ export interface AdminFinance {
   payoutsOpenCount: number;
   /** Admin tasdig'ini kutayotgan qo'lda o'tkazmalar */
   manualPending: number;
-  /** Yakunlangan (released) to'lovlar soni — daromad shulardan */
+  /** Pul harakati bo'lgan to'lovlar soni (paid + released) */
   paymentsCount: number;
+  /** Yakunlangan (released) to'lovlar soni — daromad shulardan */
+  releasedCount: number;
+  /** Eskrouda turgan (paid) to'lovlar soni */
+  paidCount: number;
 }
 
 export async function getAdminFinance(): Promise<AdminFinance> {
@@ -154,7 +158,8 @@ export async function getAdminFinance(): Promise<AdminFinance> {
         escrow: sql<number>`coalesce(sum(case when ${payments.state} = 'paid' then ${payments.netAmount} else 0 end), 0)`,
         released: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then ${payments.netAmount} else 0 end), 0)`,
         manualPending: sql<number>`coalesce(sum(case when ${payments.state} = 'pending' and ${payments.provider} = 'manual' then 1 else 0 end), 0)`,
-        total: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then 1 else 0 end), 0)`,
+        releasedCount: sql<number>`coalesce(sum(case when ${payments.state} = 'released' then 1 else 0 end), 0)`,
+        paidCount: sql<number>`coalesce(sum(case when ${payments.state} = 'paid' then 1 else 0 end), 0)`,
       })
       .from(payments),
     db
@@ -171,7 +176,9 @@ export async function getAdminFinance(): Promise<AdminFinance> {
     escrow: Number(p?.escrow ?? 0),
     released: Number(p?.released ?? 0),
     manualPending: Number(p?.manualPending ?? 0),
-    paymentsCount: Number(p?.total ?? 0),
+    paymentsCount: Number(p?.releasedCount ?? 0) + Number(p?.paidCount ?? 0),
+    releasedCount: Number(p?.releasedCount ?? 0),
+    paidCount: Number(p?.paidCount ?? 0),
     payoutsPaid: Number(po?.paid ?? 0),
     payoutsOpen: Number(po?.open ?? 0),
     payoutsOpenCount: Number(po?.openCount ?? 0),

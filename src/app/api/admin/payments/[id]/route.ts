@@ -49,7 +49,7 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
       if (p.provider !== "manual" && p.state === "pending" && (await findInFlightProviderPayment(p.orderId))?.id === p.id) {
         throw new ApiError(409, "To'lov provayder (Payme/Click) tomonida jarayonda — uni faqat provayder yopadi yoki 12 soatdan keyin eskiradi");
       }
-      const row = await cancelPayment(p.id, 4);
+      const row = await cancelPayment(p.id, 4, session.sub);
       await audit(session.sub, "admin_payment", { targetType: "payment", targetId: p.id, meta: { action, note: note || undefined } }, req);
       return ok({ id: row.id, state: row.state });
     }

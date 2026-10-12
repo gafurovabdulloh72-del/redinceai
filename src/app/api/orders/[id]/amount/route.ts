@@ -4,8 +4,8 @@ import { orders, payments } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderAmountSchema } from "@/lib/validators";
 import { notify } from "@/lib/notifications";
-import { findInFlightProviderPayment, loadOrderWithParties, orderHref } from "@/lib/payments/service";
-import { getSettings, splitAmount } from "@/lib/payments/settings";
+import { findInFlightProviderPayment, loadOrderWithParties, orderHref, recordOrderEvent } from "@/lib/payments/service";
+import { commissionPctFor, getSettings, splitAmount } from "@/lib/payments/settings";
 import { audit } from "@/lib/security/audit";
 import { formatPrice } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ import { formatPrice } from "@/lib/utils";
  * amount → paymentState 'awaiting'. To'langan buyurtma narxi o'zgarmaydi.
  * Mijoz to'lovni boshlagan bo'lsa (provayderda jarayonda yoki «To'ladim» bosilgan o'tkazma) — 409.
  * Eski (hali provayderga yuborilmagan, 'created') urinishlar bekor qilinadi.
+ * Komissiya foizi mutaxassis darajasiga qarab (yangi / oddiy / top, F21) shu paytda buyurtmaga snapshot qilinadi.
  */
 export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
@@ -34,17 +35,19 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   const settings = await getSettings();
   if (amount < settings.minOrderAmount) throw new ApiError(422, "Summa juda kichik", { amount: `Kamida ${formatPrice(settings.minOrderAmount)}` });
 
+  const { pct, tier } = commissionPctFor(settings, order.specialist);
   const now = new Date();
-  await db.update(orders).set({ amount, paymentState: "awaiting", commissionPct: settings.commissionPct, updatedAt: now }).where(eq(orders.id, id));
+  await db.update(orders).set({ amount, paymentState: "awaiting", commissionPct: pct, updatedAt: now }).where(eq(orders.id, id));
   // Eski summa bilan ochilgan, hali provayderga yuborilmagan urinishlar
   await db
     .update(payments)
     .set({ state: "cancelled", providerState: -1, cancelTime: now.getTime(), cancelReason: 4, updatedAt: now })
     .where(and(eq(payments.orderId, id), eq(payments.state, "created")));
-  await audit(session.sub, "order_amount", { targetType: "order", targetId: id, meta: { from: order.amount ?? undefined, to: amount } }, req);
+  await audit(session.sub, "order_amount", { targetType: "order", targetId: id, meta: { from: order.amount ?? undefined, to: amount, commissionPct: pct, tier } }, req);
 
-  const { commissionAmount, netAmount } = splitAmount(amount, settings.commissionPct);
+  const { commissionAmount, netAmount } = splitAmount(amount, pct);
   const changed = order.amount != null && order.amount !== amount;
+  await recordOrderEvent(id, session.sub, "amount", { note: `${changed ? "Narx yangilandi" : "Narx belgilandi"}: ${formatPrice(amount)} (komissiya ${pct}%)` });
   await notify(
     order.clientId,
     "order_amount",
@@ -53,5 +56,5 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     orderHref(order.id),
   );
 
-  return ok({ id, amount, paymentState: "awaiting", commissionPct: settings.commissionPct, commissionAmount, netAmount });
+  return ok({ id, amount, paymentState: "awaiting", commissionPct: pct, tier, commissionAmount, netAmount });
 });

@@ -94,6 +94,15 @@ export type FilteredSpecialist<T extends SpecialistLike> = Omit<T, "visibility" 
 };
 
 /**
+ * Ko'ruvchiga ko'rsatiladigan shahar (E28): `city` darajasi ruxsat bersa — aniq shahar,
+ * aks holda hudud markazi (masalan, Rishton → Farg'ona). /buyurtma, profil va ro'yxat bir xil qoidani ishlatadi.
+ */
+export function viewerCity(sp: { regionSlug: string; city: string; visibility: Visibility | null | undefined }, viewer: Viewer): string {
+  if (canView(resolveVisibility(sp.visibility).city, viewer)) return sp.city;
+  return REGION_BY_SLUG[sp.regionSlug]?.capital ?? sp.city;
+}
+
+/**
  * Yashirin maydonlarni server tomonda olib tashlaydi va "locked" belgilarini qaytaradi.
  * Egasi va admin hamma narsani ko'radi. `visibility` obyektining o'zi natijaga kirmaydi.
  */
@@ -112,8 +121,7 @@ export function filterSpecialistForViewer<T extends SpecialistLike>(sp: T, viewe
   };
 
   const cityVisible = canView(vis.city, viewer);
-  const region = REGION_BY_SLUG[sp.regionSlug];
-  const city = cityVisible ? sp.city : (region?.capital ?? sp.city);
+  const city = viewerCity(sp, viewer);
   if (!cityVisible) {
     const reason = lockReason(vis.city, viewer);
     if (reason && sp.city && sp.city !== city) locked.city = reason;
@@ -156,7 +164,6 @@ export function toListItem<
     user: { name: string; avatarUrl: string | null };
   },
 >(sp: T, viewer: Viewer = GUEST_VIEWER) {
-  const vis = resolveVisibility(sp.visibility);
   const { visibility: _v, telegram: _t, instagram: _i, youtube: _y, website: _w, schedule: _s, userId: _u, ...rest } = sp;
   void _v;
   void _t;
@@ -165,9 +172,8 @@ export function toListItem<
   void _w;
   void _s;
   void _u;
-  const region = REGION_BY_SLUG[sp.regionSlug];
-  const city = canView(vis.city, viewer) ? sp.city : (region?.capital ?? sp.city);
-  return { ...rest, city, user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
+  // equipment / completedCount / topRated (F51, F12, F69) — maxfiy emas, `rest` orqali o'tadi
+  return { ...rest, city: viewerCity(sp, viewer), user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
 }
 
 /** Bot/crawler'lar ko'rishlar sonini oshirmasin */

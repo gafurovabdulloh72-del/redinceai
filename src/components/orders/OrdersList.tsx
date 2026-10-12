@@ -12,15 +12,20 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  Flag,
+  History,
   Hourglass,
   Inbox,
+  MessageSquareText,
   Pencil,
   Phone,
   Play,
   RotateCcw,
+  Scale,
   Search,
   Send,
   ShieldCheck,
+  TimerReset,
   Wallet,
   X,
   type LucideIcon,
@@ -55,6 +60,15 @@ export interface OrderItem {
   specialistId?: string | null;
   /** Buyurtmaning ochiq to'lovi: created — davom ettirish mumkin, pending — tasdiq kutilmoqda */
   openPayment?: { id: string; provider: PaymentProvider; state: "created" | "pending" } | null;
+  /** Bekor qilish sababi (kim bekor qilgan bo'lsa yozgan) */
+  cancelReason?: string | null;
+  /** Nizo holati; berilmasa (undefined) — ro'yxat /api/orders dan to'ldiradi */
+  disputeState?: DisputeState;
+  disputeReason?: string | null;
+  /** Nizoni kim ochgan */
+  disputeBy?: "client" | "specialist" | null;
+  /** Avtomatik qabul muddati (ms): mijoz shu vaqtgacha javob bermasa eskrou mutaxassisga o'tadi */
+  autoReleaseAt?: number | null;
   /** Qarshi tomon: mutaxassis uchun — mijoz, mijoz uchun — mutaxassis */
   counterpart: {
     name: string;
@@ -67,7 +81,22 @@ export interface OrderItem {
 
 export type Tab = "incoming" | "outgoing";
 type Filter = OrderStatus | "all";
-type Patch = Partial<Pick<OrderItem, "status" | "amount" | "paymentState" | "completedAt" | "commissionPct">>;
+export type DisputeState = "none" | "open" | "resolved";
+type Patch = Partial<Pick<OrderItem, "status" | "amount" | "paymentState" | "completedAt" | "commissionPct" | "cancelReason" | "disputeState" | "disputeReason" | "disputeBy" | "autoReleaseAt">>;
+/** Sahifa bermagan qo'shimcha maydonlar (/api/orders yoki /api/orders/[id]/events dan) */
+type Extras = Pick<OrderItem, "cancelReason" | "disputeState" | "disputeReason" | "disputeBy" | "autoReleaseAt">;
+
+export interface OrderEventItem {
+  id: string;
+  type: "status" | "amount" | "payment" | "dispute" | "note";
+  fromStatus: string | null;
+  toStatus: string | null;
+  note: string | null;
+  actor: string | null;
+  createdAt: number;
+}
+
+const DISPUTE_MIN = 10;
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   new: "accent",
@@ -184,13 +213,51 @@ export function OrdersList({
   const [confirm, setConfirm] = useState<{ id: string; to: OrderStatus } | null>(null);
   const [reason, setReason] = useState("");
   const [acceptAsk, setAcceptAsk] = useState<string | null>(null);
+  const [disputeAsk, setDisputeAsk] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(highlightId ?? null);
+  /** Sahifa bermagan maydonlar (bekor sababi, nizo, avto-qabul) — /api/orders dan bir marta */
+  const [extras, setExtras] = useState<Record<string, Extras>>({});
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const keyOf = (o: OrderItem) => `${o.id}:${o.updatedAt}`;
   const patch = (o: OrderItem, p: Patch) => setOverrides((m) => ({ ...m, [keyOf(o)]: { ...(m[keyOf(o)] ?? {}), ...p } }));
+  const setExtra = (id: string, e: Extras) => setExtras((m) => ({ ...m, [id]: { ...(m[id] ?? {}), ...e } }));
+
+  // Sahifa hali nizo/avto-qabul maydonlarini bermasa — /api/orders dan to'ldiramiz (bir marta)
+  const needExtras = [...incoming, ...outgoing].some((o) => o.disputeState === undefined);
+  useEffect(() => {
+    if (!needExtras) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/orders", { cache: "no-store" });
+        const json = (await res.json().catch(() => null)) as ApiResponse<{ asClient: Array<Record<string, unknown>>; asSpecialist: Array<Record<string, unknown>> }> | null;
+        if (!alive || !json || !json.ok) return;
+        const next: Record<string, Extras> = {};
+        for (const row of [...json.data.asClient, ...json.data.asSpecialist]) {
+          const id = typeof row.id === "string" ? row.id : null;
+          if (!id) continue;
+          const ds = row.disputeState;
+          const ar = row.autoReleaseAt;
+          next[id] = {
+            cancelReason: typeof row.cancelReason === "string" ? row.cancelReason : null,
+            disputeState: ds === "open" || ds === "resolved" ? ds : "none",
+            disputeReason: typeof row.disputeReason === "string" ? row.disputeReason : null,
+            disputeBy: row.disputeBy === "client" || row.disputeBy === "specialist" ? row.disputeBy : null,
+            autoReleaseAt: typeof ar === "number" ? ar : typeof ar === "string" ? Date.parse(ar) || null : null,
+          };
+        }
+        setExtras((m) => ({ ...next, ...m }));
+      } catch {
+        /* qo'shimcha maydonlarsiz ham ishlayveradi */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [needExtras]);
 
   // Deep link: kartaga aylantirish + 4 soniya ajratib ko'rsatish
   useEffect(() => {
@@ -209,10 +276,11 @@ export function OrdersList({
   const list = useMemo(() => {
     const src = tab === "incoming" ? incoming : outgoing;
     return src.map((o) => {
+      const e = o.disputeState === undefined ? extras[o.id] : undefined;
       const p = overrides[`${o.id}:${o.updatedAt}`];
-      return p ? { ...o, ...p } : o;
+      return e || p ? { ...o, ...(e ?? {}), ...(p ?? {}) } : o;
     });
-  }, [tab, incoming, outgoing, overrides]);
+  }, [tab, incoming, outgoing, overrides, extras]);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: list.length, new: 0, accepted: 0, in_progress: 0, done: 0, cancelled: 0 };
@@ -227,6 +295,7 @@ export function OrdersList({
     setFilter("all");
     setConfirm(null);
     setAcceptAsk(null);
+    setDisputeAsk(null);
     setError(null);
   };
 
@@ -239,11 +308,11 @@ export function OrdersList({
     setBusyId(o.id);
     patch(o, { status: to });
     try {
-      const data = await call<{ id: string; status: OrderStatus; paymentState: OrderPaymentState }>(`/api/orders/${o.id}`, {
+      const data = await call<{ id: string; status: OrderStatus; paymentState: OrderPaymentState; cancelReason?: string | null; autoReleaseAt?: number | null }>(`/api/orders/${o.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: to, reason: why?.trim() || undefined }),
       });
-      patch(o, { status: data.status, paymentState: data.paymentState });
+      patch(o, { status: data.status, paymentState: data.paymentState, cancelReason: data.cancelReason ?? null, autoReleaseAt: data.autoReleaseAt ?? null });
       router.refresh();
     } catch (e) {
       patch(o, { status: prev });
@@ -279,10 +348,30 @@ export function OrdersList({
     setBusyId(o.id);
     try {
       const data = await call<{ paymentState: OrderPaymentState; completedAt: number }>(`/api/orders/${o.id}/confirm`, { method: "POST" });
-      patch(o, { paymentState: data.paymentState, completedAt: data.completedAt });
+      patch(o, { paymentState: data.paymentState, completedAt: data.completedAt, autoReleaseAt: null });
       router.refresh();
     } catch (e) {
       setError(msg(e));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openDispute = async (o: OrderItem, why: string): Promise<string | null> => {
+    if (busyId) return null;
+    setError(null);
+    setBusyId(o.id);
+    try {
+      const data = await call<{ disputeState: DisputeState; disputeReason: string; disputeBy: "client" | "specialist" }>(`/api/orders/${o.id}/dispute`, {
+        method: "POST",
+        body: JSON.stringify({ reason: why.trim() }),
+      });
+      patch(o, { disputeState: data.disputeState, disputeReason: data.disputeReason, disputeBy: data.disputeBy });
+      setDisputeAsk(null);
+      router.refresh();
+      return null;
+    } catch (e) {
+      return msg(e);
     } finally {
       setBusyId(null);
     }
@@ -407,8 +496,17 @@ export function OrdersList({
               onAcceptAsk={(v) => {
                 setAcceptAsk(v ? o.id : null);
                 setConfirm(null);
+                setDisputeAsk(null);
               }}
               onAccept={() => acceptWork(o)}
+              disputeAsk={disputeAsk === o.id}
+              onDisputeAsk={(v) => {
+                setDisputeAsk(v ? o.id : null);
+                setConfirm(null);
+                setAcceptAsk(null);
+              }}
+              onDispute={(why) => openDispute(o, why)}
+              onExtras={(e) => setExtra(o.id, e)}
               providers={providers}
               commissionPct={o.commissionPct ?? commissionPct}
               minOrderAmount={minOrderAmount}
@@ -443,10 +541,29 @@ function AmountForm({
   const [open, setOpen] = useState(o.amount == null && o.status === "accepted");
   const [draft, setDraft] = useState(o.amount != null ? formatNumber(o.amount) : o.budget ? formatNumber(o.budget) : "");
   const [err, setErr] = useState<string | null>(null);
+  /** Mutaxassis darajasiga qarab foiz (yangi / oddiy / top) — serverdan bir marta (F21/F28) */
+  const [tier, setTier] = useState<{ pct: number; tier: "new" | "standard" | "top" } | null>(null);
   const value = Number(draft.replace(/\D/g, "")) || 0;
-  const commission = Math.round((value * commissionPct) / 100);
+  const pct = tier?.pct ?? commissionPct;
+  const commission = Math.round((value * pct) / 100);
   const net = value - commission;
   const inputId = `amount-${o.id}`;
+
+  useEffect(() => {
+    if (!open || tier) return;
+    let alive = true;
+    fetch(`/api/orders/${o.id}/amount/preview`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json: ApiResponse<{ commissionPct: number; tier: "new" | "standard" | "top" }>) => {
+        if (alive && json.ok) setTier({ pct: json.data.commissionPct, tier: json.data.tier });
+      })
+      .catch(() => {
+        /* standart foiz bilan davom etadi */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [open, tier, o.id]);
 
   const submit = async () => {
     if (value < minOrderAmount) {
@@ -508,11 +625,13 @@ function AmountForm({
         <p id={`${inputId}-hint`} className="mt-2 text-[12px] leading-snug text-fg-3">
           {value > 0 ? (
             <>
-              Platforma xizmat haqi {commissionPct}% — {formatPrice(commission)}. <span className="font-semibold text-fg">Sizga {formatPrice(net)}</span> tushadi (mijoz ishni qabul qilgach).
+              <span className="font-semibold text-fg">Siz olasiz: {formatPrice(net)}</span> (komissiya {pct}% — {formatPrice(commission)}), mijoz ishni qabul qilgach.
             </>
           ) : (
-            <>Mijoz shu summani eskrouga to'laydi; {commissionPct}% platforma xizmat haqi ayriladi.</>
+            <>Mijoz shu summani eskrouga to'laydi; {pct}% platforma xizmat haqi ayriladi.</>
           )}
+          {tier?.tier === "new" && <> · Yangi mutaxassis darajasi — 3 ta buyurtma bajarilgach komissiya kamayadi.</>}
+          {tier?.tier === "top" && <> · Top mutaxassis darajasi.</>}
         </p>
       )}
     </div>
@@ -571,6 +690,10 @@ function OrderCard({
   acceptAsk,
   onAcceptAsk,
   onAccept,
+  disputeAsk,
+  onDisputeAsk,
+  onDispute,
+  onExtras,
   providers,
   commissionPct,
   minOrderAmount,
@@ -592,6 +715,11 @@ function OrderCard({
   acceptAsk: boolean;
   onAcceptAsk: (v: boolean) => void;
   onAccept: () => void;
+  disputeAsk: boolean;
+  onDisputeAsk: (v: boolean) => void;
+  onDispute: (reason: string) => Promise<string | null>;
+  /** Tarix yuklanganda serverdan kelgan qo'shimcha maydonlar */
+  onExtras: (e: Extras) => void;
   providers: PaymentProvider[];
   commissionPct: number;
   minOrderAmount: number;
@@ -615,6 +743,12 @@ function OrderCard({
   const pendingPayment = openPayment?.state === "pending" ? openPayment : null;
   const canReorder = !isSpecialist && closed && Boolean(o.specialistId);
   const net = o.amount != null ? o.amount - Math.round((o.amount * commissionPct) / 100) : null;
+  const disputeOpen = o.disputeState === "open";
+  /** Nizo: jarayonda/yakunlangan + pul eskrouda; ochiq nizo bo'lsa tasdiqlash to'xtaydi */
+  const canDispute = (o.status === "in_progress" || o.status === "done") && o.paymentState === "paid" && !disputeOpen;
+  const autoRelease = !disputeOpen && o.status === "done" && o.paymentState === "paid" && o.autoReleaseAt ? o.autoReleaseAt : null;
+  const [disputeText, setDisputeText] = useState("");
+  const [disputeErr, setDisputeErr] = useState<string | null>(null);
 
   return (
     <article
@@ -640,6 +774,22 @@ function OrderCard({
       <h3 className="mt-2.5 text-[17px] font-semibold leading-snug text-fg">{o.title}</h3>
 
       <OrderSteps status={o.status} paymentState={o.paymentState} />
+
+      {/* Nizo holati */}
+      {disputeOpen && (
+        <div role="status" className="mt-3 flex items-start gap-2.5 rounded-[14px] bg-warning-soft px-3.5 py-2.5 text-[13px] leading-snug text-warning">
+          <Scale size={16} className="mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">Nizo ochiq</span> — {o.disputeBy === "client" ? "mijoz" : o.disputeBy === "specialist" ? "mutaxassis" : "tomonlardan biri"} nizo ochdi, admin ko'rib chiqmoqda. Pul eskrouda turadi, qabul qilish va avtomatik o'tkazish to'xtatilgan.
+            {o.disputeReason && <span className="mt-1 block text-fg-2">Sabab: {o.disputeReason}</span>}
+          </span>
+        </div>
+      )}
+      {o.disputeState === "resolved" && (
+        <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-3">
+          <Scale size={13} /> Nizo admin tomonidan hal qilingan{o.paymentState === "released" ? " — pul mutaxassisga o'tkazildi" : o.paymentState === "refunded" ? " — pul mijozga qaytarildi" : ""}.
+        </p>
+      )}
 
       {/* Qarshi tomon */}
       <div className="mt-3 flex items-center gap-2.5">
@@ -710,7 +860,7 @@ function OrderCard({
                     Xizmat haqi {commissionPct}% · sizga <span className="font-semibold text-fg-2">{formatPrice(net ?? 0)}</span>
                   </>
                 ) : pendingPayment ? (
-                  pendingPayment.provider === "manual" ? "O'tkazma haqida xabar oldik — admin tasdig'i kutilmoqda" : "To'lov provayder tomonida tekshirilmoqda"
+                  pendingPayment.provider === "manual" ? "O'tkazma yuborildi — administrator tasdiqlashini kutmoqda" : "To'lov provayder tomonida tekshirilmoqda"
                 ) : o.paymentState === "paid" ? (
                   "Pul eskrouda — ish qabul qilingach mutaxassisga o'tadi"
                 ) : o.paymentState === "released" ? (
@@ -744,9 +894,52 @@ function OrderCard({
       )}
 
       {/* Amallar */}
-      {(actions.length > 0 || canSetAmount || canPay || canAccept) && (
+      {(actions.length > 0 || canSetAmount || canPay || canAccept || canDispute) && (
         <div className="mt-4 border-t border-line pt-4">
-          {confirmAction ? (
+          {disputeAsk ? (
+            <div className="card-outline flex flex-col gap-3 !rounded-[18px] p-3.5 animate-fade-up" style={{ animationDuration: "0.25s" }}>
+              <p className="flex items-start gap-2 text-[13px] font-medium text-fg">
+                <Scale size={16} className="mt-0.5 shrink-0 text-warning" />
+                Nizo ochilsa pul eskrouda qoladi, qabul qilish va avtomatik o'tkazish to'xtaydi. Admin ikkala tomonni ko'rib chiqib, pulni {isSpecialist ? "sizga o'tkazadi yoki mijozga qaytaradi" : "mutaxassisga o'tkazadi yoki sizga qaytaradi"}.
+              </p>
+              <div>
+                <label htmlFor={`dispute-${o.id}`} className="sr-only">
+                  Nizo sababi
+                </label>
+                <textarea
+                  id={`dispute-${o.id}`}
+                  className="field min-h-[84px] resize-y text-[14px]"
+                  placeholder={isSpecialist ? "Nima bo'ldi? Masalan: mijoz ishni qabul qilmayapti, lekin natija topshirilgan" : "Nima bo'ldi? Masalan: natija texnik topshiriqqa mos emas"}
+                  value={disputeText}
+                  maxLength={1000}
+                  onChange={(e) => {
+                    setDisputeText(e.target.value);
+                    setDisputeErr(null);
+                  }}
+                  aria-invalid={Boolean(disputeErr)}
+                  autoFocus
+                />
+                {disputeErr ? <p className="field-error">{disputeErr}</p> : <p className="mt-1.5 text-[12px] text-fg-4">Kamida {DISPUTE_MIN} belgi · {disputeText.trim().length}/1000</p>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="md"
+                  variant="primary"
+                  disabled={busy || disputeText.trim().length < DISPUTE_MIN}
+                  onClick={async () => {
+                    const e = await onDispute(disputeText);
+                    if (e) setDisputeErr(e);
+                    else setDisputeText("");
+                  }}
+                >
+                  {busy ? <Spinner /> : <Scale size={15} />} Nizo ochish
+                </Button>
+                <Button size="md" variant="ghost" onClick={() => onDisputeAsk(false)} disabled={busy}>
+                  Bekor
+                </Button>
+              </div>
+            </div>
+          ) : confirmAction ? (
             <div className="card-outline flex flex-col gap-3 !rounded-[18px] p-3.5 animate-fade-up" style={{ animationDuration: "0.25s" }}>
               <p className="flex items-start gap-2 text-[13px] font-medium text-fg">
                 <AlertCircle size={16} className={cn("mt-0.5 shrink-0", confirmAction.danger ? "text-danger" : "text-warning")} />
@@ -807,7 +1000,7 @@ function OrderCard({
                     <Badge tone="warning" className="!py-2 !text-[12px]">
                       <Hourglass size={12} /> {pendingPayment.provider === "manual" ? "O'tkazma tasdiq kutilmoqda" : "To'lov tekshirilmoqda"}
                     </Badge>
-                    <Link href={`/tolov/natija?payment=${pendingPayment.id}`} className="inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
+                    <Link href={`/tolov/${pendingPayment.id}`} className="inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
                       Holatni ko'rish <ArrowRight size={14} />
                     </Link>
                   </>
@@ -819,25 +1012,42 @@ function OrderCard({
                     Davom etish <ArrowRight size={14} />
                   </Link>
                 )}
-                {canAccept && (
+                {canAccept && !disputeOpen && (
                   <Button size="md" variant={o.paymentState === "paid" ? "accent" : "primary"} onClick={() => onAcceptAsk(true)} disabled={busy}>
                     <CheckCircle2 size={15} /> Ishni qabul qilish
                   </Button>
                 )}
-                {actions.map((a) => (
-                  <Button
-                    key={a.to}
-                    size="md"
-                    variant={a.variant}
-                    disabled={busy}
-                    onClick={() => (a.confirm ? onAsk(a.to) : onChange(a.to))}
-                    className={cn(a.danger && "border-line text-danger hover:border-danger hover:bg-danger-soft")}
-                  >
-                    {busy && !a.confirm ? <Spinner /> : <a.icon size={15} />}
-                    {a.label}
+                {!disputeOpen &&
+                  actions.map((a) => (
+                    <Button
+                      key={a.to}
+                      size="md"
+                      variant={a.variant}
+                      disabled={busy}
+                      onClick={() => (a.confirm ? onAsk(a.to) : onChange(a.to))}
+                      className={cn(a.danger && "border-line text-danger hover:border-danger hover:bg-danger-soft")}
+                    >
+                      {busy && !a.confirm ? <Spinner /> : <a.icon size={15} />}
+                      {a.label}
+                    </Button>
+                  ))}
+                {canDispute && (
+                  <Button size="md" variant="ghost" onClick={() => onDisputeAsk(true)} disabled={busy} className="text-fg-2">
+                    <Scale size={15} /> Nizo ochish
                   </Button>
-                ))}
+                )}
               </div>
+              {autoRelease && (
+                <p className="flex items-start gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-[12px] leading-snug text-fg-2">
+                  <TimerReset size={14} className="mt-0.5 shrink-0 text-warning" />
+                  <span>
+                    <span className="font-semibold text-fg">Avtomatik qabul: {formatDate(autoRelease)}.</span>{" "}
+                    {isSpecialist
+                      ? "Mijoz shu kungacha javob bermasa eskroudagi pul avtomatik balansingizga tushadi."
+                      : "Shu kungacha ishni qabul qilmasangiz yoki nizo ochmasangiz, eskroudagi pul mutaxassisga avtomatik o'tadi."}
+                  </span>
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -870,21 +1080,123 @@ function OrderCard({
         </p>
       )}
       {o.status === "cancelled" && (
-        <p className="mt-4 border-t border-line pt-3 text-[12px] text-fg-3">
-          {o.paymentState === "paid" ? "Buyurtma bekor qilingan. To'lov eskrouda — admin ko'rib chiqadi va qaytaradi." : o.paymentState === "refunded" ? "Buyurtma bekor qilingan, pul qaytarilgan." : "Buyurtma bekor qilingan."}
-          {" · "}
-          {formatDate(o.updatedAt)}
-        </p>
+        <div className="mt-4 border-t border-line pt-3 text-[12px] text-fg-3">
+          <p>
+            {o.paymentState === "paid" ? "Buyurtma bekor qilingan. To'lov eskrouda — admin ko'rib chiqadi va qaytaradi." : o.paymentState === "refunded" ? "Buyurtma bekor qilingan, pul qaytarilgan." : "Buyurtma bekor qilingan."}
+            {" · "}
+            {formatDate(o.updatedAt)}
+          </p>
+          {o.cancelReason && (
+            <p className="mt-2 flex items-start gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-snug text-fg-2">
+              <Ban size={14} className="mt-0.5 shrink-0 text-fg-3" />
+              <span>
+                <span className="font-semibold text-fg">Bekor qilish sababi:</span> {o.cancelReason}
+              </span>
+            </p>
+          )}
+        </div>
       )}
 
       {/* Mijoz: yopilgan buyurtma — o'sha mutaxassisga bir bosishda yangi buyurtma */}
       {canReorder && !canAccept && (
         <div className="mt-3">
-          <ButtonLink href={`/buyurtma/${o.specialistId}`} variant="outline" size="sm">
+          <ButtonLink href={`/buyurtma/${o.specialistId}?title=${encodeURIComponent(o.title)}`} variant="outline" size="sm">
             <RotateCcw size={14} /> Yana buyurtma berish
           </ButtonLink>
         </div>
       )}
+
+      <OrderTimeline orderId={o.id} onExtras={onExtras} />
     </article>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Buyurtma tarixi (F36): holat, narx, to'lov, nizo — ixcham ro'yxat  */
+/* ------------------------------------------------------------------ */
+const EVENT_ICON: Record<OrderEventItem["type"], LucideIcon> = { status: Flag, amount: BadgePercent, payment: Wallet, dispute: Scale, note: MessageSquareText };
+
+function eventText(e: OrderEventItem): string {
+  if (e.type === "status") {
+    const to = e.toStatus && (ORDER_STATUSES as readonly string[]).includes(e.toStatus) ? ORDER_STATUS_LABEL[e.toStatus as OrderStatus] : e.toStatus;
+    const from = e.fromStatus && (ORDER_STATUSES as readonly string[]).includes(e.fromStatus) ? ORDER_STATUS_LABEL[e.fromStatus as OrderStatus] : null;
+    const head = from ? `${from} → ${to}` : `Buyurtma yaratildi`;
+    return e.note ? `${head}. ${e.note}` : head;
+  }
+  return e.note ?? (e.type === "amount" ? "Narx o'zgardi" : e.type === "payment" ? "To'lov" : e.type === "dispute" ? "Nizo" : "Izoh");
+}
+
+function OrderTimeline({ orderId, onExtras }: { orderId: string; onExtras: (e: Extras) => void }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<OrderEventItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const data = await call<{ events: OrderEventItem[]; order: Extras }>(`/api/orders/${orderId}/events`, { method: "GET" });
+      setItems(data.events);
+      onExtras(data.order);
+    } catch (e) {
+      setErr(msg(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v);
+          if (!open && items == null && !loading) void load();
+        }}
+        aria-expanded={open}
+        className="inline-flex min-h-9 items-center gap-1.5 text-[12px] font-semibold text-fg-3 transition hover:text-fg"
+      >
+        <History size={13} /> Tarix
+        <ChevronDown size={13} className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="mt-1.5 rounded-[14px] border border-line bg-surface-2 px-3.5 py-2.5">
+          {loading && items == null ? (
+            <p className="flex items-center gap-2 text-[12px] text-fg-3">
+              <Spinner className="h-3.5 w-3.5" /> Yuklanmoqda…
+            </p>
+          ) : err ? (
+            <p className="flex items-center gap-2 text-[12px] text-danger">
+              <AlertCircle size={13} /> {err}
+            </p>
+          ) : !items || items.length === 0 ? (
+            <p className="text-[12px] text-fg-3">Hali yozuvlar yo'q.</p>
+          ) : (
+            <ol className="space-y-2">
+              {items.map((e) => {
+                const Icon = EVENT_ICON[e.type];
+                return (
+                  <li key={e.id} className="flex items-start gap-2.5 text-[12px] leading-snug">
+                    <span className={cn("mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full", e.type === "dispute" ? "bg-warning-soft text-warning" : e.type === "payment" ? "bg-success-soft text-success" : "bg-fg/8 text-fg-3")} aria-hidden="true">
+                      <Icon size={11} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-fg-2">{eventText(e)}</span>
+                      <span className="block text-[11px] text-fg-4">
+                        {e.actor ?? "Tizim"} ·{" "}
+                        <time dateTime={new Date(e.createdAt).toISOString()} title={formatDateTime(e.createdAt)} suppressHydrationWarning>
+                          {timeAgo(e.createdAt)}
+                        </time>
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

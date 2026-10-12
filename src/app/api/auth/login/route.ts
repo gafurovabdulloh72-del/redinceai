@@ -41,6 +41,12 @@ export const POST = handler(async (req) => {
     throw new ApiError(401, "Email yoki parol noto'g'ri");
   }
 
+  // Bloklangan hisob: parol to'g'ri bo'lsa ham kirish yo'q (parol noto'g'ri bo'lsa yuqoridagi umumiy 401 — oracle yo'q)
+  if (user.isBanned) {
+    await audit(user.id, "login_blocked", { targetType: "user", targetId: user.id, meta: { reason: user.bannedReason ?? null } }, req);
+    throw new ApiError(403, "Akkaunt bloklangan. Savollar bo'lsa qo'llab-quvvatlashga yozing");
+  }
+
   await Promise.all([
     clearLimit(keyPair),
     clearLimit(keyEmail),

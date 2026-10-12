@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS } from "./constants";
+import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, REGIONS, REPORT_REASONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS } from "./constants";
 import { normalizeUzPhone } from "./utils";
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +118,8 @@ export const specialistProfileSchema = z
   priceTo: z.coerce.number().int().min(0).max(1_000_000_000).optional().nullable(),
   experience: z.enum(experienceValues),
   skills: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+  /** Jihozlar (F51): "Sony FX3", "DJI Mavic 3" … */
+  equipment: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
   languages: z.array(z.enum(["uz", "ru", "en", "kaa", "tg"])).min(1).default(["uz"]),
   telegram: z.string().trim().max(60).optional().or(z.literal("")),
   instagram: z.string().trim().max(60).optional().or(z.literal("")),
@@ -142,12 +144,19 @@ export const portfolioItemSchema = z
   // "Rasm" turidagi ishning manzili rasm sifatida ko'rsatiladi — https bo'lishi shart
   .refine((d) => d.type !== "image" || IMAGE_URL_RE.test(d.url), { message: IMAGE_URL_MSG, path: ["url"] });
 
-/** Akkaunt ma'lumotlari (PATCH /api/profile) */
+/**
+ * Akkaunt ma'lumotlari (PATCH /api/profile).
+ * email — berilsa va joriy emaildan farq qilsa, currentPassword majburiy (route tekshiradi) va emailVerified=false bo'ladi;
+ * notifyEmail — email bildirishnomalariga rozilik (kalit yuborilmasa tegilmaydi).
+ */
 export const accountSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
   phone: optionalPhone,
   avatarUrl: optionalImageUrl,
   gender: z.enum(["male", "female"]).optional().nullable(),
+  email: z.string().trim().toLowerCase().email("Email noto'g'ri").max(120).optional(),
+  currentPassword: z.string().max(100).optional(),
+  notifyEmail: z.boolean().optional(),
 });
 
 /* ---------- Maxfiylik va ish vaqti ---------- */
@@ -228,6 +237,24 @@ export const reviewDeleteSchema = z.object({
   authorId: z.string().min(1).optional(),
 });
 
+/** PATCH /api/reviews/[id]/reply — mutaxassisning javobi; bo'sh satr javobni o'chiradi */
+export const reviewReplySchema = z.object({
+  reply: z.string().trim().max(800, "Javob 800 belgidan oshmasin"),
+});
+
+/** POST /api/reports — profil yoki sharh haqida shikoyat */
+export const reportSchema = z.object({
+  targetType: z.enum(["specialist", "review"]),
+  targetId: z.string().min(1).max(80),
+  reason: z.enum(REPORT_REASONS.map((r) => r.value) as unknown as ["spam", "fake", "offensive", "fraud", "other"]),
+  text: z.string().trim().max(500, "Izoh 500 belgidan oshmasin").optional().or(z.literal("")),
+});
+
+/** GET /api/search/suggest?q= */
+export const suggestQuerySchema = z.object({
+  q: z.string().trim().min(1).max(60),
+});
+
 /** POST /api/favorites (body) va DELETE /api/favorites (?specialistId=) */
 export const favoriteSchema = z.object({ specialistId: z.string().min(1) });
 
@@ -243,6 +270,10 @@ export const specialistFilterSchema = z.object({
   /** Hozir buyurtma qabul qiladiganlar: "Band" emas va ta'tilda emas */
   available: z.enum(["1"]).optional(),
   gender: z.enum(["male", "female"]).optional(),
+  /** Ko'nikma bo'yicha (F50) — specialists.skills JSON'ida aynan shu nom */
+  skill: z.string().trim().max(40).optional(),
+  /** Jihoz bo'yicha (F51) — specialists.equipment JSON'ida aynan shu nom */
+  equipment: z.string().trim().max(40).optional(),
   sort: z.enum(["rating", "price_asc", "price_desc", "newest", "popular"]).default("rating"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(60).default(24),

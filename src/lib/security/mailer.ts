@@ -64,3 +64,28 @@ export function passwordResetMail(to: string, name: string, link: string): MailM
 </div></body></html>`;
   return { to, subject: "Redince — parolni tiklash", html, text };
 }
+
+/** Email tasdiqlash kodi (6 xonali, 15 daqiqa) */
+export function emailVerifyMail(to: string, name: string, code: string): MailMessage {
+  const safeName = escapeHtml(name);
+  const safeCode = escapeHtml(code);
+  const text = [
+    `Salom, ${name}!`,
+    "",
+    "Redince'da emailingizni tasdiqlash kodi (15 daqiqa amal qiladi):",
+    code,
+    "",
+    "Kodni Kabinet → Xavfsizlik sahifasiga kiriting. Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring.",
+  ].join("\n");
+  const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
+<div style="max-width:520px;margin:0 auto;padding:32px 20px">
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
+    <p style="font-size:20px;font-weight:700;margin:0 0 12px">Emailni tasdiqlash</p>
+    <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${safeName}! Emailingizni tasdiqlash uchun quyidagi kodni Kabinet → Xavfsizlik sahifasiga kiriting. Kod <b>15 daqiqa</b> amal qiladi.</p>
+    <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${safeCode}</p>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring — hisobingiz o'zgarmaydi.</p>
+  </div>
+</div></body></html>`;
+  return { to, subject: `Redince — tasdiqlash kodi: ${code}`, html, text };
+}

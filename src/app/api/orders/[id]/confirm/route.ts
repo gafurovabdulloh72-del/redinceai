@@ -15,6 +15,7 @@ export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }
   if (order.clientId !== session.sub && session.role !== "admin") throw new ApiError(403, "Ishni faqat buyurtmachi qabul qiladi");
   if (order.status !== "done") throw new ApiError(400, "Mutaxassis avval ishni yakunlashi kerak");
   if (order.paymentState === "refunded") throw new ApiError(400, "Pul qaytarilgan buyurtmani qabul qilib bo'lmaydi");
+  if (order.disputeState === "open") throw new ApiError(409, "Bu buyurtma bo'yicha nizo ochiq — admin qarorini kuting");
 
   if (order.completedAt && order.paymentState !== "paid") {
     return ok({ id, paymentState: order.paymentState, completedAt: order.completedAt.getTime(), released: 0 });

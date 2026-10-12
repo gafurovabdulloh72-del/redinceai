@@ -7,11 +7,13 @@ import {
   BadgePercent,
   Banknote,
   ClipboardList,
+  Flag,
   Hourglass,
   Landmark,
   MapPinned,
   MessageSquareText,
   Receipt,
+  Scale,
   ScrollText,
   ShieldCheck,
   SlidersHorizontal,
@@ -20,17 +22,22 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
 import { AdminPayoutsQueue, type AdminPayoutRow } from "@/components/admin/AdminPayoutsQueue";
+import { AdminReports } from "@/components/admin/AdminReports";
+import { AdminReviews, type AdminReviewRow } from "@/components/admin/AdminReviews";
 import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admin/AdminSpecialistsTable";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
 import { Avatar, Badge, ButtonLink, IconTile, SectionHeading, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, REGIONS, type OrderStatus } from "@/lib/constants";
+import { listOpenDisputes } from "@/lib/payments/disputes";
 import { getAdminFinance, listAdminPayments, listAdminPayouts } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
 import { getAdminOverview } from "@/lib/queries";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
+import { banFlagsFor, listAdminReports, listAdminReviews } from "./queries";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +87,17 @@ export default async function AdminPage() {
   if (!user) redirect(await loginRedirectPath("/admin"));
   if (user.role !== "admin") redirect("/kabinet");
 
-  const [{ stats, pending, latestUsers, latestOrders }, finance, payouts, payments, settings] = await Promise.all([getAdminOverview(), getAdminFinance(), listAdminPayouts(), listAdminPayments(), getSettings()]);
+  const [{ stats, pending, latestUsers, latestOrders }, finance, payouts, payments, settings, disputes, reviewsLatest, reports] = await Promise.all([
+    getAdminOverview(),
+    getAdminFinance(),
+    listAdminPayouts(),
+    listAdminPayments(),
+    getSettings(),
+    listOpenDisputes(),
+    listAdminReviews(30),
+    listAdminReports("all", 60),
+  ]);
+  const bans = await banFlagsFor(pending.map((sp) => sp.userId));
 
   // Mijoz komponentga faqat seriyalanadigan ma'lumot beramiz (sanalar — ms)
   const pendingRows: PendingSpecialist[] = pending.map((sp) => ({
@@ -94,7 +111,33 @@ export default async function AdminPage() {
     isFeatured: sp.isFeatured,
     createdAt: sp.createdAt.getTime(),
     user: { name: sp.user.name, email: sp.user.email, phone: sp.user.phone },
+    userId: sp.userId,
+    isBanned: bans.get(sp.userId)?.isBanned ?? false,
+    bannedReason: bans.get(sp.userId)?.bannedReason ?? null,
   }));
+
+  const disputeRows: AdminDisputeRow[] = disputes.map((o) => ({
+    orderId: o.id,
+    title: o.title,
+    status: o.status,
+    amount: o.amount,
+    commissionPct: o.commissionPct,
+    reason: o.disputeReason ?? "",
+    by: o.disputeOpenedBy === o.clientId ? "client" : "specialist",
+    openedAt: o.updatedAt.getTime(),
+    client: { name: o.client.name, email: o.client.email },
+    specialist: { name: o.specialist.user.name, email: o.specialist.user.email, slug: o.specialist.slug },
+  }));
+
+  const reviewRows: AdminReviewRow[] = reviewsLatest.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    text: r.text,
+    createdAt: r.createdAt.getTime(),
+    author: { name: r.author.name, email: r.author.email },
+    specialist: { slug: r.specialist.slug, name: r.specialist.user.name },
+  }));
+  const openReports = reports.filter((r) => r.status === "open").length;
 
   const payoutRows: AdminPayoutRow[] = payouts.map((p) => ({
     id: p.id,
@@ -153,10 +196,13 @@ export default async function AdminPage() {
 
   const sections = [
     { href: "#moliya", label: "Moliya", icon: Wallet },
+    { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
     { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
     { href: "#payoutlar", label: "Payout so'rovlari", icon: Banknote, count: openPayouts },
     { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
     { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pending.length },
+    { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
+    { href: "#sharhlar", label: "Sharhlar", icon: MessageSquareText },
   ];
 
   return (
@@ -223,25 +269,35 @@ export default async function AdminPage() {
               Platforma <span className="accent-serif text-accent">daromadi</span>
             </>
           }
-          description={`Har bir to'lovdan ${settings.commissionPct}% komissiya platformaga qoladi; qolgani mijoz ishni qabul qilgach mutaxassis balansiga tushadi.`}
+          description={`Komissiya darajalari: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Daromad — faqat yakunlangan (released) to'lovlar komissiyasi; eskroudagi komissiya qaytarilishi mumkin.`}
         />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <Tile
-            icon={BadgePercent}
-            value={money(finance.revenue)}
-            label="Platforma daromadi"
-            hint={`${finance.paymentsCount} ta yakunlangan to'lovdan${finance.escrowCommission > 0 ? ` · eskrouda yana ${money(finance.escrowCommission)}` : ""}`}
-            hintTone="success"
-          />
-          <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint="Qabul qilinishi kutilmoqda" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.releasedCount} ta yakunlangan to'lovdan`} hintTone="success" />
+          <Tile icon={Hourglass} value={money(finance.escrowCommission)} label="Eskroudagi komissiya" hint={finance.paidCount > 0 ? `${finance.paidCount} ta to'lov eskrouda · hali daromad emas` : "Eskrou bo'sh"} hintTone={finance.paidCount > 0 ? "warning" : "neutral"} />
+          <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint={`${finance.paymentsCount} ta to'lov (eskrou + yakunlangan)`} />
           <Tile icon={Landmark} value={money(finance.payoutsPaid)} label="To'langan payoutlar" hint={`O'tkazilgan jami: ${money(finance.released)}`} />
-          <Tile icon={Hourglass} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
+          <Tile icon={Banknote} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
         </div>
+      </section>
+
+      {/* ---------- Nizolar ---------- */}
+      <section id="nizolar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Nizolar"
+          title="Arbitraj navbati"
+          description="Mijoz yoki mutaxassis eskroudagi buyurtma bo'yicha nizo ochgan. Pul eskrouda turadi; ikkala tomonni (buyurtma sahifasidagi jurnal, aloqa) ko'rib chiqib qaror bering — tomonlarga bildirishnoma va izoh boradi."
+          action={
+            <Badge tone={disputeRows.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {disputeRows.length > 0 ? `${disputeRows.length} ta ochiq nizo` : "Nizolar yo'q"}
+            </Badge>
+          }
+        />
+        <AdminDisputes rows={disputeRows} />
       </section>
 
       {/* ---------- Sozlamalar ---------- */}
       <section id="sozlamalar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="Sozlamalar" title="Komissiya va limitlar" description="Upwork uslubi: mijoz to'lagan summadan belgilangan foiz platformaga qoladi. Limitlar yangi buyurtma va payout so'rovlariga qo'llanadi." />
+        <SectionHeading eyebrow="Sozlamalar" title="Komissiya darajalari va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Limitlar yangi buyurtma va payout so'rovlariga qo'llanadi." />
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <PlatformSettingsForm initial={settings} />
@@ -250,8 +306,16 @@ export default async function AdminPage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Hozirgi qiymatlar</p>
             <dl className="mt-3 divide-y divide-line text-[14px]">
               <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Komissiya</dt>
+                <dt className="text-fg-2">Yangi mutaxassis</dt>
+                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctNew}%</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Oddiy daraja</dt>
                 <dd className="font-semibold text-fg tabular-nums">{settings.commissionPct}%</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Top mutaxassis</dt>
+                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctTop}%</dd>
               </div>
               <div className="flex items-center justify-between py-2.5">
                 <dt className="text-fg-2">Minimal buyurtma</dt>
@@ -312,6 +376,27 @@ export default async function AdminPage() {
           }
         />
         <AdminSpecialistsTable pending={pendingRows} />
+      </section>
+
+      {/* ---------- Shikoyatlar ---------- */}
+      <section id="shikoyatlar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Shikoyatlar"
+          title="Profil va sharh shikoyatlari"
+          description="Foydalanuvchilar yuborgan shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa sharhni o'chiring (pastda) yoki profilni bloklang, so'ng shikoyatni yoping."
+          action={
+            <Badge tone={openReports > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {openReports > 0 ? `${openReports} ta ochiq` : "Ochiq shikoyat yo'q"}
+            </Badge>
+          }
+        />
+        <AdminReports rows={reports} />
+      </section>
+
+      {/* ---------- Sharhlar ---------- */}
+      <section id="sharhlar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading eyebrow="Sharhlar" title="Sharh moderatsiyasi" description="So'nggi 30 ta sharh. Haqoratli yoki soxta sharhni o'chiring — mutaxassis reytingi darhol qayta hisoblanadi, shu sharh bo'yicha shikoyatlar yopiladi." />
+        <AdminReviews rows={reviewRows} />
       </section>
 
       {/* ---------- So'nggi faollik ---------- */}

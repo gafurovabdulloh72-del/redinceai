@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { hkdfSync } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -18,8 +19,10 @@ const ROLES: ReadonlyArray<User["role"]> = ["client", "specialist", "admin"];
 
 /** .env.example / dev namunaviy qiymatlar — productionda haqiqiy kalit sifatida qabul qilinmaydi */
 const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+/** Productionda AUTH_SECRET uchun minimal uzunlik */
+const MIN_SECRET_PROD = 32;
 /** Jarayon bo'yicha bir marta (dev'da modul har route uchun qayta yuklanadi — globalThis'da saqlaymiz) */
-const warnFlag = globalThis as { __redinceSecretWarned?: boolean };
+const warnFlag = globalThis as { __redinceSecretWarned?: boolean; __redinceSecretKey?: Uint8Array };
 function warnSecretOnce(msg: string) {
   if (warnFlag.__redinceSecretWarned) return;
   warnFlag.__redinceSecretWarned = true;
@@ -27,29 +30,42 @@ function warnSecretOnce(msg: string) {
 }
 
 /**
- * JWT imzo kaliti (src/middleware.ts secret() bilan bir xil mantiq — ikkalasini birga o'zgartiring).
- * Qisqa (<16) yoki namunaviy ("change-me…") AUTH_SECRET productionda e'tiborga olinmaydi va bir marta
- * ogohlantiriladi; dev'da namunaviy qiymat ishlatilaveradi (sessiyalar saqlanib qolsin).
+ * JWT imzo kaliti (src/middleware.ts secret() bilan BIR XIL baytlar — ikkalasini birga o'zgartiring).
+ *  - production: AUTH_SECRET majburiy, kamida 32 belgi, namunaviy ("change-me…") qiymat rad etiladi (xato tashlanadi);
+ *    AUTH_SECRET umuman bo'lmasa Turso tokenidan HKDF (sha256, salt "redince", info "session-v1") bilan kalit hosil
+ *    qilinadi va bir marta ogohlantiriladi (xom token hech qachon kalit sifatida ishlatilmaydi);
+ *  - dev: qisqa (<16) qiymat e'tiborga olinmaydi (ogohlantirish), namunaviy qiymat ishlatilaveradi (sessiyalar saqlansin).
  */
-function secret() {
+function secret(): Uint8Array {
+  if (warnFlag.__redinceSecretKey) return warnFlag.__redinceSecretKey;
+  const key = computeSecret();
+  warnFlag.__redinceSecretKey = key;
+  return key;
+}
+
+function computeSecret(): Uint8Array {
   const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET;
   if (s) {
-    if (s.length < 16) warnSecretOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
-    else if (!PLACEHOLDER_SECRET.test(s)) return new TextEncoder().encode(s);
-    else if (!prod) {
-      warnSecretOnce("AUTH_SECRET namunaviy qiymat — productionda rad etiladi. `openssl rand -base64 48` bilan yarating");
+    if (prod) {
+      if (PLACEHOLDER_SECRET.test(s)) throw new Error("AUTH_SECRET namunaviy (.env.example) qiymat — productionda `openssl rand -base64 48` bilan haqiqiy kalit bering");
+      if (s.length < MIN_SECRET_PROD) throw new Error(`AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — productionda \`openssl rand -base64 48\` bilan yarating`);
       return new TextEncoder().encode(s);
-    } else warnSecretOnce("AUTH_SECRET namunaviy (.env.example) qiymat — e'tiborga olinmadi");
+    }
+    if (s.length < 16) warnSecretOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
+    else {
+      if (PLACEHOLDER_SECRET.test(s)) warnSecretOnce("AUTH_SECRET namunaviy qiymat — productionda rad etiladi. `openssl rand -base64 48` bilan yarating");
+      return new TextEncoder().encode(s);
+    }
   }
-  // AUTH_SECRET berilmagan bo'lsa: Turso tokenidan barqaror, maxfiy kalit hosil qilamiz
-  // (token maxfiy va deploylar orasida o'zgarmaydi — sessiyalar saqlanib qoladi)
+  // AUTH_SECRET berilmagan bo'lsa: Turso tokenidan HKDF bilan barqaror, maxfiy kalit hosil qilamiz
+  // (token maxfiy va deploylar orasida o'zgarmaydi — sessiyalar saqlanib qoladi; xom token kalit bo'lmaydi)
   const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
   if (derived && derived.length >= 16) {
-    warnSecretOnce("AUTH_SECRET yo'q — sessiya kaliti Turso tokenidan hosil qilinmoqda; token almashsa barcha sessiyalar bekor bo'ladi");
-    return new TextEncoder().encode(`redince-session-v1:${derived}`);
+    warnSecretOnce("AUTH_SECRET yo'q — sessiya kaliti Turso tokenidan (HKDF) hosil qilinmoqda; token almashsa barcha sessiyalar bekor bo'ladi");
+    return new Uint8Array(hkdfSync("sha256", derived, "redince", "session-v1", 32));
   }
-  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan");
+  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan — productionda majburiy (`openssl rand -base64 48`)");
   return new TextEncoder().encode("dev-only-insecure-secret-change-me-please-123456");
 }
 
@@ -200,7 +216,7 @@ async function onStaleSession(): Promise<void> {
 }
 
 /**
- * Baza bilan tasdiqlangan sessiya: sv mos kelishi va foydalanuvchi mavjudligi tekshiriladi,
+ * Baza bilan tasdiqlangan sessiya: sv mos kelishi, foydalanuvchi mavjudligi va bloklanmaganligi tekshiriladi,
  * rol/ism bazadan olinadi. API route'lar (requireSession) uchun yengil so'rov.
  */
 export const getVerifiedSession = cache(async (): Promise<SessionPayload | null> => {
@@ -208,9 +224,10 @@ export const getVerifiedSession = cache(async (): Promise<SessionPayload | null>
   if (!session) return null;
   const row = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
-    columns: { id: true, role: true, name: true, sessionVersion: true },
+    columns: { id: true, role: true, name: true, sessionVersion: true, isBanned: true },
   });
-  if (!row || row.sessionVersion !== session.sv || (await isRevoked(session))) {
+  // Bloklangan foydalanuvchi hamma joyda chiqib ketadi (cookie tozalanadi)
+  if (!row || row.isBanned || row.sessionVersion !== session.sv || (await isRevoked(session))) {
     await onStaleSession();
     return null;
   }
@@ -229,7 +246,7 @@ export const getCurrentUser = cache(async () => {
     columns: { passwordHash: false },
     with: { specialist: true },
   });
-  if (!user || user.sessionVersion !== session.sv || (await isRevoked(session))) {
+  if (!user || user.isBanned || user.sessionVersion !== session.sv || (await isRevoked(session))) {
     await onStaleSession();
     return null;
   }

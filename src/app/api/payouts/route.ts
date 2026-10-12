@@ -6,6 +6,7 @@ import { payoutRequestSchema } from "@/lib/validators";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
 import { notifyAdmins } from "@/lib/notifications";
+import { encryptSecret } from "@/lib/payments/crypto";
 import { findOpenPayout, getSpecialistBalance, listPayoutsForSpecialist } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
 import { formatPrice, uid } from "@/lib/utils";
@@ -30,7 +31,8 @@ export const GET = handler(async () => {
 
 /**
  * Pul chiqarish so'rovi: summa ≥ minPayout, ≤ mavjud balans, bir vaqtda bitta ochiq so'rov.
- * Rekvizitlar (karta raqami) faqat oxirgi 4 raqam bilan ko'rsatiladi, to'liq ko'rinishda saqlanmaydi.
+ * Rekvizitlar (karta raqami) ko'rinishda maskalanadi (details); to'liq qiymat shifrlangan holda (detailsEnc,
+ * AES-256-GCM) saqlanadi va faqat admin payout navbatida ochadi (audit bilan).
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
@@ -48,7 +50,13 @@ export const POST = handler(async (req) => {
   const details = input.method === "card" && digits.length >= 12 ? `${digits.slice(0, 4)} **** **** ${digits.slice(-4)}` : input.details;
 
   const id = uid();
-  await db.insert(payouts).values({ id, specialistId: sp.id, amount: input.amount, method: input.method, details, state: "requested" });
+  let detailsEnc: string | null = null;
+  try {
+    detailsEnc = encryptSecret(input.details);
+  } catch (e) {
+    console.error("[payouts] rekvizit shifrlanmadi", e);
+  }
+  await db.insert(payouts).values({ id, specialistId: sp.id, amount: input.amount, method: input.method, details, detailsEnc, state: "requested" });
 
   // Parallel so'rovlarga qarshi qayta tekshiruv: bitta ochiq so'rov va balans manfiy bo'lmasin
   const fresh = await getSpecialistBalance(sp.id);

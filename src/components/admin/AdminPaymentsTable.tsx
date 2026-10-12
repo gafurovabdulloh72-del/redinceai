@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRightLeft, Check, CheckCircle2, Receipt, RotateCcw, X } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, Check, CheckCircle2, FileText, Receipt, RotateCcw, X } from "lucide-react";
 import { Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { PAYMENT_TONE, PROVIDER_LABEL, type PaymentState } from "@/components/payments/tones";
 import { PAYMENT_STATE_LABEL, type PaymentProvider } from "@/lib/constants";
@@ -51,6 +51,14 @@ const ACTION_CONFIRM: Record<Action, string> = {
   refund: "Pul mijozga qaytarilgan deb belgilanadi (Payme/Click'da qaytarishni provayder kabinetida ham bajaring).",
   cancel: "Hali to'lanmagan urinish bekor qilinadi.",
 };
+/** Izoh: qaytarish/bekor qilishda majburiy (audit jurnalida ko'rinadi), tasdiqlash/o'tkazishda ixtiyoriy */
+const NOTE_REQUIRED: Record<Action, boolean> = { confirm: false, release: false, refund: true, cancel: true };
+const NOTE_PLACEHOLDER: Record<Action, string> = {
+  confirm: "Izoh (ixtiyoriy): chek raqami, bank ko'chirmasi…",
+  release: "Izoh (ixtiyoriy): nega admin o'tkazdi",
+  refund: "Sabab: masalan, mijoz buyurtmani bekor qildi, ish bajarilmadi",
+  cancel: "Sabab: masalan, mijoz boshqa usul bilan to'ladi",
+};
 
 function actionsFor(r: AdminPaymentRow): Action[] {
   if (r.state === "paid") return ["release", "refund"];
@@ -72,6 +80,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState<{ id: string; action: Action } | null>(null);
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -91,17 +100,19 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
     [visible],
   );
 
-  const run = async (r: AdminPaymentRow, action: Action) => {
+  const run = async (r: AdminPaymentRow, action: Action, why: string) => {
     if (busy) return;
     setError(null);
     setBusy(r.id);
     setAsk(null);
+    const clean = why.trim();
     try {
-      const res = await fetch(`/api/admin/payments/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const res = await fetch(`/api/admin/payments/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, note: clean || undefined }) });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ state: PaymentState }> | null;
       if (!json || !json.ok) throw new Error(json?.error ?? "Server javob bermadi");
       setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, state: json.data.state } : x)));
-      setNotice(`${r.orderTitle}: ${ACTION_LABEL[action].toLowerCase()} — bajarildi`);
+      setNote("");
+      setNotice(`${r.orderTitle}: ${ACTION_LABEL[action].toLowerCase()} — bajarildi${clean ? ` · Izoh: ${clean}` : ""}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
@@ -115,16 +126,43 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
     if (!acts.length) return <span className="text-[12px] text-fg-4">—</span>;
     const b = busy === r.id;
     if (ask?.id === r.id) {
+      const required = NOTE_REQUIRED[ask.action];
+      const tooShort = required && note.trim().length < 3;
       return (
-        <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up" style={{ animationDuration: "0.2s" }}>
+        <div className="card-outline flex min-w-[220px] flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up" style={{ animationDuration: "0.2s" }}>
           <p className="flex items-start gap-1.5 text-[12px] text-fg">
             <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> {ACTION_CONFIRM[ask.action]}
           </p>
+          <div>
+            <label htmlFor={`pnote-${r.id}`} className="sr-only">
+              Izoh
+            </label>
+            <input
+              id={`pnote-${r.id}`}
+              className="field !min-h-10 !py-1.5 text-[13px]"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={300}
+              placeholder={NOTE_PLACEHOLDER[ask.action]}
+              aria-required={required}
+              autoFocus
+            />
+            <p className="mt-1 text-[11px] text-fg-4">{required ? "Sabab majburiy — audit jurnalida ko'rinadi" : "Audit jurnalida ko'rinadi"}</p>
+          </div>
           <div className="flex gap-1.5">
-            <Button size="sm" variant={ask.action === "refund" || ask.action === "cancel" ? "danger" : "primary"} className="h-11 md:h-9" onClick={() => run(r, ask.action)} disabled={!!busy}>
+            <Button size="sm" variant={ask.action === "refund" || ask.action === "cancel" ? "danger" : "primary"} className="h-11 md:h-9" onClick={() => run(r, ask.action, note)} disabled={!!busy || tooShort}>
               {b ? <Spinner className="h-3.5 w-3.5" /> : <Check size={14} />} Ha
             </Button>
-            <Button size="sm" variant="ghost" className="h-11 md:h-9" onClick={() => setAsk(null)} disabled={!!busy}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-11 md:h-9"
+              onClick={() => {
+                setAsk(null);
+                setNote("");
+              }}
+              disabled={!!busy}
+            >
               Yo'q
             </Button>
           </div>
@@ -139,7 +177,10 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
             size="sm"
             variant={a === "release" || a === "confirm" ? "primary" : "outline"}
             className={cn("h-11 md:h-9", (a === "refund" || a === "cancel") && "text-danger hover:border-danger hover:bg-danger-soft")}
-            onClick={() => setAsk({ id: r.id, action: a })}
+            onClick={() => {
+              setAsk({ id: r.id, action: a });
+              setNote("");
+            }}
             disabled={!!busy}
           >
             {b ? <Spinner className="h-3.5 w-3.5" /> : a === "confirm" ? <Check size={14} /> : a === "release" ? <ArrowRightLeft size={14} /> : a === "refund" ? <RotateCcw size={14} /> : <X size={14} />}
@@ -205,7 +246,17 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
                     <Link href={orderHref(r.orderId)} className="block truncate font-semibold text-fg hover:text-accent">
                       {r.orderTitle}
                     </Link>
-                    <span className="block text-[11px] text-fg-4">{formatDateTime(r.paidAt ?? r.createdAt)}</span>
+                    <span className="block text-[11px] text-fg-4">
+                      {formatDateTime(r.paidAt ?? r.createdAt)}
+                      {(r.state === "paid" || r.state === "released") && (
+                        <>
+                          {" · "}
+                          <Link href={`/chek/${r.id}`} className="inline-flex items-center gap-0.5 font-semibold text-fg-3 hover:text-accent">
+                            <FileText size={11} /> Chek
+                          </Link>
+                        </>
+                      )}
+                    </span>
                   </td>
                   <td className="px-3 py-3 text-fg-2">
                     <span className="block truncate">{r.client.name}</span>
@@ -264,7 +315,14 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
                   </div>
                   <div className="col-span-2">
                     <dt className="text-fg-4">Sana</dt>
-                    <dd className="text-fg-2">{formatDateTime(r.paidAt ?? r.createdAt)}</dd>
+                    <dd className="text-fg-2">
+                      {formatDateTime(r.paidAt ?? r.createdAt)}
+                      {(r.state === "paid" || r.state === "released") && (
+                        <Link href={`/chek/${r.id}`} className="ml-2 inline-flex items-center gap-0.5 font-semibold text-accent">
+                          <FileText size={11} /> Chek
+                        </Link>
+                      )}
+                    </dd>
                   </div>
                 </dl>
                 {actionsFor(r).length > 0 && (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, Banknote, Check, CheckCircle2, ExternalLink, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, Banknote, Check, CheckCircle2, Copy, ExternalLink, Eye, EyeOff, ShieldAlert, X } from "lucide-react";
 import { Avatar, Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { PAYOUT_METHOD_LABEL, PAYOUT_TONE, type PayoutState } from "@/components/payments/tones";
 import { PAYOUT_STATE_LABEL } from "@/lib/constants";
@@ -34,6 +34,15 @@ async function decide(id: string, state: PayoutState, note?: string) {
 }
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
 
+/** To'liq rekvizit (shifrlangan) — admin ochganda audit jurnaliga yoziladi (E55) */
+async function revealDetails(id: string): Promise<string | null> {
+  const res = await fetch(`/api/admin/payouts/${id}/details`, { cache: "no-store" });
+  const json = (await res.json().catch(() => null)) as ApiResponse<{ details: string | null; masked: string }> | null;
+  if (!json) throw new Error("Server javob bermadi");
+  if (!json.ok) throw new Error(json.error);
+  return json.data.details;
+}
+
 /** Payout navbati: so'ralgan → tasdiqlangan → to'langan, yoki rad (sabab bilan, inline) */
 export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[] }) {
   const router = useRouter();
@@ -49,6 +58,42 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showClosed, setShowClosed] = useState(false);
+  /** Ochilgan to'liq rekvizitlar: id → matn (null = shifrlanmagan eski so'rov) */
+  const [revealed, setRevealed] = useState<Record<string, string | null>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const reveal = async (row: AdminPayoutRow) => {
+    if (revealing) return;
+    if (row.id in revealed) {
+      setRevealed((m) => {
+        const next = { ...m };
+        delete next[row.id];
+        return next;
+      });
+      return;
+    }
+    setError(null);
+    setRevealing(row.id);
+    try {
+      const full = await revealDetails(row.id);
+      setRevealed((m) => ({ ...m, [row.id]: full }));
+    } catch (e) {
+      setError(msg(e));
+    } finally {
+      setRevealing(null);
+    }
+  };
+
+  const copy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+      window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
+    } catch {
+      /* clipboard mavjud emas */
+    }
+  };
 
   useEffect(() => {
     if (!notice) return;
@@ -116,7 +161,26 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
             </div>
             <div className="col-span-2">
               <dt className="text-fg-4">{PAYOUT_METHOD_LABEL[r.method]}</dt>
-              <dd className="font-mono text-[13px] text-fg">{r.details}</dd>
+              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-mono text-[13px] text-fg">{r.id in revealed ? (revealed[r.id] ?? r.details) : r.details}</span>
+                <button
+                  type="button"
+                  onClick={() => reveal(r)}
+                  disabled={revealing === r.id}
+                  className="inline-flex min-h-7 items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg disabled:opacity-50"
+                  aria-pressed={r.id in revealed}
+                  title="Ochish audit jurnaliga yoziladi"
+                >
+                  {revealing === r.id ? <Spinner className="h-3 w-3" /> : r.id in revealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                  {r.id in revealed ? "Yashirish" : "Rekvizitni ko'rsatish"}
+                </button>
+                {r.id in revealed && revealed[r.id] && (
+                  <button type="button" onClick={() => copy(r.id, revealed[r.id] ?? "")} className="inline-flex min-h-7 items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                    <Copy size={12} /> {copied === r.id ? "Nusxalandi" : "Nusxalash"}
+                  </button>
+                )}
+                {r.id in revealed && revealed[r.id] == null && <span className="text-[11px] text-fg-4">To'liq rekvizit saqlanmagan (eski so'rov) — mutaxassisdan so'rang</span>}
+              </dd>
             </div>
             {r.note && (
               <div className="col-span-2">

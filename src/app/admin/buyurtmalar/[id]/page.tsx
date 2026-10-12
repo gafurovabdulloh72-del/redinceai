@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { ArrowLeft, CalendarClock, ClipboardList, ExternalLink, Mail, Phone, Receipt, ScrollText, Wallet } from "lucide-react";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { ArrowLeft, Ban, CalendarClock, ClipboardList, ExternalLink, History, Mail, Phone, Receipt, Scale, ScrollText, TimerReset, Wallet } from "lucide-react";
+import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
 import { ORDER_PAYMENT_TONE } from "@/components/payments/tones";
 import { Avatar, Badge, ButtonLink, SectionHeading, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { auditLogs, orders, payments, users } from "@/lib/db/schema";
-import { auditLabel } from "@/lib/security/audit";
+import { auditLogs, orderEvents, orders, payments, users } from "@/lib/db/schema";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
+import { labelFor } from "../../queries";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Buyurtma — admin", robots: { index: false, follow: false } };
@@ -59,6 +60,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
     },
   });
 
+  const events = await db.query.orderEvents.findMany({ where: eq(orderEvents.orderId, order.id), orderBy: [asc(orderEvents.createdAt)], limit: 200, with: { actor: { columns: { name: true } } } });
+
   const targetIds = [order.id, ...orderPayments.map((p) => p.id)];
   const trail = await db
     .select({ id: auditLogs.id, action: auditLogs.action, targetType: auditLogs.targetType, meta: auditLogs.meta, createdAt: auditLogs.createdAt, actorName: users.name, actorEmail: users.email })
@@ -87,6 +90,31 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   }));
 
   const net = order.amount != null ? order.amount - Math.round((order.amount * (order.commissionPct ?? 0)) / 100) : null;
+  const disputeRows: AdminDisputeRow[] =
+    order.disputeState === "open"
+      ? [
+          {
+            orderId: order.id,
+            title: order.title,
+            status: order.status,
+            amount: order.amount,
+            commissionPct: order.commissionPct,
+            reason: order.disputeReason ?? "",
+            by: order.disputeOpenedBy === order.clientId ? "client" : "specialist",
+            openedAt: order.updatedAt.getTime(),
+            client: { name: order.client.name, email: order.client.email },
+            specialist: { name: order.specialist.user.name, email: order.specialist.user.email, slug: order.specialist.slug },
+          },
+        ]
+      : [];
+  const eventLabel = (e: (typeof events)[number]) => {
+    if (e.type === "status") {
+      const to = e.toStatus ? (ORDER_STATUS_LABEL[e.toStatus as OrderStatus] ?? e.toStatus) : "";
+      const from = e.fromStatus ? (ORDER_STATUS_LABEL[e.fromStatus as OrderStatus] ?? e.fromStatus) : null;
+      return `${from ? `${from} → ${to}` : "Buyurtma yaratildi"}${e.note ? `. ${e.note}` : ""}`;
+    }
+    return e.note ?? e.type;
+  };
 
   const Party = ({ title, name, subtitle, email, phone, avatarUrl, href }: { title: string; name: string; subtitle: string | null; email: string; phone: string | null; avatarUrl: string | null; href?: string }) => (
     <div className="card p-5">
@@ -140,8 +168,34 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <Badge tone={ORDER_PAYMENT_TONE[order.paymentState]} className="!px-3 !py-1.5">
             {ORDER_PAYMENT_STATE_LABEL[order.paymentState]}
           </Badge>
+          {order.disputeState !== "none" && (
+            <Badge tone={order.disputeState === "open" ? "warning" : "neutral"} className="!px-3 !py-1.5">
+              <Scale size={12} /> {order.disputeState === "open" ? "Nizo ochiq" : "Nizo hal qilingan"}
+            </Badge>
+          )}
           <span className="font-mono text-[12px] text-fg-4">{order.id}</span>
         </div>
+        {order.status === "cancelled" && order.cancelReason && (
+          <p className="flex items-start gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-snug text-fg-2">
+            <Ban size={14} className="mt-0.5 shrink-0 text-fg-3" />
+            <span>
+              <span className="font-semibold text-fg">Bekor qilish sababi:</span> {order.cancelReason}
+            </span>
+          </p>
+        )}
+        {order.disputeState === "resolved" && order.disputeReason && (
+          <p className="flex items-start gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-[13px] leading-snug text-fg-2">
+            <Scale size={14} className="mt-0.5 shrink-0 text-fg-3" />
+            <span>
+              <span className="font-semibold text-fg">Nizo (hal qilingan):</span> {order.disputeReason}
+            </span>
+          </p>
+        )}
+        {order.autoReleaseAt && order.status === "done" && order.paymentState === "paid" && (
+          <p className="flex items-center gap-2 text-[13px] text-fg-2">
+            <TimerReset size={14} className="text-warning" /> Avtomatik qabul: <span className="font-semibold text-fg">{formatDateTime(order.autoReleaseAt)}</span>
+          </p>
+        )}
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-12 lg:gap-8">
@@ -183,6 +237,14 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             </dl>
           </div>
 
+          {/* Nizo */}
+          {disputeRows.length > 0 && (
+            <section id="nizo" className="scroll-mt-28">
+              <SectionHeading eyebrow="Nizo" title="Arbitraj qarori" description="Tomonlar bilan bog'laning (yon paneldagi aloqa), quyidagi jurnalni ko'rib chiqing va pulni mutaxassisga o'tkazing yoki mijozga qaytaring." />
+              <AdminDisputes rows={disputeRows} />
+            </section>
+          )}
+
           {/* To'lovlar */}
           <section id="tolovlar" className="scroll-mt-28">
             <SectionHeading
@@ -198,9 +260,36 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <AdminPaymentsTable rows={paymentRows} />
           </section>
 
+          {/* Buyurtma tarixi */}
+          <section>
+            <SectionHeading eyebrow="Tarix" title="Buyurtma tarixi" description="Holat o'zgarishlari, narx, to'lovlar va nizo — tomonlar ko'radigan jurnal (order_events)." />
+            {events.length === 0 ? (
+              <p className="card p-5 text-[14px] text-fg-3">Hali yozuvlar yo'q.</p>
+            ) : (
+              <ol className="card divide-y divide-line overflow-hidden">
+                {events.map((e) => (
+                  <li key={e.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
+                    <time dateTime={e.createdAt.toISOString()} className="shrink-0 text-[12px] text-fg-4 sm:w-32 sm:pt-0.5">
+                      {formatDateTime(e.createdAt)}
+                    </time>
+                    <div className="min-w-0 flex-1 text-[13px]">
+                      <p className="flex items-start gap-2 text-fg-2">
+                        <span className={e.type === "dispute" ? "mt-0.5 text-warning" : e.type === "payment" ? "mt-0.5 text-success" : "mt-0.5 text-fg-4"} aria-hidden="true">
+                          {e.type === "dispute" ? <Scale size={13} /> : e.type === "payment" ? <Wallet size={13} /> : <History size={13} />}
+                        </span>
+                        <span>{eventLabel(e)}</span>
+                      </p>
+                      <p className="mt-0.5 pl-5 text-[11px] text-fg-4">{e.actor?.name ?? "Tizim"}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
           {/* Jurnal */}
           <section>
-            <SectionHeading eyebrow="Jurnal" title="Harakatlar tarixi" description="Buyurtma holati, narx, to'lov va admin qarorlari — nizolarda asos." />
+            <SectionHeading eyebrow="Jurnal" title="Audit yozuvlari" description="Buyurtma holati, narx, to'lov va admin qarorlari — nizolarda asos." />
             {trail.length === 0 ? (
               <p className="card p-5 text-[14px] text-fg-3">Hali yozuvlar yo'q.</p>
             ) : (
@@ -212,7 +301,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                     </time>
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 text-[13px]">
-                        <Badge tone={r.action.startsWith("admin_") ? "ink" : r.action.startsWith("order_") ? "info" : "purple"}>{auditLabel(r.action)}</Badge>
+                        <Badge tone={r.action.startsWith("admin_") ? "ink" : r.action.startsWith("order_") ? "info" : "purple"}>{labelFor(r.action)}</Badge>
                         <span className="text-fg-2">{r.actorName ?? "Tizim"}</span>
                         {r.actorEmail && <span className="truncate text-[11px] text-fg-4">{r.actorEmail}</span>}
                       </p>

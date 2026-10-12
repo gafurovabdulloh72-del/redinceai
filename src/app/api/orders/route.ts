@@ -44,10 +44,22 @@ export const POST = handler(async (req) => {
   return ok({ id }, { status: 201 });
 });
 
-/** Joriy foydalanuvchining buyurtmalari (mijoz sifatida + mutaxassis sifatida) */
+/**
+ * Joriy foydalanuvchining buyurtmalari (mijoz sifatida + mutaxassis sifatida).
+ * Qo'shimcha: disputeBy (kim nizo ochgan — "client"|"specialist"), autoReleaseAt (ms); foydalanuvchi ID'lari chiqmaydi.
+ */
 export const GET = handler(async () => {
   const session = await requireSession();
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true } });
   const result = await getOrdersForUser(session.sub, sp?.id);
-  return ok(result);
+  const extras = (o: { clientId: string; disputeOpenedBy: string | null; autoReleaseAt: Date | null }) => ({
+    disputeOpenedBy: undefined,
+    autoReleaseAt: o.autoReleaseAt?.getTime() ?? null,
+    disputeBy: o.disputeOpenedBy ? (o.disputeOpenedBy === o.clientId ? ("client" as const) : ("specialist" as const)) : null,
+  });
+  type SpecialistRow = (typeof result.asSpecialist)[number];
+  return ok({
+    asClient: result.asClient.map((o) => ({ ...o, ...extras(o) })),
+    asSpecialist: (result.asSpecialist as SpecialistRow[]).map((o) => ({ ...o, ...extras(o) })),
+  });
 });
