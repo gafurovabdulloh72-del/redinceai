@@ -17,6 +17,11 @@ export const users = sqliteTable(
     /** Jins (ixtiyoriy) — ro'yxatda saralash uchun */
     gender: text("gender", { enum: ["male", "female"] }),
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    /** Bloklangan hisob: kira olmaydi, profili ro'yxatda chiqmaydi */
+    isBanned: integer("is_banned", { mode: "boolean" }).notNull().default(false),
+    bannedReason: text("banned_reason"),
+    /** Email orqali bildirishnoma olishga rozi */
+    notifyEmail: integer("notify_email", { mode: "boolean" }).notNull().default(true),
     /** Sessiya versiyasi: oshirilsa barcha eski JWT'lar bekor bo'ladi (parol o'zgarishi, "hamma qurilmadan chiqish") */
     sessionVersion: integer("session_version").notNull().default(1),
     passwordChangedAt: integer("password_changed_at", { mode: "timestamp_ms" }),
@@ -69,6 +74,8 @@ export const specialists = sqliteTable(
     skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
     /** JSON massiv: ["uz", "ru", "en"] */
     languages: text("languages", { mode: "json" }).$type<string[]>().notNull().default(["uz"]),
+    /** Jihozlar, JSON massiv: ["Sony FX3", "DJI Mavic 3"] */
+    equipment: text("equipment", { mode: "json" }).$type<string[]>().notNull().default([]),
     telegram: text("telegram"),
     instagram: text("instagram"),
     youtube: text("youtube"),
@@ -87,6 +94,10 @@ export const specialists = sqliteTable(
     rating: real("rating").notNull().default(0),
     reviewCount: integer("review_count").notNull().default(0),
     viewCount: integer("view_count").notNull().default(0),
+    /** Bajarilgan (done) buyurtmalar soni — denormalizatsiya */
+    completedCount: integer("completed_count").notNull().default(0),
+    /** "Top mutaxassis" nishoni (reyting + bajarilgan buyurtmalar bo'yicha) */
+    topRated: integer("top_rated", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -152,6 +163,15 @@ export const orders = sqliteTable(
     paymentState: text("payment_state", { enum: ["none", "awaiting", "paid", "released", "refunded"] }).notNull().default("none"),
     /** To'lov paytidagi platforma komissiyasi (%), snapshot */
     commissionPct: integer("commission_pct"),
+    /** Bekor qilish sababi (kim bekor qilgan bo'lsa yozadi) */
+    cancelReason: text("cancel_reason"),
+    /** Nizo: none → open (tomonlardan biri ochdi) → resolved (admin hal qildi) */
+    disputeState: text("dispute_state", { enum: ["none", "open", "resolved"] }).notNull().default("none"),
+    disputeReason: text("dispute_reason"),
+    /** Nizoni ochgan foydalanuvchi (users.id) */
+    disputeOpenedBy: text("dispute_opened_by"),
+    /** Mijoz tasdiqlamasa ham shu vaqtdan keyin eskrou avtomatik mutaxassisga o'tadi */
+    autoReleaseAt: integer("auto_release_at", { mode: "timestamp_ms" }),
     completedAt: integer("completed_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
@@ -161,6 +181,29 @@ export const orders = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("orders_client_idx").on(t.clientId), index("orders_specialist_idx").on(t.specialistId)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Buyurtma tarixi (holat, narx, to'lov, nizo, izoh)                   */
+/* ------------------------------------------------------------------ */
+export const orderEvents = sqliteTable(
+  "order_events",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    /** Kim qilgan (null = tizim, masalan avtomatik release) */
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type", { enum: ["status", "amount", "payment", "dispute", "note"] }).notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status"),
+    note: text("note"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("order_events_order_idx").on(t.orderId)],
 );
 
 /* ------------------------------------------------------------------ */
@@ -178,6 +221,9 @@ export const reviews = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     rating: integer("rating").notNull(),
     text: text("text").notNull(),
+    /** Mutaxassisning javobi (bitta) */
+    reply: text("reply"),
+    replyAt: integer("reply_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -249,6 +295,8 @@ export const payouts = sqliteTable(
     /** Karta raqami / rekvizitlar (maskalangan ko'rinishda saqlash tavsiya) */
     method: text("method", { enum: ["card", "bank", "cash"] }).notNull().default("card"),
     details: text("details").notNull(),
+    /** To'liq rekvizitlar — shifrlangan (faqat admin ochadi); details — maskalangan ko'rinish */
+    detailsEnc: text("details_enc"),
     note: text("note"),
     processedBy: text("processed_by").references(() => users.id, { onDelete: "set null" }),
     processedAt: integer("processed_at", { mode: "timestamp_ms" }),
@@ -293,7 +341,7 @@ export const auditLogs = sqliteTable(
   (t) => [index("audit_actor_idx").on(t.actorId), index("audit_created_idx").on(t.createdAt)],
 );
 
-/* Parolni tiklash tokenlari (faqat hash saqlanadi) */
+/* Bir martalik tokenlar: parolni tiklash / emailni tasdiqlash (faqat hash saqlanadi) */
 export const passwordResets = sqliteTable(
   "password_resets",
   {
@@ -302,13 +350,15 @@ export const passwordResets = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
+    /** reset — parolni tiklash; verify_email — emailni tasdiqlash */
+    purpose: text("purpose", { enum: ["reset", "verify_email"] }).notNull().default("reset"),
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     usedAt: integer("used_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("password_resets_hash_idx").on(t.tokenHash)],
+  (t) => [uniqueIndex("password_resets_hash_idx").on(t.tokenHash), index("password_resets_user_purpose_idx").on(t.userId, t.purpose)],
 );
 
 /* Sevimlilar */
@@ -348,6 +398,46 @@ export const notifications = sqliteTable(
   (t) => [index("notifications_user_idx").on(t.userId, t.readAt)],
 );
 
+/* Shikoyatlar (mutaxassis profili yoki sharh haqida) */
+export const reports = sqliteTable(
+  "reports",
+  {
+    id: text("id").primaryKey(),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: text("target_type", { enum: ["specialist", "review"] }).notNull(),
+    /** specialists.id yoki reviews.id */
+    targetId: text("target_id").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+    /** Yopgan admin (users.id) */
+    resolvedBy: text("resolved_by"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("reports_target_idx").on(t.targetType, t.targetId), index("reports_status_idx").on(t.status)],
+);
+
+/* Saqlangan qidiruvlar (/mutaxassislar filtrlari) */
+export const savedSearches = sqliteTable(
+  "saved_searches",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Serializatsiya qilingan querystring: "category=videograf&region=samarqand" */
+    query: text("query").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("saved_searches_user_idx").on(t.userId)],
+);
+
 /* ------------------------------------------------------------------ */
 /* Relations                                                           */
 /* ------------------------------------------------------------------ */
@@ -355,6 +445,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   specialist: one(specialists, { fields: [users.id], references: [specialists.userId] }),
   orders: many(orders),
   reviews: many(reviews),
+  orderEvents: many(orderEvents),
+  reports: many(reports),
+  savedSearches: many(savedSearches),
 }));
 
 export const specialistsRelations = relations(specialists, ({ one, many }) => ({
@@ -372,6 +465,12 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   client: one(users, { fields: [orders.clientId], references: [users.id] }),
   specialist: one(specialists, { fields: [orders.specialistId], references: [specialists.id] }),
   payments: many(payments),
+  events: many(orderEvents),
+}));
+
+export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
+  order: one(orders, { fields: [orderEvents.orderId], references: [orders.id] }),
+  actor: one(users, { fields: [orderEvents.actorId], references: [users.id] }),
 }));
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
@@ -398,11 +497,24 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   author: one(users, { fields: [reviews.authorId], references: [users.id] }),
 }));
 
+export const reportsRelations = relations(reports, ({ one }) => ({
+  reporter: one(users, { fields: [reports.reporterId], references: [users.id] }),
+}));
+
+export const savedSearchesRelations = relations(savedSearches, ({ one }) => ({
+  user: one(users, { fields: [savedSearches.userId], references: [users.id] }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type Specialist = typeof specialists.$inferSelect;
 export type PortfolioItem = typeof portfolioItems.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type OrderEvent = typeof orderEvents.$inferSelect;
+export type OrderEventType = OrderEvent["type"];
+export type DisputeState = Order["disputeState"];
 export type Review = typeof reviews.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Payout = typeof payouts.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type Report = typeof reports.$inferSelect;
+export type SavedSearch = typeof savedSearches.$inferSelect;
