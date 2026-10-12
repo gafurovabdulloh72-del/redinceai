@@ -226,9 +226,9 @@ export function Stars({ value, size = 14, showValue = true, count }: { value: nu
         ))}
       </span>
       {showValue && (
-        <span className="text-xs font-semibold text-fg-2" aria-hidden="true">
-          {value > 0 ? value.toFixed(1) : "—"}
-          {count != null && <span className="font-normal text-fg-3"> ({count})</span>}
+        <span className={cn("text-xs", value > 0 ? "font-semibold text-fg-2" : "font-medium text-fg-3")} aria-hidden="true">
+          {value > 0 ? value.toFixed(1) : "Hali yo'q"}
+          {value > 0 && count != null && <span className="font-normal text-fg-3"> ({count})</span>}
         </span>
       )}
     </span>

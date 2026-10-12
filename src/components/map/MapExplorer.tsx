@@ -11,7 +11,7 @@ import { Avatar, Badge, Button, ButtonLink, IconTile, Stars, VerifiedBadge } fro
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
 import type { RegionStat, SpecialistListItem } from "@/lib/queries";
-import { cn, formatPrice, formatPriceRange } from "@/lib/utils";
+import { cn, formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
 
 /**
  * To'liq xarita rejimi: chapda interaktiv xarita (choropleth) + hudud statistikasi,
@@ -530,7 +530,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
               kam
               <span
                 className="h-2 w-20 rounded-full sm:w-28"
-                style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, var(--map-base)), var(--accent))" }}
+                style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, var(--map-fill-0)), var(--accent))" }}
               />
               ko'p
             </div>
@@ -593,7 +593,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                     aria-checked={on}
                     data-active={on}
                     onClick={() => apply(region, category, g.value ? g.value : null)}
-                    className="segment-item min-h-[34px] !px-3 !py-1 text-[12px]"
+                    className="segment-item min-h-[38px] !px-3 !py-1 text-[12px]"
                   >
                     {g.label}
                   </button>
@@ -690,6 +690,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                         <p className="flex items-center gap-1.5 text-[15px] font-semibold leading-tight text-fg">
                           <span className="truncate">{it.user.name}</span>
                           {it.isVerified && <VerifiedBadge size={15} />}
+                          {isRecent(it.createdAt, 7) && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">Yangi</span>}
                           {!it.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning">Band</span>}
                         </p>
                         <p className="mt-0.5 truncate text-[13px] text-fg-2">{it.title}</p>

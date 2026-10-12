@@ -207,7 +207,7 @@ export function UzbekistanMap({
   const hitR = HIT_DISC_PX / 2 / pxPerUnit;
   const smallRegions = REGION_SHAPES.filter((r) => REGION_SIZE[r.slug] * pxPerUnit < HIT_MIN_PX);
 
-  /** Markerlar/yorliqlar/disklar uchun umumiy qo'l: hover + sensor + bosish (yo'l bilan bir xil oqim) */
+  /** Pill/yorliq uchun: hover + sensor + bosish (yo'l bilan bir xil oqim) */
   const hitProps = (slug: string) => ({
     pointerEvents: "all" as const,
     className: "cursor-pointer",
@@ -216,6 +216,33 @@ export function UzbekistanMap({
     },
     onPointerDown: (e: PointerEvent<SVGElement>) => onRegionPointerDown(e, slug),
     onClick: () => onRegionClick(slug),
+  });
+  /** Disklar ustma-ust tushsa (Farg'ona vodiysi, mobil) — bosilgan nuqtaga markazi eng yaqin disk tanlanadi */
+  const discSlugAt = (e: { clientX: number; clientY: number }, fallback: string) => {
+    if (typeof document === "undefined" || typeof document.elementsFromPoint !== "function") return fallback;
+    let best = fallback;
+    let bestD = Infinity;
+    for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+      const slug = el instanceof SVGCircleElement ? el.dataset.slug : undefined;
+      if (!slug || !wrap.current?.contains(el)) continue;
+      const r = el.getBoundingClientRect();
+      const d = (r.left + r.width / 2 - e.clientX) ** 2 + (r.top + r.height / 2 - e.clientY) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = slug;
+      }
+    }
+    return best;
+  };
+  const discProps = (slug: string) => ({
+    pointerEvents: "all" as const,
+    className: "cursor-pointer",
+    "data-slug": slug,
+    onMouseEnter: (e: MouseEvent<SVGCircleElement>) => {
+      if (!touchTip.current) setHover(discSlugAt(e, slug));
+    },
+    onPointerDown: (e: PointerEvent<SVGCircleElement>) => onRegionPointerDown(e, discSlugAt(e, slug)),
+    onClick: (e: MouseEvent<SVGCircleElement>) => onRegionClick(discSlugAt(e, slug)),
   });
 
   /* Yorliq joylashuvi (kollziya tekshiruvi bilan) */
@@ -412,7 +439,7 @@ export function UzbekistanMap({
           {smallRegions.length > 0 && (
             <g aria-hidden="true">
               {smallRegions.map((r) => (
-                <circle key={r.slug} cx={r.cx} cy={r.cy} r={hitR} fill="transparent" {...hitProps(r.slug)} />
+                <circle key={r.slug} cx={r.cx} cy={r.cy} r={hitR} fill="transparent" {...discProps(r.slug)} />
               ))}
             </g>
           )}

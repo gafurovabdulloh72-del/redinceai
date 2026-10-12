@@ -520,6 +520,7 @@ select:focus-visible {
     border: 1px solid var(--line);
   }
   .segment-item {
+    min-height: 38px;
     padding: 0.45rem 0.95rem;
     border-radius: 9999px;
     font-size: 0.8125rem;

@@ -69,7 +69,7 @@ export default async function CheckoutPage({ params }: { params: Params }) {
                 <div className="min-w-0">
                   <p className="truncate text-[16px] font-semibold text-fg">{dto.specialist.name}</p>
                   <p className="truncate text-[13px] text-fg-2">{dto.specialist.title}</p>
-                  <Link href={`/mutaxassislar/${dto.specialist.slug}`} className="text-[12px] font-semibold text-accent">
+                  <Link href={`/mutaxassislar/${dto.specialist.slug}`} className="-my-2 -mx-1 inline-flex min-h-10 items-center px-1 text-[12px] font-semibold text-accent-text">
                     Profilni ko'rish
                   </Link>
                 </div>

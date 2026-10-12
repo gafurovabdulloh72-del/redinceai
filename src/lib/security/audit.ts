@@ -28,6 +28,12 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   payment_released: "Pul mutaxassisga o'tkazildi",
   payment_refunded: "To'lov qaytarildi",
   payout_requested: "Pul chiqarish so'raldi",
+  order_status: "Buyurtma holati o'zgardi",
+  order_amount: "Narx belgilandi",
+  order_confirmed: "Mijoz ishni qabul qildi",
+  review_created: "Sharh qoldirildi",
+  review_updated: "Sharh yangilandi",
+  review_deleted: "Sharh o'chirildi",
 };
 export type AuditAction = keyof typeof AUDIT_ACTION_LABEL;
 

@@ -121,7 +121,7 @@ export const getSpecialistBySlug = cache(async (slug: string) => {
     where: eq(specialists.slug, slug),
     with: {
       user: { columns: { id: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true } },
-      portfolio: { orderBy: [asc(portfolioItems.sortOrder), desc(portfolioItems.createdAt)] },
+      portfolio: { orderBy: [asc(portfolioItems.sortOrder), asc(portfolioItems.createdAt)] },
       reviews: {
         orderBy: [desc(reviews.createdAt)],
         with: { author: { columns: { name: true, avatarUrl: true } } },

@@ -192,7 +192,7 @@ export default async function KabinetPage() {
     actions.push({ href: "/mutaxassislar", label: "Mutaxassis topish", icon: Search });
     actions.push({ href: "/xarita", label: "Xarita", icon: MapPinned });
     actions.push({ href: "/kabinet/buyurtmalar", label: "Buyurtmalar", icon: ClipboardList });
-    actions.push({ href: "/kabinet/profil", label: "Sozlamalar", icon: Settings });
+    actions.push({ href: "/kabinet/profil", label: "Profil", icon: Settings });
   }
   if (user.role === "admin") actions.push({ href: "/admin", label: "Admin panel", icon: ShieldCheck });
 

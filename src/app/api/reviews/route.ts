@@ -38,6 +38,7 @@ export const POST = handler(async (req) => {
     await db.insert(reviews).values({ id: uid(), specialistId: sp.id, authorId: session.sub, rating: input.rating, text: input.text });
   }
   await recalcRating(sp.id);
+  await audit(session.sub, existing ? "review_updated" : "review_created", { targetType: "specialist", targetId: sp.id, meta: { rating: input.rating } }, req);
   return ok({ saved: true, updated: Boolean(existing) }, { status: existing ? 200 : 201 });
 });
 

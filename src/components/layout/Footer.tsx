@@ -31,7 +31,7 @@ export function Footer() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
             <nav aria-label="Footer havolalari" className="flex flex-wrap gap-x-5 gap-y-2">
               {LINKS.map((l) => (
-                <Link key={l.href} href={l.href} className="inline-flex min-h-8 items-center text-[13.5px] font-medium text-fg-2 transition hover:text-fg">
+                <Link key={l.href} href={l.href} className="inline-flex min-h-10 items-center text-[13.5px] font-medium text-fg-2 transition hover:text-fg">
                   {l.label}
                 </Link>
               ))}
@@ -60,7 +60,7 @@ export function Footer() {
           </span>
           <span className="text-fg-4">
             Xarita chegaralari —{" "}
-            <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:underline">
+            <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="-my-1.5 -mx-1 inline-flex min-h-8 items-center px-1 underline-offset-2 hover:underline">
               geoBoundaries
             </a>
             , CC BY 4.0

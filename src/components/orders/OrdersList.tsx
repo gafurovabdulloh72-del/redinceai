@@ -29,7 +29,7 @@ import { Avatar, Badge, Button, ButtonLink, EmptyState, Spinner, type BadgeTone 
 import { PayButton } from "@/components/payments/PayButton";
 import { ORDER_PAYMENT_TONE, type OrderPaymentState } from "@/components/payments/tones";
 import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUSES, ORDER_STATUS_LABEL, type OrderStatus, type PaymentProvider } from "@/lib/constants";
-import { cn, formatDate, formatDateTime, formatNumber, formatPrice, timeAgo } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatNumber, formatPrice, formatUzPhone, normalizeUzPhone, timeAgo } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /* Turlar                                                              */
@@ -600,7 +600,7 @@ function OrderCard({
 }) {
   const actions = actionsFor(tab, o);
   const long = o.description.length > 150 || o.description.split("\n").length > 2;
-  const phoneHref = `tel:${o.contactPhone.replace(/[^\d+]/g, "")}`;
+  const phoneHref = `tel:${normalizeUzPhone(o.contactPhone) ?? o.contactPhone.replace(/[^\d+]/g, "")}`;
   const confirmAction = confirm ? actions.find((a) => a.to === confirm) : null;
   const closed = o.status === "done" || o.status === "cancelled";
   const isSpecialist = tab === "incoming";
@@ -678,7 +678,7 @@ function OrderCard({
           <li>
             <a href={phoneHref} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-semibold text-fg transition hover:border-fg">
               <Phone size={12} className="text-accent" />
-              {o.contactPhone}
+              {formatUzPhone(o.contactPhone)}
             </a>
           </li>
         )}

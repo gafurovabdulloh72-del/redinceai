@@ -1,6 +1,7 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import type { PaymentProvider } from "@/lib/constants";
+import { trustedSiteOrigin } from "@/lib/security/request";
 
 /** Doimiy vaqtli taqqoslash (imzo/kalit) — timing hujumlariga qarshi */
 export function safeEqual(a: string, b: string): boolean {
@@ -62,14 +63,12 @@ export function availableProviders(): PaymentProvider[] {
 }
 
 /**
- * Sayt manzili: NEXT_PUBLIC_SITE_URL, aks holda so'rov sarlavhalaridan (proksi orqasida ham to'g'ri).
- * Qaytish (return) URL'lari shu asosda tuziladi.
+ * Sayt manzili: sozlamalardan ma'lum ishonchli manzil (NEXT_PUBLIC_SITE_URL → Vercel production → Railway domeni),
+ * aks holda so'rov sarlavhalaridan (proksi orqasida ham to'g'ri). Qaytish (return) URL'lari shu asosda tuziladi.
  */
 export function siteOrigin(headers?: Headers | null, fallbackUrl?: string): string {
-  const env = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (env) return env.replace(/\/+$/, "");
-  // Vercel production: barqaror domen (sarlavhalarga bog'liq emas)
-  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  const trusted = trustedSiteOrigin();
+  if (trusted) return trusted;
   if (headers) {
     const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
     const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host");

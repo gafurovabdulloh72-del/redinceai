@@ -5,6 +5,7 @@ import { OrdersList, type OrderItem, type Tab } from "@/components/orders/Orders
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/queries";
 import { availableProviders } from "@/lib/payments/config";
+import { listOpenPaymentsForOrders } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   const [{ asClient, asSpecialist }, settings] = await Promise.all([getOrdersForUser(user.id, user.specialist?.id), getSettings()]);
   const providers = availableProviders();
+  // Mijozning ochiq to'lovlari (created — davom ettirish, pending — tasdiq kutilmoqda)
+  const open = await listOpenPaymentsForOrders(asClient.map((o) => o.id));
 
   // Mutaxassis sifatida kelgan buyurtmalar
   const incoming: OrderItem[] = asSpecialist.map((o) => ({
@@ -33,6 +36,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     completedAt: o.completedAt?.getTime() ?? null,
     createdAt: o.createdAt.getTime(),
     updatedAt: o.updatedAt.getTime(),
+    specialistId: o.specialistId,
     counterpart: { name: o.client.name, avatarUrl: o.client.avatarUrl, subtitle: "Mijoz", href: null },
   }));
 
@@ -51,6 +55,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     completedAt: o.completedAt?.getTime() ?? null,
     createdAt: o.createdAt.getTime(),
     updatedAt: o.updatedAt.getTime(),
+    specialistId: o.specialistId,
+    openPayment: open.get(o.id) ?? null,
     counterpart: {
       name: o.specialist.user.name,
       avatarUrl: o.specialist.user.avatarUrl,

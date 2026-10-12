@@ -226,7 +226,7 @@ function Group({ title, summary, defaultOpen = false, children }: { title: strin
       >
         <span className="text-[14px] font-semibold text-fg">{title}</span>
         <span className="flex min-w-0 items-center gap-2">
-          {!open && summary && <span className="max-w-[150px] truncate rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">{summary}</span>}
+          {!open && summary && <span className="max-w-[150px] truncate rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-text">{summary}</span>}
           <ChevronDown size={16} className={cn("shrink-0 text-fg-3 transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
         </span>
       </button>

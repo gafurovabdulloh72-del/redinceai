@@ -7,7 +7,7 @@ import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, Mail, MapPin, Phon
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn, formatUzPhone, normalizeUzPhone, timeAgo } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /* Turlar                                                              */
@@ -236,8 +236,8 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                                 <Mail size={11} /> {row.user.email}
                               </a>
                               {row.user.phone && (
-                                <a href={`tel:${row.user.phone}`} className="inline-flex items-center gap-1 hover:text-fg">
-                                  <Phone size={11} /> {row.user.phone}
+                                <a href={`tel:${normalizeUzPhone(row.user.phone) ?? row.user.phone}`} className="inline-flex items-center gap-1 hover:text-fg">
+                                  <Phone size={11} /> {formatUzPhone(row.user.phone)}
                                 </a>
                               )}
                             </p>
@@ -316,8 +316,8 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                           <Mail size={13} className="shrink-0 text-fg-3" /> {row.user.email}
                         </a>
                         {row.user.phone && (
-                          <a href={`tel:${row.user.phone}`} className="inline-flex min-h-7 items-center gap-1.5">
-                            <Phone size={13} className="shrink-0 text-fg-3" /> {row.user.phone}
+                          <a href={`tel:${normalizeUzPhone(row.user.phone) ?? row.user.phone}`} className="inline-flex min-h-7 items-center gap-1.5">
+                            <Phone size={13} className="shrink-0 text-fg-3" /> {formatUzPhone(row.user.phone)}
                           </a>
                         )}
                       </dd>

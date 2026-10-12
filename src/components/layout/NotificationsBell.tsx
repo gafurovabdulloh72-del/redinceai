@@ -131,20 +131,9 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
           className="card-floating absolute right-0 top-[calc(100%+10px)] w-[min(340px,calc(100vw-4.5rem))] origin-top-right overflow-hidden animate-fade-up"
           style={{ animationDuration: "0.22s" }}
         >
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <p className="text-[15px] font-semibold text-fg">
-              Bildirishnomalar
-              {unread > 0 && <span className="ml-1.5 text-[12px] font-semibold text-accent-text">{unread} yangi</span>}
-            </p>
-            {unread > 0 && (
-              <button
-                type="button"
-                onClick={markAll}
-                className="inline-flex min-h-9 items-center gap-1 rounded-full px-2 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg"
-              >
-                <CheckCheck size={14} /> Hammasini o'qilgan deb belgilash
-              </button>
-            )}
+          <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">
+            <p className="text-[15px] font-semibold text-fg">Bildirishnomalar</p>
+            {unread > 0 && <span className="text-[12px] font-semibold text-accent-text tabular-nums">{unread} yangi</span>}
           </div>
           <div className="h-px bg-line" />
 
@@ -209,6 +198,16 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
               </div>
             )}
           </div>
+
+          {unread > 0 && items && items.length > 0 && (
+            <button
+              type="button"
+              onClick={markAll}
+              className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-line px-4 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/4 hover:text-fg"
+            >
+              <CheckCheck size={15} /> Hammasini o'qilgan deb belgilash
+            </button>
+          )}
         </div>
       )}
     </div>

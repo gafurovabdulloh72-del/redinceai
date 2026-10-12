@@ -51,7 +51,7 @@ const DEMO_ACCOUNTS: { label: string; hint: string; email: string; password: str
   : [];
 
 /** Matn ichidagi havola uchun 40px bosish maydoni — ko'rinishi o'zgarmaydi (manfiy margin qatorni kengaytirmaydi) */
-const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent transition hover:brightness-110";
+const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent-text transition hover:brightness-110";
 
 const FIELD_ORDER = ["name", "email", "password", "phone"] as const;
 

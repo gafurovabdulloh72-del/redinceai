@@ -270,7 +270,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                     aria-checked={on}
                     data-active={on}
                     onClick={() => pickGender(g.value ? g.value : null)}
-                    className="segment-item min-h-[34px] !px-3 !py-1 text-[12px]"
+                    className="segment-item min-h-[38px] !px-3 !py-1 text-[12px]"
                   >
                     {g.label}
                   </button>

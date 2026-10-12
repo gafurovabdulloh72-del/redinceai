@@ -404,7 +404,7 @@
 ### Kabinet
 77. Onboarding checklist + progress ring (profil 60% to'ldirilgan)
 78. Statistika sparkline'lari (ko'rishlar 7 kun)
-79. Bildirishnomalar qo'ng'irog'i + dropdown
+79. Bildirishnomalar qo'ng'irog'i + dropdown — ✅
 80. Buyurtmalar kanban ko'rinishi
 81. Buyurtma tafsilot drawer'i (sahifadan chiqmasdan)
 82. Chat paneli
@@ -545,16 +545,16 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 97. "+N ko'nikma" chipi bosilmaydi
 98. Saralash select'i va natija soni bog'lanmagan
 99. Ikonka o'lchamlari va radiuslar nomuvofiq (12–22px, 14–32px)
-100. fg-4 rangi yorug'da AA kontrastdan o'tmaydi
+100. fg-4 rangi yorug'da AA kontrastdan o'tmaydi — ✅ --fg-4 #74726c / #85837c (11px matn ham AA); kichik coral matn uchun --accent-text
 
 ## F. 100 ta qo'shimcha (3-raund takliflari)
 
 ### Tezkor (ma'lumot qatlami tayyor)
-1. Bildirishnoma qo'ng'irog'i (bell) + o'qilmaganlar soni + ro'yxat
+1. Bildirishnoma qo'ng'irog'i (bell) + o'qilmaganlar soni + ro'yxat — ✅ NotificationsBell (yuqori panel, barcha rollar)
 2. Sevimlilar: yurak tugmasi, API, /kabinet/sevimlilar sahifasi
 3. Portfolio tartiblash (yuqoriga/pastga) va tahrirlash
 4. Sharh faqat buyurtma qabul qilingan mijozdan + "Buyurtma tasdiqlangan" belgisi
-5. Xarita panellarida (bosh sahifa va /xarita) jins filtri
+5. Xarita panellarida (bosh sahifa va /xarita) jins filtri — ✅ segment (ro'yxatni filtrlaydi, xarita ranglari umumiy)
 6. Buyurtma kartasida "O'tkazma yuborildi — tasdiq kutilmoqda" holati va /tolov havolasi
 7. Email bildirishnomalar (Resend) muhim hodisalar uchun
 8. Kirill→lotin transliteratsiya bilan qidiruv
@@ -562,7 +562,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 10. Profil uchun dinamik OG rasm (ism, kasb, hudud, reyting)
 11. "Yangi" belgisi (7 kun) kartalarda
 12. Ijtimoiy isbot chip: "N ta bajarilgan buyurtma", "N ta doimiy mijoz"
-13. Bosh sahifa xarita tanlovini URL'ga yozish
+13. Bosh sahifa xarita tanlovini URL'ga yozish — ✅ ?region=&category=&gender=#xarita (history.replaceState)
 14. Admin refund/cancel uchun sabab maydoni
 15. Bekor qilish sababini buyurtma kartasida ko'rsatish
 

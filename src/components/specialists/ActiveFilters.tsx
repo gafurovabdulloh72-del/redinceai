@@ -94,7 +94,7 @@ export function ActiveFilters({
         })}
         {chips.length > 1 && (
           <li>
-            <Link href={clearHref} scroll={false} className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-accent transition hover:bg-accent-soft">
+            <Link href={clearHref} scroll={false} className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-accent-text transition hover:bg-accent-soft">
               Hammasini tozalash
             </Link>
           </li>

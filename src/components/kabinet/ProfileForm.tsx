@@ -628,7 +628,7 @@ export function ProfileForm({
               Ko'nikmalar <span className="font-normal text-fg-4">({f.skills.length}/{MAX_SKILLS})</span>
             </label>
             <div
-              className={cn("field flex flex-wrap items-center gap-1.5 !py-2", f.skills.length >= MAX_SKILLS && "opacity-80")}
+              className={cn("field flex flex-wrap items-center gap-2 !py-2", f.skills.length >= MAX_SKILLS && "opacity-80")}
               onClick={() => document.getElementById("pf-skill")?.focus()}
             >
               {f.skills.map((s) => (
@@ -639,7 +639,7 @@ export function ProfileForm({
                     e.stopPropagation();
                     removeSkill(s);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent transition hover:brightness-110 active:scale-95"
+                  className="inline-flex min-h-8 items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1.5 text-[12px] font-semibold text-accent-text transition hover:brightness-110 active:scale-95"
                   aria-label={`${s} — olib tashlash`}
                 >
                   {s} <X size={12} />
@@ -659,13 +659,13 @@ export function ProfileForm({
             </div>
             {errors.skills ? <p className="field-error">{errors.skills}</p> : <p className="mt-1 text-[12px] text-fg-4">Enter yoki vergul bilan qo'shing, chipni bosib olib tashlang.</p>}
             {suggestions.length > 0 && f.skills.length < MAX_SKILLS && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {suggestions.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => addSkill(s)}
-                    className="inline-flex items-center gap-1 rounded-full bg-fg/6 px-2.5 py-1 text-[12px] font-medium text-fg-2 transition hover:bg-fg/10 active:scale-95"
+                    className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fg/6 px-2.5 py-1.5 text-[12px] font-medium text-fg-2 transition hover:bg-fg/10 active:scale-95"
                   >
                     <Plus size={11} /> {s}
                   </button>
