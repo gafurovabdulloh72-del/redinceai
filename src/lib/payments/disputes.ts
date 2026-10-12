@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -60,8 +60,15 @@ export async function resolveDispute(orderId: string, adminId: string, resolutio
     for (const p of rows) await refundPayment(p.id, adminId, 5, req);
   }
 
-  await db.update(orders).set({ disputeState: "resolved", updatedAt: now }).where(eq(orders.id, orderId));
-  const verdict = resolution === "release" ? "pul mutaxassisga o'tkazildi" : "pul mijozga qaytarildi";
+  // Pul mijozga qaytdi — kelishuv bekor: buyurtma 'cancelled' (sabab kartada ko'rinadi), aks holda ish to'lovsiz davom etayotgandek ko'rinadi
+  const cancelNow = resolution === "refund" && order.status !== "cancelled";
+  const cancelReason = `Nizo bo'yicha admin qarori: pul mijozga qaytarildi${note ? `. ${note}` : ""}`.slice(0, 500);
+  await db
+    .update(orders)
+    .set({ disputeState: "resolved", updatedAt: now, ...(cancelNow ? { status: "cancelled" as const, cancelReason, autoReleaseAt: null } : {}) })
+    .where(eq(orders.id, orderId));
+  if (cancelNow) await recordOrderEvent(orderId, adminId, "status", { fromStatus: order.status, toStatus: "cancelled", note: "Nizo bo'yicha pul qaytarildi — buyurtma bekor qilindi" });
+  const verdict = resolution === "release" ? "pul mutaxassisga o'tkazildi" : cancelNow ? "pul mijozga qaytarildi, buyurtma bekor qilindi" : "pul mijozga qaytarildi";
   await recordOrderEvent(orderId, adminId, "dispute", { note: `Admin nizoni hal qildi — ${verdict}${note ? `. Izoh: ${note}` : ""}` });
   await audit(adminId, "dispute_resolved", { targetType: "order", targetId: orderId, meta: { resolution, note: note || undefined } }, req);
 
@@ -75,7 +82,7 @@ export async function resolveDispute(orderId: string, adminId: string, resolutio
 export async function listOpenDisputes(limit = 50) {
   return db.query.orders.findMany({
     where: eq(orders.disputeState, "open"),
-    orderBy: [desc(orders.updatedAt)],
+    orderBy: [asc(orders.updatedAt)],
     limit,
     with: {
       client: { columns: { id: true, name: true, email: true } },

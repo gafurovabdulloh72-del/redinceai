@@ -10,6 +10,7 @@ import {
   Briefcase,
   Camera,
   CheckCircle2,
+  ChevronDown,
   Globe,
   ImagePlus,
   Instagram,
@@ -22,6 +23,7 @@ import {
   Tags,
   Trash2,
   Wallet,
+  Wrench,
   X,
   Youtube,
   type LucideIcon,
@@ -50,6 +52,8 @@ export interface ProfileInitial {
   priceTo: number | null;
   experience: Experience;
   skills: string[];
+  /** Jihozlar (F51) — eski chaqiruvlar uchun ixtiyoriy */
+  equipment?: string[];
   languages: string[];
   telegram: string;
   instagram: string;
@@ -69,6 +73,7 @@ interface FormState {
   priceTo: string;
   experience: Experience;
   skills: string[];
+  equipment: string[];
   languages: string[];
   telegram: string;
   instagram: string;
@@ -98,8 +103,22 @@ const SKILL_SUGGESTIONS: Record<string, string[]> = {
   ovoz: ["Pro Tools", "Logic Pro", "Audition", "Diktor", "Dublyaj", "Mastering", "Podkast", "Studiya"],
 };
 
+/** Jihoz takliflari (F51): yo'nalishga mos, bo'lmasa umumiy ro'yxat */
+const EQUIPMENT_GENERAL = ["Sony A7IV", "Canon R6", "DJI Mini 4 Pro", "DJI Ronin RS3", "Godox SL60", "Rode Wireless GO II", "MacBook Pro M3", "Wacom Intuos Pro"];
+const EQUIPMENT_SUGGESTIONS: Record<string, string[]> = {
+  videograf: ["Sony A7IV", "Sony FX3", "Canon R6", "DJI Mini 4 Pro", "DJI Mavic 3", "DJI Ronin RS3", "Godox SL60", "Aputure 300d", "Rode Wireless GO II"],
+  fotograf: ["Canon R6", "Sony A7IV", "Nikon Z6 II", "Fujifilm X-T5", "Godox AD200", "Profoto B10", "Sigma 35mm Art", "DJI Mini 4 Pro"],
+  montajor: ["MacBook Pro M3", "Mac Studio", "Blackmagic Speed Editor", "Eizo ColorEdge", "Sony WH-1000XM5"],
+  dizayner: ["Wacom Intuos Pro", "iPad Pro", "Apple Pencil", "MacBook Pro M3", "Eizo ColorEdge"],
+  "motion-dizayner": ["MacBook Pro M3", "RTX 4090", "Wacom Intuos Pro", "iPad Pro"],
+  "3d-artist": ["RTX 4090", "SpaceMouse", "Wacom Intuos Pro", "Ryzen 9 7950X"],
+  "ui-ux": ["MacBook Pro M3", "iPad Pro", "Apple Pencil", "Wacom Intuos Pro"],
+  ovoz: ["Shure SM7B", "Neumann U87", "Rode NT1", "Zoom H6", "Focusrite Scarlett", "Beyerdynamic DT 770"],
+};
+
 const OTHER_CITY = "__other__";
 const MAX_SKILLS = 20;
+const MAX_EQUIPMENT = 20;
 const MAX_BIO = 2000;
 const DEFAULT_REGION = "toshkent-shahri";
 
@@ -116,6 +135,7 @@ function initialState(initial: ProfileInitial | null): FormState {
     priceTo: initial?.priceTo ? String(initial.priceTo) : "",
     experience: initial?.experience ?? "middle",
     skills: initial?.skills ?? [],
+    equipment: initial?.equipment ?? [],
     languages: initial?.languages.length ? initial.languages : ["uz"],
     telegram: initial?.telegram ?? "",
     instagram: initial?.instagram ?? "",
@@ -129,20 +149,155 @@ function initialState(initial: ProfileInitial | null): FormState {
 /* ------------------------------------------------------------------ */
 /* Kichik yordamchi komponentlar                                       */
 /* ------------------------------------------------------------------ */
-function Section({ icon: Icon, title, hint, children }: { icon: LucideIcon; title: string; hint?: string; children: ReactNode }) {
+/** Forma bo'limlari (E95): yopishqoq navigatsiya, progress va «Keyingi bo'lim» shu ro'yxatdan */
+const SECTIONS = [
+  { id: "pf-asosiy", label: "Asosiy" },
+  { id: "pf-hudud", label: "Hudud" },
+  { id: "pf-haqida", label: "Haqida" },
+  { id: "pf-narx", label: "Narx" },
+  { id: "pf-aloqa", label: "Aloqa" },
+  { id: "pf-muqova", label: "Muqova" },
+  { id: "pf-holat", label: "Holat" },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
+
+/** Server/forma xatosi qaysi bo'limda — xatodan keyin o'sha bo'limga o'tiladi */
+const FIELD_SECTION: Record<string, SectionId> = {
+  title: "pf-asosiy",
+  category: "pf-asosiy",
+  experience: "pf-asosiy",
+  regionSlug: "pf-hudud",
+  city: "pf-hudud",
+  bio: "pf-haqida",
+  skills: "pf-haqida",
+  equipment: "pf-haqida",
+  languages: "pf-haqida",
+  priceFrom: "pf-narx",
+  priceTo: "pf-narx",
+  telegram: "pf-aloqa",
+  instagram: "pf-aloqa",
+  youtube: "pf-aloqa",
+  website: "pf-aloqa",
+  coverUrl: "pf-muqova",
+};
+
+/**
+ * Bo'limga silliq o'tish; fokus bo'lim sarlavhasiga (tabIndex=-1) — klaviatura/ekran o'quvchi joyini yo'qotmaydi,
+ * mobilda esa klaviatura o'z-o'zidan ochilib ketmaydi.
+ */
+function goToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
+}
+
+function Section({ id, icon: Icon, title, hint, next, children }: { id: SectionId; icon: LucideIcon; title: string; hint?: string; next?: { id: string; label: string }; children: ReactNode }) {
   return (
-    <section className="border-t border-line pt-6 first:border-t-0 first:pt-0">
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-[150px] border-t border-line pt-6 first:border-t-0 first:pt-0 sm:scroll-mt-[160px]">
       <div className="mb-4 flex items-center gap-2.5">
         <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
           <Icon size={15} />
         </span>
         <div>
-          <h3 className="text-[15px] font-semibold leading-tight text-fg">{title}</h3>
+          <h3 id={`${id}-title`} tabIndex={-1} className="text-[15px] font-semibold leading-tight text-fg outline-none">
+            {title}
+          </h3>
           {hint && <p className="text-[12px] text-fg-3">{hint}</p>}
         </div>
       </div>
       {children}
+      {next && (
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={() => goToSection(next.id)}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg active:scale-[0.97]"
+          >
+            Keyingi bo'lim: {next.label} <ChevronDown size={15} />
+          </button>
+        </div>
+      )}
     </section>
+  );
+}
+
+/** Chip kiritish (jihozlar): Enter/vergul bilan qo'shish, Backspace bilan oxirgisini o'chirish, takliflar */
+function ChipInput({
+  id,
+  values,
+  onChange,
+  max,
+  placeholder,
+  suggestions,
+}: {
+  id: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  max: number;
+  placeholder: string;
+  suggestions: string[];
+}) {
+  const [text, setText] = useState("");
+  const add = (raw: string) => {
+    const v = raw.trim().replace(/,+$/, "").trim().slice(0, 40);
+    setText("");
+    if (!v || values.length >= max || values.some((x) => x.toLowerCase() === v.toLowerCase())) return;
+    onChange([...values, v]);
+  };
+  const left = suggestions.filter((s) => !values.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 8);
+  return (
+    <>
+      <div className={cn("field flex flex-wrap items-center gap-2 !py-2", values.length >= max && "opacity-80")} onClick={() => document.getElementById(id)?.focus()}>
+        {values.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(values.filter((x) => x !== v));
+            }}
+            className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fg/8 px-2.5 py-1.5 text-[12px] font-semibold text-fg transition hover:bg-fg/12 active:scale-95"
+            aria-label={`${v} — olib tashlash`}
+          >
+            {v} <X size={12} />
+          </button>
+        ))}
+        <input
+          id={id}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              add(text);
+            } else if (e.key === "Backspace" && text === "" && values.length > 0) {
+              onChange(values.slice(0, -1));
+            }
+          }}
+          onBlur={() => text.trim() && add(text)}
+          disabled={values.length >= max}
+          maxLength={40}
+          placeholder={values.length ? "Yana…" : placeholder}
+          className="min-w-[140px] flex-1 bg-transparent py-1 text-[14px] text-fg outline-none placeholder:text-fg-4"
+        />
+      </div>
+      {left.length > 0 && values.length < max && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {left.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fg/6 px-2.5 py-1.5 text-[12px] font-medium text-fg-2 transition hover:bg-fg/10 active:scale-95"
+            >
+              <Plus size={11} /> {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -197,6 +352,8 @@ export function ProfileForm({
   const coverRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLFormElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
+  const sectionNavRef = useRef<HTMLElement>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>(SECTIONS[0].id);
 
   // Mavjud bio uzun bo'lsa, ochilganda textarea unga moslashsin
   useEffect(() => {
@@ -227,6 +384,51 @@ export function ProfileForm({
         ? `${formatPrice(priceFromNum, { compact: true })} – ${formatPrice(priceToNum, { compact: true })}`
         : `${formatPrice(priceFromNum, { compact: true })} dan`
       : "Narx ko'rsatilmasa «Kelishiladi» deb chiqadi";
+
+  /* ---------- Bo'limlar to'liqligi va progress (E95) — «Holat» doim tayyor, hisobga kirmaydi ---------- */
+  const sectionDone: Record<SectionId, boolean> = {
+    "pf-asosiy": f.title.trim().length >= 5,
+    "pf-hudud": f.city.trim().length >= 2,
+    "pf-haqida": f.bio.trim().length >= 80 && f.skills.length >= 3 && f.languages.length > 0,
+    "pf-narx": priceFromNum > 0,
+    "pf-aloqa": Boolean(f.telegram.trim() || f.instagram.trim()),
+    "pf-muqova": Boolean(f.coverUrl.trim()),
+    "pf-holat": true,
+  };
+  const counted = SECTIONS.filter((x) => x.id !== "pf-holat");
+  const progress = Math.round((counted.filter((x) => sectionDone[x.id]).length / counted.length) * 100);
+  const nextOf = (id: SectionId) => {
+    const i = SECTIONS.findIndex((x) => x.id === id);
+    const n = SECTIONS[i + 1];
+    return n ? { id: n.id, label: n.label } : undefined;
+  };
+  const equipmentSuggestions = EQUIPMENT_SUGGESTIONS[f.category] ?? EQUIPMENT_GENERAL;
+
+  /* Ko'rinib turgan bo'lim — yopishqoq navigatsiyada belgilanadi */
+  useEffect(() => {
+    if (!open) return;
+    const els = SECTIONS.map((x) => document.getElementById(x.id)).filter((el): el is HTMLElement => Boolean(el));
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveSection(visible[0].target.id as SectionId);
+      },
+      { rootMargin: "-170px 0px -55% 0px" },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [open]);
+
+  /* Faol chip mobil qatorda ko'rinadigan joyga (sahifa skrolliga tegmasdan) */
+  useEffect(() => {
+    const nav = sectionNavRef.current;
+    const btn = nav?.querySelector<HTMLElement>(`[data-section="${activeSection}"]`);
+    if (!nav || !btn) return;
+    const nb = nav.getBoundingClientRect();
+    const bb = btn.getBoundingClientRect();
+    if (bb.left < nb.left || bb.right > nb.right) nav.scrollTo({ left: Math.max(0, nav.scrollLeft + (bb.left - nb.left) - 12) });
+  }, [activeSection]);
 
   /* ---------- Ko'nikmalar ---------- */
   const addSkill = (raw: string) => {
@@ -305,7 +507,7 @@ export function ProfileForm({
     if (Object.keys(local).length) {
       setErrors(local);
       setError("Ba'zi maydonlarni tekshiring");
-      topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      goToSection(FIELD_SECTION[Object.keys(local)[0]] ?? SECTIONS[0].id);
       return;
     }
 
@@ -324,6 +526,7 @@ export function ProfileForm({
           priceTo: f.priceTo.trim() ? priceToNum : null,
           experience: f.experience,
           skills: f.skills,
+          equipment: f.equipment,
           languages: f.languages,
           telegram: f.telegram.trim().replace(/^@/, ""),
           instagram: f.instagram.trim().replace(/^@/, ""),
@@ -340,6 +543,11 @@ export function ProfileForm({
           const mapped: Record<string, string> = {};
           for (const [k, v] of Object.entries(json.fields)) mapped[k.split(".")[0]] = v;
           setErrors(mapped);
+          const first = Object.keys(mapped).find((k) => FIELD_SECTION[k]);
+          if (first) {
+            goToSection(FIELD_SECTION[first]);
+            return;
+          }
         }
         topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
@@ -433,9 +641,57 @@ export function ProfileForm({
         </div>
       )}
 
+      {/* Yopishqoq bo'limlar navigatsiyasi + to'liqlik (E95) */}
+      <div className="sticky top-[76px] z-20 -mx-5 mt-5 border-y border-line bg-surface px-5 py-2 sm:top-[88px] sm:-mx-7 sm:px-7">
+        <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2" title="Profil to'liqligi">
+            <span className="text-[12px] font-bold tabular-nums text-fg">{progress}%</span>
+            <div
+              className="h-1.5 w-12 overflow-hidden rounded-full bg-fg/8 sm:w-20"
+              role="progressbar"
+              aria-label="Profil to'liqligi"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
+              <div className={cn("h-full rounded-full transition-all duration-500", progress === 100 ? "bg-success" : "bg-accent")} style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+          <nav ref={sectionNavRef} aria-label="Profil bo'limlari" className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
+            <ul className="flex w-max gap-1">
+              {SECTIONS.map((x) => {
+                const active = activeSection === x.id;
+                const done = x.id !== "pf-holat" && sectionDone[x.id];
+                return (
+                  <li key={x.id}>
+                    <button
+                      type="button"
+                      data-section={x.id}
+                      onClick={() => {
+                        setActiveSection(x.id);
+                        goToSection(x.id);
+                      }}
+                      aria-current={active ? "true" : undefined}
+                      className={cn(
+                        "inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold transition active:scale-[0.97]",
+                        active ? "btn-ink" : "text-fg-2 hover:bg-fg/6 hover:text-fg",
+                      )}
+                    >
+                      {done && <CheckCircle2 size={12} className={active ? undefined : "text-success"} aria-hidden="true" />}
+                      {x.label}
+                      {done && <span className="sr-only"> (to'ldirilgan)</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
+      </div>
+
       <div className="mt-6 space-y-6">
         {/* ============ Asosiy ============ */}
-        <Section icon={Sparkles} title="Asosiy ma'lumotlar" hint="Sarlavha va yo'nalish — mijoz birinchi ko'radigan narsa">
+        <Section id="pf-asosiy" next={nextOf("pf-asosiy")} icon={Sparkles} title="Asosiy ma'lumotlar" hint="Sarlavha va yo'nalish — mijoz birinchi ko'radigan narsa">
           <div>
             <label htmlFor="pf-title" className="field-label">
               Sarlavha
@@ -511,7 +767,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Hudud ============ */}
-        <Section icon={MapPin} title="Hudud" hint="Xaritada shu hududda ko'rinasiz">
+        <Section id="pf-hudud" next={nextOf("pf-hudud")} icon={MapPin} title="Hudud" hint="Xaritada shu hududda ko'rinasiz">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="pf-region" className="field-label">
@@ -557,7 +813,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Haqida ============ */}
-        <Section icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, jihozlar va ish jarayoni — mijoz ishonchini oshiradigan narsalar">
+        <Section id="pf-haqida" next={nextOf("pf-haqida")} icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, jihozlar va ish jarayoni — mijoz ishonchini oshiradigan narsalar">
           <div>
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
               <label htmlFor="pf-bio" className="field-label !mb-0">
@@ -674,6 +930,23 @@ export function ProfileForm({
             )}
           </div>
 
+          {/* Jihozlar (F51) */}
+          <div className="mt-5">
+            <label htmlFor="pf-equipment" className="field-label">
+              <Wrench size={13} className="mr-1 inline -mt-0.5 text-accent" />
+              Jihozlar <span className="font-normal text-fg-4">({f.equipment.length}/{MAX_EQUIPMENT})</span>
+            </label>
+            <ChipInput
+              id="pf-equipment"
+              values={f.equipment}
+              onChange={(equipment) => set({ equipment })}
+              max={MAX_EQUIPMENT}
+              placeholder="Masalan: Sony A7IV — Enter bilan qo'shing"
+              suggestions={equipmentSuggestions}
+            />
+            {errors.equipment ? <p className="field-error">{errors.equipment}</p> : <p className="mt-1 text-[12px] text-fg-4">Kamera, dron, stabilizator, yorug'lik yoki dasturiy-texnik jihozlar. Mijozlar jihoz bo'yicha qidira oladi.</p>}
+          </div>
+
           {/* Tillar */}
           <div className="mt-5">
             <span className="field-label">
@@ -705,7 +978,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Narx ============ */}
-        <Section icon={Wallet} title="Narxlar" hint="So'mda. Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi">
+        <Section id="pf-narx" next={nextOf("pf-narx")} icon={Wallet} title="Narxlar" hint="So'mda. Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="pf-price-from" className="field-label">
@@ -756,7 +1029,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Aloqa ============ */}
-        <Section icon={Send} title="Aloqa va havolalar" hint="Mijozlar siz bilan qanday bog'lanadi">
+        <Section id="pf-aloqa" next={nextOf("pf-aloqa")} icon={Send} title="Aloqa va havolalar" hint="Mijozlar siz bilan qanday bog'lanadi">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -811,7 +1084,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Muqova ============ */}
-        <Section icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm (tavsiya: 1600×600)">
+        <Section id="pf-muqova" next={nextOf("pf-muqova")} icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm (tavsiya: 1600×600)">
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
             <div>
               <label htmlFor="pf-cover" className="field-label">
@@ -867,7 +1140,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Holat ============ */}
-        <Section icon={CheckCircle2} title="Holat">
+        <Section id="pf-holat" icon={CheckCircle2} title="Holat">
           <div className="card-outline flex items-center justify-between gap-4 !rounded-[18px] px-4 py-3">
             <div>
               <p className="text-[15px] font-semibold text-fg">Buyurtma qabul qilaman</p>

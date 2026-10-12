@@ -63,12 +63,12 @@ export function AdminReviews({ rows: initialRows }: { rows: AdminReviewRow[] }) 
     <div className="space-y-3">
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {error && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">
+          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -116,7 +116,7 @@ export function AdminReviews({ rows: initialRows }: { rows: AdminReviewRow[] }) 
                         </div>
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" className="h-11 text-danger hover:border-danger hover:bg-danger-soft md:h-9" onClick={() => setAsk(r.id)} disabled={!!busy}>
+                      <Button size="sm" variant="outline" className="h-11 text-danger-text hover:border-danger hover:bg-danger-soft md:h-9" onClick={() => setAsk(r.id)} disabled={!!busy}>
                         <Trash2 size={14} /> O'chirish
                       </Button>
                     )}

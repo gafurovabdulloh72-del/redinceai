@@ -6,7 +6,7 @@ import { orderSchema } from "@/lib/validators";
 import { getOrdersForUser } from "@/lib/queries";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { notify } from "@/lib/notifications";
-import { orderHref } from "@/lib/payments/service";
+import { orderHref, recordOrderEvent } from "@/lib/payments/service";
 import { formatPrice, uid } from "@/lib/utils";
 
 /** Mijoz mutaxassisga buyurtma yuboradi (soatiga 10 ta) */
@@ -18,8 +18,10 @@ export const POST = handler(async (req) => {
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.id, input.specialistId),
     columns: { id: true, userId: true, isAvailable: true, vacationUntil: true },
+    with: { user: { columns: { isBanned: true } } },
   });
-  if (!sp) throw new ApiError(404, "Mutaxassis topilmadi");
+  // Bloklangan yoki o'chirilgan (anonimlashtirilgan — isBanned) mutaxassis ro'yxat/profilda yo'q — buyurtma ham qabul qilinmaydi
+  if (!sp || sp.user.isBanned) throw new ApiError(404, "Mutaxassis topilmadi");
   if (sp.userId === session.sub) throw new ApiError(400, "O'zingizga buyurtma bera olmaysiz");
 
   const id = uid();
@@ -33,6 +35,7 @@ export const POST = handler(async (req) => {
     deadline: input.deadline || null,
     contactPhone: input.contactPhone,
   });
+  await recordOrderEvent(id, session.sub, "status", { toStatus: "new" });
 
   await notify(
     sp.userId,

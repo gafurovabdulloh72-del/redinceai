@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Link2, Plus, Play, Trash2, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Link2, Pencil, Plus, Play, Star, Trash2, X, type LucideIcon } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
@@ -93,6 +93,9 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  /* Tahrirlash: ochiq karta + saqlangan qiymatlar (router.refresh kelguncha darhol ko'rinsin) */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edited, setEdited] = useState<Record<string, Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl">>>({});
 
   /* ---------- Tartib (mahalliy holat; server ro'yxati o'zgarsa — qayta o'rnatiladi) ---------- */
   const serverKey = items.map((i) => i.id).join("|");
@@ -106,7 +109,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const saveTimer = useRef<number | null>(null);
   const pendingOrder = useRef<string[] | null>(null);
 
-  const byId = new Map(items.map((i) => [i.id, i]));
+  const byId = new Map(items.map((i) => [i.id, edited[i.id] ? { ...i, ...edited[i.id] } : i]));
   const visible: PortfolioItemDTO[] = [];
   for (const id of order) {
     const it = byId.get(id);
@@ -123,7 +126,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const saveOrder = async (ids: string[]) => {
     setSavingOrder(true);
     try {
-      const res = await fetch("/api/portfolio", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+      const res = await fetch("/api/portfolio/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
       const json = (await res.json()) as ApiResponse<{ reordered: number }>;
       if (!json.ok) {
         setError(json.error);
@@ -157,7 +160,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
       const ids = pendingOrder.current;
       if (ids) {
         pendingOrder.current = null;
-        void fetch("/api/portfolio", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }), keepalive: true }).catch(() => {});
+        void fetch("/api/portfolio/reorder", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }), keepalive: true }).catch(() => {});
       }
     };
   }, []);
@@ -219,8 +222,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
               {full
                 ? "Limit to'ldi — yangi ish qo'shish uchun eskisini o'chiring."
                 : visible.length > 1
-                  ? "Strelkalar bilan tartibni o'zgartiring — birinchi ish profilda oldin chiqadi."
-                  : "Rasm, YouTube video yoki tashqi havola."}
+                  ? "Strelkalar bilan tartibni o'zgartiring. Birinchi ish muqovada ko'rinadi — profilda eng oldin chiqadi."
+                  : "Rasm, YouTube video yoki tashqi havola. Birinchi ish muqovada ko'rinadi."}
             </p>
             <div className="mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-fg/8" aria-hidden="true">
               <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
@@ -248,12 +251,12 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
       {(error || success) && (
         <div className="flex flex-wrap gap-2" aria-live="polite">
           {error && (
-            <span role="alert" className="inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger">
+            <span role="alert" className="inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
               <AlertCircle size={15} /> {error}
             </span>
           )}
           {success && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3.5 py-2 text-[13px] font-semibold text-success">
+            <span className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3.5 py-2 text-[13px] font-semibold text-success-text">
               <CheckCircle2 size={15} /> {success}
             </span>
           )}
@@ -286,7 +289,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
           </div>
         )
       ) : (
-        <ul className="grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 items-start gap-3 min-[460px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {visible.map((item, idx) => {
             const Icon = TYPE_META[item.type].icon;
             const src = thumbFor(item);
@@ -301,6 +304,11 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                 <div className="relative aspect-[4/3] overflow-hidden bg-surface-3">
                   {src ? <SafeImage src={src} alt={item.title} loading="lazy" fallback={fallback} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" /> : fallback}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+                  {idx === 0 && (
+                    <span className="absolute bottom-2.5 left-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11px] font-bold text-white shadow-[var(--shadow-1)]" title="Birinchi ish muqovada ko'rinadi">
+                      <Star size={11} className="fill-current" aria-hidden="true" /> Muqova
+                    </span>
+                  )}
                   <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
                     <span className="tabular-nums text-fg-3">{idx + 1}</span>
                     <span className="text-fg-4" aria-hidden="true">
@@ -336,6 +344,19 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                   )}
                 </div>
 
+                {editingId === item.id ? (
+                  <EditForm
+                    item={item}
+                    onCancel={() => setEditingId(null)}
+                    onSaved={(next) => {
+                      setEdited((m) => ({ ...m, [item.id]: next }));
+                      setEditingId(null);
+                      setError(null);
+                      setSuccess("O'zgarishlar saqlandi");
+                      router.refresh();
+                    }}
+                  />
+                ) : (
                 <div className="flex flex-1 flex-col p-3">
                   <p className="truncate text-[14px] font-semibold text-fg" title={item.title}>
                     {item.title}
@@ -366,22 +387,137 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                       </a>
                       <button
                         type="button"
+                        onClick={() => {
+                          setConfirmId(null);
+                          setEditingId(item.id);
+                        }}
+                        disabled={Boolean(deletingId)}
+                        aria-label={`${item.title} — tahrirlash`}
+                        title="Tahrirlash"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:bg-fg/4 hover:text-fg active:scale-95 disabled:opacity-50"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setConfirmId(item.id)}
                         disabled={Boolean(deletingId)}
                         aria-label={`${item.title} — o'chirish`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-danger hover:bg-danger-soft hover:text-danger active:scale-95 disabled:opacity-50"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-danger hover:bg-danger-soft hover:text-danger-text active:scale-95 disabled:opacity-50"
                       >
                         {deletingId === item.id ? <Spinner /> : <Trash2 size={15} />}
                       </button>
                     </div>
                   )}
                 </div>
+                )}
               </li>
             );
           })}
         </ul>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Kartadagi tahrirlash formasi (sarlavha, tavsif, muqova)             */
+/* ------------------------------------------------------------------ */
+type Editable = Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl">;
+
+function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved: (next: Editable) => void; onCancel: () => void }) {
+  const [title, setTitle] = useState(item.title);
+  const [description, setDescription] = useState(item.description ?? "");
+  // Rasm turida muqova — rasmning o'zi; YouTube muqovasi avtomatik bo'lsa maydon bo'sh ko'rsatiladi
+  const autoThumb = item.type === "video" && youtubeId(item.url) ? `https://i.ytimg.com/vi/${youtubeId(item.url)}/hqdefault.jpg` : null;
+  const [thumbnailUrl, setThumbnailUrl] = useState(item.type === "image" || item.thumbnailUrl === autoThumb ? "" : (item.thumbnailUrl ?? ""));
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const uid = `pe-${item.id}`;
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setError(null);
+    setErrors({});
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/portfolio/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), description: description.trim(), ...(item.type === "image" ? {} : { thumbnailUrl: thumbnailUrl.trim() }) }),
+      });
+      const json = (await res.json()) as ApiResponse<Editable & { id: string }>;
+      if (!json.ok) {
+        setError(json.error);
+        if (json.fields) setErrors(json.fields);
+        return;
+      }
+      onSaved({ title: json.data.title, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl });
+    } catch {
+      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onCancel();
+      }}
+      className="flex flex-1 flex-col gap-3 p-3 animate-fade-up"
+      style={{ animationDuration: "0.2s" }}
+      aria-label={`${item.title} — tahrirlash`}
+      noValidate
+    >
+      <div>
+        <label htmlFor={`${uid}-title`} className="field-label">
+          Sarlavha
+        </label>
+        <input ref={titleRef} id={`${uid}-title`} className="field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} aria-invalid={Boolean(errors.title)} />
+        {errors.title && <p className="field-error">{errors.title}</p>}
+      </div>
+      <div>
+        <label htmlFor={`${uid}-desc`} className="field-label">
+          Tavsif <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+        </label>
+        <textarea id={`${uid}-desc`} className="field min-h-[72px] resize-y" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 500))} maxLength={500} aria-invalid={Boolean(errors.description)} />
+        <div className="mt-1 flex items-start justify-between gap-3">
+          {errors.description ? <p className="field-error !mt-0">{errors.description}</p> : <span />}
+          <span className="shrink-0 text-[12px] tabular-nums text-fg-4">{description.length}/500</span>
+        </div>
+      </div>
+      {item.type !== "image" && (
+        <div>
+          <label htmlFor={`${uid}-thumb`} className="field-label">
+            Muqova rasmi <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+          </label>
+          <input id={`${uid}-thumb`} className="field" type="url" inputMode="url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} maxLength={300} placeholder="https://…/muqova.jpg" aria-invalid={Boolean(errors.thumbnailUrl)} />
+          {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : item.type === "video" && <p className="mt-1 text-[12px] text-fg-4">Bo'sh qoldirilsa — YouTube muqovasi.</p>}
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-danger">
+          <AlertCircle size={14} /> {error}
+        </p>
+      )}
+      <div className="mt-auto flex items-center gap-2">
+        <Button type="submit" size="sm" variant="accent" className="!h-10 flex-1" disabled={busy}>
+          {busy ? <Spinner /> : "Saqlash"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="!h-10" onClick={onCancel} disabled={busy}>
+          Bekor qilish
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -627,7 +763,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
       </div>
 
       {error && (
-        <div role="alert" className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger">
+        <div role="alert" className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}

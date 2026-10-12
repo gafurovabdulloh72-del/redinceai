@@ -8,7 +8,7 @@ import { notify, notifyAdmins } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { formatDate, formatPrice, uid } from "@/lib/utils";
 import { isProviderConfigured, paymentsEnv } from "./config";
-import { getSettings, splitAmount, TOP_RATED_MIN_COMPLETED, TOP_RATED_MIN_RATING } from "./settings";
+import { getSettings, isTopRated, splitAmount } from "./settings";
 
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
@@ -44,6 +44,11 @@ export async function recordOrderEvent(
   } catch (e) {
     console.error("[orderEvent]", type, e);
   }
+}
+
+/** Pul harakati (release/refund) nizoni ma'nosiz qiladi — ochiq bo'lsa 'resolved' (resolveDispute o'zi ham shuni yozadi) */
+async function closeOpenDispute(orderId: string, now: Date): Promise<void> {
+  await db.update(orders).set({ disputeState: "resolved", updatedAt: now }).where(and(eq(orders.id, orderId), eq(orders.disputeState, "open")));
 }
 
 /** Buyurtma + tomonlar (to'lov oqimida bildirishnoma yuborish uchun) */
@@ -281,7 +286,7 @@ export interface ReleaseOptions {
  */
 export async function releaseOrder(orderId: string, actorId: string | null, req?: Request, opts: ReleaseOptions = {}): Promise<{ released: Payment[] }> {
   const now = new Date();
-  const before = await db.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { completedAt: true, specialistId: true } });
+  const before = await db.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { completedAt: true, specialistId: true, status: true } });
   const paid = await db.query.payments.findMany({ where: and(eq(payments.orderId, orderId), eq(payments.state, "paid")) });
   const released: Payment[] = [];
   for (const p of paid) {
@@ -295,10 +300,21 @@ export async function releaseOrder(orderId: string, actorId: string | null, req?
     released.push(row);
     await audit(actorId, "payment_released", { targetType: "payment", targetId: row.id, meta: { orderId, netAmount: row.netAmount } }, req);
   }
+  // Admin (to'lovlar jadvali yoki nizo qarori) pulni jarayondagi buyurtmada o'tkazsa — ish qabul qilingan hisoblanadi: status 'done'
+  const finishStatus = released.length > 0 && (before?.status === "accepted" || before?.status === "in_progress");
   await db
     .update(orders)
-    .set({ completedAt: before?.completedAt ?? now, autoReleaseAt: null, updatedAt: now, ...(released.length ? { paymentState: "released" as const } : {}) })
+    .set({
+      completedAt: before?.completedAt ?? now,
+      autoReleaseAt: null,
+      updatedAt: now,
+      ...(released.length ? { paymentState: "released" as const } : {}),
+      ...(finishStatus ? { status: "done" as const } : {}),
+    })
     .where(eq(orders.id, orderId));
+  if (finishStatus && before) await recordOrderEvent(orderId, actorId, "status", { fromStatus: before.status, toStatus: "done", note: "Pul admin qarori bilan o'tkazildi — buyurtma yakunlandi" });
+  // Admin pulni to'lovlar jadvalidan o'tkazgan bo'lsa ochiq nizo ham yopiladi (mijoz/cron yo'li ochiq nizoda bu yerga kelmaydi)
+  if (released.length) await closeOpenDispute(orderId, now);
 
   // Birinchi yakunlash: bajarilgan buyurtmalar soni + "Top mutaxassis" nishoni
   if (before && !before.completedAt) {
@@ -307,9 +323,9 @@ export async function releaseOrder(orderId: string, actorId: string | null, req?
         .update(specialists)
         .set({ completedCount: sql`${specialists.completedCount} + 1`, updatedAt: now })
         .where(eq(specialists.id, before.specialistId))
-        .returning({ id: specialists.id, completedCount: specialists.completedCount, rating: specialists.rating, topRated: specialists.topRated });
+        .returning({ id: specialists.id, completedCount: specialists.completedCount, rating: specialists.rating, reviewCount: specialists.reviewCount, topRated: specialists.topRated });
       if (sp) {
-        const top = sp.rating >= TOP_RATED_MIN_RATING && sp.completedCount >= TOP_RATED_MIN_COMPLETED;
+        const top = isTopRated(sp);
         if (top !== sp.topRated) await db.update(specialists).set({ topRated: top }).where(eq(specialists.id, sp.id));
       }
     } catch (e) {
@@ -356,6 +372,8 @@ export async function refundPayment(paymentId: string, actorId: string | null, r
     .where(eq(payments.id, paymentId))
     .returning();
   await db.update(orders).set({ paymentState: "refunded", autoReleaseAt: null, updatedAt: now }).where(eq(orders.id, row.orderId));
+  // Pul qaytdi — ochiq nizo ortiqcha (admin to'lovlar jadvalidan yoki Payme CancelTransaction orqali qaytargan bo'lsa)
+  await closeOpenDispute(row.orderId, now);
   await recordOrderEvent(row.orderId, actorId, "payment", { note: `${formatPrice(row.amount)} mijozga qaytarildi${actorId ? "" : " (provayder orqali)"}` });
   const order = await loadOrderWithParties(row.orderId);
   if (order) {

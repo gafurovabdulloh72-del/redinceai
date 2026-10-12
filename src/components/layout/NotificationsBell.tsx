@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck, Inbox, RotateCcw } from "lucide-react";
+import { ArrowRight, Bell, CheckCheck, Inbox, RotateCcw } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
+import { NOTIFICATIONS_CHANGED_EVENT, NOTIFICATIONS_UNREAD_EVENT, notificationMeta, TONE_TILE } from "./notification-meta";
 
 /**
  * Bildirishnoma qo'ng'irog'i (yuqori panel): o'qilmaganlar soni + ochilganda ro'yxat.
  * - Boshlang'ich son serverdan (Navbar) keladi — birinchi chizishda "0 → N" sakrashi bo'lmaydi
- * - Ro'yxat GET /api/notifications orqali: mount, sahifa almashganda va ochilganda yangilanadi
+ * - Ro'yxat GET /api/notifications orqali: mount, sahifa almashganda, ochilganda va har 60 soniyada
+ *   (faqat sahifa ko'rinib turganda; tab qaytganda darhol) yangilanadi
  * - Bosilganda yozuv o'qilgan deb belgilanadi (PATCH {ids}) va href'ga o'tiladi
  * - "Hammasini o'qilgan deb belgilash" → PATCH {all:true}
  */
@@ -25,6 +27,9 @@ interface NotificationItem {
 }
 
 type ApiResponse = { ok: true; data: { unread: number; items: NotificationItem[] } } | { ok: false; error: string };
+
+/** Fon yangilanish oralig'i (ms) */
+const POLL_MS = 60_000;
 
 export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: number }) {
   const pathname = usePathname();
@@ -60,6 +65,36 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
   }, [pathname, load]);
 
   useEffect(() => setOpen(false), [pathname]);
+
+  /* O'qilmaganlar soni o'zgarsa — kabinet navigatsiyasi badge'i ham yangilansin */
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent<number>(NOTIFICATIONS_UNREAD_EVENT, { detail: unread }));
+  }, [unread]);
+
+  /* /kabinet/bildirishnomalar sahifasida o'qilgan deb belgilansa — badge darhol yangilansin */
+  useEffect(() => {
+    const onChanged = () => void load();
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+  }, [load]);
+
+  /* Har 60 soniyada (sahifa ko'rinib turganda) va tab qayta ochilganda — badge eskirmasin */
+  useEffect(() => {
+    let ctrl: AbortController | null = null;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      ctrl?.abort();
+      ctrl = new AbortController();
+      void load(ctrl.signal);
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+      ctrl?.abort();
+    };
+  }, [load]);
 
   /* Ochilganda yangi ro'yxat; tashqariga bosilganda / Escape'da yopiladi */
   useEffect(() => {
@@ -129,7 +164,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
         <div
           role="dialog"
           aria-label="Bildirishnomalar"
-          className="card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden animate-fade-up sm:left-auto sm:right-0 sm:w-[340px]"
+          className="card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden animate-fade-up sm:left-auto sm:right-0 sm:w-[380px]"
           style={{ animationDuration: "0.22s" }}
         >
           <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">
@@ -160,16 +195,22 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
               <ul className="divide-y divide-line">
                 {items.map((n) => {
                   const isNew = !n.readAt;
+                  const meta = notificationMeta(n.type);
                   const inner = (
                     <>
-                      <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", isNew ? "bg-accent" : "bg-transparent")} aria-hidden="true" />
+                      <span className={cn("relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]", TONE_TILE[meta.tone])} aria-hidden="true">
+                        <meta.icon size={15} />
+                        {isNew && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-surface" />}
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className={cn("block text-[13.5px] leading-snug text-fg", isNew ? "font-semibold" : "font-medium")}>
                           {n.title}
                           {isNew && <span className="sr-only"> (yangi)</span>}
                         </span>
                         {n.body && <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-fg-3">{n.body}</span>}
-                        <span className="mt-1 block text-[11px] text-fg-4">{timeAgo(n.createdAt)}</span>
+                        <time dateTime={new Date(n.createdAt).toISOString()} className="mt-1 block text-[11px] text-fg-4">
+                          {timeAgo(n.createdAt)}
+                        </time>
                       </span>
                     </>
                   );
@@ -200,15 +241,26 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
             )}
           </div>
 
-          {unread > 0 && items && items.length > 0 && (
-            <button
-              type="button"
-              onClick={markAll}
-              className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-line px-4 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/4 hover:text-fg"
+          <div className="flex items-stretch border-t border-line">
+            {unread > 0 && items && items.length > 0 && (
+              <button
+                type="button"
+                onClick={markAll}
+                className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 border-r border-line px-3 text-[12.5px] font-semibold text-fg-2 transition hover:bg-fg/4 hover:text-fg"
+              >
+                <CheckCheck size={15} className="shrink-0" /> <span className="truncate">Hammasini o'qilgan deb belgilash</span>
+              </button>
+            )}
+            <Link
+              href="/kabinet/bildirishnomalar"
+              className={cn(
+                "flex min-h-11 items-center justify-center gap-1 px-4 text-[12.5px] font-semibold text-fg transition hover:bg-fg/4",
+                unread > 0 && items && items.length > 0 ? "shrink-0" : "flex-1",
+              )}
             >
-              <CheckCheck size={15} /> Hammasini o'qilgan deb belgilash
-            </button>
-          )}
+              Barchasi <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
       )}
     </div>

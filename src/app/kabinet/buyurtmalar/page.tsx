@@ -5,8 +5,8 @@ import { OrdersList, type OrderItem, type Tab } from "@/components/orders/Orders
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/queries";
 import { availableProviders } from "@/lib/payments/config";
-import { listOpenPaymentsForOrders } from "@/lib/payments/queries";
-import { getSettings } from "@/lib/payments/settings";
+import { getPendingPaymentsByOrder } from "@/lib/payments/queries";
+import { commissionPctFor, getSettings } from "@/lib/payments/settings";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Buyurtmalar" };
@@ -17,9 +17,26 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   if (!user) redirect(await loginRedirectPath("/kabinet/buyurtmalar"));
 
   const [{ asClient, asSpecialist }, settings] = await Promise.all([getOrdersForUser(user.id, user.specialist?.id), getSettings()]);
+  // Komissiya darajali: mutaxassisga — hozirgi darajasi foizi, mijozga — oraliq (yangi / oddiy / top)
+  const tierPcts = [settings.commissionPctNew, settings.commissionPct, settings.commissionPctTop];
+  const feeLabel = user.specialist
+    ? `${commissionPctFor(settings, user.specialist).pct}%`
+    : Math.min(...tierPcts) === Math.max(...tierPcts)
+      ? `${settings.commissionPct}%`
+      : `${Math.min(...tierPcts)}–${Math.max(...tierPcts)}%`;
   const providers = availableProviders();
   // Mijozning ochiq to'lovlari (created — davom ettirish, pending — tasdiq kutilmoqda)
-  const open = await listOpenPaymentsForOrders(asClient.map((o) => o.id));
+  const open = await getPendingPaymentsByOrder(asClient.map((o) => o.id));
+
+  // Bekor qilish sababi, nizo va avto-qabul (F15) — sahifa beradi, ro'yxat /api/orders'ga qayta so'rov yubormaydi.
+  // Foydalanuvchi ID'lari chiqmaydi: disputeBy faqat "client" | "specialist" (GET /api/orders bilan bir xil qoida)
+  const extras = (o: (typeof asClient)[number] | (typeof asSpecialist)[number]) => ({
+    cancelReason: o.cancelReason ?? null,
+    disputeState: o.disputeState,
+    disputeReason: o.disputeReason ?? null,
+    disputeBy: o.disputeOpenedBy ? (o.disputeOpenedBy === o.clientId ? ("client" as const) : ("specialist" as const)) : null,
+    autoReleaseAt: o.autoReleaseAt?.getTime() ?? null,
+  });
 
   // Mutaxassis sifatida kelgan buyurtmalar
   const incoming: OrderItem[] = asSpecialist.map((o) => ({
@@ -37,6 +54,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     createdAt: o.createdAt.getTime(),
     updatedAt: o.updatedAt.getTime(),
     specialistId: o.specialistId,
+    ...extras(o),
     counterpart: { name: o.client.name, avatarUrl: o.client.avatarUrl, subtitle: "Mijoz", href: null },
   }));
 
@@ -57,6 +75,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     updatedAt: o.updatedAt.getTime(),
     specialistId: o.specialistId,
     openPayment: open.get(o.id) ?? null,
+    ...extras(o),
     counterpart: {
       name: o.specialist.user.name,
       avatarUrl: o.specialist.user.avatarUrl,
@@ -86,7 +105,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         </div>
         <div className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-[12px] font-semibold text-fg-2">
           <ShieldCheck size={14} className="text-success" />
-          {awaitingCount > 0 ? `${awaitingCount} ta buyurtma to'lov kutmoqda` : `Eskrou · xizmat haqi ${settings.commissionPct}%`}
+          {awaitingCount > 0 ? `${awaitingCount} ta buyurtma to'lov kutmoqda` : `Eskrou · xizmat haqi ${feeLabel}`}
         </div>
       </header>
 

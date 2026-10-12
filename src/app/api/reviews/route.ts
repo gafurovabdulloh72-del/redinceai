@@ -27,8 +27,8 @@ export const POST = handler(async (req) => {
   });
 
   // "Haqiqiy fikr" sharti: yangi sharh faqat shu mutaxassis bilan qabul qilingan/bajarilgan buyurtmasi borlardan;
-  // avval qoldirilgan sharhni tahrirlash mumkin
-  if (!existing && !(await hasAcceptedOrderWith(session.sub, sp.id))) {
+  // avval qoldirilgan sharhni tahrirlash mumkin; admin — istisno (moderatsiya/test)
+  if (!existing && session.role !== "admin" && !(await hasAcceptedOrderWith(session.sub, sp.id))) {
     throw new ApiError(403, "Sharh faqat shu mutaxassis bilan buyurtmangiz qabul qilingach qoldiriladi");
   }
 

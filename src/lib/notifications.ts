@@ -16,6 +16,7 @@ import { uid } from "@/lib/utils";
  *  order_cancelled  — qarshi tomonga: bekor qilindi / rad etildi (sabab bilan)
  *  payment_pending  — adminga: qo'lda o'tkazma tasdiqlashni kutmoqda
  *  payment_refunded — mijozga: pul qaytarildi
+ *  payment_cancelled — mijozga: «To'ladim» deb bildirilgan o'tkazma admin tomonidan tasdiqlanmadi
  *  payout           — mutaxassisga: pul chiqarish qarori
  *  payout_requested — adminga: yangi pul chiqarish so'rovi
  *  refund_needed    — adminga: bekor qilingan to'langan buyurtma / provayder qaytarish so'rovi
@@ -32,6 +33,7 @@ export type NotificationType =
   | "order_cancelled"
   | "payment_pending"
   | "payment_refunded"
+  | "payment_cancelled"
   | "payout"
   | "payout_requested"
   | "refund_needed"
@@ -40,7 +42,7 @@ export type NotificationType =
   | "account";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */
-const MAIL_TYPES: ReadonlySet<NotificationType> = new Set(["order_amount", "order_paid", "order_done", "order_released", "order_cancelled", "payment_refunded", "payout", "dispute", "account"]);
+const MAIL_TYPES: ReadonlySet<NotificationType> = new Set(["order_amount", "order_paid", "order_done", "order_released", "order_cancelled", "payment_refunded", "payment_cancelled", "payout", "dispute", "account"]);
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);

@@ -27,7 +27,7 @@ export const GET = handler(async (_req, ctx: { params: Promise<{ slug: string }>
   return ok({
     ...rest,
     user: { name: user.name, avatarUrl: user.avatarUrl, phone: user.phone, email: user.email, gender: user.gender, createdAt: user.createdAt },
-    reviews: reviews.map(({ id, rating, text, createdAt, author }) => ({ id, rating, text, createdAt, author })),
+    reviews: reviews.map(({ id, rating, text, createdAt, author, reply, replyAt }) => ({ id, rating, text, createdAt, author, reply, replyAt })),
     // Sozlamalarning o'zi faqat egasiga
     ...(isOwner ? { visibility: resolveVisibility(sp.visibility) } : {}),
   });

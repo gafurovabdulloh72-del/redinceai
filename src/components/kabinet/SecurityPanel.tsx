@@ -284,8 +284,17 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
             <KeyRound size={14} /> Parol
           </div>
-          <div className="mt-2 font-display text-[17px] font-semibold leading-tight text-fg" suppressHydrationWarning>
-            {initial.passwordChangedAt ? `${timeAgo(initial.passwordChangedAt)} yangilangan` : "Hech o'zgarmagan"}
+          <div className="mt-2 font-display text-[17px] font-semibold leading-tight text-fg">
+            {initial.passwordChangedAt ? (
+              <>
+                <time dateTime={new Date(initial.passwordChangedAt).toISOString()} suppressHydrationWarning>
+                  {timeAgo(initial.passwordChangedAt)}
+                </time>{" "}
+                yangilangan
+              </>
+            ) : (
+              "Hech o'zgarmagan"
+            )}
           </div>
           <div className="mt-1 text-[12px] text-fg-4">{pwOld ? "6 oydan oshdi — yangilash tavsiya etiladi" : "Yaqinda o'rnatilgan"}</div>
         </div>
@@ -341,7 +350,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </div>
 
           {justVerified ? (
-            <div role="status" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success">
+            <div role="status" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success-text">
               <CheckCircle2 size={16} className="mt-px shrink-0" /> Email tasdiqlandi. Rahmat!
             </div>
           ) : codeSent ? (
@@ -547,7 +556,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       {/* ---------- Xavfli zona ---------- */}
       <section className="card p-5 sm:p-7" aria-labelledby="sec-danger">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-danger-soft text-danger">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-danger-soft text-danger-text">
             <TriangleAlert size={20} />
           </span>
           <div className="min-w-0 flex-1">
@@ -598,7 +607,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </div>
 
           {deleted ? (
-            <div role="status" className="mt-4 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success">
+            <div role="status" className="mt-4 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success-text">
               <CheckCircle2 size={16} className="mt-px shrink-0" /> Akkaunt o'chirildi. Bosh sahifaga qaytmoqdamiz…
             </div>
           ) : (

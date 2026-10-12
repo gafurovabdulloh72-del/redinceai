@@ -24,6 +24,15 @@ const BASE = "/mutaxassislar";
 const DEFAULT_LIMIT = 24;
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
+
+/** Natija jumlasi uchun saralash nomi (Filters.tsx SORT_OPTIONS bilan bir xil; client moduldan server qiymat import qilinmaydi) */
+const SORT_PHRASE: Record<SpecialistFilter["sort"], string> = {
+  rating: "reyting bo'yicha",
+  popular: "mashhurlik bo'yicha",
+  newest: "eng yangilari birinchi",
+  price_asc: "narx: arzondan",
+  price_desc: "narx: qimmatdan",
+};
 type View = "grid" | "list";
 
 /** Next searchParams'ni oddiy {key: string} ko'rinishiga keltiradi */
@@ -51,6 +60,8 @@ function parseFilter(flat: Record<string, string>): SpecialistFilter {
   // Teskari oraliq (min >= max) — listSpecialists kabi e'tiborsiz; chip ham chiqmasin
   if (f.priceMin === 0 || (f.priceMin && f.priceMax && f.priceMin >= f.priceMax)) f.priceMin = undefined;
   if (f.q === "") f.q = undefined;
+  if (f.skill === "") f.skill = undefined;
+  if (f.equipment === "") f.equipment = undefined;
   return f;
 }
 
@@ -66,6 +77,8 @@ function filterToQuery(f: SpecialistFilter, extra: { view: View }): Record<strin
     gender: f.gender || undefined,
     verified: f.verified === "1" ? "1" : undefined,
     available: f.available === "1" ? "1" : undefined,
+    skill: f.skill || undefined,
+    equipment: f.equipment || undefined,
     sort: f.sort !== "rating" ? f.sort : undefined,
     view: extra.view === "list" ? "list" : undefined,
     limit: f.limit !== DEFAULT_LIMIT ? String(f.limit) : undefined,
@@ -144,7 +157,9 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
     filter.experience ||
     filter.gender ||
     filter.verified === "1" ||
-    filter.available === "1"
+    filter.available === "1" ||
+    filter.skill ||
+    filter.equipment
   );
   const { items, total, page, pages } = result;
   const from = total === 0 ? 0 : (page - 1) * filter.limit + 1;
@@ -181,10 +196,12 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
         <section className="min-w-0 lg:col-span-9" aria-labelledby="sp-results-title">
           {/* Asboblar qatori: natija soni + ko'rinish + saralash */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p id="sp-results-title" className="text-[15px] text-fg-2">
+            {/* Natija soni + saralash bir jumlada (E98): "58 ta mutaxassis · reyting bo'yicha" */}
+            <p id="sp-results-title" className="text-[15px] text-fg-2" aria-live="polite">
               <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{total}</span> ta mutaxassis
+              {total > 0 && <span className="text-fg-3"> · {SORT_PHRASE[filter.sort]}</span>}
               {total > 0 && pages > 1 && (
-                <span className="text-fg-3">
+                <span className="text-fg-3 max-sm:hidden">
                   {" "}
                   · {from}–{to}
                 </span>

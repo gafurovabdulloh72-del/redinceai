@@ -57,12 +57,12 @@ export function ReviewForm({
             <ClipboardCheck size={20} />
           </span>
           <div>
-            <p className="text-[16px] font-semibold text-fg">Sharh — faqat haqiqiy mijozlardan</p>
-            <p className="mt-0.5 text-[13px] text-fg-3">Shu mutaxassis bilan buyurtmangiz qabul qilingach sharh qoldirishingiz mumkin.</p>
+            <p className="text-[16px] font-semibold text-fg">Sharh faqat buyurtma qabul qilingan mijozlar uchun</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">Shu mutaxassisga buyurtma bering — u qabul qilgach fikringizni yozishingiz mumkin. Shunday qilib har bir sharh haqiqiy bo'ladi.</p>
           </div>
         </div>
         {orderHref && (
-          <ButtonLink href={orderHref} variant="outline" size="md" className="shrink-0">
+          <ButtonLink href={orderHref} variant="accent" size="md" className="shrink-0">
             Buyurtma berish <ArrowRight size={16} />
           </ButtonLink>
         )}

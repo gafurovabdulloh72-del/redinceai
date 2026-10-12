@@ -8,8 +8,20 @@ function trustedProxyHops(): number {
 }
 
 /**
- * Mijoz IP manzili (rate limit va audit uchun). Ustuvorlik:
- *   cf-connecting-ip (Cloudflare) → x-vercel-forwarded-for (Vercel) → x-real-ip (Nginx/Railway)
+ * Sayt Cloudflare orqasida turibdimi (TRUST_CLOUDFLARE=1 / true / yes). Faqat shunda cf-connecting-ip'ga ishoniladi:
+ * Cloudflare bo'lmasa bu sarlavhani istalgan mijoz o'zi yuborib, per-IP limitlarni aylanib o'tishi mumkin.
+ * Diqqat: yoqilganda origin faqat Cloudflare orqali ochiq bo'lishi kerak (to'g'ridan-to'g'ri ulanish yopiq).
+ */
+function behindCloudflare(): boolean {
+  const flag = process.env.TRUST_CLOUDFLARE?.trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
+/**
+ * Mijoz IP manzili (rate limit va audit uchun). Faqat ishonchli proksi qo'ygan sarlavhalar hisobga olinadi:
+ *   cf-connecting-ip — faqat TRUST_CLOUDFLARE=1 bo'lsa;
+ *   x-vercel-forwarded-for → x-real-ip — faqat Vercel'da (VERCEL; Vercel ularni o'zi qayta yozadi);
+ *   x-real-ip — boshqa joyda faqat trustProxy() bo'lsa (Railway yoki TRUST_PROXY_HOST=1, Nginx qayta yozadi);
  *   → x-forwarded-for'ning o'ngdan TRUSTED_PROXY_HOPS-chi qiymati (proksi o'zi qo'shgan; standart — eng o'ngdagi).
  * Birinchi (chapdagi) qiymat mijoz tomonidan soxtalashtirilishi mumkin, shuning uchun hech qachon ishlatilmaydi.
  * Sarlavha umuman bo'lmasa (lokal dev, to'g'ridan-to'g'ri ulanish) hamma bitta "local" bucket'ga tushmasin —
@@ -17,7 +29,12 @@ function trustedProxyHops(): number {
  */
 export function clientIp(req: Request): string {
   const h = req.headers;
-  const direct = (h.get("cf-connecting-ip") || h.get("x-vercel-forwarded-for") || h.get("x-real-ip"))?.split(",")[0]?.trim();
+  const first = (name: string) => h.get(name)?.split(",")[0]?.trim() || null;
+  const onVercel = Boolean(process.env.VERCEL);
+  const direct =
+    (behindCloudflare() ? first("cf-connecting-ip") : null) ||
+    (onVercel ? first("x-vercel-forwarded-for") || first("x-real-ip") : null) ||
+    (!onVercel && trustProxy() ? first("x-real-ip") : null);
   if (direct) return direct.slice(0, 64);
   const xff = h.get("x-forwarded-for");
   if (xff) {

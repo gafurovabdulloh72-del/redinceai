@@ -6,7 +6,7 @@ import { orders, payments, type Payment } from "@/lib/db/schema";
 import { uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { findInFlightProviderPayment, isPayable, markPaid } from "./service";
+import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent } from "./service";
 
 /**
  * Click SHOP API (Prepare / Complete). Hujjat: docs.click.uz/click-api-request
@@ -164,6 +164,7 @@ async function complete(f: Fields, secret: string) {
         .update(payments)
         .set({ state: "cancelled", providerState: -1, cancelTime: now, cancelReason: clickError, updatedAt: new Date(now) })
         .where(eq(payments.id, payment.id));
+      await recordOrderEvent(payment.orderId, null, "payment", { note: "Click to'lovi amalga oshmadi — urinish bekor qilindi" });
     }
     return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
   }

@@ -90,7 +90,7 @@ export function PayoutRequestForm({ available, minPayout, hasOpen }: { available
       </div>
 
       {done && (
-        <p role="status" className="mt-4 flex items-start gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+        <p role="status" className="mt-4 flex items-start gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> {done}
         </p>
       )}
@@ -168,7 +168,7 @@ export function PayoutRequestForm({ available, minPayout, hasOpen }: { available
           </div>
 
           {error && (
-            <p role="alert" className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger">
+            <p role="alert" className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger-text">
               <AlertCircle size={15} /> {error}
             </p>
           )}

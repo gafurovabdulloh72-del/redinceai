@@ -46,6 +46,9 @@ export const RATE_LIMITS = {
   /** Hisob: eksport va o'chirish — userId */
   accountExport: { limit: 5, windowMs: HOUR },
   accountDelete: { limit: 5, windowMs: HOUR },
+  /** Sharhga javob (F43) va shikoyatlar (F85) — userId */
+  reviewReply: { limit: 30, windowMs: HOUR },
+  reports: { limit: 10, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

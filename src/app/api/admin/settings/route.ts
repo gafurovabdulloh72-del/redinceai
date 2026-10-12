@@ -1,12 +1,10 @@
-import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { platformSettingsSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
 import { getSettings, saveSettings } from "@/lib/payments/settings";
 
-/** Komissiya darajalari (F21) — validators.ts sxemasi ularni hali bilmasa ham ixtiyoriy qabul qilinadi */
-const pct = z.coerce.number().int().min(0).max(50);
-const schema = platformSettingsSchema.extend({ commissionPctNew: pct.optional(), commissionPctTop: pct.optional() });
+/** Komissiya darajalari (F21) — commissionPctNew / commissionPctTop sxemada ixtiyoriy */
+const schema = platformSettingsSchema;
 
 /** Platforma sozlamalari: komissiya darajalari (%), minimal payout, minimal buyurtma summasi */
 export const GET = handler(async () => {

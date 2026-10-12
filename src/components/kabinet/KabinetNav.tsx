@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ClipboardList, ExternalLink, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, ClipboardList, ExternalLink, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
+import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
 
-export type KabinetNavIcon = "overview" | "orders" | "favorites" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
+export type KabinetNavIcon = "overview" | "orders" | "notifications" | "partners" | "favorites" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
 
 export interface KabinetNavItem {
   href: string;
@@ -29,6 +30,8 @@ export interface KabinetNavUser {
 const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   overview: LayoutDashboard,
   orders: ClipboardList,
+  notifications: Bell,
+  partners: Users,
   favorites: Heart,
   profile: UserRound,
   portfolio: Images,
@@ -59,6 +62,17 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
   const [leaving, setLeaving] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const rowOver = useOverflowing(rowRef);
+  // Qo'ng'iroq e'lon qilgan jonli son (layout klient navigatsiyada qayta chizilmaydi — badge eskirmasin)
+  const [liveUnread, setLiveUnread] = useState<number | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const n = (e as CustomEvent<unknown>).detail;
+      if (typeof n === "number") setLiveUnread(n);
+    };
+    window.addEventListener(NOTIFICATIONS_UNREAD_EVENT, on);
+    return () => window.removeEventListener(NOTIFICATIONS_UNREAD_EVENT, on);
+  }, []);
+  const badgeOf = (item: KabinetNavItem) => (item.icon === "notifications" && liveUnread !== null ? liveUnread : item.badge);
 
   const isActive = (item: KabinetNavItem) =>
     item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -108,6 +122,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             {items.map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(item);
+              const badge = badgeOf(item);
               return (
                 <Link
                   key={item.href}
@@ -120,14 +135,14 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                 >
                   <Icon size={18} className={active ? undefined : "text-fg-3"} />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge ? (
+                  {badge ? (
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none",
                         active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white",
                       )}
                     >
-                      {item.badge}
+                      {badge > 99 ? "99+" : badge}
                     </span>
                   ) : null}
                 </Link>
@@ -141,7 +156,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             type="button"
             onClick={logout}
             disabled={leaving}
-            className="flex min-h-11 w-full items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-left text-[14px] font-semibold text-danger transition hover:bg-danger-soft disabled:opacity-60"
+            className="flex min-h-11 w-full items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-left text-[14px] font-semibold text-danger-text transition hover:bg-danger-soft disabled:opacity-60"
           >
             {leaving ? <Spinner /> : <LogOut size={18} />} Chiqish
           </button>
@@ -161,7 +176,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             onClick={logout}
             disabled={leaving}
             aria-label="Chiqish"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger transition hover:bg-danger-soft active:scale-95 disabled:opacity-60"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger-text transition hover:bg-danger-soft active:scale-95 disabled:opacity-60"
           >
             {leaving ? <Spinner /> : <LogOut size={17} />}
           </button>
@@ -172,6 +187,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
             {items.map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(item);
+              const badge = badgeOf(item);
               return (
                 <Link
                   key={item.href}
@@ -184,9 +200,9 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                 >
                   <Icon size={15} className={active ? undefined : "text-fg-3"} />
                   {item.label}
-                  {item.badge ? (
+                  {badge ? (
                     <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white")}>
-                      {item.badge}
+                      {badge > 99 ? "99+" : badge}
                     </span>
                   ) : null}
                 </Link>

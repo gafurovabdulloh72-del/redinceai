@@ -169,7 +169,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <Badge tone={toneFor(r.action)}>{labelFor(r.action)}</Badge>
+                      <Badge tone={toneFor(r.action)}>{labelFor(r.action, r.meta)}</Badge>
                     </td>
                     <td className="px-3 py-3">
                       {!r.actorId && isSystem(r.action) ? (
@@ -211,7 +211,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
               {rows.map((r) => (
                 <li key={r.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Badge tone={toneFor(r.action)}>{labelFor(r.action)}</Badge>
+                    <Badge tone={toneFor(r.action)}>{labelFor(r.action, r.meta)}</Badge>
                     <time dateTime={r.createdAt.toISOString()} className="shrink-0 text-[11px] text-fg-4" suppressHydrationWarning>
                       {timeAgo(r.createdAt)}
                     </time>

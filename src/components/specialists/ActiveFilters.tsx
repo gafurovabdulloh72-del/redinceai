@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Briefcase, CheckCircle2, MapPin, Search, UserRound, Wallet, X, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Briefcase, CheckCircle2, MapPin, Search, Sparkles, UserRound, Wallet, Wrench, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
@@ -15,6 +15,9 @@ export interface ActiveFilterValues {
   verified?: "1" | "0";
   gender?: "male" | "female";
   available?: "1";
+  /** Ko'nikma (F50) va jihoz (F51) */
+  skill?: string;
+  equipment?: string;
 }
 
 interface ChipDef {
@@ -64,6 +67,8 @@ export function ActiveFilters({
   if (filter.gender) chips.push({ keys: ["gender"], label: GENDERS.find((g) => g.value === filter.gender)?.label ?? filter.gender, icon: UserRound });
   if (filter.verified === "1") chips.push({ keys: ["verified"], label: "Tasdiqlangan", icon: BadgeCheck });
   if (filter.available === "1") chips.push({ keys: ["available"], label: "Hozir bo'sh", icon: CheckCircle2 });
+  if (filter.skill) chips.push({ keys: ["skill"], label: `Ko'nikma: ${filter.skill}`, icon: Sparkles });
+  if (filter.equipment) chips.push({ keys: ["equipment"], label: `Jihoz: ${filter.equipment}`, icon: Wrench });
 
   if (chips.length === 0) return null;
 
@@ -85,7 +90,7 @@ export function ActiveFilters({
               >
                 {Icon ? <Icon size={13} className="text-fg-3" /> : c.node}
                 <span className="max-w-[180px] truncate">{c.label}</span>
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg/6 text-fg-3 transition group-hover:bg-danger-soft group-hover:text-danger">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg/6 text-fg-3 transition group-hover:bg-danger-soft group-hover:text-danger-text">
                   <X size={12} />
                 </span>
               </Link>

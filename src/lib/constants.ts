@@ -174,6 +174,8 @@ export const PAYOUT_STATE_LABEL: Record<"requested" | "approved" | "paid" | "rej
 /** Platforma sozlamalari kalitlari va standart qiymatlari (admin o'zgartiradi) */
 export const PLATFORM_DEFAULTS = {
   commissionPct: 10, // mijoz to'lovidan platformaga qoladigan foiz (Upwork uslubi)
+  commissionPctNew: 15, // yangi mutaxassis (bajarilgan buyurtmalar kam) — F21
+  commissionPctTop: 7, // "Top mutaxassis" — F21
   minPayout: 100_000, // minimal pul chiqarish (so'm)
   minOrderAmount: 50_000,
 } as const;

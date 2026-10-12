@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, Camera, CheckCircle2, Mail, Mars, Trash2, UserRound, Venus } from "lucide-react";
+import { AlertCircle, BellRing, Camera, CheckCircle2, KeyRound, Mail, MailWarning, Mars, Trash2, UserRound, Venus } from "lucide-react";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
@@ -16,6 +17,8 @@ export interface AccountInitial {
   avatarUrl: string;
   email: string;
   gender?: Gender;
+  /** Muhim hodisalar emailga ham yuborilsinmi (users.notifyEmail) */
+  notifyEmail?: boolean;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -31,6 +34,11 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   const [phone, setPhone] = useState(initial.phone);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
   const [gender, setGender] = useState<Gender>(initial.gender ?? null);
+  const [notifyEmail, setNotifyEmail] = useState(initial.notifyEmail ?? true);
+  const [email, setEmail] = useState(initial.email);
+  const [currentPassword, setCurrentPassword] = useState("");
+  /** Email o'zgardi — qayta tasdiqlash kerak (emailVerified=false) */
+  const [emailChanged, setEmailChanged] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -38,7 +46,14 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const dirty = name !== initial.name || phone !== initial.phone || avatarUrl !== initial.avatarUrl || gender !== (initial.gender ?? null);
+  const emailDiff = email.trim().toLowerCase() !== initial.email.toLowerCase();
+  const dirty =
+    name !== initial.name ||
+    phone !== initial.phone ||
+    avatarUrl !== initial.avatarUrl ||
+    gender !== (initial.gender ?? null) ||
+    notifyEmail !== (initial.notifyEmail ?? true) ||
+    emailDiff;
 
   useEffect(() => {
     if (!saved) return;
@@ -72,19 +87,33 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
     if (busy) return;
     setError(null);
     setErrors({});
+    // Emailni o'zgartirish — joriy parol bilan (server ham tekshiradi)
+    if (emailDiff && !currentPassword) {
+      setErrors({ currentPassword: "Emailni o'zgartirish uchun joriy parolni kiriting" });
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), avatarUrl: avatarUrl.trim(), gender }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          avatarUrl: avatarUrl.trim(),
+          gender,
+          notifyEmail,
+          ...(emailDiff ? { email: email.trim(), currentPassword } : {}),
+        }),
       });
-      const json = (await res.json()) as ApiResponse<{ updated: boolean }>;
+      const json = (await res.json()) as ApiResponse<{ updated: boolean; emailChanged?: boolean }>;
       if (!json.ok) {
         setError(json.error);
         if (json.fields) setErrors(json.fields);
         return;
       }
+      setCurrentPassword("");
+      if (json.data.emailChanged) setEmailChanged(true);
       setSaved(true);
       router.refresh();
     } catch {
@@ -102,7 +131,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         </span>
         <div>
           <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Akkaunt</h2>
-          <p className="mt-0.5 text-[13px] text-fg-3">Ism, telefon, jins va avatar. Telefon va jins kimga ko'rinishini «Maxfiylik» bo'limida sozlaysiz.</p>
+          <p className="mt-0.5 text-[13px] text-fg-3">Ism, email, telefon, jins va avatar. Telefon va jins kimga ko'rinishini «Maxfiylik» bo'limida sozlaysiz.</p>
         </div>
       </div>
 
@@ -218,10 +247,86 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
           </label>
           <div className="relative">
             <Mail size={15} className="pointer-events-none absolute inset-y-0 left-4 my-auto text-fg-4" />
-            <input id="acc-email" className="field pl-10 opacity-70" value={initial.email} readOnly disabled />
+            <input
+              id="acc-email"
+              className="field pl-10"
+              type="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailChanged(false);
+              }}
+              maxLength={120}
+              autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+            />
           </div>
-          <p className="mt-1 text-[12px] text-fg-4">Email kirish uchun ishlatiladi va o'zgartirilmaydi.</p>
+          {errors.email ? (
+            <p className="field-error">{errors.email}</p>
+          ) : (
+            <p className="mt-1 text-[12px] text-fg-4">{emailDiff ? "Yangi email qayta tasdiqlanadi, eski manzilga ogohlantirish yuboriladi." : "Email kirish uchun ishlatiladi."}</p>
+          )}
         </div>
+
+        {emailDiff && (
+          <div className="sm:col-start-2">
+            <label htmlFor="acc-current-password" className="field-label">
+              Joriy parol
+            </label>
+            <div className="relative">
+              <KeyRound size={15} className="pointer-events-none absolute inset-y-0 left-4 my-auto text-fg-4" />
+              <input
+                id="acc-current-password"
+                className="field pl-10"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                maxLength={100}
+                autoComplete="current-password"
+                aria-invalid={Boolean(errors.currentPassword)}
+              />
+            </div>
+            {errors.currentPassword ? <p className="field-error">{errors.currentPassword}</p> : <p className="mt-1 text-[12px] text-fg-4">Emailni o'zgartirish uchun parolingizni kiriting.</p>}
+          </div>
+        )}
+      </div>
+
+      {emailChanged && (
+        <div role="status" className="card-outline mt-6 flex items-start gap-3 !rounded-[18px] px-4 py-3">
+          <MailWarning size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+          <p className="min-w-0 text-[13px] leading-relaxed text-fg-2">
+            Email yangilandi. Yangi manzilni tasdiqlang —{" "}
+            <Link href="/kabinet/xavfsizlik" className="font-semibold text-fg underline underline-offset-2">
+              Xavfsizlik bo&apos;limida kod oling
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+
+      {/* Email bildirishnomalar */}
+      <div className="card-outline mt-6 flex items-center justify-between gap-4 !rounded-[18px] px-4 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <BellRing size={18} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
+          <div className="min-w-0">
+            <p id="acc-notify-label" className="text-[15px] font-semibold text-fg">
+              Email bildirishnomalar
+            </p>
+            <p id="acc-notify-hint" className="text-[12px] text-fg-3">
+              {notifyEmail ? "Narx, to'lov, ish topshirilishi va pul chiqarish haqida emailga ham xabar keladi." : "Faqat saytdagi qo'ng'iroqda ko'rinadi. Xavfsizlik xatlari baribir yuboriladi."}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={notifyEmail}
+          aria-labelledby="acc-notify-label"
+          aria-describedby="acc-notify-hint"
+          onClick={() => setNotifyEmail((v) => !v)}
+          className="switch"
+        />
       </div>
 
       {error && (

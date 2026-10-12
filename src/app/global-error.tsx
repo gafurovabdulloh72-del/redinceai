@@ -1,21 +1,27 @@
 "use client";
 
+import { useEffect } from "react";
 import "./globals.css";
 
 /**
  * Ildiz layout ham ishlamay qolgan holat uchun. Tokenlar globals.css'dan,
  * shriftlar bu yerda bo'lmasligi mumkin — tizim shriftlari ishlatiladi.
- * Rejim: localStorage'dagi tanlov (yoki tizim) — flash'siz.
+ * Rejim: localStorage'dagi tanlov (yoki tizim). Inline <script> emas — productiondagi nonce CSP uni bloklaydi
+ * (client komponentda headers() yo'q); bundle ichidagi effekt CSP'dan o'tadi.
  */
-const THEME_SCRIPT =
-  "(function(){try{var t=localStorage.getItem('redince-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='light'}})();";
+function applyTheme() {
+  try {
+    const saved = localStorage.getItem("redince-theme");
+    document.documentElement.dataset.theme = saved === "dark" || saved === "light" ? saved : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    document.documentElement.dataset.theme = "light";
+  }
+}
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(applyTheme, []);
   return (
     <html lang="uz" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
       <body className="min-h-dvh bg-bg text-fg antialiased">
         <main className="container-x flex min-h-dvh items-center justify-center py-16">
           <div className="card-outline w-full max-w-xl !rounded-card-lg px-6 py-14 text-center sm:px-12">

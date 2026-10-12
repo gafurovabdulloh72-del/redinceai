@@ -32,9 +32,14 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
             Bosh sahifaga <ArrowRight size={16} />
           </ButtonLink>
         </div>
-        <Link href="/mutaxassislar" className="relative mt-6 inline-flex min-h-10 items-center text-[13px] text-fg-3 transition hover:text-fg">
-          Mutaxassislar ro'yxatiga o'tish
-        </Link>
+        <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-fg-3">
+          <Link href="/mutaxassislar" className="inline-flex min-h-10 items-center transition hover:text-fg">
+            Mutaxassislar ro'yxati
+          </Link>
+          <Link href="/xarita" className="inline-flex min-h-10 items-center transition hover:text-fg">
+            Interaktiv xarita
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
-import { count, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import {
   ArrowRight,
   Check,
@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Clock3,
   Eye,
+  Heart,
   Images,
   Inbox,
   MapPinned,
@@ -27,7 +28,7 @@ import {
 import { Avatar, Badge, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { portfolioItems } from "@/lib/db/schema";
+import { favorites, portfolioItems } from "@/lib/db/schema";
 import { ORDER_STATUS_LABEL, REGION_BY_SLUG, type OrderStatus } from "@/lib/constants";
 import { isOnVacation, scheduleSummary } from "@/lib/privacy";
 import { getOrdersForUser } from "@/lib/queries";
@@ -36,9 +37,10 @@ import { cn, formatDate, formatNumber, formatPrice, greetingFor, timeAgo } from 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Umumiy" };
 
-const STATUS_TONE: Record<OrderStatus, "info" | "accent" | "warning" | "success" | "neutral"> = {
-  new: "info",
-  accepted: "accent",
+/** Buyurtmalar sahifasi (OrdersList) bilan bir xil: yangi — coral, qabul qilindi — binafsha */
+const STATUS_TONE: Record<OrderStatus, "accent" | "purple" | "warning" | "success" | "neutral"> = {
+  new: "accent",
+  accepted: "purple",
   in_progress: "warning",
   done: "success",
   cancelled: "neutral",
@@ -101,6 +103,55 @@ interface CheckItem {
   hint?: string;
 }
 
+/** Yangi mutaxassis uchun 4 bosqich (F71): profil → portfolio → ish vaqti → maxfiylik — checklist ma'lumotidan */
+interface OnboardingStep {
+  key: string;
+  label: string;
+  hint: string;
+  href: string;
+  done: boolean;
+}
+
+function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
+  const current = steps.findIndex((s) => !s.done);
+  return (
+    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Boshlash bosqichlari">
+      {steps.map((s, i) => {
+        const isCurrent = i === current;
+        return (
+          <li key={s.key} className="min-w-0">
+            <Link
+              href={s.href}
+              aria-current={isCurrent ? "step" : undefined}
+              className={cn(
+                "group flex h-full min-h-14 items-center gap-2.5 rounded-[var(--r-sm)] border px-3 py-2.5 transition",
+                s.done ? "border-line bg-fg/3" : isCurrent ? "border-accent bg-accent-soft/60 hover:bg-accent-soft" : "border-line hover:border-line-2 hover:bg-fg/4",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums",
+                  s.done ? "bg-success-soft text-success-text" : isCurrent ? "bg-accent text-white" : "border-2 border-line-2 text-fg-3",
+                )}
+                aria-hidden="true"
+              >
+                {s.done ? <Check size={13} strokeWidth={3} /> : i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className={cn("block truncate text-[13px] font-semibold", s.done ? "text-fg-3" : "text-fg")}>
+                  {s.label}
+                  <span className="sr-only">{s.done ? " — bajarilgan" : isCurrent ? " — joriy bosqich" : ""}</span>
+                </span>
+                <span className="block truncate text-[11px] text-fg-4">{s.done ? "Tayyor" : s.hint}</span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Sahifa                                                              */
 /* ------------------------------------------------------------------ */
@@ -109,7 +160,7 @@ export default async function KabinetPage() {
   if (!user) redirect(await loginRedirectPath("/kabinet"));
 
   const sp = user.specialist;
-  const [{ asClient, asSpecialist }, portfolioCount] = await Promise.all([
+  const [{ asClient, asSpecialist }, portfolioCount, favCount, favPreview] = await Promise.all([
     getOrdersForUser(user.id, sp?.id),
     sp
       ? db
@@ -118,6 +169,19 @@ export default async function KabinetPage() {
           .where(eq(portfolioItems.specialistId, sp.id))
           .then((r) => r[0]?.n ?? 0)
       : Promise.resolve(0),
+    // Sevimlilar kartasi: soni + 4 ta avatar (ism va avatar — ommaviy ma'lumot)
+    db
+      .select({ n: count() })
+      .from(favorites)
+      .where(eq(favorites.userId, user.id))
+      .then((r) => r[0]?.n ?? 0),
+    db.query.favorites.findMany({
+      where: eq(favorites.userId, user.id),
+      orderBy: [desc(favorites.createdAt)],
+      limit: 4,
+      columns: { specialistId: true },
+      with: { specialist: { columns: { id: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    }),
   ]);
 
   const firstName = user.name.split(" ")[0] || user.name;
@@ -149,6 +213,18 @@ export default async function KabinetPage() {
   const doneCount = checklist.filter((c) => c.done).length;
   const pct = checklist.length ? Math.round((doneCount / checklist.length) * 100) : 0;
   const onVacation = Boolean(sp && isOnVacation(sp.vacationUntil));
+
+  /* ---------- Onboarding bosqichlari (checklist'dan) ---------- */
+  const doneOf = (key: string) => checklist.find((c) => c.key === key)?.done ?? false;
+  const profileDone = sp ? ["title", "bio", "price", "skills", "photo", "contact"].every(doneOf) : false;
+  const privacyDone = Boolean(sp && Object.keys(sp.visibility ?? {}).length > 0);
+  const steps: OnboardingStep[] = [
+    { key: "profile", label: "Profil", hint: sp ? "Bio, narx, ko'nikmalar" : "Yo'nalish va hudud", href: "/kabinet/profil#mutaxassis", done: profileDone },
+    { key: "portfolio", label: "Portfolio", hint: `Kamida 3 ta ish · ${portfolioCount}/3`, href: "/kabinet/portfolio", done: doneOf("portfolio") },
+    { key: "schedule", label: "Ish vaqti", hint: "Kunlar va soatlar", href: "/kabinet/profil#ish-vaqti", done: doneOf("schedule") },
+    { key: "privacy", label: "Maxfiylik", hint: "Kim nimani ko'radi", href: "/kabinet/profil#maxfiylik", done: privacyDone },
+  ];
+  const showOnboarding = Boolean(sp && (pct < 100 || !privacyDone));
 
   /* ---------- So'nggi buyurtmalar (ikkala rol birgalikda) ---------- */
   const recent = [
@@ -196,6 +272,33 @@ export default async function KabinetPage() {
   }
   if (user.role === "admin") actions.push({ href: "/admin", label: "Admin panel", icon: ShieldCheck });
 
+  /* Sevimlilar kartasi (F2): mijozda tezkor amallardan keyin; mutaxassisda — faqat saqlangani bo'lsa, oxirida */
+  const favCard = (
+    <section className="card p-5" aria-labelledby="fav-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="fav-title" className="font-display text-[17px] font-semibold text-fg">
+            Sevimlilar
+          </h2>
+          <p className="mt-0.5 text-[12px] text-fg-3">{favCount > 0 ? `${favCount} ta saqlangan mutaxassis` : "Yoqqan profillarni yurak bilan saqlang"}</p>
+        </div>
+        <span className="icon-tile-soft icon-tile-sm" aria-hidden="true">
+          <Heart size={15} className={favCount > 0 ? "fill-current" : undefined} />
+        </span>
+      </div>
+      {favPreview.length > 0 && (
+        <div className="mt-3 flex -space-x-2" aria-hidden="true">
+          {favPreview.map((f) => (
+            <Avatar key={f.specialistId} name={f.specialist.user.name} src={f.specialist.user.avatarUrl} size={34} decorative className="ring-2 ring-surface" />
+          ))}
+        </div>
+      )}
+      <ButtonLink href={favCount > 0 ? "/kabinet/sevimlilar" : "/mutaxassislar"} variant="outline" size="md" className="mt-4 w-full">
+        {favCount > 0 ? "Sevimlilarni ochish" : "Mutaxassislarni ko'rish"} <ArrowRight size={14} />
+      </ButtonLink>
+    </section>
+  );
+
   const region = sp ? REGION_BY_SLUG[sp.regionSlug] : null;
   const scheduleParts = sp ? scheduleSummary(sp.schedule).split(" · ").filter(Boolean) : [];
 
@@ -220,7 +323,7 @@ export default async function KabinetPage() {
 
       {/* ---------- Onboarding: progress ring + checklist ---------- */}
       {needsProfile && (
-        <section className="card-elevated mb-5 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <section className="card-elevated mb-5 flex flex-col gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-start gap-4">
             <ProgressRing pct={0} />
             <div>
@@ -233,18 +336,24 @@ export default async function KabinetPage() {
           <ButtonLink href="/kabinet/profil#mutaxassis" variant="primary" className="shrink-0">
             Profilni yaratish <ArrowRight size={15} />
           </ButtonLink>
+          <div className="w-full border-t border-line pt-4">
+            <OnboardingStepper steps={steps} />
+          </div>
         </section>
       )}
 
-      {sp && pct < 100 && (
+      {showOnboarding && sp && (
         <section className="card-elevated mb-5 p-5 sm:p-6" aria-labelledby="onb-title">
+          <div className="mb-5 border-b border-line pb-5">
+            <OnboardingStepper steps={steps} />
+          </div>
           <div className="flex flex-col gap-5 sm:flex-row">
             <div className="flex items-start gap-4 sm:w-[300px] sm:shrink-0">
               <ProgressRing pct={pct} />
               <div className="min-w-0">
                 <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Profil to'liqligi</p>
                 <h2 id="onb-title" className="mt-1 font-display text-[18px] font-semibold leading-tight text-fg">
-                  {pct < 50 ? "Profilni to'ldiring" : pct < 100 ? "Yana ozgina qoldi" : "Profil to'liq"}
+                  {pct < 50 ? "Profilni to'ldiring" : pct < 100 ? "Yana ozgina qoldi" : "Maxfiylikni sozlang"}
                 </h2>
                 <p className="mt-1 text-[13px] leading-snug text-fg-2">
                   {doneCount}/{checklist.length} bajarildi · {portfolioCount} ta ish · {sp.isVerified ? "tasdiqlangan" : "tasdiq kutilmoqda"}
@@ -256,7 +365,7 @@ export default async function KabinetPage() {
                 <li key={c.key}>
                   {c.done ? (
                     <span className="flex min-h-10 items-center gap-2.5 rounded-[10px] px-2 text-[13px] text-fg-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-text">
                         <Check size={12} strokeWidth={3} />
                       </span>
                       <span className="line-through decoration-line-2">{c.label}</span>
@@ -296,7 +405,7 @@ export default async function KabinetPage() {
             <Tile icon={Send} value={sent} label="Yuborilgan buyurtmalar" href="/kabinet/buyurtmalar" />
             <Tile icon={Clock3} value={inProgress} label="Jarayonda" href="/kabinet/buyurtmalar" />
             <Tile icon={CheckCircle2} value={doneOutgoing} label="Bajarilgan" href="/kabinet/buyurtmalar" />
-            <Tile icon={Users} value={partners} label="Ishlagan mutaxassislar" href="/kabinet/buyurtmalar" />
+            <Tile icon={Users} value={partners} label="Ishlagan mutaxassislar" href="/kabinet/mutaxassislarim" />
           </>
         )}
       </div>
@@ -387,6 +496,8 @@ export default async function KabinetPage() {
             </div>
           </section>
 
+          {!sp && favCard}
+
           {/* Profil holati (mutaxassis) */}
           {sp && (
             <section className="card-elevated p-5" aria-labelledby="status-title">
@@ -458,6 +569,8 @@ export default async function KabinetPage() {
               </ButtonLink>
             </section>
           )}
+
+          {sp && favCount > 0 && favCard}
 
           {/* Mijoz uchun maslahat */}
           {!sp && user.role === "client" && (

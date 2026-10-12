@@ -9,10 +9,10 @@ export async function GET() {
   const headers = { "Cache-Control": "no-store" };
   try {
     await db.run(sql`select 1`);
-    return Response.json({ ok: true, ts: Date.now() }, { headers });
+    return Response.json({ ok: true, db: "ok", ts: Date.now() }, { headers });
   } catch (e) {
     console.error("[health]", e);
-    const body = process.env.NODE_ENV === "production" ? { ok: false } : { ok: false, error: e instanceof Error ? e.message : "Baza javob bermayapti" };
+    const body = process.env.NODE_ENV === "production" ? { ok: false, db: "fail" } : { ok: false, db: "fail", error: e instanceof Error ? e.message : "Baza javob bermayapti" };
     return Response.json(body, { status: 503, headers });
   }
 }

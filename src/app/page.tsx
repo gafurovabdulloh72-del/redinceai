@@ -1,15 +1,28 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, MessageSquareText, Play, Star } from "lucide-react";
+import { Suspense } from "react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, MessageSquareText, Play, ShieldCheck, Star } from "lucide-react";
 import { UzbekistanMap } from "@/components/map/UzbekistanMap";
 import { HomeMapSection } from "@/components/map/HomeMapSection";
-import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
-import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
-import { CATEGORIES, REGIONS } from "@/lib/constants";
+import { CATEGORIES } from "@/lib/constants";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+/*
+ * Bosh sahifa (E93: ixcham — ~4.3k px @1440): hero → interaktiv xarita → yo'nalishlar → tavsiya etilganlar → uch qadam → CTA.
+ * Takrorlanuvchi ro'yxatlar olib tashlandi: yo'nalishlar lentasi (xarita pill'lari va "Kim kerak?" bilan bir xil) va
+ * "Hududlar" chiplari (xarita va uning "Eng faol hududlar" ro'yxati bilan bir xil). Bo'limlar oralig'i — yagona mt-section.
+ */
+
+const STEPS = [
+  { icon: MapPinned, title: "Hududni tanlang", text: "Xaritada viloyatni bosing yoki yo'nalish bo'yicha qidiring — yaqin atrofdagi ijodkorlar chiqadi." },
+  { icon: Play, title: "Portfolioni ko'ring", text: "Ishlar, narxlar, tajriba va haqiqiy mijozlar sharhlari — hammasi bitta sahifada." },
+  { icon: MessageSquareText, title: "Buyurtma bering", text: "Loyihani yozing, narxni kelishing va xavfsiz to'lang — pul ishni qabul qilganingizdan keyin o'tkaziladi." },
+] as const;
 
 export default async function HomePage() {
   const [regionStats, categoryStats, featured, site] = await Promise.all([
@@ -19,9 +32,8 @@ export default async function HomePage() {
     getSiteStats(),
   ]);
   const counts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
-  const withAvatar = featured.filter((s) => !!s.user.avatarUrl).slice(0, 3);
-  const topCategory = CATEGORIES.map((c) => ({ c, n: categoryStats[c.slug] ?? 0 })).sort((a, b) => b.n - a.n)[0];
-  const regionsSorted = [...REGIONS].sort((a, b) => a.short.localeCompare(b.short, "uz"));
+  /* E83: avatar stack — rasm bo'lmasa ham <Avatar> bosh harflarni ko'rsatadi (bo'sh doira yo'q) */
+  const stack = featured.slice(0, 3);
 
   return (
     <>
@@ -43,7 +55,7 @@ export default async function HomePage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <ButtonLink href="/xarita" variant="accent" size="lg" className="sm:min-w-[210px]">
-                <MapPinned size={18} /> Xaritani ochish
+                <MapPinned size={20} /> Xaritani ochish
               </ButtonLink>
               <ButtonLink href="/mutaxassislar" variant="outline" size="lg">
                 Mutaxassislar ro'yxati <ArrowRight size={16} />
@@ -52,12 +64,12 @@ export default async function HomePage() {
 
             {/* Ishonch qatori */}
             <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
-              {withAvatar.length >= 3 ? (
+              {stack.length >= 3 ? (
                 <div className="flex items-center">
-                  <div className="flex -space-x-2.5">
-                    {/* Avatar: rasm yuklanmasa bosh harflar ko'rinadi (bo'sh doira emas) */}
-                    {withAvatar.map((sp) => (
-                      <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={32} decorative className="!ring-bg" />
+                  <div className="flex -space-x-2">
+                    {/* Avatar: rasm yuklanmasa bosh harf ko'rinadi (bo'sh doira emas). Stack'da bitta harf — qo'shni avatar kesmasin */}
+                    {stack.map((sp) => (
+                      <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={32} decorative singleInitial className="!ring-bg" />
                     ))}
                   </div>
                   <p className="ml-3 text-[13px] leading-tight text-fg-2">
@@ -73,10 +85,10 @@ export default async function HomePage() {
               )}
               <div className="flex items-center gap-x-4 gap-y-2 text-[13px] text-fg-2">
                 <span className="inline-flex items-center gap-1.5">
-                  <BadgeCheck size={15} className="text-accent" /> Tasdiqlangan profillar
+                  <BadgeCheck size={16} className="text-accent" /> Tasdiqlangan profillar
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Star size={14} className="fill-accent-3 text-accent-3" /> {site.reviews} ta sharh
+                  <Star size={16} className="fill-accent-3 text-accent-3" /> {site.reviews} ta sharh
                 </span>
               </div>
             </div>
@@ -97,7 +109,7 @@ export default async function HomePage() {
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-fg-3">
                 kam
-                <span className="h-2 w-20 rounded-full" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, var(--map-fill-0)), var(--accent))" }} aria-hidden="true" />
+                <span className="map-legend-ramp h-2 w-20 rounded-full" aria-hidden="true" />
                 ko'p
               </span>
             </div>
@@ -105,33 +117,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= KATEGORIYA LENTASI ================= */}
-      <section className="mt-16 border-y border-line py-4 sm:mt-24" aria-label="Yo'nalishlar lentasi">
-        <div className="container-x mb-3 flex items-center justify-between">
-          <span className="eyebrow">Yo'nalishlar</span>
-          <span className="text-[12px] text-fg-3">{CATEGORIES.length} ta yo'nalish · {site.specialists} ta mutaxassis</span>
-        </div>
-        <div className="edge-fade overflow-hidden">
-          <div className="flex w-max animate-marquee gap-10 whitespace-nowrap [animation-play-state:running] hover:[animation-play-state:paused]">
-            {[...CATEGORIES, ...CATEGORIES].map((c, i) => (
-              <Link
-                key={`${c.slug}-${i}`}
-                href={`/mutaxassislar?category=${c.slug}`}
-                className="group flex min-h-10 items-center gap-3 text-fg-3 transition hover:text-fg"
-                aria-hidden={i >= CATEGORIES.length || undefined}
-                tabIndex={i >= CATEGORIES.length ? -1 : undefined}
-              >
-                <CategoryIcon icon={c.icon} size={18} style={{ color: c.accent }} />
-                <span className="font-display text-[15px] font-medium tracking-tight">{c.plural}</span>
-                <span className="rounded-full bg-fg/6 px-2 py-0.5 text-[11px] font-bold text-fg-2">{categoryStats[c.slug] ?? 0}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ================= INTERAKTIV XARITA ================= */}
-      <section id="xarita" className="container-x mt-20 sm:mt-28">
+      <section id="xarita" className="container-x mt-section scroll-mt-24">
         <SectionHeading
           eyebrow="Interaktiv xarita"
           title={
@@ -141,68 +128,58 @@ export default async function HomePage() {
           }
           description="14 ta hudud. Rang qancha to'q bo'lsa, u yerda shuncha ko'p ijodkor bor. Bosing — yo'nalishlar bo'yicha taqsimot va ro'yxat ochiladi."
         />
-        <HomeMapSection stats={regionStats} total={site.specialists} />
+        {/* useSearchParams (tanlov URL'da) — Suspense chegarasi ichida */}
+        <Suspense fallback={<HomeMapFallback />}>
+          <HomeMapSection stats={regionStats} total={site.specialists} />
+        </Suspense>
       </section>
 
-      {/* ================= YO'NALISHLAR (bento) ================= */}
-      <section className="container-x mt-20 sm:mt-28">
+      {/* ================= YO'NALISHLAR — har biri o'z naqshi + ikonka plitkasi + son ================= */}
+      <section className="container-x mt-section">
         <SectionHeading
           eyebrow="Yo'nalishlar"
           title="Kim kerak?"
           description="Har bir yo'nalish bo'yicha mutaxassislar soni jonli hisoblanadi."
           action={
             <ButtonLink href="/mutaxassislar" variant="outline" size="sm">
-              Barchasi <ArrowRight size={14} />
+              Barchasi <ArrowRight size={16} />
             </ButtonLink>
           }
         />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {CATEGORIES.map((c, i) => {
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {CATEGORIES.map((c) => {
             const n = categoryStats[c.slug] ?? 0;
-            const isHero = i === 0;
+            const regionsWith = Object.values(regionStats).filter((r) => (r.byCategory[c.slug] ?? 0) > 0).length;
             return (
-              <Link
-                key={c.slug}
-                href={`/mutaxassislar?category=${c.slug}`}
-                className={`card card-hover group relative flex flex-col overflow-hidden p-5 sm:p-6 ${isHero ? "col-span-2 lg:row-span-2" : ""}`}
-              >
-                {isHero && <MapSilhouette />}
-                <span className="icon-tile-outline transition-transform duration-500 group-hover:-rotate-6" style={{ color: c.accent }}>
-                  <CategoryIcon icon={c.icon} size={20} />
-                </span>
-                <h3 className={`mt-5 font-display font-semibold text-fg ${isHero ? "text-[24px] sm:text-[30px]" : "text-[16px] sm:text-[17px]"}`}>{c.name}</h3>
-                <p className={`mt-1.5 text-[13px] leading-snug text-fg-3 ${isHero ? "max-w-sm" : "line-clamp-2"}`}>{c.description}</p>
-
-                {isHero && (
-                  <>
-                    <p className="relative mt-4 max-w-sm text-[14px] leading-relaxed text-fg-2">
-                      Eng ko'p so'raladigan yo'nalish: to'y va event suratga olish, reklama roliklari, korporativ video. Portfolio, narx va sharhlar — bitta sahifada.
-                    </p>
-                    <div className="relative mt-6 grid max-w-sm grid-cols-3 gap-2">
-                      <MiniStat value={String(n)} label="videograf" />
-                      <MiniStat value={String(Object.values(regionStats).filter((r) => (r.byCategory[c.slug] ?? 0) > 0).length)} label="hududda" />
-                      <MiniStat value={`${topCategory?.n ?? 0}`} label={`${topCategory?.c.name.toLowerCase() ?? ""} (top)`} />
-                    </div>
-                  </>
-                )}
-
-                <div className={`flex items-center justify-between ${isHero ? "mt-auto pt-8" : "mt-5"}`}>
-                  <span className="font-display text-[22px] font-semibold text-fg">
-                    {n}
-                    <span className="ml-1 text-[12px] font-medium text-fg-3">mutaxassis</span>
+              <li key={c.slug}>
+                <Link href={`/yonalish/${c.slug}`} className="card card-hover group flex h-full flex-col overflow-hidden">
+                  <span className="relative block h-20 sm:h-24">
+                    <CoverPattern category={c.slug} iconSize={20} className="transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
                   </span>
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg">
-                    <ArrowUpRight size={15} />
+                  <span className="flex flex-1 flex-col p-4 sm:p-5">
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block font-display text-[15px] font-semibold leading-tight text-fg sm:text-[17px]">{c.name}</span>
+                        <span className="mt-1 line-clamp-2 block text-[12.5px] leading-snug text-fg-3">{c.description}</span>
+                      </span>
+                      <span className="hover-reveal hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition sm:flex">
+                        <ArrowUpRight size={16} />
+                      </span>
+                    </span>
+                    <span className="mt-auto flex items-baseline gap-1.5 pt-4">
+                      <span className="font-display text-[22px] font-semibold leading-none text-fg tabular-nums">{n}</span>
+                      <span className="text-[12px] font-medium text-fg-3">mutaxassis · {regionsWith} hudud</span>
+                    </span>
                   </span>
-                </div>
-              </Link>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
 
       {/* ================= TAVSIYA ETILGANLAR ================= */}
-      <section className="container-x mt-20 sm:mt-28">
+      <section className="container-x mt-section">
         <SectionHeading
           eyebrow="Tavsiya etiladi"
           title={
@@ -213,62 +190,54 @@ export default async function HomePage() {
           description="Tasdiqlangan profil, haqiqiy sharhlar va ochiq narxlar."
           action={
             <ButtonLink href="/mutaxassislar?sort=rating" variant="outline" size="sm">
-              Hammasini ko'rish <ArrowRight size={14} />
+              Hammasini ko'rish <ArrowRight size={16} />
             </ButtonLink>
           }
         />
+        {/* Bitta qator: telefonda 3, planshetda 2×2, desktopda 3 */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((sp, i) => (
-            <SpecialistCard key={sp.id} sp={sp} priority={i < 3} />
+          {featured.slice(0, 4).map((sp, i) => (
+            <div key={sp.id} className={cn("min-w-0", i === 3 && "hidden sm:block lg:hidden")}>
+              <SpecialistCard sp={sp} priority={i < 3} />
+            </div>
           ))}
         </div>
       </section>
 
-      {/* ================= QANDAY ISHLAYDI ================= */}
-      <section className="container-x mt-20 sm:mt-28">
+      {/* ================= QANDAY ISHLAYDI — raqamli plitkalar + bog'lovchi chiziq ================= */}
+      <section className="container-x mt-section">
         <SectionHeading eyebrow="Qanday ishlaydi" title="Uch qadam — va mutaxassis topildi" />
-        <ol className="grid gap-4 md:grid-cols-3 md:gap-8">
-          {[
-            { icon: MapPinned, n: "01", title: "Hududni tanlang", text: "Xaritada viloyatni bosing yoki shaharni qidiring. Yaqin atrofdagi ijodkorlar chiqadi." },
-            { icon: Play, n: "02", title: "Portfolioni ko'ring", text: "Ishlar, narxlar, tajriba va haqiqiy mijozlar sharhlari — hammasi bitta sahifada." },
-            { icon: MessageSquareText, n: "03", title: "Buyurtma bering", text: "Loyihani yozing — mutaxassis qabul qiladi va to'g'ridan-to'g'ri bog'lanadi." },
-          ].map((s, i) => (
-            <li key={s.n} className={`card relative p-6 sm:p-7 ${i < 2 ? "md:step-line" : ""}`}>
-              <div className="flex items-center justify-between">
-                <span className="icon-tile">
+        <div className="card relative overflow-hidden p-6 sm:p-8">
+          <ol className="relative grid gap-9 md:grid-cols-3 md:gap-10">
+            {/* Bog'lovchi chiziq: telefonda vertikal (plitkalar markazidan), md+ da gorizontal (1- va 3-plitka markazlari orasida) */}
+            <span aria-hidden="true" className="absolute bottom-12 left-[22px] top-12 border-l-2 border-dashed border-accent/35 md:hidden" />
+            <span
+              aria-hidden="true"
+              className="absolute left-[22px] right-[calc((100%-5rem)/3-22px)] top-[22px] hidden border-t-2 border-dashed border-accent/35 md:block"
+            />
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="relative flex gap-4 md:flex-col md:gap-0">
+                <span className="icon-tile step-tile relative z-[1] shadow-[0_0_0_8px_var(--surface)]" data-step={i + 1}>
                   <s.icon size={20} />
                 </span>
-                <span className="font-display text-[13px] font-semibold text-accent-text">{s.n}</span>
-              </div>
-              <h3 className="mt-5 font-display text-[19px] font-semibold text-fg">{s.title}</h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-fg-2">{s.text}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* ================= HUDUDLAR ================= */}
-      <section className="container-x mt-20 sm:mt-28">
-        <SectionHeading eyebrow="Hududlar" title="Shahringiz bo'yicha qidiring" description="Alifbo tartibida. Qatorni yon tomonga suring." />
-        <div className="-mx-4 overflow-x-auto px-4 pb-2 no-scrollbar scroll-fade sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="grid w-max grid-flow-col grid-rows-2 gap-2.5">
-            {regionsSorted.map((r) => (
-              <Link
-                key={r.slug}
-                href={`/mutaxassislar?region=${r.slug}`}
-                className="card card-hover inline-flex h-11 snap-start items-center gap-2 !rounded-full px-4 text-[14px] font-medium text-fg"
-              >
-                {r.short}
-                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-text">{regionStats[r.slug]?.total ?? 0}</span>
-              </Link>
+                <span className="min-w-0 md:mt-6">
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-accent-text">{i + 1}-qadam</span>
+                  <h3 className="mt-1.5 font-display text-[20px] font-semibold leading-tight text-fg sm:text-[22px]">{s.title}</h3>
+                  <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-fg-2">{s.text}</p>
+                </span>
+              </li>
             ))}
-          </div>
+          </ol>
+          <p className="relative mt-7 flex items-center gap-2 border-t border-line pt-5 text-[13px] text-fg-2">
+            <ShieldCheck size={16} className="shrink-0 text-accent" />
+            To'lov eskrou orqali: pul mutaxassisga ish qabul qilingandan keyingina o'tadi.
+          </p>
         </div>
       </section>
 
-      {/* ================= CTA (ikkala rejimda ham qorong'u) ================= */}
-      <section className="container-x mt-20 sm:mt-28">
-        <div className="cta-dark grain relative overflow-hidden rounded-card-lg bg-[#121213] px-6 py-14 text-white sm:px-12 sm:py-20">
+      {/* ================= CTA (ikkala rejimda ham qorong'u; Noir'da inversiya yo'q — faqat nozik chegara) ================= */}
+      <section className="container-x mt-section">
+        <div className="cta-dark grain relative overflow-hidden rounded-card-lg border border-white/10 bg-[#121213] px-6 py-12 text-white sm:px-12 sm:py-16">
           <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-accent/40 blur-[100px]" />
           <div className="pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full bg-accent-2/35 blur-[110px]" />
           <div className="relative grid items-center gap-8 lg:grid-cols-12">
@@ -283,7 +252,7 @@ export default async function HomePage() {
             </div>
             <div className="flex flex-col gap-3 lg:col-span-4 lg:items-end">
               <ButtonLink href="/auth/royxat?role=specialist" variant="accent" size="lg" className="w-full sm:w-auto">
-                Mutaxassis sifatida qo'shilish <ArrowRight size={18} />
+                Mutaxassis sifatida qo'shilish <ArrowRight size={20} />
               </ButtonLink>
               <Link
                 href="/auth/royxat"
@@ -308,26 +277,19 @@ function StatChip({ value, label }: { value: string; label: string }) {
   );
 }
 
-function MiniStat({ value, label }: { value: string; label: string }) {
+/** HomeMapSection yuklanguncha (Suspense) — xuddi shu o'lchamdagi tinch skelet */
+function HomeMapFallback() {
   return (
-    <span className="card-outline flex flex-col px-3 py-2.5">
-      <span className="font-display text-[18px] font-semibold leading-none text-fg">{value}</span>
-      <span className="mt-1 truncate text-[11px] text-fg-3">{label}</span>
-    </span>
-  );
-}
-
-/** Bento katta plitkasi uchun dekorativ xarita silueti */
-function MapSilhouette() {
-  return (
-    <svg
-      viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
-      className="pointer-events-none absolute -bottom-6 -right-10 h-auto w-[72%] text-fg opacity-[0.06] transition-opacity duration-500 group-hover:opacity-10 dark:opacity-[0.08]"
-      aria-hidden="true"
-    >
-      {REGION_SHAPES.map((r) => (
-        <path key={r.slug} d={r.d} fill="currentColor" stroke="var(--surface)" strokeWidth={6} strokeLinejoin="round" />
-      ))}
-    </svg>
+    <div className="grid gap-5 lg:grid-cols-12" aria-hidden="true">
+      <div className="card p-5 lg:col-span-8">
+        <span className="skeleton block h-4 w-48" />
+        <span className="skeleton mt-4 block aspect-[1048/728] w-full !rounded-card" />
+      </div>
+      <div className="card-elevated p-5 lg:col-span-4">
+        <span className="skeleton block h-11 w-11" />
+        <span className="skeleton mt-4 block h-4 w-2/3" />
+        <span className="skeleton mt-6 block h-40 w-full" />
+      </div>
+    </div>
   );
 }

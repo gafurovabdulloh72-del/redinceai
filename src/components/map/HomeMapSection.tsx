@@ -7,6 +7,7 @@ import { ArrowRight, ArrowUpRight, MapPin, Search, Users, X } from "lucide-react
 import { UzbekistanMap } from "./UzbekistanMap";
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { ScrollRow } from "@/components/ui/ScrollRow";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import type { RegionStat, SpecialistListItem } from "@/lib/queries";
 import { cn, formatPriceRange } from "@/lib/utils";
@@ -101,7 +102,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
     () =>
       CATEGORIES.map((c) => ({ c, n: REGIONS.reduce((a, r) => a + (stats[r.slug]?.byCategory[c.slug] ?? 0), 0) }))
         .sort((a, b) => b.n - a.n)
-        .slice(0, 5),
+        .slice(0, 4),
     [stats],
   );
   const catMax = Math.max(1, ...catTotals.map((x) => x.n));
@@ -179,20 +180,20 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
             <span className="hidden text-[12px] text-fg-3 sm:block">Hududni bosing — ro'yxat o'ngda ochiladi</span>
           </div>
 
-          {/* Kasb pill'lari (aylanadigan qator, o'ng chetda so'nish) */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar scroll-fade" role="group" aria-label="Yo'nalish tanlash">
-            <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={13} />} label="Barchasi" count={countFor(null)} />
+          {/* Kasb pill'lari: aylanadigan qator — chetlarda so'nish + ko'rinadigan strelka-ishora (mobilda ham) */}
+          <ScrollRow label="Yo'nalish tanlash" className="-mx-1" rowClassName="flex gap-1.5 px-1 pb-1">
+            <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={16} />} label="Barchasi" count={countFor(null)} />
             {CATEGORIES.map((c) => (
               <CatPill
                 key={c.slug}
                 active={category === c.slug}
                 onClick={() => pickCategory(category === c.slug ? null : c.slug)}
-                icon={<CategoryIcon icon={c.icon} size={13} style={{ color: category === c.slug ? undefined : c.accent }} />}
+                icon={<CategoryIcon icon={c.icon} size={16} style={{ color: category === c.slug ? undefined : c.accent }} />}
                 label={c.name}
                 count={countFor(c.slug)}
               />
             ))}
-          </div>
+          </ScrollRow>
         </div>
 
         <div className="flex flex-1 items-center">
@@ -203,13 +204,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-1 pt-3 text-[11.5px] font-medium text-fg-3">
           <div className="flex items-center gap-2">
             <span>kam</span>
-            <span className="h-2 w-24 rounded-full" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, var(--map-fill-0)), var(--accent))" }} aria-hidden="true" />
+            <span className="map-legend-ramp h-2 w-24 rounded-full" aria-hidden="true" />
             <span>ko'p</span>
             <span className="ml-1 text-fg-4">— {unit}lar soni</span>
           </div>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-accent" aria-hidden="true" /> marker — hudud markazi
-          </span>
+          {/* To'liq rejimga havola — legenda qatorida (yon panel ustuni xarita balandligidan oshmasin) */}
+          <Link href="/xarita" className="group inline-flex min-h-10 items-center gap-1.5 text-[12.5px] font-semibold text-fg-2 transition hover:text-fg">
+            To'liq xarita rejimi — filtrlar, zoom <ArrowRight size={16} className="text-accent transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
       </div>
 
@@ -227,7 +229,8 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                   <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">{region.name}</h3>
                   <p className="mt-0.5 text-[13px] text-fg-3">
                     <span className="font-display font-semibold text-accent-text tabular-nums">{headCount}</span> ta {genderInfo ? `${genderInfo.label.toLowerCase()} ` : ""}
-                    {unit} · {region.capital}
+                    {unit}
+                    {genderInfo ? " ko'rsatilgan" : ""} · {region.capital}
                   </p>
                 </div>
               </div>
@@ -389,14 +392,6 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
             </div>
           )}
         </div>
-
-        <Link href="/xarita" className="card card-hover flex min-h-14 items-center justify-between px-5 py-3.5">
-          <span>
-            <span className="block text-[15px] font-semibold text-fg">To'liq xarita rejimi</span>
-            <span className="block text-[13px] text-fg-3">Filtrlar bilan batafsil qidiruv</span>
-          </span>
-          <ArrowRight size={18} className="text-accent" />
-        </Link>
       </div>
     </div>
   );
@@ -446,7 +441,7 @@ function SpecialistRow({ sp, showRegion }: { sp: SpecialistListItem; showRegion:
           </span>
         </span>
         <span className="hover-reveal flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition">
-          <ArrowUpRight size={14} />
+          <ArrowUpRight size={16} />
         </span>
       </Link>
     </li>

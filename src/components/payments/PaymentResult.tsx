@@ -45,7 +45,7 @@ export function PaymentResult({ paymentId, initial }: { paymentId: string; initi
   if (!p) {
     return (
       <div className="card-elevated p-6 text-center sm:p-10">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-soft text-danger">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-soft text-danger-text">
           <AlertCircle size={30} />
         </span>
         <h2 className="mt-5 font-display text-[24px] font-semibold text-fg">{error ?? "To'lov topilmadi"}</h2>
@@ -59,20 +59,20 @@ export function PaymentResult({ paymentId, initial }: { paymentId: string; initi
   const view = (() => {
     switch (p.state) {
       case "paid":
-        return { icon: ShieldCheck, tone: "bg-success-soft text-success", title: "To'lov qabul qilindi", text: `${formatPrice(p.amount)} eskrouda saqlanmoqda. Mutaxassis ishni yakunlagach «Ishni qabul qilish»ni bosasiz — shunda pul unga o'tadi.` };
+        return { icon: ShieldCheck, tone: "bg-success-soft text-success-text", title: "To'lov qabul qilindi", text: `${formatPrice(p.amount)} eskrouda saqlanmoqda. Mutaxassis ishni yakunlagach «Ishni qabul qilish»ni bosasiz — shunda pul unga o'tadi.` };
       case "released":
-        return { icon: CheckCircle2, tone: "bg-success-soft text-success", title: "Buyurtma yakunlangan", text: "Pul mutaxassisga o'tkazilgan. Rahmat!" };
+        return { icon: CheckCircle2, tone: "bg-success-soft text-success-text", title: "Buyurtma yakunlangan", text: "Pul mutaxassisga o'tkazilgan. Rahmat!" };
       case "refunded":
         return { icon: RotateCcw, tone: "bg-fg/6 text-fg-2", title: "Pul qaytarildi", text: `${formatPrice(p.amount)} sizga qaytarildi.` };
       case "cancelled":
-        return { icon: XCircle, tone: "bg-danger-soft text-danger", title: "To'lov amalga oshmadi", text: "To'lov bekor qilindi yoki muddati o'tdi. Buyurtma sahifasidagi «To'lash» tugmasi orqali qayta to'lashingiz mumkin." };
+        return { icon: XCircle, tone: "bg-danger-soft text-danger-text", title: "To'lov amalga oshmadi", text: "To'lov bekor qilindi yoki muddati o'tdi. Buyurtma sahifasidagi «To'lash» tugmasi orqali qayta to'lashingiz mumkin." };
       case "pending":
         return manualPending
-          ? { icon: Hourglass, tone: "bg-warning-soft text-warning", title: "Tasdiq kutilmoqda", text: "O'tkazmangiz haqida xabar oldik. Administrator tekshirgach buyurtma «To'langan (eskrou)» holatiga o'tadi va bildirishnoma keladi." }
-          : { icon: Hourglass, tone: "bg-warning-soft text-warning", title: "To'lov tekshirilmoqda", text: `${PROVIDER_LABEL[p.provider]} tasdig'ini kutmoqdamiz. Bu odatda bir necha soniya davom etadi.` };
+          ? { icon: Hourglass, tone: "bg-warning-soft text-warning-text", title: "Tasdiq kutilmoqda", text: "O'tkazmangiz haqida xabar oldik. Administrator tekshirgach buyurtma «To'langan (eskrou)» holatiga o'tadi va bildirishnoma keladi." }
+          : { icon: Hourglass, tone: "bg-warning-soft text-warning-text", title: "To'lov tekshirilmoqda", text: `${PROVIDER_LABEL[p.provider]} tasdig'ini kutmoqdamiz. Bu odatda bir necha soniya davom etadi.` };
       default:
         return polls >= MAX_POLLS
-          ? { icon: Hourglass, tone: "bg-warning-soft text-warning", title: "Tasdiq hali kelmadi", text: "To'lovni yakunlagan bo'lsangiz, bir ozdan keyin «Buyurtmalar»da holat yangilanadi. Aks holda qayta urinib ko'ring." }
+          ? { icon: Hourglass, tone: "bg-warning-soft text-warning-text", title: "Tasdiq hali kelmadi", text: "To'lovni yakunlagan bo'lsangiz, bir ozdan keyin «Buyurtmalar»da holat yangilanadi. Aks holda qayta urinib ko'ring." }
           : { icon: Wallet, tone: "bg-fg/6 text-fg-2", title: "To'lov kutilmoqda", text: `${PROVIDER_LABEL[p.provider]} sahifasida to'lovni yakunlang — holat shu yerda avtomatik yangilanadi.` };
     }
   })();

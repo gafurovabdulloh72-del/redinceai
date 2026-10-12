@@ -7,7 +7,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { OrderForm } from "@/components/orders/OrderForm";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { canView, isOnVacation, resolveVisibility, type Viewer } from "@/lib/privacy";
+import { isOnVacation, resolveVisibility, viewerCity, type Viewer } from "@/lib/privacy";
 import { getSpecialistBrief, hasAcceptedOrderWith } from "@/lib/queries";
 import { formatDate, formatPriceRange } from "@/lib/utils";
 
@@ -34,12 +34,10 @@ export default async function OrderPage({ params }: { params: Params }) {
   const region = REGION_BY_SLUG[sp.regionSlug];
   const vacation = isOnVacation(sp.vacationUntil);
 
-  // Shahar — mutaxassisning maxfiylik tanloviga ko'ra (profil sahifasidagi kabi): yopiq bo'lsa hudud markazi
-  const vis = resolveVisibility(sp.visibility);
-  const viewer: Viewer = { userId: user.id, role: user.role, hasOrder: vis.city === "orders" ? await hasAcceptedOrderWith(user.id, sp.id) : false };
-  const cityVisible = canView(vis.city, viewer);
-  const city = cityVisible ? sp.city : (region?.capital ?? sp.city);
-  const cityApprox = !cityVisible && city !== sp.city;
+  // Shahar (E28) — viewerCity(): maxfiylik ruxsat bermasa hudud markazi (profil va ro'yxat bilan bir xil qoida)
+  const viewer: Viewer = { userId: user.id, role: user.role, hasOrder: resolveVisibility(sp.visibility).city === "orders" ? await hasAcceptedOrderWith(user.id, sp.id) : false };
+  const city = viewerCity(sp, viewer);
+  const cityApprox = city !== sp.city;
 
   const steps = [
     { icon: MessageSquareText, t: "So'rov mutaxassis kabinetiga tushadi", d: "U qabul qiladi yoki savollar bilan bog'lanadi." },

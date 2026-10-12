@@ -3,7 +3,7 @@ import { cache } from "react";
 import { inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { platformSettings } from "@/lib/db/schema";
-import { PLATFORM_DEFAULTS } from "@/lib/constants";
+import { PLATFORM_DEFAULTS, TOP_RATED_RULE } from "@/lib/constants";
 
 /**
  * Komissiya darajalari (F21). PLATFORM_DEFAULTS (constants.ts) hali bu kalitlarni bilmasa ham ishlaydi —
@@ -16,9 +16,17 @@ const TIER_DEFAULTS = { commissionPctNew: 15, commissionPctTop: 7 } as const;
 export const ALL_DEFAULTS = { ...TIER_DEFAULTS, ...PLATFORM_DEFAULTS } as const;
 /** Shu sondan kam bajarilgan buyurtmasi bo'lgan mutaxassis "yangi" darajada */
 export const NEW_TIER_MAX_COMPLETED = 3;
-/** Top mutaxassis: reyting ≥ 4.8 va kamida shuncha bajarilgan buyurtma */
-export const TOP_RATED_MIN_RATING = 4.8;
-export const TOP_RATED_MIN_COMPLETED = 5;
+/**
+ * "Top mutaxassis" (F21/F69) — recalcRating (queries.ts) bilan BIR XIL qoida (constants TOP_RATED_RULE), aks holda
+ * nishon sharh yozilganda va buyurtma yakunlanganda almashib turadi. Qoidaga minCompleted qo'shilsa — u ham hisobga olinadi.
+ */
+const RULE: { minRating: number; minReviews: number; minCompleted?: number } = TOP_RATED_RULE;
+export const TOP_RATED_MIN_RATING = RULE.minRating;
+export const TOP_RATED_MIN_REVIEWS = RULE.minReviews;
+export const TOP_RATED_MIN_COMPLETED = RULE.minCompleted ?? 0;
+export function isTopRated(sp: { rating: number; reviewCount: number; completedCount: number }): boolean {
+  return sp.rating >= TOP_RATED_MIN_RATING && sp.reviewCount >= TOP_RATED_MIN_REVIEWS && sp.completedCount >= TOP_RATED_MIN_COMPLETED;
+}
 
 export type PlatformSettings = { -readonly [K in keyof typeof ALL_DEFAULTS]: number };
 export type PlatformSettingKey = keyof PlatformSettings;

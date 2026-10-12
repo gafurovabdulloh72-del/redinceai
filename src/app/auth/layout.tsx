@@ -25,7 +25,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           {/* ---------- Chap: editorial brend paneli (faqat desktop) ---------- */}
           <aside className="card relative hidden overflow-hidden p-10 lg:sticky lg:top-28 lg:flex lg:flex-col lg:self-start" aria-hidden="true">
             <div className="flex-1">
-              <Logo />
+              {/* Logo ham, eyebrow ham inline-flex — alohida qatorga tushishi uchun blok o'ram */}
+              <div>
+                <Logo />
+              </div>
               <span className="eyebrow mt-12">O'zbekiston ijodkorlar xaritasi</span>
               <h2 className="display-xl mt-5 max-w-md text-[40px] text-fg xl:text-[46px]">
                 Ijodkorlar va mijozlar <span className="accent-serif text-accent">bir xaritada</span>

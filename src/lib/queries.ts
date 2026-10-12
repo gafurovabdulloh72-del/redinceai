@@ -1,16 +1,35 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { favorites, orderEvents, orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
-import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS, TOP_RATED_RULE } from "./constants";
+import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
+import { isTopRated } from "./payments/settings";
 import { escapeLike, translit } from "./utils";
 import { GUEST_VIEWER, tashkentNow, toListItem, type Viewer } from "./privacy";
 
 /** Bloklangan foydalanuvchining profili ro'yxat, statistika va tavsiyalarda chiqmaydi (users.isBanned) */
 function notBanned(): SQL {
   return notInArray(specialists.userId, db.select({ id: users.id }).from(users).where(eq(users.isBanned, true)));
+}
+
+/**
+ * Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (sortOrder, keyin createdAt bo'yicha; F3):
+ * kabinetdagi "Birinchi ish muqovada ko'rinadi" ro'yxat kartalarida ham to'g'ri bo'lsin.
+ * Alohida bitta so'rov (faqat muqovasizlar uchun) — drizzle `extras` ichidagi bog'liq subquery'da ustun taxalluslarini qayta yozadi.
+ */
+async function withCovers<T extends { id: string; coverUrl: string | null }>(rows: T[]): Promise<T[]> {
+  const missing = rows.filter((r) => !r.coverUrl).map((r) => r.id);
+  if (!missing.length) return rows;
+  const thumbs = await db
+    .select({ specialistId: portfolioItems.specialistId, url: portfolioItems.thumbnailUrl })
+    .from(portfolioItems)
+    .where(and(inArray(portfolioItems.specialistId, missing), isNotNull(portfolioItems.thumbnailUrl)))
+    .orderBy(asc(portfolioItems.sortOrder), asc(portfolioItems.createdAt));
+  const first = new Map<string, string>();
+  for (const t of thumbs) if (t.url && !first.has(t.specialistId)) first.set(t.specialistId, t.url);
+  return rows.map((r) => (r.coverUrl ? r : { ...r, coverUrl: first.get(r.id) ?? null }));
 }
 
 /** Apostrof variantlari — utils.translit() bilan bir xil ro'yxat (ustun tomonida SQL replace) */
@@ -138,7 +157,7 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
   ]);
 
   return {
-    items: items.map((sp) => toListItem(sp, viewer)),
+    items: (await withCovers(items)).map((sp) => toListItem(sp, viewer)),
     total,
     page: filter.page,
     pages: Math.max(1, Math.ceil(total / filter.limit)),
@@ -161,9 +180,11 @@ export async function listFavoriteSpecialists(userId: string, viewer: Viewer = {
   const rows = await db.query.favorites.findMany({
     where: eq(favorites.userId, userId),
     orderBy: [desc(favorites.createdAt)],
-    with: { specialist: { with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    with: { specialist: { with: { user: { columns: { name: true, avatarUrl: true, isBanned: true } } } } },
   });
-  return rows.map((r) => toListItem(r.specialist, viewer));
+  // Bloklangan / o'chirilgan akkauntlar sevimlilarda ham ko'rinmaydi (F2)
+  const visible = rows.filter((r) => !r.specialist.user.isBanned).map((r) => r.specialist);
+  return (await withCovers(visible)).map((sp) => toListItem(sp, viewer));
 }
 
 /* ------------------------------------------------------------------ */
@@ -218,7 +239,7 @@ export async function getSimilarSpecialists(sp: { id: string; regionSlug: string
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },
   });
-  return rows.map((r) => toListItem(r, viewer));
+  return (await withCovers(rows)).map((r) => toListItem(r, viewer));
 }
 
 /**
@@ -345,10 +366,10 @@ export async function suggestSearch(q: string, limit = 8): Promise<Suggestion[]>
       .orderBy(desc(specialists.rating))
       .limit(5),
     db.all<{ v: string }>(
-      sql`select distinct value as v from ${specialists}, json_each(${specialists.skills}) where ${plainCol(sql`value`)} like ${term} escape '\\' order by value limit 5`,
+      sql`select distinct value as v from ${specialists}, json_each(${specialists.skills}) where ${notBanned()} and ${plainCol(sql`value`)} like ${term} escape '\\' order by value limit 5`,
     ),
     db.all<{ v: string }>(
-      sql`select distinct ${specialists.city} as v from ${specialists} where ${visibilityOf("city")} = 'public' and ${plainCol(sql`${specialists.city}`)} like ${term} escape '\\' order by ${specialists.city} limit 5`,
+      sql`select distinct ${specialists.city} as v from ${specialists} where ${notBanned()} and ${visibilityOf("city")} = 'public' and ${plainCol(sql`${specialists.city}`)} like ${term} escape '\\' order by ${specialists.city} limit 5`,
     ),
   ]);
 
@@ -356,6 +377,11 @@ export async function suggestSearch(q: string, limit = 8): Promise<Suggestion[]>
   for (const s of skills) out.push({ type: "skill", label: s.v, hint: "Ko'nikma", href: `/mutaxassislar?skill=${encodeURIComponent(s.v)}` });
   for (const c of cities) out.push({ type: "city", label: c.v, hint: "Shahar", href: `/mutaxassislar?q=${encodeURIComponent(c.v)}` });
   return out.slice(0, limit);
+}
+
+/** Sitemap uchun ochiq profillar: bloklangan va o'chirilgan (anonimlashtirilgan — ular ham isBanned) profillarsiz */
+export async function getSitemapProfiles(): Promise<Array<{ slug: string; updatedAt: Date }>> {
+  return db.select({ slug: specialists.slug, updatedAt: specialists.updatedAt }).from(specialists).where(notBanned());
 }
 
 /** SEO landing sahifalari (F59/F60) uchun kategoriya×hudud bo'yicha oxirgi yangilanish va son */
@@ -366,6 +392,27 @@ export async function getLandingIndex(): Promise<Array<{ category: string; regio
     .where(notBanned())
     .groupBy(specialists.category, specialists.regionSlug);
   return rows.map((r) => ({ category: r.category, region: r.region, n: r.n, lastModified: new Date(Number(r.last) || Date.now()) }));
+}
+
+/** Landing sahifa statistikasi: son, eng past boshlang'ich narx (0 — "kelishiladi" hisobga olinmaydi), o'rtacha reyting, tasdiqlanganlar */
+export async function getLandingStats(category: string, region?: string | null) {
+  const conds: SQL[] = [notBanned(), eq(specialists.category, category)];
+  if (region) conds.push(eq(specialists.regionSlug, region));
+  const [row] = await db
+    .select({
+      n: count(),
+      minPrice: sql<number | null>`min(case when ${specialists.priceFrom} > 0 then ${specialists.priceFrom} end)`,
+      avgRating: sql<number | null>`avg(case when ${specialists.reviewCount} > 0 then ${specialists.rating} end)`,
+      verified: sql<number>`coalesce(sum(case when ${specialists.isVerified} then 1 else 0 end), 0)`,
+    })
+    .from(specialists)
+    .where(and(...conds));
+  return {
+    n: row?.n ?? 0,
+    minPrice: row?.minPrice == null ? null : Number(row.minPrice),
+    avgRating: row?.avgRating == null ? null : Math.round(Number(row.avgRating) * 10) / 10,
+    verified: Number(row?.verified ?? 0),
+  };
 }
 
 /** Sharhlar taqsimoti (5★…1★) — profil sahifasidagi reyting panelida */
@@ -430,7 +477,7 @@ export async function getFeaturedSpecialists(limit = 6) {
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },
   });
-  return rows.map((r) => toListItem(r));
+  return (await withCovers(rows)).map((r) => toListItem(r));
 }
 
 /* ------------------------------------------------------------------ */
@@ -465,10 +512,12 @@ export async function recalcRating(specialistId: string) {
     .from(reviews)
     .where(eq(reviews.specialistId, specialistId));
   const rating = Math.round(Number(row.avg) * 10) / 10;
-  // "Top mutaxassis" (F69): reyting va sharhlar soni bo'yicha avtomatik (seed bilan bir xil qoida — TOP_RATED_RULE)
+  const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { completedCount: true } });
+  // "Top mutaxassis" (F69): payments isTopRated() bilan aynan bir qoida (TOP_RATED_RULE, minCompleted bo'lsa u ham) —
+  // aks holda nishon sharh yozilganda va buyurtma yakunlanganda almashib turadi
   await db
     .update(specialists)
-    .set({ rating, reviewCount: row.n, topRated: rating >= TOP_RATED_RULE.minRating && row.n >= TOP_RATED_RULE.minReviews })
+    .set({ rating, reviewCount: row.n, topRated: isTopRated({ rating, reviewCount: row.n, completedCount: sp?.completedCount ?? 0 }) })
     .where(eq(specialists.id, specialistId));
 }
 

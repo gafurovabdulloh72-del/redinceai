@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CoverPattern } from "@/components/ui/CoverPattern";
 
 /**
  * Profil muqovasi: rasm muvaffaqiyatli yuklangandagina ko'rinadi va ustiga
  * o'qilishi uchun qoraytiruvchi gradient qo'yiladi. Rasm yo'q/buzilgan bo'lsa —
- * hech narsa chizilmaydi (ostidagi tinch yuza ko'rinadi), gradient ham chiqmaydi.
+ * `category` berilgan bo'lsa yo'nalish naqshi (CoverPattern), aks holda hech narsa (ostidagi tinch yuza); gradient chiqmaydi.
  */
-export function CoverImage({ src }: { src: string | null }) {
+export function CoverImage({ src, category, seed }: { src: string | null; category?: string; seed?: string }) {
   const ref = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "ok" | "broken">("loading");
 
@@ -18,7 +19,7 @@ export function CoverImage({ src }: { src: string | null }) {
     if (el.complete) setState(el.naturalWidth > 0 ? "ok" : "broken");
   }, [src]);
 
-  if (!src || state === "broken") return null;
+  if (!src || state === "broken") return category ? <CoverPattern category={category} seed={seed} /> : null;
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}

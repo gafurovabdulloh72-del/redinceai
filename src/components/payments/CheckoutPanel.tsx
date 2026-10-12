@@ -238,7 +238,7 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
         )}
 
         {error && (
-          <p role="alert" className="mt-4 flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger">
+          <p role="alert" className="mt-4 flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}

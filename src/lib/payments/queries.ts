@@ -122,6 +122,9 @@ export async function listOpenPaymentsForOrders(orderIds: string[]): Promise<Map
   return out;
 }
 
+/** Nom bo'yicha moslik (kabinet sahifalari uchun): buyurtma → ochiq to'lov (pending ustun) */
+export const getPendingPaymentsByOrder = listOpenPaymentsForOrders;
+
 /* ------------------------------------------------------------------ */
 /* Admin                                                               */
 /* ------------------------------------------------------------------ */

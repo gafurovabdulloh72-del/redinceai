@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
+import { notify } from "@/lib/notifications";
 import { loadPaymentDetail } from "@/lib/payments/dto";
-import { cancelPayment, findInFlightProviderPayment, markPaid, refundPayment, releaseOrder } from "@/lib/payments/service";
+import { cancelPayment, findInFlightProviderPayment, markPaid, orderHref, refundPayment, releaseOrder } from "@/lib/payments/service";
+import { formatPrice } from "@/lib/utils";
 
 const schema = z.object({
   action: z.enum(["confirm", "release", "refund", "cancel"]),
@@ -51,6 +53,16 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
       }
       const row = await cancelPayment(p.id, 4, session.sub);
       await audit(session.sub, "admin_payment", { targetType: "payment", targetId: p.id, meta: { action, note: note || undefined } }, req);
+      // Mijoz «To'ladim» degan o'tkazma rad etildi — u bilishi kerak (qayta to'lash yoki admin bilan bog'lanish)
+      if (p.provider === "manual" && p.state === "pending") {
+        await notify(
+          p.clientId,
+          "payment_cancelled",
+          "O'tkazma tasdiqlanmadi",
+          `«${p.order.title}» — ${formatPrice(p.amount)} o'tkazmasi administrator tomonidan topilmadi yoki rad etildi.${note ? ` Izoh: ${/[.!?]$/.test(note) ? note : `${note}.`}` : ""} Pul yuborgan bo'lsangiz qo'llab-quvvatlashga yozing.`,
+          orderHref(p.orderId),
+        );
+      }
       return ok({ id: row.id, state: row.state });
     }
   }

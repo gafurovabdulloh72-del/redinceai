@@ -31,6 +31,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         priceTo: s.priceTo,
         experience: s.experience,
         skills: s.skills,
+        equipment: s.equipment ?? [],
         languages: s.languages,
         telegram: s.telegram ?? "",
         instagram: s.instagram ?? "",
@@ -109,7 +110,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
       </nav>
 
       <div className="space-y-5">
-        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null }} visibility={visibility} />
+        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
 
         <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} />
 

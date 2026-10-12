@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { KabinetNav, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { notifications, orders } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -25,21 +25,33 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   if (!user) redirect(await loginRedirectPath("/kabinet"));
 
   // Yangi (hali ko'rilmagan) buyurtmalar soni — navigatsiyadagi hisoblagich uchun
-  let newOrders = 0;
-  if (user.specialist) {
-    const [row] = await db
+  // + o'qilmagan bildirishnomalar soni (F1) — har ikkisi parallel
+  const specialistId = user.specialist?.id;
+  const [newOrders, unread] = await Promise.all([
+    specialistId
+      ? db
+          .select({ n: count() })
+          .from(orders)
+          .where(and(eq(orders.specialistId, specialistId), eq(orders.status, "new")))
+          .then((r) => r[0]?.n ?? 0)
+      : Promise.resolve(0),
+    db
       .select({ n: count() })
-      .from(orders)
-      .where(and(eq(orders.specialistId, user.specialist.id), eq(orders.status, "new")));
-    newOrders = row?.n ?? 0;
-  }
+      .from(notifications)
+      .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)))
+      .then((r) => r[0]?.n ?? 0)
+      .catch(() => 0),
+  ]);
 
   const items: KabinetNavItem[] = [
     { href: "/kabinet", label: "Umumiy", icon: "overview", exact: true },
     { href: "/kabinet/buyurtmalar", label: "Buyurtmalar", icon: "orders", badge: newOrders },
-    { href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" },
-    { href: "/kabinet/profil", label: "Profil", icon: "profile" },
+    { href: "/kabinet/bildirishnomalar", label: "Bildirishnomalar", icon: "notifications", badge: unread },
   ];
+  // Mijoz: ishlagan mutaxassislari (F48)
+  if (user.role === "client") items.push({ href: "/kabinet/mutaxassislarim", label: "Mutaxassislarim", icon: "partners" });
+  items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" });
+  items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
   if (user.specialist || user.role === "specialist") {
     items.push({ href: "/kabinet/portfolio", label: "Portfolio", icon: "portfolio" });
   }

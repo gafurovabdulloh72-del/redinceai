@@ -6,7 +6,9 @@
    - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (italic urg'u)
    - Ranglar: iliq neytral yuzalar + bitta coral accent (binafsha — ikkilamchi)
    - Yuzalar: aniq (blur'siz) kartalar, nozik chiziqlar, 3 darajali soya
-   - Radius: 3 daraja (--r-sm 12 / --r-md 20 / --r-lg 28)
+   - Radius: 3 daraja (--r-sm 12 / --r-md 16 / --r-lg 24) — plitka / karta / katta blok
+   - Ikonkalar: 16 (inline, kichik plitka) / 20 (plitka, tugma) — 24 faqat katta plitkada
+   - Bo'limlar oralig'i: bitta qadam — mt-section (64 / sm 80px)
    - Harakat: --dur-* / --ease-* tokenlar
    Eslatma: eski .glass* / tint* sinflari moslik uchun saqlangan — endi ular
    oddiy "surface" kartalar sifatida ishlaydi.
@@ -33,6 +35,7 @@
   --accent: #ff5a36;
   --accent-text: #c23b21; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.3, accent-soft 4.6 (AA) */
   --accent-2: #7b61ff;
+  --accent-2-text: #5d3dff; /* kichik binafsha matn (badge) — accent-2-soft 5.1, qog'oz 4.6 (AA) */
   --accent-3: #f0b43c;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 90, 54, 0.12);
@@ -47,14 +50,20 @@
   --danger-soft: rgba(220, 74, 63, 0.12);
   --info: #5f86c4;
   --info-soft: rgba(95, 134, 196, 0.14);
+  /* Holat MATNI (kichik shrift, soft fon ustida) — --accent-text kabi to'qroq ton: soft/oq/qog'oz fonida 4.6+ (AA).
+     Asosiy ranglar (nuqta, chegara, ikonka) o'zgarmaydi */
+  --success-text: #22714f;
+  --warning-text: #8f581a;
+  --danger-text: #bc2d22;
+  --info-text: #3c63a2;
 
   --ink: #121213;
   --ink-fg: #ffffff;
 
-  /* Radius — 3 daraja */
+  /* Radius — 3 daraja (12 / 16 / 24) */
   --r-sm: 12px;
-  --r-md: 20px;
-  --r-lg: 28px;
+  --r-md: 16px;
+  --r-lg: 24px;
 
   /* Soya — 3 daraja */
   --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04), 0 8px 24px -12px rgba(18, 18, 19, 0.12);
@@ -98,6 +107,10 @@
   --map-slab-line: rgba(255, 255, 255, 0.6);
   --map-label-bg: #ffffff;
   --map-sheen: 0.55; /* ustki yorug'lik qatlami kuchi */
+  /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */
+  --map-tint-lo: var(--accent);
+  --map-mix-floor: 16%; /* kamida 1 ta bo'lsa — aniq coral tus (0 tadan ajralib turadi) */
+  --map-mix-range: 70%;
 
   color-scheme: light;
 }
@@ -120,6 +133,7 @@
   --accent: #ff6b47;
   --accent-text: var(--accent); /* qorong'uda coral'ning o'zi 6.5:1 */
   --accent-2: #8f79ff;
+  --accent-2-text: var(--accent-2);
   --accent-3: #f5bd4a;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 107, 71, 0.16);
@@ -133,6 +147,11 @@
   --danger-soft: rgba(239, 106, 95, 0.16);
   --info: #7ea0d8;
   --info-soft: rgba(126, 160, 216, 0.16);
+  /* qorong'uda asosiy ranglarning o'zi AA (5.4–6.3:1) */
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --danger-text: var(--danger);
+  --info-text: var(--info);
 
   --ink: #f4f2ec;
   --ink-fg: #0a0a0c;
@@ -153,13 +172,18 @@
   --glass-shadow-strong: rgba(0, 0, 0, 0.6);
 
   --map-base: #1b1b22;
-  --map-fill-0: #2c2b31; /* neytral: surface-2 va surface-3 orasida, jigarrang ohangsiz */
+  --map-fill-0: #2b2b34; /* sovuq neytral (Noir surface-3 oilasi) — jigarrang ohangsiz */
   --map-line: #0a0a0c;
   --map-slab: #0d0d10;
   --map-slab-top: #15151a;
   --map-slab-line: rgba(255, 255, 255, 0.05);
   --map-label-bg: #1f1f26;
   --map-sheen: 0.2;
+  /* Qorong'u fonda past to'yingan coral = jigarrang. Shuning uchun kam sonlar btn-accent gradientidagi
+     pushti-coral (#ff3d6e) tomonga suriladi va pastki chegara balandroq — "tus", loyqa emas */
+  --map-tint-lo: #ff3d6e;
+  --map-mix-floor: 28%;
+  --map-mix-range: 64%;
 
   color-scheme: dark;
 }
@@ -188,6 +212,7 @@
   --color-accent: var(--accent);
   --color-accent-text: var(--accent-text);
   --color-accent-2: var(--accent-2);
+  --color-accent-2-text: var(--accent-2-text);
   --color-accent-3: var(--accent-3);
   --color-accent-soft: var(--accent-soft);
   --color-accent-2-soft: var(--accent-2-soft);
@@ -201,6 +226,10 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-success-text: var(--success-text);
+  --color-warning-text: var(--warning-text);
+  --color-danger-text: var(--danger-text);
+  --color-info-text: var(--info-text);
 
   /* Moslik */
   --color-tint: var(--accent);
@@ -424,15 +453,40 @@ select:focus-visible {
     color: var(--fg-2);
     box-shadow: var(--card-inset);
   }
+  /* Plitka o'lchamlari: sm 32 (ikonka 16) / md 44 (20) / lg 56 (24); radius faqat tokenlardan */
   .icon-tile-sm {
     width: 2rem;
     height: 2rem;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
   }
   .icon-tile-lg {
     width: 3.5rem;
     height: 3.5rem;
-    border-radius: 16px;
+    border-radius: var(--r-md);
+  }
+  /* Raqamli qadam plitkasi ("Uch qadam") — ikonka + burchakdagi tartib raqami */
+  .step-tile {
+    position: relative;
+  }
+  .step-tile[data-step]::after {
+    content: attr(data-step);
+    position: absolute;
+    top: -0.45rem;
+    right: -0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    padding: 0 0.3rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: 0 0 0 3px var(--surface);
   }
 
   /* Asosiy tugma — "siyoh" (yorug'da qora, qorong'uda oq) */
@@ -484,8 +538,9 @@ select:focus-visible {
     outline: none;
     transition: border-color var(--dur-1), box-shadow var(--dur-1), background var(--dur-1);
   }
+  /* background-color (shorthand emas): select.field'dagi chevron (background-image) o'chib ketmasin */
   [data-theme="dark"] .field {
-    background: var(--surface);
+    background-color: var(--surface);
   }
   .field::placeholder {
     color: var(--fg-4);
@@ -496,7 +551,7 @@ select:focus-visible {
   .field:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-soft);
-    background: var(--surface);
+    background-color: var(--surface);
   }
   select.field {
     appearance: none;
@@ -647,6 +702,66 @@ select:focus-visible {
   scroll-padding-inline: 1rem;
 }
 
+/* Ikki tomonlama so'nish: --fade-l / --fade-r (0px yoki 36px) JS orqali aylanish holatiga qarab beriladi */
+@utility scroll-fade-x {
+  --fade-l: 0px;
+  --fade-r: 36px;
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 1rem;
+}
+
+/* ScrollRow strelka-ishorasi: qator markazida, so'nish ustida; o'ngdagisi ohista "turtadi" */
+@layer components {
+  .scroll-hint-btn {
+    position: absolute;
+    top: 50%;
+    margin-top: -1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    color: var(--fg-2);
+    box-shadow: var(--shadow-1);
+    transition: color var(--dur-1), border-color var(--dur-1);
+  }
+  .scroll-hint-btn:hover {
+    color: var(--fg);
+    border-color: var(--fg-3);
+  }
+  .scroll-hint-nudge {
+    animation: scroll-nudge 2.4s var(--ease-smooth) 0.8s 3;
+  }
+}
+@keyframes scroll-nudge {
+  0%, 60%, 100% { transform: translateX(0); }
+  75% { transform: translateX(4px); }
+  88% { transform: translateX(-1px); }
+}
+
+/* Bo'limlar orasidagi yagona qadam (bosh sahifa va ommaviy sahifalar) */
+@utility mt-section {
+  margin-top: 4rem;
+  @media (min-width: 640px) {
+    margin-top: 5rem;
+  }
+}
+
+/* Xarita legendasi — choropleth bilan bir xil rampa (ikkala rejimda) */
+@utility map-legend-ramp {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--map-tint-lo) var(--map-mix-floor), var(--map-fill-0)),
+    color-mix(in oklab, color-mix(in oklab, var(--accent) 50%, var(--map-tint-lo)) calc(var(--map-mix-floor) + 0.5 * var(--map-mix-range)), var(--map-fill-0)),
+    color-mix(in oklab, var(--accent) calc(var(--map-mix-floor) + var(--map-mix-range)), var(--map-fill-0))
+  );
+}
+
 /* Ikkala chetda so'nish (marquee, markazlashgan lentalar) */
 @utility edge-fade {
   mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
@@ -670,18 +785,6 @@ select:focus-visible {
     opacity: 0.06;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-}
-
-/* Uch qadam kartalari orasidagi punktir chiziq (md+) */
-@utility step-line {
-  &::before {
-    content: "";
-    position: absolute;
-    top: 3.3rem;
-    left: calc(100% + 1px);
-    width: calc(2rem - 2px);
-    border-top: 2px dashed var(--line-2);
   }
 }
 
@@ -736,6 +839,26 @@ select:focus-visible {
 .region-path:focus-visible {
   outline: none;
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+/* Klaviatura fokusi: hudud ustida (qo'shni chegaralar qoplamaydigan) aniq kontur — ikkala rejimda ko'rinadi */
+.region-focus-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translateY(-8px);
+  filter: drop-shadow(0 0 0 var(--surface)) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+/* Zoom qatlami: silliq o'tish faqat tugmalar bilan (sudrash/pinch paytida — darhol) */
+.map-zoom-layer {
+  transition: transform var(--dur-3) var(--ease-out);
+}
+.map-zoom-layer[data-dragging="true"] {
+  transition: none;
 }
 .map-pulse {
   transform-box: fill-box;

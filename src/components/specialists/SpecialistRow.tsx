@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, MapPin } from "lucide-react";
+import { ArrowUpRight, Award, MapPin } from "lucide-react";
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
-import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
 import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
@@ -45,8 +45,16 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
           <span className="flex items-center gap-1.5">
             <span className="truncate font-display text-[15px] font-semibold leading-tight text-fg">{sp.user.name}</span>
             {sp.isVerified && <VerifiedBadge size={15} />}
+            {sp.topRated && (
+              <span
+                title={`Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`}
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[10px] font-semibold text-fg"
+              >
+                <Award size={10} className="text-accent" /> Top
+              </span>
+            )}
             {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">Yangi</span>}
-            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning">Band</span>}
+            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">Band</span>}
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-fg-2">{sp.title}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-fg-3">

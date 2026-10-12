@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, BadgePercent, CheckCircle2, Save, SlidersHorizontal } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { TOP_RATED_RULE } from "@/lib/constants";
 import { formatNumber, formatPrice } from "@/lib/utils";
 
 export interface PlatformSettingsValue {
@@ -129,7 +130,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
             <input id="set-pct-top" className="field !pr-10 tabular-nums" inputMode="numeric" value={pctTop} onChange={(e) => setPctTop(digits(e.target.value).slice(0, 3))} aria-invalid={Boolean(fields.commissionPctTop)} aria-describedby="set-pct-top-hint" />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">%</span>
           </div>
-          {fields.commissionPctTop ? <p className="field-error">{fields.commissionPctTop}</p> : <p id="set-pct-top-hint" className="mt-1 text-[11px] text-fg-4">Reyting ≥ 4.8 va ≥ 5 bajarilgan buyurtma</p>}
+          {fields.commissionPctTop ? <p className="field-error">{fields.commissionPctTop}</p> : <p id="set-pct-top-hint" className="mt-1 text-[11px] text-fg-4">{`Reyting ≥ ${TOP_RATED_RULE.minRating} va ≥ ${TOP_RATED_RULE.minReviews} ta sharh`}</p>}
         </div>
         <div>
           <label htmlFor="set-minorder" className="field-label">
@@ -163,12 +164,12 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformSettingsVal
       </p>
 
       {error && (
-        <p role="alert" className="mt-3 flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger">
+        <p role="alert" className="mt-3 flex items-center gap-2 rounded-[14px] bg-danger-soft px-3.5 py-2.5 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </p>
       )}
       {saved && (
-        <p role="status" className="mt-3 flex items-center gap-2 rounded-[14px] bg-success-soft px-3.5 py-2.5 text-[13px] font-medium text-success">
+        <p role="status" className="mt-3 flex items-center gap-2 rounded-[14px] bg-success-soft px-3.5 py-2.5 text-[13px] font-medium text-success-text">
           <CheckCircle2 size={15} /> Sozlamalar saqlandi
         </p>
       )}

@@ -3,13 +3,15 @@ import { redirect } from "next/navigation";
 import { Heart, Map } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
+import { FavoriteSlot } from "@/components/kabinet/FavoriteSlot";
+import { FavoritesSeed } from "@/components/specialists/FavoritesSeed";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listFavoriteSpecialists } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Sevimlilar" };
 
-/** Saqlangan mutaxassislar — kartadagi yurak qayta bosilsa ro'yxatdan chiqadi (keyingi ochilishda yo'qoladi) */
+/** Saqlangan mutaxassislar — kartadagi yurak qayta bosilsa o'rnida «Qaytarish» chiqadi (FavoriteSlot) */
 export default async function FavoritesPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/sevimlilar"));
@@ -33,11 +35,16 @@ export default async function FavoritesPage() {
       </header>
 
       {items.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((sp, i) => (
-            <SpecialistCard key={sp.id} sp={sp} priority={i < 3} />
-          ))}
-        </div>
+        // Hamma karta sevimli — yuraklar SSR'dan to'ldirilgan, /api/favorites javobi kutilmaydi
+        <FavoritesSeed viewerId={user.id} ids={items.map((sp) => sp.id)}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {items.map((sp, i) => (
+              <FavoriteSlot key={sp.id} specialistId={sp.id} name={sp.user.name}>
+                <SpecialistCard sp={sp} priority={i < 3} />
+              </FavoriteSlot>
+            ))}
+          </div>
+        </FavoritesSeed>
       ) : (
         <EmptyState
           icon={Heart}

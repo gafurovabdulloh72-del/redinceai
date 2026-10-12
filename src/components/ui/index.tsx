@@ -91,15 +91,15 @@ const badgeTones: Record<BadgeTone, string> = {
   accent: "bg-accent-soft text-accent-text",
   ink: "bg-ink text-ink-fg",
   glass: "border border-line bg-surface text-fg-2",
-  success: "bg-success-soft text-success",
-  warning: "bg-warning-soft text-warning",
-  danger: "bg-danger-soft text-danger",
-  info: "bg-info-soft text-info",
-  blue: "bg-info-soft text-info",
-  green: "bg-success-soft text-success",
-  orange: "bg-warning-soft text-warning",
+  success: "bg-success-soft text-success-text",
+  warning: "bg-warning-soft text-warning-text",
+  danger: "bg-danger-soft text-danger-text",
+  info: "bg-info-soft text-info-text",
+  blue: "bg-info-soft text-info-text",
+  green: "bg-success-soft text-success-text",
+  orange: "bg-warning-soft text-warning-text",
   pink: "bg-accent-soft text-accent-text",
-  purple: "bg-accent-2-soft text-accent-2",
+  purple: "bg-accent-2-soft text-accent-2-text",
 };
 
 export function Badge({
@@ -163,7 +163,7 @@ export function IconTile({
 }) {
   const toneClass = tone === "soft" ? "icon-tile-soft" : tone === "outline" ? "icon-tile-outline" : "icon-tile";
   const sizeCls = size === "sm" ? "icon-tile-sm" : size === "lg" ? "icon-tile-lg" : undefined;
-  const px = iconSize ?? (size === "sm" ? 15 : size === "lg" ? 24 : 20);
+  const px = iconSize ?? (size === "sm" ? 16 : size === "lg" ? 24 : 20);
   return (
     <span className={cn(toneClass, sizeCls, className)} aria-hidden="true">
       <Icon size={px} />
@@ -180,6 +180,7 @@ export function Avatar({
   size = 40,
   className,
   decorative = false,
+  singleInitial = false,
 }: {
   name: string;
   src?: string | null;
@@ -187,6 +188,8 @@ export function Avatar({
   className?: string;
   /** Yonida ism ko'rsatilgan bo'lsa — ekran o'quvchi uchun ikki marta o'qilmasin */
   decorative?: boolean;
+  /** Ustma-ust (stack) kichik avatarlar: bitta harf — qo'shni avatar ikkinchi harfni kesmasin */
+  singleInitial?: boolean;
 }) {
   const hue = hashHue(name);
   return (
@@ -206,7 +209,7 @@ export function Avatar({
         background: `linear-gradient(145deg, hsl(${hue} 38% 52%), hsl(${(hue + 40) % 360} 36% 40%))`,
       }}
     >
-      {initials(name)}
+      {singleInitial ? initials(name).slice(0, 1) : initials(name)}
       {/* Rasm yuklanmasa chizilmaydi — ostidagi bosh harflar ko'rinadi */}
       {src && <AvatarImage src={src} size={size} />}
     </span>
@@ -258,7 +261,7 @@ export function SectionHeading({
   return (
     <div
       className={cn(
-        "mb-8 flex flex-col gap-4 sm:mb-10",
+        "mb-6 flex flex-col gap-4 sm:mb-8",
         align === "center" ? "items-center text-center" : "sm:flex-row sm:items-end sm:justify-between",
       )}
     >

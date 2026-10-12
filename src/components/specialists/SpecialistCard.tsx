@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { ArrowUpRight, MapPin } from "lucide-react";
+import { ArrowUpRight, Award, MapPin } from "lucide-react";
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { CoverPattern } from "@/components/ui/CoverPattern";
 import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
-import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
+import { SkillChips } from "./SkillChips";
+import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
+import { formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
@@ -19,26 +21,28 @@ function priceLine(from: number, to?: number | null) {
 export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListItem; priority?: boolean }) {
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
-  const hue = hashHue(sp.slug);
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
   const isNew = isRecent(sp.createdAt, 7);
-  /* Rasm yo'q muqova: past to'yinganlikdagi, palitraga mos ohang (sun'iy rang-barang gradient emas) */
-  const fallbackBg = `linear-gradient(135deg, hsl(${hue} 22% 30%), ${cat?.accent ?? "#df7a5a"}cc 120%)`;
 
   return (
-    /* Karta — article: havola butun kartani qoplaydi, yurak tugmasi havoladan tashqarida (muqova o'ng-yuqori) */
+    /*
+     * Karta — article: "cho'zilgan" havola butun kartani qoplaydi (fokus halqasi .card-link orqali), mazmun uning ustida
+     * pointer-events-none — bosish havolaga o'tadi; ko'nikma chiplari va yurak tugmasi esa o'zi bosiladi (E97).
+     */
     <article className="card card-hover card-link group overflow-hidden">
-      <Link href={`/mutaxassislar/${sp.slug}`} className="block">
-        {/* Muqova: telefonda 16:10 (karta ixchamroq, ekranga ko'proq sig'adi), sm+ da 4:3 — rasm yuklanmasa yumshoq fon */}
+      <Link href={`/mutaxassislar/${sp.slug}`} aria-label={`${sp.user.name} — ${sp.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
+      <div className="pointer-events-none relative">
+        {/* Muqova: telefonda 16:10 (karta ixchamroq, ekranga ko'proq sig'adi), sm+ da 4:3 — rasm yuklanmasa yo'nalish naqshi */}
         <div className="relative aspect-[16/10] overflow-hidden bg-surface-3 sm:aspect-[4/3]">
           <SafeImage
             src={sp.coverUrl ?? undefined}
             alt=""
             loading={priority ? "eager" : "lazy"}
             className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
-            fallback={<div className="absolute inset-0 grain transition duration-700 ease-out group-hover:scale-[1.04]" style={{ background: fallbackBg }} />}
+            fallback={<CoverPattern category={sp.category} seed={sp.slug} className="transition duration-700 ease-out group-hover:scale-[1.04]" />}
+            // Qoraytiruvchi gradient faqat haqiqiy rasm ustida — och naqsh loyqa bo'lib qolmasin
+            overlayClassName="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-black/0"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-black/0" />
 
           {/* Chiplar: kategoriya — qattiq yuza; "Yangi" (7 kun ichida qo'shilgan) — yuza + accent-text (AA, muqova ustida); "Band" — neytral; o'ngda yurak uchun joy */}
           <div className="absolute left-3 right-14 top-3 flex items-start justify-between gap-2">
@@ -50,6 +54,17 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
                 </span>
               )}
               {isNew && <span className="inline-flex h-7 items-center rounded-full bg-surface px-2.5 text-[11px] font-semibold text-accent-text shadow-[var(--shadow-1)]">Yangi</span>}
+              {sp.topRated && (
+                // Tooltip ko'rinsin va bosish baribir profilga olib borsin — xuddi shu manzilga havola (fokusdan tashqarida)
+                <Link
+                  href={`/mutaxassislar/${sp.slug}`}
+                  tabIndex={-1}
+                  title={`Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`}
+                  className="pointer-events-auto inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]"
+                >
+                  <Award size={12} className="text-accent" /> Top
+                </Link>
+              )}
             </span>
             {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">Band</span>}
           </div>
@@ -77,20 +92,7 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
 
           <p className="mt-3 line-clamp-1 text-[14px] font-medium text-fg-2">{sp.title}</p>
 
-          {sp.skills.length > 0 && (
-            <div className="mt-2.5 flex gap-1.5 overflow-hidden">
-              {sp.skills.slice(0, 3).map((s) => (
-                <span key={s} className="truncate rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-fg-2">
-                  {s}
-                </span>
-              ))}
-              {sp.skills.length > 3 && (
-                <span className="shrink-0 self-center text-[11px] text-fg-3" title={sp.skills.slice(3).join(", ")}>
-                  +{sp.skills.length - 3}
-                </span>
-              )}
-            </div>
-          )}
+          <SkillChips skills={sp.skills} max={3} className="mt-2.5" />
 
           <div className="mt-3.5 border-t border-line pt-3">
             <p className="truncate whitespace-nowrap font-display text-[15px] font-semibold text-fg" title={formatPriceRange(sp.priceFrom, sp.priceTo)}>
@@ -101,7 +103,7 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
             </div>
           </div>
         </div>
-      </Link>
+      </div>
       <FavoriteButton specialistId={sp.id} variant="overlay" className="absolute right-2 top-2 z-10" />
     </article>
   );

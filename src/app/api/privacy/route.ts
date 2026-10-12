@@ -5,6 +5,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { privacyUpdateSchema } from "@/lib/validators";
 import { WEEKDAYS } from "@/lib/constants";
 import { resolveVisibility, tashkentNow, toMinutes } from "@/lib/privacy";
+import { enforceLimit } from "@/lib/security/rate-limit";
 
 async function ownSpecialist(userId: string) {
   const sp = await db.query.specialists.findFirst({
@@ -32,6 +33,8 @@ export const PUT = handler(async (req) => {
   const session = await requireSession();
   const sp = await ownSpecialist(session.sub);
   const input = await parseBody(req, privacyUpdateSchema);
+  // Per-user limit (E21) — tekshiruvdan keyin, 422 javoblar limitni yemasin
+  await enforceLimit("privacy", session.sub);
 
   const patch: Partial<{ visibility: Visibility; schedule: Schedule | null; vacationUntil: string | null; updatedAt: Date }> = { updatedAt: new Date() };
 

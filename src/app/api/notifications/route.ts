@@ -24,6 +24,8 @@ const schema = z.object({
 export const PATCH = handler(async (req) => {
   const session = await requireSession();
   const input = await parseBody(req, schema);
-  const n = await markNotificationsRead(session.sub, input.all ? undefined : (input.ids ?? []));
+  // Bo'sh so'rov ({} yoki {ids:[]}) hech narsani belgilamaydi — markNotificationsRead bo'sh ro'yxatni "hammasi" deb tushunadi
+  if (!input.all && !input.ids?.length) return ok({ marked: 0 });
+  const n = await markNotificationsRead(session.sub, input.all ? undefined : input.ids);
   return ok({ marked: n });
 });

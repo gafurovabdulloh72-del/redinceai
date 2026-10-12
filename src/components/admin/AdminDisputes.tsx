@@ -29,7 +29,7 @@ type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields
 const RES_LABEL: Record<Resolution, string> = { release: "Mutaxassisga o'tkazish", refund: "Mijozga qaytarish" };
 const RES_HINT: Record<Resolution, string> = {
   release: "Eskroudagi sof summa mutaxassis balansiga o'tadi, buyurtma yakunlanadi. Qaytarib bo'lmaydi.",
-  refund: "Pul mijozga qaytarilgan deb belgilanadi (Payme/Click'da qaytarishni provayder kabinetida ham bajaring).",
+  refund: "Pul mijozga qaytarilgan deb belgilanadi va buyurtma bekor qilinadi (Payme/Click'da qaytarishni provayder kabinetida ham bajaring).",
 };
 
 /** Admin: ochiq nizolar navbati — ikki tomon, sabab, summa va qaror (izoh bilan) */
@@ -77,12 +77,12 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
     <div className="space-y-3">
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {error && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">
+          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -120,7 +120,7 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                         </>
                       )}
                     </p>
-                    <p className="mt-2 flex items-start gap-2 rounded-[14px] bg-warning-soft px-3.5 py-2.5 text-[13px] leading-snug text-warning">
+                    <p className="mt-2 flex items-start gap-2 rounded-[14px] bg-warning-soft px-3.5 py-2.5 text-[13px] leading-snug text-warning-text">
                       <Scale size={15} className="mt-0.5 shrink-0" />
                       <span>
                         <span className="font-semibold">{r.by === "client" ? "Mijoz" : "Mutaxassis"} nizo ochdi:</span> <span className="text-fg-2">{r.reason}</span>
@@ -163,7 +163,7 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-11 text-danger hover:border-danger hover:bg-danger-soft md:h-9"
+                          className="h-11 text-danger-text hover:border-danger hover:bg-danger-soft md:h-9"
                           onClick={() => {
                             setAsk({ id: r.orderId, resolution: "refund" });
                             setNote("");

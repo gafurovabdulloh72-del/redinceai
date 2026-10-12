@@ -152,6 +152,8 @@ function actionsFor(tab: Tab, o: OrderItem): Action[] {
         return [];
     }
   }
+  // «To'ladim» bosilgan o'tkazma admin tasdig'ini kutmoqda — bekor qilish server tomonda ham yopiq (409)
+  if (o.openPayment?.state === "pending") return [];
   if (o.status === "new" || o.status === "accepted") {
     return [
       {
@@ -425,7 +427,7 @@ export function OrdersList({
       </div>
 
       {error && (
-        <div role="alert" className="inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger">
+        <div role="alert" className="inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}
@@ -777,7 +779,7 @@ function OrderCard({
 
       {/* Nizo holati */}
       {disputeOpen && (
-        <div role="status" className="mt-3 flex items-start gap-2.5 rounded-[14px] bg-warning-soft px-3.5 py-2.5 text-[13px] leading-snug text-warning">
+        <div role="status" className="mt-3 flex items-start gap-2.5 rounded-[14px] bg-warning-soft px-3.5 py-2.5 text-[13px] leading-snug text-warning-text">
           <Scale size={16} className="mt-0.5 shrink-0" />
           <span>
             <span className="font-semibold">Nizo ochiq</span> — {o.disputeBy === "client" ? "mijoz" : o.disputeBy === "specialist" ? "mutaxassis" : "tomonlardan biri"} nizo ochdi, admin ko'rib chiqmoqda. Pul eskrouda turadi, qabul qilish va avtomatik o'tkazish to'xtatilgan.
@@ -876,7 +878,7 @@ function OrderCard({
           <span
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]",
-              o.paymentState === "paid" || o.paymentState === "released" ? "bg-success-soft text-success" : pendingPayment ? "bg-warning-soft text-warning" : "bg-fg/6 text-fg-3",
+              o.paymentState === "paid" || o.paymentState === "released" ? "bg-success-soft text-success-text" : pendingPayment ? "bg-warning-soft text-warning-text" : "bg-fg/6 text-fg-3",
             )}
             aria-hidden="true"
           >
@@ -1025,7 +1027,7 @@ function OrderCard({
                       variant={a.variant}
                       disabled={busy}
                       onClick={() => (a.confirm ? onAsk(a.to) : onChange(a.to))}
-                      className={cn(a.danger && "border-line text-danger hover:border-danger hover:bg-danger-soft")}
+                      className={cn(a.danger && "border-line text-danger-text hover:border-danger hover:bg-danger-soft")}
                     >
                       {busy && !a.confirm ? <Spinner /> : <a.icon size={15} />}
                       {a.label}
@@ -1101,7 +1103,7 @@ function OrderCard({
       {canReorder && !canAccept && (
         <div className="mt-3">
           <ButtonLink href={`/buyurtma/${o.specialistId}?title=${encodeURIComponent(o.title)}`} variant="outline" size="sm">
-            <RotateCcw size={14} /> Yana buyurtma berish
+            <RotateCcw size={14} /> Qayta buyurtma
           </ButtonLink>
         </div>
       )}
@@ -1178,7 +1180,7 @@ function OrderTimeline({ orderId, onExtras }: { orderId: string; onExtras: (e: E
                 const Icon = EVENT_ICON[e.type];
                 return (
                   <li key={e.id} className="flex items-start gap-2.5 text-[12px] leading-snug">
-                    <span className={cn("mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full", e.type === "dispute" ? "bg-warning-soft text-warning" : e.type === "payment" ? "bg-success-soft text-success" : "bg-fg/8 text-fg-3")} aria-hidden="true">
+                    <span className={cn("mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full", e.type === "dispute" ? "bg-warning-soft text-warning-text" : e.type === "payment" ? "bg-success-soft text-success-text" : "bg-fg/8 text-fg-3")} aria-hidden="true">
                       <Icon size={11} />
                     </span>
                     <span className="min-w-0 flex-1">

@@ -13,7 +13,8 @@ const AUDIT_RETENTION_DAYS = 180;
 /**
  * Kunlik fon vazifasi (E54/E57/E75/F93). Vercel Cron (vercel.json: 03:00 UTC) yoki istalgan tashqi cron chaqiradi.
  * Ruxsat: `Authorization: Bearer <CRON_SECRET>` (Vercel CRON_SECRET bo'lsa uni o'zi yuboradi).
- * CRON_SECRET sozlanmagan bo'lsa — faqat Vercel'ning `x-vercel-cron` sarlavhasi (yoki dev rejimi) bilan.
+ * Productionda CRON_SECRET MAJBURIY: u bo'lmasa har qanday so'rov rad etiladi (`x-vercel-cron` sarlavhasini
+ * istalgan mijoz yuborishi mumkin). Faqat dev rejimida (NODE_ENV !== "production") sirsiz `x-vercel-cron` qabul qilinadi.
  *  (a) Payme/Click 'pending' tranzaksiyalari 12 soatdan eskirgan bo'lsa — bekor (provayder holati -1, sabab 4)
  *  (b) status='done' + paymentState='paid' + autoReleaseAt o'tgan (nizo yo'q) — avtomatik release
  *  (c) eskirgan rate_limits qatorlari va 180 kundan eski audit yozuvlari tozalanadi
@@ -23,8 +24,11 @@ function authorized(req: Request): boolean {
   const header = req.headers.get("authorization") ?? "";
   const m = /^Bearer\s+(.+)$/i.exec(header.trim());
   if (secret) return Boolean(m && safeEqual(m[1].trim(), secret));
-  const vercelCron = Boolean(req.headers.get("x-vercel-cron"));
-  return vercelCron && (Boolean(process.env.VERCEL) || process.env.NODE_ENV !== "production");
+  if (process.env.NODE_ENV === "production") {
+    console.error("[cron] CRON_SECRET sozlanmagan — /api/cron/daily productionda o'chiq. CRON_SECRET o'rnating.");
+    return false;
+  }
+  return Boolean(req.headers.get("x-vercel-cron"));
 }
 
 export async function GET(req: Request) {

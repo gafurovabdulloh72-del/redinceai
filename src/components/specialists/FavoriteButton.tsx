@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "reac
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ensureFavoritesLoaded, getFavoritesServerSnapshot, getFavoritesSnapshot, subscribeFavorites, toggleFavorite } from "./favorites-store";
+import { useFavoritesSeed } from "./FavoritesSeed";
 
 type Variant = "overlay" | "outline" | "ghost";
 type Size = "sm" | "md" | "lg";
@@ -27,12 +28,14 @@ export function FavoriteButton({ specialistId, variant = "outline", size = "md",
   const snap = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getFavoritesServerSnapshot);
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  // Server ID'larni bergan sahifada (FavoritesSeed) — do'kon tayyor bo'lguncha shu ro'yxat, GET yuborilmaydi
+  const seed = useFavoritesSeed();
 
   useEffect(() => {
-    ensureFavoritesLoaded();
-  }, []);
+    if (!seed) ensureFavoritesLoaded();
+  }, [seed]);
 
-  const on = snap.ids.has(specialistId);
+  const on = seed && (snap.status === "unknown" || snap.status === "loading") ? seed.has(specialistId) : snap.ids.has(specialistId);
   const label = on ? "Sevimlilardan olib tashlash" : "Sevimlilarga qo'shish";
 
   const onClick = async (e: MouseEvent<HTMLButtonElement>) => {

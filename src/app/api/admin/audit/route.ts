@@ -12,8 +12,10 @@ const schema = z.object({
   limit: z.coerce.number().int().min(1).max(5000).default(2000),
 });
 
+/** CSV katak: = + - @ \t \r bilan boshlansa ' qo'shiladi (Excel/Sheets formula injection), so'ng kerak bo'lsa qo'shtirnoq */
 const csvCell = (v: unknown) => {
-  const s = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  const raw = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  const s = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
@@ -29,7 +31,7 @@ export const GET = handler(async (req) => {
     const lines = rows.map((r) =>
       [
         formatDateTime(r.createdAt),
-        labelFor(r.action),
+        labelFor(r.action, r.meta),
         r.action,
         r.actorName ?? (r.actorId ? "O'chirilgan" : "Anonim"),
         r.actorEmail ?? "",
@@ -57,7 +59,7 @@ export const GET = handler(async (req) => {
     rows.map((r) => ({
       id: r.id,
       action: r.action,
-      label: labelFor(r.action),
+      label: labelFor(r.action, r.meta),
       actor: r.actorId ? { id: r.actorId, name: r.actorName, email: r.actorEmail } : null,
       targetType: r.targetType,
       targetId: r.targetId,

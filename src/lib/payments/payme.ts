@@ -6,7 +6,7 @@ import { notifyAdmins } from "@/lib/notifications";
 import { formatPrice, uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { findInFlightProviderPayment, isPayable, markPaid, refundPayment } from "./service";
+import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent, refundPayment } from "./service";
 
 /**
  * Payme Merchant API (JSON-RPC 2.0). Hujjat: developer.help.paycom.uz
@@ -259,6 +259,7 @@ async function cancelTransaction(params: Json) {
       .set({ state: "cancelled", providerState: STATE.CANCELLED, cancelTime: now, cancelReason: reason, updatedAt: new Date(now) })
       .where(eq(payments.id, found.id))
       .returning();
+    await recordOrderEvent(row.orderId, null, "payment", { note: "Payme to'lovi bekor qilindi (provayder tomonida)" });
     return { transaction: row.id, cancel_time: now, state: STATE.CANCELLED };
   }
   if (found.state === "paid") {

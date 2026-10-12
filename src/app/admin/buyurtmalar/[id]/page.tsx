@@ -301,7 +301,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                     </time>
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 text-[13px]">
-                        <Badge tone={r.action.startsWith("admin_") ? "ink" : r.action.startsWith("order_") ? "info" : "purple"}>{labelFor(r.action)}</Badge>
+                        <Badge tone={r.action.startsWith("admin_") ? "ink" : r.action.startsWith("order_") ? "info" : "purple"}>{labelFor(r.action, r.meta)}</Badge>
                         <span className="text-fg-2">{r.actorName ?? "Tizim"}</span>
                         {r.actorEmail && <span className="truncate text-[11px] text-fg-4">{r.actorEmail}</span>}
                       </p>

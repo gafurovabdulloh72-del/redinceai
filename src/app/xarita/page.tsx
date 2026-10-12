@@ -37,7 +37,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
     <div className="container-x">
       <PageHeader
         size="lg"
-        eyebrow={`Interaktiv xarita · ${REGIONS.length} hudud · ${total} mutaxassis`}
+        eyebrow={`Interaktiv xarita · ${REGIONS.length}\u00a0hudud · ${total}\u00a0mutaxassis`}
         title={
           <>
             Hududni tanlang — <span className="accent-serif text-accent">ijodkorlar</span> chiqadi

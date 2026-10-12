@@ -3,16 +3,21 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
+  Activity,
   ArrowRight,
+  Award,
   Briefcase,
   CalendarDays,
   ChevronRight,
+  Clock3,
   Eye,
   EyeOff,
   Languages,
   Lock,
   MapPin,
   Mars,
+  PackageCheck,
+  Repeat2,
   Settings,
   Sparkles,
   Star,
@@ -29,11 +34,24 @@ import { CoverImage } from "@/components/specialists/CoverImage";
 import { FavoriteButton } from "@/components/specialists/FavoriteButton";
 import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { ReportButton } from "@/components/specialists/ReportButton";
 import { getCurrentUser } from "@/lib/auth";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE } from "@/lib/constants";
 import { GUEST_VIEWER, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
-import { bumpViewCount, countCompletedOrders, getSimilarSpecialists, getSpecialistBySlug, hasAcceptedOrderWith, ratingDistribution } from "@/lib/queries";
-import { cn, formatDate, formatNumber, formatPriceRange } from "@/lib/utils";
+import {
+  bumpViewCount,
+  getSimilarSpecialists,
+  getSocialProof,
+  getSpecialistBySlug,
+  getVerifiedReviewerIds,
+  hasAcceptedOrderWith,
+  ratingDistribution,
+  responseTimeLabel,
+} from "@/lib/queries";
+import { ACTIVITY_LABEL, activityBucket, cn, formatDate, formatNumber, formatPriceRange } from "@/lib/utils";
+
+/** "Top mutaxassis" nishoni izohi (tooltip) — qoida recalcRating bilan bir xil */
+const TOP_RATED_HINT = `Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`;
 
 export const dynamic = "force-dynamic";
 
@@ -67,10 +85,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const description = sp.bio?.trim()
     ? sp.bio.slice(0, 160)
     : `${sp.user.name}: ${sp.title}. ${sp.city}${region ? `, ${region.name}` : ""}. ${SITE.name} orqali buyurtma bering.`;
+  // OG rasm — shu segmentdagi opengraph-image.tsx (ism, kasb, hudud, reyting; mehmon ma'lumoti)
   return {
     title,
     description,
-    openGraph: { title: `${title} · ${SITE.name}`, description, type: "profile", images: sp.coverUrl ? [{ url: sp.coverUrl }] : undefined },
+    alternates: { canonical: `/mutaxassislar/${sp.slug}` },
+    openGraph: { title: `${title} · ${SITE.name}`, description, type: "profile", url: `/mutaxassislar/${sp.slug}` },
+    twitter: { card: "summary_large_image", title: `${title} · ${SITE.name}`, description },
   };
 }
 
@@ -115,10 +136,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const sp = filterSpecialistForViewer(raw, effectiveViewer);
   const vis = resolveVisibility(raw.visibility);
   // O'xshashlar — umumiy ko'ruvchi konteksti: isOwner/hasOrder faqat SHU profilga nisbatan, boshqa profillarga o'tkazilmaydi
-  const [similar, completedOrders] = await Promise.all([
+  const [similar, proof, verifiedIds] = await Promise.all([
     getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }),
-    countCompletedOrders(raw.id),
+    getSocialProof(raw.id, raw.completedCount),
+    getVerifiedReviewerIds(raw.id),
   ]);
+  const completedOrders = proof.completed;
 
   // Ko'rishlar soni: egasi (shu jumladan preview) va botlar hisoblanmaydi; natijani kutmaymiz
   if (!isOwner && !isBotUserAgent(hdrs.get("user-agent"))) {
@@ -131,7 +154,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   const myReview = viewer ? raw.reviews.find((r) => r.authorId === viewer.id) : null;
   // Sharh — faqat shu mutaxassis bilan qabul qilingan buyurtmasi borlardan (server ham tekshiradi); mavjud sharh tahrirlanaveradi
-  const canReview = Boolean(viewer) && !isOwner && (hasOrder || Boolean(myReview));
+  const canReview = Boolean(viewer) && !isOwner && (hasOrder || Boolean(myReview) || isAdmin);
   const needsOrder = Boolean(viewer) && !isOwner && !canReview;
   const profilePath = `/mutaxassislar/${raw.slug}`;
   const loginHref = `/auth/kirish?next=${encodeURIComponent(profilePath)}`;
@@ -162,6 +185,16 @@ export default async function SpecialistPage({ params, searchParams }: { params:
     { icon: CalendarDays, text: `${formatDate(sp.user.createdAt)} dan beri`, tone: "neutral" },
   ];
   if (genderLabel) metaChips.splice(1, 0, { icon: sp.user.gender === "female" ? Venus : Mars, text: genderLabel, tone: "neutral" });
+
+  // Ijtimoiy isbot (E86/F12/F68): faqat bor ko'rsatkichlar — yangi profilda "0 ta" chiqmaydi
+  const responseLabel = responseTimeLabel(proof.responseHours);
+  const activity = activityBucket(raw.user.lastLoginAt);
+  const proofChips: Array<{ icon: typeof Briefcase; text: string; title?: string }> = [];
+  if (proof.completed > 0) proofChips.push({ icon: PackageCheck, text: `${proof.completed} ta bajarilgan buyurtma`, title: "Platforma orqali bajarilgan buyurtmalar" });
+  if (proof.repeatClients > 0) proofChips.push({ icon: Repeat2, text: `${proof.repeatClients} ta doimiy mijoz`, title: "Kamida 2 marta buyurtma bergan mijozlar" });
+  if (responseLabel) proofChips.push({ icon: Clock3, text: responseLabel, title: "Buyurtma kelganidan birinchi javobgacha o'rtacha vaqt" });
+  if (activity) proofChips.push({ icon: Activity, text: `Oxirgi faollik: ${ACTIVITY_LABEL[activity]}` });
+  const verifiedSet = new Set(verifiedIds);
 
   const cta = showOwnerCta ? (
     <ButtonLink href="/kabinet/profil" size="lg" className="w-full">
@@ -234,7 +267,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             style={{ background: `radial-gradient(60% 120% at 85% 0%, ${cat?.accent ?? "#ff5a36"}33, transparent 70%), radial-gradient(50% 90% at 10% 100%, ${cat?.accent ?? "#ff5a36"}1f, transparent 70%)` }}
           />
           <div className="absolute inset-0 grain" />
-          <CoverImage src={sp.coverUrl} />
+          {/* Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (kabinetdagi "Birinchi ish muqovada ko'rinadi"), u ham bo'lmasa naqsh */}
+          <CoverImage src={sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null} category={sp.category} seed={sp.slug} />
 
           <div className="absolute left-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:top-6">
             {cat && (
@@ -242,6 +276,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 <CategoryIcon icon={cat.icon} size={13} />
                 {cat.name}
               </Link>
+            )}
+            {sp.topRated && (
+              <span title={TOP_RATED_HINT} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold text-fg shadow-[var(--shadow-1)]">
+                <Award size={13} className="text-accent" /> Top mutaxassis
+                <span className="sr-only"> — {TOP_RATED_HINT}</span>
+              </span>
             )}
             {sp.isFeatured && (
               <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold text-accent shadow-[var(--shadow-1)]">
@@ -262,9 +302,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         </div>
 
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
-          <div className="relative z-10 -mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
+          {/* Avatar muqovaga chiqadi (-mt-14), matn esa desktopda muqova chetidan PASTDA boshlanadi (sm:pt-16):
+              qoraytirilgan rasm ustida yorug' mavzuda qora ism o'qilmay qolmasin */}
+          <div className="relative z-10 -mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-start">
             <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={112} className="!ring-4 !ring-surface text-[36px]" />
-            <div className="min-w-0 flex-1 sm:pb-1">
+            <div className="min-w-0 flex-1 sm:pt-16">
               <h1 className="break-words font-display text-[28px] font-semibold leading-[1.05] tracking-tight text-fg sm:text-[38px]">
                 <NameWithBadge name={sp.user.name} verified={sp.isVerified} />
               </h1>
@@ -283,15 +325,15 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {sp.reviewCount > 0 ? (
                   <Stars value={sp.rating} count={sp.reviewCount} size={13} />
                 ) : (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Stars value={0} size={13} showValue={false} />
-                    <span className="text-[12px] font-medium text-fg-3">Hali baholanmagan</span>
+                  // Bo'sh 5 yulduz "yomon baho" kabi ko'rinmasin (E84) — matnli belgi
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium text-fg-2">
+                    <Star size={11} className="text-fg-3" /> Hali sharh yo'q
                   </span>
                 )}
               </p>
             </div>
             {showOwnerCta && (
-              <div className="hidden shrink-0 sm:block sm:pb-1">
+              <div className="hidden shrink-0 sm:block sm:pt-16">
                 <ButtonLink href={`${profilePath}?preview=guest`} variant="outline" size="sm">
                   <Eye size={15} /> Mehmon ko'zi bilan
                 </ButtonLink>
@@ -299,7 +341,18 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             )}
           </div>
 
-          <ul className="mt-5 flex flex-wrap items-center gap-2">
+          {proofChips.length > 0 && (
+            <ul className="mt-5 flex flex-wrap items-center gap-2" aria-label="Ishonch ko'rsatkichlari">
+              {proofChips.map((m) => (
+                <li key={m.text} title={m.title} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5 text-[12px] font-semibold text-success-text">
+                  <m.icon size={13} />
+                  {m.text}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <ul className={cn("flex flex-wrap items-center gap-2", proofChips.length > 0 ? "mt-2" : "mt-5")}>
             {metaChips.map((m) => (
               <li
                 key={m.text}
@@ -339,10 +392,36 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             {sp.skills.length > 0 && (
               <div className="mt-6 border-t border-line pt-5">
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Ko'nikmalar</h3>
+                {/* Har bir ko'nikma — shu ko'nikmali mutaxassislar ro'yxatiga (F50) */}
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {sp.skills.map((s) => (
-                    <li key={s} className="rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium text-fg">
-                      {s}
+                    <li key={s}>
+                      <Link
+                        href={`/mutaxassislar?skill=${encodeURIComponent(s)}`}
+                        className="inline-flex min-h-8 items-center rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium text-fg transition hover:bg-fg/10"
+                        title={`"${s}" ko'nikmasi bor mutaxassislar`}
+                      >
+                        {s}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {sp.equipment.length > 0 && (
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Jihozlar</h3>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {sp.equipment.map((s) => (
+                    <li key={s}>
+                      <Link
+                        href={`/mutaxassislar?equipment=${encodeURIComponent(s)}`}
+                        className="inline-flex min-h-8 items-center rounded-full border border-line px-3 py-1.5 text-[13px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
+                        title={`"${s}" jihozi bor mutaxassislar`}
+                      >
+                        {s}
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -426,13 +505,22 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   createdAt: r.createdAt.getTime(),
                   authorId: r.authorId,
                   author: r.author,
+                  verified: verifiedSet.has(r.authorId),
+                  reply: r.reply,
+                  replyAt: r.replyAt ? r.replyAt.getTime() : null,
                 }))}
-                highlightAuthorId={viewer?.id ?? null}
+                highlightAuthorId={previewMode ? null : (viewer?.id ?? null)}
                 specialistId={raw.id}
                 canModerate={isAdmin && !isOwner}
+                canReply={isOwner && !previewMode}
+                canReport={Boolean(viewer) && !previewMode}
+                replyAuthor={{ name: sp.user.name, avatarUrl: sp.user.avatarUrl }}
               />
             </div>
           </section>
+
+          {/* Profil haqida shikoyat — mobil/planshet (desktopda yon panelda) */}
+          {!isOwner && !previewMode && <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" className="lg:hidden" />}
         </div>
 
         {/* O'ng ustun — yopishqoq (faqat desktop) */}
@@ -450,15 +538,25 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} variant="outline" size="lg" iconOnly />
               </div>
+              {!showOwnerCta && responseLabel && !onVacation && sp.isAvailable && (
+                <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[12px] text-fg-3">
+                  <Clock3 size={12} /> {responseLabel}
+                </p>
+              )}
               {!showOwnerCta && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}
               {!showOwnerCta && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangiz navbatga qo'yiladi.</p>}
 
               {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
               <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
                 <li>
-                  <p className="font-display text-[17px] font-semibold text-fg">
-                    {sp.rating > 0 ? sp.rating.toFixed(1) : <span className="text-[13px] font-medium text-fg-3">Hali yo'q</span>}
-                  </p>
+                  {sp.reviewCount > 0 ? (
+                    <p className="font-display text-[17px] font-semibold text-fg">{sp.rating.toFixed(1)}</p>
+                  ) : (
+                    // Sharhsiz profil — "Yangi" (E84): bo'sh reyting o'rniga
+                    <p className="flex h-[25.5px] items-center justify-center">
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-semibold text-accent-text">Yangi</span>
+                    </p>
+                  )}
                   <p className="text-[11px] text-fg-3">Reyting</p>
                 </li>
                 <li>
@@ -476,6 +574,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   </li>
                 )}
               </ul>
+
+              {!isOwner && !previewMode && (
+                <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" className="mt-3" />
+              )}
             </div>
 
             {showOwnerCta && (

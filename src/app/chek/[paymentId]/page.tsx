@@ -13,10 +13,13 @@ import { formatDateTime, formatPrice } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "To'lov cheki", robots: { index: false, follow: false } };
 
-/** Chop etishda sayt qobig'i (navbar, footer, orqaga tugmasi) yashiriladi — faqat chek qoladi */
+/**
+ * Chop etishda sayt qobig'i (navbar, footer, mobil tab-bar, orqaga tugmasi) yashiriladi — faqat chek qoladi.
+ * Selektor body'ning bevosita bolalari bilan cheklangan: chekning ichidagi <header> (platforma nomi, raqam) qoladi.
+ */
 const PRINT_CSS = `
 @media print {
-  header, footer, nav, .no-print { display: none !important; }
+  body > *:not(main), .no-print { display: none !important; }
   main { padding: 0 !important; }
   body { background: #fff !important; }
   .receipt { box-shadow: none !important; border: 1px solid #ddd !important; max-width: 100% !important; }
@@ -106,15 +109,16 @@ export default async function ReceiptPage({ params }: { params: Promise<{ paymen
         <dl className="mt-5 space-y-2 text-[14px]">
           <div className="flex items-center justify-between gap-4">
             <dt className="text-fg-2">Kelishilgan narx (mijoz to'ladi)</dt>
-            <dd className="font-medium text-fg tabular-nums">{formatPrice(p.amount)}</dd>
+            <dd className="shrink-0 whitespace-nowrap font-medium text-fg tabular-nums">{formatPrice(p.amount)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="print-muted text-fg-3">Platforma xizmat haqi ({p.commissionPct}%)</dt>
-            <dd className="print-muted text-fg-3 tabular-nums">− {formatPrice(p.commissionAmount)}</dd>
+            <dd className="print-muted shrink-0 whitespace-nowrap text-fg-3 tabular-nums">− {formatPrice(p.commissionAmount)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-line pt-3">
             <dt className="font-semibold text-fg">Mutaxassisga (sof summa)</dt>
-            <dd className="font-display text-[22px] font-semibold text-fg tabular-nums">{formatPrice(p.netAmount)}</dd>
+            {/* Summa raqam va "so'm" orasida bo'linmasin (390px'da yorliq ikki qatorga tushadi, summa — yo'q) */}
+            <dd className="shrink-0 whitespace-nowrap font-display text-[20px] font-semibold text-fg tabular-nums sm:text-[22px]">{formatPrice(p.netAmount)}</dd>
           </div>
         </dl>
 

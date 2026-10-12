@@ -27,7 +27,15 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   admin_delete: "Admin: o'chirildi",
   admin_settings: "Admin: sozlamalar o'zgartirildi",
   admin_payout: "Admin: pul chiqarish qarori",
-  admin_payment: "Admin: to'lov tasdiqlandi",
+  admin_payment: "Admin: to'lov amali",
+  admin_payout_details: "Admin: payout rekviziti ochildi",
+  admin_ban: "Admin: foydalanuvchi bloklandi",
+  admin_unban: "Admin: blokdan chiqarildi",
+  admin_report_closed: "Admin: shikoyat yopildi",
+  admin_report_reopened: "Admin: shikoyat qayta ochildi",
+  dispute_opened: "Nizo ochildi",
+  dispute_resolved: "Admin: nizo hal qilindi",
+  cron_daily: "Tizim: kunlik fon vazifasi",
   payment_created: "To'lov boshlandi",
   payment_paid: "To'lov qabul qilindi",
   payment_released: "Pul mutaxassisga o'tkazildi",
@@ -39,6 +47,10 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   review_created: "Sharh qoldirildi",
   review_updated: "Sharh yangilandi",
   review_deleted: "Sharh o'chirildi",
+  review_reply: "Sharhga javob yozildi",
+  review_reply_deleted: "Sharh javobi o'chirildi",
+  report_created: "Shikoyat yuborildi",
+  email_changed: "Email o'zgartirildi",
 };
 export type AuditAction = keyof typeof AUDIT_ACTION_LABEL;
 

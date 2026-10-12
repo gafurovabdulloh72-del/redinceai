@@ -7,8 +7,11 @@ import { Button } from "@/components/ui";
 
 type DeleteResponse = { ok: true; data: { deleted: boolean } } | { ok: false; error: string };
 
-/** Admin moderatsiyasi: boshqa muallifning sharhini o'chirish (inline ikki bosqichli tasdiq, window.confirm emas) */
-export function ReviewDeleteButton({ specialistId, authorId }: { specialistId: string; authorId: string }) {
+/**
+ * Sharhni o'chirish (inline ikki bosqichli tasdiq, window.confirm emas).
+ * authorId berilsa — admin moderatsiyasi (boshqa muallifniki); berilmasa — o'z sharhi.
+ */
+export function ReviewDeleteButton({ specialistId, authorId }: { specialistId: string; authorId?: string }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -19,7 +22,8 @@ export function ReviewDeleteButton({ specialistId, authorId }: { specialistId: s
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch(`/api/reviews?specialistId=${encodeURIComponent(specialistId)}&authorId=${encodeURIComponent(authorId)}`, { method: "DELETE" });
+      const qs = `specialistId=${encodeURIComponent(specialistId)}${authorId ? `&authorId=${encodeURIComponent(authorId)}` : ""}`;
+      const res = await fetch(`/api/reviews?${qs}`, { method: "DELETE" });
       const json = (await res.json()) as DeleteResponse;
       if (!json.ok) {
         setError(json.error);
@@ -58,8 +62,8 @@ export function ReviewDeleteButton({ specialistId, authorId }: { specialistId: s
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold text-fg-3 transition hover:bg-danger-soft hover:text-danger"
-        aria-label="Sharhni o'chirish (moderatsiya)"
+        className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold text-fg-3 transition hover:bg-danger-soft hover:text-danger-text"
+        aria-label={authorId ? "Sharhni o'chirish (moderatsiya)" : "Sharhimni o'chirish"}
       >
         <Trash2 size={13} /> O'chirish
       </button>

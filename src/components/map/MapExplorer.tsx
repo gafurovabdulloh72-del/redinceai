@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode, type RefObject } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, Check, List, MapPin, RotateCcw, SearchX, Sparkles, Trophy, UserPlus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { ArrowRight, ArrowUpRight, BarChart3, Check, List, LocateFixed, MapPin, RotateCcw, SearchX, Sparkles, Trophy, UserPlus, X } from "lucide-react";
 import { UzbekistanMap } from "./UzbekistanMap";
+import { lonLatToMap, nearestRegion, regionAt } from "./geo-utils";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Avatar, Badge, Button, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
@@ -73,34 +75,68 @@ function priceLine(from: number, to?: number | null) {
   return full;
 }
 
-const MOBILE_MQ = "(max-width: 639px)";
-function subscribeMobile(cb: () => void) {
-  const mq = window.matchMedia(MOBILE_MQ);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-/** sm dan kichik ekran — xaritadagi yorliqlarni yashirish uchun */
-function useIsMobile() {
-  return useSyncExternalStore(
-    subscribeMobile,
-    () => window.matchMedia(MOBILE_MQ).matches,
-    () => false,
-  );
-}
 
-/** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */
-function useOverflowing(ref: RefObject<HTMLElement | null>) {
-  const [over, setOver] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const check = () => setOver(el.scrollWidth > el.clientWidth + 2);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ref]);
-  return over;
+/* ------------------------------------------------------------------ */
+/* "Menga yaqin" — geolokatsiya → hudud                                */
+/* ------------------------------------------------------------------ */
+type GeoStatus = { tone: "info" | "ok" | "error"; text: string } | null;
+
+/** Brauzer joylashuvi → ichida bo'lgan hudud (yoki markazi eng yaqini). Ruxsat berilmasa — tushunarli xabar */
+function useNearMe(onFound: (slug: string) => void) {
+  const [status, setStatus] = useState<GeoStatus>(null);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const show = (s: GeoStatus, ms = 0) => {
+    clearTimeout(timer.current);
+    setStatus(s);
+    if (ms) timer.current = setTimeout(() => setStatus(null), ms);
+  };
+
+  const locate = () => {
+    if (busy) return;
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      show({ tone: "error", text: "Brauzeringiz joylashuvni aniqlay olmaydi — hududni xaritadan tanlang." }, 6000);
+      return;
+    }
+    setBusy(true);
+    show({ tone: "info", text: "Joylashuv aniqlanmoqda…" });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setBusy(false);
+        const p = lonLatToMap(pos.coords.longitude, pos.coords.latitude);
+        const inside = regionAt(p.x, p.y);
+        const near = inside ?? nearestRegion(p.x, p.y).region;
+        const name = REGION_BY_SLUG[near.slug]?.name ?? near.name;
+        onFound(near.slug);
+        show(
+          inside
+            ? { tone: "ok", text: `Siz ${name} hududidasiz — ro'yxat shu hudud bo'yicha.` }
+            : { tone: "ok", text: `Joylashuvingiz O'zbekistondan tashqarida — eng yaqin hudud: ${name}.` },
+          7000,
+        );
+      },
+      (err) => {
+        setBusy(false);
+        show(
+          {
+            tone: "error",
+            text:
+              err.code === err.PERMISSION_DENIED
+                ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamalarida ruxsat bering yoki hududni xaritadan tanlang."
+                : err.code === err.TIMEOUT
+                  ? "Joylashuvni aniqlash juda uzoq davom etdi — qayta urinib ko'ring."
+                  : "Joylashuvni aniqlab bo'lmadi — hududni xaritadan tanlang.",
+          },
+          8000,
+        );
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 },
+    );
+  };
+
+  return { status, busy, locate, dismiss: () => show(null) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -192,7 +228,7 @@ function RegionSheet({
       <button type="button" aria-label="Yopish" onClick={onClose} className="absolute inset-0 bg-black/45" />
       <div
         ref={ref}
-        className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[86dvh] flex-col !rounded-b-none !rounded-t-[28px] animate-fade-up sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:!rounded-[28px]"
+        className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[86dvh] flex-col !rounded-b-none !rounded-t-[var(--r-lg)] animate-fade-up sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:!rounded-[var(--r-lg)]"
         style={{ animationDuration: "0.3s" }}
       >
         <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-fg/15 sm:hidden" />
@@ -201,7 +237,7 @@ function RegionSheet({
             Barcha hududlar
           </h2>
           <button type="button" onClick={onClose} aria-label="Yopish" className="flex h-11 w-11 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 hover:text-fg">
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
         <ul className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
@@ -302,7 +338,7 @@ function RegionStatsPanel({
                 >
                   <span className="flex items-center justify-between gap-3 text-[13px]">
                     <span className={cn("inline-flex min-w-0 items-center gap-1.5 font-medium", on ? "text-accent-text" : "text-fg-2 group-hover:text-fg")}>
-                      <CategoryIcon icon={c.icon} size={13} className="shrink-0" />
+                      <CategoryIcon icon={c.icon} size={16} className="shrink-0" />
                       <span className="truncate">{c.plural}</span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums text-fg">{n}</span>
@@ -377,17 +413,11 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const isMobile = useIsMobile();
 
   const [region, setRegion] = useState<string | null>(initialRegion);
   const [category, setCategory] = useState<string | null>(initialCategory);
   const [gender, setGender] = useState<Gender | null>(initialGender);
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  const regionRowRef = useRef<HTMLDivElement>(null);
-  const catRowRef = useRef<HTMLDivElement>(null);
-  const regionRowOver = useOverflowing(regionRowRef);
-  const catRowOver = useOverflowing(catRowRef);
 
   /** Biz so'ragan oxirgi URL holati (o'z yangilanishimizni tashqi navigatsiyadan ajratish uchun) */
   const wanted = useRef(qsOf(initialRegion, initialCategory, initialGender));
@@ -401,6 +431,13 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
     wanted.current = qs;
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }));
   };
+
+  /* "Menga yaqin": javob kelguncha foydalanuvchi yo'nalish/jinsni o'zgartirgan bo'lishi mumkin — eng so'nggi holatga qo'llaymiz */
+  const latest = useRef({ apply, category });
+  useEffect(() => {
+    latest.current = { apply, category };
+  });
+  const nearMe = useNearMe((slug) => latest.current.apply(slug, latest.current.category));
 
   // Tashqi navigatsiya (orqaga/oldinga, menyudagi havola) → holatni URL'dan olamiz
   useEffect(() => {
@@ -490,6 +527,8 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
   /* Jins tanlanganda hudud statistikasida son yo'q — faqat ro'yxat javobidan olamiz */
   const shown: number | null = list && !loading ? list.total : gender ? (list?.total ?? null) : region ? countFor(region) : scopeTotal;
   const shownLabel = shown == null ? "…" : String(shown);
+  /** Jins tanlanganda son hudud statistikasidan emas, ro'yxat javobidan — shuni aniq aytamiz */
+  const shownUnit = genderInfo ? `${genderInfo.label.toLowerCase()} mutaxassis ko'rsatilgan` : "mutaxassis";
   const listHref = `/mutaxassislar${key ? `?${key}` : ""}`;
   const topItems = list?.items.slice(0, 3) ?? [];
 
@@ -517,7 +556,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
             <div className="flex items-center gap-2.5 text-[12px] font-semibold text-fg-2 sm:text-[13px]">
               <LiveDot />
               <span>
-                {REGIONS.length} hudud · <span className="text-fg">{scopeTotal}</span> mutaxassis
+                {REGIONS.length}&nbsp;hudud · <span className="text-fg">{scopeTotal}</span>&nbsp;mutaxassis
                 {cat && (
                   <>
                     {" "}
@@ -528,10 +567,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
             </div>
             <div className="flex items-center gap-2 text-[11px] font-semibold text-fg-3">
               kam
-              <span
-                className="h-2 w-20 rounded-full sm:w-28"
-                style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, var(--map-fill-0)), var(--accent))" }}
-              />
+              <span className="map-legend-ramp h-2 w-20 rounded-full sm:w-28" aria-hidden="true" />
               ko'p
             </div>
           </div>
@@ -543,30 +579,49 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
             selected={region}
             onSelect={(slug) => apply(slug, category)}
             unitLabel={cat ? unitOf(cat.name) : "mutaxassis"}
-            showLabels={!isMobile}
+            zoomable
             className="px-1 sm:px-2"
           />
 
-          {/* Hudud chiplari (kichik hududlarni bosish oson bo'lishi uchun) — tugmalar, klaviaturadan ham */}
-          <div
-            ref={regionRowRef}
-            className={cn("-mx-3 mt-2 flex gap-1.5 overflow-x-auto px-3 pb-1 no-scrollbar sm:-mx-5 sm:px-5", regionRowOver && "scroll-fade")}
-            role="group"
-            aria-label="Hududlar"
+          {/* Geolokatsiya holati */}
+          {nearMe.status && (
+            <div
+              className={cn(
+                "mt-2 flex items-start gap-2 rounded-tile px-3 py-2 text-[12.5px] leading-snug",
+                nearMe.status.tone === "error" ? "bg-warning-soft text-fg" : nearMe.status.tone === "ok" ? "bg-accent-soft text-fg" : "bg-fg/5 text-fg-2",
+              )}
+              role="status"
+            >
+              <LocateFixed size={16} className={cn("mt-px shrink-0", nearMe.status.tone === "error" ? "text-warning" : "text-accent-text")} />
+              <span className="flex-1">{nearMe.status.text}</span>
+              <button type="button" onClick={nearMe.dismiss} aria-label="Yopish" className="-my-1 -mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Hudud chiplari: 2 qatorli gorizontal lenta (snap) — kichik hududlarni bosish oson; klaviaturadan ham */}
+          <ScrollRow
+            label="Hududlar"
+            className="-mx-3 mt-2 sm:-mx-5"
+            rowClassName="grid auto-cols-max grid-flow-col grid-rows-2 gap-1.5 px-3 pb-1 sm:px-5"
           >
-            <Chip size="sm" active={false} onClick={() => setSheetOpen(true)} className="!border-dashed">
-              <List size={13} /> Barcha hududlar
+            <Chip size="sm" active={false} onClick={nearMe.locate} className="snap-start">
+              <LocateFixed size={16} className={nearMe.busy ? "animate-pulse text-accent" : "text-accent-text"} /> Menga yaqin
+            </Chip>
+            <Chip size="sm" active={false} onClick={() => setSheetOpen(true)} className="snap-start !border-dashed">
+              <List size={16} /> Barcha hududlar
             </Chip>
             {regionsByCount.map((r) => {
               const on = region === r.slug;
               return (
-                <Chip key={r.slug} size="sm" active={on} onClick={() => apply(on ? null : r.slug, category)}>
+                <Chip key={r.slug} size="sm" active={on} onClick={() => apply(on ? null : r.slug, category)} className="snap-start">
                   {r.short}
                   <Count n={countFor(r.slug)} active={on} />
                 </Chip>
               );
             })}
-          </div>
+          </ScrollRow>
         </div>
 
         {statsPanel("hidden lg:block")}
@@ -601,26 +656,21 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
               })}
             </div>
           </div>
-          <div
-            ref={catRowRef}
-            className={cn("-mx-4 grid auto-cols-max grid-flow-col grid-rows-2 gap-1.5 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0", catRowOver && "scroll-fade")}
-            role="group"
-            aria-label="Yo'nalishlar"
-          >
-            <Chip active={!category} onClick={() => apply(region, null)}>
+          <ScrollRow label="Yo'nalishlar" className="-mx-4 sm:mx-0" rowClassName="grid auto-cols-max grid-flow-col grid-rows-2 gap-1.5 px-4 pb-1 sm:px-0">
+            <Chip active={!category} onClick={() => apply(region, null)} className="snap-start">
               Barchasi <Count n={regionTotalAll} active={!category} />
             </Chip>
             {CATEGORIES.map((c) => {
               const on = category === c.slug;
               return (
-                <Chip key={c.slug} active={on} onClick={() => apply(region, on ? null : c.slug)}>
-                  <CategoryIcon icon={c.icon} size={14} className={on ? undefined : "text-fg-3"} />
+                <Chip key={c.slug} active={on} onClick={() => apply(region, on ? null : c.slug)} className="snap-start">
+                  <CategoryIcon icon={c.icon} size={16} className={on ? undefined : "text-fg-3"} />
                   {c.name}
                   <Count n={categoryCount(c.slug)} active={on} />
                 </Chip>
               );
             })}
-          </div>
+          </ScrollRow>
         </div>
 
         {/* Natijalar */}
@@ -646,13 +696,13 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                 </div>
                 <p className="mt-1 text-[13px] text-fg-3" aria-live="polite">
                   {regionInfo ? `Markaz: ${regionInfo.capital} · ` : "Eng yuqori reytinglilar · "}
-                  <span className="font-semibold text-fg-2 tabular-nums">{shownLabel}</span> ta mutaxassis
+                  <span className="font-semibold text-fg-2 tabular-nums">{shownLabel}</span> ta {shownUnit}
                 </p>
               </div>
             </div>
             {region ? (
               <Button variant="outline" size="sm" className="shrink-0" onClick={() => apply(null, category)}>
-                <X size={13} /> Tozalash
+                <X size={16} /> Tozalash
               </Button>
             ) : (
               <span className="hidden shrink-0 pt-2 text-[12px] text-fg-4 sm:block">Hududni bosing</span>
@@ -671,7 +721,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
               <p className="font-display text-[16px] font-semibold text-fg">Yuklab bo'lmadi</p>
               <p className="mt-1.5 max-w-xs text-[13px] text-fg-3">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={retry}>
-                <RotateCcw size={14} /> Qayta urinish
+                <RotateCcw size={16} /> Qayta urinish
               </Button>
             </div>
           ) : list && list.items.length > 0 ? (
@@ -691,7 +741,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                           <span className="truncate">{it.user.name}</span>
                           {it.isVerified && <VerifiedBadge size={15} />}
                           {isRecent(it.createdAt, 7) && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">Yangi</span>}
-                          {!it.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning">Band</span>}
+                          {!it.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">Band</span>}
                         </p>
                         <p className="mt-0.5 truncate text-[13px] text-fg-2">{it.title}</p>
                         <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-fg-3">
@@ -712,7 +762,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                         <Stars value={it.rating} count={it.reviewCount} size={11} />
                       </div>
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg">
-                        <ArrowUpRight size={15} />
+                        <ArrowUpRight size={16} />
                       </span>
                     </Link>
                   </li>
@@ -745,7 +795,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                   </Button>
                 )}
                 <ButtonLink href="/auth/royxat?role=specialist" size="sm">
-                  <UserPlus size={14} /> Birinchi bo'lish
+                  <UserPlus size={16} /> Birinchi bo'lish
                 </ButtonLink>
               </div>
             </div>
@@ -758,7 +808,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
                 {list && list.total > LIMIT ? `Eng yaxshi ${LIMIT} tasi ko'rsatildi` : "Reyting bo'yicha saralangan"}
               </p>
               <ButtonLink href={listHref} variant="accent" size="sm" className="shrink-0 !h-10">
-                Barchasini ko'rish ({shownLabel}) <ArrowRight size={14} />
+                Barchasini ko'rish ({shownLabel}) <ArrowRight size={16} />
               </ButtonLink>
             </div>
           )}

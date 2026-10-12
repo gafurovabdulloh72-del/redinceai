@@ -22,6 +22,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { AdminBanToggle } from "@/components/admin/AdminBanToggle";
 import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
 import { AdminPayoutsQueue, type AdminPayoutRow } from "@/components/admin/AdminPayoutsQueue";
@@ -67,7 +68,7 @@ function Tile({ icon: Icon, value, label, hint, hintTone = "neutral", href }: { 
       </div>
       <div className="mt-4 font-display text-[24px] font-semibold leading-none tracking-tight text-fg sm:text-[30px]">{value}</div>
       <div className="mt-2 text-[12px] font-medium text-fg-3">{label}</div>
-      {hint && <div className={cn("mt-1 text-[12px] font-medium", hintTone === "warning" ? "text-warning" : hintTone === "success" ? "text-success" : "text-fg-4")}>{hint}</div>}
+      {hint && <div className={cn("mt-1 text-[12px] font-medium", hintTone === "warning" ? "text-warning-text" : hintTone === "success" ? "text-success-text" : "text-fg-4")}>{hint}</div>}
     </>
   );
   const cls = "card group block p-4 sm:p-5";
@@ -177,6 +178,8 @@ export default async function AdminPage() {
     role: u.role as Role,
     avatarUrl: u.avatarUrl,
     createdAt: u.createdAt.getTime(),
+    isBanned: u.isBanned,
+    bannedReason: u.bannedReason,
   }));
 
   const orders = latestOrders.map((o) => ({
@@ -417,18 +420,22 @@ export default async function AdminPage() {
             ) : (
               <ul className="divide-y divide-line border-t border-line">
                 {users.map((u) => (
-                  <li key={u.id} className="flex items-center gap-3 px-5 py-3">
+                  <li key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3">
                     <Avatar name={u.name} src={u.avatarUrl} size={38} decorative />
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-[10rem] flex-1">
                       <p className="truncate text-[14px] font-semibold text-fg">{u.name}</p>
-                      <p className="truncate text-[12px] text-fg-3">{u.email}</p>
+                      <p className="truncate text-[12px] text-fg-3">
+                        {u.email}
+                        <time dateTime={new Date(u.createdAt).toISOString()} className="text-fg-4" suppressHydrationWarning>
+                          {" · "}
+                          {timeAgo(u.createdAt)}
+                        </time>
+                      </p>
                     </div>
-                    <Badge tone={ROLE_TONE[u.role]} className="shrink-0">
-                      {ROLE_LABEL[u.role]}
+                    <Badge tone={u.isBanned ? "danger" : ROLE_TONE[u.role]} className="shrink-0">
+                      {u.isBanned ? "Bloklangan" : ROLE_LABEL[u.role]}
                     </Badge>
-                    <time dateTime={new Date(u.createdAt).toISOString()} className="hidden w-24 shrink-0 text-right text-[12px] text-fg-3 sm:block" suppressHydrationWarning>
-                      {timeAgo(u.createdAt)}
-                    </time>
+                    {u.role !== "admin" && <AdminBanToggle key={`${u.id}:${u.isBanned}`} userId={u.id} name={u.name} initialBanned={u.isBanned} initialReason={u.bannedReason} className="ml-auto" />}
                   </li>
                 ))}
               </ul>

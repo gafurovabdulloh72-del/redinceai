@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, ExternalLink, Flag, RotateCcw } from "lucide-react";
+import { AdminBanToggle } from "@/components/admin/AdminBanToggle";
 import { Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
@@ -16,6 +17,8 @@ export interface AdminReportRowDto {
   createdAt: number;
   reporter: { name: string; email: string };
   target: { label: string; href: string | null; snippet: string | null } | null;
+  /** Profil shikoyatida — egasi (bloklash uchun) */
+  owner?: { userId: string; name: string; isBanned: boolean; bannedReason: string | null } | null;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -88,7 +91,8 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
             {r.reporter.name} · {r.reporter.email}
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 flex-wrap items-start gap-2 sm:justify-end">
+          {r.owner && <AdminBanToggle key={`${r.owner.userId}:${r.owner.isBanned}`} userId={r.owner.userId} name={r.owner.name} initialBanned={r.owner.isBanned} initialReason={r.owner.bannedReason} />}
           {r.status === "open" ? (
             <Button size="sm" variant="outline" className="h-11 md:h-9" onClick={() => setStatus(r, "closed")} disabled={!!busy}>
               {busy === r.id ? <Spinner className="h-3.5 w-3.5" /> : <Check size={14} />} Yopish
@@ -107,12 +111,12 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
     <div className="space-y-3">
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {error && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">
+          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}

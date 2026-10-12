@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Compass, MapPinned, Users } from "lucide-react";
+import { ArrowRight, Compass, MapPinned, Search, Users } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
 
@@ -26,7 +26,7 @@ export default function NotFound() {
         </svg>
 
         <span className="eyebrow relative">
-          <Compass size={13} className="text-accent" /> Xato 404
+          <Compass size={16} className="text-accent" /> Xato 404
         </span>
 
         <p className="display-xl relative mt-6 text-[104px] leading-none text-fg sm:text-[168px]" aria-hidden="true">
@@ -38,7 +38,21 @@ export default function NotFound() {
           Bu manzil ko'chib ketgan yoki umuman bo'lmagan. Yo'qolib qolmang — ijodkorlar xaritada, bir bosishda.
         </p>
 
-        <div className="relative mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+        {/* Qidiruv — oddiy GET forma (JS'siz ham ishlaydi): /mutaxassislar?q=… */}
+        <form action="/mutaxassislar" method="get" role="search" className="relative mt-8 flex w-full max-w-md items-center gap-2">
+          <label htmlFor="nf-q" className="sr-only">
+            Mutaxassis qidirish
+          </label>
+          <span className="relative flex-1">
+            <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden="true" />
+            <input id="nf-q" name="q" type="search" maxLength={80} placeholder="Ism yoki ko'nikma…" className="field h-12 !rounded-full !pl-10" autoComplete="off" />
+          </span>
+          <button type="submit" className="btn-ink inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-semibold">
+            Qidirish
+          </button>
+        </form>
+
+        <div className="relative mt-4 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <ButtonLink href="/" variant="accent" size="lg" className="w-full sm:w-auto sm:min-w-[190px]">
             Bosh sahifaga <ArrowRight size={16} />
           </ButtonLink>
@@ -47,12 +61,12 @@ export default function NotFound() {
           </ButtonLink>
         </div>
 
-        <div className="relative mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-fg-3">
+        <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-fg-3">
           <Link href="/mutaxassislar" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
-            <Users size={14} /> Mutaxassislar ro'yxati
+            <Users size={16} /> Mutaxassislar ro'yxati
           </Link>
           <Link href="/kabinet" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
-            <Compass size={14} /> Kabinet
+            <Compass size={16} /> Kabinet
           </Link>
         </div>
       </div>

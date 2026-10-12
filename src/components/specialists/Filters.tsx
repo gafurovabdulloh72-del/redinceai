@@ -3,12 +3,13 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpDown, CheckCircle2, ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, ChevronDown, LayoutGrid, Rows3, SlidersHorizontal, X } from "lucide-react";
 import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS } from "@/lib/constants";
 import { cn, formatPrice } from "@/lib/utils";
+import { SearchBox, type SuggestionItem } from "./SearchBox";
 
 /* ------------------------------------------------------------------ */
 /* Konstantalar                                                        */
@@ -17,7 +18,7 @@ export const PRICE_MAX = 20_000_000;
 export const PRICE_STEP = 100_000;
 
 /** URL'dagi "filtr" kalitlari (sort/limit/page/view bunga kirmaydi) */
-export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available"] as const;
+export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available", "skill", "equipment"] as const;
 
 export const SORT_OPTIONS = [
   { value: "rating", label: "Reyting bo'yicha" },
@@ -379,6 +380,25 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
     reset();
   };
 
+  /**
+   * Taklif tanlandi: profil — o'sha sahifaga; ro'yxat filtri (yo'nalish/hudud/ko'nikma/shahar) —
+   * joriy filtrlar ustiga qo'llanadi, yozilgan matn esa taklif bilan almashtiriladi.
+   */
+  const router = useRouter();
+  const onPick = (s: SuggestionItem) => {
+    const url = new URL(s.href, window.location.origin);
+    if (url.pathname !== "/mutaxassislar") {
+      router.push(url.pathname + url.search);
+      return;
+    }
+    const patch: Record<string, string | null> = { q: null };
+    url.searchParams.forEach((v, k) => {
+      patch[k] = v;
+    });
+    q.resetLocal(patch.q ?? "");
+    setParams(patch);
+  };
+
   return (
     <div className={cn(className)}>
       {showHeader ? (
@@ -408,31 +428,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
         <label htmlFor="sp-q" className="sr-only">
           Qidiruv
         </label>
-        <div className="relative">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" />
-          <input
-            id="sp-q"
-            type="text"
-            className="field !h-11 !pl-10 !pr-10"
-            placeholder="Ism, ko'nikma yoki shahar…"
-            value={q.value}
-            onChange={(e) => q.setValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && q.flush()}
-            autoComplete="off"
-            enterKeyHint="search"
-            maxLength={80}
-          />
-          {q.value && (
-            <button
-              type="button"
-              onClick={() => q.setValue("")}
-              aria-label="Qidiruvni tozalash"
-              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/8 hover:text-fg"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        <SearchBox id="sp-q" value={q.value} onChange={q.setValue} onSubmit={q.flush} onPick={onPick} />
       </div>
 
       {/* Yo'nalish */}

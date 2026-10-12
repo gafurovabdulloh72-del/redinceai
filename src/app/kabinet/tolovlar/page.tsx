@@ -11,11 +11,13 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { PAYOUT_STATE_LABEL } from "@/lib/constants";
 import { availableProviders } from "@/lib/payments/config";
 import { findOpenPayout, getSpecialistBalance, listAwaitingOrdersForClient, listPaymentsForClient, listPaymentsForSpecialist, listPayoutsForSpecialist } from "@/lib/payments/queries";
-import { getSettings } from "@/lib/payments/settings";
+import { commissionPctFor, getSettings, type CommissionTier } from "@/lib/payments/settings";
 import { cn, formatDateTime, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "To'lovlar" };
+
+const TIER_LABEL: Record<CommissionTier, string> = { new: "Yangi", standard: "Oddiy", top: "Top mutaxassis" };
 
 function Tile({ icon: Icon, value, label, hint, emphasis }: { icon: LucideIcon; value: string; label: string; hint?: string; emphasis?: boolean }) {
   return (
@@ -44,6 +46,12 @@ export default async function PaymentsPage() {
       : Promise.resolve(null),
   ]);
   const providers = availableProviders();
+  // Komissiya darajali (yangi / oddiy / top): sarlavha va "Qanday ishlaydi" mutaxassisning HOZIRGI darajasini ko'rsatadi.
+  // Foiz narx belgilangan paytda buyurtmaga qotadi — jadvaldagi eski qatorlar boshqa foizda bo'lishi mumkin.
+  const tier = sp ? commissionPctFor(settings, sp) : null;
+  const tierPcts = [settings.commissionPctNew, settings.commissionPct, settings.commissionPctTop];
+  const [pctMin, pctMax] = [Math.min(...tierPcts), Math.max(...tierPcts)];
+  const pctRange = pctMin === pctMax ? `${pctMin}%` : `${pctMin}–${pctMax}%`;
 
   const specialistRows: PaymentRow[] = (specialistData?.payments ?? []).map((p) => ({
     id: p.id,
@@ -97,7 +105,7 @@ export default async function PaymentsPage() {
         </h1>
         <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
           {sp
-            ? `Mijoz to'lovi eskrouda turadi; ish qabul qilingach ${100 - settings.commissionPct}% balansingizga tushadi (${settings.commissionPct}% — platforma xizmat haqi). Balansni istalgan vaqt chiqarib olishingiz mumkin.`
+            ? `Mijoz to'lovi eskrouda turadi; ish qabul qilingach sof summa balansingizga tushadi. Platforma xizmat haqi darajangizga qarab ${pctRange}: hozir siz «${TIER_LABEL[tier!.tier]}» darajadasiz — ${tier!.pct}% (narx belgilangan paytdagi foiz o'sha buyurtmaga qotadi). Balansni istalgan vaqt chiqarib olishingiz mumkin.`
             : "Buyurtmalar uchun to'lovlar eskrou orqali: pul ish qabul qilingunga qadar platformada saqlanadi."}
         </p>
       </header>
@@ -125,7 +133,7 @@ export default async function PaymentsPage() {
                 {[
                   { icon: BadgePercent, t: "Narx belgilaysiz", d: "Qabul qilingan buyurtmaga narx qo'yasiz — mijozga to'lov havolasi boradi." },
                   { icon: ShieldCheck, t: "Mijoz eskrouga to'laydi", d: "Pul platformada turadi. Ishni xotirjam bajarasiz." },
-                  { icon: Handshake, t: "Mijoz qabul qiladi", d: `Sof summa (${100 - settings.commissionPct}%) balansingizga tushadi.` },
+                  { icon: Handshake, t: "Mijoz qabul qiladi", d: `Sof summa balansingizga tushadi — hozirgi darajangizda ${100 - (tier?.pct ?? settings.commissionPct)}% (xizmat haqi ${tier?.pct ?? settings.commissionPct}%).` },
                   { icon: Landmark, t: "Pul chiqarasiz", d: `Kartaga yoki bankka — minimal ${formatPrice(settings.minPayout, { compact: true })}.` },
                 ].map((s, i) => (
                   <li key={s.t} className="flex items-start gap-3">

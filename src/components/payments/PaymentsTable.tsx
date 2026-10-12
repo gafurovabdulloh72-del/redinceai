@@ -73,9 +73,9 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
                 {role === "specialist" && <span className="block text-[11px] text-fg-4">{sub(r)}</span>}
               </td>
               <td className="px-3 py-3">
-                <Badge tone={PAYMENT_TONE[r.state]}>{PAYMENT_STATE_LABEL[r.state]}</Badge>
+                <Badge tone={PAYMENT_TONE[r.state]} className="whitespace-nowrap">{PAYMENT_STATE_LABEL[r.state]}</Badge>
                 {openLink(r) && (
-                  <Link href={openLink(r)!.href} className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-accent hover:opacity-80">
+                  <Link href={openLink(r)!.href} className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-accent-text hover:opacity-80">
                     {openLink(r)!.label === "Chek" && <FileText size={11} />}
                     {openLink(r)!.label} →
                   </Link>
@@ -123,7 +123,7 @@ export function PaymentsTable({ rows, role, emptyText }: { rows: PaymentRow[]; r
               </div>
             </dl>
             {openLink(r) && (
-              <Link href={openLink(r)!.href} className="mt-2 inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-accent">
+              <Link href={openLink(r)!.href} className="mt-2 inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-accent-text">
                 {openLink(r)!.label === "Chek" && <FileText size={12} />}
                 {openLink(r)!.label} →
               </Link>

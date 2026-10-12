@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { orders, payments } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderStatusSchema } from "@/lib/validators";
 import type { OrderStatus } from "@/lib/constants";
@@ -60,6 +60,11 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   // Payme/Click tomonida jarayondagi to'lov bo'lsa — buyurtmani bekor qilib bo'lmaydi (provayder tranzaksiyasi ichkaridan yopilmaydi)
   if (status === "cancelled" && (await findInFlightProviderPayment(id))) {
     throw new ApiError(409, "Mijoz to'lovni boshlagan — provayder tomonida jarayonda. Yakunlanishini yoki bekor bo'lishini kuting");
+  }
+  // «To'ladim» bosilgan qo'lda o'tkazma: pul yo'lda bo'lishi mumkin — avval admin tasdiqlaydi/rad etadi (aks holda yozuv yo'qoladi)
+  if (status === "cancelled" && !isAdmin) {
+    const manualPending = await db.query.payments.findFirst({ where: and(eq(payments.orderId, id), eq(payments.provider, "manual"), eq(payments.state, "pending")), columns: { id: true } });
+    if (manualPending) throw new ApiError(409, "Mijoz o'tkazma qilganini bildirgan — avval administrator uni tasdiqlashi yoki rad etishi kerak");
   }
 
   const now = new Date();

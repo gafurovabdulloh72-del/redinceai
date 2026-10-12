@@ -133,7 +133,7 @@ export function OrderForm({
     return (
       <div className="card-elevated animate-fade-up overflow-hidden" style={{ animationDuration: "0.45s" }}>
         <div className="px-6 pb-6 pt-8 text-center sm:px-10 sm:pt-10">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success-text">
             <CheckCircle2 size={34} />
           </span>
           <span className="eyebrow mt-6 justify-center">Buyurtma yuborildi</span>
@@ -356,7 +356,7 @@ export function OrderForm({
       </div>
 
       {error && (
-        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger">
+        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}

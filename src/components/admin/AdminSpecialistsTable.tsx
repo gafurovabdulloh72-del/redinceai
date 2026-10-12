@@ -219,7 +219,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
             aria-pressed={Boolean(row.isBanned)}
             aria-label={row.isBanned ? "Blokdan chiqarish" : "Bloklash"}
             title={row.isBanned ? `Bloklangan${row.bannedReason ? `: ${row.bannedReason}` : ""} — blokdan chiqarish` : "Bloklash"}
-            className={cn(iconBtn, row.isBanned ? "border-danger/50 bg-danger-soft text-danger hover:text-danger" : "hover:border-danger hover:text-danger")}
+            className={cn(iconBtn, row.isBanned ? "border-danger/50 bg-danger-soft text-danger-text hover:text-danger-text" : "hover:border-danger hover:text-danger-text")}
           >
             {b === "ban" ? <Spinner className="h-3.5 w-3.5" /> : row.isBanned ? <ShieldCheck size={15} /> : <ShieldBan size={15} />}
           </button>
@@ -244,7 +244,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
           disabled={!!b}
           aria-label={`${row.user.name} profilini o'chirish`}
           title="O'chirish"
-          className={cn(iconBtn, "text-danger hover:border-danger hover:bg-danger-soft hover:text-danger")}
+          className={cn(iconBtn, "text-danger-text hover:border-danger hover:bg-danger-soft hover:text-danger-text")}
         >
           {b === "delete" ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 size={15} />}
         </button>
@@ -257,12 +257,12 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
       {/* Xabarlar */}
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {error && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">
+          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -298,7 +298,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                               <span className="truncate">{row.user.name}</span>
                               {row.isFeatured && <Star size={12} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                               {row.isBanned && (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger" title={row.bannedReason ?? undefined}>
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger-text" title={row.bannedReason ?? undefined}>
                                   <ShieldBan size={10} /> Bloklangan
                                 </span>
                               )}
@@ -359,7 +359,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                         <span className="truncate">{row.user.name}</span>
                         {row.isFeatured && <Star size={13} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                         {row.isBanned && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger-text">
                             <ShieldBan size={10} /> Bloklangan
                           </span>
                         )}

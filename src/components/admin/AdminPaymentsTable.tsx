@@ -39,6 +39,8 @@ const FILTERS: Array<{ key: FilterKey; label: string; match: (s: PaymentState) =
   { key: "closed", label: "Bekor / qaytarilgan", match: (s) => s === "cancelled" || s === "refunded" },
 ];
 
+/** service.ts PROVIDER_PENDING_TTL_MS bilan bir xil (server-only moduldan import qilib bo'lmaydi) */
+const PROVIDER_PENDING_TTL_MS = 12 * 60 * 60 * 1000;
 /** Mobil ro'yxatda dastlab ko'rsatiladigan qatorlar (uzun sahifa o'rniga «Yana ko'rsatish») */
 const MOBILE_CAP = 10;
 /** Admin buyurtma sahifasi (to'lovlar, tomonlar, jurnal — bir joyda) */
@@ -49,7 +51,7 @@ const ACTION_CONFIRM: Record<Action, string> = {
   confirm: "O'tkazma hisobga tushganini tekshirdingizmi? Buyurtma «To'langan (eskrou)» bo'ladi.",
   release: "Eskroudagi sof summa mutaxassis balansiga o'tadi va buyurtma yakunlanadi. Qaytarib bo'lmaydi.",
   refund: "Pul mijozga qaytarilgan deb belgilanadi (Payme/Click'da qaytarishni provayder kabinetida ham bajaring).",
-  cancel: "Hali to'lanmagan urinish bekor qilinadi.",
+  cancel: "Hali to'lanmagan urinish bekor qilinadi. Qo'lda o'tkazmada mijozga «O'tkazma tasdiqlanmadi» xabari va izohingiz boradi.",
 };
 /** Izoh: qaytarish/bekor qilishda majburiy (audit jurnalida ko'rinadi), tasdiqlash/o'tkazishda ixtiyoriy */
 const NOTE_REQUIRED: Record<Action, boolean> = { confirm: false, release: false, refund: true, cancel: true };
@@ -63,6 +65,8 @@ const NOTE_PLACEHOLDER: Record<Action, string> = {
 function actionsFor(r: AdminPaymentRow): Action[] {
   if (r.state === "paid") return ["release", "refund"];
   if (r.state === "pending" && r.provider === "manual") return ["confirm", "cancel"];
+  // Payme/Click tomonida jarayondagi (12 soatdan yangi) tranzaksiyani faqat provayder yopadi — server ham 409 qaytaradi
+  if (r.state === "pending" && Date.now() - r.createdAt <= PROVIDER_PENDING_TTL_MS) return [];
   if (r.state === "pending" || r.state === "created") return ["cancel"];
   return [];
 }
@@ -176,7 +180,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
             key={a}
             size="sm"
             variant={a === "release" || a === "confirm" ? "primary" : "outline"}
-            className={cn("h-11 md:h-9", (a === "refund" || a === "cancel") && "text-danger hover:border-danger hover:bg-danger-soft")}
+            className={cn("h-11 md:h-9", (a === "refund" || a === "cancel") && "text-danger-text hover:border-danger hover:bg-danger-soft")}
             onClick={() => {
               setAsk({ id: r.id, action: a });
               setNote("");
@@ -211,12 +215,12 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
 
       <div aria-live="polite" className="space-y-2 empty:hidden">
         {error && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger">
+          <p className="flex items-center gap-2 rounded-[14px] bg-danger-soft px-4 py-2.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {error}
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -274,7 +278,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
                     <span className="block text-[11px] text-fg-4">{r.commissionPct}%</span>
                   </td>
                   <td className="px-3 py-3">
-                    <Badge tone={PAYMENT_TONE[r.state]}>{PAYMENT_STATE_LABEL[r.state]}</Badge>
+                    <Badge tone={PAYMENT_TONE[r.state]} className="whitespace-nowrap">{PAYMENT_STATE_LABEL[r.state]}</Badge>
                   </td>
                   <td className="px-5 py-3 text-right">
                     <Actions r={r} />

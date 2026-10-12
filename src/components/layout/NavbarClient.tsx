@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Compass, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
+import { Bell, Compass, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -138,6 +138,8 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     {user.role === "specialist" && user.specialistSlug && (
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Mening profilim</MenuItem>
                     )}
+                    <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>Bildirishnomalar</MenuItem>
+                    <MenuItem href="/kabinet/sevimlilar" icon={Heart}>Sevimlilar</MenuItem>
                     <MenuItem href="/kabinet/profil" icon={UserCog}>Profil</MenuItem>
                     {user.role === "admin" && <MenuItem href="/admin" icon={ShieldCheck}>Admin panel</MenuItem>}
                     <div className="my-1 h-px bg-line" />
@@ -145,7 +147,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                       type="button"
                       onClick={logout}
                       role="menuitem"
-                      className="flex min-h-11 w-full items-center gap-2.5 rounded-tile px-3 py-2.5 text-left text-[14px] font-medium text-danger transition hover:bg-danger-soft"
+                      className="flex min-h-11 w-full items-center gap-2.5 rounded-tile px-3 py-2.5 text-left text-[14px] font-medium text-danger-text transition hover:bg-danger-soft"
                     >
                       <LogOut size={16} /> Chiqish
                     </button>

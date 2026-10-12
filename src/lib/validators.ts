@@ -144,6 +144,13 @@ export const portfolioItemSchema = z
   // "Rasm" turidagi ishning manzili rasm sifatida ko'rsatiladi — https bo'lishi shart
   .refine((d) => d.type !== "image" || IMAGE_URL_RE.test(d.url), { message: IMAGE_URL_MSG, path: ["url"] });
 
+/** Portfolio ishini tahrirlash (PATCH /api/portfolio/[id]): turi va manzili o'zgarmaydi */
+export const portfolioEditSchema = z.object({
+  title: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  thumbnailUrl: optionalImageUrl,
+});
+
 /**
  * Akkaunt ma'lumotlari (PATCH /api/profile).
  * email — berilsa va joriy emaildan farq qilsa, currentPassword majburiy (route tekshiradi) va emailVerified=false bo'ladi;
@@ -208,6 +215,9 @@ export const payoutDecisionSchema = z.object({
 });
 export const platformSettingsSchema = z.object({
   commissionPct: z.coerce.number().int().min(0).max(50),
+  // Komissiya darajalari (F21): yangi mutaxassis va "Top mutaxassis" — berilmasa tegilmaydi
+  commissionPctNew: z.coerce.number().int().min(0).max(50).optional(),
+  commissionPctTop: z.coerce.number().int().min(0).max(50).optional(),
   minPayout: z.coerce.number().int().min(0).max(100_000_000),
   minOrderAmount: z.coerce.number().int().min(0).max(100_000_000),
 });
