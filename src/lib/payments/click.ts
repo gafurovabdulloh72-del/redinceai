@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { orders, payments, type Payment } from "@/lib/db/schema";
+import { orders, payments, subscriptionInvoices, type Payment, type SubscriptionInvoice } from "@/lib/db/schema";
+import { isInvoiceId, loadInvoice, markInvoicePaid } from "@/lib/subscriptions/billing";
 import { uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
@@ -13,6 +14,7 @@ import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent } fr
  * So'rov: application/x-www-form-urlencoded. Javob: JSON.
  *  Prepare  (action=0): sign = md5(click_trans_id + service_id + SECRET + merchant_trans_id + amount + action + sign_time)
  *  Complete (action=1): sign = md5(click_trans_id + service_id + SECRET + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)
+ * merchant_trans_id "sub_…" — mutaxassis obunasi hisobi (subscription_invoices), aks holda eskrou buyurtmasi.
  */
 export const CLICK_ERR = {
   SUCCESS: 0,
@@ -82,6 +84,7 @@ async function findByClickId(clickTransId: string) {
 async function prepare(f: Fields, secret: string) {
   const sign = md5(f.click_trans_id + f.service_id + secret + f.merchant_trans_id + f.amount + f.action + f.sign_time);
   if (!safeEqual(sign, (f.sign_string ?? "").toLowerCase())) return respond(f, CLICK_ERR.SIGN);
+  if (isInvoiceId(f.merchant_trans_id)) return prepareInvoice(f);
 
   const order = await db.query.orders.findFirst({ where: eq(orders.id, f.merchant_trans_id) });
   if (!order) return respond(f, CLICK_ERR.USER_NOT_FOUND);
@@ -145,6 +148,7 @@ async function prepare(f: Fields, secret: string) {
 async function complete(f: Fields, secret: string) {
   const sign = md5(f.click_trans_id + f.service_id + secret + f.merchant_trans_id + f.merchant_prepare_id + f.amount + f.action + f.sign_time);
   if (!safeEqual(sign, (f.sign_string ?? "").toLowerCase())) return respond(f, CLICK_ERR.SIGN);
+  if (isInvoiceId(f.merchant_trans_id)) return completeInvoice(f);
 
   const order = await db.query.orders.findFirst({ where: eq(orders.id, f.merchant_trans_id) });
   if (!order) return respond(f, CLICK_ERR.USER_NOT_FOUND);
@@ -176,6 +180,62 @@ async function complete(f: Fields, secret: string) {
     await markPaid(payment.id, { providerState: 2, performTime: Date.now() });
   } catch (e) {
     console.error("[click] complete", e);
+    return respond(f, CLICK_ERR.UPDATE_FAILED, { merchant_confirm_id: confirmId });
+  }
+  return respond(f, CLICK_ERR.SUCCESS, { merchant_confirm_id: confirmId });
+}
+
+/* ---------- Obuna hisoblari (merchant_trans_id = "sub_…") ---------- */
+/**
+ * Prepare: hisob mavjud, Click uchun ochilgan, to'lanmagan, summa mos → 'pending' (click_trans_id bog'lanadi).
+ * Takroriy Prepare (shu click_trans_id) — mavjud merchant_prepare_id. Click yangi click_trans_id bilan qayta urinsa
+ * (oldingisi yakunlanmagan) — yangisiga qayta bog'lanadi: eski Complete -6 oladi va Click uni o'zi bekor qiladi.
+ */
+async function prepareInvoice(f: Fields) {
+  const inv = await loadInvoice(f.merchant_trans_id);
+  if (!inv || !inv.specialistId || inv.provider !== "click") return respond(f, CLICK_ERR.USER_NOT_FOUND);
+  if (inv.state === "paid") return respond(f, CLICK_ERR.ALREADY_PAID);
+  if (inv.state === "cancelled" || inv.state === "refunded") return respond(f, CLICK_ERR.CANCELLED);
+  if (!amountMatches(f.amount, inv.amount)) return respond(f, CLICK_ERR.AMOUNT);
+  if (inv.state === "pending" && inv.providerTxnId === f.click_trans_id) {
+    return respond(f, CLICK_ERR.SUCCESS, { merchant_prepare_id: Number(inv.meta.prepareId ?? 0) });
+  }
+  const prepareId = Date.now();
+  const meta = { ...inv.meta, prepareId, clickPaydocId: f.click_paydoc_id ?? null, signTime: f.sign_time ?? null };
+  const [row] = await db
+    .update(subscriptionInvoices)
+    .set({ state: "pending", providerTxnId: f.click_trans_id, providerState: 1, providerCreateTime: prepareId, meta, updatedAt: new Date(prepareId) })
+    .where(and(eq(subscriptionInvoices.id, inv.id), eq(subscriptionInvoices.state, inv.state)))
+    .returning();
+  if (!row) return respond(f, CLICK_ERR.UPDATE_FAILED);
+  return respond(f, CLICK_ERR.SUCCESS, { merchant_prepare_id: prepareId });
+}
+
+async function completeInvoice(f: Fields) {
+  const inv: SubscriptionInvoice | null = await loadInvoice(f.merchant_trans_id);
+  if (!inv) return respond(f, CLICK_ERR.USER_NOT_FOUND);
+  if (inv.provider !== "click" || inv.providerTxnId !== f.click_trans_id || String(inv.meta.prepareId ?? "") !== String(f.merchant_prepare_id)) return respond(f, CLICK_ERR.TXN_NOT_FOUND);
+  if (!amountMatches(f.amount, inv.amount)) return respond(f, CLICK_ERR.AMOUNT);
+  const confirmId = Number(inv.meta.prepareId);
+
+  const clickError = Number(f.error ?? 0);
+  if (clickError < 0) {
+    if (inv.state === "pending" || inv.state === "created") {
+      const now = Date.now();
+      await db
+        .update(subscriptionInvoices)
+        .set({ state: "cancelled", providerState: -1, cancelTime: now, cancelReason: clickError, updatedAt: new Date(now) })
+        .where(and(eq(subscriptionInvoices.id, inv.id), eq(subscriptionInvoices.state, inv.state)));
+    }
+    return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
+  }
+  if (inv.state === "paid") return respond(f, CLICK_ERR.SUCCESS, { merchant_confirm_id: confirmId });
+  if (inv.state === "cancelled" || inv.state === "refunded") return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
+
+  try {
+    await markInvoicePaid(inv.id, { providerState: 2, performTime: Date.now() });
+  } catch (e) {
+    console.error("[click] complete invoice", e);
     return respond(f, CLICK_ERR.UPDATE_FAILED, { merchant_confirm_id: confirmId });
   }
   return respond(f, CLICK_ERR.SUCCESS, { merchant_confirm_id: confirmId });

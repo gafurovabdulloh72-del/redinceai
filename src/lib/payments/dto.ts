@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { payments } from "@/lib/db/schema";
@@ -6,18 +7,21 @@ import type { PaymentProvider } from "@/lib/constants";
 import { paymentsEnv } from "./config";
 import { buildRedirectUrl } from "./service";
 
-/** To'lov + buyurtma + tomonlar (checkout sahifasi, status API, admin) */
-export async function loadPaymentDetail(id: string) {
+/**
+ * To'lov + buyurtma + tomonlar (checkout sahifasi, status API, admin).
+ * React cache(): /tolov va /chek layout'idagi huquq tekshiruvi va sahifa bitta so'rovni ishlatadi.
+ */
+export const loadPaymentDetail = cache(async (id: string) => {
   const row = await db.query.payments.findFirst({
     where: eq(payments.id, id),
     with: {
-      order: { columns: { id: true, title: true, status: true, paymentState: true, amount: true, completedAt: true } },
+      order: { columns: { id: true, title: true, status: true, paymentState: true, amount: true, completedAt: true, urgent: true, urgentFee: true } },
       client: { columns: { id: true, name: true, avatarUrl: true } },
       specialist: { columns: { id: true, slug: true, title: true, userId: true }, with: { user: { columns: { name: true, avatarUrl: true } } } },
     },
   });
   return row ?? null;
-}
+});
 export type PaymentDetail = NonNullable<Awaited<ReturnType<typeof loadPaymentDetail>>>;
 
 export interface PaymentDto {
@@ -32,6 +36,8 @@ export interface PaymentDto {
   commissionPct: number;
   commissionAmount: number;
   netAmount: number;
+  /** Shoshilinch ustama (F30) — amount ichida; null — oddiy buyurtma */
+  urgentFee: number | null;
   /** ms */
   createdAt: number;
   paidAt: number | null;
@@ -59,6 +65,7 @@ export function toPaymentDto(p: PaymentDetail, origin: string): PaymentDto {
     commissionPct: p.commissionPct,
     commissionAmount: p.commissionAmount,
     netAmount: p.netAmount,
+    urgentFee: p.order.urgent && p.order.urgentFee ? p.order.urgentFee : null,
     createdAt: p.createdAt.getTime(),
     paidAt: p.paidAt?.getTime() ?? null,
     releasedAt: p.releasedAt?.getTime() ?? null,

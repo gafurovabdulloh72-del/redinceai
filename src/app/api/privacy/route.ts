@@ -10,7 +10,7 @@ import { enforceLimit } from "@/lib/security/rate-limit";
 async function ownSpecialist(userId: string) {
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.userId, userId),
-    columns: { id: true, slug: true, visibility: true, schedule: true, vacationUntil: true },
+    columns: { id: true, slug: true, visibility: true, schedule: true, vacationUntil: true, blockedDates: true },
   });
   if (!sp) throw new ApiError(404, "Avval mutaxassis profilini yarating");
   return sp;
@@ -20,14 +20,37 @@ async function ownSpecialist(userId: string) {
 export const GET = handler(async () => {
   const session = await requireSession();
   const sp = await ownSpecialist(session.sub);
-  return ok({ slug: sp.slug, visibility: resolveVisibility(sp.visibility), schedule: sp.schedule ?? null, vacationUntil: sp.vacationUntil ?? null });
+  return ok({
+    slug: sp.slug,
+    visibility: resolveVisibility(sp.visibility),
+    schedule: sp.schedule ?? null,
+    vacationUntil: sp.vacationUntil ?? null,
+    blockedDates: upcomingDates(sp.blockedDates ?? []),
+  });
 });
+
+/** Band kunlar oynasi (F41): bugundan boshlab shuncha kun (kalendar 90 kunni ko'rsatadi, biroz zaxira bilan) */
+const BLOCKED_WINDOW_DAYS = 120;
+
+/** Haqiqiy sana (YYYY-MM-DD) — 2026-02-30 kabilar rad etiladi */
+function isRealDate(v: string) {
+  const [y, m, d] = v.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** O'tgan sanalarsiz, takrorsiz, tartiblangan */
+function upcomingDates(list: string[]) {
+  const today = tashkentNow().date;
+  return [...new Set(list)].filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= today).sort();
+}
 
 /**
  * Maxfiylik (qaysi maydon kimga ko'rinadi), ish vaqti va ta'til sanasini yangilash.
  * - visibility: qisman — berilgan kalitlar mavjudlari ustiga yoziladi
  * - schedule: berilmasa tegilmaydi; null — jadval o'chiriladi
  * - vacationUntil: berilmasa tegilmaydi; ""/null — ta'til bekor
+ * - blockedDates (F41): berilmasa tegilmaydi; o'tgan sanalar tashlab yuboriladi, 120 kundan uzoq — 422
  */
 export const PUT = handler(async (req) => {
   const session = await requireSession();
@@ -36,7 +59,7 @@ export const PUT = handler(async (req) => {
   // Per-user limit (E21) — tekshiruvdan keyin, 422 javoblar limitni yemasin
   await enforceLimit("privacy", session.sub);
 
-  const patch: Partial<{ visibility: Visibility; schedule: Schedule | null; vacationUntil: string | null; updatedAt: Date }> = { updatedAt: new Date() };
+  const patch: Partial<{ visibility: Visibility; schedule: Schedule | null; vacationUntil: string | null; blockedDates: string[]; updatedAt: Date }> = { updatedAt: new Date() };
 
   const nextVisibility: Visibility = { ...(sp.visibility ?? {}) };
   for (const [k, v] of Object.entries(input.visibility)) {
@@ -71,6 +94,15 @@ export const PUT = handler(async (req) => {
     patch.vacationUntil = v;
   }
 
+  if (input.blockedDates !== undefined) {
+    const bad = input.blockedDates.find((d) => !isRealDate(d));
+    if (bad) throw new ApiError(422, "Sana noto'g'ri", { blockedDates: `Sana noto'g'ri: ${bad}` });
+    const limit = tashkentNow(Date.now() + BLOCKED_WINDOW_DAYS * 24 * 60 * 60 * 1000).date;
+    const next = upcomingDates(input.blockedDates);
+    if (next.some((d) => d > limit)) throw new ApiError(422, "Sana juda uzoq", { blockedDates: `Band kunlarni ${BLOCKED_WINDOW_DAYS} kun ichida belgilang` });
+    patch.blockedDates = next;
+  }
+
   await db.update(specialists).set(patch).where(eq(specialists.id, sp.id));
 
   return ok({
@@ -78,5 +110,6 @@ export const PUT = handler(async (req) => {
     visibility: resolveVisibility(patch.visibility),
     schedule: patch.schedule !== undefined ? patch.schedule : (sp.schedule ?? null),
     vacationUntil: patch.vacationUntil !== undefined ? patch.vacationUntil : (sp.vacationUntil ?? null),
+    blockedDates: patch.blockedDates ?? upcomingDates(sp.blockedDates ?? []),
   });
 });

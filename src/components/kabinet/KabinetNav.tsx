@@ -3,12 +3,31 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Bell, ClipboardList, ExternalLink, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
 
-export type KabinetNavIcon = "overview" | "orders" | "notifications" | "partners" | "favorites" | "profile" | "portfolio" | "public" | "admin" | "payments" | "security";
+export type KabinetNavIcon =
+  | "overview"
+  | "orders"
+  | "notifications"
+  | "partners"
+  | "favorites"
+  | "profile"
+  | "portfolio"
+  | "public"
+  | "admin"
+  | "payments"
+  | "security"
+  | "jobs"
+  | "searches"
+  | "proposals"
+  | "subscription"
+  | "report";
+
+/** Holat nuqtasi (masalan, obuna): faol — yashil, tugayapti — sariq, tugagan — qizil */
+export type KabinetNavDot = "success" | "warning" | "danger";
 
 export interface KabinetNavItem {
   href: string;
@@ -18,6 +37,25 @@ export interface KabinetNavItem {
   exact?: boolean;
   /** Kichik hisoblagich (masalan, yangi buyurtmalar soni) */
   badge?: number;
+  /** Holat nuqtasi + uning matni (ekran o'quvchi uchun; rang yolg'iz ma'no tashimasin) */
+  dot?: KabinetNavDot;
+  dotLabel?: string;
+}
+
+const DOT_CLASS: Record<KabinetNavDot, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
+};
+
+function StatusDot({ dot, label, active }: { dot: KabinetNavDot; label?: string; active: boolean }) {
+  return (
+    // relative: sr-only (absolute) matn aylanadigan pill qatori ichida qolsin — aks holda 390px sahifani kengaytiradi
+    <span className="relative inline-flex shrink-0 items-center" title={label}>
+      <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", DOT_CLASS[dot], active && "ring-2 ring-ink-fg/40")} />
+      {label && <span className="sr-only">{` — ${label}`}</span>}
+    </span>
+  );
 }
 
 export interface KabinetNavUser {
@@ -39,6 +77,11 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   admin: ShieldCheck,
   payments: Wallet,
   security: LockKeyhole,
+  jobs: Megaphone,
+  searches: BookmarkCheck,
+  proposals: Send,
+  subscription: CreditCard,
+  report: FileChartColumn,
 };
 
 /** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */
@@ -135,11 +178,12 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                 >
                   <Icon size={18} className={active ? undefined : "text-fg-3"} />
                   <span className="flex-1 truncate">{item.label}</span>
+                  {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={active} />}
                   {badge ? (
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none",
-                        active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white",
+                        active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent-strong text-white",
                       )}
                     >
                       {badge > 99 ? "99+" : badge}
@@ -200,8 +244,9 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                 >
                   <Icon size={15} className={active ? undefined : "text-fg-3"} />
                   {item.label}
+                  {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={active} />}
                   {badge ? (
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent text-white")}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent-strong text-white")}>
                       {badge > 99 ? "99+" : badge}
                     </span>
                   ) : null}

@@ -7,7 +7,7 @@
  * Baza bilan ishlaydigan qism (buyurtma borligini tekshirish) queries.ts'da.
  */
 import { DEFAULT_VISIBILITY, REGION_BY_SLUG, VISIBILITY_FIELDS, WEEKDAYS, type VisibilityFieldKey, type VisibilityLevelValue, type WeekdayKey } from "./constants";
-import type { Schedule, Visibility } from "./db/schema";
+import type { Schedule, ServicePackage, Visibility } from "./db/schema";
 
 /* ------------------------------------------------------------------ */
 /* Ko'rinish darajalari                                                */
@@ -82,6 +82,8 @@ interface SpecialistLike {
   website: string | null;
   schedule: Schedule | null;
   visibility: Visibility;
+  /** Band kunlar (F41) — ish vaqti ko'rinishiga bog'liq */
+  blockedDates?: string[];
   user: { phone?: string | null; email?: string | null; gender?: "male" | "female" | null };
 }
 
@@ -136,6 +138,8 @@ export function filterSpecialistForViewer<T extends SpecialistLike>(sp: T, viewe
     youtube: gate("youtube", sp.youtube, null),
     website: gate("website", sp.website, null),
     schedule: gate("schedule", sp.schedule, null),
+    // Band kunlar — ish vaqti bilan bir xil daraja (jadval yashirin bo'lsa kalendar ham chiqmaydi)
+    ...(sp.blockedDates !== undefined ? { blockedDates: canView(vis.schedule, viewer) ? sp.blockedDates : [] } : {}),
     user: {
       ...user,
       phone: gate("phone", user.phone ?? null, null),
@@ -146,25 +150,56 @@ export function filterSpecialistForViewer<T extends SpecialistLike>(sp: T, viewe
   } as FilteredSpecialist<T>;
 }
 
+/** Eng arzon paket narxi (F31) — paket yo'q bo'lsa null */
+export function minPackagePrice(packages: ReadonlyArray<Pick<ServicePackage, "price">> | null | undefined): number | null {
+  const prices = (packages ?? []).map((p) => p.price).filter((n) => Number.isFinite(n) && n > 0);
+  return prices.length ? Math.min(...prices) : null;
+}
+
+/** "… dan" narxi: priceFrom bo'sh (0) bo'lsa — eng arzon paket narxi (F31) */
+export function effectivePriceFrom(sp: { priceFrom: number; packages?: ReadonlyArray<Pick<ServicePackage, "price">> | null }): number {
+  return sp.priceFrom > 0 ? sp.priceFrom : (minPackagePrice(sp.packages) ?? 0);
+}
+
 /**
  * Ro'yxat elementlari uchun xavfsiz DTO: aloqa vositalari, ish vaqti va sozlamalar
  * ro'yxatga umuman chiqmaydi (telefon/email ham). Shahar — faqat ruxsat bo'lsa.
+ * Band kunlar (jadvalga bog'liq), obuna muddati (ichki billing) va og'ir JSON'lar (paketlar, sertifikatlar) ham chiqmaydi —
+ * taqqoslash sahifasi ularni alohida ommaviy DTO bilan oladi.
  */
 export function toListItem<
   T extends {
     regionSlug: string;
     city: string;
     visibility: Visibility;
+    priceFrom: number;
     telegram?: unknown;
     instagram?: unknown;
     youtube?: unknown;
     website?: unknown;
     schedule?: unknown;
     userId?: unknown;
+    blockedDates?: unknown;
+    subscriptionUntil?: unknown;
+    packages?: ReadonlyArray<Pick<ServicePackage, "price">> | null;
+    certificates?: unknown;
     user: { name: string; avatarUrl: string | null };
   },
 >(sp: T, viewer: Viewer = GUEST_VIEWER) {
-  const { visibility: _v, telegram: _t, instagram: _i, youtube: _y, website: _w, schedule: _s, userId: _u, ...rest } = sp;
+  const {
+    visibility: _v,
+    telegram: _t,
+    instagram: _i,
+    youtube: _y,
+    website: _w,
+    schedule: _s,
+    userId: _u,
+    blockedDates: _b,
+    subscriptionUntil: _su,
+    packages: _p,
+    certificates: _c,
+    ...rest
+  } = sp;
   void _v;
   void _t;
   void _i;
@@ -172,8 +207,23 @@ export function toListItem<
   void _w;
   void _s;
   void _u;
-  // equipment / completedCount / topRated (F51, F12, F69) — maxfiy emas, `rest` orqali o'tadi
-  return { ...rest, city: viewerCity(sp, viewer), user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
+  void _b;
+  void _su;
+  void _p;
+  void _c;
+  // equipment / completedCount / topRated / workTypes / rates (F51, F12, F69, F52, F70) — maxfiy emas, `rest` orqali o'tadi.
+  // priceFrom bo'sh bo'lsa — eng arzon paket narxi ("… dan", F31)
+  return { ...rest, priceFrom: effectivePriceFrom(sp), city: viewerCity(sp, viewer), user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
+}
+
+/**
+ * "Hozir ochiq" (F42): ish vaqti bo'yicha hozir ochiq va ta'tilda emas.
+ * Ko'ruvchiga ish vaqti ko'rinmasa (yashirin / faqat buyurtmachilarga) — noma'lum, ya'ni false.
+ */
+export function isOpenNowFor(sp: { schedule: Schedule | null; vacationUntil: string | null; visibility: Visibility | null | undefined }, viewer: Viewer, now = Date.now()): boolean {
+  if (!sp.schedule || isOnVacation(sp.vacationUntil, now)) return false;
+  if (!canView(resolveVisibility(sp.visibility).schedule, { userId: viewer.userId, role: viewer.role })) return false;
+  return scheduleStatus(sp.schedule, now).state === "open";
 }
 
 /** Bot/crawler'lar ko'rishlar sonini oshirmasin */

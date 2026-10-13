@@ -1,9 +1,11 @@
 import "server-only";
+import { after } from "next/server";
 import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
-import { sendMail } from "@/lib/security/mailer";
-import { trustedSiteOrigin } from "@/lib/security/request";
+import { brandedMail, sendMail } from "@/lib/security/mailer";
+import { tryConsume } from "@/lib/security/rate-limit";
+import { siteUrl } from "@/lib/security/site";
 import { uid } from "@/lib/utils";
 
 /**
@@ -22,7 +24,14 @@ import { uid } from "@/lib/utils";
  *  refund_needed    — adminga: bekor qilingan to'langan buyurtma / provayder qaytarish so'rovi
  *  dispute          — tomonlarga/adminga: nizo ochildi yoki hal qilindi
  *  report           — adminga: shikoyat keldi
- *  account          — foydalanuvchiga: hisob holati (bloklash va h.k.)
+ *  account          — foydalanuvchiga: hisob holati (bloklash, 2FA yoqildi/o'chirildi va h.k.)
+ *  dispute_opened / dispute_resolved — nizo (eski "dispute" ham qo'llab-quvvatlanadi)
+ *  proposal_new / proposal_accepted / proposal_declined / proposal_shortlisted — e'lon takliflari
+ *  job_new / job_closed / job_expired / saved_search — e'lonlar va saqlangan qidiruvlar
+ *  message_new      — buyurtma chatida yangi xabar (email: buyurtma bo'yicha 30 daqiqada ko'pi bilan 1 ta)
+ *  order_due / order_sla — muddat eslatmalari
+ *  review_new       — mutaxassisga: yangi sharh
+ *  subscription_expiring / subscription_expired / subscription_paid / subscription_pending — obuna
  */
 export type NotificationType =
   | "order_new"
@@ -39,44 +48,105 @@ export type NotificationType =
   | "refund_needed"
   | "dispute"
   | "report"
-  | "account";
+  | "account"
+  | "dispute_opened"
+  | "dispute_resolved"
+  | "proposal_new"
+  | "proposal_accepted"
+  | "proposal_declined"
+  | "proposal_shortlisted"
+  | "job_new"
+  | "job_closed"
+  | "job_expired"
+  | "saved_search"
+  | "message_new"
+  | "order_due"
+  | "order_sla"
+  | "review_new"
+  | "subscription_expiring"
+  | "subscription_expired"
+  | "subscription_paid"
+  | "subscription_pending";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */
-const MAIL_TYPES: ReadonlySet<NotificationType> = new Set(["order_amount", "order_paid", "order_done", "order_released", "order_cancelled", "payment_refunded", "payment_cancelled", "payout", "dispute", "account"]);
+const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  "order_new",
+  "order_amount",
+  "order_paid",
+  "order_done",
+  "order_released",
+  "order_cancelled",
+  "payment_refunded",
+  "payment_cancelled",
+  "payout",
+  "dispute",
+  "dispute_opened",
+  "dispute_resolved",
+  "account",
+  "proposal_new",
+  "proposal_accepted",
+  "job_expired",
+  "message_new",
+  "subscription_expiring",
+  "subscription_expired",
+  "subscription_paid",
+]);
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+/** message_new emaili: bitta buyurtma bo'yicha 30 daqiqada ko'pi bilan bitta xat */
+const MESSAGE_MAIL_WINDOW_MS = 30 * 60 * 1000;
+/** O'chirilgan (anonimlashtirilgan) hisob manzili — hech qachon xat yuborilmaydi */
+const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
+
+export interface NotifyOptions {
+  /** message_new emaili uchun cheklov kaliti (odatda orderId). Berilmasa href ishlatiladi */
+  mailKey?: string;
+  /** Email yubormaslik (faqat saytdagi bildirishnoma) */
+  skipMail?: boolean;
+}
+
+/** Email havolasi uchun sayt manzili: sozlamadagi kanonik manzil, dev'da — lokal server */
+function mailOrigin(): string | null {
+  const configured = siteUrl();
+  if (configured) return configured;
+  if (process.env.NODE_ENV !== "production") return `http://localhost:${process.env.PORT || 3000}`;
+  return null;
 }
 
 /**
- * Muhim hodisa uchun email (Resend sozlanmagan bo'lsa dev'da konsolga). Havola faqat ishonchli sayt manzili
- * (NEXT_PUBLIC_SITE_URL va h.k.) ma'lum bo'lsa qo'shiladi. Xato bo'lsa jim — bildirishnoma oqimi buzilmaydi.
+ * Muhim hodisa uchun email (Resend sozlanmagan bo'lsa dev'da konsolga): sarlavha = bildirishnoma sarlavhasi,
+ * matn + mutlaq havola. notifyEmail=false, o'chirilgan (deleted-*@redince.invalid) yoki bloklangan hisobga
+ * yuborilmaydi (bloklash haqidagi "account" xabaridan tashqari).
  */
-async function mailNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined): Promise<void> {
-  if (!MAIL_TYPES.has(type)) return;
+async function mailNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
   const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { email: true, name: true, notifyEmail: true, isBanned: true } });
-  if (!u || !u.notifyEmail || !u.email) return;
-  const origin = trustedSiteOrigin();
-  const link = origin && href && href.startsWith("/") ? `${origin}${href}` : null;
-  const text = [`Salom, ${u.name}!`, "", title, body ?? "", link ? `\nBatafsil: ${link}` : "", "", "— Redince. Bildirishnomalarni kabinet sozlamalarida o'chirishingiz mumkin."].join("\n");
-  const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
-<div style="max-width:520px;margin:0 auto;padding:32px 20px">
-  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
-  <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
-    <p style="font-size:20px;font-weight:700;margin:0 0 12px">${escapeHtml(title)}</p>
-    <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${escapeHtml(u.name)}! ${escapeHtml(body ?? "")}</p>
-    ${link ? `<p style="margin:0 0 20px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#121213;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">Batafsil</a></p>` : ""}
-    <p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">Bildirishnomalarni kabinet sozlamalarida o'chirishingiz mumkin.</p>
-  </div>
-</div></body></html>`;
-  await sendMail({ to: u.email, subject: `Redince — ${title}`, html, text });
+  if (!u || !u.notifyEmail || !u.email || DELETED_EMAIL_RE.test(u.email)) return;
+  if (u.isBanned && type !== "account") return;
+  if (type === "message_new") {
+    const key = opts.mailKey ?? href ?? "general";
+    if (!(await tryConsume(`mailMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
+  }
+  const origin = mailOrigin();
+  const link = origin && href && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
+  const footer = "Email bildirishnomalarni Kabinet → Profil → «Email bildirishnomalar» orqali o'chirishingiz mumkin.";
+  await sendMail(brandedMail({ to: u.email, title, name: u.name, body, link, footer }));
+}
+
+/** Javobdan keyin bajarish (Next after()); so'rov kontekstidan tashqarida — oddiy fon promise */
+function inBackground(task: () => Promise<void>): void {
+  const run = () => task().catch((e) => console.error("[notify:mail]", e));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
 }
 
 /**
  * Foydalanuvchiga bildirishnoma yozish. Hech qachon xato tashlamaydi —
- * buyurtma/to'lov oqimini bildirishnoma xatosi buzmasin.
+ * buyurtma/to'lov oqimini bildirishnoma xatosi buzmasin. Muhim turlar uchun email fon rejimida
+ * (javobni kutmasdan) yuboriladi.
  */
-export async function notify(userId: string, type: NotificationType, title: string, body?: string | null, href?: string | null): Promise<void> {
+export async function notify(userId: string, type: NotificationType, title: string, body?: string | null, href?: string | null, opts: NotifyOptions = {}): Promise<void> {
   try {
     await db.insert(notifications).values({
       id: uid(),
@@ -89,8 +159,9 @@ export async function notify(userId: string, type: NotificationType, title: stri
   } catch (e) {
     console.error("[notify]", type, e);
   }
+  if (opts.skipMail || !MAIL_TYPES.has(type)) return;
   try {
-    await mailNotification(userId, type, title.slice(0, 160), body, href);
+    inBackground(() => mailNotification(userId, type, title.slice(0, 160), body ? body.slice(0, 600) : body, href, opts));
   } catch (e) {
     console.error("[notify:mail]", type, e);
   }

@@ -8,7 +8,7 @@ import { PasswordField } from "./PasswordField";
 import { Button, Spinner } from "@/components/ui";
 import { passwordStrength } from "@/lib/security/password-strength";
 
-type ApiResponse = { ok: true; data: { reset: boolean; name: string } } | { ok: false; error: string; fields?: Record<string, string> };
+type ApiResponse = { ok: true; data: { reset: boolean; name: string; requiresLogin?: boolean } } | { ok: false; error: string; fields?: Record<string, string> };
 
 export function ResetConfirmForm({ token, initiallyValid }: { token: string; initiallyValid: boolean }) {
   const router = useRouter();
@@ -16,6 +16,8 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  /** 2FA yoqilgan — avtomatik kirilmaydi, kirish sahifasida kod bilan kiradi */
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
 
@@ -72,10 +74,12 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
         return;
       }
       setDone(true);
+      const needs = Boolean(json.data.requiresLogin);
+      setNeedsLogin(needs);
       window.setTimeout(() => {
-        router.push("/kabinet");
+        router.push(needs ? "/auth/kirish" : "/kabinet");
         router.refresh();
-      }, 1200);
+      }, needs ? 2200 : 1200);
     } catch {
       setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
       setLoading(false);
@@ -90,7 +94,11 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
         </span>
         <div>
           <h1 className="font-display text-[24px] font-semibold leading-tight text-fg">Parol yangilandi</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">Boshqa qurilmalardagi sessiyalar yakunlandi. Kabinetga o'tmoqdamiz…</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">
+            {needsLogin
+              ? "Barcha sessiyalar yakunlandi. Endi yangi parol va autentifikator kodi bilan kiring — kirish sahifasiga o'tmoqdamiz…"
+              : "Boshqa qurilmalardagi sessiyalar yakunlandi. Kabinetga o'tmoqdamiz…"}
+          </p>
         </div>
       </div>
     );

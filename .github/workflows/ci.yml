@@ -1,0 +1,78 @@
+# Redince CI (E77/F94): har push va PR'da — tiplar, lint (ixtiyoriy), toza bazaga sxema + seed, production build va smoke testlar.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Typecheck, build, smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # CI uchun alohida SQLite fayl — production bazaga tegmaydi
+      DATABASE_URL: file:./data/ci.db
+      # Faqat CI uchun (namunaviy "change-me"/"dev-only" emas, ≥ 32 belgi) — productionda `openssl rand -base64 48`
+      AUTH_SECRET: ci-build-only-secret-6f1d2c9a8b7e4f30a5d1c2b3e4f5a6b7
+      SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      ADMIN_EMAIL: admin@redince.uz
+      ADMIN_PASSWORD: ci-admin-Password-2026!
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Paketlar (npm ci)
+        run: npm ci
+
+      - name: TypeScript (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: ESLint (sozlangan bo'lsa)
+        continue-on-error: true
+        run: |
+          if ls .eslintrc* eslint.config.* >/dev/null 2>&1; then
+            npx next lint
+          else
+            echo "ESLint sozlanmagan — o'tkazib yuborildi"
+          fi
+
+      - name: "Baza — sxema (drizzle push) + seed"
+        run: node scripts/db-prepare.mjs
+
+      - name: Production build
+        run: npx next build
+
+      - name: Serverni ishga tushirish
+        run: |
+          npx next start -p 3000 > next-start.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/health >/dev/null; then echo "server tayyor"; exit 0; fi
+            sleep 2
+          done
+          echo "server 120 soniyada ishga tushmadi"; cat next-start.log; exit 1
+
+      - name: Smoke testlar
+        env:
+          BASE_URL: http://localhost:3000
+        run: node --test scripts/smoke.mjs
+
+      - name: Server logi (xato bo'lsa)
+        if: failure()
+        run: tail -n 200 next-start.log || true

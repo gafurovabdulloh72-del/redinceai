@@ -178,4 +178,91 @@ export const PLATFORM_DEFAULTS = {
   commissionPctTop: 7, // "Top mutaxassis" — F21
   minPayout: 100_000, // minimal pul chiqarish (so'm)
   minOrderAmount: 50_000,
+  // Mutaxassis oylik obunasi (mijozlar uchun bepul) — subscriptions/access.ts
+  subscriptionPrice: 50_000, // 1 oy narxi (so'm)
+  subscriptionTrialDays: 30, // yangi mutaxassis uchun bepul sinov
+  subscriptionGraceDays: 3, // muddat tugagach imtiyozli kunlar
+  subscriptionEnforced: 1, // 1 — obunasizlar katalogdan yashiriladi; 0 — o'chirilgan
+  urgentPct: 20, // shoshilinch buyurtma ustamasi (%)
+  usdRate: 12_700, // 1 USD = so'm (admin belgilaydi, taxminiy narx ko'rsatish uchun)
 } as const;
+
+/* ------------------------------------------------------------------ */
+/* Obuna (mutaxassislar uchun oylik to'lov)                            */
+/* ------------------------------------------------------------------ */
+/** Obuna rejalari: oylar soni va chegirma (%) — narx planPrice() (subscriptions/access.ts) bilan hisoblanadi */
+export const SUBSCRIPTION_PLANS = [
+  { months: 1, discountPct: 0 },
+  { months: 3, discountPct: 5 },
+  { months: 6, discountPct: 10 },
+  { months: 12, discountPct: 20 },
+] as const;
+export type SubscriptionPlanMonths = (typeof SUBSCRIPTION_PLANS)[number]["months"];
+/** Obuna hisobi id prefiksi (Payme account.order_id / Click merchant_trans_id eskrou to'lovlaridan ajratish uchun) */
+export const SUBSCRIPTION_INVOICE_PREFIX = "sub_";
+/**
+ * Obuna tizimi ishga tushgan sana (UTC). Bepul sinov max(createdAt, shu sana)'dan hisoblanadi —
+ * shu sanagacha ro'yxatdan o'tgan mutaxassislar deploy bilan katalogdan yashirinib qolmaydi, ularga ham to'liq sinov muddati beriladi.
+ */
+export const SUBSCRIPTION_LAUNCH_AT = Date.UTC(2026, 9, 13);
+
+/* ------------------------------------------------------------------ */
+/* Ish turlari, paketlar, sharh mezonlari                              */
+/* ------------------------------------------------------------------ */
+export const WORK_TYPES = [
+  { slug: "toy", label: "To'y" },
+  { slug: "reklama", label: "Reklama" },
+  { slug: "korporativ", label: "Korporativ" },
+  { slug: "kontent-smm", label: "Kontent / SMM" },
+  { slug: "musiqiy-klip", label: "Musiqiy klip" },
+  { slug: "hujjatli", label: "Hujjatli film" },
+  { slug: "talim", label: "Ta'lim" },
+  { slug: "kochmas-mulk", label: "Ko'chmas mulk" },
+  { slug: "mahsulot", label: "Mahsulot / e-commerce" },
+  { slug: "tadbir", label: "Tadbir" },
+] as const;
+export type WorkTypeSlug = (typeof WORK_TYPES)[number]["slug"];
+export const WORK_TYPE_BY_SLUG: Record<string, (typeof WORK_TYPES)[number]> = Object.fromEntries(WORK_TYPES.map((w) => [w.slug, w]));
+
+export const PACKAGE_TIERS = [
+  { key: "basic", label: "Boshlang'ich" },
+  { key: "standard", label: "Standart" },
+  { key: "premium", label: "Premium" },
+] as const;
+export type PackageTierKey = (typeof PACKAGE_TIERS)[number]["key"];
+
+export const RATING_CRITERIA = [
+  { key: "quality", label: "Sifat" },
+  { key: "timeliness", label: "Muddat" },
+  { key: "communication", label: "Muloqot" },
+] as const;
+export type RatingCriterionKey = (typeof RATING_CRITERIA)[number]["key"];
+
+/** Foydalanish shartlari versiyasi — o'zgarsa foydalanuvchilardan qayta rozilik so'raladi */
+export const TERMS_VERSION = "2026-10-13";
+
+/* ------------------------------------------------------------------ */
+/* E'lonlar va takliflar                                               */
+/* ------------------------------------------------------------------ */
+export const JOB_STATUSES = ["open", "hired", "closed"] as const;
+export type JobStatusValue = (typeof JOB_STATUSES)[number];
+export const JOB_STATUS_LABEL: Record<JobStatusValue, string> = {
+  open: "Ochiq",
+  hired: "Mutaxassis tanlandi",
+  closed: "Yopilgan",
+};
+
+export const PROPOSAL_STATUSES = ["pending", "shortlisted", "accepted", "declined", "withdrawn"] as const;
+export type ProposalStatusValue = (typeof PROPOSAL_STATUSES)[number];
+export const PROPOSAL_STATUS_LABEL: Record<ProposalStatusValue, string> = {
+  pending: "Ko'rib chiqilmoqda",
+  shortlisted: "Saralanganlar ro'yxatida",
+  accepted: "Qabul qilindi",
+  declined: "Rad etildi",
+  withdrawn: "Qaytarib olindi",
+};
+
+/** Bitta mutaxassis kuniga yuborishi mumkin bo'lgan takliflar soni */
+export const PROPOSAL_DAILY_LIMIT = 10;
+/** E'lon shuncha kundan keyin avtomatik yopiladi (jobs.expiresAt) */
+export const JOB_TTL_DAYS = 30;

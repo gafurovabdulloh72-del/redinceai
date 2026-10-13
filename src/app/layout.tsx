@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: ["/opengraph-image"],
   },
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

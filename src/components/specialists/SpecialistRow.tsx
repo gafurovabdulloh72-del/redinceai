@@ -4,6 +4,7 @@ import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
+import { CompareButton } from "./CompareButton";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
 import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
@@ -17,7 +18,7 @@ function priceLine(from: number, to?: number | null) {
 }
 
 /** Ro'yxat ko'rinishi — ixcham qator (muqova mini, ism, sarlavha, narx bir qatorda) */
-export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
+export function SpecialistRow({ sp, showCompare = false }: { sp: SpecialistListItem; showCompare?: boolean }) {
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
@@ -83,6 +84,7 @@ export function SpecialistRow({ sp }: { sp: SpecialistListItem }) {
         </span>
       </Link>
 
+      {showCompare && <CompareButton item={{ id: sp.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl }} variant="ghost" className="relative z-10" />}
       <FavoriteButton specialistId={sp.id} variant="ghost" className="relative z-10" />
       <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg sm:flex" aria-hidden="true">
         <ArrowUpRight size={15} />

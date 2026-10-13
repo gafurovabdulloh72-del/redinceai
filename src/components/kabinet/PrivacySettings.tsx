@@ -59,9 +59,10 @@ const LEVEL_SHORT: Record<VisibilityLevelValue, string> = {
   hidden: "Yashirin",
 };
 
-const PREVIEW_AS: Array<{ key: "guest" | "client" | "order"; label: string; viewer: Viewer }> = [
+/** `short` — telefonda (390px) segment pill ichiga sig'ishi uchun qisqa nom; to'liq nomi aria-label/title'da */
+const PREVIEW_AS: Array<{ key: "guest" | "client" | "order"; label: string; short?: string; viewer: Viewer }> = [
   { key: "guest", label: "Mehmon", viewer: { userId: null } },
-  { key: "client", label: "Ro'yxatdan o'tgan", viewer: { userId: "x", role: "client" } },
+  { key: "client", label: "Ro'yxatdan o'tgan", short: "Mijoz", viewer: { userId: "x", role: "client" } },
   { key: "order", label: "Buyurtmachi", viewer: { userId: "x", role: "client", hasOrder: true } },
 ];
 
@@ -226,9 +227,18 @@ export function PrivacySettings({
                 aria-checked={previewAs === p.key}
                 data-active={previewAs === p.key}
                 onClick={() => setPreviewAs(p.key)}
+                aria-label={p.label}
+                title={p.label}
                 className="segment-item min-h-9 flex-1 !px-3 sm:flex-none"
               >
-                {p.label}
+                {p.short ? (
+                  <>
+                    <span className="sm:hidden">{p.short}</span>
+                    <span className="hidden sm:inline">{p.label}</span>
+                  </>
+                ) : (
+                  p.label
+                )}
               </button>
             ))}
           </div>

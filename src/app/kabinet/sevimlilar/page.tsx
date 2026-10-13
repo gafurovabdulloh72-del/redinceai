@@ -5,6 +5,7 @@ import { ButtonLink, EmptyState } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { FavoriteSlot } from "@/components/kabinet/FavoriteSlot";
 import { FavoritesSeed } from "@/components/specialists/FavoritesSeed";
+import { CompareTray } from "@/components/specialists/CompareTray";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listFavoriteSpecialists } from "@/lib/queries";
 
@@ -40,10 +41,11 @@ export default async function FavoritesPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((sp, i) => (
               <FavoriteSlot key={sp.id} specialistId={sp.id} name={sp.user.name}>
-                <SpecialistCard sp={sp} priority={i < 3} />
+                <SpecialistCard sp={sp} priority={i < 3} showCompare />
               </FavoriteSlot>
             ))}
           </div>
+          <CompareTray />
         </FavoritesSeed>
       ) : (
         <EmptyState

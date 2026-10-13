@@ -2,12 +2,22 @@ import Link from "next/link";
 import { Instagram, Send, Youtube } from "lucide-react";
 import { SITE } from "@/lib/constants";
 import { Logo } from "./Logo";
+import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 
 const LINKS = [
   { href: "/xarita", label: "Xarita" },
   { href: "/mutaxassislar", label: "Mutaxassislar" },
+  { href: "/buyurtma-berish", label: "Buyurtma sehrgari" },
+  { href: "/ishlar", label: "Ishlar" },
+  { href: "/narxlar", label: "Narxlar" },
+  { href: "/yordam", label: "Yordam" },
   { href: "/auth/royxat?role=specialist", label: "Mutaxassis bo'lish" },
-  { href: "/kabinet", label: "Kabinet" },
+];
+
+/** Huquqiy hujjatlar — ikkinchi qatorda, mualliflik huquqi yonida */
+const LEGAL = [
+  { href: "/oferta", label: "Foydalanish shartlari" },
+  { href: "/maxfiylik", label: "Maxfiylik siyosati" },
 ];
 
 const SOCIAL = [
@@ -55,8 +65,15 @@ export function Footer() {
 
         {/* 2-qator */}
         <div className="flex flex-col items-start justify-between gap-1.5 border-t border-line px-5 py-4 text-[12px] text-fg-3 sm:flex-row sm:items-center sm:px-8">
-          <span>
-            © {new Date().getFullYear()} {SITE.name}. Barcha huquqlar himoyalangan.
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              © {new Date().getFullYear()} {SITE.name}. Barcha huquqlar himoyalangan.
+            </span>
+            {LEGAL.map((l) => (
+              <Link key={l.href} href={l.href} className="-my-1.5 inline-flex min-h-10 items-center text-fg-3 underline-offset-2 transition hover:text-fg hover:underline">
+                {l.label}
+              </Link>
+            ))}
           </span>
           <span className="text-fg-4">
             Xarita chegaralari —{" "}
@@ -67,6 +84,8 @@ export function Footer() {
           </span>
         </div>
       </div>
+      {/* PWA: service worker faqat productionda ro'yxatdan o'tadi */}
+      <ServiceWorkerRegister />
     </footer>
   );
 }

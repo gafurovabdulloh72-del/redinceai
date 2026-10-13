@@ -3,6 +3,7 @@ import { eq, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
+import { PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
 
 export { clientIp } from "./request";
 
@@ -22,6 +23,9 @@ const DAY = 24 * HOUR;
  *   password   — userId (parolni o'zgartirish)
  *   orders     — userId · reviews — userId · upload — userId (kunlik) · portfolio — userId (kunlik) · checkout — userId
  *   profile / privacy — userId (30 / soat) · verifyRequest / verifyConfirm — userId · accountExport / accountDelete — userId
+ *   jobs / jobEdit / proposals / proposalAct / messages / subscription — userId (E'lon, Taklif, chat, Obuna to'lovi)
+ *   twoFactorSetup — userId · twoFactorVerify — ticket jti + ip (5 / 15 daqiqa) · twoFactorUser — userId (muvaffaqiyatsiz kodlar)
+ *   sessions — userId (sessiyani bekor qilish) · terms — userId
  */
 export const RATE_LIMITS = {
   login: { limit: 5, windowMs: 15 * MIN },
@@ -49,6 +53,31 @@ export const RATE_LIMITS = {
   /** Sharhga javob (F43) va shikoyatlar (F85) — userId */
   reviewReply: { limit: 30, windowMs: HOUR },
   reports: { limit: 10, windowMs: HOUR },
+  /** E'lon joylash — userId (10 / kun) */
+  jobs: { limit: 10, windowMs: DAY },
+  /** E'lonni tahrirlash / yopish / qayta ochish — userId (60 / soat) */
+  jobEdit: { limit: 60, windowMs: HOUR },
+  /**
+   * Taklif yuborish urinishlari — mutaxassis userId (PROPOSAL_DAILY_LIMIT × 3 / kun). Asl kunlik limit —
+   * server hisobi (proposalsSentToday ≤ PROPOSAL_DAILY_LIMIT); bu faqat xato urinishlar spamini to'xtatadi.
+   */
+  proposals: { limit: PROPOSAL_DAILY_LIMIT * 3, windowMs: DAY },
+  /** Taklifni saralash / rad etish / qabul qilish / qaytarib olish — userId (120 / soat) */
+  proposalAct: { limit: 120, windowMs: HOUR },
+  /** Buyurtma chati xabarlari — userId (60 / 10 daqiqa) */
+  messages: { limit: 60, windowMs: 10 * MIN },
+  /** Obuna to'lovini boshlash — userId (20 / soat) */
+  subscription: { limit: 20, windowMs: HOUR },
+  /** 2FA: sozlashni boshlash / zaxira kodlarini yangilash — userId */
+  twoFactorSetup: { limit: 10, windowMs: HOUR },
+  /** 2FA kirish bosqichi: bitta ticket + ip bo'yicha har bir urinish */
+  twoFactorVerify: { limit: 5, windowMs: 15 * MIN },
+  /** 2FA: foydalanuvchi bo'yicha muvaffaqiyatsiz kodlar (ticket'larni almashtirib terib chiqib bo'lmasin) */
+  twoFactorUser: { limit: 10, windowMs: 15 * MIN },
+  /** Sessiyani (qurilmani) bekor qilish — userId */
+  sessions: { limit: 30, windowMs: HOUR },
+  /** Foydalanish shartlarini qabul qilish — userId */
+  terms: { limit: 20, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
@@ -93,6 +122,37 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
 export function enforceLimit(name: RateLimitName, id: string) {
   const { limit, windowMs } = RATE_LIMITS[name];
   return rateLimit(`${name}:${id}`, limit, windowMs);
+}
+
+/**
+ * Bir martalik "kvota": kalit oynada hali ishlatilmagan bo'lsa true (va band qiladi), aks holda false.
+ * Xato tashlamaydi — masalan, chat xabari uchun emailni 30 daqiqada bir martadan ko'p yubormaslik.
+ */
+export async function tryConsume(key: string, windowMs: number): Promise<boolean> {
+  try {
+    const now = Date.now();
+    const resetAt = now + windowMs;
+    const [row] = await db
+      .insert(rateLimits)
+      .values({ key, count: 1, resetAt })
+      .onConflictDoUpdate({
+        target: rateLimits.key,
+        set: {
+          count: sql`case when ${rateLimits.resetAt} <= ${now} then 1 else ${rateLimits.count} + 1 end`,
+          resetAt: sql`case when ${rateLimits.resetAt} <= ${now} then ${resetAt} else ${rateLimits.resetAt} end`,
+        },
+      })
+      .returning({ count: rateLimits.count });
+    return Boolean(row && row.count === 1);
+  } catch {
+    return false;
+  }
+}
+
+/** Kalit hozir band (oynasi tugamagan) — tryConsume() bilan ishlatilgan bir martalik belgi uchun, o'zgartirmaydi */
+export async function isConsumed(key: string): Promise<boolean> {
+  const row = await db.query.rateLimits.findFirst({ where: eq(rateLimits.key, key), columns: { resetAt: true } });
+  return Boolean(row && row.resetAt > Date.now());
 }
 
 /** Hisoblagichni oshirmasdan tekshirish (login: urinishdan OLDIN) */

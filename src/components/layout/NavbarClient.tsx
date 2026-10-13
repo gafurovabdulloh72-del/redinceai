@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Compass, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
+import { Bell, BriefcaseBusiness, Compass, CreditCard, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -19,10 +19,17 @@ export interface NavUser {
   specialistSlug?: string | null;
 }
 
-const NAV = [
-  { href: "/", label: "Bosh sahifa", icon: Home, exact: true },
-  { href: "/xarita", label: "Xarita", icon: Map },
-  { href: "/mutaxassislar", label: "Mutaxassislar", icon: Users },
+/**
+ * short — mobil tab-bar yorlig'i (5 ustun, 390px'da ~70px: uzun so'z kesilmasin).
+ * desktop: "lg" — faqat lg+ da (md'da kapsula torayadi; logo baribir bosh sahifaga olib boradi).
+ * mobile: false — pastki tab-bar'da yo'q (Narxlar footer va obuna sahifalarida).
+ */
+const NAV: Array<{ href: string; label: string; short: string; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
+  { href: "/", label: "Bosh sahifa", short: "Asosiy", icon: Home, exact: true, desktop: "lg" },
+  { href: "/xarita", label: "Xarita", short: "Xarita", icon: Map },
+  { href: "/mutaxassislar", label: "Mutaxassislar", short: "Ijodkorlar", icon: Users },
+  { href: "/ishlar", label: "Ishlar", short: "Ishlar", icon: BriefcaseBusiness },
+  { href: "/narxlar", label: "Narxlar", short: "Narxlar", icon: CreditCard, desktop: "lg", mobile: false },
 ];
 
 export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
@@ -69,7 +76,10 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
     router.refresh();
   };
 
-  const tabs = [...NAV, { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false }];
+  const tabs = [
+    ...NAV.filter((n) => n.mobile !== false),
+    { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", short: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false },
+  ];
 
   return (
     <>
@@ -93,12 +103,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex h-10 items-center rounded-full px-4 text-[14px] font-semibold transition",
+                    "relative h-10 items-center rounded-full px-3.5 text-[14px] font-semibold transition xl:px-4",
+                    n.desktop === "lg" ? "hidden lg:flex" : "flex",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
                 >
                   {n.label}
-                  {active && <span aria-hidden className="absolute inset-x-4 bottom-1 h-[3px] rounded-full bg-accent" />}
+                  {active && <span aria-hidden className="absolute inset-x-3.5 bottom-1 h-[3px] rounded-full bg-accent xl:inset-x-4" />}
                 </Link>
               );
             })}
@@ -138,6 +149,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     {user.role === "specialist" && user.specialistSlug && (
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Mening profilim</MenuItem>
                     )}
+                    {user.role === "specialist" && <MenuItem href="/kabinet/obuna" icon={CreditCard}>Obuna</MenuItem>}
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>Bildirishnomalar</MenuItem>
                     <MenuItem href="/kabinet/sevimlilar" icon={Heart}>Sevimlilar</MenuItem>
                     <MenuItem href="/kabinet/profil" icon={UserCog}>Profil</MenuItem>
@@ -170,7 +182,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
 
       {/* ---------- Pastki tab-bar (mobil): teng kenglikdagi 4 ta element, safe-area ---------- */}
       <nav
-        className="nav-bar fixed inset-x-3 bottom-3 z-50 grid grid-cols-4 items-stretch !rounded-full p-1.5 shadow-[var(--shadow-2)] md:hidden"
+        className="nav-bar fixed inset-x-3 bottom-3 z-50 grid grid-cols-5 items-stretch !rounded-full p-1.5 shadow-[var(--shadow-2)] md:hidden"
         style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Mobil navigatsiya"
       >
@@ -183,12 +195,12 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
               href={n.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[10.5px] font-semibold transition",
+                "flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[10.5px] font-semibold transition",
                 active ? "btn-ink" : "text-fg-3",
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-              <span className="truncate">{n.label}</span>
+              <span className="max-w-full truncate">{n.short}</span>
             </Link>
           );
         })}

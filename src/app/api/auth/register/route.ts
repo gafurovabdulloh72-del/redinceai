@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { createSession } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
+import { TERMS_VERSION } from "@/lib/constants";
 import { registerSchema } from "@/lib/validators";
 import { uid } from "@/lib/utils";
 import { audit } from "@/lib/security/audit";
@@ -13,10 +15,16 @@ import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
  * Ro'yxatdan o'tish. Mutaxassis uchun bo'sh "placeholder" profil YARATILMAYDI —
  * profil kabinetda (PUT /api/profile) to'ldirilgach ommaviy ro'yxatda paydo bo'ladi.
  * Parol siyosati: 8+ belgi, harf + raqam (validators.strongPassword). Rate limit: 3 / soat / ip.
+ * Oferta va maxfiylik siyosatiga rozilik majburiy (acceptTerms: true) — versiya va vaqt saqlanadi (F84).
+ * E15: band email uchun 409 ataylab qoldirilgan (UX) — limit 3 / soat / ip enumeratsiyani sekinlashtiradi.
  */
+const schema = registerSchema.extend({
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: "Oferta va maxfiylik siyosatiga rozilik bering" }) }),
+});
+
 export const POST = handler(async (req) => {
   await enforceLimit("register", clientIp(req));
-  const input = await parseBody(req, registerSchema);
+  const input = await parseBody(req, schema);
 
   const exists = await db.query.users.findFirst({ where: eq(users.email, input.email), columns: { id: true } });
   if (exists) throw new ApiError(409, "Bu email allaqachon ro'yxatdan o'tgan", { email: "Email band" });
@@ -31,9 +39,11 @@ export const POST = handler(async (req) => {
     passwordHash: await hashPassword(input.password),
     role: input.role,
     lastLoginAt: new Date(),
+    termsVersion: TERMS_VERSION,
+    termsAcceptedAt: new Date(),
   });
 
-  await audit(id, "register", { targetType: "user", targetId: id, meta: { role: input.role } }, req);
+  await audit(id, "register", { targetType: "user", targetId: id, meta: { role: input.role, termsVersion: TERMS_VERSION } }, req);
   await createSession({ id, role: input.role, name: input.name, sessionVersion: 1 }, { remember: true });
   return ok({ id, name: input.name, role: input.role }, { status: 201 });
 });

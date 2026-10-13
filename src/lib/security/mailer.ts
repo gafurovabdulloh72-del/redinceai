@@ -41,6 +41,37 @@ export async function sendMail(msg: MailMessage): Promise<{ sent: boolean; reaso
   }
 }
 
+export interface BrandedMailInput {
+  to: string;
+  /** Xat mavzusi va sarlavhasi */
+  title: string;
+  /** Salomlashish uchun ism */
+  name: string;
+  body?: string | null;
+  /** Mutlaq havola (https://…) — "Batafsil" tugmasi */
+  link?: string | null;
+  ctaLabel?: string;
+  /** Pastki izoh (masalan, bildirishnomalarni qanday o'chirish) */
+  footer?: string;
+}
+
+/** Brendlangan oddiy xat (bildirishnomalar uchun): sarlavha, matn, tugma, izoh — HTML + matn ko'rinishi */
+export function brandedMail({ to, title, name, body, link, ctaLabel = "Batafsil", footer }: BrandedMailInput): MailMessage {
+  const text = [`Salom, ${name}!`, "", title, body ?? "", link ? `\n${ctaLabel}: ${link}` : "", "", footer ? `— ${footer}` : "— Redince"].join("\n");
+  const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
+<div style="max-width:520px;margin:0 auto;padding:32px 20px">
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
+    <p style="font-size:20px;font-weight:700;margin:0 0 12px;line-height:1.3">${escapeHtml(title)}</p>
+    <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${escapeHtml(name)}!${body ? ` ${escapeHtml(body)}` : ""}</p>
+    ${link ? `<p style="margin:0 0 20px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#121213;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">${escapeHtml(ctaLabel)}</a></p>` : ""}
+    ${footer ? `<p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">${escapeHtml(footer)}</p>` : ""}
+  </div>
+  <p style="margin:16px 0 0;font-size:11px;color:#9a978f;text-align:center">Redince — O'zbekistonning ijodiy mutaxassislar platformasi</p>
+</div></body></html>`;
+  return { to, subject: `Redince — ${title}`, html, text };
+}
+
 export function passwordResetMail(to: string, name: string, link: string): MailMessage {
   const safeName = escapeHtml(name);
   const safeLink = escapeHtml(link);

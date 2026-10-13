@@ -3,11 +3,11 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpDown, CheckCircle2, ChevronDown, LayoutGrid, Rows3, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, ChevronDown, Clock3, LayoutGrid, Rows3, SlidersHorizontal, X } from "lucide-react";
 import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS } from "@/lib/constants";
+import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS, WORK_TYPES } from "@/lib/constants";
 import { cn, formatPrice } from "@/lib/utils";
 import { SearchBox, type SuggestionItem } from "./SearchBox";
 
@@ -18,7 +18,7 @@ export const PRICE_MAX = 20_000_000;
 export const PRICE_STEP = 100_000;
 
 /** URL'dagi "filtr" kalitlari (sort/limit/page/view bunga kirmaydi) */
-export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available", "skill", "equipment"] as const;
+export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available", "skill", "equipment", "workType", "openNow"] as const;
 
 export const SORT_OPTIONS = [
   { value: "rating", label: "Reyting bo'yicha" },
@@ -203,7 +203,7 @@ function ActiveBadge({ n, tone = "accent" }: { n: number; tone?: "accent" | "ink
     <span
       className={cn(
         "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-none",
-        tone === "ink" ? "bg-ink text-ink-fg" : "bg-accent text-white",
+        tone === "ink" ? "bg-ink text-ink-fg" : "bg-accent-strong text-white",
       )}
       aria-label={`${n} ta faol filtr`}
     >
@@ -354,6 +354,8 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
   const gender = sp.get("gender") ?? "";
   const verified = sp.get("verified") === "1";
   const available = sp.get("available") === "1";
+  const openNow = sp.get("openNow") === "1";
+  const workType = sp.get("workType") ?? "";
 
   const commitQ = useCallback((v: string) => setParams({ q: v || null }, { replace: true }), [setParams]);
   const commitRange = useCallback(
@@ -373,6 +375,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
   const regionInfo = REGIONS.find((r) => r.slug === region);
   const expInfo = EXPERIENCE_LEVELS.find((e) => e.value === experience);
   const genderInfo = GENDERS.find((g) => g.value === gender);
+  const workTypeInfo = WORK_TYPES.find((w) => w.slug === workType);
 
   const onReset = () => {
     q.resetLocal("");
@@ -465,6 +468,23 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
         </select>
       </Group>
 
+      {/* Ish turi (F52) */}
+      <Group title="Ish turi" summary={workTypeInfo?.label}>
+        <div className="flex flex-wrap gap-1.5">
+          <Chip active={!workType} onClick={() => setParams({ workType: null })}>
+            Barchasi
+          </Chip>
+          {WORK_TYPES.map((w) => {
+            const on = workType === w.slug;
+            return (
+              <Chip key={w.slug} active={on} onClick={() => setParams({ workType: on ? null : w.slug })}>
+                {w.label}
+              </Chip>
+            );
+          })}
+        </div>
+      </Group>
+
       {/* Narx */}
       <Group title="Narx" summary={priceMin || priceMax ? rangeText(priceMin, priceMax) : null}>
         <PriceRange min={priceMin} max={priceMax} onChange={(lo, hi) => range.setValue(encodeRange(lo, hi))} onCommit={range.flush} />
@@ -512,7 +532,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Boshqa */}
-      <Group title="Boshqa" summary={[verified && "Tasdiqlangan", available && "Hozir bo'sh"].filter(Boolean).join(" · ") || null}>
+      <Group title="Boshqa" summary={[verified && "Tasdiqlangan", available && "Hozir bo'sh", openNow && "Hozir ochiq"].filter(Boolean).join(" · ") || null}>
         <div className="flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
           <span className="flex min-w-0 items-center gap-2.5">
             <VerifiedBadge size={20} />
@@ -535,6 +555,17 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
             </span>
           </span>
           <Switch checked={available} onChange={(v) => setParams({ available: v ? "1" : null })} label="Faqat hozir buyurtma qabul qiladiganlar" />
+        </div>
+        {/* "Hozir ochiq" (F42): ish vaqti bo'yicha hozir ishlayotganlar (Toshkent vaqti), ta'tildagilarsiz */}
+        <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Clock3 size={20} className="shrink-0 text-fg-2" />
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium text-fg">Hozir ochiq</span>
+              <span className="block text-[12px] text-fg-3">Ish vaqti bo'yicha hozir ishlayotganlar</span>
+            </span>
+          </span>
+          <Switch checked={openNow} onChange={(v) => setParams({ openNow: v ? "1" : null })} label="Faqat hozir ish vaqtida bo'lganlar" />
         </div>
       </Group>
     </div>

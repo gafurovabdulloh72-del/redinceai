@@ -1,17 +1,28 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { cache } from "react";
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { favorites, orderEvents, orders, portfolioItems, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
-import { isTopRated } from "./payments/settings";
+import { getSettings, isTopRated } from "./payments/settings";
+import { listableCondition } from "./subscriptions/access";
 import { escapeLike, translit } from "./utils";
-import { GUEST_VIEWER, tashkentNow, toListItem, type Viewer } from "./privacy";
+import { GUEST_VIEWER, isOpenNowFor, tashkentNow, toListItem, type Viewer } from "./privacy";
 
 /** Bloklangan foydalanuvchining profili ro'yxat, statistika va tavsiyalarda chiqmaydi (users.isBanned) */
 function notBanned(): SQL {
   return notInArray(specialists.userId, db.select({ id: users.id }).from(users).where(eq(users.isBanned, true)));
+}
+
+/**
+ * Katalogda ko'rinadiganlar: bloklanmagan VA obunasi faol (sinov / to'langan / imtiyozli kunlar — subscriptions/access.ts).
+ * Obunasi tugaganlar ro'yxat, xarita statistikasi, qidiruv takliflari, landing va sitemap'da chiqmaydi;
+ * to'g'ridan-to'g'ri profil havolasi esa ochilaveradi (sahifa o'zi ogohlantiradi).
+ */
+async function listable(): Promise<SQL> {
+  return and(notBanned(), listableCondition(await getSettings()))!;
 }
 
 /**
@@ -83,50 +94,7 @@ function visibilityOf(field: "gender" | "city") {
  * `viewer` berilsa, "faqat ro'yxatdan o'tganlarga" darajadagi shahar kirgan foydalanuvchiga ko'rinadi.
  */
 export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer = GUEST_VIEWER) {
-  const conds: SQL[] = [notBanned()];
-
-  if (filter.region) conds.push(eq(specialists.regionSlug, filter.region));
-  if (filter.skill) conds.push(jsonHas(sql`${specialists.skills}`, filter.skill));
-  if (filter.equipment) conds.push(jsonHas(sql`${specialists.equipment}`, filter.equipment));
-  if (filter.category) conds.push(eq(specialists.category, filter.category));
-  if (filter.experience) conds.push(eq(specialists.experience, filter.experience));
-  if (filter.verified === "1") conds.push(eq(specialists.isVerified, true));
-  if (filter.available === "1") {
-    // Hozir buyurtma qabul qiladiganlar: "Band" emas va ta'tilda emas (isOnVacation bilan bir xil qoida)
-    conds.push(eq(specialists.isAvailable, true), or(isNull(specialists.vacationUntil), lt(specialists.vacationUntil, tashkentNow().date))!);
-  }
-  if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
-  // priceMin faqat priceMax'dan kichik bo'lsa qo'llanadi (teskari oraliq — e'tiborsiz)
-  if (filter.priceMin && filter.priceMin > 0 && !(filter.priceMax && filter.priceMin >= filter.priceMax)) {
-    conds.push(gte(specialists.priceFrom, filter.priceMin));
-  }
-  // Yashirin jins/shahar filtr yoki qidiruv orqali ham aniqlanmasin (ro'yxat DTO'si ularni maskalaydi)
-  const levels = visibleLevels(viewer);
-  if (filter.gender) {
-    // Jins users jadvalida — subquery orqali
-    const byGender = db.select({ id: users.id }).from(users).where(eq(users.gender, filter.gender));
-    conds.push(inArray(specialists.userId, byGender));
-    if (levels) conds.push(inArray(visibilityOf("gender"), levels));
-  }
-
-  if (filter.q) {
-    // % va _ ekranlanadi ("%" hamma qatorni qaytarmasin); kirill va apostrofsiz yozuv ham topiladi (E70/F8):
-    // "Фарғона" / "fargona" → "Farg'ona"
-    const q = filter.q;
-    const userMatch = db.select({ id: users.id }).from(users).where(matchAny(sql`${users.name}`, q));
-    const cityLike = matchAny(sql`${specialists.city}`, q);
-    conds.push(
-      or(
-        matchBoth(sql`${specialists.title}`, q),
-        matchBoth(sql`${specialists.bio}`, q),
-        levels ? and(cityLike, inArray(visibilityOf("city"), levels))! : cityLike,
-        matchBoth(sql`${specialists.skills}`, q),
-        inArray(specialists.userId, userMatch),
-      )!,
-    );
-  }
-
-  const where = and(...conds);
+  const where = and(...(await specialistFilterConds(filter, viewer)));
 
   const orderBy = (() => {
     switch (filter.sort) {
@@ -162,6 +130,69 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
     page: filter.page,
     pages: Math.max(1, Math.ceil(total / filter.limit)),
   };
+}
+
+/**
+ * Ro'yxat filtrlarining SQL shartlari (listSpecialists va saqlangan qidiruv ogohlantirishlari — F53 — bir xil qoida).
+ * Har doim: bloklanmagan + obunasi faol (listable).
+ */
+export async function specialistFilterConds(filter: Omit<SpecialistFilter, "page" | "limit" | "sort">, viewer: Viewer = GUEST_VIEWER): Promise<SQL[]> {
+  const base = await listable();
+  const conds: SQL[] = [base];
+
+  if (filter.region) conds.push(eq(specialists.regionSlug, filter.region));
+  if (filter.skill) conds.push(jsonHas(sql`${specialists.skills}`, filter.skill));
+  if (filter.equipment) conds.push(jsonHas(sql`${specialists.equipment}`, filter.equipment));
+  if (filter.category) conds.push(eq(specialists.category, filter.category));
+  if (filter.experience) conds.push(eq(specialists.experience, filter.experience));
+  if (filter.workType) conds.push(jsonHas(sql`${specialists.workTypes}`, filter.workType));
+  if (filter.openNow === "1") {
+    // "Hozir ochiq" (F42): jadval JS'da (privacy.ts) hisoblanadi — katalog kichik, faqat jadvali bor profillar o'qiladi.
+    // Ko'ruvchiga jadval ko'rinmasa — noma'lum, chiqarilmaydi.
+    const rows = await db
+      .select({ id: specialists.id, schedule: specialists.schedule, vacationUntil: specialists.vacationUntil, visibility: specialists.visibility })
+      .from(specialists)
+      .where(and(base, isNotNull(specialists.schedule)));
+    const now = Date.now();
+    const ids = rows.filter((r) => isOpenNowFor(r, viewer, now)).map((r) => r.id);
+    conds.push(ids.length ? inArray(specialists.id, ids) : sql`0 = 1`);
+  }
+  if (filter.verified === "1") conds.push(eq(specialists.isVerified, true));
+  if (filter.available === "1") {
+    // Hozir buyurtma qabul qiladiganlar: "Band" emas va ta'tilda emas (isOnVacation bilan bir xil qoida)
+    conds.push(eq(specialists.isAvailable, true), or(isNull(specialists.vacationUntil), lt(specialists.vacationUntil, tashkentNow().date))!);
+  }
+  if (filter.priceMax && filter.priceMax > 0) conds.push(lte(specialists.priceFrom, filter.priceMax));
+  // priceMin faqat priceMax'dan kichik bo'lsa qo'llanadi (teskari oraliq — e'tiborsiz)
+  if (filter.priceMin && filter.priceMin > 0 && !(filter.priceMax && filter.priceMin >= filter.priceMax)) {
+    conds.push(gte(specialists.priceFrom, filter.priceMin));
+  }
+  // Yashirin jins/shahar filtr yoki qidiruv orqali ham aniqlanmasin (ro'yxat DTO'si ularni maskalaydi)
+  const levels = visibleLevels(viewer);
+  if (filter.gender) {
+    // Jins users jadvalida — subquery orqali
+    const byGender = db.select({ id: users.id }).from(users).where(eq(users.gender, filter.gender));
+    conds.push(inArray(specialists.userId, byGender));
+    if (levels) conds.push(inArray(visibilityOf("gender"), levels));
+  }
+
+  if (filter.q) {
+    // % va _ ekranlanadi ("%" hamma qatorni qaytarmasin); kirill va apostrofsiz yozuv ham topiladi (E70/F8):
+    // "Фарғона" / "fargona" → "Farg'ona"
+    const q = filter.q;
+    const userMatch = db.select({ id: users.id }).from(users).where(matchAny(sql`${users.name}`, q));
+    const cityLike = matchAny(sql`${specialists.city}`, q);
+    conds.push(
+      or(
+        matchBoth(sql`${specialists.title}`, q),
+        matchBoth(sql`${specialists.bio}`, q),
+        levels ? and(cityLike, inArray(visibilityOf("city"), levels))! : cityLike,
+        matchBoth(sql`${specialists.skills}`, q),
+        inArray(specialists.userId, userMatch),
+      )!,
+    );
+  }
+  return conds;
 }
 
 export type SpecialistListItem = Awaited<ReturnType<typeof listSpecialists>>["items"][number];
@@ -233,7 +264,7 @@ export async function getSimilarSpecialists(sp: { id: string; regionSlug: string
     where: and(
       or(eq(specialists.regionSlug, sp.regionSlug), eq(specialists.category, sp.category)),
       sql`${specialists.id} != ${sp.id}`,
-      notBanned(),
+      await listable(),
     ),
     orderBy: [desc(specialists.rating)],
     limit,
@@ -254,6 +285,106 @@ export async function hasAcceptedOrderWith(clientId: string | null | undefined, 
   });
   return Boolean(row);
 }
+
+/* ------------------------------------------------------------------ */
+/* Qisqa havola (F66): /u/{shortCode}                                  */
+/* ------------------------------------------------------------------ */
+/** Seed bilan bir xil alifbo: o'xshash belgilar (0/o, 1/l/i) yo'q */
+export const SHORT_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+export const SHORT_CODE_RE = /^[a-z0-9]{6}$/;
+
+function randomShortCode(): string {
+  return Array.from({ length: 6 }, () => SHORT_CODE_ALPHABET[randomInt(SHORT_CODE_ALPHABET.length)]).join("");
+}
+
+/** Mutaxassisning qisqa kodi; yo'q bo'lsa yaratib saqlaydi (unikal indeks to'qnashuvida qayta urinadi) */
+export async function ensureShortCode(specialistId: string): Promise<string | null> {
+  const row = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { shortCode: true } });
+  if (!row) return null;
+  if (row.shortCode) return row.shortCode;
+  for (let i = 0; i < 6; i++) {
+    const code = randomShortCode();
+    try {
+      const res = await db
+        .update(specialists)
+        .set({ shortCode: code })
+        .where(and(eq(specialists.id, specialistId), isNull(specialists.shortCode)))
+        .returning({ code: specialists.shortCode });
+      if (res[0]?.code) return res[0].code;
+      // Parallel so'rov allaqachon yozgan bo'lsa — o'shani qaytaramiz
+      const again = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { shortCode: true } });
+      if (again?.shortCode) return again.shortCode;
+    } catch {
+      /* unikal indeks to'qnashuvi — boshqa kod bilan qayta urinamiz */
+    }
+  }
+  return null;
+}
+
+/** /u/[code] → profil slug'i (bloklanganlar uchun null) */
+export async function slugByShortCode(code: string): Promise<string | null> {
+  const norm = code.trim().toLowerCase();
+  if (!SHORT_CODE_RE.test(norm)) return null;
+  const row = await db
+    .select({ slug: specialists.slug })
+    .from(specialists)
+    .innerJoin(users, eq(users.id, specialists.userId))
+    .where(and(eq(specialists.shortCode, norm), eq(users.isBanned, false)))
+    .limit(1);
+  return row[0]?.slug ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Taqqoslash (F54)                                                    */
+/* ------------------------------------------------------------------ */
+export interface CriteriaAverages {
+  quality: number | null;
+  timeliness: number | null;
+  communication: number | null;
+}
+
+/**
+ * /taqqoslash: 3 tagacha mutaxassis — ro'yxat DTO'si (toListItem, ko'ruvchiga moslab) + ommaviy paket/tarif ma'lumoti,
+ * sharh mezonlari o'rtachasi va javob vaqti. Faqat katalogda ko'rinadiganlar (bloklangan / obunasi tugaganlar chiqmaydi).
+ * Natija so'ralgan tartibda.
+ */
+export async function getCompareSpecialists(ids: string[], viewer: Viewer = GUEST_VIEWER) {
+  const unique = [...new Set(ids)].slice(0, 3);
+  if (!unique.length) return [];
+  const rows = await db.query.specialists.findMany({
+    where: and(inArray(specialists.id, unique), await listable()),
+    with: { user: { columns: { name: true, avatarUrl: true } } },
+  });
+  if (!rows.length) return [];
+  const found = rows.map((r) => r.id);
+  const [criteria, proofs] = await Promise.all([
+    db
+      .select({
+        id: reviews.specialistId,
+        quality: sql<number | null>`avg(${reviews.quality})`,
+        timeliness: sql<number | null>`avg(${reviews.timeliness})`,
+        communication: sql<number | null>`avg(${reviews.communication})`,
+      })
+      .from(reviews)
+      .where(inArray(reviews.specialistId, found))
+      .groupBy(reviews.specialistId),
+    Promise.all(rows.map((r) => getSocialProof(r.id, r.completedCount))),
+  ]);
+  const round = (v: number | null) => (v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
+  const byId = new Map(criteria.map((c) => [c.id, { quality: round(c.quality), timeliness: round(c.timeliness), communication: round(c.communication) }]));
+  const withCover = await withCovers(rows);
+  const out = withCover.map((sp, i) => ({
+    ...toListItem(sp, viewer),
+    packages: sp.packages,
+    rates: sp.rates,
+    certificatesCount: sp.certificates.length,
+    criteria: byId.get(sp.id) ?? ({ quality: null, timeliness: null, communication: null } satisfies CriteriaAverages),
+    completed: proofs[i].completed,
+    responseHours: proofs[i].responseHours,
+  }));
+  return unique.map((id) => out.find((x) => x.id === id)).filter((x): x is (typeof out)[number] => Boolean(x));
+}
+export type CompareSpecialist = Awaited<ReturnType<typeof getCompareSpecialists>>[number];
 
 /** Bajarilgan buyurtmalar soni — profil statistikasi ("Buyurtma" katagi) */
 export async function countCompletedOrders(specialistId: string): Promise<number> {
@@ -357,19 +488,20 @@ export async function suggestSearch(q: string, limit = 8): Promise<Suggestion[]>
   if (out.length >= limit) return out.slice(0, limit);
 
   const term = `%${escapeLike(norm)}%`;
+  const visible = await listable();
   const [people, skills, cities] = await Promise.all([
     db
       .select({ name: users.name, slug: specialists.slug, title: specialists.title })
       .from(specialists)
       .innerJoin(users, eq(users.id, specialists.userId))
-      .where(and(eq(users.isBanned, false), sql`${plainCol(sql`${users.name}`)} like ${term} escape '\\'`))
+      .where(and(eq(users.isBanned, false), visible, sql`${plainCol(sql`${users.name}`)} like ${term} escape '\\'`))
       .orderBy(desc(specialists.rating))
       .limit(5),
     db.all<{ v: string }>(
-      sql`select distinct value as v from ${specialists}, json_each(${specialists.skills}) where ${notBanned()} and ${plainCol(sql`value`)} like ${term} escape '\\' order by value limit 5`,
+      sql`select distinct value as v from ${specialists}, json_each(${specialists.skills}) where ${visible} and ${plainCol(sql`value`)} like ${term} escape '\\' order by value limit 5`,
     ),
     db.all<{ v: string }>(
-      sql`select distinct ${specialists.city} as v from ${specialists} where ${notBanned()} and ${visibilityOf("city")} = 'public' and ${plainCol(sql`${specialists.city}`)} like ${term} escape '\\' order by ${specialists.city} limit 5`,
+      sql`select distinct ${specialists.city} as v from ${specialists} where ${visible} and ${visibilityOf("city")} = 'public' and ${plainCol(sql`${specialists.city}`)} like ${term} escape '\\' order by ${specialists.city} limit 5`,
     ),
   ]);
 
@@ -379,9 +511,9 @@ export async function suggestSearch(q: string, limit = 8): Promise<Suggestion[]>
   return out.slice(0, limit);
 }
 
-/** Sitemap uchun ochiq profillar: bloklangan va o'chirilgan (anonimlashtirilgan — ular ham isBanned) profillarsiz */
+/** Sitemap uchun ochiq profillar: bloklangan, o'chirilgan (anonimlashtirilgan — ular ham isBanned) va obunasi tugaganlarsiz */
 export async function getSitemapProfiles(): Promise<Array<{ slug: string; updatedAt: Date }>> {
-  return db.select({ slug: specialists.slug, updatedAt: specialists.updatedAt }).from(specialists).where(notBanned());
+  return db.select({ slug: specialists.slug, updatedAt: specialists.updatedAt }).from(specialists).where(await listable());
 }
 
 /** SEO landing sahifalari (F59/F60) uchun kategoriya×hudud bo'yicha oxirgi yangilanish va son */
@@ -389,14 +521,14 @@ export async function getLandingIndex(): Promise<Array<{ category: string; regio
   const rows = await db
     .select({ category: specialists.category, region: specialists.regionSlug, n: count(), last: sql<number>`max(${specialists.updatedAt})` })
     .from(specialists)
-    .where(notBanned())
+    .where(await listable())
     .groupBy(specialists.category, specialists.regionSlug);
   return rows.map((r) => ({ category: r.category, region: r.region, n: r.n, lastModified: new Date(Number(r.last) || Date.now()) }));
 }
 
 /** Landing sahifa statistikasi: son, eng past boshlang'ich narx (0 — "kelishiladi" hisobga olinmaydi), o'rtacha reyting, tasdiqlanganlar */
 export async function getLandingStats(category: string, region?: string | null) {
-  const conds: SQL[] = [notBanned(), eq(specialists.category, category)];
+  const conds: SQL[] = [await listable(), eq(specialists.category, category)];
   if (region) conds.push(eq(specialists.regionSlug, region));
   const [row] = await db
     .select({
@@ -438,7 +570,7 @@ export async function getRegionStats(): Promise<Record<string, RegionStat>> {
   const rows = await db
     .select({ region: specialists.regionSlug, category: specialists.category, n: count() })
     .from(specialists)
-    .where(notBanned())
+    .where(await listable())
     .groupBy(specialists.regionSlug, specialists.category);
 
   const out: Record<string, RegionStat> = {};
@@ -453,7 +585,7 @@ export async function getRegionStats(): Promise<Record<string, RegionStat>> {
 }
 
 export async function getCategoryStats(): Promise<Record<string, number>> {
-  const rows = await db.select({ category: specialists.category, n: count() }).from(specialists).where(notBanned()).groupBy(specialists.category);
+  const rows = await db.select({ category: specialists.category, n: count() }).from(specialists).where(await listable()).groupBy(specialists.category);
   const out: Record<string, number> = {};
   for (const c of CATEGORIES) out[c.slug] = 0;
   for (const row of rows) out[row.category] = row.n;
@@ -461,18 +593,19 @@ export async function getCategoryStats(): Promise<Record<string, number>> {
 }
 
 export async function getSiteStats() {
+  const visible = await listable();
   const [[sp], [ord], [rev], regionsCovered] = await Promise.all([
-    db.select({ n: count() }).from(specialists).where(notBanned()),
+    db.select({ n: count() }).from(specialists).where(visible),
     db.select({ n: count() }).from(orders),
     db.select({ n: count() }).from(reviews),
-    db.selectDistinct({ r: specialists.regionSlug }).from(specialists).where(notBanned()),
+    db.selectDistinct({ r: specialists.regionSlug }).from(specialists).where(visible),
   ]);
   return { specialists: sp.n, orders: ord.n, reviews: rev.n, regions: regionsCovered.length };
 }
 
 export async function getFeaturedSpecialists(limit = 6) {
   const rows = await db.query.specialists.findMany({
-    where: notBanned(),
+    where: await listable(),
     orderBy: [desc(specialists.isFeatured), desc(specialists.rating), desc(specialists.reviewCount)],
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },

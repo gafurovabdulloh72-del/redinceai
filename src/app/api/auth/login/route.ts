@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { createSession } from "@/lib/auth";
+import { createSession, createTwoFactorTicket } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { loginSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
@@ -16,6 +16,7 @@ const schema = loginSchema.extend({ remember: z.boolean().optional().default(tru
  * foydalanuvchi topilmasa ham bcrypt ishlaydi (javob vaqti bir xil).
  * Rate limit: ip+email bo'yicha 5 ta muvaffaqiyatsiz urinish / 15 daqiqa, ip bo'yicha 20 / 15 daqiqa,
  * email bo'yicha (IP'dan mustaqil — sarlavha/egress almashtirib chetlab o'tib bo'lmaydi) 20 / 15 daqiqa.
+ * 2FA yoqilgan bo'lsa javob: { twoFactor: true, ticket } (sessiya hali berilmaydi).
  */
 export const POST = handler(async (req) => {
   const input = await parseBody(req, schema);
@@ -45,6 +46,14 @@ export const POST = handler(async (req) => {
   if (user.isBanned) {
     await audit(user.id, "login_blocked", { targetType: "user", targetId: user.id, meta: { reason: user.bannedReason ?? null } }, req);
     throw new ApiError(403, "Akkaunt bloklangan. Savollar bo'lsa qo'llab-quvvatlashga yozing");
+  }
+
+  // 2FA yoqilgan: sessiya o'rniga 5 daqiqalik chipta — ikkinchi bosqich POST /api/auth/2fa/verify
+  // (urinishlar hisoblagichi kod tasdiqlangandan keyin tozalanadi)
+  if (user.totpEnabled) {
+    const ticket = await createTwoFactorTicket(user, input.remember);
+    await audit(user.id, "login_2fa_required", { targetType: "user", targetId: user.id }, req);
+    return ok({ twoFactor: true as const, ticket });
   }
 
   await Promise.all([

@@ -1,5 +1,6 @@
-import { BadgeCheck, CornerDownRight, MessageSquareText, Star } from "lucide-react";
+import { BadgeCheck, CornerDownRight, MessageSquareText, Star, ThumbsUp } from "lucide-react";
 import { Avatar, EmptyState, Stars } from "@/components/ui";
+import { RATING_CRITERIA, type RatingCriterionKey } from "@/lib/constants";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 import { ReviewDeleteButton } from "./ReviewDeleteButton";
 import { ReviewReplyForm } from "./ReviewReplyForm";
@@ -18,6 +19,46 @@ export interface ReviewListItem {
   /** Mutaxassisning javobi (F43) */
   reply?: string | null;
   replyAt?: Date | number | string | null;
+  /** Mezonlar bo'yicha baho 1–5 (F44) */
+  quality?: number | null;
+  timeliness?: number | null;
+  communication?: number | null;
+  /** Sharh rasmlari (F45) */
+  media?: string[] | null;
+  /** «Tavsiya qilaman» (F46) */
+  recommend?: boolean | null;
+}
+
+/** Xulosa uchun kerakli maydonlar (reviews jadvali qatorlari ham to'g'ri keladi) */
+export type ReviewCriteriaSource = Pick<ReviewListItem, "quality" | "timeliness" | "communication" | "recommend">;
+
+/** Mezonlar o'rtachasi va tavsiya foizi; ma'lumot bo'lmasa — null */
+export function reviewCriteriaSummary(items: ReviewCriteriaSource[]): { averages: Partial<Record<RatingCriterionKey, { avg: number; n: number }>>; recommendPct: number | null; recommendN: number } {
+  const averages: Partial<Record<RatingCriterionKey, { avg: number; n: number }>> = {};
+  for (const c of RATING_CRITERIA) {
+    const vals = items.map((r) => r[c.key]).filter((v): v is number => typeof v === "number" && v >= 1 && v <= 5);
+    if (vals.length) averages[c.key] = { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length };
+  }
+  const answered = items.filter((r) => typeof r.recommend === "boolean");
+  const yes = answered.filter((r) => r.recommend).length;
+  return { averages, recommendPct: answered.length ? Math.round((yes / answered.length) * 100) : null, recommendN: answered.length };
+}
+
+/** Mezon chizig'i: yorliq + to'ldirilgan chiziq + qiymat */
+function CriterionBar({ label, value, compact = false }: { label: string; value: number; compact?: boolean }) {
+  const pct = Math.max(0, Math.min(100, (value / 5) * 100));
+  return (
+    <div className={cn("min-w-0", compact ? "space-y-1" : "flex items-center gap-2.5")}>
+      <span className={cn("text-fg-2", compact ? "flex items-center justify-between gap-1 text-[11px]" : "w-16 shrink-0 text-[12px] font-semibold")}>
+        {label}
+        {compact && <span className="font-semibold tabular-nums text-fg">{value.toFixed(0)}</span>}
+      </span>
+      <span className={cn("block overflow-hidden rounded-full bg-surface-3", compact ? "h-1.5 w-full" : "h-2 flex-1")} role="img" aria-label={`${label}: ${value.toFixed(1)} / 5`}>
+        <span className="block h-full rounded-full bg-accent-3" style={{ width: `${pct}%` }} />
+      </span>
+      {!compact && <span className="w-8 shrink-0 text-right text-[12px] font-semibold tabular-nums text-fg">{value.toFixed(1)}</span>}
+    </div>
+  );
 }
 
 /**
@@ -28,43 +69,72 @@ export function ReviewSummary({
   rating,
   count,
   distribution,
+  items,
   className,
 }: {
   rating: number;
   count: number;
   distribution: Record<1 | 2 | 3 | 4 | 5, number>;
+  /** Sharhlar (mezonlar va tavsiya) — berilsa o'rtacha mezonlar va «% tavsiya qiladi» ko'rsatiladi */
+  items?: ReviewCriteriaSource[];
   className?: string;
 }) {
   if (count === 0) return null;
   const max = Math.max(1, ...Object.values(distribution));
+  const extra = items?.length ? reviewCriteriaSummary(items) : null;
+  const hasCriteria = Boolean(extra && Object.keys(extra.averages).length);
   return (
-    <div className={cn("card-outline grid gap-5 p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8 sm:p-6", className)}>
-      <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-1">
-        <p className="font-display text-[44px] font-semibold leading-none tracking-tight text-fg sm:text-[52px]">{rating.toFixed(1)}</p>
-        <div>
-          <Stars value={rating} size={14} showValue={false} />
-          <p className="mt-1 text-[12px] text-fg-3">
-            {count} ta sharh · 5 dan
-          </p>
+    <div className={cn("card-outline p-5 sm:p-6", className)}>
+      <div className="grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8">
+        <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-1">
+          <p className="font-display text-[44px] font-semibold leading-none tracking-tight text-fg sm:text-[52px]">{rating.toFixed(1)}</p>
+          <div>
+            <Stars value={rating} size={14} showValue={false} />
+            <p className="mt-1 text-[12px] text-fg-3">
+              {count} ta sharh · 5 dan
+            </p>
+          </div>
         </div>
+        <ul className="space-y-1.5" aria-label="Baholar taqsimoti">
+          {([5, 4, 3, 2, 1] as const).map((n) => {
+            const v = distribution[n] ?? 0;
+            const pct = count ? Math.round((v / count) * 100) : 0;
+            return (
+              <li key={n} className="flex items-center gap-2.5 text-[12px]">
+                <span className="inline-flex w-7 shrink-0 items-center gap-0.5 font-semibold text-fg-2 tabular-nums">
+                  {n} <Star size={10} className="fill-accent-3 text-accent-3" />
+                </span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-3" role="img" aria-label={`${n} yulduz: ${v} ta (${pct}%)`}>
+                  <span className="block h-full rounded-full bg-accent-3 transition-[width] duration-700" style={{ width: `${Math.round((v / max) * 100)}%` }} />
+                </span>
+                <span className="w-10 shrink-0 text-right text-fg-3 tabular-nums">{pct}%</span>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      <ul className="space-y-1.5" aria-label="Baholar taqsimoti">
-        {([5, 4, 3, 2, 1] as const).map((n) => {
-          const v = distribution[n] ?? 0;
-          const pct = count ? Math.round((v / count) * 100) : 0;
-          return (
-            <li key={n} className="flex items-center gap-2.5 text-[12px]">
-              <span className="inline-flex w-7 shrink-0 items-center gap-0.5 font-semibold text-fg-2 tabular-nums">
-                {n} <Star size={10} className="fill-accent-3 text-accent-3" />
-              </span>
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-3" role="img" aria-label={`${n} yulduz: ${v} ta (${pct}%)`}>
-                <span className="block h-full rounded-full bg-accent-3 transition-[width] duration-700" style={{ width: `${Math.round((v / max) * 100)}%` }} />
-              </span>
-              <span className="w-10 shrink-0 text-right text-fg-3 tabular-nums">{pct}%</span>
-            </li>
-          );
-        })}
-      </ul>
+      {extra && (hasCriteria || extra.recommendPct != null) && (
+        <div className="mt-5 grid gap-5 border-t border-line pt-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8">
+          {extra.recommendPct != null ? (
+            <div className="flex items-center gap-3 sm:min-w-[132px] sm:flex-col sm:items-start sm:gap-1">
+              <p className="font-display text-[32px] font-semibold leading-none tracking-tight text-success-text">{extra.recommendPct}%</p>
+              <p className="flex items-center gap-1.5 text-[12px] leading-snug text-fg-3">
+                <ThumbsUp size={13} className="shrink-0 text-success-text" /> mijozlar tavsiya qiladi
+              </p>
+            </div>
+          ) : (
+            <span className="hidden sm:block" />
+          )}
+          {hasCriteria && (
+            <div className="space-y-2" aria-label="Mezonlar bo'yicha o'rtacha baho">
+              {RATING_CRITERIA.map((c) => {
+                const a = extra.averages[c.key];
+                return a ? <CriterionBar key={c.key} label={c.label} value={a.avg} /> : null;
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -138,12 +208,35 @@ export function ReviewList({
                     {canModerate && specialistId && r.authorId && !mine && <ReviewDeleteButton specialistId={specialistId} authorId={r.authorId} />}
                   </span>
                 </div>
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Stars value={r.rating} size={13} showValue={false} />
+                  {r.recommend === true && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text">
+                      <ThumbsUp size={11} /> Tavsiya qiladi
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{r.text}</p>
+            {RATING_CRITERIA.some((c) => typeof r[c.key] === "number") && (
+              <div className="mt-3 grid grid-cols-3 gap-3 sm:max-w-md">
+                {RATING_CRITERIA.map((c) => {
+                  const v = r[c.key];
+                  return typeof v === "number" ? <CriterionBar key={c.key} label={c.label} value={v} compact /> : <span key={c.key} />;
+                })}
+              </div>
+            )}
+            {r.media && r.media.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {r.media.slice(0, 4).map((url, k) => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-[12px] border border-line bg-surface-3 transition hover:opacity-90">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`${r.author.name} sharhidagi rasm ${k + 1}`} loading="lazy" className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Mutaxassis javobi */}
             {r.reply && (

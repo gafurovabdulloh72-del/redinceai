@@ -36,6 +36,19 @@ export function formatPrice(amount: number | null | undefined, opts: { compact?:
   return `${formatNumber(amount)} so'm`;
 }
 
+/**
+ * Taxminiy dollar ekvivalenti (F99): "≈ $394". usdRate — 1 USD necha so'm (platforma sozlamasi usdRate).
+ * 1 dollardan kam — "< $1"; summa yoki kurs noto'g'ri bo'lsa — bo'sh satr (UI ko'rsatmaydi).
+ */
+export function formatUsd(amount: number | null | undefined, usdRate: number | null | undefined): string {
+  if (!amount || amount <= 0 || !usdRate || usdRate <= 0 || !Number.isFinite(amount / usdRate)) return "";
+  const usd = amount / usdRate;
+  if (usd < 1) return "< $1";
+  // 1 000 dan katta summalar o'nlikka yaxlitlanadi — "taxminiy" ekanini ta'kidlaydi
+  const rounded = usd >= 1_000 ? Math.round(usd / 10) * 10 : Math.round(usd);
+  return `≈ $${formatNumber(rounded)}`;
+}
+
 export function formatPriceRange(from: number, to?: number | null) {
   if (!from && !to) return "Kelishiladi";
   if (!from && to) return `${formatPrice(to, { compact: true })} gacha`;
@@ -224,6 +237,18 @@ export function youtubeId(url: string): string | null {
     /* noop */
   }
   return null;
+}
+
+/** Vimeo havolasidan video ID (vimeo.com/123456, player.vimeo.com/video/123456) */
+export function vimeoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)vimeo\.com$/.test(u.hostname)) return null;
+    const m = u.pathname.match(/(?:^|\/)(?:video\/)?(\d{6,12})(?:\/|$)/);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Deterministik rang (avatar fonlari uchun) */

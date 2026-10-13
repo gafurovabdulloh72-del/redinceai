@@ -39,6 +39,10 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         website: s.website ?? "",
         coverUrl: s.coverUrl ?? "",
         isAvailable: s.isAvailable,
+        packages: s.packages ?? [],
+        certificates: s.certificates ?? [],
+        workTypes: s.workTypes ?? [],
+        rates: s.rates ?? {},
       }
     : null;
 
@@ -110,7 +114,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
       </nav>
 
       <div className="space-y-5">
-        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
+        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
 
         <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} />
 
@@ -131,7 +135,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
                 city: true,
               }}
             />
-            <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} />
+            <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} blockedDates={s.blockedDates ?? []} />
           </>
         )}
       </div>

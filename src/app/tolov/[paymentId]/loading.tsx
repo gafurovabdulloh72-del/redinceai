@@ -1,4 +1,4 @@
-/** /tolov/[paymentId] va /tolov/natija skeleti: sarlavha + to'lov paneli (chap) va xulosa kartasi (o'ng) */
+/** /tolov/[paymentId] skeleti (layout.tsx huquq tekshiruvidan keyin — 404 haqiqiy bo'lsin): sarlavha + to'lov paneli va xulosa kartasi */
 export default function Loading() {
   return (
     <div className="container-x" aria-busy="true" aria-label="Yuklanmoqda">

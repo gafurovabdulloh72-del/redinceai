@@ -4,11 +4,12 @@ import { db } from "@/lib/db";
 import { orders, payments } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderStatusSchema } from "@/lib/validators";
-import type { OrderStatus } from "@/lib/constants";
+import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
 import { notify } from "@/lib/notifications";
 import { AUTO_RELEASE_DAYS, autoReleaseDate, findInFlightProviderPayment, loadOrderWithParties, onOrderCancelled, orderHref, recordOrderEvent } from "@/lib/payments/service";
 import { audit } from "@/lib/security/audit";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { postSystemMessage } from "../_lib/messages";
 
 /**
  * Status o'zgarishi qoidalari:
@@ -86,6 +87,8 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     toStatus: status,
     note: status === "cancelled" ? (cleanReason ? `Sabab: ${cleanReason}` : null) : autoRelease ? `Avtomatik qabul: ${formatDate(autoRelease)}` : null,
   });
+  // Chatda ham ko'rinsin (tizim xabari)
+  await postSystemMessage(id, `Holat: ${ORDER_STATUS_LABEL[order.status]} → ${ORDER_STATUS_LABEL[status]}${status === "cancelled" && cleanReason ? `. Sabab: ${cleanReason}` : ""}`);
 
   const href = orderHref(order.id);
   const spName = order.specialist.user.name;

@@ -51,6 +51,22 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   review_reply_deleted: "Sharh javobi o'chirildi",
   report_created: "Shikoyat yuborildi",
   email_changed: "Email o'zgartirildi",
+  session_revoked: "Sessiya (qurilma) yopildi",
+  login_2fa_required: "Kirish: 2FA kodi so'raldi",
+  login_2fa_failed: "Kirish: 2FA kodi noto'g'ri",
+  "2fa_setup_started": "2FA sozlash boshlandi",
+  "2fa_enabled": "Ikki bosqichli himoya yoqildi",
+  "2fa_disabled": "Ikki bosqichli himoya o'chirildi",
+  "2fa_recovery_regenerated": "2FA zaxira kodlari yangilandi",
+  terms_accepted: "Foydalanish shartlari qabul qilindi",
+  job_created: "E'lon joylandi",
+  job_closed: "E'lon yopildi",
+  proposal_created: "Taklif yuborildi",
+  proposal_accepted: "E'lon: taklif qabul qilindi (buyurtma yaratildi)",
+  admin_job_closed: "Admin: e'lon yopildi",
+  subscription_created: "Obuna to'lovi boshlandi",
+  subscription_paid: "Obuna to'landi",
+  admin_subscription: "Admin: obuna amali",
 };
 export type AuditAction = keyof typeof AUDIT_ACTION_LABEL;
 

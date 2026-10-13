@@ -29,6 +29,8 @@ export default async function PortfolioPage() {
     url: p.url,
     thumbnailUrl: p.thumbnailUrl,
     description: p.description,
+    tags: p.tags ?? [],
+    beforeUrl: p.beforeUrl,
     createdAt: p.createdAt.getTime(),
   }));
 

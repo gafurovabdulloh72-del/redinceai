@@ -90,6 +90,16 @@ export function commissionPctFor(settings: PlatformSettings, sp: { completedCoun
   return { pct, tier };
 }
 
+/**
+ * Shoshilinch buyurtma ustamasi (F30): asosiy narxning urgentPct foizi, so'mgacha yaxlitlangan.
+ * orders.amount = asosiy narx + urgentFee — mijoz shu jami summani to'laydi (Payme/Click/checkout ham orders.amount'ni
+ * ishlatadi), komissiya jami summaga qo'llanadi, ustama ham mutaxassisga tegishli.
+ */
+export function urgentFeeFor(base: number, urgentPct: number): number {
+  const pct = Math.min(100, Math.max(0, urgentPct));
+  return Math.round((Math.max(0, base) * pct) / 100);
+}
+
 /** Komissiyani bo'lish: mijoz to'lagan summadan platformaga qoladigan qism va mutaxassis ulushi */
 export function splitAmount(amount: number, commissionPct: number): { commissionAmount: number; netAmount: number } {
   const pct = Math.min(100, Math.max(0, commissionPct));

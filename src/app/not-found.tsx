@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Compass, MapPinned, Search, Users } from "lucide-react";
+import { ArrowRight, Compass, LifeBuoy, MapPinned, Search, Users } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
 
@@ -64,6 +64,9 @@ export default function NotFound() {
         <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-fg-3">
           <Link href="/mutaxassislar" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
             <Users size={16} /> Mutaxassislar ro'yxati
+          </Link>
+          <Link href="/yordam" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
+            <LifeBuoy size={16} /> Yordam markazi
           </Link>
           <Link href="/kabinet" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
             <Compass size={16} /> Kabinet

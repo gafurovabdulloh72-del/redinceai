@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ImageIcon, Link2, Pencil, Plus, Play, Star, Trash2, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ChevronsLeftRight, Hash, ImageIcon, Link2, Pencil, Plus, Play, Star, Trash2, X, type LucideIcon } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
@@ -19,13 +19,19 @@ export interface PortfolioItemDTO {
   url: string;
   thumbnailUrl: string | null;
   description: string | null;
+  /** Teglar (F61), 5 tagacha */
+  tags: string[];
+  /** Oldin/keyin juftligi (F63): "oldin" rasmi; url — "keyin" */
+  beforeUrl: string | null;
   /** ms timestamp */
   createdAt: number;
 }
 
+const MAX_TAGS = 5;
+
 const TYPE_META: Record<PortfolioType, { label: string; icon: LucideIcon; hint: string; placeholder: string }> = {
   image: { label: "Rasm", icon: ImageIcon, hint: "Rasmni yuklang yoki tayyor havolani qo'ying.", placeholder: "https://…/rasm.jpg" },
-  video: { label: "Video", icon: Play, hint: "YouTube havolasi — muqova avtomatik olinadi.", placeholder: "https://youtube.com/watch?v=…" },
+  video: { label: "Video", icon: Play, hint: "YouTube yoki Vimeo havolasi — profilda shu yerning o'zida o'ynaydi (YouTube muqovasi avtomatik).", placeholder: "https://youtube.com/watch?v=… yoki https://vimeo.com/…" },
   link: { label: "Havola", icon: Link2, hint: "Behance, Dribbble, Instagram yoki sayt havolasi.", placeholder: "https://behance.net/…" },
 };
 
@@ -95,7 +101,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const [success, setSuccess] = useState<string | null>(null);
   /* Tahrirlash: ochiq karta + saqlangan qiymatlar (router.refresh kelguncha darhol ko'rinsin) */
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [edited, setEdited] = useState<Record<string, Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl">>>({});
+  const [edited, setEdited] = useState<Record<string, Editable>>({});
 
   /* ---------- Tartib (mahalliy holat; server ro'yxati o'zgarsa — qayta o'rnatiladi) ---------- */
   const serverKey = items.map((i) => i.id).join("|");
@@ -305,8 +311,13 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                   {src ? <SafeImage src={src} alt={item.title} loading="lazy" fallback={fallback} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" /> : fallback}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
                   {idx === 0 && (
-                    <span className="absolute bottom-2.5 left-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11px] font-bold text-white shadow-[var(--shadow-1)]" title="Birinchi ish muqovada ko'rinadi">
+                    <span className="absolute bottom-2.5 left-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-accent-strong px-2.5 text-[11px] font-bold text-white shadow-[var(--shadow-1)]" title="Birinchi ish muqovada ko'rinadi">
                       <Star size={11} className="fill-current" aria-hidden="true" /> Muqova
+                    </span>
+                  )}
+                  {item.type === "image" && item.beforeUrl && (
+                    <span className="absolute bottom-2.5 right-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
+                      <ChevronsLeftRight size={11} aria-hidden="true" /> Oldin / keyin
                     </span>
                   )}
                   <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
@@ -362,6 +373,15 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                     {item.title}
                   </p>
                   <p className="mt-0.5 truncate text-[12px] text-fg-3">{item.description || hostOf(item.url)}</p>
+                  {item.tags.length > 0 && (
+                    <ul className="mt-2 flex flex-wrap gap-1" aria-label="Teglar">
+                      {item.tags.map((t) => (
+                        <li key={t} className="rounded-full bg-fg/6 px-2 py-0.5 text-[11px] font-medium text-fg-2">
+                          #{t}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
                   {/* Amallar: "Ochish" 44px pill + o'chirish (inline tasdiq, window.confirm emas) */}
                   {confirming ? (
@@ -423,7 +443,109 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
 /* ------------------------------------------------------------------ */
 /* Kartadagi tahrirlash formasi (sarlavha, tavsif, muqova)             */
 /* ------------------------------------------------------------------ */
-type Editable = Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl">;
+type Editable = Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl" | "tags" | "beforeUrl">;
+
+/** Teglar kiritish (F61): Enter/vergul bilan qo'shish, chipni bosib olib tashlash, 5 tagacha */
+function TagInput({ id, value, onChange, error }: { id: string; value: string[]; onChange: (next: string[]) => void; error?: string }) {
+  const [text, setText] = useState("");
+  const add = (raw: string) => {
+    const v = raw.trim().replace(/^#/, "").replace(/,+$/, "").trim().slice(0, 30);
+    setText("");
+    if (!v || value.length >= MAX_TAGS || value.some((x) => x.toLowerCase() === v.toLowerCase())) return;
+    onChange([...value, v]);
+  };
+  return (
+    <div>
+      <label htmlFor={id} className="field-label">
+        Teglar <span className="font-normal text-fg-4">({value.length}/{MAX_TAGS}, ixtiyoriy)</span>
+      </label>
+      <div className="field flex flex-wrap items-center gap-1.5 !py-1.5" onClick={() => document.getElementById(id)?.focus()}>
+        {value.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(value.filter((x) => x !== t));
+            }}
+            className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fg/8 px-2.5 text-[12px] font-semibold text-fg transition hover:bg-fg/12"
+            aria-label={`${t} tegini olib tashlash`}
+          >
+            #{t} <X size={11} />
+          </button>
+        ))}
+        <span className="flex min-w-[120px] flex-1 items-center gap-1">
+          <Hash size={13} className="shrink-0 text-fg-4" aria-hidden="true" />
+          <input
+            id={id}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                add(text);
+              } else if (e.key === "Backspace" && !text && value.length) onChange(value.slice(0, -1));
+            }}
+            onBlur={() => text.trim() && add(text)}
+            disabled={value.length >= MAX_TAGS}
+            maxLength={30}
+            placeholder={value.length ? "Yana…" : "Masalan: to'y — Enter"}
+            className="min-w-0 flex-1 bg-transparent py-1 text-[14px] text-fg outline-none placeholder:text-fg-4"
+          />
+        </span>
+      </div>
+      {error ? <p className="field-error">{error}</p> : <p className="mt-1 text-[12px] text-fg-4">Profil galereyasida teglar bo'yicha filtr chiqadi.</p>}
+    </div>
+  );
+}
+
+/** "Oldin" rasmi (F63): havola yoki yuklash */
+function BeforeImageField({ id, value, onChange, error }: { id: string; value: string; onChange: (v: string) => void; error?: string }) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const upload = async (file: File) => {
+    setUploadError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      const json = await uploadWithProgress(file, setProgress);
+      if (!json.ok) setUploadError(json.error);
+      else onChange(json.data.url);
+    } catch {
+      setUploadError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  return (
+    <div>
+      <label htmlFor={id} className="field-label">
+        «Oldin» rasmi <span className="font-normal text-fg-4">(asosiy rasm — «keyin»)</span>
+      </label>
+      {/* Har doim ustma-ust: tahrirlash kartasi tor (3 ustunli to'r), havola kesilib qolmasin */}
+      <div className="flex flex-col items-start gap-2">
+        <input id={id} className="field w-full" type="url" inputMode="url" value={value} onChange={(e) => onChange(e.target.value)} maxLength={300} placeholder="https://…/oldin.jpg" aria-invalid={Boolean(error)} />
+        <Button type="button" variant="outline" size="md" onClick={() => fileRef.current?.click()} disabled={uploading} className="shrink-0">
+          {uploading ? <Spinner /> : <Camera size={15} />} {uploading ? `${progress}%` : "Yuklash"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void upload(f);
+          }}
+        />
+      </div>
+      {error || uploadError ? <p className="field-error">{error ?? uploadError}</p> : <p className="mt-1 text-[12px] text-fg-4">Profilda sudraladigan «oldin / keyin» slayderi chiqadi (rang korreksiya, retush, render).</p>}
+    </div>
+  );
+}
 
 function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved: (next: Editable) => void; onCancel: () => void }) {
   const [title, setTitle] = useState(item.title);
@@ -431,6 +553,8 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
   // Rasm turida muqova — rasmning o'zi; YouTube muqovasi avtomatik bo'lsa maydon bo'sh ko'rsatiladi
   const autoThumb = item.type === "video" && youtubeId(item.url) ? `https://i.ytimg.com/vi/${youtubeId(item.url)}/hqdefault.jpg` : null;
   const [thumbnailUrl, setThumbnailUrl] = useState(item.type === "image" || item.thumbnailUrl === autoThumb ? "" : (item.thumbnailUrl ?? ""));
+  const [tags, setTags] = useState<string[]>(item.tags);
+  const [beforeUrl, setBeforeUrl] = useState(item.beforeUrl ?? "");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -451,7 +575,12 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
       const res = await fetch(`/api/portfolio/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: description.trim(), ...(item.type === "image" ? {} : { thumbnailUrl: thumbnailUrl.trim() }) }),
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          tags,
+          ...(item.type === "image" ? { beforeUrl: beforeUrl.trim() } : { thumbnailUrl: thumbnailUrl.trim() }),
+        }),
       });
       const json = (await res.json()) as ApiResponse<Editable & { id: string }>;
       if (!json.ok) {
@@ -459,7 +588,7 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
         if (json.fields) setErrors(json.fields);
         return;
       }
-      onSaved({ title: json.data.title, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl });
+      onSaved({ title: json.data.title, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl, tags: json.data.tags, beforeUrl: json.data.beforeUrl });
     } catch {
       setError("Tarmoq xatosi. Qayta urinib ko'ring.");
     } finally {
@@ -504,6 +633,8 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
           {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : item.type === "video" && <p className="mt-1 text-[12px] text-fg-4">Bo'sh qoldirilsa — YouTube muqovasi.</p>}
         </div>
       )}
+      <TagInput id={`${uid}-tags`} value={tags} onChange={setTags} error={errors.tags} />
+      {item.type === "image" && <BeforeImageField id={`${uid}-before`} value={beforeUrl} onChange={setBeforeUrl} error={errors.beforeUrl} />}
       {error && (
         <p role="alert" className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-danger">
           <AlertCircle size={14} /> {error}
@@ -551,6 +682,9 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
   const [url, setUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [pair, setPair] = useState(false);
+  const [beforeUrl, setBeforeUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -601,6 +735,8 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
           url: url.trim(),
           thumbnailUrl: type === "image" ? "" : thumbnailUrl.trim(),
           description: description.trim(),
+          tags,
+          beforeUrl: type === "image" && pair ? beforeUrl.trim() : "",
         }),
       });
       const json = (await res.json()) as ApiResponse<{ id: string }>;
@@ -618,6 +754,9 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
       setUrl("");
       setThumbnailUrl("");
       setDescription("");
+      setTags([]);
+      setPair(false);
+      setBeforeUrl("");
       setProgress(0);
       onAdded();
     } catch {
@@ -717,6 +856,22 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
               {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : type === "video" && <p className="mt-1 text-[12px] text-fg-4">YouTube uchun bo'sh qoldiring — avtomatik olinadi.</p>}
             </div>
           )}
+
+          {/* Oldin / keyin (F63) — faqat rasm */}
+          {type === "image" && (
+            <div className="space-y-3">
+              <div className="flex min-h-11 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line px-3.5 py-2">
+                <span id="pm-pair-label" className="text-[13.5px] font-medium text-fg">
+                  Oldin / keyin juftligi
+                  <span className="block text-[12px] font-normal text-fg-3">Asosiy rasm — «keyin», qo'shimcha — «oldin»</span>
+                </span>
+                <button type="button" role="switch" aria-checked={pair} aria-labelledby="pm-pair-label" onClick={() => setPair((v) => !v)} className="switch" />
+              </div>
+              {pair && <BeforeImageField id="pm-before" value={beforeUrl} onChange={setBeforeUrl} error={errors.beforeUrl} />}
+            </div>
+          )}
+
+          <TagInput id="pm-tags" value={tags} onChange={setTags} error={errors.tags} />
 
           {/* Tavsif */}
           <div>

@@ -99,6 +99,7 @@ function nonceValue(): string {
  * Nonce asosidagi CSP: inline/yuklanadigan skriptlar faqat shu so'rovning nonce'i bilan ishlaydi ('strict-dynamic' —
  * Next'ning o'zi yuklaydigan chunklar ham ruxsatli). Next so'rov sarlavhasidagi CSP'dan nonce'ni o'qib, o'z
  * skriptlariga qo'yadi; layout.tsx tema skriptiga x-nonce orqali uzatiladi. Dev'da HMR uchun 'unsafe-eval' va ws:.
+ * Ramkalar: YouTube (nocookie), Vimeo pleyeri va to'lov checkout'lari; service worker va manifest — faqat o'z domenimizdan.
  */
 function buildCsp(nonce: string): string {
   return [
@@ -107,7 +108,9 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     "media-src 'self' https:",
-    `frame-src https://www.youtube.com https://www.youtube-nocookie.com ${PAYMENT_HOSTS}`,
+    `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
+    "worker-src 'self'",
+    "manifest-src 'self'",
     `connect-src 'self' ${PAYMENT_HOSTS}${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
@@ -137,7 +140,7 @@ function withCsp(res: NextResponse): NextResponse {
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  const isProtected = pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname.startsWith("/buyurtma") || pathname.startsWith("/tolov");
+  const isProtected = pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname === "/buyurtma" || pathname.startsWith("/buyurtma/") || pathname.startsWith("/tolov");
   const isAuthPage = pathname.startsWith("/auth/");
   const role = isProtected || isAuthPage ? await readRole(req) : null;
 

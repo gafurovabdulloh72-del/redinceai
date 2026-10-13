@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseQuery, requireSession } from "@/lib/api";
 import { loadOrderWithParties } from "@/lib/payments/service";
-import { commissionPctFor, getSettings, splitAmount } from "@/lib/payments/settings";
+import { commissionPctFor, getSettings, splitAmount, urgentFeeFor } from "@/lib/payments/settings";
 
 const schema = z.object({ amount: z.coerce.number().int().min(0).max(1_000_000_000).optional() });
 
 /**
  * «Siz olasiz: X so'm (komissiya Y%)» jonli ko'rsatkich (F28). Foiz mutaxassis darajasiga qarab
  * (yangi / oddiy / top) — narx belgilash route'i bilan bir xil qoida. Faqat mutaxassis egasi yoki admin.
+ * `amount` — asosiy narx; shoshilinch buyurtmada urgentFee qo'shiladi va komissiya jami summadan hisoblanadi (F30).
  */
 export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
@@ -21,7 +22,9 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
   // To'langan buyurtma foizi o'zgarmaydi — snapshot; aks holda joriy daraja
   const locked = order.paymentState === "paid" || order.paymentState === "released";
   const { pct, tier } = locked && order.commissionPct != null ? { pct: order.commissionPct, tier: "standard" as const } : commissionPctFor(settings, order.specialist);
-  const value = amount ?? order.amount ?? settings.minOrderAmount;
-  const { commissionAmount, netAmount } = splitAmount(value, pct);
-  return ok({ amount: value, commissionPct: pct, tier, commissionAmount, netAmount, minOrderAmount: settings.minOrderAmount });
+  const value = amount ?? (order.amount != null ? order.amount - (order.urgentFee ?? 0) : settings.minOrderAmount);
+  const urgentFee = order.urgent ? urgentFeeFor(value, settings.urgentPct) : 0;
+  const total = value + urgentFee;
+  const { commissionAmount, netAmount } = splitAmount(total, pct);
+  return ok({ amount: value, urgent: order.urgent, urgentPct: settings.urgentPct, urgentFee, total, commissionPct: pct, tier, commissionAmount, netAmount, minOrderAmount: settings.minOrderAmount });
 });

@@ -34,11 +34,18 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     } else thumbnailUrl = null;
   }
 
+  // Teglar (F61) va "oldin" rasmi (F63): kalit yuborilmasa — tegilmaydi; bo'sh satr — juftlik olib tashlanadi
+  if (input.beforeUrl && item.type !== "image") throw new ApiError(422, "Oldin/keyin juftligi faqat rasm turidagi ish uchun", { beforeUrl: "Faqat rasm turidagi ish uchun" });
+  const tags = input.tags ?? item.tags;
+  // Tavsif kaliti yuborilmasa — tegilmaydi (faqat teg yoki "oldin" rasmini yangilash mavjud tavsifni o'chirib yubormasin)
+  const description = input.description !== undefined ? input.description.trim() || null : item.description;
+  const beforeUrl = input.beforeUrl !== undefined ? input.beforeUrl || null : item.beforeUrl;
+
   await db
     .update(portfolioItems)
-    .set({ title: input.title, description: input.description?.trim() || null, thumbnailUrl })
+    .set({ title: input.title, description, thumbnailUrl, tags, beforeUrl })
     .where(eq(portfolioItems.id, id));
-  return ok({ id, title: input.title, description: input.description?.trim() || null, thumbnailUrl });
+  return ok({ id, title: input.title, description, thumbnailUrl, tags, beforeUrl });
 });
 
 export const DELETE = handler(async (_req, ctx: { params: Promise<{ id: string }> }) => {

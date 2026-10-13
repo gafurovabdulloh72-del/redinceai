@@ -5,6 +5,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
+import { CompareButton } from "./CompareButton";
 import { SkillChips } from "./SkillChips";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
 import { formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
@@ -18,7 +19,16 @@ function priceLine(from: number, to?: number | null) {
   return full;
 }
 
-export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListItem; priority?: boolean }) {
+export function SpecialistCard({
+  sp,
+  priority = false,
+  showCompare = false,
+}: {
+  sp: SpecialistListItem;
+  priority?: boolean;
+  /** "Taqqoslash" tugmasi (F54) — faqat taqqoslash paneli bor sahifalarda */
+  showCompare?: boolean;
+}) {
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
@@ -105,6 +115,7 @@ export function SpecialistCard({ sp, priority = false }: { sp: SpecialistListIte
         </div>
       </div>
       <FavoriteButton specialistId={sp.id} variant="overlay" className="absolute right-2 top-2 z-10" />
+      {showCompare && <CompareButton item={{ id: sp.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl }} variant="overlay" className="absolute right-2 top-12 z-10" />}
     </article>
   );
 }

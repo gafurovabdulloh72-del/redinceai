@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, ChevronLeft, ChevronRight, ImageIcon, Images, Link2, Maximize2, Play, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, ChevronsLeftRight, ImageIcon, Images, Link2, Maximize2, Play, X } from "lucide-react";
 import { EmptyState } from "@/components/ui";
 import { SafeImage } from "./SafeImage";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { cn, hashHue, youtubeId } from "@/lib/utils";
+import { cn, hashHue, vimeoId, youtubeId } from "@/lib/utils";
 
 export interface GalleryItem {
   id: string;
@@ -15,6 +15,10 @@ export interface GalleryItem {
   url: string;
   thumbnailUrl: string | null;
   description: string | null;
+  /** Teglar (F61) — galereya ustida filtr chiplari */
+  tags?: string[];
+  /** Oldin/keyin juftligi (F63): "oldin" rasmi; url — "keyin" */
+  beforeUrl?: string | null;
 }
 
 function thumbFor(item: GalleryItem) {
@@ -66,17 +70,56 @@ function Thumb({ item, className }: { item: GalleryItem; className?: string }) {
   );
 }
 
-export function PortfolioGallery({ items }: { items: GalleryItem[] }) {
+export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
+  // Teglar (F61): ko'p uchraydiganlari birinchi; bitta ham teg bo'lmasa — chiplar ko'rinmaydi
+  const tags = useMemo(() => {
+    const counts = new Map<string, { label: string; n: number }>();
+    for (const it of all) {
+      for (const t of it.tags ?? []) {
+        const k = t.toLowerCase();
+        const prev = counts.get(k);
+        counts.set(k, { label: prev?.label ?? t, n: (prev?.n ?? 0) + 1 });
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1].n - a[1].n || a[1].label.localeCompare(b[1].label)).map(([key, v]) => ({ key, ...v }));
+  }, [all]);
+  const [tag, setTag] = useState<string | null>(null);
+  const items = useMemo(() => (tag ? all.filter((i) => (i.tags ?? []).some((t) => t.toLowerCase() === tag)) : all), [all, tag]);
   const viewable = useMemo(() => items.filter((i) => i.type !== "link"), [items]);
   const [openId, setOpenId] = useState<string | null>(null);
   const openIndex = openId ? viewable.findIndex((i) => i.id === openId) : -1;
 
-  if (items.length === 0) {
+  if (all.length === 0) {
     return <EmptyState icon={Images} title="Portfolio hali bo'sh" description="Mutaxassis ishlarini tez orada joylaydi." />;
   }
 
   return (
     <>
+      {tags.length > 0 && (
+        <div className="no-scrollbar -mx-1 mb-3 overflow-x-auto px-1">
+          <div className="flex w-max gap-1.5" role="group" aria-label="Teglar bo'yicha filtr">
+            {[{ key: null as string | null, label: "Barchasi", n: all.length }, ...tags].map((t) => {
+              const on = tag === t.key;
+              return (
+                <button
+                  key={t.key ?? "_all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setTag(t.key)}
+                  className={cn(
+                    "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition active:scale-[0.97]",
+                    on ? "btn-ink border-transparent" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
+                  )}
+                >
+                  {t.key ? `#${t.label}` : t.label}
+                  <span className={cn("text-[11px] tabular-nums", on ? "opacity-80" : "text-fg-4")}>{t.n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Bir xil nisbatli (4:3) grid — bo'sh joysiz, tartibli */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {items.map((item) => {
@@ -100,6 +143,11 @@ export function PortfolioGallery({ items }: { items: GalleryItem[] }) {
                 {item.type !== "link" && (
                   <span className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white opacity-0 transition group-hover:opacity-100">
                     <Maximize2 size={14} />
+                  </span>
+                )}
+                {item.type === "image" && item.beforeUrl && (
+                  <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
+                    <ChevronsLeftRight size={12} aria-hidden="true" /> Oldin / keyin
                   </span>
                 )}
 
@@ -189,6 +237,8 @@ function Lightbox({
   if (!mounted || !item) return null;
 
   const ytId = item.type === "video" ? youtubeId(item.url) : null;
+  const vmId = item.type === "video" && !ytId ? vimeoId(item.url) : null;
+  const pair = item.type === "image" && item.beforeUrl ? item.beforeUrl : null;
 
   const node = (
     <div
@@ -214,7 +264,7 @@ function Lightbox({
               rel="noreferrer noopener"
               className="card pill card-hover hidden h-10 items-center gap-1.5 px-4 text-[13px] font-semibold text-fg sm:inline-flex"
             >
-              YouTube'da ochish <ArrowUpRight size={14} />
+              {ytId ? "YouTube'da ochish" : vmId ? "Vimeo'da ochish" : "Manbada ochish"} <ArrowUpRight size={14} />
             </a>
           )}
           <button
@@ -253,16 +303,21 @@ function Lightbox({
         )}
 
         <div key={item.id} className="animate-fade-up flex max-h-full w-full max-w-5xl items-center justify-center" style={{ animationDuration: "0.35s" }}>
-          {item.type === "video" && ytId ? (
+          {item.type === "video" && (ytId || vmId) ? (
             <div className="card aspect-video w-full overflow-hidden !rounded-[22px] !bg-black/80">
+              {/* YouTube — cookie'siz domen; Vimeo — dnt=1 (kuzatuvsiz). CSP frame-src ikkalasiga ruxsat beradi */}
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`}
+                src={ytId ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0` : `https://player.vimeo.com/video/${vmId}?autoplay=1&dnt=1`}
                 title={item.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
                 className="h-full w-full"
               />
             </div>
+          ) : pair ? (
+            <BeforeAfter before={pair} after={item.url} title={item.title} />
           ) : item.type === "video" ? (
             <a href={item.url} target="_blank" rel="noreferrer noopener" className="card card-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[22px] text-fg">
               <span className="btn-ink flex h-14 w-14 items-center justify-center rounded-full">
@@ -299,4 +354,86 @@ function Lightbox({
   );
 
   return createPortal(node, document.body);
+}
+
+/* ------------------------------------------------------------------ */
+/* Oldin / keyin taqqoslash slayderi (F63)                             */
+/* ------------------------------------------------------------------ */
+/**
+ * "Keyin" rasmi to'liq, ustida "oldin" rasmi chap tomondan kesilgan (clip-path). Tutqichni sudrash (sichqoncha/barmoq)
+ * yoki klaviatura: ← → (5%), Shift bilan 10%, Home/End. role="slider" — ekran o'quvchi foizni eshitadi.
+ */
+export function BeforeAfter({ before, after, title }: { before: string; after: string; title: string }) {
+  const [pos, setPos] = useState(50);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const fromClientX = (clientX: number) => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (!r || r.width === 0) return;
+    setPos(Math.min(100, Math.max(0, ((clientX - r.left) / r.width) * 100)));
+  };
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    fromClientX(e.clientX);
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragging.current) fromClientX(e.clientX);
+  };
+  const stop = () => {
+    dragging.current = false;
+  };
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 10 : 5;
+    let next: number | null = null;
+    if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = pos - step;
+    else if (e.key === "ArrowRight" || e.key === "ArrowUp") next = pos + step;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = 100;
+    if (next == null) return;
+    // Lightbox'ning ←/→ (keyingi ish) tugmalari bilan to'qnashmasin
+    e.preventDefault();
+    e.stopPropagation();
+    setPos(Math.min(100, Math.max(0, next)));
+  };
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative aspect-[4/3] max-h-[calc(100dvh-220px)] w-full max-w-4xl touch-none select-none overflow-hidden rounded-[22px] bg-surface-3 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={after} alt={`${title} — keyin`} draggable={false} className="absolute inset-0 h-full w-full object-cover text-transparent" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={before}
+        alt={`${title} — oldin`}
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover text-transparent"
+        style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
+      />
+      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Oldin</span>
+      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Keyin</span>
+      <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]" style={{ left: `${pos}%` }} />
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label="Oldin va keyin rasmlarini solishtirish"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(pos)}
+        aria-valuetext={`Oldin ${Math.round(pos)}%, keyin ${100 - Math.round(pos)}%`}
+        onKeyDown={onKeyDown}
+        className="absolute top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-white text-[#121213] shadow-[var(--shadow-2)] outline-none focus-visible:ring-4 focus-visible:ring-accent/60"
+        style={{ left: `${pos}%` }}
+      >
+        <ChevronsLeftRight size={18} aria-hidden="true" />
+      </div>
+    </div>
+  );
 }

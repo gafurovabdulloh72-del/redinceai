@@ -1,0 +1,142 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useRef, useTransition, type FormEvent } from "react";
+import { Search } from "lucide-react";
+import { Spinner } from "@/components/ui";
+import { REGIONS } from "@/lib/constants";
+import { REMOTE_LABEL, REMOTE_REGION } from "@/lib/jobs/format";
+
+export interface JobFilterValues {
+  q?: string;
+  category?: string;
+  region?: string;
+  min?: number;
+  max?: number;
+  sort: "newest" | "budget_high" | "budget_low";
+}
+
+const SORTS: { value: JobFilterValues["sort"]; label: string }[] = [
+  { value: "newest", label: "Eng yangilari" },
+  { value: "budget_high", label: "Byudjet: kattadan" },
+  { value: "budget_low", label: "Byudjet: kichikdan" },
+];
+
+/** Faqat raqamlar ("1 500 000" → "1500000") */
+const digits = (v: FormDataEntryValue | null) => (typeof v === "string" ? v.replace(/\D/g, "") : "");
+
+/**
+ * /ishlar filtrlari: qidiruv, hudud (shu jumladan «Masofaviy»), byudjet oralig'i va saralash.
+ * Yo'nalish chiplari sahifada havola sifatida; bu forma JS'siz ham oddiy GET bilan yuboriladi.
+ * Mobil (2 ustun): qidiruv · hudud | saralash · dan | gacha · tugma. Desktop: bitta qator.
+ */
+export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilterValues; basePath?: string }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+
+  const go = (form: HTMLFormElement) => {
+    const fd = new FormData(form);
+    const sp = new URLSearchParams();
+    const q = String(fd.get("q") ?? "").trim();
+    if (q) sp.set("q", q.slice(0, 80));
+    if (values.category) sp.set("category", values.category);
+    const region = String(fd.get("region") ?? "");
+    if (region) sp.set("region", region);
+    const min = digits(fd.get("min"));
+    const max = digits(fd.get("max"));
+    if (min && Number(min) > 0) sp.set("min", min);
+    if (max && Number(max) > 0) sp.set("max", max);
+    const sort = String(fd.get("sort") ?? "newest");
+    if (sort !== "newest") sp.set("sort", sort);
+    const qs = sp.toString();
+    startTransition(() => router.push(qs ? `${basePath}?${qs}` : basePath, { scroll: false }));
+  };
+
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    go(e.currentTarget);
+  };
+  const submitNow = () => {
+    if (formRef.current) go(formRef.current);
+  };
+
+  return (
+    <form
+      ref={formRef}
+      method="get"
+      action={basePath}
+      onSubmit={onSubmit}
+      role="search"
+      aria-label="E'lonlarni qidirish"
+      aria-busy={pending}
+      className="card grid min-w-0 grid-cols-2 gap-2.5 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_190px_120px_120px_175px_auto]"
+    >
+      {values.category && <input type="hidden" name="category" value={values.category} />}
+
+      <div className="relative col-span-2 min-w-0 lg:order-1 lg:col-span-1">
+        <label htmlFor="job-q" className="sr-only">
+          Qidiruv
+        </label>
+        <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden="true" />
+        <input
+          id="job-q"
+          name="q"
+          type="search"
+          defaultValue={values.q ?? ""}
+          maxLength={80}
+          placeholder="Masalan: to'y, logo, reels"
+          className="field h-11 pl-10"
+          autoComplete="off"
+          enterKeyHint="search"
+        />
+      </div>
+
+      <div className="min-w-0 lg:order-2">
+        <label htmlFor="job-region" className="sr-only">
+          Hudud
+        </label>
+        <select id="job-region" name="region" defaultValue={values.region ?? ""} onChange={submitNow} className="field h-11 truncate">
+          <option value="">Barcha hududlar</option>
+          <option value={REMOTE_REGION}>{REMOTE_LABEL}</option>
+          {REGIONS.map((r) => (
+            <option key={r.slug} value={r.slug}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="min-w-0 lg:order-5">
+        <label htmlFor="job-sort" className="sr-only">
+          Saralash
+        </label>
+        <select id="job-sort" name="sort" defaultValue={values.sort} onChange={submitNow} className="field h-11 truncate">
+          {SORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="min-w-0 lg:order-3">
+        <label htmlFor="job-min" className="sr-only">
+          Byudjet, dan (so'm)
+        </label>
+        <input id="job-min" name="min" inputMode="numeric" defaultValue={values.min ? String(values.min) : ""} placeholder="Byudjet, dan" className="field h-11 px-3.5 text-[14px]" />
+      </div>
+      <div className="min-w-0 lg:order-4">
+        <label htmlFor="job-max" className="sr-only">
+          Byudjet, gacha (so'm)
+        </label>
+        <input id="job-max" name="max" inputMode="numeric" defaultValue={values.max ? String(values.max) : ""} placeholder="gacha" className="field h-11 px-3.5 text-[14px]" />
+      </div>
+
+      <button type="submit" className="btn-ink col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-semibold lg:order-6 lg:col-span-1">
+        {pending ? <Spinner /> : <Search size={16} aria-hidden="true" />}
+        Qidirish
+      </button>
+    </form>
+  );
+}

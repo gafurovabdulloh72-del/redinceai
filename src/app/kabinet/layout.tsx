@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
-import { KabinetNav, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
+import { TermsBanner } from "@/components/auth/TermsBanner";
+import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
+import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notifications, orders } from "@/lib/db/schema";
+import { jobs, notifications, orders, proposals } from "@/lib/db/schema";
+import { getSettings } from "@/lib/payments/settings";
+import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,25 @@ const ROLE_LABEL = {
   admin: "Administrator",
 } as const;
 
+/** Shu kundan kam qolsa — "tugayapti" (sariq): SubscriptionBanner bilan bir xil chegara */
+const EXPIRING_DAYS = BANNER_DAYS;
+
+/** Navigatsiyadagi obuna nuqtasi: faol — yashil, tugayapti / imtiyozli muddat — sariq, faol emas — qizil; talab o'chiq — nuqtasiz */
+function subscriptionDot(st: SubscriptionState): { dot: KabinetNavDot; dotLabel: string } | null {
+  switch (st.status) {
+    case "off":
+      return null;
+    case "expired":
+      return { dot: "danger", dotLabel: "obuna faol emas" };
+    case "grace":
+      return { dot: "warning", dotLabel: `imtiyozli muddat: ${st.daysLeft} kun qoldi` };
+    default:
+      return st.daysLeft <= EXPIRING_DAYS
+        ? { dot: "warning", dotLabel: `${st.status === "trial" ? "sinov muddati" : "obuna"} tugashiga ${st.daysLeft} kun qoldi` }
+        : { dot: "success", dotLabel: st.status === "trial" ? "sinov muddati faol" : "obuna faol" };
+  }
+}
+
 export default async function KabinetLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   // Middleware allaqachon himoya qiladi; bu ehtiyot chorasi
@@ -27,7 +50,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   // Yangi (hali ko'rilmagan) buyurtmalar soni — navigatsiyadagi hisoblagich uchun
   // + o'qilmagan bildirishnomalar soni (F1) — har ikkisi parallel
   const specialistId = user.specialist?.id;
-  const [newOrders, unread] = await Promise.all([
+  // + mijoz: ochiq e'lonlaridagi ko'rib chiqilmagan (pending) takliflar soni
+  const [newOrders, unread, settings, pendingProposals] = await Promise.all([
     specialistId
       ? db
           .select({ n: count() })
@@ -41,15 +65,38 @@ export default async function KabinetLayout({ children }: { children: React.Reac
       .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)))
       .then((r) => r[0]?.n ?? 0)
       .catch(() => 0),
+    getSettings(),
+    user.role === "client"
+      ? db
+          .select({ n: count() })
+          .from(proposals)
+          .innerJoin(jobs, eq(jobs.id, proposals.jobId))
+          .where(and(eq(jobs.clientId, user.id), eq(jobs.status, "open"), eq(proposals.status, "pending")))
+          .then((r) => r[0]?.n ?? 0)
+          .catch(() => 0)
+      : Promise.resolve(0),
   ]);
+  // Obuna holati (yagona qoida — subscriptions/access.ts): navigatsiya nuqtasi va banner
+  const subState = user.specialist ? subscriptionState(user.specialist, settings) : null;
+  const subDot = subState ? subscriptionDot(subState) : null;
 
   const items: KabinetNavItem[] = [
     { href: "/kabinet", label: "Umumiy", icon: "overview", exact: true },
     { href: "/kabinet/buyurtmalar", label: "Buyurtmalar", icon: "orders", badge: newOrders },
     { href: "/kabinet/bildirishnomalar", label: "Bildirishnomalar", icon: "notifications", badge: unread },
   ];
-  // Mijoz: ishlagan mutaxassislari (F48)
-  if (user.role === "client") items.push({ href: "/kabinet/mutaxassislarim", label: "Mutaxassislarim", icon: "partners" });
+  // Mijoz: e'lonlari, ishlagan mutaxassislari (F48), saqlangan qidiruvlari
+  if (user.role === "client") {
+    items.push({ href: "/kabinet/elonlar", label: "E'lonlarim", icon: "jobs", badge: pendingProposals });
+    items.push({ href: "/kabinet/mutaxassislarim", label: "Mutaxassislarim", icon: "partners" });
+    items.push({ href: "/kabinet/qidiruvlar", label: "Saqlangan qidiruvlar", icon: "searches" });
+  }
+  // Mutaxassis: takliflari, obunasi (holat nuqtasi bilan) va oylik hisoboti
+  if (user.role === "specialist") {
+    items.push({ href: "/kabinet/takliflar", label: "Takliflarim", icon: "proposals" });
+    items.push({ href: "/kabinet/obuna", label: "Obuna", icon: "subscription", ...(subDot ?? {}) });
+    if (user.specialist) items.push({ href: "/kabinet/hisobot", label: "Hisobot", icon: "report" });
+  }
   items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" });
   items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
   if (user.specialist || user.role === "specialist") {
@@ -71,13 +118,20 @@ export default async function KabinetLayout({ children }: { children: React.Reac
      */
     <div className="container-x min-w-0 max-w-full [&_img]:max-w-full [&_table]:max-w-full">
       <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-8">
-        <aside className="min-w-0 lg:col-span-3">
+        <aside className="min-w-0 print:hidden lg:col-span-3">
           <KabinetNav
             items={items}
             user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }}
           />
         </aside>
-        <div className="min-w-0 lg:col-span-9">{children}</div>
+        <div className="min-w-0 lg:col-span-9 print:col-span-12">
+          {/* Bloklamaydigan bannerlar: shartlar (G1) va obuna (G6) — chop etishda ko'rinmaydi */}
+          <div className="print:hidden">
+            <TermsBanner />
+            {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} />}
+          </div>
+          {children}
+        </div>
       </div>
     </div>
   );

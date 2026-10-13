@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, favorites, notifications, orders, payments, payouts, portfolioItems, reviews, savedSearches, specialists, users } from "@/lib/db/schema";
+import { auditLogs, favorites, notifications, orders, payments, payouts, portfolioItems, reviews, savedSearches, sessions, specialists, users } from "@/lib/db/schema";
 import { ApiError, handler, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -18,13 +18,13 @@ export const GET = handler(async (req) => {
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
-    columns: { passwordHash: false, sessionVersion: false },
+    columns: { passwordHash: false, sessionVersion: false, totpSecretEnc: false, recoveryCodes: false },
     with: { specialist: { with: { portfolio: { orderBy: [portfolioItems.sortOrder] } } } },
   });
   if (!user) throw new ApiError(401, "Foydalanuvchi topilmadi");
   const sp = user.specialist;
 
-  const [asClient, asSpecialist, pays, outs, written, received, notes, favs, searches, actions] = await Promise.all([
+  const [asClient, asSpecialist, pays, outs, written, received, notes, favs, searches, actions, devices] = await Promise.all([
     db.query.orders.findMany({
       where: eq(orders.clientId, user.id),
       orderBy: [desc(orders.createdAt)],
@@ -55,10 +55,16 @@ export const GET = handler(async (req) => {
       .where(eq(favorites.userId, user.id)),
     db.query.savedSearches.findMany({ where: eq(savedSearches.userId, user.id) }),
     db.query.auditLogs.findMany({
-      where: and(eq(auditLogs.actorId, user.id), inArray(auditLogs.action, ["login_success", "login_failed", "register", "logout", "logout_all", "password_changed", "password_reset", "email_verified", "account_export"])),
+      where: and(eq(auditLogs.actorId, user.id), inArray(auditLogs.action, ["login_success", "login_failed", "register", "logout", "logout_all", "password_changed", "password_reset", "email_verified", "account_export", "session_revoked", "2fa_enabled", "2fa_disabled", "terms_accepted"])),
       orderBy: [desc(auditLogs.createdAt)],
       limit: 200,
       columns: { action: true, ip: true, createdAt: true },
+    }),
+    db.query.sessions.findMany({
+      where: eq(sessions.userId, user.id),
+      orderBy: [desc(sessions.createdAt)],
+      limit: 100,
+      columns: { userAgent: true, createdAt: true, lastSeenAt: true, expiresAt: true, revokedAt: true },
     }),
   ]);
 
@@ -80,6 +86,7 @@ export const GET = handler(async (req) => {
     favorites: favs,
     savedSearches: searches,
     activity: actions,
+    sessions: devices,
   };
 
   await audit(user.id, "account_export", { targetType: "user", targetId: user.id }, req);

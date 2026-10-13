@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, MessageSquareText, Search, ShieldCheck, TimerReset, UserRound, Wand2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, Search, ShieldCheck, Smartphone, TimerReset, UserRound, Wand2 } from "lucide-react";
 import { PasswordField } from "./PasswordField";
 import { Button, Spinner } from "@/components/ui";
 import { GENDERS } from "@/lib/constants";
 import { passwordStrength } from "@/lib/security/password-strength";
-import { cn, safeInternalPath } from "@/lib/utils";
+import { cn, formatPrice, safeInternalPath } from "@/lib/utils";
 
 type Mode = "login" | "register";
 type Role = "client" | "specialist";
@@ -22,11 +22,13 @@ interface AuthFormProps {
   defaultRole?: Role;
   /** Nega kirish so'ralmoqda: ?reason=review|order|expired (A23) */
   reason?: string;
+  /** Mutaxassis obunasi (admin sozlamasi) — ro'yxatdan o'tishda eslatma uchun */
+  subscription?: { price: number; trialDays: number; enforced: boolean };
 }
 
 interface ApiOk {
   ok: true;
-  data: { id: string; name: string; role: "client" | "specialist" | "admin" };
+  data: { id: string; name: string; role: "client" | "specialist" | "admin"; recoveryLeft?: number | null } | { twoFactor: true; ticket: string };
 }
 interface ApiFail {
   ok: false;
@@ -53,7 +55,7 @@ const DEMO_ACCOUNTS: { label: string; hint: string; email: string; password: str
 /** Matn ichidagi havola uchun 40px bosish maydoni — ko'rinishi o'zgarmaydi (manfiy margin qatorni kengaytirmaydi) */
 const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent-text transition hover:brightness-110";
 
-const FIELD_ORDER = ["name", "email", "password", "phone"] as const;
+const FIELD_ORDER = ["name", "email", "password", "phone", "terms"] as const;
 
 function withNext(path: string, next?: string) {
   return next ? `${path}?next=${encodeURIComponent(next)}` : path;
@@ -72,7 +74,7 @@ function contextFor(mode: Mode, next?: string, reason?: string): { icon: typeof 
   return null;
 }
 
-export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFormProps) {
+export function AuthForm({ mode, next, defaultRole = "client", reason, subscription }: AuthFormProps) {
   const router = useRouter();
   const isRegister = mode === "register";
   const target = safeInternalPath(next);
@@ -90,6 +92,13 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
   const [fields, setFields] = useState<Record<string, string>>({});
   const [demoOpen, setDemoOpen] = useState(false);
   const [filledDemo, setFilledDemo] = useState<string | null>(null);
+  /** Oferta va maxfiylik siyosatiga rozilik (ro'yxatdan o'tish — majburiy) */
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  /** 2FA ikkinchi bosqichi: parol to'g'ri, ilova kodi kutilmoqda */
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   // Xato chiqqanda birinchi xato maydonga fokus (A89)
   useEffect(() => {
@@ -117,6 +126,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
       if (!s.valid) errs.password = password.length < 8 ? "Parol kamida 8 ta belgi" : "Parolda harf ham, raqam ham bo'lsin";
     } else if (!password) errs.password = "Parolni kiriting";
     if (isRegister && phone.trim() && !/^\+?[\d\s()-]{9,16}$/.test(phone.trim())) errs.phone = "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)";
+    if (isRegister && !acceptTerms) errs.terms = "Davom etish uchun oferta va maxfiylik siyosatiga rozilik bering";
     return errs;
   };
 
@@ -134,7 +144,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
     setLoading(true);
 
     const payload = isRegister
-      ? { name: name.trim(), email: email.trim(), password, phone: phone.trim(), role, gender: gender || null }
+      ? { name: name.trim(), email: email.trim(), password, phone: phone.trim(), role, gender: gender || null, acceptTerms }
       : { email: email.trim(), password, remember };
 
     try {
@@ -150,11 +160,23 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
           const retry = Number(res.headers.get("Retry-After") || 0);
           setError(retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : (json?.error ?? "Juda ko'p urinish"));
         } else setError(json?.error ?? "Serverda kutilmagan xatolik");
-        if (json && !json.ok && json.fields) setFields(json.fields);
+        if (json && !json.ok && json.fields) {
+          const { acceptTerms, ...rest } = json.fields;
+          setFields(acceptTerms ? { ...rest, terms: acceptTerms } : rest);
+        }
         setLoading(false);
         return;
       }
 
+      if ("twoFactor" in json.data) {
+        // Parol to'g'ri — endi autentifikator kodi (POST /api/auth/2fa/verify)
+        setTicket(json.data.ticket);
+        setOtp("");
+        setRecoveryCode("");
+        setUseRecovery(false);
+        setLoading(false);
+        return;
+      }
       const dest = isRegister && json.data.role === "specialist" ? "/kabinet/profil?welcome=1" : target || "/kabinet";
       router.push(dest);
       router.refresh();
@@ -165,6 +187,60 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
     }
   };
 
+  /** 2FA: ilova kodi yoki zaxira kodi bilan sessiyani olish */
+  const verifySecond = async (codeOverride?: string) => {
+    if (loading || !ticket) return;
+    const value = useRecovery ? recoveryCode.trim() : (codeOverride ?? otp);
+    if (useRecovery ? value.replace(/[^a-z0-9]/gi, "").length < 8 : !/^\d{6}$/.test(value)) {
+      setFields({ otp: useRecovery ? "Zaxira kodini to'liq kiriting (masalan: abcd-efgh)" : "6 xonali kodni kiriting" });
+      return;
+    }
+    setFields({});
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(useRecovery ? { ticket, recoveryCode: value } : { ticket, code: value }),
+      });
+      const json = (await res.json().catch(() => null)) as ApiOk | ApiFail | null;
+      if (!json || !json.ok || "twoFactor" in json.data) {
+        if (res.status === 401) {
+          // Chipta eskirgan — parol bosqichiga qaytamiz
+          setTicket(null);
+          setPassword("");
+          setError(json && !json.ok ? json.error : "Kirish muddati tugadi. Qaytadan kiring");
+        } else if (res.status === 429) {
+          const retry = Number(res.headers.get("Retry-After") || 0);
+          setError(retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : "Juda ko'p urinish");
+        } else {
+          const msg = json && !json.ok ? (json.fields?.code ?? json.fields?.recoveryCode ?? json.error) : "Serverda kutilmagan xatolik";
+          setFields({ otp: msg });
+          if (!useRecovery) setOtp("");
+        }
+        setLoading(false);
+        return;
+      }
+      const left = json.data.recoveryLeft;
+      // Zaxira kodlari kam qoldi — xavfsizlik sahifasida yangilash taklif qilinadi
+      const dest = left != null && left <= 3 ? "/kabinet/xavfsizlik?zaxira=kam#ikki-bosqich" : target || "/kabinet";
+      router.push(dest);
+      router.refresh();
+    } catch {
+      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setLoading(false);
+    }
+  };
+
+  const backToPassword = () => {
+    setTicket(null);
+    setOtp("");
+    setRecoveryCode("");
+    setFields({});
+    setError(null);
+  };
+
   const fillDemo = (acc: (typeof DEMO_ACCOUNTS)[number]) => {
     setEmail(acc.email);
     setPassword(acc.password);
@@ -172,6 +248,140 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
     setError(null);
     setFilledDemo(acc.email);
   };
+
+  if (ticket) {
+    return (
+      <div className="animate-fade-up">
+        <header className="mb-6">
+          <span className="eyebrow">
+            <ShieldCheck size={13} className="text-accent" /> Ikki bosqichli himoya
+          </span>
+          <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[36px]">
+            Kodni <span className="accent-serif text-accent">kiriting</span>
+          </h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
+            {useRecovery
+              ? "Telefoningiz yonida bo'lmasa, 2FA yoqilganda saqlab olgan zaxira kodlaringizdan birini kiriting. Har bir kod bir marta ishlaydi."
+              : "Autentifikator ilovasini (Google Authenticator, Microsoft Authenticator, 1Password…) oching va Redince uchun ko'rsatilgan 6 xonali kodni kiriting."}
+          </p>
+        </header>
+
+        <form
+          noValidate
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void verifySecond();
+          }}
+        >
+          {useRecovery ? (
+            <div>
+              <label htmlFor="auth-otp" className="field-label">
+                Zaxira kodi
+              </label>
+              <input
+                id="auth-otp"
+                name="recovery-code"
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="abcd-efgh"
+                value={recoveryCode}
+                maxLength={20}
+                onChange={(e) => {
+                  setRecoveryCode(e.target.value);
+                  clearField("otp");
+                }}
+                className={cn("field font-mono text-[18px] tracking-[0.12em]", fields.otp && "!border-ios-red/60")}
+                aria-invalid={!!fields.otp}
+                aria-describedby={fields.otp ? "auth-otp-error" : undefined}
+                autoFocus
+              />
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="auth-otp" className="field-label">
+                Ilovadagi kod
+              </label>
+              <input
+                id="auth-otp"
+                name="one-time-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                placeholder="123456"
+                value={otp}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setOtp(v);
+                  clearField("otp");
+                  if (v.length === 6) void verifySecond(v);
+                }}
+                className={cn("field h-14 text-center font-mono text-[24px] tracking-[0.4em]", fields.otp && "!border-ios-red/60")}
+                aria-invalid={!!fields.otp}
+                aria-describedby={fields.otp ? "auth-otp-error" : "auth-otp-hint"}
+                autoFocus
+              />
+              {!fields.otp && (
+                <p id="auth-otp-hint" className="mt-1.5 text-[12px] text-fg-4">
+                  Kod har 30 soniyada yangilanadi. 6 raqam terilishi bilan tekshiriladi.
+                </p>
+              )}
+            </div>
+          )}
+          {fields.otp && (
+            <p id="auth-otp-error" role="alert" className="field-error">
+              {fields.otp}
+            </p>
+          )}
+
+          {error && (
+            <div role="alert" className="flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
+              <AlertCircle size={16} className="mt-px shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
+            {loading ? (
+              <>
+                <Spinner /> Tekshirilmoqda…
+              </>
+            ) : (
+              <>
+                Tasdiqlash va kirish <ArrowRight size={18} />
+              </>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-5 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              setUseRecovery((v) => !v);
+              setFields({});
+              setError(null);
+            }}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-[14px] font-semibold text-accent-text transition hover:bg-accent-soft"
+          >
+            {useRecovery ? <Smartphone size={15} /> : <LifeBuoy size={15} />}
+            {useRecovery ? "Ilova kodi bilan kirish" : "Tiklash kodi bilan kirish"}
+          </button>
+          <button
+            type="button"
+            onClick={backToPassword}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-[14px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg"
+          >
+            <ArrowLeft size={15} /> Boshqa hisob bilan kirish
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-up">
@@ -393,6 +603,60 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
           </div>
         )}
 
+        {/* ---------- Oferta va maxfiylik (ro'yxatdan o'tish — majburiy) ---------- */}
+        {isRegister && (
+          <div>
+            <div className="flex items-start gap-3">
+              <label htmlFor="auth-terms" className="flex min-h-11 shrink-0 cursor-pointer items-center">
+                <input
+                  id="auth-terms"
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={acceptTerms}
+                  onChange={(e) => {
+                    setAcceptTerms(e.target.checked);
+                    clearField("terms");
+                  }}
+                  aria-invalid={!!fields.terms}
+                  aria-describedby={fields.terms ? "auth-terms-error" : undefined}
+                  required
+                />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
+                    acceptTerms ? "border-ink bg-ink text-ink-fg" : fields.terms ? "border-ios-red/70 bg-surface-2" : "border-line-2 bg-surface-2",
+                  )}
+                >
+                  {acceptTerms && <Check size={13} strokeWidth={3} />}
+                </span>
+              </label>
+              <p className="py-2.5 text-[14px] leading-snug text-fg-2">
+                <label htmlFor="auth-terms" className="cursor-pointer">
+                  Men
+                </label>{" "}
+                <Link href="/oferta" target="_blank" className="font-semibold text-accent-text underline underline-offset-2 hover:brightness-110">
+                  Oferta
+                </Link>{" "}
+                <label htmlFor="auth-terms" className="cursor-pointer">
+                  va
+                </label>{" "}
+                <Link href="/maxfiylik" target="_blank" className="font-semibold text-accent-text underline underline-offset-2 hover:brightness-110">
+                  Maxfiylik siyosatiga
+                </Link>{" "}
+                <label htmlFor="auth-terms" className="cursor-pointer">
+                  roziman
+                </label>
+              </p>
+            </div>
+            {fields.terms && (
+              <p id="auth-terms-error" className="field-error">
+                {fields.terms}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ---------- Meni eslab qolish (kirish) ---------- */}
         {!isRegister && (
           <label htmlFor="auth-remember" className="flex min-h-11 cursor-pointer select-none items-center gap-3 text-[14px] text-fg-2">
@@ -433,8 +697,10 @@ export function AuthForm({ mode, next, defaultRole = "client", reason }: AuthFor
           )}
         </Button>
 
-        {isRegister && (
-          <p className="text-center text-[12px] leading-snug text-fg-4">Davom etish orqali siz platformadan foydalanish shartlariga rozilik bildirasiz.</p>
+        {isRegister && role === "specialist" && subscription?.enforced && (
+          <p className="text-center text-[12px] leading-snug text-fg-4">
+            Mutaxassislar uchun {subscription.trialDays > 0 ? `dastlabki ${subscription.trialDays} kun bepul, keyin ` : ""}obuna — oyiga {formatPrice(subscription.price)}. Mijozlar uchun platforma bepul.
+          </p>
         )}
       </form>
 

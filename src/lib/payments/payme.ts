@@ -1,8 +1,9 @@
 import "server-only";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { orders, payments, type Payment } from "@/lib/db/schema";
+import { orders, payments, subscriptionInvoices, type Payment, type SubscriptionInvoice } from "@/lib/db/schema";
 import { notifyAdmins } from "@/lib/notifications";
+import { isInvoiceId, loadInvoice, markInvoicePaid, refundInvoice } from "@/lib/subscriptions/billing";
 import { formatPrice, uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
@@ -12,6 +13,8 @@ import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent, ref
  * Payme Merchant API (JSON-RPC 2.0). Hujjat: developer.help.paycom.uz
  * Barcha javoblar HTTP 200, xato JSON-RPC `error` ichida.
  * Summalar tiyinda (so'm × 100), vaqtlar — ms.
+ * account.order_id "sub_…" bilan boshlansa — mutaxassis obunasi hisobi (subscription_invoices), aks holda eskrou buyurtmasi.
+ * Ikkalasida ham bir xil semantika: 12 soat muddat, -31050/-31001/-31099/-31008/-31007, idempotentlik, holat -1/-2.
  */
 
 /* ---------- Xato kodlari ---------- */
@@ -96,6 +99,11 @@ function accountOrderId(params: Json): string {
   return id;
 }
 
+/** account.order_id (xato tashlamaydi) — obuna hisobi / buyurtmani ajratish uchun */
+function accountRef(params: Json): string | null {
+  return str((params.account as Json | undefined)?.order_id);
+}
+
 async function loadOrder(orderId: string) {
   return db.query.orders.findFirst({ where: eq(orders.id, orderId) });
 }
@@ -158,7 +166,9 @@ async function expireIfStale(p: Payment): Promise<Payment> {
 
 /* ---------- Metodlar ---------- */
 async function checkPerformTransaction(params: Json) {
-  await validateAccount(params);
+  const ref = accountRef(params);
+  if (isInvoiceId(ref)) await validateInvoiceAccount(params, ref);
+  else await validateAccount(params);
   return { allow: true };
 }
 
@@ -166,6 +176,8 @@ async function createTransaction(params: Json) {
   const id = str(params.id);
   const time = num(params.time);
   if (!id || time == null) throw new RpcError(PAYME_ERR.INVALID_REQUEST);
+  const ref = accountRef(params);
+  if (isInvoiceId(ref)) return createInvoiceTransaction(params, ref, id, time);
 
   const found = await findByTxnId(id);
   if (found) {
@@ -228,7 +240,11 @@ async function performTransaction(params: Json) {
   const id = str(params.id);
   if (!id) throw new RpcError(PAYME_ERR.INVALID_REQUEST);
   const found = await findByTxnId(id);
-  if (!found) throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  if (!found) {
+    const inv = await findInvoiceByTxnId(id);
+    if (inv) return performInvoiceTransaction(inv);
+    throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  }
 
   if (found.providerState === STATE.PERFORMED || found.state === "paid" || found.state === "released") {
     return { transaction: found.id, perform_time: found.performTime ?? found.paidAt?.getTime() ?? 0, state: STATE.PERFORMED };
@@ -246,7 +262,11 @@ async function cancelTransaction(params: Json) {
   if (!id) throw new RpcError(PAYME_ERR.INVALID_REQUEST);
   const reason = num(params.reason);
   const found = await findByTxnId(id);
-  if (!found) throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  if (!found) {
+    const inv = await findInvoiceByTxnId(id);
+    if (inv) return cancelInvoiceTransaction(inv, reason);
+    throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  }
 
   // Allaqachon bekor — o'sha holatni qaytaramiz
   if (found.state === "cancelled" || found.state === "refunded") {
@@ -287,28 +307,154 @@ async function checkTransaction(params: Json) {
   const id = str(params.id);
   if (!id) throw new RpcError(PAYME_ERR.INVALID_REQUEST);
   const found = await findByTxnId(id);
-  if (!found) throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  if (!found) {
+    const inv = await findInvoiceByTxnId(id);
+    if (inv) return invoiceTxnView(await expireInvoiceIfStale(inv));
+    throw new RpcError(PAYME_ERR.TXN_NOT_FOUND);
+  }
   return txnView(await expireIfStale(found));
 }
 
 async function getStatement(params: Json) {
   const from = num(params.from) ?? 0;
   const to = num(params.to) ?? Date.now();
-  const rows = await db.query.payments.findMany({
-    where: and(eq(payments.provider, "payme"), gte(payments.providerCreateTime, from), lte(payments.providerCreateTime, to)),
-  });
+  const [rows, invoices] = await Promise.all([
+    db.query.payments.findMany({
+      where: and(eq(payments.provider, "payme"), gte(payments.providerCreateTime, from), lte(payments.providerCreateTime, to)),
+    }),
+    db.query.subscriptionInvoices.findMany({
+      where: and(eq(subscriptionInvoices.provider, "payme"), gte(subscriptionInvoices.providerCreateTime, from), lte(subscriptionInvoices.providerCreateTime, to)),
+    }),
+  ]);
+  const orderTxns = rows
+    .filter((p) => p.providerTxnId)
+    .map((p) => ({
+      id: p.providerTxnId,
+      time: p.providerCreateTime ?? p.createdAt.getTime(),
+      amount: p.amount * 100,
+      account: { order_id: p.orderId },
+      ...txnView(p),
+      receivers: null,
+    }));
+  const invoiceTxns = invoices
+    .filter((i) => i.providerTxnId)
+    .map((i) => ({
+      id: i.providerTxnId,
+      time: i.providerCreateTime ?? i.createdAt.getTime(),
+      amount: i.amount * 100,
+      account: { order_id: i.id },
+      ...invoiceTxnView(i),
+      receivers: null,
+    }));
+  return { transactions: [...orderTxns, ...invoiceTxns].sort((a, b) => a.time - b.time) };
+}
+
+/* ---------- Obuna hisoblari (account.order_id = "sub_…") ---------- */
+async function findInvoiceByTxnId(id: string): Promise<SubscriptionInvoice | null> {
+  return (await db.query.subscriptionInvoices.findFirst({ where: and(eq(subscriptionInvoices.provider, "payme"), eq(subscriptionInvoices.providerTxnId, id)) })) ?? null;
+}
+
+/** Payme'ga qaytariladigan holat (providerStateOf bilan bir xil qoida) */
+function invoiceProviderStateOf(i: SubscriptionInvoice): number {
+  if (i.state === "cancelled") return i.providerState != null && i.providerState < 0 ? i.providerState : STATE.CANCELLED;
+  if (i.state === "refunded") return STATE.CANCELLED_AFTER_PERFORM;
+  if (i.state === "paid") return STATE.PERFORMED;
+  return i.providerState ?? (i.state === "pending" ? STATE.CREATED : STATE.CANCELLED);
+}
+
+function invoiceTxnView(i: SubscriptionInvoice) {
   return {
-    transactions: rows
-      .filter((p) => p.providerTxnId)
-      .map((p) => ({
-        id: p.providerTxnId,
-        time: p.providerCreateTime ?? p.createdAt.getTime(),
-        amount: p.amount * 100,
-        account: { order_id: p.orderId },
-        ...txnView(p),
-        receivers: null,
-      })),
+    create_time: i.providerCreateTime ?? i.createdAt.getTime(),
+    perform_time: i.performTime ?? 0,
+    cancel_time: i.cancelTime ?? 0,
+    transaction: i.id,
+    state: invoiceProviderStateOf(i),
+    reason: i.cancelReason ?? null,
   };
+}
+
+/** 12 soatdan oshgan bajarilmagan tranzaksiya — hisob bekor (reason 4) */
+async function expireInvoiceIfStale(i: SubscriptionInvoice): Promise<SubscriptionInvoice> {
+  if (i.state !== "pending" || i.providerState !== STATE.CREATED) return i;
+  const created = i.providerCreateTime ?? i.createdAt.getTime();
+  if (Date.now() - created <= PAYME_TIMEOUT_MS) return i;
+  const now = Date.now();
+  const [row] = await db
+    .update(subscriptionInvoices)
+    .set({ state: "cancelled", providerState: STATE.CANCELLED, cancelTime: now, cancelReason: 4, updatedAt: new Date(now) })
+    .where(and(eq(subscriptionInvoices.id, i.id), eq(subscriptionInvoices.state, "pending")))
+    .returning();
+  return row ?? (await loadInvoice(i.id)) ?? i;
+}
+
+/**
+ * Hisob mavjud, Payme uchun ochilgan, to'lanmagan va summa mos. Yangi tranzaksiya uchun: 'created' yoki
+ * jarayondagi 'pending' (CheckPerform ruxsat beradi, CreateTransaction boshqa id bilan -31099 qaytaradi).
+ */
+async function validateInvoiceAccount(params: Json, invoiceId: string, existing?: SubscriptionInvoice | null): Promise<SubscriptionInvoice> {
+  let inv = await loadInvoice(invoiceId);
+  if (!inv || !inv.specialistId || inv.provider !== "payme") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+  if (!existing) {
+    if (inv.state === "pending") inv = await expireInvoiceIfStale(inv);
+    if (inv.state !== "created" && inv.state !== "pending") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+  }
+  const amount = num(params.amount);
+  if (amount == null) throw new RpcError(PAYME_ERR.WRONG_AMOUNT, "amount");
+  const expected = (existing?.amount ?? inv.amount) * 100;
+  if (!expected || amount !== expected) throw new RpcError(PAYME_ERR.WRONG_AMOUNT, "amount");
+  return inv;
+}
+
+async function createInvoiceTransaction(params: Json, invoiceId: string, id: string, time: number) {
+  const found = await findInvoiceByTxnId(id);
+  if (found) {
+    const inv = await expireInvoiceIfStale(found);
+    if (inv.state === "cancelled" || inv.providerState !== STATE.CREATED) throw new RpcError(PAYME_ERR.CANNOT_PERFORM);
+    return { create_time: inv.providerCreateTime ?? inv.createdAt.getTime(), transaction: inv.id, state: STATE.CREATED };
+  }
+  const inv = await validateInvoiceAccount(params, invoiceId);
+  // Hisobga boshqa (hali eskirmagan) Payme tranzaksiyasi bog'langan
+  if (inv.state === "pending") throw new RpcError(PAYME_ERR.ORDER_BUSY, "order_id");
+  const [row] = await db
+    .update(subscriptionInvoices)
+    .set({ state: "pending", providerTxnId: id, providerState: STATE.CREATED, providerCreateTime: time, updatedAt: new Date() })
+    .where(and(eq(subscriptionInvoices.id, inv.id), eq(subscriptionInvoices.state, "created")))
+    .returning();
+  if (!row) throw new RpcError(PAYME_ERR.ORDER_BUSY, "order_id");
+  return { create_time: row.providerCreateTime ?? time, transaction: row.id, state: STATE.CREATED };
+}
+
+async function performInvoiceTransaction(found: SubscriptionInvoice) {
+  if (found.state === "paid") {
+    return { transaction: found.id, perform_time: found.performTime ?? found.paidAt?.getTime() ?? 0, state: STATE.PERFORMED };
+  }
+  const inv = await expireInvoiceIfStale(found);
+  if (inv.state !== "pending" || inv.providerState !== STATE.CREATED) throw new RpcError(PAYME_ERR.CANNOT_PERFORM);
+  const performTime = Date.now();
+  const row = await markInvoicePaid(inv.id, { providerState: STATE.PERFORMED, performTime });
+  return { transaction: row.id, perform_time: row.performTime ?? performTime, state: STATE.PERFORMED };
+}
+
+async function cancelInvoiceTransaction(found: SubscriptionInvoice, reason: number | null) {
+  if (found.state === "cancelled" || found.state === "refunded") {
+    return { transaction: found.id, cancel_time: found.cancelTime ?? 0, state: invoiceProviderStateOf(found) };
+  }
+  if (found.state === "pending" || found.state === "created") {
+    const now = Date.now();
+    const [row] = await db
+      .update(subscriptionInvoices)
+      .set({ state: "cancelled", providerState: STATE.CANCELLED, cancelTime: now, cancelReason: reason, updatedAt: new Date(now) })
+      .where(and(eq(subscriptionInvoices.id, found.id), eq(subscriptionInvoices.state, found.state)))
+      .returning();
+    if (row) return { transaction: row.id, cancel_time: now, state: STATE.CANCELLED };
+    // Parallel o'zgargan (masalan, shu payt bajarildi) — yangi holat bo'yicha qayta
+    const fresh = await loadInvoice(found.id);
+    if (!fresh || fresh.state === "pending" || fresh.state === "created") throw new RpcError(PAYME_ERR.CANNOT_CANCEL);
+    return cancelInvoiceTransaction(fresh, reason);
+  }
+  // paid: obuna to'lovini qaytarish — muddat shu davrga qisqaradi (refundInvoice), holat -2
+  const row = await refundInvoice(found.id, null, { reason });
+  return { transaction: row.id, cancel_time: row.cancelTime ?? Date.now(), state: STATE.CANCELLED_AFTER_PERFORM };
 }
 
 /* ---------- Kirish nuqtasi ---------- */

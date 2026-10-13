@@ -322,7 +322,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
                     <dd className="text-fg-2">
                       {formatDateTime(r.paidAt ?? r.createdAt)}
                       {(r.state === "paid" || r.state === "released") && (
-                        <Link href={`/chek/${r.id}`} className="ml-2 inline-flex items-center gap-0.5 font-semibold text-accent">
+                        <Link href={`/chek/${r.id}`} className="ml-2 inline-flex items-center gap-0.5 font-semibold text-accent-text">
                           <FileText size={11} /> Chek
                         </Link>
                       )}

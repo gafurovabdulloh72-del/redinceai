@@ -4,8 +4,11 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Award,
+  BadgeCheck,
   Briefcase,
   CalendarDays,
   ChevronRight,
@@ -17,6 +20,7 @@ import {
   MapPin,
   Mars,
   PackageCheck,
+  PauseCircle,
   Repeat2,
   Settings,
   Sparkles,
@@ -35,11 +39,20 @@ import { FavoriteButton } from "@/components/specialists/FavoriteButton";
 import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { ReportButton } from "@/components/specialists/ReportButton";
+import { PackagesTable } from "@/components/specialists/PackagesTable";
+import { RateCalculator } from "@/components/specialists/RateCalculator";
+import { ShortLink } from "@/components/specialists/ShortLink";
+import { CompareButton } from "@/components/specialists/CompareButton";
+import { CompareTray } from "@/components/specialists/CompareTray";
 import { getCurrentUser } from "@/lib/auth";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE } from "@/lib/constants";
-import { GUEST_VIEWER, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
+import { getSettings } from "@/lib/payments/settings";
+import { GUEST_VIEWER, effectivePriceFrom, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
+import { forwardedHost, forwardedProto, trustedSiteOrigin } from "@/lib/security/request";
+import { subscriptionState } from "@/lib/subscriptions/access";
 import {
   bumpViewCount,
+  ensureShortCode,
   getSimilarSpecialists,
   getSocialProof,
   getSpecialistBySlug,
@@ -48,7 +61,7 @@ import {
   ratingDistribution,
   responseTimeLabel,
 } from "@/lib/queries";
-import { ACTIVITY_LABEL, activityBucket, cn, formatDate, formatNumber, formatPriceRange } from "@/lib/utils";
+import { ACTIVITY_LABEL, activityBucket, cn, formatDate, formatNumber, formatPriceRange, formatUsd } from "@/lib/utils";
 
 /** "Top mutaxassis" nishoni izohi (tooltip) — qoida recalcRating bilan bir xil */
 const TOP_RATED_HINT = `Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`;
@@ -76,10 +89,12 @@ type Search = Promise<{ preview?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const raw = await getSpecialistBySlug(slug);
+  const [raw, settings] = await Promise.all([getSpecialistBySlug(slug), getSettings()]);
   if (!raw) return { title: "Mutaxassis topilmadi" };
   // Metadata — mehmon ko'rinishi (shahar yashirin bo'lsa hudud markazi)
   const sp = filterSpecialistForViewer(raw, GUEST_VIEWER);
+  // Obunasi tugagan profil katalogdan yashirin — qidiruv tizimlari ham indekslamasin
+  const inactive = subscriptionState(raw, settings).status === "expired";
   const region = REGION_BY_SLUG[sp.regionSlug];
   const title = `${sp.user.name} — ${sp.title}`;
   const description = sp.bio?.trim()
@@ -92,6 +107,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     alternates: { canonical: `/mutaxassislar/${sp.slug}` },
     openGraph: { title: `${title} · ${SITE.name}`, description, type: "profile", url: `/mutaxassislar/${sp.slug}` },
     twitter: { card: "summary_large_image", title: `${title} · ${SITE.name}`, description },
+    ...(inactive ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -114,12 +130,32 @@ function NameWithBadge({ name, verified }: { name: string; verified: boolean }) 
   );
 }
 
+/** Obunasi faol bo'lmagan mutaxassis: aloqa ma'lumotlari o'rnida izoh (qiymatlar serverda olib tashlangan) */
+function LockedContacts({ className }: { className?: string }) {
+  return (
+    <section className={className} aria-label="Aloqa">
+      <div className="mb-2 px-4">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Aloqa</h3>
+      </div>
+      <div className="card flex items-start gap-3 p-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-surface-3 text-fg-3">
+          <Lock size={16} aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-[14px] font-semibold text-fg-2">Aloqa ma'lumotlari yopiq</p>
+          <p className="mt-0.5 text-[12.5px] leading-snug text-fg-3">Mutaxassis obunasi faol emas — telefon va ijtimoiy tarmoqlar obuna yangilangach ko'rinadi.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function SpecialistPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ slug }, { preview }] = await Promise.all([params, searchParams]);
   const raw = await getSpecialistBySlug(slug);
   if (!raw) notFound();
 
-  const [viewer, hdrs] = await Promise.all([getCurrentUser(), headers()]);
+  const [viewer, hdrs, settings] = await Promise.all([getCurrentUser(), headers(), getSettings()]);
   const isOwner = Boolean(viewer && viewer.id === raw.userId);
   const isAdmin = viewer?.role === "admin";
 
@@ -135,6 +171,19 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   const sp = filterSpecialistForViewer(raw, effectiveViewer);
   const vis = resolveVisibility(raw.visibility);
+
+  // Obuna (subscriptions/access.ts): muddati tugagan (imtiyozli kunlardan keyin) — katalogdan yashirin, yangi buyurtma yo'q,
+  // aloqalar mehmon/mijozga yopiq (egasi, admin va buyurtmasi borlar ko'radi). Egasining "mehmon ko'zi bilan" rejimi ham shuni ko'rsatadi.
+  const sub = subscriptionState(raw, settings);
+  const inactive = sub.status === "expired";
+  const contactsLocked = inactive && (previewMode ? previewMode !== "order" : !isOwner && !isAdmin && !hasOrder);
+
+  // Qisqa havola (F66): kod yo'q eski profillar uchun bir marta yaratiladi
+  const shortCode = raw.shortCode ?? (await ensureShortCode(raw.id).catch(() => null));
+  const host = forwardedHost(hdrs) ?? hdrs.get("host") ?? "localhost:3000";
+  const origin = trustedSiteOrigin() ?? `${forwardedProto(hdrs) ?? (/^(localhost|127\.)/i.test(host) ? "http" : "https")}://${host}`;
+  const shortUrl = shortCode ? `${origin}/u/${shortCode.toUpperCase()}` : null;
+  const shortDisplay = shortUrl ? shortUrl.replace(/^https?:\/\//, "") : null;
   // O'xshashlar — umumiy ko'ruvchi konteksti: isOwner/hasOrder faqat SHU profilga nisbatan, boshqa profillarga o'tkazilmaydi
   const [similar, proof, verifiedIds] = await Promise.all([
     getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }),
@@ -162,6 +211,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const reviewLoginHref = `${loginHref}&reason=review`;
   const orderHref = `/buyurtma/${raw.id}`;
   const showOwnerCta = isOwner && !previewMode;
+  // Buyurtma tugmalari faqat obuna faol bo'lsa (egasidan tashqari hammaga)
+  const orderLink = showOwnerCta || inactive ? null : orderHref;
 
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
@@ -172,7 +223,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const onVacation = isOnVacation(sp.vacationUntil);
   const scheduleLock = lockReason(vis.schedule, effectiveViewer);
   const distribution = ratingDistribution(raw.reviews);
-  const price = formatPriceRange(sp.priceFrom, sp.priceTo);
+  // "… dan" narx: priceFrom bo'sh bo'lsa — eng arzon paket (F31); dollar ekvivalenti (F99) — platforma kursi bilan
+  const priceFrom = effectivePriceFrom(raw);
+  const price = formatPriceRange(priceFrom, sp.priceTo);
+  const priceUsd = priceFrom > 0 ? formatUsd(priceFrom, settings.usdRate) : "";
+  const workTypes = sp.workTypes.map((w) => WORK_TYPE_BY_SLUG[w]).filter((w): w is NonNullable<typeof w> => Boolean(w));
+  const compareItem = { id: raw.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl };
   const lockedCount = Object.keys(sp.locked).length + (scheduleLock && raw.schedule ? 1 : 0);
   const hiddenForGuests = isOwner
     ? (["phone", "telegram", "instagram", "youtube", "website", "email", "schedule", "gender", "city"] as const).filter((k) => vis[k] !== "public").length
@@ -200,10 +256,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
     <ButtonLink href="/kabinet/profil" size="lg" className="w-full">
       <Settings size={18} /> Profilni tahrirlash
     </ButtonLink>
-  ) : (
-    <ButtonLink href={orderHref} variant="accent" size="lg" className="w-full">
+  ) : orderLink ? (
+    <ButtonLink href={orderLink} variant="accent" size="lg" className="w-full">
       Buyurtma berish <ArrowRight size={18} />
     </ButtonLink>
+  ) : (
+    <p className="flex h-13 w-full items-center justify-center gap-2 rounded-full bg-surface-3 px-4 text-center text-[13px] font-semibold text-fg-2">
+      <PauseCircle size={16} aria-hidden="true" /> Buyurtma qabul qilmaydi
+    </p>
   );
 
   return (
@@ -235,6 +295,34 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               <X size={14} /> Chiqish
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* ================= OBUNA BANNERI (faqat egasi) ================= */}
+      {showOwnerCta && (sub.status === "expired" || sub.status === "grace") && (
+        <div
+          role="status"
+          className={cn(
+            "mb-5 flex flex-col gap-3 rounded-[var(--r-md)] border p-4 sm:flex-row sm:items-center sm:justify-between",
+            sub.status === "expired" ? "border-danger/30 bg-danger-soft" : "border-warning/30 bg-warning-soft",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className={cn("mt-0.5 shrink-0", sub.status === "expired" ? "text-danger-text" : "text-warning-text")} aria-hidden="true" />
+            <div>
+              <p className="text-[14px] font-semibold text-fg">
+                {sub.status === "expired" ? "Obunangiz tugagan — profilingiz katalogda ko'rinmaydi" : `Obuna muddati tugadi — ${sub.daysLeft} kun ichida to'lang`}
+              </p>
+              <p className="mt-0.5 text-[13px] text-fg-2">
+                {sub.status === "expired"
+                  ? "Mijozlar sizni ro'yxat va xaritada topa olmaydi, aloqa ma'lumotlaringiz yopiq va yangi buyurtma qabul qilinmaydi. Mavjud buyurtmalar davom etadi."
+                  : "Imtiyozli kunlar tugagach profilingiz katalogdan yashiriladi va yangi buyurtmalar to'xtaydi."}
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="/kabinet/obuna" variant="accent" size="sm" className="shrink-0">
+            Obunani yangilash <ArrowRight size={14} />
+          </ButtonLink>
         </div>
       )}
 
@@ -293,11 +381,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           <span
             className={cn(
               "absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold shadow-[var(--shadow-1)] sm:right-6 sm:top-6",
-              onVacation ? "text-accent" : sp.isAvailable ? "text-[#15803d] dark:text-ios-green" : "text-[#c2410c] dark:text-ios-orange",
+              inactive ? "text-fg-2" : onVacation ? "text-accent" : sp.isAvailable ? "text-[#15803d] dark:text-ios-green" : "text-[#c2410c] dark:text-ios-orange",
             )}
           >
-            <span className={cn("h-2 w-2 rounded-full", onVacation ? "bg-accent" : sp.isAvailable ? "bg-ios-green" : "bg-ios-orange")} />
-            {onVacation ? "Ta'tilda" : sp.isAvailable ? "Bo'sh" : "Band"}
+            <span className={cn("h-2 w-2 rounded-full", inactive ? "bg-fg-4" : onVacation ? "bg-accent" : sp.isAvailable ? "bg-ios-green" : "bg-ios-orange")} />
+            {inactive ? "Faol emas" : onVacation ? "Ta'tilda" : sp.isAvailable ? "Bo'sh" : "Band"}
           </span>
         </div>
 
@@ -358,7 +446,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 key={m.text}
                 className={cn(
                   "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold",
-                  m.tone === "accent" ? "bg-accent-soft text-accent" : "border border-line text-fg-2",
+                  m.tone === "accent" ? "bg-accent-soft text-accent-text" : "border border-line text-fg-2",
                 )}
               >
                 <m.icon size={13} className={m.tone === "accent" ? undefined : "text-fg-3"} />
@@ -366,12 +454,33 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </li>
             ))}
             <li className="ml-auto flex items-center gap-2 lg:hidden">
+              {!isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
-              <ShareButton title={`${sp.user.name} — ${sp.title}`} size="sm" variant="outline" />
+              <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} size="sm" variant="outline" />
             </li>
           </ul>
         </div>
       </section>
+
+      {/* ================= OBUNA FAOL EMAS (tashrif buyuruvchilar) ================= */}
+      {inactive && !showOwnerCta && (
+        <section role="status" className="card-outline mt-6 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-start gap-3.5">
+            <span className="icon-tile-outline shrink-0">
+              <PauseCircle size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="font-display text-[17px] font-semibold leading-snug text-fg">Mutaxassis obunasi faol emas — hozircha buyurtma qabul qilmaydi</h2>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-fg-2">
+                Profil ma'lumot uchun ochiq. Aloqa ma'lumotlari va buyurtma berish mutaxassis obunasini qayta faollashtirgach ochiladi.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href={`/mutaxassislar?category=${sp.category}${sp.regionSlug ? `&region=${sp.regionSlug}` : ""}`} variant="outline" size="sm" className="shrink-0">
+            O'xshash mutaxassislar <ArrowRight size={14} />
+          </ButtonLink>
+        </section>
+      )}
 
       {/* ================= TANA ================= */}
       <div className="mt-6 grid gap-6 lg:grid-cols-12 lg:gap-8">
@@ -387,6 +496,26 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               <p className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{sp.bio}</p>
             ) : (
               <p className="mt-4 text-[15px] text-fg-3">Mutaxassis hali o'zi haqida ma'lumot yozmagan.</p>
+            )}
+
+            {workTypes.length > 0 && (
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Ish turlari</h3>
+                {/* Har bir ish turi — shu turdagi mutaxassislar ro'yxatiga (F52) */}
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {workTypes.map((w) => (
+                    <li key={w.slug}>
+                      <Link
+                        href={`/mutaxassislar?workType=${w.slug}`}
+                        className="inline-flex min-h-8 items-center rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent-text transition hover:brightness-105"
+                        title={`${w.label} bo'yicha mutaxassislar`}
+                      >
+                        {w.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             {sp.skills.length > 0 && (
@@ -429,17 +558,93 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             )}
           </section>
 
+          {/* Xizmat paketlari (F31) */}
+          {sp.packages.length > 0 && (
+            <section className="animate-fade-up scroll-mt-28" id="paketlar" aria-labelledby="paketlar-title">
+              <div className="mb-4 px-1">
+                <span className="eyebrow">Xizmat paketlari</span>
+                <h2 id="paketlar-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+                  Tayyor <span className="accent-serif text-accent">paketlar</span>
+                </h2>
+              </div>
+              <PackagesTable
+                packages={sp.packages}
+                orderBase={orderLink}
+                usdRate={settings.usdRate}
+                disabledNote={showOwnerCta ? "Mijozlar shu yerdan paketni tanlaydi" : inactive ? "Hozircha buyurtma qabul qilinmaydi" : undefined}
+              />
+            </section>
+          )}
+
           {/* Aloqa — mobil/planshet (desktopda yon panelda) */}
-          <ContactPanel
-            className="lg:hidden"
-            contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }}
-            locked={sp.locked}
+          {contactsLocked ? (
+            <LockedContacts className="lg:hidden" />
+          ) : (
+            <ContactPanel
+              className="lg:hidden"
+              contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }}
+              locked={sp.locked}
+              loginHref={loginHref}
+              orderHref={orderLink}
+            />
+          )}
+
+          {/* Qisqa havola + vizitka — mobil/planshet (desktopda narx kartasida) */}
+          {shortUrl && shortDisplay && (
+            <section className="lg:hidden" aria-label="Qisqa havola">
+              <h3 className="mb-2 px-4 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Qisqa havola</h3>
+              <ShortLink url={shortUrl} display={shortDisplay} vcardHref={`/api/vcard/${raw.slug}`} />
+            </section>
+          )}
+
+          {/* Narx kalkulyatori (F70) */}
+          {(sp.rates.hourly || sp.rates.daily || sp.rates.project) && <RateCalculator rates={sp.rates} urgentPct={settings.urgentPct} usdRate={settings.usdRate} className="animate-fade-up" />}
+
+          {/* Ish vaqti + band kunlar (F41) */}
+          <SchedulePanel
+            schedule={sp.schedule}
+            vacationUntil={sp.vacationUntil}
+            lock={raw.schedule ? scheduleLock : null}
             loginHref={loginHref}
-            orderHref={showOwnerCta ? null : orderHref}
+            blockedDates={sp.blockedDates}
+            className="animate-fade-up"
           />
 
-          {/* Ish vaqti */}
-          <SchedulePanel schedule={sp.schedule} vacationUntil={sp.vacationUntil} lock={raw.schedule ? scheduleLock : null} loginHref={loginHref} className="animate-fade-up" />
+          {/* Sertifikatlar va litsenziyalar (F64) */}
+          {sp.certificates.length > 0 && (
+            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="sertifikatlar-title">
+              <span className="eyebrow">Ishonch</span>
+              <h2 id="sertifikatlar-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+                Sertifikatlar va <span className="accent-serif text-accent">litsenziyalar</span>
+              </h2>
+              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                {sp.certificates.map((c, i) => (
+                  <li key={`${c.title}-${i}`} className="flex items-start gap-3 rounded-[var(--r-sm)] border border-line p-3.5">
+                    <span className="icon-tile-soft icon-tile-sm shrink-0">
+                      <BadgeCheck size={16} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-[14px] font-semibold leading-snug text-fg">{c.title}</p>
+                      <p className="mt-0.5 text-[12.5px] text-fg-3">
+                        {c.issuer} · {c.year}
+                      </p>
+                      {c.url && (
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer noopener nofollow"
+                          className="mt-1.5 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-accent-text transition hover:opacity-80"
+                        >
+                          Hujjatni ko'rish <ArrowUpRight size={13} aria-hidden="true" />
+                          <span className="sr-only"> (yangi oynada)</span>
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Portfolio */}
           <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio">
@@ -466,6 +671,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 url: p.url,
                 thumbnailUrl: p.thumbnailUrl,
                 description: p.description,
+                tags: p.tags,
+                beforeUrl: p.beforeUrl,
               }))}
             />
           </section>
@@ -487,14 +694,26 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </h2>
             </div>
             <div className="space-y-4">
-              <ReviewSummary rating={sp.rating} count={sp.reviewCount} distribution={distribution} />
+              <ReviewSummary rating={sp.rating} count={sp.reviewCount} distribution={distribution} items={raw.reviews} />
               <ReviewForm
                 specialistId={raw.id}
                 canReview={canReview && !previewMode}
                 needsOrder={needsOrder}
                 orderHref={orderHref}
                 isOwner={isOwner}
-                existing={myReview ? { rating: myReview.rating, text: myReview.text } : null}
+                existing={
+                  myReview
+                    ? {
+                        rating: myReview.rating,
+                        text: myReview.text,
+                        quality: myReview.quality,
+                        timeliness: myReview.timeliness,
+                        communication: myReview.communication,
+                        media: myReview.media,
+                        recommend: myReview.recommend,
+                      }
+                    : null
+                }
                 loginHref={reviewLoginHref}
               />
               <ReviewList
@@ -508,6 +727,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   verified: verifiedSet.has(r.authorId),
                   reply: r.reply,
                   replyAt: r.replyAt ? r.replyAt.getTime() : null,
+                  quality: r.quality,
+                  timeliness: r.timeliness,
+                  communication: r.communication,
+                  media: r.media,
+                  recommend: r.recommend,
                 }))}
                 highlightAuthorId={previewMode ? null : (viewer?.id ?? null)}
                 specialistId={raw.id}
@@ -529,22 +753,29 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             <div className="card-elevated animate-fade-up p-5 sm:p-6" style={{ animationDelay: "60ms" }}>
               <p className="eyebrow">Narx</p>
               <p className="mt-2 font-display text-[28px] font-semibold leading-tight tracking-tight text-fg">{price}</p>
+              {priceUsd && <p className="mt-0.5 text-[12px] text-fg-3">{priceUsd}{sp.priceTo && sp.priceTo > priceFrom ? " dan" : ""} · taxminan</p>}
               <p className="mt-1 text-[13px] text-fg-3">
-                {sp.priceFrom || sp.priceTo ? "Yakuniy narx loyiha hajmiga qarab kelishiladi." : "Narx loyihaga qarab belgilanadi."}
+                {priceFrom || sp.priceTo ? "Yakuniy narx loyiha hajmiga qarab kelishiladi." : "Narx loyihaga qarab belgilanadi."}
               </p>
 
               <div className="mt-5 flex items-stretch gap-2">
                 <div className="min-w-0 flex-1">{cta}</div>
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
-                <ShareButton title={`${sp.user.name} — ${sp.title}`} variant="outline" size="lg" iconOnly />
+                <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
               </div>
-              {!showOwnerCta && responseLabel && !onVacation && sp.isAvailable && (
+              {!isOwner && !inactive && (
+                <div className="mt-2.5 flex justify-center">
+                  <CompareButton item={compareItem} variant="chip" />
+                </div>
+              )}
+              {!showOwnerCta && inactive && <p className="mt-2.5 text-center text-[12px] text-fg-3">Mutaxassis obunasi faol emas.</p>}
+              {!showOwnerCta && !inactive && responseLabel && !onVacation && sp.isAvailable && (
                 <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[12px] text-fg-3">
                   <Clock3 size={12} /> {responseLabel}
                 </p>
               )}
-              {!showOwnerCta && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}
-              {!showOwnerCta && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangiz navbatga qo'yiladi.</p>}
+              {!showOwnerCta && !inactive && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}
+              {!showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangiz navbatga qo'yiladi.</p>}
 
               {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
               <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
@@ -575,6 +806,13 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 )}
               </ul>
 
+              {shortUrl && shortDisplay && (
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-4">Qisqa havola</p>
+                  <ShortLink url={shortUrl} display={shortDisplay} vcardHref={`/api/vcard/${raw.slug}`} />
+                </div>
+              )}
+
               {!isOwner && !previewMode && (
                 <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" className="mt-3" />
               )}
@@ -601,12 +839,16 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </div>
             )}
 
-            <ContactPanel
-              contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }}
-              locked={sp.locked}
-              loginHref={loginHref}
-              orderHref={showOwnerCta ? null : orderHref}
-            />
+            {contactsLocked ? (
+              <LockedContacts />
+            ) : (
+              <ContactPanel
+                contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }}
+                locked={sp.locked}
+                loginHref={loginHref}
+                orderHref={orderLink}
+              />
+            )}
           </div>
         </aside>
       </div>
@@ -662,24 +904,35 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
       {/* ================= MOBIL: pastki yopishqoq narx + CTA ================= */}
       <div
+        data-sticky-cta
         className="card-elevated fixed inset-x-3 bottom-[76px] z-40 flex items-center gap-3 !rounded-[22px] px-4 py-2.5 md:bottom-4 lg:hidden"
         style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
       >
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-fg-4">Narx</p>
-          <p className="truncate font-display text-[15px] font-semibold leading-tight text-fg">{price}</p>
+          <p className="truncate font-display text-[15px] font-semibold leading-tight text-fg">
+            {price}
+            {priceUsd && <span className="ml-1.5 font-sans text-[11px] font-medium text-fg-3">{priceUsd}</span>}
+          </p>
         </div>
         {showOwnerCta ? (
           <ButtonLink href="/kabinet/profil" size="md" className="shrink-0">
             <Settings size={16} /> Tahrirlash
           </ButtonLink>
-        ) : (
-          <ButtonLink href={orderHref} variant="accent" size="md" className="shrink-0">
+        ) : orderLink ? (
+          <ButtonLink href={orderLink} variant="accent" size="md" className="shrink-0">
             <span className="sm:hidden">Buyurtma</span>
             <span className="hidden sm:inline">Buyurtma berish</span> <ArrowRight size={16} />
           </ButtonLink>
+        ) : (
+          <span className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-surface-3 px-4 text-[12.5px] font-semibold text-fg-2">
+            <PauseCircle size={15} aria-hidden="true" /> Qabul qilmaydi
+          </span>
         )}
       </div>
+
+      {/* Taqqoslash paneli (F54) — telefonda pastki CTA paneli ustida */}
+      <CompareTray aboveCta />
     </div>
   );
 }

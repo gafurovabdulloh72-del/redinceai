@@ -36,6 +36,8 @@
   --accent-text: #c23b21; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.3, accent-soft 4.6 (AA) */
   --accent-2: #7b61ff;
   --accent-2-text: #5d3dff; /* kichik binafsha matn (badge) — accent-2-soft 5.1, qog'oz 4.6 (AA) */
+  --accent-serif: #ef4a25; /* katta italic urg'u so'z (.accent-serif) — qog'oz 3.4, bg-2 3.1 (katta matn 3:1) */
+  --accent-strong: #c93d1c; /* oq matnli kichik coral fon (hisoblagich badge) — oq 5.0 (AA) */
   --accent-3: #f0b43c;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 90, 54, 0.12);
@@ -56,9 +58,15 @@
   --warning-text: #8f581a;
   --danger-text: #bc2d22;
   --info-text: #3c63a2;
+  /* Oq matnli xavfli tugma foni — oq 5.3 (AA); --danger nuqta/chegara uchun qoladi */
+  --danger-strong: #c23a30;
 
   --ink: #121213;
   --ink-fg: #ffffff;
+
+  /* Grafiklar (admin analitikasi): 1 — coral, 2 — binafsha. dataviz validator: yorug' fonda (#fff) barcha tekshiruvlar o'tadi */
+  --chart-1: #ff5a36;
+  --chart-2: #7b61ff;
 
   /* Radius — 3 daraja (12 / 16 / 24) */
   --r-sm: 12px;
@@ -134,6 +142,8 @@
   --accent-text: var(--accent); /* qorong'uda coral'ning o'zi 6.5:1 */
   --accent-2: #8f79ff;
   --accent-2-text: var(--accent-2);
+  --accent-serif: var(--accent); /* qora fonda coral'ning o'zi yetarli */
+  --accent-strong: #c93d1c; /* oq matn 5.0 (AA) — #ff6b47 ustida oq atigi 2.8 */
   --accent-3: #f5bd4a;
   --accent-ink: #ffffff;
   --accent-soft: rgba(255, 107, 71, 0.16);
@@ -152,9 +162,14 @@
   --warning-text: var(--warning);
   --danger-text: var(--danger);
   --info-text: var(--info);
+  --danger-strong: #c4372c; /* oq matn 5.3 (AA) — #ef6a5f ustida oq atigi 3.0 */
 
   --ink: #f4f2ec;
   --ink-fg: #0a0a0c;
+
+  /* Qorong'u yuzada (#141418) yorug'lik oralig'iga (L 0.48–0.67) tushadigan qadam — --accent (#ff6b47) juda yorqin */
+  --chart-1: #f25530;
+  --chart-2: #8f79ff;
 
   /* Noir'da soya + kartaning ustki qirrasida 1px yorug' chiziq (fon bilan ajralishi uchun) */
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px -14px rgba(0, 0, 0, 0.65);
@@ -213,6 +228,8 @@
   --color-accent-text: var(--accent-text);
   --color-accent-2: var(--accent-2);
   --color-accent-2-text: var(--accent-2-text);
+  --color-accent-serif: var(--accent-serif);
+  --color-accent-strong: var(--accent-strong);
   --color-accent-3: var(--accent-3);
   --color-accent-soft: var(--accent-soft);
   --color-accent-2-soft: var(--accent-2-soft);
@@ -229,6 +246,7 @@
   --color-success-text: var(--success-text);
   --color-warning-text: var(--warning-text);
   --color-danger-text: var(--danger-text);
+  --color-danger-strong: var(--danger-strong);
   --color-info-text: var(--info-text);
 
   /* Moslik */
@@ -896,4 +914,11 @@ select:focus-visible {
   html {
     scroll-behavior: auto;
   }
+}
+
+/* Italic urg'u so'z: Paper'da --accent (#ff5a36) qog'oz fonida 2.8:1 — katta matn uchun 3:1 dan past.
+   Qatlamsiz qoida (utilities qatlamidagi .text-accent dan ustun): barcha "accent-serif text-accent" juftliklari
+   biroz to'qroq --accent-serif tokenini oladi; Noir'da u --accent'ning o'zi. */
+.accent-serif.text-accent {
+  color: var(--accent-serif);
 }

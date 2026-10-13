@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, BellRing, Camera, CheckCircle2, KeyRound, Mail, MailWarning, Mars, Trash2, UserRound, Venus } from "lucide-react";
-import { Avatar, Button, Spinner } from "@/components/ui";
+import { AlertCircle, BellRing, Camera, CheckCircle2, KeyRound, Mail, MailWarning, Mars, ShieldCheck, Trash2, UserRound, Venus } from "lucide-react";
+import { Avatar, Badge, Button, Spinner } from "@/components/ui";
 import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
 import type { ResolvedVisibility } from "@/lib/privacy";
@@ -19,6 +19,8 @@ export interface AccountInitial {
   gender?: Gender;
   /** Muhim hodisalar emailga ham yuborilsinmi (users.notifyEmail) */
   notifyEmail?: boolean;
+  /** Email tasdiqlanganmi (berilmasa belgi ko'rsatilmaydi, faqat o'zgartirilgandan keyin "Tasdiqlanmagan") */
+  emailVerified?: boolean;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -242,9 +244,22 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         </div>
 
         <div>
-          <label htmlFor="acc-email" className="field-label">
-            Email
-          </label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <label htmlFor="acc-email" className="field-label !mb-0">
+              Email
+            </label>
+            {emailChanged || initial.emailVerified === false ? (
+              <Link href="/kabinet/xavfsizlik" className="inline-flex min-h-8 items-center" title="Xavfsizlik bo'limida tasdiqlang">
+                <Badge tone="warning">
+                  <AlertCircle size={12} /> Tasdiqlanmagan
+                </Badge>
+              </Link>
+            ) : initial.emailVerified ? (
+              <Badge tone="success">
+                <ShieldCheck size={12} /> Tasdiqlangan
+              </Badge>
+            ) : null}
+          </div>
           <div className="relative">
             <Mail size={15} className="pointer-events-none absolute inset-y-0 left-4 my-auto text-fg-4" />
             <input
@@ -314,7 +329,9 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
               Email bildirishnomalar
             </p>
             <p id="acc-notify-hint" className="text-[12px] text-fg-3">
-              {notifyEmail ? "Narx, to'lov, ish topshirilishi va pul chiqarish haqida emailga ham xabar keladi." : "Faqat saytdagi qo'ng'iroqda ko'rinadi. Xavfsizlik xatlari baribir yuboriladi."}
+              {notifyEmail
+                ? "Buyurtma, to'lov, takliflar, chatdagi yangi xabarlar va obuna muddati haqida emailga ham xabar keladi."
+                : "Faqat saytdagi qo'ng'iroqda ko'rinadi. Xavfsizlik xatlari (parol tiklash, kodlar) baribir yuboriladi."}
             </p>
           </div>
         </div>

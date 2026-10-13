@@ -2,11 +2,12 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { hkdfSync } from "node:crypto";
+import { hkdfSync, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "./db";
-import { rateLimits, users, type User } from "./db/schema";
+import { rateLimits, sessions, users, type User } from "./db/schema";
+import { clientIpFromHeaders, hashIp } from "./security/request";
 import { safeInternalPath } from "./utils";
 
 export { hashPassword, verifyPassword } from "./security/password";
@@ -15,6 +16,12 @@ export const SESSION_COOKIE = "redince_session";
 /** "Meni eslab qolish" bilan — 30 kun; usiz — brauzer yopilguncha (JWT 24 soat) */
 const REMEMBER_DAYS = 30;
 const SHORT_HOURS = 24;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+/** sessions.lastSeenAt ko'pi bilan har 5 daqiqada yangilanadi (har so'rovda yozmaslik uchun) */
+const TOUCH_MS = 5 * 60 * 1000;
+/** 2FA ikkinchi bosqich chiptasi (ticket) — 5 daqiqa */
+const TICKET_TTL = "5m";
 const ROLES: ReadonlyArray<User["role"]> = ["client", "specialist", "admin"];
 
 /** .env.example / dev namunaviy qiymatlar — productionda haqiqiy kalit sifatida qabul qilinmaydi */
@@ -81,6 +88,8 @@ export interface SessionPayload {
   iat?: number;
   /** JWT amal qilish muddati (soniya) */
   exp?: number;
+  /** JWT id = sessions.id (eski tokenlarda yo'q — ular uchun denylist fallback) */
+  jti?: string;
 }
 
 export interface CreateSessionOptions {
@@ -98,15 +107,20 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
     const row = await db.query.users.findFirst({ where: eq(users.id, user.id), columns: { sessionVersion: true } });
     sv = row?.sessionVersion ?? 1;
   }
-  let remember = opts.remember;
-  if (remember == null) {
-    const current = await getSession();
-    remember = current?.sub === user.id ? current.remember : true;
-  }
+  const current = await getSession();
+  const sameUser = current?.sub === user.id ? current : null;
+  const remember = opts.remember ?? sameUser?.remember ?? true;
+
+  // Har bir kirish — sessions jadvalida alohida qator (qurilmalar ro'yxati, bittasini bekor qilish)
+  const jti = randomBytes(18).toString("base64url");
+  const expiresAt = new Date(Date.now() + (remember ? REMEMBER_DAYS * DAY_MS : SHORT_HOURS * HOUR_MS));
+  // Shu brauzerdagi oldingi cookie (shu yoki boshqa foydalanuvchi) ustidan yoziladi — uning qatori yopiladi
+  await recordSession(user.id, jti, expiresAt, current?.jti ? { jti: current.jti, userId: current.sub } : undefined);
 
   const token = await new SignJWT({ role: user.role, name: user.name, sv, rm: remember })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
+    .setJti(jti)
     .setIssuedAt()
     .setExpirationTime(remember ? `${REMEMBER_DAYS}d` : `${SHORT_HOURS}h`)
     .sign(secret());
@@ -119,6 +133,44 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
     path: "/",
     ...(remember ? { maxAge: REMEMBER_DAYS * 24 * 60 * 60 } : {}),
   });
+}
+
+/**
+ * sessions qatorini yozadi (user-agent, IP hash). Shu brauzerdagi oldingi token (rol o'zgarishi, parol yangilash,
+ * boshqa hisobga kirish — cookie ustidan yoziladi) bekor qilinadi, ro'yxatda "osilib" qolmasin. Vaqti-vaqti bilan eski qatorlar tozalanadi.
+ */
+async function recordSession(userId: string, jti: string, expiresAt: Date, previous?: { jti: string; userId: string }): Promise<void> {
+  let userAgent: string | null = null;
+  let ipHash: string | null = null;
+  try {
+    const h = await headers();
+    userAgent = h.get("user-agent")?.slice(0, 300) || null;
+    ipHash = hashIp(clientIpFromHeaders(h));
+  } catch {
+    /* so'rov kontekstidan tashqarida */
+  }
+  await db.insert(sessions).values({ id: jti, userId, userAgent, ipHash, expiresAt });
+  if (previous) {
+    await db
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.id, previous.jti), eq(sessions.userId, previous.userId), isNull(sessions.revokedAt)));
+  }
+  if (Math.random() < 0.1) {
+    const now = Date.now();
+    await db
+      .delete(sessions)
+      .where(and(eq(sessions.userId, userId), or(lt(sessions.expiresAt, new Date(now - 7 * DAY_MS)), lt(sessions.revokedAt, new Date(now - 30 * DAY_MS)))))
+      .catch(() => undefined);
+  }
+}
+
+/** Foydalanuvchining barcha faol sessiya qatorlarini bekor qiladi (parol o'zgarishi, hammasidan chiqish, o'chirish) */
+export async function revokeAllSessions(userId: string): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
 }
 
 export async function clearSession() {
@@ -136,6 +188,7 @@ export async function bumpSessionVersion(userId: string): Promise<number> {
     .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
     .where(eq(users.id, userId))
     .returning({ sessionVersion: users.sessionVersion });
+  await revokeAllSessions(userId);
   return row?.sessionVersion ?? 1;
 }
 
@@ -153,6 +206,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       remember: payload.rm !== false,
       iat: typeof payload.iat === "number" ? payload.iat : undefined,
       exp: typeof payload.exp === "number" ? payload.exp : undefined,
+      jti: typeof payload.jti === "string" && payload.jti ? payload.jti : undefined,
     };
   } catch {
     return null;
@@ -169,17 +223,85 @@ function revokedKey(session: SessionPayload): string | null {
  * sessionVersion o'zgarmaydi: boshqa qurilmalar kirgan holda qoladi ("Barcha qurilmalardan chiqish" alohida).
  */
 export async function revokeSession(session: SessionPayload): Promise<void> {
+  if (session.jti) {
+    await db
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.id, session.jti), eq(sessions.userId, session.sub), isNull(sessions.revokedAt)));
+    return;
+  }
+  // jti'siz eski tokenlar — denylist (rate_limits)
   const key = revokedKey(session);
   if (!key) return;
   const expSec = session.exp ?? Math.floor(Date.now() / 1000) + REMEMBER_DAYS * 24 * 60 * 60;
   await db.insert(rateLimits).values({ key, count: 1, resetAt: expSec * 1000 }).onConflictDoNothing();
 }
 
+/**
+ * Sessiya qatori tirikmi: mavjud, shu foydalanuvchiniki, bekor qilinmagan va muddati o'tmagan.
+ * Bitta so'rov ichida keshlanadi (getVerifiedSession + getCurrentUser — bitta o'qish); lastSeenAt
+ * ko'pi bilan 5 daqiqada bir yangilanadi.
+ */
+const sessionRowAlive = cache(async (jti: string, userId: string): Promise<boolean> => {
+  const row = await db.query.sessions.findFirst({
+    where: eq(sessions.id, jti),
+    columns: { userId: true, expiresAt: true, revokedAt: true, lastSeenAt: true },
+  });
+  const now = Date.now();
+  if (!row || row.userId !== userId || row.revokedAt || row.expiresAt.getTime() <= now) return false;
+  if (now - row.lastSeenAt.getTime() > TOUCH_MS) {
+    await db
+      .update(sessions)
+      .set({ lastSeenAt: new Date(now) })
+      .where(eq(sessions.id, jti))
+      .catch(() => undefined);
+  }
+  return true;
+});
+
 async function isRevoked(session: SessionPayload): Promise<boolean> {
+  if (session.jti) return !(await sessionRowAlive(session.jti, session.sub));
   const key = revokedKey(session);
   if (!key) return false;
   const row = await db.query.rateLimits.findFirst({ where: eq(rateLimits.key, key), columns: { resetAt: true } });
   return Boolean(row && row.resetAt > Date.now());
+}
+
+/* ------------------------------------------------------------------ */
+/* 2FA: parol bosqichidan keyingi qisqa muddatli chipta (ticket)          */
+/* ------------------------------------------------------------------ */
+export interface TwoFactorTicket {
+  sub: string;
+  sv: number;
+  remember: boolean;
+  /** Chipta id — rate limit va bir martalik ishlatish kaliti */
+  jti: string;
+}
+
+/** Chipta kaliti sessiya kalitidan HKDF bilan alohida hosil qilinadi — chiptani cookie sifatida ishlatib bo'lmaydi */
+function ticketKey(): Uint8Array {
+  return new Uint8Array(hkdfSync("sha256", secret(), "redince", "2fa-ticket-v1", 32));
+}
+
+/** Parol to'g'ri, 2FA yoqilgan — sessiya o'rniga 5 daqiqalik imzolangan chipta */
+export async function createTwoFactorTicket(user: Pick<User, "id" | "sessionVersion">, remember: boolean): Promise<string> {
+  return new SignJWT({ sv: user.sessionVersion, rm: remember, typ: "2fa" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(user.id)
+    .setJti(randomBytes(12).toString("base64url"))
+    .setIssuedAt()
+    .setExpirationTime(TICKET_TTL)
+    .sign(ticketKey());
+}
+
+export async function verifyTwoFactorTicket(ticket: string): Promise<TwoFactorTicket | null> {
+  try {
+    const { payload } = await jwtVerify(ticket, ticketKey(), { algorithms: ["HS256"] });
+    if (!payload.sub || payload.typ !== "2fa" || typeof payload.jti !== "string") return null;
+    return { sub: payload.sub, sv: typeof payload.sv === "number" ? payload.sv : 0, remember: payload.rm !== false, jti: payload.jti };
+  } catch {
+    return null;
+  }
 }
 
 /** Faqat JWT'dagi ma'lumot (bazaga murojaat qilmaydi). Bitta so'rov ichida keshlanadi. */
@@ -235,7 +357,7 @@ export const getVerifiedSession = cache(async (): Promise<SessionPayload | null>
 });
 
 /**
- * Bazadagi to'liq foydalanuvchi (parolsiz). React cache() — Navbar, layout va sahifa
+ * Bazadagi to'liq foydalanuvchi (parol, 2FA siri va zaxira kodlarisiz). React cache() — Navbar, layout va sahifa
  * bitta so'rovda chaqirsa ham baza bir marta o'qiladi. sv mos kelmasa — chiqib ketgan hisoblanadi.
  */
 export const getCurrentUser = cache(async () => {
@@ -243,7 +365,8 @@ export const getCurrentUser = cache(async () => {
   if (!session) return null;
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
-    columns: { passwordHash: false },
+    // Maxfiy maydonlar hech qachon chiqmaydi (/api/auth/me shu obyektni qaytaradi)
+    columns: { passwordHash: false, totpSecretEnc: false, recoveryCodes: false },
     with: { specialist: true },
   });
   if (!user || user.isBanned || user.sessionVersion !== session.sv || (await isRevoked(session))) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { BadgeCheck, Briefcase, CheckCircle2, MapPin, Search, Sparkles, UserRound, Wallet, Wrench, X, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Briefcase, CheckCircle2, Clapperboard, Clock3, MapPin, Search, Sparkles, UserRound, Wallet, Wrench, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import { buildHref } from "./Pagination";
 
@@ -18,6 +18,9 @@ export interface ActiveFilterValues {
   /** Ko'nikma (F50) va jihoz (F51) */
   skill?: string;
   equipment?: string;
+  /** Ish turi (F52) va "Hozir ochiq" (F42) */
+  workType?: string;
+  openNow?: "1";
 }
 
 interface ChipDef {
@@ -69,6 +72,8 @@ export function ActiveFilters({
   if (filter.available === "1") chips.push({ keys: ["available"], label: "Hozir bo'sh", icon: CheckCircle2 });
   if (filter.skill) chips.push({ keys: ["skill"], label: `Ko'nikma: ${filter.skill}`, icon: Sparkles });
   if (filter.equipment) chips.push({ keys: ["equipment"], label: `Jihoz: ${filter.equipment}`, icon: Wrench });
+  if (filter.workType) chips.push({ keys: ["workType"], label: WORK_TYPE_BY_SLUG[filter.workType]?.label ?? filter.workType, icon: Clapperboard });
+  if (filter.openNow === "1") chips.push({ keys: ["openNow"], label: "Hozir ochiq", icon: Clock3 });
 
   if (chips.length === 0) return null;
 

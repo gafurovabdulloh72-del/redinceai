@@ -6,7 +6,10 @@ import {
   ArrowUpRight,
   BadgePercent,
   Banknote,
+  ChartColumn,
   ClipboardList,
+  CreditCard,
+  Crown,
   Flag,
   Hourglass,
   Landmark,
@@ -15,6 +18,7 @@ import {
   Receipt,
   Scale,
   ScrollText,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   UserCheck,
@@ -22,8 +26,10 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { AdminAnalytics } from "@/components/admin/AdminAnalytics";
 import { AdminBanToggle } from "@/components/admin/AdminBanToggle";
 import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
+import { AdminFraudSignals } from "@/components/admin/AdminFraudSignals";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
 import { AdminPayoutsQueue, type AdminPayoutRow } from "@/components/admin/AdminPayoutsQueue";
 import { AdminReports } from "@/components/admin/AdminReports";
@@ -37,8 +43,11 @@ import { listOpenDisputes } from "@/lib/payments/disputes";
 import { getAdminFinance, listAdminPayments, listAdminPayouts } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
 import { getAdminOverview } from "@/lib/queries";
+import { getSubscriptionRevenueSummary } from "@/lib/subscriptions/queries";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
-import { banFlagsFor, listAdminReports, listAdminReviews } from "./queries";
+import { getAdminAnalytics } from "./analytics";
+import { getFraudSignals } from "./fraud";
+import { banFlagsFor, listAdminReports, listAdminReviews, listSettingsHistory } from "./queries";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +97,7 @@ export default async function AdminPage() {
   if (!user) redirect(await loginRedirectPath("/admin"));
   if (user.role !== "admin") redirect("/kabinet");
 
-  const [{ stats, pending, latestUsers, latestOrders }, finance, payouts, payments, settings, disputes, reviewsLatest, reports] = await Promise.all([
+  const [{ stats, pending, latestUsers, latestOrders }, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
     getAdminOverview(),
     getAdminFinance(),
     listAdminPayouts(),
@@ -97,6 +106,10 @@ export default async function AdminPage() {
     listOpenDisputes(),
     listAdminReviews(30),
     listAdminReports("all", 60),
+    getAdminAnalytics(),
+    getFraudSignals(),
+    listSettingsHistory(12),
+    getSubscriptionRevenueSummary(),
   ]);
   const bans = await banFlagsFor(pending.map((sp) => sp.userId));
 
@@ -199,12 +212,14 @@ export default async function AdminPage() {
 
   const sections = [
     { href: "#moliya", label: "Moliya", icon: Wallet },
+    { href: "#analitika", label: "Analitika", icon: ChartColumn },
     { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
     { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
     { href: "#payoutlar", label: "Payout so'rovlari", icon: Banknote, count: openPayouts },
     { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
     { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pending.length },
     { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
+    { href: "#shubhali", label: "Shubhali faollik", icon: ShieldAlert, count: fraud.total },
     { href: "#sharhlar", label: "Sharhlar", icon: MessageSquareText },
   ];
 
@@ -222,6 +237,10 @@ export default async function AdminPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
+            <CreditCard size={14} /> Obunalar
+            {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
+          </ButtonLink>
           <ButtonLink href="/admin/audit" variant="outline" size="sm">
             <ScrollText size={14} /> Audit jurnali
           </ButtonLink>
@@ -272,15 +291,37 @@ export default async function AdminPage() {
               Platforma <span className="accent-serif text-accent">daromadi</span>
             </>
           }
-          description={`Komissiya darajalari: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Daromad — faqat yakunlangan (released) to'lovlar komissiyasi; eskroudagi komissiya qaytarilishi mumkin.`}
+          description={`Komissiya darajalari: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Platforma daromadi — faqat yakunlangan (released) to'lovlar komissiyasi; eskroudagi komissiya qaytarilishi mumkin. Obuna daromadi — mutaxassislarning oylik obuna to'lovlari (${formatPrice(settings.subscriptionPrice)} / oy).`}
         />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.releasedCount} ta yakunlangan to'lovdan`} hintTone="success" />
+          <Tile
+            icon={Crown}
+            value={money(subRevenue.revenueTotal)}
+            label="Obuna daromadi"
+            hint={subRevenue.pendingManual > 0 ? `${subRevenue.pendingManual} ta o'tkazma tasdiq kutmoqda` : `Bu oy: ${money(subRevenue.revenueMonth)}`}
+            hintTone={subRevenue.pendingManual > 0 ? "warning" : "success"}
+            href="/admin/obunalar"
+          />
           <Tile icon={Hourglass} value={money(finance.escrowCommission)} label="Eskroudagi komissiya" hint={finance.paidCount > 0 ? `${finance.paidCount} ta to'lov eskrouda · hali daromad emas` : "Eskrou bo'sh"} hintTone={finance.paidCount > 0 ? "warning" : "neutral"} />
           <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint={`${finance.paymentsCount} ta to'lov (eskrou + yakunlangan)`} />
           <Tile icon={Landmark} value={money(finance.payoutsPaid)} label="To'langan payoutlar" hint={`O'tkazilgan jami: ${money(finance.released)}`} />
           <Tile icon={Banknote} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
         </div>
+      </section>
+
+      {/* ---------- Analitika (F86) ---------- */}
+      <section id="analitika" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Analitika"
+          title={
+            <>
+              Trendlar va <span className="accent-serif text-accent">voronka</span>
+            </>
+          }
+          description="Daromad = yakunlangan to'lovlar komissiyasi + obuna to'lovlari. Ustun yoki nuqta ustiga olib boring (klaviaturada — strelkalar) yoki jadval ko'rinishiga o'ting."
+        />
+        <AdminAnalytics data={analytics} />
       </section>
 
       {/* ---------- Nizolar ---------- */}
@@ -300,12 +341,12 @@ export default async function AdminPage() {
 
       {/* ---------- Sozlamalar ---------- */}
       <section id="sozlamalar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="Sozlamalar" title="Komissiya darajalari va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Limitlar yangi buyurtma va payout so'rovlariga qo'llanadi." />
+        <SectionHeading eyebrow="Sozlamalar" title="Komissiya, obuna va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Mutaxassislar oylik obuna to'laydi, mijozlar bepul. Har bir o'zgarish tarixda saqlanadi." />
         <div className="grid gap-5 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <PlatformSettingsForm initial={settings} />
+          <div className="min-w-0 lg:col-span-2">
+            <PlatformSettingsForm initial={settings} history={settingsHistory} />
           </div>
-          <div className="card p-5 sm:p-6">
+          <div className="card self-start p-5 sm:p-6">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Hozirgi qiymatlar</p>
             <dl className="mt-3 divide-y divide-line text-[14px]">
               <div className="flex items-center justify-between py-2.5">
@@ -327,6 +368,22 @@ export default async function AdminPage() {
               <div className="flex items-center justify-between py-2.5">
                 <dt className="text-fg-2">Minimal payout</dt>
                 <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minPayout)}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Obuna (oyiga)</dt>
+                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.subscriptionPrice)}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Sinov / imtiyoz</dt>
+                <dd className="font-semibold text-fg tabular-nums">
+                  {settings.subscriptionTrialDays} / {settings.subscriptionGraceDays} kun
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Obuna talabi</dt>
+                <dd>
+                  <Badge tone={settings.subscriptionEnforced === 1 ? "success" : "neutral"}>{settings.subscriptionEnforced === 1 ? "Yoqilgan" : "O'chirilgan"}</Badge>
+                </dd>
               </div>
             </dl>
             <p className="mt-3 text-[12px] leading-snug text-fg-3">O'zgarishlar audit jurnaliga yoziladi.</p>
@@ -394,6 +451,21 @@ export default async function AdminPage() {
           }
         />
         <AdminReports rows={reports} />
+      </section>
+
+      {/* ---------- Shubhali faollik (F89) ---------- */}
+      <section id="shubhali" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Xavfsizlik"
+          title="Shubhali faollik"
+          description="Avtomatik signallar — ayblov emas: bitta ofis yoki oila bir IP'dan kirishi mumkin. Audit jurnalini ko'rib chiqing, kerak bo'lsa bloklang (sessiyalar bekor qilinadi, profil yashiriladi)."
+          action={
+            <Badge tone={fraud.total > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {fraud.total > 0 ? `${fraud.total} ta signal` : "Signal yo'q"}
+            </Badge>
+          }
+        />
+        <AdminFraudSignals data={fraud} />
       </section>
 
       {/* ---------- Sharhlar ---------- */}

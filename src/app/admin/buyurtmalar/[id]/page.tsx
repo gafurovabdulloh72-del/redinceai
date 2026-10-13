@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { ArrowLeft, Ban, CalendarClock, ClipboardList, ExternalLink, History, Mail, Phone, Receipt, Scale, ScrollText, TimerReset, Wallet } from "lucide-react";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { ArrowLeft, Ban, CalendarClock, ClipboardList, ExternalLink, History, Mail, MessageSquare, Package, Paperclip, Phone, Receipt, Scale, ScrollText, TimerReset, Video, Wallet, Zap } from "lucide-react";
 import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
+import { AttachmentList, OrderChat } from "@/components/chat/OrderChat";
 import { ORDER_PAYMENT_TONE } from "@/components/payments/tones";
 import { Avatar, Badge, ButtonLink, SectionHeading, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
-import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
+import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUS_LABEL, PACKAGE_TIERS, type OrderStatus } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { auditLogs, orderEvents, orders, payments, users } from "@/lib/db/schema";
+import { auditLogs, messages, orderEvents, orders, payments, users } from "@/lib/db/schema";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { labelFor } from "../../queries";
 
@@ -59,6 +60,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       specialist: { columns: { id: true, slug: true }, with: { user: { columns: { name: true } } } },
     },
   });
+
+  const [{ n: messageCount } = { n: 0 }] = await db.select({ n: count() }).from(messages).where(eq(messages.orderId, order.id));
+  const packageLabel = order.packageKey ? (PACKAGE_TIERS.find((t) => t.key === order.packageKey)?.label ?? order.packageKey) : null;
+  const meetingHref = order.meetingUrl && /^https:\/\//i.test(order.meetingUrl) ? order.meetingUrl : null;
+  const hasExtras = Boolean(packageLabel || order.urgent || order.dueDate || meetingHref || order.attachments.length);
 
   const events = await db.query.orderEvents.findMany({ where: eq(orderEvents.orderId, order.id), orderBy: [asc(orderEvents.createdAt)], limit: 200, with: { actor: { columns: { name: true } } } });
 
@@ -235,7 +241,56 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                 </dd>
               </div>
             </dl>
+            {hasExtras && (
+              <div className="mt-4 space-y-3 border-t border-line pt-4 text-[13px]">
+                <div className="flex flex-wrap gap-2">
+                  {packageLabel && (
+                    <Badge tone="neutral" className="!px-3 !py-1.5">
+                      <Package size={12} /> Paket: {packageLabel}
+                    </Badge>
+                  )}
+                  {order.urgent && (
+                    <Badge tone="warning" className="!px-3 !py-1.5">
+                      <Zap size={12} /> Shoshilinch{order.urgentFee ? ` · +${formatPrice(order.urgentFee)}` : ""}
+                    </Badge>
+                  )}
+                  {order.dueDate && (
+                    <Badge tone="neutral" className="!px-3 !py-1.5">
+                      <CalendarClock size={12} /> Topshirish: {formatDate(order.dueDate)}
+                    </Badge>
+                  )}
+                  {meetingHref && (
+                    <a href={meetingHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+                      <Video size={13} /> Uchrashuv havolasi <ExternalLink size={12} className="text-fg-4" />
+                    </a>
+                  )}
+                </div>
+                {order.attachments.length > 0 && (
+                  <div>
+                    <p className="mb-2 inline-flex items-center gap-1 text-fg-4">
+                      <Paperclip size={12} /> Biriktirilgan fayllar ({order.attachments.length})
+                    </p>
+                    <AttachmentList items={order.attachments} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Chat (faqat o'qish — admin xabar yubormaydi; API POST'da 403) */}
+          <section id="chat" className="scroll-mt-28">
+            <SectionHeading
+              eyebrow="Chat"
+              title="Tomonlar yozishmasi"
+              description="Faqat o'qish uchun. Nizoni hal qilishda kelishuvlar va topshirilgan fayllarni shu yerdan tekshiring."
+              action={
+                <span className="inline-flex items-center gap-1.5 self-start text-[12px] font-semibold text-fg-3 sm:self-auto">
+                  <MessageSquare size={14} /> {messageCount} ta xabar
+                </span>
+              }
+            />
+            <OrderChat orderId={order.id} role="admin" counterpartName={`${order.client.name} · ${order.specialist.user.name}`} initialCount={messageCount} defaultOpen={order.disputeState === "open"} />
+          </section>
 
           {/* Nizo */}
           {disputeRows.length > 0 && (

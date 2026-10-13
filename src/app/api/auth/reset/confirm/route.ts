@@ -11,7 +11,7 @@ import { consumePasswordReset } from "@/lib/security/tokens";
 
 /**
  * Yangi parol o'rnatish (emaildagi token bilan). Token bir martalik; barcha eski sessiyalar
- * bekor qilinadi va foydalanuvchi shu qurilmada kiritiladi.
+ * bekor qilinadi va foydalanuvchi shu qurilmada kiritiladi (2FA yoqilgan bo'lsa — yo'q: requiresLogin).
  */
 export const POST = handler(async (req) => {
   await enforceLimit("resetConfirm", clientIp(req));
@@ -25,7 +25,9 @@ export const POST = handler(async (req) => {
 
   await db.update(users).set({ passwordHash: await hashPassword(input.newPassword), passwordChangedAt: new Date(), lastLoginAt: new Date() }).where(eq(users.id, user.id));
   const sv = await bumpSessionVersion(user.id);
-  await createSession({ id: user.id, role: user.role, name: user.name, sessionVersion: sv }, { remember: false });
   await audit(user.id, "password_reset", { targetType: "user", targetId: user.id }, req);
-  return ok({ reset: true, name: user.name, role: user.role });
+  // 2FA yoqilgan bo'lsa email orqali tiklash ikkinchi omilni chetlab o'tmasin — kirish sahifasida kod bilan kiradi
+  if (user.totpEnabled) return ok({ reset: true, name: user.name, role: user.role, requiresLogin: true });
+  await createSession({ id: user.id, role: user.role, name: user.name, sessionVersion: sv }, { remember: false });
+  return ok({ reset: true, name: user.name, role: user.role, requiresLogin: false });
 });

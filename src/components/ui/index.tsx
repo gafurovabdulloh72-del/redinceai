@@ -17,7 +17,7 @@ const variantClass: Record<Variant, string> = {
   "tint-soft": "bg-accent-soft text-accent-text font-semibold hover:brightness-105 active:scale-[0.97] transition",
   ghost: "text-fg-2 hover:bg-fg/6 hover:text-fg active:scale-[0.97] transition",
   outline: "border border-line-2 text-fg hover:border-fg hover:bg-fg/4 active:scale-[0.97] transition",
-  danger: "bg-danger text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
+  danger: "bg-danger-strong text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
 };
 const sizeClass: Record<Size, string> = {
   sm: "h-9 px-3.5 text-[13px] gap-1.5",

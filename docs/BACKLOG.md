@@ -459,8 +459,8 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 19. ✅ JWT fallback kaliti xom Turso token (kalitni qayta ishlatish)
 20. ✅ Email tasdiqlash yo'q — "ro'yxatdan o'tganlarga" darajasi tashlanma akkauntga ham ochiq
 21. ✅ PUT /api/profile va /api/privacy uchun per-user rate limit yo'q
-22. 2FA (TOTP) yo'q — admin akkaunt faqat parol bilan
-23. Faol sessiyalar ro'yxati yo'q — faqat "hammasidan chiqish"
+22. ✅ 2FA (TOTP) yo'q — admin akkaunt faqat parol bilan
+23. ✅ Faol sessiyalar ro'yxati yo'q — faqat "hammasidan chiqish"
 
 ### Ruxsat va maxfiylik
 24. ✅ GET /api/orders mutaxassisning to'liq qatorini qaytaradi (yashirin Instagram, jadval, sozlamalar, userId)
@@ -514,15 +514,15 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 68. ✅ Bekor qilish sababi faqat bildirishnoma matnida saqlanadi — UI yo'q
 69. ✅ Telefon +998 formatiga normalizatsiya qilinmaydi
 70. ✅ Kirill qidiruv ishlamaydi (transliteratsiya jadvali bor, ishlatilmaydi)
-71. notify() email yubormaydi (Resend ulangan, faqat parol tiklashda)
+71. ✅ notify() email yubormaydi (Resend ulangan, faqat parol tiklashda)
 72. Bosh sahifa xarita tanlovi URL'ga yozilmaydi — ✅ ?region=&category=&gender=#xarita (history.replaceState, Suspense ichida)
 73. ✅ Bir nechta joyda nisbiy vaqt <time dateTime>siz
 74. ✅ Buyurtma holati tarixi saqlanmaydi
 75. ✅ rate_limits va audit_logs jadvallari tozalanmaydi (cheksiz o'sadi)
-76. Migratsiya tizimi yo'q (drizzle push --force)
-77. Avtotestlar va CI yo'q
+76. ✅ Migratsiya tizimi yo'q (drizzle push --force) — ✅ siyosat: docs/DEPLOY.md §7 (faqat additive push, destruktiv — expand/migrate/contract, staging'da `push --strict`)
+77. ✅ Avtotestlar va CI — .github/workflows/ci.yml (tsc, lint, db-prepare, next build, smoke) + scripts/smoke.mjs (`npm run test:smoke`)
 78. Xatolar monitoringi (Sentry) va analitika yo'q
-79. Backup strategiyasi yo'q
+79. ✅ Backup strategiyasi — docs/DEPLOY.md §6 (Turso PITR + kunlik `turso db shell .dump`, off-site, oylik tiklash sinovi)
 80. Fayl saqlash Vercel Blob'ga bog'liq, S3/R2 yo'q
 
 ### Vizual / UX
@@ -556,7 +556,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 4. ✅ Sharh faqat buyurtma qabul qilingan mijozdan + "Buyurtma tasdiqlangan" belgisi
 5. Xarita panellarida (bosh sahifa va /xarita) jins filtri — ✅ segment (ro'yxatni filtrlaydi, xarita ranglari umumiy)
 6. ✅ Buyurtma kartasida "O'tkazma yuborildi — tasdiq kutilmoqda" holati va /tolov havolasi
-7. Email bildirishnomalar (Resend) muhim hodisalar uchun
+7. ✅ Email bildirishnomalar (Resend) muhim hodisalar uchun
 8. ✅ Kirill→lotin transliteratsiya bilan qidiruv
 9. ✅ Telefon normalizatsiya (+998) va chiroyli format
 10. ✅ Profil uchun dinamik OG rasm (ism, kasb, hudud, reyting)
@@ -567,7 +567,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 15. ✅ Bekor qilish sababini buyurtma kartasida ko'rsatish
 
 ### To'lov va moliya
-16. Narx taklifi / qarshi taklif (mijoz narxni rad etib o'z taklifini yuboradi)
+16. ✅ Narx taklifi / qarshi taklif (mijoz narxni rad etib o'z taklifini yuboradi)
 17. Milestone (bosqichli) to'lovlar
 18. ✅ Avto-release: mijoz 7 kun ichida javob bermasa pul mutaxassisga
 19. ✅ Nizo markazi: mijoz/mutaxassis nizo ochadi, admin arbitraj qiladi
@@ -580,26 +580,26 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 26. Mijoz depoziti (balans) va qaytarish
 27. Avtomatik payout (bank/merchant API)
 28. ✅ Narx qo'yishda "Siz olasiz: X so'm" oldindan ko'rsatkich
-29. Oylik daromad hisoboti PDF mutaxassis uchun
-30. Shoshilinch buyurtma (ustama bilan)
-31. Xizmat paketlari (Basic / Standard / Premium) Fiverr uslubida
+29. ✅ Oylik daromad hisoboti — /kabinet/hisobot?oy=YYYY-MM (bajarilgan, yalpi, komissiya, sof, payoutlar, obuna; chop etish / PDF)
+30. ✅ Shoshilinch buyurtma (ustama bilan)
+31. ✅ Xizmat paketlari (Basic / Standard / Premium) Fiverr uslubida
 32. Mutaxassis Pro obunasi (ko'proq ko'rinish, statistika)
 33. Profilni ko'tarish (boost) to'lovli
 
 ### Buyurtma va muloqot
-34. Ichki chat (matn + fayl)
-35. Buyurtmaga fayl biriktirish (brief, TZ, referens)
+34. ✅ Ichki chat (matn + fayl)
+35. ✅ Buyurtmaga fayl biriktirish (brief, TZ, referens)
 36. ✅ Buyurtma holati timeline (tarix bilan)
-37. Muddat yaqinlashganda eslatmalar
-38. SLA: 24 soatda javob bo'lmasa avtomatik eslatma/bekor
-39. Tez javob shablonlari
-40. Video qo'ng'iroq havolasi (Meet/Zoom) buyurtma ichida
-41. Bandlik kalendari va sana bron qilish
-42. "Hozir ochiq" filtri (ish vaqti asosida)
+37. ✅ Muddat yaqinlashganda eslatmalar
+38. ✅ SLA: 24 soatda javob bo'lmasa avtomatik eslatma/bekor
+39. ✅ Tez javob shablonlari
+40. ✅ Video qo'ng'iroq havolasi (Meet/Zoom) buyurtma ichida
+41. ✅ Bandlik kalendari va sana bron qilish
+42. ✅ "Hozir ochiq" filtri (ish vaqti asosida)
 43. ✅ Mutaxassis javobi sharhga
-44. Ko'p mezonli reyting (sifat, muddat, muloqot)
-45. Sharhga rasm/video biriktirish
-46. NPS / "Tavsiya qilaman" so'rovi
+44. ✅ Ko'p mezonli reyting (sifat, muddat, muloqot)
+45. ✅ Sharhga rasm/video biriktirish
+46. ✅ NPS / "Tavsiya qilaman" so'rovi
 47. ✅ Takroriy buyurtma (bir bosishda qayta buyurtma)
 48. ✅ Mijozning "Mening mutaxassislarim" ro'yxati
 
@@ -607,9 +607,9 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 49. ✅ Qidiruv autocompletion (ism, ko'nikma, shahar)
 50. ✅ Ko'nikma (skills) bo'yicha filtr
 51. ✅ Jihozlar filtri (dron, kamera turi, studiya)
-52. Ish turi filtri (to'y, reklama, korporativ, kontent)
-53. Saqlangan qidiruv va "yangi mutaxassis chiqsa xabar ber"
-54. Taqqoslash (2–3 mutaxassis yonma-yon)
+52. ✅ Ish turi filtri (to'y, reklama, korporativ, kontent)
+53. ✅ Saqlangan qidiruv va "yangi mutaxassis chiqsa xabar ber"
+54. ✅ Taqqoslash (2–3 mutaxassis yonma-yon)
 55. Xaritada zoom/pan va tumanlar darajasi — ✅ /xarita: zoom/pan (tugmalar, Ctrl/⌘+g'ildirak, pinch, surish, 1–3x); tumanlar darajasi — yo'q
 56. Xaritada klasterlar / issiqlik xaritasi
 57. "Menga yaqin" geolokatsiya — ✅ /xarita: navigator.geolocation → nuqta hudud ichidami (poligon) yoki eng yaqin markaz → tanlanadi; rad etilsa/aniqlanmasa tushunarli xabar
@@ -618,47 +618,61 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 60. ✅ Sitemap'da kategoriya/hudud sahifalari va lastmod
 
 ### Profil va kontent
-61. Portfolio video inline o'ynatish (YouTube/Vimeo), Instagram reels
-62. "Oldin/keyin" slayder (montaj, retush, dizayn)
-63. Portfolio teglari va kategoriyalari
-64. Sertifikatlar/litsenziyalar bo'limi (dron ruxsatnomasi)
+61. ✅ Portfolio video inline o'ynatish (YouTube/Vimeo), Instagram reels
+62. ✅ "Oldin/keyin" slayder (montaj, retush, dizayn)
+63. ✅ Portfolio teglari va kategoriyalari
+64. ✅ Sertifikatlar/litsenziyalar bo'limi (dron ruxsatnomasi)
 65. Jamoa/studiya profillari (bir nechta a'zo)
-66. QR-kod vizitka va profil uchun qisqa havola
+66. ✅ QR-kod vizitka va profil uchun qisqa havola
 67. Profil tema/aksent tanlash (vitrina)
 68. ✅ Javob tezligi va "oxirgi faollik" ko'rsatkichi
 69. ✅ Top Rated nishoni avtomatik (reyting + bajarilgan ishlar)
-70. Narx kalkulyatori (soat/kun/loyiha)
+70. ✅ Narx kalkulyatori (soat/kun/loyiha)
 71. ✅ Onboarding wizard (bosqichma-bosqich) yangi mutaxassis uchun
-72. Mijoz uchun "Buyurtma sehrgari" (kategoriya → byudjet → hudud → tavsiya)
-73. Blog/maqolalar va yordam markazi (SEO)
-74. Mijoz e'lonlar doskasi (mijoz e'lon qiladi, mutaxassislar taklif beradi)
-75. Takliflar (proposal) tizimi va kunlik limit
+72. ✅ Mijoz uchun "Buyurtma sehrgari" (kategoriya → byudjet → hudud → tavsiya)
+73. ✅ Blog/maqolalar va yordam markazi (SEO) — ✅ yordam markazi /yordam (11 maqola, qidiruv, /yordam/[slug]); blog — yo'q
+74. ✅ Mijoz e'lonlar doskasi (mijoz e'lon qiladi, mutaxassislar taklif beradi)
+75. ✅ Takliflar (proposal) tizimi va kunlik limit
 
 ### Xavfsizlik va hisob
 76. ✅ Email tasdiqlash (OTP) va SMS tasdiqlash (Eskiz.uz)
-77. 2FA (TOTP) admin va mutaxassislar uchun
-78. Faol sessiyalar ro'yxati (qurilma, IP) va alohida chiqish
+77. ✅ 2FA (TOTP) admin va mutaxassislar uchun
+78. ✅ Faol sessiyalar ro'yxati (qurilma, IP) va alohida chiqish
 79. Google / Telegram / Apple orqali kirish
 80. ✅ Akkauntni o'chirish va ma'lumot eksporti (GDPR)
 81. ✅ Nonce asosidagi CSP
 82. ✅ Logout'da token denylist
 83. KYC: pasport/ID yuklash va admin tasdiqlash navbati
-84. Oferta/shartnoma qabul qilish (versiyalangan)
+84. ✅ Oferta/shartnoma qabul qilish (versiyalangan)
 85. ✅ Spam/shikoyat (report) tugmasi profil va sharhlarda
 
 ### Admin va operatsiya
-86. Admin dashboard grafiklar (daromad, buyurtmalar trendi)
+86. ✅ Admin dashboard grafiklar — /admin#analitika (kunlik daromad: komissiya + obuna, buyurtmalar, haftalik ro'yxatdan o'tish, top yo'nalish/hudud, voronka; jadval ko'rinishi)
 87. ✅ Foydalanuvchini bloklash / ogohlantirish
 88. ✅ Sharh moderatsiyasi navbati
-89. Fraud belgilari (bir IP'dan ko'p akkaunt, bir xil karta)
+89. ✅ Fraud belgilari — ✅ /admin#shubhali (bir IP'dan ≥3 akkaunt, o'z-o'ziga buyurtma, 24 soatda ko'p buyurtma/taklif, takroriy bekor qilish); bir xil karta — yo'q
 90. ✅ Audit jurnali filtrlari va CSV eksport
-91. Platforma sozlamalari tarixi (kim, qachon o'zgartirdi)
+91. ✅ Platforma sozlamalari tarixi — Admin → Sozlamalar «O'zgarishlar tarixi» (audit admin_settings: kim, qachon, kalit: eski → yangi)
 92. ✅ Status sahifasi (uptime) va /api/health DB tekshiruvi
 93. ✅ Fon vazifalari (cron): eskirgan Payme pending, rate_limits tozalash, eslatmalar
-94. E2E testlar (Playwright) va CI (GitHub Actions)
+94. ✅ E2E testlar (Playwright) va CI (GitHub Actions) — ✅ CI + smoke testlar (node:test); Playwright E2E — yo'q
 95. Sentry + log aggregatsiya
 96. Rasmlar uchun CDN/optimizatsiya (R2 + next/image)
-97. PWA: offline, web push bildirishnomalar
+97. ✅ PWA: offline, web push bildirishnomalar — ✅ offline (public/sw.js, /offline, manifest ikonka/shortcut'lar); web push — yo'q
 98. Rus va kirill tillari (i18n)
-99. USD ekvivalenti ko'rsatish
+99. ✅ USD ekvivalenti ko'rsatish
 100. Telegram bot: bildirishnomalar va tezkor javoblar
+
+
+## G. Oylik obuna (2026-10-13)
+
+Odamlar Redince'da bir-birini topib, keyin Telegram va boshqa joylarda davom etadi — faqat eskrou komissiyasiga tayanib bo'lmaydi.
+
+1. ✅ Mutaxassislar uchun oylik obuna: 50 000 so'm/oy (admin sozlamasi subscriptionPrice); mijozlar uchun platforma bepul; eskrou komissiyasi platforma ichidagi to'lovlar uchun saqlanadi
+2. ✅ Yangi mutaxassislarga bepul sinov muddati (standart 30 kun, subscriptionTrialDays) va tugagach muhlat (standart 3 kun, subscriptionGraceDays)
+3. ✅ Majburiy rejim (subscriptionEnforced): obunasiz profil katalog, xarita statistikasi/paneli, qidiruv takliflari, landing sahifalar va sitemap'dan yashiriladi; to'g'ridan-to'g'ri havolada kontaktlar yopiq va "Mutaxassis obunasi faol emas" xabari
+4. ✅ Obunasiz mutaxassis yangi buyurtma olmaydi (POST /api/orders → 403) va taklif yubora olmaydi; mavjud buyurtmalar va eskrou odatdagidek davom etadi
+5. ✅ Tariflar: 1, 3, 6, 12 oy chegirmalar bilan (SUBSCRIPTION_PLANS); /kabinet/obuna, /narxlar va /oferta'da narxlar sozlamalardan
+6. ✅ To'lov: Payme (account.order_id sub_…), Click (merchant_trans_id sub_…) va qo'lda o'tkazma ("To'ladim" → admin tasdiqlaydi); chop etiladigan obuna cheki
+7. ✅ Eslatmalar: tugashidan 3 kun va 1 kun oldin, tugaganda va muhlat tugaganda (kunlik cron, har bosqich bir marta); kabinetda banner va holat nuqtasi
+8. ✅ Admin: /admin/obunalar (daromad, MRR, holatlar bo'yicha filtr, muddatni uzaytirish, o'tkazmani tasdiqlash/rad etish, qaytarish), sozlamalar tarixi, analitikada obuna daromadi

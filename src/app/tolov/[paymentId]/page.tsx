@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, BadgePercent, Handshake, Lock, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowLeft, BadgePercent, Handshake, Lock, ShieldCheck, Wallet, Zap } from "lucide-react";
 import { Avatar, Badge } from "@/components/ui";
 import { CheckoutPanel } from "@/components/payments/CheckoutPanel";
 import { PAYMENT_TONE } from "@/components/payments/tones";
@@ -10,7 +10,8 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { PAYMENT_STATE_LABEL } from "@/lib/constants";
 import { availableProviders, siteOrigin } from "@/lib/payments/config";
 import { canViewPayment, loadPaymentDetail, toPaymentDto } from "@/lib/payments/dto";
-import { formatPrice } from "@/lib/utils";
+import { getSettings } from "@/lib/payments/settings";
+import { formatPrice, formatUsd } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "To'lov", robots: { index: false, follow: false } };
@@ -28,6 +29,8 @@ export default async function CheckoutPage({ params }: { params: Params }) {
 
   const dto = toPaymentDto(p, siteOrigin(await headers()));
   const providers = availableProviders();
+  // Dollar ekvivalenti (F99) — faqat ma'lumot uchun, to'lov so'mda
+  const usd = formatUsd(dto.amount, (await getSettings()).usdRate);
   const isPayer = p.clientId === user.id || user.role === "admin";
 
   const steps = [
@@ -80,10 +83,25 @@ export default async function CheckoutPage({ params }: { params: Params }) {
                   <dt className="text-fg-3">Buyurtma</dt>
                   <dd className="max-w-[60%] text-right font-medium text-fg">{dto.orderTitle}</dd>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-fg-3">Kelishilgan narx</dt>
-                  <dd className="font-medium text-fg tabular-nums">{formatPrice(dto.amount)}</dd>
-                </div>
+                {dto.urgentFee ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-fg-3">Asosiy narx</dt>
+                      <dd className="font-medium text-fg tabular-nums">{formatPrice(dto.amount - dto.urgentFee)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="inline-flex items-center gap-1.5 text-fg-3">
+                        <Zap size={14} className="text-warning-text" /> Shoshilinch ustama
+                      </dt>
+                      <dd className="font-medium text-fg tabular-nums">{formatPrice(dto.urgentFee)}</dd>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-fg-3">Kelishilgan narx</dt>
+                    <dd className="font-medium text-fg tabular-nums">{formatPrice(dto.amount)}</dd>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3">
                   <dt className="inline-flex items-center gap-1.5 text-fg-3">
                     <BadgePercent size={14} /> Xizmat haqi (platforma) {dto.commissionPct}%
@@ -93,7 +111,10 @@ export default async function CheckoutPage({ params }: { params: Params }) {
                 <p className="text-[12px] leading-snug text-fg-3">Xizmat haqi summaga kiritilgan — mutaxassis {formatPrice(dto.netAmount)} oladi, siz qo'shimcha to'lamaysiz.</p>
                 <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
                   <dt className="font-semibold text-fg">Jami to'lov</dt>
-                  <dd className="font-display text-[22px] font-semibold text-fg tabular-nums">{formatPrice(dto.amount)}</dd>
+                  <dd className="text-right">
+                    <span className="block font-display text-[22px] font-semibold text-fg tabular-nums">{formatPrice(dto.amount)}</span>
+                    {usd && <span className="block text-[12px] text-fg-3 tabular-nums">{usd}</span>}
+                  </dd>
                 </div>
               </dl>
 

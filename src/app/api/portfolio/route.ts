@@ -37,6 +37,9 @@ export const POST = handler(async (req) => {
     url: input.url,
     thumbnailUrl,
     description: input.description || null,
+    tags: input.tags ?? [],
+    // Oldin/keyin (F63): faqat rasm turida (sxema tekshiradi)
+    beforeUrl: input.type === "image" ? input.beforeUrl || null : null,
     sortOrder: (top ?? -1) + 1,
   });
   return ok({ id }, { status: 201 });

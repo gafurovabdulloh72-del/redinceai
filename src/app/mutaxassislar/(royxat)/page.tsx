@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { RotateCcw, UserPlus } from "lucide-react";
+import { RotateCcw, UserPlus, Wand2 } from "lucide-react";
 import { ButtonLink, PageHeader } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { SpecialistRow } from "@/components/specialists/SpecialistRow";
 import { Filters, MobileFilters, SortSelect, ViewToggle } from "@/components/specialists/Filters";
 import { ActiveFilters } from "@/components/specialists/ActiveFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
+import { SaveSearchButton } from "@/components/specialists/SaveSearchButton";
+import { CompareTray } from "@/components/specialists/CompareTray";
+import { describeSavedQuery, pickSavedParams } from "@/components/specialists/saved-search-label";
 import { REGIONS } from "@/lib/constants";
 import { getSession } from "@/lib/auth";
 import { getCategoryStats, getRegionStats, listSpecialists } from "@/lib/queries";
@@ -79,6 +82,8 @@ function filterToQuery(f: SpecialistFilter, extra: { view: View }): Record<strin
     available: f.available === "1" ? "1" : undefined,
     skill: f.skill || undefined,
     equipment: f.equipment || undefined,
+    workType: f.workType || undefined,
+    openNow: f.openNow === "1" ? "1" : undefined,
     sort: f.sort !== "rating" ? f.sort : undefined,
     view: extra.view === "list" ? "list" : undefined,
     limit: f.limit !== DEFAULT_LIMIT ? String(f.limit) : undefined,
@@ -159,8 +164,12 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
     filter.verified === "1" ||
     filter.available === "1" ||
     filter.skill ||
-    filter.equipment
+    filter.equipment ||
+    filter.workType ||
+    filter.openNow === "1"
   );
+  // Saqlanadigan qidiruv (F53): faqat filtr kalitlari (sahifa/ko'rinishsiz)
+  const savedQuery = pickSavedParams(new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => Boolean(e[1])))).toString();
   const { items, total, page, pages } = result;
   const from = total === 0 ? 0 : (page - 1) * filter.limit + 1;
   const to = Math.min(total, page * filter.limit);
@@ -178,6 +187,11 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           </>
         }
         description="Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx, tajriba va jins bo'yicha filtrlang, o'zingizga mosini toping."
+        action={
+          <ButtonLink href="/buyurtma-berish" variant="outline" size="md" className="self-start sm:self-auto">
+            <Wand2 size={16} className="text-accent" /> Buyurtma sehrgari
+          </ButtonLink>
+        }
       />
 
       <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 lg:grid-cols-12 lg:items-start">
@@ -220,7 +234,17 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             </div>
           </div>
 
-          <ActiveFilters filter={filter} query={query} basePath={BASE} className="mt-4" />
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <ActiveFilters filter={filter} query={query} basePath={BASE} className="min-w-0 flex-1" />
+            {hasFilters && (
+              <SaveSearchButton
+                query={savedQuery}
+                defaultName={describeSavedQuery(savedQuery)}
+                loggedIn={Boolean(session)}
+                loginHref={`/auth/kirish?next=${encodeURIComponent(buildHref(BASE, query))}`}
+              />
+            )}
+          </div>
 
           {/* Natijalar */}
           {items.length > 0 ? (
@@ -228,7 +252,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
               <ul key={gridKey} className="mt-5 space-y-2.5">
                 {items.map((sp, i) => (
                   <li key={sp.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 11) * 30}ms`, animationDuration: "0.4s" }}>
-                    <SpecialistRow sp={sp} />
+                    <SpecialistRow sp={sp} showCompare />
                   </li>
                 ))}
               </ul>
@@ -236,7 +260,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
               <div key={gridKey} className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((sp, i) => (
                   <div key={sp.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 11) * 35}ms`, animationDuration: "0.45s" }}>
-                    <SpecialistCard sp={sp} priority={i < 3} />
+                    <SpecialistCard sp={sp} priority={i < 3} showCompare />
                   </div>
                 ))}
               </div>
@@ -270,6 +294,8 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           <Pagination page={page} pages={pages} query={query} basePath={BASE} className="mt-10" />
         </section>
       </div>
+      {/* Taqqoslash paneli (F54) */}
+      <CompareTray />
     </div>
   );
 }

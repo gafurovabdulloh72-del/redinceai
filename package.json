@@ -16,7 +16,8 @@
     "start:railway": "sh scripts/start.sh",
     "db:seed:ifempty": "tsx src/lib/db/seed.ts --if-empty",
     "vercel-build": "node scripts/db-prepare.mjs && next build",
-    "db:prepare": "node scripts/db-prepare.mjs"
+    "db:prepare": "node scripts/db-prepare.mjs",
+    "test:smoke": "node --test scripts/smoke.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",

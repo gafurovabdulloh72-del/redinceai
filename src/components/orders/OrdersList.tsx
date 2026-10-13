@@ -17,6 +17,7 @@ import {
   Hourglass,
   Inbox,
   MessageSquareText,
+  Package,
   Pencil,
   Phone,
   Play,
@@ -28,12 +29,16 @@ import {
   TimerReset,
   Wallet,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { Avatar, Badge, Button, ButtonLink, EmptyState, Spinner, type BadgeTone } from "@/components/ui";
 import { PayButton } from "@/components/payments/PayButton";
+import { OrderChat } from "@/components/chat/OrderChat";
+import type { Attachment } from "@/components/chat/attachments";
+import { CounterOffer, MeetingLink, OrderAttachments, type CounterResult } from "./OrderExtras";
 import { ORDER_PAYMENT_TONE, type OrderPaymentState } from "@/components/payments/tones";
-import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUSES, ORDER_STATUS_LABEL, type OrderStatus, type PaymentProvider } from "@/lib/constants";
+import { ORDER_PAYMENT_STATE_LABEL, ORDER_STATUSES, ORDER_STATUS_LABEL, PACKAGE_TIERS, type OrderStatus, type PaymentProvider } from "@/lib/constants";
 import { cn, formatDate, formatDateTime, formatNumber, formatPrice, formatUzPhone, normalizeUzPhone, timeAgo } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -69,6 +74,23 @@ export interface OrderItem {
   disputeBy?: "client" | "specialist" | null;
   /** Avtomatik qabul muddati (ms): mijoz shu vaqtgacha javob bermasa eskrou mutaxassisga o'tadi */
   autoReleaseAt?: number | null;
+  /** Shoshilinch buyurtma (F30): amount = asosiy narx + urgentFee */
+  urgent?: boolean;
+  urgentFee?: number | null;
+  /** Tanlangan paket (F31) */
+  packageKey?: "basic" | "standard" | "premium" | null;
+  /** Topshirish sanasi YYYY-MM-DD (F37) */
+  dueDate?: string | null;
+  /** Video qo'ng'iroq havolasi (F40) */
+  meetingUrl?: string | null;
+  /** Biriktirilgan fayllar (F35) */
+  attachments?: Attachment[];
+  /** Mijozning narx taklifi (F16) — asosiy narx, ustamasiz */
+  counterAmount?: number | null;
+  counterBy?: "client" | "specialist" | null;
+  /** Chat: xabarlar soni va qarshi tomondan o'qilmaganlar (F34) */
+  chatCount?: number;
+  chatUnread?: number;
   /** Qarshi tomon: mutaxassis uchun — mijoz, mijoz uchun — mutaxassis */
   counterpart: {
     name: string;
@@ -82,7 +104,12 @@ export interface OrderItem {
 export type Tab = "incoming" | "outgoing";
 type Filter = OrderStatus | "all";
 export type DisputeState = "none" | "open" | "resolved";
-type Patch = Partial<Pick<OrderItem, "status" | "amount" | "paymentState" | "completedAt" | "commissionPct" | "cancelReason" | "disputeState" | "disputeReason" | "disputeBy" | "autoReleaseAt">>;
+type Patch = Partial<
+  Pick<
+    OrderItem,
+    "status" | "amount" | "paymentState" | "completedAt" | "commissionPct" | "cancelReason" | "disputeState" | "disputeReason" | "disputeBy" | "autoReleaseAt" | "urgentFee" | "counterAmount" | "counterBy" | "meetingUrl" | "attachments"
+  >
+>;
 /** Sahifa bermagan qo'shimcha maydonlar (/api/orders yoki /api/orders/[id]/events dan) */
 type Extras = Pick<OrderItem, "cancelReason" | "disputeState" | "disputeReason" | "disputeBy" | "autoReleaseAt">;
 
@@ -192,6 +219,8 @@ export function OrdersList({
   providers,
   commissionPct,
   minOrderAmount,
+  urgentPct = 20,
+  openChatId = null,
 }: {
   incoming: OrderItem[];
   outgoing: OrderItem[];
@@ -203,6 +232,10 @@ export function OrdersList({
   providers: PaymentProvider[];
   commissionPct: number;
   minOrderAmount: number;
+  /** Shoshilinch ustama foizi (platforma sozlamasi) */
+  urgentPct?: number;
+  /** ?id=…&chat=1 — shu buyurtma chati ochiq holda */
+  openChatId?: string | null;
 }) {
   const router = useRouter();
   const inIncoming = Boolean(highlightId && incoming.some((o) => o.id === highlightId));
@@ -329,11 +362,11 @@ export function OrdersList({
     setError(null);
     setBusyId(o.id);
     try {
-      const data = await call<{ amount: number; paymentState: OrderPaymentState; commissionPct: number }>(`/api/orders/${o.id}/amount`, {
+      const data = await call<{ amount: number; urgentFee?: number | null; paymentState: OrderPaymentState; commissionPct: number }>(`/api/orders/${o.id}/amount`, {
         method: "PATCH",
         body: JSON.stringify({ amount }),
       });
-      patch(o, { amount: data.amount, paymentState: data.paymentState, commissionPct: data.commissionPct });
+      patch(o, { amount: data.amount, urgentFee: data.urgentFee ?? null, paymentState: data.paymentState, commissionPct: data.commissionPct, counterAmount: null, counterBy: null });
       router.refresh();
       return null;
     } catch (e) {
@@ -509,9 +542,15 @@ export function OrdersList({
               }}
               onDispute={(why) => openDispute(o, why)}
               onExtras={(e) => setExtra(o.id, e)}
+              onPatch={(p) => {
+                patch(o, p);
+                if (p.amount !== undefined) router.refresh();
+              }}
               providers={providers}
               commissionPct={o.commissionPct ?? commissionPct}
               minOrderAmount={minOrderAmount}
+              urgentPct={urgentPct}
+              chatOpen={openChatId === o.id}
               highlighted={flash === o.id}
               refCb={(el) => {
                 cardRefs.current[o.id] = el;
@@ -531,24 +570,30 @@ function AmountForm({
   order: o,
   commissionPct,
   minOrderAmount,
+  urgentPct,
   busy,
   onSave,
 }: {
   order: OrderItem;
   commissionPct: number;
   minOrderAmount: number;
+  urgentPct: number;
   busy: boolean;
   onSave: (amount: number) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(o.amount == null && o.status === "accepted");
-  const [draft, setDraft] = useState(o.amount != null ? formatNumber(o.amount) : o.budget ? formatNumber(o.budget) : "");
+  // Shoshilinch buyurtmada maydon — asosiy narx (ustama server tomonda qo'shiladi)
+  const baseNow = o.amount != null ? o.amount - (o.urgentFee ?? 0) : null;
+  const [draft, setDraft] = useState(baseNow != null ? formatNumber(baseNow) : o.budget ? formatNumber(o.budget) : "");
   const [err, setErr] = useState<string | null>(null);
   /** Mutaxassis darajasiga qarab foiz (yangi / oddiy / top) — serverdan bir marta (F21/F28) */
   const [tier, setTier] = useState<{ pct: number; tier: "new" | "standard" | "top" } | null>(null);
   const value = Number(draft.replace(/\D/g, "")) || 0;
   const pct = tier?.pct ?? commissionPct;
-  const commission = Math.round((value * pct) / 100);
-  const net = value - commission;
+  const fee = o.urgent ? Math.round((value * urgentPct) / 100) : 0;
+  const total = value + fee;
+  const commission = Math.round((total * pct) / 100);
+  const net = total - commission;
   const inputId = `amount-${o.id}`;
 
   useEffect(() => {
@@ -590,7 +635,7 @@ function AmountForm({
   return (
     <div className="card-outline w-full !rounded-[18px] p-3.5 sm:p-4">
       <label htmlFor={inputId} className="field-label">
-        Kelishilgan narx (so'm)
+        {o.urgent ? "Asosiy narx (so'm)" : "Kelishilgan narx (so'm)"}
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -627,6 +672,11 @@ function AmountForm({
         <p id={`${inputId}-hint`} className="mt-2 text-[12px] leading-snug text-fg-3">
           {value > 0 ? (
             <>
+              {fee > 0 && (
+                <span className="mb-0.5 block">
+                  Shoshilinch ustama +{urgentPct}%: {formatPrice(fee)} · mijoz to'laydi <span className="font-semibold text-fg">{formatPrice(total)}</span>
+                </span>
+              )}
               <span className="font-semibold text-fg">Siz olasiz: {formatPrice(net)}</span> (komissiya {pct}% — {formatPrice(commission)}), mijoz ishni qabul qilgach.
             </>
           ) : (
@@ -696,9 +746,12 @@ function OrderCard({
   onDisputeAsk,
   onDispute,
   onExtras,
+  onPatch,
   providers,
   commissionPct,
   minOrderAmount,
+  urgentPct,
+  chatOpen,
   highlighted,
   refCb,
 }: {
@@ -722,9 +775,13 @@ function OrderCard({
   onDispute: (reason: string) => Promise<string | null>;
   /** Tarix yuklanganda serverdan kelgan qo'shimcha maydonlar */
   onExtras: (e: Extras) => void;
+  /** Kartadagi kichik amallar (qarshi taklif, video havola, fayl) natijasi */
+  onPatch: (p: Patch) => void;
   providers: PaymentProvider[];
   commissionPct: number;
   minOrderAmount: number;
+  urgentPct: number;
+  chatOpen: boolean;
   highlighted: boolean;
   refCb: (el: HTMLElement | null) => void;
 }) {
@@ -749,6 +806,12 @@ function OrderCard({
   /** Nizo: jarayonda/yakunlangan + pul eskrouda; ochiq nizo bo'lsa tasdiqlash to'xtaydi */
   const canDispute = (o.status === "in_progress" || o.status === "done") && o.paymentState === "paid" && !disputeOpen;
   const autoRelease = !disputeOpen && o.status === "done" && o.paymentState === "paid" && o.autoReleaseAt ? o.autoReleaseAt : null;
+  const urgentFee = o.urgentFee ?? 0;
+  const baseAmount = o.amount != null ? o.amount - urgentFee : null;
+  /** Narx muhokamasi (F16): to'lov kutilmoqda, nizo yo'q, to'lov boshlanmagan */
+  const canCounter = o.paymentState === "awaiting" && o.amount != null && o.status !== "cancelled" && !disputeOpen && !o.openPayment;
+  const editableExtras = o.status !== "cancelled" && !(o.status === "done" && o.completedAt);
+  const pkgLabel = o.packageKey ? PACKAGE_TIERS.find((t) => t.key === o.packageKey)?.label : null;
   const [disputeText, setDisputeText] = useState("");
   const [disputeErr, setDisputeErr] = useState<string | null>(null);
 
@@ -756,7 +819,7 @@ function OrderCard({
     <article
       id={`order-${o.id}`}
       ref={refCb}
-      className={cn("card flex scroll-mt-32 flex-col p-4 transition sm:p-5", closed && "opacity-90", highlighted && "ring-2 ring-accent ring-offset-2 ring-offset-bg")}
+      className={cn("card flex min-w-0 scroll-mt-32 flex-col p-4 transition sm:p-5", closed && "opacity-90", highlighted && "ring-2 ring-accent ring-offset-2 ring-offset-bg")}
       aria-busy={busy}
     >
       {/* Yuqori qator: holat + vaqt */}
@@ -767,6 +830,11 @@ function OrderCard({
             {ORDER_STATUS_LABEL[o.status]}
           </Badge>
           {showPayment && o.paymentState !== "none" && <Badge tone={ORDER_PAYMENT_TONE[o.paymentState]}>{ORDER_PAYMENT_STATE_LABEL[o.paymentState]}</Badge>}
+          {o.urgent && (
+            <Badge tone="warning">
+              <Zap size={11} /> Shoshilinch
+            </Badge>
+          )}
         </div>
         <time dateTime={new Date(o.createdAt).toISOString()} className="shrink-0 text-[12px] text-fg-4" title={formatDateTime(o.createdAt)} suppressHydrationWarning>
           {timeAgo(o.createdAt)}
@@ -820,10 +888,23 @@ function OrderCard({
           <Wallet size={12} className="text-fg-3" />
           {o.budget ? `Byudjet ${formatPrice(o.budget, { compact: true })}` : "Byudjet kelishiladi"}
         </li>
-        {o.deadline && (
+        {o.dueDate ? (
           <li className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-fg-2">
             <CalendarClock size={12} className="text-fg-3" />
-            {o.deadline}
+            Topshirish: {formatDate(o.dueDate)}
+          </li>
+        ) : (
+          o.deadline && (
+            <li className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-fg-2">
+              <CalendarClock size={12} className="text-fg-3" />
+              {o.deadline}
+            </li>
+          )
+        )}
+        {pkgLabel && (
+          <li className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-fg-2">
+            <Package size={12} className="text-fg-3" />
+            Paket: {pkgLabel}
           </li>
         )}
         {isSpecialist && (
@@ -847,12 +928,20 @@ function OrderCard({
         )}
       </div>
 
+      {/* Fayllar (F35) */}
+      {(o.attachments?.length ?? 0) > 0 && <OrderAttachments orderId={o.id} items={o.attachments ?? []} editable={editableExtras} onChange={(attachments) => onPatch({ attachments })} />}
+
       {/* Narx va to'lov holati */}
       {showPayment && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface-2 px-3.5 py-2.5">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Kelishilgan narx</p>
             <p className="font-display text-[18px] font-semibold leading-tight text-fg">{o.amount != null ? formatPrice(o.amount) : "—"}</p>
+            {o.amount != null && urgentFee > 0 && baseAmount != null && (
+              <p className="mt-0.5 text-[12px] text-fg-3">
+                Asosiy {formatPrice(baseAmount)} + <span className="text-warning-text">shoshilinch ustama {formatPrice(urgentFee)}</span>
+              </p>
+            )}
             {o.amount != null && (
               <p className="mt-0.5 text-[12px] text-fg-3">
                 {o.status === "cancelled" ? (
@@ -892,6 +981,30 @@ function OrderCard({
               <Hourglass size={16} />
             )}
           </span>
+        </div>
+      )}
+      {canCounter && baseAmount != null && (
+        <CounterOffer
+          key={`${o.id}-${o.counterAmount ?? "none"}-${o.amount}`}
+          orderId={o.id}
+          isSpecialist={isSpecialist}
+          baseAmount={baseAmount}
+          counterAmount={o.counterAmount ?? null}
+          counterBy={o.counterBy ?? null}
+          urgent={Boolean(o.urgent)}
+          urgentPct={urgentPct}
+          minOrderAmount={minOrderAmount}
+          onChange={(r: CounterResult) =>
+            onPatch({ amount: r.amount, urgentFee: r.urgentFee, counterAmount: r.counterAmount, counterBy: r.counterBy, ...(r.commissionPct != null ? { commissionPct: r.commissionPct } : {}) })
+          }
+        />
+      )}
+
+      {/* Video qo'ng'iroq (F40) + fayl biriktirish (fayl hali yo'q bo'lsa) */}
+      {(o.meetingUrl || editableExtras) && (
+        <div className="mt-3 flex flex-wrap items-start gap-1.5">
+          <MeetingLink key={o.meetingUrl ?? "none"} orderId={o.id} url={o.meetingUrl ?? null} editable={editableExtras} onChange={(meetingUrl) => onPatch({ meetingUrl })} />
+          {editableExtras && !(o.attachments?.length ?? 0) && <OrderAttachments orderId={o.id} items={[]} editable onChange={(attachments) => onPatch({ attachments })} />}
         </div>
       )}
 
@@ -995,7 +1108,7 @@ function OrderCard({
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {canSetAmount && <AmountForm key={`${o.id}-${o.amount ?? "none"}`} order={o} commissionPct={commissionPct} minOrderAmount={minOrderAmount} busy={busy} onSave={onSetAmount} />}
+              {canSetAmount && <AmountForm key={`${o.id}-${o.amount ?? "none"}`} order={o} commissionPct={commissionPct} minOrderAmount={minOrderAmount} urgentPct={urgentPct} busy={busy} onSave={onSetAmount} />}
               <div className="flex flex-wrap items-center gap-2">
                 {pendingPayment ? (
                   <>
@@ -1108,6 +1221,14 @@ function OrderCard({
         </div>
       )}
 
+      <OrderChat
+        orderId={o.id}
+        role={isSpecialist ? "specialist" : "client"}
+        counterpartName={o.counterpart.name}
+        initialCount={o.chatCount ?? 0}
+        initialUnread={o.chatUnread ?? 0}
+        defaultOpen={chatOpen}
+      />
       <OrderTimeline orderId={o.id} onExtras={onExtras} />
     </article>
   );

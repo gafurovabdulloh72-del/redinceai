@@ -192,3 +192,45 @@ export async function banFlagsFor(userIds: string[]): Promise<Map<string, { isBa
   for (const r of rows) out.set(r.id, { isBanned: r.isBanned, bannedReason: r.bannedReason });
   return out;
 }
+
+/* ------------------------------------------------------------------ */
+/* Platforma sozlamalari tarixi (F91): audit "admin_settings" before/after */
+/* ------------------------------------------------------------------ */
+export interface SettingsChange {
+  key: string;
+  from: number | null;
+  to: number | null;
+}
+export interface SettingsHistoryEntry {
+  id: string;
+  at: number;
+  actor: { name: string; email: string } | null;
+  changes: SettingsChange[];
+}
+
+const numOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
+const asRecord = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+/** Oxirgi o'zgarishlar: faqat haqiqatan o'zgargan kalitlar (from → to). O'zgarishsiz saqlashlar tashlab yuboriladi. */
+export async function listSettingsHistory(limit = 15): Promise<SettingsHistoryEntry[]> {
+  const rows = await db
+    .select({ id: auditLogs.id, meta: auditLogs.meta, createdAt: auditLogs.createdAt, actorName: users.name, actorEmail: users.email })
+    .from(auditLogs)
+    .leftJoin(users, eq(auditLogs.actorId, users.id))
+    .where(eq(auditLogs.action, "admin_settings"))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit * 2);
+  const out: SettingsHistoryEntry[] = [];
+  for (const r of rows) {
+    const before = asRecord(r.meta?.before);
+    const after = asRecord(r.meta?.after);
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+    const changes = keys
+      .map((key) => ({ key, from: numOrNull(before[key]), to: numOrNull(after[key]) }))
+      .filter((c) => c.to !== null && c.from !== c.to);
+    if (!changes.length) continue;
+    out.push({ id: r.id, at: r.createdAt.getTime(), actor: r.actorName ? { name: r.actorName, email: r.actorEmail ?? "" } : null, changes });
+    if (out.length >= limit) break;
+  }
+  return out;
+}

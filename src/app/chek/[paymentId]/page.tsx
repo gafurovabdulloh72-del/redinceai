@@ -107,6 +107,18 @@ export default async function ReceiptPage({ params }: { params: Promise<{ paymen
         </dl>
 
         <dl className="mt-5 space-y-2 text-[14px]">
+          {p.order.urgent && p.order.urgentFee ? (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <dt className="print-muted text-fg-3">Asosiy narx</dt>
+                <dd className="print-muted shrink-0 whitespace-nowrap text-fg-3 tabular-nums">{formatPrice(p.amount - p.order.urgentFee)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <dt className="print-muted text-fg-3">Shoshilinch ustama</dt>
+                <dd className="print-muted shrink-0 whitespace-nowrap text-fg-3 tabular-nums">+ {formatPrice(p.order.urgentFee)}</dd>
+              </div>
+            </>
+          ) : null}
           <div className="flex items-center justify-between gap-4">
             <dt className="text-fg-2">Kelishilgan narx (mijoz to'ladi)</dt>
             <dd className="shrink-0 whitespace-nowrap font-medium text-fg tabular-nums">{formatPrice(p.amount)}</dd>

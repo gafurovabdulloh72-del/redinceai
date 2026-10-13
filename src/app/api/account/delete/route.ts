@@ -3,7 +3,7 @@ import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { favorites, notifications, orders, passwordResets, payments, payouts, portfolioItems, savedSearches, specialists, users } from "@/lib/db/schema";
-import { clearSession, getSession, revokeSession } from "@/lib/auth";
+import { clearSession, getSession, revokeAllSessions, revokeSession } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
@@ -56,6 +56,9 @@ export const POST = handler(async (req) => {
       gender: null,
       emailVerified: false,
       notifyEmail: false,
+      totpEnabled: false,
+      totpSecretEnc: null,
+      recoveryCodes: [],
       isBanned: true,
       bannedReason: "deleted",
       passwordHash: await hashPassword(randomBytes(32).toString("base64url")),
@@ -108,6 +111,7 @@ export const POST = handler(async (req) => {
     db.delete(passwordResets).where(eq(passwordResets.userId, user.id)),
   ]);
 
+  await revokeAllSessions(user.id).catch(() => undefined);
   await audit(user.id, "account_deleted", { targetType: "user", targetId: user.id, meta: { role: user.role, profile } }, req);
   const current = await getSession();
   if (current) await revokeSession(current).catch(() => undefined);

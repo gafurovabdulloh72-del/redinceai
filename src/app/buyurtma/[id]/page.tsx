@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Lock, MapPin, MessageSquareText, PhoneCall } from "lucide-react";
-import { Avatar, Badge, PageHeader, Stars, VerifiedBadge } from "@/components/ui";
+import { ArrowLeft, Lock, MapPin, MessageCircle, MessageSquareText, Search, ShieldOff } from "lucide-react";
+import { Avatar, Badge, ButtonLink, PageHeader, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { OrderForm } from "@/components/orders/OrderForm";
 import { getCurrentUser } from "@/lib/auth";
-import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, PACKAGE_TIERS, REGION_BY_SLUG } from "@/lib/constants";
+import type { PackageKey } from "@/lib/db/schema";
+import { getSettings } from "@/lib/payments/settings";
+import { canReceiveOrders } from "@/lib/subscriptions/access";
 import { isOnVacation, resolveVisibility, viewerCity, type Viewer } from "@/lib/privacy";
 import { getSpecialistBrief, hasAcceptedOrderWith } from "@/lib/queries";
 import { formatDate, formatPriceRange } from "@/lib/utils";
@@ -21,14 +24,22 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: sp ? `Buyurtma — ${sp.user.name}` : "Buyurtma berish", robots: { index: false } };
 }
 
-export default async function OrderPage({ params }: { params: Params }) {
+const isPackageKey = (v: unknown): v is PackageKey => typeof v === "string" && PACKAGE_TIERS.some((t) => t.key === v);
+
+export default async function OrderPage({ params, searchParams }: { params: Params; searchParams: Promise<{ paket?: string | string[] }> }) {
   const { id } = await params;
+  const { paket } = await searchParams;
   // getSpecialistBrief cache() bilan — generateMetadata va sahifa bitta so'rovni ishlatadi
-  const [sp, user] = await Promise.all([getSpecialistBrief(id), getCurrentUser()]);
+  const [sp, user, settings] = await Promise.all([getSpecialistBrief(id), getCurrentUser(), getSettings()]);
   if (!sp) notFound();
   // Middleware kirishni talab qiladi; baribir ehtiyot chorasi
   if (!user) redirect(`/auth/kirish?next=${encodeURIComponent(`/buyurtma/${id}`)}`);
   if (sp.userId === user.id) redirect("/kabinet");
+
+  // Obunasi faol bo'lmagan mutaxassis yangi buyurtma olmaydi (POST /api/orders ham 403 qaytaradi)
+  const acceptsOrders = canReceiveOrders(sp, settings);
+  // ?paket=basic|standard|premium — faqat mutaxassisda haqiqatan bor paket oldindan tanlanadi (F31)
+  const initialPackage = isPackageKey(paket) && sp.packages.some((p) => p.key === paket) ? paket : null;
 
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
@@ -41,7 +52,7 @@ export default async function OrderPage({ params }: { params: Params }) {
 
   const steps = [
     { icon: MessageSquareText, t: "So'rov mutaxassis kabinetiga tushadi", d: "U qabul qiladi yoki savollar bilan bog'lanadi." },
-    { icon: PhoneCall, t: "Siz bilan bog'lanadi", d: "Ko'rsatgan raqamingizga qo'ng'iroq yoki Telegram xabar." },
+    { icon: MessageCircle, t: "Buyurtma chatida yozishasiz", d: "Savollar, fayllar va video qo'ng'iroq havolasi — buyurtma ichida." },
     { icon: Lock, t: "Xavfsiz to'lov (eskrou)", d: "Narx kelishilgach to'laysiz; pul ish qabul qilingach mutaxassisga o'tadi." },
   ];
 
@@ -70,7 +81,7 @@ export default async function OrderPage({ params }: { params: Params }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
         {/* Forma */}
         <div className="animate-fade-up min-w-0 lg:col-span-7 xl:col-span-8">
-          {(vacation || !sp.isAvailable) && (
+          {acceptsOrders && (vacation || !sp.isAvailable) && (
             <div className="card-outline mb-4 flex items-start gap-3 p-4 text-[13px] leading-relaxed text-fg-2">
               <Badge tone="warning" className="mt-0.5 shrink-0">
                 {vacation ? "Ta'tilda" : "Band"}
@@ -82,7 +93,40 @@ export default async function OrderPage({ params }: { params: Params }) {
               </p>
             </div>
           )}
-          <OrderForm specialistId={sp.id} specialistSlug={sp.slug} specialistName={sp.user.name} defaultPhone={user.phone} priceFrom={sp.priceFrom} priceTo={sp.priceTo} />
+          {acceptsOrders ? (
+            <OrderForm
+              specialistId={sp.id}
+              specialistSlug={sp.slug}
+              specialistName={sp.user.name}
+              defaultPhone={user.phone}
+              priceFrom={sp.priceFrom}
+              priceTo={sp.priceTo}
+              packages={sp.packages}
+              initialPackage={initialPackage}
+              blockedDates={sp.blockedDates}
+              urgentPct={settings.urgentPct}
+            />
+          ) : (
+            <div className="card flex flex-col items-start gap-4 p-6 sm:p-7">
+              <span className="icon-tile">
+                <ShieldOff size={20} />
+              </span>
+              <div>
+                <h2 className="text-[19px] font-semibold text-fg">Mutaxassis obunasi faol emas</h2>
+                <p className="mt-1.5 max-w-lg text-[14px] leading-relaxed text-fg-2">
+                  {sp.user.name} hozircha yangi buyurtma qabul qila olmaydi. Mavjud buyurtmalar odatdagidek davom etadi. Shu yo'nalishdagi boshqa mutaxassislarni ko'ring yoki e'lon joylang.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <ButtonLink href={`/mutaxassislar?category=${encodeURIComponent(sp.category)}&region=${encodeURIComponent(sp.regionSlug)}`} variant="accent">
+                  <Search size={16} /> Boshqa mutaxassislar
+                </ButtonLink>
+                <ButtonLink href={`/ishlar/yangi?category=${encodeURIComponent(sp.category)}`} variant="outline">
+                  E'lon joylash
+                </ButtonLink>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mutaxassis xulosasi */}
@@ -134,7 +178,7 @@ export default async function OrderPage({ params }: { params: Params }) {
               <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4">
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">Narx</dt>
-                  <dd className="mt-0.5 whitespace-nowrap font-display text-[15px] font-semibold text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</dd>
+                  <dd className="mt-0.5 font-display text-[15px] font-semibold leading-snug text-fg">{formatPriceRange(sp.priceFrom, sp.priceTo)}</dd>
                 </div>
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">Reyting</dt>

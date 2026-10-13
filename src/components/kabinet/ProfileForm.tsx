@@ -7,6 +7,7 @@ import {
   AlertCircle,
   ArrowRight,
   ArrowUpRight,
+  BadgeCheck,
   Briefcase,
   Camera,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
   Languages,
   Link2,
   MapPin,
+  Package,
   Plus,
   Send,
   Sparkles,
@@ -32,7 +34,8 @@ import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
-import { CATEGORIES, EXPERIENCE_LEVELS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORIES, EXPERIENCE_LEVELS, PACKAGE_TIERS, REGIONS, REGION_BY_SLUG, WORK_TYPES, type PackageTierKey } from "@/lib/constants";
+import type { Certificate, ServicePackage, SpecialistRates } from "@/lib/db/schema";
 import type { ResolvedVisibility } from "@/lib/privacy";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -61,6 +64,28 @@ export interface ProfileInitial {
   website: string;
   coverUrl: string;
   isAvailable: boolean;
+  /** F31 / F64 / F52 / F70 — eski chaqiruvlar uchun ixtiyoriy */
+  packages?: ServicePackage[];
+  certificates?: Certificate[];
+  workTypes?: string[];
+  rates?: SpecialistRates;
+}
+
+/** Paket qoralamasi: uchala daraja har doim bor, `enabled` — saqlanadimi */
+interface PackageDraft {
+  key: PackageTierKey;
+  enabled: boolean;
+  title: string;
+  price: string;
+  deliveryDays: string;
+  revisions: string;
+  features: string[];
+}
+interface CertificateDraft {
+  title: string;
+  issuer: string;
+  year: string;
+  url: string;
 }
 
 interface FormState {
@@ -81,6 +106,10 @@ interface FormState {
   website: string;
   coverUrl: string;
   isAvailable: boolean;
+  workTypes: string[];
+  packages: PackageDraft[];
+  certificates: CertificateDraft[];
+  rates: { hourly: string; daily: string; project: string };
 }
 
 const LANGS = [
@@ -117,6 +146,27 @@ const EQUIPMENT_SUGGESTIONS: Record<string, string[]> = {
 };
 
 const OTHER_CITY = "__other__";
+const MAX_PACKAGE_FEATURES = 6;
+const MAX_CERTIFICATES = 10;
+/** Yangi paket uchun standart nomlar (mutaxassis o'zgartiradi) */
+const PACKAGE_DEFAULT_TITLE: Record<PackageTierKey, string> = { basic: "Boshlang'ich", standard: "Standart", premium: "Premium" };
+
+function packageDrafts(list: ServicePackage[] | undefined): PackageDraft[] {
+  return PACKAGE_TIERS.map((t) => {
+    const p = list?.find((x) => x.key === t.key);
+    return {
+      key: t.key,
+      enabled: Boolean(p),
+      title: p?.title ?? "",
+      price: p ? String(p.price) : "",
+      deliveryDays: p ? String(p.deliveryDays) : "",
+      revisions: p ? String(p.revisions) : "",
+      features: p?.features ?? [],
+    };
+  });
+}
+const numOrEmpty = (n: number | undefined) => (n && n > 0 ? String(n) : "");
+const toInt = (v: string) => Number(v.replace(/\s/g, ""));
 const MAX_SKILLS = 20;
 const MAX_EQUIPMENT = 20;
 const MAX_BIO = 2000;
@@ -143,6 +193,10 @@ function initialState(initial: ProfileInitial | null): FormState {
     website: initial?.website ?? "",
     coverUrl: initial?.coverUrl ?? "",
     isAvailable: initial?.isAvailable ?? true,
+    workTypes: initial?.workTypes ?? [],
+    packages: packageDrafts(initial?.packages),
+    certificates: (initial?.certificates ?? []).map((c) => ({ title: c.title, issuer: c.issuer, year: String(c.year), url: c.url ?? "" })),
+    rates: { hourly: numOrEmpty(initial?.rates?.hourly), daily: numOrEmpty(initial?.rates?.daily), project: numOrEmpty(initial?.rates?.project) },
   };
 }
 
@@ -155,6 +209,8 @@ const SECTIONS = [
   { id: "pf-hudud", label: "Hudud" },
   { id: "pf-haqida", label: "Haqida" },
   { id: "pf-narx", label: "Narx" },
+  { id: "pf-paketlar", label: "Paketlar" },
+  { id: "pf-sertifikat", label: "Sertifikatlar" },
   { id: "pf-aloqa", label: "Aloqa" },
   { id: "pf-muqova", label: "Muqova" },
   { id: "pf-holat", label: "Holat" },
@@ -174,6 +230,10 @@ const FIELD_SECTION: Record<string, SectionId> = {
   languages: "pf-haqida",
   priceFrom: "pf-narx",
   priceTo: "pf-narx",
+  rates: "pf-narx",
+  workTypes: "pf-haqida",
+  packages: "pf-paketlar",
+  certificates: "pf-sertifikat",
   telegram: "pf-aloqa",
   instagram: "pf-aloqa",
   youtube: "pf-aloqa",
@@ -394,8 +454,12 @@ export function ProfileForm({
     "pf-aloqa": Boolean(f.telegram.trim() || f.instagram.trim()),
     "pf-muqova": Boolean(f.coverUrl.trim()),
     "pf-holat": true,
+    // Ixtiyoriy bo'limlar — progressga kirmaydi, faqat belgi
+    "pf-paketlar": f.packages.some((p) => p.enabled),
+    "pf-sertifikat": f.certificates.length > 0,
   };
-  const counted = SECTIONS.filter((x) => x.id !== "pf-holat");
+  const OPTIONAL: SectionId[] = ["pf-holat", "pf-paketlar", "pf-sertifikat"];
+  const counted = SECTIONS.filter((x) => !OPTIONAL.includes(x.id));
   const progress = Math.round((counted.filter((x) => sectionDone[x.id]).length / counted.length) * 100);
   const nextOf = (id: SectionId) => {
     const i = SECTIONS.findIndex((x) => x.id === id);
@@ -452,6 +516,21 @@ export function ProfileForm({
     }
   };
 
+  /* ---------- Paketlar (F31) va sertifikatlar (F64) ---------- */
+  const setPkg = (key: PackageTierKey, patch: Partial<PackageDraft>) =>
+    setF((st) => ({ ...st, packages: st.packages.map((p) => (p.key === key ? { ...p, ...patch } : p)) }));
+  const togglePkg = (key: PackageTierKey, on: boolean) =>
+    setF((st) => ({
+      ...st,
+      packages: st.packages.map((p) =>
+        p.key === key
+          ? { ...p, enabled: on, title: on && !p.title ? PACKAGE_DEFAULT_TITLE[key] : p.title, revisions: on && !p.revisions ? "1" : p.revisions }
+          : p,
+      ),
+    }));
+  const setCert = (i: number, patch: Partial<CertificateDraft>) => setF((st) => ({ ...st, certificates: st.certificates.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
+  const thisYear = new Date().getFullYear();
+
   /* ---------- Hudud / shahar ---------- */
   const onRegion = (slug: string) => {
     const r = REGION_BY_SLUG[slug];
@@ -504,10 +583,25 @@ export function ProfileForm({
     if (f.city.trim().length < 2) local.city = "Shaharni kiriting";
     if (f.languages.length === 0) local.languages = "Kamida bitta tilni tanlang";
     if (f.priceTo.trim() && priceToNum < priceFromNum) local.priceTo = "Maksimal narx minimaldan kam bo'lmasin";
+    for (const p of f.packages) {
+      if (!p.enabled) continue;
+      if (p.title.trim().length < 2) local[`pkg.${p.key}.title`] = "Paket nomini yozing";
+      if (!(toInt(p.price) >= 1000)) local[`pkg.${p.key}.price`] = "Narx kamida 1 000 so'm";
+      if (!(toInt(p.deliveryDays) >= 1 && toInt(p.deliveryDays) <= 365)) local[`pkg.${p.key}.deliveryDays`] = "1–365 kun";
+      if (p.revisions.trim() && !(toInt(p.revisions) >= 0 && toInt(p.revisions) <= 20)) local[`pkg.${p.key}.revisions`] = "0–20";
+    }
+    f.certificates.forEach((c, i) => {
+      if (c.title.trim().length < 2) local[`cert.${i}.title`] = "Nomini yozing";
+      if (c.issuer.trim().length < 2) local[`cert.${i}.issuer`] = "Kim berganini yozing";
+      const y = toInt(c.year);
+      if (!(y >= 1970 && y <= thisYear + 1)) local[`cert.${i}.year`] = `1970–${thisYear + 1}`;
+      if (c.url.trim() && !/^https:\/\/\S+$/i.test(c.url.trim())) local[`cert.${i}.url`] = "https:// bilan boshlansin";
+    });
     if (Object.keys(local).length) {
       setErrors(local);
       setError("Ba'zi maydonlarni tekshiring");
-      goToSection(FIELD_SECTION[Object.keys(local)[0]] ?? SECTIONS[0].id);
+      const firstKey = Object.keys(local)[0];
+      goToSection(firstKey.startsWith("pkg.") ? "pf-paketlar" : firstKey.startsWith("cert.") ? "pf-sertifikat" : (FIELD_SECTION[firstKey] ?? SECTIONS[0].id));
       return;
     }
 
@@ -534,6 +628,23 @@ export function ProfileForm({
           website: f.website.trim(),
           coverUrl: f.coverUrl.trim(),
           isAvailable: f.isAvailable,
+          workTypes: f.workTypes,
+          rates: {
+            hourly: toInt(f.rates.hourly) > 0 ? toInt(f.rates.hourly) : null,
+            daily: toInt(f.rates.daily) > 0 ? toInt(f.rates.daily) : null,
+            project: toInt(f.rates.project) > 0 ? toInt(f.rates.project) : null,
+          },
+          packages: f.packages
+            .filter((p) => p.enabled)
+            .map((p) => ({
+              key: p.key,
+              title: p.title.trim(),
+              price: toInt(p.price),
+              deliveryDays: toInt(p.deliveryDays),
+              revisions: toInt(p.revisions) || 0,
+              features: p.features.map((x) => x.trim()).filter(Boolean).slice(0, MAX_PACKAGE_FEATURES),
+            })),
+          certificates: f.certificates.map((c) => ({ title: c.title.trim(), issuer: c.issuer.trim(), year: toInt(c.year), url: c.url.trim() })),
         }),
       });
       const json = (await res.json()) as ApiResponse<{ id: string; slug: string }>;
@@ -541,7 +652,10 @@ export function ProfileForm({
         setError(json.error);
         if (json.fields) {
           const mapped: Record<string, string> = {};
-          for (const [k, v] of Object.entries(json.fields)) mapped[k.split(".")[0]] = v;
+          for (const [k, v] of Object.entries(json.fields)) {
+            mapped[k.split(".")[0]] = v;
+            mapped[k] = v;
+          }
           setErrors(mapped);
           const first = Object.keys(mapped).find((k) => FIELD_SECTION[k]);
           if (first) {
@@ -930,6 +1044,34 @@ export function ProfileForm({
             )}
           </div>
 
+          {/* Ish turlari (F52) */}
+          <div className="mt-5">
+            <span className="field-label">
+              Ish turlari <span className="font-normal text-fg-4">(qaysi loyihalar bilan ishlaysiz)</span>
+            </span>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Ish turlari">
+              {WORK_TYPES.map((w) => {
+                const on = f.workTypes.includes(w.slug);
+                return (
+                  <button
+                    key={w.slug}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => set({ workTypes: on ? f.workTypes.filter((x) => x !== w.slug) : [...f.workTypes, w.slug] })}
+                    className={cn(
+                      "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition active:scale-95",
+                      on ? "btn-ink" : "border border-line bg-surface text-fg-2 hover:border-fg hover:text-fg",
+                    )}
+                  >
+                    {on && <CheckCircle2 size={13} />}
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+            {errors.workTypes ? <p className="field-error">{errors.workTypes}</p> : <p className="mt-1 text-[12px] text-fg-4">Mijozlar ro'yxatda «Ish turi» bo'yicha filtrlaydi.</p>}
+          </div>
+
           {/* Jihozlar (F51) */}
           <div className="mt-5">
             <label htmlFor="pf-equipment" className="field-label">
@@ -1026,6 +1168,296 @@ export function ProfileForm({
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-fg/6 px-3 py-1 text-[12px] font-medium text-fg-2">
             Profilda: <span className="font-semibold text-fg">{priceHint}</span>
           </p>
+
+          {/* Tariflar (F70) — profildagi narx kalkulyatori shulardan hisoblaydi */}
+          <div className="mt-6 border-t border-line pt-5">
+            <p className="text-[14px] font-semibold text-fg">Tariflar <span className="font-normal text-fg-4">(ixtiyoriy)</span></p>
+            <p className="mt-0.5 text-[12px] text-fg-3">Profilda «Narx kalkulyatori» chiqadi: mijoz soat yoki kunni kiritib taxminiy narxni ko'radi.</p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+              {(
+                [
+                  { k: "hourly", label: "Soatlik", ph: "200 000" },
+                  { k: "daily", label: "Kunlik", ph: "1 500 000" },
+                  { k: "project", label: "Loyiha (dan)", ph: "3 000 000" },
+                ] as const
+              ).map((r) => (
+                <div key={r.k}>
+                  <label htmlFor={`pf-rate-${r.k}`} className="field-label">
+                    {r.label}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id={`pf-rate-${r.k}`}
+                      className="field pr-14"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      step={10000}
+                      value={f.rates[r.k]}
+                      onChange={(e) => set({ rates: { ...f.rates, [r.k]: e.target.value } })}
+                      placeholder={r.ph}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[13px] font-medium text-fg-3">so'm</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {errors.rates && <p className="field-error">{errors.rates}</p>}
+          </div>
+        </Section>
+
+        {/* ============ Paketlar (F31) ============ */}
+        <Section
+          id="pf-paketlar"
+          next={nextOf("pf-paketlar")}
+          icon={Package}
+          title="Xizmat paketlari"
+          hint="3 tagacha tayyor paket — mijoz narx va muddatni darhol ko'radi, «Tanlash» bilan buyurtma beradi"
+        >
+          <div className="space-y-3">
+            {f.packages.map((p) => {
+              const tier = PACKAGE_TIERS.find((t) => t.key === p.key)?.label ?? p.key;
+              const err = (k: string) => errors[`pkg.${p.key}.${k}`];
+              return (
+                <div key={p.key} className={cn("card-outline !rounded-[var(--r-md)] p-4", p.enabled && "ring-1 ring-fg/10")}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[14px] font-semibold text-fg">{tier}</p>
+                      <p className="text-[12px] text-fg-3">{p.enabled ? "Profilda ko'rinadi" : "O'chirilgan"}</p>
+                    </div>
+                    <Switch checked={p.enabled} onChange={(v) => togglePkg(p.key, v)} label={`${tier} paketi`} />
+                  </div>
+                  {p.enabled && (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label htmlFor={`pf-pkg-${p.key}-title`} className="field-label">
+                          Paket nomi
+                        </label>
+                        <input
+                          id={`pf-pkg-${p.key}-title`}
+                          className="field"
+                          value={p.title}
+                          maxLength={60}
+                          onChange={(e) => setPkg(p.key, { title: e.target.value })}
+                          placeholder="Masalan: 30 soniyalik reklama roligi"
+                          aria-invalid={Boolean(err("title"))}
+                        />
+                        {err("title") && <p className="field-error">{err("title")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-pkg-${p.key}-price`} className="field-label">
+                          Narx
+                        </label>
+                        <div className="relative">
+                          <input
+                            id={`pf-pkg-${p.key}-price`}
+                            className="field pr-14"
+                            type="number"
+                            inputMode="numeric"
+                            min={1000}
+                            step={50000}
+                            value={p.price}
+                            onChange={(e) => setPkg(p.key, { price: e.target.value })}
+                            placeholder="1 500 000"
+                            aria-invalid={Boolean(err("price"))}
+                          />
+                          <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[13px] font-medium text-fg-3">so'm</span>
+                        </div>
+                        {err("price") && <p className="field-error">{err("price")}</p>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor={`pf-pkg-${p.key}-days`} className="field-label">
+                            Muddat (kun)
+                          </label>
+                          <input
+                            id={`pf-pkg-${p.key}-days`}
+                            className="field"
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={365}
+                            value={p.deliveryDays}
+                            onChange={(e) => setPkg(p.key, { deliveryDays: e.target.value })}
+                            placeholder="7"
+                            aria-invalid={Boolean(err("deliveryDays"))}
+                          />
+                          {err("deliveryDays") && <p className="field-error">{err("deliveryDays")}</p>}
+                        </div>
+                        <div>
+                          <label htmlFor={`pf-pkg-${p.key}-rev`} className="field-label">
+                            Tuzatishlar
+                          </label>
+                          <input
+                            id={`pf-pkg-${p.key}-rev`}
+                            className="field"
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={20}
+                            value={p.revisions}
+                            onChange={(e) => setPkg(p.key, { revisions: e.target.value })}
+                            placeholder="2"
+                            aria-invalid={Boolean(err("revisions"))}
+                          />
+                          {err("revisions") && <p className="field-error">{err("revisions")}</p>}
+                        </div>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="field-label">
+                          Nimalar kiradi <span className="font-normal text-fg-4">({p.features.length}/{MAX_PACKAGE_FEATURES})</span>
+                        </span>
+                        <ul className="space-y-2">
+                          {p.features.map((feat, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                              <input
+                                className="field"
+                                value={feat}
+                                maxLength={80}
+                                onChange={(e) => setPkg(p.key, { features: p.features.map((x, j) => (j === i ? e.target.value : x)) })}
+                                placeholder="Masalan: Musiqa va ovoz effektlari"
+                                aria-label={`${tier}: imkoniyat ${i + 1}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setPkg(p.key, { features: p.features.filter((_, j) => j !== i) })}
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-danger-soft hover:text-danger-text"
+                                aria-label={`${i + 1}-imkoniyatni olib tashlash`}
+                              >
+                                <X size={16} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {p.features.length < MAX_PACKAGE_FEATURES && (
+                          <button
+                            type="button"
+                            onClick={() => setPkg(p.key, { features: [...p.features, ""] })}
+                            className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+                          >
+                            <Plus size={14} /> Imkoniyat qo'shish
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {errors.packages && <p className="field-error">{errors.packages}</p>}
+          <p className="mt-2 text-[12px] text-fg-4">Minimal narx bo'sh bo'lsa, profilda eng arzon paket narxi «… dan» bo'lib ko'rinadi.</p>
+        </Section>
+
+        {/* ============ Sertifikatlar (F64) ============ */}
+        <Section
+          id="pf-sertifikat"
+          next={nextOf("pf-sertifikat")}
+          icon={BadgeCheck}
+          title="Sertifikatlar va litsenziyalar"
+          hint="Kurslar, diplomlar, dron uchish ruxsatnomasi — ishonchni oshiradi"
+        >
+          {f.certificates.length > 0 && (
+            <ul className="space-y-3">
+              {f.certificates.map((c, i) => {
+                const err = (k: string) => errors[`cert.${i}.${k}`] ?? errors[`certificates.${i}.${k}`];
+                return (
+                  <li key={i} className="card-outline !rounded-[var(--r-md)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-semibold text-fg-2">Sertifikat {i + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => set({ certificates: f.certificates.filter((_, j) => j !== i) })}
+                        className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold text-fg-3 transition hover:bg-danger-soft hover:text-danger-text"
+                      >
+                        <Trash2 size={14} /> O'chirish
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label htmlFor={`pf-cert-${i}-title`} className="field-label">
+                          Nomi
+                        </label>
+                        <input
+                          id={`pf-cert-${i}-title`}
+                          className="field"
+                          value={c.title}
+                          maxLength={100}
+                          onChange={(e) => setCert(i, { title: e.target.value })}
+                          placeholder="Masalan: Dron uchish ruxsatnomasi"
+                          aria-invalid={Boolean(err("title"))}
+                        />
+                        {err("title") && <p className="field-error">{err("title")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-cert-${i}-issuer`} className="field-label">
+                          Kim bergan
+                        </label>
+                        <input
+                          id={`pf-cert-${i}-issuer`}
+                          className="field"
+                          value={c.issuer}
+                          maxLength={100}
+                          onChange={(e) => setCert(i, { issuer: e.target.value })}
+                          placeholder="Masalan: Aviatsiya agentligi"
+                          aria-invalid={Boolean(err("issuer"))}
+                        />
+                        {err("issuer") && <p className="field-error">{err("issuer")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-cert-${i}-year`} className="field-label">
+                          Yil
+                        </label>
+                        <input
+                          id={`pf-cert-${i}-year`}
+                          className="field"
+                          type="number"
+                          inputMode="numeric"
+                          min={1970}
+                          max={thisYear + 1}
+                          value={c.year}
+                          onChange={(e) => setCert(i, { year: e.target.value })}
+                          placeholder={String(thisYear)}
+                          aria-invalid={Boolean(err("year"))}
+                        />
+                        {err("year") && <p className="field-error">{err("year")}</p>}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor={`pf-cert-${i}-url`} className="field-label">
+                          Havola <span className="font-normal text-fg-4">(ixtiyoriy, https://)</span>
+                        </label>
+                        <input
+                          id={`pf-cert-${i}-url`}
+                          className="field"
+                          type="url"
+                          inputMode="url"
+                          value={c.url}
+                          maxLength={300}
+                          onChange={(e) => setCert(i, { url: e.target.value })}
+                          placeholder="https://"
+                          aria-invalid={Boolean(err("url"))}
+                        />
+                        {err("url") && <p className="field-error">{err("url")}</p>}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {f.certificates.length < MAX_CERTIFICATES && (
+            <button
+              type="button"
+              onClick={() => set({ certificates: [...f.certificates, { title: "", issuer: "", year: String(thisYear), url: "" }] })}
+              className={cn(
+                "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg",
+                f.certificates.length > 0 && "mt-3",
+              )}
+            >
+              <Plus size={14} /> Sertifikat qo'shish
+            </button>
+          )}
+          {errors.certificates && <p className="field-error">{errors.certificates}</p>}
         </Section>
 
         {/* ============ Aloqa ============ */}

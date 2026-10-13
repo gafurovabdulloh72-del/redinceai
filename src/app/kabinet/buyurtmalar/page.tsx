@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { and, inArray, sql } from "drizzle-orm";
 import { ClipboardList, ShieldCheck } from "lucide-react";
 import { OrdersList, type OrderItem, type Tab } from "@/components/orders/OrdersList";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -7,11 +8,34 @@ import { getOrdersForUser } from "@/lib/queries";
 import { availableProviders } from "@/lib/payments/config";
 import { getPendingPaymentsByOrder } from "@/lib/payments/queries";
 import { commissionPctFor, getSettings } from "@/lib/payments/settings";
+import { db } from "@/lib/db";
+import { messages } from "@/lib/db/schema";
+
+/** Chat (F34): har bir buyurtma bo'yicha xabarlar soni va qarshi tomondan kelgan o'qilmaganlar */
+async function chatStats(orderIds: string[], userId: string): Promise<Map<string, { count: number; unread: number }>> {
+  const out = new Map<string, { count: number; unread: number }>();
+  if (!orderIds.length) return out;
+  try {
+    const rows = await db
+      .select({
+        orderId: messages.orderId,
+        count: sql<number>`count(*)`,
+        unread: sql<number>`sum(case when ${messages.readAt} is null and ${messages.senderId} is not null and ${messages.senderId} <> ${userId} then 1 else 0 end)`,
+      })
+      .from(messages)
+      .where(and(inArray(messages.orderId, orderIds)))
+      .groupBy(messages.orderId);
+    for (const r of rows) out.set(r.orderId, { count: Number(r.count) || 0, unread: Number(r.unread) || 0 });
+  } catch (e) {
+    console.error("[orders] chatStats", e);
+  }
+  return out;
+}
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Buyurtmalar" };
 
-export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ tab?: string; id?: string }> }) {
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ tab?: string; id?: string; chat?: string }> }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/buyurtmalar"));
@@ -26,7 +50,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       : `${Math.min(...tierPcts)}–${Math.max(...tierPcts)}%`;
   const providers = availableProviders();
   // Mijozning ochiq to'lovlari (created — davom ettirish, pending — tasdiq kutilmoqda)
-  const open = await getPendingPaymentsByOrder(asClient.map((o) => o.id));
+  const [open, chats] = await Promise.all([getPendingPaymentsByOrder(asClient.map((o) => o.id)), chatStats([...asClient, ...asSpecialist].map((o) => o.id), user.id)]);
 
   // Bekor qilish sababi, nizo va avto-qabul (F15) — sahifa beradi, ro'yxat /api/orders'ga qayta so'rov yubormaydi.
   // Foydalanuvchi ID'lari chiqmaydi: disputeBy faqat "client" | "specialist" (GET /api/orders bilan bir xil qoida)
@@ -36,6 +60,17 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     disputeReason: o.disputeReason ?? null,
     disputeBy: o.disputeOpenedBy ? (o.disputeOpenedBy === o.clientId ? ("client" as const) : ("specialist" as const)) : null,
     autoReleaseAt: o.autoReleaseAt?.getTime() ?? null,
+    // F16/F30/F31/F35/F37/F40 va chat (F34)
+    urgent: o.urgent,
+    urgentFee: o.urgentFee,
+    packageKey: o.packageKey,
+    dueDate: o.dueDate,
+    meetingUrl: o.meetingUrl,
+    attachments: o.attachments ?? [],
+    counterAmount: o.counterAmount,
+    counterBy: o.counterBy,
+    chatCount: chats.get(o.id)?.count ?? 0,
+    chatUnread: chats.get(o.id)?.unread ?? 0,
   });
 
   // Mutaxassis sifatida kelgan buyurtmalar
@@ -87,6 +122,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const hasSpecialist = Boolean(user.specialist);
   const initialTab: Tab = sp.tab === "mening" ? "outgoing" : sp.tab === "kelgan" && hasSpecialist ? "incoming" : hasSpecialist ? "incoming" : "outgoing";
   const highlightId = typeof sp.id === "string" && sp.id ? sp.id : null;
+  const openChatId = highlightId && sp.chat === "1" ? highlightId : null;
   const awaitingCount = outgoing.filter((o) => o.paymentState === "awaiting" && o.status !== "cancelled").length;
 
   return (
@@ -118,6 +154,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         providers={providers}
         commissionPct={settings.commissionPct}
         minOrderAmount={settings.minOrderAmount}
+        urgentPct={settings.urgentPct}
+        openChatId={openChatId}
       />
     </div>
   );

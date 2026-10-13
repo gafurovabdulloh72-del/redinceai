@@ -5,6 +5,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { createSession } from "@/lib/auth";
 import { accountSchema, specialistProfileSchema } from "@/lib/validators";
 import { slugify, uid } from "@/lib/utils";
+import { ensureShortCode } from "@/lib/queries";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { verifyPassword } from "@/lib/security/password";
 import { sendMail } from "@/lib/security/mailer";
@@ -45,21 +46,25 @@ export const PUT = handler(async (req) => {
     updatedAt: new Date(),
   };
 
+  // packages / certificates / workTypes / rates (F31, F64, F52, F70): berilmasa — undefined, drizzle ustunga tegmaydi
   if (user.specialist) {
     await db.update(specialists).set(values).where(eq(specialists.id, user.specialist.id));
-    return ok({ id: user.specialist.id, slug: user.specialist.slug });
+    // Qisqa havola kodi (F66) — eski profillarda yo'q bo'lsa shu yerda yaratiladi
+    const shortCode = user.specialist.shortCode ?? (await ensureShortCode(user.specialist.id));
+    return ok({ id: user.specialist.id, slug: user.specialist.slug, shortCode });
   }
 
   const id = uid();
   const slug = await makeSlug(id);
   await db.insert(specialists).values({ id, userId: user.id, slug, ...values });
+  const shortCode = await ensureShortCode(id);
 
   // Mijoz → mutaxassis: rolni yangilaymiz va cookie'ni qayta beramiz (JWT'da eski rol qolmasin)
   if (user.role === "client") {
     await db.update(users).set({ role: "specialist" }).where(eq(users.id, user.id));
     await createSession({ id: user.id, role: "specialist", name: user.name });
   }
-  return ok({ id, slug }, { status: 201 });
+  return ok({ id, slug, shortCode }, { status: 201 });
 });
 
 /** "ali@mail.uz" → "a***@mail.uz" (eski manzilga yuboriladigan ogohlantirishda yangi manzil to'liq ko'rsatilmaydi) */

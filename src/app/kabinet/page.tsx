@@ -2,19 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import {
   ArrowRight,
   Check,
   CheckCircle2,
   ClipboardList,
   Clock3,
+  CreditCard,
   Eye,
   Heart,
   Images,
   Inbox,
   MapPinned,
+  Megaphone,
   MessageSquareText,
+  Plus,
   Search,
   Send,
   Settings,
@@ -25,13 +28,17 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
 import { Avatar, Badge, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { favorites, portfolioItems } from "@/lib/db/schema";
-import { ORDER_STATUS_LABEL, REGION_BY_SLUG, type OrderStatus } from "@/lib/constants";
+import { favorites, jobs, portfolioItems, proposals } from "@/lib/db/schema";
+import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, REGION_BY_SLUG, type OrderStatus } from "@/lib/constants";
+import { proposalsSentToday } from "@/lib/jobs/server";
+import { getSettings } from "@/lib/payments/settings";
 import { isOnVacation, scheduleSummary } from "@/lib/privacy";
 import { getOrdersForUser } from "@/lib/queries";
+import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
 import { cn, formatDate, formatNumber, formatPrice, greetingFor, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +138,7 @@ function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
               <span
                 className={cn(
                   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums",
-                  s.done ? "bg-success-soft text-success-text" : isCurrent ? "bg-accent text-white" : "border-2 border-line-2 text-fg-3",
+                  s.done ? "bg-success-soft text-success-text" : isCurrent ? "bg-accent-strong text-white" : "border-2 border-line-2 text-fg-3",
                 )}
                 aria-hidden="true"
               >
@@ -149,6 +156,147 @@ function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
         );
       })}
     </ol>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Obuna, takliflar, e'lonlar kartalari                                 */
+/* ------------------------------------------------------------------ */
+const SUB_BADGE: Record<SubscriptionState["status"], { label: string; tone: "success" | "warning" | "danger" | "neutral" | "info" }> = {
+  trial: { label: "Sinov muddati", tone: "info" },
+  active: { label: "Faol", tone: "success" },
+  grace: { label: "Imtiyozli muddat", tone: "warning" },
+  expired: { label: "Faol emas", tone: "danger" },
+  off: { label: "Talab qilinmaydi", tone: "neutral" },
+};
+
+function SubscriptionCard({ st, price }: { st: SubscriptionState; price: number }) {
+  const badge = SUB_BADGE[st.status];
+  const urgent = st.status === "expired" || st.status === "grace" || ((st.status === "trial" || st.status === "active") && st.daysLeft <= BANNER_DAYS);
+  const headline =
+    st.status === "expired" ? "Profil katalogda ko'rinmaydi" : st.status === "grace" ? `${st.daysLeft} kun ichida to'lang` : st.status === "off" ? "Hozircha bepul" : `${st.daysLeft} kun qoldi`;
+  const detail =
+    st.status === "expired"
+      ? "Yangi buyurtma va taklif yopiq. Mavjud buyurtmalar davom etadi."
+      : st.status === "grace"
+        ? `Obuna ${formatDate(st.until)} da tugadi — ${formatDate(st.graceUntil)} gacha profil ko'rinadi.`
+        : st.status === "off"
+          ? "Platforma hozir obunani talab qilmaydi."
+          : `${st.status === "trial" ? "Bepul sinov" : "Obuna"} ${formatDate(st.until)} gacha.`;
+  return (
+    <section className={cn("p-5", urgent ? "card-elevated" : "card")} aria-labelledby="sub-card-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="sub-card-title" className="font-display text-[17px] font-semibold text-fg">
+            Obuna
+          </h2>
+          <p className="mt-0.5 text-[12px] text-fg-3">{formatPrice(price)} / oy · mijozlar uchun bepul</p>
+        </div>
+        <IconTile icon={CreditCard} size="sm" tone="soft" />
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Badge tone={badge.tone}>
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> {badge.label}
+        </Badge>
+      </div>
+      <p className="mt-3 font-display text-[22px] font-semibold leading-tight text-fg">{headline}</p>
+      <p className="mt-1 text-[13px] leading-snug text-fg-2">{detail}</p>
+      <ButtonLink href="/kabinet/obuna" variant={urgent ? "accent" : "outline"} size="md" className="mt-4 w-full">
+        {st.status === "off" ? "Obuna haqida" : st.status === "trial" ? "Faollashtirish" : "Uzaytirish"} <ArrowRight size={14} />
+      </ButtonLink>
+    </section>
+  );
+}
+
+function ProposalsCard({ sentToday, accepted, pending, expired }: { sentToday: number; accepted: number; pending: number; expired: boolean }) {
+  const used = Math.min(sentToday, PROPOSAL_DAILY_LIMIT);
+  const pct = Math.round((used / PROPOSAL_DAILY_LIMIT) * 100);
+  return (
+    <section className="card p-5" aria-labelledby="prop-card-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="prop-card-title" className="font-display text-[17px] font-semibold text-fg">
+            Takliflar
+          </h2>
+          <p className="mt-0.5 text-[12px] text-fg-3">Mijozlar e&apos;lonlariga yuborgan takliflaringiz</p>
+        </div>
+        <IconTile icon={Send} size="sm" tone="soft" />
+      </div>
+      <div className="mt-4">
+        <div className="flex items-baseline justify-between gap-3 text-[13px]">
+          <span className="text-fg-2">Bugun yuborilgan</span>
+          <span className="font-semibold text-fg tabular-nums">
+            {sentToday} / {PROPOSAL_DAILY_LIMIT}
+          </span>
+        </div>
+        <div
+          className="mt-2 h-2 overflow-hidden rounded-full bg-accent-soft"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={PROPOSAL_DAILY_LIMIT}
+          aria-valuenow={used}
+          aria-label="Kunlik takliflar limiti"
+        >
+          <span className={cn("block h-full rounded-full", pct >= 100 ? "bg-warning" : "bg-accent")} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-2 text-[13px]">
+        <div className="rounded-[var(--r-sm)] bg-surface-2 px-3 py-2.5">
+          <dt className="text-fg-3">Qabul qilingan</dt>
+          <dd className="mt-0.5 font-display text-[20px] font-semibold text-fg">{accepted}</dd>
+        </div>
+        <div className="rounded-[var(--r-sm)] bg-surface-2 px-3 py-2.5">
+          <dt className="text-fg-3">Kutilmoqda</dt>
+          <dd className="mt-0.5 font-display text-[20px] font-semibold text-fg">{pending}</dd>
+        </div>
+      </dl>
+      {expired && <p className="mt-3 text-[12px] font-medium text-danger-text">Obuna faol emas — yangi taklif yuborib bo&apos;lmaydi.</p>}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <ButtonLink href="/ishlar" variant="outline" size="md" className="w-full !px-3">
+          Ishlar
+        </ButtonLink>
+        <ButtonLink href="/kabinet/takliflar" variant="outline" size="md" className="w-full !px-3">
+          Takliflarim
+        </ButtonLink>
+      </div>
+    </section>
+  );
+}
+
+function JobsCard({ open, newProposals }: { open: number; newProposals: number }) {
+  return (
+    <section className="card p-5" aria-labelledby="jobs-card-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="jobs-card-title" className="font-display text-[17px] font-semibold text-fg">
+            E&apos;lonlarim
+          </h2>
+          <p className="mt-0.5 text-[12px] text-fg-3">Loyihani joylang — mutaxassislar o&apos;zi taklif yuboradi</p>
+        </div>
+        <IconTile icon={Megaphone} size="sm" tone="soft" />
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-2 text-[13px]">
+        <div className="rounded-[var(--r-sm)] bg-surface-2 px-3 py-2.5">
+          <dt className="text-fg-3">Ochiq e&apos;lonlar</dt>
+          <dd className="mt-0.5 font-display text-[20px] font-semibold text-fg">{open}</dd>
+        </div>
+        <div className="rounded-[var(--r-sm)] bg-surface-2 px-3 py-2.5">
+          <dt className="text-fg-3">Yangi takliflar</dt>
+          <dd className="mt-0.5 flex items-center gap-1.5 font-display text-[20px] font-semibold text-fg">
+            {newProposals}
+            {newProposals > 0 && <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />}
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        <ButtonLink href="/ishlar/yangi" variant="accent" size="md" className="w-full !px-3">
+          <Plus size={15} /> E&apos;lon joylash
+        </ButtonLink>
+        <ButtonLink href="/kabinet/elonlar" variant="outline" size="md" className="w-full !px-3">
+          E&apos;lonlarim
+        </ButtonLink>
+      </div>
+    </section>
   );
 }
 
@@ -185,6 +333,32 @@ export default async function KabinetPage() {
   ]);
 
   const firstName = user.name.split(" ")[0] || user.name;
+
+  /* ---------- Obuna + takliflar (mutaxassis) / e'lonlar (mijoz) ---------- */
+  const [settings, proposalStats, jobStats] = await Promise.all([
+    sp ? getSettings() : Promise.resolve(null),
+    sp
+      ? Promise.all([
+          proposalsSentToday(sp.id),
+          db.select({ status: proposals.status, n: count() }).from(proposals).where(eq(proposals.specialistId, sp.id)).groupBy(proposals.status),
+        ])
+          .then(([today, rows]) => ({ today, by: Object.fromEntries(rows.map((r) => [r.status, r.n])) as Record<string, number> }))
+          .catch(() => null)
+      : Promise.resolve(null),
+    user.role === "client"
+      ? Promise.all([
+          db.select({ n: count() }).from(jobs).where(and(eq(jobs.clientId, user.id), eq(jobs.status, "open"))),
+          db
+            .select({ n: count() })
+            .from(proposals)
+            .innerJoin(jobs, eq(proposals.jobId, jobs.id))
+            .where(and(eq(jobs.clientId, user.id), eq(jobs.status, "open"), eq(proposals.status, "pending"))),
+        ])
+          .then(([[o], [p]]) => ({ open: o?.n ?? 0, newProposals: p?.n ?? 0 }))
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const subState = sp && settings ? subscriptionState(sp, settings) : null;
 
   /* ---------- Statistika (faqat real raqamlar) ---------- */
   const newIncoming = asSpecialist.filter((o) => o.status === "new").length;
@@ -410,6 +584,19 @@ export default async function KabinetPage() {
         )}
       </div>
 
+      {/* ---------- Obuna + takliflar (mutaxassis) ---------- */}
+      {sp && subState && settings && (
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+          <SubscriptionCard st={subState} price={settings.subscriptionPrice} />
+          <ProposalsCard
+            sentToday={proposalStats?.today ?? 0}
+            accepted={proposalStats?.by.accepted ?? 0}
+            pending={(proposalStats?.by.pending ?? 0) + (proposalStats?.by.shortlisted ?? 0)}
+            expired={subState.status === "expired"}
+          />
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
         {/* ---------- So'nggi buyurtmalar ---------- */}
         <section className="card lg:col-span-2" aria-labelledby="recent-title">
@@ -495,6 +682,8 @@ export default async function KabinetPage() {
               ))}
             </div>
           </section>
+
+          {jobStats && <JobsCard open={jobStats.open} newProposals={jobStats.newProposals} />}
 
           {!sp && favCard}
 

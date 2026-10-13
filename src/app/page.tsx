@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, MessageSquareText, Play, ShieldCheck, Star } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, Megaphone, MessageSquareText, Play, Plus, ShieldCheck, Star } from "lucide-react";
 import { UzbekistanMap } from "@/components/map/UzbekistanMap";
 import { HomeMapSection } from "@/components/map/HomeMapSection";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
+import { budgetLabel, jobCategoryLabel, jobRegionLabel, listLatestJobs, proposalsCountLabel, type JobListItem } from "@/lib/jobs";
+import { getSettings } from "@/lib/payments/settings";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +27,18 @@ const STEPS = [
 ] as const;
 
 export default async function HomePage() {
-  const [regionStats, categoryStats, featured, site] = await Promise.all([
+  const [regionStats, categoryStats, featured, site, latestJobs, settings] = await Promise.all([
     getRegionStats(),
     getCategoryStats(),
     getFeaturedSpecialists(6),
     getSiteStats(),
+    // E'lonlar moduli xato bersa ham bosh sahifa ochilsin — tasma shunchaki chiqmaydi
+    listLatestJobs(6).catch((): JobListItem[] => []),
+    getSettings(),
   ]);
+  /* Mutaxassis CTA: obuna shartlari /narxlar bilan bir xil (admin sozlamasidan) */
+  const trialDays = settings.subscriptionTrialDays;
+  const subPrice = formatPrice(settings.subscriptionPrice);
   const counts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
   /* E83: avatar stack — rasm bo'lmasa ham <Avatar> bosh harflarni ko'rsatadi (bo'sh doira yo'q) */
   const stack = featured.slice(0, 3);
@@ -204,6 +212,56 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ================= SO'NGGI E'LONLAR — ixcham tasma (telefonda gorizontal aylanadi) ================= */}
+      <section className="container-x mt-section" aria-labelledby="latest-jobs-title">
+        <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <span className="eyebrow mb-4">
+              <Megaphone size={13} className="text-accent" /> Ishlar
+            </span>
+            <h2 id="latest-jobs-title" className="font-display text-[26px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[32px]">
+              So&apos;nggi e&apos;lonlar
+            </h2>
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2 sm:text-[15px]">Mijozlar loyihasini joylaydi — mutaxassislar narx va muddat bilan taklif yuboradi.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/ishlar" variant="outline" size="sm">
+              Barcha e&apos;lonlar <ArrowRight size={15} />
+            </ButtonLink>
+            <ButtonLink href="/ishlar/yangi" variant="primary" size="sm">
+              <Plus size={15} /> E&apos;lon joylash
+            </ButtonLink>
+          </div>
+        </div>
+        {latestJobs.length > 0 ? (
+          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-3 sm:[&>li:nth-child(n+5)]:hidden lg:[&>li:nth-child(n+4)]:hidden">
+            {latestJobs.map((j) => (
+              <li key={j.id} className="w-[82%] max-w-[320px] shrink-0 snap-start sm:w-auto sm:max-w-none">
+                <Link href={`/ishlar/${j.id}`} className="card card-hover group flex h-full flex-col p-4 sm:p-5">
+                  <span className="truncate text-[12px] font-medium text-fg-3">
+                    {jobCategoryLabel(j.category)} · {jobRegionLabel(j.regionSlug)}
+                  </span>
+                  <span className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug text-fg transition group-hover:text-accent-text">{j.title}</span>
+                  <span className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-4 text-[12.5px]">
+                    <span className="font-semibold text-fg">{budgetLabel(j.budgetMin, j.budgetMax, j.budgetType)}</span>
+                    <span className="text-fg-3">
+                      {proposalsCountLabel(j.proposalsCount)} · {timeAgo(j.createdAt)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="card-outline flex flex-col items-start gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[14px] text-fg-2">Hozircha ochiq e&apos;lon yo&apos;q — loyihangizni birinchi bo&apos;lib joylang, mutaxassislar o&apos;zi taklif yuboradi.</p>
+            <ButtonLink href="/ishlar/yangi" variant="outline" size="sm">
+              <Plus size={15} /> E&apos;lon joylash
+            </ButtonLink>
+          </div>
+        )}
+      </section>
+
       {/* ================= QANDAY ISHLAYDI — raqamli plitkalar + bog'lovchi chiziq ================= */}
       <section className="container-x mt-section">
         <SectionHeading eyebrow="Qanday ishlaydi" title="Uch qadam — va mutaxassis topildi" />
@@ -247,7 +305,11 @@ export default async function HomePage() {
                 Siz ijodkormisiz? <span className="accent-serif text-accent">Xaritada</span> paydo bo'ling.
               </h2>
               <p className="mt-5 max-w-xl text-[15px] text-white/70 sm:text-[17px]">
-                Bepul ro'yxatdan o'ting, portfolio joylang, narxlaringizni belgilang. Buyurtmalar to'g'ridan-to'g'ri kabinetingizga keladi.
+                {trialDays > 0 ? `${trialDays} kun bepul sinab ko'ring, keyin ${subPrice} / oy.` : `Obuna — ${subPrice} / oy.`} Portfolio joylang, narxlaringizni belgilang — buyurtmalar
+                to'g'ridan-to'g'ri kabinetingizga keladi.{" "}
+                <Link href="/narxlar" className="font-semibold text-white underline decoration-white/40 underline-offset-4 transition hover:decoration-white">
+                  Narxlar va shartlar
+                </Link>
               </p>
             </div>
             <div className="flex flex-col gap-3 lg:col-span-4 lg:items-end">

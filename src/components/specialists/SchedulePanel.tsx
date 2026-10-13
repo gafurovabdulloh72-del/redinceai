@@ -1,9 +1,17 @@
-import { CalendarClock, Clock3, Lock, TreePalm } from "lucide-react";
+import { CalendarClock, CalendarX, Clock3, Lock, TreePalm } from "lucide-react";
 import Link from "next/link";
 import { WEEKDAYS } from "@/lib/constants";
 import type { Schedule } from "@/lib/db/schema";
 import { LOCK_LABEL, isOnVacation, scheduleStatus, scheduleStatusLabel, tashkentNow, type LockReason } from "@/lib/privacy";
 import { cn, formatDate } from "@/lib/utils";
+
+const MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+/** "2026-10-16" → { day: "16-okt", weekday: "Ju" } (UTC sana — vaqt mintaqasidan qat'i nazar bir xil) */
+function shortDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return { day: `${d}-${MONTHS_SHORT[m - 1] ?? ""}`, weekday: WEEKDAYS[(wd + 6) % 7]?.short ?? "" };
+}
 
 /**
  * Ommaviy profildagi "Ish vaqti" bo'limi: holat (hozir ochiq / yopiq — Toshkent vaqti),
@@ -16,9 +24,12 @@ export function SchedulePanel({
   loginHref,
   className,
   now = Date.now(),
+  blockedDates = [],
 }: {
   schedule: Schedule | null;
   vacationUntil: string | null;
+  /** Band kunlar (F41) — maxfiylik filtridan o'tgan (jadval yashirin bo'lsa bo'sh) */
+  blockedDates?: string[];
   /** Ko'rinish cheklangan bo'lsa — sababi */
   lock?: LockReason | null;
   loginHref: string;
@@ -26,7 +37,9 @@ export function SchedulePanel({
   now?: number;
 }) {
   const vacation = isOnVacation(vacationUntil, now);
-  if (!schedule && !lock && !vacation) return null;
+  const todayIso = tashkentNow(now).date;
+  const upcoming = [...new Set(blockedDates)].filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= todayIso).sort();
+  if (!schedule && !lock && !vacation && upcoming.length === 0) return null;
 
   const status = schedule ? scheduleStatus(schedule, now) : { state: "none" as const };
   const today = tashkentNow(now).dayKey;
@@ -94,7 +107,7 @@ export function SchedulePanel({
                   )}
                   aria-label={`${d.label}: ${on ? `${day.from}–${day.to}` : "dam"}${isToday ? " (bugun)" : ""}`}
                 >
-                  <span className={cn("text-[11px] font-bold uppercase tracking-wide", isToday ? "text-accent" : on ? "text-fg-2" : "text-fg-4")}>{d.short}</span>
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wide", isToday ? "text-accent-text" : on ? "text-fg-2" : "text-fg-4")}>{d.short}</span>
                   {on ? (
                     <span className="mt-1 text-[11px] font-semibold leading-tight text-fg tabular-nums sm:text-[12px]">
                       {day.from}
@@ -119,6 +132,27 @@ export function SchedulePanel({
           {schedule.note?.trim() && <p className="mt-3 rounded-[14px] bg-surface-2 px-4 py-3 text-[13px] leading-relaxed text-fg-2">{schedule.note}</p>}
         </>
       ) : null}
+
+      {/* Band kunlar (F41): keyingi 8 tasi */}
+      {!lock && upcoming.length > 0 && (
+        <div className="mt-5 border-t border-line pt-4">
+          <h3 className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">
+            <CalendarX size={13} aria-hidden="true" /> Band kunlar
+          </h3>
+          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Mutaxassis band bo'lgan kunlar">
+            {upcoming.slice(0, 8).map((d) => {
+              const f = shortDate(d);
+              return (
+                <li key={d} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line bg-surface-2 px-3 text-[12.5px] font-semibold text-fg-2 tabular-nums">
+                  {f.day} <span className="font-medium text-fg-4">{f.weekday}</span>
+                </li>
+              );
+            })}
+            {upcoming.length > 8 && <li className="inline-flex min-h-8 items-center px-2 text-[12px] text-fg-3">+{upcoming.length - 8} kun</li>}
+          </ul>
+          <p className="mt-2 text-[12px] text-fg-3">Bu kunlarga buyurtma qabul qilinmasligi mumkin — boshqa sanani tanlang.</p>
+        </div>
+      )}
     </section>
   );
 }

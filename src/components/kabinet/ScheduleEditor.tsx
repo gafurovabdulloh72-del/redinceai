@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertCircle, CalendarOff, CheckCircle2, Clock3, TreePalm, X } from "lucide-react";
+import { AlertCircle, CalendarOff, CalendarX, CheckCircle2, ChevronLeft, ChevronRight, Clock3, TreePalm, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { WEEKDAYS, type WeekdayKey } from "@/lib/constants";
 import type { Schedule } from "@/lib/db/schema";
@@ -21,16 +21,114 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   return <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className="switch" />;
 }
 
+/* ---------- Band kunlar kalendari (F41) ---------- */
+const BLOCK_WINDOW_DAYS = 90;
+const MONTH_NAMES = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const isoOf = (d: Date) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+function addDaysIso(iso: string, days: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return isoOf(new Date(Date.UTC(y, m - 1, d + days)));
+}
+
+/**
+ * Oy to'ri: bugundan keyingi 90 kun ichidagi kunlarni bosib band/bo'sh qilish. Oy almashtirish — strelkalar.
+ * Har bir kun — 40px+ tugma (aria-pressed), o'tgan va oynadan tashqari kunlar o'chirilgan.
+ */
+function BlockedDatesCalendar({ today, value, onChange }: { today: string; value: string[]; onChange: (next: string[]) => void }) {
+  const last = addDaysIso(today, BLOCK_WINDOW_DAYS - 1);
+  const [ty, tm] = today.split("-").map(Number);
+  const [ly, lm] = last.split("-").map(Number);
+  const totalMonths = (ly - ty) * 12 + (lm - tm) + 1;
+  const [offset, setOffset] = useState(0);
+  const y = ty + Math.floor((tm - 1 + offset) / 12);
+  const m = ((tm - 1 + offset) % 12) + 1;
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (first.getUTCDay() + 6) % 7; // Dushanbadan boshlanadi
+  const set = new Set(value);
+  const cells: Array<string | null> = [...Array.from({ length: lead }, () => null), ...Array.from({ length: daysInMonth }, (_, i) => `${y}-${pad2(m)}-${pad2(i + 1)}`)];
+  const toggle = (iso: string) => onChange(set.has(iso) ? value.filter((d) => d !== iso) : [...value, iso].sort());
+
+  return (
+    <div className="rounded-[var(--r-md)] border border-line p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setOffset((o) => Math.max(0, o - 1))}
+          disabled={offset === 0}
+          aria-label="Oldingi oy"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-30"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <p className="text-[14px] font-semibold text-fg" aria-live="polite">
+          {MONTH_NAMES[m - 1]} {y}
+        </p>
+        <button
+          type="button"
+          onClick={() => setOffset((o) => Math.min(totalMonths - 1, o + 1))}
+          disabled={offset >= totalMonths - 1}
+          aria-label="Keyingi oy"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-30"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center" role="grid" aria-label={`${MONTH_NAMES[m - 1]} ${y} — band kunlar`}>
+        {WEEKDAYS.map((d) => (
+          <span key={d.key} className="pb-1 text-[11px] font-bold uppercase tracking-wide text-fg-4" aria-hidden="true">
+            {d.short}
+          </span>
+        ))}
+        {cells.map((iso, i) => {
+          if (!iso) return <span key={`e${i}`} aria-hidden="true" />;
+          const day = Number(iso.slice(8));
+          const outside = iso < today || iso > last;
+          const on = set.has(iso);
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={outside}
+              aria-pressed={on}
+              aria-label={`${day}-${MONTH_NAMES[m - 1].toLowerCase()}${on ? " — band" : ""}`}
+              onClick={() => toggle(iso)}
+              className={cn(
+                "flex h-10 items-center justify-center rounded-[10px] text-[13px] font-semibold tabular-nums transition active:scale-95",
+                outside ? "text-fg-4/60" : on ? "bg-danger-soft text-danger-text ring-1 ring-danger/40" : "text-fg hover:bg-fg/6",
+                iso === today && !on && "ring-1 ring-accent/60",
+              )}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function normalize(s: Schedule | null): Schedule | null {
   if (!s) return null;
   return { days: s.days, note: s.note ?? "" };
 }
 
-export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { initial: Schedule | null; vacationUntil: string | null }) {
+export function ScheduleEditor({
+  initial,
+  vacationUntil: initialVacation,
+  blockedDates: initialBlocked = [],
+}: {
+  initial: Schedule | null;
+  vacationUntil: string | null;
+  /** Band kunlar (F41) */
+  blockedDates?: string[];
+}) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(Boolean(initial));
   const [schedule, setSchedule] = useState<Schedule>(() => normalize(initial) ?? presetSchedule("weekdays"));
   const [vacation, setVacation] = useState(initialVacation ?? "");
+  const [blocked, setBlocked] = useState<string[]>(() => [...initialBlocked].sort());
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -51,8 +149,8 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
   }, [saved]);
 
   const effective: Schedule | null = enabled ? schedule : null;
-  const baseline = useMemo(() => JSON.stringify({ s: normalize(initial), v: initialVacation ?? "" }), [initial, initialVacation]);
-  const dirty = JSON.stringify({ s: effective, v: vacation }) !== baseline;
+  const baseline = useMemo(() => JSON.stringify({ s: normalize(initial), v: initialVacation ?? "", b: [...initialBlocked].sort() }), [initial, initialVacation, initialBlocked]);
+  const dirty = JSON.stringify({ s: effective, v: vacation, b: blocked }) !== baseline;
 
   const status = now != null ? scheduleStatus(effective, now) : null;
   const todayKey = now != null ? tashkentNow(now).dayKey : null;
@@ -90,9 +188,9 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
       const res = await fetch("/api/privacy", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visibility: {}, schedule: effective, vacationUntil: vacation || null }),
+        body: JSON.stringify({ visibility: {}, schedule: effective, vacationUntil: vacation || null, blockedDates: blocked }),
       });
-      const json = (await res.json()) as ApiResponse<{ schedule: Schedule | null; vacationUntil: string | null }>;
+      const json = (await res.json()) as ApiResponse<{ schedule: Schedule | null; vacationUntil: string | null; blockedDates: string[] }>;
       if (!json.ok) {
         setError(json.error);
         if (json.fields) {
@@ -102,6 +200,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
         }
         return;
       }
+      setBlocked(json.data.blockedDates ?? blocked);
       setSaved(true);
       router.refresh();
     } catch {
@@ -183,7 +282,7 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
                   <Switch checked={day.enabled} onChange={(on) => setDay(d.key, { enabled: on })} label={`${d.label} — ish kuni`} />
                   <span className={cn("w-24 text-[14px] font-semibold sm:w-32", day.enabled ? "text-fg" : "text-fg-3")}>
                     {d.label}
-                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold uppercase text-accent">bugun</span>}
+                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold uppercase text-accent-text">bugun</span>}
                   </span>
                   {day.enabled ? (
                     <div className="flex basis-full items-center gap-2 sm:ml-auto sm:basis-auto">
@@ -275,6 +374,28 @@ export function ScheduleEditor({ initial, vacationUntil: initialVacation }: { in
           </div>
         </div>
         {errors.vacationUntil && <p className="field-error">{errors.vacationUntil}</p>}
+      </div>
+
+      {/* Band kunlar (F41) */}
+      <div className="mt-6 border-t border-line pt-5">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]", blocked.length ? "bg-danger-soft text-danger-text" : "bg-surface-3 text-fg-3")}>
+              <CalendarX size={16} />
+            </span>
+            <div>
+              <p className="text-[14px] font-semibold text-fg">Band kunlar</p>
+              <p className="mt-0.5 text-[12px] text-fg-3">Kelgusi {BLOCK_WINDOW_DAYS} kun ichida band bo'lgan kunlarni bosing — profilda «Band kunlar» ro'yxatida ko'rinadi (ish vaqti ko'rinishiga bog'liq).</p>
+            </div>
+          </div>
+          {blocked.length > 0 && (
+            <button type="button" onClick={() => setBlocked([])} className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+              <X size={13} /> Tozalash ({blocked.length})
+            </button>
+          )}
+        </div>
+        {todayDate ? <BlockedDatesCalendar today={todayDate} value={blocked} onChange={setBlocked} /> : <div className="h-[330px] skeleton" aria-hidden="true" />}
+        {errors.blockedDates && <p className="field-error">{errors.blockedDates}</p>}
       </div>
 
       {error && (

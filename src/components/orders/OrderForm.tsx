@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, ClipboardList, Lock, PhoneCall, Send, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { AlertCircle, ArrowLeft, Check, CheckCircle2, ClipboardList, ImagePlus, Lock, MessageCircle, Package, Send, ShieldCheck, X, Zap } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT, isImageAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import type { PackageKey, ServicePackage } from "@/lib/db/schema";
+import { PACKAGE_TIERS } from "@/lib/constants";
 import { cn, formatPrice } from "@/lib/utils";
+import { DueDatePicker, addDays, nextFreeDate, tashkentToday } from "./DueDatePicker";
 
 type ApiResponse = { ok: true; data: { id: string } } | { ok: false; error: string; fields?: Record<string, string> };
 
-const DEADLINE_HINTS = ["Shoshilinch (3 kun)", "1 hafta ichida", "2 hafta ichida", "1 oy ichida", "Kelishiladi"];
-const FIELD_ORDER = ["title", "description", "budget", "deadline", "contactPhone"] as const;
+const FIELD_ORDER = ["packageKey", "title", "description", "budget", "dueDate", "attachments", "contactPhone"] as const;
 type FieldKey = (typeof FIELD_ORDER)[number];
 
 /** Byudjet tez tanlovlari — mutaxassis narxidan kelib chiqib (50 ming so'mga yaxlitlangan) */
@@ -28,6 +31,10 @@ export function OrderForm({
   defaultPhone = "",
   priceFrom = 0,
   priceTo = null,
+  packages = [],
+  initialPackage = null,
+  blockedDates = [],
+  urgentPct = 20,
 }: {
   specialistId: string;
   specialistSlug: string;
@@ -36,12 +43,29 @@ export function OrderForm({
   defaultPhone?: string | null;
   priceFrom?: number;
   priceTo?: number | null;
+  /** Mutaxassis xizmat paketlari (F31) */
+  packages?: ServicePackage[];
+  /** ?paket= bilan kelgan paket */
+  initialPackage?: PackageKey | null;
+  /** Mutaxassis band kunlari (YYYY-MM-DD) — sana tanlagichda yopiq */
+  blockedDates?: string[];
+  /** Shoshilinch ustama foizi (F30) */
+  urgentPct?: number;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
+  const pkgInit = initialPackage ? (packages.find((p) => p.key === initialPackage) ?? null) : null;
+  const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates]);
+  /** Paket muddatidan taklif qilinadigan sana (band kunni chetlab) */
+  const suggestDue = (pkg: ServicePackage | null) => (pkg ? nextFreeDate(addDays(tashkentToday(), Math.max(1, pkg.deliveryDays)), blockedSet, addDays(tashkentToday(), 365)) : null);
+  const [packageKey, setPackageKey] = useState<PackageKey | null>(pkgInit?.key ?? null);
+  const [title, setTitle] = useState(pkgInit ? `«${pkgInit.title}» paketi` : "");
   const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState("");
-  const [deadline, setDeadline] = useState("");
+  const [budget, setBudget] = useState(pkgInit ? String(pkgInit.price) : "");
+  const [dueDate, setDueDate] = useState<string | null>(() => suggestDue(pkgInit));
+  const [urgent, setUrgent] = useState(false);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(0);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [contactPhone, setContactPhone] = useState(defaultPhone ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -58,14 +82,16 @@ export function OrderForm({
     }
   }, []);
 
-  const refs = useRef<Record<FieldKey, HTMLInputElement | HTMLTextAreaElement | null>>({
+  const refs = useRef<Record<FieldKey, HTMLElement | null>>({
+    packageKey: null,
     title: null,
     description: null,
     budget: null,
-    deadline: null,
+    dueDate: null,
+    attachments: null,
     contactPhone: null,
   });
-  const setRef = (key: FieldKey) => (el: HTMLInputElement | HTMLTextAreaElement | null) => {
+  const setRef = (key: FieldKey) => (el: HTMLElement | null) => {
     refs.current[key] = el;
   };
 
@@ -76,16 +102,50 @@ export function OrderForm({
 
   /** Server xatosidan keyin birinchi noto'g'ri maydonga fokus (tartib bo'yicha) */
   const focusFirstInvalid = (fields: Record<string, string>) => {
-    const key = FIELD_ORDER.find((k) => fields[k]);
-    const el = key ? refs.current[key] : null;
+    const key = FIELD_ORDER.find((k) => fields[k] || Object.keys(fields).some((f) => f.startsWith(`${k}.`)));
+    const el = key ? (key === "dueDate" ? document.getElementById("order-due") : refs.current[key]) : null;
     if (!el) return;
     el.focus({ preventScroll: true });
     el.scrollIntoView({ block: "center", behavior: "smooth" });
   };
 
+  const choosePackage = (pkg: ServicePackage | null) => {
+    const prev = packages.find((p) => p.key === packageKey) ?? null;
+    setPackageKey(pkg?.key ?? null);
+    if (pkg) {
+      setBudget(String(pkg.price));
+      // Sarlavha va sana — foydalanuvchi o'zi o'zgartirmagan bo'lsa (avvalgi paketdan kelgan qiymat) yangilanadi
+      setTitle((cur) => (!cur.trim() || (prev && cur === `«${prev.title}» paketi`) ? `«${pkg.title}» paketi` : cur));
+      setDueDate((cur) => (!cur || cur === suggestDue(prev) ? suggestDue(pkg) : cur));
+    } else if (prev && budget === String(prev.price)) {
+      setBudget("");
+    }
+    setErrors((m) => ({ ...m, packageKey: "" }));
+  };
+
+  const pickFiles = async (e: ChangeEvent<HTMLInputElement>) => {
+    const list = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const room = MAX_ATTACHMENTS - files.length;
+    if (!list.length || room <= 0) return;
+    setErrors((m) => ({ ...m, attachments: "" }));
+    for (const f of list.slice(0, room)) {
+      setUploading((n) => n + 1);
+      try {
+        const a = await uploadAttachment(f);
+        setFiles((cur) => (cur.some((x) => x.url === a.url) ? cur : [...cur, a]));
+      } catch (err) {
+        setErrors((m) => ({ ...m, attachments: err instanceof Error ? err.message : "Faylni yuklab bo'lmadi" }));
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    if (list.length > room) setErrors((m) => ({ ...m, attachments: `Ko'pi bilan ${MAX_ATTACHMENTS} ta fayl` }));
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || uploading > 0) return;
     setError(null);
     setErrors({});
     setBusy(true);
@@ -98,7 +158,11 @@ export function OrderForm({
           title,
           description,
           budget: budget.trim() === "" ? null : budgetNum,
-          deadline: deadline.trim(),
+          deadline: "",
+          dueDate: dueDate ?? "",
+          urgent,
+          packageKey,
+          attachments: files,
           contactPhone,
         }),
       });
@@ -127,7 +191,7 @@ export function OrderForm({
     const orderHref = `/kabinet/buyurtmalar?id=${doneId}`;
     const steps = [
       { icon: ClipboardList, t: "So'rov mutaxassis kabinetiga tushdi", d: `${specialistName} uni ko'rib chiqadi va qabul qiladi yoki savol beradi.` },
-      { icon: PhoneCall, t: "U siz bilan bog'lanadi", d: "Ko'rsatgan raqamingizga qo'ng'iroq yoki Telegram orqali." },
+      { icon: MessageCircle, t: "Buyurtma chatida yozishasiz", d: "Savollar, fayllar va video qo'ng'iroq havolasi — hammasi buyurtma ichida." },
       { icon: Lock, t: "Narx kelishilgach — xavfsiz to'lov", d: "Pul eskrouda saqlanadi, ishni qabul qilganingizdan keyingina mutaxassisga o'tadi." },
     ];
     return (
@@ -183,9 +247,64 @@ export function OrderForm({
   return (
     <form onSubmit={submit} className="card p-5 sm:p-7" noValidate aria-describedby="order-form-hint">
       <p id="order-form-hint" className="sr-only">
-        Barcha maydonlar o'zbek tilida to'ldiriladi. Byudjet va muddat ixtiyoriy.
+        Barcha maydonlar o'zbek tilida to'ldiriladi. Paket, byudjet, muddat va fayllar ixtiyoriy.
       </p>
       <div className="space-y-6">
+        {/* Xizmat paketi (F31) */}
+        {packages.length > 0 && (
+          <fieldset ref={setRef("packageKey")} tabIndex={-1} className="outline-none">
+            <legend className="field-label">
+              Xizmat paketi <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Xizmat paketi">
+              {packages.map((p) => {
+                const on = packageKey === p.key;
+                const tier = PACKAGE_TIERS.find((t) => t.key === p.key)?.label ?? p.key;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => choosePackage(on ? null : p)}
+                    className={cn(
+                      "flex min-h-[88px] flex-col items-start rounded-[16px] border p-3.5 text-left transition active:scale-[0.99]",
+                      on ? "border-fg bg-fg/4 ring-1 ring-fg" : "border-line bg-surface hover:border-line-2",
+                    )}
+                  >
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-3">{tier}</span>
+                      <span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", on ? "border-fg bg-fg text-bg" : "border-line-2")}>{on && <Check size={12} />}</span>
+                    </span>
+                    <span className="mt-1 line-clamp-1 text-[14px] font-semibold text-fg">{p.title}</span>
+                    <span className="mt-0.5 font-display text-[16px] font-semibold text-fg tabular-nums">{formatPrice(p.price, { compact: true })}</span>
+                    <span className="mt-0.5 text-[12px] text-fg-3">
+                      {p.deliveryDays} kun · {p.revisions} ta tuzatish
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {(() => {
+              const sel = packages.find((p) => p.key === packageKey);
+              return sel && sel.features.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Paket tarkibi">
+                  {sel.features.map((f) => (
+                    <li key={f} className="inline-flex items-center gap-1 rounded-full bg-fg/6 px-2.5 py-1 text-[12px] text-fg-2">
+                      <Check size={11} className="text-success-text" /> {f}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-4">
+                  <Package size={13} /> Paket tanlansa narx va muddat avtomatik to'ldiriladi — keyin o'zgartirishingiz mumkin.
+                </p>
+              );
+            })()}
+            {errors.packageKey && <p className="field-error">{errors.packageKey}</p>}
+          </fieldset>
+        )}
+
         {/* Sarlavha */}
         <div>
           <label htmlFor="order-title" className="field-label">
@@ -294,34 +413,74 @@ export function OrderForm({
           )}
         </div>
 
-        {/* Muddat */}
+        {/* Topshirish sanasi (F37) */}
         <div>
-          <label htmlFor="order-deadline" className="field-label">
-            Muddat <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+          <label htmlFor="order-due" className="field-label">
+            Topshirish sanasi <span className="font-normal text-fg-4">(ixtiyoriy)</span>
           </label>
-          <input
-            ref={setRef("deadline")}
-            id="order-deadline"
-            className="field"
-            placeholder="Masalan: 25-oktabrgacha"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            maxLength={40}
-            autoComplete="off"
-            aria-invalid={Boolean(errors.deadline)}
-          />
-          {errors.deadline && <p className="field-error">{errors.deadline}</p>}
-          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Muddat tez tanlovi">
-            {DEADLINE_HINTS.map((h) => {
-              const on = deadline === h;
-              return (
-                <button key={h} type="button" aria-pressed={on} onClick={() => setDeadline(on ? "" : h)} className={chipCls(on)}>
-                  {on && <Check size={13} />}
-                  {h}
-                </button>
-              );
-            })}
+          <DueDatePicker id="order-due" value={dueDate} onChange={(v) => (setDueDate(v), setErrors((m) => ({ ...m, dueDate: "" })))} blocked={blockedDates} error={errors.dueDate} describedBy="order-due-hint" />
+          {errors.dueDate ? (
+            <p className="field-error">{errors.dueDate}</p>
+          ) : (
+            <p id="order-due-hint" className="mt-1.5 text-[12px] text-fg-4">
+              {blockedDates.length ? "Qizil belgilangan kunlarda mutaxassis band. " : ""}Muddatdan 2 kun oldin ikkalangizga eslatma keladi.
+            </p>
+          )}
+        </div>
+
+        {/* Shoshilinch (F30) */}
+        <div className="flex items-start justify-between gap-4 rounded-[16px] border border-line bg-surface-2 p-3.5">
+          <div className="min-w-0">
+            <p id="order-urgent-label" className="flex items-center gap-1.5 text-[14px] font-semibold text-fg">
+              <Zap size={15} className="text-warning-text" /> Shoshilinch buyurtma <span className="font-normal text-fg-3">(+{urgentPct}%)</span>
+            </p>
+            <p className="mt-0.5 text-[12px] leading-snug text-fg-3">
+              Mutaxassis ishni birinchi navbatda bajaradi. Narx belgilanganda {urgentPct}% ustama qo'shiladi
+              {urgent && budgetNum > 0 ? ` — taxminan ${formatPrice(budgetNum + Math.round((budgetNum * urgentPct) / 100), { compact: true })}` : ""}.
+            </p>
           </div>
+          <button type="button" role="switch" aria-checked={urgent} aria-labelledby="order-urgent-label" onClick={() => setUrgent((v) => !v)} className="switch mt-1" />
+        </div>
+
+        {/* Fayllar (F35) */}
+        <div ref={setRef("attachments")} tabIndex={-1} className="outline-none">
+          <span className="field-label">
+            Fayllar <span className="font-normal text-fg-4">(ixtiyoriy, {MAX_ATTACHMENTS} tagacha)</span>
+          </span>
+          <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT} multiple className="hidden" onChange={pickFiles} tabIndex={-1} />
+          <div className="flex flex-wrap items-center gap-2">
+            {files.map((f) => (
+              <span key={f.url} className="inline-flex min-h-11 max-w-[240px] items-center gap-2 rounded-full border border-line bg-surface pl-1.5 pr-1 text-[13px] text-fg-2">
+                {isImageAttachment(f) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={f.url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                ) : null}
+                <span className="truncate">{f.name}</span>
+                <button type="button" onClick={() => setFiles((cur) => cur.filter((x) => x.url !== f.url))} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-fg/6" aria-label={`${f.name} — olib tashlash`}>
+                  <X size={14} />
+                </button>
+              </span>
+            ))}
+            {uploading > 0 && (
+              <span className="inline-flex min-h-11 items-center gap-2 rounded-full bg-fg/6 px-3.5 text-[13px] text-fg-3">
+                <Spinner className="h-4 w-4" /> Yuklanmoqda…
+              </span>
+            )}
+            {files.length < MAX_ATTACHMENTS && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+              >
+                <ImagePlus size={15} /> Fayl qo'shish
+              </button>
+            )}
+          </div>
+          {errors.attachments ? (
+            <p className="field-error">{errors.attachments}</p>
+          ) : (
+            <p className="mt-1.5 text-[12px] text-fg-4">Brief, texnik topshiriq skrinshoti yoki referens rasmlar — JPG, PNG, WEBP, GIF, har biri 5 MB gacha.</p>
+          )}
         </div>
 
         {/* Telefon */}
@@ -365,7 +524,7 @@ export function OrderForm({
         <Link href={`/mutaxassislar/${specialistSlug}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[14px] font-semibold text-fg-2 transition hover:text-fg">
           <ArrowLeft size={15} /> Profilga qaytish
         </Link>
-        <Button type="submit" variant="accent" size="lg" disabled={busy} className="sm:min-w-[220px]">
+        <Button type="submit" variant="accent" size="lg" disabled={busy || uploading > 0} className="sm:min-w-[220px]">
           {busy ? (
             <Spinner />
           ) : (

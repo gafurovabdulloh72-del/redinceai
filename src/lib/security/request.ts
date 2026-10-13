@@ -28,7 +28,11 @@ function behindCloudflare(): boolean {
  * user-agent hash'idan "unknown-…" kaliti beriladi.
  */
 export function clientIp(req: Request): string {
-  const h = req.headers;
+  return clientIpFromHeaders(req.headers);
+}
+
+/** clientIp() bilan bir xil qoida — faqat sarlavhalar bo'yicha (Route Handler'da next/headers `headers()` uchun) */
+export function clientIpFromHeaders(h: Headers): string {
   const first = (name: string) => h.get(name)?.split(",")[0]?.trim() || null;
   const onVercel = Boolean(process.env.VERCEL);
   const direct =
@@ -94,6 +98,11 @@ export function requestOrigin(req: Request): string {
   const host = forwardedHost(req.headers) || req.headers.get("host") || url.host;
   const proto = forwardedProto(req.headers) || (/^(localhost|127\.)/i.test(host) ? "http" : url.protocol.replace(":", ""));
   return `${proto}://${host}`;
+}
+
+/** IP manzilning sha256 hashi (sessiyalar jadvali uchun — xom IP saqlanmaydi) */
+export function hashIp(ip: string): string {
+  return createHash("sha256").update(`redince-ip:${ip}`).digest("hex");
 }
 
 export function userAgent(req: Request): string | null {

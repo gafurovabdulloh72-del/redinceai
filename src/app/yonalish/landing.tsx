@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
+import { CompareTray } from "@/components/specialists/CompareTray";
 import { CATEGORIES, CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG, SITE, TOP_RATED_RULE, type Category, type Region } from "@/lib/constants";
 import { GUEST_VIEWER } from "@/lib/privacy";
 import { getLandingIndex, getLandingStats, listSpecialists } from "@/lib/queries";
@@ -188,7 +189,7 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
         {list.items.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {list.items.map((sp, i) => (
-              <SpecialistCard key={sp.id} sp={sp} priority={i < 4} />
+              <SpecialistCard key={sp.id} sp={sp} priority={i < 4} showCompare />
             ))}
           </div>
         ) : (
@@ -292,6 +293,7 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
           ))}
         </div>
       </section>
+      <CompareTray />
     </div>
   );
 }
