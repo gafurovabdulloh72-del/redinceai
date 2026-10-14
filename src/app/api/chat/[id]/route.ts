@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { DM_BODY_MAX, listMessages, loadConversationFor, markRead, sendDm } from "@/lib/chat/dm";
+import { DM_BODY_MAX, listMessages, loadConversationFor, markRead, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 /**
@@ -15,9 +15,18 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
   const after = new URL(req.url).searchParams.get("after");
   const items = await listMessages(id, after);
-  await markRead(found.conv, session.sub);
+  await Promise.all([markRead(found.conv, session.sub), touchLastSeen(session.sub)]);
   return ok({
-    peer: { username: found.peer.username, name: found.peer.name, avatarUrl: found.peer.avatarUrl, isBanned: found.peer.isBanned },
+    peer: {
+      id: found.peer.id,
+      username: found.peer.username,
+      name: found.peer.name,
+      avatarUrl: found.peer.avatarUrl,
+      isBanned: found.peer.isBanned,
+      lastSeenAt: found.peer.lastSeenAt ? found.peer.lastSeenAt.getTime() : null,
+    },
+    /** Qarshi tomon o'qigan vaqt (ms) — bundan oldingi mening xabarlarim "✓✓ o'qildi" */
+    peerReadAt: found.peerReadAt ? found.peerReadAt.getTime() : 0,
     items: items.map((m) => ({ id: m.id, mine: m.senderId === session.sub, body: m.body, attachments: m.attachments, at: m.createdAt.getTime() })),
   });
 });

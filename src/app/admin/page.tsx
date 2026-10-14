@@ -281,8 +281,8 @@ export default async function AdminPage() {
         </div>
       </header>
 
-      {/* Bo'limlarga tez o'tish */}
-      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-8 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}
+      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-8 overflow-x-auto px-4 sm:mx-0 sm:px-0 xl:hidden">
         <ul className="flex w-max gap-1.5">
           {sections.map((s) => (
             <li key={s.href}>
@@ -297,7 +297,8 @@ export default async function AdminPage() {
 
       {/* ---------- Statistika ---------- */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Tile icon={Users} value={stats.specialists} label="Mutaxassislar" hint={pending.length > 0 ? `${pending.length} ta tekshiruvda` : "Hammasi tasdiqlangan"} hintTone={pending.length > 0 ? "warning" : "success"} href="/mutaxassislar" />
+        {/* Profili to'ldirilgan mutaxassislar sanaladi — rol "mutaxassis" bo'lib profil yaratmaganlar kirmaydi */}
+        <Tile icon={Users} value={stats.specialists} label="Mutaxassis profillari" hint={pending.length > 0 ? `${pending.length} ta tekshiruvda` : "Hammasi tasdiqlangan"} hintTone={pending.length > 0 ? "warning" : "success"} href="/mutaxassislar" />
         <Tile icon={ClipboardList} value={stats.orders} label="Buyurtmalar" hint={lastOrderAt ? `Oxirgisi ${timeAgo(lastOrderAt)}` : undefined} />
         <Tile icon={MessageSquareText} value={stats.reviews} label="Sharhlar" />
         <Tile

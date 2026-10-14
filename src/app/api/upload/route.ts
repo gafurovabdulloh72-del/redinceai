@@ -34,6 +34,20 @@ function sniffDoc(buf: Buffer, origName: string): { ext: string; mime: string } 
 }
 
 /**
+ * Video (faqat purpose="attachment"): MP4/MOV — ISO-BMFF "ftyp", WebM — EBML sarlavhasi.
+ * Asosiy yo'l — brauzerdan Blob'ga to'g'ridan-to'g'ri (/api/upload/video); bu yerda dev/fallback uchun.
+ */
+function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
+  if (buf.length >= 12 && buf.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = buf.subarray(8, 12).toString("ascii");
+    if (brand.startsWith("qt")) return { ext: "mov", mime: "video/quicktime" };
+    return { ext: "mp4", mime: "video/mp4" };
+  }
+  if (buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return { ext: "webm", mime: "video/webm" };
+  return null;
+}
+
+/**
  * Rasm (va buyurtma biriktirmasi sifatida hujjat) yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
  * Railway'da UPLOAD_DIR=/data/uploads (Volume) — fayllar /uploads/<nom> orqali
  * src/app/uploads/[name]/route.ts tomonidan beriladi.
@@ -56,8 +70,8 @@ export const POST = handler(async (req) => {
   const bytes = Buffer.from(await file.arrayBuffer());
   // purpose="attachment" (buyurtma/chat fayllari) hujjatlarga ham ruxsat beradi; qolgan joylar (avatar, portfolio, sharh) — faqat rasm
   const allowDocs = form?.get("purpose") === "attachment";
-  const kind = sniff(bytes) ?? (allowDocs ? sniffDoc(bytes, file.name || "") : null);
-  if (!kind) throw new ApiError(415, allowDocs ? "Faqat JPG, PNG, WEBP, GIF rasm yoki PDF, DOC, DOCX hujjat" : "Faqat JPG, PNG, WEBP yoki GIF");
+  const kind = sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null);
+  if (!kind) throw new ApiError(415, allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
 

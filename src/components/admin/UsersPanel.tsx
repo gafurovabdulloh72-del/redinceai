@@ -176,6 +176,14 @@ export function UsersPanel() {
                       Profil
                     </Link>
                   )}
+                  {u.role === "specialist" && !u.slug && (
+                    <span
+                      className="hidden h-9 items-center rounded-full bg-surface-3 px-3 text-[12px] font-medium text-fg-3 sm:inline-flex"
+                      title="Bu foydalanuvchi mutaxassis sifatida ro'yxatdan o'tgan, lekin kabinetda profilini hali to'ldirmagan — profil va imtiyoz amallari profil yaratilgandan keyin chiqadi"
+                    >
+                      Profil to'ldirilmagan
+                    </span>
+                  )}
                   {u.slug && (
                     <button
                       type="button"

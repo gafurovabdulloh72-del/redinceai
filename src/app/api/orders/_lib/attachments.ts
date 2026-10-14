@@ -4,14 +4,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { auditLogs } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
-import { MAX_ATTACHMENTS, MAX_UPLOAD_BYTES, UPLOAD_URL_RE, mimeFromUrl, uploadName, type Attachment } from "@/components/chat/attachments";
+import { MAX_ATTACHMENTS, MAX_VIDEO_BYTES, UPLOAD_URL_RE, mimeFromUrl, uploadName, type Attachment } from "@/components/chat/attachments";
 
 /** Bitta biriktirma: URL faqat /api/upload natijasi; tur URL kengaytmasidan olinadi */
 export const attachmentSchema = z
   .object({
     url: z.string().trim().max(500).regex(UPLOAD_URL_RE, "Fayl sayt orqali yuklanishi kerak"),
     name: z.string().trim().max(120).optional().default(""),
-    size: z.coerce.number().int().min(0).max(MAX_UPLOAD_BYTES).optional().default(0),
+    size: z.coerce.number().int().min(0).max(MAX_VIDEO_BYTES).optional().default(0),
     type: z.string().trim().max(80).optional().default(""),
   })
   .transform(

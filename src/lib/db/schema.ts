@@ -28,6 +28,8 @@ export const users = sqliteTable(
     sessionVersion: integer("session_version").notNull().default(1),
     passwordChangedAt: integer("password_changed_at", { mode: "timestamp_ms" }),
     lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
+    /** Oxirgi faollik (chat "onlayn" holati uchun) — chat so'rovlarida ~60 soniyada bir yangilanadi */
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
     /** 2FA (TOTP): sir AES-GCM bilan shifrlangan (payments/crypto.ts); totpEnabled — tasdiqlangandan keyin true */
     totpSecretEnc: text("totp_secret_enc"),
     totpEnabled: integer("totp_enabled", { mode: "boolean" }).notNull().default(false),
@@ -103,11 +105,12 @@ export interface Certificate {
   year: number;
   url?: string;
 }
-/** Tariflar (so'm): soatbay, kunbay, loyiha bo'yicha */
+/** Tariflar (so'm): soatbay, kunbay, loyihabay va donabay (1 dona ish — masalan, 1 ta video/fotosurat) */
 export interface SpecialistRates {
   hourly?: number;
   daily?: number;
   project?: number;
+  unit?: number;
 }
 /** Biriktirilgan fayl (buyurtma, chat xabari) */
 export interface FileAttachment {
@@ -563,8 +566,8 @@ export const reports = sqliteTable(
     reporterId: text("reporter_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    targetType: text("target_type", { enum: ["specialist", "review"] }).notNull(),
-    /** specialists.id yoki reviews.id */
+    targetType: text("target_type", { enum: ["specialist", "review", "user"] }).notNull(),
+    /** specialists.id, reviews.id yoki users.id (chatdagi shikoyat) */
     targetId: text("target_id").notNull(),
     reason: text("reason").notNull(),
     status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),

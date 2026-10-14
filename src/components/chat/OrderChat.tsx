@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Chang
 import { AlertCircle, Check, CheckCheck, ChevronDown, FileText, ImageOff, ImagePlus, Lock, MessageCircle, Plus, RotateCcw, Send, ShieldAlert, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { cn, formatDate, timeAgo } from "@/lib/utils";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, uploadAttachment, type Attachment } from "./attachments";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "./attachments";
 
 /* ------------------------------------------------------------------ */
 /* Turlar (GET/POST /api/orders/[id]/messages bilan bir xil)           */
@@ -99,13 +99,18 @@ function Thumb({ a }: { a: Attachment }) {
   return <img src={a.url} alt={a.name} loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover transition group-hover:scale-105" />;
 }
 
-/** Biriktirmalar: rasmlar — kichik ko'rinish, qolganlari — fayl chipi */
+/** Biriktirmalar: rasmlar — kichik ko'rinish, video — pleyer, qolganlari — fayl chipi */
 export function AttachmentList({ items, className, compact = false }: { items: Attachment[]; className?: string; compact?: boolean }) {
   if (!items.length) return null;
   const images = items.filter((a) => isImageAttachment(a));
-  const files = items.filter((a) => !isImageAttachment(a));
+  const videos = items.filter((a) => !isImageAttachment(a) && isVideoAttachment(a));
+  const files = items.filter((a) => !isImageAttachment(a) && !isVideoAttachment(a));
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
+      {videos.map((a) => (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video key={a.url} src={a.url} controls preload="metadata" playsInline title={a.name} className={cn("w-full rounded-[12px] border border-line bg-black/20", compact ? "max-h-56" : "max-h-72")} />
+      ))}
       {images.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {images.map((a) => (
@@ -564,7 +569,7 @@ export function OrderChat({
                   disabled={files.length >= MAX_ATTACHMENTS}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-40"
                   aria-label="Fayl biriktirish"
-                  title="Fayl biriktirish — rasm yoki PDF/DOC (5 tagacha)"
+                  title="Fayl biriktirish — rasm, video yoki PDF/DOC (5 tagacha)"
                 >
                   <ImagePlus size={17} />
                 </button>

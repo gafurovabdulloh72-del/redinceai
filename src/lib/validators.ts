@@ -150,12 +150,13 @@ export const workTypesSchema = z
 
 /** Tariflar: 0 / bo'sh — ko'rsatilmaydi (kalit saqlanmaydi) */
 export const ratesSchema = z
-  .object({ hourly: money.nullable().optional(), daily: money.nullable().optional(), project: money.nullable().optional() })
+  .object({ hourly: money.nullable().optional(), daily: money.nullable().optional(), project: money.nullable().optional(), unit: money.nullable().optional() })
   .transform((r) => {
-    const out: { hourly?: number; daily?: number; project?: number } = {};
+    const out: { hourly?: number; daily?: number; project?: number; unit?: number } = {};
     if (r.hourly) out.hourly = r.hourly;
     if (r.daily) out.daily = r.daily;
     if (r.project) out.project = r.project;
+    if (r.unit) out.unit = r.unit;
     return out;
   });
 
@@ -352,7 +353,7 @@ export const reviewReplySchema = z.object({
 
 /** POST /api/reports — profil yoki sharh haqida shikoyat */
 export const reportSchema = z.object({
-  targetType: z.enum(["specialist", "review"]),
+  targetType: z.enum(["specialist", "review", "user"]),
   targetId: z.string().min(1).max(80),
   reason: z.enum(REPORT_REASONS.map((r) => r.value) as unknown as ["spam", "fake", "offensive", "fraud", "other"]),
   text: z.string().trim().max(500, "Izoh 500 belgidan oshmasin").optional().or(z.literal("")),

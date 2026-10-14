@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, CheckCheck, CheckCircle2, Flag, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, uploadAttachment, type Attachment } from "./attachments";
-import { cn } from "@/lib/utils";
+import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "./attachments";
+import { cn, timeAgo } from "@/lib/utils";
 
 /**
  * Ichki chat (DM) — kabinetdagi "Chat" bo'limi.
@@ -14,10 +15,13 @@ import { cn } from "@/lib/utils";
  */
 
 interface Peer {
+  id?: string;
   username: string | null;
   name: string;
   avatarUrl: string | null;
   isBanned?: boolean;
+  /** Oxirgi faollik (ms) — "onlayn" ko'rsatkichi */
+  lastSeenAt?: number | null;
 }
 interface ConvRow {
   id: string;
@@ -35,6 +39,94 @@ interface Msg {
 
 const timeOf = (t: number) => new Date(t).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
 const dayOf = (t: number) => new Date(t).toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
+
+/** Shu oraliqda faollik — "onlayn" */
+const ONLINE_MS = 3 * 60 * 1000;
+
+function presenceOf(p: Peer): { online: boolean; label: string } {
+  if (!p.lastSeenAt) return { online: false, label: p.username ? `@${p.username}` : "" };
+  if (Date.now() - p.lastSeenAt < ONLINE_MS) return { online: true, label: "Onlayn" };
+  return { online: false, label: `oxirgi faollik ${timeAgo(p.lastSeenAt)}` };
+}
+
+/** Suhbatdosh haqida shikoyat — /api/reports (targetType: "user") */
+function ReportPanel({ peer, onClose }: { peer: Peer; onClose: () => void }) {
+  const [reason, setReason] = useState<ReportReason | "">("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (!reason) {
+      setErr("Sababni tanlang");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetType: "user", targetId: peer.id, reason, text }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!json?.ok && res.status !== 409) throw new Error(json?.error ?? "Server javob bermadi");
+      setSent(true);
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "Yuborilmadi");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="border-b border-line bg-surface-2 px-3.5 py-3">
+      {sent ? (
+        <p className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-fg-2" role="status">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 size={14} className="text-success-text" /> Shikoyat yuborildi — admin ko'rib chiqadi
+          </span>
+          <button type="button" onClick={onClose} className="font-semibold text-fg-3 hover:text-fg">
+            Yopish
+          </button>
+        </p>
+      ) : (
+        <form onSubmit={submit} className="space-y-2" aria-label={`${peer.name} haqida shikoyat`}>
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
+            <Flag size={13} className="text-fg-3" /> {peer.name} haqida shikoyat
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select value={reason} onChange={(e) => setReason(e.target.value as ReportReason | "")} className="field h-10 sm:w-56" aria-label="Shikoyat sababi">
+              <option value="">Sababni tanlang…</option>
+              {REPORT_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="Izoh (ixtiyoriy)" className="field h-10 flex-1 text-[13px]" />
+            <div className="flex gap-2">
+              <button type="submit" disabled={busy} className="btn-ink h-10 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
+                {busy ? "Yuborilmoqda…" : "Yuborish"}
+              </button>
+              <button type="button" onClick={onClose} className="h-10 rounded-full border border-line px-3.5 text-[13px] font-semibold text-fg-2 hover:border-fg hover:text-fg">
+                Bekor
+              </button>
+            </div>
+          </div>
+          {err && (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-danger-text" role="alert">
+              <AlertCircle size={13} /> {err}
+            </p>
+          )}
+        </form>
+      )}
+    </div>
+  );
+}
 
 function Avatar({ p, size = 44 }: { p: Peer; size?: number }) {
   return p.avatarUrl ? (
@@ -60,6 +152,9 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  /** Qarshi tomon suhbatni o'qigan vaqt (ms) — ✓✓ belgisi uchun */
+  const [peerReadAt, setPeerReadAt] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
@@ -79,6 +174,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     const json = res ? await res.json().catch(() => null) : null;
     if (!json?.ok || activeRef.current !== id) return;
     setPeer(json.data.peer);
+    setPeerReadAt(json.data.peerReadAt ?? 0);
     const items: Msg[] = json.data.items;
     if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
     if (incremental) {
@@ -103,6 +199,8 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     lastIdRef.current = null;
     setMsgs(null);
     setPeer(null);
+    setPeerReadAt(0);
+    setReportOpen(false);
     loadThread(active, false);
     const t = window.setInterval(() => {
       if (!document.hidden) loadThread(active, true);
@@ -257,16 +355,35 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
             </button>
             {peer ? (
               <>
-                <Avatar p={peer} size={38} />
-                <div className="min-w-0">
+                <span className="relative shrink-0">
+                  <Avatar p={peer} size={38} />
+                  {presenceOf(peer).online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" aria-hidden="true" />}
+                </span>
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-[14.5px] font-semibold leading-tight text-fg">{peer.name}</p>
-                  {peer.username && <p className="truncate text-[12px] text-fg-3">@{peer.username}</p>}
+                  <p className={cn("truncate text-[12px]", presenceOf(peer).online ? "font-medium text-success-text" : "text-fg-3")}>{presenceOf(peer).label}</p>
                 </div>
+                {peer.id && (
+                  <button
+                    type="button"
+                    onClick={() => setReportOpen((v) => !v)}
+                    aria-expanded={reportOpen}
+                    aria-label={`${peer.name} haqida shikoyat qilish`}
+                    title="Shikoyat qilish"
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition",
+                      reportOpen ? "bg-danger-soft text-danger-text" : "text-fg-4 hover:bg-fg/6 hover:text-fg",
+                    )}
+                  >
+                    <Flag size={15} />
+                  </button>
+                )}
               </>
             ) : (
               <span className="h-5 w-32 skeleton" />
             )}
           </div>
+          {reportOpen && peer?.id && <ReportPanel peer={peer} onClose={() => setReportOpen(false)} />}
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3.5 py-4" aria-live="polite">
             {!msgs ? (
@@ -288,7 +405,10 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                         {m.attachments.length > 0 && (
                           <div className="mb-1.5 space-y-1.5">
                             {m.attachments.map((a) =>
-                              isImageAttachment(a) ? (
+                              isVideoAttachment(a) ? (
+                                // eslint-disable-next-line jsx-a11y/media-has-caption
+                                <video key={a.url} src={a.url} controls preload="metadata" playsInline className="max-h-64 w-full rounded-lg bg-black/20" title={a.name} />
+                              ) : isImageAttachment(a) ? (
                                 <a key={a.url} href={a.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-lg">
                                   <SafeImage src={a.url} alt={a.name} width={360} height={240} className="h-auto max-h-56 w-full object-cover" />
                                 </a>
@@ -309,7 +429,15 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                           </div>
                         )}
                         {m.body && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.body}</p>}
-                        <p className={cn("mt-1 text-right text-[10.5px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>{timeOf(m.at)}</p>
+                        <p className={cn("mt-1 flex items-center justify-end gap-1 text-right text-[10.5px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
+                          {timeOf(m.at)}
+                          {m.mine &&
+                            (peerReadAt >= m.at ? (
+                              <CheckCheck size={13} className="shrink-0 text-accent" aria-label="O'qildi" />
+                            ) : (
+                              <Check size={13} className="shrink-0" aria-label="Yuborildi" />
+                            ))}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -349,7 +477,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                 onClick={() => fileRef.current?.click()}
                 disabled={files.length >= MAX_ATTACHMENTS}
                 aria-label="Fayl biriktirish"
-                title="Fayl biriktirish — rasm yoki PDF/DOC"
+                title="Fayl biriktirish — rasm, video (50 MB) yoki PDF/DOC"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg disabled:opacity-40"
               >
                 <Paperclip size={17} />

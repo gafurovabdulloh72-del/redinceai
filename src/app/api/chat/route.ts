@@ -4,13 +4,14 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { DM_BODY_MAX, getOrCreateConversation, listConversations, sendDm } from "@/lib/chat/dm";
+import { DM_BODY_MAX, getOrCreateConversation, listConversations, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { normalizeUsername } from "@/lib/chat/username";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 /** GET: mening suhbatlarim (qarshi tomon, oxirgi xabar, o'qilmaganlar) */
 export const GET = handler(async () => {
   const session = await requireSession();
+  await touchLastSeen(session.sub);
   return ok({ items: await listConversations(session.sub) });
 });
 

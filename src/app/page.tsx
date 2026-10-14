@@ -1,23 +1,22 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, ArrowUpRight, BadgeCheck, MapPinned, Megaphone, MessageSquareText, Play, Plus, ShieldCheck, Star } from "lucide-react";
+import { ArrowRight, ArrowUpRight, MapPinned, MessageSquareText, Play, ShieldCheck } from "lucide-react";
 import { UzbekistanMap } from "@/components/map/UzbekistanMap";
 import { HomeMapSection } from "@/components/map/HomeMapSection";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
-import { budgetLabel, jobCategoryLabel, jobRegionLabel, listLatestJobs, proposalsCountLabel, type JobListItem } from "@/lib/jobs";
 import { getSettings } from "@/lib/payments/settings";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
-import { cn, formatPrice, timeAgo } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 /*
- * Bosh sahifa (E93: ixcham — ~4.3k px @1440): hero → interaktiv xarita → yo'nalishlar → tavsiya etilganlar → uch qadam → CTA.
- * Takrorlanuvchi ro'yxatlar olib tashlandi: yo'nalishlar lentasi (xarita pill'lari va "Kim kerak?" bilan bir xil) va
- * "Hududlar" chiplari (xarita va uning "Eng faol hududlar" ro'yxati bilan bir xil). Bo'limlar oralig'i — yagona mt-section.
+ * Bosh sahifa — minimalistik: hero → interaktiv xarita → yo'nalishlar → tavsiya etilganlar → uch qadam → CTA.
+ * "So'nggi e'lonlar" tasmasi olib tashlandi (sahifa yengillashdi, /ishlar o'z sahifasida) va hero'dagi
+ * takroriy ishonch chiplar qisqartirildi. Bo'limlar oralig'i — yagona mt-section.
  */
 
 const STEPS = [
@@ -27,15 +26,7 @@ const STEPS = [
 ] as const;
 
 export default async function HomePage() {
-  const [regionStats, categoryStats, featured, site, latestJobs, settings] = await Promise.all([
-    getRegionStats(),
-    getCategoryStats(),
-    getFeaturedSpecialists(6),
-    getSiteStats(),
-    // E'lonlar moduli xato bersa ham bosh sahifa ochilsin — tasma shunchaki chiqmaydi
-    listLatestJobs(6).catch((): JobListItem[] => []),
-    getSettings(),
-  ]);
+  const [regionStats, categoryStats, featured, site, settings] = await Promise.all([getRegionStats(), getCategoryStats(), getFeaturedSpecialists(4), getSiteStats(), getSettings()]);
   /* Mutaxassis CTA: obuna shartlari /narxlar bilan bir xil (admin sozlamasidan) */
   const trialDays = settings.subscriptionTrialDays;
   const subPrice = formatPrice(settings.subscriptionPrice);
@@ -91,14 +82,6 @@ export default async function HomePage() {
                   <StatChip value={String(site.regions)} label="hudud" />
                 </div>
               )}
-              <div className="flex items-center gap-x-4 gap-y-2 text-[13px] text-fg-2">
-                <span className="inline-flex items-center gap-1.5">
-                  <BadgeCheck size={16} className="text-accent" /> Tasdiqlangan profillar
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Star size={16} className="fill-accent-3 text-accent-3" /> {site.reviews} ta sharh
-                </span>
-              </div>
             </div>
           </div>
 
@@ -210,56 +193,6 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* ================= SO'NGGI E'LONLAR — ixcham tasma (telefonda gorizontal aylanadi) ================= */}
-      <section className="container-x mt-section" aria-labelledby="latest-jobs-title">
-        <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <span className="eyebrow mb-4">
-              <Megaphone size={13} className="text-accent" /> Ishlar
-            </span>
-            <h2 id="latest-jobs-title" className="font-display text-[26px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[32px]">
-              So&apos;nggi e&apos;lonlar
-            </h2>
-            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2 sm:text-[15px]">Mijozlar loyihasini joylaydi — mutaxassislar narx va muddat bilan taklif yuboradi.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/ishlar" variant="outline" size="sm">
-              Barcha e&apos;lonlar <ArrowRight size={15} />
-            </ButtonLink>
-            <ButtonLink href="/ishlar/yangi" variant="primary" size="sm">
-              <Plus size={15} /> E&apos;lon joylash
-            </ButtonLink>
-          </div>
-        </div>
-        {latestJobs.length > 0 ? (
-          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-3 sm:[&>li:nth-child(n+5)]:hidden lg:[&>li:nth-child(n+4)]:hidden">
-            {latestJobs.map((j) => (
-              <li key={j.id} className="w-[82%] max-w-[320px] shrink-0 snap-start sm:w-auto sm:max-w-none">
-                <Link href={`/ishlar/${j.id}`} className="card card-hover group flex h-full flex-col p-4 sm:p-5">
-                  <span className="truncate text-[12px] font-medium text-fg-3">
-                    {jobCategoryLabel(j.category)} · {jobRegionLabel(j.regionSlug)}
-                  </span>
-                  <span className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug text-fg transition group-hover:text-accent-text">{j.title}</span>
-                  <span className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-4 text-[12.5px]">
-                    <span className="font-semibold text-fg">{budgetLabel(j.budgetMin, j.budgetMax, j.budgetType)}</span>
-                    <span className="text-fg-3">
-                      {proposalsCountLabel(j.proposalsCount)} · {timeAgo(j.createdAt)}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="card-outline flex flex-col items-start gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[14px] text-fg-2">Hozircha ochiq e&apos;lon yo&apos;q — loyihangizni birinchi bo&apos;lib joylang, mutaxassislar o&apos;zi taklif yuboradi.</p>
-            <ButtonLink href="/ishlar/yangi" variant="outline" size="sm">
-              <Plus size={15} /> E&apos;lon joylash
-            </ButtonLink>
-          </div>
-        )}
       </section>
 
       {/* ================= QANDAY ISHLAYDI — raqamli plitkalar + bog'lovchi chiziq ================= */}

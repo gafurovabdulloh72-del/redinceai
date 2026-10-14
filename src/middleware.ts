@@ -111,7 +111,8 @@ function buildCsp(nonce: string): string {
     `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
     "worker-src 'self'",
     "manifest-src 'self'",
-    `connect-src 'self' ${PAYMENT_HOSTS}${IS_PROD ? "" : " ws: wss:"}`,
+    // Blob hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga yuklanadi
+    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "frame-ancestors 'none'",

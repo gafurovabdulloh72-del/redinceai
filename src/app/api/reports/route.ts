@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { reports, reviews, specialists } from "@/lib/db/schema";
+import { reports, reviews, specialists, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { reportSchema } from "@/lib/validators";
 import { REPORT_REASONS } from "@/lib/constants";
@@ -10,8 +10,9 @@ import { notifyAdmins } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
 
 /**
- * Profil yoki sharh haqida shikoyat (F85). Bitta foydalanuvchi bitta nishonga bir marta shikoyat qiladi;
- * o'z profili/sharhiga shikoyat qilib bo'lmaydi. Admin /admin sahifasidagi navbatda ko'radi.
+ * Profil, sharh yoki foydalanuvchi (chat suhbatdoshi) haqida shikoyat (F85).
+ * Bitta foydalanuvchi bitta nishonga bir marta shikoyat qiladi; o'ziga shikoyat qilib bo'lmaydi.
+ * Admin /admin sahifasidagi navbatda ko'radi.
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
@@ -20,7 +21,12 @@ export const POST = handler(async (req) => {
 
   // Nishon mavjudligi va egaligi (IDOR: id klientdan keladi)
   let label: string;
-  if (input.targetType === "specialist") {
+  if (input.targetType === "user") {
+    if (input.targetId === session.sub) throw new ApiError(400, "O'zingizga shikoyat qila olmaysiz");
+    const u = await db.query.users.findFirst({ where: eq(users.id, input.targetId), columns: { id: true, name: true } });
+    if (!u) throw new ApiError(404, "Foydalanuvchi topilmadi");
+    label = u.name;
+  } else if (input.targetType === "specialist") {
     const sp = await db.query.specialists.findFirst({
       where: eq(specialists.id, input.targetId),
       columns: { id: true, userId: true },

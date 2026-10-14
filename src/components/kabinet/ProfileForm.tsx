@@ -109,7 +109,7 @@ interface FormState {
   workTypes: string[];
   packages: PackageDraft[];
   certificates: CertificateDraft[];
-  rates: { hourly: string; daily: string; project: string };
+  rates: { hourly: string; daily: string; project: string; unit: string };
 }
 
 const LANGS = [
@@ -196,7 +196,7 @@ function initialState(initial: ProfileInitial | null): FormState {
     workTypes: initial?.workTypes ?? [],
     packages: packageDrafts(initial?.packages),
     certificates: (initial?.certificates ?? []).map((c) => ({ title: c.title, issuer: c.issuer, year: String(c.year), url: c.url ?? "" })),
-    rates: { hourly: numOrEmpty(initial?.rates?.hourly), daily: numOrEmpty(initial?.rates?.daily), project: numOrEmpty(initial?.rates?.project) },
+    rates: { hourly: numOrEmpty(initial?.rates?.hourly), daily: numOrEmpty(initial?.rates?.daily), project: numOrEmpty(initial?.rates?.project), unit: numOrEmpty(initial?.rates?.unit) },
   };
 }
 
@@ -633,6 +633,7 @@ export function ProfileForm({
             hourly: toInt(f.rates.hourly) > 0 ? toInt(f.rates.hourly) : null,
             daily: toInt(f.rates.daily) > 0 ? toInt(f.rates.daily) : null,
             project: toInt(f.rates.project) > 0 ? toInt(f.rates.project) : null,
+            unit: toInt(f.rates.unit) > 0 ? toInt(f.rates.unit) : null,
           },
           packages: f.packages
             .filter((p) => p.enabled)
@@ -1172,13 +1173,14 @@ export function ProfileForm({
           {/* Tariflar (F70) — profildagi narx kalkulyatori shulardan hisoblaydi */}
           <div className="mt-6 border-t border-line pt-5">
             <p className="text-[14px] font-semibold text-fg">Tariflar <span className="font-normal text-fg-4">(ixtiyoriy)</span></p>
-            <p className="mt-0.5 text-[12px] text-fg-3">Profilda «Narx kalkulyatori» chiqadi: mijoz soat yoki kunni kiritib taxminiy narxni ko'radi.</p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <p className="mt-0.5 text-[12px] text-fg-3">Profilda «Narx kalkulyatori» chiqadi: mijoz soat, kun yoki dona sonini kiritib taxminiy narxni ko'radi.</p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {(
                 [
-                  { k: "hourly", label: "Soatlik", ph: "200 000" },
-                  { k: "daily", label: "Kunlik", ph: "1 500 000" },
-                  { k: "project", label: "Loyiha (dan)", ph: "3 000 000" },
+                  { k: "hourly", label: "Soatbay", ph: "200 000" },
+                  { k: "daily", label: "Kunbay", ph: "1 500 000" },
+                  { k: "project", label: "Loyihabay (dan)", ph: "3 000 000" },
+                  { k: "unit", label: "Donabay (1 dona ish)", ph: "150 000" },
                 ] as const
               ).map((r) => (
                 <div key={r.k}>

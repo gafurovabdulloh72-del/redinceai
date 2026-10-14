@@ -16,11 +16,13 @@ export const MAX_ORDER_ATTACHMENTS = 15;
 /** Sharh rasmlari */
 export const MAX_REVIEW_MEDIA = 4;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+/** Video kattaroq bo'ladi — Blob'ga to'g'ridan-to'g'ri (brauzerdan) yuklanadi, server orqali o'tmaydi */
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
-/** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX) */
-export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.doc,.docx`;
+/** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX) + video (MP4, WebM, MOV) */
+export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.mp4,.webm,.mov`;
 
-export const UPLOAD_URL_RE = /^(?:\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?)|https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?))$/i;
+export const UPLOAD_URL_RE = /^(?:\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov)|https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov))$/i;
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = /^(?:\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif)|https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif))$/i;
 
@@ -33,6 +35,9 @@ const EXT_MIME: Record<string, string> = {
   pdf: "application/pdf",
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
 };
 
 /** URL kengaytmasidan haqiqiy tur (mijoz bergan `type`ga ishonmaymiz) */
@@ -50,6 +55,10 @@ export function isImageAttachment(a: Pick<Attachment, "url" | "type">): boolean 
   return a.type.startsWith("image/") || /\.(?:jpe?g|png|webp|gif)$/i.test(a.url);
 }
 
+export function isVideoAttachment(a: Pick<Attachment, "url" | "type">): boolean {
+  return a.type.startsWith("video/") || /\.(?:mp4|webm|mov)$/i.test(a.url);
+}
+
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "";
   if (n < 1024) return `${n} B`;
@@ -59,20 +68,56 @@ export function formatBytes(n: number): string {
 
 type UploadResponse = { ok: true; data: { url: string } } | { ok: false; error: string };
 
-/** Brauzerda: faylni /api/upload ga yuborib, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi) */
-export async function uploadAttachment(file: File, opts?: { docs?: boolean }): Promise<Attachment> {
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
-  const isImage = /^image\/(?:jpeg|png|webp|gif)$/.test(file.type);
-  const isDoc = /\.(?:pdf|docx?)$/i.test(file.name) || /^application\/(?:pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.type);
-  if (!isImage && !(opts?.docs && isDoc)) {
-    throw new Error(opts?.docs ? `«${file.name}»: faqat JPG, PNG, WEBP, GIF rasm yoki PDF, DOC, DOCX hujjat` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
-  }
+const VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i;
+const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" };
+
+/** Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback */
+async function uploadViaApi(file: File, purpose: boolean): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);
-  if (opts?.docs) fd.append("purpose", "attachment");
+  if (purpose) fd.append("purpose", "attachment");
   const res = await fetch("/api/upload", { method: "POST", body: fd });
   const json = (await res.json().catch(() => null)) as UploadResponse | null;
   if (!json) throw new Error("Server javob bermadi");
   if (!json.ok) throw new Error(json.error);
-  return { url: json.data.url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(json.data.url) ?? file.type };
+  return json.data.url;
+}
+
+/**
+ * Video: brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (server tanasi 4.5 MB bilan cheklangani uchun).
+ * Blob sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
+ */
+async function uploadVideo(file: File): Promise<string> {
+  const ext = (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
+  try {
+    const { upload } = await import("@vercel/blob/client");
+    const blob = await upload(`uploads/${crypto.randomUUID()}.${ext}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/upload/video",
+      contentType: VIDEO_MIME[ext],
+    });
+    return blob.url;
+  } catch {
+    // Blob yo'q (dev) yoki tarmoq uzildi — server orqali (5 MB ichida bo'lsa) urinamiz
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}»: video yuklash xizmati hozircha ulanmagan — 5 MB dan kichik video yuboring`);
+    return uploadViaApi(file, true);
+  }
+}
+
+/** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi) */
+export async function uploadAttachment(file: File, opts?: { docs?: boolean }): Promise<Attachment> {
+  const isImage = /^image\/(?:jpeg|png|webp|gif)$/.test(file.type);
+  const isDoc = /\.(?:pdf|docx?)$/i.test(file.name) || /^application\/(?:pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.type);
+  const isVideo = VIDEO_EXT_RE.test(file.name) || /^video\/(?:mp4|webm|quicktime)$/.test(file.type);
+  if (!isImage && !(opts?.docs && (isDoc || isVideo))) {
+    throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
+  }
+  if (opts?.docs && isVideo && !isImage) {
+    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
+    const url = await uploadVideo(file);
+    return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
+  }
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
+  const url = await uploadViaApi(file, Boolean(opts?.docs));
+  return { url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(url) ?? file.type };
 }

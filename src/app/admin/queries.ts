@@ -126,7 +126,7 @@ export async function listAdminReviews(limit = 30) {
 /* ------------------------------------------------------------------ */
 export interface AdminReportRow {
   id: string;
-  targetType: "specialist" | "review";
+  targetType: "specialist" | "review" | "user";
   targetId: string;
   reason: string;
   status: "open" | "closed";
@@ -147,7 +147,8 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
   });
   const spIds = rows.filter((r) => r.targetType === "specialist").map((r) => r.targetId);
   const rvIds = rows.filter((r) => r.targetType === "review").map((r) => r.targetId);
-  const [sps, rvs] = await Promise.all([
+  const usIds = rows.filter((r) => r.targetType === "user").map((r) => r.targetId);
+  const [sps, rvs, us] = await Promise.all([
     spIds.length ? db.query.specialists.findMany({ where: inArray(specialists.id, spIds), columns: { id: true, slug: true, userId: true }, with: { user: { columns: { name: true, isBanned: true, bannedReason: true } } } }) : Promise.resolve([]),
     rvIds.length
       ? db.query.reviews.findMany({
@@ -156,13 +157,20 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
           with: { author: { columns: { name: true } }, specialist: { columns: { slug: true } } },
         })
       : Promise.resolve([]),
+    usIds.length ? db.query.users.findMany({ where: inArray(users.id, usIds), columns: { id: true, name: true, email: true, isBanned: true, bannedReason: true } }) : Promise.resolve([]),
   ]);
   const spMap = new Map(sps.map((s) => [s.id, s]));
   const rvMap = new Map(rvs.map((r) => [r.id, r]));
+  const usMap = new Map(us.map((u) => [u.id, u]));
   return rows.map((r) => {
     let target: AdminReportRow["target"] = null;
     let owner: AdminReportRow["owner"] = null;
-    if (r.targetType === "specialist") {
+    if (r.targetType === "user") {
+      // Chatdagi shikoyat — nishon foydalanuvchining o'zi; admin shu yerdan bloklay oladi
+      const u = usMap.get(r.targetId);
+      target = u ? { label: `${u.name} (chat)`, href: `/admin#foydalanuvchilar`, snippet: u.email } : { label: "O'chirilgan foydalanuvchi", href: null, snippet: null };
+      owner = u ? { userId: u.id, name: u.name, isBanned: u.isBanned, bannedReason: u.bannedReason } : null;
+    } else if (r.targetType === "specialist") {
       const s = spMap.get(r.targetId);
       target = s ? { label: s.user.name, href: `/mutaxassislar/${s.slug}`, snippet: null } : { label: "O'chirilgan profil", href: null, snippet: null };
       owner = s ? { userId: s.userId, name: s.user.name, isBanned: s.user.isBanned, bannedReason: s.user.bannedReason } : null;

@@ -611,7 +611,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           )}
 
           {/* Narx kalkulyatori (F70) */}
-          {(sp.rates.hourly || sp.rates.daily || sp.rates.project) && <RateCalculator rates={sp.rates} urgentPct={settings.urgentPct} usdRate={settings.usdRate} className="animate-fade-up" />}
+          {(sp.rates.hourly || sp.rates.daily || sp.rates.project || sp.rates.unit) && <RateCalculator rates={sp.rates} urgentPct={settings.urgentPct} usdRate={settings.usdRate} className="animate-fade-up" />}
 
           {/* Ish vaqti + band kunlar (F41) */}
           <SchedulePanel

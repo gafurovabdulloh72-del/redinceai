@@ -19,9 +19,26 @@ export interface DmPeer {
   avatarUrl: string | null;
   role: string;
   isBanned: boolean;
+  /** Oxirgi faollik — "onlayn" ko'rsatkichi uchun (null — hali kuzatilmagan) */
+  lastSeenAt: Date | null;
 }
 
-const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true } as const;
+const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true, lastSeenAt: true } as const;
+
+/** Shu oraliqda faollik bo'lsa — "onlayn" deb ko'rsatiladi */
+export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
+
+/**
+ * Oxirgi faollikni belgilash — chat so'rovlarida chaqiriladi.
+ * Har so'rovda yozmaslik uchun: faqat 60 soniyadan eski bo'lsa yangilanadi (bitta shartli UPDATE).
+ */
+export async function touchLastSeen(meId: string): Promise<void> {
+  const now = Date.now();
+  await db
+    .update(users)
+    .set({ lastSeenAt: new Date(now) })
+    .where(and(eq(users.id, meId), or(sql`${users.lastSeenAt} is null`, sql`${users.lastSeenAt} < ${now - 60_000}`)));
+}
 
 function pair(u1: string, u2: string): [string, string] {
   return u1 < u2 ? [u1, u2] : [u2, u1];
@@ -97,7 +114,10 @@ export async function loadConversationFor(meId: string, convId: string) {
     with: { a: { columns: PEER_COLUMNS }, b: { columns: PEER_COLUMNS } },
   });
   if (!conv || (conv.aId !== meId && conv.bId !== meId)) return null;
-  return { conv, peer: (conv.aId === meId ? conv.b : conv.a) as DmPeer };
+  const peer = (conv.aId === meId ? conv.b : conv.a) as DmPeer;
+  // Qarshi tomon suhbatni oxirgi marta qachon o'qigani — ✓✓ (o'qildi) belgisi uchun
+  const peerReadAt = conv.aId === meId ? conv.bReadAt : conv.aReadAt;
+  return { conv, peer, peerReadAt };
 }
 
 /** Xabarlar (eski → yangi); afterId berilsa — faqat undan keyingilar (polling) */

@@ -10,7 +10,7 @@ import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
 export interface AdminReportRowDto {
   id: string;
-  targetType: "specialist" | "review";
+  targetType: "specialist" | "review" | "user";
   targetId: string;
   reason: string;
   status: "open" | "closed";
@@ -69,7 +69,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
-            <Badge tone={r.targetType === "review" ? "purple" : "accent"}>{r.targetType === "review" ? "Sharh" : "Profil"}</Badge>
+            <Badge tone={r.targetType === "review" ? "purple" : r.targetType === "user" ? "blue" : "accent"}>{r.targetType === "review" ? "Sharh" : r.targetType === "user" ? "Chat" : "Profil"}</Badge>
             {r.target ? (
               r.target.href ? (
                 <Link href={r.target.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-fg hover:text-accent">
