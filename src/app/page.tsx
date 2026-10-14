@@ -40,15 +40,17 @@ export default async function HomePage() {
       <section className="container-x">
         <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-6">
-            <span className="eyebrow">O'zbekiston ijodkorlar xaritasi</span>
-            <h1 className="display-xl mt-6 text-[40px] text-fg min-[420px]:text-[44px] sm:text-[56px] lg:text-[56px] xl:text-[72px]">
+            {/* Ustki yorliq — chiziq bilan (editorial) */}
+            <div className="flex items-center gap-4">
+              <span className="eyebrow !m-0 shrink-0">O'zbekiston ijodkorlar xaritasi</span>
+              <span className="hidden h-px flex-1 bg-line sm:block" aria-hidden="true" />
+            </div>
+            <h1 className="display-xl mt-7 text-[44px] text-fg min-[420px]:text-[50px] sm:text-[64px] lg:text-[66px] xl:text-[82px]">
               Ijodkorlarni
               <br />
-              <span className="accent-serif text-accent">xaritada</span>
-              <br />
-              toping
+              <span className="accent-serif text-accent">xaritada</span> toping
             </h1>
-            <p className="mt-6 max-w-lg text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">
+            <p className="mt-7 max-w-md text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">
               Videograf, montajor, dizayner va boshqa ijodkorlar — hududingizda. Viloyatni bosing, portfolio va narxlarni ko'ring, to'g'ridan-to'g'ri buyurtma bering.
             </p>
 
@@ -61,27 +63,24 @@ export default async function HomePage() {
               </ButtonLink>
             </div>
 
-            {/* Ishonch qatori */}
-            <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
-              {stack.length >= 3 ? (
-                <div className="flex items-center">
-                  <div className="flex -space-x-2">
-                    {/* Avatar: rasm yuklanmasa bosh harf ko'rinadi (bo'sh doira emas). Stack'da bitta harf — qo'shni avatar kesmasin */}
-                    {stack.map((sp) => (
-                      <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={32} decorative singleInitial className="!ring-bg" />
-                    ))}
-                  </div>
-                  <p className="ml-3 text-[13px] leading-tight text-fg-2">
-                    <span className="font-display font-semibold text-fg">{site.specialists}+ mutaxassis</span>
-                    <span className="text-fg-3"> · {site.regions} ta hudud</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatChip value={`${site.specialists}+`} label="mutaxassis" />
-                  <StatChip value={String(site.regions)} label="hudud" />
+            {/* Ishonch bari — ustki nozik chiziq bilan ajratilgan (editorial "stat bar") */}
+            <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-line pt-6">
+              {stack.length >= 3 && (
+                <div className="flex -space-x-2" aria-hidden="true">
+                  {stack.map((sp) => (
+                    <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={34} decorative singleInitial className="!ring-bg" />
+                  ))}
                 </div>
               )}
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.specialists}+</span>
+                <span className="text-[13px] leading-tight text-fg-3">mutaxassis</span>
+              </div>
+              <span className="h-8 w-px bg-line" aria-hidden="true" />
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.regions}</span>
+                <span className="text-[13px] leading-tight text-fg-3">ta hudud</span>
+              </div>
             </div>
           </div>
 
@@ -261,15 +260,6 @@ export default async function HomePage() {
         </div>
       </section>
     </>
-  );
-}
-
-function StatChip({ value, label }: { value: string; label: string }) {
-  return (
-    <span className="card inline-flex h-9 items-center gap-1.5 !rounded-full px-3.5 text-[13px]">
-      <span className="font-display font-semibold text-fg">{value}</span>
-      <span className="text-fg-3">{label}</span>
-    </span>
   );
 }
 

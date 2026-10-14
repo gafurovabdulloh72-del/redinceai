@@ -258,19 +258,37 @@ export function SectionHeading({
   action?: ReactNode;
   align?: "left" | "center";
 }) {
-  return (
-    <div
-      className={cn(
-        "mb-6 flex flex-col gap-4 sm:mb-8",
-        align === "center" ? "items-center text-center" : "sm:flex-row sm:items-end sm:justify-between",
-      )}
-    >
-      <div className={cn("max-w-2xl", align === "center" && "mx-auto")}>
-        {eyebrow && <span className={cn("eyebrow mb-4", align === "center" && "justify-center")}>{eyebrow}</span>}
-        <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[36px] lg:text-[44px]">{title}</h2>
-        {description && <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
+  // Markazlashgan variant (kam ishlatiladi) — soddaroq ustun
+  if (align === "center") {
+    return (
+      <div className="mb-8 flex flex-col items-center gap-4 text-center sm:mb-12">
+        {eyebrow && <span className="eyebrow justify-center">{eyebrow}</span>}
+        <h2 className="mx-auto max-w-3xl font-display text-[30px] font-semibold leading-[1.02] tracking-[-0.035em] text-fg sm:text-[40px] lg:text-[48px]">{title}</h2>
+        {description && <p className="mx-auto mt-1 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
+        {action && <div className="mt-2">{action}</div>}
       </div>
-      {action}
+    );
+  }
+
+  // Editorial (jurnal) joylashuvi: ustki eyebrow + butun kenglik chizig'i; keyin assimetrik
+  // sarlavha (keng) + tavsif/amal (o'ngda, pastki chiziqqa tekislangan)
+  return (
+    <div className="mb-8 sm:mb-12">
+      {eyebrow && (
+        <div className="mb-5 flex items-center gap-4 sm:mb-7">
+          <span className="eyebrow !m-0 shrink-0">{eyebrow}</span>
+          <span className="h-px flex-1 bg-line" aria-hidden="true" />
+        </div>
+      )}
+      <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12 lg:items-end">
+        <h2 className="font-display text-[30px] font-semibold leading-[1.0] tracking-[-0.038em] text-fg sm:text-[42px] lg:col-span-7 lg:text-[52px]">{title}</h2>
+        {(description || action) && (
+          <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
+            {description && <p className="max-w-lg text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
+            {action}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -296,21 +314,29 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between", className)}>
-      <div className="min-w-0 max-w-3xl">
-        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+    <header className={cn("flex flex-col", className)}>
+      {eyebrow && (
+        <div className="mb-5 flex items-center gap-4">
+          <span className="eyebrow !m-0 shrink-0">{eyebrow}</span>
+          <span className="h-px flex-1 bg-line" aria-hidden="true" />
+        </div>
+      )}
+      <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12 lg:items-end">
         <h1
           className={cn(
-            "display-xl text-fg",
-            eyebrow ? "mt-5" : undefined,
-            size === "lg" ? "text-[34px] sm:text-[48px] lg:text-[56px]" : "text-[32px] sm:text-[40px] lg:text-[44px]",
+            "display-xl text-fg lg:col-span-7",
+            size === "lg" ? "text-[34px] sm:text-[50px] lg:text-[60px]" : "text-[32px] sm:text-[42px] lg:text-[48px]",
           )}
         >
           {title}
         </h1>
-        {description && <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{description}</p>}
+        {(description || action) && (
+          <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
+            {description && <p className="max-w-lg text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{description}</p>}
+            {action && <div className="flex flex-wrap gap-2">{action}</div>}
+          </div>
+        )}
       </div>
-      {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
     </header>
   );
 }
