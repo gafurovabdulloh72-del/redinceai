@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Bell, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { MessageCircle, Bell, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 export type KabinetNavIcon =
   | "overview"
   | "orders"
+  | "chat"
   | "notifications"
   | "partners"
   | "favorites"
@@ -68,6 +69,7 @@ export interface KabinetNavUser {
 const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   overview: LayoutDashboard,
   orders: ClipboardList,
+  chat: MessageCircle,
   notifications: Bell,
   partners: Users,
   favorites: Heart,

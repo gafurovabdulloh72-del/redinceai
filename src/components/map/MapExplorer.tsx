@@ -12,7 +12,8 @@ import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Avatar, Badge, Button, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
-import type { RegionStat, SpecialistListItem } from "@/lib/queries";
+import type { RegionStat } from "@/lib/queries";
+import { GENDER_OPTIONS, qsOf, useSpecialistList, validCategory, validGender, validRegion, type Gender, type SerializedSpecialist } from "./filter-utils";
 import { cn, formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
 
 /**
@@ -27,7 +28,7 @@ import { cn, formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
 const LIMIT = 12;
 
 /** API JSON'da sanalar satr ko'rinishida keladi */
-type MapItem = Omit<SpecialistListItem, "createdAt" | "updatedAt"> & { createdAt: string; updatedAt: string };
+type MapItem = SerializedSpecialist;
 
 interface ListState {
   items: MapItem[];
@@ -38,9 +39,6 @@ type ApiResponse =
   | { ok: true; data: { items: MapItem[]; total: number; page: number; pages: number } }
   | { ok: false; error: string };
 
-type Gender = (typeof GENDERS)[number]["value"];
-/** Jins segmenti: "" — barchasi */
-const GENDER_OPTIONS: ReadonlyArray<{ value: Gender | ""; label: string }> = [{ value: "", label: "Barchasi" }, ...GENDERS];
 
 export interface MapExplorerProps {
   stats: Record<string, RegionStat>;
@@ -53,19 +51,8 @@ export interface MapExplorerProps {
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
 /* ------------------------------------------------------------------ */
-function qsOf(region: string | null, category: string | null, gender: Gender | null = null) {
-  const p = new URLSearchParams();
-  if (region) p.set("region", region);
-  if (category) p.set("category", category);
-  if (gender) p.set("gender", gender);
-  return p.toString();
-}
 /** Tooltip birligi: "Videograf" → "videograf", lekin "UI/UX dizayner" / "3D artist" o'zgarmaydi */
 const unitOf = (name: string) => (/^[A-Z0-9]{2,}/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1));
-const validRegion = (v: string | null) => (v && REGION_BY_SLUG[v] ? v : null);
-const validCategory = (v: string | null) => (v && CATEGORY_BY_SLUG[v] ? v : null);
-const isGender = (v: string): v is Gender => GENDERS.some((g) => g.value === v);
-const validGender = (v: string | null): Gender | null => (v && isGender(v) ? v : null);
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
 function priceLine(from: number, to?: number | null) {
@@ -473,53 +460,8 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
     [counts, stats], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  /* ---------- Ro'yxat ---------- */
-  const key = qsOf(region, category, gender);
-  const cache = useRef(new Map<string, ListState>());
-  const [list, setList] = useState<ListState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    const cached = cache.current.get(key);
-    if (cached) {
-      setList(cached);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-    const ctrl = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    const p = new URLSearchParams({ limit: String(LIMIT), sort: "rating" });
-    if (region) p.set("region", region);
-    if (category) p.set("category", category);
-    if (gender) p.set("gender", gender);
-
-    fetch(`/api/specialists?${p.toString()}`, { signal: ctrl.signal })
-      .then(async (res) => {
-        const json = (await res.json()) as ApiResponse;
-        if (!json.ok) throw new Error(json.error);
-        const next: ListState = { items: json.data.items, total: json.data.total };
-        cache.current.set(key, next);
-        setList(next);
-      })
-      .catch((e: unknown) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setError(e instanceof Error && e.message ? e.message : "Ro'yxatni yuklab bo'lmadi");
-      })
-      .finally(() => {
-        if (!ctrl.signal.aborted) setLoading(false);
-      });
-    return () => ctrl.abort();
-  }, [key, region, category, gender, attempt]);
-
-  const retry = () => {
-    cache.current.delete(key);
-    setAttempt((n) => n + 1);
-  };
+  /* ---------- Ro'yxat: umumiy hook (kesh + abort + xato/qayta urinish) — HomeMapSection bilan bitta kod ---------- */
+  const { key, list, loading, error, retry } = useSpecialistList(region, category, gender, LIMIT);
 
   const regionInfo = region ? REGION_BY_SLUG[region] : null;
   const cat = category ? CATEGORY_BY_SLUG[category] : null;

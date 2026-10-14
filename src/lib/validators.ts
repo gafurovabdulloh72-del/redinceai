@@ -244,6 +244,8 @@ export const accountSchema = z.object({
   phone: optionalPhone,
   avatarUrl: optionalImageUrl,
   gender: z.enum(["male", "female"]).optional().nullable(),
+  /** Chat taxallusi (@username) — tekshiruv va bandlik api/profile PATCH ichida (setUsername) */
+  username: z.string().trim().max(24).optional(),
   email: z.string().trim().toLowerCase().email("Email noto'g'ri").max(120).optional(),
   currentPassword: z.string().max(100).optional(),
   notifyEmail: z.boolean().optional(),

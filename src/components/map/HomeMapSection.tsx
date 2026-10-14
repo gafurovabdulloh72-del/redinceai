@@ -9,7 +9,8 @@ import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
-import type { RegionStat, SpecialistListItem } from "@/lib/queries";
+import type { RegionStat } from "@/lib/queries";
+import { GENDER_OPTIONS, qsOf, useSpecialistList, validCategory, validGender, validRegion, type Gender, type SerializedSpecialist } from "./filter-utils";
 import { cn, formatPriceRange } from "@/lib/utils";
 
 /**
@@ -23,34 +24,12 @@ import { cn, formatPriceRange } from "@/lib/utils";
  */
 
 const LIMIT = 6;
-type ApiResult = { items: SpecialistListItem[]; total: number };
-type Gender = (typeof GENDERS)[number]["value"];
-/** Jins segmenti: "" — barchasi */
-const GENDER_OPTIONS: ReadonlyArray<{ value: Gender | ""; label: string }> = [{ value: "", label: "Barchasi" }, ...GENDERS];
-
-const validRegion = (v: string | null) => (v && REGION_BY_SLUG[v] ? v : null);
-const validCategory = (v: string | null) => (v && CATEGORY_BY_SLUG[v] ? v : null);
-const isGender = (v: string): v is Gender => GENDERS.some((g) => g.value === v);
-const validGender = (v: string | null): Gender | null => (v && isGender(v) ? v : null);
-function qsOf(region: string | null, category: string | null, gender: Gender | null) {
-  const p = new URLSearchParams();
-  if (region) p.set("region", region);
-  if (category) p.set("category", category);
-  if (gender) p.set("gender", gender);
-  return p.toString();
-}
-
 export function HomeMapSection({ stats, total }: { stats: Record<string, RegionStat>; total: number }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<string | null>(() => validRegion(searchParams.get("region")));
   const [category, setCategory] = useState<string | null>(() => validCategory(searchParams.get("category")));
   const [gender, setGender] = useState<Gender | null>(() => validGender(searchParams.get("gender")));
-  const [data, setData] = useState<ApiResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const cache = useRef(new Map<string, ApiResult>());
   const listRef = useRef<HTMLDivElement>(null);
 
   const region = selected ? REGION_BY_SLUG[selected] : null;
@@ -109,46 +88,9 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
   );
   const catMax = Math.max(1, ...catTotals.map((x) => x.n));
 
-  /* Ro'yxatni yuklash (hudud, kasb yoki jins tanlanganda) */
+  /* Ro'yxatni yuklash (hudud, kasb yoki jins tanlanganda) — umumiy hook (kesh + abort + xato/qayta urinish) */
   const active = Boolean(selected || category || gender);
-  useEffect(() => {
-    if (!selected && !category && !gender) {
-      setData(null);
-      return;
-    }
-    const key = qsOf(selected, category, gender);
-    const hit = cache.current.get(key);
-    if (hit) {
-      setData(hit);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-    const ctrl = new AbortController();
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({ limit: String(LIMIT), sort: "rating" });
-    if (selected) params.set("region", selected);
-    if (category) params.set("category", category);
-    if (gender) params.set("gender", gender);
-    fetch(`/api/specialists?${params}`, { signal: ctrl.signal })
-      .then(async (r) => {
-        const json = (await r.json()) as { ok: true; data: ApiResult } | { ok: false; error: string };
-        if (!json.ok) throw new Error(json.error);
-        const res: ApiResult = { items: json.data.items, total: json.data.total };
-        cache.current.set(key, res);
-        setData(res);
-      })
-      .catch((e: unknown) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setError(e instanceof Error && e.message ? e.message : "Ro'yxatni yuklab bo'lmadi");
-      })
-      .finally(() => {
-        // Bekor qilingan so'rov keyingi so'rovning loading holatini o'chirmasin
-        if (!ctrl.signal.aborted) setLoading(false);
-      });
-    return () => ctrl.abort();
-  }, [selected, category, gender, attempt]);
+  const { list: data, loading, error, retry } = useSpecialistList(selected, category, gender, LIMIT, active);
 
   /* Mobilda hudud tanlanganda ro'yxatga sirpanish */
   const pickRegion = (slug: string | null) => {
@@ -313,7 +255,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                 <div className="card-outline flex flex-1 flex-col items-center justify-center px-4 py-10 text-center" role="alert">
                   <p className="font-display text-[15px] font-semibold text-fg">Yuklab bo'lmadi</p>
                   <p className="mt-1 text-[13px] text-fg-3">{error}</p>
-                  <button type="button" onClick={() => setAttempt((n) => n + 1)} className="btn-ink mt-4 h-10 rounded-full px-5 text-[13px] font-semibold">
+                  <button type="button" onClick={retry} className="btn-ink mt-4 h-10 rounded-full px-5 text-[13px] font-semibold">
                     Qayta urinish
                   </button>
                 </div>
@@ -434,7 +376,7 @@ function CatPill({ active, onClick, icon, label, count }: { active: boolean; onC
   );
 }
 
-function SpecialistRow({ sp, showRegion }: { sp: SpecialistListItem; showRegion: boolean }) {
+function SpecialistRow({ sp, showRegion }: { sp: SerializedSpecialist; showRegion: boolean }) {
   const c = CATEGORY_BY_SLUG[sp.category];
   const r = REGION_BY_SLUG[sp.regionSlug];
   return (

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
+  MessageCircle,
   Activity,
   AlertTriangle,
   ArrowRight,
@@ -252,18 +253,30 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   if (activity) proofChips.push({ icon: Activity, text: `Oxirgi faollik: ${ACTIVITY_LABEL[activity]}` });
   const verifiedSet = new Set(verifiedIds);
 
+  /** Ichki chat: mutaxassisga to'g'ridan-to'g'ri yozish (kirmaganlar login orqali qaytadi) */
+  const chatCta =
+    !showOwnerCta && sp.user.username ? (
+      <ButtonLink href={`/yozish/${sp.user.username}`} variant="outline" size="lg" className="w-full">
+        <MessageCircle size={17} /> Yozish
+      </ButtonLink>
+    ) : null;
   const cta = showOwnerCta ? (
     <ButtonLink href="/kabinet/profil" size="lg" className="w-full">
       <Settings size={18} /> Profilni tahrirlash
     </ButtonLink>
-  ) : orderLink ? (
-    <ButtonLink href={orderLink} variant="accent" size="lg" className="w-full">
-      Buyurtma berish <ArrowRight size={18} />
-    </ButtonLink>
   ) : (
-    <p className="flex h-13 w-full items-center justify-center gap-2 rounded-full bg-surface-3 px-4 text-center text-[13px] font-semibold text-fg-2">
-      <PauseCircle size={16} aria-hidden="true" /> Buyurtma qabul qilmaydi
-    </p>
+    <div className="flex w-full flex-col gap-2.5">
+      {orderLink ? (
+        <ButtonLink href={orderLink} variant="accent" size="lg" className="w-full">
+          Buyurtma berish <ArrowRight size={18} />
+        </ButtonLink>
+      ) : (
+        <p className="flex h-13 w-full items-center justify-center gap-2 rounded-full bg-surface-3 px-4 text-center text-[13px] font-semibold text-fg-2">
+          <PauseCircle size={16} aria-hidden="true" /> Buyurtma qabul qilmaydi
+        </p>
+      )}
+      {chatCta}
+    </div>
   );
 
   return (

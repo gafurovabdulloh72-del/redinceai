@@ -4,6 +4,7 @@ import { specialists, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { createSession } from "@/lib/auth";
 import { accountSchema, specialistProfileSchema } from "@/lib/validators";
+import { setUsername } from "@/lib/chat/username";
 import { slugify, uid } from "@/lib/utils";
 import { ensureShortCode } from "@/lib/queries";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -87,6 +88,12 @@ export const PATCH = handler(async (req) => {
     columns: { id: true, name: true, email: true, passwordHash: true },
   });
   if (!user) throw new ApiError(401, "Foydalanuvchi topilmadi");
+
+  // Chat taxallusi: formati va bandligi lib'da tekshiriladi (o'z taxallusiga ruxsat)
+  if (input.username !== undefined) {
+    const r = await setUsername(user.id, input.username);
+    if (!r.ok) throw new ApiError(422, r.error, { username: r.error });
+  }
 
   const nextEmail = input.email && input.email !== user.email ? input.email : null;
   if (nextEmail) {

@@ -60,6 +60,7 @@ export type NotificationType =
   | "job_expired"
   | "saved_search"
   | "message_new"
+  | "chat"
   | "order_due"
   | "order_sla"
   | "review_new"

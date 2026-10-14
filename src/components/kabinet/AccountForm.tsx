@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, BellRing, Camera, CheckCircle2, KeyRound, Mail, MailWarning, Mars, ShieldCheck, Trash2, UserRound, Venus } from "lucide-react";
+import { AlertCircle, AtSign, BellRing, Camera, CheckCircle2, Copy, KeyRound, Mail, MailWarning, Mars, MessageCircle, ShieldCheck, Trash2, UserRound, Venus } from "lucide-react";
 import { Avatar, Badge, Button, Spinner } from "@/components/ui";
 import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
@@ -16,6 +16,8 @@ export interface AccountInitial {
   phone: string;
   avatarUrl: string;
   email: string;
+  /** Chat taxallusi (@username) — /yozish/<username> havolasi uchun */
+  username?: string | null;
   gender?: Gender;
   /** Muhim hodisalar emailga ham yuborilsinmi (users.notifyEmail) */
   notifyEmail?: boolean;
@@ -38,6 +40,8 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   const [gender, setGender] = useState<Gender>(initial.gender ?? null);
   const [notifyEmail, setNotifyEmail] = useState(initial.notifyEmail ?? true);
   const [email, setEmail] = useState(initial.email);
+  const [username, setUsername] = useState(initial.username ?? "");
+  const [copied, setCopied] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   /** Email o'zgardi — qayta tasdiqlash kerak (emailVerified=false) */
   const [emailChanged, setEmailChanged] = useState(false);
@@ -55,7 +59,8 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
     avatarUrl !== initial.avatarUrl ||
     gender !== (initial.gender ?? null) ||
     notifyEmail !== (initial.notifyEmail ?? true) ||
-    emailDiff;
+    emailDiff ||
+    username.trim().replace(/^@/, "").toLowerCase() !== (initial.username ?? "");
 
   useEffect(() => {
     if (!saved) return;
@@ -105,6 +110,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
           avatarUrl: avatarUrl.trim(),
           gender,
           notifyEmail,
+          username: username.trim(),
           ...(emailDiff ? { email: email.trim(), currentPassword } : {}),
         }),
       });
@@ -210,6 +216,55 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             aria-invalid={Boolean(errors.phone)}
           />
           {errors.phone ? <p className="field-error">{errors.phone}</p> : <p className="mt-1 text-[12px] text-fg-4">{visibility ? LEVEL_HINT[visibility.phone] : "Standart: faqat ro'yxatdan o'tganlarga ko'rinadi."}</p>}
+        </div>
+
+        {/* Chat taxallusi va shaxsiy chat havolasi */}
+        <div>
+          <label htmlFor="acc-username" className="field-label">
+            Chat taxallusi
+          </label>
+          <div className="relative">
+            <AtSign size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
+            <input
+              id="acc-username"
+              className="field pl-9 lowercase"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              maxLength={21}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="masalan: jasur-karimov"
+              aria-invalid={Boolean(errors.username)}
+            />
+          </div>
+          {errors.username ? (
+            <p className="field-error">{errors.username}</p>
+          ) : (
+            <p className="mt-1 text-[12px] text-fg-4">3–20 belgi: kichik lotin harflari, raqam va chiziqcha. Bu — chat havolangiz manzili.</p>
+          )}
+          {(initial.username || username.trim()) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 font-mono text-[12.5px] text-fg-2">
+                <MessageCircle size={13} className="text-accent" aria-hidden="true" />
+                {typeof window !== "undefined" ? window.location.host : ""}/yozish/{(username.trim().replace(/^@/, "") || initial.username) ?? ""}
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/yozish/${(username.trim().replace(/^@/, "") || initial.username) ?? ""}`);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 1600);
+                  } catch {
+                    /* clipboard yopiq — havola baribir ko'rinib turibdi */
+                  }
+                }}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+              >
+                <Copy size={13} /> {copied ? "Nusxalandi ✓" : "Nusxalash"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Jins */}

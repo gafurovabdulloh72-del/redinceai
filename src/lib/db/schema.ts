@@ -16,6 +16,8 @@ export const users = sqliteTable(
     avatarUrl: text("avatar_url"),
     /** Jins (ixtiyoriy) — ro'yxatda saralash uchun */
     gender: text("gender", { enum: ["male", "female"] }),
+    /** Chat uchun yagona taxallus (@username) — ro'yxatdan o'tishda avtomatik, sozlamalardan o'zgartiriladi */
+    username: text("username"),
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
     /** Bloklangan hisob: kira olmaydi, profili ro'yxatda chiqmaydi */
     isBanned: integer("is_banned", { mode: "boolean" }).notNull().default(false),
@@ -38,7 +40,7 @@ export const users = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_username_idx").on(t.username)],
 );
 
 /* ------------------------------------------------------------------ */
@@ -507,6 +509,50 @@ export const notifications = sqliteTable(
   (t) => [index("notifications_user_idx").on(t.userId, t.readAt)],
 );
 
+/* ------------------------------------------------------------------ */
+/* Ichki chat (DM): ikki foydalanuvchi o'rtasidagi suhbat               */
+/* ------------------------------------------------------------------ */
+export const conversations = sqliteTable(
+  "conversations",
+  {
+    id: text("id").primaryKey(),
+    /** Ishtirokchilar: aId < bId (bitta juftlikka bitta suhbat) */
+    aId: text("a_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bId: text("b_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lastMessageAt: integer("last_message_at", { mode: "timestamp_ms" }),
+    /** Har bir tomon suhbatni oxirgi ko'rgan vaqti — o'qilmaganlar soni shundan */
+    aReadAt: integer("a_read_at", { mode: "timestamp_ms" }),
+    bReadAt: integer("b_read_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("conversations_pair_idx").on(t.aId, t.bId), index("conversations_a_idx").on(t.aId), index("conversations_b_idx").on(t.bId)],
+);
+
+export const dmMessages = sqliteTable(
+  "dm_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("dm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+);
+
 /* Shikoyatlar (mutaxassis profili yoki sharh haqida) */
 export const reports = sqliteTable(
   "reports",
@@ -812,3 +858,17 @@ export type ProposalStatus = Proposal["status"];
 export type OrderMessage = typeof messages.$inferSelect;
 export type SubscriptionInvoice = typeof subscriptionInvoices.$inferSelect;
 export type SubscriptionInvoiceState = SubscriptionInvoice["state"];
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  a: one(users, { fields: [conversations.aId], references: [users.id] }),
+  b: one(users, { fields: [conversations.bId], references: [users.id] }),
+  messages: many(dmMessages),
+}));
+
+export const dmMessagesRelations = relations(dmMessages, ({ one }) => ({
+  conversation: one(conversations, { fields: [dmMessages.conversationId], references: [conversations.id] }),
+  sender: one(users, { fields: [dmMessages.senderId], references: [users.id] }),
+}));
+
+export type Conversation = typeof conversations.$inferSelect;
+export type DmMessage = typeof dmMessages.$inferSelect;

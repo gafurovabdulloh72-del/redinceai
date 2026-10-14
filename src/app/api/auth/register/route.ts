@@ -7,6 +7,7 @@ import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/constants";
 import { registerSchema } from "@/lib/validators";
 import { uid } from "@/lib/utils";
+import { generateUsername } from "@/lib/chat/username";
 import { audit } from "@/lib/security/audit";
 import { hashPassword } from "@/lib/security/password";
 import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
@@ -16,7 +17,7 @@ import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
  * profil kabinetda (PUT /api/profile) to'ldirilgach ommaviy ro'yxatda paydo bo'ladi.
  * Parol siyosati: 8+ belgi, harf + raqam (validators.strongPassword). Rate limit: 3 / soat / ip.
  * Oferta va maxfiylik siyosatiga rozilik majburiy (acceptTerms: true) — versiya va vaqt saqlanadi (F84).
- * E15: band email uchun 409 ataylab qoldirilgan (UX) — limit 3 / soat / ip enumeratsiyani sekinlashtiradi.
+ * E15: band email tasdiqlanmaydi — neytral xabar + limit 3 / soat / ip (enumeratsiyaga qarshi).
  */
 const schema = registerSchema.extend({
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "Oferta va maxfiylik siyosatiga rozilik bering" }) }),
@@ -26,12 +27,16 @@ export const POST = handler(async (req) => {
   await enforceLimit("register", clientIp(req));
   const input = await parseBody(req, schema);
 
+  // E15: email bandligi tasdiqlanmaydi (enumeratsiya) — bir xil neytral javob, qattiq limit (3/soat/IP) bilan birga
   const exists = await db.query.users.findFirst({ where: eq(users.email, input.email), columns: { id: true } });
-  if (exists) throw new ApiError(409, "Bu email allaqachon ro'yxatdan o'tgan", { email: "Email band" });
+  if (exists) {
+    throw new ApiError(409, "Bu ma'lumotlar bilan ro'yxatdan o'tib bo'lmadi. Agar avval hisob ochgan bo'lsangiz — «Kirish» yoki «Parolni unutdingizmi?» dan foydalaning.");
+  }
 
   const id = uid();
   await db.insert(users).values({
     id,
+    username: await generateUsername(input.name),
     name: input.name,
     email: input.email,
     phone: input.phone || null,

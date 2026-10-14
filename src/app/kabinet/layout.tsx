@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { TermsBanner } from "@/components/auth/TermsBanner";
 import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
+import { unreadDmCount } from "@/lib/chat/dm";
 import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -51,7 +52,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   // + o'qilmagan bildirishnomalar soni (F1) — har ikkisi parallel
   const specialistId = user.specialist?.id;
   // + mijoz: ochiq e'lonlaridagi ko'rib chiqilmagan (pending) takliflar soni
-  const [newOrders, unread, settings, pendingProposals] = await Promise.all([
+  const [newOrders, unread, settings, pendingProposals, unreadDm] = await Promise.all([
     specialistId
       ? db
           .select({ n: count() })
@@ -75,6 +76,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           .then((r) => r[0]?.n ?? 0)
           .catch(() => 0)
       : Promise.resolve(0),
+    unreadDmCount(user.id).catch(() => 0),
   ]);
   // Obuna holati (yagona qoida — subscriptions/access.ts): navigatsiya nuqtasi va banner
   const subState = user.specialist ? subscriptionState(user.specialist, settings) : null;
@@ -83,6 +85,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   const items: KabinetNavItem[] = [
     { href: "/kabinet", label: "Umumiy", icon: "overview", exact: true },
     { href: "/kabinet/buyurtmalar", label: "Buyurtmalar", icon: "orders", badge: newOrders },
+    { href: "/kabinet/chat", label: "Chat", icon: "chat", badge: unreadDm },
     { href: "/kabinet/bildirishnomalar", label: "Bildirishnomalar", icon: "notifications", badge: unread },
   ];
   // Mijoz: e'lonlari, ishlagan mutaxassislari (F48), saqlangan qidiruvlari

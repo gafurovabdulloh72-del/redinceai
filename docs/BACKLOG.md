@@ -452,7 +452,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 12. ✅ Logout JWT'ni bekor qilmaydi — nusxalangan cookie 30 kun ishlaydi
 13. ✅ GET /api/auth/logout — boshqa saytdan majburiy chiqish vektori
 14. ✅ Reset so'rovi vaqti mavjud/mavjud bo'lmagan email uchun farq qiladi (timing oracle)
-15. Register 409 bilan email mavjudligini oshkor qiladi
+15. ✅ Register javobida email bandligi tasdiqlanmaydi (neytral xabar + 3/soat/IP limit)
 16. ✅ Reset tokenni iste'mol qilish atomik emas (check-then-update)
 17. ✅ Parol o'zgarganda eski reset tokenlar bekor qilinmaydi
 18. ✅ Upload butun body'ni xotiraga o'qib, keyin 5 MB tekshiradi
@@ -471,7 +471,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 29. ✅ O'xshash mutaxassislar ro'yxati viewer isOwner/hasOrder kontekstini boshqalarga ham qo'llaydi
 30. ✅ Viewer'ga bog'liq JSON javoblarda Cache-Control: private / Vary: Cookie yo'q
 31. ✅ Sharhni buyurtmasiz istalgan akkaunt yoza oladi — reyting manipulyatsiyasi
-32. Admin mutaxassisni o'chirsa eskrou to'lovlari va payoutlar kaskad bilan yo'qoladi
+32. ✅ Admin o'chirishi to'lov yozuvlari borida rad etiladi (guard allaqachon bor edi)
 33. ✅ Sharhni o'chirish yo'q; reyting qayta hisoblanmaydi
 34. ✅ Akkauntni o'chirish va ma'lumotlarni eksport qilish (GDPR) yo'q
 35. ✅ Email o'zgartirish tasdiqsiz

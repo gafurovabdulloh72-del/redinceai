@@ -48,6 +48,9 @@ if (process.env.SEED_ON_START !== "0") {
   execSync("npx tsx src/lib/db/seed.ts --if-empty", { stdio: "inherit", env: process.env });
 }
 
+// Chat taxalluslari: eski foydalanuvchilarga bir martalik to'ldirish (yangi ustun — additive)
+execSync("npx tsx scripts/backfill-usernames.ts", { stdio: "inherit", env: process.env });
+
 // Admin hisobini tiklash: ADMIN_PASSWORD (kuchli) berilgan bo'lsa admin paroli har deployda shunga moslanadi.
 // Seed productionda ADMIN_PASSWORD'siz admin'ni tasodifiy parol bilan yaratadi — keyin env berib qayta deploy qilish kifoya.
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -69,8 +72,8 @@ if (adminPassword && adminPassword !== "admin12345" && adminPassword.length >= 1
     }
   } else {
     await client.execute({
-      sql: "insert into users (id, name, email, password_hash, role, email_verified, created_at) values (?, ?, ?, ?, 'admin', 1, ?)",
-      args: [randomUUID(), "Kasb Egalari Admin", adminEmail, hash, Date.now()],
+      sql: "insert into users (id, name, email, password_hash, role, email_verified, username, created_at) values (?, ?, ?, ?, 'admin', 1, ?, ?)",
+      args: [randomUUID(), "Kasb Egalari Admin", adminEmail, hash, `boshqaruvchi-${Date.now().toString(36)}`, Date.now()],
     });
     console.log(`✓ Admin hisobi yaratildi (${adminEmail})`);
   }

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { and, like, ne, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users as usersTable } from "@/lib/db/schema";
+import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -112,6 +116,11 @@ export default async function AdminPage() {
     getSubscriptionRevenueSummary(),
   ]);
   const bans = await banFlagsFor(pending.map((sp) => sp.userId));
+  // Demo (seed) yozuvlari soni — tozalash tugmasi faqat ular borida ko'rinadi
+  const [{ n: demoCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(usersTable)
+    .where(and(like(usersTable.id, "seed-%"), ne(usersTable.role, "admin")));
 
   // Mijoz komponentga faqat seriyalanadigan ma'lumot beramiz (sanalar — ms)
   const pendingRows: PendingSpecialist[] = pending.map((sp) => ({
@@ -247,6 +256,7 @@ export default async function AdminPage() {
           <ButtonLink href="/kabinet" variant="outline" size="sm">
             Kabinet <ArrowRight size={14} />
           </ButtonLink>
+          <DemoCleanButton count={demoCount} />
         </div>
       </header>
 

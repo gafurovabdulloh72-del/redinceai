@@ -227,7 +227,7 @@ export const getSpecialistBySlug = cache(async (slug: string) => {
     where: eq(specialists.slug, slug),
     with: {
       // lastLoginAt — faqat "oxirgi faollik" chelagi uchun (F68); aniq vaqt DTO'ga chiqmaydi
-      user: { columns: { id: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true, lastLoginAt: true, isBanned: true } },
+      user: { columns: { id: true, username: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true, lastLoginAt: true, isBanned: true } },
       portfolio: { orderBy: [asc(portfolioItems.sortOrder), asc(portfolioItems.createdAt)] },
       reviews: {
         orderBy: [desc(reviews.createdAt)],
