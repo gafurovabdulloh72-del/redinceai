@@ -7,7 +7,7 @@ import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { loginSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/security/password";
-import { RATE_LIMITS, assertUnderLimit, clearLimit, clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { RATE_LIMITS, clearLimit, clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 const schema = loginSchema.extend({ remember: z.boolean().optional().default(true) });
 
@@ -25,20 +25,17 @@ export const POST = handler(async (req) => {
   const keyIp = `loginIp:${ip}`;
   const keyEmail = `loginEmail:${input.email}`;
 
-  await assertUnderLimit(keyPair, RATE_LIMITS.login.limit);
-  await assertUnderLimit(keyIp, RATE_LIMITS.loginIp.limit);
-  await assertUnderLimit(keyEmail, RATE_LIMITS.loginEmail.limit);
+  // Hisoblagich urinishdan OLDIN atomar oshiriladi (oldingi "o'qib-keyin-oshirish" poygasi yo'q:
+  // 200 ta parallel so'rov ham endi har biri o'z sonini ko'radi, chegara buzilmaydi). Muvaffaqiyatda tozalanadi.
+  await rateLimit(keyPair, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
+  await rateLimit(keyIp, RATE_LIMITS.loginIp.limit, RATE_LIMITS.loginIp.windowMs);
+  await rateLimit(keyEmail, RATE_LIMITS.loginEmail.limit, RATE_LIMITS.loginEmail.windowMs);
 
   const user = await db.query.users.findFirst({ where: eq(users.email, input.email) });
   const valid = user ? await verifyPassword(input.password, user.passwordHash) : await verifyAgainstDummy(input.password);
 
   if (!user || !valid) {
-    await Promise.all([
-      rateLimit(keyPair, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs).catch(() => undefined),
-      rateLimit(keyIp, RATE_LIMITS.loginIp.limit, RATE_LIMITS.loginIp.windowMs).catch(() => undefined),
-      rateLimit(keyEmail, RATE_LIMITS.loginEmail.limit, RATE_LIMITS.loginEmail.windowMs).catch(() => undefined),
-      audit(user?.id ?? null, "login_failed", { targetType: "user", targetId: user?.id, meta: { email: input.email } }, req),
-    ]);
+    await audit(user?.id ?? null, "login_failed", { targetType: "user", targetId: user?.id, meta: { email: input.email } }, req);
     throw new ApiError(401, "Email yoki parol noto'g'ri");
   }
 
@@ -59,6 +56,7 @@ export const POST = handler(async (req) => {
   await Promise.all([
     clearLimit(keyPair),
     clearLimit(keyEmail),
+    clearLimit(keyIp),
     db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id)),
     audit(user.id, "login_success", { targetType: "user", targetId: user.id, meta: { remember: input.remember } }, req),
   ]);

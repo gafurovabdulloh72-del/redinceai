@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
-import { attachmentListSchema } from "@/app/api/orders/_lib/attachments";
+import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
 import { DM_BODY_MAX, getOrCreateConversation, listConversations, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { normalizeUsername } from "@/lib/chat/username";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -42,6 +42,7 @@ export const POST = handler(async (req) => {
 
   const conv = await getOrCreateConversation(session.sub, other.id);
   if (input.body || input.attachments.length > 0) {
+    await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
     await enforceLimit("messages", session.sub);
     await sendDm(conv, session.sub, input.body, input.attachments);
   }

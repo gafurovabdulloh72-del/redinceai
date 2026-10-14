@@ -55,8 +55,10 @@ const nextConfig: NextConfig = {
     return [
       { source: "/(.*)", headers: SECURITY_HEADERS },
       { source: "/api/:path*", headers: [{ key: "Content-Security-Policy", value: API_CSP }] },
-      // public/uploads static fayllari (route handler ishlamaganda ham): brauzerda ochilsin, yuklab olinmasin
-      { source: "/uploads/:path*", headers: [{ key: "Content-Disposition", value: "inline" }] },
+      // public/uploads static RASM fayllari (route handler ishlamaganda ham) brauzerda ochilsin.
+      // Faqat rasm kengaytmalari — hujjat (PDF/DOC) va videoga tegmaydi, ular route handler'dagi
+      // Content-Disposition qaroriga (hujjat = attachment) bo'ysunadi.
+      { source: "/uploads/:name.:ext(jpg|jpeg|png|webp|gif)", headers: [{ key: "Content-Disposition", value: "inline" }] },
     ];
   },
   webpack: (config, { dev }) => {

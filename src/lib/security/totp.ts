@@ -116,12 +116,27 @@ export function otpauthUri(secretB32: string, account: string): string {
 }
 
 const VERSION = "v1";
+const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+const MIN_SECRET_PROD = 32;
+/**
+ * TOTP sirini shifrlash kaliti uchun IKM. Sessiya kaliti (auth.ts) bilan bir xil qat'iylik:
+ * productionda namunaviy yoki 32 belgidan qisqa AUTH_SECRET ishlatilmaydi (aks holda DB sizsa,
+ * taxmin qilinadigan kalit bilan TOTP urug'larini ochish mumkin edi) — Turso tokeniga o'tiladi.
+ */
 function ikm(): string {
+  const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET?.trim();
-  if (s && s.length >= 16) return s;
+  if (s) {
+    if (prod) {
+      if (!PLACEHOLDER_SECRET.test(s) && s.length >= MIN_SECRET_PROD) return s;
+      // namunaviy/qisqa — e'tiborga olinmaydi, quyida Turso tokeniga tushadi
+    } else if (s.length >= 16) {
+      return s;
+    }
+  }
   const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
   if (derived && derived.length >= 16) return `redince-session-v1:${derived}`;
-  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan — 2FA sirini shifrlab bo'lmaydi");
+  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan yoki kuchsiz — 2FA sirini xavfsiz shifrlab bo'lmaydi");
   return "dev-only-insecure-secret-change-me-please-123456";
 }
 function key(): Buffer {

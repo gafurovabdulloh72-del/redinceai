@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
-import { attachmentListSchema } from "@/app/api/orders/_lib/attachments";
+import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
 import { DM_BODY_MAX, listMessages, loadConversationFor, markRead, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
@@ -47,6 +47,8 @@ export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
   if (found.peer.isBanned) throw new ApiError(403, "Bu foydalanuvchiga yozib bo'lmaydi");
 
+  // Faqat o'zi yuklagan fayllarni biriktira oladi (boshqa birovning faylini ulab bo'lmaydi)
+  await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
   await enforceLimit("messages", session.sub);
   const m = await sendDm(found.conv, session.sub, input.body, input.attachments);
   return ok({ id: m.id, mine: true, body: m.body, attachments: m.attachments, at: m.createdAt.getTime() }, { status: 201 });

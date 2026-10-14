@@ -57,10 +57,13 @@ export const POST = handler(async (req) => {
   const session = await requireSession();
   await enforceLimit("upload", session.sub);
 
-  // Butun tanani xotiraga o'qishdan OLDIN Content-Length bo'yicha rad etamiz (multipart sarlavhalari uchun ~64 KB zaxira);
-  // quyidagi file.size tekshiruvi asosiy bo'lib qolaveradi
-  const declared = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_BYTES + 64 * 1024) throw new ApiError(413, "Fayl 5 MB dan katta");
+  // Butun tanani xotiraga o'qishdan OLDIN Content-Length bo'yicha rad etamiz (multipart sarlavhalari uchun ~64 KB zaxira).
+  // Content-Length yo'q (masalan, Transfer-Encoding: chunked) bo'lsa — rad etamiz: aks holda chegarasiz
+  // tanani formData() xotiraga yuklab, OOM/DoS qilish mumkin edi. Brauzerlar FormData'da doim Content-Length yuboradi.
+  const clHeader = req.headers.get("content-length");
+  const declared = clHeader === null ? NaN : Number(clHeader);
+  if (!Number.isFinite(declared)) throw new ApiError(411, "Content-Length sarlavhasi talab qilinadi");
+  if (declared > MAX_BYTES + 64 * 1024) throw new ApiError(413, "Fayl 5 MB dan katta");
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
