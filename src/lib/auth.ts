@@ -55,11 +55,12 @@ function computeSecret(): Uint8Array {
   const s = process.env.AUTH_SECRET;
   if (s) {
     if (prod) {
-      if (PLACEHOLDER_SECRET.test(s)) throw new Error("AUTH_SECRET namunaviy (.env.example) qiymat — productionda `openssl rand -base64 48` bilan haqiqiy kalit bering");
-      if (s.length < MIN_SECRET_PROD) throw new Error(`AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — productionda \`openssl rand -base64 48\` bilan yarating`);
-      return new TextEncoder().encode(s);
-    }
-    if (s.length < 16) warnSecretOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
+      // Namunaviy yoki qisqa kalit hech qachon ishlatilmaydi. Sayt butunlay ishdan chiqmasligi uchun xato tashlamaymiz:
+      // Turso tokenidan hosil qilingan (maxfiy) kalitga o'tamiz va logga aniq xabar yozamiz.
+      if (PLACEHOLDER_SECRET.test(s)) console.error("[auth] AUTH_SECRET namunaviy (.env.example) qiymat — e'tiborga olinmadi. `openssl rand -base64 48` bilan haqiqiy kalit bering");
+      else if (s.length < MIN_SECRET_PROD) console.error(`[auth] AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — e'tiborga olinmadi`);
+      else return new TextEncoder().encode(s);
+    } else if (s.length < 16) warnSecretOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
     else {
       if (PLACEHOLDER_SECRET.test(s)) warnSecretOnce("AUTH_SECRET namunaviy qiymat — productionda rad etiladi. `openssl rand -base64 48` bilan yarating");
       return new TextEncoder().encode(s);

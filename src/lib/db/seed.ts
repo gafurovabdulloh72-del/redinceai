@@ -207,17 +207,26 @@ function catLabel(slug: string) {
 async function main() {
   if (process.argv.includes("--if-empty")) {
     const [row] = await db.select({ n: count() }).from(schema.users);
-    if (row.n > 0) {
-      console.log(`→ Bazada ${row.n} ta foydalanuvchi bor — seed o'tkazib yuborildi.`);
+    const [spRow] = await db.select({ n: count() }).from(schema.specialists);
+    // Katalog bo'sh va foydalanuvchilar juda kam bo'lsa (masalan, avvalgi deploy xatosi jadvalni tozalab yuborgan) —
+    // demo ma'lumotlar qayta yuklanadi. Haqiqiy foydalanuvchilar ko'p bo'lsa hech narsa o'chirilmaydi.
+    const catalogLost = spRow.n === 0 && row.n > 0 && row.n <= 20;
+    if (row.n > 0 && !catalogLost) {
+      console.log(`→ Bazada ${row.n} ta foydalanuvchi va ${spRow.n} ta mutaxassis bor — seed o'tkazib yuborildi.`);
       return;
     }
+    if (catalogLost) console.warn(`! Katalog bo'sh (0 mutaxassis, ${row.n} ta foydalanuvchi) — demo ma'lumotlar qayta yuklanadi.`);
   }
 
   // Production (Vercel/Railway) birinchi deploy: hammaga ma'lum parollar bilan admin/demo hisob yaratilmasin
   const prod = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT);
   const adminPassword = process.env.ADMIN_PASSWORD;
-  if (prod && (!adminPassword || adminPassword === "admin12345")) {
-    throw new Error("ADMIN_PASSWORD o'rnatilmagan yoki namunaviy (admin12345). Productionda kuchli admin parolini env'da bering.");
+  // Productionda ADMIN_PASSWORD bo'lmasa build TO'XTAMAYDI (avval to'xtar edi va sayt eski versiyada qolib ketdi):
+  // admin tasodifiy (noma'lum) parol bilan yaratiladi; ADMIN_PASSWORD env berib qayta deploy qilinsa,
+  // scripts/db-prepare.mjs admin parolini shunga o'rnatadi.
+  const adminPasswordUsable = Boolean(adminPassword && adminPassword !== "admin12345");
+  if (prod && !adminPasswordUsable) {
+    console.warn("! ADMIN_PASSWORD berilmagan yoki namunaviy — admin tasodifiy parol bilan yaratiladi (env berib qayta deploy qiling).");
   }
   // Demo hisoblar xaritani to'ldiradi; productionda DEMO_PASSWORD berilmasa parol tasodifiy (kirish mumkin emas)
   const demoPassword = process.env.DEMO_PASSWORD || (prod ? randomBytes(18).toString("base64url") : "demo12345");
@@ -243,7 +252,10 @@ async function main() {
   await db.delete(schema.users);
 
   const pass = await bcrypt.hash(demoPassword, 10);
-  const adminPass = await bcrypt.hash(adminPassword || "admin12345", 10);
+  const adminPass = await bcrypt.hash(
+    prod ? (adminPasswordUsable ? adminPassword! : randomBytes(24).toString("base64url")) : adminPassword || "admin12345",
+    10,
+  );
   const now = Date.now();
   const DAY = 86_400_000;
 

@@ -237,3 +237,18 @@ sahifalar keshi tozalanadi. Kesh strategiyasi o'zgarsa `sw.js` ichidagi `VERSION
 - [ ] Resend: parol tiklash xati keladi, havola `SITE_URL` bilan.
 - [ ] `NEXT_PUBLIC_DEMO_ACCOUNTS=0`, `PAYME_TEST` o'chirilgan.
 - [ ] Backup: birinchi dump olingan, off-site saqlangan.
+
+## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
+
+`drizzle-kit push --force` ISHLATMANG. drizzle-kit 0.31 SQLite/Turso'da `DEFAULT 0` yoki `DEFAULT false` bilan
+NOT NULL ustun qo'shilganda oldidan `delete from <jadval>` qo'yadi va `--force` uni so'roqsiz bajaradi. 4-raund deployida
+production'da `users` va `specialists` shu tarzda tozalangan, keyin seed `ADMIN_PASSWORD` yo'qligi sababli build'ni
+to'xtatgan va sayt eski versiyada bo'sh katalog bilan qolgan.
+
+Endi `scripts/db-prepare.mjs` sxemani `scripts/db-sync.ts` orqali sinxronlaydi:
+- `delete from …` buyruqlari har doim o'tkazib yuboriladi;
+- jadval/ustun/indeks o'chirish faqat `ALLOW_DATA_LOSS=1` bilan (aks holda build aniq xabar bilan to'xtaydi);
+- katalog bo'sh va foydalanuvchilar ≤ 20 bo'lsa demo ma'lumotlar qayta yuklanadi;
+- `ADMIN_PASSWORD` (kamida 10 belgi) berilsa admin paroli har deployda shunga o'rnatiladi — parol yo'qolsa env'ni
+  o'zgartirib qayta deploy qilish kifoya;
+- `ADMIN_PASSWORD` bo'lmasa build endi to'xtamaydi (admin tasodifiy parol bilan yaratiladi, logda ogohlantirish).

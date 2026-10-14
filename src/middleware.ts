@@ -33,11 +33,11 @@ async function computeSecret(): Promise<Uint8Array> {
   const s = process.env.AUTH_SECRET;
   if (s) {
     if (IS_PROD) {
-      if (PLACEHOLDER_SECRET.test(s)) throw new Error("AUTH_SECRET namunaviy (.env.example) qiymat — productionda `openssl rand -base64 48` bilan haqiqiy kalit bering");
-      if (s.length < MIN_SECRET_PROD) throw new Error(`AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — productionda \`openssl rand -base64 48\` bilan yarating`);
-      return new TextEncoder().encode(s);
-    }
-    if (s.length < 16) warnOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
+      // src/lib/auth.ts bilan bir xil: yaroqsiz kalit e'tiborga olinmaydi, Turso tokenidan hosil qilingan kalitga o'tiladi
+      if (PLACEHOLDER_SECRET.test(s)) console.error("[auth] AUTH_SECRET namunaviy qiymat — e'tiborga olinmadi");
+      else if (s.length < MIN_SECRET_PROD) console.error(`[auth] AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — e'tiborga olinmadi`);
+      else return new TextEncoder().encode(s);
+    } else if (s.length < 16) warnOnce("AUTH_SECRET juda qisqa (kamida 16 belgi) — e'tiborga olinmadi");
     else {
       if (PLACEHOLDER_SECRET.test(s)) warnOnce("AUTH_SECRET namunaviy qiymat — productionda rad etiladi. `openssl rand -base64 48` bilan yarating");
       return new TextEncoder().encode(s);
