@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { conversations, dmMessages, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
+import { conversations, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
 
@@ -19,11 +19,15 @@ export interface DmPeer {
   avatarUrl: string | null;
   role: string;
   isBanned: boolean;
-  /** Oxirgi faollik — "onlayn" ko'rsatkichi uchun (null — hali kuzatilmagan) */
+  /** Oxirgi chatdagi faollik — "onlayn" ko'rsatkichi uchun (null — hali chat ochmagan) */
   lastSeenAt: Date | null;
+  /** Oxirgi tizimga kirish — lastSeenAt bo'lmaganda "oxirgi faollik" shundan ko'rsatiladi */
+  lastLoginAt: Date | null;
+  /** Mutaxassis profili slug'i (bor bo'lsa) — ism bosilganda profilga o'tadi; mijozlarda null */
+  slug?: string | null;
 }
 
-const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true, lastSeenAt: true } as const;
+const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true, lastSeenAt: true, lastLoginAt: true } as const;
 
 /** Shu oraliqda faollik bo'lsa — "onlayn" deb ko'rsatiladi */
 export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
@@ -115,6 +119,11 @@ export async function loadConversationFor(meId: string, convId: string) {
   });
   if (!conv || (conv.aId !== meId && conv.bId !== meId)) return null;
   const peer = (conv.aId === meId ? conv.b : conv.a) as DmPeer;
+  // Qarshi tomon mutaxassis bo'lsa — profil slug'i (ism bosilganda /mutaxassislar/<slug>'ga o'tadi)
+  if (peer.role === "specialist") {
+    const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, peer.id), columns: { slug: true } });
+    peer.slug = sp?.slug ?? null;
+  }
   // Qarshi tomon suhbatni oxirgi marta qachon o'qigani — ✓✓ (o'qildi) belgisi uchun
   const peerReadAt = conv.aId === meId ? conv.bReadAt : conv.aReadAt;
   return { conv, peer, peerReadAt };

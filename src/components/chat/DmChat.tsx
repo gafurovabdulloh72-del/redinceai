@@ -20,8 +20,12 @@ interface Peer {
   name: string;
   avatarUrl: string | null;
   isBanned?: boolean;
-  /** Oxirgi faollik (ms) — "onlayn" ko'rsatkichi */
+  /** Mutaxassis profili slug'i (bor bo'lsa) — ism bosilganda /mutaxassislar/<slug>'ga o'tadi */
+  slug?: string | null;
+  /** Chatdagi real faollik (ms) — "Onlayn" (yashil) shundan */
   lastSeenAt?: number | null;
+  /** Oxirgi faollik (ms) — lastSeenAt yoki tizimga kirish; "oxirgi faollik" yozuvi shundan */
+  lastActiveAt?: number | null;
 }
 interface ConvRow {
   id: string;
@@ -44,9 +48,12 @@ const dayOf = (t: number) => new Date(t).toLocaleDateString("uz-UZ", { day: "num
 const ONLINE_MS = 3 * 60 * 1000;
 
 function presenceOf(p: Peer): { online: boolean; label: string } {
-  if (!p.lastSeenAt) return { online: false, label: p.username ? `@${p.username}` : "" };
-  if (Date.now() - p.lastSeenAt < ONLINE_MS) return { online: true, label: "Onlayn" };
-  return { online: false, label: `oxirgi faollik ${timeAgo(p.lastSeenAt)}` };
+  // "Onlayn" faqat real chat faolligidan (lastSeenAt) — tizimga kirish buni yoqmaydi
+  if (p.lastSeenAt && Date.now() - p.lastSeenAt < ONLINE_MS) return { online: true, label: "Onlayn" };
+  // Aks holda oxirgi faollik vaqti (chat yoki tizimga kirishdan)
+  const seen = p.lastActiveAt ?? p.lastSeenAt;
+  if (seen) return { online: false, label: `oxirgi faollik ${timeAgo(seen)}` };
+  return { online: false, label: p.username ? `@${p.username}` : "" };
 }
 
 /** Suhbatdosh haqida shikoyat — /api/reports (targetType: "user") */
@@ -354,16 +361,31 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
               <ArrowLeft size={17} />
             </button>
             {peer ? (
-              <>
-                <span className="relative shrink-0">
-                  <Avatar p={peer} size={38} />
-                  {presenceOf(peer).online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" aria-hidden="true" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14.5px] font-semibold leading-tight text-fg">{peer.name}</p>
-                  <p className={cn("truncate text-[12px]", presenceOf(peer).online ? "font-medium text-success-text" : "text-fg-3")}>{presenceOf(peer).label}</p>
-                </div>
-                {peer.id && (
+              (() => {
+                const pr = presenceOf(peer);
+                const inner = (
+                  <>
+                    <span className="relative shrink-0">
+                      <Avatar p={peer} size={38} />
+                      {pr.online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" aria-hidden="true" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1 truncate text-[14.5px] font-semibold leading-tight text-fg">{peer.name}</span>
+                      <span className={cn("block truncate text-[12px]", pr.online ? "font-medium text-success-text" : "text-fg-3")}>{pr.label}</span>
+                    </span>
+                  </>
+                );
+                return (
+                  <>
+                    {peer.slug ? (
+                      // Mutaxassis — ism/avatar bosilsa profilga o'tadi
+                      <Link href={`/mutaxassislar/${peer.slug}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-full transition hover:opacity-80" title={`${peer.name} profilini ochish`}>
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div className="flex min-w-0 flex-1 items-center gap-3">{inner}</div>
+                    )}
+                    {peer.id && (
                   <button
                     type="button"
                     onClick={() => setReportOpen((v) => !v)}
@@ -375,10 +397,12 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                       reportOpen ? "bg-danger-soft text-danger-text" : "text-fg-4 hover:bg-fg/6 hover:text-fg",
                     )}
                   >
-                    <Flag size={15} />
-                  </button>
-                )}
-              </>
+                        <Flag size={15} />
+                      </button>
+                    )}
+                  </>
+                );
+              })()
             ) : (
               <span className="h-5 w-32 skeleton" />
             )}

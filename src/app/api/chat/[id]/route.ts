@@ -23,7 +23,11 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
       name: found.peer.name,
       avatarUrl: found.peer.avatarUrl,
       isBanned: found.peer.isBanned,
+      slug: found.peer.slug ?? null,
+      /** Chatdagi real faollik — "Onlayn" (yashil) belgisi faqat shundan hisoblanadi */
       lastSeenAt: found.peer.lastSeenAt ? found.peer.lastSeenAt.getTime() : null,
+      /** Oxirgi faollik — chat faolligi yo'q bo'lsa tizimga kirishdan olinadi (har doim biror vaqt chiqadi) */
+      lastActiveAt: (found.peer.lastSeenAt ?? found.peer.lastLoginAt)?.getTime() ?? null,
     },
     /** Qarshi tomon o'qigan vaqt (ms) — bundan oldingi mening xabarlarim "✓✓ o'qildi" */
     peerReadAt: found.peerReadAt ? found.peerReadAt.getTime() : 0,
