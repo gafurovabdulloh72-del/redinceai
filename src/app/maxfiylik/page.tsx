@@ -212,7 +212,7 @@ export default function MaxfiylikPage() {
       body: (
         <p>
           Shaxsiy ma&apos;lumotlarga oid savol va so&apos;rovlar uchun: Telegram{" "}
-          <a href="https://t.me/redince" target="_blank" rel="noreferrer noopener" className={LINK}>
+          <a href="https://t.me/kasb_egalari" target="_blank" rel="noreferrer noopener" className={LINK}>
             @redince
           </a>
           . So&apos;rovlarga 30 kun ichida javob beramiz.

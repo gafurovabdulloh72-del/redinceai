@@ -266,7 +266,7 @@ export default async function OfertaPage() {
           </p>
           <p>
             Savollar va murojaatlar uchun: Telegram{" "}
-            <a href="https://t.me/redince" target="_blank" rel="noreferrer noopener" className="font-semibold text-accent-text underline underline-offset-2">
+            <a href="https://t.me/kasb_egalari" target="_blank" rel="noreferrer noopener" className="font-semibold text-accent-text underline underline-offset-2">
               @redince
             </a>
             . Hisob va buyurtmalarga oid murojaatlarni Kabinet orqali yuborish tavsiya etiladi.

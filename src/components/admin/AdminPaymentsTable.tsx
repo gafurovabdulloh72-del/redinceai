@@ -47,6 +47,8 @@ const MOBILE_CAP = 10;
 const orderHref = (orderId: string) => `/admin/buyurtmalar/${orderId}`;
 
 const ACTION_LABEL: Record<Action, string> = { confirm: "Tasdiqlash", release: "Mutaxassisga o'tkazish", refund: "Mijozga qaytarish", cancel: "Bekor qilish" };
+/** Jadval ustunida — ixcham (to'liq matn title'da) */
+const ACTION_LABEL_SHORT: Record<Action, string> = { confirm: "Tasdiqlash", release: "O'tkazish", refund: "Qaytarish", cancel: "Bekor" };
 const ACTION_CONFIRM: Record<Action, string> = {
   confirm: "O'tkazma hisobga tushganini tekshirdingizmi? Buyurtma «To'langan (eskrou)» bo'ladi.",
   release: "Eskroudagi sof summa mutaxassis balansiga o'tadi va buyurtma yakunlanadi. Qaytarib bo'lmaydi.",
@@ -174,7 +176,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
       );
     }
     return (
-      <div className="flex flex-wrap gap-1.5 md:justify-end">
+      <div className="flex flex-wrap gap-1.5 md:flex-col md:items-end">
         {acts.map((a) => (
           <Button
             key={a}
@@ -186,9 +188,11 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
               setNote("");
             }}
             disabled={!!busy}
+            title={ACTION_LABEL[a]}
           >
             {b ? <Spinner className="h-3.5 w-3.5" /> : a === "confirm" ? <Check size={14} /> : a === "release" ? <ArrowRightLeft size={14} /> : a === "refund" ? <RotateCcw size={14} /> : <X size={14} />}
-            {ACTION_LABEL[a]}
+            <span className="md:hidden">{ACTION_LABEL[a]}</span>
+            <span className="hidden md:inline">{ACTION_LABEL_SHORT[a]}</span>
           </Button>
         ))}
       </div>
@@ -230,23 +234,25 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
         <EmptyState icon={Receipt} title="To'lovlar yo'q" description="Mijoz buyurtma uchun to'lov boshlaganda shu yerda ko'rinadi." />
       ) : (
         <div className="card overflow-hidden">
+          {/* Keng jadval (amallar ustuni bilan) karta ichida gorizontal aylanadi — tugmalar tashqariga chiqmaydi */}
+          <div className="hidden overflow-x-auto md:block">
           {/* Desktop */}
-          <table className="hidden w-full text-left text-[13px] md:table">
+          <table className="w-full min-w-[900px] text-left text-[13px]">
             <thead>
               <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
-                <th className="px-5 py-3 font-bold">Buyurtma</th>
+                <th className="px-4 py-3 font-bold">Buyurtma</th>
                 <th className="px-3 py-3 font-bold">Mijoz → Mutaxassis</th>
                 <th className="px-3 py-3 font-bold">Usul</th>
                 <th className="px-3 py-3 text-right font-bold">Summa</th>
                 <th className="px-3 py-3 text-right font-bold">Komissiya</th>
                 <th className="px-3 py-3 font-bold">Holat</th>
-                <th className="px-5 py-3 text-right font-bold">Amallar</th>
+                <th className="sticky right-0 bg-surface px-4 py-3 text-right font-bold shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.25)]">Amallar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {visible.map((r) => (
                 <tr key={r.id} className={cn("align-top transition hover:bg-fg/3", busy === r.id && "opacity-60")}>
-                  <td className="max-w-[220px] px-5 py-3">
+                  <td className="max-w-[200px] px-4 py-3">
                     <Link href={orderHref(r.orderId)} className="block truncate font-semibold text-fg hover:text-accent">
                       {r.orderTitle}
                     </Link>
@@ -280,13 +286,15 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
                   <td className="px-3 py-3">
                     <Badge tone={PAYMENT_TONE[r.state]} className="whitespace-nowrap">{PAYMENT_STATE_LABEL[r.state]}</Badge>
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  {/* Amallar doim ko'rinadi: ustun o'ngga yopishqoq, qolganlari ostida aylanadi */}
+                  <td className="sticky right-0 bg-surface px-4 py-3 text-right shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.25)]">
                     <Actions r={r} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
 
           {/* Mobil */}
           <ul className="divide-y divide-line md:hidden">

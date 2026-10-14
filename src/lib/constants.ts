@@ -87,6 +87,14 @@ export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
 
 export const SITE = {
   name: "Kasb Egalari",
+  /** Loyiha rahbari (footer'da ko'rinadi) */
+  owner: "Abdulloh G'afurov",
+  /** Ijtimoiy tarmoqlar (footer). YouTube hozircha yo'q — kanal ochilganda qo'shiladi */
+  telegram: "https://t.me/kasb_egalari",
+  instagram: "https://instagram.com/kasb.egalari",
+  /** To'g'ridan-to'g'ri aloqa (Yordam sahifasi) */
+  supportTelegram: "https://t.me/montajor_man",
+  supportPhone: "+998 94 143 44 99",
   tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",
   description:
     "Kasb Egalari — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",

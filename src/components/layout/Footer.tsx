@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Instagram, Send, Youtube } from "lucide-react";
+import { Instagram, Send } from "lucide-react";
 import { SITE } from "@/lib/constants";
 import { Logo } from "./Logo";
 import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
@@ -21,9 +21,8 @@ const LEGAL = [
 ];
 
 const SOCIAL = [
-  { href: "https://t.me/redince", label: "Telegram", icon: Send },
-  { href: "https://instagram.com/redince", label: "Instagram", icon: Instagram },
-  { href: "https://youtube.com/@redince", label: "YouTube", icon: Youtube },
+  { href: SITE.telegram, label: "Telegram", icon: Send },
+  { href: SITE.instagram, label: "Instagram", icon: Instagram },
 ];
 
 /** Ixcham 2 qatorli footer: logo + havolalar + ijtimoiy tarmoqlar / huquq + manba eslatmasi */
@@ -69,6 +68,7 @@ export function Footer() {
             <span>
               © {new Date().getFullYear()} {SITE.name}. Barcha huquqlar himoyalangan.
             </span>
+            <span>Loyiha rahbari — {SITE.owner}</span>
             {LEGAL.map((l) => (
               <Link key={l.href} href={l.href} className="-my-1.5 inline-flex min-h-10 items-center text-fg-3 underline-offset-2 transition hover:text-fg hover:underline">
                 {l.label}

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, LifeBuoy, Send, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, LifeBuoy, Phone, Send, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
+import { SITE } from "@/lib/constants";
 import { HELP_ARTICLES, HELP_CATEGORIES, articleText, type HelpCategoryKey } from "./articles";
 import { HelpSearch, type HelpIndexItem } from "./HelpSearch";
 
@@ -73,15 +74,15 @@ export default async function HelpCenterPage({ searchParams }: { searchParams: P
             Javob topmadingizmi?
           </h2>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-fg-2">
-            Qo&apos;llab-quvvatlash xizmatiga Telegram orqali yozing — ish kunlari odatda bir necha soat ichida javob beramiz. Buyurtma bo&apos;yicha muammo bo&apos;lsa, buyurtma sahifasidan nizo oching.
+            To&apos;g&apos;ridan-to&apos;g&apos;ri loyiha rahbari {SITE.owner} bilan bog&apos;laning — Telegram orqali yozing yoki qo&apos;ng&apos;iroq qiling. Ish kunlari odatda bir necha soat ichida javob beramiz. Buyurtma bo&apos;yicha muammo bo&apos;lsa, buyurtma sahifasidan nizo oching.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <ButtonLink href="https://t.me/redince" target="_blank" rel="noreferrer noopener" variant="accent" size="md">
+          <ButtonLink href={SITE.supportTelegram} target="_blank" rel="noreferrer noopener" variant="accent" size="md">
             <Send size={15} /> Telegram&apos;da yozish
           </ButtonLink>
-          <ButtonLink href="/oferta" variant="outline" size="md">
-            Foydalanish shartlari
+          <ButtonLink href={`tel:${SITE.supportPhone.replace(/\s/g, "")}`} variant="outline" size="md">
+            <Phone size={15} /> {SITE.supportPhone}
           </ButtonLink>
         </div>
       </section>

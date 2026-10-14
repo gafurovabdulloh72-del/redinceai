@@ -37,7 +37,7 @@ export function HelpFeedback({ slug }: { slug: string }) {
         {vote === "no" && (
           <p className="mt-0.5 text-[13px] text-fg-2">
             Savolingiz qolgan bo&apos;lsa, bizga{" "}
-            <a href="https://t.me/redince" target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 font-semibold text-accent-text underline-offset-2 hover:underline">
+            <a href="https://t.me/kasb_egalari" target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 font-semibold text-accent-text underline-offset-2 hover:underline">
               <Send size={12} /> Telegram
             </a>{" "}
             orqali yozing.
