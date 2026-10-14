@@ -263,7 +263,7 @@ async function main() {
   const adminId = uid();
   await db.insert(schema.users).values({
     id: adminId,
-    name: "Redince Admin",
+    name: "Kasb Egalari Admin",
     email: process.env.ADMIN_EMAIL ?? "admin@redince.uz",
     passwordHash: adminPass,
     role: "admin",

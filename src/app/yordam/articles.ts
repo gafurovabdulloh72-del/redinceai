@@ -59,7 +59,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     summary: "Mutaxassisni xarita yoki ro'yxatdan toping, loyihani yozing va narxni kelishing — 5 daqiqalik ish.",
     keywords: ["buyurtma", "zakaz", "order", "mutaxassis topish", "videograf", "montajor", "narx"],
     body: [
-      { type: "p", text: "Redince'da buyurtma ikki yo'l bilan beriladi: mutaxassisni o'zingiz tanlaysiz yoki e'lon joylab, takliflarni kutasiz." },
+      { type: "p", text: "Kasb Egalari platformasida buyurtma ikki yo'l bilan beriladi: mutaxassisni o'zingiz tanlaysiz yoki e'lon joylab, takliflarni kutasiz." },
       { type: "h", text: "Mutaxassisni tanlab buyurtma berish" },
       {
         type: "steps",
@@ -182,7 +182,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     body: [
       {
         type: "p",
-        text: "Redince mijoz va mutaxassisni bir-biriga topib beradi. Ko'p hamkorliklar keyin Telegram yoki telefon orqali davom etadi, shuning uchun platforma faqat komissiyaga tayanmaydi: mutaxassislar oylik obuna to'laydi, mijozlar esa bepul foydalanadi.",
+        text: "Kasb Egalari mijoz va mutaxassisni bir-biriga topib beradi. Ko'p hamkorliklar keyin Telegram yoki telefon orqali davom etadi, shuning uchun platforma faqat komissiyaga tayanmaydi: mutaxassislar oylik obuna to'laydi, mijozlar esa bepul foydalanadi.",
       },
       { type: "h", text: "Qancha turadi" },
       { type: "list", items: plans },
@@ -313,7 +313,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         type: "list",
         items: [
           "Eskrousiz, to'g'ridan-to'g'ri kartaga oldindan to'liq to'lov so'rash.",
-          "SMS kod, parol yoki 2FA kodini so'rash — Redince xodimlari hech qachon bularni so'ramaydi.",
+          "SMS kod, parol yoki 2FA kodini so'rash — Kasb Egalari xodimlari hech qachon bularni so'ramaydi.",
           "Platformaga o'xshash, lekin boshqa domendagi to'lov havolasi.",
           "Juda arzon narx, portfoliosi boshqalardan ko'chirilgan yoki sharhlarsiz yangi profil.",
         ],
@@ -328,7 +328,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
           "Ikki bosqichli himoyani yoqing.",
         ],
       },
-      { type: "note", text: "Platformadan tashqarida qilingan to'lovlar uchun Redince kafolat bera olmaydi.", tone: "warning" },
+      { type: "note", text: "Platformadan tashqarida qilingan to'lovlar uchun Kasb Egalari kafolat bera olmaydi.", tone: "warning" },
     ],
     related: ["eskrou-qanday-ishlaydi", "ikki-bosqichli-himoya", "nizo-ochish"],
     updated: UPDATED,

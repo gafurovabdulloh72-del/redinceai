@@ -14,6 +14,8 @@ export const contentType = "image/png";
  * Tashqi rasm (avatar/muqova) yuklanmaydi — tarmoq bloklansa rasm buzilmasin; bosh harflar ishlatiladi.
  * Shriftlar: satori woff2'ni o'qimaydi — tizim sans (ildiz opengraph-image bilan bir xil).
  */
+const HOST = (process.env.SITE_URL ?? "kasbegalari.vercel.app").replace(/^https?:\/\//, "").replace(/\/$/, "");
+
 export default async function SpecialistOgImage({ params }: { params: { slug: string } | Promise<{ slug: string }> }) {
   const { slug } = await params;
   // undefined — baza xatosi (zaxira rasm, 200); null — profil yo'q / bloklangan (zaxira rasm, lekin 404)
@@ -151,7 +153,7 @@ export default async function SpecialistOgImage({ params }: { params: { slug: st
             {chip(rating, sp.reviewCount > 0 ? { color: "#ffd27a", icon: "star" } : {})}
             {sp.isVerified && chip("Tasdiqlangan", { bg: "rgba(255,90,54,0.18)", color: "#ff8a6b", border: "1px solid rgba(255,90,54,0.4)" })}
           </div>
-          <div style={{ display: "flex", fontSize: 24, color: "rgba(255,255,255,0.55)" }}>redince.uz</div>
+          <div style={{ display: "flex", fontSize: 24, color: "rgba(255,255,255,0.55)" }}>{HOST}</div>
         </div>
       </div>
     ),

@@ -14,7 +14,7 @@ export function safeEqual(a: string, b: string): boolean {
  * To'lov provayderlari sozlamalari (env). Faqat sozlangan provayderlar UI'da chiqadi.
  *  PAYME_MERCHANT_ID, PAYME_KEY, PAYME_TEST_KEY, PAYME_TEST=1 (test kassasi)
  *  CLICK_SERVICE_ID, CLICK_MERCHANT_ID, CLICK_MERCHANT_USER_ID, CLICK_SECRET_KEY
- *  PLATFORM_CARD ("8600 **** **** 1234"), PLATFORM_CARD_NAME ("Redince MChJ") — qo'lda o'tkazma
+ *  PLATFORM_CARD ("8600 **** **** 1234"), PLATFORM_CARD_NAME ("Kasb Egalari MChJ") — qo'lda o'tkazma
  */
 export interface PaymentsEnv {
   payme: { merchantId: string; key: string; test: boolean; checkoutUrl: string };
@@ -40,7 +40,7 @@ export function paymentsEnv(): PaymentsEnv {
     },
     manual: {
       card: process.env.PLATFORM_CARD?.trim() || "",
-      name: process.env.PLATFORM_CARD_NAME?.trim() || "Redince",
+      name: process.env.PLATFORM_CARD_NAME?.trim() || "Kasb Egalari",
     },
   };
 }

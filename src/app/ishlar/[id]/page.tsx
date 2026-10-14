@@ -290,7 +290,7 @@ export default async function JobPage({ params, searchParams }: { params: Params
             </p>
             <ul className="mt-2 space-y-1.5 text-[13px] text-fg-2">
               <li>{job.client.emailVerified ? "Email tasdiqlangan" : "Email hali tasdiqlanmagan"}</li>
-              <li>Redince'da {formatDate(job.client.memberSince)} dan</li>
+              <li>Kasb Egalari platformasida {formatDate(job.client.memberSince)} dan</li>
               <li>
                 {stats.posted} ta e'lon joylagan{stats.hired > 0 ? ` · ${stats.hired} tasida mutaxassis yollagan` : ""}
               </li>
@@ -300,7 +300,7 @@ export default async function JobPage({ params, searchParams }: { params: Params
           <div className="card-outline flex items-start gap-3 p-4">
             <ShieldCheck size={18} className="mt-0.5 shrink-0 text-success-text" aria-hidden="true" />
             <p className="text-[12.5px] leading-relaxed text-fg-2">
-              To'lovni faqat Redince eskrou orqali qiling: pul ish qabul qilinguncha platformada saqlanadi, nizo bo'lsa — admin hal qiladi.
+              To'lovni faqat Kasb Egalari eskrou orqali qiling: pul ish qabul qilinguncha platformada saqlanadi, nizo bo'lsa — admin hal qiladi.
             </p>
           </div>
         </aside>

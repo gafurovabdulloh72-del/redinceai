@@ -7,7 +7,7 @@ import { HelpSearch, type HelpIndexItem } from "./HelpSearch";
 
 export const metadata: Metadata = {
   title: "Yordam markazi",
-  description: "Redince bo'yicha savollarga javoblar: buyurtma berish, eskrou orqali xavfsiz to'lov, nizo, mutaxassis obunasi, komissiya, pul chiqarish va xavfsizlik.",
+  description: "Kasb Egalari bo'yicha savollarga javoblar: buyurtma berish, eskrou orqali xavfsiz to'lov, nizo, mutaxassis obunasi, komissiya, pul chiqarish va xavfsizlik.",
   alternates: { canonical: "/yordam" },
 };
 

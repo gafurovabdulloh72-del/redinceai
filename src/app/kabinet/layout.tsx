@@ -13,7 +13,7 @@ import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/a
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: { default: "Kabinet", template: "%s · Kabinet · Redince" },
+  title: { default: "Kabinet", template: "%s · Kabinet · Kasb Egalari" },
   robots: { index: false, follow: false },
 };
 

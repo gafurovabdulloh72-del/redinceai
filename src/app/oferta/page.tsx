@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Ommaviy oferta",
-  description: "Redince platformasidan foydalanish shartlari: platformaning roli, mutaxassislar obunasi, eskrou to'lovlar va komissiya, qaytarish va nizolar, taqiqlangan harakatlar, javobgarlik.",
+  description: "Kasb Egalari platformasidan foydalanish shartlari: platformaning roli, mutaxassislar obunasi, eskrou to'lovlar va komissiya, qaytarish va nizolar, taqiqlangan harakatlar, javobgarlik.",
   alternates: { canonical: "/oferta" },
 };
 

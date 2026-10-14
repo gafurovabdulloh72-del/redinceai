@@ -134,7 +134,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     const settings = await getSettings();
     return (
       <div className="animate-fade-up">
-        <PageHeader eyebrow={<><CreditCard size={13} className="text-accent" /> Obuna</>} title={<>Mijozlar uchun <span className="accent-serif text-accent">bepul</span></>} description="Redince'da mutaxassis topish, buyurtma berish, e'lon joylash va eskrou orqali to'lash mijozlar uchun to'liq bepul. Obuna faqat mutaxassislar uchun." />
+        <PageHeader eyebrow={<><CreditCard size={13} className="text-accent" /> Obuna</>} title={<>Mijozlar uchun <span className="accent-serif text-accent">bepul</span></>} description="Kasb Egalari platformasida mutaxassis topish, buyurtma berish, e'lon joylash va eskrou orqali to'lash mijozlar uchun to'liq bepul. Obuna faqat mutaxassislar uchun." />
         <div className="card mt-8 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-start gap-3">
             <IconTile icon={Users} tone="soft" />
@@ -181,7 +181,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             Mutaxassis <span className="accent-serif text-accent">obunasi</span>
           </>
         }
-        description={`${formatPrice(overview.price)} / oy — profilingiz katalog va xaritada ko'rinadi, buyurtma va takliflar ochiq. Mijozlar Redince'dan bepul foydalanadi.`}
+        description={`${formatPrice(overview.price)} / oy — profilingiz katalog va xaritada ko'rinadi, buyurtma va takliflar ochiq. Mijozlar Kasb Egalari platformasidan bepul foydalanadi.`}
       />
 
       {result && <InvoiceResult inv={result} />}

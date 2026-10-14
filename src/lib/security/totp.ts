@@ -10,7 +10,7 @@ import { rateLimits } from "@/lib/db/schema";
  */
 export const TOTP_STEP_SEC = 30;
 export const TOTP_DIGITS = 6;
-export const TOTP_ISSUER = "Redince";
+export const TOTP_ISSUER = "Kasb Egalari";
 export const RECOVERY_CODE_COUNT = 10;
 
 /* ---------------------------- base32 (RFC 4648) ---------------------------- */
@@ -108,7 +108,7 @@ export function generateTotpSecret(): string {
   return base32Encode(randomBytes(20));
 }
 
-/** otpauth://totp/Redince:email?secret=…&issuer=Redince — autentifikator ilovalari uchun */
+/** otpauth://totp/<issuer>:email?secret=…&issuer=<issuer> — autentifikator ilovalari uchun */
 export function otpauthUri(secretB32: string, account: string): string {
   const label = encodeURIComponent(`${TOTP_ISSUER}:${account}`);
   const params = new URLSearchParams({ secret: secretB32, issuer: TOTP_ISSUER, algorithm: "SHA1", digits: String(TOTP_DIGITS), period: String(TOTP_STEP_SEC) });

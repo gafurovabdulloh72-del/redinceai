@@ -121,9 +121,9 @@ export const PATCH = handler(async (req) => {
     const masked = maskEmail(nextEmail);
     void sendMail({
       to: user.email,
-      subject: "Redince: email manzilingiz o'zgartirildi",
-      text: `Salom, ${user.name}!\n\nRedince akkauntingiz emaili ${masked} ga o'zgartirildi. Agar buni siz qilmagan bo'lsangiz, darhol parolingizni tiklang va biz bilan bog'laning.`,
-      html: `<p>Salom!</p><p>Redince akkauntingiz emaili <b>${masked.replace(/[<>&"']/g, "")}</b> ga o'zgartirildi.</p><p>Agar buni siz qilmagan bo'lsangiz, darhol parolingizni tiklang va biz bilan bog'laning.</p>`,
+      subject: "Kasb Egalari: email manzilingiz o'zgartirildi",
+      text: `Salom, ${user.name}!\n\nKasb Egalari akkauntingiz emaili ${masked} ga o'zgartirildi. Agar buni siz qilmagan bo'lsangiz, darhol parolingizni tiklang va biz bilan bog'laning.`,
+      html: `<p>Salom!</p><p>Kasb Egalari akkauntingiz emaili <b>${masked.replace(/[<>&"']/g, "")}</b> ga o'zgartirildi.</p><p>Agar buni siz qilmagan bo'lsangiz, darhol parolingizni tiklang va biz bilan bog'laning.</p>`,
     }).catch(() => {});
   }
   return ok({ updated: true, emailChanged: Boolean(nextEmail) });

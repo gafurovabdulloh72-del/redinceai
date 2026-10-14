@@ -57,19 +57,19 @@ export interface BrandedMailInput {
 
 /** Brendlangan oddiy xat (bildirishnomalar uchun): sarlavha, matn, tugma, izoh — HTML + matn ko'rinishi */
 export function brandedMail({ to, title, name, body, link, ctaLabel = "Batafsil", footer }: BrandedMailInput): MailMessage {
-  const text = [`Salom, ${name}!`, "", title, body ?? "", link ? `\n${ctaLabel}: ${link}` : "", "", footer ? `— ${footer}` : "— Redince"].join("\n");
+  const text = [`Salom, ${name}!`, "", title, body ?? "", link ? `\n${ctaLabel}: ${link}` : "", "", footer ? `— ${footer}` : "— Kasb Egalari"].join("\n");
   const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
 <div style="max-width:520px;margin:0 auto;padding:32px 20px">
-  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Kasb Egalari<span style="color:#ff5a36">.</span></p>
   <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
     <p style="font-size:20px;font-weight:700;margin:0 0 12px;line-height:1.3">${escapeHtml(title)}</p>
     <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${escapeHtml(name)}!${body ? ` ${escapeHtml(body)}` : ""}</p>
     ${link ? `<p style="margin:0 0 20px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#121213;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">${escapeHtml(ctaLabel)}</a></p>` : ""}
     ${footer ? `<p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">${escapeHtml(footer)}</p>` : ""}
   </div>
-  <p style="margin:16px 0 0;font-size:11px;color:#9a978f;text-align:center">Redince — O'zbekistonning ijodiy mutaxassislar platformasi</p>
+  <p style="margin:16px 0 0;font-size:11px;color:#9a978f;text-align:center">Kasb Egalari — O'zbekistonning ijodiy mutaxassislar platformasi</p>
 </div></body></html>`;
-  return { to, subject: `Redince — ${title}`, html, text };
+  return { to, subject: `Kasb Egalari — ${title}`, html, text };
 }
 
 export function passwordResetMail(to: string, name: string, link: string): MailMessage {
@@ -78,14 +78,14 @@ export function passwordResetMail(to: string, name: string, link: string): MailM
   const text = [
     `Salom, ${name}!`,
     "",
-    "Redince hisobingiz uchun parolni tiklash so'rovi keldi. Yangi parol o'rnatish uchun havolani oching (1 soat amal qiladi):",
+    "Kasb Egalari hisobingiz uchun parolni tiklash so'rovi keldi. Yangi parol o'rnatish uchun havolani oching (1 soat amal qiladi):",
     link,
     "",
     "Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring — parol o'zgarmaydi.",
   ].join("\n");
   const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
 <div style="max-width:520px;margin:0 auto;padding:32px 20px">
-  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Kasb Egalari<span style="color:#ff5a36">.</span></p>
   <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
     <p style="font-size:20px;font-weight:700;margin:0 0 12px">Parolni tiklash</p>
     <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${safeName}! Hisobingiz uchun parolni tiklash so'rovi keldi. Yangi parol o'rnatish uchun tugmani bosing — havola <b>1 soat</b> amal qiladi.</p>
@@ -93,7 +93,7 @@ export function passwordResetMail(to: string, name: string, link: string): MailM
     <p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">Tugma ishlamasa, havolani nusxalang: <a href="${safeLink}" style="color:#ff5a36;word-break:break-all">${safeLink}</a><br>Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring — parol o'zgarmaydi.</p>
   </div>
 </div></body></html>`;
-  return { to, subject: "Redince — parolni tiklash", html, text };
+  return { to, subject: "Kasb Egalari — parolni tiklash", html, text };
 }
 
 /** Email tasdiqlash kodi (6 xonali, 15 daqiqa) */
@@ -103,14 +103,14 @@ export function emailVerifyMail(to: string, name: string, code: string): MailMes
   const text = [
     `Salom, ${name}!`,
     "",
-    "Redince'da emailingizni tasdiqlash kodi (15 daqiqa amal qiladi):",
+    "Kasb Egalari saytida emailingizni tasdiqlash kodi (15 daqiqa amal qiladi):",
     code,
     "",
     "Kodni Kabinet → Xavfsizlik sahifasiga kiriting. Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring.",
   ].join("\n");
   const html = `<!doctype html><html lang="uz"><body style="margin:0;background:#f6f4ee;font-family:Manrope,Segoe UI,Arial,sans-serif;color:#121213">
 <div style="max-width:520px;margin:0 auto;padding:32px 20px">
-  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Redince<span style="color:#ff5a36">.</span></p>
+  <p style="font-size:18px;font-weight:700;margin:0 0 20px">Kasb Egalari<span style="color:#ff5a36">.</span></p>
   <div style="background:#fff;border:1px solid rgba(18,18,19,.08);border-radius:20px;padding:28px">
     <p style="font-size:20px;font-weight:700;margin:0 0 12px">Emailni tasdiqlash</p>
     <p style="margin:0 0 18px;line-height:1.55;color:#4b4a47">Salom, ${safeName}! Emailingizni tasdiqlash uchun quyidagi kodni Kabinet → Xavfsizlik sahifasiga kiriting. Kod <b>15 daqiqa</b> amal qiladi.</p>
@@ -118,5 +118,5 @@ export function emailVerifyMail(to: string, name: string, code: string): MailMes
     <p style="margin:0;font-size:12px;line-height:1.5;color:#7d7b75">Agar bu siz bo'lmasangiz, xatni e'tiborsiz qoldiring — hisobingiz o'zgarmaydi.</p>
   </div>
 </div></body></html>`;
-  return { to, subject: `Redince — tasdiqlash kodi: ${code}`, html, text };
+  return { to, subject: `Kasb Egalari — tasdiqlash kodi: ${code}`, html, text };
 }

@@ -5,7 +5,7 @@ import { SITE, TERMS_VERSION, VISIBILITY_FIELDS, VISIBILITY_LEVELS } from "@/lib
 
 export const metadata: Metadata = {
   title: "Maxfiylik siyosati",
-  description: "Redince qanday shaxsiy ma'lumotlarni yig'adi, kim ko'radi (har bir maydon bo'yicha ko'rinish), qancha saqlaydi va ma'lumotlarni qanday yuklab olish yoki o'chirish mumkin.",
+  description: "Kasb Egalari qanday shaxsiy ma'lumotlarni yig'adi, kim ko'radi (har bir maydon bo'yicha ko'rinish), qancha saqlaydi va ma'lumotlarni qanday yuklab olish yoki o'chirish mumkin.",
   alternates: { canonical: "/maxfiylik" },
 };
 

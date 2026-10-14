@@ -6,9 +6,12 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 /**
- * OG rasm: qorong'u "siyoh" fon, Redince, tagline, coral urg'u.
+ * OG rasm: qorong'u "siyoh" fon, Kasb Egalari, tagline, coral urg'u.
  * Shriftlar: satori woff2'ni o'qimaydi — tizim sans ishlatiladi (dizayn og'irlik va bo'shliq bilan ushlab turiladi).
  */
+/** Ko'rsatiladigan domen — SITE_URL'dan (keyin .uz domen olinsa o'zi yangilanadi) */
+const HOST = (process.env.SITE_URL ?? "kasbegalari.vercel.app").replace(/^https?:\/\//, "").replace(/\/$/, "");
+
 export default function OpenGraphImage() {
   return new ImageResponse(
     (
@@ -63,7 +66,7 @@ export default function OpenGraphImage() {
             <div style={{ position: "absolute", right: 10, top: 10, width: 10, height: 10, borderRadius: 9999, background: "#ff5a36" }} />
           </div>
           <div style={{ display: "flex", fontSize: 40, fontWeight: 700, letterSpacing: -1.5 }}>
-            Redince<span style={{ color: "#ff5a36" }}>.</span>
+            Kasb Egalari<span style={{ color: "#ff5a36" }}>.</span>
           </div>
         </div>
 
@@ -94,7 +97,7 @@ export default function OpenGraphImage() {
             <span>·</span>
             <span>Tasdiqlangan profillar</span>
           </div>
-          <span style={{ color: "#ffffff", fontWeight: 600 }}>redince.uz</span>
+          <span style={{ color: "#ffffff", fontWeight: 600 }}>{HOST}</span>
         </div>
       </div>
     ),

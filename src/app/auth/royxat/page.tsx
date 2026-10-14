@@ -4,7 +4,7 @@ import { getSettings } from "@/lib/payments/settings";
 
 export const metadata: Metadata = {
   title: "Ro'yxatdan o'tish",
-  description: "Redince'da bepul hisob yarating — mijoz sifatida mutaxassis toping yoki mutaxassis sifatida buyurtma oling.",
+  description: "Kasb Egalari platformasida bepul hisob yarating — mijoz sifatida mutaxassis toping yoki mutaxassis sifatida buyurtma oling.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;

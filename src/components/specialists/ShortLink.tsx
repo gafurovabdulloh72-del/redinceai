@@ -5,7 +5,7 @@ import { Check, Contact, Copy, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Qisqa havola (F66): "redince.uz/u/CP82B5" + nusxalash; yonida vizitka (vCard) yuklab olish.
+ * Qisqa havola (F66): "<sayt>/u/CP82B5" + nusxalash; yonida vizitka (vCard) yuklab olish.
  * `url` — to'liq manzil (nusxalanadi), `display` — protokolsiz ko'rinish.
  */
 export function ShortLink({ url, display, vcardHref, className }: { url: string; display: string; vcardHref?: string; className?: string }) {

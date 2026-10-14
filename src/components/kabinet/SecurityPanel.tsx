@@ -59,7 +59,7 @@ type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields
 
 const TIPS = [
   { icon: KeyRound, title: "Parolni boshqa saytlarda takrorlamang", text: "Bitta sayt sizsa, hammasi xavf ostida qoladi. Parol menejeridan foydalaning." },
-  { icon: ShieldAlert, title: "Shubhali havolalarga parol kiritmang", text: "Redince parolni faqat redince.uz manzilida so'raydi. Telegram/SMS orqali hech qachon so'ramaymiz." },
+  { icon: ShieldAlert, title: "Shubhali havolalarga parol kiritmang", text: "Kasb Egalari parolni faqat rasmiy sayt manzilida so'raydi. Telegram/SMS orqali hech qachon so'ramaymiz." },
   { icon: MonitorSmartphone, title: "Umumiy qurilmada «Meni eslab qolish»ni o'chiring", text: "Shunda brauzer yopilishi bilan sessiya tugaydi." },
   { icon: Smartphone, title: "Begona faollik sezsangiz", text: "Parolni darhol o'zgartiring — barcha boshqa qurilmalar avtomatik chiqib ketadi." },
   { icon: ShieldCheck, title: "Ikki bosqichli himoyani yoqing", text: "Parol sizib chiqsa ham, telefoningizdagi kodsiz hisobga kirib bo'lmaydi." },
@@ -476,7 +476,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
   const downloadCodes = () => {
     if (!recoveryCodes) return;
     const text = [
-      "Redince — ikki bosqichli himoya zaxira kodlari",
+      "Kasb Egalari — ikki bosqichli himoya zaxira kodlari",
       `Hisob: ${initial.email}`,
       `Yaratilgan: ${formatDateTime(Date.now())}`,
       "",
@@ -832,7 +832,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
               <li className="flex gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fg/6 text-[13px] font-semibold text-fg-2">2</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-fg">Redince hisobini qo&apos;shing</p>
+                  <p className="text-[14px] font-semibold text-fg">Kasb Egalari hisobini qo&apos;shing</p>
                   <p className="mt-0.5 text-[13px] text-fg-3">Shu telefonda bo&apos;lsangiz — pastdagi havolani bosing. Aks holda ilovada «Kalitni kiritish»ni tanlab, quyidagi sirni yozing (turi: vaqtga asoslangan).</p>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <code className="min-w-0 flex-1 select-all break-all rounded-[12px] border border-line bg-surface-2 px-3 py-2.5 font-mono text-[15px] font-semibold tracking-[0.08em] text-fg" aria-label="Sir kalit">

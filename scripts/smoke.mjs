@@ -47,7 +47,7 @@ test("bosh sahifa: / → 200 HTML, CSP nonce bilan", async () => {
   const csp = res.headers.get("content-security-policy") || "";
   assert.match(csp, /script-src[^;]*'nonce-/, "CSP script-src nonce'siz");
   const html = await res.text();
-  assert.match(html, /Redince/);
+  assert.match(html, /Kasb Egalari/);
 });
 
 test("ro'yxat API: /api/specialists — shakl va maxfiylik (aloqa ma'lumotlari yo'q)", async () => {

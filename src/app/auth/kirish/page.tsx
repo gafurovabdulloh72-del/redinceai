@@ -3,7 +3,7 @@ import { AuthForm } from "@/components/auth/AuthForm";
 
 export const metadata: Metadata = {
   title: "Kirish",
-  description: "Redince hisobingizga kiring — kabinet, buyurtmalar va profil boshqaruvi.",
+  description: "Kasb Egalari hisobingizga kiring — kabinet, buyurtmalar va profil boshqaruvi.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;

@@ -70,7 +70,7 @@ if (adminPassword && adminPassword !== "admin12345" && adminPassword.length >= 1
   } else {
     await client.execute({
       sql: "insert into users (id, name, email, password_hash, role, email_verified, created_at) values (?, ?, ?, ?, 'admin', 1, ?)",
-      args: [randomUUID(), "Redince Admin", adminEmail, hash, Date.now()],
+      args: [randomUUID(), "Kasb Egalari Admin", adminEmail, hash, Date.now()],
     });
     console.log(`✓ Admin hisobi yaratildi (${adminEmail})`);
   }

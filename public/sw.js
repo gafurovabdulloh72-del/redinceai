@@ -1,5 +1,5 @@
 /*
- * Redince service worker (F97) — faqat productionda ro'yxatdan o'tadi (components/layout/ServiceWorkerRegister).
+ * Kasb Egalari service worker (F97) — faqat productionda ro'yxatdan o'tadi (components/layout/ServiceWorkerRegister).
  *
  * Strategiya:
  *  - /_next/static, ikonkalar, shriftlar, rasmlar          → cache-first (fayl nomlari hash'li — o'zgarmaydi)

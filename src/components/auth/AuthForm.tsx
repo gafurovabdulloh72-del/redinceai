@@ -262,7 +262,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
             {useRecovery
               ? "Telefoningiz yonida bo'lmasa, 2FA yoqilganda saqlab olgan zaxira kodlaringizdan birini kiriting. Har bir kod bir marta ishlaydi."
-              : "Autentifikator ilovasini (Google Authenticator, Microsoft Authenticator, 1Password…) oching va Redince uchun ko'rsatilgan 6 xonali kodni kiriting."}
+              : "Autentifikator ilovasini (Google Authenticator, Microsoft Authenticator, 1Password…) oching va Kasb Egalari uchun ko'rsatilgan 6 xonali kodni kiriting."}
           </p>
         </header>
 
@@ -400,7 +400,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           )}
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
-          {isRegister ? "Bir daqiqa — va siz Redince'dasiz. Profilni keyin xohlagan payt to'ldirasiz." : "Hisobingizga kiring — kabinet va buyurtmalaringiz sizni kutmoqda."}
+          {isRegister ? "Bir daqiqa — va siz Kasb Egalari platformasidasiz. Profilni keyin xohlagan payt to'ldirasiz." : "Hisobingizga kiring — kabinet va buyurtmalaringiz sizni kutmoqda."}
         </p>
       </header>
 

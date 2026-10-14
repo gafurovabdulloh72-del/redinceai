@@ -86,10 +86,10 @@ export const REPORT_REASONS = [
 export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
 
 export const SITE = {
-  name: "Redince",
+  name: "Kasb Egalari",
   tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",
   description:
-    "Redince — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",
+    "Kasb Egalari — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",
 };
 
 
