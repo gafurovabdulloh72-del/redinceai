@@ -116,9 +116,8 @@
   --map-label-bg: #ffffff;
   --map-plate: #ece7de; /* nuqtali xarita: hudud plitasi */
   --map-dot: #c4bcae; /* 0 ta bo'lgan hudud nuqtalari */
-  --map-dot-hot: #9c2a0e; --map-wave: 0.5; --map-star-core: #1a1a1c; /* to'lqin / tanlangan hudud nuqtalari */
+  --map-dot-hot: #9c2a0e; --map-star-core: #1a1a1c; /* to'lqin / tanlangan hudud nuqtalari */
   --map-edge: rgba(18, 18, 19, 0.16); /* hudud chegarasi */
-  --map-sheen: 0.55; /* ustki yorug'lik qatlami kuchi */
   /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */
   --map-tint-lo: var(--accent);
   --map-mix-floor: 16%; /* kamida 1 ta bo'lsa — aniq coral tus (0 tadan ajralib turadi) */
@@ -199,9 +198,8 @@
   --map-label-bg: #1f1f26;
   --map-plate: #1e1e27;
   --map-dot: #3b3b48;
-  --map-dot-hot: #ffe1d8; --map-wave: 0.85; --map-star-core: #ffffff;
+  --map-dot-hot: #ffe1d8; --map-star-core: #ffffff;
   --map-edge: rgba(255, 255, 255, 0.13);
-  --map-sheen: 0.2;
   /* Qorong'u fonda past to'yingan coral = jigarrang. Shuning uchun kam sonlar btn-accent gradientidagi
      pushti-coral (#ff3d6e) tomonga suriladi va pastki chegara balandroq — "tus", loyqa emas */
   --map-tint-lo: #ff3d6e;
@@ -778,14 +776,9 @@ select:focus-visible {
   }
 }
 
-/* Xarita legendasi — choropleth bilan bir xil rampa (ikkala rejimda) */
+/* Xarita legendasi — zarrachalar tili bilan bir xil: xira neytral nuqtadan yorqin accent'gacha */
 @utility map-legend-ramp {
-  background: linear-gradient(
-    90deg,
-    color-mix(in oklab, var(--map-tint-lo) var(--map-mix-floor), var(--map-fill-0)),
-    color-mix(in oklab, color-mix(in oklab, var(--accent) 50%, var(--map-tint-lo)) calc(var(--map-mix-floor) + 0.5 * var(--map-mix-range)), var(--map-fill-0)),
-    color-mix(in oklab, var(--accent) calc(var(--map-mix-floor) + var(--map-mix-range)), var(--map-fill-0))
-  );
+  background: linear-gradient(90deg, color-mix(in oklab, var(--map-dot) 70%, transparent), color-mix(in oklab, var(--accent) 55%, var(--map-dot)), var(--accent));
 }
 
 /* Ikkala chetda so'nish (marquee, markazlashgan lentalar) */

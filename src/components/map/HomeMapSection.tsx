@@ -48,6 +48,8 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
   const [gender, setGender] = useState<Gender | null>(() => validGender(searchParams.get("gender")));
   const [data, setData] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const cache = useRef(new Map<string, ApiResult>());
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -118,27 +120,35 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
     const hit = cache.current.get(key);
     if (hit) {
       setData(hit);
+      setLoading(false);
+      setError(null);
       return;
     }
     const ctrl = new AbortController();
     setLoading(true);
+    setError(null);
     const params = new URLSearchParams({ limit: String(LIMIT), sort: "rating" });
     if (selected) params.set("region", selected);
     if (category) params.set("category", category);
     if (gender) params.set("gender", gender);
     fetch(`/api/specialists?${params}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json?.ok) {
-          const res: ApiResult = { items: json.data.items, total: json.data.total };
-          cache.current.set(key, res);
-          setData(res);
-        }
+      .then(async (r) => {
+        const json = (await r.json()) as { ok: true; data: ApiResult } | { ok: false; error: string };
+        if (!json.ok) throw new Error(json.error);
+        const res: ApiResult = { items: json.data.items, total: json.data.total };
+        cache.current.set(key, res);
+        setData(res);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setError(e instanceof Error && e.message ? e.message : "Ro'yxatni yuklab bo'lmadi");
+      })
+      .finally(() => {
+        // Bekor qilingan so'rov keyingi so'rovning loading holatini o'chirmasin
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
     return () => ctrl.abort();
-  }, [selected, category, gender]);
+  }, [selected, category, gender, attempt]);
 
   /* Mobilda hudud tanlanganda ro'yxatga sirpanish */
   const pickRegion = (slug: string | null) => {
@@ -299,6 +309,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                     </li>
                   ))}
                 </ul>
+              ) : error ? (
+                <div className="card-outline flex flex-1 flex-col items-center justify-center px-4 py-10 text-center" role="alert">
+                  <p className="font-display text-[15px] font-semibold text-fg">Yuklab bo'lmadi</p>
+                  <p className="mt-1 text-[13px] text-fg-3">{error}</p>
+                  <button type="button" onClick={() => setAttempt((n) => n + 1)} className="btn-ink mt-4 h-10 rounded-full px-5 text-[13px] font-semibold">
+                    Qayta urinish
+                  </button>
+                </div>
               ) : data && data.items.length > 0 ? (
                 <ul className={cn("space-y-1 transition-opacity", loading && "opacity-60")}>
                   {data.items.map((sp) => (

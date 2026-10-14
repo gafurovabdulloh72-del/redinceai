@@ -11,14 +11,12 @@ import type { RegionStat } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 /**
- * O'zbekiston xaritasi — "tirik zarrachalar": vizual qatlam canvas'da (ParticleMap), SVG esa ustida
+ * O'zbekiston xaritasi — "tirik zarrachalar": vizual qatlam canvas'da (ParticleMap) — nuqtalar zichligi
+ * va yorqinligi mutaxassislar soniga qarab, har bir yorqin "yulduz" bitta ijodkor. SVG esa ustida
  * shaffof bosish maydonlari, chegaralar, yorliqlar va a11y uchun qoladi.
- * - Hudud bo'yicha choropleth (mutaxassislar soni) — rampa CSS tokenlarda (--map-tint-lo / --map-mix-floor / --map-mix-range),
- *   ≥1 ta bo'lgan hudud kamida "floor" tusini oladi (0 tadan aniq ajraladi; qorong'uda jigarrang emas)
- * - Ostida qalin "plita" (yengil 3D hissi), hover'da hudud ko'tariladi
- * - Pulsatsiya qiluvchi markerlar, tooltip (sichqoncha: hover, sensor: bosish)
- * - variant="hero": perspektiva bilan qiyshaytirilgan, sichqonchaga ergashadi
- * - Yorliqlar: ekranda ~10px o'lchamda; avval gorizontal siljitiladi, keyin vertikal; uzoqlashgan yorliqqa qisqa chiziq
+ * - Hover/tanlashda hudud nuqtalari jonlanadi, ma'lumot kartochkasi xaritaning bo'sh burchagida chiqadi
+ * - variant="hero": Toshkentdan viloyatlarga kometalar, son pill'lari (top-3)
+ * - Yorliqlar: ekranda ~10px o'lchamda; avval gorizontal siljitiladi, keyin vertikal; uzoqlashganiga qisqa chiziq
  * - A11y: <svg> ichidagi har bir hudud role="button" (svg'ning o'zi role="img" EMAS — ichidagi tugmalar AT uchun ochiq).
  *   Klaviatura: bitta Tab to'xtash joyi (roving tabindex), strelkalar — qo'shni hudud, Enter/Probel — tanlash, Esc — bekor qilish,
  *   Home/End — g'arbiy/sharqiy chekka; zoomable bo'lsa +/−/0 — masshtab
@@ -628,7 +626,12 @@ export function UzbekistanMap({
             onPointerDown={onSvgPointerDown}
             onPointerMove={onSvgPointerMove}
             onPointerUp={onSvgPointerUp}
-            onPointerCancel={onSvgPointerUp}
+            onPointerCancel={(e) => {
+              // Bosish bekor bo'ldi (masalan, barmoq sahifani aylantirib yubordi) — click kelmaydi,
+              // bayroq keyingi haqiqiy bosishni yutib yubormasin
+              suppressClick.current = false;
+              onSvgPointerUp(e);
+            }}
             aria-label="O'zbekiston hududlari xaritasi"
             aria-describedby={descId}
           >
@@ -721,7 +724,7 @@ export function UzbekistanMap({
 
               {/* Hero: eng ko'p ijodkorli 3 hudud — son pill'lari (zarrachalar joylashgach paydo bo'ladi) */}
               {isHero && (
-                <g className={motion ? "map-late" : undefined}>
+                <g className={motion ? "map-late" : undefined} aria-hidden="true">
                   {topSlugs.map((slug) => {
                     const r = SHAPE_BY_SLUG[slug];
                     const n = count(slug);

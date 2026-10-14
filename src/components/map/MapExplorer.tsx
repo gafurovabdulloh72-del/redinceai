@@ -525,7 +525,7 @@ export function MapExplorer({ stats, categoryStats, initialRegion, initialCatego
   const cat = category ? CATEGORY_BY_SLUG[category] : null;
   const genderInfo = gender ? GENDERS.find((g) => g.value === gender) : undefined;
   /* Jins tanlanganda hudud statistikasida son yo'q — faqat ro'yxat javobidan olamiz */
-  const shown: number | null = list && !loading ? list.total : gender ? (list?.total ?? null) : region ? countFor(region) : scopeTotal;
+  const shown: number | null = list && !loading ? list.total : gender ? null : region ? countFor(region) : scopeTotal;
   const shownLabel = shown == null ? "…" : String(shown);
   /** Jins tanlanganda son hudud statistikasidan emas, ro'yxat javobidan — shuni aniq aytamiz */
   const shownUnit = genderInfo ? `${genderInfo.label.toLowerCase()} mutaxassis ko'rsatilgan` : "mutaxassis";

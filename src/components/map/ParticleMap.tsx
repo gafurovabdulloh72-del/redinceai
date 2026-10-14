@@ -246,17 +246,22 @@ export function ParticleMap({
       dirty.current = true;
     };
     resize();
-    // Tor ekranda nuqtalar siyrakroq (tezlik uchun)
-    const base = buildField(cssW > 0 && cssW < 520 ? 14 : 7.5);
-    fieldRef.current = base;
-    // Harakatlanuvchi holat — har bir xarita nusxasiga alohida (bosh sahifada ikkita xarita bor)
-    const field = {
-      ...base,
-      x: new Float32Array(base.n),
-      y: new Float32Array(base.n),
-      vx: new Float32Array(base.n),
-      vy: new Float32Array(base.n),
+    // Tor ekranda nuqtalar siyrakroq (tezlik uchun); kenglik chegaradan o'tsa to'r qayta quriladi (pastdagi resize kuzatuvchisida)
+    const stepFor = (w: number) => (w > 0 && w < 520 ? 14 : 7.5);
+    let step = stepFor(cssW);
+    const makeField = (st: number) => {
+      const base = buildField(st);
+      fieldRef.current = base;
+      // Harakatlanuvchi holat — har bir xarita nusxasiga alohida (bosh sahifada ikkita xarita bor)
+      return {
+        ...base,
+        x: new Float32Array(base.n),
+        y: new Float32Array(base.n),
+        vx: new Float32Array(base.n),
+        vy: new Float32Array(base.n),
+      };
     };
+    let field = makeField(step);
     starsRef.current = pickStars(field, live.current.counts);
 
     const reduce = !live.current.motion;
@@ -291,7 +296,21 @@ export function ParticleMap({
     };
     mq.addEventListener("change", onScheme);
 
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => {
+      resize();
+      // Kenglik tor/keng chegarasidan o'tdi (masalan, ekran burildi) — to'r zichligi moslansin
+      const next = stepFor(cssW);
+      if (next !== step) {
+        step = next;
+        field = makeField(step);
+        // Qayta qurishda kirish animatsiyasi takrorlanmaydi — nuqtalar darhol o'z joyida
+        field.x.set(field.hx);
+        field.y.set(field.hy);
+        starsRef.current = pickStars(field, live.current.counts);
+        dirty.current = true;
+        kick();
+      }
+    });
     ro.observe(canvas);
 
     let visible = true;
@@ -486,7 +505,7 @@ export function ParticleMap({
           // To'lqin ustidagi nuqtalar — yorqinroq va kattaroq
           if (hotIdx.length) {
             ctx!.globalAlpha = 0.9 * dim;
-            ctx!.fillStyle = colors.accent;
+            ctx!.fillStyle = colors.hot;
             ctx!.beginPath();
             for (const i of hotIdx) {
               const w = 1 - Math.abs(f.hubDist[i] - waveR) / 22;

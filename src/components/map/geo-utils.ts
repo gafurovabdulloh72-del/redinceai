@@ -46,10 +46,14 @@ function inRing(x: number, y: number, ring: Ring) {
   return inside;
 }
 
-/** Nuqta (xarita koordinatasida) qaysi hudud ichida — topilmasa null. Toshkent sh. Toshkent vil. ichidagi "teshik", shuning uchun avval kichiklar */
+/** Tekshirish tartibi (bir marta): nuqtasi kam (kichik) hududlar avval — Toshkent sh. Toshkent vil. ichidagi "teshik" */
+const REGION_CHECK_ORDER: RegionShape[] = [...REGION_SHAPES].sort(
+  (a, b) => RINGS[a.slug].reduce((n, r) => n + r.length, 0) - RINGS[b.slug].reduce((n, r) => n + r.length, 0),
+);
+
+/** Nuqta (xarita koordinatasida) qaysi hudud ichida — topilmasa null */
 export function regionAt(x: number, y: number): RegionShape | null {
-  const order = [...REGION_SHAPES].sort((a, b) => RINGS[a.slug].flat().length - RINGS[b.slug].flat().length);
-  for (const r of order) {
+  for (const r of REGION_CHECK_ORDER) {
     let inside = false;
     for (const ring of RINGS[r.slug]) if (inRing(x, y, ring)) inside = !inside;
     if (inside) return r;
