@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Minus, Plus, RotateCcw } from "lucide-react";
 import { MAP_VIEWBOX, REGION_SHAPES, type RegionShape } from "./regions-geo";
+import { ParticleMap, type Ripple } from "./ParticleMap";
 import { REGION_NEIGHBOURS, REGION_TAB_ORDER, type ArrowKey } from "./geo-utils";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import type { RegionStat } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 /**
- * O'zbekiston xaritasi — premium 2D.
+ * O'zbekiston xaritasi — "tirik zarrachalar": vizual qatlam canvas'da (ParticleMap), SVG esa ustida
+ * shaffof bosish maydonlari, chegaralar, yorliqlar va a11y uchun qoladi.
  * - Hudud bo'yicha choropleth (mutaxassislar soni) — rampa CSS tokenlarda (--map-tint-lo / --map-mix-floor / --map-mix-range),
  *   ≥1 ta bo'lgan hudud kamida "floor" tusini oladi (0 tadan aniq ajraladi; qorong'uda jigarrang emas)
  * - Ostida qalin "plita" (yengil 3D hissi), hover'da hudud ko'tariladi
@@ -103,143 +105,32 @@ export interface UzbekistanMapProps {
 }
 
 const SLAB = 18; // pastki bo'sh joy (viewBox birligida)
-/** Nuqta to'ri qadami (viewBox birligida) va darajalar: 0 — neytral, 1..5 — accent (kam → ko'p) */
-const DOT_STEP = 9;
-const DOT_TIERS: { r: number; o: number }[] = [
-  { r: 1.25, o: 0.55 },
-  { r: 1.7, o: 0.5 },
-  { r: 2.05, o: 0.65 },
-  { r: 2.4, o: 0.8 },
-  { r: 2.75, o: 0.9 },
-  { r: 3.1, o: 1 },
-];
 const LABEL_MIN_WIDTH = 520; // shu kenglikdan tor xaritada yorliqlar yashiriladi (px)
 const LABEL_SCREEN_PX = 10; // yorliq matnining ekrandagi minimal o'lchami (px)
 const LABEL_MAX_UNIT_SCALE = 1.6; // yorliq xarita birligida shundan katta bo'lishi kerak bo'lsa — joy yetmaydi, yashiriladi
 const HIT_MIN_PX = 32; // hudud ekranda shundan kichik bo'lsa — qo'shimcha bosish diski
 const HIT_DISC_PX = 40; // diskning ekrandagi diametri (px)
 
-/* ---------------- 3D relyef: izometrik proyeksiya va ekstruziya ---------------- */
-/**
- * Xarita yuqoridan qiya ko'rinishda chiziladi: x' = x − SHEAR·y + TX, y' = SQUASH·y + TY.
- * Har bir hudud — balandligi mutaxassislar soniga bog'liq blok: ustki yuza (plita + nuqtalar) va
- * tomoshabinga qaragan (pastga qaragan) qirralardan tushadigan devorlar. Devorlar uchun kontur nuqtalari
- * bir marta tahlil qilinadi; balandlik render paytida qo'shiladi.
- */
-const ISO_SHEAR = 0.2;
-const ISO_SQUASH = 0.68;
-const ISO_TX = 70; // proyeksiyadan keyingi chapga siljishni muvozanatlash (kontur x ∈ [−56, 913])
-const ISO_TY = 118; // bo'yi qisqargani uchun markazlash + bloklar balandligi uchun joy
-const H_BASE = 10; // eng past blok (0 mutaxassis), viewBox birligida
-const H_STEP = 8; // har bir daraja uchun qo'shimcha balandlik (1..5)
-const H_MAX = H_BASE + 5 * H_STEP;
-const H_LIFT = 8; // hover/tanlangan blok shuncha ko'tariladi
-type Pt = [number, number];
-/** Nuqta to'rini qiya tekislikka "yotqizish" uchun (nuqtalar ham perspektivada) */
-const ISO_MATRIX = `matrix(1 0 ${-ISO_SHEAR} ${ISO_SQUASH} 0 0)`;
-const proj = (x: number, y: number): Pt => [x - ISO_SHEAR * y + ISO_TX, y * ISO_SQUASH + ISO_TY];
-
-interface IsoShape extends RegionShape {
-  /** Proyeksiyalangan konturlar (har bir halqa alohida — anklavlar bor) */
-  rings: Pt[][];
-  /** Tomoshabinga qaragan qirra zanjirlari — devorlar shulardan quriladi */
-  fronts: Pt[][];
-  /** Chizish tartibi uchun eng pastki nuqta (orqadagilar avval) */
-  bottom: number;
+/* ---------------- Hudud geometriyasi ---------------- */
+interface MapShape extends RegionShape {
   /** Konturning kichik tomoni — kichik hududlarga qo'shimcha bosish diski */
   size: number;
 }
-
-function parseRings(d: string): Pt[][] {
-  return d
-    .split("M")
-    .filter((seg) => seg.trim())
-    .map((seg) => {
-      const nums = seg.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
-      const pts: Pt[] = [];
-      for (let i = 0; i + 1 < nums.length; i += 2) pts.push([nums[i], nums[i + 1]]);
-      return pts;
-    });
-}
-
-/** Halqaning tomoshabinga (ekranda pastga) qaragan qirralari — ketma-ket zanjirlarga yig'iladi */
-function frontChains(ring: Pt[]): Pt[][] {
-  const n = ring.length;
-  if (n < 3) return [];
-  let area = 0;
-  for (let i = 0; i < n; i++) {
-    const [ax, ay] = ring[i];
-    const [bx, by] = ring[(i + 1) % n];
-    area += ax * by - bx * ay;
-  }
-  const isFront = (i: number) => {
-    const dx = ring[(i + 1) % n][0] - ring[i][0];
-    return area > 0 ? dx < 0 : dx > 0;
-  };
-  // Zanjir chok (0-indeks) ustidan bo'linib ketmasligi uchun orqa qirradan boshlaymiz
-  let start = 0;
-  while (start < n && isFront(start)) start++;
-  if (start === n) return [ring];
-  const chains: Pt[][] = [];
-  let cur: Pt[] | null = null;
-  for (let s = 1; s <= n; s++) {
-    const i = (start + s) % n;
-    if (isFront(i)) {
-      if (!cur) cur = [ring[i]];
-      cur.push(ring[(i + 1) % n]);
-    } else if (cur) {
-      chains.push(cur);
-      cur = null;
-    }
-  }
-  if (cur) chains.push(cur);
-  // Juda qisqa zanjirlar (1–2 birlik) ko'zga tashlanmaydi — tashlab yuboramiz
-  return chains.filter((c) => c.length >= 2 && Math.abs(c[c.length - 1][0] - c[0][0]) + Math.abs(c[c.length - 1][1] - c[0][1]) > 1.5);
-}
-
-const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
-const ringsToD = (rings: Pt[][]) => rings.map((r) => `M${r.map(([x, y]) => `${fmt(x)},${fmt(y)}`).join(" ")}Z`).join(" ");
-/** Devor: zanjir ustki yuza balandligida, keyin pastga (poydevorga) qaytib yopiladi */
-function wallD(chain: Pt[], h: number): string {
-  const top = chain.map(([x, y]) => `${fmt(x)},${fmt(y - h)}`).join(" ");
-  const base = [...chain].reverse().map(([x, y]) => `${fmt(x)},${fmt(y)}`).join(" ");
-  return `M${top} L${base}Z`;
-}
-
-/** Proyeksiyalangan hududlar — orqadan oldinga tartiblangan (old bloklar orqadagilarning devorlarini to'sadi) */
-const SHAPES: IsoShape[] = REGION_SHAPES.map((r) => {
-  const rings = parseRings(r.d).map((ring) => ring.map(([x, y]) => proj(x, y)));
+const SHAPES: MapShape[] = REGION_SHAPES.map((r) => {
+  const nums = r.d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  for (const ring of rings)
-    for (const [x, y] of ring) {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-  const [cx, cy] = proj(r.cx, r.cy);
-  return { ...r, d: ringsToD(rings), cx, cy, rings, fronts: rings.flatMap(frontChains), bottom: maxY, size: Math.min(maxX - minX, maxY - minY) };
-}).sort((a, b) => a.bottom - b.bottom);
-const SHAPE_BY_SLUG: Record<string, IsoShape> = Object.fromEntries(SHAPES.map((r) => [r.slug, r]));
-/** Proyeksiyalangan xaritaning chegaralari — viewBox shunga moslanadi (bo'sh joy qolmasin) */
-const ISO_BOUNDS = (() => {
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const r of SHAPES)
-    for (const ring of r.rings)
-      for (const [x, y] of ring) {
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-  return { minX, maxX, minY, maxY };
-})();
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    minX = Math.min(minX, nums[i]);
+    maxX = Math.max(maxX, nums[i]);
+    minY = Math.min(minY, nums[i + 1]);
+    maxY = Math.max(maxY, nums[i + 1]);
+  }
+  return { ...r, size: nums.length ? Math.min(maxX - minX, maxY - minY) : Infinity };
+});
+const SHAPE_BY_SLUG: Record<string, MapShape> = Object.fromEntries(SHAPES.map((r) => [r.slug, r]));
 
 export function UzbekistanMap({
   stats,
@@ -261,7 +152,6 @@ export function UzbekistanMap({
   const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [width, setWidth] = useState<number>(0);
   /** Roving tabindex: Tab bilan kiriladigan yagona hudud */
   const [focusSlug, setFocusSlug] = useState<string | null>(null);
@@ -284,56 +174,10 @@ export function UzbekistanMap({
   const max = useMemo(() => Math.max(1, ...SHAPES.map((r) => count(r.slug))), [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = useMemo(() => SHAPES.reduce((a, r) => a + count(r.slug), 0), [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ---------------- Bloklar balandligi (animatsiyali) ---------------- */
-  /** Hudud intensivligi → daraja: 0 — bo'sh, 1..5 — kam → ko'p (balandlik va nuqta zichligi shu bo'yicha) */
-  const tierOf = (n: number) => (n <= 0 ? 0 : 1 + Math.min(4, Math.floor(Math.pow(n / max, 0.7) * 5 - 1e-9)));
-  const targetH = useMemo(
-    () => Object.fromEntries(SHAPES.map((r) => [r.slug, H_BASE + tierOf(count(r.slug)) * H_STEP])) as Record<string, number>,
-    [stats, counts, max], // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const targetKey = SHAPES.map((r) => targetH[r.slug]).join(",");
-  /** Joriy (animatsiya qilinayotgan) balandliklar: sahifa ochilganda yassi plitadan Toshkentdan tarqalib "o'sadi",
-   *  yo'nalish filtri o'zgarganda yangi balandlikka silliq o'tadi */
-  const [heights, setHeights] = useState<Record<string, number>>(() => Object.fromEntries(SHAPES.map((r) => [r.slug, H_BASE])));
-  const heightsRef = useRef(heights);
-  heightsRef.current = heights;
-  const entered = useRef(false);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      entered.current = true;
-      setHeights(targetH);
-      return;
-    }
-    const from = { ...heightsRef.current };
-    const first = !entered.current;
-    const hub = SHAPE_BY_SLUG["toshkent-shahri"] ?? SHAPES[0];
-    const delay = (r: IsoShape) => (first ? 250 + Math.hypot(r.cx - hub.cx, r.cy - hub.cy) * 0.85 : 0);
-    const dur = first ? 950 : 600;
-    // Kirishda biroz "sakrab" o'sadi (easeOutBack), filtrda — silliq (easeOutCubic)
-    const ease = first ? (t: number) => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2) : (t: number) => 1 - Math.pow(1 - t, 3);
-    const t0 = performance.now();
-    let raf = 0;
-    const step = (now: number) => {
-      let done = true;
-      const next: Record<string, number> = {};
-      for (const r of SHAPES) {
-        const t = Math.min(1, Math.max(0, (now - t0 - delay(r)) / dur));
-        if (t < 1) done = false;
-        next[r.slug] = from[r.slug] + (targetH[r.slug] - from[r.slug]) * ease(t);
-      }
-      setHeights(next);
-      if (done) entered.current = true;
-      else raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [targetKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const heightOf = (slug: string) => heights[slug] ?? targetH[slug];
-  /** Ustki yuza markazi: hozirgi (animatsiya) va yakuniy balandlik bo'yicha */
-  const topNow = (r: IsoShape) => r.cy - heightOf(r.slug);
-  const topY = (r: IsoShape) => r.cy - targetH[r.slug];
-  /** Yorug'lik ustuni ("mayoq") balandligi — mutaxassislar soniga qarab */
-  const beamH = (n: number) => (variant === "hero" ? 22 : 14) + Math.sqrt(n / max) * (variant === "hero" ? 62 : 40);
+  /** Canvas qatlami uchun: sichqoncha joyi (xarita birligida) va zarb to'lqini manbai */
+  const pointerMap = useRef<{ x: number; y: number } | null>(null);
+  const ripple = useRef<Ripple | null>(null);
+  const countMap = useMemo(() => Object.fromEntries(SHAPES.map((r) => [r.slug, count(r.slug)])) as Record<string, number>, [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isHero = variant === "hero";
   const tipW = width > 0 && width < 480 ? 188 : 224;
@@ -437,13 +281,13 @@ export function UzbekistanMap({
     return () => document.removeEventListener("pointerdown", onDown, true);
   }, [tip]);
 
+  /* Sichqoncha joyi zarrachalar uchun (ular undan qochadi): ekran → viewBox → zoom'dan oldingi xarita birligi */
   const onWrapMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!isHero || !wrap.current || e.pointerType === "touch") return;
-    const r = wrap.current.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    setTilt({ x: px, y: py });
+    if (e.pointerType === "touch") return;
+    const p = toSvg(e.clientX, e.clientY);
+    pointerMap.current = { x: (p.x - view.x) / k, y: (p.y - view.y) / k };
   };
+
   const onRegionPointerDown = (e: PointerEvent<SVGElement>, slug: string) => {
     if (e.pointerType !== "touch") return;
     touchTip.current = true;
@@ -465,6 +309,8 @@ export function UzbekistanMap({
   };
 
   const pick = (slug: string) => {
+    const sh = SHAPE_BY_SLUG[slug];
+    if (sh) ripple.current = { x: sh.cx, y: sh.cy, t: performance.now() };
     if (onSelect) onSelect(selected === slug ? null : slug);
     else if (hrefFor) router.push(hrefFor(slug));
     else if (linkTo === "xarita") router.push(`/xarita?region=${slug}`);
@@ -472,13 +318,7 @@ export function UzbekistanMap({
   };
 
   /* ---------------- Zoom / pan (viewBox birligida: p' = k·p + t) ---------------- */
-  // Ko'rinish oynasi: proyeksiyalangan kontur + eng baland blok va ko'tarilish uchun tepa, soya uchun past
-  const VB = {
-    x: ISO_BOUNDS.minX - 24,
-    y: ISO_BOUNDS.minY - H_MAX - H_LIFT - 28,
-    w: ISO_BOUNDS.maxX - ISO_BOUNDS.minX + 48,
-    h: ISO_BOUNDS.maxY - ISO_BOUNDS.minY + H_MAX + H_LIFT + 28 + 20 + SLAB,
-  };
+  const VB = { x: -24, y: -24, w: MAP_VIEWBOX.width + 48, h: MAP_VIEWBOX.height + 48 + SLAB };
   const vb = `${VB.x} ${VB.y} ${VB.w} ${VB.h}`;
   const canZoom = zoomable && !isHero;
   const k = canZoom ? view.k : 1;
@@ -728,13 +568,13 @@ export function UzbekistanMap({
   const labels = useMemo(() => {
     if (!labelsOn) return null;
     const s = labelScale / labelK;
-    const markerBoxes = SHAPES.filter((r) => count(r.slug) > 0).map((r) => ({ slug: r.slug, x: r.cx, y: topY(r), w: 14 / labelK, h: 14 / labelK }));
+    const markerBoxes = SHAPES.filter((r) => count(r.slug) > 0).map((r) => ({ slug: r.slug, x: r.cx, y: r.cy, w: 14 / labelK, h: 14 / labelK }));
     const items = SHAPES.map((r) => {
       const n = count(r.slug);
       const [ox, oy] = LABEL_OFFSET[r.slug] ?? [0, n > 0 ? 20 : 0];
       const label = REGION_BY_SLUG[r.slug]?.short ?? r.name;
       const w = (label.length * 7.4 + (n > 0 ? String(n).length * 8 + 18 : 14)) * s;
-      const cy = topY(r);
+      const cy = r.cy;
       return { slug: r.slug, label, n, cx: r.cx, cy, w, h: 22 * s, x: r.cx + ox * s, y: cy + oy * s };
     });
     const pos = layoutLabels(items, markerBoxes, { minX: VB.x + 2, maxX: VB.x + VB.w - 2, minY: VB.y + 2, maxY: VB.y + VB.h - SLAB });
@@ -746,56 +586,39 @@ export function UzbekistanMap({
       const leader = Math.hypot(p.x - it.cx, p.y - it.cy) > (LEADER_MIN + 4) * s && Math.hypot(ex - it.cx, ey - it.cy) > 6 * s;
       return { ...it, ...p, s, leader: leader ? { x2: ex, y2: ey } : null };
     });
-  }, [labelsOn, labelScale, labelK, targetKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ---------------- Nuqtali (dot-matrix) uslub ---------------- */
-  /** To'lqin manbai: tanlangan hudud, bo'lmasa Toshkent shahri */
-  const origin = SHAPES.find((r) => r.slug === (selected ?? "toshkent-shahri")) ?? SHAPES[0];
-  /** Hero: markazdan asosiy hududlarga oqib turuvchi yoylar (ma'lumot bo'lmasa — yirik shaharlar) */
-  const arcs = useMemo(() => {
-    if (!isHero) return [];
-    const hub = SHAPES.find((r) => r.slug === "toshkent-shahri") ?? SHAPES[0];
-    const ranked = [...SHAPES].filter((r) => r.slug !== hub.slug && count(r.slug) > 0).sort((a, b) => count(b.slug) - count(a.slug));
-    const fallback = ["samarqand", "buxoro", "fargona", "qoraqalpogiston", "surxondaryo"];
-    const targets = (ranked.length >= 3 ? ranked : SHAPES.filter((r) => fallback.includes(r.slug))).slice(0, 5);
-    const hy = topY(hub) - beamH(count(hub.slug));
-    return targets.map((t) => {
-      const ty = topY(t) - beamH(count(t.slug));
-      const mx = (hub.cx + t.cx) / 2;
-      const my = (hy + ty) / 2;
-      const dx = t.cx - hub.cx;
-      const dy = ty - hy;
-      const len = Math.hypot(dx, dy) || 1;
-      // Yoy doim "yuqoriga" egiladi (perpendikulyar, manfiy y tomonga)
-      let px = -dy / len;
-      let py = dx / len;
-      if (py > 0) {
-        px = -px;
-        py = -py;
-      }
-      const lift = Math.min(160, len * 0.32);
-      return { slug: t.slug, d: `M ${hub.cx} ${hy} Q ${mx + px * lift} ${my + py * lift} ${t.cx} ${ty}` };
-    });
-  }, [isHero, targetKey, max]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [labelsOn, labelScale, labelK, stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const motion = !reduceMotion;
 
   return (
     <div
       ref={wrap}
-      className={cn("relative select-none", isHero && "[perspective:1400px]", className)}
+      className={cn("relative select-none", className)}
       onPointerMove={onWrapMove}
-      onPointerLeave={() => setTilt({ x: 0, y: 0 })}
+      onPointerLeave={() => {
+        pointerMap.current = null;
+      }}
     >
       <div className={cn(isHero && motion && "map-float")}>
-        <div
-          className={cn("map-enter", isHero && "transition-transform duration-700 ease-out will-change-transform")}
-          style={isHero ? { transform: `rotateX(${6 - tilt.y * 5}deg) rotateY(${tilt.x * 6}deg)`, transformStyle: "preserve-3d" } : undefined}
-        >
+        <div className="map-enter relative">
+          {/* Vizual qatlam: tirik zarrachalar (canvas). SVG ustida faqat bosish maydonlari, chegara va yorliqlar */}
+          <ParticleMap
+            vb={VB}
+            view={canZoom ? view : VIEW_IDENTITY}
+            counts={countMap}
+            max={max}
+            hover={hover}
+            selected={selected ?? null}
+            hero={isHero}
+            motion={motion}
+            pointer={pointerMap}
+            ripple={ripple}
+            className={cn("pointer-events-none absolute inset-0 h-full w-full", k > 1 && "rounded-card")}
+          />
           <svg
             ref={svgRef}
             viewBox={vb}
-            className={cn("h-auto w-full", k > 1 ? "overflow-hidden rounded-card" : "overflow-visible", k > 1 && (dragging ? "cursor-grabbing" : "cursor-grab"))}
+            className={cn("relative h-auto w-full", k > 1 ? "overflow-hidden rounded-card" : "overflow-visible", k > 1 && (dragging ? "cursor-grabbing" : "cursor-grab"))}
             style={canZoom ? { touchAction: k > 1 ? "none" : "pan-y" } : undefined}
             onMouseLeave={() => {
               if (touchTip.current) return;
@@ -810,243 +633,112 @@ export function UzbekistanMap({
             aria-describedby={descId}
           >
             <desc id={descId}>
-              14 ta hudud. Har bir hudud — tugma: bosilganda yoki Enter tugmasida o'sha hududdagi {unitLabel}lar ro'yxati ochiladi. Strelkalar — qo'shni hudud,
-              Esc — tanlovni bekor qilish{canZoom ? ", plyus/minus — masshtab" : ""}. Jami {total} ta.
+              14 ta hudud. Har bir yorqin nuqta — bitta {unitLabel}. Har bir hudud — tugma: bosilganda yoki Enter tugmasida o'sha hududdagi {unitLabel}lar ro'yxati
+              ochiladi. Strelkalar — qo'shni hudud, Esc — tanlovni bekor qilish{canZoom ? ", plyus/minus — masshtab" : ""}. Jami {total} ta.
             </desc>
             <defs>
-              {/* Nuqta naqshlari: 0 — neytral, 1..5 — accent (kattaroq va yorqinroq), "hot" — tanlangan / to'lqin */}
-              {DOT_TIERS.map((t, i) => (
-                <pattern key={i} id={`${uid}-dots-${i}`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse" patternTransform={ISO_MATRIX}>
-                  <circle cx={DOT_STEP / 2} cy={DOT_STEP / 2} r={t.r} fill={i === 0 ? "var(--map-dot)" : "var(--accent)"} fillOpacity={t.o} />
-                </pattern>
-              ))}
-              <pattern id={`${uid}-dots-hot`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse" patternTransform={ISO_MATRIX}>
-                <circle cx={DOT_STEP / 2} cy={DOT_STEP / 2} r={3.4} fill="var(--map-dot-hot)" />
-              </pattern>
               <radialGradient id={`${uid}-glow`} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.32" />
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
                 <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
               </radialGradient>
-              <radialGradient id={`${uid}-floor`} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#000" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#000" stopOpacity="0" />
-              </radialGradient>
-              {/* To'lqin: kengayib boruvchi halqa (markaz shaffof, chekkasi oq) */}
-              <radialGradient id={`${uid}-ring`} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-                <stop offset="72%" stopColor="#fff" stopOpacity="0" />
-                <stop offset="90%" stopColor="#fff" stopOpacity="1" />
-                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-              </radialGradient>
-              {motion && (
-                <mask id={`${uid}-wave`} maskUnits="userSpaceOnUse" x={VB.x} y={VB.y} width={VB.w} height={VB.h}>
-                  <rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} fill="#000" />
-                  <circle cx={origin.cx} cy={topY(origin)} r={0} fill={`url(#${uid}-ring)`}>
-                    <animate attributeName="r" values="0;1200" dur="6s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="1;1;0" keyTimes="0;0.65;1" dur="6s" repeatCount="indefinite" />
-                  </circle>
-                </mask>
-              )}
-              <filter id={`${uid}-lift`} x="-20%" y="-20%" width="140%" height="160%">
-                <feDropShadow dx="0" dy="6" stdDeviation="10" floodColor="var(--accent)" floodOpacity="0.4" />
-              </filter>
-              {/* Yorug'lik ustuni: pastda yorqin, tepaga qarab so'nadi */}
-              <linearGradient id={`${uid}-beam`} x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.12" />
-              </linearGradient>
-              {/* Bloklarning polga tushgan yumshoq soyasi */}
-              <filter id={`${uid}-shadow`} x="-10%" y="-10%" width="120%" height="140%">
-                <feGaussianBlur stdDeviation="9" />
-              </filter>
-              {/* Devorlar: chapdan o'ngga yorug'lik (chap tomon qorong'iroq) */}
-              <linearGradient id={`${uid}-wallshade`} gradientUnits="userSpaceOnUse" x1={0} y1={0} x2={MAP_VIEWBOX.width} y2={0}>
-                <stop offset="0%" stopColor="#000" stopOpacity="0.28" />
-                <stop offset="55%" stopColor="#000" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#fff" stopOpacity="0.1" />
-              </linearGradient>
             </defs>
 
-            {/* Orqa nur va "pol" soyasi (hero) */}
+            {/* Orqa nur (hero) */}
             {isHero && (
               <g aria-hidden="true">
-                <ellipse cx={VB.x + VB.w / 2} cy={VB.y + VB.h / 2} rx={VB.w * 0.56} ry={VB.h * 0.6} fill={`url(#${uid}-glow)`} />
+                <ellipse cx={MAP_VIEWBOX.width / 2} cy={MAP_VIEWBOX.height / 2} rx={560} ry={330} fill={`url(#${uid}-glow)`} />
               </g>
             )}
 
-            {/* Zoom qatlami: barcha xarita qatlamlari bitta transform ostida (k=1 da — identik) */}
+            {/* Zoom qatlami: barcha SVG qatlamlari bitta transform ostida (canvas ham xuddi shu transform bilan chiziladi) */}
             <g
-              className={cn(canZoom && "map-zoom-layer", hover && "map-has-hover")}
+              className={cn(canZoom && "map-zoom-layer")}
               data-dragging={dragging || undefined}
               style={canZoom ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`, transformOrigin: "0 0", transformBox: "view-box" } : undefined}
             >
-              {/* Pol soyasi: barcha bloklar ostida, biroz o'ngga-pastga surilgan */}
-              <g aria-hidden="true" pointerEvents="none" filter={`url(#${uid}-shadow)`} transform="translate(10, 14)" opacity={0.5}>
-                {SHAPES.map((r) => (
-                  <path key={r.slug} d={r.d} fill="var(--map-shadow)" />
+              {/* Chegaralar: zarrachalar tarqalib bo'lgach chizilib paydo bo'ladi */}
+              <g pointerEvents="none" aria-hidden="true">
+                {SHAPES.map((r, i) => (
+                  <path
+                    key={r.slug}
+                    d={r.d}
+                    fill="none"
+                    stroke="var(--map-edge)"
+                    strokeWidth={1 / k}
+                    strokeLinejoin="round"
+                    pathLength={1}
+                    className={motion ? "map-draw" : undefined}
+                    style={motion ? { animationDelay: `${0.9 + i * 0.06}s` } : undefined}
+                  />
                 ))}
               </g>
 
-              {/* 3D bloklar: orqadan oldinga. Har biri — devorlar + ustki yuza (plita = tugma, nuqtalar, to'lqin, chegara) */}
+              {/* Hududlar — shaffof tugmalar (roving tabindex: Tab bilan bitta hududga kiriladi, strelkalar bilan yuriladi) */}
               <g role="group" aria-label="Hududlar">
-                {SHAPES.map((r, i) => {
+                {SHAPES.map((r) => {
                   const n = count(r.slug);
-                  const c = Math.pow(n / max, 0.7);
-                  const h = heightOf(r.slug);
                   const isSel = selected === r.slug;
-                  const isHov = hover === r.slug;
-                  const on = isSel || isHov;
-                  const fill = on
-                    ? "color-mix(in oklab, var(--accent) 24%, var(--map-plate))"
-                    : n > 0
-                      ? `color-mix(in oklab, var(--accent) calc(3% + ${c.toFixed(3)} * 14%), var(--map-plate))`
-                      : "var(--map-plate)";
-                  const wall = on
-                    ? "color-mix(in oklab, var(--accent) 62%, var(--map-wall))"
-                    : n > 0
-                      ? `color-mix(in oklab, var(--accent) calc(8% + ${c.toFixed(3)} * 46%), var(--map-wall))`
-                      : "var(--map-wall)";
+                  const on = isSel || hover === r.slug;
                   return (
-                    <g key={r.slug} className={cn("region-block", on && "is-active")} style={{ "--lift": `${H_LIFT}px` } as CSSProperties}>
-                      {/* Devorlar (bosishni o'tkazmaydi — faqat ustki yuza tugma) */}
-                      <g pointerEvents="none" aria-hidden="true">
-                        {r.fronts.map((chain, j) => {
-                          const d = wallD(chain, h);
-                          return (
-                            <g key={j}>
-                              <path d={d} fill={wall} stroke={wall} strokeWidth={0.6} strokeLinejoin="round" />
-                              <path d={d} fill={`url(#${uid}-wallshade)`} />
-                            </g>
-                          );
-                        })}
-                      </g>
-                      {/* Ustki yuza */}
-                      <g transform={`translate(0, ${-h})`}>
-                        <path
-                          ref={(el) => {
-                            if (el) pathRefs.current.set(r.slug, el);
-                            else pathRefs.current.delete(r.slug);
-                          }}
-                          d={r.d}
-                          className={cn("region-path", on && "is-active")}
-                          stroke={on ? "var(--accent)" : "var(--map-edge)"}
-                          strokeWidth={(on ? 1.8 : 1) / k}
-                          strokeLinejoin="round"
-                          style={{ fill }}
-                          onMouseEnter={() => {
-                            if (!touchTip.current) setHover(r.slug);
-                          }}
-                          onPointerDown={(e) => onRegionPointerDown(e, r.slug)}
-                          onClick={() => onRegionClick(r.slug)}
-                          tabIndex={r.slug === tabSlug ? 0 : -1}
-                          role="button"
-                          aria-label={`${r.name}: ${n} ta ${unitLabel}`}
-                          aria-pressed={onSelect ? isSel : undefined}
-                          onFocus={(e) => {
-                            setHover(r.slug);
-                            setFocusSlug(r.slug);
-                            setKbFocus(e.currentTarget.matches(":focus-visible") ? r.slug : null);
-                          }}
-                          onBlur={() => {
-                            setKbFocus(null);
-                            if (!touchTip.current) setHover(null);
-                          }}
-                          onKeyDown={(e) => onRegionKeyDown(e, r.slug)}
-                        />
-                        <path d={r.d} fill={`url(#${uid}-${on ? "dots-hot" : `dots-${tierOf(n)}`})`} className="map-dots" pointerEvents="none" aria-hidden="true" />
-                      </g>
-                      {/* To'lqin: manbadan tarqaluvchi yorqin nuqtalar (maska poydevor koordinatasida, shuning uchun translate ichkarida) */}
-                      {motion && (
-                        <g pointerEvents="none" aria-hidden="true" mask={`url(#${uid}-wave)`} style={{ opacity: "var(--map-wave)" }}>
-                          <path d={r.d} transform={`translate(0, ${-h})`} fill={`url(#${uid}-dots-hot)`} />
-                        </g>
-                      )}
-                      {/* Ustki yuza chegarasi: sahifa ochilganda chizilib paydo bo'ladi */}
-                      <path
-                        d={r.d}
-                        transform={`translate(0, ${-h})`}
-                        fill="none"
-                        stroke="var(--map-edge)"
-                        strokeWidth={1.1 / k}
-                        strokeLinejoin="round"
-                        pathLength={1}
-                        className={motion ? "map-draw" : undefined}
-                        style={motion ? { animationDelay: `${0.1 + i * 0.07}s` } : undefined}
-                        pointerEvents="none"
-                        aria-hidden="true"
-                      />
-                    </g>
+                    <path
+                      key={r.slug}
+                      ref={(el) => {
+                        if (el) pathRefs.current.set(r.slug, el);
+                        else pathRefs.current.delete(r.slug);
+                      }}
+                      d={r.d}
+                      className={cn("region-path", on && "is-active")}
+                      stroke={on ? "var(--accent)" : "transparent"}
+                      strokeWidth={(on ? 2 : 1) / k}
+                      strokeLinejoin="round"
+                      style={{ fill: on ? "color-mix(in oklab, var(--accent) 9%, transparent)" : "transparent" }}
+                      onMouseEnter={() => {
+                        if (!touchTip.current) setHover(r.slug);
+                      }}
+                      onPointerDown={(e) => onRegionPointerDown(e, r.slug)}
+                      onClick={() => onRegionClick(r.slug)}
+                      tabIndex={r.slug === tabSlug ? 0 : -1}
+                      role="button"
+                      aria-label={`${r.name}: ${n} ta ${unitLabel}`}
+                      aria-pressed={onSelect ? isSel : undefined}
+                      onFocus={(e) => {
+                        setHover(r.slug);
+                        setFocusSlug(r.slug);
+                        setKbFocus(e.currentTarget.matches(":focus-visible") ? r.slug : null);
+                      }}
+                      onBlur={() => {
+                        setKbFocus(null);
+                        if (!touchTip.current) setHover(null);
+                      }}
+                      onKeyDown={(e) => onRegionKeyDown(e, r.slug)}
+                    />
                   );
                 })}
               </g>
 
               {/* Klaviatura fokusi konturi — qo'shni hududlar ustida */}
-              {kbFocus && SHAPE_BY_SLUG[kbFocus] && (
-                <path d={SHAPE_BY_SLUG[kbFocus].d} transform={`translate(0, ${-heightOf(kbFocus)})`} className="region-focus-ring" style={{ strokeWidth: 3.5 / k }} aria-hidden="true" />
-              )}
+              {kbFocus && SHAPE_BY_SLUG[kbFocus] && <path d={SHAPE_BY_SLUG[kbFocus].d} className="region-focus-ring" style={{ strokeWidth: 3.5 / k }} aria-hidden="true" />}
 
-              {/* Yoylar (hero): Toshkentdan asosiy hududlarga oqib turuvchi nur */}
-              {arcs.length > 0 && (
-                <g pointerEvents="none" aria-hidden="true" className={motion ? "map-late" : undefined}>
-                  {arcs.map((a, i) => (
-                    <g key={a.slug}>
-                      <path d={a.d} fill="none" stroke="var(--accent)" strokeOpacity={0.22} strokeWidth={1.4} strokeDasharray="2 6" />
-                      {motion && (
-                        <>
-                          <path d={a.d} fill="none" stroke="var(--accent)" strokeWidth={2.2} strokeLinecap="round" pathLength={1} className="map-arc-flow" style={{ animationDelay: `${i * 0.55}s` }} />
-                          <circle r={3.6} fill="var(--accent)" stroke="var(--map-base)" strokeWidth={1.5}>
-                            <animateMotion dur={`${3.4 + i * 0.35}s`} begin={`${i * 0.55}s`} repeatCount="indefinite" path={a.d} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
-                          </circle>
-                        </>
-                      )}
-                    </g>
-                  ))}
+              {/* Hero: eng ko'p ijodkorli 3 hudud — son pill'lari (zarrachalar joylashgach paydo bo'ladi) */}
+              {isHero && (
+                <g className={motion ? "map-late" : undefined}>
+                  {topSlugs.map((slug) => {
+                    const r = SHAPE_BY_SLUG[slug];
+                    const n = count(slug);
+                    if (!r || n === 0) return null;
+                    const pillW = String(n).length * 10 + 22;
+                    return (
+                      <g key={slug} transform={`translate(${r.cx}, ${r.cy - 30})`} data-map-mark="" {...hitProps(slug)}>
+                        <rect x={-pillW / 2} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
+                        <path d="M -5 13 L 0 19 L 5 13 Z" fill="var(--ink)" />
+                        <text x={0} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
+                          {n}
+                        </text>
+                      </g>
+                    );
+                  })}
                 </g>
               )}
-
-              {/* Mayoqlar: mutaxassislar bor hududdan ko'tarilgan yorug'lik ustuni (balandligi — soniga qarab),
-                  ustun bo'ylab yuqoriga "ma'lumot uchqunlari" oqadi, tepasida suzib turgan nuqta; yuzada yotiq halqa */}
-              <g pointerEvents="none" aria-hidden="true">
-                {SHAPES.map((r, i) => {
-                  const n = count(r.slug);
-                  if (n === 0) return null;
-                  const t = n / max;
-                  const base = (isHero ? 6 : 4.5) + Math.sqrt(t) * (isHero ? 9 : 6);
-                  const bh = beamH(n);
-                  const isSel = selected === r.slug;
-                  const on = isSel || hover === r.slug;
-                  const pillW = String(n).length * 10 + 20;
-                  return (
-                    <g key={r.slug} className={cn("region-block", on && "is-active")} style={{ "--lift": `${H_LIFT}px` } as CSSProperties}>
-                      {/* Zoom'da mayoq ekrandagi o'lchamini saqlaydi (1/k) */}
-                      <g transform={`translate(${r.cx}, ${topNow(r)})${k > 1 ? ` scale(${(1 / k).toFixed(3)})` : ""}`}>
-                        <ellipse rx={base} ry={base * ISO_SQUASH} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45}s` }} />
-                        <ellipse rx={base} ry={base * ISO_SQUASH} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45 + 1.3}s` }} />
-                        <ellipse rx={base * 0.55} ry={base * 0.55 * ISO_SQUASH} fill="var(--accent)" />
-                        <rect x={-5} y={-bh} width={10} height={bh} rx={5} fill={`url(#${uid}-beam)`} opacity={on ? 0.4 : 0.18} />
-                        <rect x={-1.4} y={-bh} width={2.8} height={bh} rx={1.4} fill={`url(#${uid}-beam)`} />
-                        {motion && (
-                          <rect x={-1.4} y={0} width={2.8} height={10} rx={1.4} fill="var(--map-dot-hot)" opacity={0}>
-                            <animate attributeName="y" values={`-6;${-bh}`} dur={`${1.6 + (i % 4) * 0.25}s`} begin={`${(i % 6) * 0.3}s`} repeatCount="indefinite" />
-                            <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur={`${1.6 + (i % 4) * 0.25}s`} begin={`${(i % 6) * 0.3}s`} repeatCount="indefinite" />
-                          </rect>
-                        )}
-                        <g className={motion ? "map-bob" : undefined} style={motion ? { animationDelay: `${(i % 7) * 0.4}s` } : undefined}>
-                          <circle cy={-bh} r={(isHero ? 4.6 : 3.6) * (on ? 1.3 : 1)} fill={isSel ? "var(--map-base)" : "var(--accent)"} stroke={isSel ? "var(--accent)" : "var(--map-base)"} strokeWidth={2} />
-                          {isHero && topSlugs.includes(r.slug) && (
-                            <g transform={`translate(0, ${-bh - 22})`} data-map-mark="" {...hitProps(r.slug)}>
-                              <rect x={-pillW / 2} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
-                              <text x={0} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
-                                {n}
-                              </text>
-                            </g>
-                          )}
-                        </g>
-                      </g>
-                    </g>
-                  );
-                })}
-              </g>
 
               {/* Yorliqlar (panel rejimida, yetarli kenglikda): avval qisqa chiziqlar, ustidan yorliqlar */}
               {labels && (
@@ -1081,7 +773,7 @@ export function UzbekistanMap({
               {smallRegions.length > 0 && (
                 <g aria-hidden="true">
                   {smallRegions.map((r) => (
-                    <circle key={r.slug} cx={r.cx} cy={topNow(r)} r={hitR} fill="transparent" {...discProps(r.slug)} />
+                    <circle key={r.slug} cx={r.cx} cy={r.cy} r={hitR} fill="transparent" {...discProps(r.slug)} />
                   ))}
                 </g>
               )}
