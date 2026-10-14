@@ -87,7 +87,8 @@ export default async function HomePage() {
 
           {/* Xarita — matn bloki bilan vertikal markazda */}
           <div className="relative flex flex-col justify-center self-center lg:col-span-6">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[70%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-[90px] dark:bg-accent/20" />
+            {/* Och fonda qizil nur tuman bo'lib ko'rinmasin — kunduzgi rejimda ancha yumshoq */}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[70%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/8 blur-[90px] dark:bg-accent/20" />
             <UzbekistanMap counts={counts} variant="hero" linkTo="mutaxassislar" showLabels={false} className="w-full py-2 lg:-mr-4 lg:w-[110%] lg:max-w-none" />
             {/* Legenda + ishora — xaritaga biriktirilgan bitta qator */}
             <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1 sm:px-2">

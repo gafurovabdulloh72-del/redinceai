@@ -479,10 +479,11 @@ export function ParticleMap({
           const n = L.counts[SLUGS[ri]] ?? 0;
           const c = n > 0 ? Math.pow(n / maxN, 0.7) : 0;
           const on = ri === hoverIdx || ri === selIdx;
-          const dim = hoverIdx >= 0 && !on ? 0.4 : 1;
-          const r = (on ? 1.9 : n > 0 ? 1.15 + c * 0.6 : 1) * unit;
+          // Och (kunduzgi) fonda 0.4 juda xira edi — xarita silueti yo'qolib, hover hudud "yaxlit dog'" bo'lib ko'rinardi
+          const dim = hoverIdx >= 0 && !on ? 0.62 : 1;
+          const r = (on ? 1.6 : n > 0 ? 1.15 + c * 0.6 : 1) * unit;
           // Asosiy nuqtalar
-          ctx!.globalAlpha = (on ? 1 : n > 0 ? 0.55 + c * 0.45 : 0.6) * dim;
+          ctx!.globalAlpha = (on ? 0.9 : n > 0 ? 0.55 + c * 0.45 : 0.6) * dim;
           ctx!.fillStyle = on
             ? colors.accent
             : n > 0
