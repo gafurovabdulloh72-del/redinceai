@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Chang
 import { AlertCircle, Check, CheckCheck, ChevronDown, FileText, ImageOff, ImagePlus, Lock, MessageCircle, Plus, RotateCcw, Send, ShieldAlert, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { cn, formatDate, timeAgo } from "@/lib/utils";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT, formatBytes, isImageAttachment, uploadAttachment, type Attachment } from "./attachments";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, uploadAttachment, type Attachment } from "./attachments";
 
 /* ------------------------------------------------------------------ */
 /* Turlar (GET/POST /api/orders/[id]/messages bilan bir xil)           */
@@ -284,7 +284,7 @@ export function OrderChat({
     for (const f of list.slice(0, room)) {
       setUploading((n) => n + 1);
       try {
-        const a = await uploadAttachment(f);
+        const a = await uploadAttachment(f, { docs: true });
         setFiles((cur) => (cur.some((x) => x.url === a.url) ? cur : [...cur, a]));
       } catch (err) {
         setSendErr(err instanceof Error ? err.message : "Faylni yuklab bo'lmadi");
@@ -557,14 +557,14 @@ export function OrderChat({
               )}
 
               <div className="flex items-end gap-2">
-                <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT} multiple className="hidden" onChange={pickFiles} tabIndex={-1} />
+                <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={pickFiles} tabIndex={-1} />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   disabled={files.length >= MAX_ATTACHMENTS}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-40"
-                  aria-label="Rasm biriktirish"
-                  title="Rasm biriktirish (5 tagacha)"
+                  aria-label="Fayl biriktirish"
+                  title="Fayl biriktirish — rasm yoki PDF/DOC (5 tagacha)"
                 >
                   <ImagePlus size={17} />
                 </button>

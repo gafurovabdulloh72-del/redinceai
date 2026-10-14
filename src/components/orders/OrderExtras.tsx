@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { AlertCircle, Check, HandCoins, Link2, Paperclip, Pencil, Plus, Trash2, Undo2, Video, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { AttachmentList } from "@/components/chat/OrderChat";
-import { MAX_ATTACHMENTS, MAX_ORDER_ATTACHMENTS, UPLOAD_ACCEPT, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { MAX_ATTACHMENTS, MAX_ORDER_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { cn, formatNumber, formatPrice } from "@/lib/utils";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -144,7 +144,7 @@ export function OrderAttachments({ orderId, items, editable, onChange }: { order
     setErr(null);
     try {
       const uploaded: Attachment[] = [];
-      for (const f of list) uploaded.push(await uploadAttachment(f));
+      for (const f of list) uploaded.push(await uploadAttachment(f, { docs: true }));
       const data = await call<{ attachments: Attachment[] }>(`/api/orders/${orderId}/attachments`, { method: "PATCH", body: JSON.stringify({ add: uploaded }) });
       onChange(data.attachments);
     } catch (e2) {
@@ -155,7 +155,7 @@ export function OrderAttachments({ orderId, items, editable, onChange }: { order
   };
 
   if (!items.length && !editable) return null;
-  const input = <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT} multiple className="hidden" onChange={pick} tabIndex={-1} />;
+  const input = <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={pick} tabIndex={-1} />;
   // Fayl yo'q — kartani to'ldirmaslik uchun faqat ixcham tugma (video havola tugmasi yonida)
   if (!items.length) {
     return (
@@ -165,7 +165,7 @@ export function OrderAttachments({ orderId, items, editable, onChange }: { order
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          title="Brief, texnik topshiriq yoki referens rasmlar (JPG, PNG, WEBP, GIF)"
+          title="Brief yoki referens — rasm (JPG, PNG, WEBP, GIF) yoki hujjat (PDF, DOC, DOCX)"
           className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg disabled:opacity-50"
         >
           {busy ? <Spinner className="h-3.5 w-3.5" /> : <Paperclip size={13} />} Fayl biriktirish

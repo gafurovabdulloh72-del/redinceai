@@ -19,7 +19,22 @@ function sniff(buf: Buffer): { ext: string; mime: string } | null {
 }
 
 /**
- * Oddiy rasm yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
+ * Hujjatlar (faqat purpose="attachment" uchun): PDF, DOC (OLE2) va DOCX (ZIP).
+ * ZIP/OLE2 konteyner ekani sehrli baytlardan tasdiqlanadi; docx/xlsx/pptx ichidan farqlash uchun
+ * konteynerni ochmaymiz — yorliq (kengaytma) foydalanuvchi bergan fayl nomidan olinadi.
+ */
+function sniffDoc(buf: Buffer, origName: string): { ext: string; mime: string } | null {
+  if (buf.length >= 5 && buf.subarray(0, 5).toString("ascii") === "%PDF-") return { ext: "pdf", mime: "application/pdf" };
+  const lower = origName.toLowerCase();
+  const isZip = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
+  if (isZip && lower.endsWith(".docx")) return { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+  const isOle = buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
+  if (isOle && lower.endsWith(".doc")) return { ext: "doc", mime: "application/msword" };
+  return null;
+}
+
+/**
+ * Rasm (va buyurtma biriktirmasi sifatida hujjat) yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
  * Railway'da UPLOAD_DIR=/data/uploads (Volume) — fayllar /uploads/<nom> orqali
  * src/app/uploads/[name]/route.ts tomonidan beriladi.
  * Kvota: foydalanuvchi boshiga 30 ta fayl / kun (rate_limits). Har yuklash audit jurnaliga yoziladi.
@@ -39,8 +54,10 @@ export const POST = handler(async (req) => {
   if (file.size > MAX_BYTES) throw new ApiError(413, "Fayl 5 MB dan katta");
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const kind = sniff(bytes);
-  if (!kind) throw new ApiError(415, "Faqat JPG, PNG, WEBP yoki GIF");
+  // purpose="attachment" (buyurtma/chat fayllari) hujjatlarga ham ruxsat beradi; qolgan joylar (avatar, portfolio, sharh) — faqat rasm
+  const allowDocs = form?.get("purpose") === "attachment";
+  const kind = sniff(bytes) ?? (allowDocs ? sniffDoc(bytes, file.name || "") : null);
+  if (!kind) throw new ApiError(415, allowDocs ? "Faqat JPG, PNG, WEBP, GIF rasm yoki PDF, DOC, DOCX hujjat" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
 

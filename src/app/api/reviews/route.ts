@@ -9,7 +9,7 @@ import { notify } from "@/lib/notifications";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
 import { uid } from "@/lib/utils";
-import { MAX_REVIEW_MEDIA, UPLOAD_URL_RE } from "@/components/chat/attachments";
+import { IMAGE_URL_RE, MAX_REVIEW_MEDIA } from "@/components/chat/attachments";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 
 const star = z.coerce.number().int().min(1, "1 dan 5 gacha").max(5, "1 dan 5 gacha");
@@ -26,7 +26,7 @@ const reviewV2Schema = reviewSchema
     timeliness: star.optional().nullable(),
     communication: star.optional().nullable(),
     media: z
-      .array(z.string().trim().max(500).regex(UPLOAD_URL_RE, "Rasm sayt orqali yuklanishi kerak"))
+      .array(z.string().trim().max(500).regex(IMAGE_URL_RE, "Rasm sayt orqali yuklanishi kerak"))
       .max(MAX_REVIEW_MEDIA, `Ko'pi bilan ${MAX_REVIEW_MEDIA} ta rasm`)
       .optional(),
     recommend: z.boolean().optional().nullable(),

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { AlertCircle, ArrowLeft, Check, CheckCircle2, ClipboardList, ImagePlus, Lock, MessageCircle, Package, Send, ShieldCheck, X, Zap } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT, isImageAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, isImageAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import type { PackageKey, ServicePackage } from "@/lib/db/schema";
 import { PACKAGE_TIERS } from "@/lib/constants";
 import { cn, formatPrice } from "@/lib/utils";
@@ -132,7 +132,7 @@ export function OrderForm({
     for (const f of list.slice(0, room)) {
       setUploading((n) => n + 1);
       try {
-        const a = await uploadAttachment(f);
+        const a = await uploadAttachment(f, { docs: true });
         setFiles((cur) => (cur.some((x) => x.url === a.url) ? cur : [...cur, a]));
       } catch (err) {
         setErrors((m) => ({ ...m, attachments: err instanceof Error ? err.message : "Faylni yuklab bo'lmadi" }));
@@ -447,7 +447,7 @@ export function OrderForm({
           <span className="field-label">
             Fayllar <span className="font-normal text-fg-4">(ixtiyoriy, {MAX_ATTACHMENTS} tagacha)</span>
           </span>
-          <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT} multiple className="hidden" onChange={pickFiles} tabIndex={-1} />
+          <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={pickFiles} tabIndex={-1} />
           <div className="flex flex-wrap items-center gap-2">
             {files.map((f) => (
               <span key={f.url} className="inline-flex min-h-11 max-w-[240px] items-center gap-2 rounded-full border border-line bg-surface pl-1.5 pr-1 text-[13px] text-fg-2">
@@ -479,7 +479,7 @@ export function OrderForm({
           {errors.attachments ? (
             <p className="field-error">{errors.attachments}</p>
           ) : (
-            <p className="mt-1.5 text-[12px] text-fg-4">Brief, texnik topshiriq skrinshoti yoki referens rasmlar — JPG, PNG, WEBP, GIF, har biri 5 MB gacha.</p>
+            <p className="mt-1.5 text-[12px] text-fg-4">Brief, texnik topshiriq yoki referenslar — rasm (JPG, PNG, WEBP, GIF) yoki hujjat (PDF, DOC, DOCX), har biri 5 MB gacha.</p>
           )}
         </div>
 

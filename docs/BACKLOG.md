@@ -588,7 +588,7 @@ Manba: 6 mustaqil tekshiruvchi (auth, IDOR, to'lov, maxfiylik, to'g'rilik, backl
 
 ### Buyurtma va muloqot
 34. ✅ Ichki chat (matn + fayl)
-35. ✅ Buyurtmaga fayl biriktirish (brief, TZ, referens)
+35. ✅ Buyurtmaga fayl biriktirish (brief, TZ, referens) — rasm va hujjat (PDF/DOC/DOCX)
 36. ✅ Buyurtma holati timeline (tarix bilan)
 37. ✅ Muddat yaqinlashganda eslatmalar
 38. ✅ SLA: 24 soatda javob bo'lmasa avtomatik eslatma/bekor
