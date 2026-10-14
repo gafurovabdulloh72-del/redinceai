@@ -11,6 +11,7 @@ import type { PlatformSettings } from "@/lib/payments/settings";
  *               (null → bepul sinov; obuna ishga tushishidan oldingi profillar sinovni ishga tushgan kundan oladi)
  *  graceUntil = until + subscriptionGraceDays
  *  status:
+ *    exempt  — imtiyozli shaxs (isPrivileged): obuna talab qilinmaydi, doim ko'rinadi
  *    off     — subscriptionEnforced = 0: obuna talab qilinmaydi, hamma narsa ochiq (until/daysLeft faqat ma'lumot uchun)
  *    trial   — hali to'lamagan (subscriptionUntil = null) va now <= until
  *    active  — to'langan (subscriptionUntil bor) va now <= until
@@ -23,7 +24,7 @@ import type { PlatformSettings } from "@/lib/payments/settings";
  * shu yerdagi subscriptionState / canReceiveOrders / listableCondition / planPrice / subscriptionPeriod'dan foydalaning.
  */
 
-export type SubscriptionStatus = "trial" | "active" | "grace" | "expired" | "off";
+export type SubscriptionStatus = "trial" | "active" | "grace" | "expired" | "off" | "exempt";
 
 export interface SubscriptionState {
   status: SubscriptionStatus;
@@ -37,6 +38,8 @@ export interface SubscriptionState {
 export interface SubscriptionSubject {
   createdAt: Date;
   subscriptionUntil: Date | null;
+  /** Imtiyozli shaxs — obunadan ozod (admin belgilaydi) */
+  isPrivileged?: boolean;
 }
 
 type SubscriptionSettings = Pick<PlatformSettings, "subscriptionTrialDays" | "subscriptionGraceDays" | "subscriptionEnforced">;
@@ -58,7 +61,11 @@ export function subscriptionState(sp: SubscriptionSubject, s: SubscriptionSettin
   const t = now.getTime();
   let status: SubscriptionStatus;
   let daysLeft: number;
-  if (s.subscriptionEnforced !== 1) {
+  if (sp.isPrivileged) {
+    // Imtiyozli shaxs: obuna hech qachon talab qilinmaydi
+    status = "exempt";
+    daysLeft = daysUntil(untilMs, t);
+  } else if (s.subscriptionEnforced !== 1) {
     status = "off";
     daysLeft = daysUntil(untilMs, t);
   } else if (t <= untilMs) {
@@ -88,7 +95,8 @@ export function listableCondition(s: SubscriptionSettings, now: Date = new Date(
   if (s.subscriptionEnforced !== 1) return sql`1 = 1`;
   const trialMs = s.subscriptionTrialDays * DAY;
   const cutoff = now.getTime() - s.subscriptionGraceDays * DAY;
-  return sql`(coalesce(${specialists.subscriptionUntil}, max(${specialists.createdAt}, ${SUBSCRIPTION_LAUNCH_AT}) + ${trialMs}) >= ${cutoff})`;
+  // Imtiyozli shaxslar obunadan qat'i nazar doim ko'rinadi
+  return sql`(${specialists.isPrivileged} = 1 or coalesce(${specialists.subscriptionUntil}, max(${specialists.createdAt}, ${SUBSCRIPTION_LAUNCH_AT}) + ${trialMs}) >= ${cutoff})`;
 }
 
 /** Reja chegirmasi (%): SUBSCRIPTION_PLANS'da yo'q oylar uchun 0 */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, Loader2, Search, ShieldCheck, Undo2 } from "lucide-react";
+import { Ban, Loader2, Search, ShieldCheck, Star, Undo2 } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ interface Row {
   role: string;
   isBanned: boolean;
   bannedReason: string | null;
+  isPrivileged: boolean;
   avatarUrl: string | null;
   slug: string | null;
   createdAt: number;
@@ -29,7 +30,7 @@ const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutax
 
 export function UsersPanel() {
   const [q, setQ] = useState("");
-  const [flt, setFlt] = useState<"" | "banned" | "active">("");
+  const [flt, setFlt] = useState<"" | "banned" | "active" | "privileged">("");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,6 +59,26 @@ export function UsersPanel() {
       if (timer.current) window.clearTimeout(timer.current);
     };
   }, [q, flt, load]);
+
+  /** Imtiyozli shaxs belgisi (faqat mutaxassis profili borlarga) — obunadan ozod qiladi */
+  const setPrivileged = async (u: Row, isPrivileged: boolean) => {
+    setBusy(u.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPrivileged }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      setRows((r) => r?.map((x) => (x.id === u.id ? { ...x, isPrivileged } : x)) ?? r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Amal bajarilmadi");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const setBan = async (u: Row, isBanned: boolean) => {
     if (isBanned && !reason.trim()) {
@@ -96,6 +117,7 @@ export function UsersPanel() {
             ["", "Barchasi"],
             ["active", "Faol"],
             ["banned", "Bloklangan"],
+            ["privileged", "Imtiyozli"],
           ] as const).map(([v, label]) => (
             <button key={v} type="button" role="radio" aria-checked={flt === v} onClick={() => setFlt(v)} className={cn("segment-item flex-1 sm:flex-none", flt === v && "segment-item-active")}>
               {label}
@@ -134,6 +156,11 @@ export function UsersPanel() {
                   <p className="flex flex-wrap items-center gap-x-2 text-[14px] font-semibold text-fg">
                     <span className="truncate">{u.name}</span>
                     {u.role === "admin" && <ShieldCheck size={14} className="text-accent" aria-label="Administrator" />}
+                    {u.isPrivileged && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[10.5px] font-bold text-info-text">
+                        <Star size={10} /> Imtiyozli
+                      </span>
+                    )}
                     {u.isBanned && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10.5px] font-bold text-danger-text">Bloklangan</span>}
                   </p>
                   <p className="truncate text-[12.5px] text-fg-3">
@@ -148,6 +175,20 @@ export function UsersPanel() {
                     <Link href={`/mutaxassislar/${u.slug}`} className="hidden h-9 items-center rounded-full border border-line px-3 text-[12px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg sm:inline-flex">
                       Profil
                     </Link>
+                  )}
+                  {u.slug && (
+                    <button
+                      type="button"
+                      onClick={() => setPrivileged(u, !u.isPrivileged)}
+                      disabled={busy === u.id}
+                      title={u.isPrivileged ? "Imtiyozni bekor qilish (obuna yana talab qilinadi)" : "Imtiyozli shaxs deb belgilash (obuna talab qilinmaydi)"}
+                      className={cn(
+                        "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold transition disabled:opacity-50",
+                        u.isPrivileged ? "border-info/40 bg-info-soft text-info-text" : "border-line text-fg-2 hover:border-fg hover:text-fg",
+                      )}
+                    >
+                      <Star size={13} /> {u.isPrivileged ? "Imtiyozli ✓" : "Imtiyoz berish"}
+                    </button>
                   )}
                   {u.role !== "admin" &&
                     (u.isBanned ? (

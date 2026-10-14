@@ -178,6 +178,8 @@ export const specialists = sqliteTable(
     shortCode: text("short_code"),
     /** Obuna shu vaqtgacha to'langan; null — sinov muddati createdAt'dan hisoblanadi (subscriptions/access.ts) */
     subscriptionUntil: integer("subscription_until", { mode: "timestamp_ms" }),
+    /** Imtiyozli shaxs (admin belgilaydi): obuna talab qilinmaydi, profil doim ko'rinadi */
+    isPrivileged: integer("is_privileged", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

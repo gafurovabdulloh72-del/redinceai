@@ -143,7 +143,7 @@ export async function getSubscriptionRevenueSummary(now = Date.now()): Promise<{
 }
 
 /** Admin ro'yxati: harakat talab qiladiganlar tepada — tugagan (katalogdan yashirin), keyin muhlatdagi, sinov, faol */
-const STATUS_RANK: Record<SubscriptionStatus, number> = { expired: 0, grace: 1, trial: 2, active: 3, off: 4 };
+const STATUS_RANK: Record<SubscriptionStatus, number> = { expired: 0, grace: 1, trial: 2, active: 3, off: 4, exempt: 5 };
 const PER_PAGE = 25;
 
 export async function getAdminSubscriptionData(filter: { status?: AdminSubFilter; q?: string; page?: number; invoices?: "all" | "pending" | "paid" | "refunded" | "cancelled" } = {}): Promise<AdminSubscriptionData> {
@@ -194,7 +194,7 @@ export async function getAdminSubscriptionData(filter: { status?: AdminSubFilter
     } else agg.set(p.specialistId, { last: p.paidAt?.getTime() ?? null, lastAmount: p.amount, total: p.amount, count: 1 });
   }
 
-  const counts: Record<SubscriptionStatus, number> = { active: 0, trial: 0, grace: 0, expired: 0, off: 0 };
+  const counts: Record<SubscriptionStatus, number> = { active: 0, trial: 0, grace: 0, expired: 0, off: 0, exempt: 0 };
   const all: AdminSubscriberRow[] = rows.map((r) => {
     const st = subscriptionState(r, settings, now);
     counts[st.status]++;

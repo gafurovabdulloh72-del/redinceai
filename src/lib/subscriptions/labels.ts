@@ -4,7 +4,7 @@
  */
 import type { BadgeTone } from "@/components/ui";
 
-export type SubscriptionStatusKey = "trial" | "active" | "grace" | "expired" | "off";
+export type SubscriptionStatusKey = "trial" | "active" | "grace" | "expired" | "off" | "exempt";
 export type InvoiceStateKey = "created" | "pending" | "paid" | "cancelled" | "refunded";
 export type InvoiceProviderKey = "payme" | "click" | "manual";
 
@@ -14,6 +14,7 @@ export const SUB_STATUS_LABEL: Record<SubscriptionStatusKey, string> = {
   grace: "Muhlat",
   expired: "Tugagan",
   off: "Talab qilinmaydi",
+  exempt: "Imtiyozli",
 };
 
 export const SUB_STATUS_TONE: Record<SubscriptionStatusKey, BadgeTone> = {
@@ -22,6 +23,7 @@ export const SUB_STATUS_TONE: Record<SubscriptionStatusKey, BadgeTone> = {
   grace: "warning",
   expired: "danger",
   off: "neutral",
+  exempt: "blue",
 };
 
 export const INVOICE_STATE_LABEL: Record<InvoiceStateKey, string> = {

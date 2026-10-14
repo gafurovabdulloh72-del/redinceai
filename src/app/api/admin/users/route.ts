@@ -16,9 +16,10 @@ export const GET = handler(async (req) => {
     orderBy: [desc(users.createdAt)],
     limit: 200,
     columns: { id: true, name: true, email: true, username: true, role: true, isBanned: true, bannedReason: true, avatarUrl: true, createdAt: true, lastLoginAt: true },
-    with: { specialist: { columns: { slug: true } } },
+    with: { specialist: { columns: { slug: true, isPrivileged: true } } },
   });
-  const filtered = flt === "banned" ? rows.filter((u) => u.isBanned) : flt === "active" ? rows.filter((u) => !u.isBanned) : rows;
+  const filtered =
+    flt === "banned" ? rows.filter((u) => u.isBanned) : flt === "active" ? rows.filter((u) => !u.isBanned) : flt === "privileged" ? rows.filter((u) => u.specialist?.isPrivileged) : rows;
   const [{ n: total }] = await db.select({ n: sql<number>`count(*)` }).from(users);
   return ok({
     total: Number(total),
@@ -32,6 +33,7 @@ export const GET = handler(async (req) => {
       bannedReason: u.bannedReason,
       avatarUrl: u.avatarUrl,
       slug: u.specialist?.slug ?? null,
+      isPrivileged: u.specialist?.isPrivileged ?? false,
       createdAt: u.createdAt.getTime(),
       lastLoginAt: u.lastLoginAt?.getTime() ?? null,
     })),

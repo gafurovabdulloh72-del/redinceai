@@ -17,7 +17,7 @@ import { cn, formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Obuna", robots: { index: false, follow: false } };
 
-const RING_TONE: Record<SubscriptionStateView["status"], RingTone> = { active: "success", trial: "info", grace: "warning", expired: "danger", off: "neutral" };
+const RING_TONE: Record<SubscriptionStateView["status"], RingTone> = { active: "success", trial: "info", grace: "warning", expired: "danger", off: "neutral", exempt: "success" };
 
 const PERKS: Array<{ icon: LucideIcon; t: string; d: string }> = [
   { icon: MapPinned, t: "Katalog va xaritada ko'rinish", d: "Mijozlar sizni ro'yxat, xarita, qidiruv va yo'nalish sahifalarida topadi." },
@@ -38,6 +38,8 @@ function headlineFor(st: SubscriptionStateView): { title: string; detail: string
       return { title: "Obuna tugagan", detail: `${formatDate(st.graceUntil)} dan beri profilingiz katalog va xaritada ko'rinmaydi, yangi buyurtma va takliflar yopiq. Mavjud buyurtmalar davom etadi.` };
     case "off":
       return { title: "Hozircha bepul", detail: "Platforma hozir obunani talab qilmaydi — profilingiz cheklovsiz ko'rinadi. Oldindan to'lash ham mumkin." };
+    case "exempt":
+      return { title: "Imtiyozli a'zo", detail: "Administratsiya sizni imtiyozli shaxs sifatida belgilagan — obuna talab qilinmaydi, profilingiz doim ko'rinadi." };
   }
 }
 

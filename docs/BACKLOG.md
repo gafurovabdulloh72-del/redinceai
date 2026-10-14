@@ -676,3 +676,4 @@ Odamlar Redince'da bir-birini topib, keyin Telegram va boshqa joylarda davom eta
 6. ✅ To'lov: Payme (account.order_id sub_…), Click (merchant_trans_id sub_…) va qo'lda o'tkazma ("To'ladim" → admin tasdiqlaydi); chop etiladigan obuna cheki
 7. ✅ Eslatmalar: tugashidan 3 kun va 1 kun oldin, tugaganda va muhlat tugaganda (kunlik cron, har bosqich bir marta); kabinetda banner va holat nuqtasi
 8. ✅ Admin: /admin/obunalar (daromad, MRR, holatlar bo'yicha filtr, muddatni uzaytirish, o'tkazmani tasdiqlash/rad etish, qaytarish), sozlamalar tarixi, analitikada obuna daromadi
+9. ✅ Imtiyozli shaxslar: admin belgisi (Foydalanuvchilar bo'limida), obunadan ozod, kabinetda "Imtiyozli a'zo" holati

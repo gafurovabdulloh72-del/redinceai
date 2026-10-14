@@ -168,6 +168,7 @@ const SUB_BADGE: Record<SubscriptionState["status"], { label: string; tone: "suc
   grace: { label: "Imtiyozli muddat", tone: "warning" },
   expired: { label: "Faol emas", tone: "danger" },
   off: { label: "Talab qilinmaydi", tone: "neutral" },
+  exempt: { label: "Imtiyozli", tone: "info" },
 };
 
 function SubscriptionCard({ st, price }: { st: SubscriptionState; price: number }) {

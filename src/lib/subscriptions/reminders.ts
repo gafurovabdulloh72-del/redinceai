@@ -51,7 +51,7 @@ export async function runSubscriptionReminders(opts: { now?: Date; dry?: boolean
   let checked = 0;
   for (let offset = 0; ; offset += BATCH) {
     const rows = await db
-      .select({ id: specialists.id, userId: specialists.userId, createdAt: specialists.createdAt, subscriptionUntil: specialists.subscriptionUntil })
+      .select({ id: specialists.id, userId: specialists.userId, createdAt: specialists.createdAt, subscriptionUntil: specialists.subscriptionUntil, isPrivileged: specialists.isPrivileged })
       .from(specialists)
       .innerJoin(users, eq(users.id, specialists.userId))
       .where(and(eq(users.isBanned, false), eq(users.role, "specialist")))
