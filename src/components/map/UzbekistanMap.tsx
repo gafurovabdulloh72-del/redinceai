@@ -39,20 +39,6 @@ const LABEL_OFFSET: Record<string, [number, number]> = {
   qashqadaryo: [0, 26],
   samarqand: [4, 22],
 };
-/** Hero rejimidagi son pill'lari (top-3) uchun siljish — avvalgi joylashuv saqlanadi */
-const HERO_PILL_OFFSET: Record<string, [number, number]> = {
-  "toshkent-viloyati": [46, -44],
-  "toshkent-shahri": [-14, 34],
-  sirdaryo: [-6, 30],
-  jizzax: [-10, 10],
-  namangan: [0, -14],
-  andijon: [6, 12],
-  fargona: [6, 16],
-  xorazm: [-10, 10],
-  surxondaryo: [10, 6],
-  qashqadaryo: [0, 8],
-  samarqand: [8, -4],
-};
 /** Shundan uzoq yorliq hudud markeriga qisqa chiziq bilan bog'lanadi */
 const LEADER_MIN = 24;
 
@@ -149,6 +135,8 @@ const H_STEP = 8; // har bir daraja uchun qo'shimcha balandlik (1..5)
 const H_MAX = H_BASE + 5 * H_STEP;
 const H_LIFT = 8; // hover/tanlangan blok shuncha ko'tariladi
 type Pt = [number, number];
+/** Nuqta to'rini qiya tekislikka "yotqizish" uchun (nuqtalar ham perspektivada) */
+const ISO_MATRIX = `matrix(1 0 ${-ISO_SHEAR} ${ISO_SQUASH} 0 0)`;
 const proj = (x: number, y: number): Pt => [x - ISO_SHEAR * y + ISO_TX, y * ISO_SQUASH + ISO_TY];
 
 interface IsoShape extends RegionShape {
@@ -269,8 +257,9 @@ export function UzbekistanMap({
 }: UzbekistanMapProps) {
   const router = useRouter();
   const [hover, setHover] = useState<string | null>(null);
-  /** Ma'lumot oynasi joyi: hudud konturining ekrandagi markazi/yuqori/pastki chekkasi (wrap'ga nisbatan) */
-  const [tip, setTip] = useState<{ x: number; yTop: number; yBottom: number; below: boolean } | null>(null);
+  /** Ma'lumot oynasi joyi: xaritaning hududni (va qo'shnilarini) to'smaydigan burchagi */
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [width, setWidth] = useState<number>(0);
@@ -295,7 +284,59 @@ export function UzbekistanMap({
   const max = useMemo(() => Math.max(1, ...SHAPES.map((r) => count(r.slug))), [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = useMemo(() => SHAPES.reduce((a, r) => a + count(r.slug), 0), [stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ---------------- Bloklar balandligi (animatsiyali) ---------------- */
+  /** Hudud intensivligi → daraja: 0 — bo'sh, 1..5 — kam → ko'p (balandlik va nuqta zichligi shu bo'yicha) */
+  const tierOf = (n: number) => (n <= 0 ? 0 : 1 + Math.min(4, Math.floor(Math.pow(n / max, 0.7) * 5 - 1e-9)));
+  const targetH = useMemo(
+    () => Object.fromEntries(SHAPES.map((r) => [r.slug, H_BASE + tierOf(count(r.slug)) * H_STEP])) as Record<string, number>,
+    [stats, counts, max], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const targetKey = SHAPES.map((r) => targetH[r.slug]).join(",");
+  /** Joriy (animatsiya qilinayotgan) balandliklar: sahifa ochilganda yassi plitadan Toshkentdan tarqalib "o'sadi",
+   *  yo'nalish filtri o'zgarganda yangi balandlikka silliq o'tadi */
+  const [heights, setHeights] = useState<Record<string, number>>(() => Object.fromEntries(SHAPES.map((r) => [r.slug, H_BASE])));
+  const heightsRef = useRef(heights);
+  heightsRef.current = heights;
+  const entered = useRef(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      entered.current = true;
+      setHeights(targetH);
+      return;
+    }
+    const from = { ...heightsRef.current };
+    const first = !entered.current;
+    const hub = SHAPE_BY_SLUG["toshkent-shahri"] ?? SHAPES[0];
+    const delay = (r: IsoShape) => (first ? 250 + Math.hypot(r.cx - hub.cx, r.cy - hub.cy) * 0.85 : 0);
+    const dur = first ? 950 : 600;
+    // Kirishda biroz "sakrab" o'sadi (easeOutBack), filtrda — silliq (easeOutCubic)
+    const ease = first ? (t: number) => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2) : (t: number) => 1 - Math.pow(1 - t, 3);
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      let done = true;
+      const next: Record<string, number> = {};
+      for (const r of SHAPES) {
+        const t = Math.min(1, Math.max(0, (now - t0 - delay(r)) / dur));
+        if (t < 1) done = false;
+        next[r.slug] = from[r.slug] + (targetH[r.slug] - from[r.slug]) * ease(t);
+      }
+      setHeights(next);
+      if (done) entered.current = true;
+      else raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [targetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const heightOf = (slug: string) => heights[slug] ?? targetH[slug];
+  /** Ustki yuza markazi: hozirgi (animatsiya) va yakuniy balandlik bo'yicha */
+  const topNow = (r: IsoShape) => r.cy - heightOf(r.slug);
+  const topY = (r: IsoShape) => r.cy - targetH[r.slug];
+  /** Yorug'lik ustuni ("mayoq") balandligi — mutaxassislar soniga qarab */
+  const beamH = (n: number) => (variant === "hero" ? 22 : 14) + Math.sqrt(n / max) * (variant === "hero" ? 62 : 40);
+
   const isHero = variant === "hero";
+  const tipW = width > 0 && width < 480 ? 188 : 224;
   const topSlugs = useMemo(
     () => [...SHAPES].sort((a, b) => count(b.slug) - count(a.slug)).slice(0, 3).map((r) => r.slug),
     [stats, counts], // eslint-disable-line react-hooks/exhaustive-deps
@@ -325,20 +366,61 @@ export function UzbekistanMap({
     return () => mq.removeEventListener("change", upd);
   }, []);
 
-  /* Ma'lumot oynasi hudud konturiga bog'lanadi (sichqonchaga emas): hover/zoom/o'lcham o'zgarsa qayta hisoblanadi */
+  /*
+   * Ma'lumot oynasi hudud ustida emas — xaritaning BO'SH burchagida chiqadi: to'rt burchakdan qaysi biri
+   * tanlangan hududni (katta og'irlik bilan) va boshqa hududlarni eng kam to'ssa, o'sha tanlanadi.
+   * Hudud o'zi ko'tarilib, yorishib turadi — bog'liqlik ko'rinib turadi, qo'shni hududlar ochiq qoladi.
+   */
   useEffect(() => {
     if (!hover) {
       setTip(null);
       return;
     }
-    const el = pathRefs.current.get(hover);
     const w = wrap.current;
-    if (!el || !w) return;
-    const r = el.getBoundingClientRect();
+    const el = pathRefs.current.get(hover);
+    if (!w || !el) return;
     const wr = w.getBoundingClientRect();
-    const yTop = r.top - wr.top;
-    setTip({ x: r.left - wr.left + r.width / 2, yTop, yBottom: r.bottom - wr.top, below: yTop < 170 });
-  }, [hover, view, width, tilt.x, tilt.y]);
+    type R = { x: number; y: number; w: number; h: number };
+    const rel = (e: Element): R => {
+      const r = e.getBoundingClientRect();
+      return { x: r.left - wr.left, y: r.top - wr.top, w: r.width, h: r.height };
+    };
+    const ov = (a: R, b: R) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    const m = 20;
+    const hr = rel(el);
+    const hot = { x: hr.x - m, y: hr.y - m, w: hr.w + 2 * m, h: hr.h + 2 * m };
+    const others = [...pathRefs.current.entries()].filter(([slug]) => slug !== hover).map(([, e]) => rel(e));
+    // Yorliqlar va son pill'lari ham to'silmasin (kichik, lekin o'qilishi muhim — og'irligi yuqoriroq)
+    const marks = [...w.querySelectorAll("[data-map-mark]")].map(rel);
+    const cw = tipW;
+    const ch = tipRef.current?.offsetHeight ?? (activeStat ? 190 : 124);
+    const pad = 8;
+    const topRight = canZoom ? 56 : pad; // zoom tugmalari o'ng tepada
+    // Nomzodlar: 4 burchak + tepa/past o'rta. x/y — kartaning chap-yuqori nuqtasi (wrap'ga nisbatan)
+    const W = wr.width;
+    const H = wr.height;
+    const xs = { left: pad, mid: Math.round((W - cw) / 2), right: W - cw - pad };
+    const cands: { x: number; y: number }[] = [
+      { x: xs.left, y: H - ch - pad },
+      { x: xs.right, y: H - ch - pad },
+      { x: xs.left, y: pad },
+      { x: W - cw - topRight, y: pad },
+      { x: xs.mid, y: pad },
+      { x: xs.mid, y: H - ch - pad },
+    ];
+    let best = cands[0];
+    let bestScore = Infinity;
+    cands.forEach((c, i) => {
+      const box = { x: c.x, y: c.y, w: cw, h: ch };
+      const score = ov(box, hot) * 30 + others.reduce((acc, o) => acc + ov(box, o), 0) + marks.reduce((acc, o) => acc + ov(box, o) * 6, 0) + i * 40;
+      if (score < bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    });
+    setTip((t) => (t && t.x === best.x && t.y === best.y ? t : { x: best.x, y: best.y }));
+  }, [hover, view, width]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   /* Sensorli qurilmada: tooltip ochiq bo'lsa, xaritadan tashqariga bosilganda yopiladi */
   useEffect(() => {
@@ -642,8 +724,6 @@ export function UzbekistanMap({
    * Yorliq joylashuvi (kollziya tekshiruvi bilan). Qutilar "xarita" birligida: zoom k bo'lsa yorliq 1/k marta
    * kichrayadi (ekranda o'zgarmaydi), shuning uchun zich markaz zoom'da o'z-o'zidan yoyiladi.
    */
-  const tierOfN = (n: number) => (n <= 0 ? 0 : 1 + Math.min(4, Math.floor(Math.pow(n / max, 0.7) * 5 - 1e-9)));
-  const topY = (r: IsoShape) => r.cy - (H_BASE + tierOfN(count(r.slug)) * H_STEP);
   const labelK = Math.round(k * 4) / 4; // har bir mayda zoom qadamida qayta hisoblamaslik uchun
   const labels = useMemo(() => {
     if (!labelsOn) return null;
@@ -666,13 +746,9 @@ export function UzbekistanMap({
       const leader = Math.hypot(p.x - it.cx, p.y - it.cy) > (LEADER_MIN + 4) * s && Math.hypot(ex - it.cx, ey - it.cy) > 6 * s;
       return { ...it, ...p, s, leader: leader ? { x2: ex, y2: ey } : null };
     });
-  }, [labelsOn, labelScale, labelK, stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [labelsOn, labelScale, labelK, targetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- Nuqtali (dot-matrix) uslub ---------------- */
-  /** Hudud intensivligi → nuqta darajasi: 0 — neytral, 1..5 — accent (kam → ko'p) */
-  const tierOf = tierOfN;
-  /** Blok balandligi (viewBox birligida) — markerlar, yorliqlar, yoylar ustki yuzaga (topY) bog'lanadi */
-  const heightOf = (slug: string) => H_BASE + tierOf(count(slug)) * H_STEP;
   /** To'lqin manbai: tanlangan hudud, bo'lmasa Toshkent shahri */
   const origin = SHAPES.find((r) => r.slug === (selected ?? "toshkent-shahri")) ?? SHAPES[0];
   /** Hero: markazdan asosiy hududlarga oqib turuvchi yoylar (ma'lumot bo'lmasa — yirik shaharlar) */
@@ -682,9 +758,9 @@ export function UzbekistanMap({
     const ranked = [...SHAPES].filter((r) => r.slug !== hub.slug && count(r.slug) > 0).sort((a, b) => count(b.slug) - count(a.slug));
     const fallback = ["samarqand", "buxoro", "fargona", "qoraqalpogiston", "surxondaryo"];
     const targets = (ranked.length >= 3 ? ranked : SHAPES.filter((r) => fallback.includes(r.slug))).slice(0, 5);
-    const hy = topY(hub);
+    const hy = topY(hub) - beamH(count(hub.slug));
     return targets.map((t) => {
-      const ty = topY(t);
+      const ty = topY(t) - beamH(count(t.slug));
       const mx = (hub.cx + t.cx) / 2;
       const my = (hy + ty) / 2;
       const dx = t.cx - hub.cx;
@@ -700,10 +776,8 @@ export function UzbekistanMap({
       const lift = Math.min(160, len * 0.32);
       return { slug: t.slug, d: `M ${hub.cx} ${hy} Q ${mx + px * lift} ${my + py * lift} ${t.cx} ${ty}` };
     });
-  }, [isHero, stats, counts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isHero, targetKey, max]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tipW = 224;
-  const tipLeft = tip ? Math.max(0, Math.min(tip.x + 16, (wrap.current?.clientWidth ?? 600) - tipW - 8)) : 0;
   const motion = !reduceMotion;
 
   return (
@@ -742,11 +816,11 @@ export function UzbekistanMap({
             <defs>
               {/* Nuqta naqshlari: 0 — neytral, 1..5 — accent (kattaroq va yorqinroq), "hot" — tanlangan / to'lqin */}
               {DOT_TIERS.map((t, i) => (
-                <pattern key={i} id={`${uid}-dots-${i}`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse">
+                <pattern key={i} id={`${uid}-dots-${i}`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse" patternTransform={ISO_MATRIX}>
                   <circle cx={DOT_STEP / 2} cy={DOT_STEP / 2} r={t.r} fill={i === 0 ? "var(--map-dot)" : "var(--accent)"} fillOpacity={t.o} />
                 </pattern>
               ))}
-              <pattern id={`${uid}-dots-hot`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse">
+              <pattern id={`${uid}-dots-hot`} width={DOT_STEP} height={DOT_STEP} patternUnits="userSpaceOnUse" patternTransform={ISO_MATRIX}>
                 <circle cx={DOT_STEP / 2} cy={DOT_STEP / 2} r={3.4} fill="var(--map-dot-hot)" />
               </pattern>
               <radialGradient id={`${uid}-glow`} cx="50%" cy="50%" r="50%">
@@ -776,6 +850,11 @@ export function UzbekistanMap({
               <filter id={`${uid}-lift`} x="-20%" y="-20%" width="140%" height="160%">
                 <feDropShadow dx="0" dy="6" stdDeviation="10" floodColor="var(--accent)" floodOpacity="0.4" />
               </filter>
+              {/* Yorug'lik ustuni: pastda yorqin, tepaga qarab so'nadi */}
+              <linearGradient id={`${uid}-beam`} x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.12" />
+              </linearGradient>
               {/* Bloklarning polga tushgan yumshoq soyasi */}
               <filter id={`${uid}-shadow`} x="-10%" y="-10%" width="120%" height="140%">
                 <feGaussianBlur stdDeviation="9" />
@@ -797,7 +876,7 @@ export function UzbekistanMap({
 
             {/* Zoom qatlami: barcha xarita qatlamlari bitta transform ostida (k=1 da — identik) */}
             <g
-              className={canZoom ? "map-zoom-layer" : undefined}
+              className={cn(canZoom && "map-zoom-layer", hover && "map-has-hover")}
               data-dragging={dragging || undefined}
               style={canZoom ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`, transformOrigin: "0 0", transformBox: "view-box" } : undefined}
             >
@@ -908,7 +987,7 @@ export function UzbekistanMap({
 
               {/* Yoylar (hero): Toshkentdan asosiy hududlarga oqib turuvchi nur */}
               {arcs.length > 0 && (
-                <g pointerEvents="none" aria-hidden="true">
+                <g pointerEvents="none" aria-hidden="true" className={motion ? "map-late" : undefined}>
                   {arcs.map((a, i) => (
                     <g key={a.slug}>
                       <path d={a.d} fill="none" stroke="var(--accent)" strokeOpacity={0.22} strokeWidth={1.4} strokeDasharray="2 6" />
@@ -925,29 +1004,45 @@ export function UzbekistanMap({
                 </g>
               )}
 
-              {/* Markerlar: mutaxassislar bor hududlarda "mayoq" */}
+              {/* Mayoqlar: mutaxassislar bor hududdan ko'tarilgan yorug'lik ustuni (balandligi — soniga qarab),
+                  ustun bo'ylab yuqoriga "ma'lumot uchqunlari" oqadi, tepasida suzib turgan nuqta; yuzada yotiq halqa */}
               <g pointerEvents="none" aria-hidden="true">
                 {SHAPES.map((r, i) => {
                   const n = count(r.slug);
                   if (n === 0) return null;
                   const t = n / max;
                   const base = (isHero ? 6 : 4.5) + Math.sqrt(t) * (isHero ? 9 : 6);
+                  const bh = beamH(n);
                   const isSel = selected === r.slug;
+                  const on = isSel || hover === r.slug;
                   const pillW = String(n).length * 10 + 20;
                   return (
-                    // Zoom'da marker ekrandagi o'lchamini saqlaydi (1/k)
-                    <g key={r.slug} transform={`translate(${r.cx}, ${topY(r)})${k > 1 ? ` scale(${(1 / k).toFixed(3)})` : ""}`}>
-                      <circle r={base} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45}s` }} />
-                      <circle r={base} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45 + 1.2}s` }} />
-                      <circle r={base * 0.5} fill={isSel ? "var(--map-base)" : "var(--accent)"} stroke={isSel ? "var(--accent)" : "var(--map-base)"} strokeWidth={2.4} />
-                      {isHero && topSlugs.includes(r.slug) && (
-                        <g transform={`translate(${(HERO_PILL_OFFSET[r.slug]?.[0] ?? 0) + base + 6}, ${(HERO_PILL_OFFSET[r.slug]?.[1] ?? 0) * 0.6})`} {...hitProps(r.slug)}>
-                          <rect x={0} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
-                          <text x={pillW / 2} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
-                            {n}
-                          </text>
+                    <g key={r.slug} className={cn("region-block", on && "is-active")} style={{ "--lift": `${H_LIFT}px` } as CSSProperties}>
+                      {/* Zoom'da mayoq ekrandagi o'lchamini saqlaydi (1/k) */}
+                      <g transform={`translate(${r.cx}, ${topNow(r)})${k > 1 ? ` scale(${(1 / k).toFixed(3)})` : ""}`}>
+                        <ellipse rx={base} ry={base * ISO_SQUASH} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45}s` }} />
+                        <ellipse rx={base} ry={base * ISO_SQUASH} className="map-pulse" fill="var(--accent)" style={{ animationDelay: `${(i % 5) * 0.45 + 1.3}s` }} />
+                        <ellipse rx={base * 0.55} ry={base * 0.55 * ISO_SQUASH} fill="var(--accent)" />
+                        <rect x={-5} y={-bh} width={10} height={bh} rx={5} fill={`url(#${uid}-beam)`} opacity={on ? 0.4 : 0.18} />
+                        <rect x={-1.4} y={-bh} width={2.8} height={bh} rx={1.4} fill={`url(#${uid}-beam)`} />
+                        {motion && (
+                          <rect x={-1.4} y={0} width={2.8} height={10} rx={1.4} fill="var(--map-dot-hot)" opacity={0}>
+                            <animate attributeName="y" values={`-6;${-bh}`} dur={`${1.6 + (i % 4) * 0.25}s`} begin={`${(i % 6) * 0.3}s`} repeatCount="indefinite" />
+                            <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur={`${1.6 + (i % 4) * 0.25}s`} begin={`${(i % 6) * 0.3}s`} repeatCount="indefinite" />
+                          </rect>
+                        )}
+                        <g className={motion ? "map-bob" : undefined} style={motion ? { animationDelay: `${(i % 7) * 0.4}s` } : undefined}>
+                          <circle cy={-bh} r={(isHero ? 4.6 : 3.6) * (on ? 1.3 : 1)} fill={isSel ? "var(--map-base)" : "var(--accent)"} stroke={isSel ? "var(--accent)" : "var(--map-base)"} strokeWidth={2} />
+                          {isHero && topSlugs.includes(r.slug) && (
+                            <g transform={`translate(0, ${-bh - 22})`} data-map-mark="" {...hitProps(r.slug)}>
+                              <rect x={-pillW / 2} y={-14} width={pillW} height={28} rx={14} fill="var(--ink)" />
+                              <text x={0} y={0} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--ink-fg)" fontFamily="var(--font-display)">
+                                {n}
+                              </text>
+                            </g>
+                          )}
                         </g>
-                      )}
+                      </g>
                     </g>
                   );
                 })}
@@ -955,7 +1050,7 @@ export function UzbekistanMap({
 
               {/* Yorliqlar (panel rejimida, yetarli kenglikda): avval qisqa chiziqlar, ustidan yorliqlar */}
               {labels && (
-                <g pointerEvents="none" aria-hidden="true">
+                <g pointerEvents="none" aria-hidden="true" className={motion ? "map-late" : undefined}>
                   {labels.map(
                     (l) =>
                       l.leader && (
@@ -966,7 +1061,7 @@ export function UzbekistanMap({
                       ),
                   )}
                   {labels.map((l) => (
-                    <g key={l.slug} transform={`translate(${l.x}, ${l.y})`} {...hitProps(l.slug)}>
+                    <g key={l.slug} transform={`translate(${l.x}, ${l.y})`} data-map-mark="" {...hitProps(l.slug)}>
                       <rect x={-l.w / 2} y={-l.h / 2} width={l.w} height={l.h} rx={l.h / 2} fill="var(--map-label-bg)" stroke="var(--line-2)" strokeWidth={l.s} />
                       <text textAnchor="middle" dominantBaseline="central" fontSize={11.5 * l.s} fontWeight={600} fill="var(--fg)" style={{ letterSpacing: "-0.01em" }}>
                         {l.label}
@@ -986,7 +1081,7 @@ export function UzbekistanMap({
               {smallRegions.length > 0 && (
                 <g aria-hidden="true">
                   {smallRegions.map((r) => (
-                    <circle key={r.slug} cx={r.cx} cy={topY(r)} r={hitR} fill="transparent" {...discProps(r.slug)} />
+                    <circle key={r.slug} cx={r.cx} cy={topNow(r)} r={hitR} fill="transparent" {...discProps(r.slug)} />
                   ))}
                 </g>
               )}
@@ -1044,23 +1139,19 @@ export function UzbekistanMap({
         </p>
       )}
 
-      {/* Ma'lumot oynasi — sichqoncha yonida emas, hudud TEPASIDA (xaritani to'smaydi); joy bo'lmasa — pastida */}
+      {/* Ma'lumot oynasi — hudud ustida emas, xaritaning bo'sh burchagida (hududni ham, qo'shnilarini ham to'smaydi) */}
       {tip && activeRegion && hover && (
         <div
-          className="pointer-events-none absolute z-[12] w-56"
+          ref={tipRef}
+          key={`${tip.x}-${tip.y}`}
+          className="card-floating map-tip-in pointer-events-none absolute z-[12] p-3.5"
           role="status"
           style={{
-            left: Math.max(tipW / 2 + 4, Math.min(tip.x, (wrap.current?.clientWidth ?? 600) - tipW / 2 - 4)),
-            top: tip.below ? tip.yBottom + 14 : tip.yTop - 14,
-            // Joylashuv transformi alohida elementda — ichki animatsiya (map-tip-in) uni ustidan yozmasin
-            transform: tip.below ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+            width: tipW,
+            left: tip.x,
+            top: Math.max(8, tip.y),
           }}
         >
-        <div className={cn("card-floating relative w-56 p-3.5 map-tip-in", tip.below ? "origin-top" : "origin-bottom")}>
-          <span
-            aria-hidden="true"
-            className={cn("absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-line bg-surface", tip.below ? "-top-1.5 border-l border-t" : "-bottom-1.5 border-b border-r")}
-          />
           <div className="flex items-center gap-2.5">
             <span className="icon-tile icon-tile-sm">
               <MapPin size={16} />
@@ -1090,7 +1181,6 @@ export function UzbekistanMap({
           <p className="mt-2 text-[11px] font-semibold text-accent">
             {onSelect ? (selected === hover ? "Tanlangan · yana bosing → bekor" : "Bosing → tanlash") : touchTip.current ? "Yana bosing → ro'yxat" : "Bosing → ro'yxat"}
           </p>
-        </div>
         </div>
       )}
     </div>

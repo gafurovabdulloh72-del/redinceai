@@ -923,16 +923,36 @@ select:focus-visible {
 /* Chegara chizilib paydo bo'ladi (pathLength=1) */
 /* 3D bloklar: hover/tanlanganda butun blok (devorlari bilan) ko'tariladi */
 .region-block {
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.3s ease;
   transform-box: view-box;
+}
+/* Fokus rejimi: bitta hudud ustida turilganda qolganlari biroz so'nadi */
+.map-has-hover .region-block:not(.is-active) {
+  opacity: 0.58;
+}
+/* Mayoq tepasidagi nuqta yengil suzib turadi */
+.map-bob {
+  animation: map-bob 2.8s ease-in-out infinite;
+}
+@keyframes map-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3.5px); }
+}
+/* Yorliqlar va yoylar bloklar o'sib bo'lgach paydo bo'ladi */
+.map-late {
+  animation: map-late 0.6s ease 1.5s both;
+}
+@keyframes map-late {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .region-block.is-active {
   transform: translateY(calc(-1 * var(--lift, 8px)));
 }
 /* Xarita ma'lumot kartochkasi — hudud tepasidan "o'sib" chiqadi (transform joylashuvni emas, faqat ichki kartani harakatlantiradi) */
 @keyframes map-tip-in {
-  from { opacity: 0; transform: translateY(6px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .map-tip-in { animation: map-tip-in 0.18s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 .map-draw {
@@ -968,7 +988,7 @@ select:focus-visible {
     animation: none !important;
     opacity: 0 !important;
   }
-  .map-tip-in { animation: none; }
+  .map-tip-in, .map-bob, .map-late { animation: none; }
   .region-block { transition: none; }
   .map-draw {
     stroke-dashoffset: 0 !important;
