@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import type { PaymentProvider } from "@/lib/constants";
 import { forwardedHost, forwardedProto, trustedSiteOrigin } from "@/lib/security/request";
+import { getManualCard } from "./settings";
 
 /** Doimiy vaqtli taqqoslash (imzo/kalit) — timing hujumlariga qarshi */
 export function safeEqual(a: string, b: string): boolean {
@@ -45,21 +46,24 @@ export function paymentsEnv(): PaymentsEnv {
   };
 }
 
-export function isProviderConfigured(provider: PaymentProvider, env = paymentsEnv()): boolean {
+export async function isProviderConfigured(provider: PaymentProvider, env = paymentsEnv()): Promise<boolean> {
   switch (provider) {
     case "payme":
       return Boolean(env.payme.merchantId);
     case "click":
       return Boolean(env.click.serviceId && env.click.merchantId);
     case "manual":
-      return Boolean(env.manual.card);
+      // Karta admin sozlamasidan (DB) yoki env'dan — getManualCard ikkalasini ham ko'radi
+      return Boolean((await getManualCard()).card);
   }
 }
 
 /** UI'da ko'rsatiladigan provayderlar (tartib: Payme, Click, O'tkazma) */
-export function availableProviders(): PaymentProvider[] {
+export async function availableProviders(): Promise<PaymentProvider[]> {
   const env = paymentsEnv();
-  return (["payme", "click", "manual"] as const).filter((p) => isProviderConfigured(p, env));
+  const list: PaymentProvider[] = [];
+  for (const p of ["payme", "click", "manual"] as const) if (await isProviderConfigured(p, env)) list.push(p);
+  return list;
 }
 
 /**

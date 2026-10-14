@@ -120,7 +120,7 @@ export function buildRedirectUrl(payment: Pick<Payment, "id" | "orderId" | "amou
 /* ------------------------------------------------------------------ */
 export async function createCheckout(opts: { order: OrderWithParties; provider: PaymentProvider; actorId: string; origin: string; req?: Request }) {
   const { order, provider } = opts;
-  if (!isProviderConfigured(provider)) throw new ApiError(400, "Bu to'lov usuli hozircha ulanmagan");
+  if (!(await isProviderConfigured(provider))) throw new ApiError(400, "Bu to'lov usuli hozircha ulanmagan");
   if (order.status === "cancelled") throw new ApiError(400, "Bekor qilingan buyurtma uchun to'lov qilib bo'lmaydi");
   if (order.paymentState === "paid" || order.paymentState === "released") throw new ApiError(400, "Bu buyurtma allaqachon to'langan");
   if (!isPayable(order) || !order.amount) throw new ApiError(400, "Avval mutaxassis narx belgilashi kerak");

@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, Banknote, CheckCircle2, CreditCard, Landmark, Send, type LucideIcon } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { PAYOUT_METHOD_LABEL } from "@/components/payments/tones";
+import { CARD_BRAND_LABEL, checkCard } from "@/lib/payments/card";
 import { cn, formatNumber, formatPrice } from "@/lib/utils";
 
 type Method = "card" | "bank" | "cash";
@@ -45,7 +46,10 @@ export function PayoutRequestForm({ available, minPayout, hasOpen }: { available
     if (value < minPayout) errs.amount = `Kamida ${formatPrice(minPayout)}`;
     else if (value > available) errs.amount = `Mavjud: ${formatPrice(available)}`;
     if (details.trim().length < 4) errs.details = "Rekvizitlarni kiriting";
-    if (method === "card" && details.replace(/\D/g, "").length < 16) errs.details = "Karta raqami 16 raqamdan iborat";
+    if (method === "card") {
+      const check = checkCard(details);
+      if (!check.ok) errs.details = check.error ?? "Karta raqami noto'g'ri";
+    }
     if (Object.keys(errs).length) {
       setFields(errs);
       return;
@@ -164,7 +168,23 @@ export function PayoutRequestForm({ available, minPayout, hasOpen }: { available
               aria-invalid={Boolean(fields.details)}
               aria-describedby="payout-details-hint"
             />
-            {fields.details ? <p className="field-error">{fields.details}</p> : <p id="payout-details-hint" className="mt-1.5 text-[12px] text-fg-3">{METHOD_HINT[method]}</p>}
+            {fields.details ? (
+              <p className="field-error">{fields.details}</p>
+            ) : method === "card" && details.replace(/\D/g, "").length >= 6 ? (
+              (() => {
+                // Avtomatik tekshiruv: terish paytida tizim (Uzcard/Humo/…) va nazorat raqami holati
+                const check = checkCard(details);
+                const partial = details.replace(/\D/g, "").length < 16;
+                return (
+                  <p id="payout-details-hint" className={cn("mt-1.5 text-[12px] font-medium", check.ok ? "text-success-text" : partial ? "text-fg-3" : "text-danger-text")} aria-live="polite">
+                    {check.brand ? `${CARD_BRAND_LABEL[check.brand]} · ` : ""}
+                    {check.ok ? "Karta raqami to'g'ri ✓" : partial ? "Raqamni oxirigacha kiriting" : check.error}
+                  </p>
+                );
+              })()
+            ) : (
+              <p id="payout-details-hint" className="mt-1.5 text-[12px] text-fg-3">{METHOD_HINT[method]}</p>
+            )}
           </div>
 
           {error && (

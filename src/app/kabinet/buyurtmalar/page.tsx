@@ -48,7 +48,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     : Math.min(...tierPcts) === Math.max(...tierPcts)
       ? `${settings.commissionPct}%`
       : `${Math.min(...tierPcts)}–${Math.max(...tierPcts)}%`;
-  const providers = availableProviders();
+  const providers = await availableProviders();
   // Mijozning ochiq to'lovlari (created — davom ettirish, pending — tasdiq kutilmoqda)
   const [open, chats] = await Promise.all([getPendingPaymentsByOrder(asClient.map((o) => o.id)), chatStats([...asClient, ...asSpecialist].map((o) => o.id), user.id)]);
 

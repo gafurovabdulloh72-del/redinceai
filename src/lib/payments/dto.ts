@@ -1,3 +1,4 @@
+import { getManualCard } from "./settings";
 import "server-only";
 import { cache } from "react";
 import { eq } from "drizzle-orm";
@@ -50,8 +51,8 @@ export interface PaymentDto {
   client: { name: string };
 }
 
-export function toPaymentDto(p: PaymentDetail, origin: string): PaymentDto {
-  const env = paymentsEnv();
+export async function toPaymentDto(p: PaymentDetail, origin: string): Promise<PaymentDto> {
+  const manual = p.provider === "manual" ? await getManualCard() : null;
   const open = p.state === "created" || p.state === "pending";
   return {
     id: p.id,
@@ -70,7 +71,7 @@ export function toPaymentDto(p: PaymentDetail, origin: string): PaymentDto {
     paidAt: p.paidAt?.getTime() ?? null,
     releasedAt: p.releasedAt?.getTime() ?? null,
     redirectUrl: open && p.provider !== "manual" ? buildRedirectUrl(p, origin) : null,
-    card: p.provider === "manual" && env.manual.card ? { number: env.manual.card, name: env.manual.name } : null,
+    card: manual?.card ? { number: manual.card, name: manual.name } : null,
     specialist: { name: p.specialist.user.name, avatarUrl: p.specialist.user.avatarUrl, title: p.specialist.title, slug: p.specialist.slug },
     client: { name: p.client.name },
   };

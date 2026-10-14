@@ -1,3 +1,4 @@
+import { checkCard } from "@/lib/payments/card";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { payouts, specialists } from "@/lib/db/schema";
@@ -46,6 +47,11 @@ export const POST = handler(async (req) => {
   if (input.amount > balance.available) throw new ApiError(422, "Balans yetarli emas", { amount: `Mavjud: ${formatPrice(balance.available)}` });
 
   // Karta raqamini maskalaymiz: 8600 **** **** 1234
+  // Avtomatik tekshiruv: Luhn nazorat raqami + tizim (Uzcard/Humo/Visa…) — terish xatosi bankka yetmasin
+  if (input.method === "card") {
+    const check = checkCard(input.details);
+    if (!check.ok) throw new ApiError(422, check.error ?? "Karta raqami noto'g'ri", { details: check.error ?? "Karta raqami noto'g'ri" });
+  }
   const digits = input.details.replace(/\D/g, "");
   const details = input.method === "card" && digits.length >= 12 ? `${digits.slice(0, 4)} **** **** ${digits.slice(-4)}` : input.details;
 

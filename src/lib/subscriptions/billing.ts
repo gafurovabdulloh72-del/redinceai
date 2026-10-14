@@ -6,6 +6,7 @@ import { specialists, subscriptionInvoices, type SubscriptionInvoice } from "@/l
 import { ApiError } from "@/lib/api";
 import { SUBSCRIPTION_INVOICE_PREFIX, SUBSCRIPTION_PLANS, type PaymentProvider } from "@/lib/constants";
 import { notify, notifyAdmins } from "@/lib/notifications";
+import { getManualCard } from "@/lib/payments/settings";
 import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings, type PlatformSettings } from "@/lib/payments/settings";
 import { audit } from "@/lib/security/audit";
@@ -133,8 +134,8 @@ export function buildInvoiceRedirectUrl(invoice: Pick<SubscriptionInvoice, "id" 
 }
 
 /** O'tkazma rekvizitlari (eskrou checkout'dagi karta bilan bir xil) */
-export function manualRequisites(): { card: string; name: string } | null {
-  const m = paymentsEnv().manual;
+export async function manualRequisites(): Promise<{ card: string; name: string } | null> {
+  const m = await getManualCard();
   return m.card ? { card: m.card, name: m.name } : null;
 }
 

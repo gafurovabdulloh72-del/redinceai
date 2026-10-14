@@ -12,7 +12,7 @@ export const GET = handler(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const p = await loadPaymentDetail(id);
   if (!p || !canViewPayment(p, session)) throw new ApiError(404, "To'lov topilmadi");
-  return ok(toPaymentDto(p, siteOrigin(req.headers, req.url)), { headers: { "Cache-Control": "no-store" } });
+  return ok(await toPaymentDto(p, siteOrigin(req.headers, req.url)), { headers: { "Cache-Control": "no-store" } });
 });
 
 const actionSchema = z.object({ action: z.enum(["sent"]) });

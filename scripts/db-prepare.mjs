@@ -63,7 +63,7 @@ if (adminPassword && adminPassword !== "admin12345" && adminPassword.length >= 1
     const same = await bcrypt.compare(adminPassword, String(row.password_hash ?? ""));
     if (!same) {
       await client.execute({
-        sql: "update users set password_hash = ?, role = 'admin', is_banned = 0, session_version = coalesce(session_version, 1) + 1, password_changed_at = ? where id = ?",
+        sql: "update users set password_hash = ?, name = 'Kasb Egalari Admin', role = 'admin', is_banned = 0, session_version = coalesce(session_version, 1) + 1, password_changed_at = ? where id = ?",
         args: [hash, Date.now(), row.id],
       });
       console.log(`✓ Admin paroli ADMIN_PASSWORD bo'yicha yangilandi (${adminEmail})`);

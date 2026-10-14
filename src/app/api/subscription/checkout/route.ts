@@ -31,7 +31,7 @@ export const POST = handler(async (req) => {
       state: invoice.state,
       reused,
       redirectUrl,
-      manual: invoice.provider === "manual" ? manualRequisites() : null,
+      manual: invoice.provider === "manual" ? await manualRequisites() : null,
       statusPath: invoiceHref(invoice.id),
     },
     { status: reused ? 200 : 201 },

@@ -56,8 +56,8 @@ export async function getSubscriptionOverview(sp: SubscriptionSubject & { id: st
     enforced: settings.subscriptionEnforced === 1,
     plans: plansFor(settings),
     invoices: invoices.map(toInvoiceView),
-    providers: availableProviders(),
-    manual: manualRequisites(),
+    providers: await availableProviders(),
+    manual: await manualRequisites(),
   };
 }
 

@@ -20,7 +20,7 @@ export default async function PaymentResultPage({ searchParams }: { searchParams
   if (!user) redirect(await loginRedirectPath(`/tolov/natija?payment=${encodeURIComponent(paymentId)}`));
 
   const p = paymentId ? await loadPaymentDetail(paymentId) : null;
-  const dto = p && canViewPayment(p, { sub: user.id, role: user.role }) ? toPaymentDto(p, siteOrigin(await headers())) : null;
+  const dto = p && canViewPayment(p, { sub: user.id, role: user.role }) ? await toPaymentDto(p, siteOrigin(await headers())) : null;
 
   return (
     <div className="container-x animate-fade-up">

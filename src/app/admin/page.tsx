@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, like, ne, sql } from "drizzle-orm";
+import { and, like, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
+import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
+import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
+import { UsersPanel } from "@/components/admin/UsersPanel";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -96,6 +99,23 @@ function Tile({ icon: Icon, value, label, hint, hintTone = "neutral", href }: { 
 
 const money = (n: number) => formatPrice(n, { compact: n >= 10_000_000 });
 
+/** O'ng paneldagi bo'limlar — sahifadagi section id'lari bilan bir xil tartibda */
+const NAV_ITEMS = [
+  { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
+  { id: "moliya", label: "Moliya" },
+  { id: "analitika", label: "Analitika" },
+  { id: "nizolar", label: "Nizolar" },
+  { id: "sozlamalar", label: "Sozlamalar" },
+  { id: "payoutlar", label: "Payoutlar" },
+  { id: "tolovlar", label: "To'lovlar" },
+  { id: "tasdiqlash", label: "Tasdiqlash" },
+  { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
+  { id: "shikoyatlar", label: "Shikoyatlar" },
+  { id: "shubhali", label: "Shubhali faollik" },
+  { id: "sharhlar", label: "Sharhlar" },
+  { id: "faollik", label: "So'nggi faollik" },
+];
+
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin"));
@@ -120,7 +140,7 @@ export default async function AdminPage() {
   const [{ n: demoCount }] = await db
     .select({ n: sql<number>`count(*)` })
     .from(usersTable)
-    .where(and(like(usersTable.id, "seed-%"), ne(usersTable.role, "admin")));
+    .where(and(like(usersTable.id, "seed-%"), or(ne(usersTable.role, "admin"), like(usersTable.email, "%@redince.uz")), ne(usersTable.id, user.id)));
 
   // Mijoz komponentga faqat seriyalanadigan ma'lumot beramiz (sanalar — ms)
   const pendingRows: PendingSpecialist[] = pending.map((sp) => ({
@@ -233,7 +253,8 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="container-x animate-fade-up">
+    <div className="container-x animate-fade-up xl:grid xl:grid-cols-[minmax(0,1fr)_190px] xl:gap-10">
+      <div className="min-w-0">
       {/* ---------- Sarlavha ---------- */}
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
@@ -291,6 +312,20 @@ export default async function AdminPage() {
           href="/xarita"
         />
       </div>
+
+      {/* ---------- To'lov sozlamalari ---------- */}
+      <section id="tolov-sozlamalari" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="To'lov tizimlari"
+          title={
+            <>
+              To'lovlarni <span className="accent-serif text-accent">boshqarish</span>
+            </>
+          }
+          description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi."
+        />
+        <PaymentProvidersPanel />
+      </section>
 
       {/* ---------- Moliya ---------- */}
       <section id="moliya" className="mt-14 scroll-mt-28 sm:mt-16">
@@ -484,8 +519,22 @@ export default async function AdminPage() {
         <AdminReviews rows={reviewRows} />
       </section>
 
+      {/* ---------- Foydalanuvchilar ---------- */}
+      <section id="foydalanuvchilar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Foydalanuvchilar"
+          title={
+            <>
+              Hisoblarni <span className="accent-serif text-accent">boshqarish</span>
+            </>
+          }
+          description="Qidiring va kerak bo'lsa bloklang — bloklangan foydalanuvchi kira olmaydi va katalogda ko'rinmaydi."
+        />
+        <UsersPanel />
+      </section>
+
       {/* ---------- So'nggi faollik ---------- */}
-      <section className="mt-14 sm:mt-16">
+      <section id="faollik" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading eyebrow="So'nggi faollik" title="Foydalanuvchilar va buyurtmalar" />
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Foydalanuvchilar */}
@@ -565,6 +614,12 @@ export default async function AdminPage() {
           </div>
         </div>
       </section>
+      </div>
+
+      {/* O'ng tomonda doimiy bo'limlar paneli (scrollspy) — uzun sahifada tez o'tish uchun */}
+      <aside className="hidden xl:block">
+        <AdminSectionNav items={NAV_ITEMS} />
+      </aside>
     </div>
   );
 }

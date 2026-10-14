@@ -106,3 +106,43 @@ export function splitAmount(amount: number, commissionPct: number): { commission
   const commissionAmount = Math.round((amount * pct) / 100);
   return { commissionAmount, netAmount: Math.max(0, amount - commissionAmount) };
 }
+
+/* ------------------------------------------------------------------ */
+/* Qo'lda o'tkazma kartasi (admin sozlamasi; env PLATFORM_CARD — zaxira) */
+/* ------------------------------------------------------------------ */
+const CARD_KEYS = ["platformCard", "platformCardName"] as const;
+
+export interface ManualCard {
+  card: string;
+  name: string;
+  /** Qiymat qayerdan: admin sozlamasi, env yoki umuman yo'q */
+  source: "settings" | "env" | "none";
+}
+
+export const getManualCard = cache(async (): Promise<ManualCard> => {
+  const envCard = process.env.PLATFORM_CARD?.trim() || "";
+  const envName = process.env.PLATFORM_CARD_NAME?.trim() || "Kasb Egalari";
+  try {
+    const rows = await db.select().from(platformSettings).where(inArray(platformSettings.key, [...CARD_KEYS]));
+    const map = Object.fromEntries(rows.map((r) => [r.key, typeof r.value === "string" ? r.value : ""]));
+    const card = (map.platformCard ?? "").trim();
+    if (card) return { card, name: (map.platformCardName ?? "").trim() || envName, source: "settings" };
+  } catch (e) {
+    console.error("[settings] platforma kartasi o'qilmadi", e);
+  }
+  return envCard ? { card: envCard, name: envName, source: "env" } : { card: "", name: envName, source: "none" };
+});
+
+/** Admin: qo'lda o'tkazma kartasini saqlash (bo'sh card — o'chirish, env zaxiraga qaytadi) */
+export async function saveManualCard(card: string, name: string): Promise<void> {
+  const now = new Date();
+  for (const [key, value] of [
+    ["platformCard", card],
+    ["platformCardName", name],
+  ] as const) {
+    await db
+      .insert(platformSettings)
+      .values({ key, value, updatedAt: now })
+      .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedAt: now } });
+  }
+}

@@ -27,8 +27,8 @@ export default async function CheckoutPage({ params }: { params: Params }) {
   if (!p || !canViewPayment(p, { sub: user.id, role: user.role })) notFound();
   if (p.state === "paid" || p.state === "released" || p.state === "refunded" || p.state === "cancelled") redirect(`/tolov/natija?payment=${paymentId}`);
 
-  const dto = toPaymentDto(p, siteOrigin(await headers()));
-  const providers = availableProviders();
+  const dto = await toPaymentDto(p, siteOrigin(await headers()));
+  const providers = await availableProviders();
   // Dollar ekvivalenti (F99) — faqat ma'lumot uchun, to'lov so'mda
   const usd = formatUsd(dto.amount, (await getSettings()).usdRate);
   const isPayer = p.clientId === user.id || user.role === "admin";

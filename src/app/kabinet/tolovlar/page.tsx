@@ -45,7 +45,7 @@ export default async function PaymentsPage() {
       ? Promise.all([getSpecialistBalance(sp.id), listPaymentsForSpecialist(sp.id), listPayoutsForSpecialist(sp.id), findOpenPayout(sp.id)]).then(([balance, payments, payouts, open]) => ({ balance, payments, payouts, open }))
       : Promise.resolve(null),
   ]);
-  const providers = availableProviders();
+  const providers = await availableProviders();
   // Komissiya darajali (yangi / oddiy / top): sarlavha va "Qanday ishlaydi" mutaxassisning HOZIRGI darajasini ko'rsatadi.
   // Foiz narx belgilangan paytda buyurtmaga qotadi — jadvaldagi eski qatorlar boshqa foizda bo'lishi mumkin.
   const tier = sp ? commissionPctFor(settings, sp) : null;
