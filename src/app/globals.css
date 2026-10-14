@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   REDINCE — "Studio" dizayn tizimi
-   Kinematik, editorial, premium. Ikki rejim: Paper (yorug') va Noir (qorong'u).
+   KASB EGALARI — "Liquid Glass" dizayn tizimi
+   Minimalist, shaffof, premium. Ikki rejim: Paper (yorug') va Noir (qorong'u).
    - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (italic urg'u)
-   - Ranglar: iliq neytral yuzalar + bitta coral accent (binafsha — ikkilamchi)
-   - Yuzalar: aniq (blur'siz) kartalar, nozik chiziqlar, 3 darajali soya
-   - Radius: 3 daraja (--r-sm 12 / --r-md 16 / --r-lg 24) — plitka / karta / katta blok
+   - Ranglar: iliq neytral fon + bitta coral accent (binafsha — ikkilamchi) — O'ZGARMAGAN
+   - Yuzalar: suyuq shisha — shaffof panel + backdrop-blur + ustki yorug' qirra (rim),
+     fon dog'larini (Backdrop) "sindirib" ko'rsatadi; sticky/ichki solid joylar surface'ligicha
+   - Radius: 3 daraja (--r-sm 14 / --r-md 20 / --r-lg 28) — plitka / karta / katta blok
    - Ikonkalar: 16 (inline, kichik plitka) / 20 (plitka, tugma) — 24 faqat katta plitkada
    - Bo'limlar oralig'i: bitta qadam — mt-section (64 / sm 80px)
    - Harakat: --dur-* / --ease-* tokenlar
-   Eslatma: eski .glass* / tint* sinflari moslik uchun saqlangan — endi ular
-   oddiy "surface" kartalar sifatida ishlaydi.
+   - Fallback: backdrop-filter yo'q yoki shaffoflik kamaytirilgan muhitda kartalar solid'ga qaytadi
+   Eslatma: eski .glass* / tint* sinflari moslik uchun saqlangan.
    ===================================================================== */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -68,17 +69,29 @@
   --chart-1: #ff5a36;
   --chart-2: #7b61ff;
 
-  /* Radius — 3 daraja (12 / 16 / 24) */
-  --r-sm: 12px;
-  --r-md: 16px;
-  --r-lg: 24px;
+  /* Radius — 3 daraja (14 / 20 / 28) — suyuq shisha uchun yumaloqroq */
+  --r-sm: 14px;
+  --r-md: 20px;
+  --r-lg: 28px;
 
-  /* Soya — 3 daraja */
-  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04), 0 8px 24px -12px rgba(18, 18, 19, 0.12);
-  --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.05), 0 24px 48px -20px rgba(18, 18, 19, 0.22);
-  --shadow-3: 0 4px 10px rgba(18, 18, 19, 0.06), 0 40px 80px -24px rgba(18, 18, 19, 0.3);
+  /* Soya — 3 daraja (shisha uchun yumshoqroq, tarqoqroq) */
+  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.03), 0 10px 30px -14px rgba(18, 18, 19, 0.1);
+  --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.04), 0 26px 52px -22px rgba(18, 18, 19, 0.18);
+  --shadow-3: 0 4px 10px rgba(18, 18, 19, 0.05), 0 40px 80px -24px rgba(18, 18, 19, 0.26);
   --shadow-accent: 0 16px 40px -14px rgba(255, 90, 54, 0.55);
   --card-inset: inset 0 0 0 0 transparent;
+
+  /* Suyuq shisha (liquid glass) tokenlari */
+  --glass-fill: rgba(255, 255, 255, 0.5); /* karta */
+  --glass-fill-strong: rgba(255, 255, 255, 0.64); /* ko'tarilgan karta */
+  --glass-fill-float: rgba(255, 255, 255, 0.8); /* menyu/popover — o'qilishi aniq */
+  --glass-fill-weak: rgba(255, 255, 255, 0.32); /* yengil kontur-karta */
+  --glass-line: rgba(18, 18, 19, 0.07); /* tashqi nozik kontur */
+  /* Ustki yorug' qirra + ichki oq halqa — shishaning "qalinligi" */
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  --glass-rim-soft: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --glass-blur: 18px;
+  --glass-sat: 160%;
 
   /* Harakat */
   --dur-1: 150ms;
@@ -180,6 +193,17 @@
   --shadow-3: 0 6px 14px rgba(0, 0, 0, 0.45), 0 50px 100px -30px rgba(0, 0, 0, 0.95);
   --shadow-accent: 0 16px 44px -14px rgba(255, 107, 71, 0.6);
   --card-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+
+  /* Suyuq shisha — Noir: qoramtir shaffof panel + nozik oq qirra */
+  --glass-fill: rgba(22, 22, 28, 0.52);
+  --glass-fill-strong: rgba(25, 25, 31, 0.64);
+  --glass-fill-float: rgba(27, 27, 34, 0.84);
+  --glass-fill-weak: rgba(255, 255, 255, 0.045);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.045);
+  --glass-rim-soft: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glass-blur: 18px;
+  --glass-sat: 140%;
 
   --glass: var(--surface);
   --glass-strong: var(--surface-2);
@@ -365,53 +389,55 @@ select:focus-visible {
   outline: none;
 }
 
-/* ---------- Yuzalar (component layer) ---------- */
+/* ---------- Yuzalar (component layer) — suyuq shisha ---------- */
 @layer components {
-  /* Karta — asosiy yuza */
+  /* Karta — asosiy shisha yuza: fon dog'larini blur qilib "sindiradi" */
   .glass,
   .card {
     position: relative;
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-line);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-1), var(--card-inset);
+    box-shadow: var(--shadow-1), var(--glass-rim);
     transition:
       transform var(--dur-3) var(--ease-out),
       box-shadow var(--dur-3) ease,
       border-color var(--dur-3) ease,
       background var(--dur-2) ease;
   }
-  /* Ko'tarilgan yuza */
+  /* Ko'tarilgan shisha */
   .glass-strong,
   .card-elevated {
     position: relative;
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--glass-fill-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-line);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-2), var(--card-inset);
+    box-shadow: var(--shadow-2), var(--glass-rim);
     transition: transform var(--dur-3) var(--ease-out), box-shadow var(--dur-3) ease, border-color var(--dur-3) ease;
   }
-  /* Suzuvchi yuza (menyu, popover, tooltip) */
+  /* Suzuvchi shisha (menyu, popover, tooltip) — eng quyuq, matn aniq o'qilsin */
   .card-floating {
     position: relative;
-    background: var(--surface);
-    border: 1px solid var(--line-2);
+    background: var(--glass-fill-float);
+    -webkit-backdrop-filter: blur(26px) saturate(var(--glass-sat));
+    backdrop-filter: blur(26px) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-line);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-3), var(--card-inset);
+    box-shadow: var(--shadow-3), var(--glass-rim);
   }
-  /* Yengil yuza (fon bilan bir xil, faqat kontur) */
+  /* Yengil shisha (blur'siz — arzon): ro'yxat ichidagi ikkilamchi bloklar */
   .glass-weak,
   .card-outline {
     position: relative;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
+    background: var(--glass-fill-weak);
+    border: 1px solid var(--glass-line);
     border-radius: var(--r-md);
+    box-shadow: var(--glass-rim-soft);
     transition: background var(--dur-2) ease, border-color var(--dur-2) ease;
-  }
-  [data-theme="dark"] .glass-weak,
-  [data-theme="dark"] .card-outline {
-    background: color-mix(in srgb, var(--surface) 60%, transparent);
-    box-shadow: var(--card-inset);
   }
 
   /* Hover faqat ko'rsatkichli qurilmalarda — touch'da "yopishib qolmasin" */
@@ -419,13 +445,36 @@ select:focus-visible {
     .glass-hover:hover,
     .card-hover:hover {
       transform: translateY(-3px);
+      background: var(--glass-fill-strong);
       border-color: var(--line-2);
-      box-shadow: var(--shadow-2), var(--card-inset);
+      box-shadow: var(--shadow-2), var(--glass-rim);
     }
   }
   .glass-hover:active,
   .card-hover:active {
     transform: translateY(-1px) scale(0.995);
+  }
+
+  /* Fallback: backdrop-filter ishlamasa yoki shaffoflik kamaytirilgan bo'lsa — solid yuzalar */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass, .card, .glass-strong, .card-elevated, .card-floating, .glass-weak, .card-outline {
+      background: var(--surface);
+      box-shadow: var(--shadow-1), var(--card-inset);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass, .card, .glass-strong, .card-elevated, .card-floating, .glass-weak, .card-outline {
+      background: var(--surface);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+  /* Tor ekranda blur yengilroq — scroll ravonligi uchun */
+  @media (max-width: 640px) {
+    .glass, .card, .glass-strong, .card-elevated {
+      -webkit-backdrop-filter: blur(12px) saturate(var(--glass-sat));
+      backdrop-filter: blur(12px) saturate(var(--glass-sat));
+    }
   }
   /* Karta ichidagi asosiy havola (yonida tugma bor): fokus halqasi kartaning o'zida chiziladi */
   .card-link > a:focus-visible {
@@ -472,10 +521,10 @@ select:focus-visible {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: var(--r-sm);
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--glass-fill-weak);
+    border: 1px solid var(--glass-line);
     color: var(--fg-2);
-    box-shadow: var(--card-inset);
+    box-shadow: var(--glass-rim-soft);
   }
   /* Plitka o'lchamlari: sm 32 (ikonka 16) / md 44 (20) / lg 56 (24); radius faqat tokenlardan */
   .icon-tile-sm {
@@ -550,21 +599,22 @@ select:focus-visible {
     transform: scale(0.97);
   }
 
-  /* Input */
+  /* Input — yarim shaffof shisha; fokusda solid (o'qilishi aniq) */
   .field {
     width: 100%;
     border-radius: var(--r-sm);
     padding: 0.7rem 0.95rem;
     font-size: 0.9375rem;
     color: var(--fg);
-    background: var(--surface-2);
-    border: 1px solid var(--line);
+    background: var(--glass-fill-weak);
+    border: 1px solid var(--glass-line);
+    box-shadow: var(--glass-rim-soft);
     outline: none;
     transition: border-color var(--dur-1), box-shadow var(--dur-1), background var(--dur-1);
   }
   /* background-color (shorthand emas): select.field'dagi chevron (background-image) o'chib ketmasin */
   [data-theme="dark"] .field {
-    background-color: var(--surface);
+    background-color: rgba(255, 255, 255, 0.05);
   }
   .field::placeholder {
     color: var(--fg-4);
@@ -597,14 +647,17 @@ select:focus-visible {
     color: var(--danger);
   }
 
-  /* Segment (tab) boshqaruvi */
+  /* Segment (tab) boshqaruvi — shisha pill */
   .segment {
     display: inline-flex;
     padding: 4px;
     gap: 2px;
     border-radius: 9999px;
-    background: var(--surface-3);
-    border: 1px solid var(--line);
+    background: var(--glass-fill-weak);
+    border: 1px solid var(--glass-line);
+    box-shadow: var(--glass-rim-soft);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
   }
   .segment-item {
     min-height: 38px;
@@ -625,17 +678,17 @@ select:focus-visible {
     box-shadow: var(--shadow-1);
   }
 
-  /* Navigatsiya paneli — yagona blur ishlatiladigan joy */
+  /* Navigatsiya paneli — eng "suyuq" shisha: kontent ostidan oqib o'tadi */
   .nav-bar {
-    background: color-mix(in srgb, var(--surface) 78%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line-2);
-    box-shadow: 0 1px 2px rgba(18, 18, 19, 0.04), 0 10px 30px -18px rgba(18, 18, 19, 0.18), var(--card-inset);
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--glass-line);
+    box-shadow: 0 1px 2px rgba(18, 18, 19, 0.04), 0 14px 40px -20px rgba(18, 18, 19, 0.2), var(--glass-rim);
   }
   [data-theme="dark"] .nav-bar {
-    background: color-mix(in srgb, var(--surface) 72%, transparent);
-    box-shadow: var(--shadow-1), var(--card-inset);
+    background: var(--glass-fill-strong);
+    box-shadow: var(--shadow-1), var(--glass-rim);
   }
 
   /* Katta display sarlavha */
@@ -748,10 +801,12 @@ select:focus-visible {
     width: 2rem;
     height: 2rem;
     border-radius: 9999px;
-    background: var(--surface);
-    border: 1px solid var(--line-2);
+    background: var(--glass-fill-float);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-line);
     color: var(--fg-2);
-    box-shadow: var(--shadow-1);
+    box-shadow: var(--shadow-1), var(--glass-rim-soft);
     transition: color var(--dur-1), border-color var(--dur-1);
   }
   .scroll-hint-btn:hover {

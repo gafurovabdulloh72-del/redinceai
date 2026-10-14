@@ -7,14 +7,18 @@
 export function Backdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-bg">
-      {/* Nur dog'lari */}
+      {/* Nur dog'lari — suyuq shisha paneli shularni blur qilib "sindiradi", kuchliroq */}
       <div
-        className="absolute -right-[20%] -top-[30%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.16] blur-[120px] animate-drift dark:opacity-[0.22]"
+        className="absolute -right-[20%] -top-[30%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.22] blur-[110px] animate-drift dark:opacity-[0.26]"
         style={{ background: "radial-gradient(closest-side, var(--accent), transparent 70%)" }}
       />
       <div
-        className="absolute -bottom-[35%] -left-[25%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.1] blur-[130px] animate-drift dark:opacity-[0.16]"
+        className="absolute -bottom-[35%] -left-[25%] h-[80vmax] w-[80vmax] rounded-full opacity-[0.14] blur-[120px] animate-drift dark:opacity-[0.2]"
         style={{ background: "radial-gradient(closest-side, var(--accent-2), transparent 70%)", animationDelay: "-11s" }}
+      />
+      <div
+        className="absolute left-[30%] top-[38%] h-[46vmax] w-[46vmax] rounded-full opacity-[0.1] blur-[110px] animate-drift dark:opacity-[0.12]"
+        style={{ background: "radial-gradient(closest-side, var(--accent-3), transparent 70%)", animationDelay: "-6s" }}
       />
       {/* Nozik to'r — yuqoridan pastga asta so'nadi */}
       <div
