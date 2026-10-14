@@ -114,6 +114,10 @@
   --map-slab-top: #e4dfd5;
   --map-slab-line: rgba(255, 255, 255, 0.6);
   --map-label-bg: #ffffff;
+  --map-plate: #ece7de; /* nuqtali xarita: hudud plitasi */
+  --map-dot: #c4bcae; /* 0 ta bo'lgan hudud nuqtalari */
+  --map-dot-hot: #9c2a0e; --map-wave: 0.5; /* to'lqin / tanlangan hudud nuqtalari */
+  --map-edge: rgba(18, 18, 19, 0.16); /* hudud chegarasi */
   --map-sheen: 0.55; /* ustki yorug'lik qatlami kuchi */
   /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */
   --map-tint-lo: var(--accent);
@@ -193,6 +197,10 @@
   --map-slab-top: #15151a;
   --map-slab-line: rgba(255, 255, 255, 0.05);
   --map-label-bg: #1f1f26;
+  --map-plate: #1e1e27;
+  --map-dot: #3b3b48;
+  --map-dot-hot: #ffe1d8; --map-wave: 0.85;
+  --map-edge: rgba(255, 255, 255, 0.13);
   --map-sheen: 0.2;
   /* Qorong'u fonda past to'yingan coral = jigarrang. Shuning uchun kam sonlar btn-accent gradientidagi
      pushti-coral (#ff3d6e) tomonga suriladi va pastki chegara balandroq — "tus", loyqa emas */
@@ -897,6 +905,50 @@ select:focus-visible {
   filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 75%, transparent)) brightness(1.08);
 }
 
+/* Nuqtali xarita animatsiyalari */
+.map-enter {
+  animation: map-enter 0.9s var(--ease-out) both;
+}
+@keyframes map-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.map-float {
+  animation: map-float 7s ease-in-out infinite;
+}
+@keyframes map-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+/* Chegara chizilib paydo bo'ladi (pathLength=1) */
+/* Xarita ma'lumot kartochkasi — hudud tepasidan "o'sib" chiqadi (transform joylashuvni emas, faqat ichki kartani harakatlantiradi) */
+@keyframes map-tip-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.map-tip-in { animation: map-tip-in 0.18s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.map-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: map-draw 1.4s var(--ease-out) forwards;
+}
+@keyframes map-draw {
+  to { stroke-dashoffset: 0; }
+}
+/* Yoy bo'ylab oqib turuvchi nur segmenti (pathLength=1) */
+.map-arc-flow {
+  stroke-dasharray: 0.22 0.78;
+  stroke-dashoffset: 1;
+  opacity: 0.9;
+  animation: map-arc-flow 3.4s linear infinite;
+}
+@keyframes map-arc-flow {
+  to { stroke-dashoffset: -1; }
+}
+.region-path.is-active {
+  transform: none;
+}
+
 /* ---------- Harakatni kamaytirish ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -907,6 +959,13 @@ select:focus-visible {
   .map-pulse {
     animation: none !important;
     opacity: 0 !important;
+  }
+  .map-tip-in { animation: none; }
+  .map-draw {
+    stroke-dashoffset: 0 !important;
+  }
+  .map-enter, .map-float, .map-arc-flow {
+    animation: none !important;
   }
   .animate-marquee {
     animation: none !important;
