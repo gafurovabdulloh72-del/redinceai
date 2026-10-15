@@ -127,10 +127,23 @@
   --map-slab-top: #e4dfd5;
   --map-slab-line: rgba(255, 255, 255, 0.6);
   --map-label-bg: #ffffff;
-  --map-plate: #ece7de; /* nuqtali xarita: hudud plitasi */
   --map-dot: #c4bcae; /* 0 ta bo'lgan hudud nuqtalari */
-  --map-dot-hot: #9c2a0e; --map-star-core: #1a1a1c; /* to'lqin / tanlangan hudud nuqtalari */
   --map-edge: rgba(18, 18, 19, 0.16); /* hudud chegarasi */
+  /* Shisha plitalar */
+  --map-gloss: rgba(255, 255, 255, 0.55);
+  --map-light-hi: rgba(255, 255, 255, 0.16);
+  --map-light-lo: rgba(60, 30, 20, 0.07);
+  --map-rim-1: rgba(255, 255, 255, 0.95);
+  --map-rim-2: rgba(255, 255, 255, 0);
+  --map-rim-3: rgba(90, 50, 30, 0.1);
+  --map-seam: rgba(18, 18, 19, 0.12);
+  --map-shadow: rgba(84, 52, 34, 0.2);
+  --map-shadow-contact: rgba(60, 38, 26, 0.08);
+  --map-sheen: rgba(255, 255, 255, 0.55);
+  --map-aura: 0.07;
+  --map-pin: var(--ink);
+  --map-pin-edge: #ffffff;
+  --map-pin-glow: var(--accent);
   /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */
   --map-tint-lo: var(--accent);
   --map-mix-floor: 16%; /* kamida 1 ta bo'lsa — aniq coral tus (0 tadan ajralib turadi) */
@@ -220,15 +233,27 @@
   --map-slab-top: #15151a;
   --map-slab-line: rgba(255, 255, 255, 0.05);
   --map-label-bg: #1f1f26;
-  --map-plate: #1e1e27;
   --map-dot: #3b3b48;
-  --map-dot-hot: #ffe1d8; --map-star-core: #ffffff;
   --map-edge: rgba(255, 255, 255, 0.13);
-  /* Qorong'u fonda past to'yingan coral = jigarrang. Shuning uchun kam sonlar btn-accent gradientidagi
-     pushti-coral (#ff3d6e) tomonga suriladi va pastki chegara balandroq — "tus", loyqa emas */
-  --map-tint-lo: #ff3d6e;
-  --map-mix-floor: 28%;
-  --map-mix-range: 64%;
+  --map-gloss: rgba(255, 255, 255, 0.09);
+  --map-light-hi: rgba(255, 255, 255, 0.07);
+  --map-light-lo: rgba(0, 0, 0, 0.16);
+  --map-rim-1: rgba(255, 255, 255, 0.42);
+  --map-rim-2: rgba(255, 255, 255, 0);
+  --map-rim-3: rgba(255, 255, 255, 0.05);
+  --map-seam: rgba(0, 0, 0, 0.3);
+  --map-shadow: rgba(0, 0, 0, 0.5);
+  --map-shadow-contact: rgba(0, 0, 0, 0.14);
+  --map-sheen: rgba(255, 255, 255, 0.1);
+  --map-aura: 0.06;
+  --map-pin: #ffffff;
+  --map-pin-edge: rgba(0, 0, 0, 0.35);
+  --map-pin-glow: #ff8a6b;
+  /* Plitalar: kam sonlar grafitga yaqin (iliq tus), ko'p sonlar — aniq coral; o'rta qiymatlar loyqa bo'lmasin
+     deb pastki chegara past, shkala keng */
+  --map-tint-lo: var(--accent);
+  --map-mix-floor: 7%;
+  --map-mix-range: 76%;
 
   color-scheme: dark;
 }
@@ -944,13 +969,85 @@ select:focus-visible {
   0% { transform: scale(0.6); opacity: 0.55; }
   100% { transform: scale(2.8); opacity: 0; }
 }
-@media (hover: hover) and (pointer: fine) {
-  .region-path:hover {
-    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 38%, transparent));
-  }
+/* Shisha plitalar: ochilishda plitalar g'arbdan sharqqa navbat bilan joyiga tushadi */
+.tiles.is-intro .tile {
+  animation: tile-in 0.8s var(--ease-out) var(--d) both;
 }
-.region-path.is-active {
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 45%, transparent));
+@keyframes tile-in {
+  from { opacity: 0; translate: 0 12px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.map-shadow-in {
+  animation: map-late 0.9s ease 0.35s both;
+}
+.tile-body {
+  transition: opacity 0.3s ease;
+}
+.tile-body.is-hidden {
+  visibility: hidden;
+}
+.tiles.has-active .tile-body:not(.is-hidden) {
+  opacity: var(--map-dim, 0.84);
+}
+[data-theme="dark"] .tiles.has-active .tile-body:not(.is-hidden) {
+  --map-dim: 0.6;
+}
+/* Faol plita nusxasi: ko'tariladi (is-up), faollikdan chiqqanda tushadi (is-down) */
+.tile-top.is-up {
+  animation: tile-up 0.38s var(--ease-out) both;
+}
+.tile-top.is-raised {
+  transform: translateY(-6px);
+}
+.tile-top.is-down {
+  animation: tile-down 0.28s var(--ease-smooth) both;
+}
+.tile-top.is-down .tile-outline {
+  animation: tile-fade 0.2s ease both;
+}
+@keyframes tile-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}
+@keyframes tile-down {
+  from { transform: translateY(-6px); }
+  to { transform: translateY(0); }
+}
+@keyframes tile-fade {
+  to { opacity: 0; }
+}
+.tile-underglow {
+  opacity: var(--map-underglow, 0.42);
+  animation: map-late 0.35s ease both;
+}
+[data-theme="dark"] .tile-underglow {
+  --map-underglow: 0.5;
+}
+.pin {
+  transition: transform 0.38s var(--ease-out), opacity 0.3s ease;
+}
+.pin.is-on {
+  transform: translateY(-6px);
+}
+.pins.has-active .pin:not(.is-on) {
+  opacity: 0.45;
+}
+.pin-in {
+  animation: map-late 0.6s ease 0.9s both;
+}
+.pin-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pin-ping 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) 1.4s infinite both;
+}
+@keyframes pin-ping {
+  from { opacity: 0.8; scale: 1; }
+  to { opacity: 0; scale: 3.4; }
+}
+/* Hero: sichqonchaga qarab yengil 3D egilish (transform JS'dan, bu yerda — silliqlik) */
+.map-tilt {
+  transition: transform 0.9s var(--ease-out);
+  will-change: transform;
 }
 
 /* Nuqtali xarita animatsiyalari */
@@ -1041,8 +1138,14 @@ select:focus-visible {
   .map-draw {
     stroke-dashoffset: 0 !important;
   }
-  .map-enter, .map-float, .map-arc-flow {
+  .map-enter, .map-float, .map-arc-flow, .tile, .map-shadow-in, .pin-in, .pin-ping, .tile-underglow {
     animation: none !important;
+  }
+  .pin-ping {
+    display: none;
+  }
+  .map-tilt {
+    transform: none !important;
   }
   .animate-marquee {
     animation: none !important;
