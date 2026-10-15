@@ -22,7 +22,8 @@ function notBanned(): SQL {
  * to'g'ridan-to'g'ri profil havolasi esa ochilaveradi (sahifa o'zi ogohlantiradi).
  */
 async function listable(): Promise<SQL> {
-  return and(notBanned(), listableCondition(await getSettings()))!;
+  // Admin yashirgan profillar (isHidden) ham katalogda chiqmaydi
+  return and(notBanned(), eq(specialists.isHidden, false), listableCondition(await getSettings()))!;
 }
 
 /**

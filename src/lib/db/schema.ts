@@ -159,6 +159,8 @@ export const specialists = sqliteTable(
     /** Ta'tilda: shu sanagacha buyurtma qabul qilmaydi (ISO sana) */
     vacationUntil: text("vacation_until"),
     isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
+    /** Admin katalogdan yashirgan (ro'yxat/xarita/qidiruvda chiqmaydi; to'g'ridan-to'g'ri havola ochiladi) */
+    isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),
     isAvailable: integer("is_available", { mode: "boolean" }).notNull().default(true),
     isFeatured: integer("is_featured", { mode: "boolean" }).notNull().default(false),
     /** Denormalizatsiya: reytinglar tez o'qilishi uchun */

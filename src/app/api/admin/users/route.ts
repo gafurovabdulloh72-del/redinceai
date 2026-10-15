@@ -8,7 +8,7 @@ export const GET = handler(async (req) => {
   await requireSession(["admin"]);
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 60);
-  const flt = url.searchParams.get("holat"); // "banned" | "active" | null
+  const flt = url.searchParams.get("holat"); // "banned" | "active" | "privileged" | "unlisted" | null
   const pat = `%${q.replace(/[%_]/g, " ")}%`;
   const where = q ? or(like(users.name, pat), like(users.email, pat), like(users.username, pat)) : undefined;
   const rows = await db.query.users.findMany({
@@ -16,10 +16,19 @@ export const GET = handler(async (req) => {
     orderBy: [desc(users.createdAt)],
     limit: 200,
     columns: { id: true, name: true, email: true, username: true, role: true, isBanned: true, bannedReason: true, avatarUrl: true, createdAt: true, lastLoginAt: true },
-    with: { specialist: { columns: { slug: true, isPrivileged: true } } },
+    with: { specialist: { columns: { slug: true, isPrivileged: true, isHidden: true } } },
   });
   const filtered =
-    flt === "banned" ? rows.filter((u) => u.isBanned) : flt === "active" ? rows.filter((u) => !u.isBanned) : flt === "privileged" ? rows.filter((u) => u.specialist?.isPrivileged) : rows;
+    flt === "banned"
+      ? rows.filter((u) => u.isBanned)
+      : flt === "active"
+        ? rows.filter((u) => !u.isBanned)
+        : flt === "privileged"
+          ? rows.filter((u) => u.specialist?.isPrivileged)
+          : flt === "unlisted"
+            ? // Katalogda yo'q mutaxassislar: profili yo'q yoki admin yashirgan
+              rows.filter((u) => u.role === "specialist" && (!u.specialist || u.specialist.isHidden))
+            : rows;
   const [{ n: total }] = await db.select({ n: sql<number>`count(*)` }).from(users);
   return ok({
     total: Number(total),
@@ -34,6 +43,8 @@ export const GET = handler(async (req) => {
       avatarUrl: u.avatarUrl,
       slug: u.specialist?.slug ?? null,
       isPrivileged: u.specialist?.isPrivileged ?? false,
+      /** Katalogda ko'rinadimi: profil bor va admin yashirmagan */
+      listed: Boolean(u.specialist && !u.specialist.isHidden),
       createdAt: u.createdAt.getTime(),
       lastLoginAt: u.lastLoginAt?.getTime() ?? null,
     })),

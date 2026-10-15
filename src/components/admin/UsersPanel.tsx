@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, Loader2, Search, ShieldCheck, Star, Undo2 } from "lucide-react";
+import { Ban, Eye, EyeOff, Loader2, MessageCircle, Search, ShieldCheck, Star, Undo2 } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -20,6 +20,8 @@ interface Row {
   isBanned: boolean;
   bannedReason: string | null;
   isPrivileged: boolean;
+  /** Katalogda ko'rinadimi (profil bor va admin yashirmagan) */
+  listed: boolean;
   avatarUrl: string | null;
   slug: string | null;
   createdAt: number;
@@ -30,7 +32,7 @@ const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutax
 
 export function UsersPanel() {
   const [q, setQ] = useState("");
-  const [flt, setFlt] = useState<"" | "banned" | "active" | "privileged">("");
+  const [flt, setFlt] = useState<"" | "banned" | "active" | "privileged" | "unlisted">("");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -80,6 +82,26 @@ export function UsersPanel() {
     }
   };
 
+  /** Katalogda ko'rsatish/yashirish — profili yo'q bo'lsa server minimal profil yaratadi (keyin o'zi to'ldiradi) */
+  const setListed = async (u: Row, listed: boolean) => {
+    setBusy(u.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listed }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      setRows((r) => r?.map((x) => (x.id === u.id ? { ...x, listed, slug: json.data.slug ?? x.slug, isPrivileged: x.isPrivileged || (listed && !x.slug) } : x)) ?? r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Amal bajarilmadi");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const setBan = async (u: Row, isBanned: boolean) => {
     if (isBanned && !reason.trim()) {
       setError("Bloklash sababini yozing");
@@ -118,6 +140,7 @@ export function UsersPanel() {
             ["active", "Faol"],
             ["banned", "Bloklangan"],
             ["privileged", "Imtiyozli"],
+            ["unlisted", "Katalogda yo'q"],
           ] as const).map(([v, label]) => (
             <button key={v} type="button" role="radio" aria-checked={flt === v} onClick={() => setFlt(v)} className={cn("segment-item flex-1 sm:flex-none", flt === v && "segment-item-active")}>
               {label}
@@ -170,19 +193,47 @@ export function UsersPanel() {
                   </p>
                   {u.isBanned && u.bannedReason && <p className="mt-0.5 truncate text-[12px] text-danger-text">Sabab: {u.bannedReason}</p>}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {u.username && (
+                    <Link
+                      href={`/yozish/${u.username}`}
+                      title="Foydalanuvchiga xabar yozish (ichki chat)"
+                      aria-label={`${u.name}ga yozish`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line px-3 text-[12px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+                    >
+                      <MessageCircle size={13} /> Yozish
+                    </Link>
+                  )}
                   {u.slug && (
                     <Link href={`/mutaxassislar/${u.slug}`} className="hidden h-9 items-center rounded-full border border-line px-3 text-[12px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg sm:inline-flex">
                       Profil
                     </Link>
                   )}
                   {u.role === "specialist" && !u.slug && (
-                    <span
-                      className="hidden h-9 items-center rounded-full bg-surface-3 px-3 text-[12px] font-medium text-fg-3 sm:inline-flex"
-                      title="Bu foydalanuvchi mutaxassis sifatida ro'yxatdan o'tgan, lekin kabinetda profilini hali to'ldirmagan — profil va imtiyoz amallari profil yaratilgandan keyin chiqadi"
-                    >
+                    <span className="hidden h-9 items-center rounded-full bg-surface-3 px-3 text-[12px] font-medium text-fg-3 lg:inline-flex" title="Mutaxassis sifatida ro'yxatdan o'tgan, lekin kabinetda profilini hali to'ldirmagan">
                       Profil to'ldirilmagan
                     </span>
+                  )}
+                  {u.role !== "admin" && (u.role === "specialist" || u.slug) && (
+                    <button
+                      type="button"
+                      onClick={() => setListed(u, !u.listed)}
+                      disabled={busy === u.id}
+                      title={
+                        u.listed
+                          ? "Katalogdan yashirish (ro'yxat va xaritada chiqmaydi, profil saqlanadi)"
+                          : u.slug
+                            ? "Katalogda ko'rsatish"
+                            : "Katalogga qo'shish — minimal profil yaratiladi (imtiyozli), foydalanuvchi keyin to'ldiradi"
+                      }
+                      className={cn(
+                        "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold transition disabled:opacity-50",
+                        u.listed ? "border-success/40 bg-success-soft text-success-text" : "border-line text-fg-2 hover:border-fg hover:text-fg",
+                      )}
+                    >
+                      {busy === u.id ? <Loader2 size={13} className="animate-spin" /> : u.listed ? <Eye size={13} /> : <EyeOff size={13} />}
+                      {u.listed ? "Katalogda ✓" : u.slug ? "Ko'rsatish" : "Katalogga qo'shish"}
+                    </button>
                   )}
                   {u.slug && (
                     <button
