@@ -13,10 +13,10 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = readFileSync(join(root, "src/components/map/regions-geo.ts"), "utf8");
 
-const BOUNDARY_STEP = 44; // chegara bo'ylab tugunlar oralig'i
-const INTERIOR_STEP = 66; // ichki to'r qadami
-const MIN_GAP = 24; // tugunlar orasidagi eng kichik masofa
-const MAX_EDGE = 120; // shundan uzun qirralar olib tashlanadi
+const BOUNDARY_STEP = 28; // chegara bo'ylab tugunlar oralig'i
+const INTERIOR_STEP = 40; // ichki to'r qadami — mayda uchburchaklar
+const MIN_GAP = 14; // tugunlar orasidagi eng kichik masofa
+const MAX_EDGE = 78; // shundan uzun qirralar olib tashlanadi
 
 /* ---------------- Ma'lumot ---------------- */
 const regions = [];

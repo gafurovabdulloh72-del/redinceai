@@ -28,7 +28,7 @@ const GLOBE = { cx: MAP_VIEWBOX.width / 2, cy: MAP_VIEWBOX.height / 2 + 10, r: 3
 const MERIDIANS = 9; // har 20° — 180° qamrab oladi (λ va λ+180° ellipsi bir xil)
 const PARALLELS = [-60, -30, 0, 30, 60];
 /** Miltillovchi tugunlar: deterministik tanlov (har 6-tugun — kam, lekin sezilarli) */
-const TWINKLE = MESH_NODES.filter((n, i) => n[2] !== 2 && i % 6 === 1).map(([x, y], i) => ({ x, y, dur: 2.6 + ((i * 37) % 23) / 10, delay: -((i * 53) % 40) / 10 }));
+const TWINKLE = MESH_NODES.filter((n, i) => n[2] !== 2 && i % 14 === 1).map(([x, y], i) => ({ x, y, dur: 2.6 + ((i * 37) % 23) / 10, delay: -((i * 53) % 40) / 10 }));
 
 interface Props {
   vb: MapBox;
@@ -256,7 +256,7 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
                   className={cn("neon-mesh", onSet.has(r.slug) && "is-on", motion && "map-draw")}
                   style={motion ? { animationDelay: `${0.3 + i * 0.08}s`, animationDuration: "1.4s" } : undefined}
                   fill="none"
-                  strokeWidth={0.9 * zs}
+                  strokeWidth={0.7 * zs}
                   strokeLinecap="round"
                 />
               ) : null,
@@ -267,7 +267,7 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
           </g>
           {/* Tugunlar — birinchi bo'lib, yulduzlardek paydo bo'ladi */}
           <g className={cn(motion && "neon-nodes-in")} fill="var(--map-node)">
-            {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.5 : 1.15) * zs} />))}
+            {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.25 : 0.95) * zs} />))}
           </g>
           {/* Hover: hudud tarmog'i qaytadan yorqin bo'lib chiziladi */}
           {motion &&
