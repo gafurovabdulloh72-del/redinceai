@@ -111,7 +111,7 @@ const HIT_DISC_PX = 40; // diskning ekrandagi diametri (px)
 /** Pin: uchi (0,0) da, boshi (0,-20.5) markazli r=10.5 doira — jami balandligi PIN_H birlik */
 const PIN_PATH = "M0 0C-1.6-5.2-10.5-11.6-10.5-20.5a10.5 10.5 0 1 1 21 0C10.5-11.6 1.6-5.2 0 0Z";
 const PIN_H = 31;
-const PIN_PX = { top: 32, hero: 23, panel: 21 }; // pinning ekrandagi balandligi (px)
+const PIN_PX = { top: 27, hero: 17, panel: 14 }; // pinning ekrandagi balandligi (px) — xaritani bosib qo'ymasin
 
 /* ---------------- Hudud geometriyasi ---------------- */
 interface MapShape extends RegionShape {
@@ -658,8 +658,10 @@ export function UzbekistanMap({
             onPointerUp={onSvgPointerUp}
             onPointerCancel={(e) => {
               // Bosish bekor bo'ldi (masalan, barmoq sahifani aylantirib yubordi) — click kelmaydi,
-              // bayroq keyingi haqiqiy bosishni yutib yubormasin
+              // bayroq keyingi haqiqiy bosishni yutib yubormasin; sensorda ochiq tooltip ham yopiladi,
+              // aks holda u "qurollangan" qolib, keyingi tap to'g'ridan-to'g'ri sahifaga otib yuboradi
               suppressClick.current = false;
+              if (e.pointerType === "touch") hideTip();
               onSvgPointerUp(e);
             }}
             aria-label="O'zbekiston hududlari xaritasi"

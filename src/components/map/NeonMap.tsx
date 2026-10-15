@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type CSSProperties, type MutableRefObject } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import { MAP_VIEWBOX, REGION_SHAPES } from "./regions-geo";
 import { MAP_ANCHORS, MESH_EDGES, MESH_NODES, MESH_PULSES } from "./map-mesh";
 import { cn } from "@/lib/utils";
@@ -27,8 +27,8 @@ export { MAP_ANCHORS };
 const GLOBE = { cx: MAP_VIEWBOX.width / 2, cy: MAP_VIEWBOX.height / 2 + 10, r: 360 };
 const MERIDIANS = 9; // har 20° — 180° qamrab oladi (λ va λ+180° ellipsi bir xil)
 const PARALLELS = [-60, -30, 0, 30, 60];
-/** Miltillovchi tugunlar: deterministik tanlov (har 4-tugun) */
-const TWINKLE = MESH_NODES.filter((n, i) => n[2] !== 2 && i % 4 === 1).map(([x, y], i) => ({ x, y, dur: 2.6 + ((i * 37) % 23) / 10, delay: -((i * 53) % 40) / 10 }));
+/** Miltillovchi tugunlar: deterministik tanlov (har 6-tugun — kam, lekin sezilarli) */
+const TWINKLE = MESH_NODES.filter((n, i) => n[2] !== 2 && i % 6 === 1).map(([x, y], i) => ({ x, y, dur: 2.6 + ((i * 37) % 23) / 10, delay: -((i * 53) % 40) / 10 }));
 
 interface Props {
   vb: MapBox;
@@ -53,16 +53,28 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
   const globeRef = useRef<SVGGElement>(null);
   const lightsRef = useRef<SVGSVGElement>(null);
   const rippleRef = useRef<SVGCircleElement>(null);
+  /** Xarita ekranda ko'rinmasa — davomiy animatsiyalar (signal, miltillash, skaner) butunlay o'chiriladi */
+  const [onScreen, setOnScreen] = useState(true);
 
   const onSet = new Set([hover, selected].filter(Boolean) as string[]);
   const tOf = (n: number) => (n > 0 ? Math.min(1, (n / Math.max(1, max)) ** 0.6) : 0);
   const ranked = REGION_SHAPES.map((r) => r.slug)
     .filter((s) => (counts[s] ?? 0) > 0)
     .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
-  const hub = ranked[0];
-  /* Hero yoylari: eng ko'p hududdan keyingi 6 tasiga */
+  /* "Vulqon" manbai: Toshkent sh.dan TASHQARI eng ko'p mutaxassisli hudud (sharqiy burchak shundoq ham zich —
+     yoylar markazdan chiroyli tarqaladi); teng bo'lsa xarita markaziga yaqinrog'i (odatda Buxoro) */
+  const MID = { x: 500, y: 331 };
+  const hubPool = ranked.filter((s) => s !== "toshkent-shahri");
+  const hub = [...(hubPool.length ? hubPool : ranked)].sort((a, b) => {
+    const d = (counts[b] ?? 0) - (counts[a] ?? 0);
+    if (d) return d;
+    const A = MAP_ANCHORS[a];
+    const B = MAP_ANCHORS[b];
+    return Math.hypot(A.x - MID.x, A.y - MID.y) - Math.hypot(B.x - MID.x, B.y - MID.y);
+  })[0];
+  /* Hero yoylari: vulqon manbaidan eng ko'p 6 hududga (Toshkent ham oluvchi sifatida kiradi) */
   const arcs = hero && hub
-    ? ranked.slice(1, 7).map((slug, i) => {
+    ? ranked.filter((s) => s !== hub).slice(0, 6).map((slug, i) => {
         const a = MAP_ANCHORS[hub];
         const b = MAP_ANCHORS[slug];
         const d = Math.hypot(b.x - a.x, b.y - a.y);
@@ -120,10 +132,14 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
     const start = () => {
       if (!raf && visible && !document.hidden) raf = requestAnimationFrame(tick);
     };
-    const io = new IntersectionObserver(([en]) => {
-      visible = en.isIntersecting;
-      start();
-    });
+    const io = new IntersectionObserver(
+      ([en]) => {
+        visible = en.isIntersecting;
+        setOnScreen(en.isIntersecting);
+        start();
+      },
+      { rootMargin: "120px" },
+    );
     io.observe(svg);
     document.addEventListener("visibilitychange", start);
     svg.addEventListener("map-ripple", start);
@@ -222,7 +238,7 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
             {REGION_SHAPES.map((r) => {
               const n = counts[r.slug] ?? 0;
               const on = onSet.has(r.slug);
-              const a = (n > 0 ? 0.08 + 0.44 * tOf(n) : 0) + (on ? 0.18 : 0);
+              const a = (n > 0 ? 0.13 + 0.55 * tOf(n) : 0) + (on ? 0.2 : 0);
               return a > 0 ? (
                 <use key={r.slug} href={href(r.slug)} className="neon-tint" fill="var(--accent)" style={{ fillOpacity: `calc(var(--map-tint-k, 1) * ${a.toFixed(3)})` }} />
               ) : null;
@@ -251,7 +267,7 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
           </g>
           {/* Tugunlar — birinchi bo'lib, yulduzlardek paydo bo'ladi */}
           <g className={cn(motion && "neon-nodes-in")} fill="var(--map-node)">
-            {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.9 : 1.5) * zs} />))}
+            {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.5 : 1.15) * zs} />))}
           </g>
           {/* Hover: hudud tarmog'i qaytadan yorqin bo'lib chiziladi */}
           {motion &&
@@ -296,15 +312,16 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
           </radialGradient>
         </defs>
         <g {...zoomProps}>
+          <g className={cn(motion && "neon-lights-in")}>
           {/* Gologramma skaneri — vaqti-vaqti bilan xarita ustidan yorug'lik chizig'i o'tadi */}
-          {motion && (
+          {motion && onScreen && (
             <g clipPath={ref("clip")}>
               <rect className="neon-scan" x={-20} y={-90} width={MAP_VIEWBOX.width + 40} height={90} fill={ref("scan")} />
             </g>
           )}
           {/* Tirik tarmoq: mutaxassislari bor hudud markazidan qirralar bo'ylab signallar (SMIL — ikki chiziq bir xil vaqtda) */}
-          {motion && (
-            <g className="neon-lights-in" fill="none" strokeLinecap="round">
+          {motion && onScreen && (
+            <g fill="none" strokeLinecap="round">
               {MESH_PULSES.filter((p) => (counts[p.slug] ?? 0) > 0).map((p, i) => {
                 const travel = Math.max(1.6, p.len / 75);
                 const total = travel + 1.6 + (i % 5) * 0.45;
@@ -323,8 +340,8 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
               })}
             </g>
           )}
-          {motion && (
-            <g className="neon-lights-in">
+          {motion && onScreen && (
+            <g>
               {TWINKLE.map((n, i) => (
                 <circle
                   key={i}
@@ -339,15 +356,16 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
             </g>
           )}
           {arcs.length > 0 && (
-            <g className={cn(motion && "neon-lights-in")} fill="none" strokeLinecap="round">
+            <g fill="none" strokeLinecap="round">
               {arcs.map((a) => (
                 <g key={a.slug}>
                   <path d={a.d} stroke="var(--map-arc)" strokeOpacity={0.32} strokeWidth={1.1} strokeDasharray="2 5" />
-                  {motion && <path d={a.d} pathLength={1} className="map-arc-flow" stroke="var(--map-arc)" strokeWidth={1.8} style={{ animationDelay: `${a.delay}s` }} />}
+                  {motion && onScreen && <path d={a.d} pathLength={1} className="map-arc-flow" stroke="var(--map-arc)" strokeWidth={1.8} style={{ animationDelay: `${a.delay}s` }} />}
                 </g>
               ))}
             </g>
           )}
+          </g>
           <circle ref={rippleRef} r={0} fill="none" stroke="var(--accent)" strokeWidth={1.6} opacity={0} />
         </g>
       </svg>

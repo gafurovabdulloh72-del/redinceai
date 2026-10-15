@@ -146,7 +146,7 @@
   --map-pulse: #ffffff;
   --map-scan: #ffffff;
   --map-mesh-boot: rgba(255, 255, 255, 0.85);
-  --map-tint-k: 0.38;
+  --map-tint-k: 0.85;
   --map-pin-stroke: rgba(0, 0, 0, 0.12);
   --map-pin-shadow: rgba(20, 14, 10, 0.32);
   /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */

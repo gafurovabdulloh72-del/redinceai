@@ -4,7 +4,14 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Search, Users, X } from "lucide-react";
-import { UzbekistanMap } from "./UzbekistanMap";
+import dynamicImport from "next/dynamic";
+
+/* Bosh sahifadagi ikkinchi xarita SSR HTML'ga kirmaydi va JS'i kechiktirib yuklanadi —
+   hero'dagi birinchi xarita yetarli; bu sahifa og'irligini sezilarli kamaytiradi */
+const UzbekistanMap = dynamicImport(() => import("./UzbekistanMap").then((m) => m.UzbekistanMap), {
+  ssr: false,
+  loading: () => <div className="aspect-[1000/680] w-full animate-pulse rounded-card bg-fg/4" aria-hidden="true" />,
+});
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ScrollRow } from "@/components/ui/ScrollRow";
