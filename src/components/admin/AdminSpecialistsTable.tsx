@@ -161,7 +161,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
 
     if (confirmDelete === row.id) {
       return (
-        <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up sm:flex-row sm:items-center" style={{ animationDuration: "0.2s" }}>
+        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", compact ? "sm:flex-row sm:items-center" : "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
             <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Butunlay o'chirilsinmi? Portfolio, sharhlar va buyurtmalar ham o'chadi. Eskrou/o'tkazilgan to'lovlari yoki ochiq payout so'rovi bo'lsa — o'chirish rad etiladi.
           </p>
@@ -179,7 +179,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
 
     if (banAsk === row.id) {
       return (
-        <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up" style={{ animationDuration: "0.2s" }}>
+        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", !compact && "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
             <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Bloklansinmi? Foydalanuvchi tizimga kira olmaydi, profili ro'yxat va xaritadan yashiriladi. Sabab unga bildirishnomada ko'rinadi.
           </p>
@@ -272,16 +272,17 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
         <EmptyState icon={CheckCircle2} title="Navbat bo'sh" description="Barcha mutaxassislar tasdiqlangan. Yangi profil kelsa shu yerda ko'rinadi." />
       ) : (
         <>
-          {/* ---------- Desktop: jadval ---------- */}
-          <div className="card hidden overflow-hidden md:block">
+          {/* ---------- Desktop: jadval. Konteyner tor bo'lsa (masalan, o'ng navigatsiya bilan) yo'nalish/hudud/vaqt
+               ustunlari ism ostidagi bitta qatorga yig'iladi — amallar ustuni hech qachon kesilmaydi ---------- */}
+          <div className="@container card hidden overflow-hidden md:block">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
                   <th className="px-5 py-3 font-bold">Mutaxassis</th>
-                  <th className="px-3 py-3 font-bold">Yo'nalish</th>
-                  <th className="px-3 py-3 font-bold">Hudud</th>
-                  <th className="px-3 py-3 font-bold">Qo'shilgan</th>
-                  <th className="px-5 py-3 text-right font-bold">Amallar</th>
+                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Yo'nalish</th>
+                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Hudud</th>
+                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Qo'shilgan</th>
+                  <th className="w-px px-5 py-3 text-right font-bold">Amallar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -290,7 +291,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                   const region = REGION_BY_SLUG[row.regionSlug];
                   return (
                     <tr key={row.id} className={cn("transition hover:bg-fg/3", busy[row.id] && "opacity-60")}>
-                      <td className="px-5 py-2.5">
+                      <td className="w-full max-w-0 px-5 py-2.5">
                         <div className="flex items-center gap-3">
                           <Avatar name={row.user.name} size={36} decorative />
                           <div className="min-w-0">
@@ -304,8 +305,22 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                               )}
                             </p>
                             <p className="truncate text-[12px] text-fg-3">{row.title}</p>
+                            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg-3 @[68rem]:hidden">
+                              {cat && (
+                                <span className="inline-flex items-center gap-1 font-semibold text-fg-2">
+                                  <CategoryIcon icon={cat.icon} size={11} className="text-fg-3" /> {cat.name}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin size={11} /> {region?.short ?? row.regionSlug}
+                                {row.city ? ` · ${row.city}` : ""}
+                              </span>
+                              <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
+                                {timeAgo(row.createdAt)}
+                              </time>
+                            </p>
                             <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-fg-4">
-                              <a href={`mailto:${row.user.email}`} className="inline-flex items-center gap-1 hover:text-fg">
+                              <a href={`mailto:${row.user.email}`} className="inline-flex min-w-0 items-center gap-1 truncate hover:text-fg">
                                 <Mail size={11} /> {row.user.email}
                               </a>
                               {row.user.phone && (
@@ -317,7 +332,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="hidden px-3 py-2.5 @[68rem]:table-cell">
                         {cat ? (
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-fg/6 px-2.5 py-1 text-[12px] font-semibold text-fg-2">
                             <CategoryIcon icon={cat.icon} size={12} className="text-fg-3" /> {cat.name}
@@ -326,16 +341,16 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                           <span className="text-fg-4">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="hidden px-3 py-2.5 @[68rem]:table-cell">
                         <p className="whitespace-nowrap font-medium text-fg">{region?.short ?? row.regionSlug}</p>
                         <p className="text-[12px] text-fg-3">{row.city}</p>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2">
+                      <td className="hidden whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2 @[68rem]:table-cell">
                         <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
                           {timeAgo(row.createdAt)}
                         </time>
                       </td>
-                      <td className="px-5 py-2.5">
+                      <td className="w-px whitespace-nowrap px-5 py-2.5">
                         <Actions row={row} />
                       </td>
                     </tr>

@@ -129,21 +129,23 @@
   --map-label-bg: #ffffff;
   --map-dot: #c4bcae; /* 0 ta bo'lgan hudud nuqtalari */
   --map-edge: rgba(18, 18, 19, 0.16); /* hudud chegarasi */
-  /* Shisha plitalar */
-  --map-gloss: rgba(255, 255, 255, 0.55);
-  --map-light-hi: rgba(255, 255, 255, 0.16);
-  --map-light-lo: rgba(60, 30, 20, 0.07);
-  --map-rim-1: rgba(255, 255, 255, 0.95);
-  --map-rim-2: rgba(255, 255, 255, 0);
-  --map-rim-3: rgba(90, 50, 30, 0.1);
-  --map-seam: rgba(18, 18, 19, 0.12);
-  --map-shadow: rgba(84, 52, 34, 0.2);
-  --map-shadow-contact: rgba(60, 38, 26, 0.08);
-  --map-sheen: rgba(255, 255, 255, 0.55);
+  /* Neon tarmoq xaritasi (kunduz: to'q slate plita, oq tarmoq, coral pinlar) */
+  --map-land-1: #3a3f4e;
+  --map-land-2: #232731;
+  --map-outline: #2a2e39;
+  --map-outline-glow: rgba(255, 90, 54, 0);
+  --map-shadow: rgba(48, 34, 26, 0.3);
+  --map-mesh: rgba(255, 255, 255, 0.11);
+  --map-mesh-on: rgba(255, 255, 255, 0.34);
+  --map-border: rgba(255, 255, 255, 0.26);
+  --map-node: rgba(255, 255, 255, 0.72);
+  --map-globe: rgba(18, 18, 19, 0.09);
   --map-aura: 0.07;
-  --map-pin: var(--ink);
-  --map-pin-edge: #ffffff;
-  --map-pin-glow: var(--accent);
+  --map-twinkle: #ffffff;
+  --map-arc: #ff7a57;
+  --map-tint-k: 0.38;
+  --map-pin-stroke: rgba(0, 0, 0, 0.12);
+  --map-pin-shadow: rgba(20, 14, 10, 0.32);
   /* Choropleth: fill = mix(mix(accent, tint-lo, t), fill-0, floor + t·range). 0 ta — faqat fill-0 */
   --map-tint-lo: var(--accent);
   --map-mix-floor: 16%; /* kamida 1 ta bo'lsa — aniq coral tus (0 tadan ajralib turadi) */
@@ -235,20 +237,21 @@
   --map-label-bg: #1f1f26;
   --map-dot: #3b3b48;
   --map-edge: rgba(255, 255, 255, 0.13);
-  --map-gloss: rgba(255, 255, 255, 0.09);
-  --map-light-hi: rgba(255, 255, 255, 0.07);
-  --map-light-lo: rgba(0, 0, 0, 0.16);
-  --map-rim-1: rgba(255, 255, 255, 0.42);
-  --map-rim-2: rgba(255, 255, 255, 0);
-  --map-rim-3: rgba(255, 255, 255, 0.05);
-  --map-seam: rgba(0, 0, 0, 0.3);
-  --map-shadow: rgba(0, 0, 0, 0.5);
-  --map-shadow-contact: rgba(0, 0, 0, 0.14);
-  --map-sheen: rgba(255, 255, 255, 0.1);
-  --map-aura: 0.06;
-  --map-pin: #ffffff;
-  --map-pin-edge: rgba(0, 0, 0, 0.35);
-  --map-pin-glow: #ff8a6b;
+  --map-land-1: #1f1f29;
+  --map-land-2: #131318;
+  --map-outline: #ff7a57;
+  --map-outline-glow: rgba(255, 107, 71, 0.5);
+  --map-shadow: rgba(0, 0, 0, 0.45);
+  --map-mesh: rgba(255, 122, 87, 0.26);
+  --map-mesh-on: rgba(255, 150, 120, 0.7);
+  --map-border: rgba(255, 122, 87, 0.42);
+  --map-node: #ffd8cb;
+  --map-globe: rgba(255, 255, 255, 0.075);
+  --map-aura: 0.07;
+  --map-twinkle: #ffffff;
+  --map-arc: #ff8a6b;
+  --map-pin-stroke: rgba(255, 255, 255, 0.18);
+  --map-pin-shadow: rgba(0, 0, 0, 0.6);
   /* Plitalar: kam sonlar grafitga yaqin (iliq tus), ko'p sonlar — aniq coral; o'rta qiymatlar loyqa bo'lmasin
      deb pastki chegara past, shkala keng */
   --map-tint-lo: var(--accent);
@@ -947,9 +950,6 @@ select:focus-visible {
   stroke-linejoin: round;
   paint-order: stroke;
   pointer-events: none;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: translateY(-8px);
   filter: drop-shadow(0 0 0 var(--surface)) drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 /* Zoom qatlami: silliq o'tish faqat tugmalar bilan (sudrash/pinch paytida — darhol) */
@@ -969,80 +969,68 @@ select:focus-visible {
   0% { transform: scale(0.6); opacity: 0.55; }
   100% { transform: scale(2.8); opacity: 0; }
 }
-/* Shisha plitalar: ochilishda plitalar g'arbdan sharqqa navbat bilan joyiga tushadi */
-.tiles.is-intro .tile {
-  animation: tile-in 0.8s var(--ease-out) var(--d) both;
-}
-@keyframes tile-in {
-  from { opacity: 0; translate: 0 12px; }
-  to { opacity: 1; translate: 0 0; }
-}
-.map-shadow-in {
+/* Neon tarmoq xaritasi: kontur chizilib chiqadi → plita va tarmoq paydo bo'ladi → pinlar tushadi → yorug'lik */
+.neon-land-in {
   animation: map-late 0.9s ease 0.35s both;
 }
-.tile-body {
-  transition: opacity 0.3s ease;
+.neon-mesh-in {
+  animation: map-late 0.8s ease 0.8s both;
 }
-.tile-body.is-hidden {
-  visibility: hidden;
+.neon-lights-in {
+  animation: map-late 1s ease 1.6s both;
 }
-.tiles.has-active .tile-body:not(.is-hidden) {
-  opacity: var(--map-dim, 0.84);
+.neon-globe-in {
+  animation: map-late 1.4s ease 0.1s both;
 }
-[data-theme="dark"] .tiles.has-active .tile-body:not(.is-hidden) {
-  --map-dim: 0.6;
+.neon-mesh {
+  stroke: var(--map-mesh);
+  transition: stroke 0.3s ease;
 }
-/* Faol plita nusxasi: ko'tariladi (is-up), faollikdan chiqqanda tushadi (is-down) */
-.tile-top.is-up {
-  animation: tile-up 0.38s var(--ease-out) both;
+.neon-mesh.is-on {
+  stroke: var(--map-mesh-on);
 }
-.tile-top.is-raised {
-  transform: translateY(-6px);
+.neon-tint {
+  transition: fill-opacity 0.3s ease;
 }
-.tile-top.is-down {
-  animation: tile-down 0.28s var(--ease-smooth) both;
+.neon-active {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
+  animation: map-late 0.25s ease both;
 }
-.tile-top.is-down .tile-outline {
-  animation: tile-fade 0.2s ease both;
+.neon-twinkle {
+  animation: node-twinkle var(--tw, 3s) ease-in-out var(--td, 0s) infinite;
 }
-@keyframes tile-up {
-  from { transform: translateY(0); }
-  to { transform: translateY(-6px); }
+@keyframes node-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
 }
-@keyframes tile-down {
-  from { transform: translateY(-6px); }
-  to { transform: translateY(0); }
+/* Pinlar: tepadan tushadi (prujina), hover/tanlanganda ko'tariladi; eng ko'p hududda yerda "ping" */
+.map-pin-drop {
+  animation: pin-drop 0.75s var(--ease-spring) var(--d, 1s) both;
 }
-@keyframes tile-fade {
-  to { opacity: 0; }
+@keyframes pin-drop {
+  from { opacity: 0; transform: translateY(-34px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: translateY(0); }
 }
-.tile-underglow {
-  opacity: var(--map-underglow, 0.42);
-  animation: map-late 0.35s ease both;
+.map-pin-shadow-in {
+  animation: map-late 0.5s ease var(--d, 1s) both;
 }
-[data-theme="dark"] .tile-underglow {
-  --map-underglow: 0.5;
+.map-pin-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.35s var(--ease-spring);
 }
-.pin {
-  transition: transform 0.38s var(--ease-out), opacity 0.3s ease;
+.map-pin.is-on .map-pin-body {
+  transform: translateY(-4px) scale(1.12);
 }
-.pin.is-on {
-  transform: translateY(-6px);
-}
-.pins.has-active .pin:not(.is-on) {
-  opacity: 0.45;
-}
-.pin-in {
-  animation: map-late 0.6s ease 0.9s both;
-}
-.pin-ping {
+.map-pin-ping {
   transform-box: fill-box;
   transform-origin: center;
-  animation: pin-ping 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) 1.4s infinite both;
+  animation: pin-ping 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) 2s infinite both;
 }
 @keyframes pin-ping {
-  from { opacity: 0.8; scale: 1; }
-  to { opacity: 0; scale: 3.4; }
+  from { opacity: 0.9; scale: 1; }
+  to { opacity: 0; scale: 3.2; }
 }
 /* Hero: sichqonchaga qarab yengil 3D egilish (transform JS'dan, bu yerda — silliqlik) */
 .map-tilt {
@@ -1138,10 +1126,10 @@ select:focus-visible {
   .map-draw {
     stroke-dashoffset: 0 !important;
   }
-  .map-enter, .map-float, .map-arc-flow, .tile, .map-shadow-in, .pin-in, .pin-ping, .tile-underglow {
+  .map-enter, .map-float, .map-arc-flow, .neon-land-in, .neon-mesh-in, .neon-lights-in, .neon-globe-in, .neon-twinkle, .map-pin-drop, .map-pin-shadow-in, .map-pin-ping {
     animation: none !important;
   }
-  .pin-ping {
+  .map-pin-ping {
     display: none;
   }
   .map-tilt {
