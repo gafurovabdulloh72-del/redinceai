@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, type CSSProperties, type MutableRefObject } from "react";
 import { MAP_VIEWBOX, REGION_SHAPES } from "./regions-geo";
-import { MAP_ANCHORS, MESH_EDGES, MESH_NODES } from "./map-mesh";
+import { MAP_ANCHORS, MESH_EDGES, MESH_NODES, MESH_PULSES } from "./map-mesh";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
  * - ichida low-poly tarmoq: chegara va ichki tugunlar, Delaunay qirralari (map-mesh.ts — oldindan hisoblangan)
  * - hudud rangi mutaxassislar soniga qarab coral tus oladi, pin ostida "shahar chirog'i"
  * - hero: eng ko'p hududdan boshqalariga oqib turuvchi yoylar; ba'zi tugunlar miltillaydi
+ * - "tirik tarmoq": mutaxassislari bor hudud markazidan qirralar bo'ylab yorug'lik signallari yuguradi
+ * - ochilish: avval tugunlar (yulduzlar), keyin qirralar g'arbdan sharqqa ulanib chiziladi; vaqti-vaqti bilan
+ *   xarita ustidan gologramma skaneri o'tadi; hover'da hudud tarmog'i qaytadan "yonib" chiziladi
  * Pinlar (bosiladigan) UzbekistanMap'ning yuqori SVG'sida. Uch qatlam: globus (orqa), plita (statik
  * filtrlar) va yorug'lik (miltillash/yoylar) — har biri alohida kompozit qatlam, bir-birini qayta chizdirmaydi.
  */
@@ -139,7 +142,7 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
     <>
       {/* 1) Globus to'ri (orqa fon, faqat hero) */}
       {hero && (
-        <svg viewBox={vbStr} className={cn(layer, "will-change-transform")} aria-hidden="true" focusable="false">
+        <svg viewBox={vbStr} className={cn(layer, "will-change-transform")} aria-hidden="true" focusable="false" data-depth="back">
           <defs>
             <radialGradient id={id("gfade")} cx="50%" cy="46%" r="50%">
               <stop offset="0.55" stopColor="#fff" />
@@ -226,20 +229,35 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
             })}
           </g>
 
-          {/* Low-poly tarmoq: qirralar va tugunlar */}
-          <g className={cn(motion && "neon-mesh-in")}>
-            {REGION_SHAPES.map((r) =>
+          {/* Low-poly tarmoq: ochilishda qirralar g'arbdan sharqqa "ulanib" chiziladi (har hudud o'z navbatida) */}
+          <g>
+            {REGION_SHAPES.map((r, i) =>
               MESH_EDGES[r.slug] ? (
-                <path key={r.slug} d={MESH_EDGES[r.slug]} className={cn("neon-mesh", onSet.has(r.slug) && "is-on")} fill="none" strokeWidth={0.9 * zs} strokeLinecap="round" />
+                <path
+                  key={r.slug}
+                  d={MESH_EDGES[r.slug]}
+                  pathLength={1}
+                  className={cn("neon-mesh", onSet.has(r.slug) && "is-on", motion && "map-draw")}
+                  style={motion ? { animationDelay: `${0.3 + i * 0.08}s`, animationDuration: "1.4s" } : undefined}
+                  fill="none"
+                  strokeWidth={0.9 * zs}
+                  strokeLinecap="round"
+                />
               ) : null,
             )}
-            <g fill="none" stroke="var(--map-border)" strokeWidth={1.1 * zs} strokeLinejoin="round">
-              {allPaths({})}
-            </g>
-            <g fill="var(--map-node)">
-              {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.9 : 1.5) * zs} />))}
-            </g>
           </g>
+          <g className={cn(motion && "neon-land-in")} fill="none" stroke="var(--map-border)" strokeWidth={1.1 * zs} strokeLinejoin="round">
+            {allPaths({})}
+          </g>
+          {/* Tugunlar — birinchi bo'lib, yulduzlardek paydo bo'ladi */}
+          <g className={cn(motion && "neon-nodes-in")} fill="var(--map-node)">
+            {MESH_NODES.map(([x, y, kind], i) => (kind === 2 ? null : <circle key={i} cx={x} cy={y} r={(kind === 1 ? 1.9 : 1.5) * zs} />))}
+          </g>
+          {/* Hover: hudud tarmog'i qaytadan yorqin bo'lib chiziladi */}
+          {motion &&
+            [...onSet].map((slug) =>
+              MESH_EDGES[slug] ? <path key={`boot-${slug}`} d={MESH_EDGES[slug]} pathLength={1} className="neon-mesh-boot" fill="none" strokeWidth={1.4 * zs} strokeLinecap="round" /> : null,
+            )}
 
           {/* Faol hudud: aniq coral kontur */}
           {[...onSet].map((slug) => (
@@ -258,8 +276,19 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
       </svg>
 
       {/* 3) Yorug'lik: miltillovchi tugunlar, yoylar, bosish to'lqini */}
-      <svg ref={lightsRef} viewBox={vbStr} className={cn(layer, "will-change-transform")} aria-hidden="true" focusable="false" data-map-lights="">
+      <svg ref={lightsRef} viewBox={vbStr} className={cn(layer, "will-change-transform")} aria-hidden="true" focusable="false" data-map-lights="" data-depth="lights">
         <defs>
+          <clipPath id={id("clip")}>
+            {REGION_SHAPES.map((r) => (
+              <use key={r.slug} href={href(r.slug)} />
+            ))}
+          </clipPath>
+          <linearGradient id={id("scan")} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--accent)" stopOpacity="0" />
+            <stop offset="0.75" stopColor="var(--accent)" stopOpacity="0.12" />
+            <stop offset="0.97" stopColor="var(--map-scan)" stopOpacity="0.6" />
+            <stop offset="1" stopColor="var(--map-scan)" stopOpacity="0" />
+          </linearGradient>
           <radialGradient id={id("halo")}>
             <stop offset="0" stopColor="var(--map-twinkle)" stopOpacity="0.9" />
             <stop offset="0.35" stopColor="var(--accent)" stopOpacity="0.35" />
@@ -267,6 +296,33 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
           </radialGradient>
         </defs>
         <g {...zoomProps}>
+          {/* Gologramma skaneri — vaqti-vaqti bilan xarita ustidan yorug'lik chizig'i o'tadi */}
+          {motion && (
+            <g clipPath={ref("clip")}>
+              <rect className="neon-scan" x={-20} y={-90} width={MAP_VIEWBOX.width + 40} height={90} fill={ref("scan")} />
+            </g>
+          )}
+          {/* Tirik tarmoq: mutaxassislari bor hudud markazidan qirralar bo'ylab signallar (SMIL — ikki chiziq bir xil vaqtda) */}
+          {motion && (
+            <g className="neon-lights-in" fill="none" strokeLinecap="round">
+              {MESH_PULSES.filter((p) => (counts[p.slug] ?? 0) > 0).map((p, i) => {
+                const travel = Math.max(1.6, p.len / 75);
+                const total = travel + 1.6 + (i % 5) * 0.45;
+                const begin = `${-((i * 1.37) % total).toFixed(2)}s`;
+                const kt = `0;${(travel / total).toFixed(3)};1`;
+                return (
+                  <g key={i}>
+                    <path d={p.d} pathLength={1} stroke="var(--accent)" strokeOpacity={0.55} strokeWidth={4 * zs} strokeDasharray="0.1 2" strokeDashoffset={0.1}>
+                      <animate attributeName="stroke-dashoffset" values="0.1;-1;-1" keyTimes={kt} dur={`${total.toFixed(2)}s`} begin={begin} repeatCount="indefinite" />
+                    </path>
+                    <path d={p.d} pathLength={1} stroke="var(--map-pulse)" strokeWidth={2.2 * zs} strokeDasharray="0.04 2" strokeDashoffset={0.04}>
+                      <animate attributeName="stroke-dashoffset" values="0.04;-1.06;-1.06" keyTimes={kt} dur={`${total.toFixed(2)}s`} begin={begin} repeatCount="indefinite" />
+                    </path>
+                  </g>
+                );
+              })}
+            </g>
+          )}
           {motion && (
             <g className="neon-lights-in">
               {TWINKLE.map((n, i) => (

@@ -172,9 +172,43 @@ for (const { t } of tris) {
 
 const f = (v) => Math.round(v);
 const bySlug = {};
-for (const { u, v, slug } of edgeSet.values()) {
+// G'arbdan sharqqa tartib — ochilishda tarmoq chapdan o'ngga "ulanib" chiziladi
+const sorted = [...edgeSet.values()].sort((a, b) => P[a.u][0] + P[a.v][0] - (P[b.u][0] + P[b.v][0]));
+for (const { u, v, slug } of sorted) {
   (bySlug[slug] ??= []).push(`M${f(P[u][0])} ${f(P[u][1])}L${f(P[v][0])} ${f(P[v][1])}`);
 }
+
+/* ---------------- Signallar: har hudud markazidan tarmoq bo'ylab tasodifiy yo'llar ---------------- */
+const adj = new Map();
+for (const { u, v } of edgeSet.values()) {
+  (adj.get(u) ?? adj.set(u, []).get(u)).push(v);
+  (adj.get(v) ?? adj.set(v, []).get(v)).push(u);
+}
+const pulses = [];
+regions.forEach((r, ri) => {
+  const start = ri; // markaz tugunlari pts boshida, hududlar tartibida
+  if (!adj.has(start)) return;
+  for (let k = 0; k < 2; k++) {
+    const path = [start];
+    const seen = new Set(path);
+    const steps = 4 + Math.floor(rand() * 4);
+    for (let s2 = 0; s2 < steps; s2++) {
+      const cur = path[path.length - 1];
+      const d0 = Math.hypot(P[cur][0] - P[start][0], P[cur][1] - P[start][1]);
+      // Markazdan uzoqlashuvchi qo'shnilar afzal — signal "tarqaladi"
+      const next = (adj.get(cur) ?? []).filter((v) => !seen.has(v)).map((v) => ({ v, w: Math.hypot(P[v][0] - P[start][0], P[v][1] - P[start][1]) - d0 + rand() * 30 }));
+      if (!next.length) break;
+      next.sort((a, b) => b.w - a.w);
+      const pick = next[Math.min(next.length - 1, Math.floor(rand() * 2))].v;
+      path.push(pick);
+      seen.add(pick);
+    }
+    if (path.length < 3) continue;
+    let len = 0;
+    for (let i = 1; i < path.length; i++) len += Math.hypot(P[path[i]][0] - P[path[i - 1]][0], P[path[i]][1] - P[path[i - 1]][1]);
+    pulses.push({ slug: r.slug, d: "M" + path.map((i) => `${f(P[i][0])} ${f(P[i][1])}`).join("L"), len: Math.round(len) });
+  }
+});
 const used = new Set([...edgeSet.values()].flatMap((e) => [e.u, e.v]));
 const nodes = pts.map((p, i) => [f(p[0]), f(p[1]), p[2], i]).filter((p) => used.has(p[3]) || p[2] === 2).map(([x, y, k]) => [x, y, k]);
 
@@ -187,8 +221,11 @@ export const MAP_ANCHORS: Record<string, { x: number; y: number }> = ${JSON.stri
 /** Tugunlar: [x, y, tur] — 2: hudud markazi, 1: chegara, 0: ichki */
 export const MESH_NODES: readonly (readonly [number, number, 0 | 1 | 2])[] = ${JSON.stringify(nodes)};
 
-/** Har hudud ichidagi qirralar (bitta path) */
+/** Har hudud ichidagi qirralar (bitta path, g'arbdan sharqqa tartibda) */
 export const MESH_EDGES: Record<string, string> = ${JSON.stringify(Object.fromEntries(Object.entries(bySlug).map(([k, v]) => [k, v.join("")])))};
+
+/** Signal yo'llari: hudud markazidan tarmoq qirralari bo'ylab (len — uzunligi, xarita birligida) */
+export const MESH_PULSES: readonly { slug: string; d: string; len: number }[] = ${JSON.stringify(pulses)};
 `;
 writeFileSync(join(root, "src/components/map/map-mesh.ts"), out);
 console.log(`map-mesh.ts: ${nodes.length} tugun, ${edgeSet.size} qirra, ${out.length} bayt`);

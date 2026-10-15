@@ -664,6 +664,7 @@ export function UzbekistanMap({
             }}
             aria-label="O'zbekiston hududlari xaritasi"
             aria-describedby={descId}
+            data-depth="front"
           >
             <desc id={descId}>
               14 ta hudud. Hudud qanchalik yorqin bo'lsa — shuncha ko'p {unitLabel}; {unitLabel}lari bor hududlarda pin turadi. Har bir hudud — tugma: bosilganda yoki Enter tugmasida o'sha hududdagi {unitLabel}lar ro'yxati
@@ -729,9 +730,17 @@ export function UzbekistanMap({
               <g aria-hidden="true">
                 {pins.map(({ slug, a, n, top, sc, on, i }) => (
                   <g key={slug} transform={`translate(${a.x} ${a.y})`} data-map-mark="" {...hitProps(slug)} className={cn("map-pin cursor-pointer", on && "is-on")}>
-                    <ellipse className={cn(motion && "map-pin-shadow-in")} rx={7 * sc} ry={2.4 * sc} fill="var(--map-pin-shadow)" style={motion ? ({ "--d": `${1 + i * 0.07}s` } as CSSProperties) : undefined} />
-                    {motion && slug === topSlugs[0] && <ellipse className="map-pin-ping" rx={7 * sc} ry={2.6 * sc} fill="none" stroke="var(--accent)" strokeWidth={1.3 * sc} />}
-                    <g className={cn(motion && "map-pin-drop")} style={motion ? ({ "--d": `${1 + i * 0.07}s` } as CSSProperties) : undefined}>
+                    <ellipse className={cn(motion && "map-pin-shadow-in")} rx={7 * sc} ry={2.4 * sc} fill="var(--map-pin-shadow)" style={motion ? ({ "--d": `${1.3 + i * 0.07}s` } as CSSProperties) : undefined} />
+                    {motion && slug === topSlugs[0] && !on && <ellipse className="map-pin-ping" rx={7 * sc} ry={2.6 * sc} fill="none" stroke="var(--accent)" strokeWidth={1.3 * sc} />}
+                    {/* Faol pin: yerdan radar to'lqinlari tarqaladi */}
+                    {motion && on && (
+                      <g className="map-pin-radar">
+                        {[0, 1, 2].map((q) => (
+                          <ellipse key={q} rx={8 * sc} ry={3 * sc} fill="none" stroke="var(--accent)" strokeWidth={1.4 * sc} style={{ animationDelay: `${q * 0.45}s` }} />
+                        ))}
+                      </g>
+                    )}
+                    <g className={cn(motion && "map-pin-drop")} style={motion ? ({ "--d": `${1.3 + i * 0.07}s` } as CSSProperties) : undefined}>
                       <g className="map-pin-body">
                         <g transform={`scale(${sc.toFixed(3)})`}>
                           <path d={PIN_PATH} fill={`url(#${uid}-pin)`} stroke="var(--map-pin-stroke)" strokeWidth={1} />

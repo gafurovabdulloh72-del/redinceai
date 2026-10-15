@@ -143,6 +143,9 @@
   --map-aura: 0.07;
   --map-twinkle: #ffffff;
   --map-arc: #ff7a57;
+  --map-pulse: #ffffff;
+  --map-scan: #ffffff;
+  --map-mesh-boot: rgba(255, 255, 255, 0.85);
   --map-tint-k: 0.38;
   --map-pin-stroke: rgba(0, 0, 0, 0.12);
   --map-pin-shadow: rgba(20, 14, 10, 0.32);
@@ -250,6 +253,9 @@
   --map-aura: 0.07;
   --map-twinkle: #ffffff;
   --map-arc: #ff8a6b;
+  --map-pulse: #ffd9cc;
+  --map-scan: #ffb8a3;
+  --map-mesh-boot: #ffb59f;
   --map-pin-stroke: rgba(255, 255, 255, 0.18);
   --map-pin-shadow: rgba(0, 0, 0, 0.6);
   /* Plitalar: kam sonlar grafitga yaqin (iliq tus), ko'p sonlar — aniq coral; o'rta qiymatlar loyqa bo'lmasin
@@ -989,6 +995,23 @@ select:focus-visible {
 .neon-mesh.is-on {
   stroke: var(--map-mesh-on);
 }
+.neon-nodes-in {
+  animation: map-late 0.7s ease 0.05s both;
+}
+.neon-mesh-boot {
+  stroke: var(--map-mesh-boot);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 80%, transparent));
+  animation: map-draw 0.9s var(--ease-out) forwards;
+}
+.neon-scan {
+  animation: neon-scan 8s linear 2.6s infinite both;
+}
+@keyframes neon-scan {
+  0% { transform: translateY(0); }
+  50%, 100% { transform: translateY(820px); }
+}
 .neon-tint {
   transition: fill-opacity 0.3s ease;
 }
@@ -1023,6 +1046,15 @@ select:focus-visible {
 .map-pin.is-on .map-pin-body {
   transform: translateY(-4px) scale(1.12);
 }
+.map-pin-radar ellipse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pin-radar 1.35s cubic-bezier(0.2, 0.7, 0.3, 1) infinite both;
+}
+@keyframes pin-radar {
+  from { opacity: 0.95; scale: 1; }
+  to { opacity: 0; scale: 4.4; }
+}
 .map-pin-ping {
   transform-box: fill-box;
   transform-origin: center;
@@ -1034,8 +1066,21 @@ select:focus-visible {
 }
 /* Hero: sichqonchaga qarab yengil 3D egilish (transform JS'dan, bu yerda — silliqlik) */
 .map-tilt {
+  transform: perspective(1600px);
+  transform-style: preserve-3d;
   transition: transform 0.9s var(--ease-out);
   will-change: transform;
+}
+/* 3D chuqurlik: qatlamlar turli balandlikda — egilganda pinlar xaritadan yuqorida "suzadi".
+   scale = (p − z) / p — tinch holatda o'lchami va joyi aynan bir xil qoladi */
+.map-tilt > [data-depth="back"] {
+  transform: translateZ(-70px) scale(1.04375);
+}
+.map-tilt > [data-depth="lights"] {
+  transform: translateZ(18px) scale(0.98875);
+}
+.map-tilt > [data-depth="front"] {
+  transform: translateZ(40px) scale(0.975);
 }
 
 /* Nuqtali xarita animatsiyalari */
@@ -1126,7 +1171,7 @@ select:focus-visible {
   .map-draw {
     stroke-dashoffset: 0 !important;
   }
-  .map-enter, .map-float, .map-arc-flow, .neon-land-in, .neon-mesh-in, .neon-lights-in, .neon-globe-in, .neon-twinkle, .map-pin-drop, .map-pin-shadow-in, .map-pin-ping {
+  .map-enter, .map-float, .map-arc-flow, .neon-land-in, .neon-mesh-in, .neon-lights-in, .neon-globe-in, .neon-twinkle, .map-pin-drop, .map-pin-shadow-in, .map-pin-ping, .neon-nodes-in, .neon-scan, .map-pin-radar ellipse {
     animation: none !important;
   }
   .map-pin-ping {
