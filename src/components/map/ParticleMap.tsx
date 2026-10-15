@@ -4,15 +4,16 @@ import { useEffect, useRef, type MutableRefObject } from "react";
 import { REGION_SHAPES } from "./regions-geo";
 
 /**
- * "Tirik zarrachalar" xaritasi — canvas qatlami (UzbekistanMap'ning SVG'si ostida chiziladi).
- *
- * - Har bir hudud minglab mayda nuqtadan iborat; nuqtalar zichligi/yorqinligi — mutaxassislar soniga qarab
- * - Kirish: barcha nuqtalar Toshkentdan "portlab" chiqib, masofaga qarab navbat bilan o'z joyiga uchib boradi
- * - Sichqoncha yaqinlashsa nuqtalar undan qochadi (magnit linza), keyin prujina bilan joyiga qaytadi
- * - Har bir yorqin yulduz — bitta haqiqiy ijodkor (hududdagi soncha), miltillab turadi
- * - Toshkentdan viloyatlarga kometalar uchadi (hero), yetib borganda halqa paydo bo'ladi
- * - Davriy to'lqin markazdan butun xarita bo'ylab yuguradi; hudud bosilganda shu nuqtadan zarb to'lqini tarqaladi
- * - prefers-reduced-motion: faqat statik chizish (fizika, kometalar, to'lqin yo'q)
+ * "Precision" nuqta-matritsa xaritasi — canvas qatlami (UzbekistanMap SVG'si ostida chiziladi).
+ * Premium data-xarita uslubi:
+ *  - Har bir hudud — tebranishsiz olti burchakli to'rdagi bir xil mayda nuqtalar; rang va yorqinlik —
+ *    mutaxassislar zichligi (neytral → coral). Hover'da hudud nuqtalari faqat yorishadi (o'lchami deyarli o'zgarmaydi)
+ *  - Har bir yorqin nuqta — bitta haqiqiy ijodkor: yadro + halqa + yumshoq nur, vaqti-vaqti bilan "ping"
+ *  - Hero: Toshkentdan faol hududlarga nozik yoylar, ular bo'ylab yorug' impuls; markazda sonar halqalar
+ *  - Kursor yonidagi nuqtalar yumshoq yorishadi (geografiya joyidan siljimaydi)
+ *  - Kirish: nuqtalar Toshkentdan tashqariga bir martalik radial to'lqin bilan paydo bo'ladi
+ *  - Statik nuqtalar offscreen canvas'da keshlanadi — har kadrda faqat ustki qatlamlar chiziladi
+ *  - prefers-reduced-motion: faqat statik kadr
  *
  * Koordinatalar — xarita birligida (regions-geo, 1000×662). SVG'dagi viewBox va zoom (k, x, y) bilan bir xil
  * transform qo'llanadi, shuning uchun nuqtalar SVG yo'llari (bosish maydonlari) bilan aniq ustma-ust tushadi.
@@ -33,27 +34,28 @@ interface Props {
   motion: boolean;
   /** Sichqoncha joyi (xarita birligida) yoki null */
   pointer: MutableRefObject<{ x: number; y: number } | null>;
-  /** Hudud bosilganda zarb to'lqini manbai */
+  /** Hudud bosilganda halqa manbai */
   ripple: MutableRefObject<Ripple | null>;
   className?: string;
 }
 
 const HUB = "toshkent-shahri";
 const SLUGS = REGION_SHAPES.map((r) => r.slug);
-const REGION_INDEX: Record<string, number> = Object.fromEntries(
-  SLUGS.map((s, i) => [s, i]),
-);
+const REGION_INDEX: Record<string, number> = Object.fromEntries(SLUGS.map((s, i) => [s, i]));
+const TAU = Math.PI * 2;
+const INTRO_MS = 1500;
+const ARC_PERIOD = 4200;
+const PING_PERIOD = 5200;
 
 /** Statik ma'lumot (keshlanadi, nusxalar orasida umumiy) */
 interface Field {
   n: number;
-  hx: Float32Array;
-  hy: Float32Array;
+  x: Float32Array;
+  y: Float32Array;
   phase: Float32Array;
-  delay: Float32Array;
   hubDist: Float32Array;
   region: Uint8Array;
-  /** Har bir hudud nuqtalari [start, end) — massivda ketma-ket joylashgan */
+  /** Har bir hudud nuqtalari [start, end) — massivda ketma-ket */
   ranges: [number, number][];
 }
 
@@ -71,7 +73,7 @@ function rng(seed: number) {
   };
 }
 
-/** Hudud konturlari ichidan to'r bo'yicha (biroz siljitilgan) nuqtalar olinadi */
+/** Hudud konturlari ichidan aniq olti burchakli to'r (tebranishsiz — "muhandislik" ko'rinishi) */
 function buildField(step: number): Field {
   const cached = fieldCache.get(step);
   if (cached) return cached;
@@ -96,13 +98,15 @@ function buildField(step: number): Field {
     }
     // Kichik hududlar (Toshkent sh.) ham ko'rinsin — to'r zichroq
     const area = (maxX - minX) * (maxY - minY);
-    const st = area < 2500 ? step * 0.55 : step;
-    for (let y = minY + st / 2; y < maxY; y += st * 0.87) {
-      const odd = Math.round((y - minY) / (st * 0.87)) % 2 === 1;
-      for (let x = minX + (odd ? st / 2 : 0); x < maxX; x += st) {
-        const jx = x + (rand() - 0.5) * st * 0.35;
-        const jy = y + (rand() - 0.5) * st * 0.35;
-        if (ctx?.isPointInPath(path, jx, jy)) pts.push({ x: jx, y: jy, r: ri });
+    const st = area < 2500 ? step * 0.6 : step;
+    const rowH = st * 0.866;
+    // To'r butun xarita uchun bir xil fazada (hudud chegarasida qatorlar "uzilmasin")
+    const y0 = Math.ceil(minY / rowH) * rowH;
+    for (let y = y0; y < maxY; y += rowH) {
+      const odd = Math.round(y / rowH) % 2 === 1;
+      const x0 = Math.ceil(minX / st) * st + (odd ? st / 2 : 0);
+      for (let x = x0; x < maxX; x += st) {
+        if (ctx?.isPointInPath(path, x, y)) pts.push({ x, y, r: ri });
       }
     }
     if (pts.length === start) pts.push({ x: shape.cx, y: shape.cy, r: ri });
@@ -111,24 +115,20 @@ function buildField(step: number): Field {
   const n = pts.length;
   const f: Field = {
     n,
-    hx: new Float32Array(n),
-    hy: new Float32Array(n),
+    x: new Float32Array(n),
+    y: new Float32Array(n),
     phase: new Float32Array(n),
-    delay: new Float32Array(n),
     hubDist: new Float32Array(n),
     region: new Uint8Array(n),
     ranges,
   };
   for (let i = 0; i < n; i++) {
     const p = pts[i];
-    f.hx[i] = p.x;
-    f.hy[i] = p.y;
+    f.x[i] = p.x;
+    f.y[i] = p.y;
     f.region[i] = p.r;
-    f.phase[i] = rand() * Math.PI * 2;
-    const d = Math.hypot(p.x - hub.cx, p.y - hub.cy);
-    f.hubDist[i] = d;
-    // Toshkentdan tarqalish: yaqinlar avval, uzoqlar keyin (+ ozgina tasodif — "to'lqin" jonli ko'rinsin)
-    f.delay[i] = 120 + d * 1.15 + rand() * 260;
+    f.phase[i] = rand();
+    f.hubDist[i] = Math.hypot(p.x - hub.cx, p.y - hub.cy);
   }
   fieldCache.set(step, f);
   return f;
@@ -142,63 +142,48 @@ function pickStars(f: Field, counts: Record<string, number>): Uint8Array {
     if (n <= 0) return;
     const rand = rng(ri * 7919 + 17);
     const stride = (b - a) / n;
-    for (let j = 0; j < n; j++)
-      star[
-        a + Math.min(b - a - 1, Math.floor(j * stride + rand() * stride * 0.8))
-      ] = 1;
+    for (let j = 0; j < n; j++) star[a + Math.min(b - a - 1, Math.floor(j * stride + rand() * stride * 0.8))] = 1;
   });
   return star;
 }
 
-type Colors = { accent: string; dot: string; hot: string; core: string };
+/* ---------------- Ranglar ---------------- */
+type RGB = [number, number, number];
+type Colors = { accent: RGB; dot: RGB; core: RGB };
+
+function parseColor(v: string, fb: RGB): RGB {
+  const s = v.trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s);
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+  return fb;
+}
+
 function readColors(el: Element): Colors {
   const cs = getComputedStyle(el);
-  const v = (name: string, fb: string) =>
-    cs.getPropertyValue(name).trim() || fb;
+  const v = (name: string) => cs.getPropertyValue(name);
   return {
-    accent: v("--accent", "#ff5a36"),
-    dot: v("--map-dot", "#c4bcae"),
-    hot: v("--map-dot-hot", "#ffe1d8"),
-    core: v("--map-star-core", "#ffffff"),
+    accent: parseColor(v("--accent"), [255, 90, 54]),
+    dot: parseColor(v("--map-dot"), [196, 188, 174]),
+    core: parseColor(v("--map-star-core"), [255, 255, 255]),
   };
 }
 
-interface Comet {
-  ax: number;
-  ay: number;
-  cx: number;
-  cy: number;
-  bx: number;
-  by: number;
-  t0: number;
-  dur: number;
-  target: number;
-}
-interface Burst {
-  x: number;
-  y: number;
-  t0: number;
-}
+const rgba = (c: RGB, a: number) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a.toFixed(3)})`;
+const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const quad = (a: number, c: number, b: number, t: number) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * c + t * t * b;
+const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-const quad = (a: number, c: number, b: number, t: number) =>
-  (1 - t) * (1 - t) * a + 2 * (1 - t) * t * c + t * t * b;
+type Live = { vb: MapBox; view: MapView; counts: Record<string, number>; max: number; hover: string | null; selected: string | null; hero: boolean; motion: boolean };
 
-export function ParticleMap({
-  vb,
-  view,
-  counts,
-  max,
-  hover,
-  selected,
-  hero,
-  motion,
-  pointer,
-  ripple,
-  className,
-}: Props) {
+export function ParticleMap({ vb, view, counts, max, hover, selected, hero, motion, pointer, ripple, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Har kadrda o'qiladigan eng so'nggi props (effektni qayta ishga tushirmaslik uchun) */
-  const live = useRef({ vb, view, counts, max, hover, selected, hero, motion });
+  const live = useRef<Live>({ vb, view, counts, max, hover, selected, hero, motion });
   live.current = { vb, view, counts, max, hover, selected, hero, motion };
   const dirty = useRef(true);
   const countsKey = SLUGS.map((s) => counts[s] ?? 0).join(",");
@@ -208,22 +193,9 @@ export function ParticleMap({
   // Props o'zgarsa — statik rejimda ham qayta chizish kerak
   useEffect(() => {
     dirty.current = true;
-  }, [
-    vb.x,
-    vb.y,
-    vb.w,
-    vb.h,
-    view.k,
-    view.x,
-    view.y,
-    hover,
-    selected,
-    max,
-    motion,
-  ]);
+  }, [vb.x, vb.y, vb.w, vb.h, view.k, view.x, view.y, hover, selected, max, motion]);
   useEffect(() => {
-    if (fieldRef.current)
-      starsRef.current = pickStars(fieldRef.current, live.current.counts);
+    if (fieldRef.current) starsRef.current = pickStars(fieldRef.current, live.current.counts);
     dirty.current = true;
   }, [countsKey]);
 
@@ -232,10 +204,15 @@ export function ParticleMap({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // Statik nuqtalar keshi (hover/zoom/rang/o'lcham o'zgarganda qayta chiziladi)
+    const base = document.createElement("canvas");
+    const bctx = base.getContext("2d");
+    if (!bctx) return;
 
     let cssW = 0;
     let cssH = 0;
     let dpr = 1;
+    let baseKey = "";
     const resize = () => {
       const r = canvas.getBoundingClientRect();
       cssW = r.width;
@@ -243,73 +220,46 @@ export function ParticleMap({
       dpr = Math.min(2, window.devicePixelRatio || 1);
       canvas.width = Math.max(1, Math.round(cssW * dpr));
       canvas.height = Math.max(1, Math.round(cssH * dpr));
+      base.width = canvas.width;
+      base.height = canvas.height;
+      baseKey = "";
       dirty.current = true;
     };
     resize();
-    // Tor ekranda nuqtalar siyrakroq (tezlik uchun); kenglik chegaradan o'tsa to'r qayta quriladi (pastdagi resize kuzatuvchisida)
-    const stepFor = (w: number) => (w > 0 && w < 520 ? 14 : 7.5);
+    // Tor ekranda to'r siyrakroq (tezlik va o'qilish uchun)
+    const stepFor = (w: number) => (w > 0 && w < 520 ? 11 : 6.4);
     let step = stepFor(cssW);
-    const makeField = (st: number) => {
-      const base = buildField(st);
-      fieldRef.current = base;
-      // Harakatlanuvchi holat — har bir xarita nusxasiga alohida (bosh sahifada ikkita xarita bor)
-      return {
-        ...base,
-        x: new Float32Array(base.n),
-        y: new Float32Array(base.n),
-        vx: new Float32Array(base.n),
-        vy: new Float32Array(base.n),
-      };
-    };
-    let field = makeField(step);
+    let field = buildField(step);
+    fieldRef.current = field;
     starsRef.current = pickStars(field, live.current.counts);
 
     const reduce = !live.current.motion;
     const t0 = performance.now();
-    if (reduce) {
-      field.x.set(field.hx);
-      field.y.set(field.hy);
-    } else {
-      const hub = REGION_SHAPES.find((r) => r.slug === HUB) ?? REGION_SHAPES[0];
-      const rand = rng(99);
-      for (let i = 0; i < field.n; i++) {
-        field.x[i] = hub.cx + (rand() - 0.5) * 10;
-        field.y[i] = hub.cy + (rand() - 0.5) * 10;
-        field.vx[i] = 0;
-        field.vy[i] = 0;
-      }
-    }
+    let introDone = reduce;
 
     let colors = readColors(canvas);
-    const mo = new MutationObserver(() => {
+    let colorVer = 0;
+    const onColors = () => {
       colors = readColors(canvas);
+      colorVer++;
       dirty.current = true;
-    });
-    mo.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme", "style"],
-    });
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onScheme = () => {
-      colors = readColors(canvas);
-      dirty.current = true;
+      kick();
     };
-    mq.addEventListener("change", onScheme);
+    const mo = new MutationObserver(onColors);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", onColors);
 
     const ro = new ResizeObserver(() => {
       resize();
-      // Kenglik tor/keng chegarasidan o'tdi (masalan, ekran burildi) — to'r zichligi moslansin
       const next = stepFor(cssW);
       if (next !== step) {
         step = next;
-        field = makeField(step);
-        // Qayta qurishda kirish animatsiyasi takrorlanmaydi — nuqtalar darhol o'z joyida
-        field.x.set(field.hx);
-        field.y.set(field.hy);
+        field = buildField(step);
+        fieldRef.current = field;
         starsRef.current = pickStars(field, live.current.counts);
-        dirty.current = true;
-        kick();
       }
+      kick();
     });
     ro.observe(canvas);
 
@@ -324,329 +274,322 @@ export function ParticleMap({
     };
     document.addEventListener("visibilitychange", onVis);
 
-    const comets: Comet[] = [];
-    const bursts: Burst[] = [];
-    let nextComet = t0 + 1900;
-    const hubShape =
-      REGION_SHAPES.find((r) => r.slug === HUB) ?? REGION_SHAPES[0];
+    const hub = REGION_SHAPES.find((r) => r.slug === HUB) ?? REGION_SHAPES[0];
 
     let raf = 0;
     let running = false;
-    let last = 0;
     const kick = () => {
       if (running) return;
       running = true;
       raf = requestAnimationFrame(frame);
     };
 
-    function spawnComet(now: number) {
-      const { counts: c } = live.current;
-      const pool = REGION_SHAPES.filter(
-        (r) => r.slug !== HUB && (c[r.slug] ?? 0) > 0,
-      );
-      const list = pool.length
-        ? pool
-        : REGION_SHAPES.filter((r) => r.slug !== HUB);
-      // Ko'p ijodkorli hududlarga ko'proq kometa
-      const weights = list.map((r) => 1 + Math.sqrt(c[r.slug] ?? 0));
-      let pick = Math.random() * weights.reduce((a, b) => a + b, 0);
-      let target = list[0];
-      for (let i = 0; i < list.length; i++) {
-        pick -= weights[i];
-        if (pick <= 0) {
-          target = list[i];
-          break;
+    /** Xarita birligidan qurilma pikseliga transform (SVG viewBox + zoom bilan bir xil) */
+    const applyView = (c: CanvasRenderingContext2D, L: Live) => {
+      const s = (cssW / L.vb.w) * dpr;
+      c.setTransform(s * L.view.k, 0, 0, s * L.view.k, (L.view.x - L.vb.x) * s, (L.view.y - L.vb.y) * s);
+    };
+    /** 1 CSS piksel xarita birligida (zoom hisobga olingan) */
+    const unitOf = (L: Live) => 1 / (cssW / L.vb.w) / L.view.k;
+    /** Zoom'da nuqtalar biroz kattalashadi (lekin to'r siyraklashgani kabi emas) */
+    const zoomScale = (L: Live) => Math.min(2, Math.sqrt(L.view.k));
+
+    const idxOf = (slug: string | null) => (slug ? (REGION_INDEX[slug] ?? -1) : -1);
+
+    /** Hudud nuqtalarining rangi: bo'sh — neytral; mutaxassis bor — zichlikka qarab coral; tanlangan — to'liq accent */
+    const regionStyle = (ri: number, L: Live, hoverIdx: number, selIdx: number) => {
+      const n = L.counts[SLUGS[ri]] ?? 0;
+      const c = n > 0 ? Math.pow(n / Math.max(1, L.max), 0.6) : 0;
+      const on = ri === hoverIdx || ri === selIdx;
+      const dim = hoverIdx >= 0 && !on ? 0.5 : 1;
+      if (on) return { color: colors.accent, alpha: 1, on };
+      if (n === 0) return { color: colors.dot, alpha: 0.72 * dim, on };
+      return { color: mix(colors.dot, colors.accent, 0.42 + 0.58 * c), alpha: (0.62 + 0.38 * c) * dim, on };
+    };
+
+    /**
+     * Nuqtalar qatlami. revealT berilsa — kirish animatsiyasi (Toshkentdan masofaga qarab paydo bo'lish,
+     * 5 bosqichga guruhlangan: har bosqich bitta fill — minglab alohida chizish yo'q).
+     */
+    const drawDots = (c: CanvasRenderingContext2D, L: Live, revealT: number | null) => {
+      const f = field;
+      const unit = unitOf(L);
+      const baseR = 1.05 * zoomScale(L) * unit;
+      const hoverIdx = idxOf(L.hover);
+      const selIdx = idxOf(L.selected);
+      for (let ri = 0; ri < f.ranges.length; ri++) {
+        const [a, b] = f.ranges[ri];
+        const st = regionStyle(ri, L, hoverIdx, selIdx);
+        const r = st.on ? baseR * 1.15 : baseR;
+        if (revealT === null) {
+          c.fillStyle = rgba(st.color, st.alpha);
+          c.beginPath();
+          for (let i = a; i < b; i++) {
+            c.moveTo(f.x[i] + r, f.y[i]);
+            c.arc(f.x[i], f.y[i], r, 0, TAU);
+          }
+          c.fill();
+          continue;
+        }
+        const buckets = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+        let any = false;
+        for (let i = a; i < b; i++) {
+          const p = (revealT - (60 + f.hubDist[i] * 0.95)) / 380;
+          if (p <= 0) continue;
+          const bk = p >= 1 ? 4 : Math.min(4, Math.floor(p * 5));
+          const rr = r * (0.45 + 0.55 * ((bk + 1) / 5));
+          buckets[bk].moveTo(f.x[i] + rr, f.y[i]);
+          buckets[bk].arc(f.x[i], f.y[i], rr, 0, TAU);
+          any = true;
+        }
+        if (!any) continue;
+        for (let bk = 0; bk < 5; bk++) {
+          c.fillStyle = rgba(st.color, st.alpha * ((bk + 1) / 5));
+          c.fill(buckets[bk]);
         }
       }
-      const dx = target.cx - hubShape.cx;
-      const dy = target.cy - hubShape.cy;
-      const len = Math.hypot(dx, dy) || 1;
-      let px = -dy / len;
-      let py = dx / len;
-      if (py > 0) {
-        px = -px;
-        py = -py;
+    };
+
+    const renderBase = (L: Live) => {
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.clearRect(0, 0, base.width, base.height);
+      applyView(bctx, L);
+      drawDots(bctx, L, null);
+    };
+
+    /** Kursor yorug'ligi: yaqin nuqtalar neytral tomonga yorishadi (3 bosqich — 3 ta fill) */
+    const drawSpotlight = (L: Live, ptr: { x: number; y: number }) => {
+      const f = field;
+      const unit = unitOf(L);
+      const R = 70 * unit;
+      const R2 = R * R;
+      const r = 1.2 * zoomScale(L) * unit;
+      const bands = [new Path2D(), new Path2D(), new Path2D()];
+      for (let i = 0; i < f.n; i++) {
+        const dx = f.x[i] - ptr.x;
+        const dy = f.y[i] - ptr.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= R2) continue;
+        const w = 1 - Math.sqrt(d2) / R;
+        const band = w > 0.66 ? 2 : w > 0.33 ? 1 : 0;
+        bands[band].moveTo(f.x[i] + r, f.y[i]);
+        bands[band].arc(f.x[i], f.y[i], r, 0, TAU);
       }
-      const lift = Math.min(150, len * 0.35);
-      comets.push({
-        ax: hubShape.cx,
-        ay: hubShape.cy,
-        bx: target.cx,
-        by: target.cy,
-        cx: (hubShape.cx + target.cx) / 2 + px * lift,
-        cy: (hubShape.cy + target.cy) / 2 + py * lift,
-        t0: now,
-        dur: 1100 + len * 1.6,
-        target: REGION_INDEX[target.slug] ?? 0,
+      const tone = mix(colors.dot, colors.core, 0.7);
+      const alphas = [0.16, 0.3, 0.48];
+      for (let bd = 0; bd < 3; bd++) {
+        ctx.fillStyle = rgba(tone, alphas[bd]);
+        ctx.fill(bands[bd]);
+      }
+    };
+
+    /** Hero yoylari: Toshkentdan mutaxassisi bor hududlarga (eng ko'p 8 ta) */
+    const arcTargets = (L: Live) =>
+      REGION_SHAPES.filter((r) => r.slug !== HUB && (L.counts[r.slug] ?? 0) > 0)
+        .sort((a, b) => (L.counts[b.slug] ?? 0) - (L.counts[a.slug] ?? 0))
+        .slice(0, 8)
+        .map((r) => {
+          const dx = r.cx - hub.cx;
+          const dy = r.cy - hub.cy;
+          const len = Math.hypot(dx, dy) || 1;
+          let px = -dy / len;
+          let py = dx / len;
+          if (py > 0) {
+            px = -px;
+            py = -py;
+          }
+          const lift = Math.min(120, len * 0.3);
+          return { ri: REGION_INDEX[r.slug] ?? 0, bx: r.cx, by: r.cy, cx: (hub.cx + r.cx) / 2 + px * lift, cy: (hub.cy + r.cy) / 2 + py * lift };
+        });
+
+    const drawArcs = (L: Live, t: number, animate: boolean) => {
+      const unit = unitOf(L);
+      const hoverIdx = idxOf(L.hover);
+      const targets = arcTargets(L);
+      ctx.lineCap = "round";
+      targets.forEach((tg, ai) => {
+        const isOn = hoverIdx >= 0 && tg.ri === hoverIdx;
+        const dimmed = hoverIdx >= 0 && !isOn;
+        // Doimiy nozik yoy
+        ctx.strokeStyle = rgba(colors.accent, isOn ? 0.6 : dimmed ? 0.07 : 0.2);
+        ctx.lineWidth = (isOn ? 1.4 : 1) * unit;
+        ctx.beginPath();
+        ctx.moveTo(hub.cx, hub.cy);
+        ctx.quadraticCurveTo(tg.cx, tg.cy, tg.bx, tg.by);
+        ctx.stroke();
+        if (!animate) return;
+        // Yoy bo'ylab yorug' impuls (har yoy o'z fazasida)
+        const p = ((t + ai * 610) % ARC_PERIOD) / ARC_PERIOD;
+        const travel = 0.55;
+        const k = dimmed ? 0.25 : 1;
+        if (p < travel) {
+          const e = easeInOut(p / travel);
+          const TAIL = 0.2;
+          const SEG = 10;
+          for (let j = 0; j < SEG; j++) {
+            const qa = Math.max(0, e - TAIL * (1 - j / SEG));
+            const qb = e - TAIL * (1 - (j + 1) / SEG);
+            if (qb <= 0) continue;
+            ctx.strokeStyle = rgba(colors.accent, ((j + 1) / SEG) * 0.95 * k);
+            ctx.lineWidth = (0.8 + 1.4 * ((j + 1) / SEG)) * unit;
+            ctx.beginPath();
+            ctx.moveTo(quad(hub.cx, tg.cx, tg.bx, qa), quad(hub.cy, tg.cy, tg.by, qa));
+            ctx.lineTo(quad(hub.cx, tg.cx, tg.bx, qb), quad(hub.cy, tg.cy, tg.by, qb));
+            ctx.stroke();
+          }
+          ctx.shadowColor = rgba(colors.accent, 0.9 * k);
+          ctx.shadowBlur = 8 * dpr;
+          ctx.fillStyle = rgba(colors.core, k);
+          ctx.beginPath();
+          ctx.arc(quad(hub.cx, tg.cx, tg.bx, e), quad(hub.cy, tg.cy, tg.by, e), 1.7 * unit, 0, TAU);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        } else if (p < travel + 0.16) {
+          // Yetib borganda — nozik halqa
+          const rp = (p - travel) / 0.16;
+          ctx.strokeStyle = rgba(colors.accent, (1 - rp) * 0.7 * k);
+          ctx.lineWidth = 1.1 * unit;
+          ctx.beginPath();
+          ctx.arc(tg.bx, tg.by, (2 + rp * 12) * unit, 0, TAU);
+          ctx.stroke();
+        }
       });
-    }
+    };
+
+    /** Hero markazi (Toshkent): sonar halqalar + yadro */
+    const drawHub = (L: Live, t: number, animate: boolean) => {
+      const unit = unitOf(L);
+      if (animate) {
+        for (let j = 0; j < 2; j++) {
+          const p = (t / 2800 + j * 0.5) % 1;
+          ctx.strokeStyle = rgba(colors.accent, (1 - p) * 0.5);
+          ctx.lineWidth = 1 * unit;
+          ctx.beginPath();
+          ctx.arc(hub.cx, hub.cy, (3 + p * 18) * unit, 0, TAU);
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = rgba(colors.accent, 0.18);
+      ctx.beginPath();
+      ctx.arc(hub.cx, hub.cy, 6 * unit, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = rgba(colors.accent, 1);
+      ctx.beginPath();
+      ctx.arc(hub.cx, hub.cy, 2.8 * unit, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = rgba(colors.core, 1);
+      ctx.beginPath();
+      ctx.arc(hub.cx, hub.cy, 1.1 * unit, 0, TAU);
+      ctx.fill();
+    };
+
+    /** Ijodkorlar: nur + halqa + yadro (to'plab chiziladi), faollari vaqti-vaqti bilan "ping" */
+    const drawStars = (L: Live, t: number, animate: boolean) => {
+      const stars = starsRef.current;
+      if (!stars) return;
+      const f = field;
+      const unit = unitOf(L);
+      const zs = zoomScale(L);
+      const coreR = 1.5 * zs * unit;
+      const ringR = 3.1 * zs * unit;
+      const hoverIdx = idxOf(L.hover);
+      const selIdx = idxOf(L.selected);
+      const halo = new Path2D();
+      const ring = new Path2D();
+      const core = new Path2D();
+      const dimP = new Path2D();
+      const pings: { x: number; y: number; p: number }[] = [];
+      for (let i = 0; i < f.n; i++) {
+        if (!stars[i]) continue;
+        const reg = f.region[i];
+        const on = reg === hoverIdx || reg === selIdx;
+        const x = f.x[i];
+        const y = f.y[i];
+        if (hoverIdx >= 0 && !on) {
+          dimP.moveTo(x + coreR, y);
+          dimP.arc(x, y, coreR, 0, TAU);
+          continue;
+        }
+        halo.moveTo(x + ringR * 1.9, y);
+        halo.arc(x, y, ringR * 1.9, 0, TAU);
+        ring.moveTo(x + ringR, y);
+        ring.arc(x, y, ringR, 0, TAU);
+        core.moveTo(x + coreR, y);
+        core.arc(x, y, coreR, 0, TAU);
+        if (animate) {
+          const p = (t / PING_PERIOD + f.phase[i]) % 1;
+          if (p < 0.24) pings.push({ x, y, p: p / 0.24 });
+        }
+      }
+      ctx.fillStyle = rgba(colors.accent, 0.4);
+      ctx.fill(dimP);
+      ctx.fillStyle = rgba(colors.accent, 0.13);
+      ctx.fill(halo);
+      ctx.strokeStyle = rgba(colors.accent, 0.95);
+      ctx.lineWidth = 1 * unit;
+      ctx.stroke(ring);
+      ctx.fillStyle = rgba(colors.core, 1);
+      ctx.fill(core);
+      for (const pg of pings) {
+        ctx.strokeStyle = rgba(colors.accent, (1 - pg.p) * 0.5);
+        ctx.lineWidth = 1 * unit;
+        ctx.beginPath();
+        ctx.arc(pg.x, pg.y, ringR + pg.p * 10 * unit, 0, TAU);
+        ctx.stroke();
+      }
+    };
 
     function frame(now: number) {
       const L = live.current;
       const animate = L.motion && !reduce;
       if (!visible || document.hidden || cssW === 0) {
         running = false;
-        last = 0;
         return;
       }
       const t = now - t0;
-      // Fizika vaqtga bog'langan: sekin qurilmada (kam FPS) kadr uchun bir necha qadam — tezlik bir xil qoladi
-      const steps = last
-        ? Math.max(1, Math.min(4, Math.round((now - last) / 16.7)))
-        : 1;
-      last = now;
-      const f = field;
-      const stars = starsRef.current;
-      const hoverIdx = L.hover ? (REGION_INDEX[L.hover] ?? -1) : -1;
-      const selIdx = L.selected ? (REGION_INDEX[L.selected] ?? -1) : -1;
+      ctx!.setTransform(1, 0, 0, 1, 0, 0);
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
 
-      /* ---------- Fizika ---------- */
-      let settled = true;
-      if (animate) {
+      if (!introDone && t < INTRO_MS) {
+        applyView(ctx!, L);
+        drawDots(ctx!, L, t);
+      } else {
+        introDone = true;
+        const key = [cssW, cssH, dpr, step, L.vb.x, L.vb.y, L.vb.w, L.view.k, L.view.x, L.view.y, L.hover, L.selected, L.max, colorVer, SLUGS.map((s) => L.counts[s] ?? 0).join(".")].join("|");
+        if (key !== baseKey) {
+          renderBase(L);
+          baseKey = key;
+        }
+        ctx!.drawImage(base, 0, 0);
+        applyView(ctx!, L);
         const ptr = pointer.current;
-        const rp = ripple.current;
-        const rAge = rp ? now - rp.t : Infinity;
-        if (rp && rAge > 1600) ripple.current = null;
-        const pxu = (cssW / L.vb.w) * L.view.k; // ekran pikseli / xarita birligi
-        const R = 44 / pxu; // magnit linza radiusi ~44px
-        const push = 1.5 / Math.max(0.5, pxu);
-        const R2 = R * R;
-        for (let step = 0; step < steps; step++)
-          for (let i = 0; i < f.n; i++) {
-            if (t < f.delay[i]) continue; // hali Toshkentdan "uchib chiqmagan"
-            const ph = f.phase[i];
-            let tx = f.hx[i] + Math.sin(t * 0.0011 + ph) * 0.7;
-            let ty = f.hy[i] + Math.cos(t * 0.0009 + ph * 1.3) * 0.7;
-            if (f.region[i] === hoverIdx) {
-              // Hover qilingan hudud "nafas oladi" — kattaroq amplituda
-              tx += Math.sin(t * 0.004 + ph) * 1.1;
-              ty += Math.cos(t * 0.0045 + ph) * 1.1;
-            }
-            let ax = (tx - f.x[i]) * 0.055;
-            let ay = (ty - f.y[i]) * 0.055;
-            if (ptr) {
-              const dx = f.x[i] - ptr.x;
-              const dy = f.y[i] - ptr.y;
-              const d2 = dx * dx + dy * dy;
-              if (d2 < R2 && d2 > 0.01) {
-                const d = Math.sqrt(d2);
-                const k = (1 - d / R) ** 2 * push;
-                ax += (dx / d) * k;
-                ay += (dy / d) * k;
-              }
-            }
-            if (rp && rAge < 1600) {
-              const dx = f.x[i] - rp.x;
-              const dy = f.y[i] - rp.y;
-              const d = Math.sqrt(dx * dx + dy * dy) || 1;
-              const front = rAge * 0.55;
-              const gap = Math.abs(d - front);
-              if (gap < 22) {
-                const k = (1 - gap / 22) * 2.4 * (1 - rAge / 1600);
-                ax += (dx / d) * k;
-                ay += (dy / d) * k;
-              }
-            }
-            f.vx[i] = (f.vx[i] + ax) * 0.8;
-            f.vy[i] = (f.vy[i] + ay) * 0.8;
-            f.x[i] += f.vx[i];
-            f.y[i] += f.vy[i];
-          }
-        settled = false;
+        if (animate && ptr) drawSpotlight(L, ptr);
       }
 
-      /* ---------- Chizish ---------- */
-      if (animate || dirty.current) {
-        dirty.current = false;
-        const s = (cssW / L.vb.w) * dpr;
-        const k = L.view.k;
-        ctx!.setTransform(1, 0, 0, 1, 0, 0);
-        ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
-        ctx!.setTransform(
-          s * k,
-          0,
-          0,
-          s * k,
-          (L.view.x - L.vb.x) * s,
-          (L.view.y - L.vb.y) * s,
-        );
-        const unit = 1 / (cssW / L.vb.w) / k; // 1 ekran pikseli xarita birligida (zoom hisobga olingan)
-        const waveR = animate ? ((t % 6500) / 6500) * 1300 - 120 : -9999;
-        const maxN = Math.max(1, L.max);
+      const settled = introDone;
+      if (L.hero && settled) {
+        drawArcs(L, t, animate);
+        drawHub(L, t, animate);
+      }
+      if (settled) drawStars(L, t, animate);
 
-        for (let ri = 0; ri < f.ranges.length; ri++) {
-          const [a, b] = f.ranges[ri];
-          const n = L.counts[SLUGS[ri]] ?? 0;
-          const c = n > 0 ? Math.pow(n / maxN, 0.7) : 0;
-          const on = ri === hoverIdx || ri === selIdx;
-          // Och (kunduzgi) fonda 0.4 juda xira edi — xarita silueti yo'qolib, hover hudud "yaxlit dog'" bo'lib ko'rinardi
-          const dim = hoverIdx >= 0 && !on ? 0.62 : 1;
-          const r = (on ? 1.6 : n > 0 ? 1.15 + c * 0.6 : 1) * unit;
-          // Asosiy nuqtalar
-          ctx!.globalAlpha = (on ? 0.9 : n > 0 ? 0.55 + c * 0.45 : 0.6) * dim;
-          ctx!.fillStyle = on
-            ? colors.accent
-            : n > 0
-              ? colors.accent
-              : colors.dot;
+      // Hudud bosilganda — bitta nozik kengayuvchi halqa
+      const rp = ripple.current;
+      if (rp) {
+        const age = now - rp.t;
+        if (age < 1200 && animate) {
+          ctx!.strokeStyle = rgba(colors.accent, (1 - age / 1200) * 0.55);
+          ctx!.lineWidth = 1.4 * unitOf(L);
           ctx!.beginPath();
-          const hotIdx: number[] = [];
-          for (let i = a; i < b; i++) {
-            if (animate && t < f.delay[i]) continue;
-            const x = f.x[i];
-            const y = f.y[i];
-            if (animate && Math.abs(f.hubDist[i] - waveR) < 22) {
-              hotIdx.push(i);
-              continue;
-            }
-            ctx!.moveTo(x + r, y);
-            ctx!.arc(x, y, r, 0, Math.PI * 2);
-          }
-          ctx!.fill();
-          // To'lqin ustidagi nuqtalar — yorqinroq va kattaroq
-          if (hotIdx.length) {
-            ctx!.globalAlpha = 0.9 * dim;
-            ctx!.fillStyle = colors.hot;
-            ctx!.beginPath();
-            for (const i of hotIdx) {
-              const w = 1 - Math.abs(f.hubDist[i] - waveR) / 22;
-              const rr = r * (1 + w * 0.8);
-              ctx!.moveTo(f.x[i] + rr, f.y[i]);
-              ctx!.arc(f.x[i], f.y[i], rr, 0, Math.PI * 2);
-            }
-            ctx!.fill();
-          }
-        }
-
-        // Yulduzlar — ijodkorlar: yumshoq nur + oq yadro, miltillaydi
-        if (stars) {
-          ctx!.fillStyle = colors.accent;
-          ctx!.globalAlpha = 0.28;
-          ctx!.beginPath();
-          const core: [number, number, number][] = [];
-          for (let i = 0; i < f.n; i++) {
-            if (!stars[i] || (animate && t < f.delay[i] + 250)) continue;
-            const on = f.region[i] === hoverIdx || f.region[i] === selIdx;
-            if (hoverIdx >= 0 && !on) continue;
-            const tw = animate
-              ? 0.75 + 0.25 * Math.sin(t * 0.004 + f.phase[i] * 3)
-              : 1;
-            const rr = (on ? 7 : 5.5) * tw * unit;
-            ctx!.moveTo(f.x[i] + rr, f.y[i]);
-            ctx!.arc(f.x[i], f.y[i], rr, 0, Math.PI * 2);
-            core.push([f.x[i], f.y[i], (on ? 2.6 : 2.1) * tw * unit]);
-          }
-          ctx!.fill();
-          // So'nik hududlardagi yulduzlar ham ko'rinsin, lekin xira
-          if (hoverIdx >= 0) {
-            ctx!.globalAlpha = 0.35;
-            ctx!.fillStyle = colors.accent;
-            ctx!.beginPath();
-            for (let i = 0; i < f.n; i++) {
-              if (
-                !stars[i] ||
-                f.region[i] === hoverIdx ||
-                f.region[i] === selIdx
-              )
-                continue;
-              if (animate && t < f.delay[i] + 250) continue;
-              const rr = 1.8 * unit;
-              ctx!.moveTo(f.x[i] + rr, f.y[i]);
-              ctx!.arc(f.x[i], f.y[i], rr, 0, Math.PI * 2);
-            }
-            ctx!.fill();
-          }
-          ctx!.globalAlpha = 1;
-          ctx!.fillStyle = colors.core;
-          ctx!.beginPath();
-          for (const [x, y, rr] of core) {
-            ctx!.moveTo(x + rr, y);
-            ctx!.arc(x, y, rr, 0, Math.PI * 2);
-          }
-          ctx!.fill();
-          ctx!.strokeStyle = colors.accent;
-          ctx!.lineWidth = 1.1 * unit;
-          ctx!.globalAlpha = 0.9;
-          ctx!.beginPath();
-          for (const [x, y, rr] of core) {
-            ctx!.moveTo(x + rr, y);
-            ctx!.arc(x, y, rr, 0, Math.PI * 2);
-          }
+          ctx!.arc(rp.x, rp.y, age * 0.5, 0, TAU);
           ctx!.stroke();
+        } else if (age >= 1200) {
+          ripple.current = null;
         }
-
-        // Kometalar (hero): Toshkentdan viloyatlarga — dumi so'nib boruvchi nuqtalar zanjiri
-        if (animate && L.hero) {
-          if (now >= nextComet && t > 1600) {
-            spawnComet(now);
-            nextComet = now + 650 + Math.random() * 700;
-          }
-          for (let ci = comets.length - 1; ci >= 0; ci--) {
-            const cm = comets[ci];
-            const p = (now - cm.t0) / cm.dur;
-            if (p >= 1) {
-              bursts.push({ x: cm.bx, y: cm.by, t0: now });
-              comets.splice(ci, 1);
-              continue;
-            }
-            const e = 1 - Math.pow(1 - p, 2);
-            ctx!.fillStyle = colors.accent;
-            for (let j = 0; j < 16; j++) {
-              const q = e - j * 0.018;
-              if (q < 0) break;
-              const x = quad(cm.ax, cm.cx, cm.bx, q);
-              const y = quad(cm.ay, cm.cy, cm.by, q);
-              ctx!.globalAlpha = (1 - j / 16) * 0.85;
-              ctx!.beginPath();
-              ctx!.arc(x, y, (2.4 - j * 0.12) * unit, 0, Math.PI * 2);
-              ctx!.fill();
-            }
-            ctx!.globalAlpha = 1;
-            ctx!.fillStyle = colors.core;
-            ctx!.beginPath();
-            ctx!.arc(
-              quad(cm.ax, cm.cx, cm.bx, e),
-              quad(cm.ay, cm.cy, cm.by, e),
-              1.3 * unit,
-              0,
-              Math.PI * 2,
-            );
-            ctx!.fill();
-          }
-        }
-        // Halqalar: kometa yetib borgan joyda
-        for (let bi = bursts.length - 1; bi >= 0; bi--) {
-          const bu = bursts[bi];
-          const p = (now - bu.t0) / 750;
-          if (p >= 1 || !animate) {
-            bursts.splice(bi, 1);
-            continue;
-          }
-          ctx!.globalAlpha = (1 - p) * 0.8;
-          ctx!.strokeStyle = colors.accent;
-          ctx!.lineWidth = (1.6 * (1 - p) + 0.4) * unit;
-          ctx!.beginPath();
-          ctx!.arc(bu.x, bu.y, (3 + p * 18) * unit, 0, Math.PI * 2);
-          ctx!.stroke();
-        }
-        // Zarb to'lqini halqasi (hudud bosilganda)
-        const rp = ripple.current;
-        if (animate && rp) {
-          const age = now - rp.t;
-          if (age < 1200) {
-            ctx!.globalAlpha = (1 - age / 1200) * 0.55;
-            ctx!.strokeStyle = colors.accent;
-            ctx!.lineWidth = 1.5 * unit;
-            ctx!.beginPath();
-            ctx!.arc(rp.x, rp.y, age * 0.55, 0, Math.PI * 2);
-            ctx!.stroke();
-          }
-        }
-        ctx!.globalAlpha = 1;
       }
 
-      if (animate || !settled || dirty.current)
-        raf = requestAnimationFrame(frame);
+      dirty.current = false;
+      if (animate || !introDone) raf = requestAnimationFrame(frame);
       else running = false;
     }
 
@@ -662,7 +605,7 @@ export function ParticleMap({
       ro.disconnect();
       io.disconnect();
       mo.disconnect();
-      mq.removeEventListener("change", onScheme);
+      mq.removeEventListener("change", onColors);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [motion]); // eslint-disable-line react-hooks/exhaustive-deps

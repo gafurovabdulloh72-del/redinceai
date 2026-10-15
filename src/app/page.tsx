@@ -64,9 +64,9 @@ export default async function HomePage() {
             </div>
 
             {/* Ishonch bari — ustki nozik chiziq bilan ajratilgan (editorial "stat bar") */}
-            <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-line pt-6">
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4 border-t border-line pt-6 sm:gap-x-8">
               {stack.length >= 3 && (
-                <div className="flex -space-x-2" aria-hidden="true">
+                <div className="hidden -space-x-2 sm:flex" aria-hidden="true">
                   {stack.map((sp) => (
                     <Avatar key={sp.id} name={sp.user.name} src={sp.user.avatarUrl} size={34} decorative singleInitial className="!ring-bg" />
                   ))}

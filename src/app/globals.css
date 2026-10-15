@@ -946,11 +946,11 @@ select:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
   .region-path:hover {
-    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent)) brightness(1.06);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 38%, transparent));
   }
 }
 .region-path.is-active {
-  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 75%, transparent)) brightness(1.08);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 /* Nuqtali xarita animatsiyalari */
@@ -962,11 +962,11 @@ select:focus-visible {
   to { opacity: 1; transform: none; }
 }
 .map-float {
-  animation: map-float 7s ease-in-out infinite;
+  animation: map-float 10s ease-in-out infinite;
 }
 @keyframes map-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-7px); }
+  50% { transform: translateY(-4px); }
 }
 /* Chegara chizilib paydo bo'ladi (pathLength=1) */
 /* 3D bloklar: hover/tanlanganda butun blok (devorlari bilan) ko'tariladi */

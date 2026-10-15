@@ -692,9 +692,9 @@ export function UzbekistanMap({
                       d={r.d}
                       className={cn("region-path", on && "is-active")}
                       stroke={on ? "var(--accent)" : "transparent"}
-                      strokeWidth={(on ? 2 : 1) / k}
+                      strokeWidth={(on ? 1.5 : 1) / k}
                       strokeLinejoin="round"
-                      style={{ fill: on ? "color-mix(in oklab, var(--accent) 9%, transparent)" : "transparent" }}
+                      style={{ fill: on ? "color-mix(in oklab, var(--accent) 6%, transparent)" : "transparent" }}
                       onMouseEnter={() => {
                         if (!touchTip.current) setHover(r.slug);
                       }}
