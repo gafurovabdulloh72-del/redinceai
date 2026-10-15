@@ -3,6 +3,7 @@ import { MapExplorer } from "@/components/map/MapExplorer";
 import { PageHeader } from "@/components/ui";
 import { CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { getCategoryStats, getRegionStats } from "@/lib/queries";
+import { getJobsByRegion, getRegionJobCounts, getRegionOnlineCounts, getTopByRegion } from "@/lib/map-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,14 @@ function first(v: string | string[] | undefined) {
 
 export default async function MapPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const sp = await searchParams;
-  const [stats, categoryStats] = await Promise.all([getRegionStats(), getCategoryStats()]);
+  const [stats, categoryStats, jobCounts, jobsByRegion, onlineCounts, topByRegion] = await Promise.all([
+    getRegionStats(),
+    getCategoryStats(),
+    getRegionJobCounts(),
+    getJobsByRegion(5),
+    getRegionOnlineCounts(),
+    getTopByRegion(3),
+  ]);
 
   // Noma'lum slug'lar e'tiborsiz qoldiriladi
   const regionParam = first(sp.region);
@@ -30,6 +38,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
   const initialCategory = categoryParam && CATEGORY_BY_SLUG[categoryParam] ? categoryParam : null;
   const genderParam = first(sp.gender);
   const initialGender = GENDERS.find((g) => g.value === genderParam)?.value ?? null;
+  const initialMode = first(sp.rejim) === "ish" ? ("ish" as const) : ("mutaxassis" as const);
 
   const total = REGIONS.reduce((acc, r) => acc + (stats[r.slug]?.total ?? 0), 0);
 
@@ -47,7 +56,18 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
       />
 
       <div className="mt-8 sm:mt-10">
-        <MapExplorer stats={stats} categoryStats={categoryStats} initialRegion={initialRegion} initialCategory={initialCategory} initialGender={initialGender} />
+        <MapExplorer
+          stats={stats}
+          categoryStats={categoryStats}
+          initialRegion={initialRegion}
+          initialCategory={initialCategory}
+          initialGender={initialGender}
+          initialMode={initialMode}
+          jobCounts={jobCounts}
+          jobsByRegion={jobsByRegion}
+          onlineCounts={onlineCounts}
+          topByRegion={topByRegion}
+        />
       </div>
     </div>
   );

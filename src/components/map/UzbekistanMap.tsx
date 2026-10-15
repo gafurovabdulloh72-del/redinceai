@@ -6,9 +6,10 @@ import { MapPin, Minus, Plus, RotateCcw } from "lucide-react";
 import { MAP_VIEWBOX, REGION_SHAPES, type RegionShape } from "./regions-geo";
 import { MAP_ANCHORS, NeonMap, type Ripple } from "./NeonMap";
 import { REGION_NEIGHBOURS, REGION_TAB_ORDER, type ArrowKey } from "./geo-utils";
+import { Avatar } from "@/components/ui";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import type { RegionStat } from "@/lib/queries";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 
 /**
  * O'zbekiston xaritasi — "neon tarmoq": vizual qatlam NeonMap'da (globus to'ri, neon kontur, low-poly tarmoq,
@@ -100,6 +101,10 @@ export interface UzbekistanMapProps {
   unitLabel?: string;
   /** Zoom/pan (faqat panel rejimida; bosh sahifa hero'si statik qoladi) */
   zoomable?: boolean;
+  /** Tooltip: hududda hozir onlayn mutaxassislar soni */
+  onlineCounts?: Record<string, number>;
+  /** Tooltip mini-kartasi: hududning top mutaxassislari (nom, avatar, narx) */
+  topByRegion?: Record<string, { slug: string; name: string; avatarUrl: string | null; priceFrom: number }[]>;
 }
 
 const SLAB = 18; // pastki bo'sh joy (viewBox birligida)
@@ -147,6 +152,8 @@ export function UzbekistanMap({
   variant = "panel",
   unitLabel = "mutaxassis",
   zoomable = false,
+  onlineCounts,
+  topByRegion,
 }: UzbekistanMapProps) {
   const router = useRouter();
   const [hover, setHover] = useState<string | null>(null);
@@ -880,6 +887,26 @@ export function UzbekistanMap({
             <span className="font-display text-[20px] font-semibold text-accent">{count(activeRegion.slug)}</span> ta {unitLabel}
             {total > 0 && count(activeRegion.slug) > 0 && <span className="text-fg-3"> · {Math.round((count(activeRegion.slug) / total) * 100)}%</span>}
           </p>
+          {(onlineCounts?.[activeRegion.slug] ?? 0) > 0 && (
+            <p className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-success-text">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+              </span>
+              {onlineCounts![activeRegion.slug]} tasi hozir onlayn
+            </p>
+          )}
+          {(topByRegion?.[activeRegion.slug]?.length ?? 0) > 0 && (
+            <ul className="mt-2 space-y-1 border-t border-line pt-2" aria-label="Hududning eng yaxshilari">
+              {topByRegion![activeRegion.slug].slice(0, 3).map((t) => (
+                <li key={t.slug} className="flex items-center gap-2">
+                  <Avatar name={t.name} src={t.avatarUrl} size={20} decorative />
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-fg">{t.name}</span>
+                  {t.priceFrom > 0 && <span className="shrink-0 text-[11px] font-semibold text-fg-2">{formatPrice(t.priceFrom, { compact: true })}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
           {!counts && activeStat && activeStat.total > 0 && (
             <ul className="mt-1.5 space-y-0.5">
               {Object.entries(activeStat.byCategory)
