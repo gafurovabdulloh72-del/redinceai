@@ -536,6 +536,7 @@ function BeforeImageField({ id, value, onChange, error }: { id: string; value: s
           type="file"
           accept="image/*"
           className="sr-only"
+          aria-label="«Oldin» rasmini yuklash"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void upload(f);
@@ -826,6 +827,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
                     type="file"
                     accept="image/*"
                     className="sr-only"
+                    aria-label="Portfolio rasmini yuklash"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) void upload(f);

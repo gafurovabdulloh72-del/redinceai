@@ -290,7 +290,15 @@ export const orders = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [index("orders_client_idx").on(t.clientId), index("orders_specialist_idx").on(t.specialistId)],
+  (t) => [
+    index("orders_client_idx").on(t.clientId),
+    index("orders_specialist_idx").on(t.specialistId),
+    // Cron (SLA, avtomatik release) va admin ro'yxatlari tez ishlashi uchun
+    index("orders_status_idx").on(t.status),
+    index("orders_payment_state_idx").on(t.paymentState),
+    index("orders_auto_release_idx").on(t.autoReleaseAt),
+    index("orders_dispute_state_idx").on(t.disputeState),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -396,6 +404,7 @@ export const payments = sqliteTable(
     index("payments_order_idx").on(t.orderId),
     index("payments_specialist_idx").on(t.specialistId),
     index("payments_client_idx").on(t.clientId),
+    index("payments_state_idx").on(t.state),
     uniqueIndex("payments_provider_txn_idx").on(t.provider, t.providerTxnId),
   ],
 );
@@ -416,6 +425,8 @@ export const payouts = sqliteTable(
     /** To'liq rekvizitlar — shifrlangan (faqat admin ochadi); details — maskalangan ko'rinish */
     detailsEnc: text("details_enc"),
     note: text("note"),
+    /** To'lov o'tkazmasi raqami (admin "to'landi" deb belgilaganda kiritadi) */
+    reference: text("reference"),
     processedBy: text("processed_by").references(() => users.id, { onDelete: "set null" }),
     processedAt: integer("processed_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -435,11 +446,16 @@ export const platformSettings = sqliteTable("platform_settings", {
 });
 
 /* Rate limiting (serverless uchun bazada) */
-export const rateLimits = sqliteTable("rate_limits", {
-  key: text("key").primaryKey(),
-  count: integer("count").notNull().default(0),
-  resetAt: integer("reset_at").notNull(),
-});
+export const rateLimits = sqliteTable(
+  "rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull().default(0),
+    resetAt: integer("reset_at").notNull(),
+  },
+  // Cron har kuni eskirgan qatorlarni resetAt bo'yicha o'chiradi
+  (t) => [index("rate_limits_reset_idx").on(t.resetAt)],
+);
 
 /* Audit jurnali */
 export const auditLogs = sqliteTable(
@@ -456,7 +472,7 @@ export const auditLogs = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [index("audit_actor_idx").on(t.actorId), index("audit_created_idx").on(t.createdAt)],
+  (t) => [index("audit_actor_idx").on(t.actorId), index("audit_created_idx").on(t.createdAt), index("audit_action_target_idx").on(t.action, t.targetId)],
 );
 
 /* Bir martalik tokenlar: parolni tiklash / emailni tasdiqlash (faqat hash saqlanadi) */

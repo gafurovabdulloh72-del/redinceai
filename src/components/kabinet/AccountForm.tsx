@@ -50,7 +50,13 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /* Hidratsiya mosligi uchun: host faqat klientda, useEffect ichida o'qiladi (SSR'da bo'sh) */
+  const [host, setHost] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setHost(window.location.host);
+  }, []);
 
   const emailDiff = email.trim().toLowerCase() !== initial.email.toLowerCase();
   const dirty =
@@ -170,6 +176,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             type="file"
             accept="image/*"
             className="sr-only"
+            aria-label="Avatar rasmini yuklash"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void upload(f);
@@ -246,7 +253,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 font-mono text-[12.5px] text-fg-2">
                 <MessageCircle size={13} className="text-accent" aria-hidden="true" />
-                {typeof window !== "undefined" ? window.location.host : ""}/yozish/{(username.trim().replace(/^@/, "") || initial.username) ?? ""}
+                {host}/yozish/{(username.trim().replace(/^@/, "") || initial.username) ?? ""}
               </span>
               <button
                 type="button"

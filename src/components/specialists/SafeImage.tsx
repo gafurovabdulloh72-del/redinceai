@@ -7,13 +7,18 @@ import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } f
  * SSR'dan keyin hidratsiyagacha xato bergan rasmlarni ham aniqlaydi
  * (img.complete && naturalWidth === 0), shuning uchun onError o'tkazib yuborilmaydi.
  * `overlayClassName` — faqat rasm bor paytda uning ustiga qo'yiladigan qatlam (masalan qoraytiruvchi gradient; fallback ustida emas).
+ * Standart: loading="lazy"; birinchi ekrandagi (LCP) rasm uchun `priority` — eager + fetchPriority="high".
+ * CLS oldini olish uchun o'lchami ma'lum joylarda width/height berib yuboring (props orqali o'tadi).
  */
 export function SafeImage({
   fallback = null,
   overlayClassName,
   alt,
+  priority = false,
+  loading,
+  fetchPriority,
   ...props
-}: ImgHTMLAttributes<HTMLImageElement> & { alt: string; fallback?: ReactNode; overlayClassName?: string }) {
+}: ImgHTMLAttributes<HTMLImageElement> & { alt: string; fallback?: ReactNode; overlayClassName?: string; priority?: boolean }) {
   const ref = useRef<HTMLImageElement>(null);
   const [broken, setBroken] = useState(false);
 
@@ -24,8 +29,18 @@ export function SafeImage({
   }, [props.src]);
 
   if (broken || !props.src) return <>{fallback}</>;
-  // eslint-disable-next-line @next/next/no-img-element
-  const img = <img ref={ref} alt={alt} onError={() => setBroken(true)} {...props} />;
+  const img = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={ref}
+      alt={alt}
+      loading={loading ?? (priority ? "eager" : "lazy")}
+      fetchPriority={fetchPriority ?? (priority ? "high" : undefined)}
+      decoding="async"
+      onError={() => setBroken(true)}
+      {...props}
+    />
+  );
   if (!overlayClassName) return img;
   return (
     <>

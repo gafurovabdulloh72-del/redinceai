@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  // /taqqoslash — ko'ruvchining tanlovi (noindex), /u/ — qisqa havola (profilga 308)
+  // "/buyurtma/" — oxirida "/" muhim: prefiks sifatida /buyurtma-berish (sehrgar) ni ham yopib qo'ymasin
   return {
-    // /taqqoslash — ko'ruvchining tanlovi (noindex), /u/ — qisqa havola (profilga 308)
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/kabinet", "/admin", "/api", "/buyurtma", "/auth", "/taqqoslash", "/u/"] }],
-    sitemap: `${base}/sitemap.xml`,
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/kabinet", "/admin", "/api", "/buyurtma/", "/auth", "/taqqoslash", "/u/"] }],
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

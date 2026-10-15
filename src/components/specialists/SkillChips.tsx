@@ -23,7 +23,8 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           href={`/mutaxassislar?skill=${encodeURIComponent(s)}`}
           prefetch={false}
           title={`"${s}" ko'nikmasi bor mutaxassislar`}
-          className="pointer-events-auto relative z-10 inline-flex min-h-6 min-w-0 items-center truncate rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
+          // min-h-[30px]: barmoq uchun yetarli nishon + qulay ichki bo'shliq
+          className="pointer-events-auto relative z-10 inline-flex min-h-[30px] min-w-0 items-center truncate rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
         >
           <span className="truncate">{s}</span>
         </Link>
@@ -35,7 +36,8 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           aria-expanded={expanded}
           aria-label={expanded ? "Ko'nikmalarni yig'ish" : `Yana ${rest} ta ko'nikmani ko'rsatish`}
           title={expanded ? undefined : skills.slice(max).join(", ")}
-          className="pointer-events-auto relative z-10 inline-flex min-h-6 shrink-0 items-center rounded-full bg-fg/6 px-2 py-0.5 text-[11px] font-semibold text-fg-2 transition hover:bg-fg/10 hover:text-fg"
+          // Kengaytirgich kamida 32×32px — mayda "+N" nishoni bosish qiyin edi
+          className="pointer-events-auto relative z-10 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-fg/6 px-2.5 py-1 text-[11px] font-semibold text-fg-2 transition hover:bg-fg/10 hover:text-fg"
         >
           {expanded ? "Kamroq" : `+${rest}`}
         </button>

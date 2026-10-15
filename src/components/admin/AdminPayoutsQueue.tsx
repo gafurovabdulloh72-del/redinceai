@@ -25,11 +25,16 @@ export interface AdminPayoutRow {
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
-async function decide(id: string, state: PayoutState, note?: string) {
-  const res = await fetch(`/api/admin/payouts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, note }) });
+/** 409 — holat biz ko'rsatganimizdan o'zgargan (boshqa admin/oynadan): ro'yxatni yangilash kerak */
+class ConflictError extends Error {}
+
+async function decide(id: string, state: PayoutState, note?: string, reference?: string) {
+  // API yangi shaklda action+reference qabul qiladi; eski `state` kaliti ham yuboriladi (moslik uchun)
+  const res = await fetch(`/api/admin/payouts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, action: state, note, reference: reference || undefined }) });
   const json = (await res.json().catch(() => null)) as ApiResponse<{ state: PayoutState; note: string | null; processedAt: number | null }> | null;
+  if (res.status === 409) throw new ConflictError((json && !json.ok && json.error) || "Holat o'zgargan — yangilang");
   if (!json) throw new Error("Server javob bermadi");
-  if (!json.ok) throw new Error(json.fields?.note ?? json.error);
+  if (!json.ok) throw new Error(json.fields?.note ?? json.fields?.reference ?? json.error);
   return json.data;
 }
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
@@ -55,6 +60,9 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
   const [busy, setBusy] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  /** "To'landi" inline tasdiq paneli ochiq so'rov + ixtiyoriy o'tkazma raqami (referens) */
+  const [paying, setPaying] = useState<string | null>(null);
+  const [reference, setReference] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showClosed, setShowClosed] = useState(false);
@@ -104,19 +112,27 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
   const open = rows.filter((r) => r.state === "requested" || r.state === "approved");
   const closed = rows.filter((r) => r.state === "paid" || r.state === "rejected");
 
-  const act = async (row: AdminPayoutRow, state: PayoutState, why?: string) => {
+  const act = async (row: AdminPayoutRow, state: PayoutState, why?: string, ref?: string) => {
     if (busy) return;
     setError(null);
     setBusy(row.id);
     try {
-      const data = await decide(row.id, state, why);
+      const data = await decide(row.id, state, why, ref);
       setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, state: data.state, note: data.note, processedAt: data.processedAt } : r)));
       setRejecting(null);
+      setPaying(null);
       setNote("");
+      setReference("");
       setNotice(state === "paid" ? `${row.specialist.name} — ${formatPrice(row.amount)} to'landi deb belgilandi` : state === "approved" ? `${row.specialist.name} so'rovi tasdiqlandi` : `${row.specialist.name} so'rovi rad etildi`);
       router.refresh();
     } catch (e) {
       setError(msg(e));
+      // Holat eskirgan (409) — serverdagi yangi holatni darhol tortib kelamiz
+      if (e instanceof ConflictError) {
+        setPaying(null);
+        setRejecting(null);
+        router.refresh();
+      }
     } finally {
       setBusy(null);
     }
@@ -198,14 +214,25 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
                 {timeAgo(r.processedAt ?? r.createdAt)}
               </time>
             </div>
-            {isOpen && rejecting !== r.id && (
+            {isOpen && rejecting !== r.id && paying !== r.id && (
               <div className="flex flex-wrap gap-1.5 lg:justify-end">
                 {r.state === "requested" && (
                   <Button size="sm" variant="outline" className="h-11 md:h-9" onClick={() => act(r, "approved")} disabled={!!busy}>
                     {b ? <Spinner className="h-3.5 w-3.5" /> : <Check size={14} />} Tasdiqlash
                   </Button>
                 )}
-                <Button size="sm" className="h-11 md:h-9" onClick={() => act(r, "paid")} disabled={!!busy || !covered} title={covered ? "O'tkazma qilingach bosing" : "Balans yetarli emas"}>
+                {/* Yangi tartib: avval tasdiqlash, keyin to'lash — "requested" holatida tugma faol emas */}
+                <Button
+                  size="sm"
+                  className="h-11 md:h-9"
+                  onClick={() => {
+                    setPaying(r.id);
+                    setReference("");
+                    setRejecting(null);
+                  }}
+                  disabled={!!busy || !covered || r.state !== "approved"}
+                  title={r.state !== "approved" ? "Avval so'rovni tasdiqlang" : covered ? "O'tkazma qilingach bosing" : "Balans yetarli emas"}
+                >
                   {b ? <Spinner className="h-3.5 w-3.5" /> : <Banknote size={14} />} To'landi
                 </Button>
                 <Button
@@ -214,6 +241,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
                   className="h-11 text-danger-text hover:!bg-danger-soft hover:!text-danger-text md:h-9"
                   onClick={() => {
                     setRejecting(r.id);
+                    setPaying(null);
                     setNote("");
                   }}
                   disabled={!!busy}
@@ -224,6 +252,28 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
             )}
           </div>
         </div>
+
+        {paying === r.id && (
+          <div className="card-outline mt-3 flex flex-col gap-2 !rounded-[16px] p-3 animate-fade-up sm:flex-row sm:items-end" style={{ animationDuration: "0.2s" }}>
+            <div className="flex-1">
+              <label htmlFor={`ref-${r.id}`} className="field-label">
+                O'tkazma raqami (referens) — ixtiyoriy
+              </label>
+              <input id={`ref-${r.id}`} className="field" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={64} placeholder="Masalan: bank o'tkazmasi ID (3–64 belgi)" autoFocus />
+              <p className="mt-1 text-[11px] text-fg-4">
+                {formatPrice(r.amount)} — {r.details} rekvizitiga o'tkazma bajarilganini tasdiqlaysiz.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="md" onClick={() => act(r, "paid", undefined, reference.trim() || undefined)} disabled={!!busy || (reference.trim().length > 0 && reference.trim().length < 3)}>
+                {b ? <Spinner /> : <Banknote size={15} />} Ha, to'landi
+              </Button>
+              <Button size="md" variant="ghost" onClick={() => setPaying(null)} disabled={!!busy}>
+                Bekor
+              </Button>
+            </div>
+          </div>
+        )}
 
         {rejecting === r.id && (
           <div className="card-outline mt-3 flex flex-col gap-2 !rounded-[16px] p-3 animate-fade-up sm:flex-row sm:items-end" style={{ animationDuration: "0.2s" }}>

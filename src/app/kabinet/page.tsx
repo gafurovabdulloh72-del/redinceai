@@ -28,7 +28,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
+import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
 import { Avatar, Badge, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -479,6 +479,9 @@ export default async function KabinetPage() {
 
   return (
     <div className="animate-fade-up">
+      {/* ---------- To'liq obuna banneri (G6/#74): faqat shu umumiy sahifada; boshqa kabinet sahifalarida layout'dagi ixcham pill ---------- */}
+      {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} />}
+
       {/* ---------- Sarlavha ---------- */}
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">

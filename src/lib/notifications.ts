@@ -88,12 +88,15 @@ const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
   "proposal_accepted",
   "job_expired",
   "message_new",
+  // Ichki chat (DM, #46): yangi xabar emaili — mavzu "Yangi xabar — {ism}", havola /kabinet/chat
+  // (dm.ts sendDm shu sarlavha/havola bilan chaqiradi; qarshi tomonda o'qilmagan xabar bo'lsa yubormaydi)
+  "chat",
   "subscription_expiring",
   "subscription_expired",
   "subscription_paid",
 ]);
 
-/** message_new emaili: bitta buyurtma bo'yicha 30 daqiqada ko'pi bilan bitta xat */
+/** message_new / chat emaili: bitta buyurtma/suhbat bo'yicha 30 daqiqada ko'pi bilan bitta xat */
 const MESSAGE_MAIL_WINDOW_MS = 30 * 60 * 1000;
 /** O'chirilgan (anonimlashtirilgan) hisob manzili — hech qachon xat yuborilmaydi */
 const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
@@ -122,7 +125,7 @@ async function mailNotification(userId: string, type: NotificationType, title: s
   const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { email: true, name: true, notifyEmail: true, isBanned: true } });
   if (!u || !u.notifyEmail || !u.email || DELETED_EMAIL_RE.test(u.email)) return;
   if (u.isBanned && type !== "account") return;
-  if (type === "message_new") {
+  if (type === "message_new" || type === "chat") {
     const key = opts.mailKey ?? href ?? "general";
     if (!(await tryConsume(`mailMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
   }

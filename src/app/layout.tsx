@@ -8,6 +8,7 @@ import { Backdrop } from "@/components/layout/Backdrop";
 import { BackToTop } from "@/components/layout/BackToTop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { SITE } from "@/lib/constants";
+import { SITE_URL } from "@/lib/site-url";
 
 const unbounded = localFont({
   src: "../fonts/Unbounded.woff2",
@@ -33,7 +34,7 @@ const instrument = localFont({
 const TITLE = `${SITE.name} — ${SITE.tagline}`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: TITLE,
     template: `%s · ${SITE.name}`,
@@ -58,6 +59,28 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 
+/** Organization + WebSite (SearchAction) strukturaviy ma'lumoti — qidiruv tizimlari uchun ("<" ekranlanadi) */
+const ORG_JSONLD = JSON.stringify([
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE.name,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.svg`,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE.name,
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/mutaxassislar?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  },
+]).replace(/</g, "\\u003c");
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f6f4ee" },
@@ -78,9 +101,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
+        {/* O'tish havolasi (a11y): klaviatura foydalanuvchisi navbarni chetlab asosiy kontentga o'tadi */}
+        <a
+          href="#asosiy"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-ink-fg"
+        >
+          Asosiy kontentga o&apos;tish
+        </a>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <Backdrop />
         <Navbar />
-        <main className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
+        <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
         <Footer />
         <BackToTop />
       </body>

@@ -110,8 +110,8 @@ export function ReviewForm({
             <ClipboardCheck size={20} />
           </span>
           <div>
-            <p className="text-[16px] font-semibold text-fg">Sharh faqat buyurtma qabul qilingan mijozlar uchun</p>
-            <p className="mt-0.5 text-[13px] text-fg-3">Shu mutaxassisga buyurtma bering — u qabul qilgach fikringizni yozishingiz mumkin. Shunday qilib har bir sharh haqiqiy bo'ladi.</p>
+            <p className="text-[16px] font-semibold text-fg">Sharh faqat ishi yakunlangan mijozlar uchun</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">Shu mutaxassisga buyurtma bering — ish yakunlangach fikringizni yozishingiz mumkin. Shunday qilib har bir sharh haqiqiy bo'ladi.</p>
           </div>
         </div>
         {orderHref && (

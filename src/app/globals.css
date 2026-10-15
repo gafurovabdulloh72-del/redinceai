@@ -27,17 +27,17 @@
   --fg: #121213;
   --fg-2: #4b4a47;
   --fg-3: #6f6d67; /* AA (4.5+) oq va qog'oz fonida */
-  --fg-4: #74726c; /* eng och qadam, lekin 11–12px matn uchun ham AA (oq 4.8, surface-2 4.5) */
+  --fg-4: #706e68; /* eng och qadam, lekin 11–12px matn uchun ham AA (oq 5.1, qog'oz --bg 4.6, surface-2 4.8) */
 
   --line: rgba(18, 18, 19, 0.08);
   --line-2: rgba(18, 18, 19, 0.16);
   --hairline: var(--line);
 
   --accent: #ff5a36;
-  --accent-text: #c23b21; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.3, accent-soft 4.6 (AA) */
+  --accent-text: #b93318; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.9, qog'oz 5.4, accent-soft oq ustida 5.2 / qog'oz ustida 4.7 (AA) */
   --accent-2: #7b61ff;
   --accent-2-text: #5d3dff; /* kichik binafsha matn (badge) — accent-2-soft 5.1, qog'oz 4.6 (AA) */
-  --accent-serif: #ef4a25; /* katta italic urg'u so'z (.accent-serif) — qog'oz 3.4, bg-2 3.1 (katta matn 3:1) */
+  --accent-serif: #c4381a; /* italic urg'u so'z (.accent-serif) — qog'oz 4.9, oq 5.4, bg-2 4.5 (20px oddiy matn uchun ham AA) */
   --accent-strong: #c93d1c; /* oq matnli kichik coral fon (hisoblagich badge) — oq 5.0 (AA) */
   --accent-3: #f0b43c;
   --accent-ink: #ffffff;
@@ -78,7 +78,7 @@
   --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.03), 0 10px 30px -14px rgba(18, 18, 19, 0.1);
   --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.04), 0 26px 52px -22px rgba(18, 18, 19, 0.18);
   --shadow-3: 0 4px 10px rgba(18, 18, 19, 0.05), 0 40px 80px -24px rgba(18, 18, 19, 0.26);
-  --shadow-accent: 0 16px 40px -14px rgba(255, 90, 54, 0.55);
+  --shadow-accent: 0 16px 40px -14px rgba(214, 62, 30, 0.5); /* btn-accent gradientining to'q coral toni bilan uyg'un */
   --card-inset: inset 0 0 0 0 transparent;
 
   /* Suyuq shisha (liquid glass) tokenlari */
@@ -166,7 +166,7 @@
   --fg: #f4f2ec;
   --fg-2: #bdbab2;
   --fg-3: #8d8b84;
-  --fg-4: #85837c; /* 11px matn ham AA (surface 4.8, surface-2 4.6) */
+  --fg-4: #8a8881; /* 11px matn ham AA (surface 5.2, surface-2 4.9, bg 5.6) */
 
   --line: rgba(255, 255, 255, 0.09);
   --line-2: rgba(255, 255, 255, 0.17);
@@ -209,7 +209,7 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px -14px rgba(0, 0, 0, 0.65);
   --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 30px 60px -24px rgba(0, 0, 0, 0.85);
   --shadow-3: 0 6px 14px rgba(0, 0, 0, 0.45), 0 50px 100px -30px rgba(0, 0, 0, 0.95);
-  --shadow-accent: 0 16px 44px -14px rgba(255, 107, 71, 0.6);
+  --shadow-accent: 0 16px 44px -14px rgba(214, 62, 30, 0.6); /* btn-accent'ning to'q coral toni bilan uyg'un */
   --card-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 
   /* Suyuq shisha — Noir: qoramtir shaffof panel + nozik oq qirra */
@@ -615,11 +615,12 @@ select:focus-visible {
     transform: scale(0.97);
   }
 
-  /* Accent tugma — coral; ohista chuqurlik (logotip coral'i bilan bir xil ton) */
+  /* Accent tugma — coral; ohista chuqurlik. Oq matn uchun to'qlashtirilgan gradient (AA):
+     #d63e1e oq bilan 4.6, #c93546 — 5.2, #c2314f — 5.5; hover to'qroq tomonga suriladi, kontrast faqat ortadi */
   .btn-accent {
     position: relative;
     color: #fff;
-    background: linear-gradient(100deg, var(--accent) 0%, #ff4a55 70%, #ff3d6e 120%);
+    background: linear-gradient(100deg, #d63e1e 0%, #c93546 70%, #c2314f 120%);
     background-size: 160% 100%;
     background-position: 0% 0%;
     border: 1px solid transparent;
@@ -645,6 +646,12 @@ select:focus-visible {
     box-shadow: var(--glass-rim-soft);
     outline: none;
     transition: border-color var(--dur-1), box-shadow var(--dur-1), background var(--dur-1);
+  }
+  /* iOS Safari fokusda avtomatik zoom qilmasligi uchun: tor ekranda shrift kamida 16px */
+  @media (max-width: 767px) {
+    .field {
+      font-size: 1rem;
+    }
   }
   /* background-color (shorthand emas): select.field'dagi chevron (background-image) o'chib ketmasin */
   [data-theme="dark"] .field {
@@ -678,7 +685,8 @@ select:focus-visible {
   .field-error {
     margin-top: 0.3rem;
     font-size: 0.75rem;
-    color: var(--danger);
+    /* Kichik shrift uchun to'qroq ton (ikkala rejimda AA: yorug'da 5.4+, qorong'uda 6.0+) */
+    color: var(--danger-text);
   }
 
   /* Segment (tab) boshqaruvi — shisha pill */
@@ -855,6 +863,12 @@ select:focus-visible {
   0%, 60%, 100% { transform: translateX(0); }
   75% { transform: translateX(4px); }
   88% { transform: translateX(-1px); }
+}
+
+/* Muqova rasmi: placeholder ustida qisqa fade-in — onLoad kutilmaydi (LCP bloklanmaydi) */
+@keyframes cover-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Bo'limlar orasidagi yagona qadam (bosh sahifa va ommaviy sahifalar) */

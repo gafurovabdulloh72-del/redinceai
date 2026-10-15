@@ -164,6 +164,12 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   const [reportOpen, setReportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  /** Xabarlar oynasi — pastga yaqinlikni o'lchash uchun */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  /** Foydalanuvchi pastga yaqinmi (<120px) — yangi xabarda avtomatik tushish faqat shunda */
+  const nearBottomRef = useRef(true);
+  /** Avvalgi xabarlar soni — birinchi yuklash (0 → n) har doim pastga tushadi */
+  const prevCountRef = useRef(0);
   const lastIdRef = useRef<string | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -204,6 +210,8 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   useEffect(() => {
     if (!active) return;
     lastIdRef.current = null;
+    prevCountRef.current = 0;
+    nearBottomRef.current = true;
     setMsgs(null);
     setPeer(null);
     setPeerReadAt(0);
@@ -215,9 +223,20 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     return () => window.clearInterval(t);
   }, [active, loadThread]);
 
+  // Avtomatik pastga tushish: birinchi ochilishda har doim; keyin faqat foydalanuvchi
+  // pastga yaqin bo'lsa (<120px) yoki yangi xabar o'ziniki bo'lsa — eski xabarlarni
+  // o'qiyotganni yangi xabar pastga uloqtirmasin
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [msgs?.length, active]);
+    if (!msgs) return;
+    const initial = prevCountRef.current === 0 && msgs.length > 0;
+    const added = msgs.length > prevCountRef.current;
+    prevCountRef.current = msgs.length;
+    if (!initial && !added) return;
+    const last = msgs[msgs.length - 1];
+    if (initial || nearBottomRef.current || Boolean(last?.mine)) {
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    }
+  }, [msgs, active]);
 
   const pickFiles = async (list: FileList | null) => {
     if (!list) return;
@@ -409,7 +428,15 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
           </div>
           {reportOpen && peer?.id && <ReportPanel peer={peer} onClose={() => setReportOpen(false)} />}
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3.5 py-4" aria-live="polite">
+          <div
+            ref={scrollRef}
+            onScroll={() => {
+              const el = scrollRef.current;
+              if (el) nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+            }}
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3.5 py-4"
+            aria-live="polite"
+          >
             {!msgs ? (
               <div className="space-y-2.5">
                 <span className="block h-10 w-2/3 rounded-2xl skeleton" />

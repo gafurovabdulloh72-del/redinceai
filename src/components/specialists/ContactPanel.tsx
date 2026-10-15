@@ -109,7 +109,8 @@ export function ContactPanel({
                     <LogIn size={13} /> Kirish
                   </Link>
                 ) : orderHref ? (
-                  <Link href={orderHref} className="inline-flex h-9 shrink-0 items-center rounded-full bg-accent-soft px-3.5 text-[12px] font-semibold text-accent transition hover:brightness-105">
+                  // text-accent-text: 12px matn accent-soft fonida AA (to'qroq coral ton)
+                  <Link href={orderHref} className="inline-flex h-9 shrink-0 items-center rounded-full bg-accent-soft px-3.5 text-[12px] font-semibold text-accent-text transition hover:brightness-105">
                     Buyurtma
                   </Link>
                 ) : null}

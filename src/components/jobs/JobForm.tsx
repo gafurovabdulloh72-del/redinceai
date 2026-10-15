@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AlertCircle, Check, Eye, MapPin, PencilLine, Plus, Send, Wifi, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { JobCard } from "./JobCard";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { BUDGET_TYPE_LABEL, budgetLabel, JOB_DESC_MAX, JOB_DESC_MIN, JOB_SKILLS_MAX, JOB_TITLE_MAX, JOB_TITLE_MIN, jobRegionLabel, REMOTE_REGION } from "@/lib/jobs/format";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { cn } from "@/lib/utils";
 
 export interface JobFormInitial {
@@ -76,6 +77,47 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Qoralama (F56) — faqat yangi e'londa (tahrirlashda serverdagi qiymatlar asos) */
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftKey = "job:new";
+
+  // Qoralama (F56): bo'sh maydonlarga oxirgi yozilganlarni qaytaramiz (prefill qiymatlari ustidan yozilmaydi)
+  useEffect(() => {
+    if (editing) return;
+    const d = loadDraft<{ title?: string; description?: string; budgetMin?: string; budgetMax?: string }>(draftKey);
+    if (!d) return;
+    let used = false;
+    if (d.title && !title.trim()) {
+      setTitle(d.title.slice(0, JOB_TITLE_MAX));
+      used = true;
+    }
+    if (d.description && !description.trim()) {
+      setDescription(d.description.slice(0, JOB_DESC_MAX));
+      used = true;
+    }
+    if (d.budgetMin && !budgetMin.trim()) {
+      setBudgetMin(d.budgetMin);
+      used = true;
+    }
+    if (d.budgetMax && !budgetMax.trim()) {
+      setBudgetMax(d.budgetMax);
+      used = true;
+    }
+    if (used) setDraftRestored(true);
+    // Faqat birinchi ochilishda — keyingi o'zgarishlar foydalanuvchiniki
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Qoralama (F56): asosiy matn maydonlari 800 ms kechikish bilan saqlanadi; hammasi bo'sh — o'chiriladi
+  useEffect(() => {
+    if (editing) return;
+    const t = window.setTimeout(() => {
+      if (title.trim() || description.trim() || budgetMin.trim() || budgetMax.trim()) saveDraft(draftKey, { title, description, budgetMin, budgetMax });
+      else clearDraft(draftKey);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [editing, title, description, budgetMin, budgetMax]);
+
   const refs = useRef<Partial<Record<(typeof FIELD_ORDER)[number], HTMLElement | null>>>({});
   const setRef = (k: (typeof FIELD_ORDER)[number]) => (el: HTMLElement | null) => {
     refs.current[k] = el;
@@ -178,6 +220,7 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
         }
         return;
       }
+      if (!editing) clearDraft(draftKey);
       router.push(`/ishlar/${json.data.id}${editing ? "" : "?yangi=1"}`);
       router.refresh();
     } catch {
@@ -201,6 +244,15 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
 
   return (
     <form onSubmit={submit} noValidate className="min-w-0">
+      {/* Qoralama tiklandi (F56) — yopiladigan eslatma */}
+      {draftRestored && (
+        <div role="status" className="mb-4 flex items-center justify-between gap-3 rounded-[14px] bg-accent-soft px-3.5 py-2.5 text-[13px] font-medium text-accent-text">
+          <span>Qoralama tiklandi — oxirgi yozganlaringiz qayta yuklandi.</span>
+          <button type="button" onClick={() => setDraftRestored(false)} aria-label="Eslatmani yopish" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-fg/8">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       {/* Tahrirlash / Ko'rib chiqish */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="segment" role="tablist" aria-label="Forma rejimi">

@@ -94,7 +94,7 @@ export const GET = handler(async (req) => {
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="redince-export-${stamp}.json"`,
+      "Content-Disposition": `attachment; filename="kasb-egalari-export-${stamp}.json"`,
       "Cache-Control": "private, no-store",
     },
   });

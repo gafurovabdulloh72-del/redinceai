@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, reports, reviews, specialists, users } from "@/lib/db/schema";
 import { auditLabel } from "@/lib/security/audit";
@@ -108,6 +108,29 @@ export async function countAuditLogs(f: AuditFilter) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Tasdiqlash navbati                                                  */
+/* ------------------------------------------------------------------ */
+/**
+ * Tasdiqlanmagan profillar — ENG ESKISI BIRINCHI (adolatli navbat: uzoq kutganlar tepada).
+ * avatarUrl va portfolio soni ham keladi — admin profilni ochmasdan baholay oladi.
+ */
+export async function listPendingSpecialists(limit = 200) {
+  return db.query.specialists.findMany({
+    where: eq(specialists.isVerified, false),
+    orderBy: [asc(specialists.createdAt)],
+    limit,
+    extras: {
+      /** Bitta skalyar subquery — alohida so'rovsiz portfolio soni.
+       *  Diqqat: relational builder extras ichida ${specialists.id} ni yalang'och "id" qilib chiqaradi
+       *  (subquery ichida portfolio_items.id ga bog'lanib qoladi), shuning uchun hammasi xom
+       *  identifikatorlar bilan yozilgan — tashqi jadval aliasi jadval nomi bilan bir xil. */
+      portfolioCount: sql<number>`(select count(*) from portfolio_items pi where pi.specialist_id = specialists.id)`.as("portfolio_count"),
+    },
+    with: { user: { columns: { name: true, email: true, phone: true, avatarUrl: true } } },
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Sharhlar moderatsiyasi                                              */
 /* ------------------------------------------------------------------ */
 export async function listAdminReviews(limit = 30) {
@@ -136,6 +159,8 @@ export interface AdminReportRow {
   target: { label: string; href: string | null; snippet: string | null } | null;
   /** Profil shikoyatida — profil egasi (admin shu yerning o'zidan bloklay oladi, F87) */
   owner?: { userId: string; name: string; isBanned: boolean; bannedReason: string | null } | null;
+  /** Yopilgan shikoyatda — kim yopgani (reports.resolvedBy → users) */
+  resolver?: { name: string; email: string } | null;
 }
 
 export async function listAdminReports(status: "open" | "closed" | "all" = "open", limit = 50): Promise<AdminReportRow[]> {
@@ -148,7 +173,9 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
   const spIds = rows.filter((r) => r.targetType === "specialist").map((r) => r.targetId);
   const rvIds = rows.filter((r) => r.targetType === "review").map((r) => r.targetId);
   const usIds = rows.filter((r) => r.targetType === "user").map((r) => r.targetId);
-  const [sps, rvs, us] = await Promise.all([
+  // Yopgan adminlar — bitta qo'shimcha so'rov (yopiq shikoyatlarda "kim yopdi" ko'rinadi)
+  const resolverIds = [...new Set(rows.map((r) => r.resolvedBy).filter((v): v is string => Boolean(v)))];
+  const [sps, rvs, us, resolvers] = await Promise.all([
     spIds.length ? db.query.specialists.findMany({ where: inArray(specialists.id, spIds), columns: { id: true, slug: true, userId: true }, with: { user: { columns: { name: true, isBanned: true, bannedReason: true } } } }) : Promise.resolve([]),
     rvIds.length
       ? db.query.reviews.findMany({
@@ -158,10 +185,12 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
         })
       : Promise.resolve([]),
     usIds.length ? db.query.users.findMany({ where: inArray(users.id, usIds), columns: { id: true, name: true, email: true, isBanned: true, bannedReason: true } }) : Promise.resolve([]),
+    resolverIds.length ? db.query.users.findMany({ where: inArray(users.id, resolverIds), columns: { id: true, name: true, email: true } }) : Promise.resolve([]),
   ]);
   const spMap = new Map(sps.map((s) => [s.id, s]));
   const rvMap = new Map(rvs.map((r) => [r.id, r]));
   const usMap = new Map(us.map((u) => [u.id, u]));
+  const resolverMap = new Map(resolvers.map((u) => [u.id, u]));
   return rows.map((r) => {
     let target: AdminReportRow["target"] = null;
     let owner: AdminReportRow["owner"] = null;
@@ -188,6 +217,7 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
       reporter: { name: r.reporter.name, email: r.reporter.email },
       target,
       owner,
+      resolver: r.resolvedBy ? (resolverMap.get(r.resolvedBy) ? { name: resolverMap.get(r.resolvedBy)!.name, email: resolverMap.get(r.resolvedBy)!.email } : null) : null,
     };
   });
 }

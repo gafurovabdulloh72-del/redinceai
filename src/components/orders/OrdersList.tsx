@@ -26,6 +26,7 @@ import {
   Search,
   Send,
   ShieldCheck,
+  Star,
   TimerReset,
   Wallet,
   X,
@@ -1212,12 +1213,19 @@ function OrderCard({
         </div>
       )}
 
-      {/* Mijoz: yopilgan buyurtma — o'sha mutaxassisga bir bosishda yangi buyurtma */}
-      {canReorder && !canAccept && (
-        <div className="mt-3">
-          <ButtonLink href={`/buyurtma/${o.specialistId}?title=${encodeURIComponent(o.title)}`} variant="outline" size="sm">
-            <RotateCcw size={14} /> Qayta buyurtma
-          </ButtonLink>
+      {/* Mijoz: yakunlangan buyurtma — sharh yozish; yopilgan buyurtma — bir bosishda yangi buyurtma */}
+      {!isSpecialist && ((o.status === "done" && o.counterpart.href) || (canReorder && !canAccept)) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {o.status === "done" && o.counterpart.href && (
+            <ButtonLink href={`${o.counterpart.href}#sharhlar`} variant="outline" size="sm">
+              <Star size={14} /> Sharh yozish
+            </ButtonLink>
+          )}
+          {canReorder && !canAccept && (
+            <ButtonLink href={`/buyurtma/${o.specialistId}?title=${encodeURIComponent(o.title)}`} variant="outline" size="sm">
+              <RotateCcw size={14} /> Qayta buyurtma
+            </ButtonLink>
+          )}
         </div>
       )}
 

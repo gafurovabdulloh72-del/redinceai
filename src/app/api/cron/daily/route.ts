@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, orders, payments, rateLimits, sessions } from "@/lib/db/schema";
 import { closeExpiredJobs } from "@/lib/jobs";
@@ -183,7 +183,18 @@ export async function GET(req: Request) {
     counts.errors.push(`rateLimits: ${e instanceof Error ? e.message : String(e)}`);
   }
   try {
-    const res = await db.delete(auditLogs).where(lt(auditLogs.createdAt, new Date(now - AUDIT_RETENTION_DAYS * DAY_MS)));
+    // Pul va egalik izi (to'lov/payout/admin amallari, fayl yuklash) muddatidan qat'i nazar SAQLANADI —
+    // faqat oddiy (kirish, ko'rish va h.k.) yozuvlar 180 kundan keyin o'chadi
+    const res = await db
+      .delete(auditLogs)
+      .where(
+        and(
+          lt(auditLogs.createdAt, new Date(now - AUDIT_RETENTION_DAYS * DAY_MS)),
+          ne(auditLogs.action, "upload"),
+          notLike(auditLogs.action, "pay%"),
+          notLike(auditLogs.action, "admin_%"),
+        ),
+      );
     counts.auditDeleted = res.rowsAffected;
   } catch (e) {
     counts.errors.push(`audit: ${e instanceof Error ? e.message : String(e)}`);
@@ -262,7 +273,7 @@ async function orderReminders(now: number, dry: boolean): Promise<{ dueReminded:
   }
 
   // (f) SLA avtomatik bekor: 72 soatdan beri 'new' va eslatma kamida 20 soat oldin yuborilgan
-  const slaCancel = await db.query.orders.findMany({
+  const slaCancelRows = await db.query.orders.findMany({
     where: and(
       eq(orders.status, "new"),
       lt(orders.createdAt, new Date(now - SLA_CANCEL_HOURS * HOUR_MS)),
@@ -270,8 +281,16 @@ async function orderReminders(now: number, dry: boolean): Promise<{ dueReminded:
       lte(orders.slaRemindedAt, new Date(now - SLA_CANCEL_AFTER_REMIND_HOURS * HOUR_MS)),
     ),
     columns: { id: true },
+    with: { specialist: { columns: { vacationUntil: true } } },
     limit: BATCH,
   });
+  // Mutaxassis ta'tilda bo'lsa buyurtma bekor qilinmaydi — ta'til tugaganidan keyin yana 72 soat kutiladi
+  const vacationHolds = (vac: string | null | undefined): boolean => {
+    if (!vac) return false;
+    const end = new Date(`${vac}T00:00:00Z`).getTime();
+    return Number.isFinite(end) && now < end + SLA_CANCEL_HOURS * HOUR_MS;
+  };
+  const slaCancel = slaCancelRows.filter((o) => !vacationHolds(o.specialist?.vacationUntil));
   if (dry) out.slaCancelled = slaCancel.length;
   else {
     for (const { id } of slaCancel) {

@@ -6,7 +6,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { orderSchema } from "@/lib/validators";
 import { PACKAGE_TIERS } from "@/lib/constants";
 import { getOrdersForUser } from "@/lib/queries";
-import { tashkentNow } from "@/lib/privacy";
+import { isOnVacation, tashkentNow } from "@/lib/privacy";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { notify } from "@/lib/notifications";
 import { orderHref, recordOrderEvent } from "@/lib/payments/service";
@@ -102,7 +102,11 @@ export const POST = handler(async (req) => {
     `${session.name}${budget ? ` · byudjet ${formatPrice(budget)}` : ""}${dueDate ? ` · topshirish ${formatDate(dueDate)}` : input.deadline ? ` · muddat ${input.deadline}` : ""}${pkg ? ` · «${pkg.title}» paketi` : ""}. Qabul qiling va narx belgilang.`,
     orderHref(id),
   );
-  return ok({ id }, { status: 201 });
+  // Halol muddat (#43): mutaxassis ta'tilda yoki band bo'lsa buyurtma baribir yaratiladi,
+  // lekin mijozga navbat belgisi va (ta'tilda bo'lsa) qaytish sanasi qaytariladi
+  const vacation = isOnVacation(sp.vacationUntil);
+  const queued = vacation || !sp.isAvailable;
+  return ok({ id, ...(queued ? { queued: true as const, availableFrom: vacation ? sp.vacationUntil : null } : {}) }, { status: 201 });
 });
 
 /**

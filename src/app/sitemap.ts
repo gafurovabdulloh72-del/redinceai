@@ -2,12 +2,13 @@ import type { MetadataRoute } from "next";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { getLandingIndex, getSitemapProfiles } from "@/lib/queries";
 import { getSitemapJobs } from "@/lib/jobs";
+import { SITE_URL } from "@/lib/site-url";
 import { HELP_ARTICLES } from "@/app/yordam/articles";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const base = SITE_URL;
   const now = new Date();
 
   // Build vaqtida baza bo'lmasligi mumkin — sitemap shunda ham ishlasin
@@ -25,7 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (!prev || row.lastModified > prev) byCategory.set(row.category, row.lastModified);
   }
   const landingUrls: MetadataRoute.Sitemap = [
-    ...CATEGORIES.map((c) => ({ url: `${base}/yonalish/${c.slug}`, lastModified: byCategory.get(c.slug) ?? now, changeFrequency: "daily" as const, priority: 0.8 })),
+    // Faqat kamida 1 ta ko'rinadigan mutaxassisi bor yo'nalishlar (bo'shlari noindex — kiritilmaydi)
+    ...CATEGORIES.filter((c) => byCategory.has(c.slug)).map((c) => ({ url: `${base}/yonalish/${c.slug}`, lastModified: byCategory.get(c.slug) ?? now, changeFrequency: "daily" as const, priority: 0.8 })),
     ...landing
       .filter((r) => r.n > 0 && REGIONS.some((x) => x.slug === r.region))
       .map((r) => ({ url: `${base}/yonalish/${r.category}/${r.region}`, lastModified: r.lastModified, changeFrequency: "weekly" as const, priority: 0.7 })),
@@ -42,8 +44,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...HELP_ARTICLES.map((a) => ({ url: `${base}/yordam/${a.slug}`, lastModified: new Date(a.updated), changeFrequency: "monthly" as const, priority: 0.4 })),
     { url: `${base}/oferta`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/maxfiylik`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    ...REGIONS.map((r) => ({ url: `${base}/mutaxassislar?region=${r.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 })),
-    ...CATEGORIES.map((c) => ({ url: `${base}/mutaxassislar?category=${c.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 })),
     ...landingUrls,
     ...specialists.map((s) => ({ url: `${base}/mutaxassislar/${s.slug}`, lastModified: s.updatedAt, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...jobs.map((j) => ({ url: `${base}/ishlar/${j.id}`, lastModified: j.updatedAt, changeFrequency: "daily" as const, priority: 0.5 })),

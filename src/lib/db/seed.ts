@@ -208,14 +208,14 @@ async function main() {
   if (process.argv.includes("--if-empty")) {
     const [row] = await db.select({ n: count() }).from(schema.users);
     const [spRow] = await db.select({ n: count() }).from(schema.specialists);
-    // Katalog bo'sh va foydalanuvchilar juda kam bo'lsa (masalan, avvalgi deploy xatosi jadvalni tozalab yuborgan) —
-    // demo ma'lumotlar qayta yuklanadi. Haqiqiy foydalanuvchilar ko'p bo'lsa hech narsa o'chirilmaydi.
-    const catalogLost = spRow.n === 0 && row.n > 0 && row.n <= 20;
-    if (row.n > 0 && !catalogLost) {
-      console.log(`→ Bazada ${row.n} ta foydalanuvchi va ${spRow.n} ta mutaxassis bor — seed o'tkazib yuborildi.`);
+    // Birorta ham foydalanuvchi bo'lsa — HECH NARSA o'chirilmaydi va seed o'tkazib yuboriladi
+    // (avval "katalog bo'sh" holatida 1–20 foydalanuvchili baza ham tozalanib ketar edi).
+    // Qayta yuklashni faqat SEED_FORCE=1 bilan ongli ravishda majburlash mumkin.
+    if (row.n > 0 && process.env.SEED_FORCE !== "1") {
+      console.log(`→ Bazada ${row.n} ta foydalanuvchi (${spRow.n} ta mutaxassis) bor — seed o'tkazib yuborildi. Qayta yuklash uchun: SEED_FORCE=1`);
       return;
     }
-    if (catalogLost) console.warn(`! Katalog bo'sh (0 mutaxassis, ${row.n} ta foydalanuvchi) — demo ma'lumotlar qayta yuklanadi.`);
+    if (row.n > 0) console.warn(`! SEED_FORCE=1 — bazadagi ${row.n} ta foydalanuvchi bilan birga BARCHA ma'lumotlar o'chirilib, demo qayta yuklanadi.`);
   }
 
   // Production (Vercel/Railway) birinchi deploy: hammaga ma'lum parollar bilan admin/demo hisob yaratilmasin
@@ -283,7 +283,8 @@ async function main() {
   for (const [name, email] of clients) {
     const id = uid();
     clientIds.push(id);
-    await db.insert(schema.users).values({ id, name, email, passwordHash: pass, role: "client", gender: /a$/.test(name.split(" ")[0]) ? "female" : "male", phone: `+99890${between(1000000, 9999999)}`, createdAt: new Date(now - between(5, 180) * DAY) });
+    // Telefon raqam yozilmaydi — namuna ma'lumotlarda haqiqiyga o'xshash raqamlar bo'lmasin
+    await db.insert(schema.users).values({ id, name, email, passwordHash: pass, role: "client", gender: /a$/.test(name.split(" ")[0]) ? "female" : "male", createdAt: new Date(now - between(5, 180) * DAY) });
   }
 
   /* ---------- mutaxassislar ---------- */
@@ -317,6 +318,7 @@ async function main() {
 
       const userId = uid();
       const isDemo = !demoSpecialistMade && region.slug === "toshkent-shahri";
+      // Telefon va avatar yozilmaydi: haqiqiyga o'xshash raqamlar bo'lmasin, avatar o'rniga bosh harflar chiqadi
       await db.insert(schema.users).values({
         id: userId,
         name,
@@ -324,8 +326,6 @@ async function main() {
         passwordHash: pass,
         role: "specialist",
         gender: female ? "female" : "male",
-        phone: `+9989${between(0, 9)}${between(1000000, 9999999)}`,
-        avatarUrl: rnd() < 0.55 ? `https://i.pravatar.cc/200?u=${slug}` : null,
         createdAt: new Date(now - between(10, 400) * DAY),
       });
       if (isDemo) demoSpecialistMade = true;
@@ -362,8 +362,7 @@ async function main() {
         skills: pickN(SKILLS[category], between(3, 7)),
         equipment: EQUIPMENT[category].slice(0, 2 + (i % 3)),
         languages: rnd() < 0.6 ? ["uz", "ru"] : rnd() < 0.5 ? ["uz", "ru", "en"] : ["uz"],
-        telegram: slug.replace(/-/g, "_"),
-        instagram: rnd() < 0.8 ? slug.replace(/-/g, ".") : null,
+        // Telegram/Instagram yozilmaydi — namuna profillar begona (mavjud bo'lishi mumkin) hisoblarga ishora qilmasin
         youtube: rnd() < 0.4 ? "https://youtube.com/@" + slug : null,
         coverUrl: rnd() < 0.75 ? `https://picsum.photos/seed/${slug}-cover/900/400` : null,
         visibility: { phone: rnd() < 0.5 ? "public" : "clients", instagram: rnd() < 0.85 ? "public" : "hidden", email: "hidden" },

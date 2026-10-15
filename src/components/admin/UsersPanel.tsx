@@ -50,7 +50,8 @@ export function UsersPanel() {
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.ok) {
       setRows(json.data.items);
-      setTotal(json.data.total);
+      // matchTotal — filtr/qidiruvga mos jami son (global son emas)
+      setTotal(json.data.matchTotal ?? json.data.total);
     }
   }, []);
 
@@ -132,7 +133,7 @@ export function UsersPanel() {
       <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center">
         <label className="relative block flex-1">
           <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, email yoki @taxallus bo'yicha qidirish" className="field h-10 w-full rounded-full pl-9 text-[13.5px]" aria-label="Foydalanuvchini qidirish" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, email, telefon yoki @taxallus bo'yicha qidirish" className="field h-10 w-full rounded-full pl-9 text-[13.5px]" aria-label="Foydalanuvchini qidirish" />
         </label>
         <div className="segment flex w-full sm:w-auto" role="radiogroup" aria-label="Holat filtri">
           {([
@@ -148,7 +149,11 @@ export function UsersPanel() {
           ))}
         </div>
       </div>
-      {total !== null && <p className="border-b border-line px-4 py-2 text-[12px] text-fg-4">Jami {total} ta foydalanuvchi{q ? ` · qidiruv: «${q}»` : ""}</p>}
+      {total !== null && (
+        <p className="border-b border-line px-4 py-2 text-[12px] text-fg-4">
+          {q.trim() || flt ? `${total} ta topildi${q.trim() ? ` · qidiruv: «${q.trim()}»` : ""}${rows && total > rows.length ? ` · birinchi ${rows.length} tasi ko'rsatilgan` : ""}` : `Jami ${total} ta foydalanuvchi`}
+        </p>
+      )}
       {error && (
         <p className="border-b border-line bg-danger-soft px-4 py-2 text-[12.5px] font-medium text-danger-text" role="alert">
           {error}

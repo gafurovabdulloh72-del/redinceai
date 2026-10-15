@@ -1,6 +1,6 @@
-# Redince — O'zbekiston ijodkorlar xaritasi
+# Kasb Egalari — O'zbekiston ijodkorlar xaritasi
 
-Redince — O'zbekistonning **14 ta hududi** bo'ylab videograf, montajor, dizayner va boshqa ijodiy mutaxassislarni bir joyda topish platformasi. Mijoz interaktiv xaritada viloyatni bosadi, portfolio va narxlarni ko'radi, to'g'ridan-to'g'ri buyurtma beradi. Mutaxassis esa bepul ro'yxatdan o'tib, profil va portfoliosini joylaydi — buyurtmalar kabinetiga keladi.
+Kasb Egalari — O'zbekistonning **14 ta hududi** bo'ylab videograf, montajor, dizayner va boshqa ijodiy mutaxassislarni bir joyda topish platformasi. Mijoz interaktiv xaritada viloyatni bosadi, portfolio va narxlarni ko'radi, to'g'ridan-to'g'ri buyurtma beradi. Mutaxassis esa bepul ro'yxatdan o'tib, profil va portfoliosini joylaydi — buyurtmalar kabinetiga keladi.
 
 ## Imkoniyatlar
 
@@ -36,7 +36,7 @@ Talablar: Node.js 20+ va npm.
 cp .env.example .env     # muhit o'zgaruvchilari
 npm i                    # bog'liqliklar
 npm run db:push          # SQLite sxemasini yaratish (data/redince.db)
-npm run db:seed          # namuna ma'lumotlar: admin, mijozlar, 58 mutaxassis, sharhlar, buyurtmalar
+npm run db:seed          # namuna ma'lumotlar: admin, mijozlar, 65 ta mutaxassis, sharhlar, buyurtmalar
 npm run dev              # http://localhost:3000
 ```
 

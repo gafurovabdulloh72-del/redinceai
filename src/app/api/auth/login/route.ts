@@ -15,7 +15,7 @@ const schema = loginSchema.extend({ remember: z.boolean().optional().default(tru
  * Kirish. Xato xabari umumiy ("Email yoki parol noto'g'ri") — email mavjudligi oshkor qilinmaydi,
  * foydalanuvchi topilmasa ham bcrypt ishlaydi (javob vaqti bir xil).
  * Rate limit: ip+email bo'yicha 5 ta muvaffaqiyatsiz urinish / 15 daqiqa, ip bo'yicha 20 / 15 daqiqa,
- * email bo'yicha (IP'dan mustaqil — sarlavha/egress almashtirib chetlab o'tib bo'lmaydi) 20 / 15 daqiqa.
+ * email bo'yicha (IP'dan mustaqil — sarlavha/egress almashtirib chetlab o'tib bo'lmaydi) 40 / 15 daqiqa.
  * 2FA yoqilgan bo'lsa javob: { twoFactor: true, ticket } (sessiya hali berilmaydi).
  */
 export const POST = handler(async (req) => {

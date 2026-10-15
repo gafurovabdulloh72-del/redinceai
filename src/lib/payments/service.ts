@@ -46,9 +46,12 @@ export async function recordOrderEvent(
   }
 }
 
+/** db.transaction ichidagi tx turi — pul harakatlari bitta tranzaksiyada bajarilishi uchun */
+type DbOrTx = typeof db | Parameters<Parameters<(typeof db)["transaction"]>[0]>[0];
+
 /** Pul harakati (release/refund) nizoni ma'nosiz qiladi — ochiq bo'lsa 'resolved' (resolveDispute o'zi ham shuni yozadi) */
-async function closeOpenDispute(orderId: string, now: Date): Promise<void> {
-  await db.update(orders).set({ disputeState: "resolved", updatedAt: now }).where(and(eq(orders.id, orderId), eq(orders.disputeState, "open")));
+async function closeOpenDispute(orderId: string, now: Date, dbc: DbOrTx = db): Promise<void> {
+  await dbc.update(orders).set({ disputeState: "resolved", updatedAt: now }).where(and(eq(orders.id, orderId), eq(orders.disputeState, "open")));
 }
 
 /** Buyurtma + tomonlar (to'lov oqimida bildirishnoma yuborish uchun) */
@@ -77,6 +80,15 @@ export async function findInFlightProviderPayment(orderId: string): Promise<Paym
   });
   const now = Date.now();
   return rows.find((p) => now - (p.providerCreateTime ?? p.createdAt.getTime()) <= PROVIDER_PENDING_TTL_MS) ?? null;
+}
+
+/** Qo'lda o'tkazma bo'yicha admin tasdig'ini kutayotgan (pending) to'lov — boshqa usulda ikkinchi to'lov ochilmasin */
+export const MANUAL_PENDING_MESSAGE = "Bu buyurtma bo'yicha qo'lda o'tkazma kutilmoqda — avval admin tasdig'ini kuting yoki uni bekor qiling";
+export async function findPendingManualPayment(orderId: string): Promise<Payment | null> {
+  const row = await db.query.payments.findFirst({
+    where: and(eq(payments.orderId, orderId), eq(payments.state, "pending"), eq(payments.provider, "manual")),
+  });
+  return row ?? null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +142,12 @@ export async function createCheckout(opts: { order: OrderWithParties; provider: 
   if (inFlight) {
     if (inFlight.provider === provider) return { payment: inFlight, redirectUrl: buildRedirectUrl(inFlight, opts.origin) };
     throw new ApiError(409, "Bu buyurtma uchun boshqa usul orqali to'lov jarayonda. Avval uni yakunlang yoki bekor bo'lishini kuting");
+  }
+  // Admin tasdig'ini kutayotgan qo'lda o'tkazma ham jarayondagi to'lov: boshqa usulda ikkinchi marta to'lab qo'ymasin
+  // (manual uchun quyida mavjud pending yozuvning o'zi qayta ishlatiladi)
+  if (provider !== "manual") {
+    const manualPending = await findPendingManualPayment(order.id);
+    if (manualPending) throw new ApiError(409, MANUAL_PENDING_MESSAGE);
   }
 
   const settings = await getSettings();
@@ -221,38 +239,58 @@ export async function markPaid(paymentId: string, extra: PaidExtra = {}): Promis
   if (current.state === "refunded") throw new ApiError(400, "Qaytarilgan to'lovni qayta tasdiqlab bo'lmaydi");
 
   const now = new Date();
+  // To'lov va buyurtma yangilanishi BITTA tranzaksiyada (billing.ts markInvoicePaid naqshi) — yarim holat qolmaydi.
   // Holatga bog'liq yangilash: parallel PerformTransaction/Complete chaqiruvlarida faqat bittasi "paid" yo'lidan o'tadi
-  const [row] = await db
-    .update(payments)
-    .set({
-      state: "paid",
-      paidAt: now,
-      updatedAt: now,
-      providerState: extra.providerState ?? current.providerState ?? null,
-      performTime: extra.performTime ?? current.performTime ?? now.getTime(),
-      ...(extra.providerTxnId ? { providerTxnId: extra.providerTxnId } : {}),
-    })
-    .where(and(eq(payments.id, paymentId), inArray(payments.state, [...ACTIVE_PAYMENT_STATES])))
-    .returning();
-  if (!row) {
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(payments)
+      .set({
+        state: "paid",
+        paidAt: now,
+        updatedAt: now,
+        providerState: extra.providerState ?? current.providerState ?? null,
+        performTime: extra.performTime ?? current.performTime ?? now.getTime(),
+        ...(extra.providerTxnId ? { providerTxnId: extra.providerTxnId } : {}),
+      })
+      .where(and(eq(payments.id, paymentId), inArray(payments.state, [...ACTIVE_PAYMENT_STATES])))
+      .returning();
+    if (!row) return null;
+
+    // Ish allaqachon topshirilgan (done) bo'lsa — avtomatik qabul muddati shu yerdan boshlanadi
+    const orderRow = await tx.query.orders.findFirst({ where: eq(orders.id, row.orderId), columns: { status: true, completedAt: true } });
+    const autoRelease = orderRow?.status === "done" ? autoReleaseDate(now.getTime()) : null;
+    await tx
+      .update(orders)
+      .set({ paymentState: "paid", commissionPct: row.commissionPct, updatedAt: now, ...(autoRelease ? { autoReleaseAt: autoRelease } : {}) })
+      .where(eq(orders.id, row.orderId));
+
+    // Boshqa provayder orqali boshlangan, hali to'lanmagan urinishlar (Payme/Click uchun holat -1 deb qaytariladi)
+    const cancelled = await tx
+      .update(payments)
+      .set({ state: "cancelled", providerState: -1, cancelTime: now.getTime(), cancelReason: 4, updatedAt: now })
+      .where(and(eq(payments.orderId, row.orderId), ne(payments.id, row.id), inArray(payments.state, [...ACTIVE_PAYMENT_STATES])))
+      .returning();
+    return { row, autoRelease, cancelled };
+  });
+  if (!result) {
     const fresh = await db.query.payments.findFirst({ where: eq(payments.id, paymentId) });
     if (fresh && (fresh.state === "paid" || fresh.state === "released")) return fresh;
     throw new ApiError(409, "To'lov holati o'zgargan — qayta tasdiqlab bo'lmaydi");
   }
+  const { row, autoRelease, cancelled } = result;
 
-  // Ish allaqachon topshirilgan (done) bo'lsa — avtomatik qabul muddati shu yerdan boshlanadi
-  const orderRow = await db.query.orders.findFirst({ where: eq(orders.id, row.orderId), columns: { status: true, completedAt: true } });
-  const autoRelease = orderRow?.status === "done" ? autoReleaseDate(now.getTime()) : null;
-  await db
-    .update(orders)
-    .set({ paymentState: "paid", commissionPct: row.commissionPct, updatedAt: now, ...(autoRelease ? { autoReleaseAt: autoRelease } : {}) })
-    .where(eq(orders.id, row.orderId));
-
-  // Boshqa provayder orqali boshlangan, hali to'lanmagan urinishlar (Payme/Click uchun holat -1 deb qaytariladi)
-  await db
-    .update(payments)
-    .set({ state: "cancelled", providerState: -1, cancelTime: now.getTime(), cancelReason: 4, updatedAt: now })
-    .where(and(eq(payments.orderId, row.orderId), ne(payments.id, row.id), inArray(payments.state, [...ACTIVE_PAYMENT_STATES])));
+  // Bekor qilinganlar orasida qo'lda o'tkazma bo'lsa — jim yo'qolmasin: audit + adminga xabar
+  // (mijoz "To'ladim" degan bo'lishi mumkin — admin haqiqiy o'tkazmani tekshirsin)
+  const cancelledManual = cancelled.find((p) => p.provider === "manual");
+  if (cancelledManual) {
+    await audit(extra.actorId ?? null, "payment_cancelled", { targetType: "payment", targetId: cancelledManual.id, meta: { orderId: cancelledManual.orderId, provider: "manual", amount: cancelledManual.amount, autoCancelledBy: row.id } }, extra.req);
+    await notifyAdmins(
+      "payment_pending",
+      "Qo'lda o'tkazma avtomatik bekor qilindi",
+      `Buyurtma boshqa usul (${PROVIDER_NAME[row.provider]}) orqali to'landi, shu sababli ${formatPrice(cancelledManual.amount)} lik qo'lda o'tkazma yozuvi bekor qilindi. Mijoz o'tkazmani haqiqatda yuborgan bo'lsa, qaytarishni ko'rib chiqing.`,
+      "/admin#tolovlar",
+    );
+  }
 
   const order = await loadOrderWithParties(row.orderId);
   if (order) {
@@ -272,6 +310,32 @@ export async function markPaid(paymentId: string, extra: PaidExtra = {}): Promis
   return row;
 }
 
+/**
+ * O'z-o'zini tuzatish (webhook idempotentligi): to'lov allaqachon 'paid'/'released', lekin buyurtma
+ * yangilanishi o'tib ketgan bo'lsa (masalan, avvalgi Perform/Complete yarmida uzilgan) — markPaid'dagi
+ * buyurtma yangilanishini qayta bajaradi. Hech qachon xato tashlamaydi (webhook javobini buzmasin).
+ */
+export async function ensureOrderPaidState(payment: Payment): Promise<void> {
+  try {
+    if (payment.state !== "paid" && payment.state !== "released") return;
+    const order = await db.query.orders.findFirst({ where: eq(orders.id, payment.orderId), columns: { paymentState: true, status: true } });
+    if (!order || order.paymentState === "paid" || order.paymentState === "released") return;
+    const now = new Date();
+    const autoRelease = payment.state === "paid" && order.status === "done" ? autoReleaseDate(now.getTime()) : null;
+    await db
+      .update(orders)
+      .set({
+        paymentState: payment.state === "released" ? "released" : "paid",
+        commissionPct: payment.commissionPct,
+        updatedAt: now,
+        ...(autoRelease ? { autoReleaseAt: autoRelease } : {}),
+      })
+      .where(and(eq(orders.id, payment.orderId), inArray(orders.paymentState, ["none", "awaiting"])));
+  } catch (e) {
+    console.error("[ensureOrderPaidState]", payment.id, e);
+  }
+}
+
 export interface ReleaseOptions {
   /** Cron: mijoz muddat ichida javob bermadi (actorId null) */
   auto?: boolean;
@@ -286,35 +350,45 @@ export interface ReleaseOptions {
  */
 export async function releaseOrder(orderId: string, actorId: string | null, req?: Request, opts: ReleaseOptions = {}): Promise<{ released: Payment[] }> {
   const now = new Date();
-  const before = await db.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { completedAt: true, specialistId: true, status: true } });
-  const paid = await db.query.payments.findMany({ where: and(eq(payments.orderId, orderId), eq(payments.state, "paid")) });
-  const released: Payment[] = [];
-  for (const p of paid) {
-    // Faqat hali "paid" turgan yozuv o'tkaziladi — parallel chaqiruvda ikkinchi marta audit/bildirishnoma ketmaydi
-    const [row] = await db
-      .update(payments)
-      .set({ state: "released", releasedAt: now, updatedAt: now })
-      .where(and(eq(payments.id, p.id), eq(payments.state, "paid")))
-      .returning();
-    if (!row) continue;
-    released.push(row);
+  // To'lov(lar) va buyurtma yangilanishi BITTA tranzaksiyada — release yarim holatda qolmaydi
+  const result = await db.transaction(async (tx) => {
+    const before = await tx.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { completedAt: true, specialistId: true, status: true, disputeState: true } });
+    // Cron so'rovi bilan release orasida nizo ochilgan bo'lishi mumkin — avtomatik release nizo ochiq bo'lsa to'xtaydi
+    if (opts.auto && before?.disputeState === "open") return { released: [] as Payment[], before, finishStatus: false, skipped: true };
+    const paid = await tx.query.payments.findMany({ where: and(eq(payments.orderId, orderId), eq(payments.state, "paid")) });
+    const released: Payment[] = [];
+    for (const p of paid) {
+      // Faqat hali "paid" turgan yozuv o'tkaziladi — parallel chaqiruvda ikkinchi marta audit/bildirishnoma ketmaydi
+      const [row] = await tx
+        .update(payments)
+        .set({ state: "released", releasedAt: now, updatedAt: now })
+        .where(and(eq(payments.id, p.id), eq(payments.state, "paid")))
+        .returning();
+      if (!row) continue;
+      released.push(row);
+    }
+    // Admin (to'lovlar jadvali yoki nizo qarori) pulni jarayondagi buyurtmada o'tkazsa — ish qabul qilingan hisoblanadi: status 'done'
+    const finishStatus = released.length > 0 && (before?.status === "accepted" || before?.status === "in_progress");
+    await tx
+      .update(orders)
+      .set({
+        completedAt: before?.completedAt ?? now,
+        autoReleaseAt: null,
+        updatedAt: now,
+        ...(released.length ? { paymentState: "released" as const } : {}),
+        ...(finishStatus ? { status: "done" as const } : {}),
+      })
+      .where(eq(orders.id, orderId));
+    // Admin pulni to'lovlar jadvalidan o'tkazgan bo'lsa ochiq nizo ham yopiladi (mijoz/cron yo'li ochiq nizoda bu yerga kelmaydi)
+    if (released.length) await closeOpenDispute(orderId, now, tx);
+    return { released, before, finishStatus, skipped: false };
+  });
+  const { released, before, finishStatus } = result;
+  if (result.skipped) return { released: [] };
+  for (const row of released) {
     await audit(actorId, "payment_released", { targetType: "payment", targetId: row.id, meta: { orderId, netAmount: row.netAmount } }, req);
   }
-  // Admin (to'lovlar jadvali yoki nizo qarori) pulni jarayondagi buyurtmada o'tkazsa — ish qabul qilingan hisoblanadi: status 'done'
-  const finishStatus = released.length > 0 && (before?.status === "accepted" || before?.status === "in_progress");
-  await db
-    .update(orders)
-    .set({
-      completedAt: before?.completedAt ?? now,
-      autoReleaseAt: null,
-      updatedAt: now,
-      ...(released.length ? { paymentState: "released" as const } : {}),
-      ...(finishStatus ? { status: "done" as const } : {}),
-    })
-    .where(eq(orders.id, orderId));
   if (finishStatus && before) await recordOrderEvent(orderId, actorId, "status", { fromStatus: before.status, toStatus: "done", note: "Pul admin qarori bilan o'tkazildi — buyurtma yakunlandi" });
-  // Admin pulni to'lovlar jadvalidan o'tkazgan bo'lsa ochiq nizo ham yopiladi (mijoz/cron yo'li ochiq nizoda bu yerga kelmaydi)
-  if (released.length) await closeOpenDispute(orderId, now);
 
   // Birinchi yakunlash: bajarilgan buyurtmalar soni + "Top mutaxassis" nishoni
   if (before && !before.completedAt) {
@@ -366,14 +440,26 @@ export async function refundPayment(paymentId: string, actorId: string | null, r
   if (current.state === "refunded") return current;
   if (current.state !== "paid") throw new ApiError(400, "Faqat eskroudagi (to'langan) to'lovni qaytarish mumkin");
   const now = new Date();
-  const [row] = await db
-    .update(payments)
-    .set({ state: "refunded", cancelTime: now.getTime(), cancelReason: reason ?? 5, providerState: -2, updatedAt: now })
-    .where(eq(payments.id, paymentId))
-    .returning();
-  await db.update(orders).set({ paymentState: "refunded", autoReleaseAt: null, updatedAt: now }).where(eq(orders.id, row.orderId));
-  // Pul qaytdi — ochiq nizo ortiqcha (admin to'lovlar jadvalidan yoki Payme CancelTransaction orqali qaytargan bo'lsa)
-  await closeOpenDispute(row.orderId, now);
+  // Holatga bog'liq (faqat 'paid' → 'refunded') va buyurtma bilan BITTA tranzaksiyada:
+  // parallel release qilingan (mutaxassisga o'tgan) to'lov hech qachon qaytarilmaydi
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(payments)
+      .set({ state: "refunded", cancelTime: now.getTime(), cancelReason: reason ?? 5, providerState: -2, updatedAt: now })
+      .where(and(eq(payments.id, paymentId), eq(payments.state, "paid")))
+      .returning();
+    if (!updated) return null;
+    await tx.update(orders).set({ paymentState: "refunded", autoReleaseAt: null, updatedAt: now }).where(eq(orders.id, updated.orderId));
+    // Pul qaytdi — ochiq nizo ortiqcha (admin to'lovlar jadvalidan yoki Payme CancelTransaction orqali qaytargan bo'lsa)
+    await closeOpenDispute(updated.orderId, now, tx);
+    return updated;
+  });
+  if (!row) {
+    // Parallel o'zgargan — ustidan yozmaymiz, joriy holatni qaytaramiz
+    const fresh = await db.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+    if (fresh?.state === "refunded") return fresh;
+    throw new ApiError(409, "To'lov holati o'zgargan — qaytarib bo'lmaydi. Sahifani yangilang");
+  }
   await recordOrderEvent(row.orderId, actorId, "payment", { note: `${formatPrice(row.amount)} mijozga qaytarildi${actorId ? "" : " (provayder orqali)"}` });
   const order = await loadOrderWithParties(row.orderId);
   if (order) {
@@ -391,11 +477,17 @@ export async function cancelPayment(paymentId: string, reason?: number | null, a
   if (current.state === "cancelled") return current;
   if (!(ACTIVE_PAYMENT_STATES as readonly string[]).includes(current.state)) throw new ApiError(400, "Bu to'lovni bekor qilib bo'lmaydi");
   const now = new Date();
+  // Holatga bog'liq: parallel to'lanib bo'lgan (paid) yozuv hech qachon 'cancelled'ga qaytarilmaydi
   const [row] = await db
     .update(payments)
     .set({ state: "cancelled", cancelTime: now.getTime(), cancelReason: reason ?? null, providerState: -1, updatedAt: now })
-    .where(eq(payments.id, paymentId))
+    .where(and(eq(payments.id, paymentId), inArray(payments.state, [...ACTIVE_PAYMENT_STATES])))
     .returning();
+  if (!row) {
+    const fresh = await db.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+    if (fresh?.state === "cancelled") return fresh;
+    throw new ApiError(409, `Bu to'lovni bekor qilib bo'lmaydi — holati o'zgargan${fresh ? ` (${fresh.state})` : ""}`);
+  }
   await recordOrderEvent(row.orderId, actorId ?? null, "payment", { note: `To'lov urinishi bekor qilindi (${PROVIDER_NAME[row.provider]}, ${formatPrice(row.amount)})` });
   return row;
 }

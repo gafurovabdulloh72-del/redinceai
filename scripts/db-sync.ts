@@ -37,6 +37,21 @@ async function main() {
   }
   for (const w of warnings) console.log(`  ! drizzle ogohlantirishi: ${norm(w)}`);
 
+  // MASOFAVIY (Turso) baza uchun qo'shimcha himoya: jadvalni qayta qurish naqshlari (DROP TABLE,
+  // __old_push, PRAGMA foreign_keys) tarmoq uzilsa jadvalni yarim holatda qoldirishi mumkin.
+  // Lokal file: bazada xavfsiz (bitta jarayon), shuning uchun faqat masofaviyda to'xtatiladi.
+  const isRemote = !url.startsWith("file:");
+  if (isRemote && process.env.DB_SYNC_ALLOW_REBUILD !== "1") {
+    const risky = statementsToExecute.filter((s) => /DROP TABLE|__old_push|PRAGMA foreign_keys/i.test(s));
+    if (risky.length) {
+      console.error("✗ Masofaviy bazada jadvalni qayta qurish buyruqlari aniqlandi — sinxronizatsiya to'xtatildi:");
+      for (const s of risky) console.error(`    ${norm(s)}`);
+      console.error("  Bunday o'zgarish masofaviy (Turso) bazada ma'lumot yo'qotishi yoki jadvalni yarim holatda qoldirishi mumkin.");
+      console.error("  Agar bu ataylab bo'lsa, DB_SYNC_ALLOW_REBUILD=1 bilan qayta ishga tushiring yoki migratsiyani qo'lda bajaring.");
+      process.exit(1);
+    }
+  }
+
   const rebuilt = new Set<string>();
   const plan: string[] = [];
   const blocked: string[] = [];

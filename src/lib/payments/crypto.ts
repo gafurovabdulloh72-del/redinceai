@@ -10,13 +10,26 @@ const VERSION = "v1";
 const INFO = "payout-v1";
 const SALT = "redince-payout";
 
-/** src/lib/auth.ts secret() bilan bir xil manba: AUTH_SECRET → Turso token → dev fallback */
+/** .env.example / dev namunaviy qiymatlar — productionda haqiqiy kalit sifatida qabul qilinmaydi (src/lib/auth.ts bilan bir xil qoida) */
+const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+/** Productionda AUTH_SECRET uchun minimal uzunlik (src/lib/auth.ts MIN_SECRET_PROD bilan bir xil) */
+const MIN_SECRET_PROD = 32;
+
+/** src/lib/auth.ts secret() bilan bir xil manba va qoidalar: AUTH_SECRET → Turso token → dev fallback */
 function ikm(): string {
+  const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET?.trim();
-  if (s && s.length >= 16) return s;
+  if (s) {
+    if (prod) {
+      // Namunaviy yoki qisqa kalit productionda hech qachon ishlatilmaydi — Turso tokenidan hosil qilingan kalitga o'tiladi
+      if (PLACEHOLDER_SECRET.test(s)) console.error("[crypto] AUTH_SECRET namunaviy (.env.example) qiymat — e'tiborga olinmadi. `openssl rand -base64 48` bilan haqiqiy kalit bering");
+      else if (s.length < MIN_SECRET_PROD) console.error(`[crypto] AUTH_SECRET juda qisqa (kamida ${MIN_SECRET_PROD} belgi) — e'tiborga olinmadi`);
+      else return s;
+    } else if (s.length >= 16) return s;
+  }
   const derived = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
   if (derived && derived.length >= 16) return `redince-session-v1:${derived}`;
-  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET o'rnatilmagan — rekvizitlarni shifrlab bo'lmaydi");
+  if (prod) throw new Error("AUTH_SECRET o'rnatilmagan yoki yaroqsiz (namunaviy / 32 belgidan qisqa) — rekvizitlarni shifrlab bo'lmaydi. `openssl rand -base64 48` bilan haqiqiy kalit bering");
   return "dev-only-insecure-secret-change-me-please-123456";
 }
 

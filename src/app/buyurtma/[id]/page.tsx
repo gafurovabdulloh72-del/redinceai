@@ -87,8 +87,9 @@ export default async function OrderPage({ params, searchParams }: { params: Para
                 {vacation ? "Ta'tilda" : "Band"}
               </Badge>
               <p>
+                {/* Halol muddat (#43): ta'til tugash sanasi aniq aytiladi */}
                 {vacation
-                  ? `${sp.user.name} ${formatDate(sp.vacationUntil!)} gacha ta'tilda. So'rovingiz saqlanadi — u qaytgach ko'rib chiqadi.`
+                  ? `Mutaxassis ${formatDate(sp.vacationUntil!)}gacha ta'tilda — qaytgach ko'rib chiqadi. So'rov yuborishingiz mumkin, u saqlanadi.`
                   : `${sp.user.name} hozir band. So'rov yuborishingiz mumkin — bo'shagach javob beradi.`}
               </p>
             </div>

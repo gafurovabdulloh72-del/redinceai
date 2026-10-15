@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, Mail, MapPin, Phone, ShieldBan, ShieldCheck, Star, Trash2, X } from "lucide-react";
+import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, EyeOff, Hourglass, Images, Mail, MapPin, Phone, ShieldBan, ShieldCheck, Star, Trash2, X, XCircle } from "lucide-react";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
@@ -23,14 +23,38 @@ export interface PendingSpecialist {
   isFeatured: boolean;
   /** ms timestamp */
   createdAt: number;
-  user: { name: string; email: string; phone: string | null };
+  user: { name: string; email: string; phone: string | null; avatarUrl?: string | null };
   /** Egasining users.id — bloklash uchun (berilmasa tugma chiqmaydi) */
   userId?: string | null;
   isBanned?: boolean;
   bannedReason?: string | null;
+  /** Bio parchasi (bir qatorda ko'rsatiladi) */
+  bio?: string | null;
+  /** Portfolio ishlari soni */
+  portfolioCount?: number;
+  /** Admin katalogdan yashirgan (rad etilgan) */
+  isHidden?: boolean;
 }
 
-type Busy = "verify" | "feature" | "delete" | "ban";
+type Busy = "verify" | "feature" | "delete" | "ban" | "reject";
+/** Shuncha kundan ko'p kutgan profil ogohlantirish rangida ko'rinadi */
+const WAIT_WARN_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** "Kutmoqda · 12 kun oldin" belgisi — 7 kundan oshsa warning tonida */
+function WaitBadge({ createdAt, className }: { createdAt: number; className?: string }) {
+  const late = Date.now() - createdAt > WAIT_WARN_MS;
+  return (
+    <span
+      className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", late ? "bg-warning-soft text-warning-text" : "bg-fg/6 text-fg-2", className)}
+      title={late ? "7 kundan ortiq navbatda kutmoqda" : "Tasdiqlashni kutmoqda"}
+    >
+      <Hourglass size={10} /> Kutmoqda ·{" "}
+      <time dateTime={new Date(createdAt).toISOString()} suppressHydrationWarning>
+        {timeAgo(createdAt)}
+      </time>
+    </span>
+  );
+}
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
 async function call<T>(url: string, init: RequestInit): Promise<T> {
@@ -59,6 +83,9 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
   /** Inline bloklash formasi (sabab bilan) */
   const [banAsk, setBanAsk] = useState<string | null>(null);
   const [banReason, setBanReason] = useState("");
+  /** Inline rad etish formasi (sabab bilan) */
+  const [rejectAsk, setRejectAsk] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [showAll, setShowAll] = useState(false);
 
   // Server yangi ro'yxat bersa (router.refresh) — mahalliy holatni unga moslaymiz
@@ -135,6 +162,24 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
     }
   };
 
+  /** Rad etish: profil o'chmaydi — katalogdan yashiriladi, egasiga sabab bilan bildirishnoma boradi */
+  const reject = async (row: PendingSpecialist, reason: string) => {
+    setError(null);
+    setRejectAsk(null);
+    mark(row.id, "reject");
+    try {
+      await call(`/api/admin/specialists/${row.id}`, { method: "PATCH", body: JSON.stringify({ action: "reject", reason: reason.trim() }) });
+      setRows((r) => r.map((x) => (x.id === row.id ? { ...x, isHidden: true } : x)));
+      setNotice(`${row.user.name} profili rad etildi — katalogdan yashirildi, sabab egasiga yuborildi`);
+      setRejectReason("");
+      router.refresh();
+    } catch (e) {
+      setError(msg(e));
+    } finally {
+      mark(row.id, null);
+    }
+  };
+
   const toggleBan = async (row: PendingSpecialist, reason?: string) => {
     if (!row.userId) return;
     const next = !row.isBanned;
@@ -177,6 +222,28 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
       );
     }
 
+    if (rejectAsk === row.id) {
+      return (
+        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", !compact && "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
+          <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> Rad etilsinmi? Profil o'chmaydi — katalogdan yashiriladi, egasi sababni bildirishnomada ko'radi va tuzatib qayta murojaat qila oladi.
+          </p>
+          <label htmlFor={`reject-${row.id}`} className="sr-only">
+            Rad etish sababi
+          </label>
+          <input id={`reject-${row.id}`} className="field !min-h-10 !py-1.5 text-[13px]" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} maxLength={300} placeholder="Sabab (kamida 5 belgi): masalan, portfolio bo'sh" autoFocus />
+          <div className="flex shrink-0 gap-1.5">
+            <Button size={compact ? "md" : "sm"} variant="danger" onClick={() => reject(row, rejectReason)} disabled={!!b || rejectReason.trim().length < 5}>
+              {b === "reject" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Rad etish
+            </Button>
+            <Button size={compact ? "md" : "sm"} variant="ghost" onClick={() => setRejectAsk(null)} disabled={!!b}>
+              Bekor
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (banAsk === row.id) {
       return (
         <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", !compact && "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
@@ -204,6 +271,22 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
         <Button size={compact ? "md" : "sm"} onClick={() => verify(row)} disabled={!!b} className={cn(compact && "flex-1")}>
           {b === "verify" ? <Spinner className="h-3.5 w-3.5" /> : <BadgeCheck size={14} />} Tasdiqlash
         </Button>
+        {!row.isHidden && (
+          <Button
+            size={compact ? "md" : "sm"}
+            variant="outline"
+            onClick={() => {
+              setRejectAsk(row.id);
+              setRejectReason("");
+              setBanAsk(null);
+              setConfirmDelete(null);
+            }}
+            disabled={!!b}
+            title="Katalogga qo'shmaslik — sabab egasiga yuboriladi"
+          >
+            {b === "reject" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Rad etish
+          </Button>
+        )}
         {row.userId && (
           <button
             type="button"
@@ -279,9 +362,9 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
               <thead>
                 <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
                   <th className="px-5 py-3 font-bold">Mutaxassis</th>
-                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Yo'nalish</th>
-                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Hudud</th>
-                  <th className="hidden px-3 py-3 font-bold @[68rem]:table-cell">Qo'shilgan</th>
+                  <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Yo'nalish</th>
+                  <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Hudud</th>
+                  <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Kutmoqda</th>
                   <th className="w-px px-5 py-3 text-right font-bold">Amallar</th>
                 </tr>
               </thead>
@@ -293,7 +376,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                     <tr key={row.id} className={cn("transition hover:bg-fg/3", busy[row.id] && "opacity-60")}>
                       <td className="w-full max-w-0 px-5 py-2.5">
                         <div className="flex items-center gap-3">
-                          <Avatar name={row.user.name} size={36} decorative />
+                          <Avatar name={row.user.name} src={row.user.avatarUrl ?? undefined} size={36} decorative />
                           <div className="min-w-0">
                             <p className="flex items-center gap-1.5 font-semibold text-fg">
                               <span className="truncate">{row.user.name}</span>
@@ -303,9 +386,15 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                                   <ShieldBan size={10} /> Bloklangan
                                 </span>
                               )}
+                              {row.isHidden && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[10px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
+                                  <EyeOff size={10} /> Yashirilgan
+                                </span>
+                              )}
                             </p>
                             <p className="truncate text-[12px] text-fg-3">{row.title}</p>
-                            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg-3 @[68rem]:hidden">
+                            {row.bio?.trim() ? <p className="truncate text-[12px] text-fg-4">{row.bio}</p> : null}
+                            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-fg-3 @[66rem]:hidden">
                               {cat && (
                                 <span className="inline-flex items-center gap-1 font-semibold text-fg-2">
                                   <CategoryIcon icon={cat.icon} size={11} className="text-fg-3" /> {cat.name}
@@ -315,9 +404,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                                 <MapPin size={11} /> {region?.short ?? row.regionSlug}
                                 {row.city ? ` · ${row.city}` : ""}
                               </span>
-                              <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
-                                {timeAgo(row.createdAt)}
-                              </time>
+                              <WaitBadge createdAt={row.createdAt} />
                             </p>
                             <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-fg-4">
                               <a href={`mailto:${row.user.email}`} className="inline-flex min-w-0 items-center gap-1 truncate hover:text-fg">
@@ -328,11 +415,16 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                                   <Phone size={11} /> {formatUzPhone(row.user.phone)}
                                 </a>
                               )}
+                              {typeof row.portfolioCount === "number" && (
+                                <span className="inline-flex items-center gap-1" title="Portfolio ishlari soni">
+                                  <Images size={11} /> {row.portfolioCount} ta ish
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="hidden px-3 py-2.5 @[68rem]:table-cell">
+                      <td className="hidden px-3 py-2.5 @[66rem]:table-cell">
                         {cat ? (
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-fg/6 px-2.5 py-1 text-[12px] font-semibold text-fg-2">
                             <CategoryIcon icon={cat.icon} size={12} className="text-fg-3" /> {cat.name}
@@ -341,14 +433,12 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                           <span className="text-fg-4">—</span>
                         )}
                       </td>
-                      <td className="hidden px-3 py-2.5 @[68rem]:table-cell">
+                      <td className="hidden px-3 py-2.5 @[66rem]:table-cell">
                         <p className="whitespace-nowrap font-medium text-fg">{region?.short ?? row.regionSlug}</p>
                         <p className="text-[12px] text-fg-3">{row.city}</p>
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2 @[68rem]:table-cell">
-                        <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
-                          {timeAgo(row.createdAt)}
-                        </time>
+                      <td className="hidden whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2 @[66rem]:table-cell">
+                        <WaitBadge createdAt={row.createdAt} />
                       </td>
                       <td className="w-px whitespace-nowrap px-5 py-2.5">
                         <Actions row={row} />
@@ -368,7 +458,7 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
               return (
                 <li key={row.id} className={cn("card p-4", busy[row.id] && "opacity-60", i >= MOBILE_CAP && !showAll && "hidden")}>
                   <div className="flex items-start gap-3">
-                    <Avatar name={row.user.name} size={44} decorative />
+                    <Avatar name={row.user.name} src={row.user.avatarUrl ?? undefined} size={44} decorative />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-1.5 text-[15px] font-semibold text-fg">
                         <span className="truncate">{row.user.name}</span>
@@ -378,13 +468,21 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
                             <ShieldBan size={10} /> Bloklangan
                           </span>
                         )}
+                        {row.isHidden && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[10px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
+                            <EyeOff size={10} /> Yashirilgan
+                          </span>
+                        )}
                       </p>
                       <p className="truncate text-[13px] text-fg-2">{row.title}</p>
-                      <p className="mt-0.5 text-[12px] text-fg-3">
-                        Qo'shilgan:{" "}
-                        <time dateTime={new Date(row.createdAt).toISOString()} suppressHydrationWarning>
-                          {timeAgo(row.createdAt)}
-                        </time>
+                      {row.bio?.trim() ? <p className="truncate text-[12px] text-fg-4">{row.bio}</p> : null}
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-3">
+                        <WaitBadge createdAt={row.createdAt} />
+                        {typeof row.portfolioCount === "number" && (
+                          <span className="inline-flex items-center gap-1" title="Portfolio ishlari soni">
+                            <Images size={12} /> {row.portfolioCount} ta ish
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

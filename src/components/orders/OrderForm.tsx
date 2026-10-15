@@ -8,10 +8,12 @@ import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, isImageAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import type { PackageKey, ServicePackage } from "@/lib/db/schema";
 import { PACKAGE_TIERS } from "@/lib/constants";
-import { cn, formatPrice } from "@/lib/utils";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
+import { cn, formatDate, formatPrice } from "@/lib/utils";
 import { DueDatePicker, addDays, nextFreeDate, tashkentToday } from "./DueDatePicker";
 
-type ApiResponse = { ok: true; data: { id: string } } | { ok: false; error: string; fields?: Record<string, string> };
+/** queued/availableFrom (#43): mutaxassis ta'tilda/band bo'lsa server navbat belgisini qaytaradi */
+type ApiResponse = { ok: true; data: { id: string; queued?: boolean; availableFrom?: string | null } } | { ok: false; error: string; fields?: Record<string, string> };
 
 const FIELD_ORDER = ["packageKey", "title", "description", "budget", "dueDate", "attachments", "contactPhone"] as const;
 type FieldKey = (typeof FIELD_ORDER)[number];
@@ -70,7 +72,10 @@ export function OrderForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [doneId, setDoneId] = useState<string | null>(null);
+  const [done, setDone] = useState<{ id: string; queued?: boolean; availableFrom?: string | null } | null>(null);
+  /** Qoralama (F56): tiklanganini ko'rsatadigan yopiladigan eslatma */
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftKey = `order:${specialistId}`;
 
   // «Yana buyurtma berish» (F47): ?title= bilan kelgan sarlavha oldindan to'ldiriladi
   useEffect(() => {
@@ -81,6 +86,38 @@ export function OrderForm({
       /* noop */
     }
   }, []);
+
+  // Qoralama (F56): bo'sh maydonlarga oxirgi yozilganlarni qaytaramiz (paket/?title= qiymatlari ustidan yozilmaydi)
+  useEffect(() => {
+    const d = loadDraft<{ title?: string; description?: string; budget?: string }>(draftKey);
+    if (!d) return;
+    let used = false;
+    if (d.title && !title.trim()) {
+      setTitle(d.title.slice(0, 120));
+      used = true;
+    }
+    if (d.description && !description.trim()) {
+      setDescription(d.description.slice(0, 3000));
+      used = true;
+    }
+    if (d.budget && !budget.trim()) {
+      setBudget(d.budget);
+      used = true;
+    }
+    if (used) setDraftRestored(true);
+    // Faqat birinchi ochilishda — keyingi o'zgarishlar foydalanuvchiniki
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Qoralama (F56): asosiy matn maydonlari 800 ms kechikish bilan saqlanadi; hammasi bo'sh — o'chiriladi
+  useEffect(() => {
+    if (done) return;
+    const t = window.setTimeout(() => {
+      if (title.trim() || description.trim() || budget.trim()) saveDraft(draftKey, { title, description, budget });
+      else clearDraft(draftKey);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [draftKey, title, description, budget, done]);
 
   const refs = useRef<Record<FieldKey, HTMLElement | null>>({
     packageKey: null,
@@ -176,7 +213,8 @@ export function OrderForm({
         }
         return;
       }
-      setDoneId(json.data.id);
+      setDone({ id: json.data.id, queued: json.data.queued, availableFrom: json.data.availableFrom ?? null });
+      clearDraft(draftKey);
       router.refresh();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -187,10 +225,16 @@ export function OrderForm({
   };
 
   /* ---------- Muvaffaqiyat: keyingi qadamlar + buyurtmaga to'g'ri havola ---------- */
-  if (doneId) {
-    const orderHref = `/kabinet/buyurtmalar?id=${doneId}`;
+  if (done) {
+    const orderHref = `/kabinet/buyurtmalar?id=${done.id}`;
+    // Halol muddat (#43): ta'tilda — qaytish sanasi bilan, band — bo'shagach; aks holda odatiy matn
+    const firstStep = done.queued
+      ? done.availableFrom
+        ? `Mutaxassis ${formatDate(done.availableFrom)}gacha ta'tilda — qaytgach ko'rib chiqadi.`
+        : `${specialistName} hozir band — bo'shagach so'rovingizni ko'rib chiqadi.`
+      : `${specialistName} uni ko'rib chiqadi va qabul qiladi yoki savol beradi.`;
     const steps = [
-      { icon: ClipboardList, t: "So'rov mutaxassis kabinetiga tushdi", d: `${specialistName} uni ko'rib chiqadi va qabul qiladi yoki savol beradi.` },
+      { icon: ClipboardList, t: "So'rov mutaxassis kabinetiga tushdi", d: firstStep },
       { icon: MessageCircle, t: "Buyurtma chatida yozishasiz", d: "Savollar, fayllar va video qo'ng'iroq havolasi — hammasi buyurtma ichida." },
       { icon: Lock, t: "Narx kelishilgach — xavfsiz to'lov", d: "Pul eskrouda saqlanadi, ishni qabul qilganingizdan keyingina mutaxassisga o'tadi." },
     ];
@@ -205,7 +249,19 @@ export function OrderForm({
             Rahmat, so'rov <span className="accent-serif text-accent">yetib bordi</span>
           </h2>
           <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-fg-2">
-            <span className="font-semibold text-fg">{specialistName}</span> so'rovingizni kabinetida ko'radi. Holatni «Buyurtmalarim» bo'limida kuzatib boring.
+            {done.queued && done.availableFrom ? (
+              <>
+                <span className="font-semibold text-fg">{specialistName}</span> {formatDate(done.availableFrom)}gacha ta'tilda — qaytgach so'rovingizni ko'rib chiqadi. Holatni «Buyurtmalarim» bo'limida kuzatib boring.
+              </>
+            ) : done.queued ? (
+              <>
+                <span className="font-semibold text-fg">{specialistName}</span> hozir band — bo'shagach so'rovingizni ko'rib chiqadi. Holatni «Buyurtmalarim» bo'limida kuzatib boring.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-fg">{specialistName}</span> so'rovingizni kabinetida ko'radi. Holatni «Buyurtmalarim» bo'limida kuzatib boring.
+              </>
+            )}
           </p>
         </div>
 
@@ -249,6 +305,15 @@ export function OrderForm({
       <p id="order-form-hint" className="sr-only">
         Barcha maydonlar o'zbek tilida to'ldiriladi. Paket, byudjet, muddat va fayllar ixtiyoriy.
       </p>
+      {/* Qoralama tiklandi (F56) — yopiladigan eslatma */}
+      {draftRestored && (
+        <div role="status" className="mb-5 flex items-center justify-between gap-3 rounded-[14px] bg-accent-soft px-3.5 py-2.5 text-[13px] font-medium text-accent-text">
+          <span>Qoralama tiklandi — oxirgi yozganlaringiz qayta yuklandi.</span>
+          <button type="button" onClick={() => setDraftRestored(false)} aria-label="Eslatmani yopish" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-fg/8">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       <div className="space-y-6">
         {/* Xizmat paketi (F31) */}
         {packages.length > 0 && (

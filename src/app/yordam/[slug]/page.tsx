@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ArrowRight, ChevronRight, Info } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
+import { SITE } from "@/lib/constants";
 import { cn, formatDate } from "@/lib/utils";
 import { HELP_ARTICLES, HELP_BY_SLUG, HELP_CATEGORIES, type HelpBlock } from "../articles";
 import { HelpFeedback } from "../HelpFeedback";
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: `${a.title} · Yordam`,
     description: a.summary,
     alternates: { canonical: `/yordam/${a.slug}` },
-    openGraph: { title: a.title, description: a.summary, type: "article" },
+    openGraph: { title: a.title, description: a.summary, type: "article", images: ["/opengraph-image"], siteName: SITE.name, locale: "uz_UZ" },
   };
 }
 

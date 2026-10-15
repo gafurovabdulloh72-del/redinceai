@@ -17,7 +17,13 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Narxlar",
     description: `${SITE.name} narxlari: mijozlar uchun bepul — buyurtma, e'lon va eskrou himoyasi. Mutaxassislar uchun obuna ${price} / oy${s.subscriptionTrialDays > 0 ? `, birinchi ${s.subscriptionTrialDays} kun bepul` : ""}. Uzoq muddatga chegirmalar va eskrou komissiyasi.`,
     alternates: { canonical: "/narxlar" },
-    openGraph: { title: `Narxlar · ${SITE.name}`, description: `Mijozlar uchun bepul. Mutaxassislar uchun ${price} / oy.` },
+    openGraph: {
+      title: `Narxlar · ${SITE.name}`,
+      description: `Mijozlar uchun bepul. Mutaxassislar uchun ${price} / oy.`,
+      images: ["/opengraph-image"],
+      siteName: SITE.name,
+      locale: "uz_UZ",
+    },
   };
 }
 

@@ -7,7 +7,7 @@ import { isInvoiceId, loadInvoice, markInvoicePaid, refundInvoice } from "@/lib/
 import { formatPrice, uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent, refundPayment } from "./service";
+import { ensureOrderPaidState, findInFlightProviderPayment, findPendingManualPayment, isPayable, markPaid, recordOrderEvent, refundPayment } from "./service";
 
 /**
  * Payme Merchant API (JSON-RPC 2.0). Hujjat: developer.help.paycom.uz
@@ -119,6 +119,8 @@ async function validateAccount(params: Json, existing?: Payment | null) {
     // Boshqa provayder (Click) tomonida jarayondagi tranzaksiya bo'lsa — ikkinchi to'lov ochilmaydi
     const inFlight = await findInFlightProviderPayment(order.id);
     if (inFlight && inFlight.provider !== "payme") throw new RpcError(PAYME_ERR.ORDER_BUSY, "order_id");
+    // Admin tasdig'ini kutayotgan qo'lda o'tkazma ham jarayondagi to'lov — ikki marta to'lab qo'ymasin
+    if (await findPendingManualPayment(order.id)) throw new RpcError(PAYME_ERR.ORDER_BUSY, "order_id");
   }
   const amount = num(params.amount);
   if (amount == null) throw new RpcError(PAYME_ERR.WRONG_AMOUNT, "amount");
@@ -156,12 +158,13 @@ async function expireIfStale(p: Payment): Promise<Payment> {
   const created = p.providerCreateTime ?? p.createdAt.getTime();
   if (Date.now() - created <= PAYME_TIMEOUT_MS) return p;
   const now = Date.now();
+  // Holatga bog'liq: parallel Perform to'lab qo'ygan bo'lsa 'paid' yozuv ustidan yozilmaydi
   const [row] = await db
     .update(payments)
     .set({ state: "cancelled", providerState: STATE.CANCELLED, cancelTime: now, cancelReason: 4, updatedAt: new Date(now) })
-    .where(eq(payments.id, p.id))
+    .where(and(eq(payments.id, p.id), eq(payments.state, "pending")))
     .returning();
-  return row;
+  return row ?? (await db.query.payments.findFirst({ where: eq(payments.id, p.id) })) ?? p;
 }
 
 /* ---------- Metodlar ---------- */
@@ -247,6 +250,8 @@ async function performTransaction(params: Json) {
   }
 
   if (found.providerState === STATE.PERFORMED || found.state === "paid" || found.state === "released") {
+    // O'z-o'zini tuzatish: avvalgi Perform'da buyurtma yangilanishi o'tib ketgan bo'lsa — idempotent qayta bajariladi
+    await ensureOrderPaidState(found);
     return { transaction: found.id, perform_time: found.performTime ?? found.paidAt?.getTime() ?? 0, state: STATE.PERFORMED };
   }
   const p = await expireIfStale(found);
@@ -273,12 +278,19 @@ async function cancelTransaction(params: Json) {
     return { transaction: found.id, cancel_time: found.cancelTime ?? 0, state: providerStateOf(found) };
   }
   const now = Date.now();
-  if (found.state === "pending") {
+  if (found.state === "pending" || found.state === "created") {
+    // Holatga bog'liq: parallel Perform to'lab qo'ygan bo'lsa 'paid' yozuv bekor qilinmaydi
     const [row] = await db
       .update(payments)
       .set({ state: "cancelled", providerState: STATE.CANCELLED, cancelTime: now, cancelReason: reason, updatedAt: new Date(now) })
-      .where(eq(payments.id, found.id))
+      .where(and(eq(payments.id, found.id), inArray(payments.state, ["created", "pending"])))
       .returning();
+    if (!row) {
+      // Parallel o'zgargan (masalan, shu payt bajarildi) — joriy holat bo'yicha qayta ko'rib chiqiladi
+      const fresh = await db.query.payments.findFirst({ where: eq(payments.id, found.id) });
+      if (!fresh || fresh.state === "pending" || fresh.state === "created") throw new RpcError(PAYME_ERR.CANNOT_CANCEL);
+      return cancelTransaction(params);
+    }
     await recordOrderEvent(row.orderId, null, "payment", { note: "Payme to'lovi bekor qilindi (provayder tomonida)" });
     return { transaction: row.id, cancel_time: now, state: STATE.CANCELLED };
   }
@@ -296,8 +308,15 @@ async function cancelTransaction(params: Json) {
       throw new RpcError(PAYME_ERR.CANNOT_CANCEL);
     }
     // Pul hali eskrouda, ish topshirilmagan — qaytarish mumkin
-    const row = await refundPayment(found.id, null, reason);
-    return { transaction: row.id, cancel_time: row.cancelTime ?? now, state: STATE.CANCELLED_AFTER_PERFORM };
+    try {
+      const row = await refundPayment(found.id, null, reason);
+      return { transaction: row.id, cancel_time: row.cancelTime ?? now, state: STATE.CANCELLED_AFTER_PERFORM };
+    } catch {
+      // Parallel o'zgargan (masalan, released bo'ldi) — joriy holat bo'yicha javob, ustidan yozilmaydi
+      const fresh = await db.query.payments.findFirst({ where: eq(payments.id, found.id) });
+      if (fresh?.state === "refunded") return { transaction: fresh.id, cancel_time: fresh.cancelTime ?? 0, state: providerStateOf(fresh) };
+      throw new RpcError(PAYME_ERR.CANNOT_CANCEL);
+    }
   }
   // released — mutaxassisga o'tib bo'lgan
   throw new RpcError(PAYME_ERR.CANNOT_CANCEL);

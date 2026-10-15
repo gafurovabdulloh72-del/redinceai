@@ -141,7 +141,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         </div>
         <div className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-[12px] font-semibold text-fg-2">
           <ShieldCheck size={14} className="text-success" />
-          {awaitingCount > 0 ? `${awaitingCount} ta buyurtma to'lov kutmoqda` : `Eskrou · xizmat haqi ${feeLabel}`}
+          {/* Xizmat haqi foizi faqat mutaxassisga tegishli — mijozga ko'rsatilmaydi */}
+          {awaitingCount > 0 ? `${awaitingCount} ta buyurtma to'lov kutmoqda` : user.specialist ? `Eskrou · xizmat haqi ${feeLabel}` : "Eskrou · xavfsiz to'lov"}
         </div>
       </header>
 

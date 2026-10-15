@@ -738,11 +738,12 @@ export function ProfileForm({
             {mode === "edit" ? "Profil saqlandi" : "Profil yaratildi! Endi portfolio qo'shing."}
           </p>
           <div className="flex gap-2">
-            <Link href={`/mutaxassislar/${savedSlug}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
+            {/* text-accent-text: 13px matn uchun to'qroq coral (AA) */}
+            <Link href={`/mutaxassislar/${savedSlug}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent-text transition hover:opacity-80">
               Ommaviy profilni ko'rish <ArrowUpRight size={14} />
             </Link>
             {mode === "create" && (
-              <Link href="/kabinet/portfolio" className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent transition hover:opacity-80">
+              <Link href="/kabinet/portfolio" className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent-text transition hover:opacity-80">
                 Portfolio <ArrowRight size={14} />
               </Link>
             )}
@@ -1543,6 +1544,7 @@ export function ProfileForm({
                   type="file"
                   accept="image/*"
                   className="sr-only"
+                  aria-label="Muqova rasmini yuklash"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) void uploadCover(file);

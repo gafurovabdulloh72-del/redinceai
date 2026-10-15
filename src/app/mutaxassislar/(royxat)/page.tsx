@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { RotateCcw, UserPlus, Wand2 } from "lucide-react";
+import { Megaphone, RotateCcw, UserPlus, Wand2 } from "lucide-react";
 import { ButtonLink, PageHeader } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { SpecialistRow } from "@/components/specialists/SpecialistRow";
@@ -18,15 +18,24 @@ import { specialistFilterSchema, type SpecialistFilter } from "@/lib/validators"
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Mutaxassislar",
-  description: "O'zbekistonning barcha hududlaridagi videograf, montajor, dizayner va boshqa ijodkorlar — filtrlang, solishtiring va buyurtma bering.",
-};
-
 const BASE = "/mutaxassislar";
 const DEFAULT_LIMIT = 24;
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
+
+/** Filtr/qidiruv kalitlari — birortasi bo'lsa sahifa indekslanmaydi (kanonik /mutaxassislar bilan dublikat) */
+const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "gender", "verified", "available", "skill", "equipment", "workType", "openNow", "sort", "page"] as const;
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSearchParams> }): Promise<Metadata> {
+  const flat = flatten(await searchParams);
+  const filtered = FILTER_KEYS.some((k) => k in flat);
+  return {
+    title: "Mutaxassislar",
+    description: "O'zbekistonning barcha hududlaridagi videograf, montajor, dizayner va boshqa ijodkorlar — filtrlang, solishtiring va buyurtma bering.",
+    alternates: { canonical: BASE },
+    ...(filtered ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 /** Natija jumlasi uchun saralash nomi (Filters.tsx SORT_OPTIONS bilan bir xil; client moduldan server qiymat import qilinmaydi) */
 const SORT_PHRASE: Record<SpecialistFilter["sort"], string> = {
@@ -251,7 +260,8 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             view === "list" ? (
               <ul key={gridKey} className="mt-5 space-y-2.5">
                 {items.map((sp, i) => (
-                  <li key={sp.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 11) * 30}ms`, animationDuration: "0.4s" }}>
+                  // Kechikish 8 talik to'lqinda takrorlanadi (i % 8) — filtr almashganda natijalar uzoq "ko'rinmay" turmasin
+                  <li key={sp.id} className="animate-fade-up" style={{ animationDelay: `${(i % 8) * 30}ms`, animationDuration: "0.3s" }}>
                     <SpecialistRow sp={sp} showCompare />
                   </li>
                 ))}
@@ -259,7 +269,8 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             ) : (
               <div key={gridKey} className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((sp, i) => (
-                  <div key={sp.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 11) * 35}ms`, animationDuration: "0.45s" }}>
+                  // Kechikish 8 talik to'lqinda takrorlanadi (i % 8) — filtr almashganda natijalar uzoq "ko'rinmay" turmasin
+                  <div key={sp.id} className="animate-fade-up" style={{ animationDelay: `${(i % 8) * 35}ms`, animationDuration: "0.3s" }}>
                     <SpecialistCard sp={sp} priority={i < 3} showCompare />
                   </div>
                 ))}
@@ -271,9 +282,18 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
                 title="Hech narsa topilmadi"
                 description="Bu shartlarga mos mutaxassis yo'q. Filtrlarni yumshating yoki boshqa hududni tanlab ko'ring."
                 action={
-                  <ButtonLink href={buildHref(BASE, { sort: query.sort, view: query.view })} variant="outline" size="md">
-                    <RotateCcw size={15} /> Filtrlarni tozalash
-                  </ButtonLink>
+                  // Bo'sh natija — boshi berk ko'cha emas: tozalash yonida sehrgar va e'lon joylash yo'llari
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <ButtonLink href={buildHref(BASE, { sort: query.sort, view: query.view })} variant="outline" size="md">
+                      <RotateCcw size={15} /> Filtrlarni tozalash
+                    </ButtonLink>
+                    <ButtonLink href="/buyurtma-berish" variant="accent" size="md">
+                      <Wand2 size={15} /> Sehrgar orqali topish
+                    </ButtonLink>
+                    <ButtonLink href="/ishlar/yangi" variant="outline" size="md">
+                      <Megaphone size={15} /> E&apos;lon joylang — mutaxassislar o&apos;zi taklif yuboradi
+                    </ButtonLink>
+                  </div>
                 }
               />
             </div>

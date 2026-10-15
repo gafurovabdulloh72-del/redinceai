@@ -287,6 +287,19 @@ export async function hasAcceptedOrderWith(clientId: string | null | undefined, 
   return Boolean(row);
 }
 
+/**
+ * Sharh huquqi: faqat shu mutaxassis bilan YAKUNLANGAN (done) buyurtmasi borlar sharh yoza oladi.
+ * hasAcceptedOrderWith maxfiylik ("orders" darajasi) uchun qoladi — u qabul qilingan/jarayondagilarni ham sanaydi.
+ */
+export async function hasCompletedOrderWith(clientId: string | null | undefined, specialistId: string): Promise<boolean> {
+  if (!clientId) return false;
+  const row = await db.query.orders.findFirst({
+    where: and(eq(orders.clientId, clientId), eq(orders.specialistId, specialistId), eq(orders.status, "done")),
+    columns: { id: true },
+  });
+  return Boolean(row);
+}
+
 /* ------------------------------------------------------------------ */
 /* Qisqa havola (F66): /u/{shortCode}                                  */
 /* ------------------------------------------------------------------ */

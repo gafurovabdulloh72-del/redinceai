@@ -59,10 +59,11 @@ import {
   getSpecialistBySlug,
   getVerifiedReviewerIds,
   hasAcceptedOrderWith,
+  hasCompletedOrderWith,
   ratingDistribution,
   responseTimeLabel,
 } from "@/lib/queries";
-import { ACTIVITY_LABEL, activityBucket, cn, formatDate, formatNumber, formatPriceRange, formatUsd } from "@/lib/utils";
+import { ACTIVITY_LABEL, activityBucket, cn, formatDate, formatNumber, formatPrice, formatPriceRange, formatUsd } from "@/lib/utils";
 
 /** "Top mutaxassis" nishoni izohi (tooltip) — qoida recalcRating bilan bir xil */
 const TOP_RATED_HINT = `Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`;
@@ -97,10 +98,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   // Obunasi tugagan profil katalogdan yashirin — qidiruv tizimlari ham indekslamasin
   const inactive = subscriptionState(raw, settings).status === "expired";
   const region = REGION_BY_SLUG[sp.regionSlug];
-  const title = `${sp.user.name} — ${sp.title}`;
-  const description = sp.bio?.trim()
-    ? sp.bio.slice(0, 160)
-    : `${sp.user.name}: ${sp.title}. ${sp.city}${region ? `, ${region.name}` : ""}. ${SITE.name} orqali buyurtma bering.`;
+  // Sarlavha oxiridagi "." / "!" olib tashlanadi — " · Kasb Egalari" shablonidan oldin ortiqcha tinish belgisi qolmasin
+  const jobTitle = sp.title.trim().replace(/[.!]+$/, "");
+  const title = `${sp.user.name} — ${jobTitle}`;
+  // Tavsif — bio kesmasi emas, tuzilgan matn (bo'lmagan qismlar tushib qoladi)
+  const metaPlace = [region?.name, sp.city].filter(Boolean).join(", ");
+  const metaPrice = effectivePriceFrom(raw);
+  const description = [
+    `«${jobTitle}» — ${sp.user.name}.`,
+    metaPlace ? `${metaPlace}.` : null,
+    metaPrice > 0 ? `Narx ${formatPrice(metaPrice, { compact: true })} dan.` : null,
+    `Portfolio va sharhlar — ${SITE.name}'da.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
   // OG rasm — shu segmentdagi opengraph-image.tsx (ism, kasb, hudud, reyting; mehmon ma'lumoti)
   return {
     title,
@@ -163,7 +174,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   // ?preview= faqat egasi uchun: profil boshqalarga qanday ko'rinishini simulyatsiya qiladi
   const previewMode: PreviewMode | null = isOwner && PREVIEW_MODES.some((m) => m.key === preview) ? (preview as PreviewMode) : null;
 
-  const hasOrder = viewer && !isOwner ? await hasAcceptedOrderWith(viewer.id, raw.id) : false;
+  // hasOrder — maxfiylik darajalari ("orders") uchun: qabul qilingan/jarayonda/bajarilgan buyurtma yetarli.
+  // hasDoneOrder — sharh huquqi uchun: faqat YAKUNLANGAN (done) buyurtma (server ham shuni tekshiradi).
+  const [hasOrder, hasDoneOrder] =
+    viewer && !isOwner ? await Promise.all([hasAcceptedOrderWith(viewer.id, raw.id), hasCompletedOrderWith(viewer.id, raw.id)]) : [false, false];
   const effectiveViewer: Viewer = previewMode
     ? previewMode === "guest"
       ? { userId: null }
@@ -203,8 +217,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   }
 
   const myReview = viewer ? raw.reviews.find((r) => r.authorId === viewer.id) : null;
-  // Sharh — faqat shu mutaxassis bilan qabul qilingan buyurtmasi borlardan (server ham tekshiradi); mavjud sharh tahrirlanaveradi
-  const canReview = Boolean(viewer) && !isOwner && (hasOrder || Boolean(myReview) || isAdmin);
+  // Sharh — faqat shu mutaxassis bilan YAKUNLANGAN buyurtmasi borlardan (server ham tekshiradi); mavjud sharh tahrirlanaveradi.
+  // Adminga ham istisno yo'q — sharh faqat haqiqiy ish tajribasidan (moderatsiya/DELETE huquqi saqlanadi).
+  const canReview = Boolean(viewer) && !isOwner && (hasDoneOrder || Boolean(myReview));
   const needsOrder = Boolean(viewer) && !isOwner && !canReview;
   const profilePath = `/mutaxassislar/${raw.slug}`;
   const loginHref = `/auth/kirish?next=${encodeURIComponent(profilePath)}`;
@@ -227,6 +242,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   // "… dan" narx: priceFrom bo'sh bo'lsa — eng arzon paket (F31); dollar ekvivalenti (F99) — platforma kursi bilan
   const priceFrom = effectivePriceFrom(raw);
   const price = formatPriceRange(priceFrom, sp.priceTo);
+  // Mobil pastki panel uchun qisqa narx — to'liq oraliq ("1,5 – 3 mln so'm") tor ekranda qirqilmasin
+  const priceCompact = priceFrom > 0 ? `${formatPrice(priceFrom, { compact: true })} dan` : price;
   const priceUsd = priceFrom > 0 ? formatUsd(priceFrom, settings.usdRate) : "";
   const workTypes = sp.workTypes.map((w) => WORK_TYPE_BY_SLUG[w]).filter((w): w is NonNullable<typeof w> => Boolean(w));
   const compareItem = { id: raw.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl };
@@ -234,6 +251,33 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const hiddenForGuests = isOwner
     ? (["phone", "telegram", "instagram", "youtube", "website", "email", "schedule", "gender", "city"] as const).filter((k) => vis[k] !== "public").length
     : 0;
+
+  // SEO (JSON-LD): Person (+ kasb, hudud), AggregateRating faqat sharh borida, BreadcrumbList
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        name: sp.user.name,
+        jobTitle: sp.title,
+        url: `${origin}${profilePath}`,
+        ...(region || sp.city
+          ? { address: { "@type": "PostalAddress", ...(region ? { addressRegion: region.name } : {}), ...(sp.city ? { addressLocality: sp.city } : {}), addressCountry: "UZ" } }
+          : {}),
+        ...(sp.reviewCount > 0
+          ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(sp.rating.toFixed(1)), reviewCount: sp.reviewCount, bestRating: 5, worstRating: 1 } }
+          : {}),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Bosh sahifa", item: `${origin}/` },
+          { "@type": "ListItem", position: 2, name: "Mutaxassislar", item: `${origin}/mutaxassislar` },
+          { "@type": "ListItem", position: 3, name: sp.user.name, item: `${origin}${profilePath}` },
+        ],
+      },
+    ],
+  };
 
   const metaChips: Array<{ icon: typeof Briefcase; text: string; tone: "accent" | "neutral" }> = [
     { icon: Briefcase, text: experience, tone: "accent" },
@@ -281,6 +325,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   return (
     <div className="container-x pb-24 lg:pb-0">
+      {/* Tuzilgan ma'lumot (SEO) — "</script>" ichida chiqmasligi uchun "<" belgisi qochiriladi */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+
       {/* ================= PREVIEW BANNER (faqat egasi) ================= */}
       {previewMode && (
         <div className="card-elevated mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between" role="status">
@@ -369,7 +416,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           />
           <div className="absolute inset-0 grain" />
           {/* Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (kabinetdagi "Birinchi ish muqovada ko'rinadi"), u ham bo'lmasa naqsh */}
-          <CoverImage src={sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null} category={sp.category} seed={sp.slug} />
+          <CoverImage src={sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null} category={sp.category} seed={sp.slug} priority />
 
           <div className="absolute left-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:top-6">
             {cat && (
@@ -787,8 +834,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   <Clock3 size={12} /> {responseLabel}
                 </p>
               )}
-              {!showOwnerCta && !inactive && onVacation && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir ta'tilda — buyurtmangiz navbatga qo'yiladi.</p>}
-              {!showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangiz navbatga qo'yiladi.</p>}
+              {/* Halol muddat (#43): ta'tilda — qaytish sanasi bilan, band — bo'shagach ko'rib chiqadi */}
+              {!showOwnerCta && !inactive && onVacation && (
+                <p className="mt-2.5 text-center text-[12px] text-fg-3">{sp.vacationUntil ? `${formatDate(sp.vacationUntil)}gacha ta'tilda — buyurtmangizni qaytgach ko'rib chiqadi.` : "Hozir ta'tilda — buyurtmangizni qaytgach ko'rib chiqadi."}</p>
+              )}
+              {!showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">Hozir band — buyurtmangizni bo'shagach ko'rib chiqadi.</p>}
 
               {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
               <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
@@ -916,18 +966,30 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       )}
 
       {/* ================= MOBIL: pastki yopishqoq narx + CTA ================= */}
+      {/* Pastki tab-bar (bottom-3 + safe-area + ~64px balandlik) ustida kamida 6px oraliq: 82px + safe-area */}
       <div
         data-sticky-cta
-        className="card-elevated fixed inset-x-3 bottom-[76px] z-40 flex items-center gap-3 !rounded-[22px] px-4 py-2.5 md:bottom-4 lg:hidden"
-        style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+        className="card-elevated fixed inset-x-3 bottom-[calc(5.125rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2.5 !rounded-[22px] px-4 py-2.5 md:bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden"
       >
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-fg-4">Narx</p>
-          <p className="truncate font-display text-[15px] font-semibold leading-tight text-fg">
-            {price}
-            {priceUsd && <span className="ml-1.5 font-sans text-[11px] font-medium text-fg-3">{priceUsd}</span>}
+          {/* Qisqa "… dan" ko'rinishi + kichikroq shrift — narx hech qachon qirqilmaydi */}
+          <p className="font-display text-[13.5px] font-semibold leading-tight text-fg">
+            {priceCompact}
+            {priceUsd && <span className="ml-1.5 font-sans text-[10.5px] font-medium text-fg-3">{priceUsd}</span>}
           </p>
         </div>
+        {/* Ichki chat: egadan boshqa hammaga; mehmon login orqali qaytadi */}
+        {!isOwner && sp.user.username && (
+          <Link
+            href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`}
+            aria-label="Yozish"
+            title="Yozish"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg transition hover:border-fg active:scale-95"
+          >
+            <MessageCircle size={18} />
+          </Link>
+        )}
         {showOwnerCta ? (
           <ButtonLink href="/kabinet/profil" size="md" className="shrink-0">
             <Settings size={16} /> Tahrirlash

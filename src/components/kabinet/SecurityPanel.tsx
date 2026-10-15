@@ -281,7 +281,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         return;
       }
       const blob = await res.blob();
-      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "redince-export.json";
+      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "kasb-egalari-export.json";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -488,7 +488,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "redince-zaxira-kodlari.txt";
+    a.download = "kasb-egalari-zaxira-kodlari.txt";
     document.body.appendChild(a);
     a.click();
     a.remove();

@@ -40,6 +40,8 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   payment_paid: "To'lov qabul qilindi",
   payment_released: "Pul mutaxassisga o'tkazildi",
   payment_refunded: "To'lov qaytarildi",
+  payment_cancelled: "To'lov urinishi bekor qilindi",
+  admin_profile_rejected: "Admin: profil rad etildi",
   payout_requested: "Pul chiqarish so'raldi",
   order_status: "Buyurtma holati o'zgardi",
   order_amount: "Narx belgilandi",

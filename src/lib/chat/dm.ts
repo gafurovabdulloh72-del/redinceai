@@ -136,11 +136,21 @@ export async function listMessages(convId: string, afterId?: string | null, limi
     const m = await db.query.dmMessages.findFirst({ where: and(eq(dmMessages.id, afterId), eq(dmMessages.conversationId, convId)), columns: { createdAt: true } });
     afterAt = m?.createdAt ?? null;
   }
-  return db.query.dmMessages.findMany({
-    where: afterAt ? and(eq(dmMessages.conversationId, convId), gt(dmMessages.createdAt, afterAt)) : eq(dmMessages.conversationId, convId),
-    orderBy: [asc(dmMessages.createdAt), asc(dmMessages.id)],
+  if (afterAt) {
+    // Polling: kursordan keyingi yangi xabarlar (eski → yangi)
+    return db.query.dmMessages.findMany({
+      where: and(eq(dmMessages.conversationId, convId), gt(dmMessages.createdAt, afterAt)),
+      orderBy: [asc(dmMessages.createdAt), asc(dmMessages.id)],
+      limit,
+    });
+  }
+  // Birinchi ochilish: BIRINCHI 200 ta emas, OXIRGI 200 ta xabar — teskari tartibda olib, eski → yangi qilib qaytaramiz
+  const rows = await db.query.dmMessages.findMany({
+    where: eq(dmMessages.conversationId, convId),
+    orderBy: [desc(dmMessages.createdAt), desc(dmMessages.id)],
     limit,
   });
+  return rows.reverse();
 }
 
 /** Suhbatni o'qilgan deb belgilash (mening tomonim) */

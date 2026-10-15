@@ -56,7 +56,7 @@ export async function landingMetadata(cat: Category, region: Region | null): Pro
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${title} · ${SITE.name}`, description, url: path },
+    openGraph: { title: `${title} · ${SITE.name}`, description, url: path, images: ["/opengraph-image"], siteName: SITE.name, locale: "uz_UZ" },
     // Bo'sh sahifa (hali mutaxassis yo'q) — indekslanmasin (yupqa kontent)
     ...(n === 0 ? { robots: { index: false, follow: true } } : {}),
   };

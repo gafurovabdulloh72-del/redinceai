@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { TermsBanner } from "@/components/auth/TermsBanner";
 import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
 import { unreadDmCount } from "@/lib/chat/dm";
-import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
+import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { jobs, notifications, orders, proposals } from "@/lib/db/schema";
 import { getSettings } from "@/lib/payments/settings";
 import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,41 @@ const ROLE_LABEL = {
 
 /** Shu kundan kam qolsa — "tugayapti" (sariq): SubscriptionBanner bilan bir xil chegara */
 const EXPIRING_DAYS = BANNER_DAYS;
+
+/** Ixcham pill shu kundan kam qolganda (yoki tugaganda) chiqadi */
+const PILL_DAYS = 5;
+
+/**
+ * Ixcham obuna pill'i (G6/#74): to'liq banner faqat kabinetning umumiy sahifasida (kabinet/page.tsx),
+ * qolgan sahifalarda kontentni pastga surmaydigan bir qatorlik eslatma — faqat ≤5 kun qolganda yoki tugaganda.
+ */
+function SubscriptionPill({ st }: { st: SubscriptionState }) {
+  if (st.status === "off" || st.status === "exempt") return null;
+  const urgent = st.status === "expired" || st.status === "grace";
+  if (!urgent && st.daysLeft > PILL_DAYS) return null;
+  const expired = st.status === "expired";
+  const label = expired
+    ? "Obuna faol emas — profil katalogda ko'rinmaydi"
+    : st.status === "grace"
+      ? `Obuna tugadi — muhlat: ${st.daysLeft} kun`
+      : st.status === "trial"
+        ? `Sinov tugashiga ${st.daysLeft} kun qoldi`
+        : `Obuna tugashiga ${st.daysLeft} kun qoldi`;
+  return (
+    <div
+      role={expired ? "alert" : "status"}
+      className={cn(
+        "mb-5 flex min-h-10 items-center justify-between gap-3 rounded-full border px-4 py-1.5",
+        expired ? "border-danger/30 bg-danger-soft" : "border-warning/30 bg-warning-soft",
+      )}
+    >
+      <p className={cn("truncate text-[13px] font-semibold", expired ? "text-danger-text" : "text-warning-text")}>{label}</p>
+      <Link href="/kabinet/obuna#rejalar" className="shrink-0 text-[13px] font-semibold text-fg underline underline-offset-2 transition hover:opacity-80">
+        Uzaytirish
+      </Link>
+    </div>
+  );
+}
 
 /** Navigatsiyadagi obuna nuqtasi: faol — yashil, tugayapti / imtiyozli muddat — sariq, faol emas — qizil; talab o'chiq — nuqtasiz */
 function subscriptionDot(st: SubscriptionState): { dot: KabinetNavDot; dotLabel: string } | null {
@@ -128,10 +165,11 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           />
         </aside>
         <div className="min-w-0 lg:col-span-9 print:col-span-12">
-          {/* Bloklamaydigan bannerlar: shartlar (G1) va obuna (G6) — chop etishda ko'rinmaydi */}
+          {/* Bloklamaydigan bannerlar: shartlar (G1) va ixcham obuna pill'i (G6/#74) — chop etishda ko'rinmaydi.
+              To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
           <div className="print:hidden">
             <TermsBanner />
-            {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} />}
+            {subState && <SubscriptionPill st={subState} />}
           </div>
           {children}
         </div>

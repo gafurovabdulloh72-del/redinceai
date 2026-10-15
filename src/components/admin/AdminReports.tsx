@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CheckCircle2, ExternalLink, Flag, RotateCcw } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, ExternalLink, Flag, RotateCcw, Trash2, UserCheck } from "lucide-react";
 import { AdminBanToggle } from "@/components/admin/AdminBanToggle";
 import { Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
@@ -19,6 +19,8 @@ export interface AdminReportRowDto {
   target: { label: string; href: string | null; snippet: string | null } | null;
   /** Profil shikoyatida — egasi (bloklash uchun) */
   owner?: { userId: string; name: string; isBanned: boolean; bannedReason: string | null } | null;
+  /** Yopilgan shikoyatda — kim yopgani */
+  resolver?: { name: string; email: string } | null;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -34,6 +36,8 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
   }
   const [busy, setBusy] = useState<string | null>(null);
   const [showClosed, setShowClosed] = useState(false);
+  /** Sharhni o'chirish inline tasdig'i (shikoyat id) */
+  const [confirmDeleteReview, setConfirmDeleteReview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -53,6 +57,28 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
       if (!json || !json.ok) throw new Error(json?.error ?? "Server javob bermadi");
       setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, status: json.data.status } : x)));
       setNotice(status === "closed" ? "Shikoyat yopildi" : "Shikoyat qayta ochildi");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Sharh shikoyati: sharhning o'zini o'chirish (mavjud admin DELETE /api/admin/reviews/[id]) —
+   *  reyting qayta hisoblanadi, shu sharh bo'yicha BARCHA ochiq shikoyatlar serverda yopiladi */
+  const deleteReview = async (r: AdminReportRowDto) => {
+    if (busy) return;
+    setError(null);
+    setBusy(r.id);
+    setConfirmDeleteReview(null);
+    try {
+      const res = await fetch(`/api/admin/reviews/${r.targetId}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+      const json = (await res.json().catch(() => null)) as ApiResponse<{ deleted: boolean }> | null;
+      if (!json || !json.ok) throw new Error(json && !json.ok ? json.error : "Server javob bermadi");
+      // Shu sharhga tegishli barcha ochiq shikoyatlar yopildi; nishon endi o'chirilgan
+      setRows((rs) => rs.map((x) => (x.targetType === "review" && x.targetId === r.targetId ? { ...x, status: "closed" as const, target: { label: "O'chirilgan sharh", href: null, snippet: null } } : x)));
+      setNotice("Sharh o'chirildi — reyting qayta hisoblandi, shikoyat yopildi");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
@@ -90,9 +116,30 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
           <p className="mt-0.5 truncate text-[11px] text-fg-4">
             {r.reporter.name} · {r.reporter.email}
           </p>
+          {r.status === "closed" && r.resolver && (
+            <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] text-fg-4" title="Shikoyatni yopgan admin">
+              <UserCheck size={11} /> Yopdi: {r.resolver.name} · {r.resolver.email}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-start gap-2 sm:justify-end">
           {r.owner && <AdminBanToggle key={`${r.owner.userId}:${r.owner.isBanned}`} userId={r.owner.userId} name={r.owner.name} initialBanned={r.owner.isBanned} initialReason={r.owner.bannedReason} />}
+          {r.targetType === "review" && r.target?.href && r.status === "open" && (
+            confirmDeleteReview === r.id ? (
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Button size="sm" variant="danger" className="h-11 md:h-9" onClick={() => deleteReview(r)} disabled={!!busy}>
+                  {busy === r.id ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 size={14} />} Ha, o'chirish
+                </Button>
+                <Button size="sm" variant="ghost" className="h-11 md:h-9" onClick={() => setConfirmDeleteReview(null)} disabled={!!busy}>
+                  Yo'q
+                </Button>
+              </span>
+            ) : (
+              <Button size="sm" variant="outline" className="h-11 text-danger-text hover:border-danger hover:bg-danger-soft md:h-9" onClick={() => setConfirmDeleteReview(r.id)} disabled={!!busy} title="Sharh butunlay o'chadi, reyting qayta hisoblanadi, shikoyat yopiladi">
+                <Trash2 size={14} /> Sharhni o'chirish
+              </Button>
+            )
+          )}
           {r.status === "open" ? (
             <Button size="sm" variant="outline" className="h-11 md:h-9" onClick={() => setStatus(r, "closed")} disabled={!!busy}>
               {busy === r.id ? <Spinner className="h-3.5 w-3.5" /> : <Check size={14} />} Yopish

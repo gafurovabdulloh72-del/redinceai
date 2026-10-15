@@ -17,7 +17,7 @@ export interface AdminDisputeRow {
   reason: string;
   /** Kim ochgan */
   by: "client" | "specialist";
-  /** Nizo ochilgan vaqt (ms) */
+  /** DIQQAT: bu buyurtmaning updatedAt'i (so'nggi faollik), nizo ochilgan vaqt emas — UI shunday deb ko'rsatadi */
   openedAt: number;
   client: { name: string; email: string };
   specialist: { name: string; email: string; slug: string };
@@ -55,11 +55,16 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
 
   const resolve = async (r: AdminDisputeRow, resolution: Resolution) => {
     if (busy) return;
+    // Izoh majburiy (API ham ≥5 belgi talab qiladi) — tugma disabled, bu faqat qo'shimcha himoya
+    if (note.trim().length < 5) {
+      setError("Qaror izohini yozing (kamida 5 belgi) — tomonlarga ko'rinadi");
+      return;
+    }
     setError(null);
     setBusy(r.orderId);
     setAsk(null);
     try {
-      const res = await fetch(`/api/admin/orders/${r.orderId}/dispute`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution, note: note.trim() || undefined }) });
+      const res = await fetch(`/api/admin/orders/${r.orderId}/dispute`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution, note: note.trim() }) });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ resolution: Resolution }> | null;
       if (!json || !json.ok) throw new Error(json?.error ?? "Server javob bermadi");
       setRows((rs) => rs.filter((x) => x.orderId !== r.orderId));
@@ -104,9 +109,12 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                         {r.title}
                       </Link>
                       <span className="rounded-full bg-fg/6 px-2 py-0.5 text-[11px] font-semibold text-fg-2">{ORDER_STATUS_LABEL[r.status]}</span>
-                      <time dateTime={new Date(r.openedAt).toISOString()} className="text-[11px] text-fg-4" title={formatDateTime(r.openedAt)} suppressHydrationWarning>
-                        {timeAgo(r.openedAt)}
-                      </time>
+                      <span className="text-[11px] text-fg-4">
+                        So'nggi faollik:{" "}
+                        <time dateTime={new Date(r.openedAt).toISOString()} title={formatDateTime(r.openedAt)} suppressHydrationWarning>
+                          {timeAgo(r.openedAt)}
+                        </time>
+                      </span>
                     </p>
                     <p className="mt-1 text-[12px] text-fg-3">
                       {r.client.name} <span className="text-fg-4">→</span>{" "}
@@ -137,9 +145,10 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                         <label htmlFor={`dnote-${r.orderId}`} className="sr-only">
                           Qaror izohi
                         </label>
-                        <input id={`dnote-${r.orderId}`} className="field !min-h-10 !py-1.5 text-[13px]" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="Izoh (tomonlarga ko'rinadi)" autoFocus />
+                        <input id={`dnote-${r.orderId}`} className="field !min-h-10 !py-1.5 text-[13px]" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="Izoh — majburiy, kamida 5 belgi (tomonlarga ko'rinadi)" autoFocus />
                         <div className="flex gap-1.5">
-                          <Button size="sm" variant={ask.resolution === "refund" ? "danger" : "primary"} className="h-11 md:h-9" onClick={() => resolve(r, ask.resolution)} disabled={!!busy}>
+                          {/* Qaror izohi majburiy (≥5 belgi) — sababsiz hal qilib bo'lmaydi */}
+                          <Button size="sm" variant={ask.resolution === "refund" ? "danger" : "primary"} className="h-11 md:h-9" onClick={() => resolve(r, ask.resolution)} disabled={!!busy || note.trim().length < 5}>
                             {b ? <Spinner className="h-3.5 w-3.5" /> : ask.resolution === "refund" ? <RotateCcw size={14} /> : <ArrowRightLeft size={14} />} Ha, {RES_LABEL[ask.resolution].toLowerCase()}
                           </Button>
                           <Button size="sm" variant="ghost" className="h-11 md:h-9" onClick={() => setAsk(null)} disabled={!!busy}>

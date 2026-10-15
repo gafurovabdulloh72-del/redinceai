@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,9 +17,32 @@ function subscribe(cb: () => void) {
   return () => mo.disconnect();
 }
 
+/** Tanlangan rejim fonini brauzer manzil paneliga ham beradi (<meta name="theme-color">) */
+function syncThemeColorMeta() {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  if (!bg) return;
+  let metas = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
+  if (metas.length === 0) {
+    const m = document.createElement("meta");
+    m.name = "theme-color";
+    document.head.appendChild(m);
+    metas = [m];
+  }
+  for (const m of metas) {
+    // media (prefers-color-scheme) endi mos kelmaydi — rejim qo'lda tanlangan
+    m.removeAttribute("media");
+    m.setAttribute("content", bg);
+  }
+}
+
 /** Tema almashtirgich — mobil va desktopda bir xil (yuqori panelda), 40px bosish maydoni */
 export function ThemeToggle({ className }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, readTheme, () => "light" as Theme);
+
+  // Rejim o'zgarganda (shu jumladan boshqa toggle orqali) manzil paneli rangi ham mos bo'ladi
+  useEffect(() => {
+    syncThemeColorMeta();
+  }, [theme]);
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -37,8 +60,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       role="switch"
       aria-checked={theme === "dark"}
-      aria-label={theme === "dark" ? "Yorug' rejimga o'tish" : "Qorong'u rejimga o'tish"}
-      title={theme === "dark" ? "Yorug' rejim" : "Qorong'u rejim"}
+      /* Barqaror nom + holat aria-checked orqali: nom va holat bir-biriga zid bo'lmasin */
+      aria-label="Tungi rejim"
+      title="Tungi rejim"
       className={cn("card card-hover flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-fg-2 hover:text-fg", className)}
     >
       <span className="relative h-[18px] w-[18px]">

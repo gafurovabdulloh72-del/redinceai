@@ -4,22 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 
 /**
- * Profil muqovasi: rasm muvaffaqiyatli yuklangandagina ko'rinadi va ustiga
- * o'qilishi uchun qoraytiruvchi gradient qo'yiladi. Rasm yo'q/buzilgan bo'lsa —
+ * Profil muqovasi: rasm darhol ko'rinadi (LCP'ni onLoad kutib bloklamaymiz) — placeholder fon
+ * ustida qisqa CSS fade-in bilan paydo bo'ladi. Rasm yo'q/buzilgan bo'lsa —
  * `category` berilgan bo'lsa yo'nalish naqshi (CoverPattern), aks holda hech narsa (ostidagi tinch yuza); gradient chiqmaydi.
+ * `priority` — birinchi ekrandagi (hero) muqova uchun: eager + fetchPriority="high"; standart — lazy.
  */
-export function CoverImage({ src, category, seed }: { src: string | null; category?: string; seed?: string }) {
+export function CoverImage({ src, category, seed, priority = false }: { src: string | null; category?: string; seed?: string; priority?: boolean }) {
   const ref = useRef<HTMLImageElement>(null);
-  const [state, setState] = useState<"loading" | "ok" | "broken">("loading");
+  const [broken, setBroken] = useState(false);
 
   useEffect(() => {
-    setState("loading");
+    setBroken(false);
     const el = ref.current;
-    if (!el) return;
-    if (el.complete) setState(el.naturalWidth > 0 ? "ok" : "broken");
+    // SSR'dan keyin hidratsiyagacha xato bergan rasm ham aniqlanadi
+    if (el && el.complete && el.naturalWidth === 0) setBroken(true);
   }, [src]);
 
-  if (!src || state === "broken") return category ? <CoverPattern category={category} seed={seed} /> : null;
+  if (!src || broken) return category ? <CoverPattern category={category} seed={seed} /> : null;
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -27,12 +28,17 @@ export function CoverImage({ src, category, seed }: { src: string | null; catego
         ref={ref}
         src={src}
         alt=""
-        onLoad={() => setState("ok")}
-        onError={() => setState("broken")}
-        className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-        style={{ opacity: state === "ok" ? 1 : 0 }}
+        width={1600}
+        height={600}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+        decoding="async"
+        onError={() => setBroken(true)}
+        className="absolute inset-0 h-full w-full object-cover"
+        /* Qisqa fade faqat CSS orqali — rasm ko'rinishi onLoad'ga bog'lanmaydi */
+        style={{ animation: "cover-fade-in 0.4s ease both" }}
       />
-      {state === "ok" && <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" aria-hidden="true" />
     </>
   );
 }

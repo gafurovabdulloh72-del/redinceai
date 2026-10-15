@@ -54,7 +54,7 @@ import { getSubscriptionRevenueSummary } from "@/lib/subscriptions/queries";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
 import { getAdminAnalytics } from "./analytics";
 import { getFraudSignals } from "./fraud";
-import { banFlagsFor, listAdminReports, listAdminReviews, listSettingsHistory } from "./queries";
+import { banFlagsFor, listAdminReports, listAdminReviews, listPendingSpecialists, listSettingsHistory } from "./queries";
 
 export const dynamic = "force-dynamic";
 
@@ -99,36 +99,25 @@ function Tile({ icon: Icon, value, label, hint, hintTone = "neutral", href }: { 
 
 const money = (n: number) => formatPrice(n, { compact: n >= 10_000_000 });
 
-/** O'ng paneldagi bo'limlar — sahifadagi section id'lari bilan bir xil tartibda */
-const NAV_ITEMS = [
-  { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
-  { id: "moliya", label: "Moliya" },
-  { id: "analitika", label: "Analitika" },
-  { id: "nizolar", label: "Nizolar" },
-  { id: "sozlamalar", label: "Sozlamalar" },
-  { id: "payoutlar", label: "Payoutlar" },
-  { id: "tolovlar", label: "To'lovlar" },
-  { id: "tasdiqlash", label: "Tasdiqlash" },
-  { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
-  { id: "shikoyatlar", label: "Shikoyatlar" },
-  { id: "shubhali", label: "Shubhali faollik" },
-  { id: "sharhlar", label: "Sharhlar" },
-  { id: "faollik", label: "So'nggi faollik" },
-];
+/** Ro'yxat chegaralari — jadval ostidagi "Oxirgi N tasi ko'rsatilgan" izohi uchun */
+const PAYMENTS_CAP = 60;
+const REVIEWS_CAP = 30;
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin"));
   if (user.role !== "admin") redirect("/kabinet");
 
-  const [{ stats, pending, latestUsers, latestOrders }, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
+  // Tasdiqlash navbati listPendingSpecialists'dan keladi (eng eskisi birinchi, 200 tagacha, avatar + portfolio soni bilan)
+  const [{ stats, latestUsers, latestOrders }, pending, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
     getAdminOverview(),
+    listPendingSpecialists(200),
     getAdminFinance(),
     listAdminPayouts(),
-    listAdminPayments(),
+    listAdminPayments(PAYMENTS_CAP),
     getSettings(),
     listOpenDisputes(),
-    listAdminReviews(30),
+    listAdminReviews(REVIEWS_CAP),
     listAdminReports("all", 60),
     getAdminAnalytics(),
     getFraudSignals(),
@@ -152,9 +141,12 @@ export default async function AdminPage() {
     city: sp.city,
     isVerified: sp.isVerified,
     isFeatured: sp.isFeatured,
+    isHidden: sp.isHidden,
     createdAt: sp.createdAt.getTime(),
-    user: { name: sp.user.name, email: sp.user.email, phone: sp.user.phone },
+    user: { name: sp.user.name, email: sp.user.email, phone: sp.user.phone, avatarUrl: sp.user.avatarUrl },
     userId: sp.userId,
+    bio: sp.bio,
+    portfolioCount: Number(sp.portfolioCount ?? 0),
     isBanned: bans.get(sp.userId)?.isBanned ?? false,
     bannedReason: bans.get(sp.userId)?.bannedReason ?? null,
   }));
@@ -167,6 +159,7 @@ export default async function AdminPage() {
     commissionPct: o.commissionPct,
     reason: o.disputeReason ?? "",
     by: o.disputeOpenedBy === o.clientId ? "client" : "specialist",
+    // updatedAt — bu nizo ochilgan vaqt emas, buyurtmadagi so'nggi faollik (UI "So'nggi faollik" deb ko'rsatadi)
     openedAt: o.updatedAt.getTime(),
     client: { name: o.client.name, email: o.client.email },
     specialist: { name: o.specialist.user.name, email: o.specialist.user.email, slug: o.specialist.slug },
@@ -239,17 +232,35 @@ export default async function AdminPage() {
   const lastOrderAt = orders[0]?.createdAt;
   const openPayouts = payoutRows.filter((p) => p.state === "requested" || p.state === "approved").length;
 
+  // Chiplar sahifadagi yangi tartib bilan bir xil: amal navbatlari birinchi
   const sections = [
+    { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pendingRows.length },
+    { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
+    { href: "#payoutlar", label: "Payout so'rovlari", icon: Banknote, count: openPayouts },
+    { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
+    { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
     { href: "#moliya", label: "Moliya", icon: Wallet },
     { href: "#analitika", label: "Analitika", icon: ChartColumn },
-    { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
-    { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
-    { href: "#payoutlar", label: "Payout so'rovlari", icon: Banknote, count: openPayouts },
-    { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
-    { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pending.length },
-    { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
     { href: "#shubhali", label: "Shubhali faollik", icon: ShieldAlert, count: fraud.total },
     { href: "#sharhlar", label: "Sharhlar", icon: MessageSquareText },
+    { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
+  ];
+
+  /** O'ng paneldagi bo'limlar — sahifadagi section'lar bilan BIR XIL tartibda; navbat badge'lari bilan */
+  const navItems = [
+    { id: "tasdiqlash", label: "Tasdiqlash", badge: pendingRows.length },
+    { id: "nizolar", label: "Nizolar", badge: disputeRows.length },
+    { id: "payoutlar", label: "Payoutlar", badge: openPayouts },
+    { id: "shikoyatlar", label: "Shikoyatlar", badge: openReports },
+    { id: "tolovlar", label: "To'lovlar", badge: finance.manualPending },
+    { id: "moliya", label: "Moliya" },
+    { id: "analitika", label: "Analitika" },
+    { id: "shubhali", label: "Shubhali faollik" },
+    { id: "sharhlar", label: "Sharhlar" },
+    { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
+    { id: "faollik", label: "So'nggi faollik" },
+    { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
+    { id: "sozlamalar", label: "Sozlamalar" },
   ];
 
   return (
@@ -314,18 +325,83 @@ export default async function AdminPage() {
         />
       </div>
 
-      {/* ---------- To'lov sozlamalari ---------- */}
-      <section id="tolov-sozlamalari" className="mt-14 scroll-mt-28 sm:mt-16">
+      {/* ---------- Tasdiqlash navbati ---------- */}
+      <section id="tasdiqlash" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading
-          eyebrow="To'lov tizimlari"
-          title={
-            <>
-              To'lovlarni <span className="accent-serif text-accent">boshqarish</span>
-            </>
+          eyebrow="Tasdiqlash navbati"
+          title="Yangi profillar"
+          description="Tasdiqlangan profillar ro'yxatda belgili ko'rinadi va ko'proq ishonch qozonadi. Tavsiya etilganlar bosh sahifada chiqadi."
+          action={
+            <Badge tone={pending.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {pending.length > 0 ? `${pending.length} ta kutmoqda` : "Navbat bo'sh"}
+            </Badge>
           }
-          description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi."
         />
-        <PaymentProvidersPanel />
+        <AdminSpecialistsTable pending={pendingRows} />
+      </section>
+
+      {/* ---------- Nizolar ---------- */}
+      <section id="nizolar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Nizolar"
+          title="Arbitraj navbati"
+          description="Mijoz yoki mutaxassis eskroudagi buyurtma bo'yicha nizo ochgan. Pul eskrouda turadi; ikkala tomonni (buyurtma sahifasidagi jurnal, aloqa) ko'rib chiqib qaror bering — tomonlarga bildirishnoma va izoh boradi."
+          action={
+            <Badge tone={disputeRows.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {disputeRows.length > 0 ? `${disputeRows.length} ta ochiq nizo` : "Nizolar yo'q"}
+            </Badge>
+          }
+        />
+        <AdminDisputes rows={disputeRows} />
+      </section>
+
+      {/* ---------- Payout so'rovlari ---------- */}
+      <section id="payoutlar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Payout so'rovlari"
+          title="Pul chiqarish navbati"
+          description="Mutaxassis released balansidan so'raydi. «Tasdiqlash» — rekvizitni tekshirdingiz; «To'landi» — o'tkazma qilingach. Rad etishda sabab mutaxassisga ko'rinadi."
+          action={
+            <Badge tone={openPayouts > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {openPayouts > 0 ? `${openPayouts} ta kutmoqda` : "Navbat bo'sh"}
+            </Badge>
+          }
+        />
+        <AdminPayoutsQueue rows={payoutRows} />
+      </section>
+
+      {/* ---------- Shikoyatlar ---------- */}
+      <section id="shikoyatlar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Shikoyatlar"
+          title="Profil va sharh shikoyatlari"
+          description="Foydalanuvchilar yuborgan shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa sharhni o'chiring (pastda) yoki profilni bloklang, so'ng shikoyatni yoping."
+          action={
+            <Badge tone={openReports > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
+              {openReports > 0 ? `${openReports} ta ochiq` : "Ochiq shikoyat yo'q"}
+            </Badge>
+          }
+        />
+        <AdminReports rows={reports} />
+      </section>
+
+      {/* ---------- To'lovlar ---------- */}
+      <section id="tolovlar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="To'lovlar"
+          title="Eskrou to'lovlari"
+          description="Qo'lda o'tkazmalarni tasdiqlang, bekor qilingan buyurtmalar bo'yicha pulni qaytaring yoki zarur bo'lsa mutaxassisga o'tkazing."
+          action={
+            finance.manualPending > 0 ? (
+              <Badge tone="warning" className="self-start !px-3 !py-1.5 sm:self-auto">
+                {finance.manualPending} ta o'tkazma tasdiq kutmoqda
+              </Badge>
+            ) : undefined
+          }
+        />
+        <AdminPaymentsTable rows={paymentRows} />
+        {/* Ro'yxat chegaraga yetgan — eski yozuvlar jadvalda yo'qligi haqida halol izoh */}
+        {paymentRows.length === PAYMENTS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {PAYMENTS_CAP} tasi ko'rsatilgan</p>}
       </section>
 
       {/* ---------- Moliya ---------- */}
@@ -370,135 +446,6 @@ export default async function AdminPage() {
         <AdminAnalytics data={analytics} />
       </section>
 
-      {/* ---------- Nizolar ---------- */}
-      <section id="nizolar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Nizolar"
-          title="Arbitraj navbati"
-          description="Mijoz yoki mutaxassis eskroudagi buyurtma bo'yicha nizo ochgan. Pul eskrouda turadi; ikkala tomonni (buyurtma sahifasidagi jurnal, aloqa) ko'rib chiqib qaror bering — tomonlarga bildirishnoma va izoh boradi."
-          action={
-            <Badge tone={disputeRows.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {disputeRows.length > 0 ? `${disputeRows.length} ta ochiq nizo` : "Nizolar yo'q"}
-            </Badge>
-          }
-        />
-        <AdminDisputes rows={disputeRows} />
-      </section>
-
-      {/* ---------- Sozlamalar ---------- */}
-      <section id="sozlamalar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="Sozlamalar" title="Komissiya, obuna va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Mutaxassislar oylik obuna to'laydi, mijozlar bepul. Har bir o'zgarish tarixda saqlanadi." />
-        <div className="grid gap-5 lg:grid-cols-3">
-          <div className="min-w-0 lg:col-span-2">
-            <PlatformSettingsForm initial={settings} history={settingsHistory} />
-          </div>
-          <div className="card self-start p-5 sm:p-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Hozirgi qiymatlar</p>
-            <dl className="mt-3 divide-y divide-line text-[14px]">
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Yangi mutaxassis</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctNew}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Oddiy daraja</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPct}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Top mutaxassis</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctTop}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Minimal buyurtma</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minOrderAmount)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Minimal payout</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minPayout)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Obuna (oyiga)</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.subscriptionPrice)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Sinov / imtiyoz</dt>
-                <dd className="font-semibold text-fg tabular-nums">
-                  {settings.subscriptionTrialDays} / {settings.subscriptionGraceDays} kun
-                </dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Obuna talabi</dt>
-                <dd>
-                  <Badge tone={settings.subscriptionEnforced === 1 ? "success" : "neutral"}>{settings.subscriptionEnforced === 1 ? "Yoqilgan" : "O'chirilgan"}</Badge>
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-[12px] leading-snug text-fg-3">O'zgarishlar audit jurnaliga yoziladi.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------- Payout so'rovlari ---------- */}
-      <section id="payoutlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Payout so'rovlari"
-          title="Pul chiqarish navbati"
-          description="Mutaxassis released balansidan so'raydi. «Tasdiqlash» — rekvizitni tekshirdingiz; «To'landi» — o'tkazma qilingach. Rad etishda sabab mutaxassisga ko'rinadi."
-          action={
-            <Badge tone={openPayouts > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {openPayouts > 0 ? `${openPayouts} ta kutmoqda` : "Navbat bo'sh"}
-            </Badge>
-          }
-        />
-        <AdminPayoutsQueue rows={payoutRows} />
-      </section>
-
-      {/* ---------- To'lovlar ---------- */}
-      <section id="tolovlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="To'lovlar"
-          title="Eskrou to'lovlari"
-          description="Qo'lda o'tkazmalarni tasdiqlang, bekor qilingan buyurtmalar bo'yicha pulni qaytaring yoki zarur bo'lsa mutaxassisga o'tkazing."
-          action={
-            finance.manualPending > 0 ? (
-              <Badge tone="warning" className="self-start !px-3 !py-1.5 sm:self-auto">
-                {finance.manualPending} ta o'tkazma tasdiq kutmoqda
-              </Badge>
-            ) : undefined
-          }
-        />
-        <AdminPaymentsTable rows={paymentRows} />
-      </section>
-
-      {/* ---------- Tasdiqlash navbati ---------- */}
-      <section id="tasdiqlash" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Tasdiqlash navbati"
-          title="Yangi profillar"
-          description="Tasdiqlangan profillar ro'yxatda belgili ko'rinadi va ko'proq ishonch qozonadi. Tavsiya etilganlar bosh sahifada chiqadi."
-          action={
-            <Badge tone={pending.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {pending.length > 0 ? `${pending.length} ta kutmoqda` : "Navbat bo'sh"}
-            </Badge>
-          }
-        />
-        <AdminSpecialistsTable pending={pendingRows} />
-      </section>
-
-      {/* ---------- Shikoyatlar ---------- */}
-      <section id="shikoyatlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Shikoyatlar"
-          title="Profil va sharh shikoyatlari"
-          description="Foydalanuvchilar yuborgan shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa sharhni o'chiring (pastda) yoki profilni bloklang, so'ng shikoyatni yoping."
-          action={
-            <Badge tone={openReports > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {openReports > 0 ? `${openReports} ta ochiq` : "Ochiq shikoyat yo'q"}
-            </Badge>
-          }
-        />
-        <AdminReports rows={reports} />
-      </section>
-
       {/* ---------- Shubhali faollik (F89) ---------- */}
       <section id="shubhali" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading
@@ -518,6 +465,8 @@ export default async function AdminPage() {
       <section id="sharhlar" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading eyebrow="Sharhlar" title="Sharh moderatsiyasi" description="So'nggi 30 ta sharh. Haqoratli yoki soxta sharhni o'chiring — mutaxassis reytingi darhol qayta hisoblanadi, shu sharh bo'yicha shikoyatlar yopiladi." />
         <AdminReviews rows={reviewRows} />
+        {/* Ro'yxat chegaraga yetgan — eski sharhlar jadvalda yo'qligi haqida halol izoh */}
+        {reviewRows.length === REVIEWS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {REVIEWS_CAP} tasi ko'rsatilgan</p>}
       </section>
 
       {/* ---------- Foydalanuvchilar ---------- */}
@@ -615,11 +564,77 @@ export default async function AdminPage() {
           </div>
         </div>
       </section>
+
+      {/* ---------- To'lov sozlamalari ---------- */}
+      <section id="tolov-sozlamalari" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="To'lov tizimlari"
+          title={
+            <>
+              To'lovlarni <span className="accent-serif text-accent">boshqarish</span>
+            </>
+          }
+          description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi."
+        />
+        <PaymentProvidersPanel />
+      </section>
+
+      {/* ---------- Sozlamalar ---------- */}
+      <section id="sozlamalar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading eyebrow="Sozlamalar" title="Komissiya, obuna va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Mutaxassislar oylik obuna to'laydi, mijozlar bepul. Har bir o'zgarish tarixda saqlanadi." />
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="min-w-0 lg:col-span-2">
+            <PlatformSettingsForm initial={settings} history={settingsHistory} />
+          </div>
+          <div className="card self-start p-5 sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Hozirgi qiymatlar</p>
+            <dl className="mt-3 divide-y divide-line text-[14px]">
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Yangi mutaxassis</dt>
+                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctNew}%</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Oddiy daraja</dt>
+                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPct}%</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Top mutaxassis</dt>
+                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctTop}%</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Minimal buyurtma</dt>
+                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minOrderAmount)}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Minimal payout</dt>
+                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minPayout)}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Obuna (oyiga)</dt>
+                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.subscriptionPrice)}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Sinov / imtiyoz</dt>
+                <dd className="font-semibold text-fg tabular-nums">
+                  {settings.subscriptionTrialDays} / {settings.subscriptionGraceDays} kun
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-fg-2">Obuna talabi</dt>
+                <dd>
+                  <Badge tone={settings.subscriptionEnforced === 1 ? "success" : "neutral"}>{settings.subscriptionEnforced === 1 ? "Yoqilgan" : "O'chirilgan"}</Badge>
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-[12px] leading-snug text-fg-3">O'zgarishlar audit jurnaliga yoziladi.</p>
+          </div>
+        </div>
+      </section>
       </div>
 
       {/* O'ng tomonda doimiy bo'limlar paneli (scrollspy) — uzun sahifada tez o'tish uchun */}
       <aside className="hidden xl:block">
-        <AdminSectionNav items={NAV_ITEMS} />
+        <AdminSectionNav items={navItems} />
       </aside>
     </div>
   );

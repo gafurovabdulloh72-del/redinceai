@@ -47,7 +47,8 @@ export function SpecialistCard({
           <SafeImage
             src={sp.coverUrl ?? undefined}
             alt=""
-            loading={priority ? "eager" : "lazy"}
+            /* Birinchi ekrandagi kartalar uchun eager + fetchPriority="high"; qolganlari lazy */
+            priority={priority}
             className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
             fallback={<CoverPattern category={sp.category} seed={sp.slug} className="transition duration-700 ease-out group-hover:scale-[1.04]" />}
             // Qoraytiruvchi gradient faqat haqiqiy rasm ustida — och naqsh loyqa bo'lib qolmasin
@@ -65,15 +66,13 @@ export function SpecialistCard({
               )}
               {isNew && <span className="inline-flex h-7 items-center rounded-full bg-surface px-2.5 text-[11px] font-semibold text-accent-text shadow-[var(--shadow-1)]">Yangi</span>}
               {sp.topRated && (
-                // Tooltip ko'rinsin va bosish baribir profilga olib borsin — xuddi shu manzilga havola (fokusdan tashqarida)
-                <Link
-                  href={`/mutaxassislar/${sp.slug}`}
-                  tabIndex={-1}
+                // Interaktiv emas: kartaning cho'zilgan havolasi bilan bir xil manzilga ikkinchi havola ortiqcha edi (a11y)
+                <span
                   title={`Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`}
                   className="pointer-events-auto inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]"
                 >
                   <Award size={12} className="text-accent" /> Top
-                </Link>
+                </span>
               )}
             </span>
             {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">Band</span>}
@@ -90,10 +89,11 @@ export function SpecialistCard({
           <div className="flex items-start gap-3">
             <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={44} decorative className="-mt-9 !ring-surface" />
             <div className="min-w-0 flex-1 pt-0.5">
-              <h3 className="line-clamp-2 font-display text-[15px] font-semibold leading-tight text-fg">
+              {/* h2: ro'yxat sahifasida h1'dan keyin karta nomi ikkinchi daraja (h3 sakrash edi) */}
+              <h2 className="line-clamp-2 font-display text-[15px] font-semibold leading-tight text-fg">
                 {sp.user.name}
                 {sp.isVerified && <VerifiedBadge size={15} className="ml-1 inline-block align-[-2px]" />}
-              </h3>
+              </h2>
               <p className="mt-0.5 flex items-center gap-1 text-[12px] text-fg-3">
                 <MapPin size={11} className="shrink-0" /> <span className="truncate">{place}</span>
               </p>

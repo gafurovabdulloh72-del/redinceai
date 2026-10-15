@@ -21,15 +21,17 @@ export interface NavUser {
 
 /**
  * short — mobil tab-bar yorlig'i (5 ustun, 390px'da ~70px: uzun so'z kesilmasin).
+ * "Mutaxassislar" 12px'da ham tabga sig'maydi (~78px > ~67px), shuning uchun ikkala joyda
+ * bir xil "Ijodkorlar" ishlatiladi — nom desktop va mobilda mos keladi.
  * desktop: "lg" — faqat lg+ da (md'da kapsula torayadi; logo baribir bosh sahifaga olib boradi).
- * mobile: false — pastki tab-bar'da yo'q (Narxlar footer va obuna sahifalarida).
+ * mobile: false — pastki tab-bar'da yo'q; md+ da tab-bar yashirin, shuning uchun "Narxlar" yuqori panelda md'dan boshlab ko'rinadi.
  */
 const NAV: Array<{ href: string; label: string; short: string; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
   { href: "/", label: "Bosh sahifa", short: "Asosiy", icon: Home, exact: true, desktop: "lg" },
   { href: "/xarita", label: "Xarita", short: "Xarita", icon: Map },
-  { href: "/mutaxassislar", label: "Mutaxassislar", short: "Ijodkorlar", icon: Users },
+  { href: "/mutaxassislar", label: "Ijodkorlar", short: "Ijodkorlar", icon: Users },
   { href: "/ishlar", label: "Ishlar", short: "Ishlar", icon: BriefcaseBusiness },
-  { href: "/narxlar", label: "Narxlar", short: "Narxlar", icon: CreditCard, desktop: "lg", mobile: false },
+  { href: "/narxlar", label: "Narxlar", short: "Narxlar", icon: CreditCard, mobile: false },
 ];
 
 export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
@@ -38,6 +40,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -54,11 +57,17 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
 
   useEffect(() => {
     if (!open) return;
+    // Menyu ochilganda fokus birinchi bandga o'tadi (role="menu" klaviatura talabi)
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     const onDown = (e: PointerEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        // Yopilganda fokus ochgan tugmaga qaytadi
+        triggerRef.current?.focus();
+      }
     };
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("keydown", onKey);
@@ -67,6 +76,19 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  /* Menyu ichida strelkalar bilan yurish: Down/Up aylanadi, Home/End chetlariga o'tadi */
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    e.preventDefault();
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "Home") items[0].focus();
+    else if (e.key === "End") items[items.length - 1].focus();
+    else if (e.key === "ArrowDown") items[(i + 1) % items.length].focus();
+    else items[(i - 1 + items.length) % items.length].focus();
+  };
 
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
 
@@ -121,6 +143,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
             {user ? (
               <div className="relative" ref={menuRef}>
                 <button
+                  ref={triggerRef}
                   type="button"
                   onClick={() => setOpen((v) => !v)}
                   className="card card-hover flex h-10 items-center gap-2 !rounded-full pl-1 pr-1.5 sm:pr-3"
@@ -135,6 +158,8 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                 {open && (
                   <div
                     role="menu"
+                    aria-label={`Hisob menyusi: ${user.name}`}
+                    onKeyDown={onMenuKey}
                     className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-fade-up"
                     style={{ animationDuration: "0.22s" }}
                   >
@@ -195,7 +220,8 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
               href={n.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[10.5px] font-semibold transition",
+                // Yorliq kamida 12px — kichik shrift o'qilishi qiyin (a11y)
+                "flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[12px] font-semibold transition",
                 active ? "btn-ink" : "text-fg-3",
               )}
             >

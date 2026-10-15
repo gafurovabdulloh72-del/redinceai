@@ -92,8 +92,8 @@ export const SITE = {
   /** Ijtimoiy tarmoqlar (footer). YouTube hozircha yo'q — kanal ochilganda qo'shiladi */
   telegram: "https://t.me/kasb_egalari",
   instagram: "https://instagram.com/kasb.egalari",
-  /** To'g'ridan-to'g'ri aloqa (Yordam sahifasi) */
-  supportTelegram: "https://t.me/montajor_man",
+  /** To'g'ridan-to'g'ri aloqa (Yordam sahifasi) — rasmiy kanal, shaxsiy akkaunt emas */
+  supportTelegram: "https://t.me/kasb_egalari",
   supportPhone: "+998 94 143 44 99",
   tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",
   description:

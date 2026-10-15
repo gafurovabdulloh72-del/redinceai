@@ -44,19 +44,60 @@ export function PayButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   useEffect(() => {
     if (!open) return;
+    // Oynani ochgan element — yopilganda fokus unga qaytadi
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     firstRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busyRef.current && setOpen(false);
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      opener?.focus();
     };
-  }, [open, busy]);
+  }, [open]);
+
+  /* Tab fokusi oyna ichida aylanadi (focus trap) */
+  const trapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const root = dialogRef.current;
+    if (!root) return;
+    const focusables = Array.from(
+      root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const current = document.activeElement;
+    if (e.shiftKey && (current === first || !root.contains(current))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && current === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  /* Radiogroup: strelkalar bilan usul tanlash (tanlov fokus bilan birga yuradi) */
+  const onRadioKey = (e: React.KeyboardEvent) => {
+    if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(e.key)) return;
+    const radios = Array.from(groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+    if (radios.length === 0) return;
+    e.preventDefault();
+    const i = radios.indexOf(document.activeElement as HTMLButtonElement);
+    const dir = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
+    const next = radios[(Math.max(i, 0) + dir + radios.length) % radios.length];
+    next.focus();
+    next.click();
+  };
 
   const checkout = async (provider: PaymentProvider) => {
     if (busy) return;
@@ -102,12 +143,14 @@ export function PayButton({
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-6" onClick={() => !busy && setOpen(false)}>
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`pay-${orderId}-title`}
             className="card-elevated w-full max-w-md !rounded-b-none p-5 animate-fade-up sm:!rounded-[24px] sm:p-6"
             style={{ animationDuration: "0.3s" }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={trapTab}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -122,17 +165,20 @@ export function PayButton({
               </button>
             </div>
 
-            <div role="radiogroup" aria-label="To'lov usuli" className="mt-4 space-y-2">
-              {PAYMENT_PROVIDERS.filter((p) => providers.includes(p.value)).map((p, i) => {
+            <div ref={groupRef} role="radiogroup" aria-label="To'lov usuli" className="mt-4 space-y-2" onKeyDown={onRadioKey}>
+              {PAYMENT_PROVIDERS.filter((p) => providers.includes(p.value)).map((p) => {
                 const Icon = PROVIDER_ICON[p.value];
                 const active = choice === p.value;
                 return (
                   <button
                     key={p.value}
-                    ref={i === 0 ? firstRef : undefined}
+                    /* Ochilganda fokus tanlangan (aria-checked) usulga tushadi */
+                    ref={active ? firstRef : undefined}
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    /* Roving tabindex: Tab radiogroupga bir marta kiradi, ichida strelkalar yuradi */
+                    tabIndex={active ? 0 : -1}
                     onClick={() => setChoice(p.value)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-[18px] border px-4 py-3 text-left transition",

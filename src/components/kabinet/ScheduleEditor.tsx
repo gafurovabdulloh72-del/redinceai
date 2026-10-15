@@ -75,7 +75,8 @@ function BlockedDatesCalendar({ today, value, onChange }: { today: string; value
           <ChevronRight size={16} />
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center" role="grid" aria-label={`${MONTH_NAMES[m - 1]} ${y} — band kunlar`}>
+      {/* role="grid" emas: ichida gridcell'siz oddiy tugmalar bor — group + aria-label yetarli */}
+      <div className="grid grid-cols-7 gap-1 text-center" role="group" aria-label={`${MONTH_NAMES[m - 1]} ${y} — band kunlar`}>
         {WEEKDAYS.map((d) => (
           <span key={d.key} className="pb-1 text-[11px] font-bold uppercase tracking-wide text-fg-4" aria-hidden="true">
             {d.short}

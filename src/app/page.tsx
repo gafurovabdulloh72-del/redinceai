@@ -7,6 +7,7 @@ import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
+import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings } from "@/lib/payments/settings";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
 import { cn, formatPrice } from "@/lib/utils";
@@ -33,6 +34,11 @@ export default async function HomePage() {
   const counts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
   /* E83: avatar stack — rasm bo'lmasa ham <Avatar> bosh harflarni ko'rsatadi (bo'sh doira yo'q) */
   const stack = featured.slice(0, 3);
+  /* Hali birorta sharh yo'q bo'lsa "reytingli" deb va'da qilmaymiz — "yangi qo'shilgan" deb ko'rsatamiz */
+  const hasRated = featured.some((sp) => sp.reviewCount > 0);
+  /* Eskrou va'dasi faqat onlayn to'lov (Payme/Click) real sozlanganda ko'rsatiladi */
+  const payEnv = paymentsEnv();
+  const escrowReady = (await isProviderConfigured("payme", payEnv)) || (await isProviderConfigured("click", payEnv));
 
   return (
     <>
@@ -73,7 +79,8 @@ export default async function HomePage() {
                 </div>
               )}
               <div className="flex items-baseline gap-2">
-                <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.specialists}+</span>
+                {/* 10 tadan kam bo'lsa "+" yolg'on taassurot beradi — aniq sonni ko'rsatamiz */}
+                <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.specialists >= 10 ? `${site.specialists}+` : site.specialists}</span>
                 <span className="text-[13px] leading-tight text-fg-3">mutaxassis</span>
               </div>
               <span className="h-8 w-px bg-line" aria-hidden="true" />
@@ -157,10 +164,15 @@ export default async function HomePage() {
                         <ArrowUpRight size={16} />
                       </span>
                     </span>
-                    <span className="mt-auto flex items-baseline gap-1.5 pt-4">
-                      <span className="font-display text-[22px] font-semibold leading-none text-fg tabular-nums">{n}</span>
-                      <span className="text-[12px] font-medium text-fg-3">mutaxassis · {regionsWith} hudud</span>
-                    </span>
+                    {/* Bo'sh yo'nalish: "0 mutaxassis · 0 hudud" o'rniga taklif */}
+                    {n > 0 ? (
+                      <span className="mt-auto flex items-baseline gap-1.5 pt-4">
+                        <span className="font-display text-[22px] font-semibold leading-none text-fg tabular-nums">{n}</span>
+                        <span className="text-[12px] font-medium text-fg-3">mutaxassis · {regionsWith} hudud</span>
+                      </span>
+                    ) : (
+                      <span className="mt-auto flex items-center pt-4 text-[13px] font-semibold text-accent-text">Birinchi bo&apos;ling →</span>
+                    )}
                   </span>
                 </Link>
               </li>
@@ -174,11 +186,17 @@ export default async function HomePage() {
         <SectionHeading
           eyebrow="Tavsiya etiladi"
           title={
-            <>
-              Eng yuqori <span className="accent-serif text-accent">reytingli</span> ijodkorlar
-            </>
+            hasRated ? (
+              <>
+                Eng yuqori <span className="accent-serif text-accent">reytingli</span> ijodkorlar
+              </>
+            ) : (
+              <>
+                Yangi <span className="accent-serif text-accent">qo&apos;shilgan</span> ijodkorlar
+              </>
+            )
           }
-          description="Tasdiqlangan profil, haqiqiy sharhlar va ochiq narxlar."
+          description={hasRated ? "Tasdiqlangan profil, haqiqiy sharhlar va ochiq narxlar." : "Platformaga endigina qo'shilgan profillar — portfolio va narxlar ochiq, birinchi sharhni siz qoldiring."}
           action={
             <ButtonLink href="/mutaxassislar?sort=rating" variant="outline" size="sm">
               Hammasini ko'rish <ArrowRight size={16} />
@@ -221,7 +239,8 @@ export default async function HomePage() {
           </ol>
           <p className="relative mt-7 flex items-center gap-2 border-t border-line pt-5 text-[13px] text-fg-2">
             <ShieldCheck size={16} className="shrink-0 text-accent" />
-            To'lov eskrou orqali: pul mutaxassisga ish qabul qilingandan keyingina o'tadi.
+            {/* Payme/Click sozlanmagan bo'lsa eskrou va'dasi berilmaydi — yumshoqroq matn */}
+            {escrowReady ? "To'lov eskrou orqali: pul mutaxassisga ish qabul qilingandan keyingina o'tadi." : "Kelishuv, portfolio va muloqot — bitta ishonchli joyda."}
           </p>
         </div>
       </section>

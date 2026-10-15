@@ -3,6 +3,7 @@ import { CATEGORY_BY_SLUG, REGION_BY_SLUG, SITE } from "@/lib/constants";
 import { GUEST_VIEWER, filterSpecialistForViewer } from "@/lib/privacy";
 import { getSpecialistBySlug } from "@/lib/queries";
 import { hashHue, initials } from "@/lib/utils";
+import { SITE_URL } from "@/lib/site-url";
 
 export const alt = `${SITE.name} — mutaxassis profili`;
 export const size = { width: 1200, height: 630 };
@@ -14,7 +15,7 @@ export const contentType = "image/png";
  * Tashqi rasm (avatar/muqova) yuklanmaydi — tarmoq bloklansa rasm buzilmasin; bosh harflar ishlatiladi.
  * Shriftlar: satori woff2'ni o'qimaydi — tizim sans (ildiz opengraph-image bilan bir xil).
  */
-const HOST = (process.env.SITE_URL ?? "kasbegalari.vercel.app").replace(/^https?:\/\//, "").replace(/\/$/, "");
+const HOST = SITE_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
 export default async function SpecialistOgImage({ params }: { params: { slug: string } | Promise<{ slug: string }> }) {
   const { slug } = await params;

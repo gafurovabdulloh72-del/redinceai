@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { SITE } from "@/lib/constants";
+import { SITE_URL } from "@/lib/site-url";
 
 export const alt = `${SITE.name} — ${SITE.tagline}`;
 export const size = { width: 1200, height: 630 };
@@ -10,7 +11,7 @@ export const contentType = "image/png";
  * Shriftlar: satori woff2'ni o'qimaydi — tizim sans ishlatiladi (dizayn og'irlik va bo'shliq bilan ushlab turiladi).
  */
 /** Ko'rsatiladigan domen — SITE_URL'dan (keyin .uz domen olinsa o'zi yangilanadi) */
-const HOST = (process.env.SITE_URL ?? "kasbegalari.vercel.app").replace(/^https?:\/\//, "").replace(/\/$/, "");
+const HOST = SITE_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
 export default function OpenGraphImage() {
   return new ImageResponse(

@@ -30,8 +30,9 @@ const DAY = 24 * HOUR;
 export const RATE_LIMITS = {
   login: { limit: 5, windowMs: 15 * MIN },
   loginIp: { limit: 20, windowMs: 15 * MIN },
-  loginEmail: { limit: 20, windowMs: 15 * MIN },
-  register: { limit: 3, windowMs: HOUR },
+  /** Email bo'yicha (IP'dan mustaqil) — umumiy ofis/NAT ortidagi halol foydalanuvchilar qulflanib qolmasin (#51) */
+  loginEmail: { limit: 40, windowMs: 15 * MIN },
+  register: { limit: 5, windowMs: HOUR },
   reset: { limit: 3, windowMs: HOUR },
   resetConfirm: { limit: 10, windowMs: HOUR },
   password: { limit: 5, windowMs: 15 * MIN },

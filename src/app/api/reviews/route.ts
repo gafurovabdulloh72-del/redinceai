@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { reviews, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
 import { reviewDeleteSchema, reviewSchema } from "@/lib/validators";
-import { hasAcceptedOrderWith, recalcRating } from "@/lib/queries";
+import { hasCompletedOrderWith, recalcRating } from "@/lib/queries";
 import { notify } from "@/lib/notifications";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
@@ -58,10 +58,11 @@ async function saveReview(req: Request, mode: "upsert" | "update") {
   });
   if (mode === "update" && !existing) throw new ApiError(404, "Sharh topilmadi");
 
-  // "Haqiqiy fikr" sharti: yangi sharh faqat shu mutaxassis bilan qabul qilingan/bajarilgan buyurtmasi borlardan;
-  // avval qoldirilgan sharhni tahrirlash mumkin; admin — istisno (moderatsiya/test)
-  if (!existing && session.role !== "admin" && !(await hasAcceptedOrderWith(session.sub, sp.id))) {
-    throw new ApiError(403, "Sharh faqat shu mutaxassis bilan buyurtmangiz qabul qilingach qoldiriladi");
+  // "Haqiqiy fikr" sharti: yangi sharh faqat shu mutaxassis bilan YAKUNLANGAN (done) buyurtmasi borlardan;
+  // avval qoldirilgan sharhni tahrirlash mumkin. Adminga ham istisno yo'q — sharh faqat haqiqiy ish
+  // tajribasidan (admin moderatsiyasi — DELETE'dagi huquq — o'z kuchida qoladi)
+  if (!existing && !(await hasCompletedOrderWith(session.sub, sp.id))) {
+    throw new ApiError(403, "Sharh faqat shu mutaxassis bilan ishingiz yakunlangach qoldiriladi");
   }
   // Yangi rasmlar — faqat o'zi yuklaganlari (sharhda allaqachon borlari tekshirilmaydi)
   const media = input.media ?? existing?.media ?? [];

@@ -1,13 +1,13 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, subscriptionInvoices, type Payment, type SubscriptionInvoice } from "@/lib/db/schema";
 import { isInvoiceId, loadInvoice, markInvoicePaid } from "@/lib/subscriptions/billing";
 import { uid } from "@/lib/utils";
 import { paymentsEnv, safeEqual } from "./config";
 import { getSettings, splitAmount } from "./settings";
-import { findInFlightProviderPayment, isPayable, markPaid, recordOrderEvent } from "./service";
+import { ensureOrderPaidState, findInFlightProviderPayment, findPendingManualPayment, isPayable, markPaid, recordOrderEvent } from "./service";
 
 /**
  * Click SHOP API (Prepare / Complete). Hujjat: docs.click.uz/click-api-request
@@ -103,6 +103,8 @@ async function prepare(f: Fields, secret: string) {
   // Boshqa provayder (Payme) tomonida jarayondagi tranzaksiya bo'lsa — buyurtma hozircha to'lovga yopiq
   const inFlight = await findInFlightProviderPayment(order.id);
   if (inFlight && inFlight.provider !== "click") return respond(f, CLICK_ERR.USER_NOT_FOUND);
+  // Admin tasdig'ini kutayotgan qo'lda o'tkazma ham jarayondagi to'lov — ikki marta to'lab qo'ymasin
+  if (await findPendingManualPayment(order.id)) return respond(f, CLICK_ERR.USER_NOT_FOUND);
   if (!amountMatches(f.amount, order.amount)) return respond(f, CLICK_ERR.AMOUNT);
 
   const settings = await getSettings();
@@ -164,16 +166,28 @@ async function complete(f: Fields, secret: string) {
   if (clickError < 0) {
     if (payment.state === "pending" || payment.state === "created") {
       const now = Date.now();
-      await db
+      // Holatga bog'liq: parallel Complete to'lab qo'ygan bo'lsa 'paid' yozuv bekor qilinmaydi
+      const [row] = await db
         .update(payments)
         .set({ state: "cancelled", providerState: -1, cancelTime: now, cancelReason: clickError, updatedAt: new Date(now) })
-        .where(eq(payments.id, payment.id));
+        .where(and(eq(payments.id, payment.id), inArray(payments.state, ["created", "pending"])))
+        .returning();
+      if (!row) {
+        // Parallel o'zgargan — ustidan yozmaymiz, joriy holat bo'yicha javob
+        const fresh = await db.query.payments.findFirst({ where: eq(payments.id, payment.id) });
+        if (fresh?.state === "paid" || fresh?.state === "released") return respond(f, CLICK_ERR.ALREADY_PAID, { merchant_confirm_id: confirmId });
+        return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
+      }
       await recordOrderEvent(payment.orderId, null, "payment", { note: "Click to'lovi amalga oshmadi — urinish bekor qilindi" });
     }
     return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
   }
 
-  if (payment.state === "paid" || payment.state === "released") return respond(f, CLICK_ERR.SUCCESS, { merchant_confirm_id: confirmId });
+  if (payment.state === "paid" || payment.state === "released") {
+    // O'z-o'zini tuzatish: avvalgi Complete'da buyurtma yangilanishi o'tib ketgan bo'lsa — idempotent qayta bajariladi
+    await ensureOrderPaidState(payment);
+    return respond(f, CLICK_ERR.SUCCESS, { merchant_confirm_id: confirmId });
+  }
   if (payment.state === "cancelled" || payment.state === "refunded") return respond(f, CLICK_ERR.CANCELLED, { merchant_confirm_id: confirmId });
 
   try {

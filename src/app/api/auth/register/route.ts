@@ -15,19 +15,21 @@ import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
 /**
  * Ro'yxatdan o'tish. Mutaxassis uchun bo'sh "placeholder" profil YARATILMAYDI —
  * profil kabinetda (PUT /api/profile) to'ldirilgach ommaviy ro'yxatda paydo bo'ladi.
- * Parol siyosati: 8+ belgi, harf + raqam (validators.strongPassword). Rate limit: 3 / soat / ip.
+ * Parol siyosati: 8+ belgi, harf + raqam (validators.strongPassword). Rate limit: 5 / soat / ip.
  * Oferta va maxfiylik siyosatiga rozilik majburiy (acceptTerms: true) — versiya va vaqt saqlanadi (F84).
- * E15: band email tasdiqlanmaydi — neytral xabar + limit 3 / soat / ip (enumeratsiyaga qarshi).
+ * E15: band email tasdiqlanmaydi — neytral xabar + limit 5 / soat / ip (enumeratsiyaga qarshi).
  */
 const schema = registerSchema.extend({
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "Oferta va maxfiylik siyosatiga rozilik bering" }) }),
 });
 
 export const POST = handler(async (req) => {
-  await enforceLimit("register", clientIp(req));
+  // Avval tekshiruv, keyin limit (#51): noto'g'ri to'ldirilgan forma (422) limitni yemasin;
+  // band email (409) esa limitga kiradi — enumeratsiyaga qarshi himoya saqlanadi
   const input = await parseBody(req, schema);
+  await enforceLimit("register", clientIp(req));
 
-  // E15: email bandligi tasdiqlanmaydi (enumeratsiya) — bir xil neytral javob, qattiq limit (3/soat/IP) bilan birga
+  // E15: email bandligi tasdiqlanmaydi (enumeratsiya) — bir xil neytral javob, qattiq limit (5/soat/IP) bilan birga
   const exists = await db.query.users.findFirst({ where: eq(users.email, input.email), columns: { id: true } });
   if (exists) {
     throw new ApiError(409, "Bu ma'lumotlar bilan ro'yxatdan o'tib bo'lmadi. Agar avval hisob ochgan bo'lsangiz — «Kirish» yoki «Parolni unutdingizmi?» dan foydalaning.");

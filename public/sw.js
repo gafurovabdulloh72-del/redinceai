@@ -8,9 +8,9 @@
  *  - /kabinet, /admin, /auth, /buyurtma, /tolov, /chek HTML → hech qachon keshlanmaydi (shaxsiy ma'lumot); oflaynda /offline
  *  - kirish/chiqish (/api/auth/*) bo'lganda sahifalar keshi tozalanadi — boshqa foydalanuvchining ismi oflayn nusxada qolmasin
  */
-const VERSION = "v1";
-const STATIC_CACHE = `redince-static-${VERSION}`;
-const PAGES_CACHE = `redince-pages-${VERSION}`;
+const VERSION = "v2";
+const STATIC_CACHE = `kasbegalari-static-${VERSION}`;
+const PAGES_CACHE = `kasbegalari-pages-${VERSION}`;
 const OFFLINE_URL = "/offline";
 const PAGES_LIMIT = 30;
 
@@ -41,7 +41,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k.startsWith("redince-") && k !== STATIC_CACHE && k !== PAGES_CACHE).map((k) => caches.delete(k)));
+      // Eski brend ("redince-*") keshlari ham tozalanadi — nomi o'zgargan keshlar diskda qolib ketmasin
+      await Promise.all(keys.filter((k) => (k.startsWith("kasbegalari-") || k.startsWith("redince-")) && k !== STATIC_CACHE && k !== PAGES_CACHE).map((k) => caches.delete(k)));
       await self.clients.claim();
     })(),
   );

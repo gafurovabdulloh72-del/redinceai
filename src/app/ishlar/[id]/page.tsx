@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     description,
     alternates: { canonical: `/ishlar/${job.id}` },
     robots: live ? undefined : { index: false, follow: true },
-    openGraph: { title: `${job.title} · ${SITE.name}`, description, type: "article", url: `/ishlar/${job.id}` },
+    openGraph: { title: `${job.title} · ${SITE.name}`, description, type: "article", url: `/ishlar/${job.id}`, images: ["/opengraph-image"], siteName: SITE.name, locale: "uz_UZ" },
   };
 }
 

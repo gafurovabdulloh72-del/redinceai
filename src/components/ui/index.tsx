@@ -317,8 +317,9 @@ export function PageHeader({
     <header className={cn("flex flex-col", className)}>
       {eyebrow && (
         <div className="mb-5 flex items-center gap-4">
-          <span className="eyebrow !m-0 shrink-0">{eyebrow}</span>
-          <span className="h-px flex-1 bg-line" aria-hidden="true" />
+          {/* min-w-0 (shrink-0 emas): uzun eyebrow 390px'da chetga chiqib ketmasin — matn o'raladi, chiziq moslashuvchan qoladi */}
+          <span className="eyebrow !m-0 min-w-0">{eyebrow}</span>
+          <span className="h-px min-w-6 flex-1 bg-line" aria-hidden="true" />
         </div>
       )}
       <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12 lg:items-end">
