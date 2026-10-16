@@ -8,6 +8,10 @@ import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsBell } from "./NotificationsBell";
+import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { setFavoritesViewer } from "@/components/specialists/favorites-store";
 import { cn } from "@/lib/utils";
 
@@ -26,16 +30,17 @@ export interface NavUser {
  * desktop: "lg" — faqat lg+ da (md'da kapsula torayadi; logo baribir bosh sahifaga olib boradi).
  * mobile: false — pastki tab-bar'da yo'q; md+ da tab-bar yashirin, shuning uchun "Narxlar" yuqori panelda md'dan boshlab ko'rinadi.
  */
-const NAV: Array<{ href: string; label: string; short: string; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
-  { href: "/", label: "Bosh sahifa", short: "Asosiy", icon: Home, exact: true, desktop: "lg" },
-  { href: "/xarita", label: "Xarita", short: "Xarita", icon: Map },
-  { href: "/lenta", label: "Lenta", short: "Lenta", icon: Clapperboard },
-  { href: "/mutaxassislar", label: "Ijodkorlar", short: "Ijodkorlar", icon: Users },
-  { href: "/ishlar", label: "Ishlar", short: "Ishlar", icon: BriefcaseBusiness },
-  { href: "/narxlar", label: "Narxlar", short: "Narxlar", icon: CreditCard, mobile: false },
+const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
+  { href: "/", label: SHELL.nav.home, short: SHELL.nav.homeShort, icon: Home, exact: true, desktop: "lg" },
+  { href: "/xarita", label: SHELL.nav.map, short: SHELL.nav.map, icon: Map },
+  { href: "/lenta", label: SHELL.nav.lenta, short: SHELL.nav.lenta, icon: Clapperboard },
+  { href: "/mutaxassislar", label: SHELL.nav.specialists, short: SHELL.nav.specialistsShort, icon: Users },
+  { href: "/ishlar", label: SHELL.nav.jobs, short: SHELL.nav.jobs, icon: BriefcaseBusiness },
+  { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false },
 ];
 
 export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
+  const til = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -101,7 +106,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
 
   const tabs = [
     ...NAV.filter((n) => n.mobile !== false),
-    { href: user ? "/kabinet" : "/auth/kirish", label: user ? "Kabinet" : "Kirish", short: user ? "Kabinet" : "Kirish", icon: user ? Compass : UserRound, exact: false },
+    {
+      href: user ? "/kabinet" : "/auth/kirish",
+      label: user ? SHELL.nav.cabinet : SHELL.nav.login,
+      short: user ? SHELL.nav.cabinet : SHELL.nav.loginShort,
+      icon: user ? Compass : UserRound,
+      exact: false,
+    },
   ];
 
   return (
@@ -113,9 +124,10 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
             "nav-bar relative mx-auto flex w-full max-w-5xl items-center justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
             scrolled ? "h-14 shadow-[var(--shadow-2)]" : "h-14 sm:h-16",
           )}
-          aria-label="Asosiy navigatsiya"
+          aria-label={tr(til, SHELL.nav.mainAria)}
         >
-          <Logo />
+          {/* Juda tor ekranlarda (til tugmasi qo'shilgach) so'z belgisi sig'maydi — faqat ikonka qoladi */}
+          <Logo className="max-[430px]:[&>span:last-child]:hidden" />
 
           <div className="hidden items-center gap-0.5 md:flex">
             {NAV.map((n) => {
@@ -131,7 +143,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
                 >
-                  {n.label}
+                  {tr(til, n.label)}
                   {active && <span aria-hidden className="absolute inset-x-3.5 bottom-1 h-[3px] rounded-full bg-accent xl:inset-x-4" />}
                 </Link>
               );
@@ -139,6 +151,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <LocaleSwitch />
             <ThemeToggle />
             {user && <NotificationsBell initialUnread={unread} />}
             {user ? (
@@ -150,7 +163,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   className="card card-hover flex h-10 items-center gap-2 !rounded-full pl-1 pr-1.5 sm:pr-3"
                   aria-haspopup="menu"
                   aria-expanded={open}
-                  aria-label={`Hisob menyusi: ${user.name}`}
+                  aria-label={SHELL.menu.aria[til](user.name)}
                 >
                   <Avatar name={user.name} src={user.avatarUrl} size={30} decorative />
                   <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg sm:block">{user.name.split(" ")[0]}</span>
@@ -159,7 +172,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                 {open && (
                   <div
                     role="menu"
-                    aria-label={`Hisob menyusi: ${user.name}`}
+                    aria-label={SHELL.menu.aria[til](user.name)}
                     onKeyDown={onMenuKey}
                     className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-fade-up"
                     style={{ animationDuration: "0.22s" }}
@@ -167,19 +180,19 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     <div className="px-3 py-2.5">
                       <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
                       <p className="text-xs text-fg-3">
-                        {user.role === "admin" ? "Administrator" : user.role === "specialist" ? "Mutaxassis" : "Mijoz"}
+                        {tr(til, user.role === "admin" ? SHELL.menu.roleAdmin : user.role === "specialist" ? SHELL.menu.roleSpecialist : SHELL.menu.roleClient)}
                       </p>
                     </div>
                     <div className="my-1 h-px bg-line" />
-                    <MenuItem href="/kabinet" icon={LayoutDashboard}>Kabinet</MenuItem>
+                    <MenuItem href="/kabinet" icon={LayoutDashboard}>{tr(til, SHELL.menu.cabinet)}</MenuItem>
                     {user.role === "specialist" && user.specialistSlug && (
-                      <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>Mening profilim</MenuItem>
+                      <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>{tr(til, SHELL.menu.myProfile)}</MenuItem>
                     )}
-                    {user.role === "specialist" && <MenuItem href="/kabinet/obuna" icon={CreditCard}>Obuna</MenuItem>}
-                    <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>Bildirishnomalar</MenuItem>
-                    <MenuItem href="/kabinet/sevimlilar" icon={Heart}>Sevimlilar</MenuItem>
-                    <MenuItem href="/kabinet/profil" icon={UserCog}>Profil</MenuItem>
-                    {user.role === "admin" && <MenuItem href="/admin" icon={ShieldCheck}>Admin panel</MenuItem>}
+                    {user.role === "specialist" && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
+                    <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>
+                    <MenuItem href="/kabinet/sevimlilar" icon={Heart}>{tr(til, SHELL.menu.favorites)}</MenuItem>
+                    <MenuItem href="/kabinet/profil" icon={UserCog}>{tr(til, SHELL.menu.profile)}</MenuItem>
+                    {user.role === "admin" && <MenuItem href="/admin" icon={ShieldCheck}>{tr(til, SHELL.menu.admin)}</MenuItem>}
                     <div className="my-1 h-px bg-line" />
                     <button
                       type="button"
@@ -187,7 +200,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                       role="menuitem"
                       className="flex min-h-11 w-full items-center gap-2.5 rounded-tile px-3 py-2.5 text-left text-[14px] font-medium text-danger-text transition hover:bg-danger-soft"
                     >
-                      <LogOut size={16} /> Chiqish
+                      <LogOut size={16} /> {tr(til, SHELL.menu.logout)}
                     </button>
                   </div>
                 )}
@@ -195,10 +208,10 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
             ) : (
               <>
                 <Link href="/auth/kirish" className="hidden h-10 items-center rounded-full px-4 text-[14px] font-semibold text-fg-2 transition hover:text-fg sm:inline-flex">
-                  Kirish
+                  {tr(til, SHELL.nav.login)}
                 </Link>
                 <Link href="/auth/royxat" className="btn-ink inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold sm:px-5">
-                  Boshlash
+                  {tr(til, SHELL.nav.start)}
                 </Link>
               </>
             )}
@@ -214,7 +227,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
           tabs.length >= 6 ? "grid-cols-6" : "grid-cols-5",
         )}
         style={{ marginBottom: "env(safe-area-inset-bottom)" }}
-        aria-label="Mobil navigatsiya"
+        aria-label={tr(til, SHELL.nav.mobileAria)}
       >
         {tabs.map((n) => {
           const active = isActive(n.href, n.exact);
@@ -231,7 +244,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-              <span className="max-w-full truncate">{n.short}</span>
+              <span className="max-w-full truncate">{tr(til, n.short)}</span>
             </Link>
           );
         })}

@@ -6,7 +6,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, Search, ShieldCheck, Smartphone, TimerReset, UserRound, Wand2 } from "lucide-react";
 import { PasswordField } from "./PasswordField";
 import { Button, Spinner } from "@/components/ui";
-import { GENDERS } from "@/lib/constants";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Locale, type Tr } from "@/lib/i18n";
+import { AUTH } from "@/lib/i18n/dict/auth";
 import { passwordStrength } from "@/lib/security/password-strength";
 import { cn, formatPrice, safeInternalPath } from "@/lib/utils";
 
@@ -39,16 +41,16 @@ interface ApiFail {
 /** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11); production bundle'ga hech qachon kirmaydi */
 const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1" && process.env.NODE_ENV !== "production";
 
-const ROLE_OPTIONS: { value: Role; title: string; subtitle: string; icon: typeof Search }[] = [
-  { value: "client", title: "Mijozman", subtitle: "Mutaxassis qidiryapman", icon: Search },
-  { value: "specialist", title: "Mutaxassisman", subtitle: "Buyurtma olmoqchiman", icon: Clapperboard },
+const ROLE_OPTIONS: { value: Role; title: Tr; subtitle: Tr; icon: typeof Search }[] = [
+  { value: "client", title: AUTH.role.clientTitle, subtitle: AUTH.role.clientSubtitle, icon: Search },
+  { value: "specialist", title: AUTH.role.specialistTitle, subtitle: AUTH.role.specialistSubtitle, icon: Clapperboard },
 ];
 
-const DEMO_ACCOUNTS: { label: string; hint: string; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
+const DEMO_ACCOUNTS: { label: Tr; hint: Tr; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
   ? [
-      { label: "Mutaxassis", hint: "Profil, portfolio, buyurtmalar", email: "mutaxassis@redince.uz", password: "demo12345", icon: Clapperboard },
-      { label: "Mijoz", hint: "Qidiruv va buyurtma berish", email: "mijoz@redince.uz", password: "demo12345", icon: UserRound },
-      { label: "Admin", hint: "Boshqaruv paneli", email: "admin@redince.uz", password: "admin12345", icon: ShieldCheck },
+      { label: AUTH.demo.specialist, hint: AUTH.demo.specialistHint, email: "mutaxassis@redince.uz", password: "demo12345", icon: Clapperboard },
+      { label: AUTH.demo.client, hint: AUTH.demo.clientHint, email: "mijoz@redince.uz", password: "demo12345", icon: UserRound },
+      { label: AUTH.demo.admin, hint: AUTH.demo.adminHint, email: "admin@redince.uz", password: "admin12345", icon: ShieldCheck },
     ]
   : [];
 
@@ -62,23 +64,24 @@ function withNext(path: string, next?: string) {
 }
 
 /** Kontekstli xabar: foydalanuvchi qayerdan va nega keldi */
-function contextFor(mode: Mode, next?: string, reason?: string): { icon: typeof ClipboardList; title: string; text: string } | null {
-  const verb = mode === "register" ? "avval hisob oching" : "avval kiring";
-  if (reason === "expired") return { icon: TimerReset, title: "Sessiya muddati tugagan", text: "Xavfsizlik uchun qayta kirishingiz kerak. Kirgach, oldingi sahifaga qaytasiz." };
-  if (reason === "review" || next?.includes("#sharh")) return { icon: MessageSquareText, title: `Sharh qoldirish uchun ${verb}`, text: "Sharhlar faqat ro'yxatdan o'tgan foydalanuvchilar nomidan yoziladi." };
+function contextFor(til: Locale, mode: Mode, next?: string, reason?: string): { icon: typeof ClipboardList; title: string; text: string } | null {
+  const verb = tr(til, mode === "register" ? AUTH.context.verbRegister : AUTH.context.verbLogin);
+  if (reason === "expired") return { icon: TimerReset, title: tr(til, AUTH.context.expiredTitle), text: tr(til, AUTH.context.expiredText) };
+  if (reason === "review" || next?.includes("#sharh")) return { icon: MessageSquareText, title: AUTH.context.reviewTitle[til](verb), text: tr(til, AUTH.context.reviewText) };
   if (!next) return null;
-  if (next.startsWith("/buyurtma")) return { icon: ClipboardList, title: `Buyurtma berish uchun ${verb}`, text: "Kirganingizdan so'ng buyurtma sahifasiga qaytasiz — yozganlaringiz saqlanadi." };
-  if (next.startsWith("/mutaxassislar/")) return { icon: MessageSquareText, title: `Sharh yozish yoki buyurtma berish uchun ${verb}`, text: "Kirganingizdan so'ng mutaxassis sahifasiga qaytasiz." };
-  if (next.startsWith("/admin")) return { icon: ShieldCheck, title: "Admin panel uchun kiring", text: "Faqat administrator hisobi bilan ochiladi." };
-  if (next.startsWith("/kabinet")) return { icon: UserRound, title: `Kabinetga o'tish uchun ${verb}`, text: "Buyurtmalar, profil va sozlamalar kabinetda." };
+  if (next.startsWith("/buyurtma")) return { icon: ClipboardList, title: AUTH.context.orderTitle[til](verb), text: tr(til, AUTH.context.orderText) };
+  if (next.startsWith("/mutaxassislar/")) return { icon: MessageSquareText, title: AUTH.context.specialistTitle[til](verb), text: tr(til, AUTH.context.specialistText) };
+  if (next.startsWith("/admin")) return { icon: ShieldCheck, title: tr(til, AUTH.context.adminTitle), text: tr(til, AUTH.context.adminText) };
+  if (next.startsWith("/kabinet")) return { icon: UserRound, title: AUTH.context.cabinetTitle[til](verb), text: tr(til, AUTH.context.cabinetText) };
   return null;
 }
 
 export function AuthForm({ mode, next, defaultRole = "client", reason, subscription }: AuthFormProps) {
+  const til = useLocale();
   const router = useRouter();
   const isRegister = mode === "register";
   const target = safeInternalPath(next);
-  const context = contextFor(mode, target, reason);
+  const context = contextFor(til, mode, target, reason);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -119,14 +122,14 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
   /** Serverga yubormasdan oldin yengil tekshiruv (zod sxemasi bilan bir xil qoidalar) */
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (isRegister && name.trim().length < 2) errs.name = "Ism kamida 2 ta belgi";
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) errs.email = "Email noto'g'ri";
+    if (isRegister && name.trim().length < 2) errs.name = tr(til, AUTH.errors.nameShort);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) errs.email = tr(til, AUTH.errors.emailInvalid);
     if (isRegister) {
       const s = passwordStrength(password);
-      if (!s.valid) errs.password = password.length < 8 ? "Parol kamida 8 ta belgi" : "Parolda harf ham, raqam ham bo'lsin";
-    } else if (!password) errs.password = "Parolni kiriting";
-    if (isRegister && phone.trim() && !/^\+?[\d\s()-]{9,16}$/.test(phone.trim())) errs.phone = "Telefon raqami noto'g'ri (masalan: +998 90 123 45 67)";
-    if (isRegister && !acceptTerms) errs.terms = "Davom etish uchun oferta va maxfiylik siyosatiga rozilik bering";
+      if (!s.valid) errs.password = tr(til, password.length < 8 ? AUTH.errors.passwordShort : AUTH.errors.passwordWeak);
+    } else if (!password) errs.password = tr(til, AUTH.errors.passwordRequired);
+    if (isRegister && phone.trim() && !/^\+?[\d\s()-]{9,16}$/.test(phone.trim())) errs.phone = tr(til, AUTH.errors.phoneInvalid);
+    if (isRegister && !acceptTerms) errs.terms = tr(til, AUTH.errors.termsRequired);
     return errs;
   };
 
@@ -158,8 +161,8 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
       if (!json || !json.ok) {
         if (res.status === 429) {
           const retry = Number(res.headers.get("Retry-After") || 0);
-          setError(retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : (json?.error ?? "Juda ko'p urinish"));
-        } else setError(json?.error ?? "Serverda kutilmagan xatolik");
+          setError(retry > 0 ? AUTH.errors.tooManyRetry[til](Math.ceil(retry / 60)) : (json?.error ?? tr(til, AUTH.errors.tooMany)));
+        } else setError(json?.error ?? tr(til, AUTH.errors.server));
         if (json && !json.ok && json.fields) {
           const { acceptTerms, ...rest } = json.fields;
           setFields(acceptTerms ? { ...rest, terms: acceptTerms } : rest);
@@ -182,7 +185,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
       router.refresh();
       // loading holatini sahifa almashguncha saqlaymiz
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, AUTH.errors.network));
       setLoading(false);
     }
   };
@@ -192,7 +195,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
     if (loading || !ticket) return;
     const value = useRecovery ? recoveryCode.trim() : (codeOverride ?? otp);
     if (useRecovery ? value.replace(/[^a-z0-9]/gi, "").length < 8 : !/^\d{6}$/.test(value)) {
-      setFields({ otp: useRecovery ? "Zaxira kodini to'liq kiriting (masalan: abcd-efgh)" : "6 xonali kodni kiriting" });
+      setFields({ otp: tr(til, useRecovery ? AUTH.twoFactor.errRecovery : AUTH.twoFactor.errOtp) });
       return;
     }
     setFields({});
@@ -210,12 +213,12 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           // Chipta eskirgan — parol bosqichiga qaytamiz
           setTicket(null);
           setPassword("");
-          setError(json && !json.ok ? json.error : "Kirish muddati tugadi. Qaytadan kiring");
+          setError(json && !json.ok ? json.error : tr(til, AUTH.twoFactor.expired));
         } else if (res.status === 429) {
           const retry = Number(res.headers.get("Retry-After") || 0);
-          setError(retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : "Juda ko'p urinish");
+          setError(retry > 0 ? AUTH.errors.tooManyRetry[til](Math.ceil(retry / 60)) : tr(til, AUTH.errors.tooMany));
         } else {
-          const msg = json && !json.ok ? (json.fields?.code ?? json.fields?.recoveryCode ?? json.error) : "Serverda kutilmagan xatolik";
+          const msg = json && !json.ok ? (json.fields?.code ?? json.fields?.recoveryCode ?? json.error) : tr(til, AUTH.errors.server);
           setFields({ otp: msg });
           if (!useRecovery) setOtp("");
         }
@@ -228,7 +231,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
       router.push(dest);
       router.refresh();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, AUTH.errors.network));
       setLoading(false);
     }
   };
@@ -254,16 +257,13 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
       <div className="animate-fade-up">
         <header className="mb-6">
           <span className="eyebrow">
-            <ShieldCheck size={13} className="text-accent" /> Ikki bosqichli himoya
+            <ShieldCheck size={13} className="text-accent" /> {tr(til, AUTH.twoFactor.eyebrow)}
           </span>
           <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[36px]">
-            Kodni <span className="accent-serif text-accent">kiriting</span>
+            {tr(til, AUTH.twoFactor.titleA)}
+            <span className="accent-serif text-accent">{tr(til, AUTH.twoFactor.titleAccent)}</span>
           </h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
-            {useRecovery
-              ? "Telefoningiz yonida bo'lmasa, 2FA yoqilganda saqlab olgan zaxira kodlaringizdan birini kiriting. Har bir kod bir marta ishlaydi."
-              : "Autentifikator ilovasini (Google Authenticator, Microsoft Authenticator, 1Password…) oching va Kasb Egalari uchun ko'rsatilgan 6 xonali kodni kiriting."}
-          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-fg-2">{tr(til, useRecovery ? AUTH.twoFactor.leadRecovery : AUTH.twoFactor.leadOtp)}</p>
         </header>
 
         <form
@@ -277,7 +277,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           {useRecovery ? (
             <div>
               <label htmlFor="auth-otp" className="field-label">
-                Zaxira kodi
+                {tr(til, AUTH.twoFactor.recoveryLabel)}
               </label>
               <input
                 id="auth-otp"
@@ -302,7 +302,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           ) : (
             <div>
               <label htmlFor="auth-otp" className="field-label">
-                Ilovadagi kod
+                {tr(til, AUTH.twoFactor.otpLabel)}
               </label>
               <input
                 id="auth-otp"
@@ -327,7 +327,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
               />
               {!fields.otp && (
                 <p id="auth-otp-hint" className="mt-1.5 text-[12px] text-fg-4">
-                  Kod har 30 soniyada yangilanadi. 6 raqam terilishi bilan tekshiriladi.
+                  {tr(til, AUTH.twoFactor.otpHint)}
                 </p>
               )}
             </div>
@@ -348,11 +348,11 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
             {loading ? (
               <>
-                <Spinner /> Tekshirilmoqda…
+                <Spinner /> {tr(til, AUTH.twoFactor.checking)}
               </>
             ) : (
               <>
-                Tasdiqlash va kirish <ArrowRight size={18} />
+                {tr(til, AUTH.twoFactor.confirm)} <ArrowRight size={18} />
               </>
             )}
           </Button>
@@ -369,14 +369,14 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-[14px] font-semibold text-accent-text transition hover:bg-accent-soft"
           >
             {useRecovery ? <Smartphone size={15} /> : <LifeBuoy size={15} />}
-            {useRecovery ? "Ilova kodi bilan kirish" : "Tiklash kodi bilan kirish"}
+            {tr(til, useRecovery ? AUTH.twoFactor.useOtp : AUTH.twoFactor.useRecovery)}
           </button>
           <button
             type="button"
             onClick={backToPassword}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-[14px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg"
           >
-            <ArrowLeft size={15} /> Boshqa hisob bilan kirish
+            <ArrowLeft size={15} /> {tr(til, AUTH.twoFactor.otherAccount)}
           </button>
         </div>
       </div>
@@ -387,21 +387,21 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
     <div className="animate-fade-up">
       {/* ---------- Sarlavha ---------- */}
       <header className="mb-6">
-        <span className="eyebrow">{isRegister ? "Yangi hisob" : "Kirish"}</span>
+        <span className="eyebrow">{tr(til, isRegister ? AUTH.form.eyebrowRegister : AUTH.form.eyebrowLogin)}</span>
         <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[36px]">
           {isRegister ? (
             <>
-              Hisob <span className="accent-serif text-accent">yarating</span>
+              {tr(til, AUTH.form.titleRegisterA)}
+              <span className="accent-serif text-accent">{tr(til, AUTH.form.titleRegisterAccent)}</span>
             </>
           ) : (
             <>
-              Xush <span className="accent-serif text-accent">kelibsiz</span>
+              {tr(til, AUTH.form.titleLoginA)}
+              <span className="accent-serif text-accent">{tr(til, AUTH.form.titleLoginAccent)}</span>
             </>
           )}
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
-          {isRegister ? "Bir daqiqa — va siz Kasb Egalari platformasidasiz. Profilni keyin xohlagan payt to'ldirasiz." : "Hisobingizga kiring — kabinet va buyurtmalaringiz sizni kutmoqda."}
-        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">{tr(til, isRegister ? AUTH.form.leadRegister : AUTH.form.leadLogin)}</p>
       </header>
 
       {/* ---------- Kontekst: nega keldingiz (A23) ---------- */}
@@ -421,8 +421,8 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         {/* ---------- Rol tanlash (faqat ro'yxatdan o'tish) ---------- */}
         {isRegister && (
           <fieldset>
-            <legend className="field-label">Kim sifatida qo'shilasiz?</legend>
-            <div role="radiogroup" aria-label="Rol" className="grid grid-cols-2 gap-3">
+            <legend className="field-label">{tr(til, AUTH.role.legend)}</legend>
+            <div role="radiogroup" aria-label={tr(til, AUTH.role.aria)} className="grid grid-cols-2 gap-3">
               {ROLE_OPTIONS.map((opt) => {
                 const active = role === opt.value;
                 const Icon = opt.icon;
@@ -444,8 +444,8 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                     <span className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-300", active ? "btn-ink" : "bg-fg/6 text-fg-2")}>
                       <Icon size={18} />
                     </span>
-                    <span className="mt-3 block text-[15px] font-semibold leading-tight text-fg">{opt.title}</span>
-                    <span className="mt-1 block text-[12px] leading-snug text-fg-3">{opt.subtitle}</span>
+                    <span className="mt-3 block text-[15px] font-semibold leading-tight text-fg">{tr(til, opt.title)}</span>
+                    <span className="mt-1 block text-[12px] leading-snug text-fg-3">{tr(til, opt.subtitle)}</span>
                     <span
                       className={cn(
                         "absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-ink-fg transition-all duration-300",
@@ -460,11 +460,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
               })}
             </div>
             {fields.role && <p className="field-error">{fields.role}</p>}
-            <p className="mt-2 text-[12px] leading-snug text-fg-3">
-              {role === "specialist"
-                ? "Ro'yxatdan so'ng yo'nalish, hudud va narxlaringizni kiritasiz — profil xaritada ko'rinadi."
-                : "Mutaxassislarni xaritadan toping, portfoliosini ko'ring va buyurtma bering."}
-            </p>
+            <p className="mt-2 text-[12px] leading-snug text-fg-3">{tr(til, role === "specialist" ? AUTH.role.hintSpecialist : AUTH.role.hintClient)}</p>
           </fieldset>
         )}
 
@@ -472,14 +468,14 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         {isRegister && (
           <div>
             <label htmlFor="auth-name" className="field-label">
-              Ism va familiya
+              {tr(til, AUTH.fields.name)}
             </label>
             <input
               id="auth-name"
               name="name"
               type="text"
               autoComplete="name"
-              placeholder="Masalan: Aziz Karimov"
+              placeholder={tr(til, AUTH.fields.namePlaceholder)}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -509,7 +505,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
             type="email"
             inputMode="email"
             autoComplete="email"
-            placeholder="siz@misol.uz"
+            placeholder={tr(til, AUTH.fields.emailPlaceholder)}
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
@@ -530,20 +526,20 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         {/* ---------- Parol ---------- */}
         <PasswordField
           id="auth-password"
-          label="Parol"
+          label={tr(til, AUTH.fields.password)}
           value={password}
           onChange={(v) => {
             setPassword(v);
             clearField("password");
           }}
           autoComplete={isRegister ? "new-password" : "current-password"}
-          placeholder={isRegister ? "Kamida 8 ta belgi, harf va raqam" : "Parolingiz"}
+          placeholder={tr(til, isRegister ? AUTH.fields.passwordPlaceholderNew : AUTH.fields.passwordPlaceholderCurrent)}
           error={fields.password}
           meter={isRegister}
           labelAside={
             !isRegister ? (
               <Link href="/auth/parol-tiklash" className={INLINE_LINK}>
-                Parolni unutdingizmi?
+                {tr(til, AUTH.fields.forgotPassword)}
               </Link>
             ) : undefined
           }
@@ -554,7 +550,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="auth-phone" className="field-label">
-                Telefon <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+                {tr(til, AUTH.fields.phone)} <span className="font-normal text-fg-4">{tr(til, AUTH.fields.optional)}</span>
               </label>
               <input
                 id="auth-phone"
@@ -581,10 +577,16 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
             </div>
             <div>
               <span id="auth-gender-label" className="field-label">
-                Jins <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+                {tr(til, AUTH.fields.gender)} <span className="font-normal text-fg-4">{tr(til, AUTH.fields.optional)}</span>
               </span>
               <div role="radiogroup" aria-labelledby="auth-gender-label" className="segment w-full">
-                {([{ value: "", label: "Aytmayman" }, ...GENDERS] as { value: Gender; label: string }[]).map((g) => (
+                {(
+                  [
+                    { value: "", label: tr(til, AUTH.fields.genderNone) },
+                    { value: "male", label: tr(til, AUTH.fields.genderMale) },
+                    { value: "female", label: tr(til, AUTH.fields.genderFemale) },
+                  ] as { value: Gender; label: string }[]
+                ).map((g) => (
                   <button
                     key={g.value || "none"}
                     type="button"
@@ -598,7 +600,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-[12px] text-fg-4">Ko'rinishini keyin maxfiylikdan boshqarasiz.</p>
+              <p className="mt-1 text-[12px] text-fg-4">{tr(til, AUTH.fields.genderHint)}</p>
             </div>
           </div>
         )}
@@ -633,20 +635,25 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
               </label>
               <p className="py-2.5 text-[14px] leading-snug text-fg-2">
                 <label htmlFor="auth-terms" className="cursor-pointer">
-                  Men
+                  {tr(til, AUTH.fields.termsI)}
                 </label>{" "}
                 <Link href="/oferta" target="_blank" className="font-semibold text-accent-text underline underline-offset-2 hover:brightness-110">
-                  Oferta
+                  {tr(til, AUTH.fields.termsOffer)}
                 </Link>{" "}
                 <label htmlFor="auth-terms" className="cursor-pointer">
-                  va
+                  {tr(til, AUTH.fields.termsAnd)}
                 </label>{" "}
                 <Link href="/maxfiylik" target="_blank" className="font-semibold text-accent-text underline underline-offset-2 hover:brightness-110">
-                  Maxfiylik siyosatiga
-                </Link>{" "}
-                <label htmlFor="auth-terms" className="cursor-pointer">
-                  roziman
-                </label>
+                  {tr(til, AUTH.fields.termsPrivacy)}
+                </Link>
+                {tr(til, AUTH.fields.termsAgree) && (
+                  <>
+                    {" "}
+                    <label htmlFor="auth-terms" className="cursor-pointer">
+                      {tr(til, AUTH.fields.termsAgree)}
+                    </label>
+                  </>
+                )}
               </p>
             </div>
             {fields.terms && (
@@ -671,7 +678,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
               {remember && <Check size={13} strokeWidth={3} />}
             </span>
             <span>
-              Meni eslab qolish <span className="text-fg-4">· 30 kun</span>
+              {tr(til, AUTH.fields.remember)} <span className="text-fg-4">{tr(til, AUTH.fields.rememberDays)}</span>
             </span>
           </label>
         )}
@@ -688,27 +695,25 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
           {loading ? (
             <>
-              <Spinner /> {isRegister ? "Hisob yaratilmoqda…" : "Kirilmoqda…"}
+              <Spinner /> {tr(til, isRegister ? AUTH.submit.registering : AUTH.submit.loggingIn)}
             </>
           ) : (
             <>
-              {isRegister ? "Ro'yxatdan o'tish" : "Kirish"} <ArrowRight size={18} />
+              {tr(til, isRegister ? AUTH.submit.register : AUTH.submit.login)} <ArrowRight size={18} />
             </>
           )}
         </Button>
 
         {isRegister && role === "specialist" && subscription?.enforced && (
-          <p className="text-center text-[12px] leading-snug text-fg-4">
-            Mutaxassislar uchun {subscription.trialDays > 0 ? `dastlabki ${subscription.trialDays} kun bepul, keyin ` : ""}obuna — oyiga {formatPrice(subscription.price)}. Mijozlar uchun platforma bepul.
-          </p>
+          <p className="text-center text-[12px] leading-snug text-fg-4">{AUTH.submit.subscriptionNote[til](subscription.trialDays, formatPrice(subscription.price))}</p>
         )}
       </form>
 
       {/* ---------- Sahifalar orasidagi havola ---------- */}
       <p className="mt-6 text-center text-[14px] text-fg-2">
-        {isRegister ? "Hisobingiz bormi? " : "Hisob yo'qmi? "}
+        {tr(til, isRegister ? AUTH.submit.haveAccount : AUTH.submit.noAccount)}
         <Link href={withNext(isRegister ? "/auth/kirish" : "/auth/royxat", target)} className={INLINE_LINK}>
-          {isRegister ? "Kirish" : "Ro'yxatdan o'tish"}
+          {tr(til, isRegister ? AUTH.submit.toLogin : AUTH.submit.toRegister)}
         </Link>
       </p>
 
@@ -717,9 +722,9 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         (isRegister ? (
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-fg-3">
             <Wand2 size={13} className="text-accent" />
-            Sinab ko'rmoqchimisiz?{" "}
+            {tr(til, AUTH.demo.tryIt)}{" "}
             <Link href="/auth/kirish" className={INLINE_LINK}>
-              Demo hisob bilan kiring
+              {tr(til, AUTH.demo.loginDemo)}
             </Link>
           </p>
         ) : (
@@ -735,8 +740,8 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                 <KeyRound size={14} />
               </span>
               <span className="flex-1">
-                <span className="block text-[13px] font-semibold text-fg">Demo hisoblar</span>
-                <span className="block text-[11px] text-fg-3">Bu demo loyiha — bir bosishda to'ldiring</span>
+                <span className="block text-[13px] font-semibold text-fg">{tr(til, AUTH.demo.title)}</span>
+                <span className="block text-[11px] text-fg-3">{tr(til, AUTH.demo.subtitle)}</span>
               </span>
               <ChevronDown size={16} className={cn("text-fg-3 transition-transform duration-300", demoOpen && "rotate-180")} />
             </button>
@@ -753,7 +758,7 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13px] font-semibold text-fg">
-                          {acc.label} <span className="font-normal text-fg-4">· {acc.hint}</span>
+                          {tr(til, acc.label)} <span className="font-normal text-fg-4">· {tr(til, acc.hint)}</span>
                         </span>
                         <span className="block truncate font-mono text-[11px] text-fg-3">
                           {acc.email} / {acc.password}
@@ -762,10 +767,10 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                       <Button type="button" size="sm" variant={filled ? "tint-soft" : "outline"} onClick={() => fillDemo(acc)} className="shrink-0 !h-9 !px-3 !text-[12px]">
                         {filled ? (
                           <>
-                            <Check size={13} /> Tayyor
+                            <Check size={13} /> {tr(til, AUTH.demo.ready)}
                           </>
                         ) : (
-                          "To'ldirish"
+                          tr(til, AUTH.demo.fill)
                         )}
                       </Button>
                     </li>

@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { ScrollRow } from "@/components/ui/ScrollRow";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Locale } from "@/lib/i18n";
+import { HOME } from "@/lib/i18n/dict/home";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import type { LentaItem } from "@/lib/lenta";
@@ -14,6 +17,7 @@ import type { LentaItem } from "@/lib/lenta";
  * prefers-reduced-motion'da faqat poster. Bosilganda /lenta ochiladi.
  */
 export function HomeLentaStrip({ items }: { items: LentaItem[] }) {
+  const til = useLocale();
   const [reduced, setReduced] = useState(true);
   const [canHover, setCanHover] = useState(true);
 
@@ -34,19 +38,19 @@ export function HomeLentaStrip({ items }: { items: LentaItem[] }) {
   }, []);
 
   return (
-    <ScrollRow label="Ishlar lentasi — video ishlar" rowClassName="flex gap-3 pb-1 sm:gap-4">
+    <ScrollRow label={tr(til, HOME.lenta.rowAria)} rowClassName="flex gap-3 pb-1 sm:gap-4">
       {items.map((item) => (
-        <StripCard key={item.id} item={item} reduced={reduced} hoverPlay={canHover} />
+        <StripCard key={item.id} item={item} til={til} reduced={reduced} hoverPlay={canHover} />
       ))}
     </ScrollRow>
   );
 }
 
-function StripCard({ item, reduced, hoverPlay }: { item: LentaItem; reduced: boolean; hoverPlay: boolean }) {
+function StripCard({ item, til, reduced, hoverPlay }: { item: LentaItem; til: Locale; reduced: boolean; hoverPlay: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const cat = CATEGORY_BY_SLUG[item.specialist.category];
-  const price = item.specialist.priceFrom > 0 ? `${formatPrice(item.specialist.priceFrom, { compact: true })} dan` : "Narx kelishiladi";
+  const price = item.specialist.priceFrom > 0 ? HOME.lenta.priceFrom[til](formatPrice(item.specialist.priceFrom, { compact: true })) : tr(til, HOME.lenta.negotiable);
 
   const play = () => videoRef.current?.play().catch(() => undefined);
   const stop = () => {
@@ -78,7 +82,7 @@ function StripCard({ item, reduced, hoverPlay }: { item: LentaItem; reduced: boo
       onMouseLeave={hoverPlay && !reduced ? stop : undefined}
       onFocus={hoverPlay && !reduced ? play : undefined}
       onBlur={hoverPlay && !reduced ? stop : undefined}
-      aria-label={`${item.specialist.name} — ${item.title ?? "video ish"} (lentani ochish)`}
+      aria-label={`${item.specialist.name} — ${item.title ?? tr(til, HOME.lenta.videoWork)} (${tr(til, HOME.lenta.openLenta)})`}
       className="group relative block aspect-[9/16] w-[168px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-line bg-[#121213] shadow-[var(--shadow-1)] transition duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-2)] sm:w-[196px]"
     >
       <video

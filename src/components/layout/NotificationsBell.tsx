@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Bell, CheckCheck, Inbox, RotateCcw } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn, timeAgo } from "@/lib/utils";
 import { NOTIFICATIONS_CHANGED_EVENT, NOTIFICATIONS_UNREAD_EVENT, notificationMeta, TONE_TILE } from "./notification-meta";
 
@@ -32,6 +35,7 @@ type ApiResponse = { ok: true; data: { unread: number; items: NotificationItem[]
 const POLL_MS = 60_000;
 
 export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: number }) {
+  const til = useLocale();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(initialUnread);
@@ -145,8 +149,8 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={unread > 0 ? `Bildirishnomalar: ${unread} ta yangi` : "Bildirishnomalar"}
-        title="Bildirishnomalar"
+        aria-label={unread > 0 ? SHELL.bell.labelUnread[til](unread) : tr(til, SHELL.bell.label)}
+        title={tr(til, SHELL.bell.label)}
         className="card card-hover relative flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-fg-2 hover:text-fg"
       >
         <Bell size={18} />
@@ -163,19 +167,19 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
       {open && (
         <div
           role="dialog"
-          aria-label="Bildirishnomalar"
+          aria-label={tr(til, SHELL.bell.label)}
           className="card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden animate-fade-up sm:left-auto sm:right-0 sm:w-[380px]"
           style={{ animationDuration: "0.22s" }}
         >
           <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">
-            <p className="text-[15px] font-semibold text-fg">Bildirishnomalar</p>
-            {unread > 0 && <span className="text-[12px] font-semibold text-accent-text tabular-nums">{unread} yangi</span>}
+            <p className="text-[15px] font-semibold text-fg">{tr(til, SHELL.bell.label)}</p>
+            {unread > 0 && <span className="text-[12px] font-semibold text-accent-text tabular-nums">{SHELL.bell.newCount[til](unread)}</span>}
           </div>
           <div className="h-px bg-line" />
 
           <div className="max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain">
             {items === null && loading ? (
-              <ul className="divide-y divide-line" aria-busy="true" aria-label="Yuklanmoqda">
+              <ul className="divide-y divide-line" aria-busy="true" aria-label={tr(til, SHELL.bell.loading)}>
                 {Array.from({ length: 3 }).map((_, i) => (
                   <li key={i} className="space-y-2 px-4 py-3">
                     <span className="skeleton block h-3.5 w-2/3" />
@@ -186,9 +190,9 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
               </ul>
             ) : error && !items ? (
               <div className="flex flex-col items-center px-4 py-8 text-center">
-                <p className="text-[14px] font-semibold text-fg">Yuklab bo'lmadi</p>
+                <p className="text-[14px] font-semibold text-fg">{tr(til, SHELL.bell.loadFailed)}</p>
                 <button type="button" onClick={() => void load()} className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[12.5px] font-semibold text-fg transition hover:border-fg">
-                  <RotateCcw size={13} /> Qayta urinish
+                  <RotateCcw size={13} /> {tr(til, SHELL.bell.retry)}
                 </button>
               </div>
             ) : items && items.length > 0 ? (
@@ -205,7 +209,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                       <span className="min-w-0 flex-1">
                         <span className={cn("block text-[13.5px] leading-snug text-fg", isNew ? "font-semibold" : "font-medium")}>
                           {n.title}
-                          {isNew && <span className="sr-only"> (yangi)</span>}
+                          {isNew && <span className="sr-only">{tr(til, SHELL.bell.newSr)}</span>}
                         </span>
                         {n.body && <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-fg-3">{n.body}</span>}
                         <time dateTime={new Date(n.createdAt).toISOString()} className="mt-1 block text-[11px] text-fg-4">
@@ -235,8 +239,8 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                 <span className="icon-tile-soft mb-3 !rounded-full">
                   <Inbox size={20} />
                 </span>
-                <p className="text-[14px] font-semibold text-fg">Yangi bildirishnoma yo'q</p>
-                <p className="mt-1 text-[12.5px] text-fg-3">Buyurtma va to'lov yangiliklari shu yerda chiqadi.</p>
+                <p className="text-[14px] font-semibold text-fg">{tr(til, SHELL.bell.emptyTitle)}</p>
+                <p className="mt-1 text-[12.5px] text-fg-3">{tr(til, SHELL.bell.emptyText)}</p>
               </div>
             )}
           </div>
@@ -248,7 +252,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                 onClick={markAll}
                 className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 border-r border-line px-3 text-[12.5px] font-semibold text-fg-2 transition hover:bg-fg/4 hover:text-fg"
               >
-                <CheckCheck size={15} className="shrink-0" /> <span className="truncate">Hammasini o'qilgan deb belgilash</span>
+                <CheckCheck size={15} className="shrink-0" /> <span className="truncate">{tr(til, SHELL.bell.markAll)}</span>
               </button>
             )}
             <Link
@@ -258,7 +262,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                 unread > 0 && items && items.length > 0 ? "shrink-0" : "flex-1",
               )}
             >
-              Barchasi <ArrowRight size={14} />
+              {tr(til, SHELL.bell.all)} <ArrowRight size={14} />
             </Link>
           </div>
         </div>

@@ -6,11 +6,15 @@ import { useState, type FormEvent } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, LinkIcon } from "lucide-react";
 import { PasswordField } from "./PasswordField";
 import { Button, Spinner } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { AUTH } from "@/lib/i18n/dict/auth";
 import { passwordStrength } from "@/lib/security/password-strength";
 
 type ApiResponse = { ok: true; data: { reset: boolean; name: string; requiresLogin?: boolean } } | { ok: false; error: string; fields?: Record<string, string> };
 
 export function ResetConfirmForm({ token, initiallyValid }: { token: string; initiallyValid: boolean }) {
+  const til = useLocale();
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -24,22 +28,22 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
   if (!initiallyValid) {
     return (
       <div className="animate-fade-up">
-        <span className="eyebrow">Parolni tiklash</span>
+        <span className="eyebrow">{tr(til, AUTH.reset.eyebrow)}</span>
         <div className="mt-6 flex items-start gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-ios-red/10 text-ios-red">
             <LinkIcon size={22} />
           </span>
           <div>
-            <h1 className="font-display text-[24px] font-semibold leading-tight text-fg">Havola eskirgan</h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-fg-2">Bu havola muddati tugagan yoki allaqachon ishlatilgan. Yangi havola so'rang — u 1 soat amal qiladi.</p>
+            <h1 className="font-display text-[24px] font-semibold leading-tight text-fg">{tr(til, AUTH.resetConfirm.linkExpiredTitle)}</h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-fg-2">{tr(til, AUTH.resetConfirm.linkExpiredText)}</p>
           </div>
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href="/auth/parol-tiklash" className="btn-accent inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold">
-            Yangi havola so'rash <ArrowRight size={16} />
+            {tr(til, AUTH.resetConfirm.requestNew)} <ArrowRight size={16} />
           </Link>
           <Link href="/auth/kirish" className="inline-flex h-12 items-center justify-center rounded-full px-5 text-[14px] font-semibold text-fg-2 transition hover:text-fg">
-            Kirish sahifasiga
+            {tr(til, AUTH.reset.toLoginPage)}
           </Link>
         </div>
       </div>
@@ -52,8 +56,8 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
     setError(null);
     const errs: Record<string, string> = {};
     const s = passwordStrength(password);
-    if (!s.valid) errs.newPassword = password.length < 8 ? "Parol kamida 8 ta belgi" : "Parolda harf ham, raqam ham bo'lsin";
-    if (confirm !== password) errs.confirm = "Parollar mos kelmadi";
+    if (!s.valid) errs.newPassword = tr(til, password.length < 8 ? AUTH.errors.passwordShort : AUTH.errors.passwordWeak);
+    if (confirm !== password) errs.confirm = tr(til, AUTH.resetConfirm.mismatch);
     if (Object.keys(errs).length) {
       setFields(errs);
       return;
@@ -68,7 +72,7 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
       });
       const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!json || !json.ok) {
-        setError(json?.error ?? "Serverda kutilmagan xatolik");
+        setError(json?.error ?? tr(til, AUTH.errors.server));
         if (json && !json.ok && json.fields) setFields(json.fields);
         setLoading(false);
         return;
@@ -81,7 +85,7 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
         router.refresh();
       }, needs ? 2200 : 1200);
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, AUTH.errors.network));
       setLoading(false);
     }
   };
@@ -93,12 +97,8 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
           <CheckCircle2 size={22} />
         </span>
         <div>
-          <h1 className="font-display text-[24px] font-semibold leading-tight text-fg">Parol yangilandi</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">
-            {needsLogin
-              ? "Barcha sessiyalar yakunlandi. Endi yangi parol va autentifikator kodi bilan kiring — kirish sahifasiga o'tmoqdamiz…"
-              : "Boshqa qurilmalardagi sessiyalar yakunlandi. Kabinetga o'tmoqdamiz…"}
-          </p>
+          <h1 className="font-display text-[24px] font-semibold leading-tight text-fg">{tr(til, AUTH.resetConfirm.doneTitle)}</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">{tr(til, needsLogin ? AUTH.resetConfirm.doneNeedsLogin : AUTH.resetConfirm.doneAuto)}</p>
         </div>
       </div>
     );
@@ -107,39 +107,40 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
   return (
     <div className="animate-fade-up">
       <header className="mb-6">
-        <span className="eyebrow">Parolni tiklash</span>
+        <span className="eyebrow">{tr(til, AUTH.reset.eyebrow)}</span>
         <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[36px]">
-          Yangi <span className="accent-serif text-accent">parol</span>
+          {tr(til, AUTH.resetConfirm.titleA)}
+          <span className="accent-serif text-accent">{tr(til, AUTH.resetConfirm.titleAccent)}</span>
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">Kamida 8 ta belgi — harf va raqam bilan. Saqlangach, barcha eski sessiyalar yopiladi.</p>
+        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">{tr(til, AUTH.resetConfirm.lead)}</p>
       </header>
 
       <form onSubmit={submit} noValidate className="space-y-4">
         <PasswordField
           id="reset-password"
           name="new-password"
-          label="Yangi parol"
+          label={tr(til, AUTH.resetConfirm.newPassword)}
           value={password}
           onChange={(v) => {
             setPassword(v);
             setFields((f) => ({ ...f, newPassword: "" }));
           }}
           autoComplete="new-password"
-          placeholder="Kamida 8 ta belgi, harf va raqam"
+          placeholder={tr(til, AUTH.fields.passwordPlaceholderNew)}
           error={fields.newPassword || undefined}
           meter
         />
         <PasswordField
           id="reset-confirm"
           name="confirm-password"
-          label="Parolni takrorlang"
+          label={tr(til, AUTH.resetConfirm.repeatPassword)}
           value={confirm}
           onChange={(v) => {
             setConfirm(v);
             setFields((f) => ({ ...f, confirm: "" }));
           }}
           autoComplete="new-password"
-          placeholder="Yana bir marta"
+          placeholder={tr(til, AUTH.resetConfirm.repeatPlaceholder)}
           error={fields.confirm || undefined}
         />
 
@@ -153,11 +154,11 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
         <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
           {loading ? (
             <>
-              <Spinner /> Saqlanmoqda…
+              <Spinner /> {tr(til, AUTH.resetConfirm.saving)}
             </>
           ) : (
             <>
-              Parolni saqlash <ArrowRight size={18} />
+              {tr(til, AUTH.resetConfirm.save)} <ArrowRight size={18} />
             </>
           )}
         </Button>

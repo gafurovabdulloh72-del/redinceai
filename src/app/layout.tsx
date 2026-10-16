@@ -9,6 +9,8 @@ import { BackToTop } from "@/components/layout/BackToTop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
 
@@ -110,7 +112,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           href="#asosiy"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-ink-fg"
         >
-          Asosiy kontentga o&apos;tish
+          {tr(locale, SHELL.skipToContent)}
         </a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <LocaleProvider locale={locale}>

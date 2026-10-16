@@ -15,6 +15,9 @@ const UzbekistanMap = dynamicImport(() => import("./UzbekistanMap").then((m) => 
 import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ScrollRow } from "@/components/ui/ScrollRow";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { HOME } from "@/lib/i18n/dict/home";
 import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import type { RegionStat } from "@/lib/queries";
 import { GENDER_OPTIONS, qsOf, useSpecialistList, validCategory, validGender, validRegion, type Gender, type SerializedSpecialist } from "./filter-utils";
@@ -32,6 +35,7 @@ import { cn, formatPriceRange } from "@/lib/utils";
 
 const LIMIT = 6;
 export function HomeMapSection({ stats, total }: { stats: Record<string, RegionStat>; total: number }) {
+  const til = useLocale();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<string | null>(() => validRegion(searchParams.get("region")));
@@ -128,20 +132,20 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
               </span>
               {cat ? (
                 <>
-                  <span className="font-display text-fg">{scopeTotal}</span> ta {cat.name.toLowerCase()} · 14 hudud
+                  <span className="font-display text-fg">{scopeTotal}</span> {HOME.mapPanel.afterCountCat[til](scopeTotal, cat.name.toLowerCase())}
                 </>
               ) : (
                 <>
-                  <span className="font-display text-fg">{total}</span> ta mutaxassis · 14 hudud
+                  <span className="font-display text-fg">{total}</span> {HOME.mapPanel.afterCountAll[til](total)}
                 </>
               )}
             </div>
-            <span className="hidden text-[12px] text-fg-3 sm:block">Hududni bosing — ro'yxat o'ngda ochiladi</span>
+            <span className="hidden text-[12px] text-fg-3 sm:block">{tr(til, HOME.mapPanel.clickHint)}</span>
           </div>
 
           {/* Kasb pill'lari: aylanadigan qator — chetlarda so'nish + ko'rinadigan strelka-ishora (mobilda ham) */}
-          <ScrollRow label="Yo'nalish tanlash" className="-mx-1" rowClassName="flex gap-1.5 px-1 pb-1">
-            <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={16} />} label="Barchasi" count={countFor(null)} />
+          <ScrollRow label={tr(til, HOME.mapPanel.pickCategoryAria)} className="-mx-1" rowClassName="flex gap-1.5 px-1 pb-1">
+            <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={16} />} label={tr(til, HOME.mapPanel.all)} count={countFor(null)} />
             {CATEGORIES.map((c) => (
               <CatPill
                 key={c.slug}
@@ -162,14 +166,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
         {/* Legenda — xarita kartasiga biriktirilgan */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line px-1 pt-3 text-[11.5px] font-medium text-fg-3">
           <div className="flex items-center gap-2">
-            <span>kam</span>
+            <span>{tr(til, HOME.mapPanel.legendLess)}</span>
             <span className="map-legend-ramp h-2 w-24 rounded-full" aria-hidden="true" />
-            <span>ko'p</span>
-            <span className="ml-1 text-fg-4">— {unit}lar soni</span>
+            <span>{tr(til, HOME.mapPanel.legendMore)}</span>
+            <span className="ml-1 text-fg-4">{HOME.mapPanel.legendUnit[til](unit)}</span>
           </div>
           {/* To'liq rejimga havola — legenda qatorida (yon panel ustuni xarita balandligidan oshmasin) */}
           <Link href="/xarita" className="group inline-flex min-h-10 items-center gap-1.5 text-[12.5px] font-semibold text-fg-2 transition hover:text-fg">
-            To'liq xarita rejimi — filtrlar, zoom <ArrowRight size={16} className="text-accent transition-transform group-hover:translate-x-0.5" />
+            {tr(til, HOME.mapPanel.fullMap)} <ArrowRight size={16} className="text-accent transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       </div>
@@ -187,16 +191,15 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                 <div>
                   <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">{region.name}</h3>
                   <p className="mt-0.5 text-[13px] text-fg-3">
-                    <span className="font-display font-semibold text-accent-text tabular-nums">{headCount}</span> ta {genderInfo ? `${genderInfo.label.toLowerCase()} ` : ""}
-                    {unit}
-                    {genderInfo ? " ko'rsatilgan" : ""} · {region.capital}
+                    <span className="font-display font-semibold text-accent-text tabular-nums">{headCount}</span>
+                    {HOME.mapPanel.afterHeadCount[til](headCount, gender ?? "", genderInfo?.label ?? "", unit, region.capital)}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => pickRegion(null)}
-                aria-label="Tanlovni bekor qilish"
+                aria-label={tr(til, HOME.mapPanel.clearSelection)}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg"
               >
                 <X size={16} />
@@ -207,12 +210,14 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
               <span className="icon-tile">{cat ? <CategoryIcon icon={cat.icon} size={20} /> : <Users size={20} />}</span>
               <div>
                 <h3 className="font-display text-[19px] font-semibold leading-tight text-fg">
-                  {cat ? `${cat.plural} — butun O'zbekiston` : genderInfo ? `${genderInfo.label} mutaxassislar — butun O'zbekiston` : "Hududni tanlang"}
+                  {cat
+                    ? HOME.mapPanel.catAllCountry[til](cat.plural)
+                    : gender && genderInfo
+                      ? HOME.mapPanel.genderAllCountry[til](genderInfo.label, gender)
+                      : tr(til, HOME.mapPanel.pickRegionTitle)}
                 </h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-fg-2">
-                  {cat || genderInfo
-                    ? "Xaritada viloyatni bosing — ro'yxat o'sha hudud bo'yicha filtrlanadi."
-                    : "Xaritadagi istalgan viloyatni bosing — o'sha yerdagi mutaxassislar chiqadi."}
+                  {tr(til, cat || genderInfo ? HOME.mapPanel.descFiltered : HOME.mapPanel.descDefault)}
                 </p>
               </div>
             </div>
@@ -220,8 +225,8 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
 
           {/* Jins — faqat ro'yxatni filtrlaydi (xarita ranglari umumiy) */}
           <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Jins</span>
-            <div className="segment shrink-0" role="radiogroup" aria-label="Jins">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, HOME.mapPanel.gender)}</span>
+            <div className="segment shrink-0" role="radiogroup" aria-label={tr(til, HOME.mapPanel.gender)}>
               {GENDER_OPTIONS.map((g) => {
                 const on = (gender ?? "") === g.value;
                 return (
@@ -234,7 +239,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                     onClick={() => pickGender(g.value ? g.value : null)}
                     className="segment-item min-h-[38px] !px-3 !py-1 text-[12px]"
                   >
-                    {g.label}
+                    {tr(til, g.value === "male" ? HOME.mapPanel.genderMale : g.value === "female" ? HOME.mapPanel.genderFemale : HOME.mapPanel.genderAll)}
                   </button>
                 );
               })}
@@ -247,7 +252,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
           {active ? (
             <div className="flex flex-1 flex-col">
               {loading && !data ? (
-                <ul className="space-y-2" aria-busy="true" aria-label="Yuklanmoqda">
+                <ul className="space-y-2" aria-busy="true" aria-label={tr(til, HOME.mapPanel.loadingAria)}>
                   {Array.from({ length: 4 }).map((_, i) => (
                     <li key={i} className="flex items-center gap-3 rounded-card p-2">
                       <span className="h-11 w-11 shrink-0 rounded-full skeleton" />
@@ -260,10 +265,10 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                 </ul>
               ) : error ? (
                 <div className="card-outline flex flex-1 flex-col items-center justify-center px-4 py-10 text-center" role="alert">
-                  <p className="font-display text-[15px] font-semibold text-fg">Yuklab bo'lmadi</p>
+                  <p className="font-display text-[15px] font-semibold text-fg">{tr(til, HOME.mapPanel.loadFailed)}</p>
                   <p className="mt-1 text-[13px] text-fg-3">{error}</p>
                   <button type="button" onClick={retry} className="btn-ink mt-4 h-10 rounded-full px-5 text-[13px] font-semibold">
-                    Qayta urinish
+                    {tr(til, HOME.mapPanel.retry)}
                   </button>
                 </div>
               ) : data && data.items.length > 0 ? (
@@ -277,27 +282,26 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
                   <span className="icon-tile-soft mb-3 !rounded-full">
                     <Search size={20} />
                   </span>
-                  <p className="font-display text-[15px] font-semibold text-fg">Hali topilmadi</p>
+                  <p className="font-display text-[15px] font-semibold text-fg">{tr(til, HOME.mapPanel.emptyTitle)}</p>
                   <p className="mt-1 text-[13px] text-fg-3">
-                    {region ? `${region.short}da` : cat ? "Bu yo'nalishda" : "Bu filtr bo'yicha"} hozircha {genderInfo ? `${genderInfo.label.toLowerCase()} ` : ""}
-                    {unit} yo'q.
+                    {HOME.mapPanel.emptyText[til](region?.short ?? null, Boolean(cat), genderInfo ? `${genderInfo.label.toLowerCase()} ` : "", unit)}
                   </p>
                   <Link href="/auth/royxat?role=specialist" className="mt-4 inline-flex min-h-10 items-center text-[13px] font-semibold text-accent-text hover:underline">
-                    Birinchi bo'ling →
+                    {tr(til, HOME.mapPanel.beFirst)}
                   </Link>
                 </div>
               )}
 
               {data && data.total > 0 && (
                 <Link href={listHref} className="btn-accent mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-semibold">
-                  Barchasini ko'rish ({data.total}) <ArrowRight size={16} />
+                  {HOME.mapPanel.viewAllCount[til](data.total)} <ArrowRight size={16} />
                 </Link>
               )}
 
               {/* Hudud ichidagi yo'nalishlar taqsimoti */}
               {region && !category && stats[region.slug]?.total > 0 && (
                 <div className="mt-auto pt-5">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Yo'nalishlar bo'yicha</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, HOME.mapPanel.byCategories)}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {CATEGORIES.filter((c) => stats[region.slug].byCategory[c.slug]).map((c) => (
                       <button
@@ -317,7 +321,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
             </div>
           ) : (
             <div className="flex flex-1 flex-col">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Eng faol hududlar</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, HOME.mapPanel.topRegions)}</p>
               <ul className="space-y-0.5">
                 {topRegions.map((r, i) => (
                   <li key={r.slug}>
@@ -336,11 +340,11 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
 
               {/* Yo'nalishlar bo'yicha taqsimot — bar'lar, panel pastini to'ldiradi */}
               <div className="mt-auto pt-6">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Yo'nalishlar bo'yicha</p>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, HOME.mapPanel.byCategories)}</p>
                 <ul className="space-y-1">
                   {catTotals.map(({ c, n }) => (
                     <li key={c.slug}>
-                      <button type="button" onClick={() => pickCategory(c.slug)} className="group block min-h-10 w-full py-1.5 text-left" aria-label={`${c.plural}: ${n} ta`}>
+                      <button type="button" onClick={() => pickCategory(c.slug)} className="group block min-h-10 w-full py-1.5 text-left" aria-label={HOME.mapPanel.catBarAria[til](c.plural, n)}>
                         <span className="flex items-center justify-between text-[12.5px]">
                           <span className="inline-flex items-center gap-1.5 font-medium text-fg-2 transition group-hover:text-fg">
                             <CategoryIcon icon={c.icon} size={12} style={{ color: c.accent }} />

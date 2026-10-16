@@ -3,13 +3,17 @@ import Link from "next/link";
 import { ArrowRight, Compass, LifeBuoy, MapPinned, Search, Users } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { MAP_VIEWBOX, REGION_SHAPES } from "@/components/map/regions-geo";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 
 export const metadata: Metadata = {
   title: "Sahifa topilmadi",
   robots: { index: false, follow: false },
 };
 
-export default function NotFound() {
+export default async function NotFound() {
+  const til = await getLocale();
   return (
     <div className="container-x">
       <div className="card-outline relative mx-auto flex max-w-4xl flex-col items-center overflow-hidden !rounded-card-lg px-6 py-16 text-center sm:px-12 sm:py-24">
@@ -26,50 +30,48 @@ export default function NotFound() {
         </svg>
 
         <span className="eyebrow relative">
-          <Compass size={16} className="text-accent" /> Xato 404
+          <Compass size={16} className="text-accent" /> {tr(til, SHELL.notFound.eyebrow)}
         </span>
 
         <p className="display-xl relative mt-6 text-[104px] leading-none text-fg sm:text-[168px]" aria-hidden="true">
           4<span className="accent-serif text-accent">0</span>4
         </p>
 
-        <h1 className="relative mt-6 font-display text-[26px] font-semibold text-fg sm:text-[34px]">Sahifa topilmadi</h1>
-        <p className="relative mt-3 max-w-md text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">
-          Bu manzil ko'chib ketgan yoki umuman bo'lmagan. Yo'qolib qolmang — ijodkorlar xaritada, bir bosishda.
-        </p>
+        <h1 className="relative mt-6 font-display text-[26px] font-semibold text-fg sm:text-[34px]">{tr(til, SHELL.notFound.title)}</h1>
+        <p className="relative mt-3 max-w-md text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{tr(til, SHELL.notFound.text)}</p>
 
         {/* Qidiruv — oddiy GET forma (JS'siz ham ishlaydi): /mutaxassislar?q=… */}
         <form action="/mutaxassislar" method="get" role="search" className="relative mt-8 flex w-full max-w-md items-center gap-2">
           <label htmlFor="nf-q" className="sr-only">
-            Mutaxassis qidirish
+            {tr(til, SHELL.notFound.searchLabel)}
           </label>
           <span className="relative flex-1">
             <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden="true" />
-            <input id="nf-q" name="q" type="search" maxLength={80} placeholder="Ism yoki ko'nikma…" className="field h-12 !rounded-full !pl-10" autoComplete="off" />
+            <input id="nf-q" name="q" type="search" maxLength={80} placeholder={tr(til, SHELL.notFound.searchPlaceholder)} className="field h-12 !rounded-full !pl-10" autoComplete="off" />
           </span>
           <button type="submit" className="btn-ink inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-semibold">
-            Qidirish
+            {tr(til, SHELL.notFound.searchBtn)}
           </button>
         </form>
 
         <div className="relative mt-4 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <ButtonLink href="/" variant="accent" size="lg" className="w-full sm:w-auto sm:min-w-[190px]">
-            Bosh sahifaga <ArrowRight size={16} />
+            {tr(til, SHELL.notFound.homeBtn)} <ArrowRight size={16} />
           </ButtonLink>
           <ButtonLink href="/xarita" variant="outline" size="lg" className="w-full sm:w-auto">
-            <MapPinned size={16} /> Xaritani ochish
+            <MapPinned size={16} /> {tr(til, SHELL.notFound.openMap)}
           </ButtonLink>
         </div>
 
         <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-fg-3">
           <Link href="/mutaxassislar" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
-            <Users size={16} /> Mutaxassislar ro'yxati
+            <Users size={16} /> {tr(til, SHELL.notFound.specialistsList)}
           </Link>
           <Link href="/yordam" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
-            <LifeBuoy size={16} /> Yordam markazi
+            <LifeBuoy size={16} /> {tr(til, SHELL.notFound.helpCenter)}
           </Link>
           <Link href="/kabinet" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
-            <Compass size={16} /> Kabinet
+            <Compass size={16} /> {tr(til, SHELL.notFound.cabinet)}
           </Link>
         </div>
       </div>

@@ -3,6 +3,9 @@
 import { useState, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { AUTH } from "@/lib/i18n/dict/auth";
 import { cn } from "@/lib/utils";
 
 interface PasswordFieldProps {
@@ -24,6 +27,7 @@ interface PasswordFieldProps {
 
 /** Parol maydoni: ko'rsat/yashir tugmasi fokuslanadi (A78), 44px bosish maydoni */
 export function PasswordField({ id, name = "password", label, value, onChange, autoComplete, placeholder, error, hint, meter = false, disabled, labelAside }: PasswordFieldProps) {
+  const til = useLocale();
   const [show, setShow] = useState(false);
   const describedBy = [error ? `${id}-error` : null, meter ? `${id}-meter` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined;
   return (
@@ -54,7 +58,7 @@ export function PasswordField({ id, name = "password", label, value, onChange, a
           type="button"
           onClick={() => setShow((v) => !v)}
           className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg"
-          aria-label={show ? "Parolni yashirish" : "Parolni ko'rsatish"}
+          aria-label={tr(til, show ? AUTH.password.hide : AUTH.password.show)}
           aria-pressed={show}
           aria-controls={id}
           disabled={disabled}

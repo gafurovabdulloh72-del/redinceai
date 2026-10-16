@@ -8,6 +8,9 @@ import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { HOME } from "@/lib/i18n/dict/home";
 import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings } from "@/lib/payments/settings";
 import { getLentaItems } from "@/lib/lenta";
@@ -23,12 +26,13 @@ export const dynamic = "force-dynamic";
  */
 
 const STEPS = [
-  { icon: MapPinned, title: "Hududni tanlang", text: "Xaritada viloyatni bosing yoki yo'nalish bo'yicha qidiring — yaqin atrofdagi ijodkorlar chiqadi." },
-  { icon: Play, title: "Portfolioni ko'ring", text: "Ishlar, narxlar, tajriba va haqiqiy mijozlar sharhlari — hammasi bitta sahifada." },
-  { icon: MessageSquareText, title: "Buyurtma bering", text: "Loyihani yozing, narxni kelishing va xavfsiz to'lang — pul ishni qabul qilganingizdan keyin o'tkaziladi." },
+  { icon: MapPinned, title: HOME.steps.s1Title, text: HOME.steps.s1Text },
+  { icon: Play, title: HOME.steps.s2Title, text: HOME.steps.s2Text },
+  { icon: MessageSquareText, title: HOME.steps.s3Title, text: HOME.steps.s3Text },
 ] as const;
 
 export default async function HomePage() {
+  const til = await getLocale();
   const [regionStats, categoryStats, featured, site, settings, lenta] = await Promise.all([
     getRegionStats(),
     getCategoryStats(),
@@ -57,24 +61,23 @@ export default async function HomePage() {
           <div className="lg:col-span-6">
             {/* Ustki yorliq — chiziq bilan (editorial) */}
             <div className="flex items-center gap-4">
-              <span className="eyebrow !m-0 shrink-0">O'zbekiston ijodkorlar xaritasi</span>
+              <span className="eyebrow !m-0 shrink-0">{tr(til, HOME.hero.eyebrow)}</span>
               <span className="hidden h-px flex-1 bg-line sm:block" aria-hidden="true" />
             </div>
             <h1 className="display-xl mt-7 text-[44px] text-fg min-[420px]:text-[50px] sm:text-[64px] lg:text-[66px] xl:text-[82px]">
-              Ijodkorlarni
+              {tr(til, HOME.hero.titleA)}
               <br />
-              <span className="accent-serif text-accent">xaritada</span> toping
+              <span className="accent-serif text-accent">{tr(til, HOME.hero.titleAccent)}</span>
+              {tr(til, HOME.hero.titleB)}
             </h1>
-            <p className="mt-7 max-w-md text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">
-              Videograf, montajor, dizayner va boshqa ijodkorlar — hududingizda. Viloyatni bosing, portfolio va narxlarni ko'ring, to'g'ridan-to'g'ri buyurtma bering.
-            </p>
+            <p className="mt-7 max-w-md text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">{tr(til, HOME.hero.lead)}</p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <ButtonLink href="/xarita" variant="accent" size="lg" className="sm:min-w-[210px]">
-                <MapPinned size={20} /> Xaritani ochish
+                <MapPinned size={20} /> {tr(til, HOME.hero.openMap)}
               </ButtonLink>
               <ButtonLink href="/mutaxassislar" variant="outline" size="lg">
-                Mutaxassislar ro'yxati <ArrowRight size={16} />
+                {tr(til, HOME.hero.specialistsList)} <ArrowRight size={16} />
               </ButtonLink>
             </div>
 
@@ -90,12 +93,12 @@ export default async function HomePage() {
               <div className="flex items-baseline gap-2">
                 {/* 10 tadan kam bo'lsa "+" yolg'on taassurot beradi — aniq sonni ko'rsatamiz */}
                 <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.specialists >= 10 ? `${site.specialists}+` : site.specialists}</span>
-                <span className="text-[13px] leading-tight text-fg-3">mutaxassis</span>
+                <span className="text-[13px] leading-tight text-fg-3">{HOME.hero.statSpecialists[til](site.specialists)}</span>
               </div>
               <span className="h-8 w-px bg-line" aria-hidden="true" />
               <div className="flex items-baseline gap-2">
                 <span className="font-display text-[26px] font-semibold leading-none text-fg tabular-nums">{site.regions}</span>
-                <span className="text-[13px] leading-tight text-fg-3">ta hudud</span>
+                <span className="text-[13px] leading-tight text-fg-3">{HOME.hero.statRegions[til](site.regions)}</span>
               </div>
             </div>
           </div>
@@ -112,12 +115,12 @@ export default async function HomePage() {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-70 animate-pulse-ring" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
                 </span>
-                Interaktiv — hududni bosing
+                {tr(til, HOME.hero.interactiveHint)}
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-fg-3">
-                kam
+                {tr(til, HOME.hero.legendLess)}
                 <span className="map-legend-ramp h-2 w-20 rounded-full" aria-hidden="true" />
-                ko'p
+                {tr(til, HOME.hero.legendMore)}
               </span>
             </div>
           </div>
@@ -127,13 +130,15 @@ export default async function HomePage() {
       {/* ================= INTERAKTIV XARITA ================= */}
       <section id="xarita" className="container-x mt-section scroll-mt-24">
         <SectionHeading
-          eyebrow="Interaktiv xarita"
+          eyebrow={tr(til, HOME.mapSection.eyebrow)}
           title={
             <>
-              Hududni tanlang — <span className="accent-serif text-accent">mutaxassislar</span> chiqadi
+              {tr(til, HOME.mapSection.titleA)}
+              <span className="accent-serif text-accent">{tr(til, HOME.mapSection.titleAccent)}</span>
+              {tr(til, HOME.mapSection.titleB)}
             </>
           }
-          description="14 ta hudud. Rang qancha to'q bo'lsa, u yerda shuncha ko'p ijodkor bor. Bosing — yo'nalishlar bo'yicha taqsimot va ro'yxat ochiladi."
+          description={tr(til, HOME.mapSection.description)}
         />
         {/* useSearchParams (tanlov URL'da) — Suspense chegarasi ichida */}
         <Suspense fallback={<HomeMapFallback />}>
@@ -144,12 +149,12 @@ export default async function HomePage() {
       {/* ================= YO'NALISHLAR — har biri o'z naqshi + ikonka plitkasi + son ================= */}
       <section className="container-x mt-section">
         <SectionHeading
-          eyebrow="Yo'nalishlar"
-          title="Kim kerak?"
-          description="Har bir yo'nalish bo'yicha mutaxassislar soni jonli hisoblanadi."
+          eyebrow={tr(til, HOME.categories.eyebrow)}
+          title={tr(til, HOME.categories.title)}
+          description={tr(til, HOME.categories.description)}
           action={
             <ButtonLink href="/mutaxassislar" variant="outline" size="sm">
-              Barchasi <ArrowRight size={16} />
+              {tr(til, HOME.categories.all)} <ArrowRight size={16} />
             </ButtonLink>
           }
         />
@@ -177,10 +182,10 @@ export default async function HomePage() {
                     {n > 0 ? (
                       <span className="mt-auto flex items-baseline gap-1.5 pt-4">
                         <span className="font-display text-[22px] font-semibold leading-none text-fg tabular-nums">{n}</span>
-                        <span className="text-[12px] font-medium text-fg-3">mutaxassis · {regionsWith} hudud</span>
+                        <span className="text-[12px] font-medium text-fg-3">{HOME.categories.countLine[til](n, regionsWith)}</span>
                       </span>
                     ) : (
-                      <span className="mt-auto flex items-center pt-4 text-[13px] font-semibold text-accent-text">Birinchi bo&apos;ling →</span>
+                      <span className="mt-auto flex items-center pt-4 text-[13px] font-semibold text-accent-text">{tr(til, HOME.categories.beFirst)}</span>
                     )}
                   </span>
                 </Link>
@@ -194,16 +199,18 @@ export default async function HomePage() {
       {lenta.items.length > 0 && (
         <section className="container-x mt-section">
           <SectionHeading
-            eyebrow="Ishlar lentasi"
+            eyebrow={tr(til, HOME.lenta.eyebrow)}
             title={
               <>
-                Ishlarni <span className="accent-serif text-accent">videoda</span> ko&apos;ring
+                {tr(til, HOME.lenta.titleA)}
+                <span className="accent-serif text-accent">{tr(til, HOME.lenta.titleAccent)}</span>
+                {tr(til, HOME.lenta.titleB)}
               </>
             }
-            description="Mutaxassislarning so'nggi video ishlari — kartani bosing va Reels uslubida varaqlang."
+            description={tr(til, HOME.lenta.description)}
             action={
               <ButtonLink href="/lenta" variant="outline" size="sm">
-                Hammasi <ArrowRight size={16} />
+                {tr(til, HOME.lenta.all)} <ArrowRight size={16} />
               </ButtonLink>
             }
           />
@@ -214,22 +221,26 @@ export default async function HomePage() {
       {/* ================= TAVSIYA ETILGANLAR ================= */}
       <section className="container-x mt-section">
         <SectionHeading
-          eyebrow="Tavsiya etiladi"
+          eyebrow={tr(til, HOME.featured.eyebrow)}
           title={
             hasRated ? (
               <>
-                Eng yuqori <span className="accent-serif text-accent">reytingli</span> ijodkorlar
+                {tr(til, HOME.featured.ratedA)}
+                <span className="accent-serif text-accent">{tr(til, HOME.featured.ratedAccent)}</span>
+                {tr(til, HOME.featured.ratedB)}
               </>
             ) : (
               <>
-                Yangi <span className="accent-serif text-accent">qo&apos;shilgan</span> ijodkorlar
+                {tr(til, HOME.featured.newA)}
+                <span className="accent-serif text-accent">{tr(til, HOME.featured.newAccent)}</span>
+                {tr(til, HOME.featured.newB)}
               </>
             )
           }
-          description={hasRated ? "Tasdiqlangan profil, haqiqiy sharhlar va ochiq narxlar." : "Platformaga endigina qo'shilgan profillar — portfolio va narxlar ochiq, birinchi sharhni siz qoldiring."}
+          description={tr(til, hasRated ? HOME.featured.ratedDescription : HOME.featured.newDescription)}
           action={
             <ButtonLink href="/mutaxassislar?sort=rating" variant="outline" size="sm">
-              Hammasini ko'rish <ArrowRight size={16} />
+              {tr(til, HOME.featured.viewAll)} <ArrowRight size={16} />
             </ButtonLink>
           }
         />
@@ -245,7 +256,7 @@ export default async function HomePage() {
 
       {/* ================= QANDAY ISHLAYDI — raqamli plitkalar + bog'lovchi chiziq ================= */}
       <section className="container-x mt-section">
-        <SectionHeading eyebrow="Qanday ishlaydi" title="Uch qadam — va mutaxassis topildi" />
+        <SectionHeading eyebrow={tr(til, HOME.steps.eyebrow)} title={tr(til, HOME.steps.title)} />
         <div className="card relative overflow-hidden p-6 sm:p-8">
           <ol className="relative grid gap-9 md:grid-cols-3 md:gap-10">
             {/* Bog'lovchi chiziq: telefonda vertikal (plitkalar markazidan), md+ da gorizontal (1- va 3-plitka markazlari orasida) */}
@@ -255,14 +266,14 @@ export default async function HomePage() {
               className="absolute left-[22px] right-[calc((100%-5rem)/3-22px)] top-[22px] hidden border-t-2 border-dashed border-accent/35 md:block"
             />
             {STEPS.map((s, i) => (
-              <li key={s.title} className="relative flex gap-4 md:flex-col md:gap-0">
+              <li key={s.title.uz} className="relative flex gap-4 md:flex-col md:gap-0">
                 <span className="icon-tile step-tile relative z-[1] shadow-[0_0_0_8px_var(--surface)]" data-step={i + 1}>
                   <s.icon size={20} />
                 </span>
                 <span className="min-w-0 md:mt-6">
-                  <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-accent-text">{i + 1}-qadam</span>
-                  <h3 className="mt-1.5 font-display text-[20px] font-semibold leading-tight text-fg sm:text-[22px]">{s.title}</h3>
-                  <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-fg-2">{s.text}</p>
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-accent-text">{HOME.steps.stepN[til](i + 1)}</span>
+                  <h3 className="mt-1.5 font-display text-[20px] font-semibold leading-tight text-fg sm:text-[22px]">{tr(til, s.title)}</h3>
+                  <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-fg-2">{tr(til, s.text)}</p>
                 </span>
               </li>
             ))}
@@ -270,7 +281,7 @@ export default async function HomePage() {
           <p className="relative mt-7 flex items-center gap-2 border-t border-line pt-5 text-[13px] text-fg-2">
             <ShieldCheck size={16} className="shrink-0 text-accent" />
             {/* Payme/Click sozlanmagan bo'lsa eskrou va'dasi berilmaydi — yumshoqroq matn */}
-            {escrowReady ? "To'lov eskrou orqali: pul mutaxassisga ish qabul qilingandan keyingina o'tadi." : "Kelishuv, portfolio va muloqot — bitta ishonchli joyda."}
+            {tr(til, escrowReady ? HOME.steps.escrowOn : HOME.steps.escrowOff)}
           </p>
         </div>
       </section>
@@ -282,27 +293,28 @@ export default async function HomePage() {
           <div className="pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full bg-accent-2/35 blur-[110px]" />
           <div className="relative grid items-center gap-8 lg:grid-cols-12">
             <div className="lg:col-span-8">
-              <span className="eyebrow !text-white/60">Mutaxassislar uchun</span>
+              <span className="eyebrow !text-white/60">{tr(til, HOME.cta.eyebrow)}</span>
               <h2 className="display-xl mt-5 text-[34px] text-white sm:text-[48px] lg:text-[56px]">
-                Siz ijodkormisiz? <span className="accent-serif text-accent">Xaritada</span> paydo bo'ling.
+                {tr(til, HOME.cta.titleA)}
+                <span className="accent-serif text-accent">{tr(til, HOME.cta.titleAccent)}</span>
+                {tr(til, HOME.cta.titleB)}
               </h2>
               <p className="mt-5 max-w-xl text-[15px] text-white/70 sm:text-[17px]">
-                {trialDays > 0 ? `${trialDays} kun bepul sinab ko'ring, keyin ${subPrice} / oy.` : `Obuna — ${subPrice} / oy.`} Portfolio joylang, narxlaringizni belgilang — buyurtmalar
-                to'g'ridan-to'g'ri kabinetingizga keladi.{" "}
+                {HOME.cta.subscription[til](trialDays, subPrice)} {tr(til, HOME.cta.rest)}{" "}
                 <Link href="/narxlar" className="font-semibold text-white underline decoration-white/40 underline-offset-4 transition hover:decoration-white">
-                  Narxlar va shartlar
+                  {tr(til, HOME.cta.pricesLink)}
                 </Link>
               </p>
             </div>
             <div className="flex flex-col gap-3 lg:col-span-4 lg:items-end">
               <ButtonLink href="/auth/royxat?role=specialist" variant="accent" size="lg" className="w-full sm:w-auto">
-                Mutaxassis sifatida qo'shilish <ArrowRight size={20} />
+                {tr(til, HOME.cta.joinSpecialist)} <ArrowRight size={20} />
               </ButtonLink>
               <Link
                 href="/auth/royxat"
                 className="inline-flex h-13 w-full items-center justify-center rounded-full border border-white/35 bg-white/5 px-7 text-[15px] font-semibold text-white transition hover:border-white hover:bg-white/10 sm:w-auto"
               >
-                Mijoz sifatida boshlash
+                {tr(til, HOME.cta.startClient)}
               </Link>
             </div>
           </div>
