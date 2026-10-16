@@ -33,6 +33,7 @@ import {
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "@/components/specialists/SafeImage";
+import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { CATEGORIES, EXPERIENCE_LEVELS, PACKAGE_TIERS, REGIONS, REGION_BY_SLUG, WORK_TYPES, type PackageTierKey } from "@/lib/constants";
 import type { Certificate, ServicePackage, SpecialistRates } from "@/lib/db/schema";
@@ -410,6 +411,8 @@ export function ProfileForm({
   const [error, setError] = useState<string | null>(null);
   const [savedSlug, setSavedSlug] = useState<string | null>(null);
   const coverRef = useRef<HTMLInputElement>(null);
+  /** Tanlangan muqova fayli — yuklashdan oldin kesish oynasida moslash uchun */
+  const [cropCover, setCropCover] = useState<File | null>(null);
   const topRef = useRef<HTMLFormElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
   const sectionNavRef = useRef<HTMLElement>(null);
@@ -1547,11 +1550,24 @@ export function ProfileForm({
                   aria-label="Muqova rasmini yuklash"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) void uploadCover(file);
+                    if (file) setCropCover(file);
                   }}
                 />
               </div>
-              <p className="mt-2 text-[12px] text-fg-4">JPG, PNG, WEBP · 5 MB gacha.</p>
+              <p className="mt-2 text-[12px] text-fg-4">JPG, PNG, WEBP · 5 MB gacha. Yuklashdan oldin rasmni surish va kattalashtirish mumkin.</p>
+              {cropCover && (
+                <ImageCropper
+                  file={cropCover}
+                  aspect={8 / 3}
+                  outWidth={1600}
+                  title="Muqovani moslang"
+                  onCancel={() => setCropCover(null)}
+                  onDone={(file) => {
+                    setCropCover(null);
+                    void uploadCover(file);
+                  }}
+                />
+              )}
             </div>
             <div className="card-outline relative h-32 overflow-hidden !rounded-[18px] sm:h-full sm:min-h-[128px]">
               {f.coverUrl ? (

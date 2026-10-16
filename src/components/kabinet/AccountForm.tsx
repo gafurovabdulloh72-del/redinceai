@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, AtSign, BellRing, Camera, CheckCircle2, Copy, KeyRound, Mail, MailWarning, Mars, MessageCircle, ShieldCheck, Trash2, UserRound, Venus } from "lucide-react";
 import { Avatar, Badge, Button, Spinner } from "@/components/ui";
+import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
 import type { ResolvedVisibility } from "@/lib/privacy";
@@ -53,6 +54,8 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   /* Hidratsiya mosligi uchun: host faqat klientda, useEffect ichida o'qiladi (SSR'da bo'sh) */
   const [host, setHost] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  /** Tanlangan fayl — yuklashdan oldin kesish oynasida moslash uchun */
+  const [cropFile, setCropFile] = useState<File | null>(null);
 
   useEffect(() => {
     setHost(window.location.host);
@@ -170,7 +173,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
               </Button>
             )}
           </div>
-          <p className="mt-2 text-[12px] text-fg-4">JPG, PNG, WEBP yoki GIF · 5 MB gacha. Kvadrat rasm yaxshi ko'rinadi.</p>
+          <p className="mt-2 text-[12px] text-fg-4">JPG, PNG, WEBP yoki GIF · 5 MB gacha. Yuklashdan oldin rasmni surish va kattalashtirish mumkin.</p>
           <input
             ref={fileRef}
             type="file"
@@ -179,11 +182,25 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             aria-label="Avatar rasmini yuklash"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) void upload(f);
+              if (f) setCropFile(f);
             }}
           />
         </div>
       </div>
+
+      {cropFile && (
+        <ImageCropper
+          file={cropFile}
+          aspect={1}
+          outWidth={512}
+          title="Avatarni moslang"
+          onCancel={() => setCropFile(null)}
+          onDone={(f) => {
+            setCropFile(null);
+            void upload(f);
+          }}
+        />
+      )}
 
       {/* Maydonlar */}
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
