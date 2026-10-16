@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Compass, CreditCard, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -29,6 +29,7 @@ export interface NavUser {
 const NAV: Array<{ href: string; label: string; short: string; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
   { href: "/", label: "Bosh sahifa", short: "Asosiy", icon: Home, exact: true, desktop: "lg" },
   { href: "/xarita", label: "Xarita", short: "Xarita", icon: Map },
+  { href: "/lenta", label: "Lenta", short: "Lenta", icon: Clapperboard },
   { href: "/mutaxassislar", label: "Ijodkorlar", short: "Ijodkorlar", icon: Users },
   { href: "/ishlar", label: "Ishlar", short: "Ishlar", icon: BriefcaseBusiness },
   { href: "/narxlar", label: "Narxlar", short: "Narxlar", icon: CreditCard, mobile: false },
@@ -207,7 +208,11 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
 
       {/* ---------- Pastki tab-bar (mobil): teng kenglikdagi 4 ta element, safe-area ---------- */}
       <nav
-        className="nav-bar fixed inset-x-3 bottom-3 z-50 grid grid-cols-5 items-stretch !rounded-full p-1.5 shadow-[var(--shadow-2)] md:hidden"
+        className={cn(
+          "nav-bar fixed inset-x-3 bottom-3 z-50 grid items-stretch !rounded-full p-1.5 shadow-[var(--shadow-2)] md:hidden",
+          // "Lenta" qo'shilgach 6 ustun; kimdir band olib tashlasa 5 ga qaytadi
+          tabs.length >= 6 ? "grid-cols-6" : "grid-cols-5",
+        )}
         style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Mobil navigatsiya"
       >

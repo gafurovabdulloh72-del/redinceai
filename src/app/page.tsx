@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { ArrowRight, ArrowUpRight, MapPinned, MessageSquareText, Play, ShieldCheck } from "lucide-react";
 import { UzbekistanMap } from "@/components/map/UzbekistanMap";
 import { HomeMapSection } from "@/components/map/HomeMapSection";
+import { HomeLentaStrip } from "@/components/lenta/HomeLentaStrip";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { Avatar, ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
 import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings } from "@/lib/payments/settings";
+import { getLentaItems } from "@/lib/lenta";
 import { getCategoryStats, getFeaturedSpecialists, getRegionStats, getSiteStats } from "@/lib/queries";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -27,7 +29,14 @@ const STEPS = [
 ] as const;
 
 export default async function HomePage() {
-  const [regionStats, categoryStats, featured, site, settings] = await Promise.all([getRegionStats(), getCategoryStats(), getFeaturedSpecialists(4), getSiteStats(), getSettings()]);
+  const [regionStats, categoryStats, featured, site, settings, lenta] = await Promise.all([
+    getRegionStats(),
+    getCategoryStats(),
+    getFeaturedSpecialists(4),
+    getSiteStats(),
+    getSettings(),
+    getLentaItems(8),
+  ]);
   /* Mutaxassis CTA: obuna shartlari /narxlar bilan bir xil (admin sozlamasidan) */
   const trialDays = settings.subscriptionTrialDays;
   const subPrice = formatPrice(settings.subscriptionPrice);
@@ -180,6 +189,27 @@ export default async function HomePage() {
           })}
         </ul>
       </section>
+
+      {/* ================= ISHLAR LENTASI — video ishlar tasmasi (video bo'lmasa umuman chiqmaydi) ================= */}
+      {lenta.items.length > 0 && (
+        <section className="container-x mt-section">
+          <SectionHeading
+            eyebrow="Ishlar lentasi"
+            title={
+              <>
+                Ishlarni <span className="accent-serif text-accent">videoda</span> ko&apos;ring
+              </>
+            }
+            description="Mutaxassislarning so'nggi video ishlari — kartani bosing va Reels uslubida varaqlang."
+            action={
+              <ButtonLink href="/lenta" variant="outline" size="sm">
+                Hammasi <ArrowRight size={16} />
+              </ButtonLink>
+            }
+          />
+          <HomeLentaStrip items={lenta.items} />
+        </section>
+      )}
 
       {/* ================= TAVSIYA ETILGANLAR ================= */}
       <section className="container-x mt-section">
