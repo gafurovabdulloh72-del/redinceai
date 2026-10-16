@@ -54,7 +54,7 @@ import { getSubscriptionRevenueSummary } from "@/lib/subscriptions/queries";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
 import { getAdminAnalytics } from "./analytics";
 import { getFraudSignals } from "./fraud";
-import { banFlagsFor, listAdminReports, listAdminReviews, listPendingSpecialists, listSettingsHistory } from "./queries";
+import { banFlagsFor, listAdminReports, listAdminReviews, listPendingSpecialists, listRecentVerified, listSettingsHistory } from "./queries";
 
 export const dynamic = "force-dynamic";
 
@@ -109,9 +109,10 @@ export default async function AdminPage() {
   if (user.role !== "admin") redirect("/kabinet");
 
   // Tasdiqlash navbati listPendingSpecialists'dan keladi (eng eskisi birinchi, 200 tagacha, avatar + portfolio soni bilan)
-  const [{ stats, latestUsers, latestOrders }, pending, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
+  const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
     getAdminOverview(),
     listPendingSpecialists(200),
+    listRecentVerified(30),
     getAdminFinance(),
     listAdminPayouts(),
     listAdminPayments(PAYMENTS_CAP),
@@ -337,7 +338,19 @@ export default async function AdminPage() {
             </Badge>
           }
         />
-        <AdminSpecialistsTable pending={pendingRows} />
+        <AdminSpecialistsTable
+          pending={pendingRows}
+          verified={recentVerified.map((sp) => ({
+            id: sp.id,
+            slug: sp.slug,
+            title: sp.title,
+            category: sp.category,
+            regionSlug: sp.regionSlug,
+            isFeatured: sp.isFeatured,
+            verifiedAt: sp.updatedAt.getTime(),
+            user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl },
+          }))}
+        />
       </section>
 
       {/* ---------- Nizolar ---------- */}

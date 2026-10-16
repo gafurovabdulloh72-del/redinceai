@@ -114,6 +114,17 @@ export async function countAuditLogs(f: AuditFilter) {
  * Tasdiqlanmagan profillar — ENG ESKISI BIRINCHI (adolatli navbat: uzoq kutganlar tepada).
  * avatarUrl va portfolio soni ham keladi — admin profilni ochmasdan baholay oladi.
  */
+/** So'nggi tasdiqlanganlar — "Tasdiqni olib tashlash" uchun (updatedAt bo'yicha, tasdiq vaqtiga eng yaqin belgi) */
+export async function listRecentVerified(limit = 30) {
+  return db.query.specialists.findMany({
+    where: eq(specialists.isVerified, true),
+    orderBy: [desc(specialists.updatedAt)],
+    limit,
+    columns: { id: true, slug: true, title: true, category: true, regionSlug: true, isFeatured: true, updatedAt: true },
+    with: { user: { columns: { name: true, avatarUrl: true } } },
+  });
+}
+
 export async function listPendingSpecialists(limit = 200) {
   return db.query.specialists.findMany({
     where: eq(specialists.isVerified, false),

@@ -36,7 +36,20 @@ export interface PendingSpecialist {
   isHidden?: boolean;
 }
 
-type Busy = "verify" | "feature" | "delete" | "ban" | "reject";
+/** So'nggi tasdiqlanganlar qatori — tasdiqni olib tashlash uchun */
+export interface VerifiedSpecialist {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  regionSlug: string;
+  isFeatured: boolean;
+  /** ms timestamp — oxirgi o'zgarish (tasdiq vaqtiga eng yaqin belgi) */
+  verifiedAt: number;
+  user: { name: string; avatarUrl?: string | null };
+}
+
+type Busy = "verify" | "feature" | "delete" | "ban" | "reject" | "unverify";
 /** Shuncha kundan ko'p kutgan profil ogohlantirish rangida ko'rinadi */
 const WAIT_WARN_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -72,9 +85,12 @@ const MOBILE_CAP = 10;
 /* ------------------------------------------------------------------ */
 /* Komponent                                                           */
 /* ------------------------------------------------------------------ */
-export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[] }) {
+export function AdminSpecialistsTable({ pending, verified = [] }: { pending: PendingSpecialist[]; verified?: VerifiedSpecialist[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(pending);
+  const [vRows, setVRows] = useState(verified);
+  /** "Tasdiqni olib tashlash" — bitta bosishda emas: avval shu qator tasdiq so'raydi */
+  const [confirmUnverify, setConfirmUnverify] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, Busy>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -93,6 +109,8 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
   if (seen !== pending) {
     setSeen(pending);
     setRows(pending);
+    setVRows(verified);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }
 
   useEffect(() => {
@@ -117,10 +135,34 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
     setRows((r) => r.filter((x) => x.id !== row.id));
     try {
       await call(`/api/admin/specialists/${row.id}`, { method: "PATCH", body: JSON.stringify({ isVerified: true }) });
-      setNotice(`${row.user.name} tasdiqlandi`);
+      setNotice(`${row.user.name} tasdiqlandi — kerak bo'lsa pastdagi ro'yxatdan qaytarib olsa bo'ladi`);
+      // Darhol "So'nggi tasdiqlanganlar"ga qo'shiladi — adashib bosilgan bo'lsa shu yerdan qaytariladi
+      setVRows((v) => [
+        { id: row.id, slug: row.slug, title: row.title, category: row.category, regionSlug: row.regionSlug, isFeatured: row.isFeatured, verifiedAt: Date.now(), user: { name: row.user.name, avatarUrl: row.user.avatarUrl } },
+        ...v.filter((x) => x.id !== row.id),
+      ]);
       router.refresh();
     } catch (e) {
       setRows(snapshot);
+      setError(msg(e));
+    } finally {
+      mark(row.id, null);
+    }
+  };
+
+  /** Tasdiqni olib tashlash: profil belgini yo'qotadi va yana tasdiqlash navbatiga qaytadi */
+  const unverify = async (row: VerifiedSpecialist) => {
+    setError(null);
+    setConfirmUnverify(null);
+    mark(row.id, "unverify");
+    const snapshot = vRows;
+    setVRows((v) => v.filter((x) => x.id !== row.id));
+    try {
+      await call(`/api/admin/specialists/${row.id}`, { method: "PATCH", body: JSON.stringify({ isVerified: false }) });
+      setNotice(`${row.user.name} tasdig'i olib tashlandi — profil yana navbatga qaytdi`);
+      router.refresh();
+    } catch (e) {
+      setVRows(snapshot);
       setError(msg(e));
     } finally {
       mark(row.id, null);
@@ -533,6 +575,74 @@ export function AdminSpecialistsTable({ pending }: { pending: PendingSpecialist[
         <p className="px-1 text-[12px] text-fg-4">
           <X size={11} className="mr-1 inline" /> O'chirish qaytarib bo'lmaydi — avval ommaviy profilni ko'rib chiqing.
         </p>
+      )}
+
+      {/* ---------- So'nggi tasdiqlanganlar: tasdiqni qaytarib olish mumkin ---------- */}
+      {vRows.length > 0 && (
+        <section className="card overflow-hidden" aria-label="So'nggi tasdiqlanganlar">
+          <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 sm:px-5">
+            <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">
+              <BadgeCheck size={13} className="text-success" /> So'nggi tasdiqlanganlar
+            </p>
+            <p className="text-[12px] text-fg-4">Adashib tasdiqlangan bo'lsa — shu yerdan qaytarib olinadi</p>
+          </header>
+          <ul className="divide-y divide-line">
+            {vRows.slice(0, 10).map((row) => {
+              const b = busy[row.id];
+              const cat = CATEGORY_BY_SLUG[row.category];
+              const region = REGION_BY_SLUG[row.regionSlug];
+              const asking = confirmUnverify === row.id;
+              return (
+                <li key={row.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:px-5", b && "opacity-60")}>
+                  <Avatar name={row.user.name} src={row.user.avatarUrl} size={34} decorative />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 text-[13.5px] font-semibold text-fg">
+                      <span className="truncate">{row.user.name}</span>
+                      <BadgeCheck size={13} className="shrink-0 text-success" aria-label="Tasdiqlangan" />
+                      {row.isFeatured && <Star size={12} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
+                    </p>
+                    <p className="truncate text-[12px] text-fg-3">
+                      {row.title}
+                      {cat ? ` · ${cat.name}` : ""}
+                      {region ? ` · ${region.short}` : ""}
+                    </p>
+                  </div>
+                  <time className="hidden whitespace-nowrap text-[11.5px] text-fg-4 md:block" dateTime={new Date(row.verifiedAt).toISOString()} suppressHydrationWarning>
+                    {timeAgo(row.verifiedAt)}
+                  </time>
+                  {asking ? (
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="hidden text-[12px] font-medium text-fg-2 sm:inline">Belgi olinadi, profil navbatga qaytadi.</span>
+                      <Button size="sm" variant="danger" onClick={() => unverify(row)} disabled={!!b}>
+                        {b === "unverify" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Ha, olib tashlash
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmUnverify(null)} disabled={!!b}>
+                        Bekor
+                      </Button>
+                    </span>
+                  ) : (
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <Link
+                        href={`/mutaxassislar/${row.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Ommaviy profilni ochish"
+                        title="Ommaviy profil"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line-2 text-fg-2 transition hover:border-fg hover:text-fg"
+                      >
+                        <ExternalLink size={14} />
+                      </Link>
+                      <Button size="sm" variant="outline" onClick={() => setConfirmUnverify(row.id)} disabled={!!b}>
+                        <XCircle size={14} /> Tasdiqni olib tashlash
+                      </Button>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {vRows.length > 10 && <p className="border-t border-line px-4 py-2.5 text-[12px] text-fg-4 sm:px-5">Oxirgi 10 tasi ko'rsatilgan</p>}
+        </section>
       )}
     </div>
   );

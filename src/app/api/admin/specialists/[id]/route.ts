@@ -40,7 +40,14 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     .where(eq(specialists.id, id));
   if (res.rowsAffected === 0) throw new ApiError(404, "Mutaxassis topilmadi");
 
-  if (input.isVerified !== undefined) await audit(session.sub, input.isVerified ? "admin_verify" : "admin_unverify", { targetType: "specialist", targetId: id }, req);
+  if (input.isVerified !== undefined) {
+    await audit(session.sub, input.isVerified ? "admin_verify" : "admin_unverify", { targetType: "specialist", targetId: id }, req);
+    // Tasdiq olib tashlanganda egasi bilsin — profil yana tekshiruv navbatiga qaytadi
+    if (input.isVerified === false) {
+      const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, id), columns: { userId: true } });
+      if (sp) await notify(sp.userId, "account", "Profil tasdig'i olib tashlandi", "Profil tasdig'i olib tashlandi — ma'lumotlarni yangilang, admin qayta ko'rib chiqadi.", "/kabinet/profil");
+    }
+  }
   if (input.isFeatured !== undefined) await audit(session.sub, input.isFeatured ? "admin_feature" : "admin_unfeature", { targetType: "specialist", targetId: id }, req);
   return ok({ id, isVerified: input.isVerified, isFeatured: input.isFeatured });
 });
