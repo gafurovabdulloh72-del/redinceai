@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Briefcase, Clock3, PartyPopper, ShieldCheck, UserRound } from "lucide-react";
+import { Briefcase, Clock3, PartyPopper, Send, ShieldCheck, UserRound } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
 import { PrivacySettings } from "@/components/kabinet/PrivacySettings";
 import { ProfileForm, type ProfileInitial } from "@/components/kabinet/ProfileForm";
 import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
+import { TelegramCard } from "@/components/kabinet/TelegramCard";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { resolveVisibility } from "@/lib/privacy";
+import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Profil" };
@@ -49,9 +51,12 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
   const welcome = sp.welcome === "1";
   const firstName = user.name.split(" ")[0] || user.name;
   const ctaFirst = !s && user.role === "client";
+  // Telegram kartasi faqat bot to'liq sozlangan bo'lsa (token + username) ko'rinadi — server'da env tekshiriladi
+  const telegramEnabled = isTelegramEnabled() && Boolean(telegramBotUsername());
 
   const sections = [
     { href: "#akkaunt", label: "Akkaunt", icon: UserRound },
+    ...(telegramEnabled ? [{ href: "#telegram", label: "Telegram", icon: Send }] : []),
     { href: "#mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: Briefcase },
     ...(s
       ? [
@@ -115,6 +120,8 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
 
       <div className="space-y-5">
         <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
+
+        {telegramEnabled && <TelegramCard linked={Boolean(user.telegramChatId)} />}
 
         <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} />
 

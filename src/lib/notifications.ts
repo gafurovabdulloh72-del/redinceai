@@ -6,6 +6,7 @@ import { notifications, users } from "@/lib/db/schema";
 import { brandedMail, sendMail } from "@/lib/security/mailer";
 import { tryConsume } from "@/lib/security/rate-limit";
 import { siteUrl } from "@/lib/security/site";
+import { escapeTelegramHtml, isTelegramEnabled, sendTelegram } from "@/lib/telegram";
 import { uid } from "@/lib/utils";
 
 /**
@@ -102,9 +103,9 @@ const MESSAGE_MAIL_WINDOW_MS = 30 * 60 * 1000;
 const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
 
 export interface NotifyOptions {
-  /** message_new emaili uchun cheklov kaliti (odatda orderId). Berilmasa href ishlatiladi */
+  /** message_new emaili/Telegram xabari uchun cheklov kaliti (odatda orderId). Berilmasa href ishlatiladi */
   mailKey?: string;
-  /** Email yubormaslik (faqat saytdagi bildirishnoma) */
+  /** Tashqi kanallarga yubormaslik (faqat saytdagi bildirishnoma — email ham, Telegram ham chiqmaydi) */
   skipMail?: boolean;
 }
 
@@ -135,6 +136,27 @@ async function mailNotification(userId: string, type: NotificationType, title: s
   await sendMail(brandedMail({ to: u.email, title, name: u.name, body, link, footer }));
 }
 
+/**
+ * Telegram xabari: foydalanuvchi hisobini botga ulagan bo'lsa (users.telegramChatId) bildirishnoma qisqa
+ * ko'rinishda Telegramga ham boradi. Ulanganlikning o'zi rozilik — alohida opt-out yo'q (uzish: karta yoki /stop).
+ * Email'dan farqli, barcha turlar yuboriladi (eslatmalar ham foydali); bloklangan hisobga faqat "account".
+ * message_new / chat uchun email bilan bir xil 30 daqiqalik cheklov — alohida kalit (emailga xalal bermaydi).
+ */
+async function telegramNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
+  if (!isTelegramEnabled()) return;
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { telegramChatId: true, isBanned: true } });
+  if (!u?.telegramChatId) return;
+  if (u.isBanned && type !== "account") return;
+  if (type === "message_new" || type === "chat") {
+    const key = opts.mailKey ?? href ?? "general";
+    if (!(await tryConsume(`tgMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
+  }
+  const origin = mailOrigin();
+  const link = origin && href && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
+  const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "") + (link ? `\n${link}` : "");
+  await sendTelegram(u.telegramChatId, text);
+}
+
 /** Javobdan keyin bajarish (Next after()); so'rov kontekstidan tashqarida — oddiy fon promise */
 function inBackground(task: () => Promise<void>): void {
   const run = () => task().catch((e) => console.error("[notify:mail]", e));
@@ -163,11 +185,17 @@ export async function notify(userId: string, type: NotificationType, title: stri
   } catch (e) {
     console.error("[notify]", type, e);
   }
-  if (opts.skipMail || !MAIL_TYPES.has(type)) return;
+  if (opts.skipMail) return;
+  const t = title.slice(0, 160);
+  const b = body ? body.slice(0, 600) : body;
   try {
-    inBackground(() => mailNotification(userId, type, title.slice(0, 160), body ? body.slice(0, 600) : body, href, opts));
+    // Email (faqat MAIL_TYPES) va Telegram parallel — biri yiqilsa ikkinchisi baribir yuboriladi
+    inBackground(async () => {
+      const results = await Promise.allSettled([MAIL_TYPES.has(type) ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(), telegramNotification(userId, type, t, b, href, opts)]);
+      for (const r of results) if (r.status === "rejected") console.error("[notify:fanout]", type, r.reason);
+    });
   } catch (e) {
-    console.error("[notify:mail]", type, e);
+    console.error("[notify:fanout]", type, e);
   }
 }
 

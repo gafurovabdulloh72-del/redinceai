@@ -37,6 +37,9 @@ va baza migratsiyasi siyosatini tushuntiradi. Asosiy yo'l — **Vercel + Turso**
 | `PLATFORM_CARD_NAME` | yo'q | `REDINCE MChJ` | Karta egasi nomi. |
 | `RESEND_API_KEY` | tavsiya | `re_…` | Parol tiklash, email tasdiqlash, bildirishnoma xatlari. Bo'lmasa xat server konsoliga yoziladi. |
 | `MAIL_FROM` | Resend bilan | `Redince <no-reply@redince.uz>` | Jo'natuvchi (domen Resend'da tasdiqlangan bo'lsin). |
+| `TELEGRAM_BOT_TOKEN` | yo'q | `123456789:AA…` | Telegram bot tokeni (BotFather). Bo'lmasa Telegram integratsiyasi butunlay o'chiq (11-bo'lim). |
+| `TELEGRAM_BOT_USERNAME` | Telegram bilan | `kasbegalari_bot` | Bot username (@belgisisiz) — hisobni ulash deep-link'i uchun. |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram bilan | `openssl rand -hex 32` | Webhook himoyasi (`x-telegram-bot-api-secret-token`); mos kelmasa 401. |
 | `TRUST_PROXY_HOST` | yo'q | `1` | `X-Forwarded-Host/Proto/For`'ga ishonish — faqat ishonchli proksi (Nginx) ularni qayta yozsa. Vercel/Railway'da avtomatik. |
 | `TRUSTED_PROXY_HOPS` | yo'q | `1` | `X-Forwarded-For`'da o'ngdan nechta qiymat ishonchli proksiniki (rate limit IP'si). |
 | `TRUST_CLOUDFLARE` | yo'q | `1` | Sayt Cloudflare orqasida bo'lsa — `cf-connecting-ip`'ga ishoniladi. Aks holda yoqmang (IP soxtalashtiriladi). |
@@ -237,6 +240,29 @@ sahifalar keshi tozalanadi. Kesh strategiyasi o'zgarsa `sw.js` ichidagi `VERSION
 - [ ] Resend: parol tiklash xati keladi, havola `SITE_URL` bilan.
 - [ ] `NEXT_PUBLIC_DEMO_ACCOUNTS=0`, `PAYME_TEST` o'chirilgan.
 - [ ] Backup: birinchi dump olingan, off-site saqlangan.
+
+## 11. Telegram bot (bildirishnomalar)
+
+Foydalanuvchi hisobini Telegram botga ulasa, saytdagi bildirishnomalar (buyurtma, to'lov, takliflar, chat
+xabarlari, eslatmalar) qisqa ko'rinishda botga ham boradi. Uchala env ham ixtiyoriy — `TELEGRAM_BOT_TOKEN`
+bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xato ko'rinmaydi.
+
+1. **Bot yaratish**: Telegram'da [@BotFather](https://t.me/BotFather) → `/newbot` → bot nomi va username
+   (masalan `kasbegalari_bot`). BotFather bergan token → `TELEGRAM_BOT_TOKEN`.
+2. **Vercel env** (Production, 1-bo'limdagi jadval): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`
+   (@belgisisiz, masalan `kasbegalari_bot`), `TELEGRAM_WEBHOOK_SECRET` (`openssl rand -hex 32`). Redeploy qiling.
+3. **Webhook o'rnatish** (deploy'dan keyin bir marta):
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -d url="https://kasbegalari.vercel.app/api/telegram/webhook" \
+     -d secret_token="<SECRET>"
+   ```
+   Tekshirish: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` — `url` to'g'ri va
+   `last_error_message` bo'sh bo'lsin. Webhook faqat `x-telegram-bot-api-secret-token` sarlavhasi
+   `TELEGRAM_WEBHOOK_SECRET` ga teng so'rovlarni qabul qiladi (aks holda 401).
+4. **Ulash oqimi**: Kabinet → Profil → «Telegram bildirishnomalari» → «Telegramga ulash» → bot ochiladi →
+   «Start». Ulash kodi 15 daqiqa amal qiladi (imzolangan, bazada saqlanmaydi); bitta chat faqat bitta hisobga
+   ulanadi — yangi hisob ulansa eskisidan avtomatik uziladi. Uzish: kartadagi «Uzish» tugmasi yoki botda `/stop`.
 
 ## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
 

@@ -24,6 +24,12 @@ export const users = sqliteTable(
     bannedReason: text("banned_reason"),
     /** Email orqali bildirishnoma olishga rozi */
     notifyEmail: integer("notify_email", { mode: "boolean" }).notNull().default(true),
+    /**
+     * Telegram bot ulangan chat (bildirishnomalar shu chatga ham boradi); null — ulanmagan.
+     * Ulashda bitta chat faqat bitta hisobga tegishli bo'ladi (webhook eski egasidan uzib qo'yadi) —
+     * unique indekssiz, dastur darajasida ta'minlanadi.
+     */
+    telegramChatId: text("telegram_chat_id"),
     /** Sessiya versiyasi: oshirilsa barcha eski JWT'lar bekor bo'ladi (parol o'zgarishi, "hamma qurilmadan chiqish") */
     sessionVersion: integer("session_version").notNull().default(1),
     passwordChangedAt: integer("password_changed_at", { mode: "timestamp_ms" }),
