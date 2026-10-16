@@ -30,7 +30,8 @@ export const GET = handler(async (_req, ctx: Ctx) => {
  *  cancel — hali yuborilmagan ('created') hisobni bekor qilish; jarayondagi (pending) — 409
  */
 export const PATCH = handler(async (req, ctx: Ctx) => {
-  const session = await requireSession(["specialist"]);
+  // Admin ham sinov uchun o'z hisobida «To'ladim»/bekor qilishni bajara oladi
+  const session = await requireSession(["specialist", "admin"]);
   const { id } = await ctx.params;
   const { action } = await parseBody(req, invoiceActionSchema);
   await rateLimit(`subscriptionInvoice:${session.sub}`, 30, 60 * 60 * 1000);

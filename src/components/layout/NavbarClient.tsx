@@ -188,7 +188,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     {user.role === "specialist" && user.specialistSlug && (
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>{tr(til, SHELL.menu.myProfile)}</MenuItem>
                     )}
-                    {user.role === "specialist" && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
+                    {(user.role === "specialist" || user.role === "admin") && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>
                     <MenuItem href="/kabinet/sevimlilar" icon={Heart}>{tr(til, SHELL.menu.favorites)}</MenuItem>
                     <MenuItem href="/kabinet/profil" icon={UserCog}>{tr(til, SHELL.menu.profile)}</MenuItem>

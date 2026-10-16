@@ -9,7 +9,7 @@ import { proposalInputSchema } from "@/lib/jobs/validators";
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
-  if (session.role !== "specialist") throw new ApiError(403, "Taklifni faqat mutaxassislar yuboradi");
+  if (session.role !== "specialist" && session.role !== "admin") throw new ApiError(403, "Taklifni faqat mutaxassislar yuboradi");
   const input = await parseBody(req, proposalInputSchema);
   await enforceJobLimit("proposals", session.sub);
   const result = await createProposal(session, input);

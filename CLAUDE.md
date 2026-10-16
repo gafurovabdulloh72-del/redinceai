@@ -30,6 +30,7 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 - Responsiv: mobil 390px'da gorizontal scroll bo'lmasin; admin jadvallar container query (`@container`, `@[66rem]`) bilan
 - Playwright skrinshot/testlar: `.mjs` fayl yoz (inline `node -e` ISHLATMA — o'zbekcha apostroflar sindiradi), chromium: `/opt/pw-browsers/chromium`
 - DB tranzaksiyalari: pul harakati har doim `db.transaction` + compare-and-swap holat guardlari
+- Admin asosiy oqimlarni sinay oladi: obuna checkout/hisob, e'lon joylash, taklif yuborish route'lariga admin roli aniq qo'shilgan (blanket bypass YO'Q — `requireSession` qattiq qoladi); buyurtma oqimi ID bo'yicha — admin o'z buyurtmasida tomon sifatida qatnashadi
 - Git: ishchi branch `claude/quirky-volta-tzlqwh`; har katta blokdan keyin commit+push; PR so'ralmagunicha ochilmaydi
 - Foydalanuvchiga hisobotlar O'ZBEK tilida, skrinshotlar bilan
 

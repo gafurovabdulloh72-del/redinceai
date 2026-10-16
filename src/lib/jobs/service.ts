@@ -25,7 +25,7 @@ export const SUBSCRIPTION_INACTIVE = "Obunangiz faol emas — taklif yuborish uc
 /* E'lonlar                                                            */
 /* ------------------------------------------------------------------ */
 export async function createJob(session: SessionPayload, input: JobInput): Promise<{ id: string }> {
-  if (session.role !== "client") throw new ApiError(403, "E'lonni faqat mijozlar joylaydi");
+  if (session.role !== "client" && session.role !== "admin") throw new ApiError(403, "E'lonni faqat mijozlar joylaydi");
   const id = uid();
   const now = new Date();
   await db.insert(jobs).values({
@@ -103,7 +103,7 @@ export async function setJobOpen(session: SessionPayload, id: string, open: bool
 /* ------------------------------------------------------------------ */
 /** Taklif yuborishga tayyor mutaxassis: rol, profil va obuna (canReceiveOrders) */
 async function requireProposingSpecialist(session: SessionPayload) {
-  if (session.role !== "specialist") throw new ApiError(403, "Taklifni faqat mutaxassislar yuboradi");
+  if (session.role !== "specialist" && session.role !== "admin") throw new ApiError(403, "Taklifni faqat mutaxassislar yuboradi");
   const sp = await specialistForUser(session.sub);
   if (!sp) throw new ApiError(403, "Avval mutaxassis profilingizni to'ldiring");
   return sp;

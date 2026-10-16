@@ -259,30 +259,22 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             Narxlar va savollar <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
-        {user.role === "admin" ? (
-          // Admin obuna sotib ololmaydi (checkout API faqat specialist roliga ochiq) — 403 o'rniga tushuntirish
-          <div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:p-6">
-            <IconTile icon={BadgeCheck} tone="soft" />
-            <div className="min-w-0">
-              <p className="font-display text-[16px] font-semibold text-fg">Administrator hisobiga obuna kerak emas</p>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-fg-2">
-                Profilingiz obunasiz ham doim ko&apos;rinadi, shuning uchun to&apos;lov bo&apos;limi siz uchun o&apos;chirilgan. Mutaxassislar bu yerda rejani tanlab
-                to&apos;laydi; narxlar va chegirmalarni <Link href="/narxlar" className="font-semibold text-accent-text">Narxlar sahifasida</Link> ko&apos;rishingiz,
-                qo&apos;lda o&apos;tkazmalarni esa <Link href="/admin#tolovlar" className="font-semibold text-accent-text">Admin panelda</Link> tasdiqlashingiz mumkin.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <SubscriptionCheckout
-            plans={overview.plans}
-            providers={overview.providers}
-            manual={overview.manual}
-            untilByMonths={untilByMonths}
-            openManual={openManual}
-            pendingManual={pendingManual}
-            ctaLabel={renew}
-          />
+        {user.role === "admin" && (
+          <p className="mb-4 rounded-[var(--r-sm)] bg-surface-2 px-4 py-2.5 text-[13px] leading-relaxed text-fg-2">
+            <span className="font-semibold text-fg">Sinov rejimi:</span> admin hisobiga obuna shart emas, lekin to&apos;lov oqimini to&apos;liq sinab
+            ko&apos;rishingiz mumkin. O&apos;tkazma hisoblarini keyin o&apos;zingiz{" "}
+            <Link href="/admin#tolovlar" className="font-semibold text-accent-text">Admin panelda</Link> tasdiqlaysiz.
+          </p>
         )}
+        <SubscriptionCheckout
+          plans={overview.plans}
+          providers={overview.providers}
+          manual={overview.manual}
+          untilByMonths={untilByMonths}
+          openManual={openManual}
+          pendingManual={pendingManual}
+          ctaLabel={renew}
+        />
       </section>
 
       {/* Tarix */}

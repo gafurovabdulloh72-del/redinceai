@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * accept: buyurtma yaratiladi (narx = taklif summasi, to'lov kutilmoqda), qolgan takliflar rad etiladi, e'lon → hired.
  */
 export const PATCH = handler(async (req, ctx: Ctx) => {
-  const session = await requireSession(["client", "specialist"]);
+  const session = await requireSession(["client", "specialist", "admin"]);
   const { id } = await ctx.params;
   const { action, contactPhone } = await parseBody(req, proposalActionSchema);
   await enforceJobLimit("proposalAct", session.sub);

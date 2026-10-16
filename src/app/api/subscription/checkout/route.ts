@@ -12,7 +12,8 @@ import { subscriptionCheckoutSchema } from "@/lib/subscriptions/schemas";
  * + Payme/Click havolasi (qaytish: /kabinet/obuna?invoice=<id>) yoki o'tkazma rekvizitlari.
  */
 export const POST = handler(async (req) => {
-  const session = await requireSession(["specialist"]);
+  // Admin ham sinov uchun to'lov oqimidan o'ta oladi (o'z mutaxassis profili bo'yicha)
+  const session = await requireSession(["specialist", "admin"]);
   const input = await parseBody(req, subscriptionCheckoutSchema);
   await enforceLimit("subscription", session.sub);
 
