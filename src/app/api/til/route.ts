@@ -1,0 +1,37 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { LOCALES, LOCALE_COOKIE, pickLocale } from "@/lib/i18n";
+
+export const runtime = "nodejs";
+
+const YEAR = 60 * 60 * 24 * 365;
+
+function setCookie(res: NextResponse, til: string) {
+  res.cookies.set(LOCALE_COOKIE, til, { path: "/", maxAge: YEAR, sameSite: "lax" });
+}
+
+/** Tilni almashtirish: POST { til: "uz" | "ru" } — fetch + router.refresh() uchun */
+export async function POST(req: NextRequest) {
+  let til: unknown;
+  try {
+    til = ((await req.json()) as { til?: unknown })?.til;
+  } catch {
+    return NextResponse.json({ error: "Noto'g'ri so'rov" }, { status: 400 });
+  }
+  if (!LOCALES.includes(til as (typeof LOCALES)[number])) {
+    return NextResponse.json({ error: "Til noto'g'ri" }, { status: 400 });
+  }
+  const res = new NextResponse(null, { status: 204 });
+  setCookie(res, pickLocale(til));
+  return res;
+}
+
+/** JS'siz zaxira: GET /api/til?t=ru&next=/mutaxassislar — cookie + redirect (faqat ichki yo'l) */
+export async function GET(req: NextRequest) {
+  const til = pickLocale(req.nextUrl.searchParams.get("t"));
+  const nextRaw = req.nextUrl.searchParams.get("next") ?? "/";
+  // Ochiq redirect emas: faqat sayt ichidagi yo'l
+  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/";
+  const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
+  setCookie(res, til);
+  return res;
+}

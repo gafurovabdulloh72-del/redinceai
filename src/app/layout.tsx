@@ -7,6 +7,8 @@ import { Footer } from "@/components/layout/Footer";
 import { Backdrop } from "@/components/layout/Backdrop";
 import { BackToTop } from "@/components/layout/BackToTop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
+import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { getLocale } from "@/lib/i18n/server";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
 
@@ -94,8 +96,10 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Nonce asosidagi CSP (src/middleware.ts): tema skripti faqat shu so'rovning nonce'i bilan ishlaydi
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // Til — "til" cookie'sidan (standart: uz). Almashtirish /api/til orqali, sahifa router.refresh() bilan yangilanadi.
+  const locale = await getLocale();
   return (
-    <html lang="uz" suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
@@ -109,11 +113,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Asosiy kontentga o&apos;tish
         </a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
-        <Backdrop />
-        <Navbar />
-        <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
-        <Footer />
-        <BackToTop />
+        <LocaleProvider locale={locale}>
+          <Backdrop />
+          <Navbar />
+          <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
+          <Footer />
+          <BackToTop />
+        </LocaleProvider>
       </body>
     </html>
   );
