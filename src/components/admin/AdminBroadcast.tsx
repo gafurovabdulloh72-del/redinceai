@@ -8,6 +8,7 @@ interface Counts {
   all: number;
   specialists: number;
   clients: number;
+  emailConfigured: boolean;
 }
 
 const AUDIENCE_LABEL: Record<Audience, string> = { all: "Hammaga", specialists: "Mutaxassislarga", clients: "Mijozlarga" };
@@ -125,10 +126,21 @@ export function AdminBroadcast() {
         </div>
 
         <label className="flex items-start gap-2.5 text-[13px] text-fg-2">
-          <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
+          <input
+            type="checkbox"
+            checked={email}
+            onChange={(e) => setEmail(e.target.checked)}
+            disabled={counts ? !counts.emailConfigured : false}
+            className="mt-0.5 h-4 w-4 accent-[var(--accent)] disabled:opacity-40"
+          />
           <span>
             Email orqali ham yuborilsin{" "}
             <span className="text-fg-3">(email bildirishnomani o'chirganlarga bormaydi; Resend kvotasini hisobga oling)</span>
+            {counts && !counts.emailConfigured && (
+              <span className="mt-1 block text-[12.5px] font-semibold text-warning-text">
+                Email hali sozlanmagan — Vercel'da RESEND_API_KEY va MAIL_FROM yo'q, shuning uchun xat chiqmaydi. Xabar sayt bildirishnomasi + Telegram orqali boradi.
+              </span>
+            )}
           </span>
         </label>
 

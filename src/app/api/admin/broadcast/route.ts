@@ -47,6 +47,8 @@ export const GET = handler(async () => {
     all: active.length,
     specialists: active.filter((r) => r.role === "specialist").length,
     clients: active.filter((r) => r.role === "client").length,
+    /** Email kanali sozlanganmi (Resend) — bo'lmasa UI katakchani o'chirib, sababini aytadi */
+    emailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM),
   });
 });
 
