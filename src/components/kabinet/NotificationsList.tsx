@@ -124,9 +124,16 @@ export function NotificationsList({ items, unread }: { items: NotificationRow[];
           return (
             <li key={n.id}>
               {n.href ? (
-                <Link href={n.href} className={cls} onClick={() => markOne(n)}>
-                  {inner}
-                </Link>
+                n.href.startsWith("https://") ? (
+                  // Tashqi havola (masalan, admin e'lonidagi Telegram) — yangi oynada
+                  <a href={n.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={() => markOne(n)}>
+                    {inner}
+                  </a>
+                ) : (
+                  <Link href={n.href} className={cls} onClick={() => markOne(n)}>
+                    {inner}
+                  </Link>
+                )
               ) : (
                 <button type="button" className={cls} onClick={() => markOne(n)}>
                   {inner}

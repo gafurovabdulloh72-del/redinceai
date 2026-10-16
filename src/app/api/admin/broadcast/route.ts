@@ -18,12 +18,12 @@ type Audience = (typeof AUDIENCES)[number];
 const schema = z.object({
   title: z.string().trim().min(4, "Sarlavha juda qisqa").max(120, "Ko'pi bilan 120 belgi"),
   body: z.string().trim().min(10, "Matn juda qisqa (kamida 10 belgi)").max(600, "Ko'pi bilan 600 belgi"),
-  /** Ixtiyoriy ichki havola, masalan /narxlar yoki /yordam/maqola */
+  /** Ixtiyoriy havola: sayt ichida (/narxlar) yoki tashqi https:// manzil (masalan, Telegram kanal) */
   href: z
     .string()
     .trim()
     .max(200)
-    .regex(/^\/(?!\/)/, "Faqat sayt ichidagi yo'l (\"/\" bilan boshlansin)")
+    .regex(/^(\/(?!\/)|https:\/\/\S+$)/, "Sayt ichidagi yo'l (\"/\" bilan) yoki https:// havola kiriting")
     .optional()
     .or(z.literal("")),
   audience: z.enum(AUDIENCES),

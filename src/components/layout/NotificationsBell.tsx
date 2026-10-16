@@ -222,9 +222,16 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                   return (
                     <li key={n.id}>
                       {n.href ? (
-                        <Link href={n.href} className={cls} onClick={() => markRead(n.id)}>
-                          {inner}
-                        </Link>
+                        n.href.startsWith("https://") ? (
+                          // Tashqi havola (masalan, admin e'lonidagi Telegram) — yangi oynada
+                          <a href={n.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={() => markRead(n.id)}>
+                            {inner}
+                          </a>
+                        ) : (
+                          <Link href={n.href} className={cls} onClick={() => markRead(n.id)}>
+                            {inner}
+                          </Link>
+                        )
                       ) : (
                         <button type="button" className={cls} onClick={() => markRead(n.id)}>
                           {inner}

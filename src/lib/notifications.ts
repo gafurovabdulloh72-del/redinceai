@@ -104,6 +104,13 @@ const MESSAGE_MAIL_WINDOW_MS = 30 * 60 * 1000;
 /** O'chirilgan (anonimlashtirilgan) hisob manzili — hech qachon xat yuborilmaydi */
 const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
 
+/** Havolani mutlaq URLga aylantirish: tashqi https:// bo'lsa o'zi, /yo'l bo'lsa sayt manzili qo'shiladi */
+function absoluteHref(origin: string | null | undefined, href: string | null | undefined): string | null {
+  if (!href) return null;
+  if (href.startsWith("https://")) return href;
+  return origin && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
+}
+
 export interface NotifyOptions {
   /** message_new emaili/Telegram xabari uchun cheklov kaliti (odatda orderId). Berilmasa href ishlatiladi */
   mailKey?: string;
@@ -135,7 +142,7 @@ async function mailNotification(userId: string, type: NotificationType, title: s
     if (!(await tryConsume(`mailMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
   }
   const origin = mailOrigin();
-  const link = origin && href && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
+  const link = absoluteHref(origin, href);
   const footer = "Email bildirishnomalarni Kabinet → Profil → «Email bildirishnomalar» orqali o'chirishingiz mumkin.";
   await sendMail(brandedMail({ to: u.email, title, name: u.name, body, link, footer }));
 }
@@ -156,10 +163,16 @@ async function telegramNotification(userId: string, type: NotificationType, titl
     if (!(await tryConsume(`tgMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
   }
   const origin = mailOrigin();
-  const link = origin && href && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
+  const link = absoluteHref(origin, href);
   const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "");
   // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan
-  const buttonText = type.startsWith("order_") ? "Buyurtmani ochish" : type === "message_new" || type === "chat" ? "Xabarni ochish" : "Saytda ochish";
+  const buttonText = href?.startsWith("https://")
+    ? "Havolani ochish"
+    : type.startsWith("order_")
+      ? "Buyurtmani ochish"
+      : type === "message_new" || type === "chat"
+        ? "Xabarni ochish"
+        : "Saytda ochish";
   await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
 }
 

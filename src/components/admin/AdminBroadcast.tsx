@@ -48,8 +48,9 @@ export function AdminBroadcast() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: title.trim(), body: body.trim(), href: href.trim(), audience, email }),
       });
-      const j = (await res.json()) as { ok: boolean; data?: { sent: number }; error?: string };
-      if (!res.ok || !j.ok) throw new Error(j.error || "Yuborib bo'lmadi");
+      const j = (await res.json()) as { ok: boolean; data?: { sent: number }; error?: string; fields?: Record<string, string> };
+      // Maydon xatosi bo'lsa aynan uni ko'rsatamiz ("Ma'lumotlarni tekshiring"dan ko'ra aniqroq)
+      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborib bo'lmadi");
       setDone(`Yuborildi: ${j.data?.sent ?? 0} ta foydalanuvchiga${email ? " (email bilan)" : ""}`);
       setTitle("");
       setBody("");
@@ -94,8 +95,8 @@ export function AdminBroadcast() {
           <span className="text-right text-[11px] text-fg-3">{body.length}/600</span>
         </label>
         <label className="grid gap-1.5">
-          <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3">Havola (ixtiyoriy, sayt ichida)</span>
-          <input value={href} onChange={(e) => setHref(e.target.value)} maxLength={200} placeholder="/narxlar" className="field h-11 w-full text-[14px]" dir="ltr" />
+          <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3">Havola (ixtiyoriy — sayt ichida yoki https://)</span>
+          <input value={href} onChange={(e) => setHref(e.target.value)} maxLength={200} placeholder="/narxlar yoki https://t.me/kanal" className="field h-11 w-full text-[14px]" dir="ltr" />
         </label>
 
         {/* Auditoriya */}
