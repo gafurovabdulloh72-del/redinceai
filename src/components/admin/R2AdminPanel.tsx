@@ -119,7 +119,8 @@ export function R2AdminPanel() {
           </p>
           <p className="mt-2 text-[13.5px] leading-relaxed text-fg">
             <strong>Eng oson yechim (3 bosish, hech narsa nusxalanmaydi):</strong> Vercel → loyiha → <strong>Storage</strong> tab → <strong>Create Database</strong> →{" "}
-            <strong>Blob</strong> → Connect (loyihani tanlang) → keyin <strong>Deployments → ⋯ → Redeploy</strong>. Token avtomatik qo'shiladi.
+            <strong>Blob</strong> → Access tanlovida albatta <strong>Public</strong> ni belgilang (Private tanlansa yuklash ishlamaydi va keyin o'zgartirib bo'lmaydi) → Connect
+            (loyihani tanlang) → keyin <strong>Deployments → ⋯ → Redeploy</strong>. Token avtomatik qo'shiladi.
           </p>
         </div>
       ) : (

@@ -88,7 +88,12 @@ export const POST = handler(async (req) => {
       if (!publicOk) publicError = "Yozilgan fayl qayta o'qilmadi";
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    let msg = e instanceof Error ? e.message : String(e);
+    // Blob store Private qilib yaratilgan — access rejimini keyin o'zgartirib BO'LMAYDI, yangi store kerak
+    if (/private store|public access/i.test(msg)) {
+      msg =
+        "Blob store PRIVATE rejimda yaratilgan — buni keyin o'zgartirib bo'lmaydi. Yangi store oching: Vercel → Storage → Create → Blob → Access: PUBLIC ni tanlang → loyihaga Connect qiling; eski store'ni Projects bo'limida Disconnect qilib, redeploy qiling.";
+    }
     if (!uploadOk) uploadError = msg;
     else publicError = msg;
   }
