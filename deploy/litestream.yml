@@ -1,0 +1,16 @@
+# Litestream — SQLite bazaning uzluksiz zaxira nusxasi (R2/B2/S3-mos saqlashga).
+# Qiymatlar .env dan olinadi (docker-compose env_file). R2 misoli:
+#   LITESTREAM_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+#   LITESTREAM_BUCKET=kasbegalari-backup
+#   LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY — R2 API tokenidan
+# Tiklash: litestream restore -config /etc/litestream.yml /data/redince.db
+dbs:
+  - path: /data/redince.db
+    replicas:
+      - type: s3
+        endpoint: ${LITESTREAM_ENDPOINT}
+        bucket: ${LITESTREAM_BUCKET}
+        path: redince-db
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        force-path-style: true

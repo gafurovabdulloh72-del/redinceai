@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+data
+public/uploads
+*.log
+.env*
+!.env.example
+docs
+audit-final
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,46 @@
+# Kasb Egalari — VPS'da to'liq stack: ilova + Caddy (avto-SSL) + ixtiyoriy Litestream backup.
+# Ishga tushirish: cp deploy/env.vps.example .env → to'ldirish → docker compose up -d --build
+# Backup bilan:   docker compose --profile backup up -d
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Baza va yuklamalar bitta volume'da — zaxira nusxa olish oson
+      DATABASE_URL: file:/data/redince.db
+      UPLOAD_DIR: /data/uploads
+      TRUST_PROXY_HOST: "1"
+    volumes:
+      - ./data:/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file: .env
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # Ixtiyoriy: SQLite bazani har soniyada R2/B2'ga replikatsiya qiladi (deploy/litestream.yml)
+  litestream:
+    image: litestream/litestream:latest
+    restart: unless-stopped
+    profiles: ["backup"]
+    env_file: .env
+    command: replicate -config /etc/litestream.yml
+    volumes:
+      - ./data:/data
+      - ./deploy/litestream.yml:/etc/litestream.yml:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
