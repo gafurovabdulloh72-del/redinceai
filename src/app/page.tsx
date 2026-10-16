@@ -103,8 +103,9 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Xarita — matn bloki bilan vertikal markazda */}
-          <div className="relative flex flex-col justify-center self-center lg:col-span-6">
+          {/* Xarita — matn bloki bilan vertikal markazda. Telefonda yashirin: darhol pastda
+              to'laqonli interaktiv xarita bo'limi bor — ikkita xarita ketma-ket g'alati ko'rinadi */}
+          <div className="relative hidden flex-col justify-center self-center lg:col-span-6 lg:flex">
             {/* Och fonda qizil nur tuman bo'lib ko'rinmasin — kunduzgi rejimda ancha yumshoq */}
             <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[70%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/8 blur-[90px] dark:bg-accent/20" />
             <UzbekistanMap counts={counts} variant="hero" linkTo="mutaxassislar" showLabels={false} className="w-full py-2 lg:-mr-4 lg:w-[110%] lg:max-w-none" />

@@ -46,8 +46,9 @@ export async function SpecialistCard({
     <article className="card card-hover card-link group overflow-hidden">
       <Link href={`/mutaxassislar/${sp.slug}`} aria-label={`${sp.user.name} — ${sp.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
       <div className="pointer-events-none relative">
-        {/* Muqova: telefonda 16:10 (karta ixchamroq, ekranga ko'proq sig'adi), sm+ da 4:3 — rasm yuklanmasa yo'nalish naqshi */}
-        <div className="relative aspect-[16/10] overflow-hidden bg-surface-3 sm:aspect-[4/3]">
+        {/* Muqova: haqiqiy rasm telefonda 16:10, sm+ da 4:3; rasm YO'Q bo'lsa (naqsh) telefonda past tasma —
+            bo'sh naqsh butun ekranni egallamasin, ro'yxat ixcham ko'rinsin */}
+        <div className={`relative overflow-hidden bg-surface-3 sm:aspect-[4/3] ${sp.coverUrl ? "aspect-[16/10]" : "h-32"}`}>
           <SafeImage
             src={sp.coverUrl ?? undefined}
             alt=""
