@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Check, Contact, Copy, Link2 } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { PROFIL } from "@/lib/i18n/dict/profile";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,6 +12,7 @@ import { cn } from "@/lib/utils";
  * `url` — to'liq manzil (nusxalanadi), `display` — protokolsiz ko'rinish.
  */
 export function ShortLink({ url, display, vcardHref, className }: { url: string; display: string; vcardHref?: string; className?: string }) {
+  const til = useLocale();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -36,14 +40,14 @@ export function ShortLink({ url, display, vcardHref, className }: { url: string;
         <button
           type="button"
           onClick={copy}
-          aria-label={copied ? "Qisqa havola nusxalandi" : "Qisqa havolani nusxalash"}
-          title="Nusxalash"
+          aria-label={copied ? tr(til, PROFIL.copiedShort) : tr(til, PROFIL.copyShort)}
+          title={tr(til, PROFIL.copy)}
           className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-fg/6", copied ? "text-success-text" : "text-fg-2 hover:text-fg")}
         >
           {copied ? <Check size={15} /> : <Copy size={14} />}
         </button>
         <span className="sr-only" aria-live="polite">
-          {copied ? "Nusxalandi" : ""}
+          {copied ? tr(til, PROFIL.copied) : ""}
         </span>
       </div>
       {/* basis 260px + nowrap: tor kartada maydon ostiga to'liq kenglikda o'tadi, yorliq bo'linmaydi */}
@@ -52,9 +56,9 @@ export function ShortLink({ url, display, vcardHref, className }: { url: string;
           href={vcardHref}
           download
           className="inline-flex min-h-11 flex-1 basis-[260px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-line px-3.5 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
-          title="Kontaktni telefoningizga saqlang (vCard)"
+          title={tr(til, PROFIL.vcardHint)}
         >
-          <Contact size={14} aria-hidden="true" /> Vizitkani yuklab olish (vCard)
+          <Contact size={14} aria-hidden="true" /> {tr(til, PROFIL.vcard)}
         </a>
       )}
     </div>

@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import { createPortal } from "react-dom";
 import { ArrowUpRight, ChevronLeft, ChevronRight, ChevronsLeftRight, ImageIcon, Images, Link2, Maximize2, Play, X } from "lucide-react";
 import { EmptyState } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { SafeImage } from "./SafeImage";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { tr } from "@/lib/i18n";
+import { GALEREYA } from "@/lib/i18n/dict/profile";
 import { cn, hashHue, vimeoId, youtubeId } from "@/lib/utils";
 
 export interface GalleryItem {
@@ -71,6 +74,7 @@ function Thumb({ item, className }: { item: GalleryItem; className?: string }) {
 }
 
 export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
+  const til = useLocale();
   // Teglar (F61): ko'p uchraydiganlari birinchi; bitta ham teg bo'lmasa — chiplar ko'rinmaydi
   const tags = useMemo(() => {
     const counts = new Map<string, { label: string; n: number }>();
@@ -90,15 +94,15 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
   const openIndex = openId ? viewable.findIndex((i) => i.id === openId) : -1;
 
   if (all.length === 0) {
-    return <EmptyState icon={Images} title="Portfolio hali bo'sh" description="Mutaxassis ishlarini tez orada joylaydi." />;
+    return <EmptyState icon={Images} title={tr(til, GALEREYA.emptyTitle)} description={tr(til, GALEREYA.emptyDesc)} />;
   }
 
   return (
     <>
       {tags.length > 0 && (
         <div className="no-scrollbar -mx-1 mb-3 overflow-x-auto px-1">
-          <div className="flex w-max gap-1.5" role="group" aria-label="Teglar bo'yicha filtr">
-            {[{ key: null as string | null, label: "Barchasi", n: all.length }, ...tags].map((t) => {
+          <div className="flex w-max gap-1.5" role="group" aria-label={tr(til, GALEREYA.tagsAria)}>
+            {[{ key: null as string | null, label: tr(til, GALEREYA.all), n: all.length }, ...tags].map((t) => {
               const on = tag === t.key;
               return (
                 <button
@@ -147,7 +151,7 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
                 )}
                 {item.type === "image" && item.beforeUrl && (
                   <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
-                    <ChevronsLeftRight size={12} aria-hidden="true" /> Oldin / keyin
+                    <ChevronsLeftRight size={12} aria-hidden="true" /> {tr(til, GALEREYA.beforeAfter)}
                   </span>
                 )}
 
@@ -161,13 +165,13 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
 
           if (item.type === "link") {
             return (
-              <a key={item.id} href={item.url} target="_blank" rel="noreferrer noopener" className={tileCls} aria-label={`${item.title} — yangi oynada ochiladi`}>
+              <a key={item.id} href={item.url} target="_blank" rel="noreferrer noopener" className={tileCls} aria-label={GALEREYA.opensNewWindow[til](item.title)}>
                 {inner}
               </a>
             );
           }
           return (
-            <button key={item.id} type="button" onClick={() => setOpenId(item.id)} className={tileCls} aria-label={`${item.title} — kattalashtirish`}>
+            <button key={item.id} type="button" onClick={() => setOpenId(item.id)} className={tileCls} aria-label={GALEREYA.zoom[til](item.title)}>
               {inner}
             </button>
           );
@@ -200,6 +204,7 @@ function Lightbox({
   onClose: () => void;
   onNavigate: (i: number) => void;
 }) {
+  const til = useLocale();
   const item = items[index];
   const total = items.length;
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -264,14 +269,14 @@ function Lightbox({
               rel="noreferrer noopener"
               className="card pill card-hover hidden h-10 items-center gap-1.5 px-4 text-[13px] font-semibold text-fg sm:inline-flex"
             >
-              {ytId ? "YouTube'da ochish" : vmId ? "Vimeo'da ochish" : "Manbada ochish"} <ArrowUpRight size={14} />
+              {ytId ? tr(til, GALEREYA.openOnYoutube) : vmId ? tr(til, GALEREYA.openOnVimeo) : tr(til, GALEREYA.openSource)} <ArrowUpRight size={14} />
             </a>
           )}
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
-            aria-label="Yopish (Esc)"
+            aria-label={tr(til, GALEREYA.close)}
             className="card pill card-hover flex h-10 w-10 items-center justify-center text-fg"
           >
             <X size={18} />
@@ -286,7 +291,7 @@ function Lightbox({
             <button
               type="button"
               onClick={prev}
-              aria-label="Oldingi"
+              aria-label={tr(til, GALEREYA.prev)}
               className="card pill card-hover absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:left-6"
             >
               <ChevronLeft size={20} />
@@ -294,7 +299,7 @@ function Lightbox({
             <button
               type="button"
               onClick={next}
-              aria-label="Keyingi"
+              aria-label={tr(til, GALEREYA.next)}
               className="card pill card-hover absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-fg sm:right-6"
             >
               <ChevronRight size={20} />
@@ -323,12 +328,12 @@ function Lightbox({
               <span className="btn-ink flex h-14 w-14 items-center justify-center rounded-full">
                 <Play size={22} className="ml-0.5 fill-current" />
               </span>
-              <span className="text-[14px] font-semibold">Videoni yangi oynada ochish</span>
+              <span className="text-[14px] font-semibold">{tr(til, GALEREYA.openVideoNew)}</span>
             </a>
           ) : broken ? (
             <div className="card flex aspect-[4/3] w-full max-w-2xl flex-col items-center justify-center gap-2 !rounded-[22px] text-fg-3">
               <ImageIcon size={36} />
-              <span className="text-[13px]">Rasm yuklanmadi</span>
+              <span className="text-[13px]">{tr(til, GALEREYA.imageFailed)}</span>
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
@@ -364,6 +369,7 @@ function Lightbox({
  * yoki klaviatura: ← → (5%), Shift bilan 10%, Home/End. role="slider" — ekran o'quvchi foizni eshitadi.
  */
 export function BeforeAfter({ before, after, title }: { before: string; after: string; title: string }) {
+  const til = useLocale();
   const [pos, setPos] = useState(50);
   const boxRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -417,17 +423,17 @@ export function BeforeAfter({ before, after, title }: { before: string; after: s
         className="absolute inset-0 h-full w-full object-cover text-transparent"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
       />
-      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Oldin</span>
-      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Keyin</span>
+      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">{tr(til, GALEREYA.before)}</span>
+      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">{tr(til, GALEREYA.after)}</span>
       <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]" style={{ left: `${pos}%` }} />
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Oldin va keyin rasmlarini solishtirish"
+        aria-label={tr(til, GALEREYA.compareAria)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(pos)}
-        aria-valuetext={`Oldin ${Math.round(pos)}%, keyin ${100 - Math.round(pos)}%`}
+        aria-valuetext={GALEREYA.compareValue[til](Math.round(pos), 100 - Math.round(pos))}
         onKeyDown={onKeyDown}
         className="absolute top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-white text-[#121213] shadow-[var(--shadow-2)] outline-none focus-visible:ring-4 focus-visible:ring-accent/60"
         style={{ left: `${pos}%` }}

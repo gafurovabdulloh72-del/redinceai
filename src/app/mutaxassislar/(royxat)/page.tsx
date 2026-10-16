@@ -13,6 +13,9 @@ import { CompareTray } from "@/components/specialists/CompareTray";
 import { describeSavedQuery, pickSavedParams } from "@/components/specialists/saved-search-label";
 import { REGIONS } from "@/lib/constants";
 import { getSession } from "@/lib/auth";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { KATALOG } from "@/lib/i18n/dict/catalog";
 import { getCategoryStats, getRegionStats, listSpecialists } from "@/lib/queries";
 import { specialistFilterSchema, type SpecialistFilter } from "@/lib/validators";
 
@@ -37,14 +40,6 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-/** Natija jumlasi uchun saralash nomi (Filters.tsx SORT_OPTIONS bilan bir xil; client moduldan server qiymat import qilinmaydi) */
-const SORT_PHRASE: Record<SpecialistFilter["sort"], string> = {
-  rating: "reyting bo'yicha",
-  popular: "mashhurlik bo'yicha",
-  newest: "eng yangilari birinchi",
-  price_asc: "narx: arzondan",
-  price_desc: "narx: qimmatdan",
-};
 type View = "grid" | "list";
 
 /** Next searchParams'ni oddiy {key: string} ko'rinishiga keltiradi */
@@ -146,6 +141,7 @@ function EmptyBlock({ title, description, action }: { title: string; description
 }
 
 export default async function SpecialistsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  const til = await getLocale();
   const flat = flatten(await searchParams);
   const filter = parseFilter(flat);
   const view: View = flat.view === "list" ? "list" : "grid";
@@ -189,16 +185,16 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
       {/* ---------- Sarlavha ---------- */}
       <PageHeader
         size="lg"
-        eyebrow={`O'zbekiston bo'ylab · ${REGIONS.length} ta hudud`}
+        eyebrow={KATALOG.eyebrow[til](REGIONS.length)}
         title={
           <>
-            Mutaxassislar <span className="accent-serif text-accent">ro'yxati</span>
+            {tr(til, KATALOG.titleStart)} <span className="accent-serif text-accent">{tr(til, KATALOG.titleAccent)}</span>
           </>
         }
-        description="Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx, tajriba va jins bo'yicha filtrlang, o'zingizga mosini toping."
+        description={tr(til, KATALOG.description)}
         action={
           <ButtonLink href="/buyurtma-berish" variant="outline" size="md" className="self-start sm:self-auto">
-            <Wand2 size={16} className="text-accent" /> Buyurtma sehrgari
+            <Wand2 size={16} className="text-accent" /> {tr(til, KATALOG.wizard)}
           </ButtonLink>
         }
       />
@@ -221,8 +217,9 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Natija soni + saralash bir jumlada (E98): "58 ta mutaxassis · reyting bo'yicha" */}
             <p id="sp-results-title" className="text-[15px] text-fg-2" aria-live="polite">
-              <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{total}</span> ta mutaxassis
-              {total > 0 && <span className="text-fg-3"> · {SORT_PHRASE[filter.sort]}</span>}
+              <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{total}</span>
+              {KATALOG.resultSuffix[til](total)}
+              {total > 0 && <span className="text-fg-3"> · {tr(til, KATALOG.sortPhrase[filter.sort])}</span>}
               {total > 0 && pages > 1 && (
                 <span className="text-fg-3 max-sm:hidden">
                   {" "}
@@ -279,19 +276,19 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           ) : hasFilters ? (
             <div className="mt-5">
               <EmptyBlock
-                title="Hech narsa topilmadi"
-                description="Bu shartlarga mos mutaxassis yo'q. Filtrlarni yumshating yoki boshqa hududni tanlab ko'ring."
+                title={tr(til, KATALOG.emptyFilteredTitle)}
+                description={tr(til, KATALOG.emptyFilteredDesc)}
                 action={
                   // Bo'sh natija — boshi berk ko'cha emas: tozalash yonida sehrgar va e'lon joylash yo'llari
                   <div className="flex flex-wrap items-center justify-center gap-3">
                     <ButtonLink href={buildHref(BASE, { sort: query.sort, view: query.view })} variant="outline" size="md">
-                      <RotateCcw size={15} /> Filtrlarni tozalash
+                      <RotateCcw size={15} /> {tr(til, KATALOG.clearFilters)}
                     </ButtonLink>
                     <ButtonLink href="/buyurtma-berish" variant="accent" size="md">
-                      <Wand2 size={15} /> Sehrgar orqali topish
+                      <Wand2 size={15} /> {tr(til, KATALOG.findViaWizard)}
                     </ButtonLink>
                     <ButtonLink href="/ishlar/yangi" variant="outline" size="md">
-                      <Megaphone size={15} /> E&apos;lon joylang — mutaxassislar o&apos;zi taklif yuboradi
+                      <Megaphone size={15} /> {tr(til, KATALOG.postJobCta)}
                     </ButtonLink>
                   </div>
                 }
@@ -300,11 +297,11 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           ) : (
             <div className="mt-5">
               <EmptyBlock
-                title="Hali mutaxassislar yo'q"
-                description="Birinchi bo'lib profil oching — mijozlar sizni shu yerda topsin."
+                title={tr(til, KATALOG.emptyNoneTitle)}
+                description={tr(til, KATALOG.emptyNoneDesc)}
                 action={
                   <ButtonLink href="/auth/royxat?role=specialist" variant="accent" size="md">
-                    <UserPlus size={15} /> Mutaxassis sifatida qo'shilish
+                    <UserPlus size={15} /> {tr(til, KATALOG.joinAsSpecialist)}
                   </ButtonLink>
                 }
               />

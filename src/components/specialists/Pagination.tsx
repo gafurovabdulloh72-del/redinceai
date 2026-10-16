@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { SAHIFALASH } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 
 /** Query obyektidan to'liq href yasaydi (bo'sh qiymatlar tashlab yuboriladi) */
@@ -65,7 +68,7 @@ function PageLink({
   );
 }
 
-export function Pagination({
+export async function Pagination({
   page,
   pages,
   query,
@@ -80,14 +83,15 @@ export function Pagination({
   className?: string;
 }) {
   if (pages <= 1) return null;
+  const til = await getLocale();
 
   const href = (p: number) => buildHref(basePath, { ...query, page: p > 1 ? String(p) : undefined });
   const items = pageWindow(page, pages);
 
   return (
-    <nav aria-label="Sahifalar" className={cn("flex flex-col items-center gap-3", className)}>
+    <nav aria-label={tr(til, SAHIFALASH.navAria)} className={cn("flex flex-col items-center gap-3", className)}>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <PageLink href={href(page - 1)} disabled={page <= 1} label="Oldingi sahifa" rel="prev">
+        <PageLink href={href(page - 1)} disabled={page <= 1} label={tr(til, SAHIFALASH.prev)} rel="prev">
           <ChevronLeft size={18} />
         </PageLink>
 
@@ -97,19 +101,17 @@ export function Pagination({
               …
             </span>
           ) : (
-            <PageLink key={it} href={href(it)} active={it === page} label={`${it}-sahifa`}>
+            <PageLink key={it} href={href(it)} active={it === page} label={SAHIFALASH.pageN[til](it)}>
               {it}
             </PageLink>
           ),
         )}
 
-        <PageLink href={href(page + 1)} disabled={page >= pages} label="Keyingi sahifa" rel="next">
+        <PageLink href={href(page + 1)} disabled={page >= pages} label={tr(til, SAHIFALASH.next)} rel="next">
           <ChevronRight size={18} />
         </PageLink>
       </div>
-      <p className="text-[12px] text-fg-4">
-        {page} / {pages} sahifa
-      </p>
+      <p className="text-[12px] text-fg-4">{SAHIFALASH.ofPages[til](page, pages)}</p>
     </nav>
   );
 }

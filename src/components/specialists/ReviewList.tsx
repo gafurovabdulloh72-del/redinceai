@@ -1,7 +1,11 @@
 import { BadgeCheck, CornerDownRight, MessageSquareText, Star, ThumbsUp } from "lucide-react";
 import { Avatar, EmptyState, Stars } from "@/components/ui";
 import { RATING_CRITERIA, type RatingCriterionKey } from "@/lib/constants";
-import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import { MEZON, PROFIL } from "@/lib/i18n/dict/profile";
+import { cn, formatDateTime } from "@/lib/utils";
 import { ReviewDeleteButton } from "./ReviewDeleteButton";
 import { ReviewReplyForm } from "./ReviewReplyForm";
 import { ReportButton } from "./ReportButton";
@@ -65,7 +69,7 @@ function CriterionBar({ label, value, compact = false }: { label: string; value:
  * Reyting xulosasi: katta o'rtacha baho + 5★…1★ taqsimot chiziqlari.
  * Sahifada reyting faqat shu yerda (va hero'da) ko'rsatiladi — takror yo'q.
  */
-export function ReviewSummary({
+export async function ReviewSummary({
   rating,
   count,
   distribution,
@@ -80,6 +84,7 @@ export function ReviewSummary({
   className?: string;
 }) {
   if (count === 0) return null;
+  const til = await getLocale();
   const max = Math.max(1, ...Object.values(distribution));
   const extra = items?.length ? reviewCriteriaSummary(items) : null;
   const hasCriteria = Boolean(extra && Object.keys(extra.averages).length);
@@ -90,12 +95,10 @@ export function ReviewSummary({
           <p className="font-display text-[44px] font-semibold leading-none tracking-tight text-fg sm:text-[52px]">{rating.toFixed(1)}</p>
           <div>
             <Stars value={rating} size={14} showValue={false} />
-            <p className="mt-1 text-[12px] text-fg-3">
-              {count} ta sharh · 5 dan
-            </p>
+            <p className="mt-1 text-[12px] text-fg-3">{PROFIL.reviewsOf5[til](count)}</p>
           </div>
         </div>
-        <ul className="space-y-1.5" aria-label="Baholar taqsimoti">
+        <ul className="space-y-1.5" aria-label={tr(til, PROFIL.distributionAria)}>
           {([5, 4, 3, 2, 1] as const).map((n) => {
             const v = distribution[n] ?? 0;
             const pct = count ? Math.round((v / count) * 100) : 0;
@@ -104,7 +107,7 @@ export function ReviewSummary({
                 <span className="inline-flex w-7 shrink-0 items-center gap-0.5 font-semibold text-fg-2 tabular-nums">
                   {n} <Star size={10} className="fill-accent-3 text-accent-3" />
                 </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-3" role="img" aria-label={`${n} yulduz: ${v} ta (${pct}%)`}>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-3" role="img" aria-label={PROFIL.starsRowAria[til](n, v, pct)}>
                   <span className="block h-full rounded-full bg-accent-3 transition-[width] duration-700" style={{ width: `${Math.round((v / max) * 100)}%` }} />
                 </span>
                 <span className="w-10 shrink-0 text-right text-fg-3 tabular-nums">{pct}%</span>
@@ -119,17 +122,17 @@ export function ReviewSummary({
             <div className="flex items-center gap-3 sm:min-w-[132px] sm:flex-col sm:items-start sm:gap-1">
               <p className="font-display text-[32px] font-semibold leading-none tracking-tight text-success-text">{extra.recommendPct}%</p>
               <p className="flex items-center gap-1.5 text-[12px] leading-snug text-fg-3">
-                <ThumbsUp size={13} className="shrink-0 text-success-text" /> mijozlar tavsiya qiladi
+                <ThumbsUp size={13} className="shrink-0 text-success-text" /> {tr(til, PROFIL.recommendPct)}
               </p>
             </div>
           ) : (
             <span className="hidden sm:block" />
           )}
           {hasCriteria && (
-            <div className="space-y-2" aria-label="Mezonlar bo'yicha o'rtacha baho">
+            <div className="space-y-2" aria-label={tr(til, PROFIL.criteriaAria)}>
               {RATING_CRITERIA.map((c) => {
                 const a = extra.averages[c.key];
-                return a ? <CriterionBar key={c.key} label={c.label} value={a.avg} /> : null;
+                return a ? <CriterionBar key={c.key} label={MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} value={a.avg} /> : null;
               })}
             </div>
           )}
@@ -143,7 +146,7 @@ export function ReviewSummary({
  * Sharhlar ro'yxati (server va client'da ishlaydi).
  * Har bir sharh — alohida karta: avatar, ism, yulduzlar, vaqt va matn.
  */
-export function ReviewList({
+export async function ReviewList({
   reviews,
   highlightAuthorId,
   specialistId,
@@ -164,14 +167,9 @@ export function ReviewList({
   /** Javob bloki sarlavhasi uchun mutaxassis (ism + avatar) */
   replyAuthor?: { name: string; avatarUrl: string | null };
 }) {
+  const til = await getLocale();
   if (reviews.length === 0) {
-    return (
-      <EmptyState
-        icon={MessageSquareText}
-        title="Hali sharhlar yo'q"
-        description="Birinchi bo'lib fikr bildiring — bu boshqa mijozlarga to'g'ri tanlov qilishga yordam beradi."
-      />
-    );
+    return <EmptyState icon={MessageSquareText} title={tr(til, PROFIL.noReviewsTitle)} description={tr(til, PROFIL.noReviewsDesc)} />;
   }
 
   return (
@@ -191,19 +189,19 @@ export function ReviewList({
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-fg">
                     <span className="truncate">{r.author.name}</span>
-                    {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-text">Siz</span>}
+                    {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-text">{tr(til, PROFIL.you)}</span>}
                     {r.verified && (
                       <span
                         className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text"
-                        title="Muallifning shu mutaxassis bilan qabul qilingan buyurtmasi bor"
+                        title={tr(til, PROFIL.orderVerifiedHint)}
                       >
-                        <BadgeCheck size={12} /> Buyurtma tasdiqlangan
+                        <BadgeCheck size={12} /> {tr(til, PROFIL.orderVerified)}
                       </span>
                     )}
                   </p>
                   <span className="flex items-center gap-2">
                     <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
-                      {timeAgo(r.createdAt)}
+                      {timeAgoLabel(til, r.createdAt)}
                     </time>
                     {canModerate && specialistId && r.authorId && !mine && <ReviewDeleteButton specialistId={specialistId} authorId={r.authorId} />}
                   </span>
@@ -212,7 +210,7 @@ export function ReviewList({
                   <Stars value={r.rating} size={13} showValue={false} />
                   {r.recommend === true && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text">
-                      <ThumbsUp size={11} /> Tavsiya qiladi
+                      <ThumbsUp size={11} /> {tr(til, PROFIL.recommends)}
                     </span>
                   )}
                 </div>
@@ -223,7 +221,7 @@ export function ReviewList({
               <div className="mt-3 grid grid-cols-3 gap-3 sm:max-w-md">
                 {RATING_CRITERIA.map((c) => {
                   const v = r[c.key];
-                  return typeof v === "number" ? <CriterionBar key={c.key} label={c.label} value={v} compact /> : <span key={c.key} />;
+                  return typeof v === "number" ? <CriterionBar key={c.key} label={MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} value={v} compact /> : <span key={c.key} />;
                 })}
               </div>
             )}
@@ -232,7 +230,7 @@ export function ReviewList({
                 {r.media.slice(0, 4).map((url, k) => (
                   <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-[12px] border border-line bg-surface-3 transition hover:opacity-90">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`${r.author.name} sharhidagi rasm ${k + 1}`} loading="lazy" className="h-full w-full object-cover" />
+                    <img src={url} alt={PROFIL.reviewImageAlt[til](r.author.name, k + 1)} loading="lazy" className="h-full w-full object-cover" />
                   </a>
                 ))}
               </div>
@@ -243,10 +241,10 @@ export function ReviewList({
               <div className="mt-3.5 rounded-[16px] bg-surface-3 px-4 py-3 sm:ml-[52px]">
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold text-fg">
                   <CornerDownRight size={13} className="text-accent" aria-hidden />
-                  {replyAuthor ? `${replyAuthor.name} javobi` : "Mutaxassis javobi"}
+                  {replyAuthor ? PROFIL.replyOf[til](replyAuthor.name) : tr(til, PROFIL.specialistReply)}
                   {r.replyAt && (
                     <time className="font-normal text-fg-3" dateTime={new Date(r.replyAt).toISOString()} title={formatDateTime(r.replyAt)}>
-                      · {timeAgo(r.replyAt)}
+                      · {timeAgoLabel(til, r.replyAt)}
                     </time>
                   )}
                 </p>

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, Clock3, RefreshCw } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { PACKAGE_TIERS } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { localizePrice } from "@/lib/i18n/dict/catalog";
+import { PAKET_DARAJA, PROFIL } from "@/lib/i18n/dict/profile";
 import type { ServicePackage } from "@/lib/db/schema";
 import { cn, formatPrice, formatUsd } from "@/lib/utils";
 
@@ -24,16 +28,18 @@ export function PackagesTable({
   /** orderBase null bo'lganda tugma o'rnidagi qisqa izoh */
   disabledNote?: string;
 }) {
+  const til = useLocale();
   const sorted = [...packages].sort((a, b) => PACKAGE_TIERS.findIndex((t) => t.key === a.key) - PACKAGE_TIERS.findIndex((t) => t.key === b.key));
   const [active, setActive] = useState(sorted[Math.min(1, sorted.length - 1)]?.key ?? sorted[0]?.key);
   if (sorted.length === 0) return null;
 
   const cols = sorted.length === 3 ? "sm:grid-cols-3" : sorted.length === 2 ? "sm:grid-cols-2" : "";
+  const tierLabel = (key: string) => (PAKET_DARAJA[key] ? tr(til, PAKET_DARAJA[key]) : (PACKAGE_TIERS.find((t) => t.key === key)?.label ?? key));
 
   return (
     <div>
       {sorted.length > 1 && (
-        <div className="segment mb-3 flex w-full sm:hidden" role="tablist" aria-label="Paket darajasi">
+        <div className="segment mb-3 flex w-full sm:hidden" role="tablist" aria-label={tr(til, PROFIL.tierAria)}>
           {sorted.map((p) => (
             <button
               key={p.key}
@@ -45,14 +51,14 @@ export function PackagesTable({
               onClick={() => setActive(p.key)}
               className="segment-item min-h-10 flex-1"
             >
-              {PACKAGE_TIERS.find((t) => t.key === p.key)?.label ?? p.key}
+              {tierLabel(p.key)}
             </button>
           ))}
         </div>
       )}
       <div className={cn("grid gap-3", cols)}>
         {sorted.map((p) => {
-          const tier = PACKAGE_TIERS.find((t) => t.key === p.key)?.label ?? p.key;
+          const tier = tierLabel(p.key);
           const usd = formatUsd(p.price, usdRate);
           const highlight = sorted.length > 1 && p.key === "standard";
           return (
@@ -60,7 +66,7 @@ export function PackagesTable({
               key={p.key}
               id={`pkg-${p.key}`}
               role={sorted.length > 1 ? "tabpanel" : undefined}
-              aria-label={`${tier} paket`}
+              aria-label={PROFIL.packageAria[til](tier)}
               className={cn(
                 "flex-col p-5",
                 highlight ? "card-elevated ring-1 ring-fg/10" : "card-outline",
@@ -70,15 +76,15 @@ export function PackagesTable({
               <p className="eyebrow">{tier}</p>
               <h3 className="mt-2 font-display text-[17px] font-semibold leading-snug tracking-tight text-fg">{p.title}</h3>
               <p className="mt-3 whitespace-nowrap font-display text-[22px] font-semibold leading-none tracking-tight text-fg lg:text-[20px] xl:text-[22px]">
-                {formatPrice(p.price).replace(" so'm", "")} <span className="text-[14px] font-medium text-fg-2">so'm</span>
+                {formatPrice(p.price).replace(" so'm", "")} <span className="text-[14px] font-medium text-fg-2">{tr(til, PROFIL.sum)}</span>
               </p>
               {usd && <p className="mt-1 text-[12px] text-fg-3">{usd}</p>}
               <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] font-medium text-fg-2">
                 <li className="inline-flex items-center gap-1.5">
-                  <Clock3 size={14} className="text-fg-3" aria-hidden="true" /> {p.deliveryDays} kunda
+                  <Clock3 size={14} className="text-fg-3" aria-hidden="true" /> {PROFIL.inDays[til](p.deliveryDays)}
                 </li>
                 <li className="inline-flex items-center gap-1.5">
-                  <RefreshCw size={14} className="text-fg-3" aria-hidden="true" /> {p.revisions > 0 ? `${p.revisions} marta tuzatish` : "Tuzatishsiz"}
+                  <RefreshCw size={14} className="text-fg-3" aria-hidden="true" /> {p.revisions > 0 ? PROFIL.revisions[til](p.revisions) : tr(til, PROFIL.noRevisions)}
                 </li>
               </ul>
               {p.features.length > 0 && (
@@ -99,9 +105,9 @@ export function PackagesTable({
                       "inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold transition active:scale-[0.98]",
                       highlight ? "btn-accent" : "btn-ink",
                     )}
-                    aria-label={`${tier} paketni tanlash — ${formatPrice(p.price)}`}
+                    aria-label={PROFIL.choosePackageAria[til](tier, localizePrice(til, formatPrice(p.price)))}
                   >
-                    Tanlash <ArrowRight size={15} aria-hidden="true" />
+                    {tr(til, PROFIL.choose)} <ArrowRight size={15} aria-hidden="true" />
                   </Link>
                 ) : (
                   disabledNote && <p className="rounded-[12px] bg-surface-3 px-3 py-2.5 text-center text-[12.5px] font-medium text-fg-3">{disabledNote}</p>

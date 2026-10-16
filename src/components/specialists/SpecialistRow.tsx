@@ -6,19 +6,23 @@ import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
 import { CompareButton } from "./CompareButton";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
-import { formatPrice, formatPriceRange, hashHue, isRecent } from "@/lib/utils";
+import { tr, type Locale } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { KARTA, priceFromLabel, priceRangeLabel } from "@/lib/i18n/dict/catalog";
+import { formatPrice, hashHue, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
-function priceLine(from: number, to?: number | null) {
-  const full = formatPriceRange(from, to);
+function priceLine(til: Locale, from: number, to?: number | null) {
+  const full = priceRangeLabel(til, from, to);
   if (full.length <= 22) return full;
-  if (from) return `${formatPrice(from, { compact: true })} dan`;
+  if (from) return priceFromLabel(til, formatPrice(from, { compact: true }));
   return full;
 }
 
 /** Ro'yxat ko'rinishi — ixcham qator (muqova mini, ism, sarlavha, narx bir qatorda) */
-export function SpecialistRow({ sp, showCompare = false }: { sp: SpecialistListItem; showCompare?: boolean }) {
+export async function SpecialistRow({ sp, showCompare = false }: { sp: SpecialistListItem; showCompare?: boolean }) {
+  const til = await getLocale();
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
@@ -48,14 +52,14 @@ export function SpecialistRow({ sp, showCompare = false }: { sp: SpecialistListI
             {sp.isVerified && <VerifiedBadge size={15} />}
             {sp.topRated && (
               <span
-                title={`Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`}
+                title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}
                 className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[10px] font-semibold text-fg"
               >
-                <Award size={10} className="text-accent" /> Top
+                <Award size={10} className="text-accent" /> {tr(til, KARTA.top)}
               </span>
             )}
-            {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">Yangi</span>}
-            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">Band</span>}
+            {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
+            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">{tr(til, KARTA.busy)}</span>}
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-fg-2">{sp.title}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-fg-3">
@@ -71,14 +75,14 @@ export function SpecialistRow({ sp, showCompare = false }: { sp: SpecialistListI
           </span>
           {/* Mobil: narx va reyting meta ostida, bir qatorda */}
           <span className="mt-1.5 flex items-center justify-between gap-2 sm:hidden">
-            <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg">{priceLine(sp.priceFrom, sp.priceTo)}</span>
+            <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg">{priceLine(til, sp.priceFrom, sp.priceTo)}</span>
             <Stars value={sp.rating} count={sp.reviewCount} size={11} />
           </span>
         </span>
 
         <span className="hidden w-[150px] shrink-0 flex-col items-end gap-1 text-right sm:flex">
-          <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={formatPriceRange(sp.priceFrom, sp.priceTo)}>
-            {priceLine(sp.priceFrom, sp.priceTo)}
+          <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo)}>
+            {priceLine(til, sp.priceFrom, sp.priceTo)}
           </span>
           <Stars value={sp.rating} count={sp.reviewCount} size={11} />
         </span>

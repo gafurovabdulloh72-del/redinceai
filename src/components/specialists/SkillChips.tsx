@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { KONIKMA_CHIP } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,6 +13,7 @@ import { cn } from "@/lib/utils";
  * Karta ichida ishlatiladi: chiplar "pointer-events-auto" — kartaning cho'zilgan havolasi ustida turadi.
  */
 export function SkillChips({ skills, max = 3, className }: { skills: string[]; max?: number; className?: string }) {
+  const til = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (skills.length === 0) return null;
   const shown = expanded ? skills : skills.slice(0, max);
@@ -22,7 +26,7 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           key={s}
           href={`/mutaxassislar?skill=${encodeURIComponent(s)}`}
           prefetch={false}
-          title={`"${s}" ko'nikmasi bor mutaxassislar`}
+          title={KONIKMA_CHIP.withSkill[til](s)}
           // min-h-[30px]: barmoq uchun yetarli nishon + qulay ichki bo'shliq
           className="pointer-events-auto relative z-10 inline-flex min-h-[30px] min-w-0 items-center truncate rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
         >
@@ -34,12 +38,12 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          aria-label={expanded ? "Ko'nikmalarni yig'ish" : `Yana ${rest} ta ko'nikmani ko'rsatish`}
+          aria-label={expanded ? tr(til, KONIKMA_CHIP.collapseAria) : KONIKMA_CHIP.showMore[til](rest)}
           title={expanded ? undefined : skills.slice(max).join(", ")}
           // Kengaytirgich kamida 32×32px — mayda "+N" nishoni bosish qiyin edi
           className="pointer-events-auto relative z-10 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-fg/6 px-2.5 py-1 text-[11px] font-semibold text-fg-2 transition hover:bg-fg/10 hover:text-fg"
         >
-          {expanded ? "Kamroq" : `+${rest}`}
+          {expanded ? tr(til, KONIKMA_CHIP.collapse) : `+${rest}`}
         </button>
       )}
     </div>

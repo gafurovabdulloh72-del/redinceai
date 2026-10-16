@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { PROFIL } from "@/lib/i18n/dict/profile";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,6 +29,7 @@ export function ShareButton({
   /** Faqat ikonka (CTA yonidagi kvadrat tugma) */
   iconOnly?: boolean;
 }) {
+  const til = useLocale();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -62,17 +66,17 @@ export function ShareButton({
       size={iconOnly ? "icon" : size}
       onClick={share}
       aria-live="polite"
-      aria-label={iconOnly ? (copied ? "Havola nusxalandi" : "Ulashish") : undefined}
-      title={iconOnly ? "Ulashish" : undefined}
+      aria-label={iconOnly ? (copied ? tr(til, PROFIL.linkCopied) : tr(til, PROFIL.share)) : undefined}
+      title={iconOnly ? tr(til, PROFIL.share) : undefined}
       className={cn("transition-colors", iconOnly ? cn("shrink-0 !p-0", sizeCls) : "min-w-[128px]", copied && "!text-[#15803d] dark:!text-ios-green", className)}
     >
       {copied ? (
         <>
-          <Check size={16} /> {!iconOnly && "Nusxalandi"}
+          <Check size={16} /> {!iconOnly && tr(til, PROFIL.copied)}
         </>
       ) : (
         <>
-          <Share2 size={16} /> {!iconOnly && "Ulashish"}
+          <Share2 size={16} /> {!iconOnly && tr(til, PROFIL.share)}
         </>
       )}
     </Button>

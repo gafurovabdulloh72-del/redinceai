@@ -8,18 +8,21 @@ import { FavoriteButton } from "./FavoriteButton";
 import { CompareButton } from "./CompareButton";
 import { SkillChips } from "./SkillChips";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
-import { formatPrice, formatPriceRange, isRecent } from "@/lib/utils";
+import { tr, type Locale } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { KARTA, priceFromLabel, priceRangeLabel } from "@/lib/i18n/dict/catalog";
+import { formatPrice, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
-function priceLine(from: number, to?: number | null) {
-  const full = formatPriceRange(from, to);
+function priceLine(til: Locale, from: number, to?: number | null) {
+  const full = priceRangeLabel(til, from, to);
   if (full.length <= 24) return full;
-  if (from) return `${formatPrice(from, { compact: true })} dan`;
+  if (from) return priceFromLabel(til, formatPrice(from, { compact: true }));
   return full;
 }
 
-export function SpecialistCard({
+export async function SpecialistCard({
   sp,
   priority = false,
   showCompare = false,
@@ -29,6 +32,7 @@ export function SpecialistCard({
   /** "Taqqoslash" tugmasi (F54) — faqat taqqoslash paneli bor sahifalarda */
   showCompare?: boolean;
 }) {
+  const til = await getLocale();
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
@@ -64,18 +68,18 @@ export function SpecialistCard({
                   {cat.name}
                 </span>
               )}
-              {isNew && <span className="inline-flex h-7 items-center rounded-full bg-surface px-2.5 text-[11px] font-semibold text-accent-text shadow-[var(--shadow-1)]">Yangi</span>}
+              {isNew && <span className="inline-flex h-7 items-center rounded-full bg-surface px-2.5 text-[11px] font-semibold text-accent-text shadow-[var(--shadow-1)]">{tr(til, KARTA.new)}</span>}
               {sp.topRated && (
                 // Interaktiv emas: kartaning cho'zilgan havolasi bilan bir xil manzilga ikkinchi havola ortiqcha edi (a11y)
                 <span
-                  title={`Top mutaxassis: reyting ${TOP_RATED_RULE.minRating}+ va kamida ${TOP_RATED_RULE.minReviews} ta sharh`}
+                  title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}
                   className="pointer-events-auto inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]"
                 >
-                  <Award size={12} className="text-accent" /> Top
+                  <Award size={12} className="text-accent" /> {tr(til, KARTA.top)}
                 </span>
               )}
             </span>
-            {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">Band</span>}
+            {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full bg-surface-3 px-2.5 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
           </div>
 
           {/* Strelka diski — faqat ko'rsatkichli qurilmalarda, hover'da */}
@@ -105,8 +109,8 @@ export function SpecialistCard({
           <SkillChips skills={sp.skills} max={3} className="mt-2.5" />
 
           <div className="mt-3.5 border-t border-line pt-3">
-            <p className="truncate whitespace-nowrap font-display text-[15px] font-semibold text-fg" title={formatPriceRange(sp.priceFrom, sp.priceTo)}>
-              {priceLine(sp.priceFrom, sp.priceTo)}
+            <p className="truncate whitespace-nowrap font-display text-[15px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo)}>
+              {priceLine(til, sp.priceFrom, sp.priceTo)}
             </p>
             <div className="mt-1.5">
               <Stars value={sp.rating} count={sp.reviewCount} size={12} />

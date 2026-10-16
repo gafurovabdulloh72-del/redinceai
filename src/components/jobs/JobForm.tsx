@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { AlertCircle, Check, Eye, MapPin, PencilLine, Plus, Send, Wifi, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { JobCard } from "./JobCard";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { BUDGET_TYPE_LABEL, budgetLabel, JOB_DESC_MAX, JOB_DESC_MIN, JOB_SKILLS_MAX, JOB_TITLE_MAX, JOB_TITLE_MIN, jobRegionLabel, REMOTE_REGION } from "@/lib/jobs/format";
@@ -60,6 +61,7 @@ const num = (v: string) => {
  * Xatolar server javobidan maydonlar bo'yicha ko'rsatiladi, birinchi noto'g'ri maydonga fokus.
  */
 export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { initial?: JobFormInitial; prefill?: JobFormPrefill; clientFirstName: string; emailVerified: boolean }) {
+  const til = useLocale();
   const router = useRouter();
   const editing = Boolean(initial);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -270,7 +272,7 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
         <div className="space-y-4">
           <p className="text-[13px] font-semibold text-fg-3">Ro'yxatda shunday ko'rinadi:</p>
           <div className="pointer-events-none max-w-xl" aria-hidden="true">
-            <JobCard job={preview} headingLevel="h3" />
+            <JobCard job={preview} til={til} headingLevel="h3" />
           </div>
           <div className="card p-5 sm:p-6">
             <p className="text-[13px] font-semibold text-fg-3">To'liq tavsif</p>

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { BadgeCheck, Briefcase, CheckCircle2, Clapperboard, Clock3, MapPin, Search, Sparkles, UserRound, Wallet, Wrench, X, type LucideIcon } from "lucide-react";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, WORK_TYPE_BY_SLUG } from "@/lib/constants";
+import { tr, type Locale } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { FAOL_FILTR, FILTR, experienceLabel, genderFilterLabel, localizePrice, priceFromLabel, priceToLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
 import { formatPrice } from "@/lib/utils";
 import { buildHref } from "./Pagination";
 
@@ -33,7 +36,14 @@ interface ChipDef {
 
 const short = (n: number) => formatPrice(n, { compact: true }).replace(" so'm", "");
 
-export function ActiveFilters({
+/** "1,5 mln – 3 mln so'm" ko'rinishidagi narx chipi (tilga mos) */
+function priceChip(til: Locale, min: number, max: number): string {
+  if (min && max) return localizePrice(til, `${short(min)} – ${short(max)} so'm`);
+  if (min) return til === "ru" ? priceFromLabel(til, `${short(min)} so'm`) : `${short(min)} so'mdan`;
+  return til === "ru" ? priceToLabel(til, `${short(max)} so'm`) : `${short(max)} so'mgacha`;
+}
+
+export async function ActiveFilters({
   filter,
   query,
   basePath = "/mutaxassislar",
@@ -45,6 +55,7 @@ export function ActiveFilters({
   basePath?: string;
   className?: string;
 }) {
+  const til = await getLocale();
   const chips: ChipDef[] = [];
 
   if (filter.q) chips.push({ keys: ["q"], label: `“${filter.q}”`, icon: Search });
@@ -60,20 +71,25 @@ export function ActiveFilters({
   const min = filter.priceMin && filter.priceMin > 0 ? filter.priceMin : 0;
   const max = filter.priceMax && filter.priceMax > 0 ? filter.priceMax : 0;
   if (min || max) {
-    const label = min && max ? `${short(min)} – ${short(max)} so'm` : min ? `${short(min)} so'mdan` : `${short(max)} so'mgacha`;
-    chips.push({ keys: ["priceMin", "priceMax"], label, icon: Wallet });
+    chips.push({ keys: ["priceMin", "priceMax"], label: priceChip(til, min, max), icon: Wallet });
   }
   if (filter.experience) {
     const e = EXPERIENCE_LEVELS.find((l) => l.value === filter.experience);
-    chips.push({ keys: ["experience"], label: e?.label ?? filter.experience, icon: Briefcase });
+    chips.push({ keys: ["experience"], label: e ? experienceLabel(til, e.value, e.label) : filter.experience, icon: Briefcase });
   }
-  if (filter.gender) chips.push({ keys: ["gender"], label: GENDERS.find((g) => g.value === filter.gender)?.label ?? filter.gender, icon: UserRound });
-  if (filter.verified === "1") chips.push({ keys: ["verified"], label: "Tasdiqlangan", icon: BadgeCheck });
-  if (filter.available === "1") chips.push({ keys: ["available"], label: "Hozir bo'sh", icon: CheckCircle2 });
-  if (filter.skill) chips.push({ keys: ["skill"], label: `Ko'nikma: ${filter.skill}`, icon: Sparkles });
-  if (filter.equipment) chips.push({ keys: ["equipment"], label: `Jihoz: ${filter.equipment}`, icon: Wrench });
-  if (filter.workType) chips.push({ keys: ["workType"], label: WORK_TYPE_BY_SLUG[filter.workType]?.label ?? filter.workType, icon: Clapperboard });
-  if (filter.openNow === "1") chips.push({ keys: ["openNow"], label: "Hozir ochiq", icon: Clock3 });
+  if (filter.gender) {
+    const g = GENDERS.find((g) => g.value === filter.gender);
+    chips.push({ keys: ["gender"], label: g ? genderFilterLabel(til, g.value, g.label) : filter.gender, icon: UserRound });
+  }
+  if (filter.verified === "1") chips.push({ keys: ["verified"], label: tr(til, FILTR.verifiedShort), icon: BadgeCheck });
+  if (filter.available === "1") chips.push({ keys: ["available"], label: tr(til, FILTR.availableShort), icon: CheckCircle2 });
+  if (filter.skill) chips.push({ keys: ["skill"], label: `${tr(til, FAOL_FILTR.skillPrefix)}${filter.skill}`, icon: Sparkles });
+  if (filter.equipment) chips.push({ keys: ["equipment"], label: `${tr(til, FAOL_FILTR.equipmentPrefix)}${filter.equipment}`, icon: Wrench });
+  if (filter.workType) {
+    const w = WORK_TYPE_BY_SLUG[filter.workType];
+    chips.push({ keys: ["workType"], label: w ? workTypeLabel(til, w.slug, w.label) : filter.workType, icon: Clapperboard });
+  }
+  if (filter.openNow === "1") chips.push({ keys: ["openNow"], label: tr(til, FILTR.openNowTitle), icon: Clock3 });
 
   if (chips.length === 0) return null;
 
@@ -82,7 +98,7 @@ export function ActiveFilters({
 
   return (
     <div className={className}>
-      <ul className="flex flex-wrap items-center gap-2" aria-label="Faol filtrlar">
+      <ul className="flex flex-wrap items-center gap-2" aria-label={tr(til, FAOL_FILTR.listAria)}>
         {chips.map((c) => {
           const Icon = c.icon;
           return (
@@ -90,7 +106,7 @@ export function ActiveFilters({
               <Link
                 href={removeHref(c.keys)}
                 scroll={false}
-                aria-label={`${c.label} filtrini olib tashlash`}
+                aria-label={FAOL_FILTR.remove[til](c.label)}
                 className="card card-hover group inline-flex h-9 items-center gap-1.5 !rounded-full pl-3 pr-1.5 text-[13px] font-medium text-fg"
               >
                 {Icon ? <Icon size={13} className="text-fg-3" /> : c.node}
@@ -105,7 +121,7 @@ export function ActiveFilters({
         {chips.length > 1 && (
           <li>
             <Link href={clearHref} scroll={false} className="inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-accent-text transition hover:bg-accent-soft">
-              Hammasini tozalash
+              {tr(til, FAOL_FILTR.clearAll)}
             </Link>
           </li>
         )}

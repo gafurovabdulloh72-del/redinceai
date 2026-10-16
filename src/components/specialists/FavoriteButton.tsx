@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { Heart } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SEVIMLI } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 import { ensureFavoritesLoaded, getFavoritesServerSnapshot, getFavoritesSnapshot, subscribeFavorites, toggleFavorite } from "./favorites-store";
 import { useFavoritesSeed } from "./FavoritesSeed";
@@ -25,6 +28,7 @@ function loginHref() {
  *  overlay — karta muqovasi ustida (oq disk), outline — CTA yonida, ghost — qator ichida.
  */
 export function FavoriteButton({ specialistId, variant = "outline", size = "md", className }: { specialistId: string; variant?: Variant; size?: Size; className?: string }) {
+  const til = useLocale();
   const snap = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getFavoritesServerSnapshot);
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -36,7 +40,7 @@ export function FavoriteButton({ specialistId, variant = "outline", size = "md",
   }, [seed]);
 
   const on = seed && (snap.status === "unknown" || snap.status === "loading") ? seed.has(specialistId) : snap.ids.has(specialistId);
-  const label = on ? "Sevimlilardan olib tashlash" : "Sevimlilarga qo'shish";
+  const label = on ? tr(til, SEVIMLI.remove) : tr(til, SEVIMLI.add);
 
   const onClick = async (e: MouseEvent<HTMLButtonElement>) => {
     // Karta havolasi yonida turadi — bosish navigatsiyaga aylanmasin

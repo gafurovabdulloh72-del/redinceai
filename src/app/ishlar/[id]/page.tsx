@@ -27,11 +27,15 @@ import { OwnerProposals } from "@/components/jobs/OwnerProposals";
 import { ProposalForm } from "@/components/jobs/ProposalForm";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, JOB_STATUS_LABEL, SITE } from "@/lib/constants";
-import { BUDGET_TYPE_LABEL, budgetLabel, daysLeft, JOB_STATUS_TONE, jobRegionLabel, proposalsCountLabel } from "@/lib/jobs/format";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import { ISH_HOLATI, ISHLAR, budgetLabelTr, proposalsCountTr } from "@/lib/i18n/dict/jobs";
+import { budgetLabel, daysLeft, JOB_STATUS_TONE, jobRegionLabel } from "@/lib/jobs/format";
 import { bumpJobViewCount, clientJobStats, getJobRow, getMyProposal, getProposerContext, listJobProposalsForOwner, toJobPublic } from "@/lib/jobs/queries";
 import { SUBSCRIPTION_HREF } from "@/lib/jobs/service";
 import { isBotUserAgent } from "@/lib/privacy";
-import { formatDate, formatNumber, formatUzPhone, timeAgo } from "@/lib/utils";
+import { formatDate, formatNumber, formatUzPhone } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +62,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function JobPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ id }, { yangi }] = await Promise.all([params, searchParams]);
-  const [row, user, hdrs] = await Promise.all([loadJob(id), getCurrentUser(), headers()]);
+  const [row, user, hdrs, til] = await Promise.all([loadJob(id), getCurrentUser(), headers(), getLocale()]);
   if (!row) notFound();
   const isAdmin = user?.role === "admin";
   if (row.client.isBanned && !isAdmin) notFound();
@@ -85,23 +89,23 @@ export default async function JobPage({ params, searchParams }: { params: Params
   }
 
   const cat = CATEGORY_BY_SLUG[job.category];
-  const budget = budgetLabel(job.budgetMin, job.budgetMax, job.budgetType);
+  const budget = budgetLabelTr(til, budgetLabel(job.budgetMin, job.budgetMax, job.budgetType));
   const loginHref = `/auth/kirish?next=${encodeURIComponent(`/ishlar/${job.id}`)}`;
-  const statusLabel = expired ? "Muddati tugagan" : JOB_STATUS_LABEL[job.status];
+  const statusLabel = expired ? tr(til, ISHLAR.d.expired) : ISH_HOLATI[job.status] ? tr(til, ISH_HOLATI[job.status]) : JOB_STATUS_LABEL[job.status];
   const canSendForm = Boolean(proposer && live && !sentMine && proposer.canPropose);
 
   return (
     <div className="container-x">
       <ButtonLink href="/ishlar" variant="ghost" size="sm" className="-ml-3 mb-4 !h-10">
-        <ArrowLeft size={15} /> Barcha e'lonlar
+        <ArrowLeft size={15} /> {tr(til, ISHLAR.d.backToAll)}
       </ButtonLink>
 
       {isOwner && yangi === "1" && (
         <div role="status" className="mb-5 flex items-start gap-3 rounded-[var(--r-md)] bg-success-soft p-4 text-success-text">
           <CheckCircle2 size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="text-[15px] font-semibold">E'loningiz joylandi</p>
-            <p className="mt-0.5 text-[13.5px] opacity-90">Mos mutaxassislar taklif yuborganda bildirishnoma keladi. Takliflar shu sahifada va «E'lonlarim» bo'limida.</p>
+            <p className="text-[15px] font-semibold">{tr(til, ISHLAR.d.postedTitle)}</p>
+            <p className="mt-0.5 text-[13.5px] opacity-90">{tr(til, ISHLAR.d.postedDesc)}</p>
           </div>
         </div>
       )}
@@ -118,7 +122,7 @@ export default async function JobPage({ params, searchParams }: { params: Params
                 </span>
               )}
               <span className={job.regionSlug ? "inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-fg-2" : "inline-flex items-center gap-1 rounded-full bg-info-soft px-2.5 py-1 text-info-text"}>
-                <MapPin size={12} aria-hidden="true" /> {jobRegionLabel(job.regionSlug, true)}
+                <MapPin size={12} aria-hidden="true" /> {job.regionSlug ? jobRegionLabel(job.regionSlug, true) : tr(til, ISHLAR.f.remote)}
               </span>
               {!live && <Badge tone={expired ? "neutral" : JOB_STATUS_TONE[job.status]}>{statusLabel}</Badge>}
             </div>
@@ -127,22 +131,24 @@ export default async function JobPage({ params, searchParams }: { params: Params
 
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-3">
               <span className="inline-flex items-center gap-1">
-                <Clock3 size={13} aria-hidden="true" /> {timeAgo(job.createdAt)}
+                <Clock3 size={13} aria-hidden="true" /> {timeAgoLabel(til, job.createdAt)}
               </span>
               <span className="inline-flex items-center gap-1">
-                <MessageSquareText size={13} aria-hidden="true" /> {proposalsCountLabel(job.proposalsCount)}
+                <MessageSquareText size={13} aria-hidden="true" /> {proposalsCountTr(til, job.proposalsCount)}
               </span>
               <span className="inline-flex items-center gap-1">
-                <Eye size={13} aria-hidden="true" /> {formatNumber(job.viewCount)} marta ko'rildi
+                <Eye size={13} aria-hidden="true" /> {ISHLAR.d.viewedTimes[til](formatNumber(job.viewCount))}
               </span>
-              {left != null && <span className={left <= 3 ? "font-semibold text-warning-text" : undefined}>{left > 0 ? `${left} kun ochiq turadi` : "Bugun yopiladi"}</span>}
+              {left != null && (
+                <span className={left <= 3 ? "font-semibold text-warning-text" : undefined}>{left > 0 ? ISHLAR.d.daysOpen[til](left) : tr(til, ISHLAR.d.closesToday)}</span>
+              )}
             </p>
 
             <div className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{job.description}</div>
 
             {job.skills.length > 0 && (
               <div className="mt-5">
-                <h2 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Kerakli ko'nikmalar</h2>
+                <h2 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, ISHLAR.d.requiredSkills)}</h2>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {job.skills.map((s) => (
                     <li key={s} className="rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[13px] font-medium text-fg-2">
@@ -155,19 +161,19 @@ export default async function JobPage({ params, searchParams }: { params: Params
 
             <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-5 text-[13.5px] sm:grid-cols-4">
               <div>
-                <dt className="text-fg-3">Byudjet</dt>
+                <dt className="text-fg-3">{tr(til, ISHLAR.d.budget)}</dt>
                 <dd className="mt-0.5 font-semibold text-fg">{budget}</dd>
               </div>
               <div>
-                <dt className="text-fg-3">To'lov turi</dt>
-                <dd className="mt-0.5 font-semibold text-fg">{BUDGET_TYPE_LABEL[job.budgetType]}</dd>
+                <dt className="text-fg-3">{tr(til, ISHLAR.d.paymentType)}</dt>
+                <dd className="mt-0.5 font-semibold text-fg">{job.budgetType === "hourly" ? tr(til, ISHLAR.d.hourly) : tr(til, ISHLAR.d.fixed)}</dd>
               </div>
               <div>
-                <dt className="text-fg-3">Muddat</dt>
-                <dd className="mt-0.5 font-semibold text-fg">{job.deadline || "Kelishiladi"}</dd>
+                <dt className="text-fg-3">{tr(til, ISHLAR.d.deadline)}</dt>
+                <dd className="mt-0.5 font-semibold text-fg">{job.deadline || tr(til, ISHLAR.d.negotiable)}</dd>
               </div>
               <div>
-                <dt className="text-fg-3">Joylandi</dt>
+                <dt className="text-fg-3">{tr(til, ISHLAR.d.posted)}</dt>
                 <dd className="mt-0.5 font-semibold text-fg">{formatDate(job.createdAt)}</dd>
               </div>
             </dl>
@@ -188,16 +194,21 @@ export default async function JobPage({ params, searchParams }: { params: Params
             (sentMine ? (
               <MyProposalCard proposal={sentMine} />
             ) : !live ? (
-              <Notice icon={Lock} title="E'lon yopilgan" text="Bu e'longa endi taklif qabul qilinmaydi. Boshqa ochiq e'lonlarni ko'rib chiqing." action={<ButtonLink href="/ishlar" variant="outline" size="md">Ochiq e'lonlar</ButtonLink>} />
+              <Notice
+                icon={Lock}
+                title={tr(til, ISHLAR.d.closedTitle)}
+                text={tr(til, ISHLAR.d.closedText)}
+                action={<ButtonLink href="/ishlar" variant="outline" size="md">{tr(til, ISHLAR.d.openJobs)}</ButtonLink>}
+              />
             ) : !proposer.canPropose ? (
               <Notice
                 icon={AlertTriangle}
                 tone="warning"
-                title="Obunangiz faol emas"
-                text="Taklif yuborish va yangi buyurtma olish uchun oylik obunani yangilang. Mavjud buyurtmalaringiz odatdagidek davom etadi."
+                title={tr(til, ISHLAR.d.subInactiveTitle)}
+                text={tr(til, ISHLAR.d.subInactiveText)}
                 action={
                   <ButtonLink href={SUBSCRIPTION_HREF} variant="primary" size="md">
-                    Obunani yangilash
+                    {tr(til, ISHLAR.renewSub)}
                   </ButtonLink>
                 }
               />
@@ -212,22 +223,27 @@ export default async function JobPage({ params, searchParams }: { params: Params
               />
             ))}
           {isSpecialist && !proposer && (
-            <Notice icon={UserPlus} title="Profilingizni to'ldiring" text="Taklif yuborish uchun avval mutaxassis profilingizni yarating." action={<ButtonLink href="/kabinet/profil" variant="primary" size="md">Profilga o'tish</ButtonLink>} />
+            <Notice
+              icon={UserPlus}
+              title={tr(til, ISHLAR.d.fillProfileTitle)}
+              text={tr(til, ISHLAR.d.fillProfileText)}
+              action={<ButtonLink href="/kabinet/profil" variant="primary" size="md">{tr(til, ISHLAR.d.toProfile)}</ButtonLink>}
+            />
           )}
 
           {/* Mehmon */}
           {!user && live && (
             <Notice
               icon={LogIn}
-              title="Taklif yuborish uchun kiring"
-              text="Mutaxassis sifatida kirib, narx va muddatingizni yuboring. Mijoz taklifni qabul qilsa — buyurtma va xavfsiz to'lov avtomatik."
+              title={tr(til, ISHLAR.d.guestTitle)}
+              text={tr(til, ISHLAR.d.guestText)}
               action={
                 <div className="flex flex-wrap gap-2">
                   <ButtonLink href={loginHref} variant="primary" size="md">
-                    <LogIn size={15} /> Kirish
+                    <LogIn size={15} /> {tr(til, ISHLAR.d.login)}
                   </ButtonLink>
                   <ButtonLink href="/auth/royxat?role=specialist" variant="outline" size="md">
-                    <UserPlus size={15} /> Mutaxassis sifatida qo'shilish
+                    <UserPlus size={15} /> {tr(til, ISHLAR.d.joinAsSpecialist)}
                   </ButtonLink>
                 </div>
               }
@@ -238,11 +254,11 @@ export default async function JobPage({ params, searchParams }: { params: Params
           {user && user.role === "client" && !isOwner && (
             <Notice
               icon={MessageSquareText}
-              title="Takliflarni mutaxassislar yuboradi"
-              text="Sizga ham mutaxassis kerakmi? O'z loyihangizni joylang — mos ijrochilar o'zlari taklif yuborishadi."
+              title={tr(til, ISHLAR.d.otherClientTitle)}
+              text={tr(til, ISHLAR.d.otherClientText)}
               action={
                 <ButtonLink href="/ishlar/yangi" variant="accent" size="md">
-                  <Plus size={15} /> E'lon joylash
+                  <Plus size={15} /> {tr(til, ISHLAR.d.postJob)}
                 </ButtonLink>
               }
             />
@@ -252,30 +268,29 @@ export default async function JobPage({ params, searchParams }: { params: Params
         {/* ---------- Yon panel ---------- */}
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
           <div className="card p-5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Byudjet</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, ISHLAR.d.budget)}</p>
             <p className="mt-1.5 flex items-center gap-2 font-display text-[22px] font-semibold leading-tight text-fg">
               <Wallet size={20} className="shrink-0 text-accent" aria-hidden="true" /> {budget}
             </p>
-            <p className="mt-1 text-[13px] text-fg-3">{BUDGET_TYPE_LABEL[job.budgetType]}</p>
+            <p className="mt-1 text-[13px] text-fg-3">{job.budgetType === "hourly" ? tr(til, ISHLAR.d.hourly) : tr(til, ISHLAR.d.fixed)}</p>
             <p className="mt-3 flex items-center gap-1.5 text-[13.5px] text-fg-2">
-              <CalendarClock size={14} className="text-fg-3" aria-hidden="true" /> Muddat: <span className="font-semibold text-fg">{job.deadline || "Kelishiladi"}</span>
+              <CalendarClock size={14} className="text-fg-3" aria-hidden="true" /> {tr(til, ISHLAR.d.deadline)}:{" "}
+              <span className="font-semibold text-fg">{job.deadline || tr(til, ISHLAR.d.negotiable)}</span>
             </p>
             {canSendForm && (
               <a href="#taklif" className="btn-accent mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-semibold">
-                Taklif yuborish
+                {tr(til, ISHLAR.d.sendProposal)}
               </a>
             )}
             {proposer && live && proposer.canPropose && !sentMine && (
-              <p className="mt-2 text-center text-[12px] text-fg-3">
-                Bugun {proposer.remaining}/{proposer.limit} taklif qoldi
-              </p>
+              <p className="mt-2 text-center text-[12px] text-fg-3">{ISHLAR.d.proposalsLeft[til](proposer.remaining, proposer.limit)}</p>
             )}
             {isOwner && (
               <div className="mt-4 border-t border-line pt-4">
                 <JobOwnerActions jobId={job.id} status={job.status} expired={expired} compact />
                 {job.status === "hired" && row.hiredOrderId && (
                   <ButtonLink href={`/kabinet/buyurtmalar?id=${row.hiredOrderId}`} variant="primary" size="md" className="w-full">
-                    Buyurtmaga o'tish
+                    {tr(til, ISHLAR.d.toOrder)}
                   </ButtonLink>
                 )}
               </div>
@@ -283,25 +298,21 @@ export default async function JobPage({ params, searchParams }: { params: Params
           </div>
 
           <div className="card p-5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Mijoz</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, ISHLAR.d.client)}</p>
             <p className="mt-2 flex items-center gap-1.5 text-[16px] font-semibold text-fg">
               {job.client.firstName}
-              {job.client.emailVerified && <BadgeCheck size={16} className="text-success-text" aria-label="Email tasdiqlangan" role="img" />}
+              {job.client.emailVerified && <BadgeCheck size={16} className="text-success-text" aria-label={tr(til, ISHLAR.d.emailVerified)} role="img" />}
             </p>
             <ul className="mt-2 space-y-1.5 text-[13px] text-fg-2">
-              <li>{job.client.emailVerified ? "Email tasdiqlangan" : "Email hali tasdiqlanmagan"}</li>
-              <li>Kasb Egalari platformasida {formatDate(job.client.memberSince)} dan</li>
-              <li>
-                {stats.posted} ta e'lon joylagan{stats.hired > 0 ? ` · ${stats.hired} tasida mutaxassis yollagan` : ""}
-              </li>
+              <li>{job.client.emailVerified ? tr(til, ISHLAR.d.emailVerified) : tr(til, ISHLAR.d.emailNotVerified)}</li>
+              <li>{ISHLAR.d.memberSince[til](formatDate(job.client.memberSince))}</li>
+              <li>{ISHLAR.d.postedStats[til](stats.posted, stats.hired)}</li>
             </ul>
           </div>
 
           <div className="card-outline flex items-start gap-3 p-4">
             <ShieldCheck size={18} className="mt-0.5 shrink-0 text-success-text" aria-hidden="true" />
-            <p className="text-[12.5px] leading-relaxed text-fg-2">
-              To'lovni faqat Kasb Egalari eskrou orqali qiling: pul ish qabul qilinguncha platformada saqlanadi, nizo bo'lsa — admin hal qiladi.
-            </p>
+            <p className="text-[12.5px] leading-relaxed text-fg-2">{tr(til, ISHLAR.d.escrowNote)}</p>
           </div>
         </aside>
       </div>

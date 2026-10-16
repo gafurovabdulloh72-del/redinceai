@@ -5,6 +5,9 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { GitCompareArrows, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { TAQQOS } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 import { COMPARE_MAX, clearCompare, compareHref, getCompareServerSnapshot, getCompareSnapshot, subscribeCompare } from "./compare-store";
 
@@ -13,16 +16,18 @@ import { COMPARE_MAX, clearCompare, compareHref, getCompareServerSnapshot, getCo
  * Telefonda pastki tab-bar ustida (profil sahifasida — `aboveCta` bilan CTA paneli ustida).
  */
 export function CompareTray({ className, aboveCta = false }: { className?: string; /** Profil sahifasi: telefonda pastki CTA paneli ustida */ aboveCta?: boolean }) {
+  const til = useLocale();
   const snap = useSyncExternalStore(subscribeCompare, getCompareSnapshot, getCompareServerSnapshot);
   const pathname = usePathname();
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!snap.notice) return;
-    setNotice(snap.notice.text);
+    // Do'kon faqat "to'lib qoldi" ogohlantirishini beradi — matn shu yerda tilga mos tuziladi
+    setNotice(TAQQOS.maxNotice[til](COMPARE_MAX));
     const t = window.setTimeout(() => setNotice(null), 3500);
     return () => window.clearTimeout(t);
-  }, [snap.notice]);
+  }, [snap.notice, til]);
 
   const items = snap.items;
   if (items.length === 0 || pathname === "/taqqoslash") return null;
@@ -42,26 +47,26 @@ export function CompareTray({ className, aboveCta = false }: { className?: strin
           {notice}
         </p>
       )}
-      <div className="card-elevated pointer-events-auto flex w-full max-w-md items-center gap-2 !rounded-full py-1.5 pl-2 pr-1.5 sm:w-auto" role="region" aria-label="Taqqoslash ro'yxati">
+      <div className="card-elevated pointer-events-auto flex w-full max-w-md items-center gap-2 !rounded-full py-1.5 pl-2 pr-1.5 sm:w-auto" role="region" aria-label={tr(til, TAQQOS.trayAria)}>
         <span className="flex shrink-0 -space-x-2 pl-1" aria-hidden="true">
           {items.map((i) => (
             <Avatar key={i.id} name={i.name} src={i.avatarUrl} size={30} decorative singleInitial />
           ))}
         </span>
         <span className="hidden min-w-0 flex-1 truncate px-1 text-[12px] text-fg-3 sm:block sm:max-w-[200px]">
-          {enough ? items.map((i) => i.name.split(" ")[0]).join(", ") : `Yana ${COMPARE_MAX - items.length} tagacha tanlang`}
+          {enough ? items.map((i) => i.name.split(" ")[0]).join(", ") : TAQQOS.pickMore[til](COMPARE_MAX - items.length)}
         </span>
         <Link
           href={compareHref(items)}
           className={cn("ml-auto inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold transition active:scale-[0.97] sm:ml-0", enough ? "btn-accent" : "btn-ink")}
         >
-          <GitCompareArrows size={15} aria-hidden="true" /> Taqqoslash ({items.length})
+          <GitCompareArrows size={15} aria-hidden="true" /> {TAQQOS.compareCount[til](items.length)}
         </Link>
         <button
           type="button"
           onClick={clearCompare}
-          aria-label="Taqqoslash ro'yxatini tozalash"
-          title="Tozalash"
+          aria-label={tr(til, TAQQOS.clearAria)}
+          title={tr(til, TAQQOS.clearTitle)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg"
         >
           <X size={16} />

@@ -6,8 +6,11 @@ import { createPortal } from "react-dom";
 import { ArrowUpDown, CheckCircle2, ChevronDown, Clock3, LayoutGrid, Rows3, SlidersHorizontal, X } from "lucide-react";
 import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS, WORK_TYPES } from "@/lib/constants";
+import { tr, type Locale } from "@/lib/i18n";
+import { FILTR, experienceParts, genderFilterLabel, localizePrice, priceFromLabel, priceToLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
 import { cn, formatPrice } from "@/lib/utils";
 import { SearchBox, type SuggestionItem } from "./SearchBox";
 
@@ -20,20 +23,14 @@ export const PRICE_STEP = 100_000;
 /** URL'dagi "filtr" kalitlari (sort/limit/page/view bunga kirmaydi) */
 export const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experience", "verified", "gender", "available", "skill", "equipment", "workType", "openNow"] as const;
 
-export const SORT_OPTIONS = [
-  { value: "rating", label: "Reyting bo'yicha" },
-  { value: "popular", label: "Mashhurlik bo'yicha" },
-  { value: "newest", label: "Eng yangilari" },
-  { value: "price_asc", label: "Narx: arzondan" },
-  { value: "price_desc", label: "Narx: qimmatdan" },
-] as const;
+export const SORT_OPTIONS = ["rating", "popular", "newest", "price_asc", "price_desc"] as const;
 
-/** Tez tanlanadigan narx oraliqlari (so'm) */
-const PRICE_PRESETS: Array<{ label: string; min: number; max: number }> = [
-  { label: "1 mln gacha", min: 0, max: 1_000_000 },
-  { label: "1–3 mln", min: 1_000_000, max: 3_000_000 },
-  { label: "3–7 mln", min: 3_000_000, max: 7_000_000 },
-  { label: "7 mln+", min: 7_000_000, max: 0 },
+/** Tez tanlanadigan narx oraliqlari (so'm); yorliqlar — FILTR.pricePresets (til bo'yicha) */
+const PRICE_PRESETS: Array<{ min: number; max: number }> = [
+  { min: 0, max: 1_000_000 },
+  { min: 1_000_000, max: 3_000_000 },
+  { min: 3_000_000, max: 7_000_000 },
+  { min: 7_000_000, max: 0 },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -151,11 +148,11 @@ const normRange = (v: string) => {
   return encodeRange(min, max);
 };
 const priceLabel = (n: number) => formatPrice(n, { compact: true }).replace(" so'm", "");
-function rangeText(min: number, max: number) {
-  if (!min && !max) return "Cheklanmagan";
-  if (min && !max) return `${priceLabel(min)} so'mdan`;
-  if (!min && max) return `${priceLabel(max)} so'mgacha`;
-  return `${priceLabel(min)} – ${priceLabel(max)} so'm`;
+function rangeText(til: Locale, min: number, max: number) {
+  if (!min && !max) return tr(til, FILTR.unlimited);
+  if (min && !max) return til === "ru" ? priceFromLabel(til, `${priceLabel(min)} so'm`) : `${priceLabel(min)} so'mdan`;
+  if (!min && max) return til === "ru" ? priceToLabel(til, `${priceLabel(max)} so'm`) : `${priceLabel(max)} so'mgacha`;
+  return localizePrice(til, `${priceLabel(min)} – ${priceLabel(max)} so'm`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -198,6 +195,7 @@ export function Switch({ checked, onChange, label, id }: { checked: boolean; onC
 }
 
 function ActiveBadge({ n, tone = "accent" }: { n: number; tone?: "accent" | "ink" }) {
+  const til = useLocale();
   if (n <= 0) return null;
   return (
     <span
@@ -205,7 +203,7 @@ function ActiveBadge({ n, tone = "accent" }: { n: number; tone?: "accent" | "ink
         "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-none",
         tone === "ink" ? "bg-ink text-ink-fg" : "bg-accent-strong text-white",
       )}
-      aria-label={`${n} ta faol filtr`}
+      aria-label={FILTR.activeCountAria[til](n)}
     >
       {n}
     </span>
@@ -256,10 +254,11 @@ function PriceRange({
   onChange: (min: number, max: number) => void;
   onCommit: () => void;
 }) {
+  const til = useLocale();
   const hiVal = max > 0 ? max : PRICE_MAX;
   const loPct = (min / PRICE_MAX) * 100;
   const hiPct = (hiVal / PRICE_MAX) * 100;
-  const text = rangeText(min, max);
+  const text = rangeText(til, min, max);
 
   const setLo = (v: number) => onChange(Math.min(v, hiVal - PRICE_STEP), max);
   const setHi = (v: number) => onChange(Math.min(min, v - PRICE_STEP), v >= PRICE_MAX ? 0 : v);
@@ -267,20 +266,20 @@ function PriceRange({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="text-[12px] text-fg-3">Oraliq</span>
+        <span className="text-[12px] text-fg-3">{tr(til, FILTR.range)}</span>
         <output className="whitespace-nowrap text-[13px] font-semibold tabular-nums text-fg" aria-live="polite">
           {text}
         </output>
       </div>
 
-      <div className="relative h-7 px-[13px]" role="group" aria-label="Narx oralig'i">
+      <div className="relative h-7 px-[13px]" role="group" aria-label={tr(til, FILTR.priceRangeAria)}>
         {/* Yo'lak va tanlangan oraliq */}
         <div className="absolute inset-x-[13px] top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-fg/10" aria-hidden="true">
           <div className="absolute inset-y-0 rounded-full bg-accent" style={{ left: `${loPct}%`, right: `${100 - hiPct}%` }} />
         </div>
         <input
           type="range"
-          aria-label="Minimal narx"
+          aria-label={tr(til, FILTR.minPriceAria)}
           min={0}
           max={PRICE_MAX}
           step={PRICE_STEP}
@@ -288,12 +287,12 @@ function PriceRange({
           onChange={(e) => setLo(Number(e.target.value))}
           onPointerUp={onCommit}
           onKeyUp={onCommit}
-          aria-valuetext={min > 0 ? `${priceLabel(min)} so'mdan` : "Cheklanmagan"}
+          aria-valuetext={min > 0 ? rangeText(til, min, 0) : tr(til, FILTR.unlimited)}
           className={cn("pointer-events-none absolute inset-x-0 top-1/2 h-7 w-full -translate-y-1/2 appearance-none bg-transparent", thumb, min > hiVal - PRICE_STEP * 4 && "z-20")}
         />
         <input
           type="range"
-          aria-label="Maksimal narx"
+          aria-label={tr(til, FILTR.maxPriceAria)}
           min={0}
           max={PRICE_MAX}
           step={PRICE_STEP}
@@ -301,7 +300,7 @@ function PriceRange({
           onChange={(e) => setHi(Number(e.target.value))}
           onPointerUp={onCommit}
           onKeyUp={onCommit}
-          aria-valuetext={max > 0 ? `${priceLabel(max)} so'mgacha` : "Cheklanmagan"}
+          aria-valuetext={max > 0 ? rangeText(til, 0, max) : tr(til, FILTR.unlimited)}
           className={cn("pointer-events-none absolute inset-x-0 top-1/2 z-10 h-7 w-full -translate-y-1/2 appearance-none bg-transparent", thumb)}
         />
       </div>
@@ -312,11 +311,11 @@ function PriceRange({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {PRICE_PRESETS.map((p) => {
+        {PRICE_PRESETS.map((p, i) => {
           const on = min === p.min && max === p.max;
           return (
             <Chip
-              key={p.label}
+              key={`${p.min}-${p.max}`}
               active={on}
               className="!h-8 !px-2.5 !text-[12px]"
               onClick={() => {
@@ -324,7 +323,7 @@ function PriceRange({
                 onCommit();
               }}
             >
-              {p.label}
+              {FILTR.pricePresets[til][i]}
             </Chip>
           );
         })}
@@ -344,6 +343,7 @@ export interface FiltersProps {
 }
 
 export function Filters({ categoryCounts, regionCounts, showHeader = true, className }: FiltersProps) {
+  const til = useLocale();
   const { sp, setParams, reset, pending, activeCount } = useUrlFilters();
 
   const urlQ = sp.get("q") ?? "";
@@ -408,19 +408,19 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-[16px] font-semibold text-fg">
             <SlidersHorizontal size={16} className="text-fg-3" />
-            Filtrlar
+            {tr(til, FILTR.title)}
             <ActiveBadge n={activeCount} />
             {pending && <Spinner className="h-3.5 w-3.5 text-fg-3" />}
           </h2>
           <Button variant="ghost" size="sm" className="!h-9 !px-3 text-[13px]" onClick={onReset} disabled={activeCount === 0}>
-            Tozalash
+            {tr(til, FILTR.clear)}
           </Button>
         </div>
       ) : (
         <p className="mb-2 flex min-h-5 items-center gap-2 text-[12px] font-medium text-fg-3" aria-live="polite">
           {pending && (
             <>
-              <Spinner className="h-3.5 w-3.5" /> Natijalar yangilanmoqda…
+              <Spinner className="h-3.5 w-3.5" /> {tr(til, FILTR.updating)}
             </>
           )}
         </p>
@@ -429,16 +429,16 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       {/* Qidiruv — har doim ko'rinadi */}
       <div className="pb-4">
         <label htmlFor="sp-q" className="sr-only">
-          Qidiruv
+          {tr(til, FILTR.search)}
         </label>
         <SearchBox id="sp-q" value={q.value} onChange={q.setValue} onSubmit={q.flush} onPick={onPick} />
       </div>
 
       {/* Yo'nalish */}
-      <Group title="Yo'nalish" summary={catInfo?.name} defaultOpen>
+      <Group title={tr(til, FILTR.category)} summary={catInfo?.name} defaultOpen>
         <div className="flex flex-wrap gap-1.5">
           <Chip active={!category} onClick={() => setParams({ category: null })}>
-            Barchasi <Count n={totalAll} active={!category} />
+            {tr(til, FILTR.all)} <Count n={totalAll} active={!category} />
           </Chip>
           {CATEGORIES.map((c) => {
             const on = category === c.slug;
@@ -454,12 +454,12 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Hudud */}
-      <Group title="Hudud" summary={regionInfo?.short} defaultOpen>
+      <Group title={tr(til, FILTR.region)} summary={regionInfo?.short} defaultOpen>
         <label htmlFor="sp-region" className="sr-only">
-          Hudud
+          {tr(til, FILTR.region)}
         </label>
         <select id="sp-region" className="field !h-11" value={region} onChange={(e) => setParams({ region: e.target.value || null })}>
-          <option value="">Barcha hududlar</option>
+          <option value="">{tr(til, FILTR.allRegions)}</option>
           {REGIONS.map((r) => (
             <option key={r.slug} value={r.slug}>
               {r.name} ({regionCounts[r.slug] ?? 0})
@@ -469,16 +469,16 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Ish turi (F52) */}
-      <Group title="Ish turi" summary={workTypeInfo?.label}>
+      <Group title={tr(til, FILTR.workType)} summary={workTypeInfo ? workTypeLabel(til, workTypeInfo.slug, workTypeInfo.label) : null}>
         <div className="flex flex-wrap gap-1.5">
           <Chip active={!workType} onClick={() => setParams({ workType: null })}>
-            Barchasi
+            {tr(til, FILTR.all)}
           </Chip>
           {WORK_TYPES.map((w) => {
             const on = workType === w.slug;
             return (
               <Chip key={w.slug} active={on} onClick={() => setParams({ workType: on ? null : w.slug })}>
-                {w.label}
+                {workTypeLabel(til, w.slug, w.label)}
               </Chip>
             );
           })}
@@ -486,19 +486,19 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Narx */}
-      <Group title="Narx" summary={priceMin || priceMax ? rangeText(priceMin, priceMax) : null}>
+      <Group title={tr(til, FILTR.price)} summary={priceMin || priceMax ? rangeText(til, priceMin, priceMax) : null}>
         <PriceRange min={priceMin} max={priceMax} onChange={(lo, hi) => range.setValue(encodeRange(lo, hi))} onCommit={range.flush} />
       </Group>
 
       {/* Tajriba */}
-      <Group title="Tajriba" summary={expInfo ? expInfo.label.split(" (")[0] : null}>
+      <Group title={tr(til, FILTR.experience)} summary={expInfo ? experienceParts(til, expInfo.value, expInfo.label).name : null}>
         <div className="flex flex-wrap gap-1.5">
           <Chip active={!experience} onClick={() => setParams({ experience: null })}>
-            Barchasi
+            {tr(til, FILTR.all)}
           </Chip>
           {EXPERIENCE_LEVELS.map((e) => {
             const on = experience === e.value;
-            const [name, years] = e.label.replace(")", "").split(" (");
+            const { name, years } = experienceParts(til, e.value, e.label);
             return (
               <Chip key={e.value} active={on} onClick={() => setParams({ experience: on ? null : e.value })}>
                 {name}
@@ -510,9 +510,9 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Jins */}
-      <Group title="Jins" summary={genderInfo?.label}>
-        <div className="segment w-full" role="radiogroup" aria-label="Jins">
-          {[{ value: "", label: "Barchasi" }, ...GENDERS].map((g) => {
+      <Group title={tr(til, FILTR.gender)} summary={genderInfo ? genderFilterLabel(til, genderInfo.value, genderInfo.label) : null}>
+        <div className="segment w-full" role="radiogroup" aria-label={tr(til, FILTR.gender)}>
+          {[{ value: "", label: tr(til, FILTR.all) }, ...GENDERS.map((g) => ({ value: g.value, label: genderFilterLabel(til, g.value, g.label) }))].map((g) => {
             const on = gender === g.value;
             return (
               <button
@@ -532,40 +532,43 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
       </Group>
 
       {/* Boshqa */}
-      <Group title="Boshqa" summary={[verified && "Tasdiqlangan", available && "Hozir bo'sh", openNow && "Hozir ochiq"].filter(Boolean).join(" · ") || null}>
+      <Group
+        title={tr(til, FILTR.other)}
+        summary={[verified && tr(til, FILTR.verifiedShort), available && tr(til, FILTR.availableShort), openNow && tr(til, FILTR.openNowTitle)].filter(Boolean).join(" · ") || null}
+      >
         <div className="flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
           <span className="flex min-w-0 items-center gap-2.5">
             <VerifiedBadge size={20} />
             <span className="min-w-0">
               <span id="sp-verified-label" className="block text-[14px] font-medium text-fg">
-                Faqat tasdiqlanganlar
+                {tr(til, FILTR.verifiedTitle)}
               </span>
-              <span className="block text-[12px] text-fg-3">Tekshiruvdan o'tgan profillar</span>
+              <span className="block text-[12px] text-fg-3">{tr(til, FILTR.verifiedDesc)}</span>
             </span>
           </span>
-          <Switch checked={verified} onChange={(v) => setParams({ verified: v ? "1" : null })} label="Faqat tasdiqlangan mutaxassislar" />
+          <Switch checked={verified} onChange={(v) => setParams({ verified: v ? "1" : null })} label={tr(til, FILTR.verifiedAria)} />
         </div>
         {/* Mavjudlik (B32): "Band" va ta'tildagilar chiqmaydi */}
         <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
           <span className="flex min-w-0 items-center gap-2.5">
             <CheckCircle2 size={20} className="shrink-0 text-success" />
             <span className="min-w-0">
-              <span className="block text-[14px] font-medium text-fg">Faqat hozir bo'shlar</span>
-              <span className="block text-[12px] text-fg-3">Band va ta'tildagilar chiqmaydi</span>
+              <span className="block text-[14px] font-medium text-fg">{tr(til, FILTR.availableTitle)}</span>
+              <span className="block text-[12px] text-fg-3">{tr(til, FILTR.availableDesc)}</span>
             </span>
           </span>
-          <Switch checked={available} onChange={(v) => setParams({ available: v ? "1" : null })} label="Faqat hozir buyurtma qabul qiladiganlar" />
+          <Switch checked={available} onChange={(v) => setParams({ available: v ? "1" : null })} label={tr(til, FILTR.availableAria)} />
         </div>
         {/* "Hozir ochiq" (F42): ish vaqti bo'yicha hozir ishlayotganlar (Toshkent vaqti), ta'tildagilarsiz */}
         <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
           <span className="flex min-w-0 items-center gap-2.5">
             <Clock3 size={20} className="shrink-0 text-fg-2" />
             <span className="min-w-0">
-              <span className="block text-[14px] font-medium text-fg">Hozir ochiq</span>
-              <span className="block text-[12px] text-fg-3">Ish vaqti bo'yicha hozir ishlayotganlar</span>
+              <span className="block text-[14px] font-medium text-fg">{tr(til, FILTR.openNowTitle)}</span>
+              <span className="block text-[12px] text-fg-3">{tr(til, FILTR.openNowDesc)}</span>
             </span>
           </span>
-          <Switch checked={openNow} onChange={(v) => setParams({ openNow: v ? "1" : null })} label="Faqat hozir ish vaqtida bo'lganlar" />
+          <Switch checked={openNow} onChange={(v) => setParams({ openNow: v ? "1" : null })} label={tr(til, FILTR.openNowAria)} />
         </div>
       </Group>
     </div>
@@ -576,20 +579,21 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
 /* Saralash                                                            */
 /* ------------------------------------------------------------------ */
 export function SortSelect({ className }: { className?: string }) {
+  const til = useLocale();
   const { sp, setParams } = useUrlFilters();
   const value = sp.get("sort") ?? "rating";
   return (
     <div className={cn("relative", className)}>
       <ArrowUpDown size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" />
       <select
-        aria-label="Saralash"
+        aria-label={tr(til, FILTR.sortAria)}
         className="field !h-11 !rounded-full !py-0 !pl-10 text-[14px] font-medium"
         value={value}
         onChange={(e) => setParams({ sort: e.target.value === "rating" ? null : e.target.value })}
       >
         {SORT_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
+          <option key={o} value={o}>
+            {tr(til, FILTR.sortOptions[o])}
           </option>
         ))}
       </select>
@@ -601,14 +605,15 @@ export function SortSelect({ className }: { className?: string }) {
 /* Ko'rinish: to'r / ro'yxat                                           */
 /* ------------------------------------------------------------------ */
 export function ViewToggle({ className }: { className?: string }) {
+  const til = useLocale();
   const { sp, setParams } = useUrlFilters();
   const view = sp.get("view") === "list" ? "list" : "grid";
   const opts = [
-    { value: "grid", label: "To'r", icon: LayoutGrid },
-    { value: "list", label: "Ro'yxat", icon: Rows3 },
+    { value: "grid", label: tr(til, FILTR.viewGrid), icon: LayoutGrid },
+    { value: "list", label: tr(til, FILTR.viewList), icon: Rows3 },
   ] as const;
   return (
-    <div className={cn("segment", className)} role="radiogroup" aria-label="Ko'rinish">
+    <div className={cn("segment", className)} role="radiogroup" aria-label={tr(til, FILTR.viewAria)}>
       {opts.map((o) => {
         const on = view === o.value;
         return (
@@ -645,6 +650,7 @@ export function MobileFilters({
   total: number;
   className?: string;
 }) {
+  const til = useLocale();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -675,7 +681,7 @@ export function MobileFilters({
     <>
       <Button variant="outline" size="md" className={cn("!h-11 px-4", className)} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>
         <SlidersHorizontal size={15} className="text-fg-3" />
-        Filtrlar
+        {tr(til, FILTR.title)}
         <ActiveBadge n={activeCount} />
       </Button>
 
@@ -683,7 +689,7 @@ export function MobileFilters({
         open &&
         createPortal(
           <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-labelledby="sp-filters-title">
-            <button type="button" aria-label="Yopish" onClick={close} className="absolute inset-0 bg-black/45" />
+            <button type="button" aria-label={tr(til, FILTR.close)} onClick={close} className="absolute inset-0 bg-black/45" />
             <div
               ref={sheetRef}
               className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col !rounded-b-none !rounded-t-[28px] animate-fade-up"
@@ -692,13 +698,13 @@ export function MobileFilters({
               <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-fg/15" />
               <div className="flex shrink-0 items-center justify-between px-5 pb-1 pt-3">
                 <h2 id="sp-filters-title" className="flex items-center gap-2 font-display text-[18px] font-semibold text-fg">
-                  Filtrlar
+                  {tr(til, FILTR.title)}
                   <ActiveBadge n={activeCount} />
                 </h2>
                 <button
                   type="button"
                   onClick={close}
-                  aria-label="Yopish"
+                  aria-label={tr(til, FILTR.close)}
                   className="flex h-11 w-11 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 hover:text-fg"
                 >
                   <X size={18} />
@@ -712,10 +718,10 @@ export function MobileFilters({
                 style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
               >
                 <Button variant="outline" onClick={reset} disabled={activeCount === 0}>
-                  Tozalash
+                  {tr(til, FILTR.clear)}
                 </Button>
                 <Button className="flex-1" onClick={close}>
-                  {total} ta natijani ko'rish
+                  {FILTR.showResults[til](total)}
                 </Button>
               </div>
             </div>

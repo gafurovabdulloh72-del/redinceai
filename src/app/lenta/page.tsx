@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { ArrowRight, Clapperboard } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { LentaFeed } from "@/components/lenta/LentaFeed";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { LENTA } from "@/lib/i18n/dict/lenta";
 import { getLentaItems } from "@/lib/lenta";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LentaPage() {
+  const til = await getLocale();
   const { items, nextCursor } = await getLentaItems(8);
 
   /* Bo'sh holat — oddiy sahifa oqimida (to'liq ekran lenta emas) */
@@ -21,22 +25,22 @@ export default async function LentaPage() {
     return (
       <div className="container-x">
         <PageHeader
-          eyebrow="Ishlar lentasi"
+          eyebrow={tr(til, LENTA.eyebrow)}
           title={
             <>
-              Ishlar <span className="accent-serif text-accent">videoda</span>
+              {tr(til, LENTA.titleStart)} <span className="accent-serif text-accent">{tr(til, LENTA.titleAccent)}</span>
             </>
           }
-          description="Mutaxassislarning video ishlari shu yerda Reels uslubida ko'rsatiladi."
+          description={tr(til, LENTA.description)}
         />
         <div className="mt-10">
           <EmptyState
             icon={Clapperboard}
-            title="Lentada hali video ishlar yo'q"
-            description="Mutaxassislar portfoliosiga video qo'shishi bilan lenta jonlanadi. Hozircha katalogdan ijodkorlarni ko'rib chiqing."
+            title={tr(til, LENTA.emptyTitle)}
+            description={tr(til, LENTA.emptyDesc)}
             action={
               <ButtonLink href="/mutaxassislar" variant="accent" size="md">
-                Katalogni ochish <ArrowRight size={16} />
+                {tr(til, LENTA.openCatalog)} <ArrowRight size={16} />
               </ButtonLink>
             }
           />
@@ -47,7 +51,7 @@ export default async function LentaPage() {
 
   return (
     <>
-      <h1 className="sr-only">Ishlar lentasi — mutaxassislarning video ishlari</h1>
+      <h1 className="sr-only">{tr(til, LENTA.srTitle)}</h1>
       {/* Layout'dagi main padding'lari bekor qilinadi — lenta ekranni to'liq egallaydi (navbar shisha, ustidan ko'rinadi) */}
       <div className="-mb-28 -mt-24 sm:-mt-28 md:mb-0">
         <LentaFeed initialItems={items} initialCursor={nextCursor} />

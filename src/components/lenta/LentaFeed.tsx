@@ -4,8 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Clapperboard, Play, Star, Volume2, VolumeX } from "lucide-react";
 import { Avatar, Spinner, VerifiedBadge } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { loadMoreLenta } from "@/app/lenta/actions";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { priceFromLabel } from "@/lib/i18n/dict/catalog";
+import { LENTA } from "@/lib/i18n/dict/lenta";
 import { formatPrice } from "@/lib/utils";
 import type { LentaItem } from "@/lib/lenta";
 
@@ -17,6 +21,7 @@ import type { LentaItem } from "@/lib/lenta";
  * - Oxirida kursorli "Yana yuklash" slaydi (yaqinlashganda o'zi ham yuklaydi).
  */
 export function LentaFeed({ initialItems, initialCursor }: { initialItems: LentaItem[]; initialCursor: string | null }) {
+  const til = useLocale();
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [loading, setLoading] = useState(false);
@@ -92,7 +97,7 @@ export function LentaFeed({ initialItems, initialCursor }: { initialItems: Lenta
     <div
       ref={containerRef}
       className="h-[100svh] snap-y snap-mandatory overflow-y-auto no-scrollbar bg-bg"
-      aria-label="Ishlar lentasi"
+      aria-label={tr(til, LENTA.feedAria)}
     >
       {items.map((item) => (
         <LentaSlide
@@ -116,11 +121,11 @@ export function LentaFeed({ initialItems, initialCursor }: { initialItems: Lenta
           >
             {loading ? (
               <>
-                <Spinner /> Yuklanmoqda…
+                <Spinner /> {tr(til, LENTA.loading)}
               </>
             ) : (
               <>
-                Yana yuklash <ArrowRight size={18} />
+                {tr(til, LENTA.loadMore)} <ArrowRight size={18} />
               </>
             )}
           </button>
@@ -130,14 +135,14 @@ export function LentaFeed({ initialItems, initialCursor }: { initialItems: Lenta
               <Clapperboard size={24} />
             </span>
             <div>
-              <p className="font-display text-[20px] font-semibold text-fg">Lenta shu yerda tugadi</p>
-              <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-fg-3">Yangi ishlar qo&apos;shilganda shu yerda paydo bo&apos;ladi.</p>
+              <p className="font-display text-[20px] font-semibold text-fg">{tr(til, LENTA.endTitle)}</p>
+              <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-fg-3">{tr(til, LENTA.endDesc)}</p>
             </div>
             <Link
               href="/mutaxassislar"
               className="inline-flex h-11 items-center gap-2 rounded-full border border-line-2 px-5 text-[14px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4"
             >
-              Katalogni ochish <ArrowRight size={16} />
+              {tr(til, LENTA.openCatalog)} <ArrowRight size={16} />
             </Link>
           </>
         )}
@@ -162,6 +167,7 @@ function LentaSlide({
   soundOn: boolean;
   onToggleSound: () => void;
 }) {
+  const til = useLocale();
   const sp = item.specialist;
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -201,7 +207,7 @@ function LentaSlide({
     }
   };
 
-  const priceLabel = sp.priceFrom > 0 ? `${formatPrice(sp.priceFrom, { compact: true })} dan` : "Narx kelishiladi";
+  const priceLabel = sp.priceFrom > 0 ? priceFromLabel(til, formatPrice(sp.priceFrom, { compact: true })) : tr(til, LENTA.priceNegotiable);
 
   return (
     <section data-lenta-id={item.id} className="relative flex h-[100svh] snap-start items-center justify-center md:px-6 md:pb-10 md:pt-24">
@@ -217,7 +223,7 @@ function LentaSlide({
           muted
           onClick={() => (playing ? onToggleSound() : togglePlay())}
           className="h-full w-full cursor-pointer object-cover"
-          aria-label={item.title ?? `${sp.name} ishi`}
+          aria-label={item.title ?? LENTA.workOf[til](sp.name)}
         />
 
         {/* Ustki yumshoq soya — mobil navbar ostida kontrast uchun */}
@@ -227,7 +233,7 @@ function LentaSlide({
         <button
           type="button"
           onClick={onToggleSound}
-          aria-label={soundOn ? "Ovozni o'chirish" : "Ovozni yoqish"}
+          aria-label={soundOn ? tr(til, LENTA.soundOff) : tr(til, LENTA.soundOn)}
           className="absolute right-4 top-[calc(env(safe-area-inset-top)+5rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60 md:top-4"
         >
           {soundOn ? <Volume2 size={19} /> : <VolumeX size={19} />}
@@ -238,7 +244,7 @@ function LentaSlide({
           <button
             type="button"
             onClick={togglePlay}
-            aria-label="Videoni ijro etish"
+            aria-label={tr(til, LENTA.play)}
             className="absolute left-1/2 top-1/2 z-10 flex h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white backdrop-blur-md transition hover:scale-105 hover:bg-black/60"
           >
             <Play size={30} className="ml-1 fill-white" />
@@ -250,7 +256,7 @@ function LentaSlide({
           <div className="flex flex-col gap-3.5 px-4 sm:px-5">
             {item.title && <p className="line-clamp-2 text-[14px] font-medium leading-snug text-white/90">{item.title}</p>}
 
-            <Link href={`/mutaxassislar/${sp.slug}`} className="group flex items-center gap-3" aria-label={`${sp.name} profili`}>
+            <Link href={`/mutaxassislar/${sp.slug}`} className="group flex items-center gap-3" aria-label={LENTA.profileOf[til](sp.name)}>
               <Avatar name={sp.name} src={sp.avatarUrl} size={44} decorative className="!ring-white/30" />
               <span className="min-w-0">
                 <span className="flex items-center gap-1.5">
@@ -282,13 +288,13 @@ function LentaSlide({
                 href={`/mutaxassislar/${sp.slug}`}
                 className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-white/30 bg-white/10 text-[14px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
               >
-                Profil
+                {tr(til, LENTA.profile)}
               </Link>
               <Link
                 href={`/buyurtma/${sp.id}`}
                 className="btn-accent inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold"
               >
-                Buyurtma berish <ArrowRight size={16} />
+                {tr(til, LENTA.order)} <ArrowRight size={16} />
               </Link>
             </div>
           </div>

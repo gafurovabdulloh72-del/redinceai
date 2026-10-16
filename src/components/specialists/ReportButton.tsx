@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Flag } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { SHIKOYAT } from "@/lib/i18n/dict/profile";
 import { cn } from "@/lib/utils";
 
 type ReportResponse = { ok: true; data: { id: string } } | { ok: false; error: string; fields?: Record<string, string> };
@@ -29,6 +32,7 @@ export function ReportButton({
   /** Tugma qatorda qayerda turadi (forma kengligi to'liq bo'ladi) */
   align?: "start" | "center" | "end";
 }) {
+  const til = useLocale();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason | "">("");
   const [text, setText] = useState("");
@@ -37,7 +41,7 @@ export function ReportButton({
   const [sent, setSent] = useState(false);
   const selectRef = useRef<HTMLSelectElement>(null);
   const uid = useId();
-  const label = targetType === "specialist" ? "Profil haqida shikoyat" : "Sharh haqida shikoyat";
+  const label = targetType === "specialist" ? tr(til, SHIKOYAT.aboutProfile) : tr(til, SHIKOYAT.aboutReview);
 
   useEffect(() => {
     if (open) selectRef.current?.focus();
@@ -50,7 +54,7 @@ export function ReportButton({
   if (sent) {
     return (
       <p role="status" className={cn("flex items-center gap-1.5 text-[12px] font-medium text-fg-3", justify, className)}>
-        <CheckCircle2 size={13} className="text-success" /> Shikoyatingiz yuborildi — admin ko'rib chiqadi
+        <CheckCircle2 size={13} className="text-success" /> {tr(til, SHIKOYAT.sent)}
       </p>
     );
   }
@@ -59,8 +63,8 @@ export function ReportButton({
     if (!loginHref) return null;
     return (
       <div className={cn("flex", justify, className)}>
-        <Link href={loginHref} className={triggerCls} aria-label={`${label} — avval tizimga kiring`}>
-          <Flag size={12} /> Shikoyat qilish
+        <Link href={loginHref} className={triggerCls} aria-label={`${label}${tr(til, SHIKOYAT.loginFirst)}`}>
+          <Flag size={12} /> {tr(til, SHIKOYAT.button)}
         </Link>
       </div>
     );
@@ -70,7 +74,7 @@ export function ReportButton({
     e.preventDefault();
     if (busy) return;
     if (!reason) {
-      setError("Sababni tanlang");
+      setError(tr(til, SHIKOYAT.pickReason));
       return;
     }
     setBusy(true);
@@ -93,7 +97,7 @@ export function ReportButton({
       }
       setSent(true);
     } catch {
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, SHIKOYAT.networkError));
     } finally {
       setBusy(false);
     }
@@ -103,7 +107,7 @@ export function ReportButton({
     return (
       <div className={cn("flex", justify, className)}>
         <button type="button" className={triggerCls} onClick={() => setOpen(true)} aria-expanded={false} aria-label={label}>
-          <Flag size={12} /> Shikoyat qilish
+          <Flag size={12} /> {tr(til, SHIKOYAT.button)}
         </button>
       </div>
     );
@@ -125,7 +129,7 @@ export function ReportButton({
       </p>
       <div>
         <label htmlFor={`${uid}-reason`} className="field-label">
-          Sabab
+          {tr(til, SHIKOYAT.reason)}
         </label>
         <select
           ref={selectRef}
@@ -135,7 +139,7 @@ export function ReportButton({
           onChange={(e) => setReason(e.target.value as ReportReason | "")}
           aria-invalid={Boolean(error && !reason)}
         >
-          <option value="">Tanlang…</option>
+          <option value="">{tr(til, SHIKOYAT.choose)}</option>
           {REPORT_REASONS.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
@@ -145,7 +149,7 @@ export function ReportButton({
       </div>
       <div>
         <label htmlFor={`${uid}-text`} className="field-label">
-          Izoh <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+          {tr(til, SHIKOYAT.comment)} <span className="font-normal text-fg-4">{tr(til, SHIKOYAT.optional)}</span>
         </label>
         <textarea
           id={`${uid}-text`}
@@ -153,7 +157,7 @@ export function ReportButton({
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={500}
-          placeholder="Nima bo'ldi? Qisqacha yozing"
+          placeholder={tr(til, SHIKOYAT.placeholder)}
         />
       </div>
       {error && (
@@ -163,10 +167,10 @@ export function ReportButton({
       )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={busy}>
-          Bekor qilish
+          {tr(til, SHIKOYAT.cancel)}
         </Button>
         <Button type="submit" size="sm" disabled={busy} className="min-w-[110px]">
-          {busy ? <Spinner /> : "Yuborish"}
+          {busy ? <Spinner /> : tr(til, SHIKOYAT.send)}
         </Button>
       </div>
     </form>

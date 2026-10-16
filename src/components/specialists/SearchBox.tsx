@@ -2,6 +2,9 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { LayoutGrid, MapPin, Search, Sparkles, UserRound, X, type LucideIcon } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { FILTR } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 
 export type SuggestionType = "category" | "region" | "specialist" | "skill" | "city";
@@ -35,7 +38,7 @@ export function SearchBox({
   onChange,
   onSubmit,
   onPick,
-  placeholder = "Ism, ko'nikma yoki shahar…",
+  placeholder,
 }: {
   id: string;
   value: string;
@@ -45,6 +48,7 @@ export function SearchBox({
   onPick: (s: SuggestionItem) => void;
   placeholder?: string;
 }) {
+  const til = useLocale();
   const listId = useId();
   const [items, setItems] = useState<SuggestionItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -132,7 +136,7 @@ export function SearchBox({
         aria-autocomplete="list"
         aria-activedescendant={visible && active >= 0 ? `${listId}-${active}` : undefined}
         className="field !h-11 !pl-10 !pr-10"
-        placeholder={placeholder}
+        placeholder={placeholder ?? tr(til, FILTR.searchPlaceholder)}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -159,7 +163,7 @@ export function SearchBox({
             onChange("");
             setOpen(false);
           }}
-          aria-label="Qidiruvni tozalash"
+          aria-label={tr(til, FILTR.searchClear)}
           className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/8 hover:text-fg"
         >
           <X size={14} />
@@ -169,7 +173,7 @@ export function SearchBox({
       <ul
         id={listId}
         role="listbox"
-        aria-label="Qidiruv takliflari"
+        aria-label={tr(til, FILTR.suggestionsAria)}
         hidden={!visible}
         className="card-elevated absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[320px] overflow-y-auto p-1.5"
       >

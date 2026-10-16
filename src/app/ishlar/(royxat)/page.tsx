@@ -9,6 +9,10 @@ import { JobFilters } from "@/components/jobs/JobFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORIES, CATEGORY_BY_SLUG } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { localizePrice, priceFromLabel, priceToLabel } from "@/lib/i18n/dict/catalog";
+import { ISHLAR } from "@/lib/i18n/dict/jobs";
 import { getProposerContext, listJobs, openJobCategoryCounts } from "@/lib/jobs/queries";
 import { jobRegionLabel } from "@/lib/jobs/format";
 import { jobFilterSchema, type JobFilter } from "@/lib/jobs/validators";
@@ -64,6 +68,7 @@ function toQuery(f: JobFilter): Record<string, string | undefined> {
 }
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  const til = await getLocale();
   const filter = parseFilter(flatten(await searchParams));
   const user = await getCurrentUser();
   const isSpecialist = user?.role === "specialist";
@@ -86,14 +91,14 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
   const summary: string[] = [];
   if (filter.category) summary.push(CATEGORY_BY_SLUG[filter.category]?.name ?? filter.category);
-  if (filter.region) summary.push(jobRegionLabel(filter.region === "remote" ? null : filter.region, true));
+  if (filter.region) summary.push(filter.region === "remote" ? tr(til, ISHLAR.f.remote) : jobRegionLabel(filter.region, true));
   if (filter.min || filter.max) {
     summary.push(
       filter.min && filter.max
-        ? `${formatPrice(filter.min, { compact: true })} – ${formatPrice(filter.max, { compact: true })}`
+        ? localizePrice(til, `${formatPrice(filter.min, { compact: true })} – ${formatPrice(filter.max, { compact: true })}`)
         : filter.min
-          ? `${formatPrice(filter.min, { compact: true })} dan`
-          : `${formatPrice(filter.max!, { compact: true })} gacha`,
+          ? priceFromLabel(til, formatPrice(filter.min, { compact: true }))
+          : priceToLabel(til, formatPrice(filter.max!, { compact: true })),
     );
   }
 
@@ -101,21 +106,21 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     <div className="container-x">
       <PageHeader
         size="lg"
-        eyebrow={`E'lonlar · ${totalOpen} ta ochiq loyiha`}
+        eyebrow={ISHLAR.eyebrow[til](totalOpen)}
         title={
           <>
-            Ochiq <span className="accent-serif text-accent">ishlar</span>
+            {tr(til, ISHLAR.titleStart)} <span className="accent-serif text-accent">{tr(til, ISHLAR.titleAccent)}</span>
           </>
         }
-        description="Mijozlar loyihasini joylaydi, mutaxassislar narx va muddat bilan taklif yuboradi. Mosini tanlang — to'lov eskrou orqali xavfsiz."
+        description={tr(til, ISHLAR.description)}
         action={
           canPost ? (
             <ButtonLink href={postHref} variant="accent" size="lg">
-              <Plus size={18} /> E'lon joylash
+              <Plus size={18} /> {tr(til, ISHLAR.postJob)}
             </ButtonLink>
           ) : isSpecialist ? (
             <ButtonLink href="/kabinet/takliflar" variant="outline" size="lg">
-              <ClipboardList size={18} /> Takliflarim
+              <ClipboardList size={18} /> {tr(til, ISHLAR.myProposals)}
             </ButtonLink>
           ) : undefined
         }
@@ -125,16 +130,16 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div role="status" className="mt-6 flex flex-col gap-3 rounded-[var(--r-md)] border border-warning/30 bg-warning-soft p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-start gap-2.5 text-[14px] font-medium text-warning-text">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-            Obunangiz faol emas — e'lonlarni ko'rishingiz mumkin, lekin taklif yuborish uchun obunani yangilang.
+            {tr(til, ISHLAR.subInactiveBanner)}
           </p>
           <ButtonLink href={SUBSCRIPTION_HREF} variant="primary" size="md" className="shrink-0">
-            Obunani yangilash
+            {tr(til, ISHLAR.renewSub)}
           </ButtonLink>
         </div>
       )}
 
       {/* Yo'nalish chiplari */}
-      <nav aria-label="Yo'nalishlar" className="-mx-4 mt-8 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:mt-10 sm:px-0">
+      <nav aria-label={tr(til, ISHLAR.categoriesAria)} className="-mx-4 mt-8 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:mt-10 sm:px-0">
         <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
           <li>
             <Link
@@ -145,7 +150,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                 !filter.category ? "btn-ink border-transparent" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
               )}
             >
-              Barchasi <span className={cn("tabular-nums", filter.category ? "text-fg-4" : "opacity-70")}>{totalOpen}</span>
+              {tr(til, ISHLAR.all)} <span className={cn("tabular-nums", filter.category ? "text-fg-4" : "opacity-70")}>{totalOpen}</span>
             </Link>
           </li>
           {CATEGORIES.map((c) => {
@@ -178,13 +183,16 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       <section aria-labelledby="jobs-results" className="mt-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p id="jobs-results" className="text-[15px] text-fg-2" aria-live="polite">
-            <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{result.total}</span> ta e'lon
+            <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{result.total}</span>
+            {ISHLAR.resultSuffix[til](result.total)}
             {summary.length > 0 && <span className="text-fg-3"> · {summary.join(" · ")}</span>}
             {filter.q && <span className="text-fg-3"> · «{filter.q}»</span>}
           </p>
           {proposer?.canPropose && (
             <p className="text-[13px] font-medium text-fg-3">
-              Bugun <span className="font-semibold tabular-nums text-fg">{proposer.remaining}/{proposer.limit}</span> taklif qoldi
+              {ISHLAR.proposalsLeft[til](proposer.remaining, proposer.limit).pre}
+              <span className="font-semibold tabular-nums text-fg">{ISHLAR.proposalsLeft[til](proposer.remaining, proposer.limit).strong}</span>
+              {ISHLAR.proposalsLeft[til](proposer.remaining, proposer.limit).post}
             </p>
           )}
         </div>
@@ -193,7 +201,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           <ul className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             {result.items.map((job, i) => (
               <li key={job.id} className="animate-fade-up min-w-0" style={{ animationDelay: `${Math.min(i, 11) * 30}ms`, animationDuration: "0.4s" }}>
-                <JobCard job={job} />
+                <JobCard job={job} til={til} />
               </li>
             ))}
           </ul>
@@ -201,22 +209,18 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           <div className="mt-4">
             <EmptyState
               icon={BriefcaseBusiness}
-              title={hasFilters ? "Bu shartlarga mos e'lon yo'q" : "Hozircha ochiq e'lonlar yo'q"}
-              description={
-                hasFilters
-                  ? "Filtrlarni yumshating yoki boshqa yo'nalishni tanlang. Loyihangiz bo'lsa — e'lon joylang, mutaxassislar o'zlari taklif yuborishadi."
-                  : "Loyihangiz bormi? E'lon joylang — mos mutaxassislar narx va muddat bilan taklif yuborishadi."
-              }
+              title={hasFilters ? tr(til, ISHLAR.emptyFilteredTitle) : tr(til, ISHLAR.emptyNoneTitle)}
+              description={hasFilters ? tr(til, ISHLAR.emptyFilteredDesc) : tr(til, ISHLAR.emptyNoneDesc)}
               action={
                 <div className="flex flex-wrap justify-center gap-2">
                   {canPost && (
                     <ButtonLink href={postHref} variant="accent" size="md">
-                      <Plus size={15} /> E'lon joylash
+                      <Plus size={15} /> {tr(til, ISHLAR.postJob)}
                     </ButtonLink>
                   )}
                   {hasFilters && (
                     <ButtonLink href={BASE} variant="outline" size="md">
-                      <RotateCcw size={15} /> Filtrlarni tozalash
+                      <RotateCcw size={15} /> {tr(til, ISHLAR.clearFilters)}
                     </ButtonLink>
                   )}
                 </div>

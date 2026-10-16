@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Globe, Instagram, Lock, LogIn, Mail, Phone, Send, Youtube, type LucideIcon } from "lucide-react";
-import { LOCK_LABEL, type Locked, type LockReason } from "@/lib/privacy";
+import { tr, type Locale } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { LOCK_SABAB, PROFIL } from "@/lib/i18n/dict/profile";
+import type { Locked, LockReason } from "@/lib/privacy";
 import { cn, formatUzPhone, normalizeUzPhone } from "@/lib/utils";
 
 export interface ContactValues {
@@ -40,7 +43,7 @@ function prettyUrl(v: string) {
 }
 
 /** Ko'rsatish mumkin bo'lgan va yopiq (locked) aloqa qatorlarini tuzadi */
-export function buildContactRows(c: ContactValues, locked: Locked): Row[] {
+export function buildContactRows(c: ContactValues, locked: Locked, til: Locale = "uz"): Row[] {
   const rows: Row[] = [];
   const push = (key: keyof ContactValues, label: string, icon: LucideIcon, present: (v: string) => Omit<Row, "key" | "label" | "icon">) => {
     const v = c[key];
@@ -48,11 +51,11 @@ export function buildContactRows(c: ContactValues, locked: Locked): Row[] {
     else if (locked[key]) rows.push({ key, label, icon, lock: locked[key] });
   };
   // Ko'rsatishda "+998 90 123 45 67", tel: havolada kanonik raqam (eski yozuvlar ham bir xil ko'rinadi)
-  push("phone", "Telefon", Phone, (v) => ({ value: formatUzPhone(v), href: `tel:${normalizeUzPhone(v) ?? v.replace(/[^\d+]/g, "")}` }));
+  push("phone", tr(til, PROFIL.phone), Phone, (v) => ({ value: formatUzPhone(v), href: `tel:${normalizeUzPhone(v) ?? v.replace(/[^\d+]/g, "")}` }));
   push("telegram", "Telegram", Send, (v) => ({ value: `@${handle(v)}`, href: `https://t.me/${handle(v)}`, external: true }));
   push("instagram", "Instagram", Instagram, (v) => ({ value: `@${handle(v)}`, href: `https://instagram.com/${handle(v)}`, external: true }));
   push("youtube", "YouTube", Youtube, (v) => ({ value: prettyUrl(v), href: v, external: true }));
-  push("website", "Veb-sayt", Globe, (v) => ({ value: prettyUrl(v), href: v, external: true }));
+  push("website", tr(til, PROFIL.website), Globe, (v) => ({ value: prettyUrl(v), href: v, external: true }));
   push("email", "Email", Mail, (v) => ({ value: v, href: `mailto:${v}` }));
   return rows;
 }
@@ -61,7 +64,7 @@ export function buildContactRows(c: ContactValues, locked: Locked): Row[] {
  * "Aloqa" paneli. Yopiq maydonlar qiymatsiz, qulf belgisi va sabab bilan chiqadi:
  * "Faqat ro'yxatdan o'tganlarga ko'rinadi — Kirish" yoki "Buyurtma qabul qilingach ko'rinadi".
  */
-export function ContactPanel({
+export async function ContactPanel({
   contacts,
   locked,
   loginHref,
@@ -75,17 +78,18 @@ export function ContactPanel({
   orderHref?: string | null;
   className?: string;
 }) {
-  const rows = buildContactRows(contacts, locked);
+  const til = await getLocale();
+  const rows = buildContactRows(contacts, locked, til);
   if (rows.length === 0) return null;
   const lockedCount = rows.filter((r) => r.lock).length;
 
   return (
-    <section className={className} aria-label="Aloqa">
+    <section className={className} aria-label={tr(til, PROFIL.contact)}>
       <div className="mb-2 flex items-center justify-between px-4">
-        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">Aloqa</h3>
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, PROFIL.contact)}</h3>
         {lockedCount > 0 && (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-fg-3">
-            <Lock size={11} /> {lockedCount} ta yopiq
+            <Lock size={11} /> {PROFIL.contactLockedCount[til](lockedCount)}
           </span>
         )}
       </div>
@@ -101,17 +105,17 @@ export function ContactPanel({
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold text-fg-2">{r.label}</p>
                   <p className="mt-0.5 flex items-center gap-1 text-[12px] leading-snug text-fg-3">
-                    <Lock size={11} className="shrink-0" /> {LOCK_LABEL[r.lock]}
+                    <Lock size={11} className="shrink-0" /> {tr(til, LOCK_SABAB[r.lock])}
                   </p>
                 </div>
                 {r.lock === "login" ? (
                   <Link href={loginHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[12px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4">
-                    <LogIn size={13} /> Kirish
+                    <LogIn size={13} /> {tr(til, PROFIL.login)}
                   </Link>
                 ) : orderHref ? (
                   // text-accent-text: 12px matn accent-soft fonida AA (to'qroq coral ton)
                   <Link href={orderHref} className="inline-flex h-9 shrink-0 items-center rounded-full bg-accent-soft px-3.5 text-[12px] font-semibold text-accent-text transition hover:brightness-105">
-                    Buyurtma
+                    {tr(til, PROFIL.orderShort)}
                   </Link>
                 ) : null}
               </li>
@@ -130,7 +134,7 @@ export function ContactPanel({
                 </span>
                 <span className="flex-1 text-[14px] font-semibold text-fg">
                   {r.label}
-                  {r.external && <span className="sr-only"> (yangi oynada)</span>}
+                  {r.external && <span className="sr-only">{tr(til, PROFIL.newWindow)}</span>}
                 </span>
                 <span className="max-w-[55%] truncate text-[14px] text-fg-3" dir="ltr">
                   {r.value}

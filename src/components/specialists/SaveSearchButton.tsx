@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, ArrowRight, BookmarkCheck, BookmarkPlus, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { QIDIRUV_SAQLASH } from "@/lib/i18n/dict/catalog";
 import { cn } from "@/lib/utils";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -26,6 +29,7 @@ export function SaveSearchButton({
   loginHref: string;
   className?: string;
 }) {
+  const til = useLocale();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(defaultName.slice(0, 60));
   const [notify, setNotify] = useState(true);
@@ -51,9 +55,9 @@ export function SaveSearchButton({
       <Link
         href={loginHref}
         className={cn("inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4", className)}
-        title="Saqlash uchun tizimga kiring"
+        title={tr(til, QIDIRUV_SAQLASH.loginTitle)}
       >
-        <BookmarkPlus size={15} aria-hidden="true" /> Qidiruvni saqlash
+        <BookmarkPlus size={15} aria-hidden="true" /> {tr(til, QIDIRUV_SAQLASH.button)}
       </Link>
     );
   }
@@ -77,7 +81,7 @@ export function SaveSearchButton({
       setSaved(json.data.name);
       setOpen(false);
     } catch {
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, QIDIRUV_SAQLASH.networkError));
     } finally {
       setBusy(false);
     }
@@ -86,9 +90,9 @@ export function SaveSearchButton({
   if (saved) {
     return (
       <p className={cn("inline-flex min-h-10 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-semibold text-success-text", className)} role="status">
-        <BookmarkCheck size={15} aria-hidden="true" /> Saqlandi
+        <BookmarkCheck size={15} aria-hidden="true" /> {tr(til, QIDIRUV_SAQLASH.saved)}
         <Link href="/kabinet/qidiruvlar" className="inline-flex min-h-10 items-center gap-1 text-accent-text hover:opacity-80">
-          Saqlangan qidiruvlar <ArrowRight size={13} />
+          {tr(til, QIDIRUV_SAQLASH.savedSearches)} <ArrowRight size={13} />
         </Link>
       </p>
     );
@@ -104,7 +108,7 @@ export function SaveSearchButton({
           aria-controls={`${id}-form`}
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4"
         >
-          <BookmarkPlus size={15} aria-hidden="true" /> Qidiruvni saqlash
+          <BookmarkPlus size={15} aria-hidden="true" /> {tr(til, QIDIRUV_SAQLASH.button)}
         </button>
       ) : (
         <form
@@ -113,11 +117,11 @@ export function SaveSearchButton({
           onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
           className="card-elevated flex flex-col gap-3 p-4 animate-fade-up sm:flex-row sm:items-end"
           style={{ animationDuration: "0.2s" }}
-          aria-label="Qidiruvni saqlash"
+          aria-label={tr(til, QIDIRUV_SAQLASH.formAria)}
         >
           <div className="min-w-0 flex-1">
             <label htmlFor={`${id}-name`} className="field-label">
-              Qidiruv nomi
+              {tr(til, QIDIRUV_SAQLASH.nameLabel)}
             </label>
             <input
               ref={inputRef}
@@ -126,12 +130,12 @@ export function SaveSearchButton({
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={60}
-              placeholder="Masalan: Samarqand to'y videograflari"
+              placeholder={tr(til, QIDIRUV_SAQLASH.namePlaceholder)}
               aria-invalid={Boolean(error)}
             />
             <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 text-[13px] text-fg-2">
               <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
-              Yangi mos mutaxassislar haqida xabar berish
+              {tr(til, QIDIRUV_SAQLASH.notify)}
             </label>
             {error && (
               <p role="alert" className="mt-1 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-danger-text">
@@ -141,9 +145,9 @@ export function SaveSearchButton({
           </div>
           <div className="flex items-center gap-2 sm:pb-12">
             <Button type="submit" variant="accent" size="md" className="flex-1 sm:flex-none" disabled={busy || name.trim().length < 2}>
-              {busy ? <Spinner /> : "Saqlash"}
+              {busy ? <Spinner /> : tr(til, QIDIRUV_SAQLASH.save)}
             </Button>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Yopish" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+            <button type="button" onClick={() => setOpen(false)} aria-label={tr(til, QIDIRUV_SAQLASH.close)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
               <X size={17} />
             </button>
           </div>
