@@ -40,4 +40,4 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 1. `npx tsc --noEmit` toza; 2. `npm run build` muvaffaqiyatli; 3. smoke testlar; 4. Playwright skrinshotlar (desktop 1440 + mobil 390, light + dark) scratchpad'ga; 5. commit+push; 6. hisobot.
 
 ## Saqlash (prod holati)
-Fayllar: Vercel Blob (`kasb.egalari-blob` store, 2026-10-16 da ulangan). Diagnostika: Admin panel → "Fayl saqlash" → Sinab ko'rish. Arzon muqobil R2 — kartadagi yig'ma ko'rsatma.
+Fayllar: Vercel Blob (`kasb.egalari-blob` store, **Public** access, 2026-10-16). Eslatma: Blob store access rejimi yaratilgandan keyin o'zgarmaydi — faqat Public store ishlaydi (kod `access: "public"` bilan yuklaydi). Diagnostika: Admin panel → "Fayl saqlash" → Sinab ko'rish. Arzon muqobil R2 — kartadagi yig'ma ko'rsatma.
