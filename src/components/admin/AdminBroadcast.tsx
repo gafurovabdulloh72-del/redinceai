@@ -40,23 +40,28 @@ export function AdminBroadcast() {
   const target = counts ? counts[audience] : null;
   const valid = title.trim().length >= 4 && body.trim().length >= 10;
 
-  async function send() {
+  async function send(test = false) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), body: body.trim(), href: href.trim(), audience, email }),
+        body: JSON.stringify({ title: title.trim(), body: body.trim(), href: href.trim(), audience, email, test }),
       });
       const j = (await res.json()) as { ok: boolean; data?: { sent: number }; error?: string; fields?: Record<string, string> };
       // Maydon xatosi bo'lsa aynan uni ko'rsatamiz ("Ma'lumotlarni tekshiring"dan ko'ra aniqroq)
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborib bo'lmadi");
-      setDone(`Yuborildi: ${j.data?.sent ?? 0} ta foydalanuvchiga${email ? " (email bilan)" : ""}`);
-      setTitle("");
-      setBody("");
-      setHref("");
-      setConfirming(false);
+      if (test) {
+        // Forma tozalanmaydi — admin testdan keyin xuddi shu matnni hammaga yuboradi
+        setDone("Test faqat o'zingizga yuborildi — Telegram va saytdagi qo'ng'iroqchani tekshiring");
+      } else {
+        setDone(`Yuborildi: ${j.data?.sent ?? 0} ta foydalanuvchiga${email ? " (email bilan)" : ""}`);
+        setTitle("");
+        setBody("");
+        setHref("");
+        setConfirming(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuborib bo'lmadi");
     } finally {
@@ -147,17 +152,28 @@ export function AdminBroadcast() {
         {/* Yuborish: ikki bosqichli tasdiq */}
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
           {!confirming ? (
-            <button
-              type="button"
-              disabled={!valid || busy}
-              onClick={() => {
-                setConfirming(true);
-                setDone(null);
-              }}
-              className="btn-ink inline-flex h-11 items-center gap-2 rounded-full px-5 text-[14px] font-semibold disabled:opacity-50"
-            >
-              <Megaphone size={15} /> Yuborishga tayyorlash
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={!valid || busy}
+                onClick={() => {
+                  setConfirming(true);
+                  setDone(null);
+                }}
+                className="btn-ink inline-flex h-11 items-center gap-2 rounded-full px-5 text-[14px] font-semibold disabled:opacity-50"
+              >
+                <Megaphone size={15} /> Yuborishga tayyorlash
+              </button>
+              <button
+                type="button"
+                disabled={!valid || busy}
+                onClick={() => void send(true)}
+                title="Xabar auditoriyaga emas, faqat sizning o'zingizga boradi — natijani ko'rish uchun"
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-line-2 px-5 text-[14px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50"
+              >
+                {busy ? "Yuborilmoqda…" : "O'zimga test"}
+              </button>
+            </>
           ) : (
             <>
               <span className="text-[13px] font-semibold text-fg">
@@ -166,7 +182,7 @@ export function AdminBroadcast() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={send}
+                onClick={() => void send()}
                 className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-[13px] font-semibold text-white transition hover:brightness-105 disabled:opacity-50"
               >
                 <Send size={14} /> {busy ? "Yuborilmoqda…" : "Ha, yuborish"}

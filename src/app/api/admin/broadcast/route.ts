@@ -29,6 +29,8 @@ const schema = z.object({
   audience: z.enum(AUDIENCES),
   /** true — email ham yuboriladi (Resend kvotasini hisobga oling) */
   email: z.boolean().optional().default(false),
+  /** true — auditoriyaga emas, FAQAT yuborayotgan adminning o'ziga sinov nusxasi */
+  test: z.boolean().optional().default(false),
 });
 
 function audienceWhere(a: Audience) {
@@ -56,6 +58,13 @@ export const POST = handler(async (req) => {
   const session = await requireSession(["admin"]);
   const input = await parseBody(req, schema);
   const href = input.href || null;
+
+  // Sinov rejimi: xabar auditoriyaga emas, faqat adminning o'ziga (ommaviy yuborishda adminlar chetlab o'tiladi)
+  if (input.test) {
+    await notify(session.sub, "broadcast", input.title, input.body, href, { forceMail: input.email });
+    await audit(session.sub, "admin_broadcast", { meta: { test: true, email: input.email, title: input.title } }, req);
+    return ok({ sent: 1, test: true });
+  }
 
   const targets = await db.select({ id: users.id }).from(users).where(audienceWhere(input.audience));
   if (targets.length === 0) throw new ApiError(400, "Auditoriya bo'sh — yuboriladigan foydalanuvchi yo'q");
