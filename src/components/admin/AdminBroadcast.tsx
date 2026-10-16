@@ -4,11 +4,18 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Megaphone, Send } from "lucide-react";
 
 type Audience = "all" | "specialists" | "clients";
+/** Auditoriyaning kanal kesimi: sayt (hammaga), Telegram (ulaganlar), email (yoqilganlar) */
+interface ChannelStat {
+  total: number;
+  telegram: number;
+  email: number;
+}
 interface Counts {
-  all: number;
-  specialists: number;
-  clients: number;
+  all: ChannelStat;
+  specialists: ChannelStat;
+  clients: ChannelStat;
   emailConfigured: boolean;
+  telegramEnabled: boolean;
 }
 
 const AUDIENCE_LABEL: Record<Audience, string> = { all: "Hammaga", specialists: "Mutaxassislarga", clients: "Mijozlarga" };
@@ -49,14 +56,24 @@ export function AdminBroadcast() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: title.trim(), body: body.trim(), href: href.trim(), audience, email, test }),
       });
-      const j = (await res.json()) as { ok: boolean; data?: { sent: number }; error?: string; fields?: Record<string, string> };
+      const j = (await res.json()) as {
+        ok: boolean;
+        data?: { sent: number; channels?: { site: number; telegram: number; email: number } };
+        error?: string;
+        fields?: Record<string, string>;
+      };
       // Maydon xatosi bo'lsa aynan uni ko'rsatamiz ("Ma'lumotlarni tekshiring"dan ko'ra aniqroq)
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborib bo'lmadi");
       if (test) {
         // Forma tozalanmaydi — admin testdan keyin xuddi shu matnni hammaga yuboradi
         setDone("Test faqat o'zingizga yuborildi — Telegram va saytdagi qo'ng'iroqchani tekshiring");
       } else {
-        setDone(`Yuborildi: ${j.data?.sent ?? 0} ta foydalanuvchiga${email ? " (email bilan)" : ""}`);
+        const ch = j.data?.channels;
+        setDone(
+          ch
+            ? `Yuborildi — saytda: ${ch.site} ta, Telegramga: ${ch.telegram} ta, emailga: ${ch.email} ta`
+            : `Yuborildi: ${j.data?.sent ?? 0} ta foydalanuvchiga${email ? " (email bilan)" : ""}`,
+        );
         setTitle("");
         setBody("");
         setHref("");
@@ -124,10 +141,19 @@ export function AdminBroadcast() {
                 }`}
               >
                 {AUDIENCE_LABEL[a]}
-                {counts && <span className={audience === a ? "opacity-70" : "text-fg-3"}>{counts[a]}</span>}
+                {counts && <span className={audience === a ? "opacity-70" : "text-fg-3"}>{counts[a].total}</span>}
               </button>
             ))}
           </div>
+          {counts && target && (
+            <p className="text-[12.5px] leading-relaxed text-fg-3">
+              Kanallar kesimi: saytda <strong className="text-fg-2">{target.total}</strong> ta · Telegramga{" "}
+              <strong className="text-fg-2">{counts.telegramEnabled ? target.telegram : 0}</strong> ta
+              {counts.telegramEnabled ? " (botni ulaganlar)" : " (bot sozlanmagan)"} · emailga{" "}
+              <strong className="text-fg-2">{counts.emailConfigured ? target.email : 0}</strong> ta
+              {counts.emailConfigured ? " (email yoqilganlar)" : " (sozlanmagan)"}
+            </p>
+          )}
         </div>
 
         <label className="flex items-start gap-2.5 text-[13px] text-fg-2">
@@ -177,7 +203,7 @@ export function AdminBroadcast() {
           ) : (
             <>
               <span className="text-[13px] font-semibold text-fg">
-                {AUDIENCE_LABEL[audience]} — {target ?? "…"} ta foydalanuvchiga yuboriladi. Tasdiqlaysizmi?
+                {AUDIENCE_LABEL[audience]} — {target?.total ?? "…"} ta foydalanuvchiga yuboriladi. Tasdiqlaysizmi?
               </span>
               <button
                 type="button"

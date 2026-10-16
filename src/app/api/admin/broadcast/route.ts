@@ -40,17 +40,41 @@ function audienceWhere(a: Audience) {
   return base;
 }
 
-/** Auditoriya hajmi — UI'da "N ta foydalanuvchiga yuboriladi" uchun */
+/** O'chirilgan (anonimlashtirilgan) hisob — email kanalida sanalmaydi (notifications.ts bilan bir xil qoida) */
+const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
+
+interface AudienceRow {
+  role: string;
+  banned: boolean;
+  tg: string | null;
+  mail: boolean;
+  email: string | null;
+}
+
+/** Auditoriyaning kanal kesimi: sayt (hammaga), Telegram (botni ulaganlar), email (yoqilganlar) */
+function channelStat(list: AudienceRow[]) {
+  return {
+    total: list.length,
+    telegram: process.env.TELEGRAM_BOT_TOKEN ? list.filter((r) => r.tg).length : 0,
+    email: list.filter((r) => r.mail && r.email && !DELETED_EMAIL_RE.test(r.email)).length,
+  };
+}
+
+/** Auditoriya hajmi + kanal kesimi — UI'da "nechta odamga qaysi kanal orqali boradi" uchun */
 export const GET = handler(async () => {
   await requireSession(["admin"]);
-  const rows = await db.select({ role: users.role, banned: users.isBanned }).from(users).where(ne(users.role, "admin"));
+  const rows: AudienceRow[] = await db
+    .select({ role: users.role, banned: users.isBanned, tg: users.telegramChatId, mail: users.notifyEmail, email: users.email })
+    .from(users)
+    .where(ne(users.role, "admin"));
   const active = rows.filter((r) => !r.banned);
   return ok({
-    all: active.length,
-    specialists: active.filter((r) => r.role === "specialist").length,
-    clients: active.filter((r) => r.role === "client").length,
+    all: channelStat(active),
+    specialists: channelStat(active.filter((r) => r.role === "specialist")),
+    clients: channelStat(active.filter((r) => r.role === "client")),
     /** Email kanali sozlanganmi (Resend) — bo'lmasa UI katakchani o'chirib, sababini aytadi */
     emailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM),
+    telegramEnabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
   });
 });
 
@@ -66,7 +90,10 @@ export const POST = handler(async (req) => {
     return ok({ sent: 1, test: true });
   }
 
-  const targets = await db.select({ id: users.id }).from(users).where(audienceWhere(input.audience));
+  const targets = await db
+    .select({ id: users.id, role: users.role, banned: users.isBanned, tg: users.telegramChatId, mail: users.notifyEmail, email: users.email })
+    .from(users)
+    .where(audienceWhere(input.audience));
   if (targets.length === 0) throw new ApiError(400, "Auditoriya bo'sh — yuboriladigan foydalanuvchi yo'q");
 
   // Hozirgi masshtabda (yuzlab foydalanuvchi) 20 talik guruhlar bilan ketma-ket yuborish yetarli.
@@ -78,6 +105,11 @@ export const POST = handler(async (req) => {
     sent += chunk.length;
   }
 
-  await audit(session.sub, "admin_broadcast", { meta: { audience: input.audience, sent, email: input.email, title: input.title } }, req);
-  return ok({ sent, audience: input.audience, email: input.email });
+  // Kanal kesimi — "hammasi yuborilganini" admin aniq ko'rsin: sayt hammaga, Telegram ulaganlarga, email yoqilganlarga
+  const st = channelStat(targets);
+  const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
+  const channels = { site: sent, telegram: st.telegram, email: input.email && emailConfigured ? st.email : 0 };
+
+  await audit(session.sub, "admin_broadcast", { meta: { audience: input.audience, sent, email: input.email, title: input.title, channels } }, req);
+  return ok({ sent, audience: input.audience, email: input.email, channels });
 });
