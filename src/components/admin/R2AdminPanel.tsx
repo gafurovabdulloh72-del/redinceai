@@ -1,11 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, Database, RefreshCw } from "lucide-react";
+import { CheckCircle2, CircleAlert, Database, RefreshCw, TriangleAlert } from "lucide-react";
 
-interface R2Status {
-  enabled: boolean;
-  missing: string[];
+type Backend = "r2" | "blob" | "disk" | "none";
+
+interface StorageStatus {
+  backend: Backend;
+  onVercel: boolean;
+  blobTokenSet: boolean;
+  r2Missing: string[];
   bucket: string | null;
   endpointHost: string | null;
   publicBase: string | null;
@@ -15,6 +19,13 @@ interface R2Status {
   publicError?: string | null;
   publicUrl?: string;
 }
+
+const BACKEND_LABEL: Record<Backend, string> = {
+  r2: "Cloudflare R2 (arzon, trafik bepul)",
+  blob: "Vercel Blob",
+  disk: "Server diski (dev/VPS rejimi)",
+  none: "SOZLANMAGAN — yuklash ishlamaydi",
+};
 
 function Row({ ok, label, detail }: { ok: boolean; label: string; detail?: string | null }) {
   return (
@@ -28,19 +39,48 @@ function Row({ ok, label, detail }: { ok: boolean; label: string; detail?: strin
   );
 }
 
+/** R2 ulash qadamlar ro'yxati (ixtiyoriy, arzon variant) */
+function R2Guide({ missing }: { missing: string[] }) {
+  return (
+    <details className="mt-4 rounded-[14px] border border-line px-4 py-3 text-[13px] leading-relaxed text-fg-2">
+      <summary className="cursor-pointer font-semibold text-fg">Arzon variant: Cloudflare R2 ulash (ixtiyoriy)</summary>
+      {missing.length > 0 && missing.length < 5 && (
+        <p className="mt-2 rounded-[10px] bg-warning-soft px-3 py-1.5 text-[12.5px] text-warning-text">
+          Yetishmayotgan: <code className="font-semibold">{missing.join(", ")}</code>
+        </p>
+      )}
+      <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+        <li>
+          dash.cloudflare.com → <strong>R2 Object Storage</strong> → Create bucket → <code className="rounded bg-fg/6 px-1 text-[12px]">kasbegalari-media</code> (birinchi marta karta so'raydi — 10 GB bepul).
+        </li>
+        <li>
+          Bucket → <strong>Settings → Public Development URL → Enable</strong> → <code className="rounded bg-fg/6 px-1 text-[12px]">https://pub-….r2.dev</code> ni nusxalang.
+        </li>
+        <li>
+          R2 → <strong>Manage API tokens → Create API token</strong> (Object Read &amp; Write, bucket: kasbegalari-media) → Access Key ID, Secret va endpoint'ni nusxalang.
+        </li>
+        <li>
+          Vercel → Environment Variables (Production): <code className="rounded bg-fg/6 px-1 text-[12px]">R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_BASE</code> → Redeploy.
+        </li>
+        <li>Shu yerga qaytib «Sinab ko'rish»ni bosing.</li>
+      </ol>
+    </details>
+  );
+}
+
 /**
- * R2 saqlash kartasi: sozlanmagan bo'lsa — qadam-baqadam ko'rsatma; sozlangan bo'lsa —
- * "Sinab ko'rish" tugmasi butun zanjirni (kalitlar → yuklash → ommaviy o'qish) tekshiradi.
+ * Fayl saqlash kartasi: qaysi usul faolligini ko'rsatadi va "Sinab ko'rish" tugmasi
+ * aynan shu usul orqali test fayl yuklab-o'qib, saqlash chindan ishlashini tasdiqlaydi.
  */
 export function R2AdminPanel() {
-  const [st, setSt] = useState<R2Status | null>(null);
+  const [st, setSt] = useState<StorageStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const r = await fetch("/api/admin/r2");
-      const j = (await r.json()) as { ok: boolean; data?: R2Status };
+      const j = (await r.json()) as { ok: boolean; data?: StorageStatus };
       if (j.ok && j.data) setSt(j.data);
     } catch {
       /* tarmoq xatosi — karta holatsiz qoladi */
@@ -55,7 +95,7 @@ export function R2AdminPanel() {
     setErr(null);
     try {
       const r = await fetch("/api/admin/r2", { method: "POST" });
-      const j = (await r.json()) as { ok: boolean; data?: R2Status; error?: string };
+      const j = (await r.json()) as { ok: boolean; data?: StorageStatus; error?: string };
       if (!r.ok || !j.ok) throw new Error(j.error || "Sinab bo'lmadi");
       setSt(j.data ?? null);
     } catch (e) {
@@ -65,56 +105,40 @@ export function R2AdminPanel() {
     }
   }
 
-  if (!st) return <div className="card p-5 text-[13px] text-fg-3">R2 holati yuklanmoqda…</div>;
-
-  if (!st.enabled) {
-    return (
-      <div className="card p-5 text-[13.5px] leading-relaxed text-fg-2 sm:p-6">
-        <p className="font-semibold text-fg">R2 hali ulanmagan — sayt fayllarni hozirgi usulda saqlashda davom etyapti (hech narsa buzilmagan).</p>
-        {st.missing.length > 0 && st.missing.length < 5 && (
-          <p className="mt-2 rounded-[12px] bg-warning-soft px-3 py-2 text-[13px] text-warning-text">
-            Yetishmayotgan qiymatlar: <code className="font-semibold">{st.missing.join(", ")}</code> — Vercel'ga qo'shib redeploy qiling.
-          </p>
-        )}
-        <p className="mt-3 font-semibold text-fg">Ulash qadamlari (Cloudflare → dash.cloudflare.com):</p>
-        <ol className="mt-2 list-decimal space-y-1.5 pl-5">
-          <li>
-            <strong>R2 Object Storage</strong> → Create bucket → nomi <code className="rounded bg-fg/6 px-1.5 py-0.5 text-[12px]">kasbegalari-media</code> (birinchi marta karta so'raydi — 10 GB gacha bepul).
-          </li>
-          <li>
-            Bucket → <strong>Settings → Public Development URL → Enable</strong> → berilgan <code className="rounded bg-fg/6 px-1.5 py-0.5 text-[12px]">https://pub-….r2.dev</code> manzilini nusxalang.
-          </li>
-          <li>
-            R2 bosh sahifasi → <strong>Manage API tokens → Create API token</strong> → ruxsat: Object Read &amp; Write, bucket: kasbegalari-media → yaratilganda ko'rsatiladigan{" "}
-            <strong>Access Key ID</strong>, <strong>Secret Access Key</strong> va <strong>endpoint</strong>ni nusxalang (Secret faqat bir marta ko'rinadi).
-          </li>
-          <li>
-            Vercel → Settings → Environment Variables (Production) → 5 ta qiymat:{" "}
-            <code className="rounded bg-fg/6 px-1.5 py-0.5 text-[12px]">R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_BASE</code> → Redeploy.
-          </li>
-          <li>Shu sahifaga qaytib «Sinab ko'rish» tugmasini bosing — karta hammasini o'zi tekshiradi.</li>
-        </ol>
-      </div>
-    );
-  }
+  if (!st) return <div className="card p-5 text-[13px] text-fg-3">Saqlash holati yuklanmoqda…</div>;
 
   const tested = st.uploadOk !== undefined;
+  const broken = st.backend === "none";
+
   return (
     <div className="card p-5 sm:p-6">
-      <ul className="divide-y divide-line">
-        <Row ok label={`Kalitlar sozlangan — bucket: ${st.bucket}`} detail={st.endpointHost} />
-        <Row ok label="Ommaviy manzil (R2_PUBLIC_BASE)" detail={st.publicBase} />
-        {tested && <Row ok={Boolean(st.uploadOk)} label={st.uploadOk ? "Yuklash ishlaydi (S3 PUT)" : "Yuklash xatosi"} detail={st.uploadError} />}
-        {tested && (
-          <Row
-            ok={Boolean(st.publicOk)}
-            label={st.publicOk ? "Ommaviy o'qish ishlaydi — R2 to'liq tayyor ✓" : "Ommaviy o'qish ishlamadi"}
-            detail={st.publicOk ? st.publicUrl : st.publicError}
-          />
-        )}
-      </ul>
+      {broken ? (
+        <div className="rounded-[14px] bg-danger-soft px-4 py-3">
+          <p className="flex items-start gap-2 text-[14px] font-bold text-danger-text">
+            <TriangleAlert size={17} className="mt-0.5 shrink-0" /> Hozir rasm/fayl yuklash ISHLAMAYDI — Vercel'da disk yozib bo'lmaydi.
+          </p>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-fg">
+            <strong>Eng oson yechim (3 bosish, hech narsa nusxalanmaydi):</strong> Vercel → loyiha → <strong>Storage</strong> tab → <strong>Create Database</strong> →{" "}
+            <strong>Blob</strong> → Connect (loyihani tanlang) → keyin <strong>Deployments → ⋯ → Redeploy</strong>. Token avtomatik qo'shiladi.
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-line">
+          <Row ok label={`Faol usul: ${BACKEND_LABEL[st.backend]}`} detail={st.backend === "r2" ? `${st.bucket} · ${st.endpointHost}` : null} />
+          {st.backend === "r2" && <Row ok label="Ommaviy manzil (R2_PUBLIC_BASE)" detail={st.publicBase} />}
+          {tested && <Row ok={Boolean(st.uploadOk)} label={st.uploadOk ? "Yuklash ishlaydi" : "Yuklash xatosi"} detail={st.uploadError} />}
+          {tested && (
+            <Row
+              ok={Boolean(st.publicOk)}
+              label={st.publicOk ? "O'qish ishlaydi — saqlash to'liq tayyor ✓" : "Yuklangan faylni o'qib bo'lmadi"}
+              detail={st.publicOk ? st.publicUrl : st.publicError}
+            />
+          )}
+        </ul>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
-        <button type="button" disabled={busy} onClick={selftest} className="btn-ink inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
+        <button type="button" disabled={busy || broken} onClick={selftest} className="btn-ink inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
           <Database size={14} /> {busy ? "Tekshirilmoqda…" : "Sinab ko'rish"}
         </button>
         <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
@@ -122,6 +146,8 @@ export function R2AdminPanel() {
         </button>
         {err && <span className="text-[13px] font-semibold text-danger-text">{err}</span>}
       </div>
+
+      {st.backend !== "r2" && <R2Guide missing={st.r2Missing} />}
     </div>
   );
 }

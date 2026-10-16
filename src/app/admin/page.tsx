@@ -264,7 +264,7 @@ export default async function AdminPage() {
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
     { id: "xabar", label: "Ommaviy xabar" },
     { id: "telegram-bot", label: "Telegram bot" },
-    { id: "r2-saqlash", label: "R2 saqlash" },
+    { id: "r2-saqlash", label: "Fayl saqlash" },
     { id: "faollik", label: "So'nggi faollik" },
     { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
     { id: "sozlamalar", label: "Sozlamalar" },
@@ -533,13 +533,13 @@ export default async function AdminPage() {
       {/* ---------- R2 saqlash ---------- */}
       <section id="r2-saqlash" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading
-          eyebrow="R2 saqlash"
+          eyebrow="Fayl saqlash"
           title={
             <>
-              Fayllarni <span className="accent-serif text-accent">arzon saqlash</span>
+              Fayllar <span className="accent-serif text-accent">qayerda saqlanadi</span>
             </>
           }
-          description="Cloudflare R2 ulansa yangi rasm/video fayllar trafigi bepul saqlashga boradi. Ixtiyoriy — ulanmagan bo'lsa sayt hozirgi usulda ishlayveradi."
+          description="Rasm/video qaysi usulda saqlanayotganini ko'rsatadi va real test bilan sinaydi. Vercel Blob — eng oson; Cloudflare R2 — eng arzon (trafik bepul)."
         />
         <R2AdminPanel />
       </section>

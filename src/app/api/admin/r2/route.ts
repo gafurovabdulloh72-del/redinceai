@@ -1,23 +1,38 @@
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+import path from "node:path";
+import { put, del } from "@vercel/blob";
 import { handler, ok, requireSession, ApiError } from "@/lib/api";
 import { isR2Enabled, r2Config, r2Put, r2PublicUrl } from "@/lib/storage/r2";
+import { uploadDir } from "@/lib/uploads";
 import { audit } from "@/lib/security/audit";
+import { uid } from "@/lib/utils";
 
 /**
- * Admin: R2 saqlash holati va o'z-o'zini sinash.
- * GET — env to'liqligi (qaysi qiymat yetishmayotgani nomma-nom); POST — test fayl yuklab,
- * ommaviy manzildan o'qib ko'radi (butun zanjir: kalitlar → bucket → public URL).
+ * Admin: fayl saqlash diagnostikasi.
+ * GET — qaysi usul faol (R2 → Vercel Blob → disk; Vercel'da disk ishlamaydi) va env holati.
+ * POST — FAOL usul orqali test fayl yuklab, o'qib ko'radi: saqlash chindan ishlayaptimi.
  */
 
 const R2_ENV_KEYS = ["R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_PUBLIC_BASE"] as const;
-/** Sinov fayli kaliti — har safar ustiga yoziladi, saqlashni iflos qilmaydi */
-const TEST_KEY = "diagnostika/selftest.txt";
+/** R2 sinov fayli — har safar ustiga yoziladi */
+const R2_TEST_KEY = "diagnostika/selftest.txt";
+
+type Backend = "r2" | "blob" | "disk" | "none";
+
+function activeBackend(): Backend {
+  if (isR2Enabled()) return "r2";
+  if (process.env.BLOB_READ_WRITE_TOKEN) return "blob";
+  if (process.env.VERCEL) return "none"; // Vercel'da disk read-only — saqlash YO'Q
+  return "disk";
+}
 
 function status() {
-  const missing = R2_ENV_KEYS.filter((k) => !process.env[k]?.trim());
   const cfg = r2Config();
   return {
-    enabled: isR2Enabled(),
-    missing,
+    backend: activeBackend(),
+    onVercel: Boolean(process.env.VERCEL),
+    blobTokenSet: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    r2Missing: R2_ENV_KEYS.filter((k) => !process.env[k]?.trim()),
     bucket: cfg?.bucket ?? null,
     endpointHost: cfg ? new URL(cfg.endpoint).host : null,
     publicBase: cfg?.publicBase ?? null,
@@ -29,38 +44,55 @@ export const GET = handler(async () => {
   return ok(status());
 });
 
-/** O'z-o'zini sinash: yuklash (S3 PUT) + ommaviy o'qish (R2_PUBLIC_BASE orqali) */
+/** O'z-o'zini sinash: faol usul orqali yuklash + o'qish */
 export const POST = handler(async (req) => {
   const session = await requireSession(["admin"]);
-  if (!isR2Enabled()) {
-    const { missing } = status();
-    throw new ApiError(503, `R2 sozlanmagan — Vercel'da yetishmayotgan qiymatlar: ${missing.join(", ")}`);
+  const backend = activeBackend();
+  if (backend === "none") {
+    throw new ApiError(503, "Saqlash sozlanmagan: Vercel'da disk ishlamaydi. Eng oson yo'l — Vercel → Storage → Create → Blob → loyihaga ulang → Redeploy (hech narsa nusxalash shart emas). Arzon muqobil — quyidagi R2.");
   }
-  const body = Buffer.from(`Kasb Egalari R2 diagnostika · ${new Date().toISOString()}`, "utf8");
+  const body = Buffer.from(`Kasb Egalari saqlash diagnostikasi · ${new Date().toISOString()}`, "utf8");
 
   let uploadOk = false;
   let uploadError: string | null = null;
-  try {
-    await r2Put(TEST_KEY, body, "text/plain; charset=utf-8");
-    uploadOk = true;
-  } catch (e) {
-    uploadError = e instanceof Error ? e.message : String(e);
-  }
-
-  // Ommaviy o'qish: Public Development URL / custom domen ulanganini tekshiradi
   let publicOk = false;
   let publicError: string | null = null;
-  const publicUrl = r2PublicUrl(TEST_KEY);
-  if (uploadOk) {
-    try {
+  let publicUrl = "";
+
+  try {
+    if (backend === "r2") {
+      await r2Put(R2_TEST_KEY, body, "text/plain; charset=utf-8");
+      uploadOk = true;
+      publicUrl = r2PublicUrl(R2_TEST_KEY);
       const res = await fetch(publicUrl, { cache: "no-store", signal: AbortSignal.timeout(10000) });
       publicOk = res.ok;
       if (!res.ok) publicError = `HTTP ${res.status} — bucket'da "Public Development URL" yoqilmagan yoki R2_PUBLIC_BASE noto'g'ri`;
-    } catch (e) {
-      publicError = e instanceof Error ? e.message : String(e);
+    } else if (backend === "blob") {
+      const name = `diagnostika/selftest-${uid()}.txt`;
+      const blob = await put(name, body, { access: "public", contentType: "text/plain", addRandomSuffix: false });
+      uploadOk = true;
+      publicUrl = blob.url;
+      const res = await fetch(blob.url, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      publicOk = res.ok;
+      if (!res.ok) publicError = `HTTP ${res.status}`;
+      await del(blob.url).catch(() => undefined); // sinov faylini tozalash
+    } else {
+      // disk (faqat dev/VPS): yozish + qayta o'qish
+      const dir = uploadDir();
+      await mkdir(dir, { recursive: true });
+      const file = path.join(dir, "selftest.txt");
+      await writeFile(file, body);
+      uploadOk = true;
+      publicOk = (await readFile(file)).equals(body);
+      publicUrl = "/uploads/selftest.txt";
+      if (!publicOk) publicError = "Yozilgan fayl qayta o'qilmadi";
     }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!uploadOk) uploadError = msg;
+    else publicError = msg;
   }
 
-  await audit(session.sub, "admin_settings", { meta: { action: "r2_selftest", uploadOk, publicOk } }, req);
+  await audit(session.sub, "admin_settings", { meta: { action: "storage_selftest", backend, uploadOk, publicOk } }, req);
   return ok({ ...status(), uploadOk, uploadError, publicOk, publicError, publicUrl });
 });
