@@ -13,6 +13,7 @@ import {
   Flag,
   Inbox,
   ListChecks,
+  Megaphone,
   MessageSquare,
   Scale,
   Send,
@@ -67,6 +68,7 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   subscription_expired: { icon: EyeOff, tone: "danger", label: "Obuna tugadi" },
   subscription_paid: { icon: BadgeCheck, tone: "success", label: "Obuna faollashdi" },
   subscription_pending: { icon: Clock3, tone: "warning", label: "Obuna: tasdiq kutilmoqda" },
+  broadcast: { icon: Megaphone, tone: "accent", label: "E'lon" },
 };
 
 const FALLBACK = { icon: Bell, tone: "neutral" as NotificationTone, label: "Bildirishnoma" };

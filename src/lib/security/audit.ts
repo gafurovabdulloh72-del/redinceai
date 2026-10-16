@@ -26,6 +26,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   admin_unfeature: "Admin: tavsiya olib tashlandi",
   admin_delete: "Admin: o'chirildi",
   admin_settings: "Admin: sozlamalar o'zgartirildi",
+  admin_broadcast: "Admin: ommaviy xabar yuborildi",
   admin_payout: "Admin: pul chiqarish qarori",
   admin_payment: "Admin: to'lov amali",
   admin_payout_details: "Admin: payout rekviziti ochildi",

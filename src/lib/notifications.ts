@@ -33,6 +33,7 @@ import { uid } from "@/lib/utils";
  *  order_due / order_sla — muddat eslatmalari
  *  review_new       — mutaxassisga: yangi sharh
  *  subscription_expiring / subscription_expired / subscription_paid / subscription_pending — obuna
+ *  broadcast        — admin paneldan barcha (yoki rolga ko'ra) foydalanuvchilarga ommaviy e'lon/eslatma
  */
 export type NotificationType =
   | "order_new"
@@ -68,7 +69,8 @@ export type NotificationType =
   | "subscription_expiring"
   | "subscription_expired"
   | "subscription_paid"
-  | "subscription_pending";
+  | "subscription_pending"
+  | "broadcast";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */
 const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
@@ -107,6 +109,8 @@ export interface NotifyOptions {
   mailKey?: string;
   /** Tashqi kanallarga yubormaslik (faqat saytdagi bildirishnoma — email ham, Telegram ham chiqmaydi) */
   skipMail?: boolean;
+  /** MAIL_TYPES'da bo'lmagan tur uchun ham email yuborish (masalan, admin ommaviy e'loni "email bilan" rejimida) */
+  forceMail?: boolean;
 }
 
 /** Email havolasi uchun sayt manzili: sozlamadagi kanonik manzil, dev'da — lokal server */
@@ -193,7 +197,10 @@ export async function notify(userId: string, type: NotificationType, title: stri
   try {
     // Email (faqat MAIL_TYPES) va Telegram parallel — biri yiqilsa ikkinchisi baribir yuboriladi
     inBackground(async () => {
-      const results = await Promise.allSettled([MAIL_TYPES.has(type) ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(), telegramNotification(userId, type, t, b, href, opts)]);
+      const results = await Promise.allSettled([
+        MAIL_TYPES.has(type) || opts.forceMail ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(),
+        telegramNotification(userId, type, t, b, href, opts),
+      ]);
       for (const r of results) if (r.status === "rejected") console.error("[notify:fanout]", type, r.reason);
     });
   } catch (e) {

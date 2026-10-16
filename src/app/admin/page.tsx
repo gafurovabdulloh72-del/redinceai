@@ -8,6 +8,7 @@ import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
 import { UsersPanel } from "@/components/admin/UsersPanel";
+import { AdminBroadcast } from "@/components/admin/AdminBroadcast";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -259,6 +260,7 @@ export default async function AdminPage() {
     { id: "shubhali", label: "Shubhali faollik" },
     { id: "sharhlar", label: "Sharhlar" },
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
+    { id: "xabar", label: "Ommaviy xabar" },
     { id: "faollik", label: "So'nggi faollik" },
     { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
     { id: "sozlamalar", label: "Sozlamalar" },
@@ -494,6 +496,20 @@ export default async function AdminPage() {
           description="Qidiring va kerak bo'lsa bloklang — bloklangan foydalanuvchi kira olmaydi va katalogda ko'rinmaydi."
         />
         <UsersPanel />
+      </section>
+
+      {/* ---------- Ommaviy xabar ---------- */}
+      <section id="xabar" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Ommaviy xabar"
+          title={
+            <>
+              Hammaga <span className="accent-serif text-accent">e&apos;lon</span> yuborish
+            </>
+          }
+          description="Ogohlantirish yoki eslatma — tanlangan auditoriyaning saytdagi bildirishnomasiga va Telegramiga (ulanganlarga) boradi; xohlasangiz emailga ham."
+        />
+        <AdminBroadcast />
       </section>
 
       {/* ---------- So'nggi faollik ---------- */}
