@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
  * - hudud rangi mutaxassislar soniga qarab coral tus oladi, pin ostida "shahar chirog'i"
  * - hero: eng ko'p hududdan boshqalariga oqib turuvchi yoylar; ba'zi tugunlar miltillaydi
  * - "tirik tarmoq": mutaxassislari bor hudud markazidan qirralar bo'ylab yorug'lik signallari yuguradi
- * - ochilish: avval tugunlar (yulduzlar), keyin qirralar g'arbdan sharqqa ulanib chiziladi; vaqti-vaqti bilan
- *   xarita ustidan gologramma skaneri o'tadi; hover'da hudud tarmog'i qaytadan "yonib" chiziladi
+ * - ochilish: avval tugunlar (yulduzlar), keyin qirralar g'arbdan sharqqa ulanib chiziladi;
+ *   hover'da hudud tarmog'i qaytadan "yonib" chiziladi
  * Pinlar (bosiladigan) UzbekistanMap'ning yuqori SVG'sida. Uch qatlam: globus (orqa), plita (statik
  * filtrlar) va yorug'lik (miltillash/yoylar) — har biri alohida kompozit qatlam, bir-birini qayta chizdirmaydi.
  */
@@ -299,12 +299,6 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
               <use key={r.slug} href={href(r.slug)} />
             ))}
           </clipPath>
-          <linearGradient id={id("scan")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="var(--accent)" stopOpacity="0" />
-            <stop offset="0.75" stopColor="var(--accent)" stopOpacity="0.12" />
-            <stop offset="0.97" stopColor="var(--map-scan)" stopOpacity="0.6" />
-            <stop offset="1" stopColor="var(--map-scan)" stopOpacity="0" />
-          </linearGradient>
           <radialGradient id={id("halo")}>
             <stop offset="0" stopColor="var(--map-twinkle)" stopOpacity="0.9" />
             <stop offset="0.35" stopColor="var(--accent)" stopOpacity="0.35" />
@@ -313,12 +307,6 @@ export function NeonMap({ vb, view, zoom, dragging, counts, max, hover, selected
         </defs>
         <g {...zoomProps}>
           <g className={cn(motion && "neon-lights-in")}>
-          {/* Gologramma skaneri — vaqti-vaqti bilan xarita ustidan yorug'lik chizig'i o'tadi */}
-          {motion && onScreen && (
-            <g clipPath={ref("clip")}>
-              <rect className="neon-scan" x={-20} y={-90} width={MAP_VIEWBOX.width + 40} height={90} fill={ref("scan")} />
-            </g>
-          )}
           {/* Tirik tarmoq: mutaxassislari bor hudud markazidan qirralar bo'ylab signallar (SMIL — ikki chiziq bir xil vaqtda) */}
           {motion && onScreen && (
             <g fill="none" strokeLinecap="round">
