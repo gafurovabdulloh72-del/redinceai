@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { ApiError, handler, ok, requireSession } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { uploadDir } from "@/lib/uploads";
+import { isR2Enabled, r2Put } from "@/lib/storage/r2";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
@@ -48,9 +49,11 @@ function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
 }
 
 /**
- * Rasm (va buyurtma biriktirmasi sifatida hujjat) yuklash — fayl UPLOAD_DIR (default: public/uploads) ichiga yoziladi.
- * Railway'da UPLOAD_DIR=/data/uploads (Volume) — fayllar /uploads/<nom> orqali
- * src/app/uploads/[name]/route.ts tomonidan beriladi.
+ * Rasm (va buyurtma biriktirmasi sifatida hujjat) yuklash. Saqlash tanlovi (ustuvorlik):
+ *  1) Cloudflare R2 (barcha R2_* env'lar to'liq — src/lib/storage/r2.ts) → URL: R2_PUBLIC_BASE/uploads/<nom>
+ *  2) Vercel Blob (BLOB_READ_WRITE_TOKEN bor)
+ *  3) lokal disk: UPLOAD_DIR (default: public/uploads) — fayllar /uploads/<nom> orqali
+ *     src/app/uploads/[name]/route.ts tomonidan beriladi (Railway'da UPLOAD_DIR=/data/uploads Volume).
  * Kvota: foydalanuvchi boshiga 30 ta fayl / kun (rate_limits). Har yuklash audit jurnaliga yoziladi.
  */
 export const POST = handler(async (req) => {
@@ -77,6 +80,13 @@ export const POST = handler(async (req) => {
   if (!kind) throw new ApiError(415, allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
+
+  // Saqlash tanlovi (ustuvorlik): Cloudflare R2 (barcha R2_* env'lar to'liq) → Vercel Blob → lokal disk
+  if (isR2Enabled()) {
+    const url = await r2Put(`uploads/${name}`, bytes, kind.mime);
+    await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "r2" } }, req);
+    return ok({ url }, { status: 201 });
+  }
 
   // Vercel: diskka yozib bo'lmaydi — Vercel Blob (BLOB_READ_WRITE_TOKEN avtomatik beriladi)
   if (process.env.BLOB_READ_WRITE_TOKEN) {

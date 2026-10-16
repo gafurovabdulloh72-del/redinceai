@@ -98,6 +98,7 @@ Bo'sh boshlasangiz — hech narsa kerak emas, seed o'zi demo ma'lumot yaratadi.
 ```bash
 cd /opt/kasbegalari && git pull && docker compose up -d --build
 ```
+Qo'lda yangilamaslik uchun 6-QISMdagi GitHub Actions avto-deploy'ni yoqing — `main`ga push yetarli bo'ladi.
 
 ## Tekshiruv ro'yxati
 
@@ -108,8 +109,57 @@ cd /opt/kasbegalari && git pull && docker compose up -d --build
 - [ ] `docker compose logs litestream` — "replicating" (backup yoqilgan bo'lsa)
 - [ ] Vercel loyihasini pauza qiling (ikki joyda ishlamasin), eski domen 301 redirect
 
+## 5-QISM. R2 yoqish (fayllar Cloudflare'da — trafik bepul)
+
+Kod tayyor: barcha 5 ta `R2_*` env to'ldirilsa yangi yuklamalar (rasm, hujjat, video) R2'ga boradi,
+bo'sh qoldirilsa fayllar serverda (`/data/uploads`) saqlanadi — sayt R2'siz ham to'liq ishlaydi.
+
+1. **Bucket:** Cloudflare dash → R2 → "Create bucket" → nom `kasbegalari-media` (1.3-qadamda ochgan bo'lsangiz — shu).
+2. **Ommaviy domen:** bucket → Settings → **Public access → Custom Domains → Connect Domain** →
+   `media.kasbegalari.uz` (domen Cloudflare'da bo'lgani uchun DNS yozuvi avtomatik qo'shiladi).
+   Vaqtincha sinov uchun o'rniga **Public Development URL** (`https://pub-xxxx.r2.dev`) ni yoqsangiz ham bo'ladi.
+3. **API token:** R2 → Manage API tokens → Create → ruxsat **Object Read & Write**, bucket: `kasbegalari-media` →
+   `Access Key ID` va `Secret Access Key` ni yozib oling. Endpoint: `https://<account-id>.r2.cloudflarestorage.com`
+   (token sahifasida ko'rsatiladi).
+4. **Serverda `.env`ga qo'shing** (namuna: `deploy/env.vps.example` R2 bloki):
+   ```bash
+   R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+   R2_BUCKET=kasbegalari-media
+   R2_ACCESS_KEY_ID=...
+   R2_SECRET_ACCESS_KEY=...
+   R2_PUBLIC_BASE=https://media.kasbegalari.uz
+   ```
+   So'ng: `docker compose up -d --build app` (CSP/rasm sozlamalari env'dan o'qiladi — qayta build shart).
+5. **Tekshiruv:** kabinet → portfolio → rasm yuklang; rasm `https://media.kasbegalari.uz/uploads/...` URL bilan
+   ochilishi kerak. Chatda video yuboring (50 MB gacha) — brauzer to'g'ridan-to'g'ri R2'ga yuklaydi.
+6. **Eski fayllarni ko'chirish** (Vercel Blob va/yoki serverdagi `public/uploads`dan — bazadagi URL'lar ham yangilanadi):
+   ```bash
+   # Avval reja (hech narsa yozmaydi):
+   docker compose exec app npx tsx scripts/migrate-to-r2.ts --dry-run
+   # Haqiqiy ko'chirish (idempotent — qayta ishga tushirsa o'tkazilganlarini tashlab ketadi):
+   docker compose exec app npx tsx scripts/migrate-to-r2.ts
+   ```
+   Vercel Blob'dagi fayllar ham kerak bo'lsa, ishga tushirishdan oldin `.env`ga vaqtincha
+   `BLOB_READ_WRITE_TOKEN=...` qo'shing (Vercel → Storage → Blob → Settings), tugagach olib tashlang.
+
+## 6-QISM. GitHub Actions avto-deploy (push → server o'zi yangilanadi)
+
+Workflow tayyor: `.github/workflows/deploy-vps.yml` — `main`ga push yoki qo'lda (Actions → Deploy VPS →
+Run workflow) ishga tushadi; secrets qo'shilmaguncha hech narsa qilmaydi (xato ham bermaydi).
+
+1. **Deploy kaliti yarating** (lokal kompyuterda yoki serverda):
+   ```bash
+   ssh-keygen -t ed25519 -f deploy_key -N "" -C "github-deploy"
+   # Ochiq kalitni serverga qo'shing:
+   cat deploy_key.pub >> /root/.ssh/authorized_keys   # (serverda)
+   ```
+2. **GitHub secrets** (repo → Settings → Secrets and variables → Actions → New repository secret):
+   - `VPS_HOST` — server IP (yoki kasbegalari.uz; Cloudflare proxy SSH'ni o'tkazmaydi — IP ishonchliroq)
+   - `VPS_USER` — `root`
+   - `VPS_SSH_KEY` — `deploy_key` faylining TO'LIQ matni (`-----BEGIN OPENSSH PRIVATE KEY-----`dan boshlab)
+3. **Tekshiruv:** Actions → "Deploy VPS" → Run workflow. Yashil bo'lsa: endi `main`ga har push serverda
+   `git pull + docker compose up -d --build` bajaradi va `/api/health`ni kutadi.
+
 ## Keyingi bosqich (kalitlar tayyor bo'lganda Claude'ga ayting)
 
-- Fayllarni R2'ga ko'chirish (kod migratsiyasi: @vercel/blob → R2) — trafik bepul bo'ladi
 - Video-lenta uchun Bunny Stream integratsiyasi
-- GitHub Actions orqali avto-deploy (push → server o'zi yangilanadi)

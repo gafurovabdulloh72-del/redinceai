@@ -5,6 +5,7 @@ import type { FileAttachment } from "@/lib/db/schema";
  * Fayllar faqat /api/upload orqali yuklanadi (rasm: JPG/PNG/WEBP/GIF; buyurtma/chat'da hujjat: PDF/DOC/DOCX — 5 MB gacha):
  *  - disk:  /uploads/<uuid>.<ext>
  *  - Vercel Blob: https://<store>.public.blob.vercel-storage.com/uploads/<uuid>.<ext>
+ *  - Cloudflare R2: <R2_PUBLIC_BASE>/uploads/<uuid>.<ext> (server R2_* env'lari to'liq bo'lsa)
  * Boshqa tashqi havolalar biriktirma sifatida qabul qilinmaydi (kuzatuv pikseli / fishing havolasi bo'lmasin).
  */
 export type Attachment = FileAttachment;
@@ -22,9 +23,23 @@ export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 /** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX) + video (MP4, WebM, MOV) */
 export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.mp4,.webm,.mov`;
 
-export const UPLOAD_URL_RE = /^(?:\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov)|https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov))$/i;
+/**
+ * R2 ommaviy bazasi — faqat server muhitida mavjud (klient bundle'ida process.env bo'sh shim).
+ * Bu regexlar serverdagi zod tekshiruvlarida ishlatiladi, shuning uchun klientda R2 bo'lagi yo'qligi zarar qilmaydi.
+ */
+const R2_BASE = (typeof process !== "undefined" && process.env?.R2_PUBLIC_BASE ? process.env.R2_PUBLIC_BASE : "").trim().replace(/\/+$/, "");
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Ruxsatli yuklama URL naqshi: /uploads/<nom> | Vercel Blob | (bo'lsa) R2_PUBLIC_BASE/uploads/<nom> */
+function uploadUrlRe(exts: string): RegExp {
+  const alts = [`\\/uploads\\/[\\w-]+\\.(?:${exts})`, `https:\\/\\/[a-z0-9-]+\\.public\\.blob\\.vercel-storage\\.com\\/uploads\\/[\\w-]+\\.(?:${exts})`];
+  if (R2_BASE.startsWith("https://")) alts.push(`${escapeRe(R2_BASE)}\\/uploads\\/[\\w-]+\\.(?:${exts})`);
+  return new RegExp(`^(?:${alts.join("|")})$`, "i");
+}
+
+export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov");
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
-export const IMAGE_URL_RE = /^(?:\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif)|https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif))$/i;
+export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
 
 const EXT_MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -83,12 +98,34 @@ async function uploadViaApi(file: File, purpose: boolean): Promise<string> {
   return json.data.url;
 }
 
+type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; publicUrl: string; contentType: string } | { mode: "fallback" } } | { ok: false; error: string };
+
 /**
- * Video: brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (server tanasi 4.5 MB bilan cheklangani uchun).
- * Blob sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
+ * Video: avval R2 presigned PUT (server R2 sozlagan bo'lsa — /api/upload/presign), aks holda
+ * brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (server tanasi 4.5 MB bilan cheklangani uchun).
+ * Ikkalasi ham sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
  */
 async function uploadVideo(file: File): Promise<string> {
   const ext = (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
+
+  // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
+  //    Endpoint ishlamasa (eski server, tarmoq) — null, eski oqimga o'tamiz; aniq xato (kvota, sessiya) foydalanuvchiga.
+  const presign = (await fetch("/api/upload/presign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ext, size: file.size }),
+  })
+    .then((r) => r.json())
+    .catch(() => null)) as PresignResponse | null;
+  if (presign && !presign.ok) throw new Error(presign.error);
+  if (presign?.ok && presign.data.mode === "r2") {
+    const { uploadUrl, publicUrl, contentType } = presign.data;
+    const put = await fetch(uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file }).catch(() => null);
+    if (!put?.ok) throw new Error(`«${file.name}»: video saqlashga yuklanmadi — internetni tekshirib, qayta urinib ko'ring`);
+    return publicUrl;
+  }
+
+  // 2) Vercel Blob client upload (R2 sozlanmagan muhit)
   try {
     const { upload } = await import("@vercel/blob/client");
     const blob = await upload(`uploads/${crypto.randomUUID()}.${ext}`, file, {

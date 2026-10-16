@@ -1,0 +1,57 @@
+# Avto-deploy: main'ga push (yoki qo'lda "Run workflow") → SSH orqali VPS'da git pull + docker compose up -d --build.
+# Kerakli secrets (GitHub repo → Settings → Secrets and variables → Actions):
+#   VPS_HOST     — server IP yoki domen
+#   VPS_USER     — SSH foydalanuvchi (odatda root)
+#   VPS_SSH_KEY  — shaxsiy SSH kalit (ed25519, to'liq matni) — docs/DEPLOY-VPS.md "Avto-deploy" bo'limi
+# Eslatma: GitHub `secrets` kontekstini job-darajadagi `if:` ichida ishlatib bo'lmaydi, shuning uchun
+# mavjudlik job env orqali tekshiriladi — secrets qo'shilmaguncha workflow XATOSIZ o'tib ketadi (skip).
+name: Deploy VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Bir vaqtda bitta deploy — navbatdagisi kutadi, bekor qilinmaydi
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: VPS'ga chiqarish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # secrets'ni if: ichida to'g'ridan-to'g'ri ishlatib bo'lmaydi — env ko'prigi (GitHub cheklovi)
+      VPS_CONFIGURED: ${{ secrets.VPS_HOST != '' && secrets.VPS_USER != '' && secrets.VPS_SSH_KEY != '' }}
+    steps:
+      - name: Secrets yo'q — deploy o'tkazib yuborildi
+        if: env.VPS_CONFIGURED != 'true'
+        run: echo "VPS_HOST / VPS_USER / VPS_SSH_KEY secrets qo'shilmagan — qadamlar docs/DEPLOY-VPS.md da."
+
+      - name: SSH orqali serverni yangilash
+        if: env.VPS_CONFIGURED == 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -e
+            cd /opt/kasbegalari
+            git pull --ff-only
+            docker compose up -d --build
+            docker image prune -f
+            # Sog'liq tekshiruvi — konteyner ichidan (3000-port hostga ochilmagan, faqat Caddy ko'radi)
+            for i in $(seq 1 20); do
+              if docker compose exec -T app node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+                echo "✓ /api/health OK"; exit 0
+              fi
+              sleep 3
+            done
+            echo "✗ Server 60 soniyada tiklanmadi"; docker compose logs --tail=100 app; exit 1

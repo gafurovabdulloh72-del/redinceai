@@ -30,6 +30,22 @@ const isProd = process.env.NODE_ENV === "production";
  */
 const API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
+/**
+ * Cloudflare R2 ommaviy bazasi (R2_PUBLIC_BASE) dan next/image uchun remotePattern — env'dan dinamik.
+ * Env yo'q yoki noto'g'ri bo'lsa bo'sh ro'yxat qaytadi (build/start sinmaydi).
+ */
+function r2RemotePatterns(): { protocol: "https"; hostname: string }[] {
+  try {
+    const base = process.env.R2_PUBLIC_BASE;
+    if (!base) return [];
+    const u = new URL(base);
+    if (u.protocol !== "https:") return [];
+    return [{ protocol: "https", hostname: u.hostname }];
+  } catch {
+    return [];
+  }
+}
+
 const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -49,6 +65,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "i.ytimg.com" },
+      ...r2RemotePatterns(),
     ],
   },
   async headers() {

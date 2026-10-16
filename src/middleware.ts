@@ -85,8 +85,25 @@ function safeNext(raw: string | null, origin: string): string | null {
 /* ------------------------------------------------------------------ */
 /** To'lov tizimlari (Payme/Click) checkout sahifalari — iframe, form yuborish va connect uchun */
 const PAYMENT_HOSTS = "https://checkout.paycom.uz https://checkout.test.paycom.uz https://my.click.uz";
-/** Rasm manbalari: o'zimiz, data/blob, YouTube muqovalari, Vercel Blob, next.config images.remotePatterns hostlari */
-const IMG_HOSTS = "https://i.ytimg.com https://*.public.blob.vercel-storage.com https://picsum.photos https://images.unsplash.com https://i.pravatar.cc";
+
+/** Env'dagi URL'dan https origin (" https://host" ko'rinishida, CSP ro'yxatiga qo'shish uchun). Yo'q/noto'g'ri bo'lsa bo'sh — build sinmaydi. */
+function envOrigin(value: string | undefined): string {
+  try {
+    if (value) {
+      const u = new URL(value);
+      if (u.protocol === "https:") return ` ${u.origin}`;
+    }
+  } catch {
+    /* noto'g'ri URL — e'tiborsiz */
+  }
+  return "";
+}
+/** Cloudflare R2: ommaviy o'qish bazasi (rasm/video) va presigned PUT endpoint'i (brauzerdan yuklash) */
+const R2_PUBLIC_ORIGIN = envOrigin(process.env.R2_PUBLIC_BASE);
+const R2_ENDPOINT_ORIGIN = envOrigin(process.env.R2_ENDPOINT);
+
+/** Rasm manbalari: o'zimiz, data/blob, YouTube muqovalari, Vercel Blob, R2, next.config images.remotePatterns hostlari */
+const IMG_HOSTS = `https://i.ytimg.com https://*.public.blob.vercel-storage.com https://picsum.photos https://images.unsplash.com https://i.pravatar.cc${R2_PUBLIC_ORIGIN}`;
 
 function nonceValue(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -107,13 +124,13 @@ function buildCsp(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
-    // Video/audio faqat o'z domenimizdan va Vercel Blob'dan (chat videosi) — barcha https emas
-    "media-src 'self' https://*.public.blob.vercel-storage.com",
+    // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
+    `media-src 'self' https://*.public.blob.vercel-storage.com${R2_PUBLIC_ORIGIN}`,
     `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
     "worker-src 'self'",
     "manifest-src 'self'",
-    // Blob hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga yuklanadi
-    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${IS_PROD ? "" : " ws: wss:"}`,
+    // Blob/R2 hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob yoki R2'ga (presigned PUT) yuklanadi
+    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "frame-ancestors 'none'",
