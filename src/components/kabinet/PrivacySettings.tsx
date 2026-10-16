@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { DEFAULT_VISIBILITY, VISIBILITY_FIELDS, VISIBILITY_LEVELS, type VisibilityFieldKey, type VisibilityLevelValue } from "@/lib/constants";
-import { canView, type Viewer } from "@/lib/privacy";
+import { FORCED_ORDER_FIELDS, canView, type Viewer } from "@/lib/privacy";
 import { cn } from "@/lib/utils";
 
 type VisibilityState = Record<VisibilityFieldKey, VisibilityLevelValue>;
@@ -58,6 +58,11 @@ const LEVEL_SHORT: Record<VisibilityLevelValue, string> = {
   orders: "Buyurtmachilar",
   hidden: "Yashirin",
 };
+
+/** Aloqa maydonlari (FORCED_ORDER_FIELDS) uchun platforma qoidasi izohi — public/clients tanlab bo'lmaydi */
+const CONTACT_RULE_NOTE = "Platforma qoidasi: aloqa ma'lumotlari faqat buyurtma qabul qilingach ochiladi";
+/** Aloqa maydonlarida tanlash mumkin bo'lgan darajalar: faqat "Buyurtmachilar" yoki "Yashirin" */
+const CONTACT_LEVELS = VISIBILITY_LEVELS.filter((l) => l.value === "orders" || l.value === "hidden");
 
 /** `short` — telefonda (390px) segment pill ichiga sig'ishi uchun qisqa nom; to'liq nomi aria-label/title'da */
 const PREVIEW_AS: Array<{ key: "guest" | "client" | "order"; label: string; short?: string; viewer: Viewer }> = [
@@ -130,7 +135,10 @@ export function PrivacySettings({
           </span>
           <div>
             <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Maxfiylik</h2>
-            <p className="mt-0.5 text-[13px] text-fg-3">Har bir shaxsiy maydon kimga ko'rinishini o'zingiz hal qilasiz. Siz va admin hamma narsani ko'rasiz.</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">
+              Har bir shaxsiy maydon kimga ko'rinishini o'zingiz hal qilasiz. Aloqa ma'lumotlari (telefon, Telegram, Instagram, email) platforma qoidasiga ko'ra faqat
+              buyurtma qabul qilingach ochiladi. Siz va admin hamma narsani ko'rasiz.
+            </p>
           </div>
         </div>
         <a
@@ -165,6 +173,9 @@ export function PrivacySettings({
           const Icon = FIELD_ICON[f.key];
           const level = v[f.key];
           const has = present[f.key] !== false;
+          // Platforma qoidasi: aloqa maydonlari faqat "orders" yoki "hidden" bo'la oladi
+          const contactOnly = FORCED_ORDER_FIELDS.includes(f.key);
+          const levels = contactOnly ? CONTACT_LEVELS : VISIBILITY_LEVELS;
           return (
             <div key={f.key} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
               <div className="flex min-w-0 items-center gap-3">
@@ -176,11 +187,13 @@ export function PrivacySettings({
                     {f.label}
                     {!has && <span className="ml-2 rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-semibold text-fg-3">to'ldirilmagan</span>}
                   </p>
-                  <p className="mt-0.5 text-[12px] text-fg-3">{VISIBILITY_LEVELS.find((l) => l.value === level)?.description}</p>
+                  <p className="mt-0.5 text-[12px] text-fg-3">
+                    {contactOnly && level !== "hidden" ? CONTACT_RULE_NOTE : VISIBILITY_LEVELS.find((l) => l.value === level)?.description}
+                  </p>
                 </div>
               </div>
               <div className="segment flex w-full shrink-0 sm:w-auto" role="radiogroup" aria-label={`${f.label} — kimga ko'rinadi`}>
-                {VISIBILITY_LEVELS.map((l) => {
+                {levels.map((l) => {
                   const LIcon = LEVEL_ICON[l.value];
                   const active = level === l.value;
                   return (

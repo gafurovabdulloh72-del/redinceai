@@ -14,14 +14,31 @@ import type { Schedule, ServicePackage, Visibility } from "./db/schema";
 /* ------------------------------------------------------------------ */
 export type ResolvedVisibility = Record<VisibilityFieldKey, VisibilityLevelValue>;
 
+/**
+ * Platforma qoidasi: kontakt almashuvi faqat buyurtma orqali. Mutaxassisning telefon,
+ * Telegram, Instagram va email'i buyurtma QABUL QILINGUNGA qadar mijozga ko'rinmaydi —
+ * mutaxassis "hammaga ochiq" tanlagan bo'lsa ham. Shu maydonlar uchun public/clients
+ * darajasi majburan "orders"ga tushiriladi (clamp); "hidden" o'z holicha qoladi.
+ */
+export const FORCED_ORDER_FIELDS: readonly VisibilityFieldKey[] = ["phone", "telegram", "instagram", "email"];
+
+/** Platforma polini qo'llaydi: aloqa maydonlarida public/clients → "orders" (jimgina, xatosiz) */
+export function clampVisibilityLevel(key: VisibilityFieldKey, level: VisibilityLevelValue): VisibilityLevelValue {
+  return FORCED_ORDER_FIELDS.includes(key) && (level === "public" || level === "clients") ? "orders" : level;
+}
+
 /** Bazadagi (qisman) sozlamani standart qiymatlar bilan to'ldiradi; noma'lum qiymatlar e'tiborsiz */
 export function resolveVisibility(v: Visibility | null | undefined): ResolvedVisibility {
   const out: ResolvedVisibility = { ...DEFAULT_VISIBILITY };
-  if (!v || typeof v !== "object") return out;
-  for (const f of VISIBILITY_FIELDS) {
-    const level = (v as Record<string, unknown>)[f.key];
-    if (level === "public" || level === "clients" || level === "orders" || level === "hidden") out[f.key] = level;
+  if (v && typeof v === "object") {
+    for (const f of VISIBILITY_FIELDS) {
+      const level = (v as Record<string, unknown>)[f.key];
+      if (level === "public" || level === "clients" || level === "orders" || level === "hidden") out[f.key] = level;
+    }
   }
+  // Majburiy pol (FORCED_ORDER_FIELDS): bazada eski public/clients qiymat qolgan bo'lsa ham
+  // barcha iste'molchilar (profil sahifa, API DTO, vcard, preview) shu yerda avtomatik qoplanadi.
+  for (const key of FORCED_ORDER_FIELDS) out[key] = clampVisibilityLevel(key, out[key]);
   return out;
 }
 

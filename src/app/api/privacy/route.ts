@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 import { specialists, type Schedule, type Visibility } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { privacyUpdateSchema } from "@/lib/validators";
-import { WEEKDAYS } from "@/lib/constants";
-import { resolveVisibility, tashkentNow, toMinutes } from "@/lib/privacy";
+import { WEEKDAYS, type VisibilityFieldKey } from "@/lib/constants";
+import { clampVisibilityLevel, resolveVisibility, tashkentNow, toMinutes } from "@/lib/privacy";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 async function ownSpecialist(userId: string) {
@@ -63,7 +63,8 @@ export const PUT = handler(async (req) => {
 
   const nextVisibility: Visibility = { ...(sp.visibility ?? {}) };
   for (const [k, v] of Object.entries(input.visibility)) {
-    if (v) (nextVisibility as Record<string, string>)[k] = v;
+    // Platforma qoidasi: aloqa maydonlarida public/clients jimgina "orders"ga tushiriladi (xato qaytarilmaydi)
+    if (v) (nextVisibility as Record<string, string>)[k] = clampVisibilityLevel(k as VisibilityFieldKey, v);
   }
   patch.visibility = nextVisibility;
 

@@ -112,10 +112,12 @@ export const VISIBILITY_LEVELS = [
 ] as const;
 export type VisibilityLevelValue = (typeof VISIBILITY_LEVELS)[number]["value"];
 
+// Aloqa maydonlari (phone/telegram/instagram/email) — platforma qoidasi: faqat buyurtma
+// qabul qilingach ochiladi (privacy.ts dagi FORCED_ORDER_FIELDS clamp'i bilan bir xil qoida)
 export const VISIBILITY_FIELDS = [
-  { key: "phone", label: "Telefon raqam", default: "clients" },
-  { key: "telegram", label: "Telegram", default: "public" },
-  { key: "instagram", label: "Instagram", default: "public" },
+  { key: "phone", label: "Telefon raqam", default: "orders" },
+  { key: "telegram", label: "Telegram", default: "orders" },
+  { key: "instagram", label: "Instagram", default: "orders" },
   { key: "youtube", label: "YouTube", default: "public" },
   { key: "website", label: "Veb-sayt", default: "public" },
   { key: "email", label: "Email", default: "hidden" },
