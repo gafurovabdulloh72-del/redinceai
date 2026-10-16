@@ -39,18 +39,30 @@ export function escapeTelegramHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Bot API manzili — faqat testlarda soxta server bilan almashtiriladi */
+function apiBase(): string {
+  return process.env.TELEGRAM_API_BASE || "https://api.telegram.org";
+}
+
 /**
  * Bot API sendMessage (HTML, havola preview'siz). Hech qachon throw qilmaydi —
  * tarmoq/API xatosi console.error bilan yutiladi, false qaytadi (bildirishnoma oqimi buzilmasin).
+ * `button` berilsa xabar ostida bitta inline tugma (masalan, "Buyurtmani ochish") chiqadi.
  */
-export async function sendTelegram(chatId: string, text: string): Promise<boolean> {
+export async function sendTelegram(chatId: string, text: string, opts: { button?: { text: string; url: string } } = {}): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId || !text) return false;
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`${apiBase()}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: text.slice(0, MAX_TEXT_LEN), parse_mode: "HTML", disable_web_page_preview: true }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text.slice(0, MAX_TEXT_LEN),
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        ...(opts.button ? { reply_markup: { inline_keyboard: [[{ text: opts.button.text, url: opts.button.url }]] } } : {}),
+      }),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {

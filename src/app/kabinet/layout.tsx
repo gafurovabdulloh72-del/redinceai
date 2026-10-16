@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { TermsBanner } from "@/components/auth/TermsBanner";
 import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
+import { TelegramNudge } from "@/components/kabinet/TelegramNudge";
+import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -170,6 +172,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           <div className="print:hidden">
             <TermsBanner />
             {subState && <SubscriptionPill st={subState} />}
+            {/* Mutaxassis Telegram ulamagan bo'lsa — yangi buyurtma xabarini o'tkazib yubormasligi uchun eslatma */}
+            {user.role === "specialist" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge />}
           </div>
           {children}
         </div>

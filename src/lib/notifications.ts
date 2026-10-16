@@ -153,8 +153,10 @@ async function telegramNotification(userId: string, type: NotificationType, titl
   }
   const origin = mailOrigin();
   const link = origin && href && href.startsWith("/") && !href.startsWith("//") ? `${origin}${href}` : null;
-  const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "") + (link ? `\n${link}` : "");
-  await sendTelegram(u.telegramChatId, text);
+  const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "");
+  // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan
+  const buttonText = type.startsWith("order_") ? "Buyurtmani ochish" : type === "message_new" || type === "chat" ? "Xabarni ochish" : "Saytda ochish";
+  await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
 }
 
 /** Javobdan keyin bajarish (Next after()); so'rov kontekstidan tashqarida — oddiy fon promise */
