@@ -9,6 +9,7 @@ import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
 import { UsersPanel } from "@/components/admin/UsersPanel";
 import { AdminBroadcast } from "@/components/admin/AdminBroadcast";
+import { TelegramAdminPanel } from "@/components/admin/TelegramAdminPanel";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -261,6 +262,7 @@ export default async function AdminPage() {
     { id: "sharhlar", label: "Sharhlar" },
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
     { id: "xabar", label: "Ommaviy xabar" },
+    { id: "telegram-bot", label: "Telegram bot" },
     { id: "faollik", label: "So'nggi faollik" },
     { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
     { id: "sozlamalar", label: "Sozlamalar" },
@@ -510,6 +512,20 @@ export default async function AdminPage() {
           description="Ogohlantirish yoki eslatma — tanlangan auditoriyaning saytdagi bildirishnomasiga va Telegramiga (ulanganlarga) boradi; xohlasangiz emailga ham."
         />
         <AdminBroadcast />
+      </section>
+
+      {/* ---------- Telegram bot ---------- */}
+      <section id="telegram-bot" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="Telegram bot"
+          title={
+            <>
+              Botni <span className="accent-serif text-accent">ulash</span> va holati
+            </>
+          }
+          description="Token Vercel'da bo'lsa webhook shu yerdan bitta tugmada o'rnatiladi — qo'lda buyruq yoki maxfiy kalit shart emas."
+        />
+        <TelegramAdminPanel />
       </section>
 
       {/* ---------- So'nggi faollik ---------- */}

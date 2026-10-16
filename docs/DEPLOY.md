@@ -249,17 +249,14 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
 
 1. **Bot yaratish**: Telegram'da [@BotFather](https://t.me/BotFather) → `/newbot` → bot nomi va username
    (masalan `kasbegalari_bot`). BotFather bergan token → `TELEGRAM_BOT_TOKEN`.
-2. **Vercel env** (Production, 1-bo'limdagi jadval): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`
-   (@belgisisiz, masalan `kasbegalari_bot`), `TELEGRAM_WEBHOOK_SECRET` (`openssl rand -hex 32`). Redeploy qiling.
-3. **Webhook o'rnatish** (deploy'dan keyin bir marta):
-   ```bash
-   curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-     -d url="https://kasbegalari.vercel.app/api/telegram/webhook" \
-     -d secret_token="<SECRET>"
-   ```
-   Tekshirish: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` — `url` to'g'ri va
-   `last_error_message` bo'sh bo'lsin. Webhook faqat `x-telegram-bot-api-secret-token` sarlavhasi
-   `TELEGRAM_WEBHOOK_SECRET` ga teng so'rovlarni qabul qiladi (aks holda 401).
+2. **Vercel env** (Production, 1-bo'limdagi jadval): `TELEGRAM_BOT_TOKEN` va `TELEGRAM_BOT_USERNAME`
+   (@belgisisiz, masalan `kasbegalari_bot`). Redeploy qiling. `TELEGRAM_WEBHOOK_SECRET` ixtiyoriy —
+   berilmasa sir `AUTH_SECRET`dan avtomatik hosil qilinadi.
+3. **Webhook o'rnatish** (deploy'dan keyin bir marta): Admin panel → «Telegram bot» bo'limi →
+   **«Webhookni o'rnatish»** tugmasi — server o'zi `setWebhook` chaqiradi va holatni (token to'g'riligi,
+   webhook manzili, oxirgi xato) shu kartada ko'rsatadi. Qo'lda muqobil:
+   `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d url="https://kasbegalari.vercel.app/api/telegram/webhook" -d secret_token="<SECRET>"`.
+   Webhook faqat `x-telegram-bot-api-secret-token` to'g'ri so'rovlarni qabul qiladi (aks holda 401).
 4. **Ulash oqimi**: Kabinet → Profil → «Telegram bildirishnomalari» → «Telegramga ulash» → bot ochiladi →
    «Start». Ulash kodi 15 daqiqa amal qiladi (imzolangan, bazada saqlanmaydi); bitta chat faqat bitta hisobga
    ulanadi — yangi hisob ulansa eskisidan avtomatik uziladi. Uzish: kartadagi «Uzish» tugmasi yoki botda `/stop`.

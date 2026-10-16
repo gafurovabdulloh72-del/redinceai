@@ -77,18 +77,53 @@ export async function sendTelegram(chatId: string, text: string, opts: { button?
 }
 
 /** Jarayon bo'yicha bir marta (dev'da modul qayta yuklanadi — globalThis'da, auth.ts uslubi) */
-const keyFlag = globalThis as { __redinceTgLinkKey?: Buffer };
+const keyFlag = globalThis as { __redinceTgKeys?: Map<string, Buffer> };
+
+/** Sessiya kaliti manbasidan HKDF bilan maqsadga xos kalit (har "info" uchun alohida) */
+function derivedKey(info: string): Buffer {
+  const cache = (keyFlag.__redinceTgKeys ??= new Map());
+  const hit = cache.get(info);
+  if (hit) return hit;
+  const base = process.env.AUTH_SECRET || process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || "dev-only-insecure-secret-change-me-please-123456";
+  const key = Buffer.from(hkdfSync("sha256", base, "redince", info, 32));
+  cache.set(info, key);
+  return key;
+}
 
 /**
  * Ulash kodi imzo kaliti — sessiya kaliti manbasidan HKDF bilan alohida hosil qilinadi
  * (auth.ts secret() bilan bir xil manba, lekin boshqa info — kodni cookie sifatida ishlatib bo'lmaydi).
  */
 function linkKey(): Buffer {
-  if (keyFlag.__redinceTgLinkKey) return keyFlag.__redinceTgLinkKey;
-  const base = process.env.AUTH_SECRET || process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || "dev-only-insecure-secret-change-me-please-123456";
-  const key = Buffer.from(hkdfSync("sha256", base, "redince", "telegram-link-v1", 32));
-  keyFlag.__redinceTgLinkKey = key;
-  return key;
+  return derivedKey("telegram-link-v1");
+}
+
+/**
+ * Webhook siri: TELEGRAM_WEBHOOK_SECRET berilgan bo'lsa o'sha; bo'lmasa AUTH_SECRET'dan
+ * avtomatik hosil qilinadi — alohida env shart emas (setWebhook ham, tekshiruv ham shu qiymatni ishlatadi).
+ */
+export function telegramWebhookSecret(): string {
+  const env = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (env) return env;
+  return derivedKey("telegram-webhook-v1").toString("hex");
+}
+
+/** Bot API chaqiruvi (umumiy): natija json yoki null (tarmoq xatosi — log, throw yo'q) */
+export async function telegramApi<T = unknown>(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: T; description?: string } | null> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+      signal: AbortSignal.timeout(10000),
+    });
+    return (await res.json()) as { ok: boolean; result?: T; description?: string };
+  } catch (e) {
+    console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 function signPart(input: string): string {

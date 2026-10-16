@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { sendTelegram, verifyTelegramLinkCode } from "@/lib/telegram";
+import { sendTelegram, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -23,7 +23,9 @@ const HELP_TEXT =
   "Uzish: /stop";
 
 function secretOk(req: Request): boolean {
-  const expected = process.env.TELEGRAM_WEBHOOK_SECRET || "";
+  // Sir env'dan yoki AUTH_SECRET'dan avtomatik (telegramWebhookSecret) — admin paneldagi
+  // "Webhookni o'rnatish" ham aynan shu qiymat bilan setWebhook qiladi
+  const expected = process.env.TELEGRAM_BOT_TOKEN ? telegramWebhookSecret() : "";
   const got = req.headers.get("x-telegram-bot-api-secret-token") || "";
   if (!expected || got.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(got), Buffer.from(expected));
