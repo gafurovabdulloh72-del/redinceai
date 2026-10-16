@@ -44,14 +44,22 @@ function apiBase(): string {
   return process.env.TELEGRAM_API_BASE || "https://api.telegram.org";
 }
 
+/** Inline tugma: `url` — havola, `data` — callback_data (webhook callback_query'da qaytadi, ≤64 bayt) */
+export interface TelegramButton {
+  text: string;
+  url?: string;
+  data?: string;
+}
+
 /**
  * Bot API sendMessage (HTML, havola preview'siz). Hech qachon throw qilmaydi —
  * tarmoq/API xatosi console.error bilan yutiladi, false qaytadi (bildirishnoma oqimi buzilmasin).
- * `button` berilsa xabar ostida bitta inline tugma (masalan, "Buyurtmani ochish") chiqadi.
+ * `button` — xabar ostida bitta havola tugmasi; `keyboard` — bir nechta qator (url yoki callback tugmalari).
  */
-export async function sendTelegram(chatId: string, text: string, opts: { button?: { text: string; url: string } } = {}): Promise<boolean> {
+export async function sendTelegram(chatId: string, text: string, opts: { button?: { text: string; url: string }; keyboard?: TelegramButton[][] } = {}): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId || !text) return false;
+  const keyboard: TelegramButton[][] | null = opts.keyboard ?? (opts.button ? [[{ text: opts.button.text, url: opts.button.url }]] : null);
   try {
     const res = await fetch(`${apiBase()}/bot${token}/sendMessage`, {
       method: "POST",
@@ -61,7 +69,9 @@ export async function sendTelegram(chatId: string, text: string, opts: { button?
         text: text.slice(0, MAX_TEXT_LEN),
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        ...(opts.button ? { reply_markup: { inline_keyboard: [[{ text: opts.button.text, url: opts.button.url }]] } } : {}),
+        ...(keyboard
+          ? { reply_markup: { inline_keyboard: keyboard.map((row) => row.map((b) => (b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))) } }
+          : {}),
       }),
       signal: AbortSignal.timeout(8000),
     });

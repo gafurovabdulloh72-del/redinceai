@@ -5,6 +5,7 @@ import { orderEvents, orders, payments, specialists, type Order, type OrderEvent
 import { ApiError } from "@/lib/api";
 import type { PaymentProvider } from "@/lib/constants";
 import { notify, notifyAdmins } from "@/lib/notifications";
+import { notifyAdminsManualPending } from "@/lib/manual-approval";
 import { audit } from "@/lib/security/audit";
 import { formatDate, formatPrice, uid } from "@/lib/utils";
 import { isProviderConfigured, paymentsEnv } from "./config";
@@ -196,23 +197,31 @@ export async function createCheckout(opts: { order: OrderWithParties; provider: 
 }
 
 /** Qo'lda o'tkazma: mijoz "To'ladim" bosdi → pending, admin tasdiqlaydi */
-export async function markManualSent(payment: Payment, actorId: string, req?: Request): Promise<Payment> {
+export async function markManualSent(payment: Payment, actorId: string, req?: Request, receiptUrl?: string | null): Promise<Payment> {
   if (payment.provider !== "manual") throw new ApiError(400, "Bu to'lov provayder orqali tasdiqlanadi");
   if (payment.state === "pending") return payment;
   if (payment.state !== "created") throw new ApiError(400, "To'lov holati o'zgartirib bo'lmaydi");
   const [row] = await db
     .update(payments)
-    .set({ state: "pending", providerTxnId: payment.providerTxnId ?? `manual-${payment.id.slice(0, 8)}`, updatedAt: new Date() })
+    .set({
+      state: "pending",
+      providerTxnId: payment.providerTxnId ?? `manual-${payment.id.slice(0, 8)}`,
+      meta: { ...payment.meta, ...(receiptUrl ? { receiptUrl } : {}) },
+      updatedAt: new Date(),
+    })
     .where(eq(payments.id, payment.id))
     .returning();
   const order = await loadOrderWithParties(payment.orderId);
-  await notifyAdmins(
-    "payment_pending",
-    "Qo'lda o'tkazma tasdiqlashni kutmoqda",
-    order ? `${order.client.name} — «${order.title}» uchun ${formatPrice(payment.amount)} o'tkazganini bildirdi.` : null,
-    "/admin#tolovlar",
-  );
-  await audit(actorId, "payment_created", { targetType: "payment", targetId: payment.id, meta: { manualSent: true } }, req);
+  await notifyAdminsManualPending({
+    kind: "pay",
+    type: "payment_pending",
+    id: payment.id,
+    title: "Qo'lda o'tkazma tasdiqlashni kutmoqda",
+    body: order ? `${order.client.name} — «${order.title}» uchun ${formatPrice(payment.amount)} o'tkazganini bildirdi.` : `${formatPrice(payment.amount)} o'tkazma tasdiqlash kutilmoqda.`,
+    href: "/admin#tolovlar",
+    receiptUrl,
+  });
+  await audit(actorId, "payment_created", { targetType: "payment", targetId: payment.id, meta: { manualSent: true, receipt: Boolean(receiptUrl) } }, req);
   await recordOrderEvent(payment.orderId, actorId, "payment", { note: `Mijoz o'tkazma yuborganini bildirdi (${formatPrice(payment.amount)}) — admin tasdig'i kutilmoqda` });
   return row;
 }

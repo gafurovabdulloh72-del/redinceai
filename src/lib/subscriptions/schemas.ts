@@ -14,6 +14,8 @@ export const subscriptionCheckoutSchema = z.object({
 
 export const invoiceActionSchema = z.object({
   action: z.enum(["sent", "cancel"], { errorMap: () => ({ message: "Amal noto'g'ri" }) }),
+  /** «To'ladim»da ixtiyoriy chek skrinshoti (/api/upload natijasi) — admin tasdiqlashni tezlashtiradi */
+  receiptUrl: z.string().trim().max(500).optional().or(z.literal("")),
 });
 
 const note = z.string().trim().max(300, "Izoh 300 belgidan oshmasin").optional().or(z.literal(""));

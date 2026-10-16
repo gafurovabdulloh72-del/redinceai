@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, ArrowUpRight, Check, CheckCircle2, Copy, Hourglass, ShieldCheck } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { PROVIDER_ICON } from "@/components/payments/PayButton";
+import { ReceiptUpload } from "@/components/payments/ReceiptUpload";
 import { PAYMENT_PROVIDERS, type PaymentProvider } from "@/lib/constants";
 import type { PaymentDto } from "@/lib/payments/dto";
 import { cn, formatPrice } from "@/lib/utils";
@@ -23,6 +24,7 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sent, setSent] = useState(payment.state === "pending");
+  const [receiptUrl, setReceiptUrl] = useState("");
 
   useEffect(() => {
     if (!copied) return;
@@ -80,7 +82,7 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
     try {
       const r = await resolve();
       if (!r) return;
-      const res = await fetch(`/api/payments/${r.paymentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sent" }) });
+      const res = await fetch(`/api/payments/${r.paymentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sent", receiptUrl }) });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ state: string }> | null;
       if (!json || !json.ok) {
         setError(json?.error ?? "Serverda kutilmagan xatolik");
@@ -190,6 +192,8 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
             <p className="mt-3 text-[12px] text-fg-3">
               Izohga buyurtma raqamini yozing: <span className="font-mono text-fg-2">{payment.orderId.slice(0, 8)}</span>
             </p>
+
+            {!sent && <ReceiptUpload value={receiptUrl} onChange={setReceiptUrl} disabled={busy} />}
 
             {sent ? (
               <div className="mt-5 flex items-start gap-3 rounded-[18px] bg-warning-soft px-4 py-3.5 text-[13px] text-fg">

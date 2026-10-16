@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle, ArrowUpRight, Check, CheckCircle2, Copy, Hourglass, ShieldCheck, Sparkles } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { PROVIDER_ICON } from "@/components/payments/PayButton";
+import { ReceiptUpload } from "@/components/payments/ReceiptUpload";
 import { PAYMENT_PROVIDERS, type PaymentProvider } from "@/lib/constants";
 import { invoiceNumber, type InvoiceView, type PlanView } from "@/lib/subscriptions/labels";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
@@ -67,6 +68,7 @@ export function SubscriptionCheckout({
     openManual ? { id: openManual.id, amount: openManual.amount, months: openManual.months } : null,
   );
   const [copied, setCopied] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState("");
 
   useEffect(() => {
     if (!copied) return;
@@ -125,7 +127,7 @@ export function SubscriptionCheckout({
       const res = await fetch(`/api/subscription/invoices/${encodeURIComponent(manualInvoice.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sent" }),
+        body: JSON.stringify({ action: "sent", receiptUrl }),
       });
       const json = (await res.json().catch(() => null)) as ApiResponse<InvoiceView> | null;
       if (!json || !json.ok) {
@@ -282,6 +284,7 @@ export function SubscriptionCheckout({
             <p className="mt-3 text-[12px] text-fg-3">
               Izohga hisob raqamini yozing: <span className="font-mono text-fg-2">{invoiceNumber(manualInvoice.id)}</span>
             </p>
+            <ReceiptUpload value={receiptUrl} onChange={setReceiptUrl} disabled={busy} />
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="inline-flex items-center gap-1.5 text-[12px] text-fg-3">
                 <ShieldCheck size={14} className="text-success" aria-hidden="true" /> Tasdiqlangach bildirishnoma keladi

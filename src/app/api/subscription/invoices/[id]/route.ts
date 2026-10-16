@@ -5,6 +5,8 @@ import { specialists } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { canViewInvoice, cancelInvoice, loadInvoice, markInvoiceSent, toInvoiceView } from "@/lib/subscriptions/billing";
 import { invoiceActionSchema } from "@/lib/subscriptions/schemas";
+import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
+import { IMAGE_URL_RE } from "@/components/chat/attachments";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,12 +35,19 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   // Admin ham sinov uchun o'z hisobida «To'ladim»/bekor qilishni bajara oladi
   const session = await requireSession(["specialist", "admin"]);
   const { id } = await ctx.params;
-  const { action } = await parseBody(req, invoiceActionSchema);
+  const input = await parseBody(req, invoiceActionSchema);
+  const action = input.action;
   await rateLimit(`subscriptionInvoice:${session.sub}`, 30, 60 * 60 * 1000);
   const inv = await ownInvoice(id, session);
 
   if (action === "sent") {
-    const row = await markInvoiceSent(inv, session.sub, req);
+    // Ixtiyoriy chek skrinshoti: faqat rasm va faqat shu foydalanuvchi yuklagan fayl
+    const receiptUrl = input.receiptUrl || null;
+    if (receiptUrl) {
+      if (!IMAGE_URL_RE.test(receiptUrl)) throw new ApiError(422, "Chek rasm bo'lishi kerak (JPG, PNG, WEBP)", { receiptUrl: "Chek rasm bo'lishi kerak" });
+      await assertOwnUploads(session.sub, [receiptUrl], [], "receiptUrl");
+    }
+    const row = await markInvoiceSent(inv, session.sub, req, receiptUrl);
     return ok(toInvoiceView(row));
   }
   if (inv.state === "cancelled") return ok(toInvoiceView(inv));

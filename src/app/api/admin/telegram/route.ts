@@ -58,7 +58,8 @@ export const POST = handler(async (req) => {
   const res = await telegramApi("setWebhook", {
     url,
     secret_token: telegramWebhookSecret(),
-    allowed_updates: ["message"],
+    // callback_query — qo'lda o'tkazmani Telegramdan bir bosishda tasdiqlash tugmalari uchun
+    allowed_updates: ["message", "callback_query"],
   });
   if (!res) throw new ApiError(502, "Telegram API'ga ulanib bo'lmadi — birozdan so'ng qayta urinib ko'ring");
   if (!res.ok) throw new ApiError(502, `Telegram rad etdi: ${res.description ?? "noma'lum xato"}`);

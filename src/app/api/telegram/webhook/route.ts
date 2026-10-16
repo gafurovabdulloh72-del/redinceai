@@ -2,7 +2,15 @@ import { timingSafeEqual } from "node:crypto";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { sendTelegram, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
+import { ApiError } from "@/lib/api";
+import { notify } from "@/lib/notifications";
+import { audit } from "@/lib/security/audit";
+import { loadPaymentDetail } from "@/lib/payments/dto";
+import { cancelPayment, markPaid, orderHref } from "@/lib/payments/service";
+import { cancelInvoice, invoiceHref, loadInvoice, markInvoicePaid } from "@/lib/subscriptions/billing";
+import { invoiceNumber } from "@/lib/subscriptions/labels";
+import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
+import { formatPrice } from "@/lib/utils";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -15,6 +23,9 @@ import { sendTelegram, telegramWebhookSecret, verifyTelegramLinkCode } from "@/l
  *   /start <kod> — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
  *   /stop        — shu chatga ulangan hisobdan uzish
  *   boshqa matn  — qisqa yordam
+ *
+ * callback_query (`mp:<ok|no>:<p|s>:<id>`) — qo'lda o'tkazmani ADMIN bir bosishda tasdiqlashi/rad etishi
+ * (lib/manual-approval.ts yuborgan tugmalar). Chat admin hisobiga ulanganligi majburiy tekshiriladi.
  */
 
 const HELP_TEXT =
@@ -37,6 +48,104 @@ interface TelegramUpdate {
     text?: unknown;
     chat?: { id?: unknown; type?: unknown };
   };
+  callback_query?: {
+    id?: unknown;
+    data?: unknown;
+    message?: { message_id?: unknown; text?: unknown; chat?: { id?: unknown } };
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Qo'lda o'tkazmani Telegramdan bir bosishda tasdiqlash / rad etish   */
+/* ------------------------------------------------------------------ */
+
+/** Buyurtma to'lovi bo'yicha amal — admin route'dagi confirm/cancel bilan bir xil qoidalar */
+async function actOnPayment(admin: { id: string; name: string }, confirm: boolean, id: string): Promise<string> {
+  const p = await loadPaymentDetail(id);
+  if (!p) throw new ApiError(404, "To'lov topilmadi");
+  if (p.provider !== "manual") throw new ApiError(400, "Bu to'lov provayder orqali tasdiqlanadi");
+  if (p.state === "paid" || p.state === "released") return "Allaqachon tasdiqlangan ✓";
+  if (p.state === "cancelled" || p.state === "refunded") return "Allaqachon rad etilgan";
+  if (confirm) {
+    await markPaid(p.id, { actorId: admin.id, providerTxnId: p.providerTxnId ?? `manual-${p.id.slice(0, 8)}` });
+    await audit(admin.id, "admin_payment", { targetType: "payment", targetId: p.id, meta: { action: "confirm", via: "telegram" } });
+    return `✅ Tasdiqlandi — ${formatPrice(p.amount)} eskrouga qabul qilindi`;
+  }
+  await cancelPayment(p.id, 4, admin.id);
+  await audit(admin.id, "admin_payment", { targetType: "payment", targetId: p.id, meta: { action: "cancel", via: "telegram" } });
+  await notify(
+    p.clientId,
+    "payment_cancelled",
+    "O'tkazma tasdiqlanmadi",
+    `«${p.order.title}» — ${formatPrice(p.amount)} o'tkazmasi administrator tomonidan topilmadi yoki rad etildi. Pul yuborgan bo'lsangiz qo'llab-quvvatlashga yozing.`,
+    orderHref(p.orderId),
+  );
+  return "❌ Rad etildi — mijozga xabar yuborildi";
+}
+
+/** Obuna hisobi bo'yicha amal — admin obuna route'i bilan bir xil qoidalar */
+async function actOnInvoice(admin: { id: string; name: string }, confirm: boolean, id: string): Promise<string> {
+  const inv = await loadInvoice(id);
+  if (!inv) throw new ApiError(404, "Obuna hisobi topilmadi");
+  if (inv.provider !== "manual") throw new ApiError(400, "Bu hisob provayder orqali tasdiqlanadi");
+  if (inv.state === "paid") return "Allaqachon tasdiqlangan ✓";
+  if (inv.state === "cancelled" || inv.state === "refunded") return "Allaqachon rad etilgan";
+  if (confirm) {
+    await markInvoicePaid(inv.id, { actorId: admin.id, providerTxnId: inv.providerTxnId ?? `manual-${inv.id}`, note: "Telegram orqali tasdiqlandi" });
+    await audit(admin.id, "admin_subscription", { targetType: "subscription_invoice", targetId: inv.id, meta: { action: "confirm", via: "telegram", amount: inv.amount, months: inv.months } });
+    return `✅ Tasdiqlandi — ${inv.months} oylik obuna faollashtirildi`;
+  }
+  await cancelInvoice(inv.id, { reason: 4 });
+  await audit(admin.id, "admin_subscription", { targetType: "subscription_invoice", targetId: inv.id, meta: { action: "cancel", via: "telegram" } });
+  if (inv.userId) {
+    await notify(
+      inv.userId,
+      "payment_cancelled",
+      "Obuna o'tkazmasi tasdiqlanmadi",
+      `${invoiceNumber(inv.id)} — ${formatPrice(inv.amount)} o'tkazmasi administrator tomonidan topilmadi yoki rad etildi. Pul yuborgan bo'lsangiz qo'llab-quvvatlashga yozing.`,
+      invoiceHref(inv.id),
+    );
+  }
+  return "❌ Rad etildi — mutaxassisga xabar yuborildi";
+}
+
+/** Inline tugma bosildi: faqat admin hisobiga ulangan chat; natija xabar ostiga yozilib, tugmalar olib tashlanadi */
+async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>): Promise<void> {
+  const cbId = cb.id != null ? String(cb.id) : "";
+  const data = typeof cb.data === "string" ? cb.data : "";
+  const chatId = cb.message?.chat?.id != null ? String(cb.message.chat.id) : "";
+  const msgId = typeof cb.message?.message_id === "number" ? cb.message.message_id : null;
+  const answer = (text: string) => telegramApi("answerCallbackQuery", { callback_query_id: cbId, text: text.slice(0, 190) });
+
+  const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
+  if (!m || !chatId) {
+    await answer("Noma'lum amal");
+    return;
+  }
+  const admin = await db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true } });
+  if (!admin || admin.role !== "admin" || admin.isBanned) {
+    await answer("Bu tugma faqat administrator uchun");
+    return;
+  }
+
+  let result: string;
+  try {
+    result = m[2] === "p" ? await actOnPayment(admin, m[1] === "ok", m[3]) : await actOnInvoice(admin, m[1] === "ok", m[3]);
+  } catch (e) {
+    await answer(e instanceof ApiError ? e.message : "Xatolik — admin panelda ko'rib chiqing");
+    return;
+  }
+  await answer(result);
+  // Asl xabar ostiga natijani yozamiz — tugmalar yo'qoladi (ikkinchi marta bosib bo'lmaydi)
+  if (msgId) {
+    const orig = typeof cb.message?.text === "string" ? cb.message.text : "";
+    await telegramApi("editMessageText", {
+      chat_id: chatId,
+      message_id: msgId,
+      text: `${escapeTelegramHtml(orig)}\n\n<b>${escapeTelegramHtml(result)}</b> · ${escapeTelegramHtml(admin.name)}`,
+      parse_mode: "HTML",
+    });
+  }
 }
 
 async function handleStart(chatId: string, code: string): Promise<void> {
@@ -71,6 +180,10 @@ export async function POST(req: Request) {
   if (!secretOk(req)) return Response.json({ ok: false }, { status: 401 });
   try {
     const update = (await req.json()) as TelegramUpdate;
+    if (update?.callback_query) {
+      await handleCallback(update.callback_query);
+      return Response.json({ ok: true });
+    }
     const msg = update?.message;
     const chatId = msg?.chat?.id != null ? String(msg.chat.id) : "";
     const text = typeof msg?.text === "string" ? msg.text.trim() : "";

@@ -6,6 +6,7 @@ import { specialists, subscriptionInvoices, type SubscriptionInvoice } from "@/l
 import { ApiError } from "@/lib/api";
 import { SUBSCRIPTION_INVOICE_PREFIX, SUBSCRIPTION_PLANS, type PaymentProvider } from "@/lib/constants";
 import { notify, notifyAdmins } from "@/lib/notifications";
+import { notifyAdminsManualPending } from "@/lib/manual-approval";
 import { getManualCard } from "@/lib/payments/settings";
 import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings, type PlatformSettings } from "@/lib/payments/settings";
@@ -289,15 +290,20 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
   return row;
 }
 
-/** O'tkazma: mutaxassis «To'ladim» bosdi → 'pending', adminlarga xabar */
-export async function markInvoiceSent(invoice: SubscriptionInvoice, actorId: string, req?: Request): Promise<SubscriptionInvoice> {
+/** O'tkazma: mutaxassis «To'ladim» bosdi → 'pending', adminlarga Telegramda bir bosishda tasdiqlash tugmalari bilan xabar */
+export async function markInvoiceSent(invoice: SubscriptionInvoice, actorId: string, req?: Request, receiptUrl?: string | null): Promise<SubscriptionInvoice> {
   if (invoice.provider !== "manual") throw new ApiError(400, "Bu hisob provayder orqali tasdiqlanadi");
   if (invoice.state === "pending") return invoice;
   if (invoice.state !== "created") throw new ApiError(400, "Hisob holatini o'zgartirib bo'lmaydi");
   const now = new Date();
   const [row] = await db
     .update(subscriptionInvoices)
-    .set({ state: "pending", providerTxnId: invoice.providerTxnId ?? `manual-${invoice.id}`, meta: { ...invoice.meta, sentAt: now.getTime() }, updatedAt: now })
+    .set({
+      state: "pending",
+      providerTxnId: invoice.providerTxnId ?? `manual-${invoice.id}`,
+      meta: { ...invoice.meta, sentAt: now.getTime(), ...(receiptUrl ? { receiptUrl } : {}) },
+      updatedAt: now,
+    })
     .where(and(eq(subscriptionInvoices.id, invoice.id), eq(subscriptionInvoices.state, "created")))
     .returning();
   if (!row) {
@@ -308,13 +314,16 @@ export async function markInvoiceSent(invoice: SubscriptionInvoice, actorId: str
   const sp = row.specialistId
     ? await db.query.specialists.findFirst({ where: eq(specialists.id, row.specialistId), columns: { id: true }, with: { user: { columns: { name: true } } } })
     : null;
-  await notifyAdmins(
-    "subscription_pending",
-    "Obuna o'tkazmasi tasdiqlashni kutmoqda",
-    `${sp?.user.name ?? "Mutaxassis"} — ${row.months} oylik obuna uchun ${formatPrice(row.amount)} o'tkazganini bildirdi (${invoiceNumber(row.id)}).`,
-    "/admin/obunalar?status=pending",
-  );
-  await audit(actorId, "subscription_created", { targetType: "subscription_invoice", targetId: row.id, meta: { manualSent: true, amount: row.amount, months: row.months } }, req);
+  await notifyAdminsManualPending({
+    kind: "sub",
+    type: "subscription_pending",
+    id: row.id,
+    title: "Obuna o'tkazmasi tasdiqlashni kutmoqda",
+    body: `${sp?.user.name ?? "Mutaxassis"} — ${row.months} oylik obuna uchun ${formatPrice(row.amount)} o'tkazganini bildirdi (${invoiceNumber(row.id)}).`,
+    href: "/admin/obunalar?status=pending",
+    receiptUrl,
+  });
+  await audit(actorId, "subscription_created", { targetType: "subscription_invoice", targetId: row.id, meta: { manualSent: true, amount: row.amount, months: row.months, receipt: Boolean(receiptUrl) } }, req);
   return row;
 }
 
