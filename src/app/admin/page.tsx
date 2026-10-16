@@ -10,6 +10,7 @@ import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel"
 import { UsersPanel } from "@/components/admin/UsersPanel";
 import { AdminBroadcast } from "@/components/admin/AdminBroadcast";
 import { TelegramAdminPanel } from "@/components/admin/TelegramAdminPanel";
+import { R2AdminPanel } from "@/components/admin/R2AdminPanel";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -263,6 +264,7 @@ export default async function AdminPage() {
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
     { id: "xabar", label: "Ommaviy xabar" },
     { id: "telegram-bot", label: "Telegram bot" },
+    { id: "r2-saqlash", label: "R2 saqlash" },
     { id: "faollik", label: "So'nggi faollik" },
     { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
     { id: "sozlamalar", label: "Sozlamalar" },
@@ -526,6 +528,20 @@ export default async function AdminPage() {
           description="Token Vercel'da bo'lsa webhook shu yerdan bitta tugmada o'rnatiladi — qo'lda buyruq yoki maxfiy kalit shart emas."
         />
         <TelegramAdminPanel />
+      </section>
+
+      {/* ---------- R2 saqlash ---------- */}
+      <section id="r2-saqlash" className="mt-14 scroll-mt-28 sm:mt-16">
+        <SectionHeading
+          eyebrow="R2 saqlash"
+          title={
+            <>
+              Fayllarni <span className="accent-serif text-accent">arzon saqlash</span>
+            </>
+          }
+          description="Cloudflare R2 ulansa yangi rasm/video fayllar trafigi bepul saqlashga boradi. Ixtiyoriy — ulanmagan bo'lsa sayt hozirgi usulda ishlayveradi."
+        />
+        <R2AdminPanel />
       </section>
 
       {/* ---------- So'nggi faollik ---------- */}
