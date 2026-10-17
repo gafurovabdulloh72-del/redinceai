@@ -396,7 +396,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
       {/* ================= HERO ================= */}
       <section className="card animate-fade-up overflow-hidden !rounded-[28px] sm:!rounded-[32px]">
-        <div className="relative h-40 overflow-hidden bg-surface-3 sm:h-60">
+        {/* Balandlik 4:1 nisbatdan — kesish oynasida (ImageCropper) moslangan muqova qayta kesilmasin */}
+        <div className="relative h-40 overflow-hidden bg-surface-3 sm:h-auto sm:max-h-[360px] sm:aspect-[4/1]">
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
           <div
             className="absolute inset-0 opacity-70 dark:opacity-50"

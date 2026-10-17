@@ -1522,7 +1522,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Muqova ============ */}
-        <Section id="pf-muqova" next={nextOf("pf-muqova")} icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm (tavsiya: 1600×600)">
+        <Section id="pf-muqova" next={nextOf("pf-muqova")} icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm — yuklashda kesish oynasi 4:1 nisbatga o'zi moslaydi">
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
             <div>
               <label htmlFor="pf-cover" className="field-label">
@@ -1558,7 +1558,7 @@ export function ProfileForm({
               {cropCover && (
                 <ImageCropper
                   file={cropCover}
-                  aspect={8 / 3}
+                  aspect={4}
                   outWidth={1600}
                   title="Muqovani moslang"
                   onCancel={() => setCropCover(null)}
