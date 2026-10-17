@@ -36,7 +36,7 @@ export default async function HelpCenterPage({ searchParams }: { searchParams: P
         <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px]">
           Qanday <span className="accent-serif text-accent">yordam</span> beraylik?
         </h1>
-        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">Buyurtma, eskrou, obuna, pul chiqarish va xavfsizlik bo&apos;yicha qisqa va aniq javoblar.</p>
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">Buyurtma va eskrou, obuna, jamoalar va kanallar, vakansiyalar, pul chiqarish va xavfsizlik bo&apos;yicha qisqa va aniq javoblar.</p>
         <div className="mx-auto mt-7 max-w-2xl text-left">
           <HelpSearch index={index} initialQuery={q} />
         </div>
