@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, Search, ShieldCheck, Smartphone, TimerReset, UserRound, Wand2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, Search, ShieldCheck, Smartphone, TimerReset, UserRound, UserSearch, Wand2 } from "lucide-react";
 import { PasswordField } from "./PasswordField";
 import { Button, Spinner } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -14,6 +14,8 @@ import { cn, formatPrice, safeInternalPath } from "@/lib/utils";
 
 type Mode = "login" | "register";
 type Role = "client" | "specialist";
+/** Maqsad: rolga xaritalanadi va ro'yxatdan keyin qayerga olib borishni belgilaydi */
+type Intent = "service" | "order" | "job" | "hire";
 type Gender = "" | "male" | "female";
 
 interface AuthFormProps {
@@ -22,6 +24,8 @@ interface AuthFormProps {
   next?: string;
   /** Ro'yxatdan o'tishda boshlang'ich rol */
   defaultRole?: Role;
+  /** Boshlang'ich maqsad kartasi (?intent=) */
+  defaultIntent?: Intent;
   /** Nega kirish so'ralmoqda: ?reason=review|order|expired (A23) */
   reason?: string;
   /** Mutaxassis obunasi (admin sozlamasi) — ro'yxatdan o'tishda eslatma uchun */
@@ -41,10 +45,14 @@ interface ApiFail {
 /** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11); production bundle'ga hech qachon kirmaydi */
 const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1" && process.env.NODE_ENV !== "production";
 
-const ROLE_OPTIONS: { value: Role; title: Tr; subtitle: Tr; icon: typeof Search }[] = [
-  { value: "client", title: AUTH.role.clientTitle, subtitle: AUTH.role.clientSubtitle, icon: Search },
-  { value: "specialist", title: AUTH.role.specialistTitle, subtitle: AUTH.role.specialistSubtitle, icon: Clapperboard },
+/** To'rtta yo'l: "mutaxassis/mijoz" o'rniga foydalanuvchi nima qilmoqchi ekanini tanlaydi */
+const INTENT_OPTIONS: { value: Intent; role: Role; title: Tr; subtitle: Tr; icon: typeof Search; dest: string | null }[] = [
+  { value: "service", role: "specialist", title: AUTH.role.serviceTitle, subtitle: AUTH.role.serviceSub, icon: Clapperboard, dest: "/kabinet/profil?welcome=1" },
+  { value: "order", role: "client", title: AUTH.role.orderTitle, subtitle: AUTH.role.orderSub, icon: Search, dest: null },
+  { value: "job", role: "client", title: AUTH.role.jobTitle, subtitle: AUTH.role.jobSub, icon: Briefcase, dest: "/kabinet/rezyume?welcome=1" },
+  { value: "hire", role: "client", title: AUTH.role.hireTitle, subtitle: AUTH.role.hireSub, icon: UserSearch, dest: "/vakansiyalar/yangi" },
 ];
+const INTENT_BY_VALUE = Object.fromEntries(INTENT_OPTIONS.map((o) => [o.value, o])) as Record<Intent, (typeof INTENT_OPTIONS)[number]>;
 
 const DEMO_ACCOUNTS: { label: Tr; hint: Tr; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
   ? [
@@ -76,7 +84,7 @@ function contextFor(til: Locale, mode: Mode, next?: string, reason?: string): { 
   return null;
 }
 
-export function AuthForm({ mode, next, defaultRole = "client", reason, subscription }: AuthFormProps) {
+export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, reason, subscription }: AuthFormProps) {
   const til = useLocale();
   const router = useRouter();
   const isRegister = mode === "register";
@@ -88,7 +96,8 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<Gender>("");
-  const [role, setRole] = useState<Role>(defaultRole);
+  const [intent, setIntent] = useState<Intent>(defaultIntent ?? (defaultRole === "specialist" ? "service" : "order"));
+  const role: Role = INTENT_BY_VALUE[intent].role;
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,7 +189,9 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
         setLoading(false);
         return;
       }
-      const dest = isRegister && json.data.role === "specialist" ? "/kabinet/profil?welcome=1" : target || "/kabinet";
+      // Ro'yxatdan keyin: xizmat ko'rsatuvchi — profil sozlash; ish qidiruvchi — rezyume; ish beruvchi — vakansiya; buyurtmachi — kelgan joyi yoki kabinet
+      const intentDest = isRegister ? INTENT_BY_VALUE[intent].dest : null;
+      const dest = isRegister && json.data.role === "specialist" ? "/kabinet/profil?welcome=1" : intentDest && !target ? intentDest : target || intentDest || "/kabinet";
       router.push(dest);
       router.refresh();
       // loading holatini sahifa almashguncha saqlaymiz
@@ -418,13 +429,13 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
       )}
 
       <form onSubmit={onSubmit} noValidate className="space-y-4">
-        {/* ---------- Rol tanlash (faqat ro'yxatdan o'tish) ---------- */}
+        {/* ---------- Maqsad tanlash (faqat ro'yxatdan o'tish): to'rt yo'l, rolga xaritalanadi ---------- */}
         {isRegister && (
           <fieldset>
-            <legend className="field-label">{tr(til, AUTH.role.legend)}</legend>
-            <div role="radiogroup" aria-label={tr(til, AUTH.role.aria)} className="grid grid-cols-2 gap-3">
-              {ROLE_OPTIONS.map((opt) => {
-                const active = role === opt.value;
+            <legend className="field-label">{tr(til, AUTH.role.intentLegend)}</legend>
+            <div role="radiogroup" aria-label={tr(til, AUTH.role.intentAria)} className="grid grid-cols-2 gap-2.5">
+              {INTENT_OPTIONS.map((opt) => {
+                const active = intent === opt.value;
                 const Icon = opt.icon;
                 return (
                   <button
@@ -433,34 +444,37 @@ export function AuthForm({ mode, next, defaultRole = "client", reason, subscript
                     role="radio"
                     aria-checked={active}
                     onClick={() => {
-                      setRole(opt.value);
+                      setIntent(opt.value);
                       clearField("role");
                     }}
                     className={cn(
-                      "relative min-h-[112px] rounded-[20px] border p-4 text-left transition-all duration-300",
-                      active ? "border-fg bg-surface shadow-[var(--shadow-1)]" : "border-line bg-surface-2 hover:border-line-2 dark:bg-surface",
+                      "group relative flex min-h-[96px] flex-col rounded-[18px] border p-3.5 text-left transition-all duration-300 active:scale-[0.98]",
+                      active ? "border-accent bg-accent-soft/50 shadow-[var(--shadow-1)]" : "border-line bg-surface-2 hover:-translate-y-0.5 hover:border-line-2 dark:bg-surface",
                     )}
                   >
-                    <span className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-300", active ? "btn-ink" : "bg-fg/6 text-fg-2")}>
-                      <Icon size={18} />
+                    <span className={cn("flex h-9 w-9 items-center justify-center rounded-[11px] transition-all duration-300", active ? "bg-accent text-white" : "bg-fg/6 text-fg-2 group-hover:bg-fg/10")}>
+                      <Icon size={17} />
                     </span>
-                    <span className="mt-3 block text-[15px] font-semibold leading-tight text-fg">{tr(til, opt.title)}</span>
-                    <span className="mt-1 block text-[12px] leading-snug text-fg-3">{tr(til, opt.subtitle)}</span>
+                    <span className="mt-2.5 block text-[14px] font-semibold leading-tight text-fg">{tr(til, opt.title)}</span>
+                    <span className="mt-0.5 block text-[11.5px] leading-snug text-fg-3">{tr(til, opt.subtitle)}</span>
                     <span
                       className={cn(
-                        "absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-ink-fg transition-all duration-300",
-                        active ? "scale-100 opacity-100" : "scale-75 opacity-0",
+                        "absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white transition-all duration-300",
+                        active ? "scale-100 opacity-100" : "scale-50 opacity-0",
                       )}
                       aria-hidden="true"
                     >
-                      <Check size={13} strokeWidth={3} />
+                      <Check size={11} strokeWidth={3} />
                     </span>
                   </button>
                 );
               })}
             </div>
             {fields.role && <p className="field-error">{fields.role}</p>}
-            <p className="mt-2 text-[12px] leading-snug text-fg-3">{tr(til, role === "specialist" ? AUTH.role.hintSpecialist : AUTH.role.hintClient)}</p>
+            <p className="mt-2 text-[12px] leading-snug text-fg-3">
+              {tr(til, intent === "service" ? AUTH.role.hintSpecialist : intent === "job" ? AUTH.role.hintJob : intent === "hire" ? AUTH.role.hintHire : AUTH.role.hintClient)}{" "}
+              <span className="text-fg-4">{tr(til, AUTH.role.later)}</span>
+            </p>
           </fieldset>
         )}
 

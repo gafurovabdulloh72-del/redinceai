@@ -7,12 +7,12 @@
 export const AUTH = {
   /* ---------- Brend paneli (auth/layout.tsx) ---------- */
   panel: {
-    eyebrow: { uz: "O'zbekiston ijodkorlar xaritasi", ru: "Карта творческих специалистов Узбекистана" },
-    titleA: { uz: "Ijodkorlar va mijozlar ", ru: "Специалисты и клиенты " },
-    titleAccent: { uz: "bir xaritada", ru: "на одной карте" },
+    eyebrow: { uz: "Ijodkorlar va onlayn kasblar platformasi", ru: "Платформа творческих и онлайн-профессий" },
+    titleA: { uz: "Ish, buyurtma va hamjamiyat — ", ru: "Работа, заказы и сообщество — " },
+    titleAccent: { uz: "bir joyda", ru: "в одном месте" },
     lead: {
-      uz: "Videograf, montajor, dizayner — O'zbekistonning har bir hududida. Ro'yxatdan o'ting va to'g'ridan-to'g'ri bog'laning.",
-      ru: "Видеографы, монтажёры, дизайнеры — в каждом регионе Узбекистана. Зарегистрируйтесь и свяжитесь напрямую.",
+      uz: "Videograf, dizayner, dasturchi, marketolog — buyurtma oling yoki bering, vakansiya toping, kanallar va jamoalarda muloqot qiling. Bepul.",
+      ru: "Видеограф, дизайнер, разработчик, маркетолог — получайте или размещайте заказы, находите вакансии, общайтесь в каналах и сообществах. Бесплатно.",
     },
     b1Title: { uz: "Xaritadan toping", ru: "Ищите на карте" },
     b1Text: {
@@ -24,10 +24,10 @@ export const AUTH = {
       uz: "Portfolio, narxlar va haqiqiy mijozlar sharhlari ochiq.",
       ru: "Портфолио, цены и настоящие отзывы клиентов — открыто.",
     },
-    b3Title: { uz: "To'g'ridan-to'g'ri buyurtma", ru: "Заказ напрямую" },
+    b3Title: { uz: "Vakansiyalar va jamoalar", ru: "Вакансии и сообщества" },
     b3Text: {
-      uz: "Loyihani yozing — mutaxassis kabinetida darhol ko'radi.",
-      ru: "Опишите проект — специалист сразу увидит его в кабинете.",
+      uz: "Ish o'rinlari, rezyumelar, kanallar, jonli efirlar — to'lovsiz.",
+      ru: "Вакансии, резюме, каналы, прямые эфиры — бесплатно.",
     },
     statSpecialists: { uz: "mutaxassis", ru: "специалистов" },
     statRegions: { uz: "hudud", ru: "регионов" },
@@ -84,6 +84,26 @@ export const AUTH = {
   /* ---------- Rol tanlash ---------- */
   role: {
     legend: { uz: "Kim sifatida qo'shilasiz?", ru: "Кем вы присоединяетесь?" },
+    /* Maqsad tanlovi (mutaxassis/mijoz o'rniga): to'rtta yo'l — rolga xaritalanadi, keyin o'zgartirish mumkin */
+    intentLegend: { uz: "Nima qilmoqchisiz?", ru: "Что вы хотите делать?" },
+    intentAria: { uz: "Maqsad", ru: "Цель" },
+    serviceTitle: { uz: "Xizmat ko'rsataman", ru: "Оказываю услуги" },
+    serviceSub: { uz: "Videograf, dizayner, montajchi… buyurtma olaman", ru: "Видеограф, дизайнер, монтажёр… получаю заказы" },
+    orderTitle: { uz: "Buyurtma beraman", ru: "Заказываю" },
+    orderSub: { uz: "Ijodkor topib loyihamni topshiraman", ru: "Нахожу специалиста и поручаю проект" },
+    jobTitle: { uz: "Ish qidiryapman", ru: "Ищу работу" },
+    jobSub: { uz: "Vakansiyalarga ariza, rezyume", ru: "Отклики на вакансии, резюме" },
+    hireTitle: { uz: "Xodim qidiryapman", ru: "Ищу сотрудника" },
+    hireSub: { uz: "Vakansiya joylayman — bepul", ru: "Размещаю вакансию — бесплатно" },
+    hintJob: {
+      uz: "Ro'yxatdan so'ng 2 daqiqalik rezyume to'ldirasiz — keyin har vakansiyaga bir bosishda ariza yuborasiz.",
+      ru: "После регистрации заполните резюме за 2 минуты — затем откликайтесь на вакансии в один клик.",
+    },
+    hintHire: {
+      uz: "Ro'yxatdan so'ng vakansiya joylaysiz — arizalar rezyume va kontakt bilan kabinetingizga keladi.",
+      ru: "После регистрации разместите вакансию — отклики с резюме и контактами придут в кабинет.",
+    },
+    later: { uz: "Keyin kabinetda o'zgartira olasiz. Jamoalar, kanallar va chat — hammaga ochiq.", ru: "Позже можно изменить в кабинете. Сообщества, каналы и чат открыты всем." },
     aria: { uz: "Rol", ru: "Роль" },
     clientTitle: { uz: "Mijozman", ru: "Я клиент" },
     clientSubtitle: { uz: "Mutaxassis qidiryapman", ru: "Ищу специалиста" },
