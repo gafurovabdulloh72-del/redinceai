@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound, Briefcase } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -40,7 +40,10 @@ const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?
   // shuning uchun lg+ da; kichik ekranlarda foydalanuvchi menyusi, footer va bosh sahifa orqali
   { href: "/jamoalar", label: SHELL.nav.groups, short: SHELL.nav.groups, icon: UsersRound, mobile: false, desktop: "lg" },
   { href: "/ishlar", label: SHELL.nav.jobs, short: SHELL.nav.jobs, icon: BriefcaseBusiness },
-  { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false, desktop: "lg" },
+  // Vakansiyalar — barcha onlayn kasblar uchun ish o'rinlari (lg+; mobilda menyu/footer orqali)
+  { href: "/vakansiyalar", label: SHELL.nav.vacancies, short: SHELL.nav.vacancies, icon: Briefcase, mobile: false, desktop: "lg" },
+  // Narxlar — footer va kabinetda ham bor; kapsulaga sig'ishi uchun faqat 2xl'da
+  { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false, desktop: "2xl" },
   { href: "/haqida", label: SHELL.nav.about, short: SHELL.nav.about, icon: Info, mobile: false, desktop: "lg" },
 ];
 
@@ -143,13 +146,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative h-10 items-center whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition lg:px-3.5",
+                    "relative h-10 items-center whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition xl:px-3.5",
                     n.desktop === "lg" ? "hidden lg:flex" : n.desktop === "2xl" ? "hidden 2xl:flex" : "flex",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
                 >
                   {tr(til, n.label)}
-                  {active && <span aria-hidden className="absolute inset-x-3 bottom-1 h-[3px] rounded-full bg-accent lg:inset-x-3.5" />}
+                  {active && <span aria-hidden className="absolute inset-x-3 bottom-1 h-[3px] rounded-full bg-accent xl:inset-x-3.5" />}
                 </Link>
               );
             })}
@@ -195,6 +198,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     )}
                     {(user.role === "specialist" || user.role === "admin") && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
                     <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>{tr(til, SHELL.menu.groups)}</MenuItem>
+                    <MenuItem href="/vakansiyalar" icon={Briefcase}>{tr(til, SHELL.menu.vacancies)}</MenuItem>
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>
                     <MenuItem href="/kabinet/sevimlilar" icon={Heart}>{tr(til, SHELL.menu.favorites)}</MenuItem>
                     <MenuItem href="/kabinet/profil" icon={UserCog}>{tr(til, SHELL.menu.profile)}</MenuItem>

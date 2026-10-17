@@ -75,6 +75,8 @@ export type NotificationType =
   | "group_request"
   | "channel_post"
   | "live_event"
+  | "application_new"
+  | "application_status"
   | "group_joined"
   | "post_comment"
   | "follow";

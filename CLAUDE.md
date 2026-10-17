@@ -25,6 +25,8 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 - Xarita: `src/components/map/NeonMap.tsx` (vizual qatlam, mesh `src/components/map/map-mesh.ts` — qo'lda tahrirlanmaydi, generator orqali), `UzbekistanMap.tsx` (hit-layer/pin/tooltip), `MapExplorer.tsx`
 - Admin: `src/app/admin/` (queries.ts + page.tsx + components/admin/)
 - Jamoalar (hamjamiyat): `src/lib/groups/` (service.ts — barcha egalik/huquq tekshiruvlari, validators.ts, limits.ts — klientga xavfsiz konstantalar), API `src/app/api/groups|posts|comments|follow`, UI `src/components/groups/`, sahifalar `src/app/jamoalar/`. Guruh chati 4s polling (2-bosqichda real-time). Reja: `docs/IJTIMOIY-TARMOQ.md`
+- Kanallar: `groups.kind` (group|channel), `groups.isOfficial` — rasmiy kanal: hamma avtomatik a'zo (register + backfill), chiqib bo'lmaydi, faqat egasi/adminlar yozadi; efir e'loni `posts.eventAt/eventUrl`. Sayt adminlari har yangi jamoa/kanalga avtomatik admin a'zo
+- Vakansiyalar (to'lovsiz, barcha onlayn kasblar): `src/lib/vacancies/` (format.ts — PROFESSIONS/lug'atlar, validators, service), API `src/app/api/vakansiyalar|arizalar|rezyume|rezyumelar`, UI `src/components/vacancies/`, sahifalar `/vakansiyalar`, `/rezyumelar`, kabinet `vakansiyalar|arizalarim|rezyume`. QOIDA: nomzod kontakti (email/telefon) faqat o'zi ariza yuborgan vakansiya egasiga ko'rinadi; ommaviy rezyumeda kontakt yo'q (chat orqali)
 
 ## Konvensiyalar
 - Dizayn: premium-minimal "liquid glass"; globals.css tokenlari (`card`, `accent`, `fg-1..3`, `surface`, `line`) — xom ranglar emas. Brend: ink `#1a1a1c`, cream `#f6f4ee`, coral `#ff5a36`, displey shrift Unbounded

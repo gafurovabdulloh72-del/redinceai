@@ -1096,3 +1096,105 @@ export type GroupMember = typeof groupMembers.$inferSelect;
 export type GroupMessage = typeof groupMessages.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type PostComment = typeof postComments.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Vakansiyalar: ish beruvchi e'lonlari, rezyumelar, arizalar          */
+/* Barcha onlayn kasblar uchun, to'lovsiz. Kasblar ro'yxati:           */
+/* src/lib/vacancies/format.ts (PROFESSIONS)                           */
+/* ------------------------------------------------------------------ */
+export const vacancies = sqliteTable(
+  "vacancies",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** Kompaniya / jamoa nomi (ixtiyoriy — shaxs ham e'lon bera oladi) */
+    company: text("company").notNull().default(""),
+    /** Kasb slug'i (PROFESSIONS) */
+    profession: text("profession").notNull(),
+    description: text("description").notNull(),
+    requirements: text("requirements").notNull().default(""),
+    format: text("format", { enum: ["remote", "hybrid", "office"] }).notNull().default("remote"),
+    employment: text("employment", { enum: ["full", "part", "project", "internship"] }).notNull().default("full"),
+    experience: text("experience", { enum: ["none", "junior", "middle", "senior"] }).notNull().default("none"),
+    /** Maosh (so'm/oy); ikkalasi null — "Kelishiladi" */
+    salaryMin: integer("salary_min"),
+    salaryMax: integer("salary_max"),
+    /** null — istalgan hudud (masofaviy) */
+    regionSlug: text("region_slug"),
+    skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
+    /** Tashqi ariza havolasi (hh.uz, Google Form…) — ixtiyoriy; asosiy yo'l sayt ichidagi ariza */
+    applyUrl: text("apply_url"),
+    status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+    applicationsCount: integer("applications_count").notNull().default(0),
+    viewCount: integer("view_count").notNull().default(0),
+    /** Shu vaqtdan keyin ro'yxatda chiqmaydi (VACANCY_TTL_DAYS); egasi uzaytira oladi */
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("vacancies_status_idx").on(t.status), index("vacancies_profession_idx").on(t.profession), index("vacancies_author_idx").on(t.authorId)],
+);
+
+/** Rezyume — har bir foydalanuvchida bittadan; ommaviy bo'lsa /rezyumelar katalogida chiqadi */
+export const resumes = sqliteTable(
+  "resumes",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Izlanayotgan lavozim: "Frontend dasturchi", "SMM menejer" */
+    title: text("title").notNull(),
+    profession: text("profession").notNull(),
+    summary: text("summary").notNull().default(""),
+    skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
+    experience: text("experience", { enum: ["none", "junior", "middle", "senior"] }).notNull().default("none"),
+    expectedSalary: integer("expected_salary"),
+    format: text("format", { enum: ["any", "remote", "hybrid", "office"] }).notNull().default("any"),
+    regionSlug: text("region_slug"),
+    /** Portfolio / LinkedIn / GitHub / Behance havolalari */
+    links: text("links", { mode: "json" }).$type<Array<{ label: string; url: string }>>().notNull().default([]),
+    isPublic: integer("is_public", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("resumes_user_uq").on(t.userId), index("resumes_profession_idx").on(t.profession)],
+);
+
+/** Ariza (nomzod → vakansiya); bitta vakansiyaga bir marta */
+export const applications = sqliteTable(
+  "applications",
+  {
+    id: text("id").primaryKey(),
+    vacancyId: text("vacancy_id")
+      .notNull()
+      .references(() => vacancies.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    coverLetter: text("cover_letter").notNull().default(""),
+    status: text("status", { enum: ["new", "viewed", "shortlisted", "rejected", "hired"] }).notNull().default("new"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("applications_vacancy_user_uq").on(t.vacancyId, t.userId), index("applications_user_idx").on(t.userId)],
+);
+
+export type Vacancy = typeof vacancies.$inferSelect;
+export type Resume = typeof resumes.$inferSelect;
+export type Application = typeof applications.$inferSelect;

@@ -139,6 +139,10 @@ export default async function KabinetLayout({ children }: { children: React.Reac
     items.push({ href: "/kabinet/obuna", label: "Obuna", icon: "subscription", ...(subDot ?? {}) });
     if (user.specialist) items.push({ href: "/kabinet/hisobot", label: "Hisobot", icon: "report" });
   }
+  // Vakansiyalar (barcha rollar, to'lovsiz): ish beruvchi — vakansiyalarim, nomzod — arizalarim va rezyume
+  items.push({ href: "/kabinet/vakansiyalar", label: "Vakansiyalarim", icon: "vacancies" });
+  items.push({ href: "/kabinet/arizalarim", label: "Arizalarim", icon: "applications" });
+  items.push({ href: "/kabinet/rezyume", label: "Rezyumem", icon: "resume" });
   items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" });
   items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
   if (user.specialist || user.role === "specialist") {

@@ -24,6 +24,7 @@ export const SHELL = {
     prices: { uz: "Narxlar", ru: "Тарифы" },
     about: { uz: "Haqida", ru: "О нас" },
     groups: { uz: "Jamoalar", ru: "Сообщества" },
+    vacancies: { uz: "Vakansiyalar", ru: "Вакансии" },
     cabinet: { uz: "Kabinet", ru: "Кабинет" },
     login: { uz: "Kirish", ru: "Войти" },
     loginShort: { uz: "Kirish", ru: "Вход" },
@@ -35,6 +36,7 @@ export const SHELL = {
   /** Hisob (avatar) menyusi */
   menu: {
     groups: { uz: "Jamoalarim", ru: "Мои сообщества" },
+    vacancies: { uz: "Vakansiyalar", ru: "Вакансии" },
     aria: { uz: (name: string) => `Hisob menyusi: ${name}`, ru: (name: string) => `Меню аккаунта: ${name}` },
     roleAdmin: { uz: "Administrator", ru: "Администратор" },
     roleSpecialist: { uz: "Mutaxassis", ru: "Специалист" },
@@ -78,6 +80,7 @@ export const SHELL = {
     help: { uz: "Yordam", ru: "Помощь" },
     about: { uz: "Biz haqimizda", ru: "О нас" },
     groups: { uz: "Jamoalar", ru: "Сообщества" },
+    vacancies: { uz: "Vakansiyalar", ru: "Вакансии" },
     becomeSpecialist: { uz: "Mutaxassis bo'lish", ru: "Стать специалистом" },
     terms: { uz: "Foydalanish shartlari", ru: "Условия использования" },
     privacy: { uz: "Maxfiylik siyosati", ru: "Политика конфиденциальности" },

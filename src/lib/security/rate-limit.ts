@@ -81,6 +81,9 @@ export const RATE_LIMITS = {
   terms: { limit: 20, windowMs: HOUR },
   /** Jamoalar: yaratish (5 / kun), post (30 / soat), izoh (60 / soat), qo'shilish/obuna amallari (120 / soat) — userId */
   groups: { limit: 5, windowMs: DAY },
+  /** Vakansiya e'loni va ariza — spamga qarshi */
+  vacancies: { limit: 5, windowMs: DAY },
+  applications: { limit: 20, windowMs: DAY },
   posts: { limit: 30, windowMs: HOUR },
   comments: { limit: 60, windowMs: HOUR },
   social: { limit: 120, windowMs: HOUR },

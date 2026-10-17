@@ -13,6 +13,7 @@ const LINKS: Array<{ href: string; label: Tr }> = [
   { href: "/buyurtma-berish", label: SHELL.footer.orderWizard },
   { href: "/ishlar", label: SHELL.footer.jobs },
   { href: "/jamoalar", label: SHELL.footer.groups },
+  { href: "/vakansiyalar", label: SHELL.footer.vacancies },
   { href: "/narxlar", label: SHELL.footer.prices },
   { href: "/yordam", label: SHELL.footer.help },
   { href: "/haqida", label: SHELL.footer.about },
