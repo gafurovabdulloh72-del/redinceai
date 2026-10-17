@@ -182,7 +182,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
       </nav>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-8">
+        <div key={tab} className="min-w-0 animate-fade-in lg:col-span-8">
           {events.length > 0 && tab !== "haqida" && <EventsCard events={events} />}
           {tab === "lenta" &&
             (feed ? (

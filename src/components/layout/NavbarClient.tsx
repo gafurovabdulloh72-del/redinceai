@@ -249,7 +249,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
               aria-current={active ? "page" : undefined}
               className={cn(
                 // Yorliq kamida 12px — kichik shrift o'qilishi qiyin (a11y)
-                "flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[12px] font-semibold transition",
+                "press flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[12px] font-semibold transition-all duration-300",
                 active ? "btn-ink" : "text-fg-3",
               )}
             >

@@ -187,7 +187,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
             <p className="mb-3 text-[13px] text-fg-3">
               {result.total} ta vakansiya{hasFilters ? " (filtr bo'yicha)" : ""} · {result.page}/{result.pages}-sahifa
             </p>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((v) => (
                 <li key={v.id} className="min-w-0">
                   <VacancyCard v={v} />

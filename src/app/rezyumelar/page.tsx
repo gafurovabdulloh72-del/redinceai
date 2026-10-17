@@ -139,7 +139,7 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
           />
         ) : (
           <>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((r) => (
                 <li key={r.id} className="min-w-0">
                   <ResumeCard r={r} />

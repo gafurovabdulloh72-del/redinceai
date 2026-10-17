@@ -95,7 +95,7 @@ export function GroupFeed({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="stagger grid gap-4">
       {canPost ? (
         <Composer base={base} onPosted={reload} allowEvent={canSchedule} kind={kind} />
       ) : canInteract && kind === "channel" ? (
@@ -357,7 +357,7 @@ function PostCard({
   const lockedLike = loggedIn && !canInteract;
 
   return (
-    <article ref={ref} id={`post-${post.id}`} className={cn("card p-4 sm:p-5", highlighted && "ring-2 ring-accent/40")}>
+    <article ref={ref} id={`post-${post.id}`} className={cn("card p-4 transition-shadow duration-300 hover:shadow-[var(--shadow-2)] sm:p-5", highlighted && "ring-2 ring-accent/40")}>
       <header className="flex items-center gap-2.5">
         <Avatar name={post.author.name} src={post.author.avatarUrl} size={36} decorative />
         <div className="min-w-0 flex-1">
@@ -420,7 +420,7 @@ function PostCard({
             liked ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-fg/6 hover:text-fg",
           )}
         >
-          <Heart size={16} className={liked ? "fill-current" : undefined} /> {likes}
+          <Heart key={liked ? "on" : "off"} size={16} className={cn("transition-transform", liked && "animate-pop fill-current")} /> <span key={likes} className="animate-fade-in tabular-nums">{likes}</span>
         </button>
         <button
           type="button"

@@ -201,7 +201,7 @@ function GroupSection({ icon: Icon, title, hint, items }: { icon: typeof Radio; 
         </h2>
         <p className="text-[13px] text-fg-3">{hint}</p>
       </div>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((g) => (
           <li key={g.id} className="min-w-0">
             <GroupCard g={g} />
