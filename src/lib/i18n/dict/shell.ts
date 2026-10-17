@@ -68,8 +68,8 @@ export const SHELL = {
 
   footer: {
     tagline: {
-      uz: "O'zbekistonning ijodiy mutaxassislar xaritasi. Videograf, montajor, dizayner — 14 ta hudud, bitta xarita.",
-      ru: "Карта творческих специалистов Узбекистана. Видеографы, монтажёры, дизайнеры — 14 регионов, одна карта.",
+      uz: "Ijodkorlar va onlayn kasblar platformasi: katalog va xarita, xavfsiz buyurtma, jamoalar va kanallar, vakansiyalar — 14 ta hudud, bitta tizim.",
+      ru: "Платформа творческих и онлайн-профессий: каталог и карта, безопасный заказ, сообщества и каналы, вакансии — 14 регионов, одна система.",
     },
     linksAria: { uz: "Footer havolalari", ru: "Ссылки в подвале сайта" },
     map: { uz: "Xarita", ru: "Карта" },

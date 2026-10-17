@@ -32,6 +32,8 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Xarita", short_name: "Xarita", description: "Hudud bo'yicha ijodkorlarni xaritadan toping", url: "/xarita?source=pwa", icons: icon },
       { name: "Mutaxassislar", short_name: "Mutaxassislar", description: "Videograf, montajor, dizaynerlar ro'yxati", url: "/mutaxassislar?source=pwa", icons: icon },
+      { name: "Jamoalar", short_name: "Jamoalar", description: "Kanallar, guruhlar va jonli efirlar", url: "/jamoalar?source=pwa", icons: icon },
+      { name: "Vakansiyalar", short_name: "Vakansiyalar", description: "Onlayn kasblar bo'yicha ish o'rinlari", url: "/vakansiyalar?source=pwa", icons: icon },
       { name: "Ishlar", short_name: "Ishlar", description: "Mijozlar e'lonlari va takliflar", url: "/ishlar?source=pwa", icons: icon },
       { name: "Kabinet", short_name: "Kabinet", description: "Buyurtmalar, to'lovlar va bildirishnomalar", url: "/kabinet?source=pwa", icons: icon },
     ],

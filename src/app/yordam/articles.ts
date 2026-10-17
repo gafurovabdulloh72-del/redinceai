@@ -9,7 +9,7 @@ import { formatNumber } from "@/lib/utils";
 /** payments/service.ts AUTO_RELEASE_DAYS bilan bir xil (u server moduli — bu yerga import qilinmaydi) */
 const AUTO_RELEASE_DAYS_DEFAULT = 7;
 
-export type HelpCategoryKey = "mijozlar" | "mutaxassislar" | "xavfsizlik";
+export type HelpCategoryKey = "mijozlar" | "mutaxassislar" | "hamjamiyat" | "vakansiyalar" | "xavfsizlik";
 
 export interface HelpCategory {
   key: HelpCategoryKey;
@@ -41,6 +41,8 @@ export interface HelpArticle {
 export const HELP_CATEGORIES: HelpCategory[] = [
   { key: "mijozlar", title: "Mijozlar uchun", description: "Buyurtma berish, eskrou orqali xavfsiz to'lov, nizo va pulni qaytarish." },
   { key: "mutaxassislar", title: "Mutaxassislar uchun", description: "Profil, oylik obuna va sinov muddati, komissiya, pul chiqarish, takliflar." },
+  { key: "hamjamiyat", title: "Jamoalar va kanallar", description: "Guruhlar, kanallar, rasmiy kanal, lenta va chat, jonli efirlar." },
+  { key: "vakansiyalar", title: "Vakansiyalar", description: "Ish joylash, rezyume, ariza va holatlar — to'lovsiz." },
   { key: "xavfsizlik", title: "Xavfsizlik", description: "Ikki bosqichli himoya va firibgarlardan saqlanish." },
 ];
 
@@ -332,6 +334,92 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
     related: ["eskrou-qanday-ishlaydi", "ikki-bosqichli-himoya", "nizo-ochish"],
     updated: UPDATED,
+  },
+
+  /* ------------------------------ Jamoalar va kanallar ------------------------------ */
+  {
+    slug: "jamoalar-va-kanallar",
+    category: "hamjamiyat",
+    title: "Jamoalar va kanallar qanday ishlaydi",
+    summary: "Guruh — hamma yozadi, kanal — faqat egasi. Rasmiy kanalga hamma avtomatik a'zo. Qo'shilish, rollar va qoidalar.",
+    keywords: ["jamoa", "guruh", "kanal", "hamjamiyat", "community", "группа", "канал", "lenta", "chat", "rasmiy kanal"],
+    body: [
+      { type: "p", text: "«Jamoalar» bo'limi — ijodkorlar va onlayn kasb egalari uchun ijtimoiy tarmoq qismi. Ikki tur bor: guruh va kanal." },
+      {
+        type: "list",
+        items: [
+          "Guruh — har bir a'zo post yozadi, like va izoh qoldiradi, guruh chatida suhbatlashadi. Ochiq guruhga bir bosishda qo'shilasiz; yopiq guruhga so'rov yuborasiz — egasi tasdiqlaydi.",
+          "Kanal — faqat egasi va adminlar post yozadi; a'zolar o'qiydi, yoqtiradi, izoh qoldiradi va «Muhokama» chatida gaplashadi. E'lonlar, yangiliklar va efirlar uchun.",
+          "Rasmiy kanal — platformaning o'z kanali: har bir ro'yxatdan o'tgan foydalanuvchi avtomatik a'zo bo'ladi, u ro'yxat tepasida qadalgan turadi va undan chiqib bo'lmaydi. Yangiliklar va jonli efir e'lonlari shu yerda.",
+        ],
+      },
+      { type: "h", text: "Rollar" },
+      {
+        type: "list",
+        items: [
+          "Egasi — jamoani ochgan odam: sozlaydi, adminlar tayinlaydi, o'chira oladi.",
+          "Admin — so'rovlarni tasdiqlaydi, postlarni o'chiradi, a'zolarni chiqaradi. Platforma admini har bir jamoaga avtomatik qo'shiladi — shikoyatlar uchun.",
+          "A'zo — guruhda yozadi, kanalda o'qiydi va izoh qoldiradi.",
+        ],
+      },
+      { type: "h", text: "O'z jamoangizni ochish" },
+      { type: "steps", items: ["Jamoalar → «Guruh yoki kanal ochish»", "Turi (guruh/kanal), nom, tavsif, yo'nalish va hudud, muqova (3:1)", "Yopiq rejim kerak bo'lsa — yoqing", "Birinchi postni yozing va havolani ulashing"] },
+      { type: "note", text: "Qoidalar: hurmat, spam va takroriy reklama yo'q, mijoz kontaktlari tarqatilmaydi. Buzilsa post o'chiriladi, takrorlansa a'zolikdan chiqariladi.", tone: "info" },
+    ],
+    related: ["jonli-efirlar", "firibgarlikdan-saqlanish"],
+    cta: { href: "/jamoalar", label: "Jamoalarga o'tish" },
+    updated: "2026-10-17",
+  },
+  {
+    slug: "jonli-efirlar",
+    category: "hamjamiyat",
+    title: "Jonli efirlar va yig'ilishlar",
+    summary: "Efir e'loni kanalda chiqadi, a'zolarga bildirishnoma boradi; vaqti kelganda havola orqali qo'shilasiz.",
+    keywords: ["efir", "jonli", "live", "stream", "yig'ilish", "meeting", "эфир", "трансляция", "zoom", "meet"],
+    body: [
+      { type: "p", text: "Kanal yoki guruh egasi efir/yig'ilish e'lon qilganda, barcha a'zolarga «Jonli efir» bildirishnomasi (saytda va Telegram botda) boradi. Efir kartasida vaqt, qolgan muddat va havola ko'rinadi." },
+      { type: "steps", items: ["Jamoa sahifasida «Yaqin efirlar» kartasini oching", "Vaqti kelganda «Qo'shilish» tugmasini bosing — havola (Google Meet, Zoom, YouTube yoki Telegram) ochiladi", "Savollarni post ostidagi izohlarda qoldiring — efirda javob beriladi"] },
+      { type: "h", text: "O'zingiz efir e'lon qilish (egasi/admin)" },
+      { type: "list", items: ["Lenta kompozitorida «Efir / yig'ilish» tugmasi → vaqt va https havola", "Havolani keyinroq izohda ham berishingiz mumkin", "Efir tugagach post «o'tkazildi» holatiga o'tadi; yozuv havolasini qo'shib qo'ying"] },
+      { type: "note", text: "Rasmiy kanalda haftasiga 2–4 marta efir bo'ladi: portfolio tahlili, savol-javob, soha yangiliklari. Telegram botni ulasangiz eslatma telefoningizga keladi.", tone: "info" },
+    ],
+    related: ["jamoalar-va-kanallar"],
+    cta: { href: "/jamoalar", label: "Rasmiy kanal" },
+    updated: "2026-10-17",
+  },
+  /* ------------------------------ Vakansiyalar ------------------------------ */
+  {
+    slug: "vakansiya-joylash",
+    category: "vakansiyalar",
+    title: "Vakansiya joylash va nomzodlarni boshqarish",
+    summary: "2 daqiqada bepul joylang; arizalar rezyume, xat va kontakt bilan kabinetga keladi; holatlarni bir bosishda boshqaring.",
+    keywords: ["vakansiya", "ish beruvchi", "xodim", "вакансия", "работодатель", "hiring", "nomzod", "ariza"],
+    body: [
+      { type: "p", text: "Vakansiyalar bo'limi barcha onlayn kasblar uchun: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim, boshqaruv, data/AI. Joylash ham, ariza berish ham to'lovsiz." },
+      { type: "steps", items: ["Vakansiyalar → «Vakansiya joylash»", "Lavozim, kompaniya, kasb, format (masofaviy/gibrid/ofis), bandlik, tajriba, maosh, tavsif va talablar", "Joylangach 30 kun ro'yxatda turadi — kabinetda bir bosishda uzaytiriladi yoki yopiladi"] },
+      { type: "h", text: "Arizalar" },
+      { type: "list", items: ["Har yangi ariza — bildirishnoma (sayt + Telegram) va Kabinet → «Vakansiyalarim»", "Nomzodning rezyumesi, xati, email va telefoni ko'rinadi (u ariza yuborib rozilik bergan)", "Holatlar: ko'rildi (avtomatik) → tanlovda / ishga olindi / rad etildi — nomzodga xabar boradi", "Sayt chati orqali ham yozish mumkin"] },
+      { type: "note", text: "Nomzoddan oldindan to'lov, hujjat nusxasi yoki karta ma'lumotini so'rash taqiqlanadi — bunday e'lonlar olib tashlanadi, hisob bloklanadi.", tone: "warning" },
+    ],
+    related: ["rezyume-va-ariza", "firibgarlikdan-saqlanish"],
+    cta: { href: "/vakansiyalar/yangi", label: "Vakansiya joylash" },
+    updated: "2026-10-17",
+  },
+  {
+    slug: "rezyume-va-ariza",
+    category: "vakansiyalar",
+    title: "Rezyume va ariza yuborish",
+    summary: "Bitta rezyume — har vakansiyaga bir bosishda ariza. Kontaktingiz faqat siz ariza yuborgan ish beruvchiga ochiladi.",
+    keywords: ["rezyume", "resume", "cv", "ariza", "отклик", "резюме", "ish qidirish", "работа"],
+    body: [
+      { type: "steps", items: ["Kabinet → «Rezyumem»: lavozim, kasb, tajriba, ko'nikmalar, kutilayotgan maosh, havolalar (portfolio, GitHub, Behance)", "«Katalogda ko'rinsin» yoqilsa — ish beruvchilar /rezyumelar bo'limida topadi va chat orqali yozadi", "Vakansiya sahifasida «Ariza yuborish» — rezyume avtomatik biriktiriladi, xat ixtiyoriy (rezyume bo'lmasa — kamida 30 belgili xat)"] },
+      { type: "h", text: "Holatlar va maxfiylik" },
+      { type: "list", items: ["Yangi → ko'rildi → tanlovda / ishga olindi / rad etildi — har o'zgarish bildirishnoma bilan keladi (Kabinet → «Arizalarim»)", "«Yangi» holatida arizani qaytarib olish mumkin", "Ommaviy rezyumeda email va telefon ko'rsatilmaydi; ular faqat siz ariza yuborgan vakansiya egasiga ochiladi", "Bitta vakansiyaga bir marta ariza beriladi"] },
+      { type: "note", text: "Ish beruvchi sizdan pul, karta ma'lumoti yoki pasport nusxasini so'rasa — «Shikoyat» qiling va @kasb_egalari ga yozing.", tone: "warning" },
+    ],
+    related: ["vakansiya-joylash", "jamoalar-va-kanallar"],
+    cta: { href: "/kabinet/rezyume", label: "Rezyume yaratish" },
+    updated: "2026-10-17",
   },
 ];
 

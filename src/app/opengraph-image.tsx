@@ -75,7 +75,7 @@ export default function OpenGraphImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, color: "rgba(255,255,255,0.6)", fontSize: 20, letterSpacing: 5, textTransform: "uppercase", fontWeight: 700 }}>
             <div style={{ width: 36, height: 2, background: "#ff5a36" }} />
-            O'zbekiston ijodkorlar xaritasi
+            Ijodkorlar va onlayn kasblar platformasi
           </div>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 92, fontWeight: 700, lineHeight: 0.98, letterSpacing: -4 }}>
             <span>Ijodkorlarni</span>
@@ -85,7 +85,7 @@ export default function OpenGraphImage() {
             </span>
           </div>
           <div style={{ display: "flex", fontSize: 26, color: "rgba(255,255,255,0.72)", maxWidth: 820, lineHeight: 1.35 }}>
-            Videograf, montajor, dizayner va boshqa ijodkorlar — 14 ta hudud, bitta interaktiv xarita.
+            Katalog va xarita, xavfsiz buyurtma, jamoalar va kanallar, vakansiyalar — 14 ta hudud, bitta tizim.
           </div>
         </div>
 

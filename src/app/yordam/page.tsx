@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, LifeBuoy, Phone, Send, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, LifeBuoy, Phone, Send, ShieldCheck, Users, type LucideIcon, UsersRound, Briefcase } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { SITE } from "@/lib/constants";
 import { HELP_ARTICLES, HELP_CATEGORIES, articleText, type HelpCategoryKey } from "./articles";
@@ -16,6 +16,8 @@ const CATEGORY_ICON: Record<HelpCategoryKey, LucideIcon> = {
   mijozlar: Users,
   mutaxassislar: BriefcaseBusiness,
   xavfsizlik: ShieldCheck,
+  hamjamiyat: UsersRound,
+  vakansiyalar: Briefcase,
 };
 
 export default async function HelpCenterPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {

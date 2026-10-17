@@ -18,13 +18,13 @@ const ruRegions = (n: number) => ruPlural(n, "регион", "региона", "
 export const HOME = {
   hero: {
     /* Ru eyebrow qisqa — 390px'da bir qatorga sig'ishi kerak (uppercase + tracking keng) */
-    eyebrow: { uz: "O'zbekiston ijodkorlar xaritasi", ru: "Карта специалистов Узбекистана" },
+    eyebrow: { uz: "Ijodkorlar va onlayn kasblar platformasi", ru: "Платформа творческих и онлайн-профессий" },
     titleA: { uz: "Ijodkorlarni", ru: "Найдите специалистов" },
     titleAccent: { uz: "xaritada", ru: "на карте" },
     titleB: { uz: " toping", ru: "" },
     lead: {
-      uz: "Videograf, montajor, dizayner va boshqa ijodkorlar — hududingizda. Viloyatni bosing, portfolio va narxlarni ko'ring, to'g'ridan-to'g'ri buyurtma bering.",
-      ru: "Видеографы, монтажёры, дизайнеры и другие творческие специалисты — в вашем регионе. Выберите область, изучите портфолио и цены и закажите напрямую.",
+      uz: "Videograf, montajor, dizayner va boshqa ijodkorlar — hududingizda. Buyurtma bering yoki oling, jamoalar va kanallarda muloqot qiling, vakansiya toping.",
+      ru: "Видеографы, монтажёры, дизайнеры и другие специалисты — в вашем регионе. Заказывайте или получайте заказы, общайтесь в сообществах и каналах, находите вакансии.",
     },
     openMap: { uz: "Xaritani ochish", ru: "Открыть карту" },
     specialistsList: { uz: "Mutaxassislar ro'yxati", ru: "Список специалистов" },

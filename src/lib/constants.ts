@@ -95,9 +95,9 @@ export const SITE = {
   /** To'g'ridan-to'g'ri aloqa (Yordam sahifasi) — rasmiy kanal, shaxsiy akkaunt emas */
   supportTelegram: "https://t.me/kasb_egalari",
   supportPhone: "+998 94 143 44 99",
-  tagline: "O'zbekistonning ijodiy mutaxassislar xaritasi",
+  tagline: "Ijodkorlar va onlayn kasblar platformasi",
   description:
-    "Kasb Egalari — O'zbekistonning barcha viloyatlaridagi videograf, montajor, dizayner va boshqa ijodkorlarni bir joyda topish platformasi. Xaritadan hududni tanlang va o'zingizga mos mutaxassisni toping.",
+    "Kasb Egalari — O'zbekiston ijodkorlari va barcha onlayn kasb egalari uchun platforma: videograf, dizayner, montajchi va boshqa mutaxassislar katalogi, xavfsiz buyurtma, jamoalar va kanallar, jonli efirlar, to'lovsiz vakansiyalar va rezyumelar.",
 };
 
 
