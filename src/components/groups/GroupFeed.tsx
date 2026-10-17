@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, ImagePlus, MessageCircle, Pin, Send, Trash2, X } from "lucide-react";
+import { ExternalLink, Heart, ImagePlus, MessageCircle, Pin, RadioTower, Send, Trash2, X } from "lucide-react";
 import { Avatar, Button } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { COMMENT_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
 import type { CommentView, PostView, UserBrief } from "@/lib/groups/service";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
 type Page = { items: PostView[]; nextCursor: number | null };
 type ApiResp<T> = { ok: boolean; data?: T; error?: string; fields?: Record<string, string> };
@@ -34,13 +34,22 @@ function AuthorLink({ u, className }: { u: UserBrief; className?: string }) {
  */
 export function GroupFeed({
   slug,
+  kind = "group",
   canPost,
+  canInteract,
+  canSchedule = false,
   loggedIn,
   initial,
   highlightId = null,
 }: {
   slug: string;
+  kind?: "group" | "channel";
+  /** Post yoza oladimi (guruhda a'zo, kanalda egasi/admin) */
   canPost: boolean;
+  /** Yoqtirish/izoh — faol a'zo */
+  canInteract: boolean;
+  /** Efir/yig'ilish e'lon qila oladimi (egasi/admin) */
+  canSchedule?: boolean;
   loggedIn: boolean;
   initial: Page;
   highlightId?: string | null;
@@ -88,21 +97,23 @@ export function GroupFeed({
   return (
     <div className="grid gap-4">
       {canPost ? (
-        <Composer base={base} onPosted={reload} />
+        <Composer base={base} onPosted={reload} allowEvent={canSchedule} kind={kind} />
+      ) : canInteract && kind === "channel" ? (
+        <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">Kanalga faqat egasi va adminlar yozadi — siz postlarni yoqtirishingiz va izoh qoldirishingiz mumkin.</p>
       ) : (
-        <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">Post yozish, yoqtirish va izoh qoldirish uchun jamoaga qo&apos;shiling.</p>
+        <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">{kind === "channel" ? "Izoh qoldirish va yoqtirish uchun kanalga qo'shiling." : "Post yozish, yoqtirish va izoh qoldirish uchun guruhga qo'shiling."}</p>
       )}
       {items.length === 0 ? (
         <div className="card px-5 py-10 text-center">
           <p className="text-[15px] font-semibold text-fg">Lenta hali bo&apos;sh</p>
-          <p className="mt-1 text-[13px] text-fg-3">{canPost ? "Birinchi postni siz yozing — ish, savol yoki e'lon." : "A'zolar yozgan postlar shu yerda chiqadi."}</p>
+          <p className="mt-1 text-[13px] text-fg-3">{canPost ? "Birinchi postni siz yozing — ish, savol yoki e'lon." : kind === "channel" ? "Kanal e'lonlari shu yerda chiqadi." : "A'zolar yozgan postlar shu yerda chiqadi."}</p>
         </div>
       ) : (
         items.map((p) => (
           <PostCard
             key={p.id}
             post={p}
-            canInteract={canPost}
+            canInteract={canInteract}
             loggedIn={loggedIn}
             requireLogin={requireLogin}
             highlighted={p.id === highlightId}
@@ -124,14 +135,26 @@ export function GroupFeed({
 /* ------------------------------------------------------------------ */
 /* Kompozitor                                                          */
 /* ------------------------------------------------------------------ */
-function Composer({ base, onPosted }: { base: string; onPosted: () => Promise<void> }) {
+/** datetime-local qiymati → ms (mahalliy vaqt) */
+function localToMs(v: string): number | null {
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+function Composer({ base, onPosted, allowEvent = false, kind = "group" }: { base: string; onPosted: () => Promise<void>; allowEvent?: boolean; kind?: "group" | "channel" }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<Attachment[]>([]);
+  const [eventOpen, setEventOpen] = useState(false);
+  const [eventAt, setEventAt] = useState("");
+  const [eventUrl, setEventUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canSend = (body.trim().length > 0 || media.length > 0) && !busy && !uploading;
+  const eventMs = eventOpen ? localToMs(eventAt) : null;
+  const eventInvalid = eventOpen && (!eventMs || (eventUrl.trim() !== "" && !/^https:\/\/\S+$/.test(eventUrl.trim())));
+  const canSend = (body.trim().length > 0 || media.length > 0) && !busy && !uploading && !eventInvalid;
 
   async function pick(files: FileList | null) {
     if (!files?.length) return;
@@ -162,11 +185,15 @@ function Composer({ base, onPosted }: { base: string; onPosted: () => Promise<vo
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: body.trim(), media }) });
+      const payload = { body: body.trim(), media, eventAt: eventOpen ? eventMs : null, eventUrl: eventOpen ? eventUrl.trim() : "" };
+      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
       setBody("");
       setMedia([]);
+      setEventOpen(false);
+      setEventAt("");
+      setEventUrl("");
       await onPosted();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuborilmadi");
@@ -182,9 +209,22 @@ function Composer({ base, onPosted }: { base: string; onPosted: () => Promise<vo
         onChange={(e) => setBody(e.target.value)}
         maxLength={POST_BODY_MAX}
         rows={3}
-        placeholder="Jamoa bilan bo'lishing: ish, savol, e'lon…"
+        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon…"}
         className="field w-full resize-y py-2.5 text-[14px] leading-relaxed"
       />
+      {eventOpen && (
+        <div className="mt-2.5 grid gap-2.5 rounded-[14px] border border-accent/30 bg-accent-soft/40 p-3 sm:grid-cols-2">
+          <label className="grid gap-1">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Efir vaqti</span>
+            <input type="datetime-local" value={eventAt} onChange={(e) => setEventAt(e.target.value)} className="field h-10 w-full text-[13.5px]" required />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Havola (Zoom, Meet, YouTube, Telegram) — ixtiyoriy</span>
+            <input type="url" value={eventUrl} onChange={(e) => setEventUrl(e.target.value)} placeholder="https://…" dir="ltr" className="field h-10 w-full text-[13.5px]" />
+          </label>
+          <p className="text-[12px] leading-relaxed text-fg-3 sm:col-span-2">A&apos;zolarga «Jonli efir» bildirishnomasi boradi (sayt + Telegram). Havolani keyinroq izohda ham berishingiz mumkin.</p>
+        </div>
+      )}
       {media.length > 0 && (
         <ul className="mt-2.5 grid grid-cols-4 gap-2">
           {media.map((a, i) => (
@@ -227,11 +267,24 @@ function Composer({ base, onPosted }: { base: string; onPosted: () => Promise<vo
             e.target.value = "";
           }}
         />
+        {allowEvent && (
+          <button
+            type="button"
+            onClick={() => setEventOpen((v) => !v)}
+            aria-pressed={eventOpen}
+            className={cn(
+              "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition",
+              eventOpen ? "border-accent bg-accent-soft text-accent-text" : "border-line-2 text-fg-2 hover:text-fg",
+            )}
+          >
+            <RadioTower size={15} /> Efir / yig&apos;ilish
+          </button>
+        )}
         <span className="ml-auto text-[11.5px] text-fg-4">
           {body.length}/{POST_BODY_MAX}
         </span>
         <Button type="button" variant="primary" size="sm" onClick={submit} disabled={!canSend}>
-          <Send size={14} /> {busy ? "Yuborilmoqda…" : "E'lon qilish"}
+          <Send size={14} /> {busy ? "Yuborilmoqda…" : eventOpen ? "Efirni e'lon qilish" : "E'lon qilish"}
         </Button>
       </div>
       {error && <p className="mt-2 text-[12.5px] font-semibold text-danger-text">{error}</p>}
@@ -337,6 +390,8 @@ function PostCard({
       </header>
 
       {post.body && <p className="mt-3 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-fg">{post.body}</p>}
+
+      {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} />}
 
       {media.length > 0 && (
         <div className={cn("mt-3 grid gap-1.5 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
@@ -467,4 +522,40 @@ function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boo
       {error && <p className="mt-1.5 text-[12.5px] font-semibold text-danger-text">{error}</p>}
     </div>
   );
+}
+
+/** Efir/yig'ilish bloki: holat (kutilmoqda / jonli / o'tkazildi), vaqt va havola */
+function EventBlock({ at, url }: { at: number; url: string | null }) {
+  const now = Date.now();
+  const live = now >= at && now < at + 2 * 60 * 60 * 1000;
+  const past = now >= at + 2 * 60 * 60 * 1000;
+  return (
+    <div className={cn("mt-3 flex flex-wrap items-center gap-3 rounded-[14px] border px-4 py-3", past ? "border-line bg-fg/4" : "border-accent/30 bg-accent-soft/60")}>
+      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", past ? "bg-fg/6 text-fg-3" : "bg-accent text-white")}>
+        <RadioTower size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-bold text-fg">{past ? "Efir o'tkazildi" : live ? "Hozir jonli efirda" : "Jonli efir / yig'ilish"}</p>
+        <p className="text-[12.5px] text-fg-2">
+          {formatDateTime(at)}
+          {!past && !live && <span className="text-fg-3"> · {untilLabel(at - now)}</span>}
+        </p>
+      </div>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className={cn("inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold", live ? "btn-accent" : "border border-line-2 text-fg hover:border-fg")}>
+          {live ? "Qo'shilish" : past ? "Yozuv/havola" : "Havola"} <ExternalLink size={14} />
+        </a>
+      ) : (
+        !past && <span className="text-[12px] text-fg-3">Havola efir oldidan qo&apos;shiladi</span>
+      )}
+    </div>
+  );
+}
+
+function untilLabel(ms: number): string {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${Math.max(1, m)} daqiqadan keyin`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h} soatdan keyin`;
+  return `${Math.round(h / 24)} kundan keyin`;
 }

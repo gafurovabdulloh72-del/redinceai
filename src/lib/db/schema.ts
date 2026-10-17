@@ -919,6 +919,10 @@ export const groups = sqliteTable(
     coverUrl: text("cover_url"),
     /** Yopiq jamoa: qo'shilish so'rovi egasi/admin tasdiqlagach faollashadi */
     isPrivate: integer("is_private", { mode: "boolean" }).notNull().default(false),
+    /** Turi: group — hamma a'zo yozadi; channel — faqat egasi/adminlar post yozadi, a'zolar o'qiydi/izoh qoldiradi */
+    kind: text("kind", { enum: ["group", "channel"] }).notNull().default("group"),
+    /** Rasmiy kanal: har bir ro'yxatdan o'tgan foydalanuvchi avtomatik a'zo, tepada qadalgan, chiqib bo'lmaydi */
+    isOfficial: integer("is_official", { mode: "boolean" }).notNull().default(false),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -989,6 +993,9 @@ export const posts = sqliteTable(
     likesCount: integer("likes_count").notNull().default(0),
     commentsCount: integer("comments_count").notNull().default(0),
     isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
+    /** Jonli efir / yig'ilish e'loni: vaqti va havolasi (Zoom, Meet, YouTube, Telegram); null — oddiy post */
+    eventAt: integer("event_at", { mode: "timestamp_ms" }),
+    eventUrl: text("event_url"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

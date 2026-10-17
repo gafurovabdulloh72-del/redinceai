@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
-import { assertActiveMember, assertCanView, createPost, listPosts } from "@/lib/groups/service";
+import { assertCanPost, assertCanView, createPost, listPosts } from "@/lib/groups/service";
 import { postInputSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404, optionalViewer } from "../../_lib";
@@ -25,10 +25,12 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const { slug } = await ctx.params;
   const input = await parseBody(req, postInputSchema);
   if (!input.body && input.media.length === 0) throw new ApiError(422, "Matn yoki rasm kerak", { body: "Bo'sh post" });
+  if (input.eventUrl && !input.eventAt) throw new ApiError(422, "Efir vaqtini kiriting", { eventAt: "Havola uchun vaqt kerak" });
+  if (input.eventAt && input.eventAt < Date.now() - 60 * 60 * 1000) throw new ApiError(422, "Efir vaqti o'tib ketgan", { eventAt: "Kelajakdagi vaqtni tanlang" });
   const group = await groupOr404(slug);
-  await assertActiveMember(group, { id: session.sub, role: session.role });
+  await assertCanPost(group, { id: session.sub, role: session.role });
   await enforceLimit("posts", session.sub);
   await assertOwnUploads(session.sub, input.media.map((m) => m.url), [], "media");
-  const p = await createPost(group, session.sub, input.body, input.media);
+  const p = await createPost(group, session.sub, input.body, input.media, { at: input.eventAt ?? null, url: input.eventUrl || null });
   return ok({ id: p.id }, { status: 201 });
 });

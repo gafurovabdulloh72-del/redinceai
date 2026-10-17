@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Lock, MessageSquareText, Users } from "lucide-react";
+import { BadgeCheck, Lock, MessageSquareText, Radio, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CoverImage } from "@/components/specialists/CoverImage";
+import { OfficialCover } from "./OfficialCover";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import type { MembershipState, UserBrief } from "@/lib/groups/service";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,8 @@ export interface GroupCardData {
   region: string | null;
   coverUrl: string | null;
   isPrivate: boolean;
+  kind: "group" | "channel";
+  isOfficial: boolean;
   membersCount: number;
   postsCount: number;
   owner: UserBrief;
@@ -29,10 +32,21 @@ export function GroupCard({ g }: { g: GroupCardData }) {
   const reg = g.region ? REGION_BY_SLUG[g.region] : null;
   const label = g.membership ? MEMBERSHIP_LABEL[g.membership] : null;
   return (
-    <Link href={`/jamoalar/${g.slug}`} className="card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-2)]">
+    <Link href={`/jamoalar/${g.slug}`} className={cn("card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-2)]", g.isOfficial && "ring-1 ring-accent/50")}>
       <div className="relative aspect-[3/1] overflow-hidden bg-surface-3">
-        <CoverImage src={g.coverUrl} category={cat?.slug} seed={g.slug} />
+        {g.isOfficial && !g.coverUrl ? <OfficialCover name={g.name} compact /> : <CoverImage src={g.coverUrl} category={cat?.slug} seed={g.slug} />}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+          {g.isOfficial ? (
+            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11.5px] font-bold text-white">
+              <BadgeCheck size={12} /> Rasmiy kanal
+            </span>
+          ) : (
+            g.kind === "channel" && (
+              <span className="inline-flex h-7 items-center gap-1 rounded-full bg-ink/85 px-2.5 text-[11.5px] font-semibold text-ink-fg backdrop-blur">
+                <Radio size={11} /> Kanal
+              </span>
+            )
+          )}
           {cat && (
             <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-ink/85 px-2.5 text-[11.5px] font-semibold text-ink-fg backdrop-blur">
               <CategoryIcon icon={cat.icon} size={12} /> {cat.plural}

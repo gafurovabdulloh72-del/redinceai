@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Lock, Trash2, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, Lock, Radio, Trash2, UsersRound, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Switch } from "@/components/specialists/Filters";
 import { SafeImage } from "@/components/specialists/SafeImage";
@@ -19,6 +19,8 @@ export interface GroupFormInitial {
   region: string | null;
   coverUrl: string | null;
   isPrivate: boolean;
+  kind: "group" | "channel";
+  isOfficial: boolean;
 }
 
 type ApiResp = { ok: boolean; data?: { slug?: string }; error?: string; fields?: Record<string, string> };
@@ -29,7 +31,18 @@ const LABEL = "text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3";
  * Jamoa ochish / sozlash formasi. Muqova ImageCropper orqali 3:1 nisbatda kesiladi (karta va hero bilan bir xil),
  * yuklash oddiy /api/upload oqimi. O'chirish faqat egasiga (ikki bosqichli tasdiq).
  */
-export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" | "edit"; initial?: GroupFormInitial; isOwner?: boolean }) {
+export function GroupForm({
+  mode,
+  initial,
+  isOwner = false,
+  isSiteAdmin = false,
+}: {
+  mode: "create" | "edit";
+  initial?: GroupFormInitial;
+  isOwner?: boolean;
+  /** Sayt admini — "Rasmiy kanal" belgisini qo'ya oladi */
+  isSiteAdmin?: boolean;
+}) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initial?.name ?? "");
@@ -38,6 +51,8 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
   const [region, setRegion] = useState(initial?.region ?? "");
   const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? "");
   const [isPrivate, setIsPrivate] = useState(initial?.isPrivate ?? false);
+  const [kind, setKind] = useState<"group" | "channel">(initial?.kind ?? "group");
+  const [isOfficial, setIsOfficial] = useState(initial?.isOfficial ?? false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -69,7 +84,16 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
     setError(null);
     setErrors({});
     try {
-      const payload = { name: trimmed, description: description.trim(), category: category || null, region: region || null, coverUrl, isPrivate };
+      const payload = {
+        name: trimmed,
+        description: description.trim(),
+        category: category || null,
+        region: region || null,
+        coverUrl,
+        isPrivate: isOfficial ? false : isPrivate,
+        kind,
+        ...(isSiteAdmin ? { isOfficial: kind === "channel" && isOfficial } : {}),
+      };
       const res = await fetch(mode === "create" ? "/api/groups" : `/api/groups/${encodeURIComponent(initial?.slug ?? "")}`, {
         method: mode === "create" ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -154,13 +178,48 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
         {errors.coverUrl && <p className="text-[12.5px] font-semibold text-danger-text">{errors.coverUrl}</p>}
       </div>
 
+      {/* Turi: guruh yoki kanal */}
+      <div className="grid gap-1.5">
+        <span className={LABEL}>Turi</span>
+        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Turi">
+          {(
+            [
+              { key: "group", icon: UsersRound, title: "Guruh", text: "Hamma a'zo post yozadi, chat ochiq — hamjamiyat va muhokama uchun" },
+              { key: "channel", icon: Radio, title: "Kanal", text: "Faqat siz va adminlar yozasiz; a'zolar o'qiydi, yoqtiradi, izoh qoldiradi — e'lon va efirlar uchun" },
+            ] as const
+          ).map((o) => {
+            const active = kind === o.key;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setKind(o.key)}
+                className={`flex items-start gap-3 rounded-[16px] border px-4 py-3 text-left transition ${active ? "border-accent bg-accent-soft/50" : "border-line hover:border-fg/40"}`}
+              >
+                <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${active ? "bg-accent text-white" : "bg-fg/6 text-fg-2"}`}>
+                  <o.icon size={16} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-fg">{o.title}</span>
+                  <span className="mt-0.5 block text-[12.5px] leading-snug text-fg-3">{o.text}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {mode === "edit" && initial && initial.kind !== kind && <p className="text-[12px] text-fg-3">Turini o&apos;zgartirish mavjud postlarga ta&apos;sir qilmaydi — faqat kim yoza olishi o&apos;zgaradi.</p>}
+        {errors.kind && <p className="text-[12.5px] font-semibold text-danger-text">{errors.kind}</p>}
+      </div>
+
       <label className="grid gap-1.5">
         <span className={LABEL}>Nomi</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={GROUP_NAME_MAX}
-          placeholder="Masalan: Buxoro montajchilari"
+          placeholder={kind === "channel" ? "Masalan: Kasb Egalari — rasmiy kanal" : "Masalan: Buxoro montajchilari"}
           className="field h-11 w-full text-[14px]"
           autoFocus={mode === "create"}
         />
@@ -222,12 +281,28 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
           </p>
           <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">Lenta va chat faqat a&apos;zolarga ko&apos;rinadi; qo&apos;shilish so&apos;rovlarini siz tasdiqlaysiz.</p>
         </div>
-        <Switch checked={isPrivate} onChange={setIsPrivate} label="Yopiq jamoa" />
+        <Switch checked={isPrivate && !isOfficial} onChange={(v) => !isOfficial && setIsPrivate(v)} label="Yopiq jamoa" />
       </div>
+
+      {isSiteAdmin && (
+        <div className={`flex items-start justify-between gap-4 rounded-[16px] border px-4 py-3 ${kind === "channel" ? "border-accent/40 bg-accent-soft/30" : "border-line opacity-60"}`}>
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-[14px] font-semibold text-fg">
+              <BadgeCheck size={14} className="text-accent" /> Rasmiy kanal
+            </p>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">
+              Har bir ro&apos;yxatdan o&apos;tgan foydalanuvchi avtomatik a&apos;zo bo&apos;ladi, ro&apos;yxat tepasida qadalgan turadi va undan chiqib bo&apos;lmaydi. Jonli efir va yig&apos;ilish e&apos;lonlari shu yerdan.
+              {kind !== "channel" && " Faqat «Kanal» turi uchun."}
+            </p>
+            {errors.isOfficial && <p className="mt-1 text-[12.5px] font-semibold text-danger-text">{errors.isOfficial}</p>}
+          </div>
+          <Switch checked={kind === "channel" && isOfficial} onChange={(v) => kind === "channel" && setIsOfficial(v)} label="Rasmiy kanal" />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Button type="submit" variant="primary" size="md" disabled={!nameOk || busy || uploading}>
-          {busy ? "Saqlanmoqda…" : mode === "create" ? "Jamoa ochish" : "Saqlash"}
+          {busy ? "Saqlanmoqda…" : mode === "create" ? (kind === "channel" ? "Kanal ochish" : "Guruh ochish") : "Saqlash"}
         </Button>
         <Button type="button" variant="outline" size="md" onClick={() => router.back()} disabled={busy}>
           Bekor
@@ -237,7 +312,7 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {confirmDelete ? (
               <>
-                <span className="text-[12.5px] text-fg-2">Jamoa, postlar va chat butunlay o&apos;chadi. Aniqmi?</span>
+                <span className="text-[12.5px] text-fg-2">{kind === "channel" ? "Kanal" : "Guruh"}, postlar va chat butunlay o&apos;chadi. Aniqmi?</span>
                 <Button type="button" variant="danger" size="sm" onClick={remove} disabled={busy}>
                   Ha, o&apos;chirish
                 </Button>
@@ -247,7 +322,7 @@ export function GroupForm({ mode, initial, isOwner = false }: { mode: "create" |
               </>
             ) : (
               <Button type="button" variant="ghost" size="sm" className="text-danger-text hover:text-danger-text" onClick={() => setConfirmDelete(true)}>
-                <Trash2 size={14} /> Jamoani o&apos;chirish
+                <Trash2 size={14} /> {kind === "channel" ? "Kanalni" : "Guruhni"} o&apos;chirish
               </Button>
             )}
           </div>

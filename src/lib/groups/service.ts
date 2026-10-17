@@ -36,6 +36,10 @@ export interface GroupView {
   region: string | null;
   coverUrl: string | null;
   isPrivate: boolean;
+  /** group — hamma a'zo yozadi; channel — faqat egasi/adminlar yozadi */
+  kind: "group" | "channel";
+  /** Rasmiy kanal: hamma avtomatik a'zo, tepada qadalgan, chiqib bo'lmaydi */
+  isOfficial: boolean;
   membersCount: number;
   postsCount: number;
   pendingCount: number;
@@ -47,6 +51,8 @@ export interface GroupView {
   canManage: boolean;
   /** Ko'ruvchi lentani/chatni ko'ra oladimi (ochiq jamoa — hamma; yopiq — faqat faol a'zo/moderator) */
   canView: boolean;
+  /** Post yoza oladimi: guruhda — faol a'zo; kanalda — faqat egasi/adminlar (sayt admini ham) */
+  canPost: boolean;
 }
 
 export interface PostView {
@@ -57,6 +63,9 @@ export interface PostView {
   likesCount: number;
   commentsCount: number;
   isPinned: boolean;
+  /** Jonli efir / yig'ilish e'loni bo'lsa — vaqti (ms) va havolasi */
+  eventAt: number | null;
+  eventUrl: string | null;
   createdAt: number;
   author: UserBrief;
   likedByMe: boolean;
@@ -159,6 +168,8 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
     region: group.region,
     coverUrl: group.coverUrl,
     isPrivate: group.isPrivate,
+    kind: group.kind,
+    isOfficial: group.isOfficial,
     membersCount: group.membersCount,
     postsCount: group.postsCount,
     pendingCount: canManage ? Number(pending[0]?.n ?? 0) : 0,
@@ -168,7 +179,21 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
     membership: membershipState(m),
     canManage,
     canView: canViewWith(group, m, viewer),
+    canPost: canPostWith(group, m, viewer),
   };
+}
+
+/** Post yozish huquqi: guruhda faol a'zo, kanalda faqat boshqaruvchilar (sayt admini hamma joyda) */
+function canPostWith(group: Pick<Group, "kind">, m: GroupMember | null, viewer: Viewer): boolean {
+  if (!viewer) return false;
+  if (group.kind === "channel") return canManageWith(m, viewer);
+  return isSiteAdmin(viewer) || Boolean(m && m.status === "active");
+}
+
+/** Sayt adminlari — har yangi jamoa/kanalga avtomatik admin a'zo bo'ladi (boshqarish va nazorat uchun) */
+async function siteAdminIds(): Promise<string[]> {
+  const rows = await db.select({ id: users.id }).from(users).where(and(eq(users.role, "admin"), eq(users.isBanned, false)));
+  return rows.map((r) => r.id);
 }
 
 async function touchActivity(groupId: string) {
@@ -179,10 +204,12 @@ async function touchActivity(groupId: string) {
 /* Jamoalar                                                            */
 /* ------------------------------------------------------------------ */
 export async function listGroups(
-  opts: { q?: string; category?: string; region?: string; mine?: boolean; limit?: number },
+  opts: { q?: string; category?: string; region?: string; mine?: boolean; kind?: "group" | "channel"; official?: boolean; limit?: number },
   viewer: Viewer,
-): Promise<Array<Omit<GroupView, "pendingCount" | "canManage" | "canView">>> {
+): Promise<GroupListItem[]> {
   const conds = [];
+  if (opts.kind) conds.push(eq(groups.kind, opts.kind));
+  if (opts.official !== undefined) conds.push(eq(groups.isOfficial, opts.official));
   if (opts.q) {
     const needle = `%${translit(opts.q).replace(/[%_]/g, "")}%`;
     conds.push(or(like(sql`lower(${groups.name})`, needle), like(sql`lower(${groups.description})`, needle)));
@@ -197,7 +224,7 @@ export async function listGroups(
       .from(groupMembers)
       .innerJoin(groups, eq(groups.id, groupMembers.groupId))
       .where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active"), ...conds))
-      .orderBy(desc(groups.lastActivityAt), desc(groups.createdAt))
+      .orderBy(desc(groups.isOfficial), desc(groups.lastActivityAt), desc(groups.createdAt))
       .limit(opts.limit ?? 30);
     rows = joined.map((r) => r.g);
   } else if (opts.mine) {
@@ -205,7 +232,7 @@ export async function listGroups(
   } else {
     rows = await db.query.groups.findMany({
       where: conds.length ? and(...conds) : undefined,
-      orderBy: [desc(groups.lastActivityAt), desc(groups.createdAt)],
+      orderBy: [desc(groups.isOfficial), desc(groups.lastActivityAt), desc(groups.createdAt)],
       limit: opts.limit ?? 30,
     });
   }
@@ -235,6 +262,8 @@ export async function listGroups(
     region: g.region,
     coverUrl: g.coverUrl,
     isPrivate: g.isPrivate,
+    kind: g.kind,
+    isOfficial: g.isOfficial,
     membersCount: g.membersCount,
     postsCount: g.postsCount,
     lastActivityAt: g.lastActivityAt?.getTime() ?? null,
@@ -243,6 +272,8 @@ export async function listGroups(
     membership: membershipState(byGroup.get(g.id) ?? null),
   }));
 }
+
+export type GroupListItem = Omit<GroupView, "pendingCount" | "canManage" | "canView" | "canPost">;
 
 export async function loadGroupBySlug(slug: string): Promise<Group | null> {
   return (await db.query.groups.findFirst({ where: eq(groups.slug, slug) })) ?? null;
@@ -253,9 +284,11 @@ export async function getGroupView(slug: string, viewer: Viewer): Promise<GroupV
   return g ? toGroupView(g, viewer) : null;
 }
 
-export async function createGroup(ownerId: string, input: GroupInput): Promise<Group> {
+export async function createGroup(ownerId: string, input: GroupInput, opts: { isOfficial?: boolean } = {}): Promise<Group> {
   const id = uid();
   const now = new Date();
+  // Sayt adminlari (egasidan tashqari) avtomatik "admin" a'zo — foydalanuvchi ochgan har bir kanal/guruhni boshqara oladi
+  const admins = (await siteAdminIds()).filter((a) => a !== ownerId);
   const row: typeof groups.$inferInsert = {
     id,
     slug: groupSlugFor(input.name),
@@ -265,17 +298,79 @@ export async function createGroup(ownerId: string, input: GroupInput): Promise<G
     region: input.region ?? null,
     coverUrl: input.coverUrl || null,
     isPrivate: Boolean(input.isPrivate),
+    kind: input.kind ?? "group",
+    isOfficial: Boolean(opts.isOfficial),
     ownerId,
-    membersCount: 1,
+    membersCount: 1 + admins.length,
     postsCount: 0,
     lastActivityAt: now,
     createdAt: now,
   };
   await db.transaction(async (tx) => {
     await tx.insert(groups).values(row);
-    await tx.insert(groupMembers).values({ id: uid(), groupId: id, userId: ownerId, role: "owner", status: "active", lastReadAt: now, createdAt: now });
+    await tx.insert(groupMembers).values([
+      { id: uid(), groupId: id, userId: ownerId, role: "owner", status: "active", lastReadAt: now, createdAt: now },
+      ...admins.map((userId) => ({ id: uid(), groupId: id, userId, role: "admin" as const, status: "active" as const, lastReadAt: now, createdAt: now })),
+    ]);
   });
-  return { ...row, description: row.description ?? "", category: row.category ?? null, region: row.region ?? null, coverUrl: row.coverUrl ?? null, isPrivate: row.isPrivate ?? false, membersCount: 1, postsCount: 0, lastActivityAt: now, createdAt: now } as Group;
+  const created = {
+    ...row,
+    description: row.description ?? "",
+    category: row.category ?? null,
+    region: row.region ?? null,
+    coverUrl: row.coverUrl ?? null,
+    isPrivate: row.isPrivate ?? false,
+    membersCount: 1 + admins.length,
+    postsCount: 0,
+    lastActivityAt: now,
+    createdAt: now,
+  } as Group;
+  if (created.isOfficial) await backfillOfficialMembers(created.id);
+  return created;
+}
+
+/** Rasmiy kanal belgisi (faqat sayt admini): yoqilganda barcha mavjud foydalanuvchilar a'zo qilinadi */
+export async function setOfficial(group: Group, value: boolean): Promise<Group> {
+  if (group.isOfficial === value) return group;
+  if (value && group.kind !== "channel") throw new ApiError(422, "Rasmiy bo'lishi uchun bu kanal bo'lishi kerak", { isOfficial: "Avval turini «Kanal» qiling" });
+  if (value && group.isPrivate) throw new ApiError(422, "Rasmiy kanal yopiq bo'la olmaydi", { isOfficial: "Avval yopiqlikni o'chiring" });
+  const [row] = await db.update(groups).set({ isOfficial: value }).where(eq(groups.id, group.id)).returning();
+  if (value) await backfillOfficialMembers(group.id);
+  return row;
+}
+
+/** Rasmiy kanalga hali a'zo bo'lmagan barcha (bloklanmagan) foydalanuvchilarni qo'shish; a'zolar soni qayta hisoblanadi */
+export async function backfillOfficialMembers(groupId: string): Promise<number> {
+  const existing = new Set((await db.query.groupMembers.findMany({ where: eq(groupMembers.groupId, groupId), columns: { userId: true } })).map((m) => m.userId));
+  const all = await db.select({ id: users.id }).from(users).where(eq(users.isBanned, false));
+  const missing = all.map((u) => u.id).filter((id) => !existing.has(id));
+  const now = new Date();
+  for (let i = 0; i < missing.length; i += 100) {
+    const chunk = missing.slice(i, i + 100).map((userId) => ({ id: uid(), groupId, userId, role: "member" as const, status: "active" as const, lastReadAt: now, createdAt: now }));
+    await db.insert(groupMembers).values(chunk).onConflictDoNothing();
+  }
+  await recountMembers(groupId);
+  return missing.length;
+}
+
+async function recountMembers(groupId: string) {
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active")));
+  await db.update(groups).set({ membersCount: Number(n) }).where(eq(groups.id, groupId));
+}
+
+/** Yangi ro'yxatdan o'tgan foydalanuvchi — barcha rasmiy kanallarga avtomatik a'zo (Telegram'dagi qadalgan kanal kabi) */
+export async function joinOfficialChannels(userId: string): Promise<void> {
+  const official = await db.query.groups.findMany({ where: eq(groups.isOfficial, true), columns: { id: true } });
+  if (!official.length) return;
+  const now = new Date();
+  await db
+    .insert(groupMembers)
+    .values(official.map((g) => ({ id: uid(), groupId: g.id, userId, role: "member" as const, status: "active" as const, lastReadAt: now, createdAt: now })))
+    .onConflictDoNothing();
+  await Promise.all(official.map((g) => recountMembers(g.id)));
 }
 
 export async function updateGroup(group: Group, patch: Partial<GroupInput>): Promise<Group> {
@@ -286,6 +381,9 @@ export async function updateGroup(group: Group, patch: Partial<GroupInput>): Pro
   if (patch.region !== undefined) set.region = patch.region ?? null;
   if (patch.coverUrl !== undefined) set.coverUrl = patch.coverUrl || null;
   if (patch.isPrivate !== undefined) set.isPrivate = patch.isPrivate;
+  if (patch.kind !== undefined) set.kind = patch.kind;
+  if (set.isPrivate && group.isOfficial) throw new ApiError(422, "Rasmiy kanal yopiq bo'la olmaydi", { isPrivate: "Rasmiy kanal hammaga ochiq" });
+  if (set.kind === "group" && group.isOfficial) throw new ApiError(422, "Rasmiy kanal guruhga aylantirilmaydi", { kind: "Avval rasmiy belgisini oling" });
   if (!Object.keys(set).length) return group;
   const [row] = await db.update(groups).set(set).where(eq(groups.id, group.id)).returning();
   return row;
@@ -324,6 +422,7 @@ export async function joinGroup(group: Group, userId: string): Promise<Membershi
 export async function leaveGroup(group: Group, userId: string): Promise<void> {
   const m = await getMembership(group.id, userId);
   if (!m) return;
+  if (group.isOfficial && m.status === "active") throw new ApiError(400, "Bu rasmiy kanal — undan chiqib bo'lmaydi. Bildirishnomalarni kabinetda sozlashingiz mumkin.");
   if (m.role === "owner") throw new ApiError(400, "Egasi jamoadan chiqa olmaydi — avval boshqa a'zoni admin qilib, jamoani o'chiring yoki qoldiring");
   await db.transaction(async (tx) => {
     await tx.delete(groupMembers).where(eq(groupMembers.id, m.id));
@@ -406,14 +505,74 @@ export async function assertActiveMember(group: Group, viewer: Viewer): Promise<
   return m;
 }
 
-export async function createPost(group: Group, authorId: string, body: string, media: FileAttachment[]): Promise<Post> {
+export async function createPost(
+  group: Group,
+  authorId: string,
+  body: string,
+  media: FileAttachment[],
+  event: { at: number | null; url: string | null } = { at: null, url: null },
+): Promise<Post> {
   const now = new Date();
-  const row: typeof posts.$inferInsert = { id: uid(), groupId: group.id, authorId, body, media, likesCount: 0, commentsCount: 0, isPinned: false, createdAt: now, updatedAt: now };
+  const row: typeof posts.$inferInsert = {
+    id: uid(),
+    groupId: group.id,
+    authorId,
+    body,
+    media,
+    likesCount: 0,
+    commentsCount: 0,
+    isPinned: false,
+    eventAt: event.at ? new Date(event.at) : null,
+    eventUrl: event.url || null,
+    createdAt: now,
+    updatedAt: now,
+  };
   await db.transaction(async (tx) => {
     await tx.insert(posts).values(row);
     await tx.update(groups).set({ postsCount: sql`${groups.postsCount} + 1`, lastActivityAt: now }).where(eq(groups.id, group.id));
   });
-  return { ...row, likesCount: 0, commentsCount: 0, isPinned: false } as Post;
+  // Kanal posti yoki efir e'loni — a'zolarga bildirishnoma (sayt + Telegram; email emas — kvota)
+  if (group.kind === "channel" || event.at) {
+    const href = `/jamoalar/${group.slug}?post=${row.id}`;
+    const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? "Yangi media" : "");
+    if (event.at) {
+      await notifyMembers(group, authorId, "live_event", `Jonli efir: ${group.name}`, `${formatEventDate(event.at)} — ${snippet || "efir/yig'ilish e'lon qilindi"}`, href);
+    } else {
+      await notifyMembers(group, authorId, "channel_post", group.name, snippet, href);
+    }
+  }
+  return { ...row, likesCount: 0, commentsCount: 0, isPinned: false, eventAt: row.eventAt ?? null, eventUrl: row.eventUrl ?? null } as Post;
+}
+
+function formatEventDate(ms: number): string {
+  return new Date(ms).toLocaleString("uz-UZ", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+}
+
+/** A'zolarga (muallifdan tashqari) 25 talik guruhlarda bildirishnoma — minglab a'zoda navbatga o'tkaziladi (reja 2-bosqich) */
+async function notifyMembers(group: Group, exceptUserId: string, type: "channel_post" | "live_event", title: string, body: string, href: string): Promise<void> {
+  const members = await db.query.groupMembers.findMany({ where: and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "active")), columns: { userId: true } });
+  const ids = members.map((m) => m.userId).filter((id) => id !== exceptUserId);
+  for (let i = 0; i < ids.length; i += 25) {
+    await Promise.all(ids.slice(i, i + 25).map((id) => notify(id, type, title, body, href, { skipMail: true }).catch(() => undefined)));
+  }
+}
+
+/** Yaqinlashayotgan efir/yig'ilishlar (vaqti o'tmagan), eng yaqini birinchi */
+export async function upcomingEvents(groupId: string, viewer: Viewer, limit = 3): Promise<PostView[]> {
+  const m = await getMembership(groupId, viewer?.id);
+  const rows = await db.query.posts.findMany({
+    where: and(eq(posts.groupId, groupId), gt(posts.eventAt, new Date(Date.now() - 2 * 60 * 60 * 1000))),
+    orderBy: [asc(posts.eventAt)],
+    limit,
+  });
+  return toPostViews(rows, viewer, canManageWith(m, viewer));
+}
+
+/** Post yozish huquqi: guruhda faol a'zo, kanalda faqat egasi/adminlar */
+export async function assertCanPost(group: Group, viewer: Viewer): Promise<GroupMember | null> {
+  const m = await assertActiveMember(group, viewer);
+  if (!canPostWith(group, m, viewer)) throw new ApiError(403, "Kanalga faqat egasi va adminlar yozadi — siz izoh qoldirishingiz va yoqtirishingiz mumkin");
+  return m;
 }
 
 async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Promise<PostView[]> {
@@ -442,6 +601,8 @@ async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Prom
     likesCount: p.likesCount,
     commentsCount: p.commentsCount,
     isPinned: p.isPinned,
+    eventAt: p.eventAt?.getTime() ?? null,
+    eventUrl: p.eventUrl ?? null,
     createdAt: p.createdAt.getTime(),
     author: authors.get(p.authorId) ?? { id: p.authorId, ...UNKNOWN },
     likedByMe: likedSet.has(p.id),

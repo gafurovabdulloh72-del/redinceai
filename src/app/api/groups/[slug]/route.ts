@@ -1,7 +1,7 @@
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { IMAGE_URL_RE } from "@/components/chat/attachments";
-import { assertCanManage, deleteGroup, getGroupView, isGroupOwner, updateGroup } from "@/lib/groups/service";
+import { assertCanManage, deleteGroup, getGroupView, isGroupOwner, setOfficial, updateGroup } from "@/lib/groups/service";
 import { groupPatchSchema } from "@/lib/groups/validators";
 import { audit } from "@/lib/security/audit";
 import { groupOr404, optionalViewer } from "../_lib";
@@ -28,7 +28,13 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
     if (!IMAGE_URL_RE.test(patch.coverUrl)) throw new ApiError(422, "Muqova rasm bo'lishi kerak", { coverUrl: "Rasmni sayt orqali yuklang" });
     if (patch.coverUrl !== group.coverUrl) await assertOwnUploads(session.sub, [patch.coverUrl], [], "coverUrl");
   }
-  const row = await updateGroup(group, patch);
+  const { isOfficial, ...rest } = patch;
+  let row = await updateGroup(group, rest);
+  // Rasmiy kanal belgisi — faqat sayt admini; yoqilganda barcha foydalanuvchilar a'zo qilinadi
+  if (isOfficial !== undefined) {
+    if (session.role !== "admin") throw new ApiError(403, "Rasmiy kanal belgisini faqat sayt admini o'zgartiradi");
+    row = await setOfficial(row, isOfficial);
+  }
   await audit(session.sub, "group_update", { targetType: "group", targetId: group.id, meta: { fields: Object.keys(patch) } }, req);
   return ok(await getGroupView(row.slug, viewer));
 });

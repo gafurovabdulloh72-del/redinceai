@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, Lock, MessageSquareText, Settings2, Users } from "lucide-react";
+import { BadgeCheck, CalendarDays, ExternalLink, Lock, MessageSquareText, Radio, RadioTower, Settings2, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CoverImage } from "@/components/specialists/CoverImage";
@@ -9,9 +9,10 @@ import { JoinButton } from "@/components/groups/JoinButton";
 import { GroupFeed } from "@/components/groups/GroupFeed";
 import { GroupChat } from "@/components/groups/GroupChat";
 import { GroupMembers } from "@/components/groups/GroupMembers";
+import { OfficialCover } from "@/components/groups/OfficialCover";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { getGroupView, listMembers, listPosts, loadGroupBySlug, type GroupView } from "@/lib/groups/service";
+import { getGroupView, listMembers, listPosts, loadGroupBySlug, upcomingEvents, type GroupView, type PostView } from "@/lib/groups/service";
 import { cn, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ function LockedNotice({ view, loggedIn, what }: { view: GroupView; loggedIn: boo
       <p className="max-w-md text-[13px] leading-relaxed text-fg-3">
         {view.membership === "pending" ? "So'rovingiz yuborilgan — jamoa egasi tasdiqlashi bilan ochiladi." : view.isPrivate ? "Bu yopiq jamoa. Qo'shilish so'rovini yuboring — egasi tasdiqlagach lenta va chat ochiladi." : "Jamoaga qo'shiling — bepul va bir bosishda."}
       </p>
-      <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} />
+      <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />
     </div>
   );
 }
@@ -76,6 +77,9 @@ export default async function GroupPage({ params, searchParams }: { params: Para
       ? await Promise.all([listMembers(group.id, "active"), view.canManage ? listMembers(group.id, "pending") : Promise.resolve([])])
       : null;
 
+  // Yaqin efir/yig'ilishlar — har bir bo'limda tepada (ko'rish huquqi bo'lsa)
+  const events = view.canView ? await upcomingEvents(group.id, viewer, 3) : [];
+
   const tabHref = (key: Tab) => (key === "lenta" ? `/jamoalar/${view.slug}` : `/jamoalar/${view.slug}?tab=${key}`);
 
   return (
@@ -91,7 +95,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
       {/* Hero */}
       <section className="card mt-4 overflow-hidden">
         <div className="relative aspect-[3/1] max-h-[300px] w-full overflow-hidden bg-surface-2">
-          <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />
+          {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
           <div className="min-w-0">
@@ -102,6 +106,17 @@ export default async function GroupPage({ params, searchParams }: { params: Para
                 </span>
               )}
               {region && <span className="rounded-full border border-line px-2.5 py-1 text-fg-2">{region.short}</span>}
+              {view.isOfficial ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-white">
+                  <BadgeCheck size={12} /> Rasmiy kanal
+                </span>
+              ) : (
+                view.kind === "channel" && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-fg-2">
+                    <Radio size={12} /> Kanal
+                  </span>
+                )
+              )}
               {view.isPrivate && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-fg-2">
                   <Lock size={12} /> Yopiq jamoa
@@ -140,7 +155,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
               </Link>
             )}
             {/* Egasi uchun JoinButton ham "Sozlash" beradi — ikki marta chiqmasin */}
-            {view.membership !== "owner" && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} />}
+            {view.membership !== "owner" && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />}
           </div>
         </div>
       </section>
@@ -157,7 +172,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
               aria-current={active ? "page" : undefined}
               className={cn("relative inline-flex h-11 shrink-0 items-center gap-1.5 px-3.5 text-[14px] font-semibold transition", active ? "text-fg" : "text-fg-3 hover:text-fg")}
             >
-              {t.label}
+              {t.key === "chat" && view.kind === "channel" ? "Muhokama" : t.label}
               {count !== null && <span className="text-[12px] text-fg-4">{count}</span>}
               {t.key === "azolar" && view.canManage && view.pendingCount > 0 && <span className="h-2 w-2 rounded-full bg-accent" aria-label={`${view.pendingCount} ta so'rov`} />}
               {active && <span aria-hidden className="absolute inset-x-3.5 bottom-0 h-[3px] rounded-full bg-accent" />}
@@ -168,8 +183,13 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-8">
+          {events.length > 0 && tab !== "haqida" && <EventsCard events={events} />}
           {tab === "lenta" &&
-            (feed ? <GroupFeed slug={view.slug} canPost={isMember} loggedIn={loggedIn} initial={feed} highlightId={highlight} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Lenta" />)}
+            (feed ? (
+              <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn={loggedIn} initial={feed} highlightId={highlight} />
+            ) : (
+              <LockedNotice view={view} loggedIn={loggedIn} what="Lenta" />
+            ))}
           {tab === "chat" && (isMember ? <GroupChat slug={view.slug} membersCount={view.membersCount} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Chat" />)}
           {tab === "azolar" &&
             (members ? (
@@ -208,7 +228,10 @@ function AboutCard({ view, full = false }: { view: GroupView; full?: boolean }) 
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-fg-3">Turi</dt>
-            <dd className="font-semibold text-fg">{view.isPrivate ? "Yopiq — so'rov bilan" : "Ochiq"}</dd>
+            <dd className="font-semibold text-fg">
+              {view.isOfficial ? "Rasmiy kanal" : view.kind === "channel" ? "Kanal" : "Guruh"}
+              {view.isPrivate ? " · yopiq" : " · ochiq"}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="inline-flex items-center gap-1.5 text-fg-3">
@@ -244,5 +267,43 @@ function AboutCard({ view, full = false }: { view: GroupView; full?: boolean }) 
         </ul>
       </section>
     </div>
+  );
+}
+
+/** Yaqinlashayotgan jonli efir / yig'ilishlar — Telegram'dagi qadalgan e'lon kabi lenta tepasida */
+function EventsCard({ events }: { events: PostView[] }) {
+  return (
+    <section className="card mb-4 border-accent/30 p-4 sm:p-5" aria-labelledby="events-h">
+      <h2 id="events-h" className="flex items-center gap-2 text-[15px] font-bold text-fg">
+        <RadioTower size={16} className="text-accent" /> Yaqin efirlar
+      </h2>
+      <ul className="mt-3 grid gap-2">
+        {events.map((e) => {
+          const at = e.eventAt ?? 0;
+          const live = Date.now() >= at && Date.now() < at + 2 * 60 * 60 * 1000;
+          return (
+            <li key={e.id} className="flex flex-wrap items-center gap-3 rounded-[14px] bg-accent-soft/50 px-3.5 py-2.5">
+              <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", live ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>
+                <RadioTower size={15} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-semibold text-fg">{e.body.split("\n")[0] || "Jonli efir"}</p>
+                <p className="text-[12px] text-fg-3">
+                  {live ? "Hozir jonli efirda · " : ""}
+                  {formatDateTime(at)}
+                </p>
+              </div>
+              {e.eventUrl ? (
+                <a href={e.eventUrl} target="_blank" rel="noopener noreferrer" className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold", live ? "btn-accent" : "border border-line-2 text-fg-2 hover:text-fg")}>
+                  {live ? "Qo'shilish" : "Havola"} <ExternalLink size={13} />
+                </a>
+              ) : (
+                <span className="text-[12px] text-fg-4">Havola efir oldidan</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

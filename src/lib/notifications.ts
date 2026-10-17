@@ -73,6 +73,8 @@ export type NotificationType =
   | "subscription_pending"
   | "broadcast"
   | "group_request"
+  | "channel_post"
+  | "live_event"
   | "group_joined"
   | "post_comment"
   | "follow";

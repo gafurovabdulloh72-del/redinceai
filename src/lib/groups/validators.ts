@@ -18,6 +18,10 @@ export const groupInputSchema = z.object({
   region: optionalEnum(regionSlugs),
   coverUrl: z.string().trim().max(500).optional().default(""),
   isPrivate: z.boolean().optional().default(false),
+  /** group — hamma yozadi; channel — faqat egasi/adminlar */
+  kind: z.enum(["group", "channel"]).optional().default("group"),
+  /** Rasmiy kanal — route faqat sayt adminidan qabul qiladi */
+  isOfficial: z.boolean().optional(),
 });
 export type GroupInput = z.infer<typeof groupInputSchema>;
 
@@ -26,6 +30,9 @@ export const groupPatchSchema = groupInputSchema.partial();
 export const postInputSchema = z.object({
   body: z.string().trim().max(POST_BODY_MAX, `Matn ko'pi bilan ${POST_BODY_MAX} belgi`).optional().default(""),
   media: attachmentListSchema(POST_MEDIA_MAX).optional().default([]),
+  /** Efir/yig'ilish: vaqti (ms, kelajakda) va https havola (Zoom/Meet/YouTube/Telegram) — ikkalasi ixtiyoriy, havola vaqtsiz bo'lmaydi */
+  eventAt: z.coerce.number().int().positive().nullable().optional(),
+  eventUrl: z.string().trim().max(300).regex(/^https:\/\/\S+$/, "Havola https:// bilan boshlanishi kerak").optional().or(z.literal("")),
 });
 
 export const commentInputSchema = z.object({
@@ -48,5 +55,7 @@ export const groupListQuerySchema = z.object({
   region: z.string().trim().max(40).optional().default(""),
   /** mine — men a'zo bo'lgan jamoalar */
   mine: z.enum(["1", "0"]).optional().default("0"),
+  /** kind — faqat guruhlar yoki faqat kanallar */
+  kind: z.enum(["group", "channel"]).optional().or(z.literal("")).default(""),
   limit: z.coerce.number().int().min(1).max(60).optional().default(30),
 });

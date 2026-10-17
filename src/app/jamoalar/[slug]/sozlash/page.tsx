@@ -51,7 +51,18 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
         <GroupForm
           mode="edit"
           isOwner={isOwner}
-          initial={{ slug: view.slug, name: view.name, description: view.description, category: view.category, region: view.region, coverUrl: view.coverUrl, isPrivate: view.isPrivate }}
+          isSiteAdmin={user.role === "admin"}
+          initial={{
+            slug: view.slug,
+            name: view.name,
+            description: view.description,
+            category: view.category,
+            region: view.region,
+            coverUrl: view.coverUrl,
+            isPrivate: view.isPrivate,
+            kind: view.kind,
+            isOfficial: view.isOfficial,
+          }}
         />
       </div>
     </div>

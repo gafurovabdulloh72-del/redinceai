@@ -2,13 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Clock3, LogOut, Settings2, UserPlus } from "lucide-react";
+import { BadgeCheck, Clock3, LogOut, Settings2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import type { MembershipState } from "@/lib/groups/service";
 
 /** Jamoa sarlavhasidagi asosiy tugma: qo'shilish / so'rov / chiqish / sozlash (egasi) */
-export function JoinButton({ slug, membership, isPrivate, loggedIn }: { slug: string; membership: MembershipState; isPrivate: boolean; loggedIn: boolean }) {
+export function JoinButton({
+  slug,
+  membership,
+  isPrivate,
+  loggedIn,
+  official = false,
+}: {
+  slug: string;
+  membership: MembershipState;
+  isPrivate: boolean;
+  loggedIn: boolean;
+  /** Rasmiy kanal: a'zolikdan chiqib bo'lmaydi — tugma o'rniga belgi */
+  official?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<MembershipState>(membership);
@@ -43,6 +56,13 @@ export function JoinButton({ slug, membership, isPrivate, loggedIn }: { slug: st
     );
   }
   if (state === "banned") return <span className="text-[13px] font-semibold text-danger-text">Siz bu jamoadan chiqarilgansiz</span>;
+  if (official && (state === "member" || state === "admin")) {
+    return (
+      <span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-accent-soft px-4 text-[13px] font-semibold text-accent-text" title="Rasmiy kanal — barcha foydalanuvchilar a'zo">
+        <BadgeCheck size={15} /> A&apos;zosiz · rasmiy kanal
+      </span>
+    );
+  }
 
   return (
     <span className="flex flex-col items-end gap-1">

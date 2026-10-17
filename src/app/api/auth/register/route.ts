@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { joinOfficialChannels } from "@/lib/groups/service";
 import { users } from "@/lib/db/schema";
 import { createSession } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
@@ -50,6 +51,8 @@ export const POST = handler(async (req) => {
     termsAcceptedAt: new Date(),
   });
 
+  // Rasmiy kanal(lar)ga avtomatik a'zolik — xato ro'yxatdan o'tishni to'xtatmasin
+  await joinOfficialChannels(id).catch(() => undefined);
   await audit(id, "register", { targetType: "user", targetId: id, meta: { role: input.role, termsVersion: TERMS_VERSION } }, req);
   await createSession({ id, role: input.role, name: input.name, sessionVersion: 1 }, { remember: true });
   return ok({ id, name: input.name, role: input.role }, { status: 201 });
