@@ -14,6 +14,7 @@ const LINKS: Array<{ href: string; label: Tr }> = [
   { href: "/ishlar", label: SHELL.footer.jobs },
   { href: "/narxlar", label: SHELL.footer.prices },
   { href: "/yordam", label: SHELL.footer.help },
+  { href: "/haqida", label: SHELL.footer.about },
   { href: "/auth/royxat?role=specialist", label: SHELL.footer.becomeSpecialist },
 ];
 

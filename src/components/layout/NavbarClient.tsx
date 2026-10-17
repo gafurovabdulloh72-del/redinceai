@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -37,6 +37,7 @@ const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?
   { href: "/mutaxassislar", label: SHELL.nav.specialists, short: SHELL.nav.specialistsShort, icon: Users },
   { href: "/ishlar", label: SHELL.nav.jobs, short: SHELL.nav.jobs, icon: BriefcaseBusiness },
   { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false },
+  { href: "/haqida", label: SHELL.nav.about, short: SHELL.nav.about, icon: Info, mobile: false },
 ];
 
 export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
@@ -138,7 +139,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative h-10 items-center rounded-full px-3.5 text-[14px] font-semibold transition xl:px-4",
+                    "relative h-10 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] font-semibold transition xl:px-4",
                     n.desktop === "lg" ? "hidden lg:flex" : "flex",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
