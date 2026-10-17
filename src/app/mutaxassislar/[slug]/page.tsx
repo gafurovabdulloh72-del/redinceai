@@ -39,6 +39,7 @@ import { CoverImage } from "@/components/specialists/CoverImage";
 import { FavoriteButton } from "@/components/specialists/FavoriteButton";
 import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { FollowButton } from "@/components/groups/FollowButton";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { PackagesTable } from "@/components/specialists/PackagesTable";
 import { RateCalculator } from "@/components/specialists/RateCalculator";
@@ -46,6 +47,7 @@ import { ShortLink } from "@/components/specialists/ShortLink";
 import { CompareButton } from "@/components/specialists/CompareButton";
 import { CompareTray } from "@/components/specialists/CompareTray";
 import { getCurrentUser } from "@/lib/auth";
+import { followState } from "@/lib/groups/service";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
@@ -159,6 +161,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   const [viewer, hdrs, settings, til] = await Promise.all([getCurrentUser(), headers(), getSettings(), getLocale()]);
   const isOwner = Boolean(viewer && viewer.id === raw.userId);
+  // Obuna (follow) holati — jamoalar moduli; egasining o'ziga ko'rsatilmaydi
+  const follow = await followState(viewer?.id ?? null, raw.userId);
   const isAdmin = viewer?.role === "admin";
 
   // ?preview= faqat egasi uchun: profil boshqalarga qanday ko'rinishini simulyatsiya qiladi
@@ -507,6 +511,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             ))}
             <li className="ml-auto flex items-center gap-2 lg:hidden">
               {!isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
+              {!isOwner && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
               <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} size="sm" variant="outline" />
             </li>
@@ -825,6 +830,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
               <div className="mt-5 flex items-stretch gap-2">
                 <div className="min-w-0 flex-1">{cta}</div>
+                {!isOwner && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact />}
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
               </div>

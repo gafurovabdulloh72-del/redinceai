@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -30,14 +30,18 @@ export interface NavUser {
  * desktop: "lg" — faqat lg+ da (md'da kapsula torayadi; logo baribir bosh sahifaga olib boradi).
  * mobile: false — pastki tab-bar'da yo'q; md+ da tab-bar yashirin, shuning uchun "Narxlar" yuqori panelda md'dan boshlab ko'rinadi.
  */
-const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?: boolean; desktop?: "lg"; mobile?: false }> = [
-  { href: "/", label: SHELL.nav.home, short: SHELL.nav.homeShort, icon: Home, exact: true, desktop: "lg" },
+const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?: boolean; desktop?: "lg" | "2xl"; mobile?: false }> = [
+  // "Bosh sahifa" faqat 2xl'da — logo baribir bosh sahifaga olib boradi; mobil tab-barda "Asosiy" qoladi
+  { href: "/", label: SHELL.nav.home, short: SHELL.nav.homeShort, icon: Home, exact: true, desktop: "2xl" },
   { href: "/xarita", label: SHELL.nav.map, short: SHELL.nav.map, icon: Map },
   { href: "/lenta", label: SHELL.nav.lenta, short: SHELL.nav.lenta, icon: Clapperboard },
   { href: "/mutaxassislar", label: SHELL.nav.specialists, short: SHELL.nav.specialistsShort, icon: Users },
+  // Jamoalar — ijodkorlar hamjamiyati. md'da (768px) 5-havola sig'maydi, mobil tab-bar 7 ustun bo'lib ketadi —
+  // shuning uchun lg+ da; kichik ekranlarda foydalanuvchi menyusi, footer va bosh sahifa orqali
+  { href: "/jamoalar", label: SHELL.nav.groups, short: SHELL.nav.groups, icon: UsersRound, mobile: false, desktop: "lg" },
   { href: "/ishlar", label: SHELL.nav.jobs, short: SHELL.nav.jobs, icon: BriefcaseBusiness },
-  { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false },
-  { href: "/haqida", label: SHELL.nav.about, short: SHELL.nav.about, icon: Info, mobile: false },
+  { href: "/narxlar", label: SHELL.nav.prices, short: SHELL.nav.prices, icon: CreditCard, mobile: false, desktop: "lg" },
+  { href: "/haqida", label: SHELL.nav.about, short: SHELL.nav.about, icon: Info, mobile: false, desktop: "lg" },
 ];
 
 export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
@@ -118,11 +122,11 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
 
   return (
     <>
-      {/* ---------- Yuqori panel: max-w-5xl kapsula, scroll'da biroz ixchamlashadi ---------- */}
+      {/* ---------- Yuqori panel: max-w-5xl (xl: 6xl, 2xl: 7xl) kapsula, scroll'da biroz ixchamlashadi ---------- */}
       <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <nav
           className={cn(
-            "nav-bar relative mx-auto flex w-full max-w-5xl items-center justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
+            "nav-bar relative mx-auto flex w-full max-w-5xl items-center xl:max-w-6xl 2xl:max-w-7xl justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
             scrolled ? "h-14 shadow-[var(--shadow-2)]" : "h-14 sm:h-16",
           )}
           aria-label={tr(til, SHELL.nav.mainAria)}
@@ -139,13 +143,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative h-10 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] font-semibold transition xl:px-4",
-                    n.desktop === "lg" ? "hidden lg:flex" : "flex",
+                    "relative h-10 items-center whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition lg:px-3.5",
+                    n.desktop === "lg" ? "hidden lg:flex" : n.desktop === "2xl" ? "hidden 2xl:flex" : "flex",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
                 >
                   {tr(til, n.label)}
-                  {active && <span aria-hidden className="absolute inset-x-3.5 bottom-1 h-[3px] rounded-full bg-accent xl:inset-x-4" />}
+                  {active && <span aria-hidden className="absolute inset-x-3 bottom-1 h-[3px] rounded-full bg-accent lg:inset-x-3.5" />}
                 </Link>
               );
             })}
@@ -161,13 +165,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   ref={triggerRef}
                   type="button"
                   onClick={() => setOpen((v) => !v)}
-                  className="card card-hover flex h-10 items-center gap-2 !rounded-full pl-1 pr-1.5 sm:pr-3"
+                  className="card card-hover flex h-10 shrink-0 items-center gap-2 !rounded-full pl-1 pr-1.5 xl:pr-3"
                   aria-haspopup="menu"
                   aria-expanded={open}
                   aria-label={SHELL.menu.aria[til](user.name)}
                 >
                   <Avatar name={user.name} src={user.avatarUrl} size={30} decorative />
-                  <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg sm:block">{user.name.split(" ")[0]}</span>
+                  <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg xl:block">{user.name.split(" ")[0]}</span>
                 </button>
 
                 {open && (
@@ -190,6 +194,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>{tr(til, SHELL.menu.myProfile)}</MenuItem>
                     )}
                     {(user.role === "specialist" || user.role === "admin") && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
+                    <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>{tr(til, SHELL.menu.groups)}</MenuItem>
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>
                     <MenuItem href="/kabinet/sevimlilar" icon={Heart}>{tr(til, SHELL.menu.favorites)}</MenuItem>
                     <MenuItem href="/kabinet/profil" icon={UserCog}>{tr(til, SHELL.menu.profile)}</MenuItem>

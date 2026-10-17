@@ -79,6 +79,11 @@ export const RATE_LIMITS = {
   sessions: { limit: 30, windowMs: HOUR },
   /** Foydalanish shartlarini qabul qilish — userId */
   terms: { limit: 20, windowMs: HOUR },
+  /** Jamoalar: yaratish (5 / kun), post (30 / soat), izoh (60 / soat), qo'shilish/obuna amallari (120 / soat) — userId */
+  groups: { limit: 5, windowMs: DAY },
+  posts: { limit: 30, windowMs: HOUR },
+  comments: { limit: 60, windowMs: HOUR },
+  social: { limit: 120, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

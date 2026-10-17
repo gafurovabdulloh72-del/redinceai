@@ -901,3 +901,191 @@ export const dmMessagesRelations = relations(dmMessages, ({ one }) => ({
 
 export type Conversation = typeof conversations.$inferSelect;
 export type DmMessage = typeof dmMessages.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Jamoalar — ijodkorlar hamjamiyati (guruh, lenta, chat, obuna)        */
+/* ------------------------------------------------------------------ */
+export const groups = sqliteTable(
+  "groups",
+  {
+    id: text("id").primaryKey(),
+    /** URL: /jamoalar/<slug> — nomdan translit + qisqa suffiks */
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    /** Yo'nalish (CATEGORIES slug) va hudud (REGIONS slug) — filtr uchun, ikkalasi ixtiyoriy */
+    category: text("category"),
+    region: text("region"),
+    coverUrl: text("cover_url"),
+    /** Yopiq jamoa: qo'shilish so'rovi egasi/admin tasdiqlagach faollashadi */
+    isPrivate: integer("is_private", { mode: "boolean" }).notNull().default(false),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Denormalizatsiya: faol a'zolar va postlar soni (ro'yxatda tez ko'rsatish uchun) */
+    membersCount: integer("members_count").notNull().default(1),
+    postsCount: integer("posts_count").notNull().default(0),
+    lastActivityAt: integer("last_activity_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("groups_slug_idx").on(t.slug), index("groups_owner_idx").on(t.ownerId), index("groups_category_idx").on(t.category), index("groups_region_idx").on(t.region)],
+);
+
+export const groupMembers = sqliteTable(
+  "group_members",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["owner", "admin", "member"] }).notNull().default("member"),
+    /** pending — yopiq jamoaga so'rov; banned — chiqarib yuborilgan (qayta so'rov yubora olmaydi) */
+    status: text("status", { enum: ["active", "pending", "banned"] }).notNull().default("active"),
+    /** Guruh chatini oxirgi ko'rgan vaqti — o'qilmaganlar soni shundan */
+    lastReadAt: integer("last_read_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("group_members_pair_idx").on(t.groupId, t.userId), index("group_members_user_idx").on(t.userId)],
+);
+
+export const groupMessages = sqliteTable(
+  "group_messages",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("group_messages_group_idx").on(t.groupId, t.createdAt)],
+);
+
+/* Postlar — jamoa lentasi (groupId) yoki shaxsiy devor (groupId null, keyingi bosqich) */
+export const posts = sqliteTable(
+  "posts",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id").references(() => groups.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    /** Rasm/video biriktirmalari (/api/upload natijalari) */
+    media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    likesCount: integer("likes_count").notNull().default(0),
+    commentsCount: integer("comments_count").notNull().default(0),
+    isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("posts_group_idx").on(t.groupId, t.createdAt), index("posts_author_idx").on(t.authorId)],
+);
+
+export const postLikes = sqliteTable(
+  "post_likes",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_likes_pair_idx").on(t.postId, t.userId)],
+);
+
+export const postComments = sqliteTable(
+  "post_comments",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("post_comments_post_idx").on(t.postId, t.createdAt)],
+);
+
+/* Obuna (follow): followerId → followingId foydalanuvchini kuzatadi */
+export const follows = sqliteTable(
+  "follows",
+  {
+    id: text("id").primaryKey(),
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followingId: text("following_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("follows_pair_idx").on(t.followerId, t.followingId), index("follows_following_idx").on(t.followingId)],
+);
+
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+  owner: one(users, { fields: [groups.ownerId], references: [users.id] }),
+  members: many(groupMembers),
+  posts: many(posts),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
+  user: one(users, { fields: [groupMembers.userId], references: [users.id] }),
+}));
+
+export const groupMessagesRelations = relations(groupMessages, ({ one }) => ({
+  group: one(groups, { fields: [groupMessages.groupId], references: [groups.id] }),
+  sender: one(users, { fields: [groupMessages.senderId], references: [users.id] }),
+}));
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  group: one(groups, { fields: [posts.groupId], references: [groups.id] }),
+  author: one(users, { fields: [posts.authorId], references: [users.id] }),
+  comments: many(postComments),
+}));
+
+export const postCommentsRelations = relations(postComments, ({ one }) => ({
+  post: one(posts, { fields: [postComments.postId], references: [posts.id] }),
+  author: one(users, { fields: [postComments.authorId], references: [users.id] }),
+}));
+
+export const followsRelations = relations(follows, ({ one }) => ({
+  follower: one(users, { fields: [follows.followerId], references: [users.id] }),
+  following: one(users, { fields: [follows.followingId], references: [users.id] }),
+}));
+
+export type Group = typeof groups.$inferSelect;
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type GroupMessage = typeof groupMessages.$inferSelect;
+export type Post = typeof posts.$inferSelect;
+export type PostComment = typeof postComments.$inferSelect;

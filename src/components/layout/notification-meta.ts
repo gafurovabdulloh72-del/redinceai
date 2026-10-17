@@ -20,7 +20,9 @@ import {
   ShieldCheck,
   Star,
   Undo2,
+  UserPlus,
   UserRound,
+  UsersRound,
   Wallet,
   XCircle,
   type LucideIcon,
@@ -69,6 +71,10 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   subscription_paid: { icon: BadgeCheck, tone: "success", label: "Obuna faollashdi" },
   subscription_pending: { icon: Clock3, tone: "warning", label: "Obuna: tasdiq kutilmoqda" },
   broadcast: { icon: Megaphone, tone: "accent", label: "E'lon" },
+  group_request: { icon: UsersRound, tone: "warning", label: "Jamoaga so'rov" },
+  group_joined: { icon: UsersRound, tone: "success", label: "Jamoaga qabul qilindingiz" },
+  post_comment: { icon: MessageSquare, tone: "info", label: "Postga izoh" },
+  follow: { icon: UserPlus, tone: "accent", label: "Yangi obunachi" },
 };
 
 const FALLBACK = { icon: Bell, tone: "neutral" as NotificationTone, label: "Bildirishnoma" };
