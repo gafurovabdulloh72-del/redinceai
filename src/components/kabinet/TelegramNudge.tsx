@@ -8,11 +8,12 @@ import { Send, X } from "lucide-react";
 const DISMISS_KEY = "tg-nudge-yopildi";
 
 /**
- * Mutaxassisga eslatma: Telegram ulanmagan bo'lsa yangi buyurtma xabarini o'tkazib yuborishi mumkin.
+ * Eslatma: Telegram ulanmagan bo'lsa yangi buyurtma/javob/e'lon xabarini o'tkazib yuborishi mumkin.
  * Server (kabinet layout) faqat bot sozlangan va hisob ulanmagan bo'lsa render qiladi;
  * foydalanuvchi yopsa — localStorage orqali shu brauzerda boshqa chiqmaydi.
+ * `forClient` — mijozga mos matn (mutaxassisnikida "yangi buyurtma" urg'usi).
  */
-export function TelegramNudge() {
+export function TelegramNudge({ forClient = false }: { forClient?: boolean }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     try {
@@ -28,8 +29,10 @@ export function TelegramNudge() {
         <Send size={15} />
       </span>
       <p className="min-w-0 flex-1 text-[13px] leading-snug text-fg">
-        <strong className="font-bold">Yangi buyurtmani o&apos;tkazib yubormang.</strong>{" "}
-        <span className="text-fg-2">Mijoz buyurtma yuborganida bot sizga Telegramda darhol yozadi.</span>
+        <strong className="font-bold">{forClient ? "Muhim xabarni o'tkazib yubormang." : "Yangi buyurtmani o'tkazib yubormang."}</strong>{" "}
+        <span className="text-fg-2">
+          {forClient ? "Buyurtmangiz holati, mutaxassis javoblari va e'lonlar Telegramga darhol keladi." : "Mijoz buyurtma yuborganida bot sizga Telegramda darhol yozadi."}
+        </span>
       </p>
       <Link
         href="/kabinet/profil#telegram"

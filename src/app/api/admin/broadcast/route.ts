@@ -1,7 +1,7 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { notifications, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
@@ -68,7 +68,21 @@ export const GET = handler(async () => {
     .from(users)
     .where(ne(users.role, "admin"));
   const active = rows.filter((r) => !r.banned);
+  // So'nggi e'lonlar: nechta qo'ng'iroqchaga yozilgani va nechtasi saytda o'qilgani — "yetib bordimi" savoliga javob
+  const recent = await db
+    .select({
+      title: notifications.title,
+      total: sql<number>`count(*)`,
+      readCount: sql<number>`sum(case when ${notifications.readAt} is not null then 1 else 0 end)`,
+      at: sql<number>`max(${notifications.createdAt})`,
+    })
+    .from(notifications)
+    .where(eq(notifications.type, "broadcast"))
+    .groupBy(notifications.title)
+    .orderBy(sql`max(${notifications.createdAt}) desc`)
+    .limit(3);
   return ok({
+    recent,
     all: channelStat(active),
     specialists: channelStat(active.filter((r) => r.role === "specialist")),
     clients: channelStat(active.filter((r) => r.role === "client")),

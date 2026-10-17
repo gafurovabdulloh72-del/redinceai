@@ -172,8 +172,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           <div className="print:hidden">
             <TermsBanner />
             {subState && <SubscriptionPill st={subState} />}
-            {/* Mutaxassis Telegram ulamagan bo'lsa — yangi buyurtma xabarini o'tkazib yubormasligi uchun eslatma */}
-            {user.role === "specialist" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge />}
+            {/* Telegram ulanmagan bo'lsa — buyurtma/javob/e'lon xabarini o'tkazib yubormaslik uchun eslatma (admindan tashqari hammaga) */}
+            {user.role !== "admin" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge forClient={user.role === "client"} />}
           </div>
           {children}
         </div>
