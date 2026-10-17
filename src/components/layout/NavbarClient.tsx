@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound, Briefcase } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound, Briefcase, Search } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -13,6 +13,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { setFavoritesViewer } from "@/components/specialists/favorites-store";
+import { SearchButton } from "@/components/search/SearchButton";
 import { cn } from "@/lib/utils";
 
 export interface NavUser {
@@ -146,7 +147,7 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative h-10 items-center whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition xl:px-3.5",
+                    "relative h-10 items-center whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition-[color,background-color] duration-200 hover:bg-fg/5 xl:px-3.5",
                     n.desktop === "lg" ? "hidden lg:flex" : n.desktop === "2xl" ? "hidden 2xl:flex" : "flex",
                     active ? "text-fg" : "text-fg-3 hover:text-fg",
                   )}
@@ -159,6 +160,8 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Qidiruv: mobil va xl+ da tugma (md/lg kapsula tor — ⌘K va menyu orqali) */}
+            <SearchButton className="md:hidden xl:flex" />
             <LocaleSwitch />
             <ThemeToggle />
             {user && <NotificationsBell initialUnread={unread} />}
@@ -182,8 +185,8 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     role="menu"
                     aria-label={SHELL.menu.aria[til](user.name)}
                     onKeyDown={onMenuKey}
-                    className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-fade-up"
-                    style={{ animationDuration: "0.22s" }}
+                    className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-scale-in max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] max-sm:top-auto max-sm:w-auto max-sm:origin-bottom max-sm:animate-slide-up max-sm:p-2"
+                    style={{ animationDuration: "0.26s" }}
                   >
                     <div className="px-3 py-2.5">
                       <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
@@ -197,6 +200,17 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                       <MenuItem href={`/mutaxassislar/${user.specialistSlug}`} icon={UserRound}>{tr(til, SHELL.menu.myProfile)}</MenuItem>
                     )}
                     {(user.role === "specialist" || user.role === "admin") && <MenuItem href="/kabinet/obuna" icon={CreditCard}>{tr(til, SHELL.menu.subscription)}</MenuItem>}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setOpen(false);
+                        window.dispatchEvent(new Event("open-search"));
+                      }}
+                      className="flex min-h-11 w-full items-center gap-2.5 rounded-tile px-3 py-2.5 text-left text-[14px] font-medium text-fg transition hover:bg-fg/6 xl:hidden"
+                    >
+                      <Search size={16} /> Qidiruv <kbd className="ml-auto rounded-md border border-line px-1.5 text-[11px] text-fg-3">⌘K</kbd>
+                    </button>
                     <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>{tr(til, SHELL.menu.groups)}</MenuItem>
                     <MenuItem href="/vakansiyalar" icon={Briefcase}>{tr(til, SHELL.menu.vacancies)}</MenuItem>
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>

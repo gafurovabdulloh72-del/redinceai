@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
-import { assertActiveMember, listGroupMessages, markGroupRead, sendGroupMessage } from "@/lib/groups/service";
+import { assertActiveMember, listGroupMessages, markGroupRead, seenCountFor, sendGroupMessage } from "@/lib/groups/service";
 import { groupMessageSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404 } from "../../_lib";
@@ -17,7 +17,10 @@ export const GET = handler(async (req, ctx: Ctx) => {
   const after = new URL(req.url).searchParams.get("after");
   const items = await listGroupMessages(group, viewer, after);
   await markGroupRead(group.id, session.sub);
-  return ok({ items });
+  // "N kishi ko'rdi": ko'ruvchining oxirgi xabarini nechta a'zo o'qigan (to'liq yuklashda ham, polling'da ham qaytadi)
+  const lastMine = [...items].reverse().find((m) => m.mine);
+  const seen = lastMine ? { messageId: lastMine.id, count: await seenCountFor(group, session.sub, new Date(lastMine.at)) } : null;
+  return ok({ items, seen });
 });
 
 /** POST: xabar (matn yoki fayl — kamida bittasi), 60 / 10 daqiqa */

@@ -309,7 +309,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
     }
 
     return (
-      <div className={cn("flex items-center gap-1.5", !compact && "justify-end")}>
+      <div className={cn("flex flex-wrap items-center gap-1.5", !compact && "justify-end")}>
         <Button size={compact ? "md" : "sm"} onClick={() => verify(row)} disabled={!!b} className={cn(compact && "flex-1")}>
           {b === "verify" ? <Spinner className="h-3.5 w-3.5" /> : <BadgeCheck size={14} />} Tasdiqlash
         </Button>
@@ -424,12 +424,12 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                               <span className="truncate">{row.user.name}</span>
                               {row.isFeatured && <Star size={12} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                               {row.isBanned && (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger-text" title={row.bannedReason ?? undefined}>
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[11px] font-bold text-danger-text" title={row.bannedReason ?? undefined}>
                                   <ShieldBan size={10} /> Bloklangan
                                 </span>
                               )}
                               {row.isHidden && (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[10px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[11px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
                                   <EyeOff size={10} /> Yashirilgan
                                 </span>
                               )}
@@ -506,12 +506,12 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                         <span className="truncate">{row.user.name}</span>
                         {row.isFeatured && <Star size={13} className="shrink-0 fill-accent-3 text-accent-3" aria-label="Tavsiya etilgan" />}
                         {row.isBanned && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-danger-text">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[11px] font-bold text-danger-text">
                             <ShieldBan size={10} /> Bloklangan
                           </span>
                         )}
                         {row.isHidden && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[10px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-fg/8 px-1.5 py-0.5 text-[11px] font-bold text-fg-2" title="Rad etilgan — katalogda ko'rinmaydi">
                             <EyeOff size={10} /> Yashirilgan
                           </span>
                         )}
@@ -545,11 +545,11 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                     <div className="col-span-2">
                       <dt className="text-fg-4">Aloqa</dt>
                       <dd className="flex flex-col gap-0.5 text-[13px] text-fg-2">
-                        <a href={`mailto:${row.user.email}`} className="inline-flex min-h-7 items-center gap-1.5 truncate">
+                        <a href={`mailto:${row.user.email}`} className="inline-flex min-h-9 items-center gap-1.5 truncate">
                           <Mail size={13} className="shrink-0 text-fg-3" /> {row.user.email}
                         </a>
                         {row.user.phone && (
-                          <a href={`tel:${normalizeUzPhone(row.user.phone) ?? row.user.phone}`} className="inline-flex min-h-7 items-center gap-1.5">
+                          <a href={`tel:${normalizeUzPhone(row.user.phone) ?? row.user.phone}`} className="inline-flex min-h-9 items-center gap-1.5">
                             <Phone size={13} className="shrink-0 text-fg-3" /> {formatUzPhone(row.user.phone)}
                           </a>
                         )}

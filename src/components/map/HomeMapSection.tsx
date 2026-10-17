@@ -382,7 +382,7 @@ function CatPill({ active, onClick, icon, label, count }: { active: boolean; onC
     >
       {icon}
       {label}
-      <span className={cn("rounded-full px-1.5 py-px text-[10.5px] font-bold", active ? "bg-ink-fg/15 text-ink-fg" : "bg-fg/6 text-fg-2")}>{count}</span>
+      <span className={cn("rounded-full px-1.5 py-px text-[11px] font-bold", active ? "bg-ink-fg/15 text-ink-fg" : "bg-fg/6 text-fg-2")}>{count}</span>
     </button>
   );
 }

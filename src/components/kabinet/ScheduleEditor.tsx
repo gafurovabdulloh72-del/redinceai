@@ -283,7 +283,7 @@ export function ScheduleEditor({
                   <Switch checked={day.enabled} onChange={(on) => setDay(d.key, { enabled: on })} label={`${d.label} — ish kuni`} />
                   <span className={cn("w-24 text-[14px] font-semibold sm:w-32", day.enabled ? "text-fg" : "text-fg-3")}>
                     {d.label}
-                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold uppercase text-accent-text">bugun</span>}
+                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold uppercase text-accent-text">bugun</span>}
                   </span>
                   {day.enabled ? (
                     <div className="flex basis-full items-center gap-2 sm:ml-auto sm:basis-auto">

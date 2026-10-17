@@ -5,6 +5,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { TermsBanner } from "@/components/auth/TermsBanner";
 import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
 import { TelegramNudge } from "@/components/kabinet/TelegramNudge";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
@@ -178,6 +179,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
             {subState && <SubscriptionPill st={subState} />}
             {/* Telegram ulanmagan bo'lsa — buyurtma/javob/e'lon xabarini o'tkazib yubormaslik uchun eslatma (admindan tashqari hammaga) */}
             {user.role !== "admin" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge forClient={user.role === "client"} />}
+            <InstallPrompt />
           </div>
           {children}
         </div>

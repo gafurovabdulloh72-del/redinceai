@@ -185,7 +185,7 @@ export function PrivacySettings({
                 <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-fg">
                     {f.label}
-                    {!has && <span className="ml-2 rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-semibold text-fg-3">to'ldirilmagan</span>}
+                    {!has && <span className="ml-2 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-fg-3">to'ldirilmagan</span>}
                   </p>
                   <p className="mt-0.5 text-[12px] text-fg-3">
                     {contactOnly && level !== "hidden" ? CONTACT_RULE_NOTE : VISIBILITY_LEVELS.find((l) => l.value === level)?.description}

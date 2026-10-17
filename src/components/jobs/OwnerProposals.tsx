@@ -118,7 +118,7 @@ function ProposalItem({ p, jobOpen, defaultPhone }: { p: OwnerProposal; jobOpen:
               <span className="truncate">{sp.user.name}</span>
               {sp.isVerified && <VerifiedBadge size={15} />}
               {sp.topRated && (
-                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[10px] font-semibold text-fg">
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[11px] font-semibold text-fg">
                   <Award size={10} className="text-accent" aria-hidden="true" /> Top
                 </span>
               )}

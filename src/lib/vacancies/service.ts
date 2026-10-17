@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { applications, resumes, specialists, users, vacancies, type Application, type Resume, type Vacancy } from "@/lib/db/schema";
+import { applications, resumes, specialists, users, vacancies, vacancySaves, type Application, type Resume, type Vacancy } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
@@ -57,6 +57,8 @@ export interface VacancyView extends VacancyCard {
   canApply: boolean;
   /** Muddati o'tganmi (ro'yxatda chiqmaydi, lekin havola orqali ochiladi) */
   expired: boolean;
+  /** Ko'ruvchi saqlab qo'yganmi (bookmark) */
+  savedByMe: boolean;
 }
 
 export interface ResumeCard {
@@ -200,9 +202,10 @@ export async function loadVacancy(id: string): Promise<Vacancy | null> {
 export async function getVacancyView(id: string, viewer: Viewer): Promise<VacancyView | null> {
   const v = await loadVacancy(id);
   if (!v) return null;
-  const [authors, mine] = await Promise.all([
+  const [authors, mine, saved] = await Promise.all([
     usersMini([v.authorId]),
     viewer ? db.query.applications.findFirst({ where: and(eq(applications.vacancyId, v.id), eq(applications.userId, viewer.id)) }) : Promise.resolve(null),
+    viewer ? db.query.vacancySaves.findFirst({ where: and(eq(vacancySaves.vacancyId, v.id), eq(vacancySaves.userId, viewer.id)), columns: { id: true } }) : Promise.resolve(null),
   ]);
   const isOwner = Boolean(viewer && (viewer.id === v.authorId || isAdmin(viewer)));
   const expired = isExpired(v);
@@ -216,7 +219,45 @@ export async function getVacancyView(id: string, viewer: Viewer): Promise<Vacanc
     myApplication: mine ? { id: mine.id, status: mine.status, createdAt: mine.createdAt.getTime() } : null,
     canApply: Boolean(viewer) && !isOwner && v.status === "open" && !expired && !mine,
     expired,
+    savedByMe: Boolean(saved),
   };
+}
+
+/** Saqlash/olib tashlash (bookmark) — {saved} qaytaradi */
+export async function toggleSaveVacancy(vacancyId: string, userId: string): Promise<{ saved: boolean }> {
+  const existing = await db.query.vacancySaves.findFirst({ where: and(eq(vacancySaves.vacancyId, vacancyId), eq(vacancySaves.userId, userId)) });
+  if (existing) {
+    await db.delete(vacancySaves).where(eq(vacancySaves.id, existing.id));
+    return { saved: false };
+  }
+  await db.insert(vacancySaves).values({ id: uid(), vacancyId, userId, createdAt: new Date() }).onConflictDoNothing();
+  return { saved: true };
+}
+
+/** Saqlangan vakansiyalar (yangi saqlanganlar tepada) */
+export async function mySavedVacancies(userId: string): Promise<Array<VacancyCard & { expired: boolean }>> {
+  const rows = await db
+    .select({ v: vacancies })
+    .from(vacancySaves)
+    .innerJoin(vacancies, eq(vacancies.id, vacancySaves.vacancyId))
+    .where(eq(vacancySaves.userId, userId))
+    .orderBy(desc(vacancySaves.createdAt))
+    .limit(50);
+  const authors = await usersMini(rows.map((r) => r.v.authorId));
+  return rows.map((r) => ({ ...toCard(r.v, pub(authors.get(r.v.authorId) ?? UNKNOWN)), expired: isExpired(r.v) }));
+}
+
+/** Shunga o'xshash ochiq vakansiyalar: avval shu kasb, keyin shu format — joriy e'londan tashqari */
+export async function similarVacancies(v: Vacancy, limit = 3, now = Date.now()): Promise<VacancyCard[]> {
+  const rows = await db
+    .select({ v: vacancies })
+    .from(vacancies)
+    .innerJoin(users, eq(users.id, vacancies.authorId))
+    .where(and(eq(vacancies.status, "open"), or(isNull(vacancies.expiresAt), gt(vacancies.expiresAt, new Date(now))), eq(users.isBanned, false), sql`${vacancies.id} != ${v.id}`, or(eq(vacancies.profession, v.profession), eq(vacancies.format, v.format))))
+    .orderBy(desc(sql`case when ${vacancies.profession} = ${v.profession} then 1 else 0 end`), desc(vacancies.createdAt))
+    .limit(limit);
+  const authors = await usersMini(rows.map((r) => r.v.authorId));
+  return rows.map((r) => toCard(r.v, pub(authors.get(r.v.authorId) ?? UNKNOWN)));
 }
 
 export async function bumpVacancyView(id: string): Promise<void> {

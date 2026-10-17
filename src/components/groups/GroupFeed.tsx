@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Heart, ImagePlus, MessageCircle, Pin, RadioTower, Send, Trash2, X } from "lucide-react";
+import { ExternalLink, Heart, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
+import { RichText } from "./RichText";
+import { CalendarLinks } from "./CalendarLinks";
+import { useToast } from "@/components/ui/toast";
 import { Avatar, Button } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
@@ -114,10 +117,12 @@ export function GroupFeed({
             key={p.id}
             post={p}
             canInteract={canInteract}
+            canPin={canSchedule}
             loggedIn={loggedIn}
             requireLogin={requireLogin}
             highlighted={p.id === highlightId}
             onDeleted={() => setItems((prev) => prev.filter((x) => x.id !== p.id))}
+            onChanged={reload}
           />
         ))
       )}
@@ -298,19 +303,30 @@ function Composer({ base, onPosted, allowEvent = false, kind = "group" }: { base
 function PostCard({
   post,
   canInteract,
+  canPin,
   loggedIn,
   requireLogin,
   highlighted,
   onDeleted,
+  onChanged,
 }: {
   post: PostView;
   canInteract: boolean;
+  /** Egasi/admin — qadash va olish */
+  canPin: boolean;
   loggedIn: boolean;
   requireLogin: () => boolean;
   highlighted: boolean;
   onDeleted: () => void;
+  onChanged: () => Promise<void>;
 }) {
   const ref = useRef<HTMLElement>(null);
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(post.body);
+  const [body, setBody] = useState(post.body);
+  const [edited, setEdited] = useState(post.edited);
+  const [pinned, setPinned] = useState(post.isPinned);
   const [liked, setLiked] = useState(post.likedByMe);
   const [likes, setLikes] = useState(post.likesCount);
   const [comments, setComments] = useState(post.commentsCount);
@@ -352,6 +368,40 @@ function PostCard({
     }
   }
 
+  async function patch(payload: Record<string, unknown>) {
+    const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const j = (await res.json()) as ApiResp<{ isPinned: boolean; body: string }>;
+    if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Bo'lmadi");
+    return j.data;
+  }
+  async function togglePin() {
+    try {
+      const d = await patch({ isPinned: !pinned });
+      setPinned(d.isPinned);
+      toast(d.isPinned ? "Post qadaldi — lentada tepada" : "Qadash olindi");
+      await onChanged();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    }
+  }
+  async function saveEdit() {
+    const t = draft.trim();
+    if (!t || t === body) {
+      setEditing(false);
+      return;
+    }
+    try {
+      const d = await patch({ body: t });
+      setBody(d.body);
+      setEdited(true);
+      setEditing(false);
+      toast("Post yangilandi");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Saqlab bo'lmadi", "error");
+    }
+  }
+  const isAuthor = post.canDelete && loggedIn;
+
   const media = post.media;
   const single = media.length === 1;
   const lockedLike = loggedIn && !canInteract;
@@ -363,10 +413,27 @@ function PostCard({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5 text-[14px]">
             <AuthorLink u={post.author} />
-            {post.isPinned && <Pin size={13} className="shrink-0 text-accent" aria-label="Qadalgan" />}
+            {pinned && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-text">
+                <Pin size={11} /> Qadalgan
+              </span>
+            )}
           </div>
-          <p className="text-[12px] text-fg-3">{timeAgo(post.createdAt)}</p>
+          <p className="text-[12px] text-fg-3">
+            {timeAgo(post.createdAt)}
+            {edited && <span className="text-fg-4"> · tahrirlangan</span>}
+          </p>
         </div>
+        {canPin && (
+          <button type="button" onClick={() => void togglePin()} aria-label={pinned ? "Qadashni olish" : "Postni qadash"} title={pinned ? "Qadashni olish" : "Tepaga qadash"} className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+            {pinned ? <PinOff size={15} /> : <Pin size={15} />}
+          </button>
+        )}
+        {isAuthor && !editing && post.author.id !== "" && (
+          <button type="button" onClick={() => setEditing(true)} aria-label="Postni tahrirlash" className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+            <Pencil size={15} />
+          </button>
+        )}
         {post.canDelete &&
           (confirm ? (
             <span className="flex items-center gap-2 text-[12.5px]">
@@ -389,9 +456,27 @@ function PostCard({
           ))}
       </header>
 
-      {post.body && <p className="mt-3 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-fg">{post.body}</p>}
+      {editing ? (
+        <div className="mt-3">
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={POST_BODY_MAX} rows={4} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" autoFocus />
+          <div className="mt-2 flex items-center gap-2">
+            <Button type="button" variant="primary" size="sm" onClick={() => void saveEdit()} disabled={!draft.trim()}>
+              Saqlash
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(body); }}>
+              Bekor
+            </Button>
+          </div>
+        </div>
+      ) : (
+        body && (
+          <p className="mt-3 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-fg">
+            <RichText text={body} />
+          </p>
+        )
+      )}
 
-      {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} />}
+      {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
 
       {media.length > 0 && (
         <div className={cn("mt-3 grid gap-1.5 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
@@ -505,7 +590,9 @@ function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boo
                     </button>
                   )}
                 </div>
-                <p className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-fg">{c.body}</p>
+                <p className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-fg">
+                  <RichText text={c.body} />
+                </p>
               </div>
             </li>
           ))}
@@ -525,7 +612,7 @@ function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boo
 }
 
 /** Efir/yig'ilish bloki: holat (kutilmoqda / jonli / o'tkazildi), vaqt va havola */
-function EventBlock({ at, url }: { at: number; url: string | null }) {
+function EventBlock({ at, url, title }: { at: number; url: string | null; title: string }) {
   const now = Date.now();
   const live = now >= at && now < at + 2 * 60 * 60 * 1000;
   const past = now >= at + 2 * 60 * 60 * 1000;
@@ -547,6 +634,11 @@ function EventBlock({ at, url }: { at: number; url: string | null }) {
         </a>
       ) : (
         !past && <span className="text-[12px] text-fg-3">Havola efir oldidan qo&apos;shiladi</span>
+      )}
+      {!past && (
+        <div className="basis-full">
+          <CalendarLinks title={title} at={at} url={url} compact />
+        </div>
       )}
     </div>
   );

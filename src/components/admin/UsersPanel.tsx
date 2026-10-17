@@ -185,11 +185,11 @@ export function UsersPanel() {
                     <span className="truncate">{u.name}</span>
                     {u.role === "admin" && <ShieldCheck size={14} className="text-accent" aria-label="Administrator" />}
                     {u.isPrivileged && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[10.5px] font-bold text-info-text">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-bold text-info-text">
                         <Star size={10} /> Imtiyozli
                       </span>
                     )}
-                    {u.isBanned && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10.5px] font-bold text-danger-text">Bloklangan</span>}
+                    {u.isBanned && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-bold text-danger-text">Bloklangan</span>}
                   </p>
                   <p className="truncate text-[12.5px] text-fg-3">
                     {u.email}

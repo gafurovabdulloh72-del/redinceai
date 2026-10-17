@@ -693,7 +693,7 @@ export function MapExplorer({
                   min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setSana(e.target.value || null)}
                   aria-label="Sana bo'yicha bo'sh mutaxassislar"
-                  className="w-[8.2rem] bg-transparent text-[12.5px] font-semibold outline-none"
+                  className="h-8 w-[8.2rem] bg-transparent text-[12.5px] font-semibold outline-none"
                 />
                 {sana && (
                   <button type="button" onClick={() => setSana(null)} aria-label="Sanani tozalash" className="-mr-1 flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-fg/10">
@@ -918,8 +918,8 @@ export function MapExplorer({
                         <p className="flex items-center gap-1.5 text-[15px] font-semibold leading-tight text-fg">
                           <span className="truncate">{it.user.name}</span>
                           {it.isVerified && <VerifiedBadge size={15} />}
-                          {isRecent(it.createdAt, 7) && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">Yangi</span>}
-                          {!it.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">Band</span>}
+                          {isRecent(it.createdAt, 7) && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">Yangi</span>}
+                          {!it.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[11px] font-semibold text-warning-text">Band</span>}
                         </p>
                         <p className="mt-0.5 truncate text-[13px] text-fg-2">{it.title}</p>
                         <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-fg-3">

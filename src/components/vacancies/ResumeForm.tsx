@@ -48,6 +48,18 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
   const valid = title.trim().length >= 3 && profession !== "";
 
+  // To'liqlik o'lchagichi: ish beruvchi ko'radigan asosiy maydonlar (har biri — ball)
+  const checks: Array<[string, boolean]> = [
+    ["Lavozim", title.trim().length >= 3],
+    ["Kasb", profession !== ""],
+    ["O'zingiz haqingizda (80+ belgi)", summary.trim().length >= 80],
+    ["Kamida 3 ta ko'nikma", skills.length >= 3],
+    ["Portfolio yoki profil havolasi", links.some((l) => l.url.trim().startsWith("https://"))],
+    ["Kutilayotgan maosh", expectedSalary.replace(/\D/g, "").length > 0],
+    ["Tajriba darajasi", experience !== "none" || summary.trim().length >= 80],
+  ];
+  const score = Math.round((checks.filter(([, ok]) => ok).length / checks.length) * 100);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!valid || busy) return;
@@ -89,6 +101,18 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
   return (
     <form onSubmit={save} noValidate className="card grid gap-5 p-5 sm:p-6">
+      {/* To'liqlik */}
+      <div className="rounded-[16px] border border-line px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] font-semibold text-fg">Rezyume to&apos;liqligi</p>
+          <p className={`text-[13px] font-bold tabular-nums ${score >= 80 ? "text-success-text" : score >= 50 ? "text-warning-text" : "text-fg-3"}`}>{score}%</p>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-fg/8" role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} aria-label="Rezyume to'liqligi">
+          <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${score >= 80 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-accent"}`} style={{ width: `${score}%` }} />
+        </div>
+        {score < 100 && <p className="mt-2 text-[12px] text-fg-3">Qo&apos;shing: {checks.filter(([, ok]) => !ok).map(([n]) => n).slice(0, 3).join(" · ")}</p>}
+        {score === 100 && <p className="mt-2 text-[12px] text-success-text">A&apos;lo — bunday rezyumelar 2–3 barobar ko&apos;p javob oladi.</p>}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5 sm:col-span-2">
           <span className={LABEL}>Izlayotgan lavozim</span>

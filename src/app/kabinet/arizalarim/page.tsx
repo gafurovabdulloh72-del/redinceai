@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Briefcase, FileUser, Send } from "lucide-react";
+import { Bookmark, Briefcase, FileUser, Send } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
 import { StatusBadge } from "@/components/vacancies/ApplicantsList";
 import { WithdrawButton } from "@/components/vacancies/WithdrawButton";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { professionLabel, salaryLabel, WORK_FORMAT } from "@/lib/vacancies/format";
-import { getResume, myApplications } from "@/lib/vacancies/service";
+import { getResume, myApplications, mySavedVacancies } from "@/lib/vacancies/service";
+import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export const metadata: Metadata = { title: "Arizalarim" };
 export default async function MyApplicationsPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/arizalarim"));
-  const [items, resume] = await Promise.all([myApplications(user.id), getResume(user.id)]);
+  const [items, resume, saved] = await Promise.all([myApplications(user.id), getResume(user.id), mySavedVacancies(user.id)]);
   const active = items.filter((a) => a.status !== "rejected").length;
 
   return (
@@ -89,6 +90,21 @@ export default async function MyApplicationsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {saved.length > 0 && (
+        <section className="mt-10" aria-labelledby="saved-h">
+          <h2 id="saved-h" className="flex items-center gap-2 font-display text-[20px] font-semibold text-fg">
+            <Bookmark size={18} className="text-accent" /> Saqlangan vakansiyalar <span className="text-[14px] font-semibold text-fg-3">{saved.length}</span>
+          </h2>
+          <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2">
+            {saved.map((v) => (
+              <li key={v.id} className="min-w-0">
+                <VacancyCard v={v} headingLevel="h3" className={v.expired || v.status !== "open" ? "opacity-70" : undefined} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

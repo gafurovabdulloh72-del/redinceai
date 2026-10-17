@@ -342,7 +342,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                         {c.last ? `${c.last.mine ? "Siz: " : ""}${c.last.body || (c.last.hasFiles ? "📎 Fayl" : "")}` : `@${c.peer.username ?? ""}`}
                       </span>
                       {c.unread > 0 && (
-                        <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10.5px] font-bold text-white">
+                        <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
                           {c.unread > 99 ? "99+" : c.unread}
                         </span>
                       )}
@@ -480,7 +480,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                           </div>
                         )}
                         {m.body && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.body}</p>}
-                        <p className={cn("mt-1 flex items-center justify-end gap-1 text-right text-[10.5px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
+                        <p className={cn("mt-1 flex items-center justify-end gap-1 text-right text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
                           {timeOf(m.at)}
                           {m.mine &&
                             (peerReadAt >= m.at ? (

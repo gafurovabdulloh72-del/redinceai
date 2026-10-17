@@ -26,8 +26,9 @@ const sizeClass: Record<Size, string> = {
   icon: "h-11 w-11 p-0",
 };
 
+/* Barcha tugmalar: pill, bosilganda 0.97 ga qisqaradi (Apple), fokusda accent halqa; variant o'z rangini beradi */
 const base =
-  "inline-flex items-center justify-center rounded-full whitespace-nowrap select-none disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center rounded-full whitespace-nowrap select-none transition-[transform,filter,background-color,border-color,box-shadow,opacity] duration-200 ease-out active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 disabled:pointer-events-none";
 
 export function Button({
   variant = "primary",
@@ -354,7 +355,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="card-outline flex flex-col items-center justify-center px-6 py-14 text-center">
+    <div data-reveal="scale" className="card-outline flex flex-col items-center justify-center px-6 py-14 text-center">
       {Icon && <IconTile icon={Icon} tone="soft" size="lg" className="mb-4" />}
       <h3 className="font-display text-[17px] font-semibold text-fg">{title}</h3>
       {description && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{description}</p>}

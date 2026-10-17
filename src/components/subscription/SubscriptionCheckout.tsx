@@ -186,7 +186,7 @@ export function SubscriptionCheckout({
                 {p.savings > 0 && <span className="block text-success-text">{formatPrice(p.savings)} tejaysiz</span>}
               </span>
               {best === p.months && (
-                <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink-fg">
+                <span className="absolute -top-2.5 left-3 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-fg">
                   <Sparkles size={10} aria-hidden="true" /> Eng foydali
                 </span>
               )}

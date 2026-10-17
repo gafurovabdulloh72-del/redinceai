@@ -53,13 +53,13 @@ export async function SpecialistRow({ sp, showCompare = false }: { sp: Specialis
             {sp.topRated && (
               <span
                 title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}
-                className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[10px] font-semibold text-fg"
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5 text-[11px] font-semibold text-fg"
               >
                 <Award size={10} className="text-accent" /> {tr(til, KARTA.top)}
               </span>
             )}
-            {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
-            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">{tr(til, KARTA.busy)}</span>}
+            {isNew && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
+            {!sp.isAvailable && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-0.5 text-[11px] font-semibold text-warning-text">{tr(til, KARTA.busy)}</span>}
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-fg-2">{sp.title}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-fg-3">

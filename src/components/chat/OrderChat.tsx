@@ -92,7 +92,7 @@ function Thumb({ a }: { a: Attachment }) {
     return (
       <span className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-fg-4">
         <ImageOff size={16} />
-        <span className="w-full truncate text-center text-[10px]">{a.name}</span>
+        <span className="w-full truncate text-center text-[11px]">{a.name}</span>
       </span>
     );
   // eslint-disable-next-line @next/next/no-img-element
@@ -388,7 +388,7 @@ export function OrderChat({
         <MessageCircle size={15} className={unread > 0 ? "text-accent" : undefined} />
         Chat{count > 0 ? ` (${count})` : ""}
         {unread > 0 && (
-          <span className="rounded-full bg-accent-strong px-1.5 py-0.5 text-[10px] font-bold leading-none text-white tabular-nums" aria-label={`${unread} ta o'qilmagan xabar`}>
+          <span className="rounded-full bg-accent-strong px-1.5 py-0.5 text-[11px] font-bold leading-none text-white tabular-nums" aria-label={`${unread} ta o'qilmagan xabar`}>
             {unread}
           </span>
         )}

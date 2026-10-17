@@ -9,6 +9,7 @@ import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, is
 import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import type { GroupMessageView, UserBrief } from "@/lib/groups/service";
 import { cn } from "@/lib/utils";
+import { RichText } from "./RichText";
 
 /** Polling oralig'i — 2-bosqichda (real-time qatlam) WebSocket/SSE bilan almashtiriladi */
 const POLL_MS = 4000;
@@ -31,7 +32,7 @@ function SenderName({ u }: { u: UserBrief }) {
   );
 }
 
-type ApiResp = { ok: boolean; data?: { items: GroupMessageView[] }; error?: string; fields?: Record<string, string> };
+type ApiResp = { ok: boolean; data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null }; error?: string; fields?: Record<string, string> };
 
 /**
  * Jamoa chati (faqat faol a'zolar). Birinchi yuklashda butun tarix, keyin har 4 soniyada `?after=<oxirgiId>`.
@@ -40,6 +41,7 @@ type ApiResp = { ok: boolean; data?: { items: GroupMessageView[] }; error?: stri
 export function GroupChat({ slug, membersCount }: { slug: string; membersCount: number }) {
   const base = `/api/groups/${encodeURIComponent(slug)}/chat`;
   const [msgs, setMsgs] = useState<GroupMessageView[] | null>(null);
+  const [seen, setSeen] = useState<{ messageId: string; count: number } | null>(null);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -61,6 +63,7 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
       return;
     }
     if (!j.ok || !j.data) return;
+    if (j.data.seen !== undefined) setSeen(j.data.seen ?? null);
     const items = j.data.items;
     if (lastId.current === null) {
       setMsgs(items);
@@ -188,8 +191,15 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
                         )}
                       </div>
                     )}
-                    {m.body && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.body}</p>}
-                    <p className={cn("mt-0.5 text-right text-[10.5px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>{timeOf(m.at)}</p>
+                    {m.body && (
+                      <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">
+                        <RichText text={m.body} />
+                      </p>
+                    )}
+                    <p className={cn("mt-0.5 text-right text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
+                      {timeOf(m.at)}
+                      {m.mine && seen?.messageId === m.id && seen.count > 0 && <span className="ml-1.5">· {seen.count} kishi ko&apos;rdi</span>}
+                    </p>
                   </div>
                 </div>
               </div>

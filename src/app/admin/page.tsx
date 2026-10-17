@@ -287,7 +287,7 @@ export default async function AdminPage() {
         <div className="flex flex-wrap gap-2">
           <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
             <CreditCard size={14} /> Obunalar
-            {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
+            {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
           </ButtonLink>
           <ButtonLink href="/admin/audit" variant="outline" size="sm">
             <ScrollText size={14} /> Audit jurnali
@@ -306,7 +306,7 @@ export default async function AdminPage() {
             <li key={s.href}>
               <Link href={s.href} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
                 <s.icon size={14} className="text-fg-3" /> {s.label}
-                {s.count ? <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-accent">{s.count}</span> : null}
+                {s.count ? <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent">{s.count}</span> : null}
               </Link>
             </li>
           ))}
@@ -600,7 +600,7 @@ export default async function AdminPage() {
                 {orders.map((o) => (
                   <li key={o.id} className="flex items-center gap-3 px-5 py-3">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/admin/buyurtmalar/${o.id}`} className="block truncate text-[14px] font-semibold text-fg transition hover:text-accent">
+                      <Link href={`/admin/buyurtmalar/${o.id}`} className="-my-1.5 block truncate py-1.5 text-[14px] font-semibold text-fg transition hover:text-accent">
                         {o.title}
                       </Link>
                       <p className="truncate text-[12px] text-fg-3">

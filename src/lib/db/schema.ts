@@ -923,6 +923,8 @@ export const groups = sqliteTable(
     kind: text("kind", { enum: ["group", "channel"] }).notNull().default("group"),
     /** Rasmiy kanal: har bir ro'yxatdan o'tgan foydalanuvchi avtomatik a'zo, tepada qadalgan, chiqib bo'lmaydi */
     isOfficial: integer("is_official", { mode: "boolean" }).notNull().default(false),
+    /** Taklif havolasi kodi (?invite=CODE) — yopiq jamoaga so'rovsiz, darhol a'zo qiladi; egasi yangilay oladi */
+    inviteCode: text("invite_code"),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -952,6 +954,8 @@ export const groupMembers = sqliteTable(
     status: text("status", { enum: ["active", "pending", "banned"] }).notNull().default("active"),
     /** Guruh chatini oxirgi ko'rgan vaqti — o'qilmaganlar soni shundan */
     lastReadAt: integer("last_read_at", { mode: "timestamp_ms" }),
+    /** Bildirishnomalar o'chirilgan (kanal posti/efir xabari kelmaydi; a'zolik saqlanadi) */
+    muted: integer("muted", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1193,6 +1197,24 @@ export const applications = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("applications_vacancy_user_uq").on(t.vacancyId, t.userId), index("applications_user_idx").on(t.userId)],
+);
+
+/** Saqlangan vakansiyalar (bookmark) */
+export const vacancySaves = sqliteTable(
+  "vacancy_saves",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    vacancyId: text("vacancy_id")
+      .notNull()
+      .references(() => vacancies.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("vacancy_saves_uq").on(t.userId, t.vacancyId)],
 );
 
 export type Vacancy = typeof vacancies.$inferSelect;

@@ -170,7 +170,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar name={r.name} src={r.avatarUrl} size={38} decorative />
                     <div className="min-w-0">
-                      <Link href={`/mutaxassislar/${r.slug}`} className="block truncate text-[14px] font-semibold text-fg hover:text-accent-text">
+                      <Link href={`/mutaxassislar/${r.slug}`} className="-my-1.5 block truncate py-1.5 text-[14px] font-semibold text-fg hover:text-accent-text">
                         {r.name}
                       </Link>
                       <p className="truncate text-[12px] text-fg-3">{r.email}</p>

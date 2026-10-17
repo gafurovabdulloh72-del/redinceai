@@ -46,7 +46,7 @@ export function AdminSectionNav({ items }: { items: AdminNavItem[] }) {
               )}
             >
               <span className="truncate">{i.label}</span>
-              {i.badge ? <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums text-accent-text">{i.badge}</span> : null}
+              {i.badge ? <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{i.badge}</span> : null}
             </a>
           </li>
         ))}

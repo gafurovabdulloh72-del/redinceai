@@ -69,15 +69,15 @@
   --chart-1: #ff5a36;
   --chart-2: #7b61ff;
 
-  /* Radius — 3 daraja (14 / 20 / 28) — suyuq shisha uchun yumaloqroq */
-  --r-sm: 14px;
-  --r-md: 20px;
-  --r-lg: 28px;
+  /* Radius — 3 daraja (12 / 18 / 26): Apple uslubidagi uzluksiz burchaklar — input 12, karta 18, katta blok 26 */
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
 
-  /* Soya — 3 daraja (shisha uchun yumshoqroq, tarqoqroq) */
-  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.03), 0 10px 30px -14px rgba(18, 18, 19, 0.1);
-  --shadow-2: 0 2px 4px rgba(18, 18, 19, 0.04), 0 26px 52px -22px rgba(18, 18, 19, 0.18);
-  --shadow-3: 0 4px 10px rgba(18, 18, 19, 0.05), 0 40px 80px -24px rgba(18, 18, 19, 0.26);
+  /* Soya — 3 daraja: yassi va yumshoq (Apple): hairline + juda tarqoq past soya; chuqurlik asosan konturdan */
+  --shadow-1: 0 1px 1px rgba(18, 18, 19, 0.03), 0 8px 24px -14px rgba(18, 18, 19, 0.1);
+  --shadow-2: 0 2px 3px rgba(18, 18, 19, 0.04), 0 20px 44px -22px rgba(18, 18, 19, 0.16);
+  --shadow-3: 0 4px 8px rgba(18, 18, 19, 0.05), 0 36px 72px -26px rgba(18, 18, 19, 0.24);
   --shadow-accent: 0 16px 40px -14px rgba(214, 62, 30, 0.5); /* btn-accent gradientining to'q coral toni bilan uyg'un */
   --card-inset: inset 0 0 0 0 transparent;
 
@@ -425,10 +425,29 @@ h1, h2, h3, .font-display {
   letter-spacing: -0.03em;
   font-weight: 600;
 }
+/* Apple tipografikasi: sarlavhalar muvozanatli o'raladi, paragraflarda yetim so'z qolmaydi */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+p, li, dd {
+  text-wrap: pretty;
+}
+/* Raqamlar ustun bo'lib turadi (narx, hisoblagich, vaqt) */
+td, time, .tabular {
+  font-variant-numeric: tabular-nums;
+}
 
+/* Tanlov: yumshoq accent halo (Apple'dagi kabi), matn rangi saqlanadi */
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: inherit;
+}
+
+/* Retina'da haqiqiy hairline (0.5px) — Apple interfeyslaridagi ingichka chiziqlar */
+@media (min-resolution: 2dppx) {
+  .card, .card-outline, .card-elevated, .glass-weak, .segment, .nav-bar, .list-inset, .hairline-b {
+    border-width: 0.5px;
+  }
 }
 
 * {
@@ -504,7 +523,7 @@ select:focus-visible {
   @media (hover: hover) and (pointer: fine) {
     .glass-hover:hover,
     .card-hover:hover {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
       background: var(--glass-fill-strong);
       border-color: var(--line-2);
       box-shadow: var(--shadow-2), var(--glass-rim);
@@ -633,8 +652,8 @@ select:focus-visible {
   }
   .glass-tint:hover,
   .btn-ink:hover {
-    filter: brightness(1.12);
-    box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--ink) 50%, transparent);
+    filter: brightness(1.08);
+    box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--ink) 45%, transparent);
   }
   .glass-tint:active,
   .btn-ink:active {
@@ -661,17 +680,19 @@ select:focus-visible {
   }
 
   /* Input — yarim shaffof shisha; fokusda solid (o'qilishi aniq) */
+  /* Input — Apple uslubida to'ldirilgan maydon: kulrang fon, ko'rinmas kontur; fokusda oq + accent halo */
   .field {
     width: 100%;
+    min-height: 2.75rem;
     border-radius: var(--r-sm);
     padding: 0.7rem 0.95rem;
     font-size: 0.9375rem;
     color: var(--fg);
-    background: var(--glass-fill-weak);
-    border: 1px solid var(--glass-line);
-    box-shadow: var(--glass-rim-soft);
+    background: var(--surface-3);
+    border: 1px solid transparent;
+    box-shadow: none;
     outline: none;
-    transition: border-color var(--dur-1), box-shadow var(--dur-1), background var(--dur-1);
+    transition: border-color var(--dur-1), box-shadow var(--dur-2) var(--ease-out), background var(--dur-1);
   }
   /* iOS Safari fokusda avtomatik zoom qilmasligi uchun: tor ekranda shrift kamida 16px */
   @media (max-width: 767px) {
@@ -681,18 +702,32 @@ select:focus-visible {
   }
   /* background-color (shorthand emas): select.field'dagi chevron (background-image) o'chib ketmasin */
   [data-theme="dark"] .field {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.07);
   }
   .field::placeholder {
     color: var(--fg-4);
   }
   .field:hover {
-    border-color: var(--line-2);
+    background-color: color-mix(in srgb, var(--surface-3) 80%, var(--fg) 4%);
   }
-  .field:focus {
+  [data-theme="dark"] .field:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .field:focus,
+  .field:focus-within {
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-soft);
     background-color: var(--surface);
+  }
+  [data-theme="dark"] .field:focus,
+  [data-theme="dark"] .field:focus-within {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+  /* Xato holati: qizil kontur + halo (aria-invalid yoki .field-invalid) */
+  .field[aria-invalid="true"],
+  .field-invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px var(--danger-soft);
   }
   select.field {
     appearance: none;
@@ -716,34 +751,43 @@ select:focus-visible {
   }
 
   /* Segment (tab) boshqaruvi — shisha pill */
+  /* Segment (tab) boshqaruvi — Apple segmented control: kulrang yo'lak, faol element oq "thumb" (soya bilan) */
   .segment {
+    position: relative;
     display: inline-flex;
-    padding: 4px;
+    padding: 3px;
     gap: 2px;
     border-radius: 9999px;
-    background: var(--glass-fill-weak);
-    border: 1px solid var(--glass-line);
-    box-shadow: var(--glass-rim-soft);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    background: var(--surface-3);
+    border: 1px solid transparent;
+    isolation: isolate;
+  }
+  [data-theme="dark"] .segment {
+    background: rgba(255, 255, 255, 0.08);
   }
   .segment-item {
-    min-height: 38px;
-    padding: 0.45rem 0.95rem;
+    position: relative;
+    z-index: 1;
+    min-height: 36px;
+    padding: 0.4rem 0.95rem;
     border-radius: 9999px;
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--fg-2);
-    transition: background var(--dur-2), color var(--dur-2), box-shadow var(--dur-2);
+    transition: color var(--dur-2), background var(--dur-2), box-shadow var(--dur-2);
     white-space: nowrap;
   }
   .segment-item:hover {
     color: var(--fg);
   }
   .segment-item[data-active="true"] {
-    color: var(--ink-fg);
-    background: var(--ink);
-    box-shadow: var(--shadow-1);
+    color: var(--fg);
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(18, 18, 19, 0.12), 0 0 0 0.5px rgba(18, 18, 19, 0.04);
+  }
+  [data-theme="dark"] .segment-item[data-active="true"] {
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   /* Navigatsiya paneli — eng "suyuq" shisha: kontent ostidan oqib o'tadi */
@@ -810,6 +854,30 @@ select:focus-visible {
 }
 
 /* ---------- Utility'lar ---------- */
+/* iOS "inset grouped" ro'yxat: yumaloq konteyner, qatorlar orasida chapdan boshlanadigan hairline, o'ngda chevron joyi */
+@utility list-inset {
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  & > * + * {
+    position: relative;
+  }
+  & > * + *::before {
+    content: "";
+    position: absolute;
+    left: 1rem;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--line);
+  }
+  & > a:hover,
+  & > button:hover {
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+  }
+}
+
 @utility container-x {
   @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
 }
@@ -944,35 +1012,50 @@ select:focus-visible {
 
 /* ---------- Switch (Studio uslubi: 44×26 pill, yoqilganda "siyoh") ---------- */
 @layer components {
+  /* iOS uslubidagi toggle: 51×31, oq thumb soyali, prujinali sirpanish; bosganda thumb kengayadi */
   .switch {
     position: relative;
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    width: 44px;
-    height: 26px;
+    width: 51px;
+    height: 31px;
     border-radius: 9999px;
     background: var(--surface-3);
     border: 1px solid var(--line-2);
     transition: background var(--dur-2) ease, border-color var(--dur-2) ease;
   }
+  [data-theme="dark"] .switch {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: transparent;
+  }
   .switch::after {
     content: "";
     position: absolute;
-    left: 3px;
-    width: 18px;
-    height: 18px;
+    left: 2px;
+    width: 25px;
+    height: 25px;
     border-radius: 9999px;
-    background: var(--fg-3);
-    transition: transform var(--dur-2) var(--ease-out), background var(--dur-2) ease;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+    transition: transform var(--dur-3) var(--ease-spring), width var(--dur-2) var(--ease-out);
+  }
+  .switch:active::after {
+    width: 30px;
   }
   .switch[aria-checked="true"] {
-    background: var(--ink);
-    border-color: var(--ink);
+    background: var(--success);
+    border-color: var(--success);
   }
   .switch[aria-checked="true"]::after {
-    background: var(--ink-fg);
-    transform: translateX(18px);
+    transform: translateX(20px);
+  }
+  .switch[aria-checked="true"]:active::after {
+    transform: translateX(15px);
+  }
+  .switch:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 }
 
@@ -1265,4 +1348,62 @@ select:focus-visible {
   .animate-scale-in {
     animation: none !important;
   }
+}
+
+/* ---------- Harakat qatlami v2: scroll-reveal (CSS scroll-driven, JS'siz), progress chizig'i, toast ----------
+   [data-reveal] elementlar ko'rinish maydoniga kirganda yumshoq ko'tarilib paydo bo'ladi. JS yo'q — hydration'ga ta'sir qilmaydi;
+   animation-timeline qo'llamaydigan brauzerda (eski Firefox) element shunchaki ko'rinib turadi. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-reveal] {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+    [data-reveal="fade"] { animation-name: reveal-fade; }
+    [data-reveal="scale"] { animation-name: reveal-scale; }
+    [data-reveal="left"] { animation-name: reveal-left; }
+    [data-reveal="right"] { animation-name: reveal-right; }
+  }
+}
+@keyframes reveal-up { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes reveal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes reveal-scale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes reveal-left { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+@keyframes reveal-right { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+.nav-progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #ff8a6a);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  transform-origin: left;
+}
+.nav-progress-loading {
+  animation: nav-progress-grow 6s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+}
+.nav-progress-done {
+  animation: nav-progress-finish 0.4s var(--ease-out) forwards;
+}
+@keyframes nav-progress-grow {
+  0% { transform: scaleX(0); }
+  15% { transform: scaleX(0.35); }
+  60% { transform: scaleX(0.72); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes nav-progress-finish {
+  0% { transform: scaleX(0.9); opacity: 1; }
+  60% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+.animate-toast-in { animation: toast-in 0.32s var(--ease-spring) both; }
+.animate-toast-out { animation: toast-out 0.26s var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress-loading, .nav-progress-done, .animate-toast-in, .animate-toast-out { animation-duration: 0.01ms !important; }
 }

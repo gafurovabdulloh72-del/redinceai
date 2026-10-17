@@ -22,6 +22,8 @@ export interface GroupCardData {
   postsCount: number;
   owner: UserBrief;
   membership: MembershipState;
+  /** A'zo oxirgi ko'rganidan keyin yangi faollik bor */
+  hasUnread?: boolean;
 }
 
 const MEMBERSHIP_LABEL: Partial<Record<NonNullable<MembershipState>, string>> = { owner: "Egasi", admin: "Admin", member: "A'zo", pending: "So'rov yuborilgan" };
@@ -61,7 +63,10 @@ export function GroupCard({ g }: { g: GroupCardData }) {
         {label && <span className="absolute right-3 top-3 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-white">{label}</span>}
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="font-display text-[17px] font-semibold leading-tight text-fg group-hover:text-accent">{g.name}</h3>
+        <h3 className="flex items-start gap-2 font-display text-[17px] font-semibold leading-tight text-fg group-hover:text-accent">
+          <span className="min-w-0">{g.name}</span>
+          {g.hasUnread && <span className="mt-1.5 inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-accent shadow-[0_0_0_3px_var(--accent-soft)]" aria-label="Yangi faollik" />}
+        </h3>
         {g.description && <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-fg-2">{g.description}</p>}
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 text-[12px] text-fg-3">
           <span className="flex items-center gap-3">

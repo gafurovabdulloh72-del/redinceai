@@ -33,7 +33,7 @@ export function VisibilityChip({ level }: { level: VisibilityLevelValue }) {
     <a
       href="#maxfiylik"
       title="Kimga ko'rinishini «Maxfiylik» bo'limida o'zgartirasiz"
-      className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-surface-3 px-2 text-[11px] font-medium text-fg-3 transition hover:bg-fg/8 hover:text-fg"
+      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-surface-3 px-2.5 text-[11px] font-medium text-fg-3 transition hover:bg-fg/8 hover:text-fg"
     >
       <Icon size={11} /> {LEVEL_SHORT[level]}
     </a>

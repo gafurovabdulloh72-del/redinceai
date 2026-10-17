@@ -988,11 +988,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         className="card-elevated fixed inset-x-3 bottom-[calc(5.125rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2.5 !rounded-[22px] px-4 py-2.5 md:bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-fg-4">{tr(til, PROFIL.priceEyebrow)}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">{tr(til, PROFIL.priceEyebrow)}</p>
           {/* Qisqa "… dan" ko'rinishi + kichikroq shrift — narx hech qachon qirqilmaydi */}
           <p className="font-display text-[13.5px] font-semibold leading-tight text-fg">
             {priceCompact}
-            {priceUsd && <span className="ml-1.5 font-sans text-[10.5px] font-medium text-fg-3">{priceUsd}</span>}
+            {priceUsd && <span className="ml-1.5 font-sans text-[11px] font-medium text-fg-3">{priceUsd}</span>}
           </p>
         </div>
         {/* Ichki chat: egadan boshqa hammaga; mehmon login orqali qaytadi */}

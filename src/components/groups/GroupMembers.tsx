@@ -129,7 +129,10 @@ function MemberRow({ m, right }: { m: MemberView; right?: ReactNode }) {
   const name = <span className="truncate text-[14px] font-semibold text-fg">{m.user.name}</span>;
   return (
     <li className="flex items-center gap-3 py-2.5">
-      <Avatar name={m.user.name} src={m.user.avatarUrl} size={36} decorative />
+      <span className="relative shrink-0">
+        <Avatar name={m.user.name} src={m.user.avatarUrl} size={36} decorative />
+        {m.user.online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" title="Onlayn" aria-label="Onlayn" />}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           {m.user.slug ? (

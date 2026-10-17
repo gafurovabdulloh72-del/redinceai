@@ -1,4 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { ToastProvider } from "@/components/ui/toast";
+import { NavigationProgress } from "@/components/motion/NavigationProgress";
+import { CommandPalette } from "@/components/search/CommandPalette";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -116,11 +120,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <LocaleProvider locale={locale}>
-          <Backdrop />
-          <Navbar />
-          <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
-          <Footer />
-          <BackToTop />
+          <ToastProvider>
+            <Backdrop />
+            <Navbar />
+            <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
+            <Footer />
+            <BackToTop />
+            {/* Harakat qatlami: marshrut progress chizig'i va qidiruv paleti — server DOM'iga tegmaydi (hydration xavfsiz); scroll-reveal CSS'da */}
+            <Suspense fallback={null}>
+              <NavigationProgress />
+            </Suspense>
+            <CommandPalette />
+          </ToastProvider>
         </LocaleProvider>
       </body>
     </html>

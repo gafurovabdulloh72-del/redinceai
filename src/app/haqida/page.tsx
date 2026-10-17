@@ -155,7 +155,7 @@ export default function AboutPage() {
       />
 
       {/* Missiya */}
-      <section className="card mt-8 p-5 sm:p-7">
+      <section data-reveal className="card mt-8 p-5 sm:p-7">
         <div className="flex items-start gap-3">
           <IconTile icon={Clapperboard} tone="soft" />
           <div className="min-w-0">
@@ -173,7 +173,7 @@ export default function AboutPage() {
       </section>
 
       {/* Nimalar bor */}
-      <section aria-labelledby="features-title" className="mt-8">
+      <section data-reveal aria-labelledby="features-title" className="mt-8">
         <h2 id="features-title" className="font-display text-[20px] font-semibold text-fg">
           Platformada nimalar bor
         </h2>
@@ -194,7 +194,7 @@ export default function AboutPage() {
       </section>
 
       {/* Kim uchun — yo'llar */}
-      <section aria-labelledby="paths-title" className="card mt-8 p-5 sm:p-7">
+      <section data-reveal aria-labelledby="paths-title" className="card mt-8 p-5 sm:p-7">
         <h2 id="paths-title" className="font-display text-[20px] font-semibold text-fg">
           Qanday ishlaydi
         </h2>
@@ -224,7 +224,7 @@ export default function AboutPage() {
       </section>
 
       {/* Ishonch kafolatlari */}
-      <section aria-labelledby="trust-title" className="mt-8">
+      <section data-reveal aria-labelledby="trust-title" className="mt-8">
         <h2 id="trust-title" className="font-display text-[20px] font-semibold text-fg">
           Nimaga ishonsa bo'ladi
         </h2>
@@ -246,7 +246,7 @@ export default function AboutPage() {
       </section>
 
       {/* Nima bepul, nima pullik — ochiq */}
-      <section aria-labelledby="pricing-title" className="card mt-8 p-5 sm:p-7">
+      <section data-reveal aria-labelledby="pricing-title" className="card mt-8 p-5 sm:p-7">
         <div className="flex items-start gap-3">
           <IconTile icon={Wallet} tone="soft" />
           <div className="min-w-0 flex-1">
@@ -275,7 +275,7 @@ export default function AboutPage() {
       </section>
 
       {/* Asoschi */}
-      <section aria-labelledby="founder-title" className="card mt-8 p-5 sm:p-7">
+      <section data-reveal aria-labelledby="founder-title" className="card mt-8 p-5 sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <IconTile icon={UserRound} tone="soft" />
           <div className="min-w-0 flex-1">
@@ -318,7 +318,7 @@ export default function AboutPage() {
       </section>
 
       {/* Aloqa + hujjatlar */}
-      <section aria-labelledby="contact-title" className="mt-8 grid gap-4 lg:grid-cols-2">
+      <section data-reveal aria-labelledby="contact-title" className="mt-8 grid gap-4 lg:grid-cols-2">
         <div className="card p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <IconTile icon={LifeBuoy} tone="soft" />
@@ -362,7 +362,7 @@ export default function AboutPage() {
       </section>
 
       {/* Qamrov + CTA */}
-      <section className="card-outline mt-8 flex flex-col items-start gap-4 !rounded-card-lg p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <section data-reveal className="card-outline mt-8 flex flex-col items-start gap-4 !rounded-card-lg p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex items-start gap-3">
           <IconTile icon={MapPinned} tone="soft" />
           <div>

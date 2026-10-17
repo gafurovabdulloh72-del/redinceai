@@ -141,13 +141,13 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       </div>
       <ul className="mt-3 space-y-1 text-[13px] text-fg-2">
         <li>
-          <a href={`mailto:${email}`} className="inline-flex min-h-7 items-center gap-1.5 hover:text-fg">
+          <a href={`mailto:${email}`} className="inline-flex min-h-9 items-center gap-1.5 hover:text-fg">
             <Mail size={13} className="text-fg-4" /> {email}
           </a>
         </li>
         {phone && (
           <li>
-            <a href={`tel:${phone}`} className="inline-flex min-h-7 items-center gap-1.5 hover:text-fg">
+            <a href={`tel:${phone}`} className="inline-flex min-h-9 items-center gap-1.5 hover:text-fg">
               <Phone size={13} className="text-fg-4" /> {phone}
             </a>
           </li>

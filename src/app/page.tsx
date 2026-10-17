@@ -129,7 +129,7 @@ export default async function HomePage() {
       </section>
 
       {/* ================= INTERAKTIV XARITA ================= */}
-      <section id="xarita" className="container-x mt-section scroll-mt-24">
+      <section id="xarita" data-reveal className="container-x mt-section scroll-mt-24">
         <SectionHeading
           eyebrow={tr(til, HOME.mapSection.eyebrow)}
           title={
@@ -148,7 +148,7 @@ export default async function HomePage() {
       </section>
 
       {/* ================= YO'NALISHLAR — har biri o'z naqshi + ikonka plitkasi + son ================= */}
-      <section className="container-x mt-section">
+      <section data-reveal className="container-x mt-section">
         <SectionHeading
           eyebrow={tr(til, HOME.categories.eyebrow)}
           title={tr(til, HOME.categories.title)}
@@ -198,7 +198,7 @@ export default async function HomePage() {
 
       {/* ================= ISHLAR LENTASI — video ishlar tasmasi (video bo'lmasa umuman chiqmaydi) ================= */}
       {lenta.items.length > 0 && (
-        <section className="container-x mt-section">
+        <section data-reveal className="container-x mt-section">
           <SectionHeading
             eyebrow={tr(til, HOME.lenta.eyebrow)}
             title={
@@ -220,7 +220,7 @@ export default async function HomePage() {
       )}
 
       {/* ================= TAVSIYA ETILGANLAR ================= */}
-      <section className="container-x mt-section">
+      <section data-reveal className="container-x mt-section">
         <SectionHeading
           eyebrow={tr(til, HOME.featured.eyebrow)}
           title={
@@ -256,7 +256,7 @@ export default async function HomePage() {
       </section>
 
       {/* ================= QANDAY ISHLAYDI — raqamli plitkalar + bog'lovchi chiziq ================= */}
-      <section className="container-x mt-section">
+      <section data-reveal className="container-x mt-section">
         <SectionHeading eyebrow={tr(til, HOME.steps.eyebrow)} title={tr(til, HOME.steps.title)} />
         <div className="card relative overflow-hidden p-6 sm:p-8">
           <ol className="relative grid gap-9 md:grid-cols-3 md:gap-10">
@@ -288,7 +288,7 @@ export default async function HomePage() {
       </section>
 
       {/* ================= CTA (ikkala rejimda ham qorong'u; Noir'da inversiya yo'q — faqat nozik chegara) ================= */}
-      <section className="container-x mt-section">
+      <section data-reveal className="container-x mt-section">
         <div className="cta-dark grain relative overflow-hidden rounded-card-lg border border-white/10 bg-[#121213] px-6 py-12 text-white sm:px-12 sm:py-16">
           <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-accent/40 blur-[100px]" />
           <div className="pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full bg-accent-2/35 blur-[110px]" />

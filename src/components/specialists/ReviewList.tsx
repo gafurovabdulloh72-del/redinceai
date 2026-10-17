@@ -189,7 +189,7 @@ export async function ReviewList({
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-fg">
                     <span className="truncate">{r.author.name}</span>
-                    {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-text">{tr(til, PROFIL.you)}</span>}
+                    {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-accent-text">{tr(til, PROFIL.you)}</span>}
                     {r.verified && (
                       <span
                         className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text"

@@ -428,7 +428,7 @@ export function OrdersList({
                 <button key={t.id} type="button" className="segment-item inline-flex min-h-10 items-center gap-1.5" data-active={tab === t.id} onClick={() => switchTab(t.id)}>
                   <t.icon size={14} className={tab === t.id ? undefined : "text-fg-3"} />
                   {t.label}
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none", tab === t.id ? "bg-ink-fg/20 text-ink-fg" : "bg-fg/8 text-fg-3")}>{t.count}</span>
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none", tab === t.id ? "bg-ink-fg/20 text-ink-fg" : "bg-fg/8 text-fg-3")}>{t.count}</span>
                 </button>
               ))}
             </div>
@@ -716,7 +716,7 @@ function OrderSteps({ status, paymentState }: { status: OrderStatus; paymentStat
               )}
               aria-hidden="true"
             />
-            <span className={cn("max-w-full truncate px-0.5 text-[10px] font-semibold leading-none sm:text-[11px]", active ? "text-fg" : done ? "text-fg-2" : "text-fg-4", cancelled && "line-through")}>{ORDER_STATUS_LABEL[s]}</span>
+            <span className={cn("max-w-full truncate px-0.5 text-[11px] font-semibold leading-none sm:text-[11px]", active ? "text-fg" : done ? "text-fg-2" : "text-fg-4", cancelled && "line-through")}>{ORDER_STATUS_LABEL[s]}</span>
           </li>
         );
       })}
@@ -910,7 +910,7 @@ function OrderCard({
         )}
         {isSpecialist && (
           <li>
-            <a href={phoneHref} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-semibold text-fg transition hover:border-fg">
+            <a href={phoneHref} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-semibold text-fg transition hover:border-fg">
               <Phone size={12} className="text-accent" />
               {formatUzPhone(o.contactPhone)}
             </a>

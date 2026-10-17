@@ -9,10 +9,15 @@ import { JoinButton } from "@/components/groups/JoinButton";
 import { GroupFeed } from "@/components/groups/GroupFeed";
 import { GroupChat } from "@/components/groups/GroupChat";
 import { GroupMembers } from "@/components/groups/GroupMembers";
+import { InviteLink } from "@/components/groups/InviteLink";
+import { MuteButton } from "@/components/groups/MuteButton";
+import { InviteJoin } from "@/components/groups/InviteJoin";
+import { CalendarLinks } from "@/components/groups/CalendarLinks";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { OfficialCover } from "@/components/groups/OfficialCover";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { getGroupView, listMembers, listPosts, loadGroupBySlug, upcomingEvents, type GroupView, type PostView } from "@/lib/groups/service";
+import { getGroupView, listMembers, listPosts, loadGroupBySlug, markGroupRead, upcomingEvents, type GroupView, type PostView } from "@/lib/groups/service";
 import { cn, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +70,11 @@ export default async function GroupPage({ params, searchParams }: { params: Para
   const tabRaw = typeof sp.tab === "string" ? sp.tab : "lenta";
   const tab: Tab = TABS.some((t) => t.key === tabRaw) ? (tabRaw as Tab) : "lenta";
   const highlight = typeof sp.post === "string" ? sp.post : null;
+  const invite = typeof sp.invite === "string" ? sp.invite.slice(0, 40) : null;
   const loggedIn = Boolean(user);
   const isMember = view.membership === "owner" || view.membership === "admin" || view.membership === "member";
+  // Lenta/chat ochilganda "o'qildi" — katalogdagi "yangi" nuqtasi o'chadi
+  if (user && isMember && tab !== "haqida") await markGroupRead(group.id, user.id).catch(() => undefined);
   const cat = view.category ? CATEGORY_BY_SLUG[view.category] : null;
   const region = view.region ? REGION_BY_SLUG[view.region] : null;
 
@@ -145,6 +153,9 @@ export default async function GroupPage({ params, searchParams }: { params: Para
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <ShareButton title={view.name} size="md" variant="outline" iconOnly />
+            {isMember && <MuteButton slug={view.slug} initialMuted={view.muted} />}
+            {view.canManage && <InviteLink slug={view.slug} initialCode={view.inviteCode} />}
             {view.canManage && (
               <Link
                 href={`/jamoalar/${view.slug}/sozlash`}
@@ -159,6 +170,8 @@ export default async function GroupPage({ params, searchParams }: { params: Para
           </div>
         </div>
       </section>
+
+      {invite && <InviteJoin slug={view.slug} invite={invite} membership={view.membership} loggedIn={loggedIn} />}
 
       {/* Bo'limlar */}
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-line" aria-label="Jamoa bo'limlari">
@@ -300,6 +313,7 @@ function EventsCard({ events }: { events: PostView[] }) {
               ) : (
                 <span className="text-[12px] text-fg-4">Havola efir oldidan</span>
               )}
+              <CalendarLinks title={e.body.split("\n")[0] || "Jonli efir"} at={at} url={e.eventUrl} compact />
             </li>
           );
         })}

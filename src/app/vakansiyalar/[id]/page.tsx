@@ -4,9 +4,12 @@ import { notFound } from "next/navigation";
 import { BadgeCheck, Building2, CalendarDays, Clock3, Eye, MapPin, Pencil, Users, Wallet } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { ApplyForm } from "@/components/vacancies/ApplyForm";
+import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
+import { VacancyCard } from "@/components/vacancies/VacancyCard";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { EMPLOYMENT, EXPERIENCE, WORK_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
-import { bumpVacancyView, getResume, getVacancyView, loadVacancy } from "@/lib/vacancies/service";
+import { bumpVacancyView, getResume, getVacancyView, loadVacancy, similarVacancies } from "@/lib/vacancies/service";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +43,8 @@ export default async function VacancyPage({ params }: { params: Params }) {
   const viewer = user ? { id: user.id, role: user.role } : null;
   const v = await getVacancyView(id, viewer);
   if (!v) notFound();
-  const [resume] = await Promise.all([user ? getResume(user.id) : Promise.resolve(null), v.isOwner ? Promise.resolve() : bumpVacancyView(v.id)]);
+  const raw = await loadVacancy(v.id);
+  const [resume, similar] = await Promise.all([user ? getResume(user.id) : Promise.resolve(null), raw ? similarVacancies(raw, 3) : Promise.resolve([]), v.isOwner ? Promise.resolve() : bumpVacancyView(v.id)]);
   const closed = v.status !== "open" || v.expired;
   const daysLeft = v.expiresAt ? Math.max(0, Math.ceil((v.expiresAt - Date.now()) / 86_400_000)) : null;
   const reqLines = v.requirements
@@ -153,6 +157,12 @@ export default async function VacancyPage({ params }: { params: Params }) {
           ) : closed ? null : (
             <ApplyForm vacancyId={v.id} loggedIn={Boolean(user)} hasResume={Boolean(resume)} resumeTitle={resume?.title} initialMine={v.myApplication} applyUrl={v.applyUrl} />
           )}
+          {!v.isOwner && (
+            <div className="flex flex-wrap gap-2">
+              <SaveVacancyButton vacancyId={v.id} initialSaved={v.savedByMe} loggedIn={Boolean(user)} className="flex-1 justify-center" />
+              <ShareButton title={`${v.title}${v.company ? ` — ${v.company}` : ""}`} size="md" variant="outline" iconOnly />
+            </div>
+          )}
           <div className="card p-5">
             <dl className="grid gap-2.5 text-[13px]">
               <div className="flex items-center justify-between gap-3">
@@ -186,6 +196,21 @@ export default async function VacancyPage({ params }: { params: Params }) {
           <p className="px-1 text-[12px] leading-relaxed text-fg-4">Shubhali e&apos;lon (oldindan to&apos;lov so&apos;rash, shaxsiy hujjat talab qilish) bo&apos;lsa — @montajor_man ga yozing. Platforma vakansiyalar uchun to&apos;lov olmaydi.</p>
         </aside>
       </div>
+
+      {similar.length > 0 && (
+        <section className="mt-10" aria-labelledby="similar-h" data-reveal>
+          <h2 id="similar-h" className="font-display text-[20px] font-semibold text-fg">
+            Shunga o&apos;xshash vakansiyalar
+          </h2>
+          <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {similar.map((s) => (
+              <li key={s.id} className="min-w-0">
+                <VacancyCard v={s} headingLevel="h3" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
