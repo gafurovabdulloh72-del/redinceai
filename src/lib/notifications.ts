@@ -77,6 +77,7 @@ export type NotificationType =
   | "live_event"
   | "application_new"
   | "application_status"
+  | "vacancy_expiring"
   | "group_joined"
   | "post_comment"
   | "follow";
@@ -99,6 +100,7 @@ const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
   "proposal_new",
   "proposal_accepted",
   "job_expired",
+  "vacancy_expiring",
   "message_new",
   // Ichki chat (DM, #46): yangi xabar emaili — mavzu "Yangi xabar — {ism}", havola /kabinet/chat
   // (dm.ts sendDm shu sarlavha/havola bilan chaqiradi; qarshi tomonda o'qilmagan xabar bo'lsa yubormaydi)

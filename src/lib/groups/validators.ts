@@ -57,5 +57,7 @@ export const groupListQuerySchema = z.object({
   mine: z.enum(["1", "0"]).optional().default("0"),
   /** kind — faqat guruhlar yoki faqat kanallar */
   kind: z.enum(["group", "channel"]).optional().or(z.literal("")).default(""),
+  /** sort — faollik (standart), yangi ochilgan, a'zolar soni */
+  sort: z.enum(["active", "new", "members"]).optional().default("active"),
   limit: z.coerce.number().int().min(1).max(60).optional().default(30),
 });

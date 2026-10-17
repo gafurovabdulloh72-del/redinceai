@@ -7,13 +7,18 @@ import { ApplyForm } from "@/components/vacancies/ApplyForm";
 import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { TelegramShare } from "@/components/ui/TelegramShare";
 import { getCurrentUser } from "@/lib/auth";
 import { EMPLOYMENT, EXPERIENCE, WORK_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
-import { bumpVacancyView, getResume, getVacancyView, loadVacancy, similarVacancies } from "@/lib/vacancies/service";
+import { bumpVacancyView, employerVacancies, getResume, getVacancyView, loadVacancy, similarVacancies } from "@/lib/vacancies/service";
+import { SITE_URL } from "@/lib/site-url";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
+
+/** schema.org employmentType qiymatlari */
+const EMPLOYMENT_SCHEMA: Record<string, string> = { full: "FULL_TIME", part: "PART_TIME", project: "CONTRACTOR", internship: "INTERN" };
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
@@ -44,7 +49,12 @@ export default async function VacancyPage({ params }: { params: Params }) {
   const v = await getVacancyView(id, viewer);
   if (!v) notFound();
   const raw = await loadVacancy(v.id);
-  const [resume, similar] = await Promise.all([user ? getResume(user.id) : Promise.resolve(null), raw ? similarVacancies(raw, 3) : Promise.resolve([]), v.isOwner ? Promise.resolve() : bumpVacancyView(v.id)]);
+  const [resume, similar, fromEmployer] = await Promise.all([
+    user ? getResume(user.id) : Promise.resolve(null),
+    raw ? similarVacancies(raw, 3) : Promise.resolve([]),
+    raw ? employerVacancies(raw, 3) : Promise.resolve([]),
+    v.isOwner ? Promise.resolve() : bumpVacancyView(v.id),
+  ]);
   const closed = v.status !== "open" || v.expired;
   const daysLeft = v.expiresAt ? Math.max(0, Math.ceil((v.expiresAt - Date.now()) / 86_400_000)) : null;
   const reqLines = v.requirements
@@ -52,8 +62,33 @@ export default async function VacancyPage({ params }: { params: Params }) {
     .map((s) => s.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean);
 
+  // SEO: schema.org JobPosting (Google "Ish o'rinlari" bloki) — faqat ochiq vakansiyalar uchun
+  const jobPosting = closed
+    ? null
+    : {
+        "@context": "https://schema.org",
+        "@type": "JobPosting",
+        title: v.title,
+        description: [v.description, v.requirements].filter(Boolean).join("\n\n"),
+        datePosted: new Date(v.createdAt).toISOString(),
+        validThrough: v.expiresAt ? new Date(v.expiresAt).toISOString() : undefined,
+        employmentType: EMPLOYMENT_SCHEMA[v.employment],
+        hiringOrganization: { "@type": "Organization", name: v.company || v.author.name },
+        identifier: { "@type": "PropertyValue", name: "Kasb Egalari", value: v.id },
+        url: `${SITE_URL}/vakansiyalar/${v.id}`,
+        directApply: !v.applyUrl,
+        jobLocationType: v.format === "remote" ? "TELECOMMUTE" : undefined,
+        applicantLocationRequirements: v.format === "remote" ? { "@type": "Country", name: "Uzbekistan" } : undefined,
+        jobLocation: v.format !== "remote" ? { "@type": "Place", address: { "@type": "PostalAddress", addressRegion: vacancyRegionLabel(v.regionSlug, true), addressCountry: "UZ" } } : undefined,
+        baseSalary:
+          v.salaryMin || v.salaryMax
+            ? { "@type": "MonetaryAmount", currency: "UZS", value: { "@type": "QuantitativeValue", minValue: v.salaryMin ?? undefined, maxValue: v.salaryMax ?? undefined, unitText: "MONTH" } }
+            : undefined,
+      };
+
   return (
     <div className="container-x animate-fade-up">
+      {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPosting) }} />}
       <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
           Vakansiyalar
@@ -161,6 +196,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
             <div className="flex flex-wrap gap-2">
               <SaveVacancyButton vacancyId={v.id} initialSaved={v.savedByMe} loggedIn={Boolean(user)} className="flex-1 justify-center" />
               <ShareButton title={`${v.title}${v.company ? ` — ${v.company}` : ""}`} size="md" variant="outline" iconOnly />
+              <TelegramShare path={`/vakansiyalar/${v.id}`} text={`${v.title}${v.company ? ` — ${v.company}` : ""} · Kasb Egalari`} />
             </div>
           )}
           <div className="card p-5">
@@ -204,6 +240,21 @@ export default async function VacancyPage({ params }: { params: Params }) {
           </h2>
           <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {similar.map((s) => (
+              <li key={s.id} className="min-w-0">
+                <VacancyCard v={s} headingLevel="h3" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {fromEmployer.length > 0 && (
+        <section className="mt-10" aria-labelledby="employer-h" data-reveal>
+          <h2 id="employer-h" className="font-display text-[20px] font-semibold text-fg">
+            {v.company || v.author.name} — boshqa vakansiyalari
+          </h2>
+          <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {fromEmployer.map((s) => (
               <li key={s.id} className="min-w-0">
                 <VacancyCard v={s} headingLevel="h3" />
               </li>

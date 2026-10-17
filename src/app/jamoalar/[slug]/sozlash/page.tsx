@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ButtonLink, PageHeader } from "@/components/ui";
+import { Link2 } from "lucide-react";
 import { GroupForm } from "@/components/groups/GroupForm";
+import { InviteLink } from "@/components/groups/InviteLink";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getGroupView } from "@/lib/groups/service";
 
@@ -65,6 +67,19 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
           }}
         />
       </div>
+      <section className="card mt-6 max-w-2xl p-5 sm:p-6" aria-labelledby="invite-h" data-reveal>
+        <h2 id="invite-h" className="flex items-center gap-2 font-display text-[17px] font-semibold text-fg">
+          <Link2 size={17} className="text-accent" /> Taklif havolasi
+        </h2>
+        <p className="mt-1 text-[13.5px] leading-relaxed text-fg-2">
+          {view.isPrivate
+            ? "Havolani Telegram yoki Instagram'da ulashing — yopiq jamoaga havola orqali kelganlar tasdiqsiz, darhol a'zo bo'ladi. Havola tarqalib ketsa, «yangilash» bilan eskisini bekor qiling."
+            : "Havolani Telegram yoki Instagram'da ulashing — do'stlaringiz bir bosishda qo'shiladi. Havola tarqalib ketsa, «yangilash» bilan eskisini bekor qiling."}
+        </p>
+        <div className="mt-4">
+          <InviteLink slug={view.slug} initialCode={view.inviteCode} />
+        </div>
+      </section>
     </div>
   );
 }

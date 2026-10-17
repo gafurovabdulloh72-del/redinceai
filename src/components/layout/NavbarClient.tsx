@@ -48,7 +48,7 @@ const NAV: Array<{ href: string; label: Tr; short: Tr; icon: typeof Home; exact?
   { href: "/haqida", label: SHELL.nav.about, short: SHELL.nav.about, icon: Info, mobile: false, desktop: "lg" },
 ];
 
-export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unread?: number }) {
+export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: NavUser | null; unread?: number; groupsUnread?: number }) {
   const til = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -153,6 +153,13 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                   )}
                 >
                   {tr(til, n.label)}
+                  {/* Jamoalarda o'qilmagan faollik — kichik nuqta (Telegram'dagi kabi) */}
+                  {n.href === "/jamoalar" && groupsUnread > 0 && (
+                    <>
+                      <span aria-hidden className="absolute right-1 top-1.5 h-2 w-2 animate-pop rounded-full bg-accent" />
+                      <span className="sr-only"> ({groupsUnread})</span>
+                    </>
+                  )}
                   {active && <span aria-hidden className="absolute inset-x-3 bottom-1 h-[3px] rounded-full bg-accent xl:inset-x-3.5" />}
                 </Link>
               );
@@ -211,7 +218,10 @@ export function NavbarClient({ user, unread = 0 }: { user: NavUser | null; unrea
                     >
                       <Search size={16} /> Qidiruv <kbd className="ml-auto rounded-md border border-line px-1.5 text-[11px] text-fg-3">⌘K</kbd>
                     </button>
-                    <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>{tr(til, SHELL.menu.groups)}</MenuItem>
+                    <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>
+                      {tr(til, SHELL.menu.groups)}
+                      {groupsUnread > 0 && <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{groupsUnread}</span>}
+                    </MenuItem>
                     <MenuItem href="/vakansiyalar" icon={Briefcase}>{tr(til, SHELL.menu.vacancies)}</MenuItem>
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>
                     <MenuItem href="/kabinet/sevimlilar" icon={Heart}>{tr(til, SHELL.menu.favorites)}</MenuItem>

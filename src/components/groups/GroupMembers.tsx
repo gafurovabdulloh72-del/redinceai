@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, Crown, ShieldCheck, X, type LucideIcon } from "lucide-react";
+import { Check, Crown, Search, ShieldCheck, X, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import type { MemberView } from "@/lib/groups/service";
 import { cn, timeAgo } from "@/lib/utils";
@@ -33,7 +33,11 @@ export function GroupMembers({
   const [pending, setPending] = useState(initialPending);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const base = `/api/groups/${encodeURIComponent(slug)}/members`;
+  // Ism bo'yicha lokal filtr (katta jamoalarda ro'yxat uzun)
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? active.filter((m) => m.user.name.toLowerCase().includes(needle)) : active;
 
   async function refresh() {
     const [a, p] = await Promise.all([
@@ -88,8 +92,14 @@ export function GroupMembers({
         <h3 id="members-h" className="text-[15px] font-bold text-fg">
           A&apos;zolar <span className="font-semibold text-fg-3">{active.length}</span>
         </h3>
+        {active.length >= 8 && (
+          <label className="relative mt-3 block">
+            <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
+            <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={60} placeholder="Ism bo'yicha qidirish…" aria-label="A'zolarni qidirish" className="field h-10 w-full pl-10 text-[13.5px]" />
+          </label>
+        )}
         <ul className="mt-2 divide-y divide-line">
-          {active.map((m) => {
+          {shown.map((m) => {
             const self = m.user.id === viewerId;
             const manageable = canManage && !self && m.role !== "owner" && (m.role !== "admin" || isOwner);
             return (
@@ -119,6 +129,7 @@ export function GroupMembers({
             );
           })}
         </ul>
+        {needle && shown.length === 0 && <p className="py-4 text-center text-[13px] text-fg-3">Bunday a&apos;zo topilmadi</p>}
       </section>
       {error && <p className="text-[12.5px] font-semibold text-danger-text">{error}</p>}
     </div>

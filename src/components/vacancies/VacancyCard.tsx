@@ -5,15 +5,19 @@ import type { VacancyCard as VacancyCardData } from "@/lib/vacancies/service";
 import { cn, timeAgo } from "@/lib/utils";
 
 const MAX_SKILLS = 4;
+/** Shuncha soatdan yangi e'lonlar "Yangi" belgisi bilan */
+const NEW_HOURS = 48;
 
 /** Vakansiya kartasi (/vakansiyalar, bosh sahifa, kabinet): butun karta — havola */
 export function VacancyCard({ v, className, headingLevel = "h2", href }: { v: VacancyCardData; className?: string; headingLevel?: "h2" | "h3"; href?: string }) {
   const Heading = headingLevel;
   const extra = v.skills.length - MAX_SKILLS;
   const remote = v.format === "remote";
+  const isNew = Date.now() - v.createdAt < NEW_HOURS * 3_600_000;
   return (
     <article className={cn("card card-hover card-link group relative flex h-full min-w-0 flex-col p-4 sm:p-5", className)}>
       <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
+        {isNew && <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-white">Yangi</span>}
         <span className="inline-flex items-center rounded-full bg-fg/6 px-2.5 py-1 text-fg-2">{professionLabel(v.profession, true)}</span>
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1", remote ? "bg-info-soft text-info-text" : "border border-line text-fg-2")}>
           <MapPin size={12} aria-hidden />

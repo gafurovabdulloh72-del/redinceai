@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { follows, groupMembers, groupMessages, groups, postComments, postLikes, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -219,11 +219,21 @@ async function touchActivity(groupId: string) {
 /* ------------------------------------------------------------------ */
 /* Jamoalar                                                            */
 /* ------------------------------------------------------------------ */
+/** Katalog tartibi: faollik (standart), yangi ochilgan, a'zolar soni */
+export type GroupSort = "active" | "new" | "members";
+
 export async function listGroups(
-  opts: { q?: string; category?: string; region?: string; mine?: boolean; kind?: "group" | "channel"; official?: boolean; limit?: number },
+  opts: { q?: string; category?: string; region?: string; mine?: boolean; kind?: "group" | "channel"; official?: boolean; limit?: number; sort?: GroupSort },
   viewer: Viewer,
 ): Promise<GroupListItem[]> {
   const conds = [];
+  // Rasmiy kanal har doim tepada; keyin tanlangan tartib
+  const orderBy =
+    opts.sort === "new"
+      ? [desc(groups.isOfficial), desc(groups.createdAt)]
+      : opts.sort === "members"
+        ? [desc(groups.isOfficial), desc(groups.membersCount), desc(groups.lastActivityAt)]
+        : [desc(groups.isOfficial), desc(groups.lastActivityAt), desc(groups.createdAt)];
   if (opts.kind) conds.push(eq(groups.kind, opts.kind));
   if (opts.official !== undefined) conds.push(eq(groups.isOfficial, opts.official));
   if (opts.q) {
@@ -240,7 +250,7 @@ export async function listGroups(
       .from(groupMembers)
       .innerJoin(groups, eq(groups.id, groupMembers.groupId))
       .where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active"), ...conds))
-      .orderBy(desc(groups.isOfficial), desc(groups.lastActivityAt), desc(groups.createdAt))
+      .orderBy(...orderBy)
       .limit(opts.limit ?? 30);
     rows = joined.map((r) => r.g);
   } else if (opts.mine) {
@@ -248,7 +258,7 @@ export async function listGroups(
   } else {
     rows = await db.query.groups.findMany({
       where: conds.length ? and(...conds) : undefined,
-      orderBy: [desc(groups.isOfficial), desc(groups.lastActivityAt), desc(groups.createdAt)],
+      orderBy,
       limit: opts.limit ?? 30,
     });
   }
@@ -797,6 +807,34 @@ export async function myGroupsCount(userId: string): Promise<number> {
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")));
   return Number(n);
+}
+
+/** Navbar nuqtasi: a'zo bo'lgan jamoalardan nechtasida oxirgi ko'rishdan keyin faollik bor (hasUnreadFor mantiqi SQL'da) */
+export async function unreadGroupsCount(userId: string): Promise<number> {
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+    .where(
+      and(
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active"),
+        isNotNull(groups.lastActivityAt),
+        or(and(isNull(groupMembers.lastReadAt), gt(groups.postsCount, 0)), sql`${groups.lastActivityAt} > ${groupMembers.lastReadAt} + 1000`),
+      ),
+    );
+  return Number(n);
+}
+
+/** Sitemap: ochiq (yopiq bo'lmagan) jamoalar — oxirgi faollik yoki yaratilgan vaqt */
+export async function getSitemapGroups(): Promise<Array<{ slug: string; lastModified: Date }>> {
+  const rows = await db
+    .select({ slug: groups.slug, lastActivityAt: groups.lastActivityAt, createdAt: groups.createdAt })
+    .from(groups)
+    .where(eq(groups.isPrivate, false))
+    .orderBy(desc(groups.lastActivityAt))
+    .limit(2000);
+  return rows.map((r) => ({ slug: r.slug, lastModified: r.lastActivityAt ?? r.createdAt }));
 }
 
 /* ------------------------------------------------------------------ */

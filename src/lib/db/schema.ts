@@ -1136,6 +1136,8 @@ export const vacancies = sqliteTable(
     viewCount: integer("view_count").notNull().default(0),
     /** Shu vaqtdan keyin ro'yxatda chiqmaydi (VACANCY_TTL_DAYS); egasi uzaytira oladi */
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    /** Muddat tugashi haqida egasiga eslatma yuborilgan vaqt (cron, bir marta; uzaytirilganda tozalanadi) */
+    expireRemindedAt: integer("expire_reminded_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

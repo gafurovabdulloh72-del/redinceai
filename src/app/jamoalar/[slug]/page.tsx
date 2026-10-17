@@ -14,6 +14,7 @@ import { MuteButton } from "@/components/groups/MuteButton";
 import { InviteJoin } from "@/components/groups/InviteJoin";
 import { CalendarLinks } from "@/components/groups/CalendarLinks";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { TelegramShare } from "@/components/ui/TelegramShare";
 import { OfficialCover } from "@/components/groups/OfficialCover";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
@@ -154,6 +155,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <ShareButton title={view.name} size="md" variant="outline" iconOnly />
+            <TelegramShare path={`/jamoalar/${view.slug}`} text={`${view.name} · Kasb Egalari jamoasi`} />
             {isMember && <MuteButton slug={view.slug} initialMuted={view.muted} />}
             {view.canManage && <InviteLink slug={view.slug} initialCode={view.inviteCode} />}
             {view.canManage && (

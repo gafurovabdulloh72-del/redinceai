@@ -9,6 +9,7 @@ import { autoReleaseDate, loadOrderWithParties, onOrderCancelled, orderHref, PRO
 import { audit } from "@/lib/security/audit";
 import { checkSavedSearchAlerts } from "@/lib/saved-searches";
 import { runSubscriptionReminders, type ReminderResult } from "@/lib/subscriptions/reminders";
+import { remindExpiringVacancies } from "@/lib/vacancies/service";
 import { formatDate } from "@/lib/utils";
 import { postSystemMessage } from "@/app/api/orders/_lib/messages";
 
@@ -54,6 +55,7 @@ function addDays(date: string, days: number): string {
  *  (h) saqlangan qidiruvlar: yangi mos mutaxassislar haqida xabar (checkSavedSearchAlerts)
  *  (i) obuna eslatmalari (3 kun / 1 kun qolganda, tugaganda, yashirilganda) + 12 soatdan eski pending obuna hisoblari bekor
  *  (j) eskirgan sessiyalar tozalanadi
+ *  (k) muddati 3 kun ichida tugaydigan ochiq vakansiyalar — egasiga bir martalik eslatma (expireRemindedAt)
  * Har bir qadam alohida try/catch ichida — biri yiqilsa, qolganlari ishlayveradi; sonlari JSON javobda va audit meta'da.
  * `?dry=1` — hech narsa o'zgartirmasdan (d)–(f) va (i) bo'yicha nechta yozuv tegishini qaytaradi.
  */
@@ -87,6 +89,7 @@ export async function GET(req: Request) {
     slaReminded: 0,
     slaCancelled: 0,
     jobsClosed: 0,
+    vacanciesReminded: 0,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -98,7 +101,8 @@ export async function GET(req: Request) {
       console.error("[cron] subscriptions (dry)", e);
       return null;
     });
-    return Response.json({ ok: true, dry: true, ts: now, ...r, subscriptions }, { headers });
+    const vacanciesReminded = await remindExpiringVacancies(now, true).catch(() => 0);
+    return Response.json({ ok: true, dry: true, ts: now, ...r, subscriptions, vacanciesReminded }, { headers });
   }
 
   // (a) Eskirgan provayder tranzaksiyalari
@@ -158,6 +162,13 @@ export async function GET(req: Request) {
     counts.jobsClosed = await closeExpiredJobs(now);
   } catch (e) {
     counts.errors.push(`jobs: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (k) Muddati 3 kun ichida tugaydigan vakansiyalar — egasiga eslatma
+  try {
+    counts.vacanciesReminded = await remindExpiringVacancies(now);
+  } catch (e) {
+    counts.errors.push(`vacancies: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (h) Saqlangan qidiruvlar bo'yicha ogohlantirishlar

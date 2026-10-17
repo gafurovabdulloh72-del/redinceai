@@ -39,6 +39,11 @@ function href(params: Record<string, string | undefined>) {
 }
 
 const CHIP = "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition";
+const SORTS = [
+  { key: "active", label: "Faol" },
+  { key: "new", label: "Yangi" },
+  { key: "members", label: "Ko'p a'zoli" },
+] as const;
 const chip = (active: boolean) => cn(CHIP, active ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg");
 
 /**
@@ -57,14 +62,14 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
   const [official, items, mineCount] = await Promise.all([
     // Rasmiy kanal doim tepada (faqat "guruhlar" filtri tanlanganda yashirinadi); a'zolik filtriga bog'liq emas
     kind === "group" ? Promise.resolve([] as GroupListItem[]) : listGroups({ official: true, limit: 3 }, viewer),
-    listGroups({ q: f.q, category: f.category, region: f.region, mine, kind, official: false, limit: f.limit }, viewer),
+    listGroups({ q: f.q, category: f.category, region: f.region, mine, kind, official: false, limit: f.limit, sort: f.sort }, viewer),
     user ? myGroupsCount(user.id) : Promise.resolve(0),
   ]);
   const nextEvents = await Promise.all(official.map((g) => upcomingEvents(g.id, viewer, 1).then((e) => e[0] ?? null)));
   const channels = items.filter((g) => g.kind === "channel");
   const teams = items.filter((g) => g.kind === "group");
 
-  const base = { q: f.q || undefined, category: f.category || undefined, region: f.region || undefined, mine: mine ? "1" : undefined, kind: kind || undefined };
+  const base = { q: f.q || undefined, category: f.category || undefined, region: f.region || undefined, mine: mine ? "1" : undefined, kind: kind || undefined, sort: f.sort !== "active" ? f.sort : undefined };
   const createHref = "/jamoalar/yangi";
 
   return (
@@ -99,6 +104,7 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
         {mine && <input type="hidden" name="mine" value="1" />}
         {f.category && <input type="hidden" name="category" value={f.category} />}
         {kind && <input type="hidden" name="kind" value={kind} />}
+        {f.sort !== "active" && <input type="hidden" name="sort" value={f.sort} />}
         <label className="relative min-w-0 flex-1">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
           <input name="q" defaultValue={f.q} maxLength={80} placeholder="Kanal yoki guruh nomi bo'yicha qidirish…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
@@ -154,6 +160,19 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
             </Link>
           );
         })}
+        {/* Tartib — segment (rasmiy kanal baribir tepada) */}
+        <div className="ml-auto inline-flex rounded-full border border-line p-0.5 text-[12.5px] font-semibold" role="group" aria-label="Tartib">
+          {SORTS.map((o) => (
+            <Link
+              key={o.key}
+              href={href({ ...base, sort: o.key === "active" ? undefined : o.key })}
+              aria-current={f.sort === o.key ? "true" : undefined}
+              className={cn("inline-flex h-8 items-center rounded-full px-3 transition", f.sort === o.key ? "bg-fg/8 text-fg" : "text-fg-3 hover:text-fg")}
+            >
+              {o.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {items.length === 0 ? (

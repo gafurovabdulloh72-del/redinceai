@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { applications, resumes, specialists, users, vacancies, vacancySaves, type Application, type Resume, type Vacancy } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -264,6 +264,76 @@ export async function bumpVacancyView(id: string): Promise<void> {
   await db.update(vacancies).set({ viewCount: sql`${vacancies.viewCount} + 1` }).where(eq(vacancies.id, id));
 }
 
+/** Egasiga eslatma: muddat tugashiga shuncha kun qolganda (cron) */
+export const VACANCY_EXPIRE_REMIND_DAYS = 3;
+
+/** Cron: muddati VACANCY_EXPIRE_REMIND_DAYS kun ichida tugaydigan ochiq vakansiyalar egasiga bir martalik eslatma (expireRemindedAt) */
+export async function remindExpiringVacancies(now = Date.now(), dry = false): Promise<number> {
+  const rows = await db.query.vacancies.findMany({
+    where: and(
+      eq(vacancies.status, "open"),
+      isNotNull(vacancies.expiresAt),
+      gt(vacancies.expiresAt, new Date(now)),
+      lte(vacancies.expiresAt, new Date(now + VACANCY_EXPIRE_REMIND_DAYS * 86_400_000)),
+      isNull(vacancies.expireRemindedAt),
+    ),
+    columns: { id: true, authorId: true, title: true, expiresAt: true },
+    limit: 200,
+  });
+  if (dry) return rows.length;
+  let n = 0;
+  for (const v of rows) {
+    // Holatga bog'liq belgilash — parallel cron chaqiruvida eslatma ikki marta ketmaydi
+    const res = await db.update(vacancies).set({ expireRemindedAt: new Date(now) }).where(and(eq(vacancies.id, v.id), isNull(vacancies.expireRemindedAt)));
+    if (!res.rowsAffected || !v.expiresAt) continue;
+    const days = Math.max(1, Math.ceil((v.expiresAt.getTime() - now) / 86_400_000));
+    await notify(
+      v.authorId,
+      "vacancy_expiring",
+      `Vakansiya muddati ${days} kundan keyin tugaydi`,
+      `«${v.title}» ro'yxatdan chiqib ketadi. O'rin hali ochiq bo'lsa, kabinetda «Uzaytirish» tugmasini bosing — yana ${VACANCY_TTL_DAYS} kun ko'rinadi.`,
+      "/kabinet/vakansiyalar",
+    );
+    n += 1;
+  }
+  return n;
+}
+
+/** Shu ish beruvchining boshqa ochiq vakansiyalari (joriy e'londan tashqari) */
+export async function employerVacancies(v: Vacancy, limit = 3, now = Date.now()): Promise<VacancyCard[]> {
+  const rows = await db
+    .select({ v: vacancies })
+    .from(vacancies)
+    .innerJoin(users, eq(users.id, vacancies.authorId))
+    .where(and(eq(vacancies.authorId, v.authorId), eq(vacancies.status, "open"), or(isNull(vacancies.expiresAt), gt(vacancies.expiresAt, new Date(now))), eq(users.isBanned, false), sql`${vacancies.id} != ${v.id}`))
+    .orderBy(desc(vacancies.createdAt))
+    .limit(limit);
+  const authors = await usersMini(rows.map((r) => r.v.authorId));
+  return rows.map((r) => toCard(r.v, pub(authors.get(r.v.authorId) ?? UNKNOWN)));
+}
+
+/** Sitemap: ochiq, muddati o'tmagan vakansiyalar (bloklangan mualliflarniki emas) */
+export async function getSitemapVacancies(now = Date.now()): Promise<Array<{ id: string; updatedAt: Date }>> {
+  return db
+    .select({ id: vacancies.id, updatedAt: vacancies.updatedAt })
+    .from(vacancies)
+    .innerJoin(users, eq(users.id, vacancies.authorId))
+    .where(and(eq(vacancies.status, "open"), or(isNull(vacancies.expiresAt), gt(vacancies.expiresAt, new Date(now))), eq(users.isBanned, false)))
+    .orderBy(desc(vacancies.updatedAt))
+    .limit(2000);
+}
+
+/** Sitemap: ommaviy rezyumelar (bloklangan foydalanuvchilarniki emas) */
+export async function getSitemapResumes(): Promise<Array<{ id: string; updatedAt: Date }>> {
+  return db
+    .select({ id: resumes.id, updatedAt: resumes.updatedAt })
+    .from(resumes)
+    .innerJoin(users, eq(users.id, resumes.userId))
+    .where(and(eq(resumes.isPublic, true), eq(users.isBanned, false)))
+    .orderBy(desc(resumes.updatedAt))
+    .limit(2000);
+}
+
 export async function createVacancy(userId: string, input: VacancyInput): Promise<Vacancy> {
   const now = new Date();
   const row: typeof vacancies.$inferInsert = {
@@ -307,6 +377,8 @@ export async function updateVacancy(v: Vacancy, patch: Partial<VacancyInput> & {
   // Uzaytirish: muddat bugundan boshlab yana 30 kun, e'lon qayta ochiladi
   if (patch.extend) {
     set.expiresAt = new Date(Date.now() + VACANCY_TTL_DAYS * 86_400_000);
+    // Uzaytirilgach yangi muddat uchun eslatma yana bir marta ketadi
+    set.expireRemindedAt = null;
     set.status = "open";
   }
   const [row] = await db.update(vacancies).set(set).where(eq(vacancies.id, v.id)).returning();
