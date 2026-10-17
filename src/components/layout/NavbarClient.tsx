@@ -220,7 +220,7 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
                     </button>
                     <MenuItem href="/jamoalar?mine=1" icon={UsersRound}>
                       {tr(til, SHELL.menu.groups)}
-                      {groupsUnread > 0 && <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{groupsUnread}</span>}
+                      {groupsUnread > 0 && <span className="ml-auto inline-flex h-5 min-w-5 animate-badge-pop items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{groupsUnread}</span>}
                     </MenuItem>
                     <MenuItem href="/vakansiyalar" icon={Briefcase}>{tr(til, SHELL.menu.vacancies)}</MenuItem>
                     <MenuItem href="/kabinet/bildirishnomalar" icon={Bell}>{tr(til, SHELL.menu.notifications)}</MenuItem>

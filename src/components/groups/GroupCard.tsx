@@ -35,7 +35,7 @@ export function GroupCard({ g }: { g: GroupCardData }) {
   const label = g.membership ? MEMBERSHIP_LABEL[g.membership] : null;
   return (
     <Link href={`/jamoalar/${g.slug}`} className={cn("card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-2)]", g.isOfficial && "ring-1 ring-accent/50")}>
-      <div className="relative aspect-[3/1] overflow-hidden bg-surface-3">
+      <div className="img-zoom relative aspect-[3/1] overflow-hidden bg-surface-3">
         {g.isOfficial && !g.coverUrl ? <OfficialCover name={g.name} compact /> : <CoverImage src={g.coverUrl} category={cat?.slug} seed={g.slug} />}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           {g.isOfficial ? (

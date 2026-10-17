@@ -230,7 +230,7 @@ export default async function PricingPage() {
                   +
                 </span>
               </summary>
-              <p className="pb-4 text-[14px] leading-relaxed text-fg-2">{f.a}</p>
+              <p className="accordion-body pb-4 text-[14px] leading-relaxed text-fg-2">{f.a}</p>
             </details>
           ))}
         </div>

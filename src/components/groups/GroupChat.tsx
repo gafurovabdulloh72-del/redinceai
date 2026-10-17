@@ -159,7 +159,7 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
             const newDay = !prev || dayOf(prev.at) !== dayOf(m.at);
             const sameSender = Boolean(prev && !newDay && prev.sender.id === m.sender.id);
             return (
-              <div key={m.id} className={cn("animate-fade-in", sameSender ? "mt-1" : "mt-3")}>
+              <div key={m.id} className={cn("animate-msg-in", sameSender ? "mt-1" : "mt-3")}>
                 {newDay && <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wide text-fg-4">{dayOf(m.at)}</p>}
                 <div className={cn("flex items-end gap-2", m.mine ? "justify-end" : "justify-start")}>
                   {!m.mine && <span className="w-7 shrink-0">{!sameSender && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={28} decorative />}</span>}

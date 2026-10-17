@@ -124,7 +124,7 @@ export function SavedSearchList({ initial }: { initial: SavedSearchItem[] }) {
               </div>
               <Link
                 href={`/mutaxassislar${s.query ? `?${s.query}` : ""}`}
-                className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4"
+                className="icon-nudge inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4"
               >
                 Ochish <ArrowUpRight size={14} />
               </Link>

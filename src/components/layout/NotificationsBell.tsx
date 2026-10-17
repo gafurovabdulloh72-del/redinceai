@@ -153,7 +153,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
         title={tr(til, SHELL.bell.label)}
         className="card card-hover relative flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-fg-2 hover:text-fg"
       >
-        <Bell size={18} />
+        <Bell key={unread} size={18} className={unread > 0 ? "animate-wiggle" : undefined} />
         {unread > 0 && (
           <span
             aria-hidden="true"

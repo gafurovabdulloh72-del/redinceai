@@ -57,7 +57,7 @@ export function FavoriteButton({ specialistId, variant = "outline", size = "md",
     }
   };
 
-  const icon = <Heart size={ICON[size]} className={cn("transition-transform duration-200", on && "fill-current scale-110")} aria-hidden="true" />;
+  const icon = <Heart key={on ? "on" : "off"} size={ICON[size]} className={cn("transition-transform duration-200", on && "animate-heartbeat fill-current")} aria-hidden="true" />;
 
   if (variant === "overlay") {
     return (

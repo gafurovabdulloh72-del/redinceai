@@ -505,7 +505,7 @@ function PostCard({
             liked ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-fg/6 hover:text-fg",
           )}
         >
-          <Heart key={liked ? "on" : "off"} size={16} className={cn("transition-transform", liked && "animate-pop fill-current")} /> <span key={likes} className="animate-fade-in tabular-nums">{likes}</span>
+          <Heart key={liked ? "on" : "off"} size={16} className={cn("transition-transform", liked && "animate-heartbeat fill-current")} /> <span key={likes} className="animate-fade-in tabular-nums">{likes}</span>
         </button>
         <button
           type="button"

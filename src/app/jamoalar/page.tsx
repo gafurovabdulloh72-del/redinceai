@@ -84,7 +84,7 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
         }
         description="Rasmiy kanal, yo'nalish va hudud bo'yicha kanallar va guruhlar: tajriba almashing, savol bering, jonli efirlarga qo'shiling."
         action={
-          <ButtonLink href={createHref} variant="accent" size="lg">
+          <ButtonLink href={createHref} variant="accent" size="lg" className="icon-spin-hover">
             <Plus size={18} /> Guruh yoki kanal ochish
           </ButtonLink>
         }
@@ -259,7 +259,7 @@ function OfficialBanner({ g, next }: { g: GroupListItem; next: PostView | null }
           <div className="mt-auto flex flex-wrap items-center gap-2">
             {next?.eventAt && (
               <span className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold", live ? "bg-accent text-white" : "bg-accent-soft text-accent-text")}>
-                <RadioTower size={14} /> {live ? "Hozir jonli efirda" : `Keyingi efir: ${formatDateTime(next.eventAt)}`}
+                {live ? <span className="live-dot h-2 w-2 rounded-full bg-white" aria-hidden /> : <RadioTower size={14} />} {live ? "Hozir jonli efirda" : `Keyingi efir: ${formatDateTime(next.eventAt)}`}
               </span>
             )}
             {next?.eventUrl && live && (
