@@ -119,10 +119,26 @@ Soha: ommaviy ijodkor profili (`/mutaxassislar/[slug]`), katalog (`/mutaxassisla
 26. ✅ Taqqoslash izohi qisqartirildi
 
 ## Tekshiruv
-(to'ldiriladi)
+- `npx tsc --noEmit | grep -v "^.next/types"` — soha fayllarida xato yo'q (oxirgi tekshiruv barcha o'zgarishlardan keyin).
+- Sxema: `profile_views`, `review_votes` jadvallari qo'shildi (faqat qo'shimcha), `npx tsx scripts/db-sync.ts` — "✓ Sxema sinxronlandi".
+- QR generatori mustaqil dekoder bilan tekshirildi (jsQR, Chromium canvas): v1/v3/v4/v7/v8/v10 — 7 ta namuna, hammasi to'g'ri dekodlandi; 214 bayt → null (sig'im chegarasi). Skript: `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/profile/qr-test.mts`
+- curl (200): `/mutaxassislar/dilnoza-nazarova` (+ `?tab=videolar`, `?post=yoq-id` → «Post topilmadi» holati, `?sharh=yuqori`, `?ish=seed-0000b-3tubc6` → Videolar tabi + ish oynasi), `/mutaxassislar` (+ `?view=list`, cookie `katalog_korinish=list` → qatorlar, `?page=99` → oxirgi sahifaga meta-refresh, `?page=3&q=zzz` → 1-sahifa), `/qidiruv?q=montaj` (data-result, data-search-input), `?type=people` → «So'z kiriting», `?type=groups&q=mon` → faqat Jamoalar, ru: `?q=монтаж`, `/xarita?hudud=samarqand` (+ «Hududni ulashish»), `/u/CP82B5/qr` (SVG 37×37 modul), `/u/zzzzzz/qr` → 404, `/api/search?q=diln`, `/taqqoslash?ids=…`, `/yonalish/videograf` (BreadcrumbList JSON-LD), `/mutaxassislar/otabek-ergashev` (6 ta «Foydali», saralash segmenti, «Yana 1 ta sharh»).
+- curl API: `POST /api/profil/postlar/<id>/pin` — egasi ✓ (isPinned=true, lentada birinchi), mijoz → 403; `POST /api/reviews/<id>/helpful` — mijoz ✓ (voted/n), qayta → olib tashlanadi, o'z sharhiga → 400, mehmon → 401.
+- Ko'rishlar: 2 ta mehmon so'rovi (bir xil IP+UA, haqiqiy UA) → `profile_views`da 1 qator, `viewCount` +1; mijoz ko'rishi → `u:<id>` qatori.
+- ru lug'at: profil (Заполненность профиля, Путь, Сообщества, Похожие, «Обычно отвечает в течение 19 часов», «за 7 дней»), qidiruv, xarita sarlavhasi — tekshirildi.
+- Playwright (1440 light, mehmon): HSCROLL=false; tablar ←/→ (aria-selected + URL `?tab=`); post oynasi — fokus ichida (12×Tab), Esc yopadi, `?post=` tozalanadi, fokus plitkaga qaytadi; ulashish varaqi — QR SVG + yuklab olish havolasi, Esc yopadi; katalogda «Yaqinda ko'rilganlar» lentasi; ro'yxat tugmasi → cookie `katalog_korinish=list`, URL toza; ⌘K — mos matn `<mark>` bilan; qidiruvda «/» fokus, ↓ natijaga o'tadi; xaritada «Hududni ulashish».
+- Skrinshotlar (`/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/profile/`): `01-profile-guest-1440-light.png`, `02-post-modal-1440-light.png`, `03-share-qr-1440-light.png`, `04-catalog-1440-light.png`, `05-catalog-list-1440-light.png`, `06-palette-1440-light.png`, `07-qidiruv-1440-light.png`, `08-xarita-1440-light.png`, `09-profile-reviews-1440-light.png`, `10-owner-modal-pin-1440-light.png`, `11-profile-390-dark.png`, `12-catalog-390-dark.png`, `13-qidiruv-390-dark.png`, `14-xarita-390-dark.png`, `15-profile-reviews-390-dark.png`, `16-compare-390-dark.png`, `17-share-sheet-390-dark.png`, `18-owner-profile-1440-light.png`; jurnal: `shots.log`.
+- Eslatma: dev server 8 agent yuki ostida vaqti-vaqti bilan javob bermay qoldi (health 000) — ba'zi brauzer qadamlari qayta ishga tushirildi; bitta `SyntaxError: Unexpected end of JSON input` (Next kesh/kompilyatsiya to'qnashuvi, qayta so'rovda 200) kuzatildi — kodimizda server tomonda JSON.parse yo'q.
 
 ## Boshqa sohalarga so'rovlar
-(to'ldiriladi)
+- `src/lib/validators.ts` (umumiy): `specialistFilterSchema.sort` ga `"active"` (oxirgi faollik bo'yicha) qo'shilsa — katalogda «Faol» saralash tayyor bo'ladi (`listSpecialists` orderBy'ga `users.lastSeenAt` qo'shish kifoya).
+- `src/lib/groups/service.ts` (groups sohasi): `toPostViews` allaqachon `isPinned` qaytaradi — o'zgarish shart emas; jamoa postlari uchun qadash o'z API'sida qoladi.
+- Cron (`src/app/api/cron/**` egasi): `purgeOldProfileViews(30)` (`lib/queries.ts`) ni mavjud `purgeOldViews` yoniga qo'shish.
+- `design` agent: `--r-*` tokenlariga ko'ra `.card-elevated` ichidagi `!rounded-[24px]`/`[28px]` qoldiqlari boshqa sahifalarda ham uchrashi mumkin.
 
 ## Qoldirilgan / xavf
-(to'ldiriladi)
+- `src/lib/utils.ts` `compactCount` — umumiy faylda 1 qatorli tuzatish (999 500+ → «1M»); boshqa iste'molchilarga ta'siri faqat shu chegarada.
+- Profil ko'rishlari endi kunlik noyob — `viewCount` o'sishi avvalgidan sekinroq (bu kutilgan; eski qiymatlar saqlanadi).
+- Katalog kartasidan ko'nikma chiplari olib tashlandi (`SkillChips` komponenti profil sahifasida ishlatiladi); kerak bo'lsa bir qatorda qaytarish oson.
+- `/taqqoslash` sahifasi asosan uz (faqat yangi qatorlar va javob vaqti tilga mos) — to'liq ru tarjima alohida ish.
+- `/mutaxassislar?page=99` yo'naltirish `loading.tsx` (Suspense) sabab 200 + meta-refresh bilan (oldingi xatti-harakat), brauzerda to'g'ri ishlaydi.

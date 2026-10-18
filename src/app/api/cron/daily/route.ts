@@ -9,7 +9,7 @@ import { autoReleaseDate, loadOrderWithParties, onOrderCancelled, orderHref, PRO
 import { audit } from "@/lib/security/audit";
 import { checkSavedSearchAlerts } from "@/lib/saved-searches";
 import { runSubscriptionReminders, type ReminderResult } from "@/lib/subscriptions/reminders";
-import { remindExpiringVacancies } from "@/lib/vacancies/service";
+import { remindExpiringVacancies, checkVacancyAlerts } from "@/lib/vacancies/service";
 import { purgeOldViews } from "@/lib/groups/service";
 import { formatDate } from "@/lib/utils";
 import { postSystemMessage } from "@/app/api/orders/_lib/messages";
@@ -91,6 +91,7 @@ export async function GET(req: Request) {
     slaCancelled: 0,
     jobsClosed: 0,
     vacanciesReminded: 0,
+    vacancyAlerts: null as { checked: number; notified: number } | null,
     viewsPurged: 0,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
@@ -171,6 +172,13 @@ export async function GET(req: Request) {
     counts.vacanciesReminded = await remindExpiringVacancies(now);
   } catch (e) {
     counts.errors.push(`vacancies: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (k2) Vakansiya ogohlantirishlari: yangi mos vakansiya → saqlangan qidiruv egasiga bildirishnoma
+  try {
+    counts.vacancyAlerts = await checkVacancyAlerts(now);
+  } catch (e) {
+    counts.errors.push(`vacancyAlerts: ${e instanceof Error ? e.message : String(e)}`);
   }
   // (l) Post ko'rishlari dedupe jurnali — 30 kundan eskilari o'chiriladi (hisob posts.views_count'da qoladi)
   try {

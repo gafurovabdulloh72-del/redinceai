@@ -193,11 +193,11 @@ test("auth sahifalari: kirish va ro'yxat 200, parol maydoni autocomplete bilan, 
   const login = await req("/auth/kirish");
   assert.equal(login.status, 200);
   const html = await login.text();
-  assert.match(html, /autocomplete="current-password"/, "kirishda current-password yo'q");
-  assert.match(html, /autocomplete="email"/);
+  assert.match(html, /autocomplete="current-password"/i, "kirishda current-password yo'q");
+  assert.match(html, /autocomplete="email"/i);
   const reg = await req("/auth/royxat");
   assert.equal(reg.status, 200);
-  assert.match(await reg.text(), /autocomplete="new-password"/, "ro'yxatda new-password yo'q");
+  assert.match(await reg.text(), /autocomplete="new-password"/i, "ro'yxatda new-password yo'q");
 });
 
 test("admin sahifalar: mehmon /admin va /admin/audit → kirishga yo'naltiriladi", async () => {

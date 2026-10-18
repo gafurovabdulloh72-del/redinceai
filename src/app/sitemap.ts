@@ -4,6 +4,7 @@ import { getLandingIndex, getSitemapProfiles } from "@/lib/queries";
 import { getSitemapJobs } from "@/lib/jobs";
 import { getSitemapGroups } from "@/lib/groups/service";
 import { getSitemapResumes, getSitemapVacancies } from "@/lib/vacancies/service";
+import { PROFESSIONS } from "@/lib/vacancies/format";
 import { SITE_URL } from "@/lib/site-url";
 import { HELP_ARTICLES } from "@/app/yordam/articles";
 
@@ -66,6 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...jobs.map((j) => ({ url: `${base}/ishlar/${j.id}`, lastModified: j.updatedAt, changeFrequency: "daily" as const, priority: 0.5 })),
     ...groupsList.map((g) => ({ url: `${base}/jamoalar/${g.slug}`, lastModified: g.lastModified, changeFrequency: "daily" as const, priority: 0.5 })),
     ...vacancyList.map((v) => ({ url: `${base}/vakansiyalar/${v.id}`, lastModified: v.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
+    ...PROFESSIONS.map((p) => ({ url: `${base}/vakansiyalar/kasb/${p.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.5 })),
     ...resumeList.map((r) => ({ url: `${base}/rezyumelar/${r.id}`, lastModified: r.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
   ];
 }

@@ -10,9 +10,9 @@ const schema = z.object({ q: z.string().trim().max(80).optional() });
 /** Vakansiya avto-bayroqlari: oldindan to'lov so'rash va matnda to'g'ridan-to'g'ri kontakt (sayt ichidagi arizani chetlab o'tish) */
 const PREPAYMENT_RE = /(oldindan\s*to['’ʻ]?lov|avans|предоплат|депозит|depozit|kafolat\s*puli|garov\s*puli|ro['’ʻ]?yxat(dan)?\s*o['’ʻ]?tish\s*(uchun\s*)?to['’ʻ]?lov|registratsiya\s*to['’ʻ]?lovi|to['’ʻ]?lov\s*qil(ing|asiz|sangiz)|взнос|оплат[аиу]\s*(за\s*)?(регистрац|обучен|анкет)|платн(ое|ая)\s*обучен)/i;
 const CONTACT_RE = /(@[a-z0-9_]{5,}|\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|t\.me\/)/i;
-export type VacancyFlag = "prepayment" | "contact";
+type VacancyFlag = "prepayment" | "contact";
 
-export function vacancyFlags(v: { title: string; description: string; requirements: string; company: string }): VacancyFlag[] {
+function vacancyFlags(v: { title: string; description: string; requirements: string; company: string }): VacancyFlag[] {
   const text = `${v.title}\n${v.company}\n${v.description}\n${v.requirements}`;
   const flags: VacancyFlag[] = [];
   if (PREPAYMENT_RE.test(text)) flags.push("prepayment");
