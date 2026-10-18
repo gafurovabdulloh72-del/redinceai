@@ -126,7 +126,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Navbar />
             {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar */}
             <div className="md:pl-[76px] xl:pl-[244px]">
-              <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-12 md:pt-8">
+              <main id="asosiy" className="pt-24 pb-6 sm:pt-28 md:pb-12 md:pt-8">
                 {children}
               </main>
               <FooterGate>

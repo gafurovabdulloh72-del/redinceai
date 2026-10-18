@@ -61,6 +61,7 @@ export function MentionField({
   const [items, setItems] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(0);
   const [up, setUp] = useState(placement === "up");
+  const [maxH, setMaxH] = useState(256);
   const seq = useRef(0);
 
   const detect = useCallback(() => {
@@ -109,24 +110,34 @@ export function MentionField({
 
   const open = query !== null && items.length > 0;
 
-  // Joylashuv: pastda 280px'dan kam joy bo'lsa yoki eng yaqin overflow-hidden/auto ota element pastki chegarasiga yaqin bo'lsa — tepaga.
-  // (Guruh chati kartasi overflow-hidden: pastga ochilsa kesilib qoladi — 1-rasmdagi bug)
+  // Joylashuv: eng yaqin overflow-hidden/auto ota element (masalan guruh chati kartasi) va viewport chegaralari ichida
+  // qaysi tomonda joy ko'proq bo'lsa — o'sha tomonga ochiladi; balandlik mavjud joyga moslanadi (1-rasmdagi kesilish bugi).
   useEffect(() => {
-    if (!open || placement !== "auto") return;
+    if (!open) return;
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    let limit = window.innerHeight;
+    let top = 0;
+    let bottom = window.innerHeight;
     let node: HTMLElement | null = el.parentElement;
     while (node && node !== document.body) {
       const ov = getComputedStyle(node).overflowY;
       if (ov === "hidden" || ov === "auto" || ov === "scroll" || ov === "clip") {
-        limit = Math.min(limit, node.getBoundingClientRect().bottom);
+        const b = node.getBoundingClientRect();
+        top = Math.max(top, b.top);
+        bottom = Math.min(bottom, b.bottom);
         break;
       }
       node = node.parentElement;
     }
-    setUp(limit - r.bottom < 280);
+    // Telefonda yuqori panel fixed — ro'yxat uning ostida qolmasin
+    const hdr = document.querySelector<HTMLElement>("header");
+    if (hdr && getComputedStyle(hdr).position === "fixed") top = Math.max(top, hdr.getBoundingClientRect().bottom);
+    const below = bottom - r.bottom - 8;
+    const above = r.top - top - 8;
+    const goUp = placement === "up" || (placement === "auto" && below < 280 && above > below);
+    setUp(goUp);
+    setMaxH(Math.max(120, Math.min(256, goUp ? above : below)));
   }, [open, placement]);
 
   function pick(s: Suggestion) {
@@ -217,7 +228,7 @@ export function MentionField({
       )}
       {trailing}
       {open && (
-        <ul id="mention-listbox" role="listbox" aria-label="Foydalanuvchilar" className={cn("card-floating absolute left-0 z-30 max-h-64 w-full max-w-sm overflow-auto p-1", up ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
+        <ul id="mention-listbox" role="listbox" aria-label="Foydalanuvchilar" style={{ maxHeight: maxH }} className={cn("card-floating absolute left-0 z-30 w-full max-w-sm overflow-auto p-1", up ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
           {items.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === active}>
               <button

@@ -30,7 +30,7 @@ const SOCIAL = [
 export async function Footer() {
   const til = await getLocale();
   return (
-    <footer className="container-x mt-20 border-t border-line pb-28 pt-8 sm:mt-24 md:pb-10">
+    <footer className="container-x mt-12 border-t border-line pb-28 pt-8 sm:mt-20 md:pb-10">
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <Logo />
@@ -65,7 +65,13 @@ export async function Footer() {
             {tr(til, SHELL.footer.becomeSpecialist)}
           </Link>
         </span>
-        <span>{tr(til, SHELL.footer.mapBorders)}</span>
+        <span>
+          {tr(til, SHELL.footer.mapBorders)}{" "}
+          <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:underline">
+            geoBoundaries
+          </a>
+          , CC BY 4.0
+        </span>
       </div>
       <ServiceWorkerRegister />
     </footer>
