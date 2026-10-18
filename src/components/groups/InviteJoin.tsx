@@ -33,9 +33,9 @@ export function InviteJoin({ slug, invite, membership, loggedIn }: { slug: strin
   if (loggedIn || active) return null;
   const next = encodeURIComponent(`/jamoalar/${slug}?invite=${invite}`);
   return (
-    <div role="status" className="card mt-4 flex flex-wrap items-center gap-3 border-accent/30 bg-accent-soft/40 px-4 py-3 text-[13.5px]">
-      <span className="font-semibold text-fg">Sizni bu jamoaga taklif qilishdi.</span>
-      <span className="text-fg-2">Qo&apos;shilish uchun kiring yoki bepul hisob oching.</span>
+    <div role="status" className="card expand-in mt-4 flex flex-wrap items-center gap-3 px-4 py-3 text-[13.5px]">
+      <span className="font-semibold text-fg">Sizni taklif qilishdi.</span>
+      <span className="text-fg-2">Qo&apos;shilish uchun kiring yoki hisob oching.</span>
       <span className="ml-auto flex gap-2">
         <Link href={`/auth/kirish?next=${next}`} className="btn-ink inline-flex h-9 items-center rounded-full px-4 text-[13px] font-semibold">
           Kirish

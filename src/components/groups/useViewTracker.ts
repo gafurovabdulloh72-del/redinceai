@@ -7,6 +7,7 @@ type ApiResp = { ok: boolean; data?: { views: number } };
 /**
  * Post ko'rishini hisoblash (Telegram/Instagram uslubi): karta ekranda kamida 50% ko'rinib 1.2 soniya tursa —
  * POST /api/posts/[id]/view (bir sessiyada bir marta; serverda bir foydalanuvchi/IP uchun kuniga bir marta).
+ * Sahifa fon tabda (document.hidden) bo'lsa hisoblanmaydi — tab ko'rinishga qaytganda qayta sanaladi.
  * `immediate` — oyna (PostModal) ochilganda darhol. Qaytaradi: element ref'i va yangilangan son.
  */
 export function useViewTracker(postId: string, initial: number, opts: { immediate?: boolean; enabled?: boolean } = {}) {
@@ -22,6 +23,7 @@ export function useViewTracker(postId: string, initial: number, opts: { immediat
     } catch {}
     let done = false;
     let timer: number | null = null;
+    let visible = false;
     const send = () => {
       if (done) return;
       done = true;
@@ -41,23 +43,35 @@ export function useViewTracker(postId: string, initial: number, opts: { immediat
     }
     const el = ref.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
+    const stop = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+    };
+    const arm = () => {
+      // Faqat ko'rinadigan tabda va karta yetarli ko'rinib turganda taymer ishlaydi
+      if (!visible || document.visibilityState !== "visible" || timer !== null || done) return;
+      timer = window.setTimeout(() => {
+        send();
+        io.disconnect();
+      }, 1200);
+    };
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.intersectionRatio >= 0.5) {
-            if (timer === null) timer = window.setTimeout(() => { send(); io.disconnect(); }, 1200);
-          } else if (timer !== null) {
-            window.clearTimeout(timer);
-            timer = null;
-          }
+          visible = e.intersectionRatio >= 0.5;
+          if (visible) arm();
+          else stop();
         }
       },
       { threshold: [0, 0.5, 1] },
     );
+    const onVis = () => (document.visibilityState === "visible" ? arm() : stop());
     io.observe(el);
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       io.disconnect();
-      if (timer !== null) window.clearTimeout(timer);
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [postId, immediate, enabled]);
 

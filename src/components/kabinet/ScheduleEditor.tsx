@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertCircle, CalendarOff, CalendarX, CheckCircle2, ChevronLeft, ChevronRight, Clock3, TreePalm, X } from "lucide-react";
+import { Copy, AlertCircle, CalendarOff, CalendarX, CheckCircle2, ChevronLeft, ChevronRight, Clock3, TreePalm, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
 import { WEEKDAYS, type WeekdayKey } from "@/lib/constants";
 import type { Schedule } from "@/lib/db/schema";
 import { emptySchedule, isOnVacation, presetSchedule, scheduleStatus, scheduleStatusLabel, scheduleSummary, tashkentNow, toMinutes } from "@/lib/privacy";
@@ -152,6 +153,16 @@ export function ScheduleEditor({
   const effective: Schedule | null = enabled ? schedule : null;
   const baseline = useMemo(() => JSON.stringify({ s: normalize(initial), v: initialVacation ?? "", b: [...initialBlocked].sort() }), [initial, initialVacation, initialBlocked]);
   const dirty = JSON.stringify({ s: effective, v: vacation, b: blocked }) !== baseline;
+  useUnsavedGuard(dirty && !busy);
+
+  /** Bir kunning soatlarini barcha yoqilgan kunlarga nusxalash (tez to'ldirish) */
+  const copyHoursToAll = (from: WeekdayKey) => {
+    const src = schedule.days[from];
+    setSchedule((s) => ({
+      ...s,
+      days: Object.fromEntries(WEEKDAYS.map((d) => [d.key, s.days[d.key].enabled ? { ...s.days[d.key], from: src.from, to: src.to } : s.days[d.key]])) as Schedule["days"],
+    }));
+  };
 
   const status = now != null ? scheduleStatus(effective, now) : null;
   const todayKey = now != null ? tashkentNow(now).dayKey : null;
@@ -214,14 +225,14 @@ export function ScheduleEditor({
   const todayDate = now != null ? tashkentNow(now).date : undefined;
 
   return (
-    <form onSubmit={submit} id="ish-vaqti" className="card scroll-mt-28 p-5 sm:p-7" noValidate>
+    <form onSubmit={submit} id="ish-vaqti" className="card scroll-mt-28 p-5 sm:p-6" noValidate aria-busy={busy}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <Clock3 size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <Clock3 size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Ish vaqti</h2>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Ish vaqti</h2>
             <p className="mt-0.5 text-[13px] text-fg-3">Mijozlar sizga qachon bog'lanish mumkinligini ko'radi. Toshkent vaqti (UTC+5).</p>
           </div>
         </div>
@@ -229,11 +240,11 @@ export function ScheduleEditor({
           <span
             className={cn(
               "inline-flex min-h-9 shrink-0 items-center gap-2 self-start rounded-full px-3.5 py-1.5 text-[12px] font-semibold",
-              onVacation ? "bg-accent-soft text-accent" : status.state === "open" ? "bg-ios-green/14 text-[#15803d] dark:text-ios-green" : "bg-surface-3 text-fg-2",
+              onVacation ? "bg-accent-soft text-accent-text" : status.state === "open" ? "bg-success-soft text-success-text" : "bg-surface-3 text-fg-2",
             )}
             aria-live="polite"
           >
-            <span className={cn("h-2 w-2 rounded-full", onVacation ? "bg-accent" : status.state === "open" ? "bg-ios-green" : "bg-fg-4")} />
+            <span className={cn("h-2 w-2 rounded-full", onVacation ? "bg-accent" : status.state === "open" ? "bg-success" : "bg-fg-4")} />
             {onVacation ? "Ta'tilda" : scheduleStatusLabel(status)}
           </span>
         )}
@@ -294,7 +305,7 @@ export function ScheduleEditor({
                         id={`sch-${d.key}-from`}
                         type="time"
                         step={300}
-                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-ios-red")}
+                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-danger")}
                         value={day.from}
                         onChange={(e) => setDay(d.key, { from: e.target.value })}
                         aria-invalid={Boolean(err)}
@@ -307,11 +318,20 @@ export function ScheduleEditor({
                         id={`sch-${d.key}-to`}
                         type="time"
                         step={300}
-                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-ios-red")}
+                        className={cn("field !w-[136px] !py-2 tabular-nums", err && "!border-danger")}
                         value={day.to}
                         onChange={(e) => setDay(d.key, { to: e.target.value })}
                         aria-invalid={Boolean(err)}
                       />
+                      <button
+                        type="button"
+                        onClick={() => copyHoursToAll(d.key)}
+                        title="Shu soatlarni barcha ish kunlariga nusxalash"
+                        aria-label={`${d.label} soatlarini barcha ish kunlariga nusxalash`}
+                        className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/6 hover:text-fg"
+                      >
+                        <Copy size={14} />
+                      </button>
                     </div>
                   ) : (
                     <span className="ml-auto text-[12px] text-fg-4">Dam olish kuni</span>
@@ -361,7 +381,7 @@ export function ScheduleEditor({
             <input
               id="sch-vacation"
               type="date"
-              className={cn("field !w-auto !py-2", errors.vacationUntil && "!border-ios-red")}
+              className={cn("field !w-auto !py-2", errors.vacationUntil && "!border-danger")}
               value={vacation}
               min={todayDate}
               onChange={(e) => setVacation(e.target.value)}
@@ -400,7 +420,7 @@ export function ScheduleEditor({
       </div>
 
       {error && (
-        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-ios-red/12 px-3.5 py-2 text-[13px] font-medium text-ios-red">
+        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}
@@ -408,7 +428,7 @@ export function ScheduleEditor({
       <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-[13px]" aria-live="polite">
           {saved ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
               <CheckCircle2 size={15} /> Saqlandi
             </span>
           ) : dirty ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { UsersRound, X } from "lucide-react";
@@ -133,11 +133,20 @@ export function FollowersDialog({ userId, followers, following, loggedIn, viewer
   useEffect(() => {
     if (open) setShown(open);
   }, [open]);
+  const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Fon skrolli qulflanadi (telefonda ro'yxat ostidagi sahifa surilmasin), fokus oynaga o'tadi
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const t = window.setTimeout(() => closeRef.current?.focus(), 60);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      window.clearTimeout(t);
+    };
   }, [open]);
 
   return (
@@ -170,7 +179,7 @@ export function FollowersDialog({ userId, followers, following, loggedIn, viewer
                 <h2 className="flex items-center gap-2 font-display text-[17px] font-semibold text-fg">
                   <UsersRound size={17} className="text-fg-3" /> Obunalar
                 </h2>
-                <button type="button" onClick={() => setOpen(null)} aria-label="Yopish" className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                <button ref={closeRef} type="button" onClick={() => setOpen(null)} aria-label="Yopish" className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
                   <X size={17} />
                 </button>
               </div>

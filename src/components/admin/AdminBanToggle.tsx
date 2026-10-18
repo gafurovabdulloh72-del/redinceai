@@ -50,7 +50,7 @@ export function AdminBanToggle({ userId, name, initialBanned, initialReason = nu
 
   if (ask) {
     return (
-      <div className={cn("card-outline flex w-full flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up", className)} style={{ animationDuration: "0.2s" }}>
+      <div className={cn("card-outline expand-in flex w-full flex-col gap-2 !rounded-[14px] p-2.5 text-left", className)} role="group" aria-label={`${name}: bloklash sababi`}>
         <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
           <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> {name} bloklansinmi? Tizimga kira olmaydi, sessiyalari bekor qilinadi, profili ro'yxatdan yashiriladi.
         </p>

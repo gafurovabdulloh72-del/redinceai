@@ -64,7 +64,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ paymen
         <Link href={isSpecialist ? "/kabinet/tolovlar" : `/kabinet/buyurtmalar?id=${p.orderId}`} className="inline-flex min-h-9 items-center gap-1.5 text-[13px] font-medium text-fg-3 transition hover:text-fg">
           <ArrowLeft size={14} /> {isSpecialist ? "To'lovlarga qaytish" : "Buyurtmaga qaytish"}
         </Link>
-        <PrintButton />
+        <PrintButton fileName={`chek-${no}`} />
       </div>
 
       <article className="receipt card-elevated mx-auto max-w-2xl p-6 sm:p-10" aria-labelledby="receipt-title">

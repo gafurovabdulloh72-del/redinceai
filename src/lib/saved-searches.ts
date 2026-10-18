@@ -54,6 +54,7 @@ export async function listSavedSearches(userId: string) {
     query: r.query,
     summary: describeSavedQuery(r.query),
     notify: r.notify,
+    frequency: r.frequency,
     lastNotifiedAt: r.lastNotifiedAt ? r.lastNotifiedAt.getTime() : null,
     createdAt: r.createdAt.getTime(),
   }));
@@ -66,6 +67,34 @@ export type SavedSearchDTO = Awaited<ReturnType<typeof listSavedSearches>>[numbe
  * "saved_search" bildirishnomasi. "Hozir ochiq" filtri vaqtga bog'liq — ogohlantirishda e'tiborsiz. Egasining o'z profili sanalmaydi.
  * lastNotifiedAt har safar yangilanadi (oyna siljiydi) — bir mutaxassis haqida qayta-qayta xabar kelmaydi.
  */
+/** Haftalik chastota: oxirgi xabardan shuncha vaqt o'tmaguncha qayta tekshirilmaydi */
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Saqlangan qidiruv uchun `since` dan keyin qo'shilgan/yangilangan, katalogda ko'rinadigan va filtrga mos mutaxassislar soni
+ * (egasining o'z profili sanalmaydi; "Hozir ochiq" vaqtga bog'liq — e'tiborsiz). Kabinetdagi «Hozir tekshirish» ham shu.
+ */
+export async function countNewMatches(row: { userId: string; query: string; lastNotifiedAt: Date | null; createdAt: Date }, viewer: { userId: string; role: "client" | "specialist" | "admin" }, since?: Date): Promise<{ n: number; query: string }> {
+  const from = since ?? row.lastNotifiedAt ?? row.createdAt;
+  const { query, filter } = canonicalSavedQuery(row.query);
+  const { page: _p, limit: _l, sort: _s, openNow: _o, ...rest } = filter;
+  void _p;
+  void _l;
+  void _s;
+  void _o;
+  const f: FilterOnly = rest;
+  const conds = await specialistFilterConds(f, viewer);
+  conds.push(or(gt(specialists.createdAt, from), gt(specialists.updatedAt, from))!, ne(specialists.userId, row.userId));
+  const [{ n }] = await db.select({ n: count() }).from(specialists).where(and(...conds));
+  return { n, query };
+}
+
+/**
+ * Har bir notify=true qidiruv uchun: lastNotifiedAt (bo'lmasa — saqlangan vaqt) dan keyin qo'shilgan yoki yangilangan,
+ * katalogda ko'rinadigan (bloklanmagan, obunasi faol) va filtrga mos mutaxassislarni sanaydi; bor bo'lsa — bitta
+ * "saved_search" bildirishnomasi. Chastota weekly bo'lsa oxirgi xabardan 7 kun o'tmaguncha o'tkazib yuboriladi (oyna siljimaydi).
+ * lastNotifiedAt har tekshiruvda yangilanadi — bir mutaxassis haqida qayta-qayta xabar kelmaydi.
+ */
 export async function checkSavedSearchAlerts(now: Date = new Date()): Promise<{ checked: number; notified: number }> {
   const rows = await db.query.savedSearches.findMany({
     where: eq(savedSearches.notify, true),
@@ -74,18 +103,9 @@ export async function checkSavedSearchAlerts(now: Date = new Date()): Promise<{ 
   let notified = 0;
   for (const row of rows) {
     if (row.user.isBanned) continue;
+    if (row.frequency === "weekly" && row.lastNotifiedAt && now.getTime() - row.lastNotifiedAt.getTime() < WEEK_MS) continue;
     try {
-      const since = row.lastNotifiedAt ?? row.createdAt;
-      const { query, filter } = canonicalSavedQuery(row.query);
-      const { page: _p, limit: _l, sort: _s, openNow: _o, ...rest } = filter;
-      void _p;
-      void _l;
-      void _s;
-      void _o;
-      const f: FilterOnly = rest;
-      const conds = await specialistFilterConds(f, { userId: row.user.id, role: row.user.role });
-      conds.push(or(gt(specialists.createdAt, since), gt(specialists.updatedAt, since))!, ne(specialists.userId, row.user.id));
-      const [{ n }] = await db.select({ n: count() }).from(specialists).where(and(...conds));
+      const { n, query } = await countNewMatches(row, { userId: row.user.id, role: row.user.role });
       if (n > 0) {
         const params = new URLSearchParams(query);
         params.set("sort", "newest");

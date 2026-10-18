@@ -1,11 +1,12 @@
-import { count, eq, max } from "drizzle-orm";
+import { and, count, eq, inArray, max } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { portfolioItems, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { z } from "zod";
 import { portfolioItemSchema } from "@/lib/validators";
 import { uid, youtubeId } from "@/lib/utils";
 import { enforceLimit } from "@/lib/security/rate-limit";
-import { MAX_PORTFOLIO_ITEMS as MAX_ITEMS, enforceEditLimit, reorderPortfolio, reorderSchema } from "./_shared";
+import { MAX_PORTFOLIO_ITEMS as MAX_ITEMS, enforceEditLimit, renumberPortfolio, reorderPortfolio, reorderSchema } from "./_shared";
 
 export const POST = handler(async (req) => {
   const session = await requireSession(["specialist", "admin"]);
@@ -51,4 +52,18 @@ export const PATCH = handler(async (req) => {
   const { ids } = await parseBody(req, reorderSchema);
   await enforceEditLimit(session.sub);
   return ok({ reordered: await reorderPortfolio(session.sub, ids) });
+});
+
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).min(1).max(MAX_ITEMS) });
+
+/** Bir nechta ishni o'chirish: {ids} — faqat o'z ishlari (begona id jimgina e'tiborsiz), so'ng qayta raqamlash */
+export const DELETE = handler(async (req) => {
+  const session = await requireSession(["specialist", "admin"]);
+  const { ids } = await parseBody(req, bulkDeleteSchema);
+  await enforceEditLimit(session.sub);
+  const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true } });
+  if (!sp) throw new ApiError(400, "Avval mutaxassis profilini to'ldiring");
+  const res = await db.delete(portfolioItems).where(and(eq(portfolioItems.specialistId, sp.id), inArray(portfolioItems.id, [...new Set(ids)])));
+  if (res.rowsAffected > 0) await renumberPortfolio(sp.id);
+  return ok({ deleted: res.rowsAffected });
 });

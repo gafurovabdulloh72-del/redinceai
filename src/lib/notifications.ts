@@ -207,6 +207,8 @@ function inBackground(task: () => Promise<void>): void {
  * (javobni kutmasdan) yuboriladi.
  */
 export async function notify(userId: string, type: NotificationType, title: string, body?: string | null, href?: string | null, opts: NotifyOptions = {}): Promise<void> {
+  // Kabinet sozlamalari (users.notifyPrefs): guruh o'chirilgan bo'lsa — na saytda, na emailda, na Telegramda (xavfsizlik turlari bundan mustasno)
+  if (!(await isNotifyAllowed(userId, type))) return;
   try {
     await db.insert(notifications).values({
       id: uid(),
@@ -277,5 +279,61 @@ export async function listNotifications(userId: string, limit = 20) {
 export async function markNotificationsRead(userId: string, ids?: string[]): Promise<number> {
   const where = ids && ids.length ? and(eq(notifications.userId, userId), isNull(notifications.readAt), inArray(notifications.id, ids)) : and(eq(notifications.userId, userId), isNull(notifications.readAt));
   const res = await db.update(notifications).set({ readAt: new Date() }).where(where);
+  return res.rowsAffected;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bildirishnoma sozlamalari (kabinet): guruhlar va tozalash            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bildirishnoma guruhlari (Kabinet → Bildirishnomalar → Sozlamalar). Foydalanuvchi guruhni o'chirsa (users.notifyPrefs[key] = false)
+ * shu turlar umuman yozilmaydi. ALWAYS_NOTIFY turlari (hisob xavfsizligi, nizo, to'lov holati) hech qachon o'chirilmaydi.
+ */
+export const NOTIFY_GROUPS = {
+  orders: ["order_new", "order_amount", "order_paid", "order_done", "order_released", "order_cancelled", "order_due", "order_sla", "payment_pending", "payout", "payout_requested", "refund_needed", "review_new"],
+  jobs: ["proposal_new", "proposal_accepted", "proposal_declined", "proposal_shortlisted", "job_new", "job_closed", "job_expired", "saved_search", "application_new", "application_status", "vacancy_expiring"],
+  social: ["follow", "post_like", "post_comment", "mention", "profile_post", "channel_post", "live_event", "group_request", "group_joined"],
+  chat: ["message_new", "chat"],
+  system: ["broadcast", "subscription_expiring", "subscription_expired", "subscription_paid", "subscription_pending"],
+} as const satisfies Record<string, readonly NotificationType[]>;
+export type NotifyGroupKey = keyof typeof NOTIFY_GROUPS;
+export const NOTIFY_GROUP_KEYS = Object.keys(NOTIFY_GROUPS) as NotifyGroupKey[];
+
+/** Guruh yorliqlari va izohlari (UI) */
+export const NOTIFY_GROUP_META: Record<NotifyGroupKey, { label: string; hint: string }> = {
+  orders: { label: "Buyurtmalar", hint: "Yangi buyurtma, narx, to'lov, topshirish, sharh" },
+  jobs: { label: "E'lonlar va vakansiyalar", hint: "Takliflar, arizalar, saqlangan qidiruvlar" },
+  social: { label: "Ijtimoiy", hint: "Obunachilar, reaksiya, izoh, eslatma, kanal postlari, efir" },
+  chat: { label: "Xabarlar", hint: "Chat va buyurtma chatidagi yangi xabarlar" },
+  system: { label: "Tizim", hint: "Obuna holati, ma'muriyat e'lonlari" },
+};
+
+/** Hech qachon o'chirilmaydigan turlar: hisob xavfsizligi, nizo va qaytarishlar, shikoyat (adminga) */
+const ALWAYS_NOTIFY: ReadonlySet<NotificationType> = new Set<NotificationType>(["account", "dispute", "dispute_opened", "dispute_resolved", "payment_refunded", "payment_cancelled", "report"]);
+
+/** Tur qaysi guruhga kiradi (ALWAYS_NOTIFY yoki noma'lum tur — null) */
+export function notifyGroupOf(type: string): NotifyGroupKey | null {
+  for (const k of NOTIFY_GROUP_KEYS) if ((NOTIFY_GROUPS[k] as readonly string[]).includes(type)) return k;
+  return null;
+}
+
+/** Sozlamalar bo'yicha ruxsat (yo'q kalit = yoqilgan). Xato bo'lsa — ruxsat (bildirishnoma yo'qolmasin) */
+export async function isNotifyAllowed(userId: string, type: NotificationType): Promise<boolean> {
+  if (ALWAYS_NOTIFY.has(type)) return true;
+  const group = notifyGroupOf(type);
+  if (!group) return true;
+  try {
+    const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { notifyPrefs: true } });
+    return (u?.notifyPrefs ?? {})[group] !== false;
+  } catch {
+    return true;
+  }
+}
+
+/** Eski o'qilgan bildirishnomalarni o'chirish (faqat o'ziniki); `days` kundan eski o'qilganlar. Qaytaradi: o'chirilganlar soni */
+export async function purgeReadNotifications(userId: string, days = 30): Promise<number> {
+  const before = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const res = await db.delete(notifications).where(and(eq(notifications.userId, userId), sql`${notifications.readAt} is not null`, sql`${notifications.createdAt} < ${before.getTime()}`));
   return res.rowsAffected;
 }

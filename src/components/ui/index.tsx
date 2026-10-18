@@ -2,22 +2,25 @@ import Link from "next/link";
 import { BadgeCheck, Star, type LucideIcon } from "lucide-react";
 import { cn, hashHue, initials } from "@/lib/utils";
 import { AvatarImage } from "./AvatarImage";
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Button                                                              */
 /* ------------------------------------------------------------------ */
-type Variant = "primary" | "accent" | "glass" | "ghost" | "outline" | "danger" | "tint-soft";
+/** 5 ta haqiqiy variant; `glass` → outline, `tint-soft` → ghost (eski nomlar moslik uchun, alohida uslub yo'q) */
+type Variant = "primary" | "accent" | "ghost" | "outline" | "danger" | "glass" | "tint-soft";
 type Size = "sm" | "md" | "lg" | "icon";
 
+const OUTLINE = "border border-line-2 text-fg hover:border-fg hover:bg-fg/4";
+const GHOST = "text-fg-2 hover:bg-fg/6 hover:text-fg";
 const variantClass: Record<Variant, string> = {
   primary: "btn-ink font-semibold",
   accent: "btn-accent font-semibold",
-  glass: "card card-hover !rounded-full text-fg font-semibold",
-  "tint-soft": "bg-accent-soft text-accent-text font-semibold hover:brightness-105 active:scale-[0.97] transition",
-  ghost: "text-fg-2 hover:bg-fg/6 hover:text-fg active:scale-[0.97] transition",
-  outline: "border border-line-2 text-fg hover:border-fg hover:bg-fg/4 active:scale-[0.97] transition",
-  danger: "bg-danger-strong text-white font-semibold hover:brightness-110 active:scale-[0.97] transition",
+  ghost: GHOST,
+  outline: OUTLINE,
+  danger: "bg-danger-strong text-white font-semibold hover:brightness-110",
+  glass: cn(OUTLINE, "font-semibold"),
+  "tint-soft": cn(GHOST, "font-semibold"),
 };
 const sizeClass: Record<Size, string> = {
   sm: "h-9 px-3.5 text-[13px] gap-1.5",
@@ -26,9 +29,9 @@ const sizeClass: Record<Size, string> = {
   icon: "h-11 w-11 p-0",
 };
 
-/* Barcha tugmalar: pill, bosilganda 0.97 ga qisqaradi (Apple), fokusda accent halqa; variant o'z rangini beradi */
+/* Barcha tugmalar: pill, bosilganda 0.97 ga qisqaradi; fokus halqasi — global :focus-visible qoidasidan (dublikat yo'q) */
 const base =
-  "inline-flex items-center justify-center rounded-full whitespace-nowrap select-none transition-[transform,filter,background-color,border-color,box-shadow,opacity] duration-200 ease-out active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center rounded-full whitespace-nowrap select-none transition-[transform,filter,background-color,border-color,opacity] duration-200 ease-out active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none";
 
 export function Button({
   variant = "primary",
@@ -71,36 +74,24 @@ export function ButtonLink({
 /* ------------------------------------------------------------------ */
 /* Badge / Chip                                                        */
 /* ------------------------------------------------------------------ */
-export type BadgeTone =
-  | "neutral"
-  | "accent"
-  | "ink"
-  | "glass"
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  /* eski nomlar — moslik uchun (semantik ohanglarga yo'naltirilgan) */
-  | "blue"
-  | "green"
-  | "orange"
-  | "pink"
-  | "purple";
+/** 6 ta ohang: neytral (standart), aksent, siyoh, 3 ta semantik + info. Eski nomlar (blue/green/orange/pink/purple/glass) moslik uchun — neytral yoki semantikka yo'naltirilgan */
+export type BadgeTone = "neutral" | "accent" | "ink" | "success" | "warning" | "danger" | "info" | "glass" | "blue" | "green" | "orange" | "pink" | "purple";
 
+const NEUTRAL = "bg-fg/6 text-fg-2";
 const badgeTones: Record<BadgeTone, string> = {
-  neutral: "bg-fg/6 text-fg-2",
+  neutral: NEUTRAL,
   accent: "bg-accent-soft text-accent-text",
   ink: "bg-ink text-ink-fg",
-  glass: "border border-line bg-surface text-fg-2",
   success: "bg-success-soft text-success-text",
   warning: "bg-warning-soft text-warning-text",
   danger: "bg-danger-soft text-danger-text",
   info: "bg-info-soft text-info-text",
+  glass: "border border-line bg-surface text-fg-2",
   blue: "bg-info-soft text-info-text",
   green: "bg-success-soft text-success-text",
   orange: "bg-warning-soft text-warning-text",
-  pink: "bg-accent-soft text-accent-text",
-  purple: "bg-accent-2-soft text-accent-2-text",
+  pink: NEUTRAL,
+  purple: NEUTRAL,
 };
 
 export function Badge({
@@ -198,10 +189,7 @@ export function Avatar({
       aria-label={decorative ? undefined : name}
       aria-hidden={decorative || undefined}
       role={decorative ? undefined : "img"}
-      className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-display font-semibold text-white ring-2 ring-surface shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)]",
-        className,
-      )}
+      className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-display font-semibold text-white ring-2 ring-surface", className)}
       style={{
         width: size,
         height: size,
@@ -246,6 +234,43 @@ export function Card({ children, className, hover = false }: { children: ReactNo
   return <div className={cn("card", hover && "card-hover", className)}>{children}</div>;
 }
 
+/**
+ * Sarlavha bloki (PageHeader va SectionHeading bir xil tuzilma): eyebrow (ixtiyoriy, tinch) → sarlavha chapda,
+ * tavsif/amal o'ngda (lg+), ikkalasi birinchi matn qatori bazaviy chizig'iga tekislangan (`items-baseline`).
+ */
+function HeadingBlock({
+  as: Tag,
+  titleClass,
+  eyebrow,
+  title,
+  description,
+  action,
+  descClass,
+}: {
+  as: "h1" | "h2";
+  titleClass: string;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  descClass: string;
+}) {
+  return (
+    <>
+      {eyebrow && <span className="eyebrow mb-2 min-w-0">{eyebrow}</span>}
+      <div className="grid gap-x-10 gap-y-3 lg:grid-cols-12 lg:items-baseline">
+        <Tag className={cn(titleClass, "text-fg lg:col-span-7")}>{title}</Tag>
+        {(description || action) && (
+          <div className="flex flex-col gap-3 lg:col-span-5 lg:items-start">
+            {description && <p className={cn("max-w-lg leading-relaxed text-fg-2", descClass)}>{description}</p>}
+            {action && <div className="flex flex-wrap gap-2">{action}</div>}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function SectionHeading({
   eyebrow,
   title,
@@ -259,121 +284,132 @@ export function SectionHeading({
   action?: ReactNode;
   align?: "left" | "center";
 }) {
-  // Markazlashgan variant (kam ishlatiladi) — soddaroq ustun
   if (align === "center") {
     return (
-      <div className="mb-8 flex flex-col items-center gap-4 text-center sm:mb-12">
+      <div className="mb-6 flex flex-col items-center gap-3 text-center sm:mb-8">
         {eyebrow && <span className="eyebrow justify-center">{eyebrow}</span>}
-        <h2 className="mx-auto max-w-3xl font-display text-[24px] font-semibold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[28px] lg:text-[32px]">{title}</h2>
-        {description && <p className="mx-auto mt-1 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
-        {action && <div className="mt-2">{action}</div>}
+        <h2 className="display-lg mx-auto max-w-3xl text-fg">{title}</h2>
+        {description && <p className="mx-auto max-w-xl text-[15px] leading-relaxed text-fg-2">{description}</p>}
+        {action && <div className="mt-1">{action}</div>}
       </div>
     );
   }
-
-  // Editorial (jurnal) joylashuvi: ustki eyebrow + butun kenglik chizig'i; keyin assimetrik
-  // sarlavha (keng) + tavsif/amal (o'ngda, pastki chiziqqa tekislangan)
   return (
-    <div className="mb-8 sm:mb-12">
-      {eyebrow && <span className="eyebrow mb-3">{eyebrow}</span>}
-      <div className="grid gap-x-10 gap-y-4 lg:grid-cols-12 lg:items-end">
-        <h2 className="font-display text-[24px] font-semibold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[28px] lg:col-span-7 lg:text-[32px]">{title}</h2>
-        {(description || action) && (
-          <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
-            {description && <p className="max-w-lg text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
-            {action}
-          </div>
-        )}
-      </div>
+    <div className="mb-6 sm:mb-8">
+      <HeadingBlock as="h2" titleClass="display-lg" eyebrow={eyebrow} title={title} description={description} action={action} descClass="text-[15px]" />
     </div>
   );
 }
 
-/**
- * Sahifa sarlavhasi — bosh sahifadagi uslub: eyebrow + display-xl + (ixtiyoriy) accent-serif so'z.
- * Ro'yxat, kabinet, buyurtma va auth sahifalarida bir xil ishlatiladi.
- */
+/** Sahifa sarlavhasi (h1): ro'yxat, kabinet, buyurtma va auth sahifalarida bir xil. `size` moslik uchun qoldirilgan — o'lcham display-xl klampidan */
 export function PageHeader({
   eyebrow,
   title,
   description,
   action,
-  size = "md",
   className,
 }: {
   eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
-  /** md — kabinet/auth (34/44px), lg — ommaviy sahifalar (34/48/56px) */
   size?: "md" | "lg";
   className?: string;
 }) {
   return (
     <header className={cn("flex flex-col", className)}>
-      {eyebrow && <span className="eyebrow mb-3 min-w-0">{eyebrow}</span>}
-      <div className="grid gap-x-10 gap-y-4 lg:grid-cols-12 lg:items-end">
-        <h1 className={cn("display-xl text-fg lg:col-span-7", size === "lg" ? "text-[30px]" : "text-[28px]")}>{title}</h1>
-        {(description || action) && (
-          <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
-            {description && <p className="max-w-lg text-[14.5px] leading-relaxed text-fg-2 sm:text-[15px]">{description}</p>}
-            {action && <div className="flex flex-wrap gap-2">{action}</div>}
-          </div>
-        )}
-      </div>
+      <HeadingBlock as="h1" titleClass="display-xl" eyebrow={eyebrow} title={title} description={description} action={action} descClass="text-[14.5px] sm:text-[15px]" />
     </header>
   );
 }
 
+/**
+ * Bo'sh holat. Variantlar: `card` (standart — kontur karta, katta plitka), `compact` (kichikroq, ro'yxat ichida),
+ * `inline` (chegarasiz, bir qator — filtr natijasi yo'q, kichik bloklar).
+ */
 export function EmptyState({
   icon: Icon,
   title,
   description,
   action,
+  variant = "card",
+  className,
 }: {
   icon?: LucideIcon;
   title: string;
   description?: string;
   action?: ReactNode;
+  variant?: "card" | "compact" | "inline";
+  className?: string;
 }) {
-  return (
-    <div data-reveal="scale" className="card-outline flex flex-col items-center justify-center px-6 py-14 text-center">
-      {Icon && <IconTile icon={Icon} tone="soft" size="lg" className="mb-4" />}
-      <h3 className="font-display text-[17px] font-semibold text-fg">{title}</h3>
-      {description && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
-    </div>
-  );
-}
-
-export function Spinner({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn("inline-block h-4 w-4 animate-spin rounded-full border-2 border-current/25 border-t-current", className)}
-      aria-label="Yuklanmoqda"
-    />
-  );
-}
-
-export function Stat({ value, label, accent, icon: Icon }: { value: ReactNode; label: string; accent?: string; icon?: LucideIcon }) {
-  return (
-    <div className="card flex items-start justify-between gap-3 px-5 py-4">
-      <div>
-        <div className="font-display text-[28px] font-semibold leading-none tracking-tight text-fg sm:text-[34px]" style={accent ? { color: accent } : undefined}>
-          {value}
+  if (variant === "inline") {
+    return (
+      <div className={cn("flex items-center gap-3 py-4 text-left", className)} role="status">
+        {Icon && <Icon size={18} className="shrink-0 text-fg-3" aria-hidden />}
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-semibold text-fg">{title}</p>
+          {description && <p className="text-[13px] text-fg-3">{description}</p>}
         </div>
-        <div className="mt-2 text-xs font-medium text-fg-3">{label}</div>
+        {action}
       </div>
-      {Icon && <IconTile icon={Icon} tone="soft" size="sm" />}
+    );
+  }
+  const compact = variant === "compact";
+  return (
+    <div data-reveal="scale" className={cn("card-outline flex flex-col items-center justify-center text-center", compact ? "px-5 py-8" : "px-6 py-14", className)}>
+      {Icon && <IconTile icon={Icon} tone="soft" size={compact ? "md" : "lg"} className={compact ? "mb-3" : "mb-4"} />}
+      <h3 className={cn("font-display font-semibold text-fg", compact ? "text-[15px]" : "text-[17px]")}>{title}</h3>
+      {description && <p className={cn("mt-1.5 max-w-sm text-fg-3", compact ? "text-[13px]" : "text-sm")}>{description}</p>}
+      {action && <div className={compact ? "mt-4" : "mt-5"}>{action}</div>}
     </div>
   );
 }
 
-/** Ro'yxat guruhi (sozlamalar ro'yxati kabi) */
+/** Yuklanish belgisi — role="status" (ekran o'quvchi e'lon qiladi); `label` — ru sahifalar uchun matnni bering */
+export function Spinner({ className, label = "Yuklanmoqda" }: { className?: string; label?: string }) {
+  return <span role="status" aria-label={label} className={cn("inline-block h-4 w-4 animate-spin rounded-full border-2 border-current/25 border-t-current", className)} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Skeleton / Kbd / Tooltip                                            */
+/* ------------------------------------------------------------------ */
+/** Skelet plitka: `.skeleton` tinch pulsatsiya; `lines` — matn qatorlari (oxirgisi qisqa). Yuklangan kontentga `.skeleton-swap` bering */
+export function Skeleton({ className, lines, ...rest }: HTMLAttributes<HTMLDivElement> & { lines?: number }) {
+  if (lines && lines > 1) {
+    return (
+      <div className={cn("grid gap-2", className)} aria-hidden="true" {...rest}>
+        {Array.from({ length: lines }, (_, i) => (
+          <div key={i} className={cn("skeleton h-3.5", i === lines - 1 ? "w-2/3" : "w-full")} />
+        ))}
+      </div>
+    );
+  }
+  return <div className={cn("skeleton", className)} aria-hidden="true" {...rest} />;
+}
+
+/** Klaviatura tugmasi: <Kbd>⌘</Kbd><Kbd>K</Kbd> */
+export function Kbd({ children, className }: { children: ReactNode; className?: string }) {
+  return <kbd className={cn("kbd", className)}>{children}</kbd>;
+}
+
+/**
+ * Tooltip (CSS-only, 350 ms kechikish, faqat ko'rsatkichli qurilmalarda): bola elementga data-tip beradi.
+ * Ekran o'quvchi uchun bola o'zida aria-label/matn bo'lishi kerak — tooltip faqat vizual.
+ *   <Tooltip text="Ulashish"><button aria-label="Ulashish">…</button></Tooltip>
+ */
+export function Tooltip({ text, pos = "top", children, className }: { text: string; pos?: "top" | "bottom" | "right"; children: ReactNode; className?: string }) {
+  return (
+    <span data-tip={text} data-tip-pos={pos === "top" ? undefined : pos} className={cn("inline-flex", className)}>
+      {children}
+    </span>
+  );
+}
+
+/** Ro'yxat guruhi (sozlamalar ro'yxati kabi) — sarlavha eyebrow uslubida */
 export function InsetGroup({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
     <section className={className}>
-      {title && <h3 className="mb-2 px-4 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{title}</h3>}
+      {title && <h3 className="eyebrow mb-2 px-4">{title}</h3>}
       <div className="card divide-y divide-line overflow-hidden">{children}</div>
     </section>
   );

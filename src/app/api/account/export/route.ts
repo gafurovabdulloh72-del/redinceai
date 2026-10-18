@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, favorites, notifications, orders, payments, payouts, portfolioItems, reviews, savedSearches, sessions, specialists, users } from "@/lib/db/schema";
+import { auditLogs, favorites, follows, groupMembers, groups, notifications, orders, payments, payouts, portfolioItems, postComments, postSaves, posts, reviews, savedSearches, sessions, specialists, userBlocks, users } from "@/lib/db/schema";
 import { ApiError, handler, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -9,7 +9,8 @@ import { enforceLimit } from "@/lib/security/rate-limit";
  * Foydalanuvchining O'Z ma'lumotlari — JSON fayl (GDPR eksport). Faqat o'ziga tegishli yozuvlar:
  * hisob (parol hash'i, sessiya versiyasi yo'q), mutaxassis profili + portfolio, buyurtmalar (qarshi tomon —
  * faqat UI'da ko'rinadigan ism/slug), to'lovlar (provayder ichki ma'lumotlari yo'q), pul chiqarish (maskalangan
- * rekvizit), yozgan/olgan sharhlar, bildirishnomalar, sevimlilar, saqlangan qidiruvlar, oxirgi 200 ta o'z harakati.
+ * rekvizit), yozgan/olgan sharhlar, bildirishnomalar, sevimlilar, saqlangan qidiruvlar, oxirgi 200 ta o'z harakati,
+ * ijtimoiy tarmoq: postlar (media havolalari bilan), yozgan izohlar, obunalar (ikki tomon), bloklaganlar, saqlangan postlar, jamoalar a'zoligi.
  * Rate limit: 5 / soat.
  */
 export const GET = handler(async (req) => {
@@ -24,7 +25,7 @@ export const GET = handler(async (req) => {
   if (!user) throw new ApiError(401, "Foydalanuvchi topilmadi");
   const sp = user.specialist;
 
-  const [asClient, asSpecialist, pays, outs, written, received, notes, favs, searches, actions, devices] = await Promise.all([
+  const [asClient, asSpecialist, pays, outs, written, received, notes, favs, searches, actions, devices, myPosts, myComments, following, followers, blocked, savedPosts, memberships] = await Promise.all([
     db.query.orders.findMany({
       where: eq(orders.clientId, user.id),
       orderBy: [desc(orders.createdAt)],
@@ -66,6 +67,34 @@ export const GET = handler(async (req) => {
       limit: 100,
       columns: { userAgent: true, createdAt: true, lastSeenAt: true, expiresAt: true, revokedAt: true },
     }),
+    // Ijtimoiy tarmoq (2026-10): o'z postlari, izohlari, obunalar, bloklar, saqlangan postlar, jamoalar
+    db.query.posts.findMany({
+      where: eq(posts.authorId, user.id),
+      orderBy: [desc(posts.createdAt)],
+      columns: { id: true, groupId: true, body: true, media: true, likesCount: true, commentsCount: true, viewsCount: true, eventAt: true, eventUrl: true, createdAt: true, updatedAt: true },
+    }),
+    db.query.postComments.findMany({ where: eq(postComments.authorId, user.id), orderBy: [desc(postComments.createdAt)], columns: { id: true, postId: true, body: true, createdAt: true } }),
+    db
+      .select({ userId: follows.followingId, name: users.name, username: users.username, createdAt: follows.createdAt })
+      .from(follows)
+      .innerJoin(users, eq(users.id, follows.followingId))
+      .where(eq(follows.followerId, user.id)),
+    db
+      .select({ userId: follows.followerId, name: users.name, username: users.username, createdAt: follows.createdAt })
+      .from(follows)
+      .innerJoin(users, eq(users.id, follows.followerId))
+      .where(eq(follows.followingId, user.id)),
+    db
+      .select({ userId: userBlocks.blockedId, name: users.name, createdAt: userBlocks.createdAt })
+      .from(userBlocks)
+      .innerJoin(users, eq(users.id, userBlocks.blockedId))
+      .where(eq(userBlocks.blockerId, user.id)),
+    db.select({ postId: postSaves.postId, createdAt: postSaves.createdAt }).from(postSaves).where(eq(postSaves.userId, user.id)),
+    db
+      .select({ groupId: groups.id, slug: groups.slug, name: groups.name, kind: groups.kind, role: groupMembers.role, status: groupMembers.status, joinedAt: groupMembers.createdAt })
+      .from(groupMembers)
+      .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+      .where(eq(groupMembers.userId, user.id)),
   ]);
 
   const data = {
@@ -87,6 +116,7 @@ export const GET = handler(async (req) => {
     savedSearches: searches,
     activity: actions,
     sessions: devices,
+    social: { posts: myPosts, comments: myComments, following, followers, blocked, savedPosts, groups: memberships },
   };
 
   await audit(user.id, "account_export", { targetType: "user", targetId: user.id }, req);

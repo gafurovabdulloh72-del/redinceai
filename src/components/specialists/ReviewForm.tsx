@@ -8,7 +8,7 @@ import { MAX_REVIEW_MEDIA, UPLOAD_ACCEPT, uploadAttachment } from "@/components/
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { RATING_CRITERIA, type RatingCriterionKey } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
-import { MEZON, PROFIL } from "@/lib/i18n/dict/profile";
+import { MEZON, PROFIL, RF_X } from "@/lib/i18n/dict/profile";
 import { cn } from "@/lib/utils";
 
 type ApiResponse = { ok: true; data: { saved: boolean; updated: boolean } } | { ok: false; error: string; fields?: Record<string, string> };
@@ -103,7 +103,7 @@ export function ReviewForm({
     return (
       <div className="card-outline flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-surface-3 text-fg-2">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] bg-surface-3 text-fg-2">
             <ClipboardCheck size={20} />
           </span>
           <div>
@@ -124,7 +124,7 @@ export function ReviewForm({
     return (
       <div className="card-outline flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] bg-accent-soft text-accent">
             <PencilLine size={20} />
           </span>
           <div>
@@ -173,7 +173,16 @@ export function ReviewForm({
       setErrors({ rating: tr(til, PROFIL.rf.pickRatingError) });
       return;
     }
-    if (uploading > 0) return;
+    // Server qoidasi (reviewSchema: kamida 10 belgi) — xato serverga bormay darhol ko'rsatiladi
+    if (text.trim().length < 10) {
+      setErrors({ text: RF_X.tooShort[til](10) });
+      return;
+    }
+    // Rasm hali yuklanayotgan bo'lsa — jim qolmaymiz, sababini aytamiz
+    if (uploading > 0) {
+      setError(tr(til, RF_X.waitUpload));
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/reviews", {
@@ -233,7 +242,7 @@ export function ReviewForm({
     return (
       <div className="card animate-fade-up flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between" style={{ animationDuration: "0.4s" }}>
         <div className="flex items-start gap-3">
-          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]", done === "deleted" ? "bg-surface-3 text-fg-2" : "bg-success-soft text-success-text")}>
+          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)]", done === "deleted" ? "bg-surface-3 text-fg-2" : "bg-success-soft text-success-text")}>
             {done === "deleted" ? <Trash2 size={20} /> : <CheckCircle2 size={22} />}
           </span>
           <div>
@@ -255,7 +264,7 @@ export function ReviewForm({
   return (
     <form onSubmit={submit} className="card p-5 sm:p-6" noValidate>
       <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] bg-accent-soft text-accent">
           <Star size={20} />
         </span>
         <div>
@@ -312,7 +321,7 @@ export function ReviewForm({
       </div>
 
       {/* Mezonlar (F44) */}
-      <div className="mt-4 rounded-[16px] border border-line bg-surface-2 px-3.5 py-2.5">
+      <div className="mt-4 rounded-[var(--r-md)] border border-line bg-surface-2 px-3.5 py-2.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, PROFIL.rf.criteriaTitle)}</p>
         <div className="mt-1 divide-y divide-line">
           {RATING_CRITERIA.map((c) => (
@@ -396,7 +405,7 @@ export function ReviewForm({
       </div>
 
       {/* Tavsiya (F46) */}
-      <div className="mt-4 flex items-center justify-between gap-4 rounded-[16px] border border-line bg-surface-2 px-3.5 py-3">
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-[var(--r-md)] border border-line bg-surface-2 px-3.5 py-3">
         <span id="review-recommend" className="flex items-center gap-2 text-[14px] font-medium text-fg">
           <ThumbsUp size={16} className="text-success-text" /> {tr(til, PROFIL.rf.recommendLabel)}
         </span>

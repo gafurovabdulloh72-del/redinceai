@@ -48,12 +48,57 @@ export const COVER_LETTER_MAX = 2000;
 export const COVER_LETTER_MIN = 30;
 export const REMOTE_REGION = "remote";
 
-/** "3 – 5 mln so'm" / "5 mln so'mdan" / "Kelishiladi" */
+/** "3–5 mln so'm" (birlik bir xil bo'lsa bir marta) / "500 ming – 1,5 mln so'm" / "5 mln so'mdan" / "Kelishiladi" */
 export function salaryLabel(min: number | null | undefined, max: number | null | undefined): string {
-  if (min && max) return `${formatPrice(min, { compact: true })} – ${formatPrice(max, { compact: true })}`;
+  if (min && max) {
+    const a = formatPrice(min, { compact: true });
+    const b = formatPrice(max, { compact: true });
+    const unit = (s: string) => s.replace(/^[\d,]+\s*/, "");
+    // "3 mln so'm – 5 mln so'm" → "3–5 mln so'm"
+    if (unit(a) === unit(b)) return `${a.replace(/\s.*$/, "")}–${b}`;
+    return `${a.replace(/\s*so'm$/, "")} – ${b}`;
+  }
   if (min) return `${formatPrice(min, { compact: true })}dan`;
   if (max) return `${formatPrice(max, { compact: true })}gacha`;
   return "Kelishiladi";
+}
+
+/** Maosh tez filtrlari (so'm/oy, `min` parametri) */
+export const SALARY_CHIPS = [
+  { min: 3_000_000, label: "3 mln+" },
+  { min: 5_000_000, label: "5 mln+" },
+  { min: 10_000_000, label: "10 mln+" },
+] as const;
+
+/** `pay` filtri: faqat maosh ko'rsatilganlar / faqat «Kelishiladi» */
+export const PAY_FILTER = { set: "Maosh ko'rsatilgan", neg: "Kelishiladi" } as const;
+export type PayFilter = keyof typeof PAY_FILTER;
+
+/** Muddat tugashiga qolgan kunlar: 0 → "Bugun tugaydi", aks holda "N kun qoldi" */
+export function daysLeftLabel(days: number): string {
+  return days <= 0 ? "Bugun tugaydi" : `${days} kun qoldi`;
+}
+
+/** Ariza shuncha kundan beri javobsiz bo'lsa ishora chiqadi */
+export const SLA_WAIT_DAYS = 3;
+
+/** "N kundan beri javobsiz" — faqat yangi/ko'rilgan arizalar uchun, SLA_WAIT_DAYS dan oshsa; aks holda null */
+export function slaHint(status: ApplicationStatus, createdAt: number, now = Date.now()): string | null {
+  if (status !== "new" && status !== "viewed") return null;
+  const days = Math.floor((now - createdAt) / 86_400_000);
+  return days >= SLA_WAIT_DAYS ? `${days} kundan beri javobsiz` : null;
+}
+
+/** Arizalarim bo'limlari */
+export const APPLICATION_TABS = [
+  { key: "", label: "Barchasi" },
+  { key: "faol", label: "Faol" },
+  { key: "qabul", label: "Qabul" },
+  { key: "rad", label: "Rad etilgan" },
+] as const;
+export type ApplicationTab = (typeof APPLICATION_TABS)[number]["key"];
+export function applicationTabOf(status: ApplicationStatus): Exclude<ApplicationTab, ""> {
+  return status === "hired" ? "qabul" : status === "rejected" ? "rad" : "faol";
 }
 
 export function vacancyRegionLabel(slug: string | null | undefined, full = false): string {

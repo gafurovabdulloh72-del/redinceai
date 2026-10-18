@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { handler, ok, parseBody, requireSession } from "@/lib/api";
-import { listNotifications, markNotificationsRead } from "@/lib/notifications";
+import { handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
+import { listNotifications, markNotificationsRead, purgeReadNotifications } from "@/lib/notifications";
+import { enforceLimit } from "@/lib/security/rate-limit";
 
 /** O'qilmaganlar birinchi — 20 ta, + o'qilmaganlar soni */
 export const GET = handler(async () => {
@@ -28,4 +29,15 @@ export const PATCH = handler(async (req) => {
   if (!input.all && !input.ids?.length) return ok({ marked: 0 });
   const n = await markNotificationsRead(session.sub, input.all ? undefined : input.ids);
   return ok({ marked: n });
+});
+
+const purgeSchema = z.object({ days: z.coerce.number().int().min(0).max(3650).default(30) });
+
+/** Eski o'qilgan bildirishnomalarni tozalash: ?days=30 (standart) — faqat o'ziniki, o'qilmaganlar qoladi */
+export const DELETE = handler(async (req) => {
+  const session = await requireSession();
+  const { days } = parseQuery(req.url, purgeSchema);
+  await enforceLimit("privacy", session.sub);
+  const removed = await purgeReadNotifications(session.sub, days);
+  return ok({ removed });
 });

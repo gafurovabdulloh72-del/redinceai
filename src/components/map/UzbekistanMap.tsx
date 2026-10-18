@@ -105,6 +105,8 @@ export interface UzbekistanMapProps {
   onlineCounts?: Record<string, number>;
   /** Tooltip mini-kartasi: hududning top mutaxassislari (nom, avatar, narx) */
   topByRegion?: Record<string, { slug: string; name: string; avatarUrl: string | null; priceFrom: number }[]>;
+  /** Tooltip: hududda eng ko'p uchraydigan ko'nikmalar (nom + son) */
+  topSkills?: Record<string, Array<{ skill: string; n: number }>>;
 }
 
 const SLAB = 18; // pastki bo'sh joy (viewBox birligida)
@@ -154,6 +156,7 @@ export function UzbekistanMap({
   zoomable = false,
   onlineCounts,
   topByRegion,
+  topSkills,
 }: UzbekistanMapProps) {
   const router = useRouter();
   const [hover, setHover] = useState<string | null>(null);
@@ -906,6 +909,11 @@ export function UzbekistanMap({
                 </li>
               ))}
             </ul>
+          )}
+          {(topSkills?.[activeRegion.slug]?.length ?? 0) > 0 && (
+            <p className="mt-2 border-t border-line pt-2 text-[11.5px] leading-snug text-fg-3">
+              {topSkills![activeRegion.slug].map((x) => `${x.skill} ${x.n}`).join(" · ")}
+            </p>
           )}
           {!counts && activeStat && activeStat.total > 0 && (
             <ul className="mt-1.5 space-y-0.5">

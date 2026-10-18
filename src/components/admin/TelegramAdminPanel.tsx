@@ -69,7 +69,20 @@ export function TelegramAdminPanel() {
   }
 
   if (!st) {
-    return <div className="card p-5 text-[13px] text-fg-3">Telegram holati yuklanmoqda…</div>;
+    return (
+      <div className="card p-5 sm:p-6" aria-busy="true" aria-label="Telegram holati yuklanmoqda">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-2.5 py-2.5">
+            <span className="h-4 w-4 shrink-0 rounded-full skeleton" />
+            <span className="h-3.5 skeleton" style={{ width: `${48 + i * 14}%` }} />
+          </div>
+        ))}
+        <div className="mt-3 flex gap-3 border-t border-line pt-4">
+          <span className="h-10 w-44 skeleton !rounded-full" />
+          <span className="h-10 w-36 skeleton !rounded-full" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -110,8 +123,16 @@ export function TelegramAdminPanel() {
             <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
               <RefreshCw size={13} /> Holatni yangilash
             </button>
-            {msg && <span className="text-[13px] font-semibold text-success-text">{msg}</span>}
-            {err && <span className="text-[13px] font-semibold text-danger-text">{err}</span>}
+            {msg && (
+              <span role="status" className="text-[13px] font-semibold text-success-text">
+                {msg}
+              </span>
+            )}
+            {err && (
+              <span role="alert" className="text-[13px] font-semibold text-danger-text">
+                {err}
+              </span>
+            )}
           </div>
         </>
       )}

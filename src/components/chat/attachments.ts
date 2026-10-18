@@ -2,7 +2,7 @@ import type { FileAttachment } from "@/lib/db/schema";
 
 /**
  * Biriktirmalar (buyurtma, chat xabari, sharh rasmlari) — klient va server uchun umumiy sof yordamchilar.
- * Fayllar faqat /api/upload orqali yuklanadi (rasm: JPG/PNG/WEBP/GIF; buyurtma/chat'da hujjat: PDF/DOC/DOCX — 5 MB gacha):
+ * Fayllar faqat /api/upload orqali yuklanadi (rasm: JPG/PNG/WEBP/GIF; buyurtma/chat'da hujjat: PDF/DOC/DOCX/ZIP — 5 MB gacha):
  *  - disk:  /uploads/<uuid>.<ext>
  *  - Vercel Blob: https://<store>.public.blob.vercel-storage.com/uploads/<uuid>.<ext>
  *  - Cloudflare R2: <R2_PUBLIC_BASE>/uploads/<uuid>.<ext> (server R2_* env'lari to'liq bo'lsa)
@@ -20,8 +20,8 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 /** Video kattaroq bo'ladi — Blob'ga to'g'ridan-to'g'ri (brauzerdan) yuklanadi, server orqali o'tmaydi */
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
-/** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX) + video (MP4, WebM, MOV) */
-export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.mp4,.webm,.mov`;
+/** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX, ZIP) + video (MP4, WebM, MOV) */
+export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.zip,.mp4,.webm,.mov`;
 
 /**
  * R2 ommaviy bazasi — faqat server muhitida mavjud (klient bundle'ida process.env bo'sh shim).
@@ -37,7 +37,7 @@ function uploadUrlRe(exts: string): RegExp {
   return new RegExp(`^(?:${alts.join("|")})$`, "i");
 }
 
-export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov|weba|m4a|ogg");
+export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|zip|mp4|webm|mov|weba|m4a|ogg");
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
 
@@ -50,6 +50,7 @@ const EXT_MIME: Record<string, string> = {
   pdf: "application/pdf",
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  zip: "application/zip",
   mp4: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
@@ -86,6 +87,12 @@ export function isAudioAttachment(a: Pick<Attachment, "url" | "type">): boolean 
   return a.type.startsWith("audio/") || /\.(?:weba|m4a|ogg)$/i.test(a.url);
 }
 
+/** Fayl kengaytmasi (yorliq uchun): "PDF", "ZIP", "DOCX"… */
+export function attachmentExt(a: Pick<Attachment, "url" | "name">): string {
+  const m = /\.([a-z0-9]{2,5})$/i.exec(a.name) ?? /\.([a-z0-9]{2,5})$/i.exec(a.url);
+  return m ? m[1].toUpperCase() : "FAYL";
+}
+
 export function formatDuration(sec: number | undefined): string {
   const s = Math.max(0, Math.round(sec ?? 0));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -103,16 +110,62 @@ type UploadResponse = { ok: true; data: { url: string } } | { ok: false; error: 
 const VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i;
 const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" };
 
-/** Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback */
-async function uploadViaApi(file: File, purpose: "" | "attachment" | "voice"): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file);
-  if (purpose) fd.append("purpose", purpose);
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  const json = (await res.json().catch(() => null)) as UploadResponse | null;
-  if (!json) throw new Error("Server javob bermadi");
-  if (!json.ok) throw new Error(json.error);
-  return json.data.url;
+/** Yuklash parametrlari: jarayon (0..1) va bekor qilish signali */
+export interface UploadProgressOpts {
+  onProgress?: (ratio: number) => void;
+  signal?: AbortSignal;
+}
+
+/** Bekor qilingan yuklash — chaqiruvchi ajrata oladi (`e.name === "AbortError"`) */
+function abortError(): Error {
+  const e = new Error("Yuklash bekor qilindi");
+  e.name = "AbortError";
+  return e;
+}
+
+/** 429 javobidagi Retry-After'ni foydalanuvchiga tushunarli qilib qo'shadi */
+export function withRetryAfter(message: string, retryAfter: string | null): string {
+  const s = Number(retryAfter);
+  if (!Number.isFinite(s) || s <= 0) return message;
+  return s < 60 ? `${message} (${Math.ceil(s)} soniyadan keyin)` : `${message} (${Math.ceil(s / 60)} daqiqadan keyin)`;
+}
+
+/**
+ * Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback.
+ * XHR orqali: yuklash jarayoni (onProgress) va bekor qilish (signal) uchun — fetch'da upload progress yo'q.
+ */
+function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: UploadProgressOpts = {}): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    if (p.signal?.aborted) return reject(abortError());
+    const fd = new FormData();
+    fd.append("file", file);
+    if (purpose) fd.append("purpose", purpose);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.responseType = "json";
+    const onAbort = () => xhr.abort();
+    p.signal?.addEventListener("abort", onAbort, { once: true });
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) p.onProgress?.(Math.min(1, e.loaded / e.total));
+    };
+    xhr.onload = () => {
+      p.signal?.removeEventListener("abort", onAbort);
+      const json = (xhr.response ?? null) as UploadResponse | null;
+      if (!json) return reject(new Error("Server javob bermadi"));
+      if (!json.ok) return reject(new Error(xhr.status === 429 ? withRetryAfter(json.error, xhr.getResponseHeader("Retry-After")) : json.error));
+      p.onProgress?.(1);
+      resolve(json.data.url);
+    };
+    xhr.onerror = () => {
+      p.signal?.removeEventListener("abort", onAbort);
+      reject(new Error("Tarmoq xatosi — internetni tekshirib, qayta urinib ko'ring"));
+    };
+    xhr.onabort = () => {
+      p.signal?.removeEventListener("abort", onAbort);
+      reject(abortError());
+    };
+    xhr.send(fd);
+  });
 }
 
 type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; publicUrl: string; contentType: string } | { mode: "fallback" } } | { ok: false; error: string };
@@ -122,7 +175,7 @@ type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; public
  * brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (server tanasi 4.5 MB bilan cheklangani uchun).
  * Ikkalasi ham sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
  */
-async function uploadVideo(file: File): Promise<string> {
+async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<string> {
   const ext = (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
 
   // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
@@ -131,14 +184,18 @@ async function uploadVideo(file: File): Promise<string> {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ext, size: file.size }),
+    signal: p.signal,
   })
     .then((r) => r.json())
     .catch(() => null)) as PresignResponse | null;
+  if (p.signal?.aborted) throw abortError();
   if (presign && !presign.ok) throw new Error(presign.error);
   if (presign?.ok && presign.data.mode === "r2") {
     const { uploadUrl, publicUrl, contentType } = presign.data;
-    const put = await fetch(uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file }).catch(() => null);
+    const put = await fetch(uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file, signal: p.signal }).catch(() => null);
+    if (p.signal?.aborted) throw abortError();
     if (!put?.ok) throw new Error(`«${file.name}»: video saqlashga yuklanmadi — internetni tekshirib, qayta urinib ko'ring`);
+    p.onProgress?.(1);
     return publicUrl;
   }
 
@@ -149,36 +206,40 @@ async function uploadVideo(file: File): Promise<string> {
       access: "public",
       handleUploadUrl: "/api/upload/video",
       contentType: VIDEO_MIME[ext],
+      onUploadProgress: (ev) => p.onProgress?.(Math.min(1, ev.percentage / 100)),
+      abortSignal: p.signal,
     });
     return blob.url;
-  } catch {
+  } catch (e) {
+    if (p.signal?.aborted || (e instanceof Error && e.name === "AbortError")) throw abortError();
     // Blob yo'q (dev) yoki tarmoq uzildi — server orqali (5 MB ichida bo'lsa) urinamiz
     if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}»: video yuklash xizmati hozircha ulanmagan — 5 MB dan kichik video yuboring`);
-    return uploadViaApi(file, "attachment");
+    return uploadViaApi(file, "attachment", p);
   }
 }
 
-/** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi) */
-export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } }): Promise<Attachment> {
+/** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi; bekor — name="AbortError") */
+export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } } & UploadProgressOpts): Promise<Attachment> {
+  const p: UploadProgressOpts = { onProgress: opts?.onProgress, signal: opts?.signal };
   // Ovozli xabar: brauzer yozib bergan audio blob (purpose="voice" — server .weba/.m4a/.ogg nom beradi)
   if (opts?.voice) {
     if (!/^audio\//.test(file.type) && !/\.(?:weba|webm|m4a|mp4|ogg)$/i.test(file.name)) throw new Error("Ovozli xabar formati qo'llab-quvvatlanmaydi");
     if (file.size > MAX_UPLOAD_BYTES) throw new Error("Ovozli xabar 5 MB dan katta — qisqaroq yozing");
-    const url = await uploadViaApi(file, "voice");
+    const url = await uploadViaApi(file, "voice", p);
     return { url, name: "Ovozli xabar", size: file.size, type: mimeFromUrl(url) ?? file.type, duration: Math.max(1, Math.round(opts.voice.duration)) };
   }
   const isImage = /^image\/(?:jpeg|png|webp|gif)$/.test(file.type);
-  const isDoc = /\.(?:pdf|docx?)$/i.test(file.name) || /^application\/(?:pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.type);
+  const isDoc = /\.(?:pdf|docx?|zip)$/i.test(file.name) || /^application\/(?:pdf|msword|zip|x-zip-compressed|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.type);
   const isVideo = VIDEO_EXT_RE.test(file.name) || /^video\/(?:mp4|webm|quicktime)$/.test(file.type);
   if (!isImage && !(opts?.docs && (isDoc || isVideo))) {
-    throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
+    throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
   }
   if (opts?.docs && isVideo && !isImage) {
     if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
-    const url = await uploadVideo(file);
+    const url = await uploadVideo(file, p);
     return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
   }
   if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
-  const url = await uploadViaApi(file, opts?.docs ? "attachment" : "");
+  const url = await uploadViaApi(file, opts?.docs ? "attachment" : "", p);
   return { url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(url) ?? file.type };
 }

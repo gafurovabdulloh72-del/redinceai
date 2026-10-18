@@ -12,6 +12,7 @@ import { GUEST_VIEWER } from "@/lib/privacy";
 import { getLandingIndex, getLandingStats, listSpecialists } from "@/lib/queries";
 import { specialistFilterSchema } from "@/lib/validators";
 import { formatPrice } from "@/lib/utils";
+import { SITE_URL } from "@/lib/site-url";
 
 /*
  * SEO landing sahifalari (F59/F60): /yonalish/[category] va /yonalish/[category]/[region].
@@ -115,9 +116,22 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
   if (stats.minPrice) statTiles.push({ icon: <Wallet size={14} className="text-fg-3" />, text: `${formatPrice(stats.minPrice, { compact: true })} dan` });
   if (stats.verified > 0) statTiles.push({ icon: <BadgeCheck size={14} className="text-fg-3" />, text: `${stats.verified} ta tasdiqlangan` });
 
+  // BreadcrumbList — qidiruv tizimlarida "Mutaxassislar › Videograflar › Samarqand" yo'li ko'rinadi
+  const crumbs = [
+    { name: "Mutaxassislar", item: `${SITE_URL}/mutaxassislar` },
+    { name: cat.plural, item: `${SITE_URL}/yonalish/${cat.slug}` },
+    ...(region ? [{ name: region.name, item: `${SITE_URL}/yonalish/${cat.slug}/${region.slug}` }] : []),
+  ];
+  const breadcrumbJsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: c.item })),
+  }).replace(/</g, "\\u003c");
+
   return (
     <div className="container-x">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJsonLd }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
 
       {/* Yo'l */}
       <nav aria-label="Yo'l" className="no-scrollbar mb-6 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[14px] font-medium text-fg-3">

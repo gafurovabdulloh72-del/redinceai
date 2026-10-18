@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { and, like, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
+import { AdminSectionHeading, QueueChip } from "@/components/admin/AdminSectionHeading";
 import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
@@ -37,7 +38,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminAnalytics } from "@/components/admin/AdminAnalytics";
-import { AdminBanToggle } from "@/components/admin/AdminBanToggle";
 import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminFraudSignals } from "@/components/admin/AdminFraudSignals";
 import { AdminPaymentsTable, type AdminPaymentRow } from "@/components/admin/AdminPaymentsTable";
@@ -46,7 +46,7 @@ import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminReviews, type AdminReviewRow } from "@/components/admin/AdminReviews";
 import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admin/AdminSpecialistsTable";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
-import { Avatar, Badge, ButtonLink, IconTile, SectionHeading, type BadgeTone } from "@/components/ui";
+import { Avatar, Badge, ButtonLink, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, REGIONS, type OrderStatus } from "@/lib/constants";
 import { listOpenDisputes } from "@/lib/payments/disputes";
@@ -78,33 +78,35 @@ const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   cancelled: "neutral",
 };
 
-function Tile({ icon: Icon, value, label, hint, hintTone = "neutral", href }: { icon: LucideIcon; value: React.ReactNode; label: string; hint?: string; hintTone?: "neutral" | "warning" | "success"; href?: string }) {
-  const inner = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <IconTile icon={Icon} size="sm" tone="outline" />
-        {href && <ArrowUpRight size={16} className="text-fg-4 transition group-hover:text-fg" />}
+/**
+ * Statistika plitkasi — yassi karta, hairline, soyasiz. Hamma plitka havola (burchak strelkasi hammasida bir xil):
+ * ikonka plitkasi yo'q — yorliq tepada, qiymat 22–24px, ixtiyoriy izoh.
+ */
+function Tile({ icon: Icon, value, label, hint, hintTone = "neutral", href }: { icon: LucideIcon; value: React.ReactNode; label: string; hint?: string; hintTone?: "neutral" | "warning" | "success"; href: string }) {
+  return (
+    <Link href={href} className="card card-hover group block min-w-0 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-fg-3">
+          <Icon size={14} className="shrink-0 text-fg-4" aria-hidden="true" />
+          <span className="truncate">{label}</span>
+        </span>
+        <ArrowUpRight size={14} className="shrink-0 text-fg-4 transition group-hover:text-fg" aria-hidden="true" />
       </div>
-      <div className="mt-4 font-display text-[24px] font-semibold leading-none tracking-tight text-fg sm:text-[30px]">{value}</div>
-      <div className="mt-2 text-[12px] font-medium text-fg-3">{label}</div>
-      {hint && <div className={cn("mt-1 text-[12px] font-medium", hintTone === "warning" ? "text-warning-text" : hintTone === "success" ? "text-success-text" : "text-fg-4")}>{hint}</div>}
-    </>
-  );
-  const cls = "card group block p-4 sm:p-5";
-  return href ? (
-    <Link href={href} className={cn(cls, "card-hover")}>
-      {inner}
+      <div className="mt-2.5 font-display text-[22px] font-semibold leading-none tracking-tight text-fg tabular-nums sm:text-[24px]">{value}</div>
+      {hint && <div className={cn("mt-1.5 truncate text-[12px] font-medium", hintTone === "warning" ? "text-warning-text" : hintTone === "success" ? "text-success-text" : "text-fg-4")}>{hint}</div>}
     </Link>
-  ) : (
-    <div className={cls}>{inner}</div>
   );
 }
 
-const money = (n: number) => formatPrice(n, { compact: n >= 10_000_000 });
+/** Pul — ixcham (mln/ming) ko'rinish: plitkada ikki qatorga tushmasin */
+const money = (n: number) => formatPrice(n, { compact: n >= 1_000_000 });
 
 /** Ro'yxat chegaralari — jadval ostidagi "Oxirgi N tasi ko'rsatilgan" izohi uchun */
 const PAYMENTS_CAP = 60;
 const REVIEWS_CAP = 30;
+
+/** Bo'lim o'rami: bir xil vertikal ritm va langar siljishi (telefonda tepadagi panel 56px, desktopda panel yo'q) */
+const SECTION = "mt-10 scroll-mt-20 sm:mt-12 md:scroll-mt-6";
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
@@ -218,7 +220,6 @@ export default async function AdminPage() {
     avatarUrl: u.avatarUrl,
     createdAt: u.createdAt.getTime(),
     isBanned: u.isBanned,
-    bannedReason: u.bannedReason,
   }));
 
   const orders = latestOrders.map((o) => ({
@@ -236,11 +237,11 @@ export default async function AdminPage() {
   const lastOrderAt = orders[0]?.createdAt;
   const openPayouts = payoutRows.filter((p) => p.state === "requested" || p.state === "approved").length;
 
-  // Chiplar sahifadagi yangi tartib bilan bir xil: amal navbatlari birinchi
+  // Chiplar sahifadagi tartib bilan bir xil: amal navbatlari birinchi
   const sections = [
     { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pendingRows.length },
     { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
-    { href: "#payoutlar", label: "Payout so'rovlari", icon: Banknote, count: openPayouts },
+    { href: "#payoutlar", label: "Payoutlar", icon: Banknote, count: openPayouts },
     { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
     { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
     { href: "#moliya", label: "Moliya", icon: Wallet },
@@ -266,431 +267,293 @@ export default async function AdminPage() {
     { id: "telegram-bot", label: "Telegram bot" },
     { id: "r2-saqlash", label: "Fayl saqlash" },
     { id: "faollik", label: "So'nggi faollik" },
-    { id: "tolov-sozlamalari", label: "To'lov sozlamalari" },
+    { id: "tolov-sozlamalari", label: "To'lov tizimlari" },
     { id: "sozlamalar", label: "Sozlamalar" },
   ];
 
   return (
     <div className="container-x animate-fade-up xl:grid xl:grid-cols-[minmax(0,1fr)_190px] xl:gap-10">
       <div className="min-w-0">
-      {/* ---------- Sarlavha ---------- */}
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-2xl">
-          <span className="eyebrow">
-            <ShieldCheck size={13} className="text-accent" /> Admin panel
-          </span>
-          <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px]">Boshqaruv markazi</h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">
-            Moliya (eskrou, komissiya, payoutlar), platforma sozlamalari, profillarni tasdiqlash va faollik — bir joyda.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
-            <CreditCard size={14} /> Obunalar
-            {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
-          </ButtonLink>
-          <ButtonLink href="/admin/audit" variant="outline" size="sm">
-            <ScrollText size={14} /> Audit jurnali
-          </ButtonLink>
-          <ButtonLink href="/kabinet" variant="outline" size="sm">
-            Kabinet <ArrowRight size={14} />
-          </ButtonLink>
-          <DemoCleanButton count={demoCount} />
-        </div>
-      </header>
+        {/* ---------- Sarlavha: boshqaruv vositasi uchun tinch o'lchamlar (h1 26/30px) ---------- */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">
+              <ShieldCheck size={12} aria-hidden="true" /> Admin panel
+            </p>
+            <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">Boshqaruv markazi</h1>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-3">Navbatlar, moliya, foydalanuvchilar va sozlamalar — bir joyda.</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-[55%] sm:justify-end">
+            <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
+              <CreditCard size={14} /> Obunalar
+              {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
+            </ButtonLink>
+            <ButtonLink href="/admin/audit" variant="outline" size="sm">
+              <ScrollText size={14} /> Audit jurnali
+            </ButtonLink>
+            <ButtonLink href="/kabinet" variant="outline" size="sm">
+              Kabinet <ArrowRight size={14} />
+            </ButtonLink>
+            <DemoCleanButton count={demoCount} />
+          </div>
+        </header>
 
-      {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}
-      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-8 overflow-x-auto px-4 sm:mx-0 sm:px-0 xl:hidden">
-        <ul className="flex w-max gap-1.5">
-          {sections.map((s) => (
-            <li key={s.href}>
-              <Link href={s.href} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                <s.icon size={14} className="text-fg-3" /> {s.label}
-                {s.count ? <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent">{s.count}</span> : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}
+        <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 xl:hidden">
+          <ul className="flex w-max gap-1.5">
+            {sections.map((s) => (
+              <li key={s.href}>
+                <Link href={s.href} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+                  <s.icon size={14} className="text-fg-3" /> {s.label}
+                  {s.count ? <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{s.count}</span> : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      {/* ---------- Statistika ---------- */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {/* Profili to'ldirilgan mutaxassislar sanaladi — rol "mutaxassis" bo'lib profil yaratmaganlar kirmaydi */}
-        <Tile icon={Users} value={stats.specialists} label="Mutaxassis profillari" hint={pending.length > 0 ? `${pending.length} ta tekshiruvda` : "Hammasi tasdiqlangan"} hintTone={pending.length > 0 ? "warning" : "success"} href="/mutaxassislar" />
-        <Tile icon={ClipboardList} value={stats.orders} label="Buyurtmalar" hint={lastOrderAt ? `Oxirgisi ${timeAgo(lastOrderAt)}` : undefined} />
-        <Tile icon={MessageSquareText} value={stats.reviews} label="Sharhlar" />
-        <Tile
-          icon={MapPinned}
-          value={
-            <>
-              {stats.regions}
-              <span className="text-[18px] text-fg-3">/{REGIONS.length}</span>
-            </>
-          }
-          label="Hududlar qamrovi"
-          href="/xarita"
-        />
-      </div>
-
-      {/* ---------- Tasdiqlash navbati ---------- */}
-      <section id="tasdiqlash" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Tasdiqlash navbati"
-          title="Yangi profillar"
-          description="Tasdiqlangan profillar ro'yxatda belgili ko'rinadi va ko'proq ishonch qozonadi. Tavsiya etilganlar bosh sahifada chiqadi."
-          action={
-            <Badge tone={pending.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {pending.length > 0 ? `${pending.length} ta kutmoqda` : "Navbat bo'sh"}
-            </Badge>
-          }
-        />
-        <AdminSpecialistsTable
-          pending={pendingRows}
-          verified={recentVerified.map((sp) => ({
-            id: sp.id,
-            slug: sp.slug,
-            title: sp.title,
-            category: sp.category,
-            regionSlug: sp.regionSlug,
-            isFeatured: sp.isFeatured,
-            verifiedAt: sp.updatedAt.getTime(),
-            user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl },
-          }))}
-        />
-      </section>
-
-      {/* ---------- Nizolar ---------- */}
-      <section id="nizolar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Nizolar"
-          title="Arbitraj navbati"
-          description="Mijoz yoki mutaxassis eskroudagi buyurtma bo'yicha nizo ochgan. Pul eskrouda turadi; ikkala tomonni (buyurtma sahifasidagi jurnal, aloqa) ko'rib chiqib qaror bering — tomonlarga bildirishnoma va izoh boradi."
-          action={
-            <Badge tone={disputeRows.length > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {disputeRows.length > 0 ? `${disputeRows.length} ta ochiq nizo` : "Nizolar yo'q"}
-            </Badge>
-          }
-        />
-        <AdminDisputes rows={disputeRows} />
-      </section>
-
-      {/* ---------- Payout so'rovlari ---------- */}
-      <section id="payoutlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Payout so'rovlari"
-          title="Pul chiqarish navbati"
-          description="Mutaxassis released balansidan so'raydi. «Tasdiqlash» — rekvizitni tekshirdingiz; «To'landi» — o'tkazma qilingach. Rad etishda sabab mutaxassisga ko'rinadi."
-          action={
-            <Badge tone={openPayouts > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {openPayouts > 0 ? `${openPayouts} ta kutmoqda` : "Navbat bo'sh"}
-            </Badge>
-          }
-        />
-        <AdminPayoutsQueue rows={payoutRows} />
-      </section>
-
-      {/* ---------- Shikoyatlar ---------- */}
-      <section id="shikoyatlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Shikoyatlar"
-          title="Shikoyatlar"
-          description="Profil, sharh, post, izoh va xabar (chat) haqidagi shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa kontentni o'chiring yoki foydalanuvchini bloklang, so'ng shikoyatni yoping."
-          action={
-            <Badge tone={openReports > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {openReports > 0 ? `${openReports} ta ochiq` : "Ochiq shikoyat yo'q"}
-            </Badge>
-          }
-        />
-        <AdminReports rows={reports} />
-      </section>
-
-      {/* ---------- To'lovlar ---------- */}
-      <section id="tolovlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="To'lovlar"
-          title="Eskrou to'lovlari"
-          description="Qo'lda o'tkazmalarni tasdiqlang, bekor qilingan buyurtmalar bo'yicha pulni qaytaring yoki zarur bo'lsa mutaxassisga o'tkazing."
-          action={
-            finance.manualPending > 0 ? (
-              <Badge tone="warning" className="self-start !px-3 !py-1.5 sm:self-auto">
-                {finance.manualPending} ta o'tkazma tasdiq kutmoqda
-              </Badge>
-            ) : undefined
-          }
-        />
-        <AdminPaymentsTable rows={paymentRows} />
-        {/* Ro'yxat chegaraga yetgan — eski yozuvlar jadvalda yo'qligi haqida halol izoh */}
-        {paymentRows.length === PAYMENTS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {PAYMENTS_CAP} tasi ko'rsatilgan</p>}
-      </section>
-
-      {/* ---------- Moliya ---------- */}
-      <section id="moliya" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Moliya"
-          title={
-            <>
-              Platforma <span className="accent-serif text-accent">daromadi</span>
-            </>
-          }
-          description={`Komissiya darajalari: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Platforma daromadi — faqat yakunlangan (released) to'lovlar komissiyasi; eskroudagi komissiya qaytarilishi mumkin. Obuna daromadi — mutaxassislarning oylik obuna to'lovlari (${formatPrice(settings.subscriptionPrice)} / oy).`}
-        />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-          <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.releasedCount} ta yakunlangan to'lovdan`} hintTone="success" />
+        {/* ---------- Statistika: 4 ta plitka, hammasi havola ---------- */}
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {/* Profili to'ldirilgan mutaxassislar sanaladi — rol "mutaxassis" bo'lib profil yaratmaganlar kirmaydi */}
+          <Tile icon={Users} value={stats.specialists} label="Mutaxassis profillari" hint={pending.length > 0 ? `${pending.length} ta tekshiruvda` : "Hammasi tasdiqlangan"} hintTone={pending.length > 0 ? "warning" : "success"} href="/mutaxassislar" />
+          <Tile icon={ClipboardList} value={stats.orders} label="Buyurtmalar" hint={lastOrderAt ? `Oxirgisi ${timeAgo(lastOrderAt)}` : undefined} href="#faollik" />
+          <Tile icon={MessageSquareText} value={stats.reviews} label="Sharhlar" href="#sharhlar" />
           <Tile
-            icon={Crown}
-            value={money(subRevenue.revenueTotal)}
-            label="Obuna daromadi"
-            hint={subRevenue.pendingManual > 0 ? `${subRevenue.pendingManual} ta o'tkazma tasdiq kutmoqda` : `Bu oy: ${money(subRevenue.revenueMonth)}`}
-            hintTone={subRevenue.pendingManual > 0 ? "warning" : "success"}
-            href="/admin/obunalar"
+            icon={MapPinned}
+            value={
+              <>
+                {stats.regions}
+                <span className="text-[15px] text-fg-3">/{REGIONS.length}</span>
+              </>
+            }
+            label="Hududlar qamrovi"
+            href="/xarita"
           />
-          <Tile icon={Hourglass} value={money(finance.escrowCommission)} label="Eskroudagi komissiya" hint={finance.paidCount > 0 ? `${finance.paidCount} ta to'lov eskrouda · hali daromad emas` : "Eskrou bo'sh"} hintTone={finance.paidCount > 0 ? "warning" : "neutral"} />
-          <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint={`${finance.paymentsCount} ta to'lov (eskrou + yakunlangan)`} />
-          <Tile icon={Landmark} value={money(finance.payoutsPaid)} label="To'langan payoutlar" hint={`O'tkazilgan jami: ${money(finance.released)}`} />
-          <Tile icon={Banknote} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
         </div>
-      </section>
 
-      {/* ---------- Analitika (F86) ---------- */}
-      <section id="analitika" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Analitika"
-          title={
-            <>
-              Trendlar va <span className="accent-serif text-accent">voronka</span>
-            </>
-          }
-          description="Daromad = yakunlangan to'lovlar komissiyasi + obuna to'lovlari. Ustun yoki nuqta ustiga olib boring (klaviaturada — strelkalar) yoki jadval ko'rinishiga o'ting."
-        />
-        <AdminAnalytics data={analytics} />
-      </section>
+        {/* ---------- Tasdiqlash navbati ---------- */}
+        <section id="tasdiqlash" className={SECTION} aria-labelledby="h-tasdiqlash">
+          <AdminSectionHeading
+            title={<span id="h-tasdiqlash">Tasdiqlash navbati</span>}
+            description="Eng uzoq kutganlar tepada. Tasdiqlangan profil katalogda belgi bilan chiqadi."
+            action={<QueueChip n={pending.length} some={(n) => `${n} ta kutmoqda`} none="Navbat bo'sh" />}
+          />
+          <AdminSpecialistsTable
+            pending={pendingRows}
+            verified={recentVerified.map((sp) => ({
+              id: sp.id,
+              slug: sp.slug,
+              title: sp.title,
+              category: sp.category,
+              regionSlug: sp.regionSlug,
+              isFeatured: sp.isFeatured,
+              verifiedAt: sp.updatedAt.getTime(),
+              user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl },
+            }))}
+          />
+        </section>
 
-      {/* ---------- Shubhali faollik (F89) ---------- */}
-      <section id="shubhali" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Xavfsizlik"
-          title="Shubhali faollik"
-          description="Avtomatik signallar — ayblov emas: bitta ofis yoki oila bir IP'dan kirishi mumkin. Audit jurnalini ko'rib chiqing, kerak bo'lsa bloklang (sessiyalar bekor qilinadi, profil yashiriladi)."
-          action={
-            <Badge tone={fraud.total > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
-              {fraud.total > 0 ? `${fraud.total} ta signal` : "Signal yo'q"}
-            </Badge>
-          }
-        />
-        <AdminFraudSignals data={fraud} />
-      </section>
+        {/* ---------- Nizolar ---------- */}
+        <section id="nizolar" className={SECTION} aria-labelledby="h-nizolar">
+          <AdminSectionHeading
+            title={<span id="h-nizolar">Nizolar</span>}
+            description="Pul eskrouda turadi — tomonlarni ko'rib chiqib, mutaxassisga o'tkazing yoki mijozga qaytaring."
+            action={<QueueChip n={disputeRows.length} some={(n) => `${n} ta ochiq`} none="Nizolar yo'q" />}
+          />
+          <AdminDisputes rows={disputeRows} />
+        </section>
 
-      {/* ---------- Sharhlar ---------- */}
-      <section id="sharhlar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="Sharhlar" title="Sharh moderatsiyasi" description="So'nggi 30 ta sharh. Haqoratli yoki soxta sharhni o'chiring — mutaxassis reytingi darhol qayta hisoblanadi, shu sharh bo'yicha shikoyatlar yopiladi." />
-        <AdminReviews rows={reviewRows} />
-        {/* Ro'yxat chegaraga yetgan — eski sharhlar jadvalda yo'qligi haqida halol izoh */}
-        {reviewRows.length === REVIEWS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {REVIEWS_CAP} tasi ko'rsatilgan</p>}
-      </section>
+        {/* ---------- Payout so'rovlari ---------- */}
+        <section id="payoutlar" className={SECTION} aria-labelledby="h-payoutlar">
+          <AdminSectionHeading
+            title={<span id="h-payoutlar">Payout so&apos;rovlari</span>}
+            description="«Tasdiqlash» — rekvizit tekshirildi; «To'landi» — o'tkazma bajarildi. Rad sababi mutaxassisga ko'rinadi."
+            action={<QueueChip n={openPayouts} some={(n) => `${n} ta kutmoqda`} none="Navbat bo'sh" />}
+          />
+          <AdminPayoutsQueue rows={payoutRows} />
+        </section>
 
-      {/* ---------- Foydalanuvchilar ---------- */}
-      <section id="foydalanuvchilar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Foydalanuvchilar"
-          title={
-            <>
-              Hisoblarni <span className="accent-serif text-accent">boshqarish</span>
-            </>
-          }
-          description="Qidiring va kerak bo'lsa bloklang — bloklangan foydalanuvchi kira olmaydi va katalogda ko'rinmaydi."
-        />
-        <UsersPanel />
-      </section>
+        {/* ---------- Shikoyatlar ---------- */}
+        <section id="shikoyatlar" className={SECTION} aria-labelledby="h-shikoyatlar">
+          <AdminSectionHeading
+            title={<span id="h-shikoyatlar">Shikoyatlar</span>}
+            description="Nishonni ko'ring, kerak bo'lsa kontentni o'chiring yoki foydalanuvchini bloklang, so'ng yoping."
+            action={<QueueChip n={openReports} some={(n) => `${n} ta ochiq`} none="Ochiq shikoyat yo'q" />}
+          />
+          <AdminReports rows={reports} />
+        </section>
 
-      {/* ---------- Ommaviy xabar ---------- */}
-      <section id="xabar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Ommaviy xabar"
-          title={
-            <>
-              Hammaga <span className="accent-serif text-accent">e&apos;lon</span> yuborish
-            </>
-          }
-          description="Ogohlantirish yoki eslatma — tanlangan auditoriyaning saytdagi bildirishnomasiga va Telegramiga (ulanganlarga) boradi; xohlasangiz emailga ham."
-        />
-        <AdminBroadcast />
-      </section>
+        {/* ---------- To'lovlar ---------- */}
+        <section id="tolovlar" className={SECTION} aria-labelledby="h-tolovlar">
+          <AdminSectionHeading
+            title={<span id="h-tolovlar">To&apos;lovlar</span>}
+            description="Qo'lda o'tkazmalarni tasdiqlash, qaytarish yoki mutaxassisga o'tkazish."
+            action={finance.manualPending > 0 ? <QueueChip n={finance.manualPending} some={(n) => `${n} ta tasdiq kutmoqda`} none="" /> : undefined}
+          />
+          <AdminPaymentsTable rows={paymentRows} />
+          {/* Ro'yxat chegaraga yetgan — eski yozuvlar jadvalda yo'qligi haqida halol izoh */}
+          {paymentRows.length === PAYMENTS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {PAYMENTS_CAP} tasi ko&apos;rsatilgan</p>}
+        </section>
 
-      {/* ---------- Telegram bot ---------- */}
-      <section id="telegram-bot" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Telegram bot"
-          title={
-            <>
-              Botni <span className="accent-serif text-accent">ulash</span> va holati
-            </>
-          }
-          description="Token Vercel'da bo'lsa webhook shu yerdan bitta tugmada o'rnatiladi — qo'lda buyruq yoki maxfiy kalit shart emas."
-        />
-        <TelegramAdminPanel />
-      </section>
-
-      {/* ---------- R2 saqlash ---------- */}
-      <section id="r2-saqlash" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="Fayl saqlash"
-          title={
-            <>
-              Fayllar <span className="accent-serif text-accent">qayerda saqlanadi</span>
-            </>
-          }
-          description="Rasm/video qaysi usulda saqlanayotganini ko'rsatadi va real test bilan sinaydi. Vercel Blob — eng oson; Cloudflare R2 — eng arzon (trafik bepul)."
-        />
-        <R2AdminPanel />
-      </section>
-
-      {/* ---------- So'nggi faollik ---------- */}
-      <section id="faollik" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="So'nggi faollik" title="Foydalanuvchilar va buyurtmalar" />
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* Foydalanuvchilar */}
-          <div className="card overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
-              <div>
-                <h3 className="font-display text-[17px] font-semibold text-fg">So'nggi foydalanuvchilar</h3>
-                <p className="text-[12px] text-fg-3">Oxirgi {users.length} ta ro'yxatdan o'tgan</p>
-              </div>
-              <Users size={18} className="text-fg-4" />
-            </div>
-            {users.length === 0 ? (
-              <p className="px-5 pb-6 text-[14px] text-fg-3">Hali foydalanuvchilar yo'q.</p>
-            ) : (
-              <ul className="divide-y divide-line border-t border-line">
-                {users.map((u) => (
-                  <li key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3">
-                    <Avatar name={u.name} src={u.avatarUrl} size={38} decorative />
-                    <div className="min-w-[10rem] flex-1">
-                      <p className="truncate text-[14px] font-semibold text-fg">{u.name}</p>
-                      <p className="truncate text-[12px] text-fg-3">
-                        {u.email}
-                        <time dateTime={new Date(u.createdAt).toISOString()} className="text-fg-4" suppressHydrationWarning>
-                          {" · "}
-                          {timeAgo(u.createdAt)}
-                        </time>
-                      </p>
-                    </div>
-                    <Badge tone={u.isBanned ? "danger" : ROLE_TONE[u.role]} className="shrink-0">
-                      {u.isBanned ? "Bloklangan" : ROLE_LABEL[u.role]}
-                    </Badge>
-                    {u.role !== "admin" && <AdminBanToggle key={`${u.id}:${u.isBanned}`} userId={u.id} name={u.name} initialBanned={u.isBanned} initialReason={u.bannedReason} className="ml-auto" />}
-                  </li>
-                ))}
-              </ul>
-            )}
+        {/* ---------- Moliya ---------- */}
+        <section id="moliya" className={SECTION} aria-labelledby="h-moliya">
+          <AdminSectionHeading
+            title={<span id="h-moliya">Moliya</span>}
+            description={`Komissiya: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Daromad — faqat yakunlangan to'lovlar komissiyasi va obuna (${formatPrice(settings.subscriptionPrice)} / oy).`}
+          />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.releasedCount} ta yakunlangan to'lovdan`} hintTone="success" href="#analitika" />
+            <Tile
+              icon={Crown}
+              value={money(subRevenue.revenueTotal)}
+              label="Obuna daromadi"
+              hint={subRevenue.pendingManual > 0 ? `${subRevenue.pendingManual} ta o'tkazma tasdiq kutmoqda` : `Bu oy: ${money(subRevenue.revenueMonth)}`}
+              hintTone={subRevenue.pendingManual > 0 ? "warning" : "success"}
+              href="/admin/obunalar"
+            />
+            <Tile icon={Hourglass} value={money(finance.escrowCommission)} label="Eskroudagi komissiya" hint={finance.paidCount > 0 ? `${finance.paidCount} ta to'lov eskrouda · hali daromad emas` : "Eskrou bo'sh"} hintTone={finance.paidCount > 0 ? "warning" : "neutral"} href="#tolovlar" />
+            <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint={`${finance.paymentsCount} ta to'lov`} href="#tolovlar" />
+            <Tile icon={Landmark} value={money(finance.payoutsPaid)} label="To'langan payoutlar" hint={`O'tkazilgan jami: ${money(finance.released)}`} href="#payoutlar" />
+            <Tile icon={Banknote} value={money(finance.payoutsOpen)} label="Kutilayotgan payoutlar" hint={finance.payoutsOpenCount > 0 ? `${finance.payoutsOpenCount} ta so'rov` : "Navbat bo'sh"} hintTone={finance.payoutsOpenCount > 0 ? "warning" : "neutral"} href="#payoutlar" />
           </div>
+        </section>
 
-          {/* Buyurtmalar */}
-          <div className="card overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
-              <div>
-                <h3 className="font-display text-[17px] font-semibold text-fg">So'nggi buyurtmalar</h3>
-                <p className="text-[12px] text-fg-3">Mijoz → mutaxassis</p>
+        {/* ---------- Analitika (F86) ---------- */}
+        <section id="analitika" className={SECTION} aria-labelledby="h-analitika">
+          <AdminSectionHeading title={<span id="h-analitika">Analitika</span>} description="Daromad, buyurtmalar, yangi foydalanuvchilar va voronka — oxirgi 30 kun; jadval ko'rinishi ham bor." />
+          <AdminAnalytics data={analytics} />
+        </section>
+
+        {/* ---------- Shubhali faollik (F89) ---------- */}
+        <section id="shubhali" className={SECTION} aria-labelledby="h-shubhali">
+          <AdminSectionHeading
+            title={<span id="h-shubhali">Shubhali faollik</span>}
+            description="Avtomatik signallar — ayblov emas (bitta ofis bir IP'dan kirishi mumkin). Audit jurnalini ko'rib chiqing."
+            action={<QueueChip n={fraud.total} some={(n) => `${n} ta signal`} none="Signal yo'q" />}
+          />
+          <AdminFraudSignals data={fraud} />
+        </section>
+
+        {/* ---------- Sharhlar ---------- */}
+        <section id="sharhlar" className={SECTION} aria-labelledby="h-sharhlar">
+          <AdminSectionHeading title={<span id="h-sharhlar">Sharhlar</span>} description={`So'nggi ${REVIEWS_CAP} ta. O'chirilgan sharh — reyting qayta hisoblanadi, shu sharh bo'yicha shikoyatlar yopiladi.`} />
+          <AdminReviews rows={reviewRows} />
+          {/* Ro'yxat chegaraga yetgan — eski sharhlar jadvalda yo'qligi haqida halol izoh */}
+          {reviewRows.length === REVIEWS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {REVIEWS_CAP} tasi ko&apos;rsatilgan</p>}
+        </section>
+
+        {/* ---------- Foydalanuvchilar ---------- */}
+        <section id="foydalanuvchilar" className={SECTION} aria-labelledby="h-foydalanuvchilar">
+          <AdminSectionHeading title={<span id="h-foydalanuvchilar">Foydalanuvchilar</span>} description="Qidiruv, katalogda ko'rsatish, imtiyoz va bloklash — bloklangan foydalanuvchi kira olmaydi." />
+          <UsersPanel />
+        </section>
+
+        {/* ---------- Ommaviy xabar ---------- */}
+        <section id="xabar" className={SECTION} aria-labelledby="h-xabar">
+          <AdminSectionHeading title={<span id="h-xabar">Ommaviy xabar</span>} description="Tanlangan auditoriyaning sayt bildirishnomasiga va Telegramiga (ulanganlarga); xohlasangiz emailga ham." />
+          <AdminBroadcast />
+        </section>
+
+        {/* ---------- Telegram bot ---------- */}
+        <section id="telegram-bot" className={SECTION} aria-labelledby="h-telegram">
+          <AdminSectionHeading title={<span id="h-telegram">Telegram bot</span>} description="Token Vercel'da bo'lsa webhook shu yerdan bir tugmada o'rnatiladi." />
+          <TelegramAdminPanel />
+        </section>
+
+        {/* ---------- Fayl saqlash ---------- */}
+        <section id="r2-saqlash" className={SECTION} aria-labelledby="h-saqlash">
+          <AdminSectionHeading title={<span id="h-saqlash">Fayl saqlash</span>} description="Faol saqlash usuli va real yuklash testi. Vercel Blob — eng oson; Cloudflare R2 — eng arzon." />
+          <R2AdminPanel />
+        </section>
+
+        {/* ---------- So'nggi faollik ---------- */}
+        <section id="faollik" className={SECTION} aria-labelledby="h-faollik">
+          <AdminSectionHeading title={<span id="h-faollik">So&apos;nggi faollik</span>} description="Oxirgi ro'yxatdan o'tganlar va buyurtmalar. Bloklash — «Foydalanuvchilar» bo'limida." />
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Foydalanuvchilar — faqat ko'rish (bloklash tugmasi Foydalanuvchilar panelida, takror emas) */}
+            <div className="card overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+                <h3 className="text-[14px] font-semibold text-fg">So&apos;nggi foydalanuvchilar</h3>
+                <span className="text-[12px] text-fg-4">Oxirgi {users.length} ta</span>
               </div>
-              <ClipboardList size={18} className="text-fg-4" />
+              {users.length === 0 ? (
+                <p className="px-5 py-6 text-[14px] text-fg-3">Hali foydalanuvchilar yo&apos;q.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {users.map((u) => (
+                    <li key={u.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                      <Avatar name={u.name} src={u.avatarUrl} size={34} decorative />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-semibold text-fg">{u.name}</p>
+                        <p className="truncate text-[12px] text-fg-3">
+                          {u.email}
+                          <time dateTime={new Date(u.createdAt).toISOString()} className="text-fg-4" suppressHydrationWarning>
+                            {" · "}
+                            {timeAgo(u.createdAt)}
+                          </time>
+                        </p>
+                      </div>
+                      <Badge tone={u.isBanned ? "danger" : ROLE_TONE[u.role]} className="shrink-0">
+                        {u.isBanned ? "Bloklangan" : ROLE_LABEL[u.role]}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {orders.length === 0 ? (
-              <p className="px-5 pb-6 text-[14px] text-fg-3">Hali buyurtmalar yo'q.</p>
-            ) : (
-              <ul className="divide-y divide-line border-t border-line">
-                {orders.map((o) => (
-                  <li key={o.id} className="flex items-center gap-3 px-5 py-3">
-                    <div className="min-w-0 flex-1">
-                      <Link href={`/admin/buyurtmalar/${o.id}`} className="-my-1.5 block truncate py-1.5 text-[14px] font-semibold text-fg transition hover:text-accent">
-                        {o.title}
-                      </Link>
-                      <p className="truncate text-[12px] text-fg-3">
-                        {o.client} <span className="text-fg-4">→</span>{" "}
-                        <Link href={`/mutaxassislar/${o.specialistSlug}`} className="text-fg-2 transition hover:text-accent">
-                          {o.specialist}
+
+            {/* Buyurtmalar */}
+            <div className="card overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+                <h3 className="text-[14px] font-semibold text-fg">So&apos;nggi buyurtmalar</h3>
+                <span className="text-[12px] text-fg-4">Mijoz → mutaxassis</span>
+              </div>
+              {orders.length === 0 ? (
+                <p className="px-5 py-6 text-[14px] text-fg-3">Hali buyurtmalar yo&apos;q.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {orders.map((o) => (
+                    <li key={o.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/admin/buyurtmalar/${o.id}`} className="-my-1.5 block truncate py-1.5 text-[13.5px] font-semibold text-fg transition hover:text-accent">
+                          {o.title}
                         </Link>
-                        {o.amount ? ` · ${formatPrice(o.amount, { compact: true })}` : o.budget ? ` · byudjet ${formatPrice(o.budget, { compact: true })}` : ""}
-                        {" · "}
-                        <time dateTime={new Date(o.createdAt).toISOString()} suppressHydrationWarning>
-                          {timeAgo(o.createdAt)}
-                        </time>
-                      </p>
-                    </div>
-                    <Badge tone={STATUS_TONE[o.status]} className="shrink-0">
-                      {ORDER_STATUS_LABEL[o.status]}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
+                        <p className="truncate text-[12px] text-fg-3">
+                          {o.client} <span className="text-fg-4">→</span>{" "}
+                          <Link href={`/mutaxassislar/${o.specialistSlug}`} className="text-fg-2 transition hover:text-accent">
+                            {o.specialist}
+                          </Link>
+                          {o.amount ? ` · ${formatPrice(o.amount, { compact: true })}` : o.budget ? ` · byudjet ${formatPrice(o.budget, { compact: true })}` : ""}
+                          {" · "}
+                          <time dateTime={new Date(o.createdAt).toISOString()} suppressHydrationWarning>
+                            {timeAgo(o.createdAt)}
+                          </time>
+                        </p>
+                      </div>
+                      <Badge tone={STATUS_TONE[o.status]} className="shrink-0">
+                        {ORDER_STATUS_LABEL[o.status]}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ---------- To'lov sozlamalari ---------- */}
-      <section id="tolov-sozlamalari" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading
-          eyebrow="To'lov tizimlari"
-          title={
-            <>
-              To'lovlarni <span className="accent-serif text-accent">boshqarish</span>
-            </>
-          }
-          description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi."
-        />
-        <PaymentProvidersPanel />
-      </section>
+        {/* ---------- To'lov tizimlari ---------- */}
+        <section id="tolov-sozlamalari" className={SECTION} aria-labelledby="h-tolov-tizimlari">
+          <AdminSectionHeading title={<span id="h-tolov-tizimlari">To&apos;lov tizimlari</span>} description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi." />
+          <PaymentProvidersPanel />
+        </section>
 
-      {/* ---------- Sozlamalar ---------- */}
-      <section id="sozlamalar" className="mt-14 scroll-mt-28 sm:mt-16">
-        <SectionHeading eyebrow="Sozlamalar" title="Komissiya, obuna va limitlar" description="Mijoz to'lagan summadan belgilangan foiz platformaga qoladi; foiz mutaxassis darajasiga qarab (yangi / oddiy / top) narx belgilanganda buyurtmaga muhrlanadi. Mutaxassislar oylik obuna to'laydi, mijozlar bepul. Har bir o'zgarish tarixda saqlanadi." />
-        <div className="grid gap-5 lg:grid-cols-3">
-          <div className="min-w-0 lg:col-span-2">
+        {/* ---------- Sozlamalar ---------- */}
+        <section id="sozlamalar" className={SECTION} aria-labelledby="h-sozlamalar">
+          <AdminSectionHeading title={<span id="h-sozlamalar">Sozlamalar</span>} description="Komissiya, limitlar va obuna. Foiz narx belgilanganda buyurtmaga muhrlanadi; har bir o'zgarish tarixda va audit jurnalida." />
+          <div className="mx-auto max-w-3xl xl:mx-0">
             <PlatformSettingsForm initial={settings} history={settingsHistory} />
           </div>
-          <div className="card self-start p-5 sm:p-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">Hozirgi qiymatlar</p>
-            <dl className="mt-3 divide-y divide-line text-[14px]">
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Yangi mutaxassis</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctNew}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Oddiy daraja</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPct}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Top mutaxassis</dt>
-                <dd className="font-semibold text-fg tabular-nums">{settings.commissionPctTop}%</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Minimal buyurtma</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minOrderAmount)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Minimal payout</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.minPayout)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Obuna (oyiga)</dt>
-                <dd className="font-semibold text-fg tabular-nums">{formatPrice(settings.subscriptionPrice)}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Sinov / imtiyoz</dt>
-                <dd className="font-semibold text-fg tabular-nums">
-                  {settings.subscriptionTrialDays} / {settings.subscriptionGraceDays} kun
-                </dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-fg-2">Obuna talabi</dt>
-                <dd>
-                  <Badge tone={settings.subscriptionEnforced === 1 ? "success" : "neutral"}>{settings.subscriptionEnforced === 1 ? "Yoqilgan" : "O'chirilgan"}</Badge>
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-[12px] leading-snug text-fg-3">O'zgarishlar audit jurnaliga yoziladi.</p>
-          </div>
-        </div>
-      </section>
+        </section>
       </div>
 
       {/* O'ng tomonda doimiy bo'limlar paneli (scrollspy) — uzun sahifada tez o'tish uchun */}

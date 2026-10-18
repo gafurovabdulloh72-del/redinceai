@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Eraser, X } from "lucide-react";
+import { usePresence } from "@/components/motion/usePresence";
 
 /**
  * Admin: demo (seed) foydalanuvchilari va ularga bog'liq hamma narsani bir tugmada o'chirish.
@@ -16,6 +17,8 @@ export function DemoCleanButton({ count }: { count: number }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Modal chiqish animatsiyasi bilan yopiladi (modal-out), darhol o'chmaydi */
+  const modal = usePresence(openModal, 200);
 
   // Escape — modalni yopish (busy paytida yopilmaydi)
   useEffect(() => {
@@ -66,13 +69,13 @@ export function DemoCleanButton({ count }: { count: number }) {
       )}
       {done && <span className="text-[11.5px] font-medium text-success-text">{done}</span>}
 
-      {openModal && (
+      {modal.mounted && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in"
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 ${modal.closing ? "animate-fade-out" : "animate-fade-in"}`}
           role="presentation"
           onClick={() => !busy && setOpenModal(false)}
         >
-          <div role="dialog" aria-modal="true" aria-labelledby="demo-clean-title" className="card w-full max-w-md p-5 text-left shadow-xl animate-modal-in" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="demo-clean-title" className={`card-floating w-full max-w-md p-5 text-left ${modal.closing ? "animate-modal-out" : "animate-modal-in"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <h3 id="demo-clean-title" className="flex items-center gap-2 font-display text-[17px] font-semibold text-fg">
                 <AlertTriangle size={18} className="shrink-0 text-danger" /> Demo ma'lumotlarni o'chirish

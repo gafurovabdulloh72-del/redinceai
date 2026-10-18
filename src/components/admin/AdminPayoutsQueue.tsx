@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, Banknote, Check, CheckCircle2, Copy, ExternalLink, Eye, EyeOff, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, Banknote, Check, CheckCircle2, Copy, ExternalLink, Eye, EyeOff, Search, ShieldAlert, X } from "lucide-react";
 import { Avatar, Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { PAYOUT_METHOD_LABEL, PAYOUT_TONE, type PayoutState } from "@/components/payments/tones";
 import { PAYOUT_STATE_LABEL } from "@/lib/constants";
@@ -70,6 +70,9 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
   const [revealed, setRevealed] = useState<Record<string, string | null>>({});
   const [revealing, setRevealing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /* Navbat qidiruvi va holat filtri (ochiq so'rovlar 4+ bo'lganda ko'rinadi) */
+  const [q, setQ] = useState("");
+  const [stateFilter, setStateFilter] = useState<"all" | "requested" | "approved">("all");
 
   const reveal = async (row: AdminPayoutRow) => {
     if (revealing) return;
@@ -111,6 +114,9 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
 
   const open = rows.filter((r) => r.state === "requested" || r.state === "approved");
   const closed = rows.filter((r) => r.state === "paid" || r.state === "rejected");
+  const term = q.trim().toLowerCase();
+  const openVisible = open.filter((r) => (stateFilter === "all" || r.state === stateFilter) && (!term || `${r.specialist.name} ${r.specialist.email} ${r.specialist.phone ?? ""} ${r.details}`.toLowerCase().includes(term)));
+  const showTools = open.length >= 4;
 
   const act = async (row: AdminPayoutRow, state: PayoutState, why?: string, ref?: string) => {
     if (busy) return;
@@ -152,7 +158,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
               <p className="flex items-center gap-1.5 text-[14px] font-semibold text-fg">
                 <span className="truncate">{r.specialist.name}</span>
                 <Link href={`/mutaxassislar/${r.specialist.slug}`} target="_blank" rel="noreferrer" aria-label="Ommaviy profil" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/6 hover:text-fg">
-                  <ExternalLink size={13} />
+                  <ExternalLink size={14} />
                 </Link>
               </p>
               <p className="truncate text-[12px] text-fg-3">{r.specialist.title}</p>
@@ -254,7 +260,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
         </div>
 
         {paying === r.id && (
-          <div className="card-outline mt-3 flex flex-col gap-2 !rounded-[16px] p-3 animate-fade-up sm:flex-row sm:items-end" style={{ animationDuration: "0.2s" }}>
+          <div className="card-outline expand-in mt-3 flex flex-col gap-2 !rounded-[14px] p-3 sm:flex-row sm:items-end" role="group" aria-label="To'langanini tasdiqlash">
             <div className="flex-1">
               <label htmlFor={`ref-${r.id}`} className="field-label">
                 O'tkazma raqami (referens) — ixtiyoriy
@@ -276,7 +282,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
         )}
 
         {rejecting === r.id && (
-          <div className="card-outline mt-3 flex flex-col gap-2 !rounded-[16px] p-3 animate-fade-up sm:flex-row sm:items-end" style={{ animationDuration: "0.2s" }}>
+          <div className="card-outline expand-in mt-3 flex flex-col gap-2 !rounded-[14px] p-3 sm:flex-row sm:items-end" role="group" aria-label="Rad etish sababi">
             <div className="flex-1">
               <label htmlFor={`note-${r.id}`} className="field-label">
                 Rad etish sababi (mutaxassisga ko'rinadi)
@@ -306,17 +312,41 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="expand-in flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text">
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
       </div>
 
+      {showTools && (
+        <div className="flex flex-wrap items-center gap-2" role="search" aria-label="Payout navbati filtrlari">
+          <label className="relative min-w-[180px] flex-1 sm:max-w-xs">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, email yoki rekvizit" aria-label="Payout navbatida qidirish" className="field !h-9 !min-h-0 w-full !rounded-full !py-0 !pl-8 text-[13px]" />
+          </label>
+          <div className="segment" role="group" aria-label="Holat bo'yicha filtr">
+            {(
+              [
+                ["all", "Hammasi", open.length],
+                ["requested", "So'ralgan", open.filter((r) => r.state === "requested").length],
+                ["approved", "Tasdiqlangan", open.filter((r) => r.state === "approved").length],
+              ] as const
+            ).map(([k, label, n]) => (
+              <button key={k} type="button" className="segment-item inline-flex min-h-9 items-center gap-1.5" data-active={stateFilter === k} aria-pressed={stateFilter === k} onClick={() => setStateFilter(k)}>
+                {label} <span className="text-[11px] opacity-70 tabular-nums">{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {open.length === 0 ? (
         <EmptyState icon={Banknote} title="Ochiq so'rovlar yo'q" description="Mutaxassis pul chiqarishni so'raganda shu yerda ko'rinadi." />
+      ) : openVisible.length === 0 ? (
+        <EmptyState icon={Search} title="Mos so'rov topilmadi" description="Qidiruv yoki filtrni o'zgartiring." />
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
-          {open.map((r) => (
+          {openVisible.map((r) => (
             <Row key={r.id} r={r} />
           ))}
         </ul>
@@ -328,7 +358,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
             {showClosed ? "Yopilganlarni yashirish" : `Yopilgan so'rovlar (${closed.length})`}
           </button>
           {showClosed && (
-            <ul className="card mt-2 divide-y divide-line overflow-hidden">
+            <ul className="expand-in card mt-2 divide-y divide-line overflow-hidden">
               {closed.map((r) => (
                 <Row key={r.id} r={r} />
               ))}

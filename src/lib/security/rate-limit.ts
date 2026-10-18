@@ -96,6 +96,14 @@ export const RATE_LIMITS = {
   mention: { limit: 600, windowMs: HOUR },
   /** Post ko'rish hisobi — ko'ruvchi kaliti (user yoki IP xeshi) bo'yicha */
   views: { limit: 1200, windowMs: HOUR },
+  /** So'rovnoma ovozi / «qiziq emas» / muallifni yashirish — userId */
+  feedActions: { limit: 240, windowMs: HOUR },
+  /** Havola kartasi (OG) — server tashqi so'rov qiladi; ko'ruvchi kaliti (user yoki IP) bo'yicha */
+  preview: { limit: 120, windowMs: HOUR },
+  /** DM: xabarni tahrirlash/o'chirish — userId */
+  dmEdit: { limit: 120, windowMs: HOUR },
+  /** DM: havola prevyusi (server OG so'rovi, keshlanadi) — userId */
+  linkPreview: { limit: 300, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

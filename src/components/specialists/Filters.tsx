@@ -12,7 +12,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS, WORK_TYPES } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
-import { FILTR, experienceParts, genderFilterLabel, localizePrice, priceFromLabel, priceToLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
+import { FILTR, KATALOG_X, experienceParts, genderFilterLabel, localizePrice, priceFromLabel, priceToLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
 import { cn, formatPrice } from "@/lib/utils";
 import { SearchBox, type SuggestionItem } from "./SearchBox";
 
@@ -167,7 +167,7 @@ function Chip({ active, onClick, children, className }: { active: boolean; onCli
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition active:scale-[0.97]",
+        "press inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition",
         active ? "btn-ink border-transparent" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
         className,
       )}
@@ -340,11 +340,13 @@ function PriceRange({
 export interface FiltersProps {
   categoryCounts: Record<string, number>;
   regionCounts: Record<string, number>;
+  /** Eng ko'p uchraydigan ko'nikmalar (nom + son) — «Ko'nikmalar» guruhi chiplari */
+  skillStats?: Array<{ skill: string; n: number }>;
   showHeader?: boolean;
   className?: string;
 }
 
-export function Filters({ categoryCounts, regionCounts, showHeader = true, className }: FiltersProps) {
+export function Filters({ categoryCounts, regionCounts, skillStats = [], showHeader = true, className }: FiltersProps) {
   const til = useLocale();
   const { sp, setParams, reset, pending, activeCount } = useUrlFilters();
 
@@ -358,6 +360,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
   const available = sp.get("available") === "1";
   const openNow = sp.get("openNow") === "1";
   const workType = sp.get("workType") ?? "";
+  const skill = sp.get("skill") ?? "";
 
   const commitQ = useCallback((v: string) => setParams({ q: v || null }, { replace: true }), [setParams]);
   const commitRange = useCallback(
@@ -487,6 +490,28 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
         </div>
       </Group>
 
+      {/* Ko'nikmalar — katalogda eng ko'p uchraydiganlari (sonlar bilan); URL'dagi boshqa ko'nikma ham chip bo'lib ko'rinadi */}
+      {(skillStats.length > 0 || skill) && (
+        <Group title={tr(til, KATALOG_X.skillsGroup)} summary={skill || null}>
+          <div className="flex flex-wrap gap-1.5">
+            {skill && !skillStats.some((x) => x.skill.toLowerCase() === skill.toLowerCase()) && (
+              <Chip active onClick={() => setParams({ skill: null })}>
+                {skill}
+              </Chip>
+            )}
+            {skillStats.map((x) => {
+              const on = skill.toLowerCase() === x.skill.toLowerCase();
+              return (
+                <Chip key={x.skill} active={on} onClick={() => setParams({ skill: on ? null : x.skill })}>
+                  {x.skill}
+                  <Count n={x.n} active={on} />
+                </Chip>
+              );
+            })}
+          </div>
+        </Group>
+      )}
+
       {/* Narx */}
       <Group title={tr(til, FILTR.price)} summary={priceMin || priceMax ? rangeText(til, priceMin, priceMax) : null}>
         <PriceRange min={priceMin} max={priceMax} onChange={(lo, hi) => range.setValue(encodeRange(lo, hi))} onCommit={range.flush} />
@@ -538,7 +563,7 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
         title={tr(til, FILTR.other)}
         summary={[verified && tr(til, FILTR.verifiedShort), available && tr(til, FILTR.availableShort), openNow && tr(til, FILTR.openNowTitle)].filter(Boolean).join(" · ") || null}
       >
-        <div className="flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
+        <div className="flex min-h-12 items-center justify-between gap-3 py-2">
           <span className="flex min-w-0 items-center gap-2.5">
             <VerifiedBadge size={20} />
             <span className="min-w-0">
@@ -551,9 +576,9 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
           <Switch checked={verified} onChange={(v) => setParams({ verified: v ? "1" : null })} label={tr(til, FILTR.verifiedAria)} />
         </div>
         {/* Mavjudlik (B32): "Band" va ta'tildagilar chiqmaydi */}
-        <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
+        <div className="flex min-h-12 items-center justify-between gap-3 border-t border-line py-2">
           <span className="flex min-w-0 items-center gap-2.5">
-            <CheckCircle2 size={20} className="shrink-0 text-success" />
+            <CheckCircle2 size={20} className="shrink-0 text-fg-3" />
             <span className="min-w-0">
               <span className="block text-[14px] font-medium text-fg">{tr(til, FILTR.availableTitle)}</span>
               <span className="block text-[12px] text-fg-3">{tr(til, FILTR.availableDesc)}</span>
@@ -562,9 +587,9 @@ export function Filters({ categoryCounts, regionCounts, showHeader = true, class
           <Switch checked={available} onChange={(v) => setParams({ available: v ? "1" : null })} label={tr(til, FILTR.availableAria)} />
         </div>
         {/* "Hozir ochiq" (F42): ish vaqti bo'yicha hozir ishlayotganlar (Toshkent vaqti), ta'tildagilarsiz */}
-        <div className="mt-2 flex min-h-12 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line bg-surface-2 px-3.5 py-2.5 dark:bg-surface">
+        <div className="flex min-h-12 items-center justify-between gap-3 border-t border-line py-2">
           <span className="flex min-w-0 items-center gap-2.5">
-            <Clock3 size={20} className="shrink-0 text-fg-2" />
+            <Clock3 size={20} className="shrink-0 text-fg-3" />
             <span className="min-w-0">
               <span className="block text-[14px] font-medium text-fg">{tr(til, FILTR.openNowTitle)}</span>
               <span className="block text-[12px] text-fg-3">{tr(til, FILTR.openNowDesc)}</span>
@@ -606,10 +631,11 @@ export function SortSelect({ className }: { className?: string }) {
 /* ------------------------------------------------------------------ */
 /* Ko'rinish: to'r / ro'yxat                                           */
 /* ------------------------------------------------------------------ */
-export function ViewToggle({ className }: { className?: string }) {
+export function ViewToggle({ className, initial = "grid" }: { className?: string; /** Server tanlagan ko'rinish (cookie) — URL'da view bo'lmasa shu */ initial?: "grid" | "list" }) {
   const til = useLocale();
   const { sp, setParams } = useUrlFilters();
-  const view = sp.get("view") === "list" ? "list" : "grid";
+  const urlView = sp.get("view");
+  const view = urlView === "list" ? "list" : urlView === "grid" ? "grid" : initial;
   const opts = [
     { value: "grid", label: tr(til, FILTR.viewGrid), icon: LayoutGrid },
     { value: "list", label: tr(til, FILTR.viewList), icon: Rows3 },
@@ -627,10 +653,40 @@ export function ViewToggle({ className }: { className?: string }) {
             aria-label={o.label}
             title={o.label}
             data-active={on}
-            onClick={() => setParams({ view: o.value === "grid" ? null : o.value }, { keepPage: true, replace: true })}
+            onClick={() => {
+              // Tanlov cookie'da eslab qolinadi (1 yil) — keyingi tashrifda URL'siz ham shu ko'rinish
+              try {
+                document.cookie = `katalog_korinish=${o.value}; path=/; max-age=31536000; SameSite=Lax`;
+              } catch {
+                /* cookie o'chirilgan */
+              }
+              setParams({ view: o.value === "grid" ? null : o.value }, { keepPage: true, replace: true });
+            }}
             className="segment-item !flex h-[34px] w-10 items-center justify-center !px-0"
           >
             <o.icon size={16} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Sahifada nechta: 24 / 48                                             */
+/* ------------------------------------------------------------------ */
+export const PER_PAGE_OPTIONS = [24, 48] as const;
+export function PerPage({ className }: { className?: string }) {
+  const til = useLocale();
+  const { sp, setParams } = useUrlFilters();
+  const current = Number(sp.get("limit")) === 48 ? 48 : 24;
+  return (
+    <div className={cn("segment", className)} role="radiogroup" aria-label={tr(til, KATALOG_X.perPageAria)}>
+      {PER_PAGE_OPTIONS.map((n) => {
+        const on = current === n;
+        return (
+          <button key={n} type="button" role="radio" aria-checked={on} data-active={on} onClick={() => setParams({ limit: n === 24 ? null : String(n) })} className="segment-item !flex h-[34px] items-center justify-center !px-3 text-[12.5px]">
+            {KATALOG_X.perPage[til](n)}
           </button>
         );
       })}
@@ -644,11 +700,13 @@ export function ViewToggle({ className }: { className?: string }) {
 export function MobileFilters({
   categoryCounts,
   regionCounts,
+  skillStats,
   total,
   className,
 }: {
   categoryCounts: Record<string, number>;
   regionCounts: Record<string, number>;
+  skillStats?: Array<{ skill: string; n: number }>;
   total: number;
   className?: string;
 }) {
@@ -713,7 +771,7 @@ export function MobileFilters({
                 </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1">
-                <Filters categoryCounts={categoryCounts} regionCounts={regionCounts} showHeader={false} />
+                <Filters categoryCounts={categoryCounts} regionCounts={regionCounts} skillStats={skillStats} showHeader={false} />
               </div>
               <div
                 className="flex shrink-0 items-center gap-2 border-t border-line px-5 pt-3"

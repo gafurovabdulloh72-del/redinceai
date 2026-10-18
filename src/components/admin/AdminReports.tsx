@@ -51,6 +51,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
   const [confirmDeleteReview, setConfirmDeleteReview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<"all" | AdminReportRowDto["targetType"]>("all");
 
   useEffect(() => {
     if (!notice) return;
@@ -100,8 +101,11 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
     }
   };
 
-  const open = rows.filter((r) => r.status === "open");
+  const openAll = rows.filter((r) => r.status === "open");
   const closed = rows.filter((r) => r.status === "closed");
+  /** Tur bo'yicha filtr (faqat ochiqlar uchun; chiplar mavjud turlardan tuziladi) */
+  const typeCounts = (Object.keys(TYPE_META) as AdminReportRowDto["targetType"][]).map((t) => [t, openAll.filter((r) => r.targetType === t).length] as const).filter(([, n]) => n > 0);
+  const open = typeFilter === "all" ? openAll : openAll.filter((r) => r.targetType === typeFilter);
 
   const Row = ({ r }: { r: AdminReportRowDto }) => (
     <li className={cn("px-4 py-3.5 sm:px-5", busy === r.id && "opacity-60")}>
@@ -176,14 +180,29 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="expand-in flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text">
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
       </div>
 
-      {open.length === 0 ? (
+      {typeCounts.length > 1 && (
+        <div className="segment w-max max-w-full" role="group" aria-label="Shikoyat turi bo'yicha filtr">
+          <button type="button" className="segment-item inline-flex min-h-9 items-center gap-1.5" data-active={typeFilter === "all"} aria-pressed={typeFilter === "all"} onClick={() => setTypeFilter("all")}>
+            Hammasi <span className="text-[11px] opacity-70 tabular-nums">{openAll.length}</span>
+          </button>
+          {typeCounts.map(([t, n]) => (
+            <button key={t} type="button" className="segment-item inline-flex min-h-9 items-center gap-1.5" data-active={typeFilter === t} aria-pressed={typeFilter === t} onClick={() => setTypeFilter(t)}>
+              {TYPE_META[t].label} <span className="text-[11px] opacity-70 tabular-nums">{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {openAll.length === 0 ? (
         <EmptyState icon={Flag} title="Ochiq shikoyatlar yo'q" description="Profil, sharh, post, izoh yoki xabar haqida shikoyat kelsa shu yerda ko'rinadi." />
+      ) : open.length === 0 ? (
+        <EmptyState icon={Flag} title="Bu turda ochiq shikoyat yo'q" description="Boshqa turni tanlang." />
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
           {open.map((r) => (

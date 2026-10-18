@@ -17,8 +17,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
     orientation: "portrait",
-    background_color: "#f6f4ee",
-    theme_color: "#f6f4ee",
+    // globals.css --bg (yorug') bilan bir xil — splash ekran va sahifa foni orasida rang sakrashi bo'lmasin
+    background_color: "#fafaf8",
+    theme_color: "#fafaf8",
     lang: "uz",
     dir: "ltr",
     categories: ["business", "photo", "productivity"],

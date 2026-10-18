@@ -8,7 +8,7 @@ import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
 
 /**
- * Ixcham til almashtirgich (navbar uslubida, ThemeToggle bilan bir xil o'lcham):
+ * Ixcham til almashtirgich (yassi ghost tugma, ThemeToggle bilan bir xil o'lcham):
  * tugmada QAYSI TILGA o'tish ko'rsatiladi (uz rejimida "RU", ru rejimida "UZ").
  * Bosilganda POST /api/til cookie'ni o'rnatadi, so'ng router.refresh() —
  * server komponentlar yangi til bilan qayta chiziladi (sahifa to'liq qayta yuklanmaydi).
@@ -43,10 +43,11 @@ export function LocaleSwitch({ className }: { className?: string }) {
       onClick={() => void switchTo()}
       disabled={pending}
       aria-label={label}
-      title={label}
+      data-tip={label}
+      data-tip-pos="bottom"
       aria-busy={pending}
       className={cn(
-        "card card-hover flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-[12px] font-bold tracking-wide text-fg-2 transition hover:text-fg",
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tracking-wide text-fg-2 transition hover:bg-fg/6 hover:text-fg",
         pending && "opacity-50",
         className,
       )}

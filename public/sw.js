@@ -8,7 +8,7 @@
  *  - /kabinet, /admin, /auth, /buyurtma, /tolov, /chek HTML → hech qachon keshlanmaydi (shaxsiy ma'lumot); oflaynda /offline
  *  - kirish/chiqish (/api/auth/*) bo'lganda sahifalar keshi tozalanadi — boshqa foydalanuvchining ismi oflayn nusxada qolmasin
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `kasbegalari-static-${VERSION}`;
 const PAGES_CACHE = `kasbegalari-pages-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -32,9 +32,16 @@ self.addEventListener("install", (event) => {
       } catch {
         /* e'tiborsiz — keyingi tashrifda cache-first baribir oladi */
       }
-      await self.skipWaiting();
+      // skipWaiting DARHOL EMAS: ochiq sahifa eski chunklar bilan ishlayotgan bo'lishi mumkin. Birinchi o'rnatishda
+      // (controller yo'q) darhol faollashadi; yangilanishda sahifa «Yangilash» toastidan SKIP_WAITING xabarini yuboradi.
+      const clientsList = await self.clients.matchAll({ includeUncontrolled: true });
+      if (clientsList.length === 0) await self.skipWaiting();
     })(),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {

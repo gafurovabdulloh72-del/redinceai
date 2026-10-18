@@ -76,10 +76,29 @@ export async function listProfilePosts(authorId: string, viewer: Viewer, opts: {
   const f = filterCond(opts.filter ?? "all");
   if (f) conds.push(f);
   if (opts.cursor) conds.push(lt(posts.createdAt, new Date(opts.cursor)));
-  const rows = await db.query.posts.findMany({ where: and(...conds), orderBy: [desc(posts.createdAt)], limit: limit + 1 });
+  // Qadalgan post birinchi sahifada birinchi turadi (cursor'li sahifalarda faqat sana tartibi — takror chiqmasin)
+  const first = !opts.cursor && (opts.filter ?? "all") === "all";
+  const rows = await db.query.posts.findMany({ where: and(...conds), orderBy: first ? [desc(posts.isPinned), desc(posts.createdAt)] : [desc(posts.createdAt)], limit: limit + 1 });
   const page = rows.slice(0, limit);
   const items = await toPostViews(page, viewer, viewer?.role === "admin");
-  return { items, nextCursor: rows.length > limit ? page[page.length - 1].createdAt.getTime() : null };
+  // Keyingi sahifa cursor'i — sana bo'yicha eng eski post (qadalgan yuqoriga ko'tarilgan bo'lsa ham)
+  const oldest = page.reduce<number | null>((m, p) => (m == null || p.createdAt.getTime() < m ? p.createdAt.getTime() : m), null);
+  return { items, nextCursor: rows.length > limit && oldest != null ? oldest : null };
+}
+
+/**
+ * Profil postini qadash (faqat muallif; bitta qadalgan — oldingisi avtomatik olinadi).
+ * Jamoa postlari bunga kirmaydi (ular /api/posts/[id] orqali jamoa boshqaruvchisi tomonidan qadaladi).
+ */
+export async function setProfilePostPinned(postId: string, authorId: string, pinned: boolean): Promise<{ ok: true; isPinned: boolean } | { ok: false; reason: "notfound" | "forbidden" }> {
+  const row = await db.query.posts.findFirst({ where: and(eq(posts.id, postId), isNull(posts.groupId)), columns: { id: true, authorId: true } });
+  if (!row) return { ok: false, reason: "notfound" };
+  if (row.authorId !== authorId) return { ok: false, reason: "forbidden" };
+  await db.transaction(async (tx) => {
+    if (pinned) await tx.update(posts).set({ isPinned: false }).where(and(eq(posts.authorId, authorId), isNull(posts.groupId), eq(posts.isPinned, true)));
+    await tx.update(posts).set({ isPinned: pinned }).where(eq(posts.id, postId));
+  });
+  return { ok: true, isPinned: pinned };
 }
 
 /** Profil sarlavhasi uchun sonlar: jami post, video, faqat matn */

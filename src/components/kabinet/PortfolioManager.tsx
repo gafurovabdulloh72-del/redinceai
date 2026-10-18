@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, ChevronsLeftRight, Hash, ImageIcon, Link2, Pencil, Plus, Play, Star, Trash2, X, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, CheckSquare, ChevronsLeftRight, GripVertical, Hash, ImageIcon, Link2, Pencil, Plus, Play, Square, Star, Trash2, X, type LucideIcon } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
@@ -114,6 +114,14 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   const [savingOrder, setSavingOrder] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const pendingOrder = useRef<string[] | null>(null);
+  /* ---------- Tanlash rejimi (bir nechta ishni o'chirish) ---------- */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  /* ---------- Sudrab tartiblash (pointer) ---------- */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const byId = new Map(items.map((i) => [i.id, edited[i.id] ? { ...i, ...edited[i.id] } : i]));
   const visible: PortfolioItemDTO[] = [];
@@ -171,13 +179,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
     };
   }, []);
 
-  const move = (id: string, dir: -1 | 1) => {
-    if (deletingId) return;
-    const ids = visible.map((i) => i.id);
-    const from = ids.indexOf(id);
-    const to = from + dir;
-    if (from < 0 || to < 0 || to >= ids.length) return;
-    [ids[from], ids[to]] = [ids[to], ids[from]];
+  /** Yangi tartibni qo'llash: darhol ko'rinadi, 600 ms'dan keyin serverga (ketma-ket bosishlar bitta so'rovga yig'iladi) */
+  const applyOrder = (ids: string[]) => {
     setError(null);
     setOrder(ids);
     pendingOrder.current = ids;
@@ -188,6 +191,101 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
       pendingOrder.current = null;
       if (next) void saveOrder(next);
     }, REORDER_DEBOUNCE_MS);
+  };
+
+  /** Ishni `to` indeksga ko'chirish (sudrash, «Muqova qilish») */
+  const moveTo = (id: string, to: number) => {
+    if (deletingId) return;
+    const ids = visible.map((i) => i.id);
+    const from = ids.indexOf(id);
+    if (from < 0 || to < 0 || to >= ids.length || from === to) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, id);
+    applyOrder(ids);
+  };
+
+  const move = (id: string, dir: -1 | 1) => {
+    const from = visible.findIndex((i) => i.id === id);
+    moveTo(id, from + dir);
+  };
+
+  /** Tutqichda klaviatura: ↑/↓ — bir pog'ona, Home/End — boshi/oxiri */
+  const onHandleKey = (e: KeyboardEvent<HTMLButtonElement>, id: string) => {
+    const keys: Record<string, () => void> = {
+      ArrowUp: () => move(id, -1),
+      ArrowLeft: () => move(id, -1),
+      ArrowDown: () => move(id, 1),
+      ArrowRight: () => move(id, 1),
+      Home: () => moveTo(id, 0),
+      End: () => moveTo(id, visible.length - 1),
+    };
+    const fn = keys[e.key];
+    if (!fn) return;
+    e.preventDefault();
+    fn();
+  };
+
+  /* HTML5 drag & drop (sichqoncha / trackpad); sensorli ekranlar uchun strelkalar va tutqich klaviaturasi qoladi */
+  const onDragStart = (e: DragEvent<HTMLLIElement>, id: string) => {
+    if (selectMode || deletingId) return e.preventDefault();
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
+  const onDragOver = (e: DragEvent<HTMLLIElement>, id: string) => {
+    if (!dragId || dragId === id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (overId !== id) setOverId(id);
+  };
+  const onDrop = (e: DragEvent<HTMLLIElement>, id: string) => {
+    e.preventDefault();
+    if (dragId && dragId !== id) moveTo(dragId, visible.findIndex((i) => i.id === id));
+    setDragId(null);
+    setOverId(null);
+  };
+  const onDragEnd = () => {
+    setDragId(null);
+    setOverId(null);
+  };
+
+  /* ---------- Tanlash va ommaviy o'chirish ---------- */
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+    setConfirmBulk(false);
+  };
+  const removeSelected = async () => {
+    if (bulkBusy || selected.size === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    await flushOrder();
+    const ids = [...selected];
+    setRemoved((r) => [...r, ...ids]);
+    try {
+      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+      const json = (await res.json()) as ApiResponse<{ deleted: number }>;
+      if (!json.ok) {
+        setRemoved((r) => r.filter((x) => !ids.includes(x)));
+        setError(json.error);
+        return;
+      }
+      setSuccess(`${json.data.deleted} ta ish o'chirildi`);
+      exitSelect();
+      router.refresh();
+    } catch {
+      setRemoved((r) => r.filter((x) => !ids.includes(x)));
+      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -225,11 +323,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
               {visible.length} / {max} ta ish
             </p>
             <p className="text-[12px] text-fg-3">
-              {full
-                ? "Limit to'ldi — yangi ish qo'shish uchun eskisini o'chiring."
-                : visible.length > 1
-                  ? "Strelkalar bilan tartibni o'zgartiring. Birinchi ish muqovada ko'rinadi — profilda eng oldin chiqadi."
-                  : "Rasm, YouTube video yoki tashqi havola. Birinchi ish muqovada ko'rinadi."}
+              {full ? "Limit to'ldi — yangi ish uchun eskisini o'chiring." : visible.length > 1 ? "Sudrab yoki strelkalar bilan tartiblang. Birinchi ish — muqova." : "Rasm, YouTube video yoki havola. Birinchi ish — muqova."}
             </p>
             <div className="mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-fg/8" aria-hidden="true">
               <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
@@ -237,8 +331,13 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {visible.length > 1 && (
+            <Button size="md" variant={selectMode ? "primary" : "outline"} onClick={() => (selectMode ? exitSelect() : setSelectMode(true))} aria-pressed={selectMode}>
+              {selectMode ? <X size={14} /> : <CheckSquare size={14} />} {selectMode ? "Bekor" : "Tanlash"}
+            </Button>
+          )}
           <ButtonLink href={publicHref} variant="outline" size="md">
-            Ommaviy ko'rinish <ArrowUpRight size={14} />
+            Ommaviy <ArrowUpRight size={14} />
           </ButtonLink>
           <Button size="md" variant={open ? "outline" : "accent"} onClick={() => setOpen((v) => !v)} disabled={full && !open}>
             {open ? (
@@ -265,6 +364,38 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
             <span className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3.5 py-2 text-[13px] font-semibold text-success-text">
               <CheckCircle2 size={15} /> {success}
             </span>
+          )}
+        </div>
+      )}
+
+      {/* Tanlash rejimi paneli: tanlanganlar soni + ommaviy o'chirish (inline tasdiq) */}
+      {selectMode && (
+        <div className="expand-in card flex flex-wrap items-center justify-between gap-3 p-3 sm:px-4" role="region" aria-label="Tanlangan ishlar">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="font-semibold text-fg tabular-nums">{selected.size} ta tanlandi</span>
+            <button type="button" onClick={() => setSelected(new Set(visible.map((i) => i.id)))} className="press rounded-full px-2.5 py-1 font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
+              Hammasi
+            </button>
+            {selected.size > 0 && (
+              <button type="button" onClick={() => setSelected(new Set())} className="press rounded-full px-2.5 py-1 font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                Tozalash
+              </button>
+            )}
+          </div>
+          {confirmBulk ? (
+            <div className="expand-in flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlash">
+              <span className="text-[12.5px] font-medium text-fg-2">{selected.size} ta ish o&apos;chirilsinmi?</span>
+              <Button size="sm" variant="danger" className="!h-10" onClick={removeSelected} disabled={bulkBusy}>
+                {bulkBusy ? <Spinner /> : "Ha, o'chirish"}
+              </Button>
+              <Button size="sm" variant="outline" className="!h-10" onClick={() => setConfirmBulk(false)} disabled={bulkBusy} autoFocus>
+                Yo&apos;q
+              </Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="outline" className="!h-10" onClick={() => setConfirmBulk(true)} disabled={selected.size === 0}>
+              <Trash2 size={14} /> Tanlanganlarni o&apos;chirish
+            </Button>
           )}
         </div>
       )}
@@ -306,7 +437,36 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
             );
             const confirming = confirmId === item.id;
             return (
-              <li key={item.id} className="card group relative flex flex-col overflow-hidden" aria-busy={deletingId === item.id || savingOrder}>
+              <li
+                key={item.id}
+                draggable={!selectMode && visible.length > 1 && !deletingId}
+                onDragStart={(e) => onDragStart(e, item.id)}
+                onDragOver={(e) => onDragOver(e, item.id)}
+                onDrop={(e) => onDrop(e, item.id)}
+                onDragEnd={onDragEnd}
+                className={cn(
+                  "card group relative flex flex-col overflow-hidden transition",
+                  dragId === item.id && "opacity-50",
+                  overId === item.id && dragId && dragId !== item.id && "ring-2 ring-accent ring-offset-2 ring-offset-surface",
+                  selectMode && selected.has(item.id) && "ring-2 ring-fg",
+                )}
+                aria-busy={deletingId === item.id || savingOrder}
+              >
+                {/* Tanlash rejimi: butun karta ustida katta nishon */}
+                {selectMode && (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={selected.has(item.id)}
+                    aria-label={`${item.title} — tanlash`}
+                    onClick={() => toggleSelect(item.id)}
+                    className="absolute inset-0 z-10 flex items-start justify-end p-2.5 text-left"
+                  >
+                    <span className={cn("flex h-9 w-9 items-center justify-center rounded-full shadow-[var(--shadow-1)]", selected.has(item.id) ? "bg-fg text-surface" : "bg-surface text-fg-3")}>
+                      {selected.has(item.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    </span>
+                  </button>
+                )}
                 <div className="relative aspect-[4/3] overflow-hidden bg-surface-3">
                   {src ? <SafeImage src={src} alt={item.title} loading="lazy" fallback={fallback} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" /> : fallback}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
@@ -328,8 +488,26 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                     <Icon size={11} className="text-fg-3" /> {TYPE_META[item.type].label}
                   </span>
                   {/* Tartib: oldinga / orqaga (44px nishonlar, chekkada o'chiq) */}
-                  {visible.length > 1 && (
+                  {visible.length > 1 && !selectMode && (
                     <div className="absolute right-2.5 top-2.5 inline-flex h-11 overflow-hidden rounded-full bg-surface shadow-[var(--shadow-1)]" role="group" aria-label={`${item.title} — tartib`}>
+                      <button
+                        type="button"
+                        onKeyDown={(e) => onHandleKey(e, item.id)}
+                        aria-label={`${item.title} — sudrab tartiblash (klaviatura: ↑ ↓ Home End)`}
+                        title="Sudrab tartiblang · ↑/↓"
+                        className="flex h-11 w-9 cursor-grab items-center justify-center text-fg-3 transition hover:bg-fg/8 hover:text-fg active:cursor-grabbing"
+                      >
+                        <GripVertical size={15} />
+                      </button>
+                      <span className="my-3 w-px bg-line" aria-hidden="true" />
+                      {idx > 0 && (
+                        <>
+                          <button type="button" onClick={() => moveTo(item.id, 0)} aria-label={`${item.title} — muqova qilish (birinchi o'ringa)`} title="Muqova qilish" className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95">
+                            <Star size={15} />
+                          </button>
+                          <span className="my-3 w-px bg-line" aria-hidden="true" />
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => move(item.id, -1)}
@@ -385,7 +563,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
 
                   {/* Amallar: "Ochish" 44px pill + o'chirish (inline tasdiq, window.confirm emas) */}
                   {confirming ? (
-                    <div className="mt-3 flex items-center gap-2 animate-fade-up" style={{ animationDuration: "0.2s" }} role="group" aria-label="O'chirishni tasdiqlash">
+                    <div className="expand-in mt-3 flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlash">
                       <span className="min-w-0 flex-1 text-[12px] font-medium text-fg-2">O'chirilsinmi?</span>
                       <Button size="sm" variant="danger" className="!h-10" onClick={() => remove(item.id)}>
                         Ha, o'chirish
@@ -768,7 +946,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
   };
 
   return (
-    <form onSubmit={submit} className="card-elevated p-5 animate-fade-up sm:p-6" style={{ animationDuration: "0.35s" }} noValidate>
+    <form onSubmit={submit} className="card expand-in p-5 sm:p-6" noValidate>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-[17px] font-semibold text-fg">Yangi ish</h2>

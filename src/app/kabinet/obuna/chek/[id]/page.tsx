@@ -68,7 +68,7 @@ export default async function SubscriptionReceiptPage({ params }: { params: Prom
         <Link href="/kabinet/obuna" className="inline-flex min-h-10 items-center gap-1.5 text-[13px] font-medium text-fg-3 transition hover:text-fg">
           <ArrowLeft size={14} /> Obunaga qaytish
         </Link>
-        <PrintButton />
+        <PrintButton fileName={`obuna-chek-${no}`} />
       </div>
 
       <article className="receipt card-elevated mx-auto max-w-2xl p-6 sm:p-10" aria-labelledby="receipt-title">

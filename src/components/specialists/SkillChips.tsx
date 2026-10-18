@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * Har bir chip shu ko'nikma bo'yicha filtrlangan ro'yxatga olib boradi (?skill=).
  * Karta ichida ishlatiladi: chiplar "pointer-events-auto" — kartaning cho'zilgan havolasi ustida turadi.
  */
-export function SkillChips({ skills, max = 3, className }: { skills: string[]; max?: number; className?: string }) {
+export function SkillChips({ skills, max = 3, size = "sm", className }: { skills: string[]; max?: number; /** md — profil sahifasi (kattaroq chip) */ size?: "sm" | "md"; className?: string }) {
   const til = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (skills.length === 0) return null;
@@ -20,7 +20,8 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
   const rest = skills.length - max;
 
   return (
-    <div className={cn("flex gap-1.5", expanded ? "flex-wrap" : "overflow-hidden", className)}>
+    // Har doim wrap: "+N" tugmasi overflow-hidden ostida qirqilib qolmasin (tor kartada yo'qolib ketardi)
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
       {shown.map((s) => (
         <Link
           key={s}
@@ -28,7 +29,10 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           prefetch={false}
           title={KONIKMA_CHIP.withSkill[til](s)}
           // min-h-[30px]: barmoq uchun yetarli nishon + qulay ichki bo'shliq
-          className="pointer-events-auto relative z-10 inline-flex min-h-[30px] min-w-0 items-center truncate rounded-full border border-line px-2.5 py-1 text-[11px] font-medium text-fg-2 transition hover:border-fg hover:text-fg"
+          className={cn(
+            "pointer-events-auto press relative z-10 inline-flex min-w-0 items-center truncate rounded-full border border-line font-medium text-fg-2 transition hover:border-fg hover:text-fg",
+            size === "md" ? "min-h-8 px-3 py-1.5 text-[13px]" : "min-h-[30px] px-2.5 py-1 text-[11px]",
+          )}
         >
           <span className="truncate">{s}</span>
         </Link>
@@ -41,7 +45,7 @@ export function SkillChips({ skills, max = 3, className }: { skills: string[]; m
           aria-label={expanded ? tr(til, KONIKMA_CHIP.collapseAria) : KONIKMA_CHIP.showMore[til](rest)}
           title={expanded ? undefined : skills.slice(max).join(", ")}
           // Kengaytirgich kamida 32×32px — mayda "+N" nishoni bosish qiyin edi
-          className="pointer-events-auto relative z-10 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-fg/6 px-2.5 py-1 text-[11px] font-semibold text-fg-2 transition hover:bg-fg/10 hover:text-fg"
+          className={cn("pointer-events-auto press relative z-10 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-fg/6 px-2.5 py-1 font-semibold text-fg-2 transition hover:bg-fg/10 hover:text-fg", size === "md" ? "text-[13px]" : "text-[11px]")}
         >
           {expanded ? tr(til, KONIKMA_CHIP.collapse) : `+${rest}`}
         </button>

@@ -8,7 +8,8 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { SafeImage } from "./SafeImage";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { tr } from "@/lib/i18n";
-import { GALEREYA } from "@/lib/i18n/dict/profile";
+import { GALEREYA, RF_X } from "@/lib/i18n/dict/profile";
+import { usePresence } from "@/components/motion/usePresence";
 import { cn, hashHue, vimeoId, youtubeId } from "@/lib/utils";
 
 export interface GalleryItem {
@@ -55,7 +56,7 @@ function Thumb({ item, className }: { item: GalleryItem; className?: string }) {
       aria-hidden
     >
       <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-40 blur-2xl" style={{ background: `hsl(${hue} 70% 60%)` }} />
-      <span className="card flex h-12 w-12 items-center justify-center !rounded-[16px] text-fg-2">
+      <span className="card flex h-12 w-12 items-center justify-center !rounded-[var(--r-md)] text-fg-2">
         <Icon size={20} />
       </span>
     </div>
@@ -92,6 +93,11 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
   const viewable = useMemo(() => items.filter((i) => i.type !== "link"), [items]);
   const [openId, setOpenId] = useState<string | null>(null);
   const openIndex = openId ? viewable.findIndex((i) => i.id === openId) : -1;
+  const lb = usePresence(openIndex >= 0, 200);
+  const [lastIndex, setLastIndex] = useState(0);
+  useEffect(() => {
+    if (openIndex >= 0) setLastIndex(openIndex);
+  }, [openIndex]);
 
   if (all.length === 0) {
     return <EmptyState icon={Images} title={tr(til, GALEREYA.emptyTitle)} description={tr(til, GALEREYA.emptyDesc)} />;
@@ -127,7 +133,7 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
       {/* Bir xil nisbatli (4:3) grid — bo'sh joysiz, tartibli */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {items.map((item) => {
-          const tileCls = "card card-hover group relative block w-full overflow-hidden !rounded-[20px] p-0 text-left";
+          const tileCls = "card card-hover group relative block w-full overflow-hidden !rounded-[var(--r-md)] p-0 text-left";
           const inner = (
             <>
               <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[inherit] bg-surface-3">
@@ -178,10 +184,12 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
         })}
       </div>
 
-      {openIndex >= 0 && (
+      {/* Chiqish animatsiyasi: yopilganda oxirgi ish 200 ms ko'rinib turadi (usePresence) */}
+      {lb.mounted && (
         <Lightbox
           items={viewable}
-          index={openIndex}
+          index={openIndex >= 0 ? openIndex : Math.min(lastIndex, Math.max(0, viewable.length - 1))}
+          closing={lb.closing}
           onClose={() => setOpenId(null)}
           onNavigate={(i) => setOpenId(viewable[i]?.id ?? null)}
         />
@@ -196,11 +204,14 @@ export function PortfolioGallery({ items: all }: { items: GalleryItem[] }) {
 function Lightbox({
   items,
   index,
+  closing = false,
   onClose,
   onNavigate,
 }: {
   items: GalleryItem[];
   index: number;
+  /** Yopilish animatsiyasi davom etmoqda (usePresence) */
+  closing?: boolean;
   onClose: () => void;
   onNavigate: (i: number) => void;
 }) {
@@ -216,7 +227,7 @@ function Lightbox({
   const next = useCallback(() => onNavigate((index + 1) % total), [index, total, onNavigate]);
 
   // Fokus dialog ichida qoladi (Tab aylanadi), yopilganda avvalgi elementga qaytadi
-  useFocusTrap(dialogRef, mounted, closeRef);
+  useFocusTrap(dialogRef, mounted && !closing, closeRef);
 
   useEffect(() => {
     setMounted(true);
@@ -251,7 +262,7 @@ function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={item.title}
-      className="card-elevated fixed inset-0 z-[100] flex flex-col !rounded-none !border-0 animate-fade-in"
+      className={cn("card-elevated fixed inset-0 z-[100] flex flex-col !rounded-none !border-0", closing ? "overlay-out" : "overlay-in")}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -307,9 +318,9 @@ function Lightbox({
           </>
         )}
 
-        <div key={item.id} className="animate-fade-up flex max-h-full w-full max-w-5xl items-center justify-center" style={{ animationDuration: "0.35s" }}>
+        <div key={item.id} className={cn("flex max-h-full w-full max-w-5xl items-center justify-center", closing ? "pop-out" : "pop-in")}>
           {item.type === "video" && (ytId || vmId) ? (
-            <div className="card aspect-video w-full overflow-hidden !rounded-[22px] !bg-black/80">
+            <div className="card aspect-video w-full overflow-hidden !rounded-[var(--r-lg)] !bg-black/80">
               {/* YouTube — cookie'siz domen; Vimeo — dnt=1 (kuzatuvsiz). CSP frame-src ikkalasiga ruxsat beradi */}
               <iframe
                 src={ytId ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0` : `https://player.vimeo.com/video/${vmId}?autoplay=1&dnt=1`}
@@ -324,14 +335,14 @@ function Lightbox({
           ) : pair ? (
             <BeforeAfter before={pair} after={item.url} title={item.title} />
           ) : item.type === "video" ? (
-            <a href={item.url} target="_blank" rel="noreferrer noopener" className="card card-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[22px] text-fg">
+            <a href={item.url} target="_blank" rel="noreferrer noopener" className="card card-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[var(--r-lg)] text-fg">
               <span className="btn-ink flex h-14 w-14 items-center justify-center rounded-full">
                 <Play size={22} className="ml-0.5 fill-current" />
               </span>
               <span className="text-[14px] font-semibold">{tr(til, GALEREYA.openVideoNew)}</span>
             </a>
           ) : broken ? (
-            <div className="card flex aspect-[4/3] w-full max-w-2xl flex-col items-center justify-center gap-2 !rounded-[22px] text-fg-3">
+            <div className="card flex aspect-[4/3] w-full max-w-2xl flex-col items-center justify-center gap-2 !rounded-[var(--r-lg)] text-fg-3">
               <ImageIcon size={36} />
               <span className="text-[13px]">{tr(til, GALEREYA.imageFailed)}</span>
             </div>
@@ -341,7 +352,7 @@ function Lightbox({
               src={item.url}
               alt={item.title}
               onError={() => setBroken(true)}
-              className="max-h-[calc(100dvh-220px)] w-auto max-w-full rounded-[22px] object-contain shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]"
+              className="max-h-[calc(100dvh-220px)] w-auto max-w-full rounded-[var(--r-lg)] object-contain shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]"
             />
           )}
         </div>
@@ -349,10 +360,10 @@ function Lightbox({
 
       {/* Izoh */}
       <div className="px-4 pb-5 pt-3 sm:px-6" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
-        <div className="card mx-auto max-w-2xl px-5 py-3.5 !rounded-[20px]">
+        <div className="card mx-auto max-w-2xl px-5 py-3.5 !rounded-[var(--r-lg)]">
           <p className="text-[15px] font-semibold text-fg">{item.title}</p>
           {item.description && <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-fg-2">{item.description}</p>}
-          {total > 1 && <p className="mt-1.5 hidden text-[11px] text-fg-4 sm:block">← → tugmalari bilan o'ting · Esc — yopish</p>}
+          {total > 1 && <p className="mt-1.5 hidden text-[11px] text-fg-4 sm:block">{tr(til, RF_X.lightboxHint)}</p>}
         </div>
       </div>
     </div>
@@ -407,7 +418,7 @@ export function BeforeAfter({ before, after, title }: { before: string; after: s
   return (
     <div
       ref={boxRef}
-      className="relative aspect-[4/3] max-h-[calc(100dvh-220px)] w-full max-w-4xl touch-none select-none overflow-hidden rounded-[22px] bg-surface-3 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]"
+      className="relative aspect-[4/3] max-h-[calc(100dvh-220px)] w-full max-w-4xl touch-none select-none overflow-hidden rounded-[var(--r-lg)] bg-surface-3 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={stop}

@@ -41,8 +41,8 @@ const FILTERS: Array<{ key: FilterKey; label: string; match: (s: PaymentState) =
 
 /** service.ts PROVIDER_PENDING_TTL_MS bilan bir xil (server-only moduldan import qilib bo'lmaydi) */
 const PROVIDER_PENDING_TTL_MS = 12 * 60 * 60 * 1000;
-/** Mobil ro'yxatda dastlab ko'rsatiladigan qatorlar (uzun sahifa o'rniga «Yana ko'rsatish») */
-const MOBILE_CAP = 10;
+/** Ro'yxatda dastlab ko'rsatiladigan qatorlar (uzun sahifa o'rniga «Yana ko'rsatish») */
+const PAGE_CAP = 15;
 /** Admin buyurtma sahifasi (to'lovlar, tomonlar, jurnal — bir joyda) */
 const orderHref = (orderId: string) => `/admin/buyurtmalar/${orderId}`;
 
@@ -63,6 +63,7 @@ const NOTE_PLACEHOLDER: Record<Action, string> = {
   refund: "Sabab: masalan, mijoz buyurtmani bekor qildi, ish bajarilmadi",
   cancel: "Sabab: masalan, mijoz boshqa usul bilan to'ladi",
 };
+const ACTION_ICON: Record<Action, typeof Check> = { confirm: Check, release: ArrowRightLeft, refund: RotateCcw, cancel: X };
 
 function actionsFor(r: AdminPaymentRow): Action[] {
   if (r.state === "paid") return ["release", "refund"];
@@ -73,7 +74,11 @@ function actionsFor(r: AdminPaymentRow): Action[] {
   return [];
 }
 
-/** Admin: barcha to'lovlar — filtr, jami va amallar (inline tasdiq bilan) */
+/**
+ * Admin: barcha to'lovlar — filtr, jami va amallar (inline tasdiq bilan).
+ * Jadval konteyner so'rovlari bilan moslashadi (@container): tor konteynerda «Usul» va «Komissiya» ustunlari
+ * yig'iladi (ma'lumot «Summa» ostida), shuning uchun «Holat» va «Amallar» hech qachon qisilmaydi.
+ */
 export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRow[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
@@ -98,6 +103,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
 
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, rows.filter((r) => f.match(r.state)).length])) as Record<FilterKey, number>, [rows]);
   const visible = rows.filter((r) => FILTERS.find((f) => f.key === filter)!.match(r.state));
+  const shown = showAll ? visible : visible.slice(0, PAGE_CAP);
   const totals = useMemo(
     () => ({
       amount: visible.reduce((s, r) => s + (r.state === "paid" || r.state === "released" ? r.amount : 0), 0),
@@ -121,7 +127,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
       setNotice(`${r.orderTitle}: ${ACTION_LABEL[action].toLowerCase()} — bajarildi${clean ? ` · Izoh: ${clean}` : ""}`);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
+      setError(e instanceof Error ? e.message : "Kutilmagan xatolik");
     } finally {
       setBusy(null);
     }
@@ -135,7 +141,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
       const required = NOTE_REQUIRED[ask.action];
       const tooShort = required && note.trim().length < 3;
       return (
-        <div className="card-outline flex min-w-[220px] flex-col gap-2 !rounded-[14px] p-2.5 text-left animate-fade-up" style={{ animationDuration: "0.2s" }}>
+        <div className="card-outline expand-in flex min-w-[220px] flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left" role="group" aria-label={ACTION_LABEL[ask.action]}>
           <p className="flex items-start gap-1.5 text-[12px] text-fg">
             <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> {ACTION_CONFIRM[ask.action]}
           </p>
@@ -169,50 +175,65 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
               }}
               disabled={!!busy}
             >
-              Yo'q
+              Yo&apos;q
             </Button>
           </div>
         </div>
       );
     }
     return (
-      <div className="flex flex-wrap gap-1.5 md:flex-col md:items-end">
-        {acts.map((a) => (
-          <Button
-            key={a}
-            size="sm"
-            variant={a === "release" || a === "confirm" ? "primary" : "outline"}
-            className={cn("h-11 md:h-9", (a === "refund" || a === "cancel") && "text-danger-text hover:border-danger hover:bg-danger-soft")}
-            onClick={() => {
-              setAsk({ id: r.id, action: a });
-              setNote("");
-            }}
-            disabled={!!busy}
-            title={ACTION_LABEL[a]}
-          >
-            {b ? <Spinner className="h-3.5 w-3.5" /> : a === "confirm" ? <Check size={14} /> : a === "release" ? <ArrowRightLeft size={14} /> : a === "refund" ? <RotateCcw size={14} /> : <X size={14} />}
-            <span className="md:hidden">{ACTION_LABEL[a]}</span>
-            <span className="hidden md:inline">{ACTION_LABEL_SHORT[a]}</span>
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5 md:flex-col md:items-end md:flex-nowrap @[74rem]:md:flex-row @[74rem]:md:justify-end">
+        {acts.map((a) => {
+          const Icon = ACTION_ICON[a];
+          return (
+            <Button
+              key={a}
+              size="sm"
+              variant={a === "release" || a === "confirm" ? "primary" : "outline"}
+              className={cn("h-11 md:h-9", (a === "refund" || a === "cancel") && "text-danger-text hover:border-danger hover:bg-danger-soft")}
+              onClick={() => {
+                setAsk({ id: r.id, action: a });
+                setNote("");
+              }}
+              disabled={!!busy}
+              title={ACTION_LABEL[a]}
+              aria-label={`${r.orderTitle}: ${ACTION_LABEL[a]}`}
+            >
+              {b ? <Spinner className="h-3.5 w-3.5" /> : <Icon size={14} />}
+              <span className="md:hidden">{ACTION_LABEL[a]}</span>
+              <span className="hidden md:inline">{ACTION_LABEL_SHORT[a]}</span>
+            </Button>
+          );
+        })}
       </div>
     );
   };
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {/* Filtr + jami: tor joyda jami pastga o'raladi (segment kesilmaydi) */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="no-scrollbar -mx-4 max-w-full overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div className="segment" role="group" aria-label="To'lov holati bo'yicha filtr">
             {FILTERS.map((f) => (
-              <button key={f.key} type="button" className="segment-item inline-flex min-h-10 items-center gap-1.5" data-active={filter === f.key} onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}>
-                {f.label} <span className="text-[11px] opacity-70">{counts[f.key]}</span>
+              <button
+                key={f.key}
+                type="button"
+                className="segment-item inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap"
+                data-active={filter === f.key}
+                onClick={() => {
+                  setFilter(f.key);
+                  setShowAll(false);
+                }}
+                aria-pressed={filter === f.key}
+              >
+                {f.label} <span className="text-[11px] opacity-70 tabular-nums">{counts[f.key]}</span>
               </button>
             ))}
           </div>
         </div>
         <p className="text-[12px] text-fg-3">
-          Ko'rinayotgan: <span className="font-semibold text-fg tabular-nums">{formatPrice(totals.amount, { compact: true })}</span> aylanma · komissiya{" "}
+          Aylanma <span className="font-semibold text-fg tabular-nums">{formatPrice(totals.amount, { compact: true })}</span> · komissiya{" "}
           <span className="font-semibold text-fg tabular-nums">{formatPrice(totals.commission, { compact: true })}</span>
         </p>
       </div>
@@ -224,7 +245,7 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="expand-in flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text">
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -233,73 +254,78 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
       {visible.length === 0 ? (
         <EmptyState icon={Receipt} title="To'lovlar yo'q" description="Mijoz buyurtma uchun to'lov boshlaganda shu yerda ko'rinadi." />
       ) : (
-        <div className="card overflow-hidden">
-          {/* Keng jadval (amallar ustuni bilan) karta ichida gorizontal aylanadi — tugmalar tashqariga chiqmaydi */}
+        <div className="@container card overflow-hidden">
+          {/* Desktop: konteyner kengligiga qarab ustunlar yig'iladi */}
           <div className="hidden overflow-x-auto md:block">
-          {/* Desktop */}
-          <table className="w-full min-w-[900px] text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
-                <th className="px-4 py-3 font-bold">Buyurtma</th>
-                <th className="px-3 py-3 font-bold">Mijoz → Mutaxassis</th>
-                <th className="px-3 py-3 font-bold">Usul</th>
-                <th className="px-3 py-3 text-right font-bold">Summa</th>
-                <th className="px-3 py-3 text-right font-bold">Komissiya</th>
-                <th className="px-3 py-3 font-bold">Holat</th>
-                <th className="sticky right-0 bg-surface px-4 py-3 text-right font-bold shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.25)]">Amallar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((r) => (
-                <tr key={r.id} className={cn("align-top transition hover:bg-fg/3", busy === r.id && "opacity-60")}>
-                  <td className="max-w-[200px] px-4 py-3">
-                    <Link href={orderHref(r.orderId)} className="block truncate font-semibold text-fg hover:text-accent">
-                      {r.orderTitle}
-                    </Link>
-                    <span className="block text-[11px] text-fg-4">
-                      {formatDateTime(r.paidAt ?? r.createdAt)}
-                      {(r.state === "paid" || r.state === "released") && (
-                        <>
-                          {" · "}
-                          <Link href={`/chek/${r.id}`} className="inline-flex items-center gap-0.5 font-semibold text-fg-3 hover:text-accent">
-                            <FileText size={11} /> Chek
-                          </Link>
-                        </>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-fg-2">
-                    <span className="block truncate">{r.client.name}</span>
-                    <Link href={`/mutaxassislar/${r.specialist.slug}`} className="block truncate text-[12px] text-fg-3 hover:text-accent">
-                      → {r.specialist.name}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-3 text-fg-2">
-                    {PROVIDER_LABEL[r.provider]}
-                    {r.providerTxnId && <span className="block max-w-[120px] truncate font-mono text-[11px] text-fg-4">{r.providerTxnId}</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-fg tabular-nums">{formatPrice(r.amount)}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
-                    <span className="block text-fg">{formatPrice(r.commissionAmount)}</span>
-                    <span className="block text-[11px] text-fg-4">{r.commissionPct}%</span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <Badge tone={PAYMENT_TONE[r.state]} className="whitespace-nowrap">{PAYMENT_STATE_LABEL[r.state]}</Badge>
-                  </td>
-                  {/* Amallar doim ko'rinadi: ustun o'ngga yopishqoq, qolganlari ostida aylanadi */}
-                  <td className="sticky right-0 bg-surface px-4 py-3 text-right shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.25)]">
-                    <Actions r={r} />
-                  </td>
+            <table className="w-full text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
+                  <th className="px-4 py-3 font-bold">Buyurtma</th>
+                  <th className="px-3 py-3 font-bold">Mijoz → Mutaxassis</th>
+                  <th className="hidden px-3 py-3 font-bold @[74rem]:table-cell">Usul</th>
+                  <th className="px-3 py-3 text-right font-bold">Summa</th>
+                  <th className="hidden px-3 py-3 text-right font-bold @[66rem]:table-cell">Komissiya</th>
+                  <th className="px-3 py-3 font-bold">Holat</th>
+                  <th className="px-4 py-3 text-right font-bold">Amallar</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {shown.map((r) => (
+                  <tr key={r.id} className={cn("align-top transition-colors hover:bg-fg/3", busy === r.id && "opacity-60")}>
+                    <td className="max-w-[220px] px-4 py-3">
+                      <Link href={orderHref(r.orderId)} className="block truncate font-semibold text-fg hover:text-accent">
+                        {r.orderTitle}
+                      </Link>
+                      <span className="block text-[11px] text-fg-4">
+                        <time dateTime={new Date(r.paidAt ?? r.createdAt).toISOString()}>{formatDateTime(r.paidAt ?? r.createdAt)}</time>
+                        {(r.state === "paid" || r.state === "released") && (
+                          <>
+                            {" · "}
+                            <Link href={`/chek/${r.id}`} className="inline-flex items-center gap-0.5 font-semibold text-fg-3 hover:text-accent">
+                              <FileText size={11} /> Chek
+                            </Link>
+                          </>
+                        )}
+                      </span>
+                    </td>
+                    <td className="max-w-[180px] px-3 py-3 text-fg-2">
+                      <span className="block truncate">{r.client.name}</span>
+                      <Link href={`/mutaxassislar/${r.specialist.slug}`} className="block truncate text-[12px] text-fg-3 hover:text-accent">
+                        → {r.specialist.name}
+                      </Link>
+                    </td>
+                    <td className="hidden px-3 py-3 text-fg-2 @[74rem]:table-cell">
+                      {PROVIDER_LABEL[r.provider]}
+                      {r.providerTxnId && <span className="block max-w-[120px] truncate font-mono text-[11px] text-fg-4">{r.providerTxnId}</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
+                      <span className="block font-semibold text-fg">{formatPrice(r.amount)}</span>
+                      {/* Tor konteynerda usul va komissiya shu yerda */}
+                      <span className="block text-[11px] text-fg-4 @[74rem]:hidden">{PROVIDER_LABEL[r.provider]}</span>
+                      <span className="block text-[11px] text-fg-4 @[66rem]:hidden">komissiya {r.commissionPct}%</span>
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-3 text-right tabular-nums @[66rem]:table-cell">
+                      <span className="block text-fg">{formatPrice(r.commissionAmount)}</span>
+                      <span className="block text-[11px] text-fg-4">{r.commissionPct}%</span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <Badge tone={PAYMENT_TONE[r.state]} className="whitespace-nowrap">
+                        {PAYMENT_STATE_LABEL[r.state]}
+                      </Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <Actions r={r} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* Mobil */}
           <ul className="divide-y divide-line md:hidden">
-            {visible.map((r, i) => (
-              <li key={r.id} className={cn("px-4 py-4", busy === r.id && "opacity-60", i >= MOBILE_CAP && !showAll && "hidden")}>
+            {shown.map((r) => (
+              <li key={r.id} className={cn("px-4 py-4", busy === r.id && "opacity-60")}>
                 <div className="flex items-start justify-between gap-3">
                   <Link href={orderHref(r.orderId)} className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">
                     {r.orderTitle}
@@ -345,10 +371,10 @@ export function AdminPaymentsTable({ rows: initialRows }: { rows: AdminPaymentRo
               </li>
             ))}
           </ul>
-          {visible.length > MOBILE_CAP && !showAll && (
-            <div className="border-t border-line p-3 md:hidden">
-              <Button variant="outline" size="md" className="w-full" onClick={() => setShowAll(true)}>
-                Yana {visible.length - MOBILE_CAP} ta ko'rsatish
+          {visible.length > PAGE_CAP && !showAll && (
+            <div className="border-t border-line p-3">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowAll(true)}>
+                Yana {visible.length - PAGE_CAP} ta ko&apos;rsatish
               </Button>
             </div>
           )}

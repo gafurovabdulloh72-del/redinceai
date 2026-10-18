@@ -7,11 +7,11 @@ import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { optionalViewer } from "./_lib";
 
-/** GET: jamoalar ro'yxati (?q, ?category, ?region, ?mine=1) — ommaviy; POST: yangi jamoa (5 / kun) */
+/** GET: jamoalar ro'yxati (?q, ?category, ?region, ?mine=1, ?kind, ?sort) — ommaviy; POST: yangi jamoa (5 / kun) */
 export const GET = handler(async (req) => {
   const q = parseQuery(req.url, groupListQuerySchema);
   const viewer = await optionalViewer();
-  const items = await listGroups({ q: q.q, category: q.category, region: q.region, mine: q.mine === "1", kind: q.kind || undefined, limit: q.limit }, viewer);
+  const items = await listGroups({ q: q.q, category: q.category, region: q.region, mine: q.mine === "1", kind: q.kind || undefined, limit: q.limit, sort: q.sort }, viewer);
   return ok({ items });
 });
 

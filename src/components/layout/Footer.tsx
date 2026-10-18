@@ -5,7 +5,6 @@ import { getLocale } from "@/lib/i18n/server";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { Logo } from "./Logo";
-import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 
 const LINKS: Array<{ href: string; label: Tr }> = [
   { href: "/xarita", label: SHELL.footer.map },
@@ -26,54 +25,49 @@ const SOCIAL = [
   { href: SITE.instagram, label: "Instagram", icon: Instagram },
 ];
 
-/** v3 footer: karta emas — yuqorida hairline, bir qatorda logo + havolalar + ijtimoiy ikonkalar, pastda huquqiy qator */
+/** v3 footer: karta emas — yuqorida hairline; 1-qator logo + havolalar + ijtimoiy ikonkalar, 2-qator huquqiy (barcha havolalar ≥36px bosish maydoni) */
 export async function Footer() {
   const til = await getLocale();
+  const small = "inline-flex min-h-9 items-center transition hover:text-fg";
   return (
-    <footer className="container-x mt-12 border-t border-line pb-28 pt-8 sm:mt-20 md:pb-10">
+    <footer className="container-x mt-12 border-t border-line pb-28 pt-8 sm:mt-16 md:pb-10" data-print-hide>
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
-          <Logo />
-          <p className="hidden max-w-xs text-[12.5px] leading-snug text-fg-3 lg:block">{tr(til, SHELL.footer.tagline)}</p>
-        </div>
-        <nav aria-label={tr(til, SHELL.footer.linksAria)} className="flex flex-wrap gap-x-5 gap-y-1.5">
+        <Logo />
+        <nav aria-label={tr(til, SHELL.footer.linksAria)} className="flex flex-wrap gap-x-5 gap-y-1">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="inline-flex min-h-9 items-center text-[13px] font-medium text-fg-2 transition hover:text-fg">
+            <Link key={l.href} href={l.href} className={`${small} text-[13px] font-medium text-fg-2`}>
               {tr(til, l.label)}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-1" aria-label={tr(til, SHELL.footer.socialAria)}>
+        {/* role="group": oddiy div'da aria-label ekran o'quvchiga yetib bormaydi */}
+        <div className="flex items-center" role="group" aria-label={tr(til, SHELL.footer.socialAria)}>
           {SOCIAL.map((s) => (
-            <a key={s.href} href={s.href} target="_blank" rel="noreferrer noopener" aria-label={SHELL.footer.newWindow[til](s.label)} className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+            <a key={s.href} href={s.href} target="_blank" rel="noreferrer noopener" aria-label={SHELL.footer.newWindow[til](s.label)} className="flex h-10 w-10 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
               <s.icon size={16} />
             </a>
           ))}
         </div>
       </div>
-      <div className="mt-6 flex flex-col gap-1.5 text-[12px] text-fg-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span>
+      <div className="mt-4 flex flex-col gap-1 text-[12px] text-fg-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex flex-wrap items-center gap-x-4">
+          <span className="inline-flex min-h-9 items-center">
             © {new Date().getFullYear()} {SITE.name}. {tr(til, SHELL.footer.rights)}
           </span>
           {LEGAL.map((l) => (
-            <Link key={l.href} href={l.href} className="transition hover:text-fg">
+            <Link key={l.href} href={l.href} className={small}>
               {tr(til, l.label)}
             </Link>
           ))}
-          <Link href="/auth/royxat?role=specialist" className="transition hover:text-fg">
-            {tr(til, SHELL.footer.becomeSpecialist)}
-          </Link>
         </span>
-        <span>
-          {tr(til, SHELL.footer.mapBorders)}{" "}
-          <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="underline-offset-2 hover:underline">
+        <span className="inline-flex min-h-9 items-center">
+          {tr(til, SHELL.footer.mapBorders)}&nbsp;
+          <a href="https://www.geoboundaries.org" target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 hover:text-fg">
             geoBoundaries
           </a>
           , CC BY 4.0
         </span>
       </div>
-      <ServiceWorkerRegister />
     </footer>
   );
 }

@@ -16,14 +16,13 @@ export const GET = handler(async () => {
   return ok({ items: await listConversations(session.sub) });
 });
 
-const startSchema = z
-  .object({
-    /** Qarshi tomon taxallusi (@siz ham bo'ladi) */
-    to: z.string().trim().min(3).max(24),
-    body: z.string().trim().max(DM_BODY_MAX).optional().default(""),
-    attachments: attachmentListSchema().optional().default([]),
-  })
-  .refine((v) => v.body.length > 0 || v.attachments.length > 0 || true, { message: "" });
+/** Tana ixtiyoriy: bo'sh bo'lsa faqat suhbat ochiladi (xabarsiz); bor bo'lsa birinchi xabar ham yuboriladi */
+const startSchema = z.object({
+  /** Qarshi tomon taxallusi (@siz ham bo'ladi) */
+  to: z.string().trim().min(3).max(24),
+  body: z.string().trim().max(DM_BODY_MAX).optional().default(""),
+  attachments: attachmentListSchema().optional().default([]),
+});
 
 /**
  * POST: taxallus bo'yicha suhbat ochish (bor bo'lsa — topish); body berilsa birinchi xabar ham yuboriladi.

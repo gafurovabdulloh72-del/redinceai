@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 import { cache } from "react";
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
-import { favorites, orderEvents, orders, portfolioItems, reviews, specialists, users } from "./db/schema";
+import { favorites, orderEvents, orders, portfolioItems, profileViews, reviewVotes, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
 import { getSettings, isTopRated } from "./payments/settings";
@@ -260,18 +260,111 @@ export async function bumpViewCount(id: string) {
     .where(eq(specialists.id, id));
 }
 
-export async function getSimilarSpecialists(sp: { id: string; regionSlug: string; category: string }, limit = 4, viewer: Viewer = GUEST_VIEWER) {
+/**
+ * O'xshash ijodkorlar — ballik saralash: umumiy ko'nikma (har biri +3, ko'pi bilan 12), bir xil yo'nalish (+4),
+ * bir xil hudud (+2), bir xil ish turi (+1 har biri, ko'pi bilan 3), keyin reyting. Nomzodlar — shu yo'nalish YOKI shu hudud
+ * YOKI kamida bitta umumiy ko'nikma. Faqat katalogda ko'rinadiganlar.
+ */
+export async function getSimilarSpecialists(
+  sp: { id: string; regionSlug: string; category: string; skills?: readonly string[]; workTypes?: readonly string[] },
+  limit = 4,
+  viewer: Viewer = GUEST_VIEWER,
+) {
+  const mySkills = new Set((sp.skills ?? []).map((s) => s.toLowerCase()));
+  const myTypes = new Set(sp.workTypes ?? []);
+  const skillConds = [...mySkills].slice(0, 12).map((s) => jsonHas(sql`${specialists.skills}`, s));
   const rows = await db.query.specialists.findMany({
-    where: and(
-      or(eq(specialists.regionSlug, sp.regionSlug), eq(specialists.category, sp.category)),
-      sql`${specialists.id} != ${sp.id}`,
-      await listable(),
-    ),
-    orderBy: [desc(specialists.rating)],
-    limit,
+    where: and(or(eq(specialists.regionSlug, sp.regionSlug), eq(specialists.category, sp.category), ...skillConds), sql`${specialists.id} != ${sp.id}`, await listable()),
+    orderBy: [desc(specialists.rating), desc(specialists.reviewCount)],
+    limit: Math.max(limit * 6, 24),
     with: { user: { columns: { name: true, avatarUrl: true } } },
   });
-  return (await withCovers(rows)).map((r) => toListItem(r, viewer));
+  const score = (r: (typeof rows)[number]) => {
+    const shared = r.skills.filter((s) => mySkills.has(s.toLowerCase())).length;
+    const types = r.workTypes.filter((t) => myTypes.has(t)).length;
+    return Math.min(12, shared * 3) + (r.category === sp.category ? 4 : 0) + (r.regionSlug === sp.regionSlug ? 2 : 0) + Math.min(3, types) + Math.min(1, r.rating / 5);
+  };
+  const ranked = rows
+    .map((r) => ({ r, s: score(r) }))
+    .sort((a, b) => b.s - a.s || b.r.rating - a.r.rating)
+    .slice(0, limit)
+    .map((x) => x.r);
+  return (await withCovers(ranked)).map((r) => toListItem(r, viewer));
+}
+
+/** Katalogdagi eng ko'p uchraydigan ko'nikmalar (filtr chiplari uchun): nom + nechta ijodkorda bor */
+export async function getSkillStats(limit = 12): Promise<Array<{ skill: string; n: number }>> {
+  const visible = await listable();
+  const rows = await db.all<{ v: string; n: number }>(
+    sql`select value as v, count(*) as n from ${specialists}, json_each(${specialists.skills}) where ${visible} group by lower(value) order by n desc, value asc limit ${limit}`,
+  );
+  return rows.map((r) => ({ skill: r.v, n: Number(r.n) }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Profil ko'rishlari — kunlik noyob (profile_views)                    */
+/* ------------------------------------------------------------------ */
+/**
+ * Ko'rishni yozadi: (mutaxassis, ko'ruvchi kaliti, kun) noyob bo'lsa qo'shiladi va viewCount +1.
+ * Qaytaradi: yangi ko'rish hisoblandimi. Xato bo'lsa jim (sahifa yiqilmasin).
+ */
+export async function recordProfileView(specialistId: string, viewerKey: string): Promise<boolean> {
+  const day = tashkentNow().date;
+  try {
+    const res = await db
+      .insert(profileViews)
+      .values({ id: crypto.randomUUID(), specialistId, viewerKey, day })
+      .onConflictDoNothing({ target: [profileViews.specialistId, profileViews.viewerKey, profileViews.day] })
+      .returning({ id: profileViews.id });
+    if (!res.length) return false;
+    await bumpViewCount(specialistId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** So'nggi N kundagi noyob ko'rishlar soni (egasining "so'nggi 7 kun" ko'rsatkichi) */
+export async function countRecentProfileViews(specialistId: string, days = 7): Promise<number> {
+  const since = new Date(Date.now() - days * 86_400_000 - 5 * 3_600_000);
+  const sinceDay = `${since.getUTCFullYear()}-${String(since.getUTCMonth() + 1).padStart(2, "0")}-${String(since.getUTCDate()).padStart(2, "0")}`;
+  const [row] = await db
+    .select({ n: count() })
+    .from(profileViews)
+    .where(and(eq(profileViews.specialistId, specialistId), gte(profileViews.day, sinceDay)));
+  return row?.n ?? 0;
+}
+
+/** 30 kundan eski ko'rish qatorlarini tozalash (cron) */
+export async function purgeOldProfileViews(days = 30): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const res = await db.delete(profileViews).where(lt(profileViews.createdAt, cutoff)).returning({ id: profileViews.id });
+  return res.length;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sharh «Foydali» ovozlari (review_votes)                              */
+/* ------------------------------------------------------------------ */
+/** Har bir sharh uchun ovozlar soni va ko'ruvchi ovoz berganmi */
+export async function getReviewVotes(reviewIds: string[], viewerId: string | null): Promise<Map<string, { n: number; mine: boolean }>> {
+  const out = new Map<string, { n: number; mine: boolean }>();
+  if (!reviewIds.length) return out;
+  const [counts, mine] = await Promise.all([
+    db.select({ id: reviewVotes.reviewId, n: count() }).from(reviewVotes).where(inArray(reviewVotes.reviewId, reviewIds)).groupBy(reviewVotes.reviewId),
+    viewerId ? db.select({ id: reviewVotes.reviewId }).from(reviewVotes).where(and(inArray(reviewVotes.reviewId, reviewIds), eq(reviewVotes.userId, viewerId))) : Promise.resolve([] as Array<{ id: string }>),
+  ]);
+  for (const c of counts) out.set(c.id, { n: c.n, mine: false });
+  for (const m of mine) out.set(m.id, { n: out.get(m.id)?.n ?? 0, mine: true });
+  return out;
+}
+
+/** Ovozni almashtiradi (bor bo'lsa olib tashlaydi); qaytaradi: yangi holat va umumiy son */
+export async function toggleReviewVote(reviewId: string, userId: string): Promise<{ voted: boolean; n: number }> {
+  const existing = await db.query.reviewVotes.findFirst({ where: and(eq(reviewVotes.reviewId, reviewId), eq(reviewVotes.userId, userId)), columns: { id: true } });
+  if (existing) await db.delete(reviewVotes).where(eq(reviewVotes.id, existing.id));
+  else await db.insert(reviewVotes).values({ id: crypto.randomUUID(), reviewId, userId }).onConflictDoNothing();
+  const [row] = await db.select({ n: count() }).from(reviewVotes).where(eq(reviewVotes.reviewId, reviewId));
+  return { voted: !existing, n: row?.n ?? 0 };
 }
 
 /**
@@ -461,14 +554,31 @@ export async function getSocialProof(specialistId: string, completedCount = 0): 
   };
 }
 
-/** "Odatda N soat ichida javob beradi" — soatlar yaxlitlanadi, 1 kundan oshsa kunlarda */
-export function responseTimeLabel(hours: number | null): string | null {
+/**
+ * "Odatda N soat ichida javob beradi" — soatlar yaxlitlanadi, 1 kundan oshsa kunlarda; 7 kundan sekin — ko'rsatilmaydi.
+ * `til` — ru uchun tarjima; `short` — "N soat ichida" (taqqoslash jadvali).
+ */
+export function responseTimeLabel(hours: number | null, til: "uz" | "ru" = "uz", short = false): string | null {
+  const b = responseBucket(hours);
+  if (!b) return null;
+  const ru = til === "ru";
+  if (b.kind === "hour") return short ? (ru ? "в течение часа" : "1 soat ichida") : ru ? "Обычно отвечает в течение часа" : "Odatda 1 soat ichida javob beradi";
+  if (b.kind === "hours") {
+    const n = b.n;
+    const ruForm = n % 10 === 1 && n % 100 !== 11 ? "часа" : "часов";
+    return short ? (ru ? `${n} ${ruForm}` : `${n} soat ichida`) : ru ? `Обычно отвечает в течение ${n} ${ruForm}` : `Odatda ${n} soat ichida javob beradi`;
+  }
+  const n = b.n;
+  const ruForm = n % 10 === 1 && n % 100 !== 11 ? "дня" : "дней";
+  return short ? (ru ? `${n} ${ruForm}` : `${n} kun ichida`) : ru ? `Обычно отвечает в течение ${n} ${ruForm}` : `Odatda ${n} kun ichida javob beradi`;
+}
+function responseBucket(hours: number | null): { kind: "hour" } | { kind: "hours" | "days"; n: number } | null {
   if (hours == null) return null;
-  if (hours < 1) return "Odatda 1 soat ichida javob beradi";
-  if (hours < 48) return `Odatda ${Math.ceil(hours)} soat ichida javob beradi`;
+  if (hours < 1) return { kind: "hour" };
+  if (hours < 48) return { kind: "hours", n: Math.ceil(hours) };
   const days = Math.ceil(hours / 24);
-  if (days > 7) return null; // juda sekin — ko'rsatmaymiz
-  return `Odatda ${days} kun ichida javob beradi`;
+  if (days > 7) return null;
+  return { kind: "days", n: days };
 }
 
 /* ------------------------------------------------------------------ */

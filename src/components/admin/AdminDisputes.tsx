@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, ArrowRightLeft, CheckCircle2, RotateCcw, Scale } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, CheckCircle2, History, RotateCcw, Scale } from "lucide-react";
 import { Button, EmptyState, Spinner } from "@/components/ui";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
 import { cn, formatDateTime, formatPrice, timeAgo } from "@/lib/utils";
@@ -26,6 +26,19 @@ export interface AdminDisputeRow {
 type Resolution = "release" | "refund";
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
+/** Buyurtma jurnali yozuvi (GET /api/admin/orders/[id]/dispute) */
+interface TimelineEvent {
+  id: string;
+  type: "status" | "amount" | "payment" | "dispute" | "note";
+  fromStatus: string | null;
+  toStatus: string | null;
+  note: string | null;
+  actor: string | null;
+  createdAt: number;
+}
+const EVENT_LABEL: Record<TimelineEvent["type"], string> = { status: "Holat", amount: "Narx", payment: "To'lov", dispute: "Nizo", note: "Izoh" };
+const statusName = (s: string | null) => (s && s in ORDER_STATUS_LABEL ? ORDER_STATUS_LABEL[s as OrderStatus] : s ?? "");
+
 const RES_LABEL: Record<Resolution, string> = { release: "Mutaxassisga o'tkazish", refund: "Mijozga qaytarish" };
 const RES_HINT: Record<Resolution, string> = {
   release: "Eskroudagi sof summa mutaxassis balansiga o'tadi, buyurtma yakunlanadi. Qaytarib bo'lmaydi.",
@@ -46,12 +59,40 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Ochilgan jurnal: orderId → yozuvlar ("loading" — yuklanmoqda) */
+  const [timeline, setTimeline] = useState<Record<string, TimelineEvent[] | "loading">>({});
 
   useEffect(() => {
     if (!notice) return;
     const t = window.setTimeout(() => setNotice(null), 4000);
     return () => window.clearTimeout(t);
   }, [notice]);
+
+  /** Jurnalni ochish/yopish — birinchi ochishda yuklanadi, keyin xotirada */
+  const toggleTimeline = async (orderId: string) => {
+    if (timeline[orderId] && timeline[orderId] !== "loading") {
+      setTimeline((t) => {
+        const next = { ...t };
+        delete next[orderId];
+        return next;
+      });
+      return;
+    }
+    setTimeline((t) => ({ ...t, [orderId]: "loading" }));
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/dispute`, { cache: "no-store" });
+      const json = (await res.json().catch(() => null)) as ApiResponse<TimelineEvent[]> | null;
+      if (!json || !json.ok) throw new Error(json?.error ?? "Jurnalni yuklab bo'lmadi");
+      setTimeline((t) => ({ ...t, [orderId]: json.data }));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Jurnalni yuklab bo'lmadi");
+      setTimeline((t) => {
+        const next = { ...t };
+        delete next[orderId];
+        return next;
+      });
+    }
+  };
 
   const resolve = async (r: AdminDisputeRow, resolution: Resolution) => {
     if (busy) return;
@@ -87,7 +128,7 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="expand-in flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text">
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
@@ -134,11 +175,47 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                         <span className="font-semibold">{r.by === "client" ? "Mijoz" : "Mutaxassis"} nizo ochdi:</span> <span className="text-fg-2">{r.reason}</span>
                       </span>
                     </p>
+                    {/* Jurnal (timeline): qaror oldidan buyurtma tarixi — sahifani tark etmasdan */}
+                    <button
+                      type="button"
+                      onClick={() => void toggleTimeline(r.orderId)}
+                      aria-expanded={Boolean(timeline[r.orderId]) && timeline[r.orderId] !== "loading"}
+                      aria-controls={`tl-${r.orderId}`}
+                      className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 text-[12.5px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg"
+                    >
+                      {timeline[r.orderId] === "loading" ? <Spinner className="h-3.5 w-3.5" /> : <History size={14} />}
+                      {timeline[r.orderId] && timeline[r.orderId] !== "loading" ? "Jurnalni yashirish" : "Buyurtma jurnali"}
+                    </button>
+                    {Array.isArray(timeline[r.orderId]) && (
+                      <ol id={`tl-${r.orderId}`} className="expand-in mt-1 space-y-1.5 border-l border-line pl-3.5 text-[12.5px]" aria-label="Buyurtma jurnali">
+                        {(timeline[r.orderId] as TimelineEvent[]).length === 0 && <li className="text-fg-4">Jurnal bo'sh.</li>}
+                        {(timeline[r.orderId] as TimelineEvent[]).map((e) => (
+                          <li key={e.id} className="relative">
+                            <span aria-hidden="true" className={cn("absolute -left-[19px] top-1.5 h-2 w-2 rounded-full", e.type === "dispute" ? "bg-warning" : e.type === "payment" ? "bg-success" : "bg-line-2")} />
+                            <span className="font-semibold text-fg">{EVENT_LABEL[e.type]}</span>
+                            {e.type === "status" && (e.fromStatus || e.toStatus) && (
+                              <span className="text-fg-2">
+                                {" "}
+                                {statusName(e.fromStatus)} → {statusName(e.toStatus)}
+                              </span>
+                            )}
+                            {e.note && <span className="text-fg-2"> · {e.note}</span>}
+                            <span className="text-fg-4">
+                              {" "}
+                              · {e.actor ?? "Tizim"} ·{" "}
+                              <time dateTime={new Date(e.createdAt).toISOString()} title={formatDateTime(e.createdAt)} suppressHydrationWarning>
+                                {timeAgo(e.createdAt)}
+                              </time>
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
                   </div>
 
                   <div className="shrink-0 lg:w-[300px]">
                     {ask?.id === r.orderId ? (
-                      <div className="card-outline flex flex-col gap-2 !rounded-[14px] p-3 animate-fade-up" style={{ animationDuration: "0.2s" }}>
+                      <div className="card-outline expand-in flex flex-col gap-2 !rounded-[14px] p-3" role="group" aria-label={RES_LABEL[ask.resolution]}>
                         <p className="flex items-start gap-1.5 text-[12px] text-fg">
                           <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> {RES_HINT[ask.resolution]}
                         </p>

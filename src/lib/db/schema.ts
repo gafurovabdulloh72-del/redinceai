@@ -40,6 +40,10 @@ export const users = sqliteTable(
     dmPolicy: text("dm_policy", { enum: ["all", "following", "none"] }).notNull().default("all"),
     commentPolicy: text("comment_policy", { enum: ["all", "followers", "none"] }).notNull().default("all"),
     showOnline: integer("show_online", { mode: "boolean" }).notNull().default(true),
+    /** Bildirishnoma sozlamalari tur-guruh bo'yicha (kabinet): { orders?: false, social?: false, ... } — yo'q kalit = yoqilgan (lib/notifications NOTIFY_GROUPS) */
+    notifyPrefs: text("notify_prefs", { mode: "json" }).$type<Record<string, boolean>>().notNull().default({}),
+    /** Hisob pauzada (foydalanuvchi o'zi vaqtincha yashirgan): katalog/xarita/qidiruvda chiqmaydi, to'g'ridan-to'g'ri havola ochiladi */
+    isPaused: integer("is_paused", { mode: "boolean" }).notNull().default(false),
     /** 2FA (TOTP): sir AES-GCM bilan shifrlangan (payments/crypto.ts); totpEnabled — tasdiqlangandan keyin true */
     totpSecretEnc: text("totp_secret_enc"),
     totpEnabled: integer("totp_enabled", { mode: "boolean" }).notNull().default(false),
@@ -583,6 +587,10 @@ export const conversations = sqliteTable(
     /** "Yozmoqda…" — har tomon oxirgi marta yozayotganini bildirgan vaqt (6 soniya ichida bo'lsa ko'rsatiladi) */
     aTypingAt: integer("a_typing_at", { mode: "timestamp_ms" }),
     bTypingAt: integer("b_typing_at", { mode: "timestamp_ms" }),
+    /** Qadalgan xabar (bitta suhbatga bitta) — ikkala tomon ko'radi */
+    pinnedMessageId: text("pinned_message_id"),
+    /** Suhbatni kim ochgan — bo'sh (xabarsiz) suhbat faqat yaratuvchining ro'yxatida ko'rinadi (dm_policy chetlab o'tilmasin) */
+    createdBy: text("created_by"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -604,11 +612,59 @@ export const dmMessages = sqliteTable(
     attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
     /** Javob (iqtibos): shu suhbatdagi xabar id'si; o'chirilsa iqtibos "xabar topilmadi" bo'lib qoladi */
     replyToId: text("reply_to_id"),
+    /** Tahrirlangan vaqt (15 daqiqa ichida, faqat o'z xabari) */
+    editedAt: integer("edited_at", { mode: "timestamp_ms" }),
+    /** Hamma uchun o'chirilgan — tana/biriktirmalar tozalanadi, o'rinbosar ko'rinadi */
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    /** «Men uchun o'chirish» — shu foydalanuvchilarga ko'rsatilmaydi (JSON: user id ro'yxati) */
+    hiddenFor: text("hidden_for", { mode: "json" }).$type<string[]>(),
+    /** Yo'naltirilgan xabar — asl muallif ismi (ko'rsatish uchun) */
+    forwardedFrom: text("forwarded_from"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("dm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+);
+
+/** DM xabariga emoji reaksiya — bitta foydalanuvchi = bitta reaksiya (almashtiriladi) */
+export const dmMessageReactions = sqliteTable(
+  "dm_message_reactions",
+  {
+    id: text("id").primaryKey(),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => dmMessages.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("dm_message_reactions_pair_idx").on(t.messageId, t.userId)],
+);
+
+/** Suhbat bo'yicha shaxsiy sozlamalar: arxiv, ovozsiz, ro'yxatda qadash — har tomon o'ziniki */
+export const dmConversationPrefs = sqliteTable(
+  "dm_conversation_prefs",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("dm_conversation_prefs_pair_idx").on(t.conversationId, t.userId)],
 );
 
 /* Shikoyatlar (mutaxassis profili yoki sharh haqida) */
@@ -646,6 +702,8 @@ export const savedSearches = sqliteTable(
     query: text("query").notNull(),
     /** Yangi mos mutaxassislar haqida bildirishnoma yuborilsinmi */
     notify: integer("notify", { mode: "boolean" }).notNull().default(true),
+    /** Xabar chastotasi: daily — har kunlik cron'da; weekly — oxirgi xabardan 7 kun o'tgach */
+    frequency: text("frequency", { enum: ["daily", "weekly"] }).notNull().default("daily"),
     lastNotifiedAt: integer("last_notified_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
@@ -954,6 +1012,20 @@ export const groups = sqliteTable(
     isOfficial: integer("is_official", { mode: "boolean" }).notNull().default(false),
     /** Taklif havolasi kodi (?invite=CODE) — yopiq jamoaga so'rovsiz, darhol a'zo qiladi; egasi yangilay oladi */
     inviteCode: text("invite_code"),
+    /** Taklif havolasi muddati va limiti (null — cheksiz); ishlatilgan soni (null = 0) */
+    inviteExpiresAt: integer("invite_expires_at", { mode: "timestamp_ms" }),
+    inviteMaxUses: integer("invite_max_uses"),
+    inviteUses: integer("invite_uses"),
+    /** Jamoa qoidalari (markdown-lite: "- " ro'yxat, **qalin**) — egasi yozadi, «Haqida»da chiqadi */
+    rules: text("rules"),
+    /** Yangi a'zoga xush kelibsiz matni (qo'shilganda bildirishnoma) */
+    welcomeText: text("welcome_text"),
+    /** Muqova vertikal joylashuvi, 0–100 % (object-position); null = 50 */
+    coverPosition: integer("cover_position"),
+    /** Slug o'zgartirilganda eski manzil (yo'naltirish uchun) */
+    prevSlug: text("prev_slug"),
+    /** Chatda qadalgan xabar (group_messages.id) */
+    pinnedMessageId: text("pinned_message_id"),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -987,6 +1059,12 @@ export const groupMembers = sqliteTable(
     muted: integer("muted", { mode: "boolean" }).notNull().default(false),
     /** Guruh chatida "yozmoqda…" — oxirgi yozish signali vaqti */
     typingAt: integer("typing_at", { mode: "timestamp_ms" }),
+    /** Vaqtincha jim: shu vaqtgacha bildirishnoma kelmaydi (muted=false bo'lsa ham) */
+    mutedUntil: integer("muted_until", { mode: "timestamp_ms" }),
+    /** Efir eslatmalari (live_event) — null = yoqilgan */
+    eventReminders: integer("event_reminders", { mode: "boolean" }),
+    /** Yopiq jamoaga so'rov yuborishdagi qisqa izoh — boshqaruvchi ko'radi */
+    joinNote: text("join_note"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1008,6 +1086,10 @@ export const groupMessages = sqliteTable(
     attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
     /** Javob (iqtibos): shu guruhdagi xabar id'si */
     replyToId: text("reply_to_id"),
+    /** Soft delete: o'chirilgan xabar o'rnida «Xabar o'chirilgan» qoladi (javoblar buzilmaydi) */
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    /** Tahrirlangan vaqti («tahrirlangan» belgisi) */
+    editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1035,6 +1117,8 @@ export const posts = sqliteTable(
     /** Jonli efir / yig'ilish e'loni: vaqti va havolasi (Zoom, Meet, YouTube, Telegram); null — oddiy post */
     eventAt: integer("event_at", { mode: "timestamp_ms" }),
     eventUrl: text("event_url"),
+    /** Matn tahrirlangan vaqt (null — tahrirlanmagan). `updatedAt` izoh qo'shilganda ham o'zgaradi, bu ustun — faqat tahrirda */
+    editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1111,11 +1195,92 @@ export const postComments = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    /** Javob berilgan izoh (1 daraja; shu postdagi izoh) — null: oddiy izoh */
+    replyToId: text("reply_to_id"),
+    /** Muallif tahrirlagan vaqt (null — tahrirlanmagan) */
+    editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("post_comments_post_idx").on(t.postId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Lenta qo'shimchalari: so'rovnoma, «qiziq emas», muallifni yashirish  */
+/* ------------------------------------------------------------------ */
+/** Post so'rovnomasi — bitta post = bitta so'rovnoma; variantlar JSON (2–4 ta matn) */
+export const postPolls = sqliteTable(
+  "post_polls",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    /** Variantlar matni (tartib — indeks) */
+    options: text("options", { mode: "json" }).$type<string[]>().notNull().default([]),
+    /** Tugash vaqti (null — muddatsiz) */
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_polls_post_idx").on(t.postId)],
+);
+
+/** So'rovnoma ovozi — bir foydalanuvchi = bitta variant (qayta bosilsa almashadi/qaytariladi) */
+export const postPollVotes = sqliteTable(
+  "post_poll_votes",
+  {
+    id: text("id").primaryKey(),
+    pollId: text("poll_id")
+      .notNull()
+      .references(() => postPolls.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    optionIdx: integer("option_idx").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_poll_votes_pair_idx").on(t.pollId, t.userId)],
+);
+
+/** «Qiziq emas» — foydalanuvchi lentasidan yashirilgan postlar */
+export const postHides = sqliteTable(
+  "post_hides",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_hides_pair_idx").on(t.postId, t.userId), index("post_hides_user_idx").on(t.userId)],
+);
+
+/** Lentada muallifni yashirish (mute) — obuna/blokka tegmaydi, faqat bosh sahifa lentasi */
+export const feedMutes = sqliteTable(
+  "feed_mutes",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("feed_mutes_pair_idx").on(t.userId, t.authorId)],
 );
 
 /* Obuna (follow): followerId → followingId foydalanuvchini kuzatadi */
@@ -1198,6 +1363,8 @@ export type GroupMessage = typeof groupMessages.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type PostComment = typeof postComments.$inferSelect;
 export type PostSave = typeof postSaves.$inferSelect;
+export type PostPoll = typeof postPolls.$inferSelect;
+export type PostPollVote = typeof postPollVotes.$inferSelect;
 
 /* ------------------------------------------------------------------ */
 /* Vakansiyalar: ish beruvchi e'lonlari, rezyumelar, arizalar          */
@@ -1232,6 +1399,8 @@ export const vacancies = sqliteTable(
     status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
     applicationsCount: integer("applications_count").notNull().default(0),
     viewCount: integer("view_count").notNull().default(0),
+    /** Tashqi ariza havolasi (applyUrl) bosilishlari — faqat egasiga ko'rinadi */
+    applyClicks: integer("apply_clicks").notNull().default(0),
     /** Shu vaqtdan keyin ro'yxatda chiqmaydi (VACANCY_TTL_DAYS); egasi uzaytira oladi */
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     /** Muddat tugashi haqida egasiga eslatma yuborilgan vaqt (cron, bir marta; uzaytirilganda tozalanadi) */
@@ -1266,6 +1435,8 @@ export const resumes = sqliteTable(
     /** Portfolio / LinkedIn / GitHub / Behance havolalari */
     links: text("links", { mode: "json" }).$type<Array<{ label: string; url: string }>>().notNull().default([]),
     isPublic: integer("is_public", { mode: "boolean" }).notNull().default(true),
+    /** Ommaviy sahifa ko'rishlari (egasi va botlar sanalmaydi) — faqat egasiga ko'rinadi */
+    viewCount: integer("view_count").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1289,6 +1460,10 @@ export const applications = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     coverLetter: text("cover_letter").notNull().default(""),
     status: text("status", { enum: ["new", "viewed", "shortlisted", "rejected", "hired"] }).notNull().default("new"),
+    /** Ish beruvchi arizani birinchi marta ochgan vaqt — nomzodga «Ko'rildi: …» deb ko'rinadi */
+    viewedAt: integer("viewed_at", { mode: "timestamp_ms" }),
+    /** Ish beruvchining shaxsiy eslatmasi (nomzodga ko'rinmaydi) */
+    employerNote: text("employer_note").notNull().default(""),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1298,6 +1473,27 @@ export const applications = sqliteTable(
   },
   (t) => [uniqueIndex("applications_vacancy_user_uq").on(t.vacancyId, t.userId), index("applications_user_idx").on(t.userId)],
 );
+
+/** Saqlangan vakansiya qidiruvi: nomzodga yangi mos vakansiya chiqqanda bildirishnoma (cron) */
+export const vacancyAlerts = sqliteTable(
+  "vacancy_alerts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Kanonik querystring: "profession=video&format=remote&min=3000000" */
+    query: text("query").notNull(),
+    notify: integer("notify", { mode: "boolean" }).notNull().default(true),
+    lastNotifiedAt: integer("last_notified_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("vacancy_alerts_user_idx").on(t.userId)],
+);
+export type VacancyAlert = typeof vacancyAlerts.$inferSelect;
 
 /** Saqlangan vakansiyalar (bookmark) */
 export const vacancySaves = sqliteTable(
@@ -1320,3 +1516,43 @@ export const vacancySaves = sqliteTable(
 export type Vacancy = typeof vacancies.$inferSelect;
 export type Resume = typeof resumes.$inferSelect;
 export type Application = typeof applications.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Profil ko'rishlari (batch-800, profile): kunlik noyob — bir ko'ruvchi (u:<id> / a:<ip+ua xeshi>) bir kunda bir marta.
+   specialists.viewCount shu yerda noyob yozuv qo'shilgandagina oshadi. 30 kundan eski qatorlar cron bilan tozalanadi. */
+/* ------------------------------------------------------------------ */
+export const profileViews = sqliteTable(
+  "profile_views",
+  {
+    id: text("id").primaryKey(),
+    specialistId: text("specialist_id")
+      .notNull()
+      .references(() => specialists.id, { onDelete: "cascade" }),
+    /** "u:<userId>" yoki "a:<sha256(ip+ua) qisqasi>" */
+    viewerKey: text("viewer_key").notNull(),
+    /** YYYY-MM-DD (Toshkent) */
+    day: text("day").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("profile_views_uq").on(t.specialistId, t.viewerKey, t.day), index("profile_views_sp_day_idx").on(t.specialistId, t.day)],
+);
+
+/** Sharh «Foydali» ovozlari (batch-800, profile): bir foydalanuvchi — bir sharhga bir ovoz */
+export const reviewVotes = sqliteTable(
+  "review_votes",
+  {
+    id: text("id").primaryKey(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("review_votes_uq").on(t.reviewId, t.userId), index("review_votes_review_idx").on(t.reviewId)],
+);

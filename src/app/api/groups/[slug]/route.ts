@@ -16,7 +16,7 @@ export const GET = handler(async (_req, ctx: Ctx) => {
   return ok(view);
 });
 
-/** PATCH: nom/tavsif/yo'nalish/hudud/muqova/yopiqlik — egasi yoki admin */
+/** PATCH: nom/tavsif/yo'nalish/hudud/muqova/yopiqlik/qoidalar/xush kelibsiz — egasi yoki admin; manzil (slug) — faqat egasi */
 export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { slug } = await ctx.params;
@@ -28,6 +28,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
     if (!IMAGE_URL_RE.test(patch.coverUrl)) throw new ApiError(422, "Muqova rasm bo'lishi kerak", { coverUrl: "Rasmni sayt orqali yuklang" });
     if (patch.coverUrl !== group.coverUrl) await assertOwnUploads(session.sub, [patch.coverUrl], [], "coverUrl");
   }
+  if (patch.slug !== undefined && patch.slug !== group.slug && !isGroupOwner(group, viewer)) throw new ApiError(403, "Manzilni faqat egasi o'zgartiradi", { slug: "Faqat egasi" });
   const { isOfficial, ...rest } = patch;
   let row = await updateGroup(group, rest);
   // Rasmiy kanal belgisi — faqat sayt admini; yoqilganda barcha foydalanuvchilar a'zo qilinadi

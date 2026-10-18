@@ -3,7 +3,10 @@ import { MapExplorer } from "@/components/map/MapExplorer";
 import { PageHeader } from "@/components/ui";
 import { CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { getCategoryStats, getRegionStats } from "@/lib/queries";
-import { getJobsByRegion, getRegionJobCounts, getRegionOnlineCounts, getTopByRegion } from "@/lib/map-stats";
+import { getJobsByRegion, getRegionJobCounts, getRegionOnlineCounts, getRegionTopSkills, getTopByRegion } from "@/lib/map-stats";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { XARITA } from "@/lib/i18n/dict/search";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +25,19 @@ function first(v: string | string[] | undefined) {
 
 export default async function MapPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const sp = await searchParams;
-  const [stats, categoryStats, jobCounts, jobsByRegion, onlineCounts, topByRegion] = await Promise.all([
+  const [stats, categoryStats, jobCounts, jobsByRegion, onlineCounts, topByRegion, topSkills, til] = await Promise.all([
     getRegionStats(),
     getCategoryStats(),
     getRegionJobCounts(),
     getJobsByRegion(5),
     getRegionOnlineCounts(),
     getTopByRegion(3),
+    getRegionTopSkills(3).catch(() => ({})),
+    getLocale(),
   ]);
 
-  // Noma'lum slug'lar e'tiborsiz qoldiriladi
-  const regionParam = first(sp.region);
+  // Noma'lum slug'lar e'tiborsiz qoldiriladi; ?hudud= — o'zbekcha chuqur havola (?region= bilan teng)
+  const regionParam = first(sp.hudud) ?? first(sp.region);
   const categoryParam = first(sp.category);
   const initialRegion = regionParam && REGION_BY_SLUG[regionParam] ? regionParam : null;
   const initialCategory = categoryParam && CATEGORY_BY_SLUG[categoryParam] ? categoryParam : null;
@@ -46,13 +51,13 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
     <div className="container-x">
       <PageHeader
         size="lg"
-        eyebrow={`Interaktiv xarita · ${REGIONS.length}\u00a0hudud · ${total}\u00a0mutaxassis`}
+        eyebrow={XARITA.eyebrow[til](REGIONS.length, total)}
         title={
           <>
-            Hududni tanlang — <span className="accent-serif text-accent">ijodkorlar</span> chiqadi
+            {tr(til, XARITA.titleStart)} <span className="accent-serif text-accent">{tr(til, XARITA.titleAccent)}</span> {tr(til, XARITA.titleEnd)}
           </>
         }
-        description="Viloyatni bosing — o'sha yerdagi eng yaxshi mutaxassislar ro'yxati va hudud statistikasi ochiladi. Yo'nalishni tanlasangiz, xarita ranglari ham shu yo'nalish bo'yicha o'zgaradi."
+        description={tr(til, XARITA.description)}
       />
 
       <div className="mt-8 sm:mt-10">
@@ -67,6 +72,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
           jobsByRegion={jobsByRegion}
           onlineCounts={onlineCounts}
           topByRegion={topByRegion}
+          topSkills={topSkills}
         />
       </div>
     </div>

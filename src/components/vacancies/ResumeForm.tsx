@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X } from "lucide-react";
+import { ArrowUp, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useToast } from "@/components/ui/toast";
 import { Switch } from "@/components/specialists/Filters";
 import { REGIONS } from "@/lib/constants";
 import { PROFESSIONS, REMOTE_REGION, RESUME_EXPERIENCE, RESUME_FORMAT, RESUME_LINKS_MAX, RESUME_SKILLS_MAX, RESUME_SUMMARY_MAX, type Experience } from "@/lib/vacancies/format";
@@ -30,6 +31,7 @@ const LINK_PRESETS = ["Portfolio", "LinkedIn", "GitHub", "Behance", "Telegram ka
 /** Rezyume formasi — bitta rezyume, ommaviy/yopiq. Kontakt saqlanmaydi: aloqa chat orqali yoki ariza bilan. */
 export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [profession, setProfession] = useState(initial?.profession ?? "");
   const [experience, setExperience] = useState<Experience>(initial?.experience ?? "none");
@@ -86,16 +88,36 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
   async function remove() {
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch("/api/rezyume", { method: "DELETE" });
-      if (res.ok) {
-        router.push("/kabinet");
-        router.refresh();
-        return;
-      }
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !j.ok) throw new Error(j.error || "O'chirib bo'lmadi");
+      router.push("/kabinet");
+      router.refresh();
+      return;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "O'chirib bo'lmadi");
     } finally {
       setBusy(false);
       setConfirmDelete(false);
+    }
+  }
+
+  /** Katalogda yuqoriga: updatedAt yangilanadi (24 soatda bir marta) */
+  async function bump() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/rezyume", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "bump" }) });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !j.ok) throw new Error(j.error || "Bajarilmadi");
+      toast("Rezyume katalogda yuqoriga ko'tarildi", "success");
+      router.refresh();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Bajarilmadi", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -210,7 +232,7 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
       <div className="flex items-start justify-between gap-4 rounded-[16px] border border-line px-4 py-3">
         <div>
           <p className="text-[14px] font-semibold text-fg">Katalogda ko&apos;rinsin</p>
-          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">Ish beruvchilar /rezyumelar bo&apos;limida topadi va chat orqali yozadi. O&apos;chirilsa — rezyume faqat arizalaringizga biriktiriladi. Kontakt (email/telefon) hech qayerda ochiq ko&apos;rsatilmaydi.</p>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">Ish beruvchilar katalogda topib, chat orqali yozadi. Kontakt hech qayerda ochiq ko&apos;rsatilmaydi.</p>
         </div>
         <Switch checked={isPublic} onChange={setIsPublic} label="Katalogda ko'rinsin" />
       </div>
@@ -221,10 +243,15 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
         </Button>
         {done && <span className="text-[13px] font-semibold text-success-text">{done}</span>}
         {error && <span className="text-[13px] font-semibold text-danger-text">{error}</span>}
+        {initial && initial.isPublic && (
+          <Button type="button" variant="outline" size="md" onClick={bump} disabled={busy} title="Katalogda yuqoriga ko'tarish (24 soatda 1 marta)">
+            <ArrowUp size={14} /> Yuqoriga
+          </Button>
+        )}
         {initial && (
           <div className="ml-auto flex items-center gap-2">
             {confirmDelete ? (
-              <>
+              <span className="expand-in inline-flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlang">
                 <span className="text-[12.5px] text-fg-2">Rezyume o&apos;chadi. Aniqmi?</span>
                 <Button type="button" variant="danger" size="sm" onClick={remove} disabled={busy}>
                   Ha
@@ -232,7 +259,7 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
                 <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
                   Yo&apos;q
                 </Button>
-              </>
+              </span>
             ) : (
               <Button type="button" variant="ghost" size="sm" className="text-danger-text hover:text-danger-text" onClick={() => setConfirmDelete(true)}>
                 <Trash2 size={14} /> O&apos;chirish

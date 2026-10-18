@@ -12,6 +12,68 @@ export const SHELL = {
     switchTo: { uz: "Tilni almashtirish — Русский", ru: "Сменить язык — oʻzbekcha" },
   },
 
+  /** Umumiy qobiq matnlari: yopish, orqaga, yuqoriga, yuklanmoqda */
+  common: {
+    close: { uz: "Yopish", ru: "Закрыть" },
+    back: { uz: "Orqaga", ru: "Назад" },
+    toTop: { uz: "Sahifa boshiga qaytish", ru: "Наверх страницы" },
+    loading: { uz: "Yuklanmoqda", ru: "Загрузка" },
+    newWindow: { uz: " (yangi oynada)", ru: " (в новом окне)" },
+    logoAria: { uz: "Kasb Egalari — bosh sahifa", ru: "Kasb Egalari — главная" },
+    shareTelegram: { uz: "Telegram orqali ulashish", ru: "Поделиться в Telegram" },
+    confirm: { uz: "Tasdiqlash", ru: "Подтвердить" },
+    cancel: { uz: "Bekor qilish", ru: "Отмена" },
+    delete: { uz: "O'chirish", ru: "Удалить" },
+    areYouSure: { uz: "Ishonchingiz komilmi?", ru: "Вы уверены?" },
+  },
+
+  /** Ko'rinish paneli: tema (avto/yorug'/qorong'u), shrift o'lchami, harakat */
+  appearance: {
+    title: { uz: "Ko'rinish", ru: "Вид" },
+    theme: { uz: "Tema", ru: "Тема" },
+    themeAuto: { uz: "Avto", ru: "Авто" },
+    themeLight: { uz: "Yorug'", ru: "Светлая" },
+    themeDark: { uz: "Qorong'u", ru: "Тёмная" },
+    themeToggle: { uz: "Tema: avto / yorug' / qorong'u", ru: "Тема: авто / светлая / тёмная" },
+    fontSize: { uz: "Shrift", ru: "Шрифт" },
+    fontS: { uz: "Kichik", ru: "Мелкий" },
+    fontM: { uz: "O'rta", ru: "Средний" },
+    fontL: { uz: "Katta", ru: "Крупный" },
+    reduceMotion: { uz: "Harakatni kamaytirish", ru: "Меньше анимации" },
+    reduceMotionHint: { uz: "Animatsiyalar va o'tishlar o'chadi", ru: "Анимации и переходы отключаются" },
+  },
+
+  /** Tarmoq banneri */
+  network: {
+    offline: { uz: "Internet yo'q — ba'zi amallar vaqtincha ishlamaydi", ru: "Нет интернета — некоторые действия временно недоступны" },
+    online: { uz: "Aloqa tiklandi", ru: "Соединение восстановлено" },
+  },
+
+  /** SW yangilanishi */
+  update: {
+    available: { uz: "Saytning yangi versiyasi tayyor", ru: "Доступна новая версия сайта" },
+    reload: { uz: "Yangilash", ru: "Обновить" },
+  },
+
+  /** Klaviatura qisqartmalari oynasi */
+  shortcuts: {
+    title: { uz: "Klaviatura qisqartmalari", ru: "Горячие клавиши" },
+    hint: { uz: "Matn maydonidan tashqarida ishlaydi. «g» dan keyin bir soniya ichida ikkinchi tugma bosiladi.", ru: "Работают вне текстовых полей. После «g» вторую клавишу нужно нажать в течение секунды." },
+    search: { uz: "Qidiruv", ru: "Поиск" },
+    create: { uz: "Yaratish menyusi", ru: "Меню создания" },
+    help: { uz: "Shu oyna", ru: "Это окно" },
+    goHome: { uz: "Bosh sahifa", ru: "Главная" },
+    goSearch: { uz: "Qidiruv sahifasi", ru: "Страница поиска" },
+    goLenta: { uz: "Lenta", ru: "Лента" },
+    goGroups: { uz: "Jamoalar", ru: "Сообщества" },
+    goMessages: { uz: "Xabarlar", ru: "Сообщения" },
+    goNotifications: { uz: "Bildirishnomalar", ru: "Уведомления" },
+    goCabinet: { uz: "Kabinet", ru: "Кабинет" },
+    escape: { uz: "Yopish / bekor qilish", ru: "Закрыть / отменить" },
+    sectionGo: { uz: "O'tish", ru: "Переход" },
+    sectionActions: { uz: "Amallar", ru: "Действия" },
+  },
+
   nav: {
     home: { uz: "Bosh sahifa", ru: "Главная" },
     homeShort: { uz: "Asosiy", ru: "Главная" },

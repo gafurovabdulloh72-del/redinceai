@@ -893,6 +893,10 @@ function OrderCard({
           <li className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-fg-2">
             <CalendarClock size={12} className="text-fg-3" />
             Topshirish: {formatDate(o.dueDate)}
+            {/* Kalendarga qo'shish (.ics) — faqat tomonlar uchun ochiladi */}
+            <a href={`/api/orders/${encodeURIComponent(o.id)}/ics`} download className="press -my-1 -mr-1 inline-flex h-6 items-center rounded-full px-1.5 text-[11.5px] font-semibold text-accent-text hover:underline" title="Kalendarga qo'shish (.ics)">
+              Kalendar
+            </a>
           </li>
         ) : (
           o.deadline && (

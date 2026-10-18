@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { ToastProvider } from "@/components/ui/toast";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { NavigationProgress } from "@/components/motion/NavigationProgress";
 import { CommandPalette } from "@/components/search/CommandPalette";
 import localFont from "next/font/local";
@@ -11,6 +12,10 @@ import { Footer } from "@/components/layout/Footer";
 import { FooterGate } from "@/components/layout/FooterGate";
 import { Backdrop } from "@/components/layout/Backdrop";
 import { BackToTop } from "@/components/layout/BackToTop";
+import { NetworkBanner } from "@/components/layout/NetworkBanner";
+import { Shortcuts } from "@/components/layout/Shortcuts";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
+import { AppearanceSync } from "@/components/layout/Appearance";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { getLocale } from "@/lib/i18n/server";
@@ -90,10 +95,11 @@ const ORG_JSONLD = JSON.stringify([
   },
 ]).replace(/</g, "\\u003c");
 
+/** Brauzer manzil paneli rangi — globals.css --bg bilan bir xil (yorug' #fafaf8, qorong'u #0c0c0d); qo'lda tanlangan rejimda AppearanceSync yangilaydi */
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f4ee" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+    { media: "(prefers-color-scheme: light)", color: "#fafaf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0c0d" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -112,33 +118,40 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
-        {/* O'tish havolasi (a11y): klaviatura foydalanuvchisi navbarni chetlab asosiy kontentga o'tadi */}
+        {/* O'tish havolasi (a11y): klaviatura foydalanuvchisi navbarni chetlab asosiy kontentga o'tadi (main tabIndex=-1 — Safari/Firefox'da ham fokus o'tadi) */}
         <a
           href="#asosiy"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-ink-fg"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[170] focus:inline-flex focus:h-11 focus:items-center focus:rounded-full focus:bg-ink focus:px-5 focus:text-[14px] focus:font-semibold focus:text-ink-fg focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
         >
           {tr(locale, SHELL.skipToContent)}
         </a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <LocaleProvider locale={locale}>
           <ToastProvider>
-            <Backdrop />
-            <Navbar />
-            {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar */}
-            <div className="md:pl-[76px] xl:pl-[244px]">
-              <main id="asosiy" className="pt-24 pb-6 sm:pt-28 md:pb-12 md:pt-8">
-                {children}
-              </main>
-              <FooterGate>
-                <Footer />
-              </FooterGate>
-            </div>
-            <BackToTop />
-            {/* Harakat qatlami: marshrut progress chizig'i va qidiruv paleti — server DOM'iga tegmaydi (hydration xavfsiz); scroll-reveal CSS'da */}
-            <Suspense fallback={null}>
-              <NavigationProgress />
-            </Suspense>
-            <CommandPalette />
+            <ConfirmProvider>
+              <Backdrop />
+              <Navbar />
+              {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar.
+                  ≥1920px: kontent 1600px bilan cheklanadi va markazda turadi */}
+              <div className="md:pl-[76px] xl:pl-[244px]">
+                <main id="asosiy" tabIndex={-1} className="pt-24 pb-6 outline-none sm:pt-28 md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
+                  {children}
+                </main>
+                <FooterGate>
+                  <Footer />
+                </FooterGate>
+              </div>
+              <BackToTop />
+              {/* Harakat/qobiq qatlami: progress chizig'i, ⌘K paleti, qisqartmalar, tarmoq banneri, tema sinxroni, SW — server DOM'iga tegmaydi */}
+              <Suspense fallback={null}>
+                <NavigationProgress />
+              </Suspense>
+              <CommandPalette />
+              <Shortcuts />
+              <NetworkBanner />
+              <AppearanceSync />
+              <ServiceWorkerRegister />
+            </ConfirmProvider>
           </ToastProvider>
         </LocaleProvider>
       </body>

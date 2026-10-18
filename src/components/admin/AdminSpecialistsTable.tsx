@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, EyeOff, Hourglass, Images, Mail, MapPin, Phone, ShieldBan, ShieldCheck, Star, Trash2, X, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, EyeOff, Hourglass, Images, Mail, MapPin, Phone, Search, ShieldBan, ShieldCheck, Star, Trash2, XCircle } from "lucide-react";
+import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
 import { Avatar, Button, EmptyState, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
+import { usePresence } from "@/components/motion/usePresence";
+import { CATEGORIES, CATEGORY_BY_SLUG, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { cn, formatUzPhone, normalizeUzPhone, timeAgo } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -28,7 +30,7 @@ export interface PendingSpecialist {
   userId?: string | null;
   isBanned?: boolean;
   bannedReason?: string | null;
-  /** Bio parchasi (bir qatorda ko'rsatiladi) */
+  /** Bio parchasi (2 qatorga qisqartiriladi, «ko'proq» bilan ochiladi) */
   bio?: string | null;
   /** Portfolio ishlari soni */
   portfolioCount?: number;
@@ -52,6 +54,8 @@ export interface VerifiedSpecialist {
 type Busy = "verify" | "feature" | "delete" | "ban" | "reject" | "unverify";
 /** Shuncha kundan ko'p kutgan profil ogohlantirish rangida ko'rinadi */
 const WAIT_WARN_MS = 7 * 24 * 60 * 60 * 1000;
+/** Bio shu uzunlikdan oshsa «ko'proq» tugmasi chiqadi (taxminan 2 qator) */
+const BIO_CLAMP = 140;
 
 /** "Kutmoqda · 12 kun oldin" belgisi — 7 kundan oshsa warning tonida */
 function WaitBadge({ createdAt, className }: { createdAt: number; className?: string }) {
@@ -81,6 +85,25 @@ async function call<T>(url: string, init: RequestInit): Promise<T> {
 const msg = (e: unknown) => (e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
 /** Mobil kartalar: dastlab shuncha, qolgani «Yana ko'rsatish» bilan */
 const MOBILE_CAP = 10;
+/** Filtr paneli shuncha qatordan ko'p bo'lganda chiqadi (3 ta profilga filtr ortiqcha) */
+const FILTER_MIN_ROWS = 4;
+
+/* ------------------------------------------------------------------ */
+/* Bio: 2 qatorga qisqartirish + «ko'proq»                             */
+/* ------------------------------------------------------------------ */
+function Bio({ text, expanded, onToggle, className }: { text: string; expanded: boolean; onToggle: () => void; className?: string }) {
+  const long = text.length > BIO_CLAMP;
+  return (
+    <div className={cn("text-[12px] leading-snug text-fg-4", className)}>
+      <p className={cn("whitespace-normal", !expanded && "line-clamp-2")}>{text}</p>
+      {long && (
+        <button type="button" onClick={onToggle} aria-expanded={expanded} className="mt-0.5 inline-flex min-h-6 items-center text-[12px] font-semibold text-fg-2 transition hover:text-fg">
+          {expanded ? "kamroq" : "ko'proq"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Komponent                                                           */
@@ -103,6 +126,19 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
   const [rejectAsk, setRejectAsk] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showAll, setShowAll] = useState(false);
+  /** Ochilgan (to'liq) bio'lar */
+  const [bioOpen, setBioOpen] = useState<Set<string>>(() => new Set());
+  /* Filtrlar: qidiruv, yo'nalish, hudud, 7+ kun kutganlar */
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("");
+  const [region, setRegion] = useState("");
+  const [lateOnly, setLateOnly] = useState(false);
+  /* Ommaviy amal: tanlanganlar */
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkReject, setBulkReject] = useState(false);
+  const [bulkReason, setBulkReason] = useState("");
+  const bulkBar = usePresence(selected.size > 0, 180);
 
   // Server yangi ro'yxat bersa (router.refresh) — mahalliy holatni unga moslaymiz
   const [seen, setSeen] = useState(pending);
@@ -126,6 +162,45 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
       else delete next[id];
       return next;
     });
+
+  const toggleBio = (id: string) =>
+    setBioOpen((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  /* ---------- Filtrlangan ro'yxat ---------- */
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const now = Date.now();
+    return rows.filter((r) => {
+      if (cat && r.category !== cat) return false;
+      if (region && r.regionSlug !== region) return false;
+      if (lateOnly && now - r.createdAt <= WAIT_WARN_MS) return false;
+      if (term && !`${r.user.name} ${r.user.email} ${r.title}`.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [rows, q, cat, region, lateOnly]);
+  const filtersActive = Boolean(q.trim() || cat || region || lateOnly);
+  const resetFilters = () => {
+    setQ("");
+    setCat("");
+    setRegion("");
+    setLateOnly(false);
+  };
+  /** Faqat navbatda bo'lgan yo'nalish/hududlar — bo'sh variantlar ko'rsatilmaydi */
+  const catOptions = useMemo(() => CATEGORIES.filter((c) => rows.some((r) => r.category === c.slug)), [rows]);
+  const regionOptions = useMemo(() => REGIONS.filter((r) => rows.some((x) => x.regionSlug === r.slug)), [rows]);
 
   /* ---------- Amallar (optimistik) ---------- */
   const verify = async (row: PendingSpecialist) => {
@@ -241,23 +316,56 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
     }
   };
 
-  /* ---------- Amallar: desktopda ixcham (ikonka tugmalar), mobilda 44px ---------- */
+  /* ---------- Ommaviy amallar: tanlanganlarni ketma-ket (mavjud PATCH bilan) ---------- */
+  const runBulk = async (action: "verify" | "reject", reason?: string) => {
+    const ids = rows.filter((r) => selected.has(r.id)).map((r) => r.id);
+    if (!ids.length || bulkBusy) return;
+    setBulkBusy(true);
+    setError(null);
+    let done = 0;
+    const failed: string[] = [];
+    for (const id of ids) {
+      try {
+        await call(`/api/admin/specialists/${id}`, { method: "PATCH", body: JSON.stringify(action === "verify" ? { isVerified: true } : { action: "reject", reason: reason?.trim() }) });
+        done += 1;
+      } catch {
+        failed.push(id);
+      }
+    }
+    const okIds = new Set(ids.filter((id) => !failed.includes(id)));
+    if (action === "verify") {
+      const moved = rows.filter((r) => okIds.has(r.id));
+      setRows((r) => r.filter((x) => !okIds.has(x.id)));
+      setVRows((v) => [...moved.map((row) => ({ id: row.id, slug: row.slug, title: row.title, category: row.category, regionSlug: row.regionSlug, isFeatured: row.isFeatured, verifiedAt: Date.now(), user: { name: row.user.name, avatarUrl: row.user.avatarUrl } })), ...v.filter((x) => !okIds.has(x.id))]);
+    } else {
+      setRows((r) => r.map((x) => (okIds.has(x.id) ? { ...x, isHidden: true } : x)));
+    }
+    setSelected(new Set());
+    setBulkReject(false);
+    setBulkReason("");
+    setBulkBusy(false);
+    setNotice(`${done} ta profil ${action === "verify" ? "tasdiqlandi" : "rad etildi"}${failed.length ? ` · ${failed.length} tasida xato` : ""}`);
+    if (failed.length) setError(`${failed.length} ta profil uchun amal bajarilmadi — ro'yxatni yangilab qayta urinib ko'ring`);
+    router.refresh();
+  };
+
+  /* ---------- Amallar: asosiy + ikkilamchi + «⋯» (desktop 36px, mobil 44px) ---------- */
   const Actions = ({ row, compact = false }: { row: PendingSpecialist; compact?: boolean }) => {
     const b = busy[row.id];
-    const iconBtn = cn("inline-flex shrink-0 items-center justify-center rounded-full border border-line-2 text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-50", compact ? "h-11 w-11" : "h-9 w-9");
+    const panel = cn("card-outline expand-in flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left", !compact && "ml-auto w-[19rem]");
 
     if (confirmDelete === row.id) {
       return (
-        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", compact ? "sm:flex-row sm:items-center" : "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
+        <div className={cn(panel, compact && "sm:flex-row sm:items-center")} role="alertdialog" aria-label="O'chirishni tasdiqlash">
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
-            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Butunlay o'chirilsinmi? Portfolio, sharhlar va buyurtmalar ham o'chadi. Eskrou/o'tkazilgan to'lovlari yoki ochiq payout so'rovi bo'lsa — o'chirish rad etiladi.
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Butunlay o&apos;chirilsinmi? Portfolio, sharhlar va buyurtmalar ham o&apos;chadi. To&apos;lov yozuvi yoki ochiq payout bo&apos;lsa — rad etiladi.
           </p>
           <div className="flex shrink-0 gap-1.5">
             <Button size={compact ? "md" : "sm"} variant="danger" onClick={() => remove(row)} disabled={!!b}>
-              {b === "delete" ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 size={14} />} Ha, o'chirish
+              {b === "delete" ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 size={14} />} Ha, o&apos;chirish
             </Button>
             <Button size={compact ? "md" : "sm"} variant="ghost" onClick={() => setConfirmDelete(null)} disabled={!!b}>
-              Yo'q
+              Yo&apos;q
             </Button>
           </div>
         </div>
@@ -266,9 +374,9 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
 
     if (rejectAsk === row.id) {
       return (
-        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", !compact && "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
+        <div className={panel}>
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
-            <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> Rad etilsinmi? Profil o'chmaydi — katalogdan yashiriladi, egasi sababni bildirishnomada ko'radi va tuzatib qayta murojaat qila oladi.
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> Profil o&apos;chmaydi — katalogdan yashiriladi, egasi sababni ko&apos;radi va tuzatib qayta murojaat qiladi.
           </p>
           <label htmlFor={`reject-${row.id}`} className="sr-only">
             Rad etish sababi
@@ -288,9 +396,9 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
 
     if (banAsk === row.id) {
       return (
-        <div className={cn("card-outline flex flex-col gap-2 whitespace-normal !rounded-[14px] p-2.5 text-left animate-fade-up", !compact && "ml-auto w-[19rem]")} style={{ animationDuration: "0.2s" }}>
+        <div className={panel}>
           <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
-            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Bloklansinmi? Foydalanuvchi tizimga kira olmaydi, profili ro'yxat va xaritadan yashiriladi. Sabab unga bildirishnomada ko'rinadi.
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-danger" /> Bloklansinmi? Tizimga kira olmaydi, profili ro&apos;yxat va xaritadan yashiriladi. Sabab unga bildirishnomada ko&apos;rinadi.
           </p>
           <label htmlFor={`ban-${row.id}`} className="sr-only">
             Bloklash sababi
@@ -309,8 +417,8 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
     }
 
     return (
-      <div className={cn("flex flex-wrap items-center gap-1.5", !compact && "justify-end")}>
-        <Button size={compact ? "md" : "sm"} onClick={() => verify(row)} disabled={!!b} className={cn(compact && "flex-1")}>
+      <div className={cn("flex flex-nowrap items-center gap-1.5", !compact && "justify-end")}>
+        <Button size={compact ? "md" : "sm"} onClick={() => verify(row)} disabled={!!b || bulkBusy} className={cn(compact && "flex-1")} aria-label={`${row.user.name} profilini tasdiqlash`}>
           {b === "verify" ? <Spinner className="h-3.5 w-3.5" /> : <BadgeCheck size={14} />} Tasdiqlash
         </Button>
         {!row.isHidden && (
@@ -323,59 +431,68 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
               setBanAsk(null);
               setConfirmDelete(null);
             }}
-            disabled={!!b}
+            disabled={!!b || bulkBusy}
             title="Katalogga qo'shmaslik — sabab egasiga yuboriladi"
+            aria-label={`${row.user.name} profilini rad etish`}
           >
             {b === "reject" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Rad etish
           </Button>
         )}
-        {row.userId && (
-          <button
-            type="button"
-            onClick={() => {
-              if (row.isBanned) void toggleBan(row);
-              else {
-                setBanAsk(row.id);
-                setBanReason("");
-                setConfirmDelete(null);
-              }
-            }}
-            disabled={!!b}
-            aria-pressed={Boolean(row.isBanned)}
-            aria-label={row.isBanned ? "Blokdan chiqarish" : "Bloklash"}
-            title={row.isBanned ? `Bloklangan${row.bannedReason ? `: ${row.bannedReason}` : ""} — blokdan chiqarish` : "Bloklash"}
-            className={cn(iconBtn, row.isBanned ? "border-danger/50 bg-danger-soft text-danger-text hover:text-danger-text" : "hover:border-danger hover:text-danger-text")}
-          >
-            {b === "ban" ? <Spinner className="h-3.5 w-3.5" /> : row.isBanned ? <ShieldCheck size={15} /> : <ShieldBan size={15} />}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => toggleFeatured(row)}
-          disabled={!!b}
-          aria-pressed={row.isFeatured}
-          aria-label={row.isFeatured ? "Tavsiyadan olib tashlash" : "Tavsiya etilganlarga qo'shish"}
-          title={row.isFeatured ? "Tavsiyadan olib tashlash" : "Tavsiya etilganlarga qo'shish"}
-          className={cn(iconBtn, row.isFeatured && "border-accent-3/50 bg-accent-3/15 text-accent-3 hover:text-accent-3")}
-        >
-          {b === "feature" ? <Spinner className="h-3.5 w-3.5" /> : <Star size={15} className={cn(row.isFeatured && "fill-current")} />}
-        </button>
-        <Link href={`/mutaxassislar/${row.slug}`} target="_blank" rel="noreferrer" aria-label="Ommaviy profilni ochish" title="Ommaviy profil" className={iconBtn}>
-          <ExternalLink size={15} />
-        </Link>
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(row.id)}
-          disabled={!!b}
-          aria-label={`${row.user.name} profilini o'chirish`}
-          title="O'chirish"
-          className={cn(iconBtn, "text-danger-text hover:border-danger hover:bg-danger-soft hover:text-danger-text")}
-        >
-          {b === "delete" ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 size={15} />}
-        </button>
+        <AdminRowMenu
+          label={`${row.user.name}: boshqa amallar`}
+          size={compact ? "md" : "sm"}
+          disabled={!!b || bulkBusy}
+          items={[
+            { key: "profile", label: "Ommaviy profil", icon: ExternalLink, href: `/mutaxassislar/${row.slug}` },
+            { key: "feature", label: row.isFeatured ? "Tavsiyadan olib tashlash" : "Tavsiya etilganlarga qo'shish", icon: Star, active: row.isFeatured, onSelect: () => void toggleFeatured(row) },
+            ...(row.userId
+              ? [
+                  {
+                    key: "ban",
+                    label: row.isBanned ? "Blokdan chiqarish" : "Bloklash",
+                    icon: row.isBanned ? ShieldCheck : ShieldBan,
+                    title: row.isBanned && row.bannedReason ? `Sabab: ${row.bannedReason}` : undefined,
+                    onSelect: () => {
+                      if (row.isBanned) void toggleBan(row);
+                      else {
+                        setBanAsk(row.id);
+                        setBanReason("");
+                        setConfirmDelete(null);
+                        setRejectAsk(null);
+                      }
+                    },
+                  },
+                ]
+              : []),
+            {
+              key: "delete",
+              label: "O'chirish",
+              icon: Trash2,
+              danger: true,
+              divider: true,
+              onSelect: () => {
+                setConfirmDelete(row.id);
+                setRejectAsk(null);
+                setBanAsk(null);
+              },
+            },
+          ]}
+        />
       </div>
     );
   };
+
+  const selectCheckbox = (row: PendingSpecialist, className?: string) => (
+    <input
+      type="checkbox"
+      checked={selected.has(row.id)}
+      onChange={() => toggleSelect(row.id)}
+      aria-label={`${row.user.name} ni tanlash`}
+      className={cn("h-4 w-4 shrink-0 cursor-pointer rounded-[4px] border-line-2 accent-[var(--accent)]", className)}
+    />
+  );
+
+  const allVisibleSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
 
   return (
     <div className="space-y-3">
@@ -387,37 +504,98 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
           </p>
         )}
         {notice && (
-          <p className="flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text animate-fade-up" style={{ animationDuration: "0.25s" }}>
+          <p className="expand-in flex items-center gap-2 rounded-[14px] bg-success-soft px-4 py-2.5 text-[13px] font-medium text-success-text">
             <CheckCircle2 size={15} /> {notice}
           </p>
         )}
       </div>
 
+      {/* ---------- Filtrlar (faqat navbat uzun bo'lsa) ---------- */}
+      {rows.length >= FILTER_MIN_ROWS && (
+        <div className="flex flex-wrap items-center gap-2" role="search" aria-label="Navbat filtrlari">
+          <label className="relative min-w-[180px] flex-1 sm:max-w-xs">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism, email yoki kasb" aria-label="Navbatda qidirish" className="field !h-9 !min-h-0 w-full !rounded-full !py-0 !pl-8 text-[13px]" />
+          </label>
+          <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Yo'nalish bo'yicha filtr" className="field !h-9 !min-h-0 w-auto !rounded-full !py-0 !pr-8 text-[13px]">
+            <option value="">Barcha yo&apos;nalishlar</option>
+            {catOptions.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select value={region} onChange={(e) => setRegion(e.target.value)} aria-label="Hudud bo'yicha filtr" className="field !h-9 !min-h-0 w-auto !rounded-full !py-0 !pr-8 text-[13px]">
+            <option value="">Barcha hududlar</option>
+            {regionOptions.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.short}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setLateOnly((v) => !v)}
+            aria-pressed={lateOnly}
+            className={cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition", lateOnly ? "border-transparent bg-warning-soft text-warning-text" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg")}
+          >
+            <Hourglass size={13} /> 7+ kun
+          </button>
+          {filtersActive && (
+            <span className="ml-auto text-[12px] text-fg-4 tabular-nums" aria-live="polite">
+              {filtered.length} / {rows.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <EmptyState icon={CheckCircle2} title="Navbat bo'sh" description="Barcha mutaxassislar tasdiqlangan. Yangi profil kelsa shu yerda ko'rinadi." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Filtrga mos profil yo'q"
+          description="Boshqa yo'nalish yoki hududni tanlang."
+          action={
+            <Button variant="outline" size="sm" onClick={resetFilters}>
+              Filtrni tozalash
+            </Button>
+          }
+        />
       ) : (
         <>
-          {/* ---------- Desktop: jadval. Konteyner tor bo'lsa (masalan, o'ng navigatsiya bilan) yo'nalish/hudud/vaqt
-               ustunlari ism ostidagi bitta qatorga yig'iladi — amallar ustuni hech qachon kesilmaydi ---------- */}
-          <div className="@container card hidden overflow-hidden md:block">
+          {/* ---------- Desktop: jadval. Konteyner tor bo'lsa (o'ng navigatsiya bilan) yo'nalish/hudud/vaqt
+               ustunlari ism ostidagi bitta qatorga yig'iladi — amallar ustuni hech qachon kesilmaydi.
+               overflow-hidden YO'Q — «⋯» menyusi karta chetidan chiqib ko'rinishi kerak ---------- */}
+          <div className="@container card hidden md:block">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-line text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">
-                  <th className="px-5 py-3 font-bold">Mutaxassis</th>
-                  <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Yo'nalish</th>
+                  <th className="w-px py-3 pl-4 pr-1">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={() => setSelected(allVisibleSelected ? new Set() : new Set(filtered.map((r) => r.id)))}
+                      aria-label={allVisibleSelected ? "Tanlovni bekor qilish" : "Ko'rinayotganlarning hammasini tanlash"}
+                      className="h-4 w-4 cursor-pointer rounded-[4px] accent-[var(--accent)]"
+                    />
+                  </th>
+                  <th className="px-3 py-3 font-bold">Mutaxassis</th>
+                  <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Yo&apos;nalish</th>
                   <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Hudud</th>
                   <th className="hidden px-3 py-3 font-bold @[66rem]:table-cell">Kutmoqda</th>
-                  <th className="w-px px-5 py-3 text-right font-bold">Amallar</th>
+                  <th className="w-px px-4 py-3 text-right font-bold">Amallar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {rows.map((row) => {
+                {filtered.map((row) => {
                   const cat = CATEGORY_BY_SLUG[row.category];
                   const region = REGION_BY_SLUG[row.regionSlug];
                   return (
-                    <tr key={row.id} className={cn("transition hover:bg-fg/3", busy[row.id] && "opacity-60")}>
-                      <td className="w-full max-w-0 px-5 py-2.5">
-                        <div className="flex items-center gap-3">
+                    <tr key={row.id} className={cn("transition-colors hover:bg-fg/3", busy[row.id] && "opacity-60", selected.has(row.id) && "bg-accent-soft/40")}>
+                      <td className="w-px py-2.5 pl-4 pr-1 align-top">{selectCheckbox(row, "mt-2.5")}</td>
+                      <td className="w-full max-w-0 px-3 py-2.5">
+                        <div className="flex items-start gap-3">
                           <Avatar name={row.user.name} src={row.user.avatarUrl ?? undefined} size={36} decorative />
                           <div className="min-w-0">
                             <p className="flex items-center gap-1.5 font-semibold text-fg">
@@ -435,7 +613,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                               )}
                             </p>
                             <p className="truncate text-[12px] text-fg-3">{row.title}</p>
-                            {row.bio?.trim() ? <p className="truncate text-[12px] text-fg-4">{row.bio}</p> : null}
+                            {row.bio?.trim() ? <Bio text={row.bio.trim()} expanded={bioOpen.has(row.id)} onToggle={() => toggleBio(row.id)} className="mt-0.5" /> : null}
                             <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-fg-3 @[66rem]:hidden">
                               {cat && (
                                 <span className="inline-flex items-center gap-1 font-semibold text-fg-2">
@@ -466,7 +644,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                           </div>
                         </div>
                       </td>
-                      <td className="hidden px-3 py-2.5 @[66rem]:table-cell">
+                      <td className="hidden px-3 py-2.5 align-top @[66rem]:table-cell">
                         {cat ? (
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-fg/6 px-2.5 py-1 text-[12px] font-semibold text-fg-2">
                             <CategoryIcon icon={cat.icon} size={12} className="text-fg-3" /> {cat.name}
@@ -475,14 +653,14 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                           <span className="text-fg-4">—</span>
                         )}
                       </td>
-                      <td className="hidden px-3 py-2.5 @[66rem]:table-cell">
+                      <td className="hidden px-3 py-2.5 align-top @[66rem]:table-cell">
                         <p className="whitespace-nowrap font-medium text-fg">{region?.short ?? row.regionSlug}</p>
                         <p className="text-[12px] text-fg-3">{row.city}</p>
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-2.5 text-[12px] text-fg-2 @[66rem]:table-cell">
+                      <td className="hidden whitespace-nowrap px-3 py-2.5 align-top text-[12px] text-fg-2 @[66rem]:table-cell">
                         <WaitBadge createdAt={row.createdAt} />
                       </td>
-                      <td className="w-px whitespace-nowrap px-5 py-2.5">
+                      <td className="w-px whitespace-nowrap px-4 py-2.5 align-top">
                         <Actions row={row} />
                       </td>
                     </tr>
@@ -494,12 +672,13 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
 
           {/* ---------- Mobil: kartalar (ustun nomlari saqlanadi) ---------- */}
           <ul className="space-y-3 md:hidden">
-            {rows.map((row, i) => {
+            {filtered.map((row, i) => {
               const cat = CATEGORY_BY_SLUG[row.category];
               const region = REGION_BY_SLUG[row.regionSlug];
               return (
-                <li key={row.id} className={cn("card p-4", busy[row.id] && "opacity-60", i >= MOBILE_CAP && !showAll && "hidden")}>
+                <li key={row.id} className={cn("card p-4", busy[row.id] && "opacity-60", selected.has(row.id) && "!border-accent/50", i >= MOBILE_CAP && !showAll && "hidden")}>
                   <div className="flex items-start gap-3">
+                    {selectCheckbox(row, "mt-3")}
                     <Avatar name={row.user.name} src={row.user.avatarUrl ?? undefined} size={44} decorative />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-1.5 text-[15px] font-semibold text-fg">
@@ -517,7 +696,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                         )}
                       </p>
                       <p className="truncate text-[13px] text-fg-2">{row.title}</p>
-                      {row.bio?.trim() ? <p className="truncate text-[12px] text-fg-4">{row.bio}</p> : null}
+                      {row.bio?.trim() ? <Bio text={row.bio.trim()} expanded={bioOpen.has(row.id)} onToggle={() => toggleBio(row.id)} className="mt-0.5" /> : null}
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-3">
                         <WaitBadge createdAt={row.createdAt} />
                         {typeof row.portfolioCount === "number" && (
@@ -531,10 +710,16 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
 
                   <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
                     <div>
-                      <dt className="text-fg-4">Yo'nalish</dt>
-                      <dd className="inline-flex items-center gap-1.5 font-semibold text-fg-2">{cat ? <>
+                      <dt className="text-fg-4">Yo&apos;nalish</dt>
+                      <dd className="inline-flex items-center gap-1.5 font-semibold text-fg-2">
+                        {cat ? (
+                          <>
                             <CategoryIcon icon={cat.icon} size={12} className="text-fg-3" /> {cat.name}
-                          </> : "—"}</dd>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </dd>
                     </div>
                     <div>
                       <dt className="text-fg-4">Hudud</dt>
@@ -564,17 +749,45 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
               );
             })}
           </ul>
-          {rows.length > MOBILE_CAP && !showAll && (
+          {filtered.length > MOBILE_CAP && !showAll && (
             <Button variant="outline" size="md" className="w-full md:hidden" onClick={() => setShowAll(true)}>
-              Yana {rows.length - MOBILE_CAP} ta ko'rsatish
+              Yana {filtered.length - MOBILE_CAP} ta ko&apos;rsatish
             </Button>
           )}
         </>
       )}
-      {rows.length > 0 && (
-        <p className="px-1 text-[12px] text-fg-4">
-          <X size={11} className="mr-1 inline" /> O'chirish qaytarib bo'lmaydi — avval ommaviy profilni ko'rib chiqing.
-        </p>
+
+      {/* ---------- Ommaviy amal paneli (tanlov bo'lsa) ---------- */}
+      {bulkBar.mounted && (
+        <div role="region" aria-label="Tanlanganlar bilan amallar" className={cn("card-elevated sticky bottom-24 z-10 flex flex-wrap items-center gap-2 p-2.5 md:bottom-4", bulkBar.closing ? "pop-out" : "pop-in")}>
+          <span className="px-2 text-[13px] font-semibold text-fg tabular-nums">{selected.size} ta tanlandi</span>
+          {bulkReject ? (
+            <>
+              <label htmlFor="bulk-reject-reason" className="sr-only">
+                Rad etish sababi
+              </label>
+              <input id="bulk-reject-reason" className="field !h-9 !min-h-0 min-w-[200px] flex-1 !py-0 text-[13px]" value={bulkReason} onChange={(e) => setBulkReason(e.target.value)} maxLength={300} placeholder="Sabab (kamida 5 belgi) — hammasiga yuboriladi" autoFocus />
+              <Button size="sm" variant="danger" onClick={() => runBulk("reject", bulkReason)} disabled={bulkBusy || bulkReason.trim().length < 5}>
+                {bulkBusy ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Rad etish
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setBulkReject(false)} disabled={bulkBusy}>
+                Bekor
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="sm" onClick={() => runBulk("verify")} disabled={bulkBusy}>
+                {bulkBusy ? <Spinner className="h-3.5 w-3.5" /> : <BadgeCheck size={14} />} Tasdiqlash
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setBulkReject(true)} disabled={bulkBusy}>
+                <XCircle size={14} /> Rad etish…
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy} className="ml-auto">
+                Tanlovni bekor qilish
+              </Button>
+            </>
+          )}
+        </div>
       )}
 
       {/* ---------- So'nggi tasdiqlanganlar: tasdiqni qaytarib olish mumkin ---------- */}
@@ -582,9 +795,9 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
         <section className="card overflow-hidden" aria-label="So'nggi tasdiqlanganlar">
           <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 sm:px-5">
             <p className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">
-              <BadgeCheck size={13} className="text-success" /> So'nggi tasdiqlanganlar
+              <BadgeCheck size={13} className="text-success" /> So&apos;nggi tasdiqlanganlar
             </p>
-            <p className="text-[12px] text-fg-4">Adashib tasdiqlangan bo'lsa — shu yerdan qaytarib olinadi</p>
+            <p className="text-[12px] text-fg-4">Adashib tasdiqlangan bo&apos;lsa — shu yerdan qaytariladi</p>
           </header>
           <ul className="divide-y divide-line">
             {vRows.slice(0, 10).map((row) => {
@@ -611,7 +824,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                     {timeAgo(row.verifiedAt)}
                   </time>
                   {asking ? (
-                    <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="expand-in flex shrink-0 items-center gap-1.5">
                       <span className="hidden text-[12px] font-medium text-fg-2 sm:inline">Belgi olinadi, profil navbatga qaytadi.</span>
                       <Button size="sm" variant="danger" onClick={() => unverify(row)} disabled={!!b}>
                         {b === "unverify" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} Ha, olib tashlash
@@ -626,11 +839,11 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                         href={`/mutaxassislar/${row.slug}`}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label="Ommaviy profilni ochish"
+                        aria-label={`${row.user.name}: ommaviy profilni ochish`}
                         title="Ommaviy profil"
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line-2 text-fg-2 transition hover:border-fg hover:text-fg"
                       >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={16} />
                       </Link>
                       <Button size="sm" variant="outline" onClick={() => setConfirmUnverify(row.id)} disabled={!!b}>
                         <XCircle size={14} /> Tasdiqni olib tashlash
@@ -641,7 +854,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
               );
             })}
           </ul>
-          {vRows.length > 10 && <p className="border-t border-line px-4 py-2.5 text-[12px] text-fg-4 sm:px-5">Oxirgi 10 tasi ko'rsatilgan</p>}
+          {vRows.length > 10 && <p className="border-t border-line px-4 py-2.5 text-[12px] text-fg-4 sm:px-5">Oxirgi 10 tasi ko&apos;rsatilgan</p>}
         </section>
       )}
     </div>

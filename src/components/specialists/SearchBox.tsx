@@ -5,6 +5,7 @@ import { LayoutGrid, MapPin, Search, Sparkles, UserRound, X, type LucideIcon } f
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { FILTR } from "@/lib/i18n/dict/catalog";
+import { PALET } from "@/lib/i18n/dict/search";
 import { cn } from "@/lib/utils";
 
 export type SuggestionType = "category" | "region" | "specialist" | "skill" | "city";
@@ -77,6 +78,8 @@ export function SearchBox({
         const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(term)}`, { signal: ctrl.signal });
         const json = (await res.json()) as SuggestResponse;
         const next = json.ok ? json.data.items : [];
+        // Kesh cheksiz o'smasin — 50 tadan oshsa eng eskisi chiqariladi
+        if (cache.size >= 50) cache.delete(cache.keys().next().value as string);
         cache.set(key, next);
         setItems(next);
         setActive(-1);
@@ -198,7 +201,8 @@ export function SearchBox({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium text-fg">{s.label}</span>
-                {s.hint && <span className="block truncate text-[12px] text-fg-3">{s.hint}</span>}
+                {/* Tur hint'i (Yo'nalish/Hudud/Ko'nikma/Shahar) — tilga mos; mutaxassisda hint = kasb sarlavhasi */}
+                {(PALET.suggestHint[s.type] || s.hint) && <span className="block truncate text-[12px] text-fg-3">{PALET.suggestHint[s.type] ? tr(til, PALET.suggestHint[s.type]) : s.hint}</span>}
               </span>
             </li>
           );

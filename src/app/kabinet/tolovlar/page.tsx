@@ -21,7 +21,7 @@ const TIER_LABEL: Record<CommissionTier, string> = { new: "Yangi", standard: "Od
 
 function Tile({ icon: Icon, value, label, hint, emphasis }: { icon: LucideIcon; value: string; label: string; hint?: string; emphasis?: boolean }) {
   return (
-    <div className={cn("card p-4 sm:p-5", emphasis && "card-elevated border-accent/30")}>
+    <div className={cn("card p-4 sm:p-5", emphasis && "!border-accent/40")}>
       <div className="flex items-start justify-between gap-3">
         <IconTile icon={Icon} tone={emphasis ? "soft" : "outline"} size="sm" />
       </div>
@@ -90,16 +90,16 @@ export default async function PaymentsPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <Wallet size={13} className="text-accent" /> Kabinet
+          <Wallet size={13} /> Kabinet
         </span>
-        <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
+        <h1 className="display-xl mt-4 text-fg">
           {sp ? (
             <>
-              To'lovlar va <span className="accent-serif text-accent">balans</span>
+              To'lovlar va <span className="accent-serif">balans</span>
             </>
           ) : (
             <>
-              Mening <span className="accent-serif text-accent">to'lovlarim</span>
+              Mening <span className="accent-serif">to'lovlarim</span>
             </>
           )}
         </h1>

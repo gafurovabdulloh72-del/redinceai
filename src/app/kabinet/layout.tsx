@@ -53,7 +53,8 @@ function SubscriptionPill({ st }: { st: SubscriptionState }) {
         : `Obuna tugashiga ${st.daysLeft} kun qoldi`;
   return (
     <div
-      role={expired ? "alert" : "status"}
+      // Doimiy banner: role="alert" har navigatsiyada avtomatik silkinardi — status (o'qiladi, lekin shovqinsiz)
+      role="status"
       className={cn(
         "mb-5 flex min-h-10 items-center justify-between gap-3 rounded-full border px-4 py-1.5",
         expired ? "border-danger/30 bg-danger-soft" : "border-warning/30 bg-warning-soft",
@@ -132,7 +133,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   if (user.role === "client") {
     items.push({ href: "/kabinet/elonlar", label: "E'lonlarim", icon: "jobs", badge: pendingProposals });
     items.push({ href: "/kabinet/mutaxassislarim", label: "Mutaxassislarim", icon: "partners" });
-    items.push({ href: "/kabinet/qidiruvlar", label: "Saqlangan qidiruvlar", icon: "searches" });
+    items.push({ href: "/kabinet/qidiruvlar", label: "Qidiruvlar", icon: "searches" });
   }
   // Mutaxassis: takliflari, obunasi (holat nuqtasi bilan) va oylik hisoboti
   if (user.role === "specialist") {
@@ -141,21 +142,25 @@ export default async function KabinetLayout({ children }: { children: React.Reac
     if (user.specialist) items.push({ href: "/kabinet/hisobot", label: "Hisobot", icon: "report" });
   }
   // Vakansiyalar (barcha rollar, to'lovsiz): ish beruvchi — vakansiyalarim, nomzod — arizalarim va rezyume
-  items.push({ href: "/kabinet/vakansiyalar", label: "Vakansiyalarim", icon: "vacancies" });
+  items.push({ href: "/kabinet/vakansiyalar", label: "Vakansiyalar", icon: "vacancies" });
   items.push({ href: "/kabinet/arizalarim", label: "Arizalarim", icon: "applications" });
-  items.push({ href: "/kabinet/rezyume", label: "Rezyumem", icon: "resume" });
+  items.push({ href: "/kabinet/rezyume", label: "Rezyume", icon: "resume" });
   items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" });
   items.push({ href: "/kabinet/saqlanganlar", label: "Saqlanganlar", icon: "saved" });
   items.push({ href: "/kabinet/obunalar", label: "Obunalar", icon: "follows" });
-  items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
+  // Profil nuqtasi: mutaxassis profili yetarlicha to'ldirilmagan bo'lsa (sarlavha/bio/narx/ko'nikma/rasm/aloqa — 6 ta mezon)
+  const sp = user.specialist;
+  const profileScore = sp ? [sp.title.trim().length >= 5, sp.bio.trim().length >= 80, sp.priceFrom > 0, sp.skills.length >= 3, Boolean(sp.coverUrl || user.avatarUrl), Boolean(sp.telegram || sp.instagram)].filter(Boolean).length : 6;
+  items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile", ...(sp && profileScore < 4 ? { dot: "warning" as const, dotLabel: `profil ${Math.round((profileScore / 6) * 100)}% to'ldirilgan` } : {}) });
   if (user.specialist || user.role === "specialist") {
     items.push({ href: "/kabinet/portfolio", label: "Portfolio", icon: "portfolio" });
     items.push({ href: "/kabinet/postlar", label: "Postlarim", icon: "posts" });
   }
   items.push({ href: "/kabinet/tolovlar", label: "To'lovlar", icon: "payments" });
-  items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security" });
+  // Xavfsizlik nuqtasi: email tasdiqlanmagan (parol tiklash ishlamaydi)
+  items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security", ...(!user.emailVerified ? { dot: "warning" as const, dotLabel: "email tasdiqlanmagan" } : {}) });
   if (user.specialist) {
-    items.push({ href: `/mutaxassislar/${user.specialist.slug}`, label: "Ommaviy profil", icon: "public" });
+    items.push({ href: `/mutaxassislar/${user.specialist.slug}`, label: "Profilim (ommaviy)", icon: "public" });
   }
   if (user.role === "admin") {
     items.push({ href: "/admin", label: "Admin panel", icon: "admin" });

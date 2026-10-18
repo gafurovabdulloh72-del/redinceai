@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, BadgePercent, CheckCircle2, History, Save, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, BadgePercent, CheckCircle2, History, Save } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { TOP_RATED_RULE } from "@/lib/constants";
 import { cn, formatDateTime, formatNumber, formatPrice } from "@/lib/utils";
@@ -167,16 +167,9 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
   };
 
   return (
-    <form onSubmit={submit} className="card p-5 sm:p-6" noValidate>
-      <div className="flex items-start gap-3">
-        <span className="icon-tile">
-          <SlidersHorizontal size={18} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[18px] font-semibold text-fg">Platforma sozlamalari</h3>
-          <p className="mt-0.5 text-[13px] text-fg-3">Yangi to'lovlarga darhol qo'llanadi. Allaqachon to'langan buyurtmalar o'z foizini saqlaydi.</p>
-        </div>
-      </div>
+    <form onSubmit={submit} className="card p-5 sm:p-6" noValidate aria-label="Platforma sozlamalari">
+      {/* Bo'lim sarlavhasi sahifada bor — bu yerda faqat qisqa eslatma (takror sarlavha yo'q) */}
+      <p className="text-[12.5px] text-fg-3">Yangi to&apos;lovlarga darhol qo&apos;llanadi; allaqachon to&apos;langan buyurtmalar o&apos;z foizini saqlaydi.</p>
 
       <GroupTitle>Komissiya darajalari</GroupTitle>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
@@ -378,5 +371,5 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
 }
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
-  return <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{children}</p>;
+  return <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-3">{children}</p>;
 }

@@ -18,14 +18,12 @@ export default async function SavedPostsPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <Bookmark size={13} className="text-accent" /> Kabinet
+          <Bookmark size={13} /> Kabinet
         </span>
-        <h1 className="mt-2 font-display text-[26px] font-semibold tracking-tight text-fg sm:text-[30px]">
-          Saqlangan <span className="accent-serif text-accent">postlar</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Saqlangan <span className="accent-serif">postlar</span>
         </h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">
-          Lentadagi postning belgi (🔖) tugmasi bilan saqlangan yozuvlar. Bu ro&apos;yxat faqat sizga ko&apos;rinadi.
-        </p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">Lentada belgilab qo&apos;ygan postlaringiz — faqat sizga ko&apos;rinadi.</p>
       </header>
       <div className="mx-auto max-w-2xl">
         <HomeFeed initial={page} loggedIn source="/api/posts/saved" emptyTitle="Hali saqlangan post yo'q — lentada postning belgi tugmasini bosing" />

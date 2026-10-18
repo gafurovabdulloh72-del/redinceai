@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
-import { AlertCircle, CalendarClock, Send, Wallet } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { AlertCircle, BookmarkPlus, CalendarClock, Send, Wallet, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { COVER_MAX, COVER_MIN } from "@/lib/jobs/format";
 import { cn, formatPrice } from "@/lib/utils";
@@ -11,6 +11,27 @@ type ApiResponse = { ok: true; data: { id: string; remaining: number } } | { ok:
 
 const FIELD_ORDER = ["amount", "deliveryDays", "coverLetter"] as const;
 type FieldKey = (typeof FIELD_ORDER)[number];
+
+/** Xat shablonlari — faqat shu brauzerda (localStorage), ko'pi bilan 5 ta; serverga yuborilmaydi */
+const TPL_KEY = "proposal-templates";
+const TPL_MAX = 5;
+type Template = { name: string; text: string };
+function loadTemplates(): Template[] {
+  try {
+    const raw = localStorage.getItem(TPL_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((t): t is Template => Boolean(t && typeof t === "object" && typeof (t as Template).name === "string" && typeof (t as Template).text === "string")).slice(0, TPL_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+function storeTemplates(list: Template[]) {
+  try {
+    localStorage.setItem(TPL_KEY, JSON.stringify(list.slice(0, TPL_MAX)));
+  } catch {
+    /* saqlash mavjud emas (maxfiy rejim) — e'tiborsiz */
+  }
+}
 
 /**
  * Mutaxassisning taklifi: narx (umumiy, so'm), muddat (kun), xat (50–2000 belgi).
@@ -40,6 +61,22 @@ export function ProposalForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Shablonlar faqat mount'dan keyin o'qiladi — server DOM'i o'zgarmaydi (hydration)
+  const [templates, setTemplates] = useState<Template[]>([]);
+  useEffect(() => setTemplates(loadTemplates()), []);
+  const saveTemplate = () => {
+    const text = cover.trim();
+    if (text.length < COVER_MIN) return;
+    const name = text.replace(/\s+/g, " ").slice(0, 28) + (text.length > 28 ? "…" : "");
+    const next = [{ name, text }, ...templates.filter((t) => t.text !== text)].slice(0, TPL_MAX);
+    setTemplates(next);
+    storeTemplates(next);
+  };
+  const removeTemplate = (i: number) => {
+    const next = templates.filter((_, j) => j !== i);
+    setTemplates(next);
+    storeTemplates(next);
+  };
   const refs = useRef<Partial<Record<FieldKey, HTMLInputElement | HTMLTextAreaElement | null>>>({});
   const setRef = (k: FieldKey) => (el: HTMLInputElement | HTMLTextAreaElement | null) => {
     refs.current[k] = el;
@@ -158,9 +195,28 @@ export function ProposalForm({
       </div>
 
       <div className="mt-4">
-        <label htmlFor="prop-cover" className="field-label">
-          Mijozga xat
-        </label>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <label htmlFor="prop-cover" className="field-label">
+            Mijozga xat
+          </label>
+          <button type="button" onClick={saveTemplate} disabled={coverLen < COVER_MIN || templates.some((t) => t.text === cover.trim())} className="press -mb-1 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold text-fg-3 hover:text-fg disabled:opacity-40" title="Xatni shablon sifatida saqlash (faqat shu qurilmada)">
+            <BookmarkPlus size={13} aria-hidden="true" /> Shablonga saqlash
+          </button>
+        </div>
+        {templates.length > 0 && (
+          <div className="expand-in mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Xat shablonlari">
+            {templates.map((t, i) => (
+              <span key={t.text} className="inline-flex h-8 items-center gap-1 rounded-full border border-line pl-3 pr-1 text-[12px] font-semibold text-fg-2">
+                <button type="button" onClick={() => setCover(t.text)} className="press hover:text-fg">
+                  {t.name}
+                </button>
+                <button type="button" onClick={() => removeTemplate(i)} aria-label={`${t.name} shablonini o'chirish`} className="press flex h-6 w-6 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <textarea
           ref={setRef("coverLetter")}
           id="prop-cover"

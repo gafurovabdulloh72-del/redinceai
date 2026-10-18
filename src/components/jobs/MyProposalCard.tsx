@@ -33,7 +33,7 @@ export function WithdrawButton({ proposalId, className, size = "md" }: { proposa
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {ask ? (
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Taklifni qaytarib olishni tasdiqlang">
+        <div className="expand-in flex flex-wrap items-center gap-2" role="group" aria-label="Taklifni qaytarib olishni tasdiqlang">
           <span className="text-[13px] font-medium text-fg-2">Taklif qaytarib olinsinmi?</span>
           <button type="button" onClick={run} disabled={busy} className={cn("inline-flex items-center gap-1.5 rounded-full bg-danger-strong font-semibold text-white transition hover:brightness-110 disabled:opacity-60", h)}>
             {busy ? <Spinner /> : <Undo2 size={14} aria-hidden="true" />} Ha, qaytarish
@@ -43,7 +43,7 @@ export function WithdrawButton({ proposalId, className, size = "md" }: { proposa
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => setAsk(true)} className={cn("inline-flex w-fit items-center gap-1.5 rounded-full border border-line-2 font-semibold text-fg-2 transition hover:border-fg hover:text-fg", h)}>
+        <button type="button" onClick={() => setAsk(true)} className={cn("press inline-flex w-fit items-center gap-1.5 rounded-full border border-line-2 font-semibold text-fg-2 transition hover:border-fg hover:text-fg", h)}>
           <Undo2 size={14} aria-hidden="true" /> Qaytarib olish
         </button>
       )}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, FileChartColumn } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, FileChartColumn } from "lucide-react";
 import { PrintButton } from "@/components/payments/PrintButton";
 import { PAYOUT_METHOD_LABEL, PROVIDER_LABEL } from "@/components/payments/tones";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -80,19 +80,38 @@ export default async function MonthlyReportPage({ searchParams }: { searchParams
 
       {/* ---------- Boshqaruv (chop etilmaydi) ---------- */}
       <div className="no-print mb-5 flex flex-col gap-4">
-        <Link href="/kabinet" className="inline-flex min-h-10 w-fit items-center gap-1.5 text-[13px] font-medium text-fg-3 transition hover:text-fg">
-          <ArrowLeft size={14} /> Kabinetga qaytish
-        </Link>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <span className="eyebrow">
-              <FileChartColumn size={13} className="text-accent" /> Moliya
+              <FileChartColumn size={13} /> Moliya
             </span>
-            <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[38px]">
-              Oylik <span className="accent-serif text-accent">hisobot</span>
+            <h1 className="display-xl mt-4 text-fg">
+              Oylik <span className="accent-serif">hisobot</span>
             </h1>
           </div>
-          <PrintButton className="w-full sm:w-auto" />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a
+              href={`/kabinet/hisobot/csv?oy=${month.key}`}
+              download
+              className="press inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line-2 px-5 text-[14px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4"
+            >
+              <Download size={15} /> CSV
+            </a>
+            <PrintButton className="w-full sm:w-auto" />
+          </div>
+        </div>
+        {/* Tez tanlov: joriy va o'tgan oy */}
+        <div className="flex flex-wrap gap-1.5" aria-label="Tez tanlov">
+          {[cur, shiftMonth(cur, -1)].map((m) => (
+            <Link
+              key={m.key}
+              href={`/kabinet/hisobot?oy=${m.key}`}
+              aria-current={m.key === month.key ? "page" : undefined}
+              className={cn("press inline-flex min-h-8 items-center rounded-full border px-3 text-[12.5px] font-semibold transition", m.key === month.key ? "btn-ink border-transparent" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
+            >
+              {m.key === cur.key ? "Joriy oy" : "O'tgan oy"} · {m.label}
+            </Link>
+          ))}
         </div>
 
         {/* Oy tanlash: JS'siz ham ishlaydi (GET forma) */}

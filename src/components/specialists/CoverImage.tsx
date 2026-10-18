@@ -34,9 +34,8 @@ export function CoverImage({ src, category, seed, priority = false }: { src: str
         fetchPriority={priority ? "high" : undefined}
         decoding="async"
         onError={() => setBroken(true)}
-        className="absolute inset-0 h-full w-full object-cover"
-        /* Qisqa fade faqat CSS orqali — rasm ko'rinishi onLoad'ga bog'lanmaydi */
-        style={{ animation: "cover-fade-in 0.4s ease both" }}
+        /* Qisqa fade — `animate-fade-in` tokeni (xom keyframes emas; reduced-motion'da o'chadi); rasm ko'rinishi onLoad'ga bog'lanmaydi */
+        className="animate-fade-in absolute inset-0 h-full w-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" aria-hidden="true" />
     </>

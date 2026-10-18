@@ -1,22 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Ban, Check, CheckCheck, CheckCircle2, Flag, MessageCircle, Paperclip, Search, Send, ShieldCheck, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, ArrowDown, ArrowLeft, Ban, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, User, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { useToast } from "@/components/ui/toast";
-import { SafeImage } from "@/components/specialists/SafeImage";
-import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, type Attachment } from "./attachments";
-import { AttachmentList, QuoteBlock, ReplyBar, ReplyButton, TypingDots } from "./MessageParts";
-import { VoiceRecorder } from "./VoiceRecorder";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { usePresence } from "@/components/motion/usePresence";
+import { DM_BODY_MAX, DM_DELETED_TEXT, DM_EDIT_WINDOW_MS, DM_SEARCH_MIN, type ReactionSummary } from "@/lib/chat/constants";
 import type { QuoteView } from "@/lib/chat/quote";
-import { cn, timeAgo } from "@/lib/utils";
+import { clock, dayKey, dayLabel, fullStamp, listStamp, relativeTime } from "@/lib/chat/time";
+import { cn } from "@/lib/utils";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, withRetryAfter, type Attachment } from "./attachments";
+import { AttachmentList, DayPill, LinkCard, Linkified, QuoteBlock, ReactionChips, ReactionPicker, ReplyBar, TypingDots, iconBtn, jumpToMessage, useNowTick } from "./MessageParts";
+import { ForwardDialog, InfoDialog, Layer, MenuDivider, MenuItem, PeerAvatar, PrefItems, type ConvPrefsView } from "./DmPanels";
+import { VoiceRecorder } from "./VoiceRecorder";
 
 /**
  * Ichki chat (DM) — kabinetdagi "Chat" bo'limi.
  * Chapda suhbatlar ro'yxati, o'ngda tanlangan suhbat; mobil ekranda bittasi ko'rinadi.
- * Yangilanish: ochiq suhbat 5 soniyada (faqat yangi xabarlar ?after bilan), ro'yxat 20 soniyada.
+ * Yangilanish: ochiq suhbat 4 soniyada (faqat yangi xabarlar ?after bilan; yangilik bo'lmasa sekinlashadi, yashirin tabda to'xtaydi),
+ * ro'yxat 20 soniyada. Qo'shimcha: tahrirlash/o'chirish, reaksiya, qadash, yo'naltirish, qidiruv, media, qoralama, drag&drop, paste.
  */
 
 interface Peer {
@@ -25,18 +30,17 @@ interface Peer {
   name: string;
   avatarUrl: string | null;
   isBanned?: boolean;
-  /** Mutaxassis profili slug'i (bor bo'lsa) — ism bosilganda /mutaxassislar/<slug>'ga o'tadi */
   slug?: string | null;
-  /** Chatdagi real faollik (ms) — "Onlayn" (yashil) shundan */
   lastSeenAt?: number | null;
-  /** Oxirgi faollik (ms) — lastSeenAt yoki tizimga kirish; "oxirgi faollik" yozuvi shundan */
   lastActiveAt?: number | null;
 }
 interface ConvRow {
   id: string;
   peer: Peer & { id: string; role: string };
-  last: { body: string; mine: boolean; at: number; hasFiles: boolean; voice?: boolean } | null;
+  last: { body: string; mine: boolean; at: number; hasFiles: boolean; voice?: boolean; deleted?: boolean } | null;
   unread: number;
+  prefs: ConvPrefsView;
+  peerTyping?: boolean;
 }
 interface Msg {
   id: string;
@@ -44,303 +48,587 @@ interface Msg {
   body: string;
   attachments: Attachment[];
   at: number;
-  /** Javob berilgan xabar (iqtibos) */
   replyTo: QuoteView | null;
+  editedAt?: number | null;
+  deleted?: boolean;
+  forwardedFrom?: string | null;
+  reactions?: ReactionSummary[];
+  /** Faqat klientda: optimistik yuborish holati */
+  pending?: "sending" | "failed";
+  /** Qayta yuborish uchun saqlanadi */
+  replyToId?: string | null;
 }
 
+/* Lug'at (uz/ru) */
+const T = {
+  searchConvs: { uz: "Qidirish", ru: "Поиск" },
+  noConvs: { uz: "Hali suhbat yo'q", ru: "Пока нет чатов" },
+  noConvsHint: { uz: "Profil sahifasidagi «Yozish» orqali boshlang.", ru: "Начните через «Написать» в профиле." },
+  browse: { uz: "Mutaxassislar", ru: "Специалисты" },
+  notFound: { uz: "Topilmadi", ru: "Не найдено" },
+  pickConv: { uz: "Suhbatni tanlang", ru: "Выберите чат" },
+  firstMsg: { uz: "Birinchi xabarni yozing.", ru: "Напишите первое сообщение." },
+  you: { uz: "Siz", ru: "Вы" },
+  voice: { uz: "Ovozli xabar", ru: "Голосовое" },
+  file: { uz: "Fayl", ru: "Файл" },
+  typing: { uz: "yozmoqda…", ru: "печатает…" },
+  online: { uz: "Onlayn", ru: "В сети" },
+  lastSeen: { uz: "oxirgi faollik", ru: "был(а)" },
+  write: { uz: "Xabar yozing…", ru: "Сообщение…" },
+  replyPh: { uz: "Javob yozing…", ru: "Ответ…" },
+  editPh: { uz: "Tahrirlash…", ru: "Редактирование…" },
+  send: { uz: "Yuborish", ru: "Отправить" },
+  edited: { uz: "tahrirlangan", ru: "изменено" },
+  forwarded: { uz: "Yo'naltirilgan", ru: "Переслано" },
+  newMessages: { uz: "Yangi xabarlar", ru: "Новые сообщения" },
+  read: { uz: "O'qildi", ru: "Прочитано" },
+  sent: { uz: "Yuborildi", ru: "Отправлено" },
+  sending: { uz: "Yuborilmoqda…", ru: "Отправка…" },
+  failed: { uz: "Yuborilmadi", ru: "Не отправлено" },
+  retry: { uz: "Qayta", ru: "Повторить" },
+  remove: { uz: "O'chirish", ru: "Удалить" },
+  archived: { uz: "Arxiv", ru: "Архив" },
+  back: { uz: "Orqaga", ru: "Назад" },
+  reply: { uz: "Javob", ru: "Ответить" },
+  copy: { uz: "Nusxalash", ru: "Копировать" },
+  forward: { uz: "Yo'naltirish", ru: "Переслать" },
+  edit: { uz: "Tahrirlash", ru: "Изменить" },
+  pin: { uz: "Qadash", ru: "Закрепить" },
+  unpin: { uz: "Yechish", ru: "Открепить" },
+  deleteMe: { uz: "Men uchun o'chirish", ru: "Удалить у меня" },
+  deleteAll: { uz: "Hamma uchun o'chirish", ru: "Удалить у всех" },
+  report: { uz: "Shikoyat", ru: "Пожаловаться" },
+  block: { uz: "Bloklash", ru: "Заблокировать" },
+  unblock: { uz: "Blokdan chiqarish", ru: "Разблокировать" },
+  blockQ: { uz: "Bloklaysizmi? U sizga yoza olmaydi.", ru: "Заблокировать? Он(а) не сможет вам писать." },
+  yes: { uz: "Ha", ru: "Да" },
+  cancel: { uz: "Bekor", ru: "Отмена" },
+  blockedByMe: { uz: "Siz bloklagansiz — yozib bo'lmaydi.", ru: "Вы заблокировали — писать нельзя." },
+  blockedMe: { uz: "Bu foydalanuvchiga yozib bo'lmaydi.", ru: "Этому пользователю нельзя писать." },
+  banned: { uz: "Hisob bloklangan — yozib bo'lmaydi.", ru: "Аккаунт заблокирован — писать нельзя." },
+  profile: { uz: "Profil", ru: "Профиль" },
+  searchMsgs: { uz: "Xabarlarni qidirish", ru: "Поиск сообщений" },
+  info: { uz: "Ma'lumot va media", ru: "Информация и медиа" },
+  attach: { uz: "Fayl", ru: "Файл" },
+  quick: { uz: "Tez javoblar", ru: "Быстрые ответы" },
+  ctrlEnter: { uz: "Ctrl+Enter bilan yuborish", ru: "Отправлять по Ctrl+Enter" },
+  copied: { uz: "Nusxalandi", ru: "Скопировано" },
+  forwardedOk: { uz: "Yo'naltirildi", ru: "Переслано" },
+  open: { uz: "Ochish", ru: "Открыть" },
+  dropHere: { uz: "Faylni shu yerga tashlang", ru: "Перетащите файл сюда" },
+  toLatest: { uz: "Pastga", ru: "Вниз" },
+  closedDm: { uz: "Bu foydalanuvchi shaxsiy xabarlarni yopib qo'ygan", ru: "Пользователь закрыл личные сообщения" },
+  searchPh: { uz: "Suhbatda qidirish…", ru: "Поиск в чате…" },
+  noResults: { uz: "Hech narsa topilmadi", ru: "Ничего не найдено" },
+  notLoaded: { uz: "Eski xabar — bu oynada yuklanmagan", ru: "Старое сообщение — не загружено" },
+  uploading: { uz: "Yuklanmoqda", ru: "Загрузка" },
+  menu: { uz: "Menyu", ru: "Меню" },
+  msgMenu: { uz: "Xabar amallari", ru: "Действия" },
+  more: { uz: "Yana", ru: "Ещё" },
+  pinned: { uz: "Qadalgan", ru: "Закреплено" },
+  muted: { uz: "Ovozsiz", ru: "Без звука" },
+} as const;
+
+/** Mutaxassis uchun tayyor javoblar (OrderChat bilan bir xil saqlash kaliti — bitta ro'yxat) */
+const QUICK_KEY = "redince:quick-replies";
+const DEFAULT_QUICK = ["Assalomu alaykum! Xabaringizni oldim, tez orada javob beraman.", "Narx va muddatni aniqlashtirsak: qachongacha kerak va qanday formatda?", "Ish jarayonda — oraliq natijani tez orada yuboraman.", "Rahmat! Hamkorlikdan xursandman."];
+const CTRL_ENTER_KEY = "chat:ctrlEnter";
+const draftKey = (id: string) => `chat:draft:${id}`;
+const store = {
+  get(k: string): string | null {
+    try {
+      return window.localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set(k: string, v: string | null) {
+    try {
+      if (v === null || v === "") window.localStorage.removeItem(k);
+      else window.localStorage.setItem(k, v);
+    } catch {
+      /* saqlanmasa ham ishlaydi */
+    }
+  },
+};
+
+const ONLINE_MS = 3 * 60 * 1000;
+const firstUrl = (t: string) => /https?:\/\/[^\s<>"'()]+/i.exec(t)?.[0]?.replace(/[.,;:!?…]+$/, "") ?? null;
+
 /** Xabardan iqtibos (javob paneli uchun) — server bilan bir xil qoida */
-function quoteOf(m: Msg, peerName: string): QuoteView {
+function quoteOf(m: Msg, peerName: string, you: string): QuoteView {
   const a = m.attachments;
   const kind = a.some((x) => x.type.startsWith("audio/")) ? "voice" : a.some((x) => x.type.startsWith("video/")) ? "video" : a.some((x) => x.type.startsWith("image/")) ? "image" : a.length ? "file" : "text";
   const label = { voice: "Ovozli xabar", image: "Rasm", video: "Video", file: "Fayl", text: "" }[kind];
   const text = m.body.replace(/\s+/g, " ").trim();
-  return { id: m.id, body: text ? (text.length > 140 ? `${text.slice(0, 139)}…` : text) : label, senderName: m.mine ? "Siz" : peerName, kind };
+  return { id: m.id, body: text ? (text.length > 140 ? `${text.slice(0, 139)}…` : text) : label, senderName: m.mine ? you : peerName, kind };
 }
 
-const timeOf = (t: number) => new Date(t).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
-const dayOf = (t: number) => new Date(t).toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
-
-/** Shu oraliqda faollik — "onlayn" */
-const ONLINE_MS = 3 * 60 * 1000;
-
-function presenceOf(p: Peer): { online: boolean; label: string } {
-  // "Onlayn" faqat real chat faolligidan (lastSeenAt) — tizimga kirish buni yoqmaydi
-  if (p.lastSeenAt && Date.now() - p.lastSeenAt < ONLINE_MS) return { online: true, label: "Onlayn" };
-  // Aks holda oxirgi faollik vaqti (chat yoki tizimga kirishdan)
-  const seen = p.lastActiveAt ?? p.lastSeenAt;
-  if (seen) return { online: false, label: `oxirgi faollik ${timeAgo(seen)}` };
-  return { online: false, label: p.username ? `@${p.username}` : "" };
+/** Javobdagi xatoni (429 bo'lsa Retry-After bilan) matnga aylantirish */
+async function errorOf(res: Response, fallback: string): Promise<Error> {
+  const json = await res.json().catch(() => null);
+  const msg = (json?.fields && (Object.values(json.fields)[0] as string)) || json?.error || fallback;
+  return new Error(res.status === 429 ? withRetryAfter(msg, res.headers.get("Retry-After")) : msg);
 }
 
-/** Suhbatdosh haqida shikoyat — /api/reports (targetType: "user") */
-function ReportPanel({ peer, onClose }: { peer: Peer; onClose: () => void }) {
-  const [reason, setReason] = useState<ReportReason | "">("");
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+export function DmChat({ initialId, viewerRole, notice }: { initialId?: string | null; viewerRole?: string | null; notice?: string | null }) {
+  const locale = useLocale();
+  const t = useCallback(<K extends keyof typeof T>(k: K): string => T[k][locale], [locale]);
+  const router = useRouter();
+  const { toast } = useToast();
+  const now = useNowTick(60_000);
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    if (!reason) {
-      setErr("Sababni tanlang");
-      return;
-    }
-    setBusy(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetType: "user", targetId: peer.id, reason, text }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!json?.ok && res.status !== 409) throw new Error(json?.error ?? "Server javob bermadi");
-      setSent(true);
-    } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : "Yuborilmadi");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="border-b border-line bg-surface-2 px-3.5 py-3">
-      {sent ? (
-        <p className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-fg-2" role="status">
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 size={14} className="text-success-text" /> Shikoyat yuborildi — admin ko'rib chiqadi
-          </span>
-          <button type="button" onClick={onClose} className="font-semibold text-fg-3 hover:text-fg">
-            Yopish
-          </button>
-        </p>
-      ) : (
-        <form onSubmit={submit} className="space-y-2" aria-label={`${peer.name} haqida shikoyat`}>
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
-            <Flag size={13} className="text-fg-3" /> {peer.name} haqida shikoyat
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select value={reason} onChange={(e) => setReason(e.target.value as ReportReason | "")} className="field h-10 sm:w-56" aria-label="Shikoyat sababi">
-              <option value="">Sababni tanlang…</option>
-              {REPORT_REASONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="Izoh (ixtiyoriy)" className="field h-10 flex-1 text-[13px]" />
-            <div className="flex gap-2">
-              <button type="submit" disabled={busy} className="btn-ink h-10 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
-                {busy ? "Yuborilmoqda…" : "Yuborish"}
-              </button>
-              <button type="button" onClick={onClose} className="h-10 rounded-full border border-line px-3.5 text-[13px] font-semibold text-fg-2 hover:border-fg hover:text-fg">
-                Bekor
-              </button>
-            </div>
-          </div>
-          {err && (
-            <p className="flex items-center gap-1.5 text-[12px] font-medium text-danger-text" role="alert">
-              <AlertCircle size={13} /> {err}
-            </p>
-          )}
-        </form>
-      )}
-    </div>
-  );
-}
-
-function Avatar({ p, size = 44 }: { p: Peer; size?: number }) {
-  return p.avatarUrl ? (
-    <SafeImage src={p.avatarUrl} alt="" width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
-  ) : (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-full bg-ink font-display font-semibold text-ink-fg"
-      style={{ width: size, height: size, fontSize: size * 0.38 }}
-      aria-hidden="true"
-    >
-      {p.name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
-export function DmChat({ initialId }: { initialId?: string | null }) {
   const [convs, setConvs] = useState<ConvRow[] | null>(null);
   const [active, setActive] = useState<string | null>(initialId ?? null);
   const [peer, setPeer] = useState<Peer | null>(null);
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
-  const [sending, setSending] = useState(false);
+  const [uploads, setUploads] = useState<Array<{ key: string; name: string; progress: number; ctl: AbortController }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  /** Qarshi tomon suhbatni o'qigan vaqt (ms) — ✓✓ belgisi uchun */
+  const [showArchived, setShowArchived] = useState(false);
   const [peerReadAt, setPeerReadAt] = useState(0);
-  const [reportOpen, setReportOpen] = useState(false);
-  /** Javob berilayotgan xabar (iqtibos) */
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
-  /** Qarshi tomon hozir yozmoqda (server: so'nggi 6 soniya) */
+  const [editing, setEditing] = useState<Msg | null>(null);
   const [peerTyping, setPeerTyping] = useState(false);
-  /** Ovoz yozilmoqda — matn maydoni yashirin */
   const [recording, setRecording] = useState(false);
-  /** Blok holati (server): men bloklaganman / u meni bloklagan — ikkalasida kompozitor yopiq */
   const [blocked, setBlocked] = useState<{ byMe: boolean; me: boolean }>({ byMe: false, me: false });
   const [blockConfirm, setBlockConfirm] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
-  const { toast } = useToast();
+  const [prefs, setPrefs] = useState<ConvPrefsView>({ archived: false, muted: false, pinned: false });
+  const [pinned, setPinned] = useState<QuoteView | null>(null);
+  const [dividerId, setDividerId] = useState<string | null>(null);
+  const [nearBottom, setNearBottom] = useState(true);
+  const [newBelow, setNewBelow] = useState(0);
+  const [headerMenu, setHeaderMenu] = useState(false);
+  const [plusMenu, setPlusMenu] = useState(false);
+  const [msgMenu, setMsgMenu] = useState<{ id: string; mine: boolean; up?: boolean } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ id: string; up: boolean } | null>(null);
+  const [forwardOf, setForwardOf] = useState<Msg | null>(null);
+  const [forwardBusy, setForwardBusy] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState<Array<{ id: string; at: number; mine: boolean; snippet: string }> | null>(null);
+  const [ctrlEnter, setCtrlEnter] = useState(false);
+  const [coarse, setCoarse] = useState(false);
+  const [quick, setQuick] = useState<string[]>([]);
+  const [flying, setFlying] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [reportFor, setReportFor] = useState<{ type: "message" | "user"; id: string; key: number } | null>(null);
+  const [animIds, setAnimIds] = useState<Set<string>>(() => new Set());
+
   const typingSentAt = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  /** Xabarlar oynasi — pastga yaqinlikni o'lchash uchun */
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  /** Foydalanuvchi pastga yaqinmi (<120px) — yangi xabarda avtomatik tushish faqat shunda */
+  const listRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const reportHostRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
-  /** Avvalgi xabarlar soni — birinchi yuklash (0 → n) har doim pastga tushadi */
   const prevCountRef = useRef(0);
   const lastIdRef = useRef<string | null>(null);
+  const syncRef = useRef(0);
+  const inflightRef = useRef(false);
+  const dragDepth = useRef(0);
+  const longPress = useRef<number | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
+  const prevActiveRef = useRef<string | null>(null);
 
+  /* ---------------- Sozlamalar (localStorage) ---------------- */
+  useEffect(() => {
+    setCtrlEnter(store.get(CTRL_ENTER_KEY) === "1");
+    setCoarse(window.matchMedia("(pointer: coarse)").matches);
+    try {
+      const raw = store.get(QUICK_KEY);
+      const v: unknown = raw ? JSON.parse(raw) : [];
+      setQuick(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 12) : []);
+    } catch {
+      setQuick([]);
+    }
+  }, []);
+  useEffect(() => {
+    if (notice === "yopiq") toast(t("closedDm"), "info");
+    // faqat bir marta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notice]);
+
+  /* ---------------- Ro'yxat ---------------- */
   const loadList = useCallback(async () => {
     const res = await fetch("/api/chat").catch(() => null);
     const json = res ? await res.json().catch(() => null) : null;
     if (json?.ok) setConvs(json.data.items);
   }, []);
 
-  /** Suhbatni (to'liq yoki faqat yangilarini) yuklash */
-  const loadThread = useCallback(async (id: string, incremental: boolean) => {
-    const after = incremental ? lastIdRef.current : null;
-    const res = await fetch(`/api/chat/${id}${after ? `?after=${after}` : ""}`).catch(() => null);
-    const json = res ? await res.json().catch(() => null) : null;
-    if (!json?.ok || activeRef.current !== id) return;
-    setPeer(json.data.peer);
-    setPeerReadAt(json.data.peerReadAt ?? 0);
-    setPeerTyping(Boolean(json.data.peerTyping));
-    if (json.data.blocked) setBlocked(json.data.blocked);
-    const items: Msg[] = json.data.items;
-    if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
-    if (incremental) {
-      if (items.length > 0) setMsgs((m) => [...(m ?? []), ...items.filter((x) => !(m ?? []).some((y) => y.id === x.id))]);
-    } else {
-      setMsgs(items);
-    }
-    // Ochiq suhbat o'qildi — ro'yxatdagi hisoblagichni darhol nolga tushiramiz
-    setConvs((c) => c?.map((r) => (r.id === id ? { ...r, unread: 0 } : r)) ?? c);
-  }, []);
-
   useEffect(() => {
-    loadList();
-    const t = window.setInterval(() => {
-      if (!document.hidden) loadList();
+    void loadList();
+    const t2 = window.setInterval(() => {
+      if (!document.hidden) void loadList();
     }, 20000);
-    return () => window.clearInterval(t);
+    const onVis = () => {
+      if (!document.hidden) void loadList();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(t2);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [loadList]);
 
+  // PWA badge: o'qilmaganlar (ovozsiz suhbatlar hisobga olinmaydi)
+  useEffect(() => {
+    if (!convs) return;
+    const total = convs.filter((c) => !c.prefs.muted).reduce((s, c) => s + c.unread, 0);
+    const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    if (total > 0) void nav.setAppBadge?.(total).catch(() => undefined);
+    else void nav.clearAppBadge?.().catch(() => undefined);
+  }, [convs]);
+
+  /* ---------------- Suhbat ---------------- */
+  const applyRows = useCallback((items: Msg[], updates: Msg[], reactions: Record<string, ReactionSummary[]> | undefined, incremental: boolean) => {
+    setMsgs((m) => {
+      const base = incremental ? (m ?? []) : [];
+      const seen = new Set(base.map((x) => x.id));
+      const fresh = items.filter((x) => !seen.has(x.id));
+      let next = [...base, ...fresh];
+      if (incremental && fresh.length) setAnimIds((s) => new Set([...s, ...fresh.map((x) => x.id)]));
+      if (updates.length) {
+        const up = new Map(updates.map((u) => [u.id, u]));
+        next = next.map((x) => up.get(x.id) ?? x);
+      }
+      if (reactions) next = next.map((x) => (x.pending ? x : { ...x, reactions: reactions[x.id] ?? [] }));
+      return next;
+    });
+  }, []);
+
+  /** Suhbatni (to'liq yoki faqat yangilarini) yuklash; qaytaradi: yangilik bo'ldimi */
+  const loadThread = useCallback(
+    async (id: string, incremental: boolean): Promise<boolean> => {
+      if (inflightRef.current) return false;
+      inflightRef.current = true;
+      try {
+        const params = new URLSearchParams();
+        if (incremental && lastIdRef.current) params.set("after", lastIdRef.current);
+        if (incremental && syncRef.current) params.set("sync", String(syncRef.current));
+        // Oyna fokussiz bo'lsa «o'qildi» qilib qo'ymaymiz (yolg'on ✓✓ bo'lmasin)
+        if (!document.hasFocus()) params.set("read", "0");
+        const res = await fetch(`/api/chat/${id}${params.size ? `?${params}` : ""}`).catch(() => null);
+        const json = res ? await res.json().catch(() => null) : null;
+        if (!json?.ok || activeRef.current !== id) return false;
+        const d = json.data;
+        setPeer(d.peer);
+        setPeerReadAt(d.peerReadAt ?? 0);
+        setPeerTyping(Boolean(d.peerTyping));
+        setPinned(d.pinned ?? null);
+        if (d.blocked) setBlocked(d.blocked);
+        if (d.prefs) setPrefs(d.prefs);
+        const items: Msg[] = d.items;
+        const updates: Msg[] = d.updates ?? [];
+        if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
+        if (!incremental && items.length === 0) lastIdRef.current = null;
+        syncRef.current = d.now ?? Date.now();
+        if (!incremental) {
+          const readAt: number = d.readAt ?? 0;
+          const first = items.find((x) => !x.mine && x.at > readAt);
+          setDividerId(first && readAt > 0 ? first.id : null);
+        }
+        applyRows(items, updates, d.reactions, incremental);
+        if (incremental && items.some((x) => !x.mine) && !nearBottomRef.current) setNewBelow((n) => n + items.filter((x) => !x.mine).length);
+        if (document.hasFocus()) setConvs((c) => c?.map((r) => (r.id === id ? { ...r, unread: 0 } : r)) ?? c);
+        return items.length > 0;
+      } finally {
+        inflightRef.current = false;
+      }
+    },
+    [applyRows],
+  );
+
+  // Suhbat almashganda: holatni tozalash, qoralamani tiklash, polling (ko'rinish + sekinlashish bilan)
   useEffect(() => {
     if (!active) return;
     lastIdRef.current = null;
+    syncRef.current = 0;
     prevCountRef.current = 0;
     nearBottomRef.current = true;
+    setNearBottom(true);
+    setNewBelow(0);
     setMsgs(null);
     setPeer(null);
     setPeerReadAt(0);
-    setReportOpen(false);
     setReplyTo(null);
+    setEditing(null);
     setPeerTyping(false);
     setBlocked({ byMe: false, me: false });
     setBlockConfirm(false);
-    loadThread(active, false);
-    const t = window.setInterval(() => {
-      if (!document.hidden) loadThread(active, true);
-    }, 5000);
-    return () => window.clearInterval(t);
+    setPinned(null);
+    setDividerId(null);
+    setSearchOpen(false);
+    setSearchQ("");
+    setSearchRes(null);
+    setAnimIds(new Set());
+    setMsgMenu(null);
+    setHeaderMenu(false);
+    setError(null);
+    setText(store.get(draftKey(active)) ?? "");
+    setFiles([]);
+
+    let timer: number | null = null;
+    let idle = 0;
+    let stopped = false;
+    const delay = () => (idle < 12 ? 4000 : idle < 60 ? 8000 : 15000);
+    const schedule = () => {
+      if (stopped) return;
+      timer = window.setTimeout(tick, delay());
+    };
+    const tick = async () => {
+      if (stopped) return;
+      if (document.hidden) return; // yashirin tab: to'xtaydi, ko'ringanda davom etadi
+      const got = await loadThread(active, true);
+      idle = got ? 0 : idle + 1;
+      schedule();
+    };
+    const onVis = () => {
+      if (document.hidden) return;
+      if (timer) window.clearTimeout(timer);
+      idle = 0;
+      void tick();
+    };
+    void loadThread(active, false).then(schedule);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      stopped = true;
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
   }, [active, loadThread]);
 
-  // Avtomatik pastga tushish: birinchi ochilishda har doim; keyin faqat foydalanuvchi
-  // pastga yaqin bo'lsa (<120px) yoki yangi xabar o'ziniki bo'lsa — eski xabarlarni
-  // o'qiyotganni yangi xabar pastga uloqtirmasin
+  // Ochilgan suhbatda o'qilmagan bo'lsa — yon panel badge'ini yangilash (server komponent)
+  useEffect(() => {
+    if (!active || !convs) return;
+    const row = convs.find((c) => c.id === active);
+    if (row && row.unread > 0) {
+      const id = window.setTimeout(() => router.refresh(), 1200);
+      return () => window.clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  // Qoralama: matn o'zgarganda (300 ms) saqlanadi
+  useEffect(() => {
+    if (!active || editing) return;
+    const id = window.setTimeout(() => store.set(draftKey(active), text.trim() ? text : null), 300);
+    return () => window.clearTimeout(id);
+  }, [text, active, editing]);
+
+  // Fokus: suhbat ochilganda kompozitorga (desktop) yoki «orqaga» tugmasiga (telefon); yopilganda ro'yxat elementiga
+  useEffect(() => {
+    if (active && msgs) {
+      const desktop = window.matchMedia("(min-width: 1024px)").matches;
+      window.setTimeout(() => (desktop ? textRef.current?.focus({ preventScroll: true }) : backRef.current?.focus({ preventScroll: true })), 50);
+      prevActiveRef.current = active;
+    } else if (!active && prevActiveRef.current) {
+      const btn = listRef.current?.querySelector<HTMLButtonElement>(`[data-conv="${prevActiveRef.current}"]`);
+      window.setTimeout(() => btn?.focus({ preventScroll: true }), 50);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, msgs === null]);
+
+  // Avtomatik pastga tushish: birinchi ochilishda (yangi xabarlar chizig'i bo'lsa — unga); keyin faqat pastda bo'lsa yoki o'z xabarim
   useEffect(() => {
     if (!msgs) return;
+    const el = scrollRef.current;
     const initial = prevCountRef.current === 0 && msgs.length > 0;
     const added = msgs.length > prevCountRef.current;
     prevCountRef.current = msgs.length;
-    if (!initial && !added) return;
+    if (!el || (!initial && !added)) return;
     const last = msgs[msgs.length - 1];
-    if (initial || nearBottomRef.current || Boolean(last?.mine)) {
-      bottomRef.current?.scrollIntoView({ block: "end" });
-    }
-  }, [msgs, active]);
-
-  const pickFiles = async (list: FileList | null) => {
-    if (!list) return;
-    setError(null);
-    for (const f of Array.from(list).slice(0, MAX_ATTACHMENTS - files.length)) {
-      try {
-        const a = await uploadAttachment(f, { docs: true });
-        setFiles((cur) => (cur.length < MAX_ATTACHMENTS ? [...cur, a] : cur));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Fayl yuklanmadi");
+    if (initial && dividerId) {
+      const d = document.getElementById(`divider-${dividerId}`);
+      if (d) {
+        el.scrollTop = Math.max(0, d.offsetTop - 80);
+        return;
       }
     }
-    if (fileRef.current) fileRef.current.value = "";
-  };
+    if (initial || nearBottomRef.current || Boolean(last?.mine)) el.scrollTop = el.scrollHeight;
+  }, [msgs, dividerId]);
 
-  /** Xabar yuborish (matn/fayl yoki ovozli xabar) — iqtibos bilan */
-  const deliver = async (body: string, attachments: Attachment[]) => {
-    if (!active) return;
-    const res = await fetch(`/api/chat/${active}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body, attachments, replyToId: replyTo?.id ?? null }),
-    });
-    const json = await res.json();
-    if (!json.ok) throw new Error((json.fields && Object.values(json.fields)[0]) || json.error || "Xabar yuborilmadi");
-    setReplyTo(null);
-    setMsgs((m) => [...(m ?? []), json.data]);
-    lastIdRef.current = json.data.id;
-    nearBottomRef.current = true;
-    loadList();
+  // Textarea autosize
+  const autoGrow = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   };
+  useEffect(() => {
+    autoGrow(textRef.current);
+  }, [text, active]);
 
-  const send = async (e: FormEvent) => {
+  /* ---------------- Fayllar ---------------- */
+  const addFiles = useCallback(
+    async (list: File[]) => {
+      if (!list.length) return;
+      setError(null);
+      for (const f of list) {
+        const key = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const ctl = new AbortController();
+        // Chegara: tanlangan + yuklanayotganlar birga sanaladi (poyga bo'lmasin)
+        let room = true;
+        setUploads((u) => {
+          if (files.length + u.length >= MAX_ATTACHMENTS) {
+            room = false;
+            return u;
+          }
+          return [...u, { key, name: f.name, progress: 0, ctl }];
+        });
+        if (!room) {
+          setError(`Ko'pi bilan ${MAX_ATTACHMENTS} ta fayl`);
+          break;
+        }
+        try {
+          const a = await uploadAttachment(f, { docs: true, signal: ctl.signal, onProgress: (p) => setUploads((u) => u.map((x) => (x.key === key ? { ...x, progress: p } : x))) });
+          setFiles((cur) => (cur.length < MAX_ATTACHMENTS && !cur.some((x) => x.url === a.url) ? [...cur, a] : cur));
+        } catch (e) {
+          if (!(e instanceof Error && e.name === "AbortError")) setError(e instanceof Error ? e.message : "Fayl yuklanmadi");
+        } finally {
+          setUploads((u) => u.filter((x) => x.key !== key));
+        }
+      }
+      if (fileRef.current) fileRef.current.value = "";
+    },
+    [files.length],
+  );
+
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? []).filter((i) => i.kind === "file" && i.type.startsWith("image/"));
+    if (!items.length) return;
     e.preventDefault();
-    const body = text.trim();
-    if ((!body && files.length === 0) || !active || sending) return;
-    setSending(true);
-    setError(null);
+    void addFiles(items.map((i) => i.getAsFile()).filter((f): f is File => Boolean(f)));
+  };
+  const onDragEnter = (e: DragEvent) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+    dragDepth.current++;
+    setDragOver(true);
+  };
+  const onDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOver(false);
+    if (blocked.byMe || blocked.me || peer?.isBanned) return;
+    void addFiles(Array.from(e.dataTransfer?.files ?? []).slice(0, MAX_ATTACHMENTS));
+  };
+
+  /* ---------------- Yuborish ---------------- */
+  const commitSent = (tempId: string | null, saved: Msg) => {
+    setMsgs((m) => {
+      const base = (m ?? []).filter((x) => x.id !== tempId && x.id !== saved.id);
+      return [...base, saved];
+    });
+    lastIdRef.current = saved.id;
+    setAnimIds((s) => new Set([...s, saved.id]));
+  };
+
+  /** Optimistik yuborish: avval «yuborilmoqda», muvaffaqiyatda almashadi, xatoda «yuborilmadi» + qayta yuborish */
+  const deliver = async (body: string, attachments: Attachment[], replyToId: string | null, retryId?: string) => {
+    if (!active) return;
+    const conv = active;
+    const tempId = retryId ?? `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const temp: Msg = { id: tempId, mine: true, body, attachments, at: Date.now(), replyTo: replyTo && replyTo.id === replyToId && peer ? quoteOf(replyTo, peer.name, t("you")) : null, replyToId, pending: "sending" };
+    nearBottomRef.current = true;
+    setMsgs((m) => [...(m ?? []).filter((x) => x.id !== tempId), temp]);
+    setFlying(true);
+    window.setTimeout(() => setFlying(false), 420);
     try {
-      await deliver(body, files);
-      setText("");
-      setFiles([]);
+      const res = await fetch(`/api/chat/${conv}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, attachments, replyToId }) });
+      if (!res.ok) throw await errorOf(res, t("failed"));
+      const json = await res.json();
+      if (activeRef.current !== conv) return;
+      commitSent(tempId, json.data);
+      void loadList();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xabar yuborilmadi");
-    } finally {
-      setSending(false);
+      if (activeRef.current !== conv) return;
+      setMsgs((m) => (m ?? []).map((x) => (x.id === tempId ? { ...x, pending: "failed" as const } : x)));
+      setError(err instanceof Error ? err.message : t("failed"));
     }
+  };
+
+  const saveEdit = async (m: Msg, body: string) => {
+    if (!active) return;
+    const res = await fetch(`/api/chat/${active}/messages/${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+    if (!res.ok) throw await errorOf(res, "Tahrirlanmadi");
+    const json = await res.json();
+    setMsgs((cur) => (cur ?? []).map((x) => (x.id === m.id ? { ...x, ...json.data } : x)));
+  };
+
+  const send = async (e?: FormEvent) => {
+    e?.preventDefault();
+    const body = text.trim();
+    if (!active || uploads.length > 0) return;
+    if (editing) {
+      if (!body && editing.attachments.length === 0) return;
+      setError(null);
+      try {
+        await saveEdit(editing, body);
+        setEditing(null);
+        setText("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Tahrirlanmadi");
+      }
+      return;
+    }
+    if (!body && files.length === 0) return;
+    if (body.length > DM_BODY_MAX) return setError(`Xabar ${DM_BODY_MAX} belgidan oshmasin`);
+    const atts = files;
+    const rid = replyTo?.id ?? null;
+    setText("");
+    setFiles([]);
+    setReplyTo(null);
+    setError(null);
+    store.set(draftKey(active), null);
+    window.requestAnimationFrame(() => autoGrow(textRef.current));
+    void deliver(body, atts, rid);
   };
 
   const sendVoice = async (a: Attachment) => {
     setError(null);
-    try {
-      await deliver("", [a]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Ovozli xabar yuborilmadi");
-    }
+    await deliver("", [a], replyTo?.id ?? null);
+    setReplyTo(null);
   };
 
-  /** Bloklash / blokdan chiqarish (chat sarlavhasidagi tugma) */
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      if (editing) (setEditing(null), setText(store.get(draftKey(active ?? "")) ?? ""));
+      else if (replyTo) setReplyTo(null);
+      return;
+    }
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    const mod = e.ctrlKey || e.metaKey;
+    // Sensorli ekran yoki Ctrl+Enter rejimi: Enter — yangi qator; aks holda Enter yuboradi (Shift+Enter — yangi qator)
+    if (ctrlEnter || coarse) {
+      if (mod) (e.preventDefault(), void send());
+      return;
+    }
+    if (!e.shiftKey) (e.preventDefault(), void send());
+  };
+
+  /* ---------------- Amallar ---------------- */
   const setBlock = async (next: boolean) => {
     if (!peer?.id || blockBusy) return;
     setBlockBusy(true);
     try {
       const res = await fetch(`/api/blocks/${encodeURIComponent(peer.id)}`, { method: next ? "POST" : "DELETE" });
-      const json = await res.json().catch(() => null);
-      if (!json?.ok) throw new Error(json?.error ?? "Bo'lmadi");
+      if (!res.ok) throw await errorOf(res, "Bo'lmadi");
       setBlocked((b) => ({ ...b, byMe: next }));
       setBlockConfirm(false);
       setReplyTo(null);
-      toast(next ? `${peer.name} bloklandi — u sizga yoza olmaydi` : `${peer.name} blokdan chiqarildi`, next ? "info" : "success");
+      toast(next ? `${peer.name} — ${t("block").toLowerCase()}` : `${peer.name} — ${t("unblock").toLowerCase()}`, next ? "info" : "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
     } finally {
@@ -348,86 +636,303 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     }
   };
 
+  const updatePrefs = async (convId: string, patch: Partial<ConvPrefsView>) => {
+    setConvs((c) => c?.map((r) => (r.id === convId ? { ...r, prefs: { ...r.prefs, ...patch } } : r)) ?? c);
+    if (convId === active) setPrefs((p) => ({ ...p, ...patch }));
+    const res = await fetch(`/api/chat/${convId}/prefs`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
+    if (!res?.ok) toast("Saqlanmadi", "error");
+    void loadList();
+  };
+
+  const react = async (m: Msg, emoji: string) => {
+    if (!active || m.pending || m.deleted) return;
+    const cur = m.reactions?.find((r) => r.mine)?.emoji ?? null;
+    const next = cur === emoji ? null : emoji;
+    // Optimistik yangilash
+    setMsgs((cur2) =>
+      (cur2 ?? []).map((x) => {
+        if (x.id !== m.id) return x;
+        const list = (x.reactions ?? []).map((r) => ({ ...r })).filter((r) => !(r.mine && (r.count -= 1) <= 0)).map((r) => (r.mine ? { ...r, mine: false } : r));
+        if (next) {
+          const hit = list.find((r) => r.emoji === next);
+          if (hit) (hit.count += 1), (hit.mine = true);
+          else list.push({ emoji: next, count: 1, mine: true });
+        }
+        return { ...x, reactions: list };
+      }),
+    );
+    const res = await fetch(`/api/chat/${active}/messages/${m.id}/reaction`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emoji: next }) }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.ok) setMsgs((cur2) => (cur2 ?? []).map((x) => (x.id === m.id ? { ...x, reactions: json.data.reactions } : x)));
+    else toast(json?.error ?? "Bo'lmadi", "error");
+  };
+
+  const removeMsg = async (m: Msg, scope: "me" | "all") => {
+    if (!active) return;
+    if (m.pending) return setMsgs((cur) => (cur ?? []).filter((x) => x.id !== m.id));
+    const res = await fetch(`/api/chat/${active}/messages/${m.id}?scope=${scope}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) return toast(res ? (await errorOf(res, "O'chirilmadi")).message : "O'chirilmadi", "error");
+    setMsgs((cur) => (scope === "me" ? (cur ?? []).filter((x) => x.id !== m.id) : (cur ?? []).map((x) => (x.id === m.id ? { ...x, deleted: true, body: "", attachments: [], reactions: [] } : x))));
+    if (pinned?.id === m.id) setPinned(null);
+    void loadList();
+  };
+
+  const togglePin = async (m: Msg | null) => {
+    if (!active) return;
+    const messageId = m && pinned?.id !== m.id ? m.id : null;
+    const res = await fetch(`/api/chat/${active}/pin`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId }) }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (json?.ok) setPinned(json.data.pinned);
+    else toast(json?.error ?? "Bo'lmadi", "error");
+  };
+
+  const doForward = async (toId: string) => {
+    if (!active || !forwardOf || forwardBusy) return;
+    setForwardBusy(true);
+    try {
+      const res = await fetch(`/api/chat/${active}/forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId: forwardOf.id, to: toId }) });
+      if (!res.ok) throw await errorOf(res, "Yo'naltirilmadi");
+      setForwardOf(null);
+      toast(t("forwardedOk"), "success");
+      void loadList();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Yo'naltirilmadi", "error");
+    } finally {
+      setForwardBusy(false);
+    }
+  };
+
+  const copyText = async (m: Msg) => {
+    try {
+      await navigator.clipboard.writeText(m.body);
+      toast(t("copied"), "success");
+    } catch {
+      toast("Nusxalanmadi", "error");
+    }
+  };
+
+  const startEdit = (m: Msg) => {
+    setReplyTo(null);
+    setEditing(m);
+    setText(m.body);
+    window.setTimeout(() => textRef.current?.focus(), 30);
+  };
+
+  // Shikoyat: menyu yopilgach ReportButton (modal) dasturiy ravishda ochiladi
+  useEffect(() => {
+    if (!reportFor) return;
+    const id = window.setTimeout(() => reportHostRef.current?.querySelector("button")?.click(), 30);
+    return () => window.clearTimeout(id);
+  }, [reportFor]);
+
+  // Suhbat ichida qidiruv (300 ms kechikish)
+  useEffect(() => {
+    if (!searchOpen || !active) return;
+    const qq = searchQ.trim();
+    if (qq.length < DM_SEARCH_MIN) return setSearchRes(null);
+    const id = window.setTimeout(async () => {
+      const res = await fetch(`/api/chat/${active}/search?q=${encodeURIComponent(qq)}`).catch(() => null);
+      const json = res ? await res.json().catch(() => null) : null;
+      if (json?.ok) setSearchRes(json.data.items);
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [searchQ, searchOpen, active]);
+
+  const jump = (id: string) => {
+    if (document.getElementById(`msg-${id}`)) jumpToMessage(id);
+    else toast(t("notLoaded"), "info");
+  };
+
   /** "Yozmoqda…" signali — 2.5 soniyada bir martadan ko'p emas; yuborilganda server o'zi o'chiradi */
   const pingTyping = (v: string) => {
-    if (!active || !v.trim()) return;
-    const now = Date.now();
-    if (now - typingSentAt.current < 2500) return;
-    typingSentAt.current = now;
+    if (!active || !v.trim() || editing) return;
+    const n = Date.now();
+    if (n - typingSentAt.current < 2500) return;
+    typingSentAt.current = n;
     void fetch(`/api/chat/${active}/typing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ typing: true }) }).catch(() => undefined);
   };
 
-  const filtered = convs?.filter((c) => !q.trim() || c.peer.name.toLowerCase().includes(q.trim().toLowerCase()) || (c.peer.username ?? "").includes(q.trim().toLowerCase()));
+  /* ---------------- Klaviatura: suhbatlar orasida (Alt+↑/↓), Esc ---------------- */
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (convs ?? []).filter((c) => c.prefs.archived === showArchived && (!needle || c.peer.name.toLowerCase().includes(needle) || (c.peer.username ?? "").includes(needle) || (c.last?.body ?? "").toLowerCase().includes(needle)));
+  }, [convs, q, showArchived]);
+  const archivedCount = useMemo(() => (convs ?? []).filter((c) => c.prefs.archived).length, [convs]);
+
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && filtered.length) {
+        e.preventDefault();
+        const i = filtered.findIndex((c) => c.id === active);
+        const n = e.key === "ArrowDown" ? Math.min(filtered.length - 1, i + 1) : Math.max(0, i - 1);
+        setActive(filtered[n].id);
+      } else if (e.key === "Escape" && !headerMenu && !msgMenu && !plusMenu && !forwardOf && !infoOpen && !rowMenu) {
+        if (searchOpen) setSearchOpen(false);
+        else if (active && !window.matchMedia("(min-width: 1024px)").matches && document.activeElement?.tagName !== "TEXTAREA") setActive(null);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [filtered, active, headerMenu, msgMenu, plusMenu, forwardOf, infoOpen, rowMenu, searchOpen]);
+
+  /* ---------------- Yordamchilar ---------------- */
+  const presenceOf = (p: Peer): { online: boolean; label: string } => {
+    if (p.lastSeenAt && now - p.lastSeenAt < ONLINE_MS) return { online: true, label: t("online") };
+    const seen = p.lastActiveAt ?? p.lastSeenAt;
+    if (seen) return { online: false, label: `${t("lastSeen")} ${relativeTime(seen, locale, now)}` };
+    return { online: false, label: "" };
+  };
+  const lastPreview = (c: ConvRow): string => {
+    if (c.peerTyping) return t("typing");
+    if (!c.last) return "";
+    const who = c.last.mine ? `${t("you")}: ` : "";
+    if (c.last.deleted) return `${who}${DM_DELETED_TEXT[locale]}`;
+    return `${who}${c.last.body || (c.last.voice ? t("voice") : c.last.hasFiles ? t("file") : "")}`;
+  };
+  const composerLocked = blocked.byMe || blocked.me || Boolean(peer?.isBanned);
+  const myReaction = (m: Msg) => m.reactions?.find((r) => r.mine)?.emoji ?? null;
+  const replyPresence = usePresence(Boolean(replyTo || editing), 160);
+  const typingPresence = usePresence(peerTyping && Boolean(peer), 160);
+  const jumpPresence = usePresence(!nearBottom && (msgs?.length ?? 0) > 0, 160);
+  const pinPresence = usePresence(Boolean(pinned), 160);
+  const searchPresence = usePresence(searchOpen, 160);
+  const blockPresence = usePresence(blockConfirm && Boolean(peer?.id) && !blocked.byMe, 160);
+  const dragPresence = usePresence(dragOver, 160);
+
+  /** Menyu yo'nalishi: element scroll konteynerining pastki yarmida bo'lsa — yuqoriga ochiladi (kesilmasin) */
+  const menuUp = (el: HTMLElement, container: HTMLElement | null) => {
+    const r = el.getBoundingClientRect();
+    const c = container?.getBoundingClientRect();
+    return c ? r.top - c.top > c.height / 2 : false;
+  };
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    nearBottomRef.current = near;
+    setNearBottom(near);
+    if (near) setNewBelow(0);
+  };
+  const scrollToBottom = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setNewBelow(0);
+  };
+
+  // Bubble'ni bosib turish (sensorli) → menyu; sichqonchada o'ng tugma ham
+  const pressStart = (m: Msg) => (e: ReactPointerEvent) => {
+    if (e.pointerType !== "touch" || m.pending || m.deleted) return;
+    const up = menuUp(e.currentTarget as HTMLElement, scrollRef.current);
+    longPress.current = window.setTimeout(() => setMsgMenu({ id: m.id, mine: m.mine, up }), 450);
+  };
+  const pressEnd = () => {
+    if (longPress.current) window.clearTimeout(longPress.current);
+    longPress.current = null;
+  };
 
   /* ---------------- Ro'yxat paneli ---------------- */
   const listPanel = (
-    <div className={cn("card-elevated flex min-h-0 flex-col overflow-hidden", active && "hidden lg:flex")}>
-      <div className="border-b border-line p-3">
-        <label className="relative block">
-          <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suhbatlarni qidirish" className="field h-10 w-full rounded-full pl-9 text-[13.5px]" aria-label="Suhbatlarni qidirish" />
+    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden", active && "hidden lg:flex")}>
+      <div className="flex items-center gap-2 border-b border-line p-2.5">
+        <label className="relative block min-w-0 flex-1">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchConvs")} className="field h-9 w-full rounded-full pl-8 text-[13px]" aria-label={t("searchConvs")} />
         </label>
+        {archivedCount > 0 && (
+          <button type="button" onClick={() => setShowArchived((v) => !v)} aria-pressed={showArchived} className={cn("h-9 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", showArchived ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+            {t("archived")} {archivedCount}
+          </button>
+        )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-        {!filtered ? (
-          <ul className="space-y-1 p-1">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="flex items-center gap-3 rounded-[var(--r-sm)] p-2.5">
-                <span className="h-11 w-11 shrink-0 rounded-full skeleton" />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {!convs ? (
+          <ul className="stagger divide-y divide-line" aria-busy="true" aria-label="Yuklanmoqda">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <li key={i} className="animate-fade-in flex items-center gap-3 px-3 py-2.5">
+                <span className="h-10 w-10 shrink-0 rounded-full skeleton" />
                 <span className="flex-1 space-y-2">
-                  <span className="block h-3.5 w-1/2 skeleton" />
-                  <span className="block h-3 w-3/4 skeleton" />
+                  <span className="block h-3 w-1/2 skeleton" />
+                  <span className="block h-2.5 w-3/4 skeleton" />
                 </span>
               </li>
             ))}
           </ul>
         ) : filtered.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+          <div className="flex h-full flex-col items-center justify-center gap-2.5 px-6 py-12 text-center">
             <span className="icon-tile-soft !rounded-full">
               <MessageCircle size={20} />
             </span>
-            <p className="font-display text-[15px] font-semibold text-fg">{q ? "Topilmadi" : "Hali suhbat yo'q"}</p>
-            {!q && (
+            <p className="font-display text-[15px] font-semibold text-fg">{q || showArchived ? t("notFound") : t("noConvs")}</p>
+            {!q && !showArchived && (
               <p className="text-[13px] leading-relaxed text-fg-3">
-                Mutaxassis profilidagi <b>«Yozish»</b> tugmasi orqali suhbat boshlang.
+                {t("noConvsHint")}{" "}
+                <Link href="/mutaxassislar" className="font-semibold text-fg underline underline-offset-2">
+                  {t("browse")}
+                </Link>
               </p>
-            )}
-            {!q && (
-              <Link href="/mutaxassislar" className="btn-ink mt-1 h-10 rounded-full px-5 text-[13px] font-semibold">
-                Mutaxassislarni ko'rish
-              </Link>
             )}
           </div>
         ) : (
-          <ul className="space-y-0.5">
+          <ul className="divide-y divide-line">
             {filtered.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="group/row relative">
                 <button
                   type="button"
+                  data-conv={c.id}
                   onClick={() => setActive(c.id)}
+                  aria-current={active === c.id ? "true" : undefined}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-[var(--r-sm)] p-2.5 text-left transition hover:bg-fg/5",
-                    active === c.id && "bg-accent-soft hover:bg-accent-soft",
+                    "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none",
+                    active === c.id ? "border-fg bg-surface-2" : "border-transparent",
                   )}
                 >
-                  <Avatar p={c.peer} />
+                  <PeerAvatar name={c.peer.name} avatarUrl={c.peer.avatarUrl} size={40} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[14px] font-semibold text-fg">{c.peer.name}</span>
-                      {c.last && <time className="shrink-0 text-[11px] text-fg-4">{timeOf(c.last.at)}</time>}
+                      <span className="flex min-w-0 items-center gap-1 truncate text-[13.5px] font-semibold text-fg">
+                        <span className="truncate">{c.peer.name}</span>
+                        {c.prefs.muted && <BellOff size={11} className="shrink-0 text-fg-4" aria-label={t("muted")} />}
+                        {c.prefs.pinned && <Pin size={11} className="shrink-0 text-fg-4" aria-label={t("pin")} />}
+                      </span>
+                      {c.last && <time className="shrink-0 text-[11px] text-fg-4" dateTime={new Date(c.last.at).toISOString()}>{listStamp(c.last.at, locale, now)}</time>}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
-                      <span className={cn("truncate text-[12.5px]", c.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
-                        {c.last ? `${c.last.mine ? "Siz: " : ""}${c.last.body || (c.last.voice ? "🎤 Ovozli xabar" : c.last.hasFiles ? "📎 Fayl" : "")}` : `@${c.peer.username ?? ""}`}
+                      <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px]", c.peerTyping ? "text-fg-2 italic" : c.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
+                        {c.last?.voice && !c.peerTyping && <Mic size={11} className="shrink-0" aria-hidden="true" />}
+                        {c.last?.hasFiles && !c.last.voice && !c.peerTyping && <Paperclip size={11} className="shrink-0" aria-hidden="true" />}
+                        <span className="truncate">{lastPreview(c)}</span>
                       </span>
                       {c.unread > 0 && (
-                        <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
+                        <span className={cn("flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold", c.prefs.muted ? "bg-fg/15 text-fg" : "bg-accent text-white")} aria-label={`${c.unread} yangi`}>
                           {c.unread > 99 ? "99+" : c.unread}
                         </span>
                       )}
                     </span>
                   </span>
                 </button>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={(e) => setRowMenu(rowMenu?.id === c.id ? null : { id: c.id, up: menuUp(e.currentTarget, listRef.current) })}
+                    aria-haspopup="menu"
+                    aria-expanded={rowMenu?.id === c.id}
+                    aria-label={`${c.peer.name} — ${t("menu")}`}
+                    className={cn(iconBtn, "h-8 w-8 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60", rowMenu?.id === c.id && "opacity-100")}
+                  >
+                    <MoreHorizontal size={15} />
+                  </button>
+                  <Layer open={rowMenu?.id === c.id} onClose={() => setRowMenu(null)} label={`${c.peer.name} — ${t("menu")}`} anchorClass={rowMenu?.up ? "right-0 bottom-full mb-0.5" : "right-0 top-full mt-0.5"}>
+                    <PrefItems
+                      prefs={c.prefs}
+                      locale={locale}
+                      onChange={(p) => {
+                        setRowMenu(null);
+                        void updatePrefs(c.id, p);
+                      }}
+                    />
+                  </Layer>
+                </div>
               </li>
             ))}
           </ul>
@@ -436,26 +941,50 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     </div>
   );
 
+  /* ---------------- Xabar menyusi ---------------- */
+  const menuMsg = msgMenu ? (msgs ?? []).find((m) => m.id === msgMenu.id) ?? null : null;
+  const canEdit = (m: Msg) => m.mine && !m.deleted && !m.pending && now - m.at < DM_EDIT_WINDOW_MS && m.attachments.length === 0;
+  const messageMenu = menuMsg && (
+    <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", menuMsg.mine ? "right-0" : "left-0")} width="w-[250px]">
+      {!menuMsg.deleted && !menuMsg.pending && (
+        <>
+          <ReactionPicker
+            current={myReaction(menuMsg)}
+            onPick={(e) => {
+              setMsgMenu(null);
+              void react(menuMsg, e);
+            }}
+          />
+          <MenuDivider />
+        </>
+      )}
+      {!menuMsg.deleted && !menuMsg.pending && <MenuItem icon={CornerUpLeft} label={t("reply")} onClick={() => (setMsgMenu(null), setEditing(null), setReplyTo(menuMsg), textRef.current?.focus())} />}
+      {menuMsg.body && !menuMsg.deleted && <MenuItem icon={Copy} label={t("copy")} onClick={() => (setMsgMenu(null), void copyText(menuMsg))} />}
+      {!menuMsg.deleted && !menuMsg.pending && (convs?.length ?? 0) > 1 && <MenuItem icon={Forward} label={t("forward")} onClick={() => (setMsgMenu(null), setForwardOf(menuMsg))} />}
+      {!menuMsg.deleted && !menuMsg.pending && <MenuItem icon={pinned?.id === menuMsg.id ? PinOff : Pin} label={pinned?.id === menuMsg.id ? t("unpin") : t("pin")} onClick={() => (setMsgMenu(null), void togglePin(menuMsg))} />}
+      {canEdit(menuMsg) && <MenuItem icon={Pencil} label={t("edit")} hint="15 min" onClick={() => (setMsgMenu(null), startEdit(menuMsg))} />}
+      {(menuMsg.mine || !menuMsg.deleted || menuMsg.pending) && <MenuDivider />}
+      <MenuItem icon={Trash2} label={t("deleteMe")} onClick={() => (setMsgMenu(null), void removeMsg(menuMsg, "me"))} />
+      {menuMsg.mine && !menuMsg.deleted && !menuMsg.pending && <MenuItem icon={Trash2} label={t("deleteAll")} danger onClick={() => (setMsgMenu(null), void removeMsg(menuMsg, "all"))} />}
+      {!menuMsg.mine && !menuMsg.deleted && <MenuItem icon={Flag} label={t("report")} danger onClick={() => (setMsgMenu(null), setReportFor({ type: "message", id: menuMsg.id, key: Date.now() }))} />}
+    </Layer>
+  );
+
   /* ---------------- Suhbat paneli ---------------- */
   const thread = (
-    <div className={cn("card-elevated flex min-h-0 flex-col overflow-hidden", !active && "hidden lg:flex")}>
+    <div className={cn("card-elevated relative flex min-h-0 flex-col overflow-hidden", !active && "hidden lg:flex")} onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       {!active ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 text-center">
           <span className="icon-tile-soft !rounded-full">
             <MessageCircle size={20} />
           </span>
-          <p className="font-display text-[15px] font-semibold text-fg">Suhbatni tanlang</p>
-          <p className="max-w-[260px] text-[13px] leading-relaxed text-fg-3">Chapdagi ro'yxatdan suhbatni oching yoki mutaxassis profilidan yangi suhbat boshlang.</p>
+          <p className="font-display text-[15px] font-semibold text-fg">{t("pickConv")}</p>
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-3 border-b border-line px-3.5 py-3">
-            <button
-              type="button"
-              onClick={() => setActive(null)}
-              aria-label="Suhbatlar ro'yxatiga qaytish"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg lg:hidden"
-            >
+          {/* Sarlavha */}
+          <div className="relative flex items-center gap-2 border-b border-line px-2.5 py-2">
+            <button ref={backRef} type="button" onClick={() => setActive(null)} aria-label={t("back")} className={cn(iconBtn, "lg:hidden")}>
               <ArrowLeft size={17} />
             </button>
             {peer ? (
@@ -464,208 +993,372 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                 const inner = (
                   <>
                     <span className="relative shrink-0">
-                      <Avatar p={peer} size={38} />
+                      <PeerAvatar name={peer.name} avatarUrl={peer.avatarUrl} size={36} />
                       {pr.online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" aria-hidden="true" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1 truncate text-[14.5px] font-semibold leading-tight text-fg">{peer.name}</span>
-                      <span className={cn("block truncate text-[12px]", pr.online ? "font-medium text-success-text" : "text-fg-3")}>{pr.label}</span>
+                      <span className="block truncate text-[14px] font-semibold leading-tight text-fg">{peer.name}</span>
+                      <span className={cn("block truncate text-[12px]", peerTyping ? "italic text-fg-2" : pr.online ? "font-medium text-success-text" : "text-fg-3")}>{peerTyping ? t("typing") : pr.label}</span>
                     </span>
                   </>
                 );
-                return (
-                  <>
-                    {peer.slug ? (
-                      // Mutaxassis — ism/avatar bosilsa profilga o'tadi
-                      <Link href={`/mutaxassislar/${peer.slug}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-full transition hover:opacity-80" title={`${peer.name} profilini ochish`}>
-                        {inner}
-                      </Link>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 items-center gap-3">{inner}</div>
-                    )}
-                    {peer.id && (
-                  <button
-                    type="button"
-                    onClick={() => setReportOpen((v) => !v)}
-                    aria-expanded={reportOpen}
-                    aria-label={`${peer.name} haqida shikoyat qilish`}
-                    title="Shikoyat qilish"
-                    className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition",
-                      reportOpen ? "bg-danger-soft text-danger-text" : "text-fg-4 hover:bg-fg/6 hover:text-fg",
-                    )}
-                  >
-                        <Flag size={15} />
-                      </button>
-                    )}
-                    {peer.id && (
-                      <button
-                        type="button"
-                        onClick={() => (blocked.byMe ? void setBlock(false) : setBlockConfirm((v) => !v))}
-                        aria-pressed={blocked.byMe}
-                        aria-label={blocked.byMe ? "Blokdan chiqarish" : `${peer.name}ni bloklash`}
-                        title={blocked.byMe ? "Blokdan chiqarish" : "Bloklash"}
-                        disabled={blockBusy}
-                        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50", blocked.byMe ? "bg-danger-soft text-danger-text" : "text-fg-4 hover:bg-fg/6 hover:text-fg")}
-                      >
-                        {blocked.byMe ? <ShieldCheck size={15} /> : <Ban size={15} />}
-                      </button>
-                    )}
-                  </>
+                return peer.slug ? (
+                  <Link href={`/mutaxassislar/${peer.slug}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full transition hover:opacity-80" title={t("profile")}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">{inner}</div>
                 );
               })()
             ) : (
-              <span className="h-5 w-32 skeleton" />
+              <div className="flex flex-1 items-center gap-2.5" aria-busy="true">
+                <span className="h-9 w-9 rounded-full skeleton" />
+                <span className="h-4 w-32 skeleton" />
+              </div>
             )}
+            <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-pressed={searchOpen} aria-label={t("searchMsgs")} title={t("searchMsgs")} className={cn(iconBtn, "hidden sm:flex", searchOpen && "bg-fg/6 text-fg")}>
+              <Search size={16} />
+            </button>
+            <button type="button" onClick={() => setHeaderMenu((v) => !v)} aria-haspopup="menu" aria-expanded={headerMenu} aria-label={t("menu")} className={cn(iconBtn, headerMenu && "bg-fg/6 text-fg")}>
+              <MoreHorizontal size={17} />
+            </button>
+            <Layer open={headerMenu} onClose={() => setHeaderMenu(false)} label={t("menu")} anchorClass="right-2 top-full mt-0.5" width="w-[250px]">
+              {peer?.slug && <MenuItem icon={User} label={t("profile")} onClick={() => (setHeaderMenu(false), router.push(`/mutaxassislar/${peer.slug}`))} />}
+              <MenuItem icon={Search} label={t("searchMsgs")} onClick={() => (setHeaderMenu(false), setSearchOpen(true))} />
+              <MenuItem icon={Info} label={t("info")} onClick={() => (setHeaderMenu(false), setInfoOpen(true))} />
+              <MenuDivider />
+              <PrefItems prefs={prefs} locale={locale} onChange={(p) => (setHeaderMenu(false), active && void updatePrefs(active, p))} />
+              {peer?.id && (
+                <>
+                  <MenuDivider />
+                  <MenuItem icon={Flag} label={t("report")} onClick={() => (setHeaderMenu(false), setReportFor({ type: "user", id: peer.id!, key: Date.now() }))} />
+                  <MenuItem icon={blocked.byMe ? ShieldCheck : Ban} label={blocked.byMe ? t("unblock") : t("block")} danger={!blocked.byMe} disabled={blockBusy} onClick={() => (setHeaderMenu(false), blocked.byMe ? void setBlock(false) : setBlockConfirm(true))} />
+                </>
+              )}
+            </Layer>
           </div>
-          {reportOpen && peer?.id && <ReportPanel peer={peer} onClose={() => setReportOpen(false)} />}
-          {blockConfirm && peer?.id && !blocked.byMe && (
-            <div className="expand-in flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3.5 py-2.5 text-[12.5px]" role="group" aria-label="Bloklashni tasdiqlash">
-              <Ban size={13} className="text-fg-3" />
-              <span className="min-w-0 flex-1 text-fg-2">
-                <b className="text-fg">{peer.name}</b>ni bloklaysizmi? U sizga yoza olmaydi, obunalar uziladi, lentada postlari chiqmaydi.
-              </span>
-              <button type="button" onClick={() => void setBlock(true)} disabled={blockBusy} className="h-8 rounded-full bg-danger-strong px-3 text-[12px] font-semibold text-white disabled:opacity-50">
-                Ha, bloklash
+
+          {/* Qidiruv paneli */}
+          {searchPresence.mounted && (
+            <div className={cn(searchPresence.closing ? "expand-out" : "expand-in", "border-b border-line bg-surface-2 p-2")}>
+              <label className="relative block">
+                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
+                <input autoFocus value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)} placeholder={t("searchPh")} aria-label={t("searchPh")} className="field h-9 w-full rounded-full pl-8 pr-9 text-[13px]" />
+                <button type="button" onClick={() => setSearchOpen(false)} aria-label={t("cancel")} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-fg-4 hover:bg-fg/8 hover:text-fg">
+                  <X size={13} />
+                </button>
+              </label>
+              {searchRes && (
+                <ul className="mt-1.5 max-h-44 overflow-y-auto" aria-live="polite">
+                  {searchRes.length === 0 && <li className="px-2 py-2 text-[12.5px] text-fg-3">{t("noResults")}</li>}
+                  {searchRes.map((r) => (
+                    <li key={r.id}>
+                      <button type="button" onClick={() => jump(r.id)} className="flex w-full items-baseline gap-2 rounded-[8px] px-2 py-1.5 text-left transition hover:bg-fg/6">
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+                          <span className="text-fg-4">{r.mine ? `${t("you")}: ` : ""}</span>
+                          {r.snippet}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-fg-4">{listStamp(r.at, locale, now)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Qadalgan xabar */}
+          {pinPresence.mounted && pinned && (
+            <div className={cn(pinPresence.closing ? "expand-out" : "expand-in", "flex items-center gap-2 border-b border-line bg-surface-2 py-1.5 pl-3 pr-1")}>
+              <Pin size={13} className="shrink-0 text-fg-3" aria-hidden="true" />
+              <button type="button" onClick={() => jump(pinned.id)} className="min-w-0 flex-1 text-left">
+                <span className="block text-[11px] font-semibold text-fg-3">{t("pinned")}</span>
+                <span className="block truncate text-[12.5px] text-fg">{pinned.body || "…"}</span>
               </button>
-              <button type="button" onClick={() => setBlockConfirm(false)} className="h-8 rounded-full px-3 text-[12px] font-semibold text-fg-3 hover:text-fg">
-                Bekor
+              <button type="button" onClick={() => void togglePin(null)} aria-label={t("unpin")} className={cn(iconBtn, "h-8 w-8")}>
+                <X size={14} />
               </button>
             </div>
           )}
 
-          <div
-            ref={scrollRef}
-            onScroll={() => {
-              const el = scrollRef.current;
-              if (el) nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-            }}
-            className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3.5 py-4"
-            aria-live="polite"
-          >
+          {/* Blok tasdig'i */}
+          {blockPresence.mounted && peer && (
+            <div className={cn(blockPresence.closing ? "expand-out" : "expand-in", "flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 text-[12.5px]")} role="group" aria-label={t("block")}>
+              <span className="min-w-0 flex-1 text-fg-2">
+                <b className="text-fg">{peer.name}</b> — {t("blockQ")}
+              </span>
+              <button type="button" onClick={() => void setBlock(true)} disabled={blockBusy} className="h-8 rounded-full bg-danger-strong px-3 text-[12px] font-semibold text-white disabled:opacity-50">
+                {t("yes")}
+              </button>
+              <button type="button" onClick={() => setBlockConfirm(false)} className="h-8 rounded-full px-3 text-[12px] font-semibold text-fg-3 hover:text-fg">
+                {t("cancel")}
+              </button>
+            </div>
+          )}
+
+          {/* Xabarlar */}
+          <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3" role="log" aria-live="polite" aria-relevant="additions" aria-busy={msgs === null} aria-label={peer ? `${peer.name}` : undefined}>
             {!msgs ? (
-              <div className="space-y-2.5">
-                <span className="block h-10 w-2/3 rounded-2xl skeleton" />
-                <span className="ml-auto block h-10 w-1/2 rounded-2xl skeleton" />
-                <span className="block h-10 w-1/2 rounded-2xl skeleton" />
+              <div className="space-y-2.5" aria-hidden="true">
+                <span className="block h-10 w-2/3 rounded-[14px] skeleton" />
+                <span className="ml-auto block h-10 w-1/2 rounded-[14px] skeleton" />
+                <span className="block h-10 w-1/2 rounded-[14px] skeleton" />
               </div>
             ) : msgs.length === 0 ? (
-              <p className="py-10 text-center text-[13px] text-fg-3">Birinchi xabarni yozing — suhbat shu yerda boshlanadi.</p>
+              <p className="py-10 text-center text-[13px] text-fg-3">{t("firstMsg")}</p>
             ) : (
               msgs.map((m, i) => {
-                const newDay = i === 0 || dayOf(m.at) !== dayOf(msgs[i - 1].at);
+                const newDay = i === 0 || dayKey(m.at) !== dayKey(msgs[i - 1].at);
+                const sameSender = i > 0 && msgs[i - 1].mine === m.mine && !newDay;
+                const url = !m.deleted && m.body ? firstUrl(m.body) : null;
+                const open = msgMenu?.id === m.id;
                 return (
-                  <div key={m.id}>
-                    {newDay && <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wide text-fg-4">{dayOf(m.at)}</p>}
-                    <div className={cn("group flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
-                      <ReplyButton mine={m.mine} onClick={() => setReplyTo(m)} />
-                      {!m.mine && <ReportButton targetType="message" targetId={m.id} loggedIn compact modal triggerClassName="self-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60" />}
-                      <div id={`msg-${m.id}`} className={cn("max-w-[82%] rounded-2xl px-3.5 py-2.5 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
-                        {m.replyTo && <QuoteBlock q={m.replyTo} mine={m.mine} />}
+                  <div key={m.id} className={cn(animIds.has(m.id) && "animate-msg-in", sameSender ? "mt-1" : "mt-2.5")}>
+                    {newDay && <DayPill label={dayLabel(m.at, locale, now)} />}
+                    {dividerId === m.id && (
+                      <div id={`divider-${m.id}`} className="my-2 flex items-center gap-2" role="separator" aria-label={t("newMessages")}>
+                        <span className="h-px flex-1 bg-accent/40" />
+                        <span className="text-[11px] font-semibold text-accent-text">{t("newMessages")}</span>
+                        <span className="h-px flex-1 bg-accent/40" />
+                      </div>
+                    )}
+                    <div className={cn("group relative flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
+                      {!m.deleted && (
+                        <div className={cn("relative self-center", m.mine ? "order-first" : "")}>
+                          <button
+                            type="button"
+                            onClick={(e) => setMsgMenu(open ? null : { id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current) })}
+                            aria-haspopup="menu"
+                            aria-expanded={open}
+                            aria-label={t("msgMenu")}
+                            className={cn(iconBtn, "h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:hidden", open && "opacity-100")}
+                          >
+                            <MoreHorizontal size={15} />
+                          </button>
+                          {open && messageMenu}
+                        </div>
+                      )}
+                      <div
+                        id={`msg-${m.id}`}
+                        onContextMenu={(e) => {
+                          if (m.deleted || m.pending) return;
+                          e.preventDefault();
+                          setMsgMenu({ id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current) });
+                        }}
+                        onPointerDown={pressStart(m)}
+                        onPointerUp={pressEnd}
+                        onPointerCancel={pressEnd}
+                        onPointerMove={pressEnd}
+                        className={cn(
+                          "min-w-0 max-w-[82%] select-text rounded-[14px] px-3 py-2 transition-[box-shadow,transform] active:scale-[0.995]",
+                          m.mine ? "rounded-br-[4px] bg-ink text-ink-fg" : "rounded-bl-[4px] bg-surface-2 text-fg",
+                          m.pending === "failed" && "ring-1 ring-danger",
+                          m.deleted && "opacity-70",
+                        )}
+                      >
+                        {m.forwardedFrom && !m.deleted && (
+                          <p className={cn("mb-0.5 flex items-center gap-1 text-[11px] font-semibold", m.mine ? "text-ink-fg/70" : "text-fg-3")}>
+                            <Forward size={11} aria-hidden="true" /> {t("forwarded")}: {m.forwardedFrom}
+                          </p>
+                        )}
+                        {m.replyTo && !m.deleted && <QuoteBlock q={m.replyTo} mine={m.mine} />}
                         <AttachmentList attachments={m.attachments} mine={m.mine} />
-                        {m.body && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.body}</p>}
-                        <p className={cn("mt-1 flex items-center justify-end gap-1 text-right text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
-                          {timeOf(m.at)}
+                        {m.deleted ? (
+                          <p className={cn("text-[13.5px] italic", m.mine ? "text-ink-fg/70" : "text-fg-3")}>{DM_DELETED_TEXT[locale]}</p>
+                        ) : (
+                          m.body && (
+                            <p className="whitespace-pre-wrap text-[14px] leading-relaxed [overflow-wrap:anywhere]">
+                              <Linkified text={m.body} mine={m.mine} />
+                            </p>
+                          )
+                        )}
+                        {url && <LinkCard url={url} mine={m.mine} />}
+                        <p className={cn("mt-0.5 flex items-center justify-end gap-1 text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
+                          {m.editedAt && !m.deleted && <span>{t("edited")} ·</span>}
+                          <time dateTime={new Date(m.at).toISOString()} title={fullStamp(m.at, locale, now)}>
+                            {clock(m.at)}
+                          </time>
                           {m.mine &&
-                            (peerReadAt >= m.at ? (
-                              <CheckCheck size={13} className="shrink-0 text-accent" aria-label="O'qildi" />
+                            (m.pending === "sending" ? (
+                              <Loader2 size={12} className="animate-spin-slow shrink-0 [animation-duration:1s]" aria-label={t("sending")} />
+                            ) : m.pending === "failed" ? (
+                              <span className="flex items-center gap-1.5 text-danger">
+                                <AlertCircle size={12} aria-hidden="true" />
+                                <button type="button" onClick={() => void deliver(m.body, m.attachments, m.replyToId ?? null, m.id)} className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2">
+                                  <RotateCcw size={10} /> {t("retry")}
+                                </button>
+                                <button type="button" onClick={() => void removeMsg(m, "me")} className="font-semibold underline underline-offset-2">
+                                  {t("remove")}
+                                </button>
+                              </span>
+                            ) : peerReadAt >= m.at ? (
+                              <CheckCheck size={13} className="shrink-0 text-accent" aria-label={`${t("read")} ${clock(peerReadAt)}`} />
                             ) : (
-                              <Check size={13} className="shrink-0" aria-label="Yuborildi" />
+                              <Check size={13} className="shrink-0" aria-label={t("sent")} />
                             ))}
                         </p>
                       </div>
                     </div>
+                    {!m.deleted && <ReactionChips reactions={m.reactions ?? []} mine={m.mine} onToggle={(e) => void react(m, e)} />}
                   </div>
                 );
               })
             )}
-            {peerTyping && peer && (
-              <div className="pt-1">
-                <TypingDots label={`${peer.name} yozmoqda…`} />
+            {typingPresence.mounted && peer && (
+              <div className="pt-1.5">
+                <TypingDots label={`${peer.name} ${t("typing")}`} closing={typingPresence.closing} />
               </div>
             )}
-            <div ref={bottomRef} />
           </div>
 
-          {blocked.byMe || blocked.me ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-line bg-surface-2 px-4 py-3 text-[13px] text-fg-2" role="status">
+          {/* «Pastga» tugmasi */}
+          {jumpPresence.mounted && (
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              aria-label={newBelow > 0 ? `${t("toLatest")} — ${newBelow}` : t("toLatest")}
+              className={cn(jumpPresence.closing ? "pop-out" : "pop-in", "card-floating absolute bottom-[76px] right-3 z-[2] flex h-10 min-w-10 items-center justify-center gap-1.5 !rounded-full px-2.5 text-fg")}
+            >
+              <ArrowDown size={16} />
+              {newBelow > 0 && <span className="rounded-full bg-accent px-1.5 text-[11px] font-bold leading-[18px] text-white">{newBelow}</span>}
+            </button>
+          )}
+
+          {/* Drag&drop overlay */}
+          {dragPresence.mounted && (
+            <div className={cn(dragPresence.closing ? "overlay-out" : "overlay-in", "pointer-events-none absolute inset-0 z-[3] flex items-center justify-center bg-surface/85")} aria-hidden="true">
+              <p className="flex items-center gap-2 rounded-full border border-dashed border-fg px-4 py-2 text-[13.5px] font-semibold text-fg">
+                <Paperclip size={15} /> {t("dropHere")}
+              </p>
+            </div>
+          )}
+
+          {/* Kompozitor */}
+          {composerLocked ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line px-3.5 py-3 text-[13px] text-fg-2" role="status">
               <Ban size={14} className="text-fg-3" />
-              <span className="min-w-0 flex-1">{blocked.byMe ? "Siz bu foydalanuvchini bloklagansiz — xabar yozib bo'lmaydi." : "Bu foydalanuvchiga yozib bo'lmaydi."}</span>
+              <span className="min-w-0 flex-1">{peer?.isBanned ? t("banned") : blocked.byMe ? t("blockedByMe") : t("blockedMe")}</span>
               {blocked.byMe && (
                 <button type="button" onClick={() => void setBlock(false)} disabled={blockBusy} className="h-9 rounded-full border border-line px-3.5 text-[12.5px] font-semibold text-fg transition hover:border-fg disabled:opacity-50">
-                  Blokdan chiqarish
+                  {t("unblock")}
                 </button>
               )}
             </div>
           ) : (
-          <form onSubmit={send} className="border-t border-line p-3">
-            {replyTo && peer && <ReplyBar q={quoteOf(replyTo, peer.name)} onCancel={() => setReplyTo(null)} />}
-            {files.length > 0 && (
-              <ul className="mb-2 flex flex-wrap gap-1.5">
-                {files.map((f, i) => (
-                  <li key={f.url} className="flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-1 pl-2.5 pr-1 text-[12px] font-medium text-fg-2">
-                    <span className="max-w-[140px] truncate">{f.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))}
-                      aria-label={`${f.name} faylini olib tashlash`}
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/10 hover:text-fg"
-                    >
-                      <X size={12} />
+            <form onSubmit={send} className="border-t border-line p-2.5">
+              {replyPresence.mounted &&
+                (editing ? (
+                  <div className={cn(replyPresence.closing ? "expand-out" : "expand-in", "mb-2 flex items-center gap-2 rounded-[12px] border-l-[3px] border-fg bg-surface-2 py-1.5 pl-3 pr-1")} role="status">
+                    <Pencil size={14} className="shrink-0 text-fg-3" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[11.5px] font-bold text-fg">{t("edit")}</span>
+                      <span className="block truncate text-[12.5px] text-fg-2">{editing.body}</span>
+                    </span>
+                    <button type="button" onClick={() => (setEditing(null), setText(store.get(draftKey(active)) ?? ""))} aria-label={t("cancel")} className={cn(iconBtn, "h-8 w-8")}>
+                      <X size={14} />
                     </button>
-                  </li>
+                  </div>
+                ) : (
+                  replyTo && peer && <ReplyBar q={quoteOf(replyTo, peer.name, t("you"))} onCancel={() => setReplyTo(null)} closing={replyPresence.closing} />
                 ))}
-              </ul>
-            )}
-            {error && (
-              <p className="mb-2 text-[12.5px] font-medium text-danger-text" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="flex items-end gap-2">
-              <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={(e) => pickFiles(e.target.files)} tabIndex={-1} />
-              {!recording && (
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={files.length >= MAX_ATTACHMENTS}
-                  aria-label="Fayl biriktirish"
-                  title="Fayl biriktirish — rasm, video (50 MB) yoki PDF/DOC"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg disabled:opacity-40"
-                >
-                  <Paperclip size={17} />
-                </button>
+              {(files.length > 0 || uploads.length > 0) && (
+                <ul className="mb-2 flex flex-wrap gap-1.5">
+                  {files.map((f, i) => (
+                    <li key={f.url} className="expand-in flex items-center gap-1.5 rounded-full border border-line py-1 pl-2.5 pr-1 text-[12px] font-medium text-fg-2">
+                      <span className="max-w-[140px] truncate">{f.name}</span>
+                      <button type="button" onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} aria-label={`${f.name} — ${t("remove")}`} className="flex h-6 w-6 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/10 hover:text-fg">
+                        <X size={12} />
+                      </button>
+                    </li>
+                  ))}
+                  {uploads.map((u) => (
+                    <li key={u.key} className="expand-in relative flex items-center gap-1.5 overflow-hidden rounded-full border border-line py-1 pl-2.5 pr-1 text-[12px] font-medium text-fg-2" aria-live="polite">
+                      <span className="absolute inset-y-0 left-0 bg-fg/8 transition-[width]" style={{ width: `${Math.round(u.progress * 100)}%` }} aria-hidden="true" />
+                      <span className="relative max-w-[120px] truncate">{u.name}</span>
+                      <span className="relative tabular-nums text-fg-4">{Math.round(u.progress * 100)}%</span>
+                      <button type="button" onClick={() => u.ctl.abort()} aria-label={`${u.name} — ${t("cancel")}`} className="relative flex h-6 w-6 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/10 hover:text-fg">
+                        <X size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
-              {!recording && (
-                <textarea
-                  value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    pingTyping(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                    if (e.key === "Escape" && replyTo) setReplyTo(null);
-                  }}
-                  rows={1}
-                  maxLength={2000}
-                  placeholder={replyTo ? "Javob yozing…" : "Xabar yozing…"}
-                  aria-label="Xabar matni"
-                  className="field max-h-32 min-h-11 flex-1 resize-none rounded-[22px] py-2.5 text-[14px] leading-relaxed"
-                />
+              {error && (
+                <p className="mb-2 flex items-center gap-1.5 text-[12.5px] font-medium text-danger-text" role="alert">
+                  <AlertCircle size={13} /> {error}
+                </p>
               )}
-              {text.trim() || files.length > 0 ? (
-                <button type="submit" disabled={sending} aria-label="Yuborish" className="btn-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40">
-                  <Send size={17} />
-                </button>
-              ) : (
-                <VoiceRecorder size="lg" onRecorded={sendVoice} onError={setError} onPhase={setRecording} disabled={Boolean(peer?.isBanned)} />
-              )}
-            </div>
-          </form>
+              <div className="flex items-end gap-1.5">
+                <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={(e) => void addFiles(Array.from(e.target.files ?? []))} tabIndex={-1} />
+                {!recording && (
+                  <div className="relative">
+                    <button type="button" onClick={() => setPlusMenu((v) => !v)} aria-haspopup="menu" aria-expanded={plusMenu} aria-label={t("more")} className={cn(iconBtn, "border border-line", plusMenu && "bg-fg/6 text-fg")}>
+                      <Plus size={18} className={cn("transition-transform", plusMenu && "rotate-45")} />
+                    </button>
+                    <Layer open={plusMenu} onClose={() => setPlusMenu(false)} label={t("more")} anchorClass="bottom-full left-0 mb-1" width="w-[260px]">
+                      <MenuItem icon={Paperclip} label={t("attach")} hint="≤ 5" disabled={files.length + uploads.length >= MAX_ATTACHMENTS} onClick={() => (setPlusMenu(false), fileRef.current?.click())} />
+                      {viewerRole === "specialist" && (
+                        <>
+                          <MenuDivider />
+                          <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-4">{t("quick")}</p>
+                          <div className="max-h-48 overflow-y-auto">
+                            {[...DEFAULT_QUICK, ...quick].map((s) => (
+                              <MenuItem
+                                key={s}
+                                icon={Zap}
+                                label={s}
+                                onClick={() => {
+                                  setPlusMenu(false);
+                                  setText((cur) => (cur.trim() ? `${cur.trimEnd()}\n${s}` : s));
+                                  textRef.current?.focus();
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      <MenuDivider />
+                      <MenuItem
+                        label={t("ctrlEnter")}
+                        hint={ctrlEnter ? "✓" : ""}
+                        active={ctrlEnter}
+                        onClick={() => {
+                          setCtrlEnter((v) => {
+                            store.set(CTRL_ENTER_KEY, v ? null : "1");
+                            return !v;
+                          });
+                        }}
+                      />
+                    </Layer>
+                  </div>
+                )}
+                {!recording && (
+                  <textarea
+                    ref={textRef}
+                    value={text}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      pingTyping(e.target.value);
+                    }}
+                    onKeyDown={onKey}
+                    onPaste={onPaste}
+                    rows={1}
+                    maxLength={DM_BODY_MAX}
+                    placeholder={editing ? t("editPh") : replyTo ? t("replyPh") : t("write")}
+                    aria-label={t("write")}
+                    className="field max-h-[140px] min-h-10 flex-1 resize-none rounded-[20px] !py-2.5 text-[14px] leading-snug transition-[height]"
+                    style={{ height: 40 }}
+                  />
+                )}
+                {text.trim() || files.length > 0 || editing ? (
+                  <button type="submit" disabled={uploads.length > 0} aria-label={editing ? t("edit") : t("send")} className="btn-accent flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full disabled:opacity-40">
+                    {editing ? <Check size={17} /> : <Send size={17} className={cn("transition-all duration-300 ease-out", flying && "-translate-y-6 translate-x-6 opacity-0")} />}
+                  </button>
+                ) : (
+                  <VoiceRecorder size="md" onRecorded={sendVoice} onError={setError} onPhase={setRecording} />
+                )}
+              </div>
+            </form>
           )}
         </>
       )}
@@ -673,9 +1366,38 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   );
 
   return (
-    <div className="grid h-[calc(100dvh-220px)] min-h-[420px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="grid h-[calc(100dvh-150px)] min-h-[440px] grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[300px_minmax(0,1fr)]">
       {listPanel}
       {thread}
+      {/* Yo'naltirish dialogi */}
+      <ForwardDialog
+        open={Boolean(forwardOf)}
+        onClose={() => setForwardOf(null)}
+        locale={locale}
+        busy={forwardBusy}
+        items={(convs ?? []).filter((c) => c.id !== active && !c.peer.isBanned).map((c) => ({ id: c.id, name: c.peer.name, username: c.peer.username, avatarUrl: c.peer.avatarUrl }))}
+        onPick={(id) => void doForward(id)}
+      />
+      {/* Ma'lumot + media */}
+      {active && peer && (
+        <InfoDialog
+          open={infoOpen}
+          onClose={() => setInfoOpen(false)}
+          convId={active}
+          peer={peer}
+          presence={presenceOf(peer).label}
+          prefs={prefs}
+          locale={locale}
+          onPrefs={(p) => void updatePrefs(active, p)}
+          onJump={(id) => (setInfoOpen(false), window.setTimeout(() => jump(id), 220))}
+        />
+      )}
+      {/* Shikoyat (modal) — menyudan dasturiy ochiladi; trigger ko'rinmas, modal esa odatdagidek */}
+      {reportFor && (
+        <div ref={reportHostRef} key={reportFor.key} className="absolute left-0 top-0 h-0 w-0">
+          <ReportButton targetType={reportFor.type} targetId={reportFor.id} loggedIn compact modal triggerClassName="pointer-events-none absolute h-px w-px opacity-0" />
+        </div>
+      )}
     </div>
   );
 }

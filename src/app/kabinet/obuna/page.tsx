@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BadgeCheck, CheckCircle2, CircleSlash, CreditCard, FileText, Handshake, Hourglass, MapPinned, Phone, Receipt, Users, XCircle, type LucideIcon } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleSlash, FileText, Hourglass, Receipt, Users, XCircle, type LucideIcon } from "lucide-react";
 import { Badge, ButtonLink, IconTile, PageHeader } from "@/components/ui";
 import { InvoiceStatusWatcher } from "@/components/subscription/InvoiceStatusWatcher";
 import { ProgressRing, type RingTone } from "@/components/subscription/ProgressRing";
@@ -19,11 +19,11 @@ export const metadata: Metadata = { title: "Obuna", robots: { index: false, foll
 
 const RING_TONE: Record<SubscriptionStateView["status"], RingTone> = { active: "success", trial: "info", grace: "warning", expired: "danger", off: "neutral", exempt: "success" };
 
-const PERKS: Array<{ icon: LucideIcon; t: string; d: string }> = [
-  { icon: MapPinned, t: "Katalog va xaritada ko'rinish", d: "Mijozlar sizni ro'yxat, xarita, qidiruv va yo'nalish sahifalarida topadi." },
-  { icon: Handshake, t: "Buyurtma va takliflar", d: "To'g'ridan-to'g'ri buyurtmalar va e'lonlarga taklif yuborish ochiq." },
-  { icon: Phone, t: "Aloqa ma'lumotlari ochiq", d: "Telefon va ijtimoiy tarmoqlaringiz maxfiylik sozlamalaringiz bo'yicha ko'rinadi." },
-  { icon: BadgeCheck, t: "Eskrou himoyasi", d: "Platformadagi to'lovlar eskrouda — komissiya faqat shu to'lovlardan." },
+const PERKS: Array<{ t: string; d: string }> = [
+  { t: "Katalog va xaritada ko'rinish", d: "Mijozlar sizni ro'yxat, xarita va qidiruvda topadi." },
+  { t: "Buyurtma va takliflar", d: "To'g'ridan-to'g'ri buyurtmalar va e'lonlarga taklif ochiq." },
+  { t: "Aloqa ma'lumotlari", d: "Telefon va tarmoqlaringiz maxfiylik sozlamalari bo'yicha ko'rinadi." },
+  { t: "Eskrou himoyasi", d: "Komissiya faqat platformadagi to'lovlardan." },
 ];
 
 function headlineFor(st: SubscriptionStateView): { title: string; detail: string } {
@@ -136,7 +136,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     const settings = await getSettings();
     return (
       <div className="animate-fade-up">
-        <PageHeader eyebrow={<><CreditCard size={13} className="text-accent" /> Obuna</>} title={<>Mijozlar uchun <span className="accent-serif text-accent">bepul</span></>} description="Kasb Egalari platformasida mutaxassis topish, buyurtma berish, e'lon joylash va eskrou orqali to'lash mijozlar uchun to'liq bepul. Obuna faqat mutaxassislar uchun." />
+        <PageHeader eyebrow="Obuna" title={<>Mijozlar uchun <span className="accent-serif text-accent">bepul</span></>} description="Mutaxassis topish, buyurtma berish, e'lon joylash va eskrou orqali to'lash mijozlar uchun bepul. Obuna faqat mutaxassislar uchun." />
         <div className="card mt-8 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-start gap-3">
             <IconTile icon={Users} tone="soft" />
@@ -173,17 +173,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   return (
     <div className="animate-fade-up">
       <PageHeader
-        eyebrow={
-          <>
-            <CreditCard size={13} className="text-accent" /> Obuna
-          </>
-        }
+        eyebrow="Obuna"
         title={
           <>
             Mutaxassis <span className="accent-serif text-accent">obunasi</span>
           </>
         }
-        description={`${formatPrice(overview.price)} / oy — profilingiz katalog va xaritada ko'rinadi, buyurtma va takliflar ochiq. Mijozlar Kasb Egalari platformasidan bepul foydalanadi.`}
+        description={`${formatPrice(overview.price)} / oy — profilingiz katalog va xaritada ko'rinadi, buyurtma va takliflar ochiq.`}
       />
 
       {result && <InvoiceResult inv={result} />}
@@ -230,16 +226,11 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
         <div className="card p-5 sm:p-6 lg:col-span-2">
           <h2 className="font-display text-[16px] font-semibold text-fg">Obuna nimalar beradi</h2>
-          <ul className="mt-3 space-y-3">
+          <ul className="mt-3 divide-y divide-line">
             {PERKS.map((p) => (
-              <li key={p.t} className="flex items-start gap-3">
-                <span className="icon-tile-outline icon-tile-sm text-fg-2">
-                  <p.icon size={14} aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-fg">{p.t}</p>
-                  <p className="text-[12px] leading-snug text-fg-3">{p.d}</p>
-                </div>
+              <li key={p.t} className="py-2.5 first:pt-0 last:pb-0">
+                <p className="text-[13px] font-semibold text-fg">{p.t}</p>
+                <p className="text-[12px] leading-snug text-fg-3">{p.d}</p>
               </li>
             ))}
           </ul>
@@ -279,12 +270,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
       {/* Tarix */}
       <section aria-labelledby="history-title" className="card mt-8 p-5 sm:p-6">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 id="history-title" className="font-display text-[17px] font-semibold text-fg">
-            To&apos;lovlar tarixi
-          </h2>
-          <Receipt size={16} className="text-fg-4" aria-hidden="true" />
-        </div>
+        <h2 id="history-title" className="mb-2 font-display text-[17px] font-semibold text-fg">
+          To&apos;lovlar tarixi
+        </h2>
         <InvoiceHistory invoices={history} />
       </section>
     </div>

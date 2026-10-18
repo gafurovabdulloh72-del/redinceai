@@ -1,28 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ExternalLink, Eye, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
-import { RichText } from "./RichText";
+import { BadgeCheck, BarChart3, Copy, CornerDownRight, ExternalLink, EyeOff, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
+import { firstUrl, RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
-import { postPermalink, ReactionButton, SaveButton, ShareAction } from "./Reactions";
+import { postPermalink, ReactionButton, ReactorsButton, SaveButton, ShareAction, type ReactionState } from "./Reactions";
+import { LinkPreviewCard, MediaGrid, PollBlock, PostMenu, type MenuItem } from "./PostParts";
+import { FollowButton } from "./FollowButton";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { useViewTracker } from "./useViewTracker";
 import { CalendarLinks } from "./CalendarLinks";
 import { useToast } from "@/components/ui/toast";
-import { Avatar, Button } from "@/components/ui";
+import { usePresence } from "@/components/motion/usePresence";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
+import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
-import { COMMENT_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
-import type { CommentView, PostView, UserBrief } from "@/lib/groups/service";
-import { cn, compactCount, formatDateTime, timeAgo } from "@/lib/utils";
+import { COMMENT_MAX, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
+import type { PostView, UserBrief } from "@/lib/groups/service";
+import type { CommentViewX, PollView } from "@/lib/groups/posts-extra";
+import { tr } from "@/lib/i18n";
+import { FEED } from "@/lib/i18n/dict/feed";
+import { cn, formatDateTime } from "@/lib/utils";
 
 type Page = { items: PostView[]; nextCursor: number | null };
 type ApiResp<T> = { ok: boolean; data?: T; error?: string; fields?: Record<string, string> };
 
+/** Lenta manbai (jamoa/kanal chipi) */
+export interface PostSource {
+  slug: string;
+  name: string;
+  kind: "group" | "channel";
+  isOfficial: boolean;
+}
+/** PostView + lenta qo'shimchalari (bosh sahifa `FeedItem` beradi; jamoa/profil lentasi — faqat PostView) */
+export type FeedPostView = PostView & { poll?: PollView | null; editedAt?: number | null; followingAuthor?: boolean | null; group?: PostSource | null };
+
 /** Postga faqat rasm yoki video (hujjat emas) */
 const POST_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
+const MEDIA_EXT = /\.(?:jpe?g|png|webp|gif|mp4|webm|mov)$/i;
 
 function AuthorLink({ u, className }: { u: UserBrief; className?: string }) {
   const inner = <span className={cn("truncate font-semibold text-fg", className)}>{u.name}</span>;
@@ -36,8 +54,9 @@ function AuthorLink({ u, className }: { u: UserBrief; className?: string }) {
 }
 
 /**
- * Jamoa lentasi: kompozitor (a'zolar uchun), postlar (like/izoh/o'chirish), cursor bo'yicha "yana yuklash".
+ * Jamoa lentasi: kompozitor (a'zolar uchun), postlar (like/izoh/o'chirish), cursor bo'yicha «Yana».
  * `highlightId` — bildirishnomadan kelganda (?post=) shu post ochiq izohlar bilan ko'rsatiladi.
+ * Yangi post yuborilgach to'liq qayta yuklanmaydi — `GET /api/posts/[id]` bilan faqat shu post tepaga qo'shiladi.
  */
 export function GroupFeed({
   slug,
@@ -62,64 +81,85 @@ export function GroupFeed({
   loggedIn: boolean;
   initial: Page;
   highlightId?: string | null;
-  /** Boshqa manba (profil postlari: /api/profil/postlar) — berilsa slug ishlatilmaydi */
+  /** Boshqa manba (profil postlari: /api/profil/postlar?user=) — berilsa slug ishlatilmaydi */
   apiBase?: string;
   composerPlaceholder?: string;
 }) {
-  const router = useRouter();
-  const [items, setItems] = useState(initial.items);
+  const til = useLocale();
+  const { toast } = useToast();
+  const requireLogin = useRequireLogin(loggedIn);
+  const [items, setItems] = useState<FeedPostView[]>(initial.items);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadingRef = useRef(false);
   const base = apiBase ?? `/api/groups/${encodeURIComponent(slug)}/posts`;
 
   const reload = useCallback(async () => {
-    const res = await fetch(base, { cache: "no-store" });
-    const j = (await res.json()) as ApiResp<Page>;
-    if (j.ok && j.data) {
+    try {
+      const res = await fetch(base, { cache: "no-store" });
+      const j = (await res.json()) as ApiResp<Page>;
+      if (!j.ok || !j.data) throw new Error(j.error);
       setItems(j.data.items);
       setCursor(j.data.nextCursor);
+    } catch {
+      toast(tr(til, FEED.loadFailed), "error");
     }
-  }, [base]);
+  }, [base, toast, til]);
+
+  /** Yangi post: id bo'lsa faqat shu post olinib tepaga qo'shiladi (sahifa va aylantirish joyi saqlanadi) */
+  const onPosted = useCallback(
+    async (id?: string) => {
+      if (id) {
+        try {
+          const res = await fetch(`/api/posts/${encodeURIComponent(id)}`, { cache: "no-store" });
+          const j = (await res.json()) as ApiResp<FeedPostView>;
+          if (j.ok && j.data) {
+            const item = j.data;
+            setItems((prev) => [item, ...prev.filter((p) => p.id !== id)]);
+            return;
+          }
+        } catch {}
+      }
+      await reload();
+    },
+    [reload],
+  );
 
   async function loadMore() {
-    if (!cursor || loadingMore) return;
+    if (!cursor || loadingRef.current) return;
+    loadingRef.current = true;
     setLoadingMore(true);
+    setLoadError(null);
     try {
-      const res = await fetch(`${base}?cursor=${cursor}`, { cache: "no-store" });
+      const res = await fetch(withQuery(base, { cursor }), { cache: "no-store" });
       const j = (await res.json()) as ApiResp<Page>;
-      if (j.ok && j.data) {
-        const more = j.data.items;
-        setItems((prev) => {
-          const seen = new Set(prev.map((p) => p.id));
-          return [...prev, ...more.filter((p) => !seen.has(p.id))];
-        });
-        setCursor(j.data.nextCursor);
-      }
+      if (!j.ok || !j.data) throw new Error(j.error);
+      const more = j.data.items;
+      setItems((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...more.filter((p) => !seen.has(p.id))];
+      });
+      setCursor(j.data.nextCursor);
+    } catch {
+      setLoadError(tr(til, FEED.loadFailed));
     } finally {
+      loadingRef.current = false;
       setLoadingMore(false);
     }
-  }
-
-  function requireLogin(): boolean {
-    if (loggedIn) return true;
-    router.push(`/auth/kirish?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-    return false;
   }
 
   return (
     <div className="stagger grid gap-4">
       {canPost ? (
-        <Composer base={base} onPosted={reload} allowEvent={canSchedule} kind={kind} placeholder={composerPlaceholder} />
+        <Composer base={base} onPosted={onPosted} allowEvent={canSchedule} kind={kind} placeholder={composerPlaceholder} />
       ) : canInteract && kind === "channel" ? (
-        <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">Kanalga faqat egasi va adminlar yozadi — siz postlarni yoqtirishingiz va izoh qoldirishingiz mumkin.</p>
+        <p className="px-1 text-[13px] text-fg-3">Kanalga faqat adminlar yozadi — yoqtirish va izoh mumkin.</p>
       ) : (
-        <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">{kind === "channel" ? "Izoh qoldirish va yoqtirish uchun kanalga qo'shiling." : "Post yozish, yoqtirish va izoh qoldirish uchun guruhga qo'shiling."}</p>
+        <p className="px-1 text-[13px] text-fg-3">{kind === "channel" ? "Izoh va reaksiya uchun kanalga qo'shiling." : "Yozish uchun guruhga qo'shiling."}</p>
       )}
       {items.length === 0 ? (
-        <div className="card px-5 py-10 text-center">
-          <p className="text-[15px] font-semibold text-fg">Lenta hali bo&apos;sh</p>
-          <p className="mt-1 text-[13px] text-fg-3">{canPost ? "Birinchi postni siz yozing — ish, savol yoki e'lon." : kind === "channel" ? "Kanal e'lonlari shu yerda chiqadi." : "A'zolar yozgan postlar shu yerda chiqadi."}</p>
-        </div>
+        <FeedEmpty icon={<MessageCircle size={20} />} title="Lenta hali bo'sh" text={canPost ? "Birinchi postni siz yozing." : kind === "channel" ? "Kanal e'lonlari shu yerda chiqadi." : "A'zolar postlari shu yerda chiqadi."} />
       ) : (
         items.map((p) => (
           <PostCard
@@ -136,13 +176,7 @@ export function GroupFeed({
           />
         ))
       )}
-      {cursor && (
-        <div className="flex justify-center">
-          <Button type="button" variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-            {loadingMore ? "Yuklanmoqda…" : "Yana yuklash"}
-          </Button>
-        </div>
-      )}
+      {cursor && <LoadMore onLoad={() => void loadMore()} loading={loadingMore} error={loadError} />}
     </div>
   );
 }
@@ -156,35 +190,100 @@ function localToMs(v: string): number | null {
   const t = new Date(v).getTime();
   return Number.isFinite(t) ? t : null;
 }
+const draftKey = (base: string) => `kv-draft:${base}`;
 
-export function Composer({ base, onPosted, allowEvent = false, kind = "group", placeholder }: { base: string; onPosted: () => Promise<void>; allowEvent?: boolean; kind?: "group" | "channel"; placeholder?: string }) {
+/**
+ * Post kompozitori: fokusgacha bir qatorli, fokusda kengayadi; qoralama localStorage'da; rasm/video (tanlash, paste, drop);
+ * ixtiyoriy so'rovnoma (2–4 variant) va efir e'loni; Ctrl/⌘+Enter yuboradi. `onPosted(id)` — yangi post id'si bilan.
+ */
+export function Composer({
+  base,
+  onPosted,
+  allowEvent = false,
+  allowPoll = false,
+  kind = "group",
+  placeholder,
+  collapsible = true,
+}: {
+  base: string;
+  onPosted: (id?: string) => Promise<void> | void;
+  allowEvent?: boolean;
+  /** So'rovnoma qo'shish imkoni (post joylangach POST /api/posts/[id]/poll) */
+  allowPoll?: boolean;
+  kind?: "group" | "channel";
+  placeholder?: string;
+  /** Fokusgacha bir qatorli ko'rinish */
+  collapsible?: boolean;
+}) {
+  const til = useLocale();
+  const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<Attachment[]>([]);
   const [eventOpen, setEventOpen] = useState(false);
   const [eventAt, setEventAt] = useState("");
   const [eventUrl, setEventUrl] = useState("");
+  const [pollOpen, setPollOpen] = useState(false);
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const now = useNow();
   const eventMs = eventOpen ? localToMs(eventAt) : null;
-  const eventInvalid = eventOpen && (!eventMs || (eventUrl.trim() !== "" && !/^https:\/\/\S+$/.test(eventUrl.trim())));
-  const canSend = (body.trim().length > 0 || media.length > 0) && !busy && !uploading && !eventInvalid;
+  const eventPast = Boolean(eventOpen && eventMs && now && eventMs < now);
+  const eventInvalid = eventOpen && (!eventMs || eventPast || (eventUrl.trim() !== "" && !/^https:\/\/\S+$/.test(eventUrl.trim())));
+  const pollClean = pollOptions.map((o) => o.trim()).filter(Boolean);
+  const pollInvalid = pollOpen && (pollClean.length < POLL_OPTIONS_MIN || new Set(pollClean.map((o) => o.toLowerCase())).size !== pollClean.length);
+  const canSend = (body.trim().length > 0 || media.length > 0) && !busy && !uploading && !eventInvalid && !pollInvalid;
+  const expanded = !collapsible || focused || body.length > 0 || media.length > 0 || eventOpen || pollOpen;
 
-  async function pick(files: FileList | null) {
+  // Qoralama: tiklash (bir marta) va saqlash (400 ms kechikish)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey(base));
+      if (!raw) return;
+      const d = JSON.parse(raw) as { body?: string; poll?: string[] };
+      if (d.body) {
+        setBody(d.body);
+        setRestored(true);
+      }
+      if (d.poll && d.poll.length >= 2 && allowPoll) {
+        setPollOptions(d.poll);
+        setPollOpen(true);
+      }
+    } catch {}
+  }, [base, allowPoll]);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        if (body.trim() || (pollOpen && pollClean.length)) localStorage.setItem(draftKey(base), JSON.stringify({ body, poll: pollOpen ? pollOptions : undefined }));
+        else localStorage.removeItem(draftKey(base));
+      } catch {}
+    }, 400);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, pollOpen, pollOptions, base]);
+
+  async function pick(files: FileList | File[] | null) {
     if (!files?.length) return;
+    const all = Array.from(files);
     const room = POST_MEDIA_MAX - media.length;
     if (room <= 0) {
-      setError(`Ko'pi bilan ${POST_MEDIA_MAX} ta fayl`);
+      setError(FEED.tooManyFiles[til](POST_MEDIA_MAX));
       return;
     }
-    const list = Array.from(files).slice(0, room);
+    const list = all.slice(0, room);
+    if (all.length > room) toast(FEED.tooManyFiles[til](POST_MEDIA_MAX), "info");
     setUploading(true);
     setError(null);
     try {
       const added: Attachment[] = [];
       for (const f of list) {
-        if (!/^(image|video)\//.test(f.type)) throw new Error(`«${f.name}»: faqat rasm yoki video`);
+        // Ba'zi brauzerlar .mov/.webm uchun type bo'sh beradi — kengaytma bo'yicha zaxira tekshiruv
+        if (!/^(image|video)\//.test(f.type) && !MEDIA_EXT.test(f.name)) throw new Error(FEED.onlyMedia[til](f.name));
         added.push(await uploadAttachment(f, { docs: true }));
       }
       setMedia((m) => [...m, ...added]);
@@ -193,6 +292,32 @@ export function Composer({ base, onPosted, allowEvent = false, kind = "group", p
     } finally {
       setUploading(false);
     }
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) {
+    const files = Array.from(e.clipboardData?.files ?? []).filter((f) => /^(image|video)\//.test(f.type));
+    if (!files.length) return;
+    e.preventDefault();
+    void pick(files);
+  }
+  function onDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragging(false);
+    void pick(e.dataTransfer?.files ?? null);
+  }
+
+  function reset() {
+    setBody("");
+    setMedia([]);
+    setEventOpen(false);
+    setEventAt("");
+    setEventUrl("");
+    setPollOpen(false);
+    setPollOptions(["", ""]);
+    setRestored(false);
+    try {
+      localStorage.removeItem(draftKey(base));
+    } catch {}
   }
 
   async function submit() {
@@ -204,12 +329,18 @@ export function Composer({ base, onPosted, allowEvent = false, kind = "group", p
       const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
-      setBody("");
-      setMedia([]);
-      setEventOpen(false);
-      setEventAt("");
-      setEventUrl("");
-      await onPosted();
+      const id = j.data?.id;
+      if (id && pollOpen && pollClean.length >= POLL_OPTIONS_MIN) {
+        try {
+          const pr = await fetch(`/api/posts/${encodeURIComponent(id)}/poll`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ options: pollClean }) });
+          const pj = (await pr.json()) as ApiResp<unknown>;
+          if (!pr.ok || !pj.ok) throw new Error(pj.error || tr(til, FEED.pollFailed));
+        } catch (e) {
+          toast(e instanceof Error ? e.message : tr(til, FEED.pollFailed), "error");
+        }
+      }
+      reset();
+      await onPosted(id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuborilmadi");
     } finally {
@@ -217,93 +348,155 @@ export function Composer({ base, onPosted, allowEvent = false, kind = "group", p
     }
   }
 
+  const pct = body.length / POST_BODY_MAX;
+  const toolBtn = (active: boolean) =>
+    cn("press inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-semibold transition disabled:opacity-50", active ? "bg-fg/6 text-fg" : "text-fg-3 hover:bg-fg/6 hover:text-fg");
+
   return (
-    <div className="card p-4">
+    <div
+      className={cn("card p-3 transition-colors sm:p-4", dragging && "border-fg")}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={onDrop}
+    >
       <MentionField
         multiline
         value={body}
         onChange={setBody}
         maxLength={POST_BODY_MAX}
-        rows={3}
-        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : (placeholder ?? (kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon… (@ism — eslatish)"))}
-        className="field w-full resize-y py-2.5 text-[14px] leading-relaxed"
+        rows={expanded ? 3 : 1}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onPaste={onPaste}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder={eventOpen ? "Efir mavzusi — birinchi qator sarlavha" : (placeholder ?? (kind === "channel" ? "Kanal e'loni…" : "Jamoa bilan bo'lishing… (@ism — eslatish)"))}
+        ariaLabel={placeholder ?? "Post matni"}
+        className={cn("field w-full resize-none py-2.5 text-[14px] leading-relaxed transition-[height]", expanded && "resize-y")}
       />
+      {restored && (
+        <p className="expand-in mt-1.5 flex items-center gap-2 px-1 text-[12px] text-fg-3">
+          {tr(til, FEED.draftRestored)}
+          <button type="button" onClick={reset} className="font-semibold text-fg-2 underline-offset-2 hover:underline">
+            {tr(til, FEED.clearDraft)}
+          </button>
+        </p>
+      )}
+      {pollOpen && (
+        <div className="expand-in mt-2.5 grid gap-2 rounded-[14px] bg-fg/4 p-3">
+          <p className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">
+            <BarChart3 size={13} /> {tr(til, FEED.poll)} <span className="font-medium normal-case tracking-normal text-fg-4">· {tr(til, FEED.pollHint)}</span>
+          </p>
+          {pollOptions.map((o, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <input
+                value={o}
+                onChange={(e) => setPollOptions((arr) => arr.map((x, k) => (k === i ? e.target.value : x)))}
+                maxLength={POLL_OPTION_MAX}
+                placeholder={FEED.pollOption[til](i + 1)}
+                aria-label={FEED.pollOption[til](i + 1)}
+                className="field h-10 min-w-0 flex-1 text-[13.5px]"
+              />
+              {pollOptions.length > POLL_OPTIONS_MIN && (
+                <button type="button" onClick={() => setPollOptions((arr) => arr.filter((_, k) => k !== i))} aria-label={tr(til, FEED.pollRemoveOption)} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          ))}
+          {pollOptions.length < POLL_OPTIONS_MAX && (
+            <button type="button" onClick={() => setPollOptions((arr) => [...arr, ""])} className="justify-self-start text-[12.5px] font-semibold text-fg-2 underline-offset-2 hover:underline">
+              + {tr(til, FEED.pollAddOption)}
+            </button>
+          )}
+        </div>
+      )}
       {eventOpen && (
-        <div className="expand-in mt-2.5 grid gap-2.5 rounded-[14px] border border-accent/30 bg-accent-soft/40 p-3 sm:grid-cols-2">
+        <div className="expand-in mt-2.5 grid gap-2.5 rounded-[14px] bg-fg/4 p-3 sm:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Efir vaqti</span>
-            <input type="datetime-local" value={eventAt} onChange={(e) => setEventAt(e.target.value)} className="field h-10 w-full text-[13.5px]" required />
+            <input type="datetime-local" value={eventAt} onChange={(e) => setEventAt(e.target.value)} className="field h-10 w-full text-[13.5px]" required aria-invalid={eventPast || undefined} />
           </label>
           <label className="grid gap-1">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Havola (Zoom, Meet, YouTube, Telegram) — ixtiyoriy</span>
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Havola (ixtiyoriy)</span>
             <input type="url" value={eventUrl} onChange={(e) => setEventUrl(e.target.value)} placeholder="https://…" dir="ltr" className="field h-10 w-full text-[13.5px]" />
           </label>
-          <p className="text-[12px] leading-relaxed text-fg-3 sm:col-span-2">A&apos;zolarga «Jonli efir» bildirishnomasi boradi (sayt + Telegram). Havolani keyinroq izohda ham berishingiz mumkin.</p>
+          {eventPast ? (
+            <p role="alert" className="text-[12px] font-semibold text-danger-text sm:col-span-2">
+              {tr(til, FEED.pastEvent)}
+            </p>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-fg-3 sm:col-span-2">A&apos;zolarga «Jonli efir» xabari boradi (sayt + Telegram).</p>
+          )}
         </div>
       )}
       {media.length > 0 && (
         <ul className="mt-2.5 grid grid-cols-4 gap-2">
           {media.map((a, i) => (
-            <li key={a.url} className="relative aspect-square overflow-hidden rounded-[12px] border border-line bg-surface-2">
+            <li key={a.url} className="expand-in relative aspect-square overflow-hidden rounded-[14px] border border-line bg-surface-2">
               {isVideoAttachment(a) ? (
                 // eslint-disable-next-line jsx-a11y/media-has-caption
                 <video src={a.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
               ) : (
                 <SafeImage src={a.url} alt={a.name} width={160} height={160} className="h-full w-full object-cover" />
               )}
-              <button
-                type="button"
-                aria-label="Olib tashlash"
-                onClick={() => setMedia((m) => m.filter((_, j) => j !== i))}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white"
-              >
+              <button type="button" aria-label="Olib tashlash" onClick={() => setMedia((m) => m.filter((_, j) => j !== i))} className="press absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white">
                 <X size={12} />
               </button>
             </li>
           ))}
         </ul>
       )}
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading || media.length >= POST_MEDIA_MAX}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50"
-        >
-          <ImagePlus size={15} /> {uploading ? "Yuklanmoqda…" : `Rasm/video ${media.length}/${POST_MEDIA_MAX}`}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          accept={POST_ACCEPT}
-          className="sr-only"
-          onChange={(e) => {
-            void pick(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        {allowEvent && (
-          <button
-            type="button"
-            onClick={() => setEventOpen((v) => !v)}
-            aria-pressed={eventOpen}
-            className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition",
-              eventOpen ? "border-accent bg-accent-soft text-accent-text" : "border-line-2 text-fg-2 hover:text-fg",
-            )}
-          >
-            <RadioTower size={15} /> Efir / yig&apos;ilish
+      {expanded && (
+        <div className="expand-in mt-2 flex items-center gap-0.5">
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || media.length >= POST_MEDIA_MAX} aria-label={tr(til, FEED.media)} title={tr(til, FEED.media)} className={toolBtn(media.length > 0)}>
+            {uploading ? <Spinner className="h-4 w-4" /> : <ImagePlus size={18} />}
+            {media.length > 0 && <span className="tabular-nums">{media.length}/{POST_MEDIA_MAX}</span>}
           </button>
-        )}
-        <span className="ml-auto text-[11.5px] text-fg-4">
-          {body.length}/{POST_BODY_MAX}
-        </span>
-        <Button type="button" variant="primary" size="sm" onClick={submit} disabled={!canSend}>
-          <Send size={14} /> {busy ? "Yuborilmoqda…" : eventOpen ? "Efirni e'lon qilish" : "E'lon qilish"}
-        </Button>
-      </div>
-      {error && <p className="mt-2 text-[12.5px] font-semibold text-danger-text">{error}</p>}
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept={POST_ACCEPT}
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(e) => {
+              void pick(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          {allowPoll && (
+            <button type="button" onClick={() => setPollOpen((v) => !v)} aria-pressed={pollOpen} aria-label={tr(til, FEED.poll)} title={tr(til, FEED.poll)} className={toolBtn(pollOpen)}>
+              <BarChart3 size={18} />
+            </button>
+          )}
+          {allowEvent && (
+            <button type="button" onClick={() => setEventOpen((v) => !v)} aria-pressed={eventOpen} aria-label={tr(til, FEED.event)} title={tr(til, FEED.event)} className={toolBtn(eventOpen)}>
+              <RadioTower size={18} />
+            </button>
+          )}
+          {pct > 0.8 && (
+            <span className={cn("ml-auto text-[11.5px] tabular-nums", pct > 0.95 ? "font-semibold text-danger-text" : "text-fg-4")} aria-live="polite">
+              {POST_BODY_MAX - body.length}
+            </span>
+          )}
+          <Button type="button" variant="primary" size="sm" onClick={() => void submit()} disabled={!canSend} title={tr(til, FEED.sendHint)} className={cn(pct <= 0.8 && "ml-auto")}>
+            {busy ? <Spinner className="h-4 w-4" /> : <Send size={16} />} {busy ? tr(til, FEED.posting) : eventOpen ? "Efirni e'lon qilish" : tr(til, FEED.post)}
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger-text">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -321,8 +514,9 @@ export function PostCard({
   groupSlug = null,
   onDeleted,
   onChanged,
+  onMuted,
 }: {
-  post: PostView;
+  post: FeedPostView;
   canInteract: boolean;
   /** Egasi/admin — qadash va olish */
   canPin: boolean;
@@ -333,19 +527,25 @@ export function PostCard({
   groupSlug?: string | null;
   onDeleted: () => void;
   onChanged: () => Promise<void>;
+  /** Muallif lentadan yashirilganda (bosh sahifa shu muallifning boshqa postlarini ham olib tashlaydi) */
+  onMuted?: (authorId: string) => void;
 }) {
+  const til = useLocale();
   const ref = useRef<HTMLElement | null>(null);
   const { ref: viewRef, views } = useViewTracker(post.id, post.viewsCount);
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.body);
   const [body, setBody] = useState(post.body);
-  const [edited, setEdited] = useState(post.edited);
+  const [editedAt, setEditedAt] = useState<number | null>(post.editedAt ?? (post.edited ? 0 : null));
   const [pinned, setPinned] = useState(post.isPinned);
   const [comments, setComments] = useState(post.commentsCount);
+  const [rx, setRx] = useState<ReactionState>({ liked: post.likedByMe, likesCount: post.likesCount, myReaction: post.myReaction, reactions: post.reactions });
   const [open, setOpen] = useState(highlighted);
+  const panel = usePresence(open, 180);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [hidden, setHidden] = useState<"post" | "author" | null>(null);
 
   useEffect(() => {
     if (highlighted) ref.current?.scrollIntoView({ block: "center" });
@@ -356,9 +556,11 @@ export function PostCard({
     try {
       const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}`, { method: "DELETE" });
       const j = (await res.json()) as ApiResp<unknown>;
-      if (!res.ok || !j.ok) throw new Error();
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, FEED.notDeleted));
+      toast(tr(til, FEED.deleted));
       onDeleted();
-    } catch {
+    } catch (e) {
+      toast(e instanceof Error ? e.message : tr(til, FEED.notDeleted), "error");
       setBusy(false);
       setConfirm(false);
     }
@@ -366,7 +568,7 @@ export function PostCard({
 
   async function patch(payload: Record<string, unknown>) {
     const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const j = (await res.json()) as ApiResp<{ isPinned: boolean; body: string }>;
+    const j = (await res.json()) as ApiResp<{ isPinned: boolean; body: string; editedAt: number | null }>;
     if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Bo'lmadi");
     return j.data;
   }
@@ -389,19 +591,75 @@ export function PostCard({
     try {
       const d = await patch({ body: t });
       setBody(d.body);
-      setEdited(true);
+      setEditedAt(d.editedAt ?? Date.now());
       setEditing(false);
       toast("Post yangilandi");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Saqlab bo'lmadi", "error");
     }
   }
-  const isAuthor = post.canDelete && loggedIn;
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(tr(til, FEED.copied));
+    } catch {
+      toast(text, "info");
+    }
+  }
+  async function hidePost(hide: boolean) {
+    if (!requireLogin()) return;
+    setHidden(hide ? "post" : null);
+    try {
+      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/hide`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: hide }) });
+      const j = (await res.json()) as ApiResp<unknown>;
+      if (!res.ok || !j.ok) throw new Error(j.error || "Bo'lmadi");
+    } catch (e) {
+      setHidden(hide ? null : "post");
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    }
+  }
+  async function muteAuthor(mute: boolean) {
+    if (!requireLogin()) return;
+    setHidden(mute ? "author" : null);
+    try {
+      const res = await fetch(`/api/feed/mute`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ authorId: post.author.id, muted: mute }) });
+      const j = (await res.json()) as ApiResp<unknown>;
+      if (!res.ok || !j.ok) throw new Error(j.error || "Bo'lmadi");
+      if (mute) onMuted?.(post.author.id);
+    } catch (e) {
+      setHidden(mute ? null : "author");
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    }
+  }
 
+  const isAuthor = post.canDelete && loggedIn && post.author.id !== "";
   const media = post.media;
-  const single = media.length === 1;
-  const lockedLike = loggedIn && !canInteract;
-  const permalink = postPermalink(post, groupSlug);
+  const permalink = postPermalink(post, groupSlug ?? post.group?.slug ?? null);
+  const source = post.group ?? null;
+  const url = media.length === 0 ? firstUrl(body) : null;
+  const title = body.split("\n")[0] || post.author.name;
+
+  const menuItems: MenuItem[] = [
+    { key: "link", label: tr(til, FEED.copyLink), icon: Link2, onSelect: () => void copyText(`${window.location.origin}${permalink}`) },
+    { key: "text", label: tr(til, FEED.copyText), icon: Copy, onSelect: () => void copyText(body), hidden: !body },
+    { key: "edit", label: tr(til, FEED.edit), icon: Pencil, onSelect: () => setEditing(true), hidden: !isAuthor || editing },
+    { key: "pin", label: tr(til, pinned ? FEED.unpin : FEED.pin), icon: pinned ? PinOff : Pin, onSelect: () => void togglePin(), hidden: !canPin },
+    { key: "hide", label: tr(til, FEED.notInterested), icon: EyeOff, onSelect: () => void hidePost(true), hidden: !loggedIn || isAuthor },
+    { key: "mute", label: FEED.muteAuthor[til](post.author.name.split(" ")[0]), icon: UserRoundX, onSelect: () => void muteAuthor(true), hidden: !loggedIn || isAuthor },
+    { key: "delete", label: tr(til, FEED.delete), icon: Trash2, onSelect: () => setConfirm(true), danger: true, hidden: !post.canDelete },
+  ];
+
+  if (hidden) {
+    return (
+      <div className="card expand-in flex items-center gap-3 px-4 py-3 text-[13px] text-fg-2" role="status">
+        <EyeOff size={16} className="shrink-0 text-fg-3" />
+        <span className="min-w-0 flex-1 truncate">{tr(til, hidden === "post" ? FEED.hiddenToast : FEED.mutedToast)}</span>
+        <button type="button" onClick={() => void (hidden === "post" ? hidePost(false) : muteAuthor(false))} className="shrink-0 font-semibold text-fg underline-offset-2 hover:underline">
+          {tr(til, FEED.undo)}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <article
@@ -410,66 +668,78 @@ export function PostCard({
         viewRef.current = el;
       }}
       id={`post-${post.id}`}
-      className={cn("card p-4 transition-shadow duration-300 hover:shadow-[var(--shadow-2)] sm:p-5", highlighted && "ring-2 ring-accent/40")}
+      data-post-id={post.id}
+      tabIndex={-1}
+      className={cn("card card-hover p-4 outline-none focus-visible:border-fg sm:p-5", highlighted && "ring-2 ring-accent/40")}
     >
-      <header className="flex items-center gap-2.5">
+      <header className="flex items-start gap-2.5">
         <Avatar name={post.author.name} src={post.author.avatarUrl} size={36} decorative />
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-1.5 text-[14px]">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[14px] leading-tight">
             <AuthorLink u={post.author} />
+            {source && (
+              <>
+                <span className="text-fg-4" aria-hidden>
+                  ·
+                </span>
+                <Link href={`/jamoalar/${source.slug}`} className="inline-flex min-w-0 max-w-[14rem] items-center gap-1 text-[12.5px] font-semibold text-fg-3 transition hover:text-fg">
+                  {source.isOfficial ? <BadgeCheck size={13} className="shrink-0 text-accent" /> : source.kind === "channel" ? <Radio size={13} className="shrink-0" /> : <UsersRound size={13} className="shrink-0" />}
+                  <span className="truncate">{source.name}</span>
+                </Link>
+              </>
+            )}
             {pinned && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-text">
-                <Pin size={11} /> Qadalgan
+              <span className="inline-flex items-center text-fg-3" title={tr(til, FEED.pinned)}>
+                <Pin size={12} />
+                <span className="sr-only">{tr(til, FEED.pinned)}</span>
               </span>
             )}
+            {post.followingAuthor === false && loggedIn && <FollowButton userId={post.author.id} initialFollowing={false} initialCount={0} loggedIn size="sm" compact showCount={false} variant="outline" />}
           </div>
-          <p className="text-[12px] text-fg-3">
-            {timeAgo(post.createdAt)}
-            {edited && <span className="text-fg-4"> · tahrirlangan</span>}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[12px] text-fg-3">
+            <Link href={permalink} className="hover:underline" title={tr(til, FEED.permalink)}>
+              <RelativeTime at={post.createdAt} />
+            </Link>
+            {editedAt !== null && (
+              <span className="text-fg-4" title={editedAt ? FEED.editedAt[til](formatDateTime(editedAt)) : undefined}>
+                · {tr(til, FEED.edited)}
+              </span>
+            )}
+            {views > 0 && <span className="tabular-nums text-fg-4">· {FEED.views[til](views)}</span>}
           </p>
         </div>
-        {canPin && (
-          <button type="button" onClick={() => void togglePin()} aria-label={pinned ? "Qadashni olish" : "Postni qadash"} title={pinned ? "Qadashni olish" : "Tepaga qadash"} className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-            {pinned ? <PinOff size={15} /> : <Pin size={15} />}
-          </button>
-        )}
-        {loggedIn && !post.canDelete && <ReportButton targetType="post" targetId={post.id} loggedIn compact modal />}
-        {isAuthor && !editing && post.author.id !== "" && (
-          <button type="button" onClick={() => setEditing(true)} aria-label="Postni tahrirlash" className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-            <Pencil size={15} />
-          </button>
-        )}
-        {post.canDelete &&
-          (confirm ? (
-            <span className="flex items-center gap-2 text-[12.5px]">
-              <button type="button" onClick={remove} disabled={busy} className="font-semibold text-danger-text underline-offset-2 hover:underline">
-                O&apos;chirish
-              </button>
-              <button type="button" onClick={() => setConfirm(false)} className="text-fg-3 hover:text-fg">
-                Bekor
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirm(true)}
-              aria-label="Postni o'chirish"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-danger-text"
-            >
-              <Trash2 size={15} />
-            </button>
-          ))}
+        <PostMenu items={menuItems} extra={loggedIn && !post.canDelete ? <ReportButton targetType="post" targetId={post.id} loggedIn modal triggerClassName="!h-9 w-full justify-start rounded-[10px] px-2.5 !text-[13px] !text-fg hover:bg-fg/6" /> : undefined} />
       </header>
 
+      {confirm && (
+        <div className="expand-in mt-3 flex flex-wrap items-center gap-2 rounded-[14px] bg-fg/4 px-3 py-2 text-[13px] font-semibold text-fg" role="alertdialog" aria-label={tr(til, FEED.deleteConfirm)}>
+          <span className="min-w-0 flex-1">{tr(til, FEED.deleteConfirm)}</span>
+          <Button type="button" variant="danger" size="sm" onClick={remove} disabled={busy}>
+            {tr(til, FEED.delete)}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setConfirm(false)}>
+            {tr(til, FEED.cancel)}
+          </Button>
+        </div>
+      )}
+
       {editing ? (
-        <div className="mt-3">
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={POST_BODY_MAX} rows={4} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" autoFocus />
+        <div className="expand-in mt-3">
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={POST_BODY_MAX} rows={4} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" autoFocus aria-label={tr(til, FEED.edit)} />
           <div className="mt-2 flex items-center gap-2">
             <Button type="button" variant="primary" size="sm" onClick={() => void saveEdit()} disabled={!draft.trim()}>
-              Saqlash
+              {tr(til, FEED.save)}
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(body); }}>
-              Bekor
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditing(false);
+                setDraft(body);
+              }}
+            >
+              {tr(til, FEED.cancel)}
             </Button>
           </div>
         </div>
@@ -481,42 +751,30 @@ export function PostCard({
         )
       )}
 
+      {url && <LinkPreviewCard url={url} />}
+      {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
+      <MediaGrid media={media} alt={body.slice(0, 120)} />
 
-      {media.length > 0 && (
-        <div className={cn("mt-3 grid gap-1.5 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
-          {media.map((a) =>
-            isVideoAttachment(a) ? (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video key={a.url} src={a.url} controls preload="metadata" playsInline className={cn("w-full bg-black/80", single ? "max-h-[480px]" : "aspect-[4/3] object-cover")} title={a.name} />
-            ) : (
-              <a key={a.url} href={a.url} target="_blank" rel="noopener" className={cn("block bg-surface-2", !single && "aspect-[4/3]")}>
-                <SafeImage src={a.url} alt={a.name} width={960} height={720} className={cn("w-full object-cover", single ? "h-auto max-h-[560px]" : "h-full")} />
-              </a>
-            ),
-          )}
-        </div>
-      )}
-
-      <footer className="mt-3 flex items-center gap-1 border-t border-line pt-2.5">
-        <ReactionButton postId={post.id} initial={post} canInteract={canInteract} requireLogin={requireLogin} lockedTitle={lockedLike ? "Reaksiya qo'yish uchun jamoaga qo'shiling" : undefined} />
+      <footer className="-mx-1.5 mt-2 flex items-center gap-0.5">
+        <ReactionButton postId={post.id} initial={post} canInteract={canInteract} requireLogin={requireLogin} showCount={false} lockedTitle={loggedIn && !canInteract ? tr(til, FEED.joinToReact) : undefined} onChange={setRx} />
+        <ReactorsButton postId={post.id} total={rx.likesCount} counts={rx.reactions} />
         <button
           type="button"
+          data-action="comments"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className={cn("press inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
+          aria-label={`${tr(til, FEED.comments)} (${comments})`}
+          className={cn("press inline-flex h-9 min-w-9 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
         >
-          <MessageCircle size={16} /> {comments}
+          <MessageCircle size={18} /> {comments > 0 && <span className="tabular-nums">{comments}</span>}
         </button>
-        {permalink && <ShareAction url={permalink} title={body.split("\n")[0] || post.author.name} />}
-        <span className="ml-auto inline-flex h-9 items-center gap-1 px-1.5 text-[12.5px] tabular-nums text-fg-3" title={`${views} ta ko'rish`} aria-label={`${views} ta ko'rish`}>
-          <Eye size={14} /> {compactCount(views)}
-        </span>
-        <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} />
+        <ShareAction url={permalink} title={title} loggedIn={loggedIn} />
+        <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} className="ml-auto" />
       </footer>
 
-      {open && (
-        <div className="expand-in">
+      {panel.mounted && (
+        <div className={panel.closing ? "expand-out" : "expand-in"}>
           <Comments postId={post.id} canWrite={canInteract} loggedIn={loggedIn} onCount={setComments} />
         </div>
       )}
@@ -527,25 +785,49 @@ export function PostCard({
 /* ------------------------------------------------------------------ */
 /* Izohlar                                                             */
 /* ------------------------------------------------------------------ */
+type Sort = "old" | "new";
+
+/**
+ * Izohlar: saralash (eski/yangi), javob (1 daraja, iqtibos chiziqchasi), tahrir (muallif, 15 daqiqa), ikki bosqichli o'chirish,
+ * xato holati + qayta urinish. `onCount` — serverdagi jami son.
+ */
 export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { postId: string; canWrite: boolean; onCount: (n: number) => void; /** Shikoyat tugmasi uchun (yoza olmasa ham kirgan bo'lishi mumkin) */ loggedIn?: boolean }) {
-  const [items, setItems] = useState<CommentView[] | null>(null);
+  const til = useLocale();
+  const { toast } = useToast();
+  const [items, setItems] = useState<CommentViewX[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [sort, setSort] = useState<Sort>("old");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Set<string>>(new Set());
+  const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
   const url = `/api/posts/${encodeURIComponent(postId)}/comments`;
 
-  const load = useCallback(async () => {
-    const res = await fetch(url, { cache: "no-store" });
-    const j = (await res.json()) as ApiResp<{ items: CommentView[] }>;
-    if (j.ok && j.data) {
-      setItems(j.data.items);
-      onCount(j.data.items.length);
-    }
-  }, [url, onCount]);
+  const load = useCallback(
+    async (s: Sort) => {
+      setLoadError(false);
+      try {
+        const res = await fetch(`${url}?sort=${s}`, { cache: "no-store" });
+        const j = (await res.json()) as ApiResp<{ items: CommentViewX[]; total: number }>;
+        if (!j.ok || !j.data) throw new Error(j.error);
+        setItems(j.data.items);
+        setTotal(j.data.total);
+        onCount(j.data.total);
+      } catch {
+        setLoadError(true);
+      }
+    },
+    [url, onCount],
+  );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(sort);
+  }, [load, sort]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -554,11 +836,12 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, replyToId: replyTo?.id ?? null }) });
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
       setText("");
-      await load();
+      setReplyTo(null);
+      await load(sort);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yuborilmadi");
     } finally {
@@ -566,76 +849,221 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
     }
   }
 
-  async function remove(id: string) {
-    const res = await fetch(`/api/comments/${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (res.ok) await load();
+  async function saveEdit() {
+    if (!editing) return;
+    const body = editing.text.trim();
+    if (!body) return;
+    try {
+      const res = await fetch(`/api/comments/${encodeURIComponent(editing.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+      const j = (await res.json()) as ApiResp<{ body: string; editedAt: number | null }>;
+      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || "Saqlanmadi");
+      const d = j.data;
+      setItems((prev) => prev?.map((c) => (c.id === editing.id ? { ...c, body: d.body, editedAt: d.editedAt } : c)) ?? prev);
+      setEditing(null);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Saqlanmadi", "error");
+    }
   }
 
+  async function remove(id: string) {
+    setConfirmId(null);
+    setRemoving((s) => new Set(s).add(id));
+    try {
+      const res = await fetch(`/api/comments/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const j = (await res.json()) as ApiResp<unknown>;
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, FEED.notDeleted));
+      window.setTimeout(() => {
+        setItems((prev) => prev?.filter((c) => c.id !== id) ?? prev);
+        setTotal((n) => {
+          onCount(Math.max(0, n - 1));
+          return Math.max(0, n - 1);
+        });
+        setRemoving((s) => {
+          const n = new Set(s);
+          n.delete(id);
+          return n;
+        });
+      }, 160);
+    } catch (err) {
+      setRemoving((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+      toast(err instanceof Error ? err.message : tr(til, FEED.notDeleted), "error");
+    }
+  }
+
+  function startReply(c: CommentViewX) {
+    setReplyTo({ id: c.replyTo?.id ?? c.id, name: c.author.name });
+    const handle = c.author.username ? `@${c.author.username} ` : "";
+    setText((t) => (handle && !t.includes(handle) ? `${handle}${t}` : t));
+    inputRef.current?.focus();
+  }
+
+  const actionCls = "text-[11.5px] font-semibold text-fg-4 transition hover:text-fg";
+
   return (
-    <div className="mt-3 border-t border-line pt-3">
-      {!items ? (
-        <p className="text-[12.5px] text-fg-3">Yuklanmoqda…</p>
+    <div className="mt-3 pt-1">
+      {total > 0 && (
+        <div className="mb-2 flex items-center gap-2 text-[12px] text-fg-3">
+          <span className="font-semibold">{total}</span>
+          <div className="ml-auto flex items-center gap-1" role="group" aria-label="Saralash">
+            {(["old", "new"] as const).map((s) => (
+              <button key={s} type="button" aria-pressed={sort === s} onClick={() => setSort(s)} className={cn("press rounded-full px-2 py-0.5 text-[12px] font-semibold transition", sort === s ? "bg-fg/8 text-fg" : "text-fg-3 hover:text-fg")}>
+                {tr(til, s === "old" ? FEED.sortOld : FEED.sortNew)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {loadError ? (
+        <p role="alert" className="flex items-center gap-2 text-[12.5px] font-semibold text-danger-text">
+          {tr(til, FEED.loadFailed)}
+          <button type="button" onClick={() => void load(sort)} className="text-fg-2 underline-offset-2 hover:underline">
+            {tr(til, FEED.retry)}
+          </button>
+        </p>
+      ) : !items ? (
+        <ul className="grid gap-2" aria-hidden>
+          {[0, 1].map((i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="skeleton h-7 w-7 !rounded-full" />
+              <span className="skeleton h-10 flex-1 !rounded-[14px]" />
+            </li>
+          ))}
+        </ul>
       ) : items.length === 0 ? (
-        <p className="text-[12.5px] text-fg-3">Hali izoh yo&apos;q{canWrite ? " — birinchi bo'ling." : "."}</p>
+        <p className="text-[12.5px] text-fg-3">
+          {tr(til, FEED.noComments)}
+          {canWrite && ` — ${tr(til, FEED.firstComment).toLowerCase()}.`}
+        </p>
       ) : (
-        <ul className="grid gap-2.5">
+        <ul className="grid gap-2">
           {items.map((c) => (
-            <li key={c.id} className="group flex items-start gap-2">
+            <li key={c.id} className={cn("group flex items-start gap-2", removing.has(c.id) ? "expand-out" : "animate-msg-in")}>
               <Avatar name={c.author.name} src={c.author.avatarUrl} size={28} decorative />
               <div className="min-w-0 flex-1 rounded-[14px] bg-fg/4 px-3 py-2">
                 <div className="flex min-w-0 items-baseline gap-2 text-[12.5px]">
                   <AuthorLink u={c.author} />
-                  <span className="shrink-0 text-fg-4">{timeAgo(c.createdAt)}</span>
-                  <span className="ml-auto flex shrink-0 items-center gap-0.5">
-                    {loggedIn && !c.canDelete && <ReportButton targetType="comment" targetId={c.id} loggedIn compact modal triggerClassName="!h-6 !w-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60" />}
-                    {c.canDelete && (
-                      <button type="button" onClick={() => void remove(c.id)} aria-label="Izohni o'chirish" className="flex h-6 w-6 items-center justify-center rounded-full text-fg-4 transition hover:text-danger-text">
-                        <Trash2 size={12} />
+                  <RelativeTime at={c.createdAt} className="shrink-0 text-fg-4" />
+                  {c.editedAt && (
+                    <span className="shrink-0 text-fg-4" title={formatDateTime(c.editedAt)}>
+                      · {tr(til, FEED.edited)}
+                    </span>
+                  )}
+                </div>
+                {c.replyTo && (
+                  <span className="mt-0.5 flex items-center gap-1 text-[11.5px] text-fg-4">
+                    <CornerDownRight size={11} /> {FEED.replyingTo[til](c.replyTo.authorName)}
+                  </span>
+                )}
+                {editing?.id === c.id ? (
+                  <div className="expand-in mt-1">
+                    <textarea value={editing.text} onChange={(e) => setEditing({ id: c.id, text: e.target.value })} maxLength={COMMENT_MAX} rows={2} autoFocus aria-label={tr(til, FEED.edit)} className="field w-full resize-y py-2 text-[13.5px]" />
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <Button type="button" variant="primary" size="sm" className="!h-8" onClick={() => void saveEdit()} disabled={!editing.text.trim()}>
+                        {tr(til, FEED.save)}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" className="!h-8" onClick={() => setEditing(null)}>
+                        {tr(til, FEED.cancel)}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-fg">
+                    <RichText text={c.body} />
+                  </p>
+                )}
+                {editing?.id !== c.id && (loggedIn || canWrite) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                    {canWrite && (
+                      <button type="button" onClick={() => startReply(c)} className={actionCls}>
+                        {tr(til, FEED.reply)}
                       </button>
                     )}
-                  </span>
-                </div>
-                <p className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-fg">
-                  <RichText text={c.body} />
-                </p>
+                    {c.canEdit && (
+                      <button type="button" onClick={() => setEditing({ id: c.id, text: c.body })} className={actionCls}>
+                        {tr(til, FEED.edit)}
+                      </button>
+                    )}
+                    {c.canDelete &&
+                      (confirmId === c.id ? (
+                        <span className="expand-in inline-flex items-center gap-2 text-[11.5px] font-semibold">
+                          <span className="text-fg-3">{tr(til, FEED.deleteQ)}</span>
+                          <button type="button" onClick={() => void remove(c.id)} className="text-danger-text hover:underline">
+                            {tr(til, FEED.yes)}
+                          </button>
+                          <button type="button" onClick={() => setConfirmId(null)} className="text-fg-3 hover:text-fg">
+                            {tr(til, FEED.no)}
+                          </button>
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmId(c.id)} aria-label={tr(til, FEED.deleteComment)} className={cn(actionCls, "hover:text-danger-text")}>
+                          {tr(til, FEED.delete)}
+                        </button>
+                      ))}
+                    {loggedIn && !c.canDelete && <ReportButton targetType="comment" targetId={c.id} loggedIn compact modal triggerClassName="!h-6 !w-6" />}
+                  </div>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
-      {canWrite && (
-        <form onSubmit={send} className="mt-3 flex items-center gap-2">
-          <MentionField value={text} onChange={setText} maxLength={COMMENT_MAX} placeholder="Izoh yozing… (@ism — eslatish)" ariaLabel="Izoh" wrapperClassName="min-w-0 flex-1" className="field h-10 w-full text-[13.5px]" />
-          <Button type="submit" variant="primary" size="sm" disabled={!text.trim() || busy} aria-label="Izohni yuborish">
-            <Send size={14} />
-          </Button>
+      {items && total > items.length && <p className="mt-2 text-[12px] text-fg-4">{FEED.moreComments[til](total - items.length)}</p>}
+      {canWrite ? (
+        <form onSubmit={send} className="mt-3">
+          {replyTo && (
+            <p className="expand-in mb-1.5 flex items-center gap-2 px-1 text-[12px] text-fg-3">
+              <CornerDownRight size={12} /> {FEED.replyingTo[til](replyTo.name)}
+              <button type="button" onClick={() => setReplyTo(null)} aria-label={tr(til, FEED.cancel)} className="press flex h-6 w-6 items-center justify-center rounded-full hover:bg-fg/6 hover:text-fg">
+                <X size={12} />
+              </button>
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <MentionField value={text} onChange={setText} maxLength={COMMENT_MAX} placeholder={tr(til, FEED.commentPlaceholder)} ariaLabel={tr(til, FEED.commentPlaceholder)} wrapperClassName="min-w-0 flex-1" className="field h-10 w-full text-[13.5px]" inputRef={(el) => (inputRef.current = el)} />
+            <Button type="submit" variant="primary" size="sm" disabled={!text.trim() || busy} aria-label={tr(til, FEED.sendComment)} className="!h-10 !w-10 !px-0">
+              {busy ? <Spinner className="h-4 w-4" /> : <Send size={16} />}
+            </Button>
+          </div>
         </form>
+      ) : (
+        loggedIn && <p className="mt-3 text-[12px] text-fg-4">{tr(til, FEED.joinToComment)}</p>
       )}
-      {error && <p className="mt-1.5 text-[12.5px] font-semibold text-danger-text">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-danger-text">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
-/** Efir/yig'ilish bloki: holat (kutilmoqda / jonli / o'tkazildi), vaqt va havola */
+/** Efir/yig'ilish bloki: holat (kutilmoqda / jonli / o'tkazildi), vaqt va havola; «N daqiqadan keyin» klientda hisoblanadi */
 function EventBlock({ at, url, title }: { at: number; url: string | null; title: string }) {
-  const now = Date.now();
-  const live = now >= at && now < at + 2 * 60 * 60 * 1000;
-  const past = now >= at + 2 * 60 * 60 * 1000;
+  const til = useLocale();
+  // Serverda va birinchi klient renderida `now` = 0 → neytral «kutilmoqda» ko'rinishi (hydration mos); keyin holat klientda aniqlanadi
+  const now = useNow(30_000);
+  const known = now > 0;
+  const live = known && now >= at && now < at + 2 * 60 * 60 * 1000;
+  const past = known && now >= at + 2 * 60 * 60 * 1000;
   return (
-    <div className={cn("mt-3 flex flex-wrap items-center gap-3 rounded-[14px] border px-4 py-3", past ? "border-line bg-fg/4" : "border-accent/30 bg-accent-soft/60")}>
-      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", past ? "bg-fg/6 text-fg-3" : "bg-accent text-white")}>
+    <div className={cn("mt-3 flex flex-wrap items-center gap-3 rounded-[14px] border px-4 py-3", live ? "border-accent/40 bg-accent-soft/50" : "border-line bg-fg/4")}>
+      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", live ? "bg-accent text-white" : "bg-fg/6 text-fg-3")}>
         <RadioTower size={18} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-bold text-fg">{past ? "Efir o'tkazildi" : live ? "Hozir jonli efirda" : "Jonli efir / yig'ilish"}</p>
-        <p className="text-[12.5px] text-fg-2">
+        <p className="text-[13px] font-bold text-fg">{past ? "Efir o'tkazildi" : live ? "Hozir jonli efirda" : "Jonli efir"}</p>
+        <p className="text-[12.5px] text-fg-2" suppressHydrationWarning>
           {formatDateTime(at)}
-          {!past && !live && <span className="text-fg-3"> · {untilLabel(at - now)}</span>}
+          {!past && !live && now > 0 && <span className="text-fg-3"> · {untilTime(til, at, now)}</span>}
         </p>
       </div>
       {url ? (
         <a href={url} target="_blank" rel="noopener noreferrer" className={cn("inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold", live ? "btn-accent" : "border border-line-2 text-fg hover:border-fg")}>
-          {live ? "Qo'shilish" : past ? "Yozuv/havola" : "Havola"} <ExternalLink size={14} />
+          {live ? "Qo'shilish" : past ? "Yozuv" : "Havola"} <ExternalLink size={14} />
         </a>
       ) : (
         !past && <span className="text-[12px] text-fg-3">Havola efir oldidan qo&apos;shiladi</span>
@@ -647,12 +1075,4 @@ function EventBlock({ at, url, title }: { at: number; url: string | null; title:
       )}
     </div>
   );
-}
-
-function untilLabel(ms: number): string {
-  const m = Math.round(ms / 60000);
-  if (m < 60) return `${Math.max(1, m)} daqiqadan keyin`;
-  const h = Math.round(m / 60);
-  if (h < 48) return `${h} soatdan keyin`;
-  return `${Math.round(h / 24)} kundan keyin`;
 }

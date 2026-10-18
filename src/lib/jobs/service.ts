@@ -222,6 +222,9 @@ export async function reviewProposal(session: SessionPayload, id: string, action
   if (!res.rowsAffected) throw new ApiError(409, "Taklif holati o'zgargan — sahifani yangilang");
   if (action === "decline") {
     await notifyJob(p.specialist.userId, "proposal_declined", `Taklifingiz rad etildi: ${p.job.title}`.slice(0, 160), "Mijoz boshqa mutaxassisni tanladi yoki taklif mos kelmadi. Boshqa e'lonlarni ko'rib chiqing.", "/kabinet/takliflar");
+  } else {
+    // Saralanganda ham mutaxassis bilsin — mijoz tez orada qaror qiladi
+    await notify(p.specialist.userId, "proposal_shortlisted", `Taklifingiz saralandi: ${p.job.title}`.slice(0, 160), "Mijoz taklifingizni qisqa ro'yxatga oldi. Savol bo'lsa e'lon sahifasida javob bering.", jobHref(p.jobId));
   }
   return { id, status: to };
 }

@@ -9,6 +9,10 @@ import { getSettings } from "@/lib/payments/settings";
 import { getCompareSpecialists, responseTimeLabel, type CompareSpecialist } from "@/lib/queries";
 import { cn, formatPrice, formatPriceRange, formatUsd } from "@/lib/utils";
 import { CompareRemove, CompareSync } from "./CompareControls";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KATALOG_X } from "@/lib/i18n/dict/catalog";
+import { TIL_NOMI } from "@/lib/i18n/dict/profile";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -29,7 +33,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     .filter((s) => ID_RE.test(s))
     .slice(0, 3);
 
-  const [session, settings] = await Promise.all([getSession(), getSettings()]);
+  const [session, settings, til] = await Promise.all([getSession(), getSettings(), getLocale()]);
   const items = ids.length ? await getCompareSpecialists(ids, { userId: session?.sub ?? null, role: session?.role ?? null }) : [];
   const sync = items.map((s) => ({ id: s.id, name: s.user.name, avatarUrl: s.user.avatarUrl }));
 
@@ -148,7 +152,26 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           <Dash />
         ),
     },
-    { label: "Javob vaqti", cell: (s) => <span className="text-[13px] text-fg">{responseTimeLabel(s.responseHours)?.replace("Odatda ", "") ?? "—"}</span> },
+    // Qisqa shakl ("3 soat ichida") — "Odatda …" so'zini qirqish o'rniga til-mos variant
+    { label: "Javob vaqti", cell: (s) => <span className="text-[13px] text-fg">{responseTimeLabel(s.responseHours, til, true) ?? "—"}</span> },
+    {
+      label: tr(til, KATALOG_X.compareRow.skills),
+      cell: (s) =>
+        s.skills.length ? (
+          <ul className="flex flex-wrap gap-1">
+            {s.skills.slice(0, 6).map((k) => (
+              <li key={k} className="rounded-full border border-line px-2 py-0.5 text-[12px] font-medium text-fg-2">
+                {k}
+              </li>
+            ))}
+            {s.skills.length > 6 && <li className="px-1 py-0.5 text-[12px] text-fg-3">+{s.skills.length - 6}</li>}
+          </ul>
+        ) : (
+          <Dash />
+        ),
+    },
+    { label: tr(til, KATALOG_X.compareRow.languages), cell: (s) => <span className="text-[13px] text-fg">{s.languages.length ? s.languages.map((l) => (TIL_NOMI[l] ? tr(til, TIL_NOMI[l]) : l)).join(", ") : "—"}</span> },
+    { label: tr(til, KATALOG_X.compareRow.reviews), cell: (s) => <span className="font-display text-[15px] font-semibold tabular-nums text-fg">{s.reviewCount}</span> },
     {
       label: "Nishonlar",
       cell: (s) =>
@@ -244,7 +267,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-[12px] text-fg-3">Narxlar taxminiy; yakuniy narx buyurtmada mutaxassis bilan kelishiladi. Dollar kursi: 1 $ ≈ {formatPrice(settings.usdRate)}.</p>
+      <p className="mt-3 text-[12px] text-fg-3">Narxlar taxminiy · 1 $ ≈ {formatPrice(settings.usdRate)}</p>
     </div>
   );
 }

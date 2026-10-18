@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BriefcaseBusiness, Clock3, Eye, MapPin, MessageSquareText, Plus, Wallet } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Plus } from "lucide-react";
 import { Badge, ButtonLink, EmptyState } from "@/components/ui";
 import { JobOwnerActions } from "@/components/jobs/JobOwnerActions";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -29,9 +29,7 @@ export default async function MyJobsPage() {
     <div className="animate-fade-up">
       <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <span className="eyebrow">
-            <BriefcaseBusiness size={13} className="text-accent" /> Kabinet
-          </span>
+          <span className="eyebrow">Kabinet</span>
           <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
             Mening <span className="accent-serif text-accent">e'lonlarim</span>
           </h1>
@@ -62,7 +60,7 @@ export default async function MyJobsPage() {
           }
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="stagger space-y-3">
           {jobs.map((j) => {
             const live = isLive(j);
             const expired = j.status === "open" && !live;
@@ -74,14 +72,8 @@ export default async function MyJobsPage() {
                     <Link href={`/ishlar/${j.id}`} className="font-display text-[17px] font-semibold leading-snug text-fg hover:underline">
                       {j.title}
                     </Link>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-fg-3">
-                      <span>{jobCategoryLabel(j.category)}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin size={12} aria-hidden="true" /> {jobRegionLabel(j.regionSlug)}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Wallet size={12} aria-hidden="true" /> {budgetLabel(j.budgetMin, j.budgetMax, j.budgetType)}
-                      </span>
+                    <p className="mt-1 text-[12.5px] text-fg-3">
+                      {jobCategoryLabel(j.category)} · {jobRegionLabel(j.regionSlug)} · {budgetLabel(j.budgetMin, j.budgetMax, j.budgetType)}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5">
@@ -91,15 +83,9 @@ export default async function MyJobsPage() {
                 </div>
 
                 <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-2">
-                  <span className="inline-flex items-center gap-1">
-                    <MessageSquareText size={13} className="text-fg-3" aria-hidden="true" /> {proposalsCountLabel(j.proposalsCount)}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Eye size={13} className="text-fg-3" aria-hidden="true" /> {formatNumber(j.viewCount)}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock3 size={13} className="text-fg-3" aria-hidden="true" /> {timeAgo(j.createdAt)}
-                  </span>
+                  <span>{proposalsCountLabel(j.proposalsCount)}</span>
+                  <span>{formatNumber(j.viewCount)} ta ko&apos;rish</span>
+                  <span suppressHydrationWarning>{timeAgo(j.createdAt)}</span>
                   {left != null && <span className={left <= 3 ? "font-semibold text-warning-text" : "text-fg-3"}>{left > 0 ? `${left} kun qoldi` : "Bugun yopiladi"}</span>}
                 </p>
 

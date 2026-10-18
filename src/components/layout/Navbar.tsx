@@ -6,6 +6,7 @@ import { unreadDmCount } from "@/lib/chat/dm";
 import { unreadGroupsCount } from "@/lib/groups/service";
 import { NavbarClient } from "./NavbarClient";
 import { Sidebar } from "./Sidebar";
+import { TitleUnread } from "./TitleUnread";
 
 /**
  * Qobiq navigatsiyasi: telefonda yuqori panel + pastki tab-bar (NavbarClient), md+ da chap yon panel (Sidebar).
@@ -33,6 +34,8 @@ export async function Navbar() {
     <>
       <NavbarClient unread={unread} groupsUnread={groupsUnread} user={navUser} />
       <Sidebar user={navUser} unread={unread} dmUnread={dmUnread} groupsUnread={groupsUnread} />
+      {/* Brauzer sarlavhasida «(n)» — o'qilmagan bildirishnoma + xabarlar */}
+      <TitleUnread count={unread + dmUnread} />
     </>
   );
 }

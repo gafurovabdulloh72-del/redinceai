@@ -37,15 +37,11 @@ export default async function PortfolioPage() {
   return (
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
-        <span className="eyebrow">Kabinet · Portfolio</span>
-        <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px] lg:text-[44px]">
-          Portfolio <span className="accent-serif text-accent">ishlari</span>
+        <span className="eyebrow">Kabinet</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Portfolio <span className="accent-serif">ishlari</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">
-          {sp
-            ? `Eng yaxshi ishlaringizni ko'rsating — ${MAX_ITEMS} tagacha rasm, video yoki havola. Mijozlar portfolioga qarab tanlaydi.`
-            : "Portfolio qo'shish uchun avval mutaxassis profilini yarating."}
-        </p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{sp ? `${MAX_ITEMS} tagacha rasm, video yoki havola — mijozlar shunga qarab tanlaydi.` : "Avval mutaxassis profilini yarating."}</p>
       </header>
 
       {sp ? (

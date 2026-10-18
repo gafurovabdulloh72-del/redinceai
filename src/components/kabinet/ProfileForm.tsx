@@ -8,6 +8,8 @@ import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
+import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { CATEGORIES, EXPERIENCE_LEVELS, PACKAGE_TIERS, REGIONS, REGION_BY_SLUG, WORK_TYPES, type PackageTierKey } from "@/lib/constants";
 import type { Certificate, EducationItem, ServicePackage, SpecialistRates, WorkItem } from "@/lib/db/schema";
@@ -425,6 +427,37 @@ export function ProfileForm({
 
   const baseline = useMemo(() => JSON.stringify(initialState(initial)), [initial]);
   const dirty = JSON.stringify(f) !== baseline;
+  useUnsavedGuard(dirty && !busy);
+
+  /* ---------- Qoralama (localStorage): yozilganlar sahifa yopilsa ham yo'qolmasin ---------- */
+  const draftKey = `profile:${initial?.slug ?? "new"}`;
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftReady = useRef(false);
+  useEffect(() => {
+    // Birinchi chizishdan keyin: saqlangan qoralama bo'lsa va u hozirgi (server) holatdan farq qilsa — tiklaymiz
+    const saved = loadDraft<FormState>(draftKey);
+    if (saved && JSON.stringify(saved) !== baseline) {
+      setF(saved);
+      setDraftRestored(true);
+      if (!open) setOpen(true);
+    }
+    draftReady.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftReady.current) return;
+    if (!dirty) {
+      clearDraft(draftKey);
+      return;
+    }
+    const t = window.setTimeout(() => saveDraft(draftKey, f), 600);
+    return () => window.clearTimeout(t);
+  }, [f, dirty, draftKey]);
+  const discardDraft = () => {
+    clearDraft(draftKey);
+    setF(initialState(initial));
+    setDraftRestored(false);
+  };
 
   useEffect(() => {
     if (!savedSlug) return;
@@ -687,6 +720,8 @@ export function ProfileForm({
         return;
       }
       setSavedSlug(json.data.slug);
+      clearDraft(draftKey);
+      setDraftRestored(false);
       router.refresh();
     } catch {
       setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
@@ -698,8 +733,7 @@ export function ProfileForm({
   /* ---------- Mijoz uchun CTA ---------- */
   if (!open) {
     return (
-      <div id="mutaxassis" className="card-elevated relative scroll-mt-28 overflow-hidden p-6 sm:p-8">
-        <span className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl" />
+      <div id="mutaxassis" className="card relative scroll-mt-28 overflow-hidden p-6 sm:p-8">
         <span className="eyebrow">Ijodkorlar uchun</span>
         <h2 className="mt-4 font-display text-[24px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">
           Mutaxassis <span className="accent-serif text-accent">bo'lish</span>
@@ -724,15 +758,15 @@ export function ProfileForm({
   const experienceLabel = EXPERIENCE_LEVELS.find((e) => e.value === f.experience)?.label ?? "";
 
   return (
-    <form ref={topRef} id="mutaxassis" onSubmit={submit} className="card scroll-mt-28 p-5 sm:p-7" noValidate>
+    <form ref={topRef} id="mutaxassis" onSubmit={submit} className="card scroll-mt-28 p-5 sm:p-6" noValidate aria-busy={busy}>
       {/* Sarlavha */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <Briefcase size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <Briefcase size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">{mode === "edit" ? "Mutaxassis profili" : "Mutaxassis profilini yaratish"}</h2>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">{mode === "edit" ? "Mutaxassis profili" : "Mutaxassis profilini yaratish"}</h2>
             <p className="mt-0.5 text-[13px] text-fg-3">
               {mode === "edit" ? "Bu ma'lumotlar ommaviy profilingizda va xaritada ko'rinadi." : "Yo'nalish, hudud va narxlarni kiriting — profilingiz xaritada paydo bo'ladi."}
             </p>
@@ -753,7 +787,7 @@ export function ProfileForm({
           style={{ animationDuration: "0.35s" }}
         >
           <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
-            <CheckCircle2 size={18} className="text-[#15803d] dark:text-ios-green" />
+            <CheckCircle2 size={18} className="text-success-text" />
             {mode === "edit" ? "Profil saqlandi" : "Profil yaratildi! Endi portfolio qo'shing."}
           </p>
           <div className="flex gap-2">
@@ -770,14 +804,25 @@ export function ProfileForm({
         </div>
       )}
 
+      {draftRestored && (
+        <div role="status" className="expand-in mt-5 flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-line bg-surface-2 px-4 py-2.5 text-[13px] text-fg">
+          <span>
+            <span className="font-semibold">Qoralama tiklandi</span> <span className="text-fg-3">— oxirgi marta saqlanmagan o&apos;zgarishlaringiz.</span>
+          </span>
+          <button type="button" onClick={discardDraft} className="press inline-flex min-h-8 items-center rounded-full px-3 text-[12.5px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
+            Bekor qilish
+          </button>
+        </div>
+      )}
+
       {error && (
-        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-ios-red/12 px-3.5 py-2 text-[13px] font-medium text-ios-red">
+        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}
 
       {/* Yopishqoq bo'limlar navigatsiyasi + to'liqlik (E95) */}
-      <div className="sticky top-[76px] z-20 -mx-5 mt-5 border-y border-line bg-surface px-5 py-2 sm:top-[88px] sm:-mx-7 sm:px-7">
+      <div className="sticky top-[76px] z-20 -mx-5 mt-5 border-y border-line bg-surface px-5 py-2 sm:top-[88px] sm:-mx-6 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex shrink-0 items-center gap-2" title="Profil to'liqligi">
             <span className="text-[12px] font-bold tabular-nums text-fg">{progress}%</span>
@@ -980,7 +1025,7 @@ export function ProfileForm({
                   {f.bio.trim().length < 80 ? "Kamida 2–3 jumla yozing — to'liq bio ishonchni oshiradi." : "Zo'r! Qisqa abzatslar o'qishni osonlashtiradi."}
                 </span>
               )}
-              <span className={cn("shrink-0 text-[12px] tabular-nums", f.bio.length > MAX_BIO - 100 ? "text-ios-orange" : "text-fg-4")}>
+              <span className={cn("shrink-0 text-[12px] tabular-nums", f.bio.length > MAX_BIO - 100 ? "text-warning-text" : "text-fg-4")}>
                 {f.bio.length}/{MAX_BIO}
               </span>
             </div>
@@ -1685,7 +1730,7 @@ export function ProfileForm({
                   {uploading ? <Spinner /> : <Camera size={14} />} Rasm yuklash
                 </Button>
                 {f.coverUrl && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => set({ coverUrl: "" })} className="text-ios-red hover:bg-ios-red/10 hover:text-ios-red">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => set({ coverUrl: "" })} className="text-danger-text hover:bg-danger-soft hover:text-danger-text">
                     <Trash2 size={14} /> Olib tashlash
                   </Button>
                 )}
@@ -1754,7 +1799,7 @@ export function ProfileForm({
       <div className="mt-7 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-[13px]" aria-live="polite">
           {savedSlug ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
               <CheckCircle2 size={15} /> Saqlandi
             </span>
           ) : dirty ? (

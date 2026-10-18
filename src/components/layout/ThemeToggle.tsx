@@ -1,79 +1,51 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { Moon, Sun } from "lucide-react";
+import { useState } from "react";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { Sheet } from "@/components/ui/Sheet";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
+import { AppearancePanel, useAppearance } from "./Appearance";
 
-type Theme = "light" | "dark";
-
-function readTheme(): Theme {
-  return (document.documentElement.dataset.theme as Theme) || "light";
-}
-
-/** <html data-theme> o'zgarishini kuzatamiz — holat DOM bilan doim sinxron, hidratsiyada xato yo'q */
-function subscribe(cb: () => void) {
-  const mo = new MutationObserver(cb);
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  return () => mo.disconnect();
-}
-
-/** Tanlangan rejim fonini brauzer manzil paneliga ham beradi (<meta name="theme-color">) */
-function syncThemeColorMeta() {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-  if (!bg) return;
-  let metas = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
-  if (metas.length === 0) {
-    const m = document.createElement("meta");
-    m.name = "theme-color";
-    document.head.appendChild(m);
-    metas = [m];
-  }
-  for (const m of metas) {
-    // media (prefers-color-scheme) endi mos kelmaydi — rejim qo'lda tanlangan
-    m.removeAttribute("media");
-    m.setAttribute("content", bg);
-  }
-}
-
-/** Tema almashtirgich — mobil va desktopda bir xil (yuqori panelda), 40px bosish maydoni */
+/**
+ * «Ko'rinish» tugmasi (mobil yuqori panel): joriy rejim ikonkasi (avto/quyosh/oy); bosilganda tema (avto/yorug'/qorong'u),
+ * shrift o'lchami va harakat sozlamalari varag'i ochiladi. Holat <html data-*> dan (useAppearance) — hidratsiyada xato yo'q.
+ */
 export function ThemeToggle({ className }: { className?: string }) {
-  const theme = useSyncExternalStore(subscribe, readTheme, () => "light" as Theme);
-
-  // Rejim o'zgarganda (shu jumladan boshqa toggle orqali) manzil paneli rangi ham mos bo'ladi
-  useEffect(() => {
-    syncThemeColorMeta();
-  }, [theme]);
-
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("redince-theme", next);
-    } catch {
-      /* private mode */
-    }
-  };
-
+  const til = useLocale();
+  const a = useAppearance();
+  const [open, setOpen] = useState(false);
+  const Icon = a.mode === "auto" ? Monitor : a.resolved === "dark" ? Moon : Sun;
+  const label = tr(til, SHELL.appearance.title);
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      role="switch"
-      aria-checked={theme === "dark"}
-      /* Barqaror nom + holat aria-checked orqali: nom va holat bir-biriga zid bo'lmasin */
-      aria-label="Tungi rejim"
-      title="Tungi rejim"
-      className={cn("card card-hover flex h-10 w-10 shrink-0 items-center justify-center !rounded-full text-fg-2 hover:text-fg", className)}
-    >
-      <span className="relative h-[18px] w-[18px]">
-        <Sun size={18} className={cn("absolute inset-0 transition-all duration-500", theme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100")} />
-        <Moon size={18} className={cn("absolute inset-0 transition-all duration-500", theme === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0")} />
-      </span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        data-tip={label}
+        data-tip-pos="bottom"
+        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 hover:text-fg", className)}
+      >
+        <span key={Icon.displayName} className="animate-swap inline-flex">
+          <Icon size={18} />
+        </span>
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={label} size="sm">
+        <AppearancePanel className="pb-2" />
+      </Sheet>
+    </>
   );
 }
 
-/** <head> ichida chaqiriladi: birinchi render'dan oldin rejimni o'rnatadi (flash bo'lmasligi uchun) */
+/**
+ * <head> ichida chaqiriladi: birinchi render'dan oldin tema (auto → tizim), shrift o'lchami va harakat rejimini o'rnatadi
+ * (flash bo'lmasligi uchun). Kalitlar: redince-theme (light|dark; yo'q = auto), redince-font (s|l), redince-motion (reduce).
+ */
 export const THEME_INIT_SCRIPT = `
-(function(){try{var t=localStorage.getItem('redince-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='light'}})();
+(function(){try{var d=document.documentElement,s=localStorage,t=s.getItem('redince-theme');if(t!=='light'&&t!=='dark'){t='auto'}d.dataset.theme=t==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;d.dataset.themeMode=t;var f=s.getItem('redince-font');if(f==='s'||f==='l'){d.dataset.font=f}if(s.getItem('redince-motion')==='reduce'){d.dataset.motion='reduce'}}catch(e){document.documentElement.dataset.theme='light'}})();
 `.trim();

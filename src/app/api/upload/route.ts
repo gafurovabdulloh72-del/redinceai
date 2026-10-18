@@ -27,8 +27,10 @@ function sniff(buf: Buffer): { ext: string; mime: string } | null {
 function sniffDoc(buf: Buffer, origName: string): { ext: string; mime: string } | null {
   if (buf.length >= 5 && buf.subarray(0, 5).toString("ascii") === "%PDF-") return { ext: "pdf", mime: "application/pdf" };
   const lower = origName.toLowerCase();
-  const isZip = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
+  // ZIP: oddiy (PK\x03\x04) yoki bo'sh arxiv (PK\x05\x06) imzosi
+  const isZip = buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && ((buf[2] === 0x03 && buf[3] === 0x04) || (buf[2] === 0x05 && buf[3] === 0x06));
   if (isZip && lower.endsWith(".docx")) return { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+  if (isZip && lower.endsWith(".zip")) return { ext: "zip", mime: "application/zip" };
   const isOle = buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
   if (isOle && lower.endsWith(".doc")) return { ext: "doc", mime: "application/msword" };
   return null;
@@ -88,7 +90,7 @@ export const POST = handler(async (req) => {
   const allowDocs = purpose === "attachment";
   await enforceLimit(voice ? "voice" : "upload", session.sub);
   const kind = voice ? sniffAudio(bytes) : (sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null));
-  if (!kind) throw new ApiError(415, voice ? "Ovozli xabar formati qo'llab-quvvatlanmaydi (WebM/Opus, M4A yoki Ogg)" : allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
+  if (!kind) throw new ApiError(415, voice ? "Ovozli xabar formati qo'llab-quvvatlanmaydi (WebM/Opus, M4A yoki Ogg)" : allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
 

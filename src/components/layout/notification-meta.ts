@@ -35,6 +35,7 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   job_expired: { icon: Clock3, tone: "neutral", label: "E'lon yopildi" },
   saved_search: { icon: BookmarkCheck, tone: "info", label: "Saqlangan qidiruv" },
   message_new: { icon: MessageSquare, tone: "info", label: "Yangi xabar" },
+  chat: { icon: MessageSquare, tone: "info", label: "Yangi xabar" },
   order_due: { icon: CalendarClock, tone: "warning", label: "Muddat yaqin" },
   order_sla: { icon: BellRing, tone: "warning", label: "Javob kutilmoqda" },
   review_new: { icon: Star, tone: "accent", label: "Yangi sharh" },

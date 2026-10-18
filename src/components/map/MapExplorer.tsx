@@ -6,7 +6,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, Briefcase, CalendarDays, Check, List, LocateFixed, MapPin, RotateCcw, SearchX, Sparkles, Trophy, UserPlus, Users, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Briefcase, CalendarDays, Check, Link2, List, LocateFixed, MapPin, RotateCcw, SearchX, Sparkles, Trophy, UserPlus, Users, X } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { XARITA } from "@/lib/i18n/dict/search";
 import { UzbekistanMap } from "./UzbekistanMap";
 import { lonLatToMap, nearestRegion, regionAt } from "./geo-utils";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -75,6 +78,8 @@ export interface MapExplorerProps {
   jobsByRegion?: Record<string, MapJobLite[]>;
   onlineCounts?: Record<string, number>;
   topByRegion?: Record<string, MapTopLite[]>;
+  /** Hudud bo'yicha eng ko'p uchraydigan ko'nikmalar (hover kartochka) */
+  topSkills?: Record<string, Array<{ skill: string; n: number }>>;
 }
 
 /** E'lon byudjeti bir qatorda */
@@ -83,6 +88,37 @@ const budgetLine = (j: MapJobLite) => (j.budgetMin || j.budgetMax ? `${formatPri
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
 /* ------------------------------------------------------------------ */
+
+/** «Hududni ulashish»: /xarita?hudud=<slug> havolasini nusxalaydi (2 soniya «Nusxalandi») */
+function ShareRegionButton({ slug }: { slug: string }) {
+  const til = useLocale();
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(t);
+  }, [copied]);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(`${window.location.origin}/xarita?hudud=${slug}`);
+          setCopied(true);
+        } catch {
+          /* clipboard yo'q */
+        }
+      }}
+      aria-label={tr(til, XARITA.shareRegion)}
+      title={tr(til, XARITA.shareRegion)}
+      aria-live="polite"
+      className={cn("press inline-flex h-7 items-center gap-1 rounded-full border border-line px-2.5 text-[11px] font-semibold transition hover:border-fg hover:text-fg", copied ? "text-success-text" : "text-fg-2")}
+    >
+      {copied ? <Check size={12} aria-hidden /> : <Link2 size={12} aria-hidden />}
+      {copied ? tr(til, XARITA.shareCopied) : tr(til, XARITA.shareRegion)}
+    </button>
+  );
+}
 /** Tooltip birligi: "Videograf" → "videograf", lekin "UI/UX dizayner" / "3D artist" o'zgarmaydi */
 const unitOf = (name: string) => (/^[A-Z0-9]{2,}/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1));
 
@@ -534,6 +570,7 @@ export function MapExplorer({
   jobsByRegion = {},
   onlineCounts,
   topByRegion,
+  topSkills,
 }: MapExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -739,10 +776,13 @@ export function MapExplorer({
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-fg-3">
-              kam
-              <span className="map-legend-ramp h-2 w-20 rounded-full sm:w-28" aria-hidden="true" />
-              ko'p
+            <div className="flex items-center gap-3 text-[11px] font-semibold text-fg-3">
+              {region && <ShareRegionButton slug={region} />}
+              <span className="flex items-center gap-2">
+                kam
+                <span className="map-legend-ramp h-2 w-20 rounded-full sm:w-28" aria-hidden="true" />
+                ko'p
+              </span>
             </div>
           </div>
 
@@ -755,6 +795,7 @@ export function MapExplorer({
             unitLabel={mode === "ish" ? "ochiq e'lon" : sana ? "bo'sh mutaxassis" : cat ? unitOf(cat.name) : "mutaxassis"}
             onlineCounts={mode === "mutaxassis" ? onlineCounts : undefined}
             topByRegion={mode === "mutaxassis" && !sana ? topByRegion : undefined}
+            topSkills={mode === "mutaxassis" ? topSkills : undefined}
             zoomable
             className="px-1 sm:px-2"
           />

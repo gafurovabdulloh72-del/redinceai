@@ -10,6 +10,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  History,
   KeyRound,
   LifeBuoy,
   LogOut,
@@ -35,6 +36,28 @@ import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 /** «Faol sessiyalar»: joriy qurilmadan tashqari dastlab ko'rinadigan sessiyalar soni */
 const SESSIONS_PREVIEW = 4;
 
+/** Kirish tarixi qatori (audit_logs): harakat, vaqt, maskalangan IP, 2FA usuli */
+export interface LoginEvent {
+  id: string;
+  action: string;
+  /** ms */
+  at: number;
+  ip: string | null;
+  twoFactor: string | null;
+}
+
+/** Kirish tarixidagi harakat yorliqlari (audit action → matn, ohang) */
+const LOGIN_EVENT_META: Record<string, { label: string; bad?: boolean }> = {
+  login_success: { label: "Kirish" },
+  login_failed: { label: "Noto'g'ri parol bilan urinish", bad: true },
+  login_2fa_failed: { label: "2FA kodi noto'g'ri", bad: true },
+  login_2fa_required: { label: "2FA kodi so'raldi" },
+  logout: { label: "Chiqish" },
+  logout_all: { label: "Barcha qurilmalardan chiqish" },
+  password_changed: { label: "Parol o'zgartirildi" },
+  session_revoked: { label: "Sessiya yopildi" },
+};
+
 export interface SecurityInitial {
   email: string;
   emailVerified: boolean;
@@ -53,6 +76,8 @@ export interface SecurityInitial {
   sessions: SessionListItem[];
   /** Kirishda zaxira kodi ishlatilgan va kam qolgan (?zaxira=kam) */
   lowRecovery?: boolean;
+  /** Kirish tarixi (oxirgi 12 ta): kirish, muvaffaqiyatsiz urinish, chiqish, parol o'zgarishi */
+  history?: LoginEvent[];
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -558,11 +583,11 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="mt-2 truncate text-[14px] font-semibold text-fg">{initial.email}</div>
           <div className="mt-2">
             {verified ? (
-              <Badge tone="green">
+              <Badge tone="success">
                 <ShieldCheck size={12} /> Tasdiqlangan
               </Badge>
             ) : (
-              <Badge tone="orange">
+              <Badge tone="warning">
                 <AlertCircle size={12} /> Tasdiqlanmagan
               </Badge>
             )}
@@ -574,26 +599,20 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </div>
           <div className="mt-2 truncate text-[14px] font-semibold text-fg">{initial.phone || "Kiritilmagan"}</div>
           <div className="mt-2">
-            {initial.phone ? (
-              <Badge tone="neutral">
-                <Clock3 size={12} /> Tasdiq kutilmoqda
-              </Badge>
-            ) : (
-              <Badge tone="neutral">Profilda qo'shing</Badge>
-            )}
+            {initial.phone ? <Badge tone="neutral">Kiritilgan</Badge> : <Badge tone="neutral">Profilda qo'shing</Badge>}
           </div>
         </div>
       </section>
 
       {/* ---------- Emailni tasdiqlash ---------- */}
       {(!verified || justVerified) && (
-        <section className="card p-5 sm:p-7" aria-labelledby="sec-verify">
+        <section className="card p-5 sm:p-6" aria-labelledby="sec-verify">
           <div className="flex items-start gap-3">
-            <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-              <MailCheck size={20} />
+            <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+              <MailCheck size={18} />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 id="sec-verify" className="font-display text-[20px] font-semibold tracking-tight text-fg">
+              <h2 id="sec-verify" className="font-display text-[19px] font-semibold tracking-tight text-fg">
                 Emailni tasdiqlash
               </h2>
               <p className="mt-0.5 text-[13px] text-fg-3">
@@ -637,7 +656,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                       setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
                       setVerifyError(null);
                     }}
-                    className={cn("field font-mono text-[18px] tracking-[0.3em]", verifyError && "!border-ios-red/60")}
+                    className={cn("field font-mono text-[18px] tracking-[0.3em]", verifyError && "!border-danger/60")}
                     aria-invalid={!!verifyError}
                     aria-describedby={verifyError ? "sec-code-error" : undefined}
                   />
@@ -661,7 +680,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             <div className="mt-5 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[13px]" aria-live="polite">
                 {verifyError ? (
-                  <span className="inline-flex items-center gap-1.5 font-medium text-ios-red">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                     <AlertCircle size={15} /> {verifyError}
                   </span>
                 ) : (
@@ -677,13 +696,13 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       )}
 
       {/* ---------- Parolni o'zgartirish ---------- */}
-      <form onSubmit={changePassword} className="card p-5 sm:p-7" noValidate>
+      <form onSubmit={changePassword} className="card p-5 sm:p-6" noValidate>
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <KeyRound size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <KeyRound size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Parolni o'zgartirish</h2>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Parolni o'zgartirish</h2>
             <p className="mt-0.5 text-[13px] text-fg-3">Yangi parol saqlangach, boshqa barcha qurilmalardagi sessiyalar yopiladi. Siz shu qurilmada qolasiz.</p>
           </div>
         </div>
@@ -734,7 +753,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         </div>
 
         {error && (
-          <div role="alert" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
+          <div role="alert" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-danger-soft px-4 py-3 text-[13px] font-medium text-danger-text">
             <AlertCircle size={16} className="mt-px shrink-0" /> {error}
           </div>
         )}
@@ -742,7 +761,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-[13px]" aria-live="polite">
             {saved ? (
-              <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
                 <CheckCircle2 size={15} /> Parol yangilandi — boshqa qurilmalar chiqib ketdi
               </span>
             ) : (
@@ -756,14 +775,14 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       </form>
 
       {/* ---------- Ikki bosqichli himoya (TOTP) ---------- */}
-      <section id="ikki-bosqich" className="card scroll-mt-28 p-5 sm:p-7" aria-labelledby="sec-2fa">
+      <section id="ikki-bosqich" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-2fa">
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <ShieldCheck size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <ShieldCheck size={18} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 id="sec-2fa" className="font-display text-[20px] font-semibold tracking-tight text-fg">
+              <h2 id="sec-2fa" className="font-display text-[19px] font-semibold tracking-tight text-fg">
                 Ikki bosqichli himoya
               </h2>
               {tfaEnabled ? (
@@ -868,7 +887,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                         setTfaCode(e.target.value.replace(/\D/g, "").slice(0, 6));
                         setTfaFields({});
                       }}
-                      className={cn("field font-mono text-[18px] tracking-[0.3em] sm:w-48", tfaFields.code && "!border-ios-red/60")}
+                      className={cn("field font-mono text-[18px] tracking-[0.3em] sm:w-48", tfaFields.code && "!border-danger/60")}
                       aria-invalid={!!tfaFields.code}
                       aria-describedby={tfaFields.code ? "sec-2fa-code-error" : undefined}
                     />
@@ -929,7 +948,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                     setTfaCode(e.target.value);
                     setTfaFields((f) => ({ ...f, code: "" }));
                   }}
-                  className={cn("field font-mono", tfaFields.code && "!border-ios-red/60")}
+                  className={cn("field font-mono", tfaFields.code && "!border-danger/60")}
                   aria-invalid={!!tfaFields.code}
                   aria-describedby={tfaFields.code ? "sec-2fa-off-code-error" : undefined}
                 />
@@ -970,7 +989,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   setTfaCode(e.target.value.replace(/\D/g, "").slice(0, 6));
                   setTfaFields({});
                 }}
-                className={cn("field font-mono text-[18px] tracking-[0.3em] sm:w-48", tfaFields.code && "!border-ios-red/60")}
+                className={cn("field font-mono text-[18px] tracking-[0.3em] sm:w-48", tfaFields.code && "!border-danger/60")}
                 aria-invalid={!!tfaFields.code}
                 aria-describedby={tfaFields.code ? "sec-2fa-regen-error" : undefined}
               />
@@ -1020,20 +1039,20 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         )}
 
         {tfaError && (
-          <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
+          <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-[16px] bg-danger-soft px-4 py-3 text-[13px] font-medium text-danger-text">
             <AlertCircle size={16} className="mt-px shrink-0" /> {tfaError}
           </div>
         )}
       </section>
 
       {/* ---------- Qurilmalar ---------- */}
-      <section id="sessiyalar" className="card scroll-mt-28 p-5 sm:p-7" aria-labelledby="sec-devices">
+      <section id="sessiyalar" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-devices">
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <MonitorSmartphone size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <MonitorSmartphone size={18} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="sec-devices" className="font-display text-[20px] font-semibold tracking-tight text-fg">
+            <h2 id="sec-devices" className="font-display text-[19px] font-semibold tracking-tight text-fg">
               Faol sessiyalar
             </h2>
             <p className="mt-0.5 text-[13px] text-fg-3">
@@ -1098,7 +1117,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </button>
         )}
         {sessionError && (
-          <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-medium text-ios-red">
+          <p role="alert" className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-medium text-danger-text">
             <AlertCircle size={15} /> {sessionError}
           </p>
         )}
@@ -1106,11 +1125,11 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         <div className="mt-2 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-[13px]" aria-live="polite">
             {revoked ? (
-              <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
                 <CheckCircle2 size={15} /> Boshqa qurilmalar chiqarildi. Siz shu yerda qolasiz.
               </span>
             ) : revokeError ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-ios-red">
+              <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                 <AlertCircle size={15} /> {revokeError}
               </span>
             ) : confirmAll ? (
@@ -1138,14 +1157,52 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         </div>
       </section>
 
+      {/* ---------- Kirish tarixi (audit) ---------- */}
+      {initial.history && initial.history.length > 0 && (
+        <section className="card p-5 sm:p-6" aria-labelledby="sec-history">
+          <details className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+                <History size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span id="sec-history" className="block font-display text-[19px] font-semibold tracking-tight text-fg">
+                  Kirish tarixi
+                </span>
+                <span className="block text-[13px] text-fg-3">Oxirgi {initial.history.length} ta hodisa · IP qisman yashirilgan</span>
+              </span>
+              <ChevronDown size={16} className="shrink-0 text-fg-3 transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <ul className="mt-4 divide-y divide-line border-t border-line">
+              {initial.history.map((h) => {
+                const m = LOGIN_EVENT_META[h.action] ?? { label: h.action };
+                return (
+                  <li key={h.id} className="flex items-center gap-3 py-2.5 text-[13px]">
+                    <span className={cn("h-2 w-2 shrink-0 rounded-full", m.bad ? "bg-danger" : "bg-success")} aria-hidden="true" />
+                    <span className={cn("min-w-0 flex-1 truncate font-medium", m.bad ? "text-danger-text" : "text-fg")}>
+                      {m.label}
+                      {h.twoFactor && <span className="font-normal text-fg-3"> · 2FA ({h.twoFactor === "recovery" ? "zaxira kodi" : "ilova"})</span>}
+                    </span>
+                    {h.ip && <span className="hidden shrink-0 font-mono text-[12px] text-fg-4 sm:inline">{h.ip}</span>}
+                    <time dateTime={new Date(h.at).toISOString()} className="shrink-0 text-[12px] text-fg-3 tabular-nums" suppressHydrationWarning>
+                      {formatDateTime(h.at)}
+                    </time>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        </section>
+      )}
+
       {/* ---------- Xavfli zona ---------- */}
-      <section className="card p-5 sm:p-7" aria-labelledby="sec-danger">
+      <section className="card p-5 sm:p-6" aria-labelledby="sec-danger">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-danger-soft text-danger-text">
-            <TriangleAlert size={20} />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-danger-soft text-danger-text">
+            <TriangleAlert size={18} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="sec-danger" className="font-display text-[20px] font-semibold tracking-tight text-fg">
+            <h2 id="sec-danger" className="font-display text-[19px] font-semibold tracking-tight text-fg">
               Xavfli zona
             </h2>
             <p className="mt-0.5 text-[13px] text-fg-3">Ma'lumotlaringiz sizniki: istalgan payt nusxasini yuklab oling yoki hisobni butunlay o'chiring.</p>
@@ -1162,7 +1219,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   <CheckCircle2 size={15} /> JSON fayl yuklab olindi
                 </span>
               ) : exportError ? (
-                <span className="inline-flex items-center gap-1.5 font-medium text-ios-red">
+                <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                   <AlertCircle size={15} /> {exportError}
                 </span>
               ) : (
@@ -1237,25 +1294,26 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         </div>
       </section>
 
-      {/* ---------- Maslahatlar ---------- */}
-      <section className="card-outline p-5 sm:p-7" aria-labelledby="sec-tips">
-        <h2 id="sec-tips" className="eyebrow">
-          Maslahatlar
-        </h2>
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+      {/* ---------- Maslahatlar (yig'ilgan) ---------- */}
+      <details className="card-outline group p-4 sm:p-5">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <span id="sec-tips" className="eyebrow">
+            Maslahatlar
+          </span>
+          <ChevronDown size={16} className="shrink-0 text-fg-3 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {TIPS.map((t) => (
             <li key={t.title} className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
-                <t.icon size={16} />
-              </span>
+              <t.icon size={16} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
               <span>
-                <span className="block text-[14px] font-semibold text-fg">{t.title}</span>
+                <span className="block text-[13.5px] font-semibold text-fg">{t.title}</span>
                 <span className="mt-0.5 block text-[12px] leading-snug text-fg-3">{t.text}</span>
               </span>
             </li>
           ))}
         </ul>
-      </section>
+      </details>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LOCALES, LOCALE_COOKIE, pickLocale } from "@/lib/i18n";
+import { safeInternalPath } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
@@ -28,9 +29,8 @@ export async function POST(req: NextRequest) {
 /** JS'siz zaxira: GET /api/til?t=ru&next=/mutaxassislar — cookie + redirect (faqat ichki yo'l) */
 export async function GET(req: NextRequest) {
   const til = pickLocale(req.nextUrl.searchParams.get("t"));
-  const nextRaw = req.nextUrl.searchParams.get("next") ?? "/";
-  // Ochiq redirect emas: faqat sayt ichidagi yo'l
-  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/";
+  // Ochiq redirect emas: faqat sayt ichidagi yo'l ("/\evil.com" kabi backslash variantlari ham rad etiladi)
+  const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin) ?? "/";
   const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
   setCookie(res, til);
   return res;

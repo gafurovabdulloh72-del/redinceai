@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { createHash } from "node:crypto";
 import {
   MessageCircle,
   Activity,
@@ -11,26 +12,21 @@ import {
   Award,
   BadgeCheck,
   Briefcase,
-  CalendarDays,
   ChevronRight,
   Clock3,
   Eye,
   EyeOff,
-  Languages,
   Lock,
   MapPin,
-  Mars,
   PackageCheck,
   PauseCircle,
   Repeat2,
   Settings,
   Sparkles,
   Star,
-  Venus,
   X,
-  GraduationCap,
 } from "lucide-react";
-import { Avatar, ButtonLink, SectionHeading, Stars, VerifiedBadge } from "@/components/ui";
+import { Avatar, ButtonLink, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ContactPanel } from "@/components/specialists/ContactPanel";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
@@ -51,6 +47,15 @@ import { RateCalculator } from "@/components/specialists/RateCalculator";
 import { ShortLink } from "@/components/specialists/ShortLink";
 import { CompareButton } from "@/components/specialists/CompareButton";
 import { CompareTray } from "@/components/specialists/CompareTray";
+import { SkillChips } from "@/components/specialists/SkillChips";
+import { RecentViewRecorder, RecentlyViewed } from "@/components/specialists/RecentlyViewed";
+import { ReviewSort, parseReviewSort } from "@/components/specialists/ReviewSort";
+import { Completeness } from "@/components/profile/Completeness";
+import { Handle } from "@/components/profile/Handle";
+import { ProfileGroups } from "@/components/profile/ProfileGroups";
+import { Timeline } from "@/components/profile/Timeline";
+import { profileCompleteness } from "@/lib/profile/completeness";
+import { listPublicGroupsOf } from "@/lib/profile/groups";
 import { getCurrentUser } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
 import { getProfilePostView, listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
@@ -58,14 +63,15 @@ import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, PROFILE_HIRING, REGION_BY
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { KARTA, experienceLabel, genderPersonLabel, localizePrice, priceFromLabel, priceRangeLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
-import { FAOLLIK, PROFIL, TIL_NOMI } from "@/lib/i18n/dict/profile";
+import { FAOLLIK, PROFIL, PROFIL_X, TIL_NOMI } from "@/lib/i18n/dict/profile";
 import { getSettings } from "@/lib/payments/settings";
 import { GUEST_VIEWER, effectivePriceFrom, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
 import { forwardedHost, forwardedProto, trustedSiteOrigin } from "@/lib/security/request";
 import { subscriptionState } from "@/lib/subscriptions/access";
 import {
-  bumpViewCount,
+  countRecentProfileViews,
   ensureShortCode,
+  getReviewVotes,
   getSimilarSpecialists,
   getSocialProof,
   getSpecialistBySlug,
@@ -73,6 +79,7 @@ import {
   hasAcceptedOrderWith,
   hasCompletedOrderWith,
   ratingDistribution,
+  recordProfileView,
   responseTimeLabel,
 } from "@/lib/queries";
 import { activityBucket, cn, formatDate, formatNumber, formatPrice, formatUsd } from "@/lib/utils";
@@ -84,11 +91,11 @@ const PREVIEW_MODES = ["guest", "client", "order"] as const;
 type PreviewMode = (typeof PREVIEW_MODES)[number];
 
 type Params = Promise<{ slug: string }>;
-type Search = Promise<{ preview?: string; tab?: string; post?: string }>;
+type Search = Promise<{ preview?: string; tab?: string; post?: string; ish?: string; sharh?: string }>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
-  const [raw, settings] = await Promise.all([getSpecialistBySlug(slug), getSettings()]);
+export async function generateMetadata({ params, searchParams }: { params: Params; searchParams: Search }): Promise<Metadata> {
+  const [{ slug }, spq] = await Promise.all([params, searchParams]);
+  const [raw, settings, til] = await Promise.all([getSpecialistBySlug(slug), getSettings(), getLocale()]);
   if (!raw) return { title: "Mutaxassis topilmadi" };
   // Metadata — mehmon ko'rinishi (shahar yashirin bo'lsa hudud markazi)
   const sp = filterSpecialistForViewer(raw, GUEST_VIEWER);
@@ -97,7 +104,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const region = REGION_BY_SLUG[sp.regionSlug];
   // Sarlavha oxiridagi "." / "!" olib tashlanadi — " · Kasb Egalari" shablonidan oldin ortiqcha tinish belgisi qolmasin
   const jobTitle = sp.title.trim().replace(/[.!]+$/, "");
-  const title = `${sp.user.name} — ${jobTitle}`;
+  // ?tab= varianti sarlavhada ko'rinadi ("… · Videolar"); ?tab/?post/?ish/?sharh variantlari dublikat — indekslanmaydi, kanonik asosiy sahifa
+  const tabKey = spq.tab === "videolar" || spq.tab === "ishlar" || spq.tab === "postlar" ? spq.tab : null;
+  const variant = Boolean(tabKey || spq.post || spq.ish || spq.sharh);
+  const title = `${sp.user.name} — ${jobTitle}${tabKey ? ` · ${tr(til, PROFIL_X.tabMetaSuffix[tabKey])}` : ""}`;
   // Tavsif — bio kesmasi emas, tuzilgan matn (bo'lmagan qismlar tushib qoladi)
   const metaPlace = [region?.name, sp.city].filter(Boolean).join(", ");
   const metaPrice = effectivePriceFrom(raw);
@@ -116,7 +126,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     alternates: { canonical: `/mutaxassislar/${sp.slug}` },
     openGraph: { title: `${title} · ${SITE.name}`, description, type: "profile", url: `/mutaxassislar/${sp.slug}` },
     twitter: { card: "summary_large_image", title: `${title} · ${SITE.name}`, description },
-    ...(inactive ? { robots: { index: false, follow: false } } : {}),
+    ...(inactive ? { robots: { index: false, follow: false } } : variant ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -161,7 +171,7 @@ async function LockedContacts({ className }: { className?: string }) {
 }
 
 export default async function SpecialistPage({ params, searchParams }: { params: Params; searchParams: Search }) {
-  const [{ slug }, { preview, tab, post: postParam }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { preview, tab, post: postParam, ish: ishParam, sharh }] = await Promise.all([params, searchParams]);
   const raw = await getSpecialistBySlug(slug);
   if (!raw) notFound();
 
@@ -197,7 +207,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
     profilePostCounts(raw.userId),
     typeof postParam === "string" && postParam ? getProfilePostView(postParam, feedViewer, raw.userId) : Promise.resolve(null),
   ]);
-  const feedTab = tab === "videolar" || tab === "ishlar" || tab === "postlar" ? tab : openPost || postCounts.posts > 0 ? "postlar" : "ishlar";
+  // ?ish=<id> — portfolio ishi oynada ochiladi (qidiruvdan chuqur havola); ?post= topilmasa — ProfileTabs bildirishnoma ko'rsatadi
+  const openWork = typeof ishParam === "string" && ishParam ? (raw.portfolio.find((p) => p.id === ishParam) ?? null) : null;
+  const missingPost = Boolean(typeof postParam === "string" && postParam && !openPost);
+  const feedTab = tab === "videolar" || tab === "ishlar" || tab === "postlar" ? tab : openWork ? (openWork.type === "video" ? "videolar" : "ishlar") : openPost || postCounts.posts > 0 ? "postlar" : "ishlar";
 
   // Obuna (subscriptions/access.ts): muddati tugagan (imtiyozli kunlardan keyin) — katalogdan yashirin, yangi buyurtma yo'q,
   // aloqalar mehmon/mijozga yopiq (egasi, admin va buyurtmasi borlar ko'radi). Egasining "mehmon ko'zi bilan" rejimi ham shuni ko'rsatadi.
@@ -211,24 +224,60 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const origin = trustedSiteOrigin() ?? `${forwardedProto(hdrs) ?? (/^(localhost|127\.)/i.test(host) ? "http" : "https")}://${host}`;
   const shortUrl = shortCode ? `${origin}/u/${shortCode.toUpperCase()}` : null;
   const shortDisplay = shortUrl ? shortUrl.replace(/^https?:\/\//, "") : null;
+  const qrHref = shortCode ? `/u/${shortCode.toUpperCase()}/qr?yuklab=1` : undefined;
   // O'xshashlar — umumiy ko'ruvchi konteksti: isOwner/hasOrder faqat SHU profilga nisbatan, boshqa profillarga o'tkazilmaydi
-  const [similar, proof, verifiedIds] = await Promise.all([
+  const [similar, proof, verifiedIds, publicGroups, votes, views7] = await Promise.all([
     getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }),
     getSocialProof(raw.id, raw.completedCount),
     getVerifiedReviewerIds(raw.id),
+    listPublicGroupsOf(raw.userId).catch(() => []),
+    getReviewVotes(
+      raw.reviews.map((r) => r.id),
+      viewer?.id ?? null,
+    ).catch(() => new Map<string, { n: number; mine: boolean }>()),
+    isOwner ? countRecentProfileViews(raw.id).catch(() => 0) : Promise.resolve(0),
   ]);
   const completedOrders = proof.completed;
 
-  // Ko'rishlar soni: egasi (shu jumladan preview) va botlar hisoblanmaydi; natijani kutmaymiz
+  // Ko'rishlar soni — kunlik noyob (profile_views): egasi (shu jumladan preview) va botlar hisoblanmaydi; natijani kutmaymiz.
+  // Ko'ruvchi kaliti: kirgan — u:<id>; mehmon — IP+UA xeshi (shaxsiy ma'lumot saqlanmaydi)
   if (!isOwner && !isBotUserAgent(hdrs.get("user-agent"))) {
+    const ip = (hdrs.get("x-forwarded-for") ?? hdrs.get("x-real-ip") ?? "").split(",")[0].trim();
+    const viewerKey = viewer ? `u:${viewer.id}` : `a:${createHash("sha256").update(`${ip}|${hdrs.get("user-agent") ?? ""}`).digest("hex").slice(0, 24)}`;
     try {
-      void bumpViewCount(raw.id).catch(() => {});
+      void recordProfileView(raw.id, viewerKey).catch(() => {});
     } catch {
       /* noop */
     }
   }
 
   const myReview = viewer ? raw.reviews.find((r) => r.authorId === viewer.id) : null;
+  // Sharhlar saralash (?sharh=yangi|yuqori|past|foydali) — standart: yangi
+  const reviewSort = parseReviewSort(sharh);
+  const sortedReviews = [...raw.reviews].sort((a, b) => {
+    const byDate = b.createdAt.getTime() - a.createdAt.getTime();
+    if (reviewSort === "yuqori") return b.rating - a.rating || byDate;
+    if (reviewSort === "past") return a.rating - b.rating || byDate;
+    if (reviewSort === "foydali") return (votes.get(b.id)?.n ?? 0) - (votes.get(a.id)?.n ?? 0) || byDate;
+    return byDate;
+  });
+  // «Profil to'liqligi» — faqat egasiga
+  const completeness = isOwner
+    ? profileCompleteness({
+        avatarUrl: raw.user.avatarUrl,
+        coverUrl: raw.coverUrl,
+        bio: raw.bio,
+        skills: raw.skills,
+        portfolioCount: raw.portfolio.length,
+        workHistory: raw.workHistory,
+        education: raw.education,
+        languages: raw.languages,
+        workTypes: raw.workTypes,
+        priceFrom: raw.priceFrom,
+        certificates: raw.certificates,
+        postsCount: postCounts.posts,
+      })
+    : null;
   // Sharh — faqat shu mutaxassis bilan YAKUNLANGAN buyurtmasi borlardan (server ham tekshiradi); mavjud sharh tahrirlanaveradi.
   // Adminga ham istisno yo'q — sharh faqat haqiqiy ish tajribasidan (moderatsiya/DELETE huquqi saqlanadi).
   const canReview = Boolean(viewer) && !isOwner && (hasDoneOrder || Boolean(myReview));
@@ -293,16 +342,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
     ],
   };
 
-  const metaChips: Array<{ icon: typeof Briefcase; text: string; tone: "accent" | "neutral" }> = [
-    { icon: Briefcase, text: experience, tone: "accent" },
-    { icon: Languages, text: languages, tone: "neutral" },
-    { icon: Eye, text: PROFIL.views[til](views), tone: "neutral" },
-    { icon: CalendarDays, text: PROFIL.memberSince[til](formatDate(sp.user.createdAt)), tone: "neutral" },
-  ];
-  if (genderLabel) metaChips.splice(1, 0, { icon: sp.user.gender === "female" ? Venus : Mars, text: genderLabel, tone: "neutral" });
+  // Meta — bitta tinch qator («·» bilan): tajriba · (jins) · tillar · ko'rishlar · a'zolik yili
+  const metaParts: string[] = [experience, languages, PROFIL_X.metaViews[til](views), PROFIL_X.metaSince[til](formatDate(sp.user.createdAt).slice(-4))];
+  if (genderLabel) metaParts.splice(1, 0, genderLabel);
 
   // Ijtimoiy isbot (E86/F12/F68): faqat bor ko'rsatkichlar — yangi profilda "0 ta" chiqmaydi
-  const responseLabel = responseTimeLabel(proof.responseHours);
+  const responseLabel = responseTimeLabel(proof.responseHours, til);
   const activity = activityBucket(raw.user.lastLoginAt);
   const proofChips: Array<{ icon: typeof Briefcase; text: string; title?: string }> = [];
   if (PROFILE_HIRING && proof.completed > 0) proofChips.push({ icon: PackageCheck, text: PROFIL.completedOrders[til](proof.completed), title: tr(til, PROFIL.completedOrdersHint) });
@@ -420,7 +465,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       </nav>
 
       {/* ================= HERO ================= */}
-      <section className="card animate-fade-up overflow-hidden !rounded-[28px] sm:!rounded-[32px]">
+      <section className="card animate-fade-up overflow-hidden !rounded-[var(--r-lg)]">
         {/* Balandlik 4:1 nisbatdan — kesish oynasida (ImageCropper) moslangan muqova qayta kesilmasin */}
         <div className="relative h-40 overflow-hidden bg-surface-3 sm:h-auto sm:max-h-[360px] sm:aspect-[4/1]">
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
@@ -428,7 +473,6 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             className="absolute inset-0 opacity-70 dark:opacity-50"
             style={{ background: "var(--surface-3)" }}
           />
-          <div className="absolute inset-0 grain" />
           {/* Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (kabinetdagi "Birinchi ish muqovada ko'rinadi"), u ham bo'lmasa naqsh */}
           <CoverImage src={sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null} category={sp.category} seed={sp.slug} priority />
 
@@ -439,25 +483,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {cat.name}
               </Link>
             )}
-            {sp.topRated && (
-              <span
-                title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold text-fg shadow-[var(--shadow-1)]"
-              >
-                <Award size={13} className="text-accent" /> {tr(til, PROFIL.topSpecialist)}
-                <span className="sr-only"> — {KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}</span>
-              </span>
-            )}
-            {sp.isFeatured && (
-              <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold text-accent shadow-[var(--shadow-1)]">
-                <Sparkles size={13} /> {tr(til, PROFIL.featured)}
-              </span>
-            )}
           </div>
 
           <span
             className={cn(
-              "absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12px] font-semibold shadow-[var(--shadow-1)] sm:right-6 sm:top-6",
+              "absolute right-4 top-4 inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12px] font-semibold sm:right-6 sm:top-6",
               inactive ? "text-fg-2" : onVacation ? "text-accent" : sp.isAvailable ? "text-[#15803d] dark:text-ios-green" : "text-[#c2410c] dark:text-ios-orange",
             )}
           >
@@ -475,7 +505,20 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               <h1 className="break-words font-display text-[28px] font-semibold leading-[1.05] tracking-tight text-fg sm:text-[38px]">
                 <NameWithBadge name={sp.user.name} verified={sp.isVerified} verifiedTitle={tr(til, PROFIL.verifiedPerson)} />
               </h1>
-              <p className="mt-1.5 text-[16px] text-fg-2 sm:text-[17px]">{sp.title}</p>
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[16px] text-fg-2 sm:text-[17px]">
+                <span>{sp.title}</span>
+                {/* «Top» va «Tanlangan» — muqovadagi pill'lar o'rniga kasb yonida kichik belgi */}
+                {sp.topRated && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-fg" title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}>
+                    <Award size={13} className="text-accent" aria-hidden /> {tr(til, PROFIL.topSpecialist)}
+                  </span>
+                )}
+                {sp.isFeatured && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-fg-2">
+                    <Sparkles size={13} className="text-accent" aria-hidden /> {tr(til, PROFIL.featured)}
+                  </span>
+                )}
+              </p>
               <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-3">
                 <span className="inline-flex items-center gap-1">
                   <MapPin size={13} className="text-accent" />
@@ -509,8 +552,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {proofChips.length > 0 && (
             <ul className="mt-5 flex flex-wrap items-center gap-2" aria-label={tr(til, PROFIL.trustAria)}>
               {proofChips.map((m) => (
-                <li key={m.text} title={m.title} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-surface-3 px-3 py-1.5 text-[12px] font-medium text-fg-2">
-                  <m.icon size={13} className="text-success" />
+                <li key={m.text} title={m.title} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[12px] font-medium text-fg-2">
+                  <m.icon size={13} className="text-fg-3" aria-hidden />
                   {m.text}
                 </li>
               ))}
@@ -519,19 +562,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
           <FollowersDialog userId={raw.userId} followers={follow.followersCount} following={follow.followingCount} loggedIn={Boolean(viewer)} viewerId={viewer?.id ?? null} className="mt-4 lg:hidden" />
 
-          <ul className={cn("flex flex-wrap items-center gap-2", proofChips.length > 0 ? "mt-2" : "mt-5")}>
-            {metaChips.map((m) => (
-              <li
-                key={m.text}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold",
-                  "border border-line text-fg-2",
-                )}
-              >
-                <m.icon size={13} className={m.tone === "accent" ? "text-accent" : "text-fg-3"} />
-                {m.text}
-              </li>
-            ))}
+          <ul className={cn("flex flex-wrap items-center gap-x-3 gap-y-2", proofChips.length > 0 ? "mt-3" : "mt-5")}>
+            <li className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-3">
+              {sp.user.username && <Handle username={sp.user.username} />}
+              <span className="min-w-0">{metaParts.join(" · ")}</span>
+            </li>
             <li className="ml-auto flex items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!PROFILE_HIRING && !isOwner && sp.user.username && !blockedAny && (
@@ -541,11 +576,18 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               )}
               {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
-              <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} size="sm" variant="outline" />
+              <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} size="sm" variant="outline" />
             </li>
           </ul>
         </div>
       </section>
+
+      {/* Profil to'liqligi — egasiga, telefon/planshetda (desktopda yon panelda) */}
+      {showOwnerCta && completeness && (
+        <div className="mt-6 lg:hidden">
+          <Completeness data={completeness} til={til} />
+        </div>
+      )}
 
       {/* ================= OBUNA FAOL EMAS (tashrif buyuruvchilar) ================= */}
       {PROFILE_HIRING && inactive && !showOwnerCta && (
@@ -571,8 +613,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         <div className="min-w-0 space-y-6 lg:col-span-8">
           {/* Haqida */}
           <section className="card animate-fade-up p-5 sm:p-7" style={{ animationDelay: "80ms" }}>
-            <span className="eyebrow">{tr(til, PROFIL.aboutEyebrow)}</span>
-            <h2 className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">
               {til === "ru" ? (
                 <>
                   О специалисте <span className="accent-serif text-accent">{sp.user.name.split(" ")[0]}</span>
@@ -612,20 +653,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             {sp.skills.length > 0 && (
               <div className="mt-6 border-t border-line pt-5">
                 <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, PROFIL.skills)}</h3>
-                {/* Har bir ko'nikma — shu ko'nikmali mutaxassislar ro'yxatiga (F50) */}
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {sp.skills.map((s) => (
-                    <li key={s}>
-                      <Link
-                        href={`/mutaxassislar?skill=${encodeURIComponent(s)}`}
-                        className="inline-flex min-h-8 items-center rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium text-fg transition hover:bg-fg/10"
-                        title={PROFIL.skillHint[til](s)}
-                      >
-                        {s}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                {/* Har bir ko'nikma — shu ko'nikmali mutaxassislar ro'yxatiga (F50); 8 tadan ko'pi «+N» ostida */}
+                <SkillChips skills={sp.skills} max={8} size="md" className="mt-3" />
               </div>
             )}
 
@@ -683,7 +712,6 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {/* Qisqa havola + vizitka — mobil/planshet (desktopda narx kartasida) */}
           {shortUrl && shortDisplay && (
             <section className="lg:hidden" aria-label={tr(til, PROFIL.shortLink)}>
-              <h3 className="mb-2 px-4 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, PROFIL.shortLink)}</h3>
               <ShortLink url={shortUrl} display={shortDisplay} vcardHref={PROFILE_HIRING ? `/api/vcard/${raw.slug}` : undefined} />
             </section>
           )}
@@ -718,6 +746,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               counts={{ posts: postCounts.posts, videos: postCounts.videos, works: sp.portfolio.length }}
               initialPosts={profilePosts}
               openPost={openPost}
+              openWork={openWork ? { id: openWork.id, title: openWork.title, type: openWork.type, url: openWork.url, thumbnailUrl: openWork.thumbnailUrl, description: openWork.description, tags: openWork.tags, beforeUrl: openWork.beforeUrl } : null}
+              missingPost={missingPost}
               initialTab={feedTab}
               works={sp.portfolio.map((p) => ({
                 id: p.id,
@@ -732,63 +762,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             />
           </section>
 
-          {/* Ish tajribasi (LinkedIn uslubi) */}
-          {raw.workHistory.length > 0 && (
-            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="tajriba-title">
-              <span className="eyebrow">{tr(til, TAJRIBA.expEyebrow)}</span>
-              <h2 id="tajriba-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
-                {tr(til, TAJRIBA.expTitle)} <span className="accent-serif text-accent">{tr(til, TAJRIBA.expTitleAccent)}</span>
-              </h2>
-              <ol className="relative mt-5 space-y-5 border-l border-line pl-5">
-                {raw.workHistory.map((e, i) => {
-                  const end = e.toYear ?? new Date().getFullYear();
-                  return (
-                    <li key={`${e.role}-${i}`} className="relative">
-                      <span className="absolute -left-[26px] top-1.5 h-3 w-3 rounded-full border-2 border-surface bg-accent" aria-hidden />
-                      <p className="text-[15px] font-semibold leading-snug text-fg">{e.role}</p>
-                      <p className="text-[13.5px] text-fg-2">{e.company}</p>
-                      <p className="mt-0.5 text-[12.5px] text-fg-3">
-                        {e.fromYear} — {e.toYear ?? tr(til, TAJRIBA.present)} · {TAJRIBA.years[til](Math.max(0, end - e.fromYear))}
-                      </p>
-                      {e.description && <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-2">{e.description}</p>}
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          )}
-
-          {/* Ta'lim */}
-          {raw.education.length > 0 && (
-            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="talim-title">
-              <span className="eyebrow">{tr(til, TAJRIBA.eduEyebrow)}</span>
-              <h2 id="talim-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
-                {tr(til, TAJRIBA.eduTitle)} <span className="accent-serif text-accent">{tr(til, TAJRIBA.eduTitleAccent)}</span>
-              </h2>
-              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                {raw.education.map((e, i) => (
-                  <li key={`${e.school}-${i}`} className="flex items-start gap-3 rounded-[var(--r-sm)] border border-line p-3.5">
-                    <span className="icon-tile-soft icon-tile-sm shrink-0">
-                      <GraduationCap size={16} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="break-words text-[14px] font-semibold leading-snug text-fg">{e.school}</p>
-                      <p className="mt-0.5 text-[13px] text-fg-2">{e.degree}</p>
-                      <p className="mt-0.5 text-[12.5px] text-fg-3">
-                        {e.fromYear} — {e.toYear ?? tr(til, TAJRIBA.studying)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {/* «Yo'l»: ish tajribasi + ta'lim bitta xronologik chiziqda; «Jamoalari» — ochiq jamoa/kanallar */}
+          <Timeline work={raw.workHistory} education={raw.education} til={til} className="animate-fade-up" />
+          <ProfileGroups groups={publicGroups} til={til} className="animate-fade-up" />
 
           {/* Sertifikatlar va litsenziyalar (F64) */}
           {sp.certificates.length > 0 && (
             <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="sertifikatlar-title">
-              <span className="eyebrow">{tr(til, PROFIL.certsEyebrow)}</span>
-              <h2 id="sertifikatlar-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+              <h2 id="sertifikatlar-title" className="font-display text-[20px] font-semibold tracking-tight text-fg">
                 {tr(til, PROFIL.certsTitleStart)} <span className="accent-serif text-accent">{tr(til, PROFIL.certsTitleAccent)}</span>
               </h2>
               <ul className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -822,9 +803,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
           {/* Sharhlar */}
           <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "200ms" }} id="sharhlar">
-            <div className="mb-4 px-1">
-              <span className="eyebrow">{tr(til, PROFIL.reviewsEyebrow)}</span>
-              <h2 className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-1">
+              <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">
                 {sp.reviewCount > 0 ? (
                   <>
                     {PROFIL.reviewsTitle[til](sp.reviewCount).pre}
@@ -837,6 +817,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   </>
                 )}
               </h2>
+              {sp.reviewCount > 1 && <ReviewSort current={reviewSort} basePath={profilePath} til={til} />}
             </div>
             <div className="space-y-4">
               <ReviewSummary rating={sp.rating} count={sp.reviewCount} distribution={distribution} items={raw.reviews} />
@@ -862,7 +843,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 loginHref={reviewLoginHref}
               />
               <ReviewList
-                reviews={raw.reviews.map((r) => ({
+                votes={votes}
+                loggedIn={Boolean(viewer)}
+                loginHref={loginHref}
+                reviews={sortedReviews.map((r) => ({
                   id: r.id,
                   rating: r.rating,
                   text: r.text,
@@ -914,20 +898,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   )}
                   <p className="mt-1 text-[13px] text-fg-3">{priceFrom || sp.priceTo ? tr(til, PROFIL.priceFinalNote) : tr(til, PROFIL.priceNegotiable)}</p>
                 </>
-              ) : (
-                <>
-                  {/* Yollash yashirin: narx o'rniga ijodkor sarlavhasi */}
-                  <p className="eyebrow">{cat?.name ?? tr(til, PROFIL.specialists)}</p>
-                  <p className="mt-2 font-display text-[22px] font-semibold leading-tight tracking-tight text-fg">{sp.title}</p>
-                  {region && <p className="mt-1 text-[13px] text-fg-3">{region.name}</p>}
-                </>
-              )}
+              ) : null}
 
-              <div className="mt-5 flex items-stretch gap-2">
+              {/* Yollash yashirin: kasb/hudud hero'da — karta to'g'ridan-to'g'ri amallardan boshlanadi */}
+              <div className={cn("flex items-stretch gap-2", PROFILE_HIRING && "mt-5")}>
                 <div className="min-w-0 flex-1">{cta}</div>
                 {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact />}
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
-                <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
+                <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} variant="outline" size="lg" iconOnly />
               </div>
               <FollowersDialog userId={raw.userId} followers={follow.followersCount} following={follow.followingCount} loggedIn={Boolean(viewer)} viewerId={viewer?.id ?? null} className="mt-3 justify-center" />
               {PROFILE_HIRING && !isOwner && !inactive && (
@@ -949,34 +927,15 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               )}
               {PROFILE_HIRING && !showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">{tr(til, PROFIL.busyNote)}</p>}
 
-              {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
-              <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", PROFILE_HIRING && completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
-                <li>
-                  {sp.reviewCount > 0 ? (
-                    <p className="font-display text-[17px] font-semibold text-fg">{sp.rating.toFixed(1)}</p>
-                  ) : (
-                    // Sharhsiz profil — "Yangi" (E84): bo'sh reyting o'rniga
-                    <p className="flex h-[25.5px] items-center justify-center">
-                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-semibold text-accent-text">{tr(til, PROFIL.statNew)}</span>
-                    </p>
-                  )}
-                  <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statRating)}</p>
-                </li>
-                <li>
-                  <p className="font-display text-[17px] font-semibold text-fg">{sp.reviewCount}</p>
-                  <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statReviews)}</p>
-                </li>
-                <li>
-                  <p className="font-display text-[17px] font-semibold text-fg">{sp.portfolio.length}</p>
-                  <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statWorks)}</p>
-                </li>
-                {PROFILE_HIRING && completedOrders > 0 && (
-                  <li title={tr(til, PROFIL.completedOrdersHint)}>
-                    <p className="font-display text-[17px] font-semibold text-fg">{completedOrders}</p>
-                    <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statOrders)}</p>
-                  </li>
-                )}
-              </ul>
+              {/* Reyting/sharh/ish statistikasi olib tashlandi — hero (reyting) va lenta tablari (ishlar) bilan dublikat edi */}
+              {showOwnerCta && completeness && (
+                <div className="mt-4 space-y-3 border-t border-line pt-4">
+                  <Completeness data={completeness} til={til} />
+                  <p className="flex items-center gap-1.5 text-[12px] text-fg-3" title={tr(til, PROFIL_X.views7Hint)}>
+                    <Eye size={12} aria-hidden /> {PROFIL_X.views7[til](views7)}
+                  </p>
+                </div>
+              )}
 
               {shortUrl && shortDisplay && (
                 <div className="mt-4 border-t border-line pt-4">
@@ -1030,27 +989,22 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
       {/* ================= O'XSHASH ================= */}
       {similar.length > 0 && (
-        <section className="mt-16 sm:mt-24">
-          <SectionHeading
-            eyebrow={tr(til, PROFIL.similarEyebrow)}
-            title={
-              <>
-                {tr(til, PROFIL.similarTitleStart)} <span className="accent-serif text-accent">{tr(til, PROFIL.similarTitleAccent)}</span>
-              </>
-            }
-            description={PROFIL.similarDesc[til](cat ? cat.plural : tr(til, PROFIL.similarDescCatFallback), region ? region.short : tr(til, PROFIL.similarDescRegionFallback))}
-            action={
-              <ButtonLink href={`/mutaxassislar?category=${sp.category}`} variant="outline" size="sm">
-                {tr(til, PROFIL.seeAll)} <ArrowRight size={14} />
-              </ButtonLink>
-            }
-          />
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-14 sm:mt-20" aria-labelledby="oxshash-title">
+          {/* Sarlavha + «Barchasi» — eyebrow va tavsifsiz (o'xshashlik endi ko'nikma/yo'nalish/hudud bo'yicha ballanadi) */}
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <h2 id="oxshash-title" className="font-display text-[22px] font-semibold tracking-tight text-fg">
+              {tr(til, PROFIL.similarTitleStart)} <span className="accent-serif text-accent">{tr(til, PROFIL.similarTitleAccent)}</span>
+            </h2>
+            <ButtonLink href={`/mutaxassislar?category=${sp.category}`} variant="outline" size="sm" className="shrink-0">
+              {tr(til, PROFIL.seeAll)} <ArrowRight size={14} />
+            </ButtonLink>
+          </div>
+          <ul className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {similar.map((s) => {
               const c = CATEGORY_BY_SLUG[s.category];
               return (
                 <li key={s.id}>
-                  <Link href={`/mutaxassislar/${s.slug}`} className="card card-hover flex h-full items-center gap-3 p-3.5">
+                  <Link href={`/mutaxassislar/${s.slug}`} className="card hover-lift press flex h-full items-center gap-3 p-3.5">
                     <Avatar name={s.user.name} src={s.user.avatarUrl} size={48} decorative />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-1 truncate text-[14px] font-semibold text-fg">
@@ -1122,6 +1076,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         )}
       </div>
       )}
+
+      {/* Yaqinda ko'rilganlar (localStorage): shu profil yoziladi (egasi bundan mustasno), boshqalari lenta bo'lib chiqadi */}
+      <RecentViewRecorder item={{ slug: sp.slug, name: sp.user.name, title: sp.title, avatarUrl: sp.user.avatarUrl }} enabled={!isOwner} />
+      <RecentlyViewed excludeSlug={sp.slug} className="mt-10" />
 
       {/* Taqqoslash paneli (F54) — telefonda pastki CTA paneli ustida */}
       <CompareTray aboveCta={PROFILE_HIRING} />

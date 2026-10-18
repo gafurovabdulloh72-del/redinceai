@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Briefcase, FileUser, Search } from "lucide-react";
+import { redirect } from "next/navigation";
+import { FileUser, Search } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { ResumeCard } from "@/components/vacancies/ResumeCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
@@ -38,7 +39,7 @@ function parseFilter(flatQ: Record<string, string>): ResumeFilter {
   return res.success ? res.data : resumeFilterSchema.parse({});
 }
 const chip = (active: boolean) =>
-  cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition", active ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg");
+  cn("press inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-semibold transition", active ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg");
 
 /** Rezyumelar katalogi — ish beruvchilar uchun; kontaktsiz, aloqa sayt ichidagi chat orqali */
 export default async function ResumesPage({ searchParams }: { searchParams: Promise<Raw> }) {
@@ -47,6 +48,8 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
   const [result, mine] = await Promise.all([listResumes(f), user ? getResume(user.id) : Promise.resolve(null)]);
   const query = { q: f.q || undefined, profession: f.profession || undefined, experience: f.experience || undefined, format: f.format || undefined, region: f.region || undefined, page: f.page > 1 ? String(f.page) : undefined };
   const hasFilters = Boolean(f.q || f.profession || f.experience || f.format || f.region);
+  // Sahifa diapazondan tashqarida — oxirgi sahifaga
+  if (result.total > 0 && f.page > result.pages) redirect(buildHref(BASE, { ...query, page: result.pages > 1 ? String(result.pages) : undefined }));
 
   return (
     <div className="container-x animate-fade-up">
@@ -58,14 +61,14 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
             Nomzodlar <span className="accent-serif text-accent">rezyumelari</span>
           </>
         }
-        description="Onlayn kasblar bo'yicha mutaxassislar — tajriba, ko'nikma va kutilayotgan maosh bilan. Mos nomzodga sayt ichidagi chat orqali yozing."
+        description="Onlayn kasblar bo'yicha nomzodlar — tajriba, ko'nikma va kutilayotgan maosh bilan. Mos nomzodga chat orqali yozing."
         action={
           <>
             <ButtonLink href={user ? "/kabinet/rezyume" : "/auth/royxat?next=/kabinet/rezyume"} variant="accent" size="lg">
               <FileUser size={18} /> {mine ? "Rezyumemni yangilash" : "Rezyume yaratish"}
             </ButtonLink>
             <ButtonLink href="/vakansiyalar" variant="outline" size="lg">
-              <Briefcase size={18} /> Vakansiyalar
+              Vakansiyalar
             </ButtonLink>
           </>
         }
@@ -107,16 +110,22 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         </button>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Link href={buildHref(BASE, { ...query, profession: undefined, page: undefined })} className={chip(!f.profession)}>
-          Barcha kasblar
-        </Link>
-        {PROFESSIONS.map((p) => (
-          <Link key={p.slug} href={buildHref(BASE, { ...query, profession: f.profession === p.slug ? undefined : p.slug, page: undefined })} className={chip(f.profession === p.slug)}>
-            {p.short}
-          </Link>
-        ))}
-      </div>
+      <nav aria-label="Kasblar" className="-mx-4 mt-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+        <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+          <li>
+            <Link href={buildHref(BASE, { ...query, profession: undefined, page: undefined })} className={chip(!f.profession)} aria-current={!f.profession ? "page" : undefined}>
+              Barcha kasblar
+            </Link>
+          </li>
+          {PROFESSIONS.map((p) => (
+            <li key={p.slug}>
+              <Link href={buildHref(BASE, { ...query, profession: f.profession === p.slug ? undefined : p.slug, page: undefined })} className={chip(f.profession === p.slug)} aria-current={f.profession === p.slug ? "page" : undefined}>
+                {p.short}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <section className="mt-6" aria-live="polite">
         {result.items.length === 0 ? (
@@ -139,6 +148,10 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
           />
         ) : (
           <>
+            <p className="mb-3 text-[13px] text-fg-3">
+              {result.total} ta nomzod{hasFilters ? " (filtr bo'yicha)" : ""}
+              {result.pages > 1 ? ` · ${result.page}/${result.pages}-sahifa` : ""}
+            </p>
             <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((r) => (
                 <li key={r.id} className="min-w-0">

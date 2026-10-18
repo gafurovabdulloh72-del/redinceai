@@ -40,7 +40,8 @@ export function SaveVacancyButton({ vacancyId, initialSaved, loggedIn, className
       onClick={toggle}
       disabled={busy}
       aria-pressed={saved}
-      className={cn("inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold transition active:scale-[0.97] disabled:opacity-50", saved ? "border-accent bg-accent-soft text-accent-text" : "border-line-2 text-fg hover:border-fg", className)}
+      aria-label={saved ? "Saqlanganlardan olish" : "Vakansiyani saqlash"}
+      className={cn("press inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold transition disabled:opacity-50", saved ? "border-accent bg-accent-soft text-accent-text" : "border-line-2 text-fg hover:border-fg", className)}
     >
       {saved ? <BookmarkCheck size={16} className="animate-pop" /> : <Bookmark size={16} />}
       {saved ? "Saqlangan" : "Saqlash"}

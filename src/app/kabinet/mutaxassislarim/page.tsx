@@ -72,16 +72,12 @@ export default async function MySpecialistsPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <Users size={13} className="text-accent" /> Kabinet
+          <Users size={13} /> Kabinet
         </span>
-        <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
-          Mening <span className="accent-serif text-accent">mutaxassislarim</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Mening <span className="accent-serif">mutaxassislarim</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
-          {list.length > 0
-            ? `${list.length} ta mutaxassis bilan ishlagansiz. Yoqqan bo'lsa — bir bosishda qayta buyurtma bering.`
-            : "Buyurtma bergan mutaxassislaringiz shu yerda jamlanadi."}
-        </p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{list.length > 0 ? `${list.length} ta mutaxassis bilan ishlagansiz — bir bosishda qayta buyurtma bering.` : "Buyurtma bergan mutaxassislaringiz shu yerda jamlanadi."}</p>
       </header>
 
       {list.length === 0 ? (

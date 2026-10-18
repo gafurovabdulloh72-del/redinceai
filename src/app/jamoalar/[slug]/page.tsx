@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BadgeCheck, CalendarDays, ExternalLink, Lock, MessageSquareText, Radio, RadioTower, Settings2, Users } from "lucide-react";
+import { notFound, permanentRedirect } from "next/navigation";
+import { BadgeCheck, CalendarDays, ExternalLink, Lock, Play, Radio, RadioTower, Settings2, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CoverImage } from "@/components/specialists/CoverImage";
+import { SafeImage } from "@/components/specialists/SafeImage";
 import { JoinButton } from "@/components/groups/JoinButton";
 import { GroupFeed } from "@/components/groups/GroupFeed";
 import { GroupChat } from "@/components/groups/GroupChat";
 import { GroupMembers } from "@/components/groups/GroupMembers";
-import { InviteLink } from "@/components/groups/InviteLink";
+import { GroupCard } from "@/components/groups/GroupCard";
 import { MuteButton } from "@/components/groups/MuteButton";
 import { InviteJoin } from "@/components/groups/InviteJoin";
 import { CalendarLinks } from "@/components/groups/CalendarLinks";
+import { ExpandableText } from "@/components/groups/ExpandableText";
+import { RulesText } from "@/components/groups/RulesText";
 import { ShareButton } from "@/components/specialists/ShareButton";
-import { TelegramShare } from "@/components/ui/TelegramShare";
 import { OfficialCover } from "@/components/groups/OfficialCover";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
-import { getGroupView, listMembers, listPosts, loadGroupBySlug, markGroupRead, upcomingEvents, type GroupView, type PostView } from "@/lib/groups/service";
-import { cn, formatDateTime } from "@/lib/utils";
+import { getGroupView, groupStats, listEvents, listGroupMedia, listMembers, listPosts, loadGroupByAnySlug, markGroupRead, similarGroups, type GroupListItem, type GroupStats, type GroupView, type MediaItem, type PostView } from "@/lib/groups/service";
+import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +32,15 @@ const TABS = [
   { key: "lenta", label: "Lenta" },
   { key: "chat", label: "Chat" },
   { key: "azolar", label: "A'zolar" },
+  { key: "media", label: "Media" },
+  { key: "efirlar", label: "Efirlar" },
   { key: "haqida", label: "Haqida" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const g = await loadGroupBySlug(slug);
+  const g = await loadGroupByAnySlug(slug);
   if (!g) return { title: "Jamoa topilmadi" };
   return {
     title: `${g.name} — jamoa`,
@@ -48,25 +52,30 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 function LockedNotice({ view, loggedIn, what }: { view: GroupView; loggedIn: boolean; what: string }) {
   return (
-    <div className="card flex flex-col items-center gap-3 px-5 py-10 text-center">
+    <div className="card flex flex-col items-center gap-3 px-5 py-10 text-center" data-reveal="scale">
       <span className="icon-tile-soft !rounded-full">
         <Lock size={18} />
       </span>
-      <p className="text-[15px] font-semibold text-fg">{what} faqat a&apos;zolarga ko&apos;rinadi</p>
-      <p className="max-w-md text-[13px] leading-relaxed text-fg-3">
-        {view.membership === "pending" ? "So'rovingiz yuborilgan — jamoa egasi tasdiqlashi bilan ochiladi." : view.isPrivate ? "Bu yopiq jamoa. Qo'shilish so'rovini yuboring — egasi tasdiqlagach lenta va chat ochiladi." : "Jamoaga qo'shiling — bepul va bir bosishda."}
-      </p>
+      <p className="text-[15px] font-semibold text-fg">{what} faqat a&apos;zolarga</p>
+      <p className="max-w-md text-[13px] leading-relaxed text-fg-3">{view.membership === "pending" ? "So'rovingiz yuborilgan — egasi tasdiqlashi bilan ochiladi." : view.isPrivate ? "Yopiq jamoa — so'rov yuboring." : "Qo'shiling — bepul, bir bosishda."}</p>
       <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />
     </div>
   );
 }
 
-/** Jamoa sahifasi: hero (muqova 3:1, chiplar, qo'shilish), bo'limlar: lenta | chat | a'zolar | haqida */
+/** Jamoa sahifasi: hero (muqova 3:1, bitta meta qatori, qo'shilish), bo'limlar: lenta | chat | a'zolar | media | efirlar | haqida */
 export default async function GroupPage({ params, searchParams }: { params: Params; searchParams: Promise<Raw> }) {
   const [{ slug }, sp, user] = await Promise.all([params, searchParams, getCurrentUser()]);
   const viewer = user ? { id: user.id, role: user.role } : null;
-  const [view, group] = await Promise.all([getGroupView(slug, viewer), loadGroupBySlug(slug)]);
-  if (!view || !group) notFound();
+  const group = await loadGroupByAnySlug(slug);
+  if (!group) notFound();
+  // Eski manzil (slug o'zgartirilgan) — yangisiga doimiy yo'naltirish, so'rov parametrlari saqlanadi
+  if (group.slug !== slug) {
+    const qs = new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : []))).toString();
+    permanentRedirect(`/jamoalar/${group.slug}${qs ? `?${qs}` : ""}`);
+  }
+  const view = await getGroupView(group.slug, viewer);
+  if (!view) notFound();
 
   const tabRaw = typeof sp.tab === "string" ? sp.tab : "lenta";
   const tab: Tab = TABS.some((t) => t.key === tabRaw) ? (tabRaw as Tab) : "lenta";
@@ -80,16 +89,20 @@ export default async function GroupPage({ params, searchParams }: { params: Para
   const region = view.region ? REGION_BY_SLUG[view.region] : null;
 
   // Bo'lim ma'lumotlari faqat kerak bo'lganda yuklanadi
-  const feed = tab === "lenta" && view.canView ? await listPosts(group, viewer, null) : null;
-  const members =
-    tab === "azolar" && view.canView
-      ? await Promise.all([listMembers(group.id, "active"), view.canManage ? listMembers(group.id, "pending") : Promise.resolve([])])
-      : null;
-
-  // Yaqin efir/yig'ilishlar — har bir bo'limda tepada (ko'rish huquqi bo'lsa)
-  const events = view.canView ? await upcomingEvents(group.id, viewer, 3) : [];
+  const [feed, members, media, ev, stats, similar] = await Promise.all([
+    tab === "lenta" && view.canView ? listPosts(group, viewer, null) : null,
+    tab === "azolar" && view.canView ? Promise.all([listMembers(group.id, "active"), view.canManage ? listMembers(group.id, "pending") : Promise.resolve([])]) : null,
+    tab === "media" && view.canView ? listGroupMedia(group) : null,
+    view.canView ? listEvents(group, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
+    view.canView ? groupStats(group.id) : null,
+    similarGroups(group, viewer, 3),
+  ]);
+  const events = ev.upcoming.slice(0, 3);
+  const hasEvents = ev.upcoming.length + ev.past.length > 0;
 
   const tabHref = (key: Tab) => (key === "lenta" ? `/jamoalar/${view.slug}` : `/jamoalar/${view.slug}?tab=${key}`);
+  const tabs = TABS.filter((t) => (t.key === "efirlar" ? hasEvents || tab === "efirlar" : true));
+  const metaParts = [cat ? { icon: <CategoryIcon icon={cat.icon} size={13} />, text: cat.plural } : null, region ? { icon: null, text: region.short } : null].filter(Boolean) as Array<{ icon: React.ReactNode; text: string }>;
 
   return (
     <div className="container-x animate-fade-up">
@@ -102,47 +115,37 @@ export default async function GroupPage({ params, searchParams }: { params: Para
       </nav>
 
       {/* Hero */}
-      <section className="card mt-4 overflow-hidden">
-        <div className="relative aspect-[4/1] max-h-[200px] w-full overflow-hidden bg-surface-2">
+      <section className="card mt-4 overflow-hidden" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
+        <div className="relative aspect-[3/1] max-h-[240px] w-full overflow-hidden bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]">
           {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold">
-              {cat && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-fg-2">
-                  <CategoryIcon icon={cat.icon} size={13} /> {cat.plural}
+            <h1 className="display-xl flex flex-wrap items-center gap-x-2 text-fg">
+              {view.name}
+              {view.isOfficial && <BadgeCheck size={22} className="shrink-0 text-accent" aria-label="Rasmiy kanal" />}
+            </h1>
+            {/* Bitta meta qatori: tur · yo'nalish · hudud · a'zolar · egasi */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-3">
+              <span className="inline-flex items-center gap-1.5 text-fg-2">
+                {view.isPrivate ? <Lock size={13} /> : view.kind === "channel" ? <Radio size={13} /> : <Users size={13} />}
+                {view.isOfficial ? "Rasmiy kanal" : view.kind === "channel" ? "Kanal" : "Guruh"}
+                {view.isPrivate && " · yopiq"}
+              </span>
+              {metaParts.map((p) => (
+                <span key={p.text} className="inline-flex items-center gap-1.5">
+                  <span aria-hidden>·</span>
+                  {p.icon}
+                  {p.text}
                 </span>
-              )}
-              {region && <span className="rounded-full border border-line px-2.5 py-1 text-fg-2">{region.short}</span>}
-              {view.isOfficial ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-white">
-                  <BadgeCheck size={12} /> Rasmiy kanal
-                </span>
-              ) : (
-                view.kind === "channel" && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-fg-2">
-                    <Radio size={12} /> Kanal
-                  </span>
-                )
-              )}
-              {view.isPrivate && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-fg-2">
-                  <Lock size={12} /> Yopiq jamoa
-                </span>
-              )}
-            </div>
-            <h1 className="display-xl mt-3 text-[28px] text-fg sm:text-[36px]">{view.name}</h1>
-            {view.description && <p className="mt-2 line-clamp-3 max-w-2xl text-[14.5px] leading-relaxed text-fg-2">{view.description}</p>}
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-fg-3">
+              ))}
               <span className="inline-flex items-center gap-1.5">
-                <Users size={14} /> {view.membersCount} a&apos;zo
+                <span aria-hidden>·</span>
+                {compactCount(view.membersCount)} a&apos;zo
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <MessageSquareText size={14} /> {view.postsCount} post
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar name={view.owner.name} src={view.owner.avatarUrl} size={20} decorative />
+                <span aria-hidden>·</span>
+                <Avatar name={view.owner.name} src={view.owner.avatarUrl} size={18} decorative />
                 {view.owner.slug ? (
                   <Link href={`/mutaxassislar/${view.owner.slug}`} className="font-semibold text-fg-2 underline-offset-2 hover:underline">
                     {view.owner.name}
@@ -152,22 +155,17 @@ export default async function GroupPage({ params, searchParams }: { params: Para
                 )}
               </span>
             </div>
+            {view.description && <ExpandableText text={view.description} lines={3} className="mt-3 max-w-2xl" />}
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <ShareButton title={view.name} size="md" variant="outline" iconOnly />
-            <TelegramShare path={`/jamoalar/${view.slug}`} text={`${view.name} · Kasb Egalari jamoasi`} />
-            {isMember && <MuteButton slug={view.slug} initialMuted={view.muted} />}
-            {view.canManage && <InviteLink slug={view.slug} initialCode={view.inviteCode} />}
+            {isMember && <MuteButton slug={view.slug} initialMuted={view.muted} initialMutedUntil={view.mutedUntil} initialEventReminders={view.eventReminders} />}
             {view.canManage && (
-              <Link
-                href={`/jamoalar/${view.slug}/sozlash`}
-                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[14px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
-              >
+              <Link href={`/jamoalar/${view.slug}/sozlash`} className="inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[14px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
                 <Settings2 size={16} /> Sozlash
                 {view.pendingCount > 0 && <span className="ml-0.5 rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-white">{view.pendingCount}</span>}
               </Link>
             )}
-            {/* Egasi uchun JoinButton ham "Sozlash" beradi — ikki marta chiqmasin */}
             {view.membership !== "owner" && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />}
           </div>
         </div>
@@ -175,22 +173,15 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       {invite && <InviteJoin slug={view.slug} invite={invite} membership={view.membership} loggedIn={loggedIn} />}
 
-      {/* Bo'limlar */}
+      {/* Bo'limlar — sonlar hero'da, bu yerda faqat nom (+ so'rov nuqtasi) */}
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-line" aria-label="Jamoa bo'limlari">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const active = t.key === tab;
-          const count = t.key === "azolar" ? view.membersCount : t.key === "lenta" ? view.postsCount : null;
           return (
-            <Link
-              key={t.key}
-              href={tabHref(t.key)}
-              aria-current={active ? "page" : undefined}
-              className={cn("relative inline-flex h-11 shrink-0 items-center gap-1.5 px-3.5 text-[14px] font-semibold transition", active ? "text-fg" : "text-fg-3 hover:text-fg")}
-            >
+            <Link key={t.key} href={tabHref(t.key)} aria-current={active ? "page" : undefined} className={cn("relative inline-flex h-11 shrink-0 items-center gap-1.5 px-3.5 text-[14px] font-semibold transition-colors", active ? "text-fg" : "text-fg-3 hover:text-fg")}>
               {t.key === "chat" && view.kind === "channel" ? "Muhokama" : t.label}
-              {count !== null && <span className="text-[12px] text-fg-4">{count}</span>}
-              {t.key === "azolar" && view.canManage && view.pendingCount > 0 && <span className="h-2 w-2 rounded-full bg-accent" aria-label={`${view.pendingCount} ta so'rov`} />}
-              {active && <span aria-hidden className="absolute inset-x-3.5 bottom-0 h-[3px] rounded-full bg-accent" />}
+              {t.key === "azolar" && view.canManage && view.pendingCount > 0 && <span className="h-2 w-2 rounded-full bg-accent" role="img" aria-label={`${view.pendingCount} ta so'rov`} />}
+              {active && <span aria-hidden className="animate-fade-in absolute inset-x-3.5 bottom-0 h-[2px] rounded-full bg-fg" />}
             </Link>
           );
         })}
@@ -198,25 +189,27 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
         <div key={tab} className="min-w-0 animate-fade-in lg:col-span-8">
-          {events.length > 0 && tab !== "haqida" && <EventsCard events={events} />}
+          {events.length > 0 && tab !== "haqida" && tab !== "efirlar" && <EventsCard events={events} />}
           {tab === "lenta" &&
             (feed ? (
               <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn={loggedIn} initial={feed} highlightId={highlight} />
             ) : (
               <LockedNotice view={view} loggedIn={loggedIn} what="Lenta" />
             ))}
-          {tab === "chat" && (isMember ? <GroupChat slug={view.slug} membersCount={view.membersCount} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Chat" />)}
+          {tab === "chat" && (isMember ? <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Chat" />)}
           {tab === "azolar" &&
             (members ? (
-              <GroupMembers slug={view.slug} canManage={view.canManage} isOwner={view.membership === "owner"} viewerId={user?.id ?? null} initialActive={members[0]} initialPending={members[1]} />
+              <GroupMembers slug={view.slug} canManage={view.canManage} isOwner={view.membership === "owner" || user?.role === "admin"} viewerId={user?.id ?? null} initialActive={members[0]} initialPending={members[1]} />
             ) : (
               <LockedNotice view={view} loggedIn={loggedIn} what="A'zolar ro'yxati" />
             ))}
-          {tab === "haqida" && <AboutCard view={view} full />}
+          {tab === "media" && (media ? <MediaGrid items={media} slug={view.slug} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Media" />)}
+          {tab === "efirlar" && (view.canView ? <EventsList ev={ev} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Efirlar" />)}
+          {tab === "haqida" && <AboutCard view={view} stats={stats} similar={similar} full />}
         </div>
         {tab !== "haqida" && (
           <aside className="hidden lg:col-span-4 lg:block">
-            <AboutCard view={view} />
+            <AboutCard view={view} stats={stats} similar={similar} />
           </aside>
         )}
       </div>
@@ -224,28 +217,26 @@ export default async function GroupPage({ params, searchParams }: { params: Para
   );
 }
 
-function AboutCard({ view, full = false }: { view: GroupView; full?: boolean }) {
-  const cat = view.category ? CATEGORY_BY_SLUG[view.category] : null;
-  const region = view.region ? REGION_BY_SLUG[view.region] : null;
+const DEFAULT_RULES = "- Hurmat — tanqid ishga, odamga emas.\n- Spam va takroriy reklama yo'q; e'lonlar — egasi ruxsati bilan.\n- Mijoz kontaktlari va shaxsiy ma'lumotlar tarqatilmaydi.\n- Buzilsa — post o'chiriladi, takrorlansa a'zolikdan chiqariladi.";
+
+function AboutCard({ view, stats, similar, full = false }: { view: GroupView; stats: GroupStats | null; similar: GroupListItem[]; full?: boolean }) {
   return (
     <div className="grid gap-4">
       <section className="card p-5">
-        <h2 className="text-[15px] font-bold text-fg">Jamoa haqida</h2>
+        <h2 className="text-[15px] font-bold text-fg">Haqida</h2>
         <p className={cn("mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg-2", !full && "line-clamp-6")}>{view.description || "Tavsif hali yozilmagan."}</p>
         <dl className="mt-4 grid gap-2 text-[13px]">
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-fg-3">Yo&apos;nalish</dt>
-            <dd className="font-semibold text-fg">{cat?.plural ?? "Umumiy"}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-fg-3">Hudud</dt>
-            <dd className="font-semibold text-fg">{region?.name ?? "Butun O'zbekiston"}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-fg-3">Turi</dt>
-            <dd className="font-semibold text-fg">
-              {view.isOfficial ? "Rasmiy kanal" : view.kind === "channel" ? "Kanal" : "Guruh"}
-              {view.isPrivate ? " · yopiq" : " · ochiq"}
+            <dt className="text-fg-3">Egasi</dt>
+            <dd className="flex min-w-0 items-center gap-2 font-semibold text-fg">
+              <Avatar name={view.owner.name} src={view.owner.avatarUrl} size={20} decorative />
+              {view.owner.slug ? (
+                <Link href={`/mutaxassislar/${view.owner.slug}`} className="truncate underline-offset-2 hover:underline">
+                  {view.owner.name}
+                </Link>
+              ) : (
+                <span className="truncate">{view.owner.name}</span>
+              )}
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
@@ -256,70 +247,172 @@ function AboutCard({ view, full = false }: { view: GroupView; full?: boolean }) 
           </div>
         </dl>
       </section>
-      <section className="card p-5">
-        <h2 className="text-[15px] font-bold text-fg">Egasi</h2>
-        <div className="mt-3 flex items-center gap-3">
-          <Avatar name={view.owner.name} src={view.owner.avatarUrl} size={40} decorative />
-          <div className="min-w-0">
-            {view.owner.slug ? (
-              <Link href={`/mutaxassislar/${view.owner.slug}`} className="block truncate text-[14px] font-semibold text-fg underline-offset-2 hover:underline">
-                {view.owner.name}
-              </Link>
-            ) : (
-              <p className="truncate text-[14px] font-semibold text-fg">{view.owner.name}</p>
-            )}
-            <p className="text-[12px] text-fg-3">{view.owner.slug ? "Mutaxassis profili" : "Foydalanuvchi"}</p>
-          </div>
-        </div>
-      </section>
+      {stats && (
+        <section className="card p-5" aria-label="So'nggi 7 kun">
+          <h2 className="text-[15px] font-bold text-fg">
+            So&apos;nggi 7 kun
+          </h2>
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+            {(
+              [
+                { k: "Postlar", v: stats.postsWeek },
+                { k: "Xabarlar", v: stats.messagesWeek },
+                { k: "Faol a'zolar", v: stats.activeWeek },
+                { k: "Yangi a'zolar", v: stats.joinedWeek },
+              ] as const
+            ).map((s) => (
+              <div key={s.k}>
+                <dd className="font-display text-[22px] font-semibold leading-none text-fg">{compactCount(s.v)}</dd>
+                <dt className="mt-1 text-[12px] text-fg-3">{s.k}</dt>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
       <section className="card p-5">
         <h2 className="text-[15px] font-bold text-fg">Qoidalar</h2>
-        <ul className="mt-2 grid gap-1.5 text-[13px] leading-relaxed text-fg-2">
-          <li>• Hurmat — tanqid ishga, odamga emas.</li>
-          <li>• Spam va takroriy reklama yo&apos;q; e&apos;lonlar — egasi ruxsati bilan.</li>
-          <li>• Mijoz kontaktlari va shaxsiy ma&apos;lumotlar tarqatilmaydi.</li>
-          <li>• Buzilsa — moderatorlar postni o&apos;chiradi, takrorlansa a&apos;zolikdan chiqariladi.</li>
-        </ul>
+        <RulesText text={view.rules ?? DEFAULT_RULES} className="mt-2 grid gap-2 text-[13px] leading-relaxed text-fg-2" />
       </section>
+      {similar.length > 0 && (
+        <section aria-labelledby="similar-h">
+          <h2 id="similar-h" className="mb-3 text-[15px] font-bold text-fg">
+            O&apos;xshash jamoalar
+          </h2>
+          <ul className={cn("stagger grid gap-3", full && "sm:grid-cols-2 lg:grid-cols-3")}>
+            {similar.map((g) => (
+              <li key={g.id} className="min-w-0">
+                <GroupCard g={g} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
 
-/** Yaqinlashayotgan jonli efir / yig'ilishlar — Telegram'dagi qadalgan e'lon kabi lenta tepasida */
+/** Postlardagi rasm/videolar to'ri — bosilsa shu post ochiladi */
+function MediaGrid({ items, slug }: { items: MediaItem[]; slug: string }) {
+  if (!items.length) {
+    return (
+      <div className="card flex flex-col items-center gap-2 px-5 py-12 text-center" data-reveal="scale">
+        <p className="text-[15px] font-semibold text-fg">Hali media yo&apos;q</p>
+        <p className="text-[13px] text-fg-3">Postlardagi rasm va videolar shu yerda to&apos;planadi.</p>
+      </div>
+    );
+  }
+  return (
+    <ul className="stagger grid grid-cols-3 gap-1 sm:gap-1.5" aria-label="Media">
+      {items.map((m) => (
+        <li key={`${m.postId}-${m.url}`} className="relative aspect-square overflow-hidden rounded-[10px] bg-surface-3">
+          <Link href={`/jamoalar/${slug}?post=${m.postId}`} className="img-zoom block h-full w-full" aria-label={m.type.startsWith("video/") ? "Video post" : "Rasm post"}>
+            {m.type.startsWith("video/") ? (
+              <>
+                <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white">
+                  <Play size={12} />
+                </span>
+              </>
+            ) : (
+              <SafeImage src={m.url} alt={m.name} width={400} height={400} className="h-full w-full object-cover" />
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Yaqinlashayotgan jonli efir / yig'ilishlar — lenta tepasida (3 tagacha) */
 function EventsCard({ events }: { events: PostView[] }) {
   return (
-    <section className="card mb-4 border-accent/30 p-4 sm:p-5" aria-labelledby="events-h">
+    <section className="card mb-4 p-4 sm:p-5" aria-labelledby="events-h">
       <h2 id="events-h" className="flex items-center gap-2 text-[15px] font-bold text-fg">
-        <RadioTower size={16} className="text-accent" /> Yaqin efirlar
+        <RadioTower size={16} className="text-fg-3" /> Yaqin efirlar
       </h2>
       <ul className="mt-3 grid gap-2">
-        {events.map((e) => {
-          const at = e.eventAt ?? 0;
-          const live = Date.now() >= at && Date.now() < at + 2 * 60 * 60 * 1000;
-          return (
-            <li key={e.id} className="flex flex-wrap items-center gap-3 rounded-[14px] bg-accent-soft/50 px-3.5 py-2.5">
-              <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", live ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>
-                <RadioTower size={15} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-semibold text-fg">{e.body.split("\n")[0] || "Jonli efir"}</p>
-                <p className="text-[12px] text-fg-3">
-                  {live ? "Hozir jonli efirda · " : ""}
-                  {formatDateTime(at)}
-                </p>
-              </div>
-              {e.eventUrl ? (
-                <a href={e.eventUrl} target="_blank" rel="noopener noreferrer" className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold", live ? "btn-accent" : "border border-line-2 text-fg-2 hover:text-fg")}>
-                  {live ? "Qo'shilish" : "Havola"} <ExternalLink size={13} />
-                </a>
-              ) : (
-                <span className="text-[12px] text-fg-4">Havola efir oldidan</span>
-              )}
-              <CalendarLinks title={e.body.split("\n")[0] || "Jonli efir"} at={at} url={e.eventUrl} compact />
-            </li>
-          );
-        })}
+        {events.map((e) => (
+          <EventRow key={e.id} e={e} />
+        ))}
       </ul>
     </section>
+  );
+}
+
+function EventRow({ e, past = false }: { e: PostView; past?: boolean }) {
+  const at = e.eventAt ?? 0;
+  const live = !past && Date.now() >= at && Date.now() < at + 2 * 60 * 60 * 1000;
+  const title = e.body.split("\n")[0] || "Jonli efir";
+  return (
+    <li className={cn("flex flex-wrap items-center gap-3 rounded-[14px] px-3.5 py-2.5", live ? "bg-accent-soft/60" : "bg-surface-2")}>
+      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", live ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>
+        <RadioTower size={15} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] font-semibold text-fg">{title}</p>
+        <p className="text-[12px] text-fg-3">
+          {live ? "Hozir jonli efirda · " : ""}
+          {formatDateTime(at)}
+        </p>
+      </div>
+      {past ? (
+        e.eventUrl ? (
+          <a href={e.eventUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] font-semibold text-fg-2 hover:text-fg">
+            Yozuv <ExternalLink size={13} />
+          </a>
+        ) : null
+      ) : (
+        <>
+          {e.eventUrl ? (
+            <a href={e.eventUrl} target="_blank" rel="noopener noreferrer" className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold", live ? "btn-accent" : "border border-line-2 text-fg-2 hover:text-fg")}>
+              {live ? "Qo'shilish" : "Havola"} <ExternalLink size={13} />
+            </a>
+          ) : (
+            <span className="text-[12px] text-fg-4">Havola efir oldidan</span>
+          )}
+          <CalendarLinks title={title} at={at} url={e.eventUrl} compact />
+        </>
+      )}
+    </li>
+  );
+}
+
+/** «Efirlar» bo'limi: yaqinlashayotganlar va o'tganlar */
+function EventsList({ ev }: { ev: { upcoming: PostView[]; past: PostView[] } }) {
+  if (!ev.upcoming.length && !ev.past.length) {
+    return (
+      <div className="card flex flex-col items-center gap-2 px-5 py-12 text-center" data-reveal="scale">
+        <p className="text-[15px] font-semibold text-fg">Efirlar hali e&apos;lon qilinmagan</p>
+        <p className="text-[13px] text-fg-3">Egasi lentada efir vaqti va havolasini e&apos;lon qiladi.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-4">
+      {ev.upcoming.length > 0 && (
+        <section className="card p-4 sm:p-5" aria-labelledby="up-h">
+          <h2 id="up-h" className="text-[15px] font-bold text-fg">
+            Yaqin efirlar <span className="font-semibold text-fg-3">{ev.upcoming.length}</span>
+          </h2>
+          <ul className="stagger mt-3 grid gap-2">
+            {ev.upcoming.map((e) => (
+              <EventRow key={e.id} e={e} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {ev.past.length > 0 && (
+        <section className="card p-4 sm:p-5" aria-labelledby="past-h">
+          <h2 id="past-h" className="text-[15px] font-bold text-fg">
+            O&apos;tgan efirlar <span className="font-semibold text-fg-3">{ev.past.length}</span>
+          </h2>
+          <ul className="mt-3 grid gap-2">
+            {ev.past.map((e) => (
+              <EventRow key={e.id} e={e} past />
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   );
 }

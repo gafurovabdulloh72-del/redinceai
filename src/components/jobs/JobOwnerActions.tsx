@@ -32,7 +32,7 @@ export function JobOwnerActions({
   const [error, setError] = useState<string | null>(null);
   if (status === "hired") return null;
   const h = compact ? "h-10 px-3.5 text-[13px]" : "h-11 px-4 text-[14px]";
-  const btn = cn("inline-flex items-center justify-center gap-1.5 rounded-full border border-line-2 font-semibold text-fg transition hover:border-fg disabled:opacity-60", h);
+  const btn = cn("press inline-flex items-center justify-center gap-1.5 rounded-full border border-line-2 font-semibold text-fg transition hover:border-fg disabled:opacity-60", h);
   const live = status === "open" && !expired;
 
   const run = async (action: "close" | "reopen") => {
@@ -56,7 +56,7 @@ export function JobOwnerActions({
         </Link>
         {live ? (
           ask ? (
-            <span className="inline-flex flex-wrap items-center gap-2" role="group" aria-label="E'lonni yopishni tasdiqlang">
+            <span className="expand-in inline-flex flex-wrap items-center gap-2" role="group" aria-label="E'lonni yopishni tasdiqlang">
               <button type="button" onClick={() => run("close")} disabled={busy} className={cn("inline-flex items-center gap-1.5 rounded-full bg-danger-strong font-semibold text-white transition hover:brightness-110 disabled:opacity-60", h)}>
                 {busy ? <Spinner /> : <Lock size={14} aria-hidden="true" />} Ha, yopish
               </button>

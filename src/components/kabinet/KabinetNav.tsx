@@ -162,14 +162,14 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
   return (
     <>
       {/* ---------- Desktop: yopishqoq yon panel ---------- */}
+      {/* max-h + ichki skroll: 20 ta band past ekranda (768px) kesilib, «Chiqish» yetib bo'lmay qolmasin */}
       <div className="hidden lg:sticky lg:top-28 lg:block">
-        <div className="card-elevated p-2.5">
+        <div className="card no-scrollbar max-h-[calc(100vh-8rem)] overflow-y-auto p-2.5">
           <div className="flex items-center gap-3 px-2.5 py-3">
             <Avatar name={user.name} src={user.avatarUrl} size={46} decorative />
             <div className="min-w-0">
               <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
               <p className="truncate text-[12px] text-fg-3">{user.roleLabel}</p>
-              <p className="truncate text-[11px] text-fg-4">{user.email}</p>
             </div>
           </div>
 
@@ -186,8 +186,8 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-[14px] font-semibold transition",
-                    active ? "btn-ink" : "text-fg-2 hover:bg-fg/5 hover:text-fg active:scale-[0.99]",
+                    "press flex min-h-11 items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-[14px] font-semibold transition",
+                    active ? "btn-ink" : "text-fg-2 hover:bg-fg/5 hover:text-fg",
                   )}
                 >
                   <Icon size={18} className={active ? undefined : "text-fg-3"} />
@@ -223,7 +223,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
 
       {/* ---------- Mobil / planshet: sarlavha + gorizontal pill'lar ---------- */}
       <div className="min-w-0 lg:hidden">
-        <div className="card-elevated flex items-center gap-3 py-2.5 pl-3 pr-2">
+        <div className="card flex items-center gap-3 py-2.5 pl-3 pr-2">
           <Avatar name={user.name} src={user.avatarUrl} size={40} decorative />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold leading-tight text-fg">{user.name}</p>

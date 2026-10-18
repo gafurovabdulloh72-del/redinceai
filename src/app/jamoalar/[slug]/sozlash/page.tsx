@@ -36,13 +36,9 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
         <span className="text-fg-2">Sozlash</span>
       </nav>
       <PageHeader
-        eyebrow="Jamoa sozlamalari"
+        eyebrow="Sozlash"
         title={view.name}
-        description={
-          view.pendingCount > 0
-            ? `${view.pendingCount} ta qo'shilish so'rovi kutmoqda — "A'zolar" bo'limida tasdiqlang yoki rad eting.`
-            : "Nom, tavsif, yo'nalish va muqovani o'zgartiring. Yopiq rejimda yangi a'zolar faqat tasdiq bilan qo'shiladi."
-        }
+        description={view.pendingCount > 0 ? `${view.pendingCount} ta so'rov kutmoqda.` : "Nom, tavsif, qoidalar, muqova va kirish rejimi."}
         action={
           <ButtonLink href={`/jamoalar/${view.slug}?tab=azolar`} variant="outline" size="md">
             {view.pendingCount > 0 ? `${view.pendingCount} ta so'rov` : "A'zolar"}
@@ -61,23 +57,22 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
             category: view.category,
             region: view.region,
             coverUrl: view.coverUrl,
+            coverPosition: view.coverPosition,
             isPrivate: view.isPrivate,
             kind: view.kind,
             isOfficial: view.isOfficial,
+            rules: view.rules,
+            welcomeText: view.welcomeText,
           }}
         />
       </div>
       <section className="card mt-6 max-w-2xl p-5 sm:p-6" aria-labelledby="invite-h" data-reveal>
         <h2 id="invite-h" className="flex items-center gap-2 font-display text-[17px] font-semibold text-fg">
-          <Link2 size={17} className="text-accent" /> Taklif havolasi
+          <Link2 size={17} className="text-fg-3" /> Taklif havolasi
         </h2>
-        <p className="mt-1 text-[13.5px] leading-relaxed text-fg-2">
-          {view.isPrivate
-            ? "Havolani Telegram yoki Instagram'da ulashing — yopiq jamoaga havola orqali kelganlar tasdiqsiz, darhol a'zo bo'ladi. Havola tarqalib ketsa, «yangilash» bilan eskisini bekor qiling."
-            : "Havolani Telegram yoki Instagram'da ulashing — do'stlaringiz bir bosishda qo'shiladi. Havola tarqalib ketsa, «yangilash» bilan eskisini bekor qiling."}
-        </p>
+        <p className="mt-1 text-[13.5px] leading-relaxed text-fg-2">{view.isPrivate ? "Havola orqali kelganlar tasdiqsiz a'zo bo'ladi. Tarqalib ketsa — yangilang." : "Do'stlaringiz bir bosishda qo'shiladi. Tarqalib ketsa — yangilang."}</p>
         <div className="mt-4">
-          <InviteLink slug={view.slug} initialCode={view.inviteCode} />
+          <InviteLink slug={view.slug} initialCode={view.inviteCode} initialInfo={view.invite} options />
         </div>
       </section>
     </div>

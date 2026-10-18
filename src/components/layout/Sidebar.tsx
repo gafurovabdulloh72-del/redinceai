@@ -11,10 +11,11 @@ import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
+import { AppearancePanel } from "./Appearance";
 import { CreateMenu } from "./CreateMenu";
 import { Logo } from "./Logo";
+import { routeActive } from "./nav-utils";
 import type { NavUser } from "./NavbarClient";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface Item {
   href: string;
@@ -27,9 +28,10 @@ interface Item {
 }
 
 /**
- * Chap yon panel (ijtimoiy tarmoq qobig'i, md+): md'da faqat ikonkalar (76px), xl'da yorliqlar bilan (244px).
+ * Chap yon panel (ijtimoiy tarmoq qobig'i, md+): md'da faqat ikonkalar (76px, tooltip o'ngda), xl'da yorliqlar bilan (244px).
  * Asosiy: Bosh sahifa, Qidiruv, Lenta, Jamoalar, Xabarlar, Bildirishnomalar, Yaratish; ikkilamchi: Ijodkorlar, Xarita, Vakansiyalar, Ishlar.
- * Pastda: profil va "Yana" menyusi (kabinet, narxlar, yordam, haqida, til, tema, chiqish). Telefonda NavbarClient (yuqori panel + tab-bar) ishlaydi.
+ * Pastda: profil va «Yana» menyusi (kabinet, saqlanganlar, narxlar, yordam, haqida, til, ko'rinish paneli, chiqish).
+ * Telefonda NavbarClient (yuqori panel + tab-bar) ishlaydi. `c` qisqartmasi (open-create) md+ da shu yerda qabul qilinadi.
  */
 export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { user: NavUser | null; unread?: number; dmUnread?: number; groupsUnread?: number }) {
   const til = useLocale();
@@ -57,8 +59,15 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
       window.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
+  // Klaviatura qisqartmasi `c` — faqat yon panel ko'rinadigan kenglikda (telefonda NavbarClient ochadi)
+  useEffect(() => {
+    const on = () => {
+      if (window.matchMedia("(min-width: 768px)").matches) setCreateOpen(true);
+    };
+    window.addEventListener("open-create", on);
+    return () => window.removeEventListener("open-create", on);
+  }, []);
 
-  const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
   const login = (next: string) => `/auth/kirish?next=${encodeURIComponent(next)}`;
 
   const primary: Item[] = [
@@ -75,6 +84,10 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/vakansiyalar", label: SHELL.nav.vacancies, icon: Briefcase },
     { href: "/ishlar", label: SHELL.nav.jobs, icon: BriefcaseBusiness },
   ];
+  // Profil (/kabinet) faqat boshqa band faol bo'lmaganda faol — /kabinet/chat'da ikkita aria-current bo'lmasin
+  const profileHref = user?.specialistSlug ? `/mutaxassislar/${user.specialistSlug}` : "/kabinet";
+  const anyPrimaryActive = [...primary, ...secondary].some((it) => routeActive(pathname, it.href, it.exact));
+  const profileActive = !anyPrimaryActive && routeActive(pathname, profileHref);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -82,19 +95,21 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     router.refresh();
   };
 
-  const row = "group/side relative flex h-12 items-center gap-4 rounded-[14px] px-3 text-[15px] text-fg transition-colors duration-200 hover:bg-fg/5 md:justify-center xl:justify-start";
+  const row = "group/side relative flex h-12 items-center gap-4 rounded-tile px-3 text-[15px] text-fg transition-colors duration-200 hover:bg-fg/[0.04] md:justify-center xl:justify-start";
   const label = "hidden truncate xl:block";
 
   const renderItem = (it: Item) => {
-    const active = isActive(it.href, it.exact);
+    const active = routeActive(pathname, it.href, it.exact);
     const href = it.authOnly && !user ? login(it.href) : it.href;
     return (
       <li key={it.href}>
-        <Link href={href} aria-current={active ? "page" : undefined} title={tr(til, it.label)} className={cn(row, active && "font-bold")}>
+        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, active && "font-bold")}>
           <span className="relative shrink-0">
-            <it.icon size={24} strokeWidth={active ? 2.5 : 1.9} className="transition-transform duration-200 group-hover/side:scale-105" />
+            <it.icon size={24} strokeWidth={active ? 2.5 : 1.9} />
             {it.badge ? (
-              <span className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] animate-badge-pop items-center justify-center rounded-full bg-accent px-1 text-[10.5px] font-bold leading-none text-white">{it.badge > 99 ? "99+" : it.badge}</span>
+              <span key={it.badge} className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] animate-badge-pop items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-white">
+                {it.badge > 99 ? "99+" : it.badge}
+              </span>
             ) : it.dot ? (
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pop rounded-full bg-accent ring-2 ring-surface" aria-hidden />
             ) : null}
@@ -107,20 +122,17 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
   return (
     <>
-      <aside
-        className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[76px] flex-col border-r border-line bg-surface px-2.5 py-4 md:flex xl:w-[244px] xl:px-3.5"
-        aria-label={tr(til, SHELL.nav.mainAria)}
-      >
+      <aside className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[76px] flex-col border-r border-line bg-surface px-2.5 py-4 md:flex xl:w-[244px] xl:px-3.5" aria-label={tr(til, SHELL.nav.mainAria)} data-print-hide>
         <div className="flex h-12 items-center px-2 md:justify-center xl:justify-start">
           <Logo className="md:[&>span:last-child]:hidden xl:[&>span:last-child]:inline" />
         </div>
 
-        <nav className="mt-4 flex min-h-0 flex-1 flex-col">
+        <nav className="mt-4 flex min-h-0 flex-1 flex-col" aria-label={tr(til, SHELL.nav.mainAria)}>
           <ul className="space-y-0.5">
             {primary.map(renderItem)}
             <li>
-              <button type="button" onClick={() => setCreateOpen(true)} className={cn(row, "w-full")} title={tr(til, SHELL.nav.create)} aria-haspopup="dialog" aria-expanded={createOpen}>
-                <PlusSquare size={24} strokeWidth={1.9} className="shrink-0 transition-transform duration-200 group-hover/side:scale-105" />
+              <button type="button" onClick={() => setCreateOpen(true)} className={cn(row, "w-full")} data-tip={tr(til, SHELL.nav.create)} data-tip-pos="right" aria-haspopup="dialog" aria-expanded={createOpen}>
+                <PlusSquare size={24} strokeWidth={1.9} className="shrink-0" />
                 <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.create)}</span>
               </button>
             </li>
@@ -131,23 +143,17 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
         <div className="mt-auto space-y-0.5">
           {user ? (
-            <Link
-              href={user.specialistSlug ? `/mutaxassislar/${user.specialistSlug}` : "/kabinet"}
-              className={cn(row, (user.specialistSlug ? isActive(`/mutaxassislar/${user.specialistSlug}`) : isActive("/kabinet")) && "font-bold")}
-              title={tr(til, SHELL.nav.profile)}
-            >
-              <span className="shrink-0 rounded-full ring-2 ring-transparent transition group-hover/side:ring-line-2">
-                <Avatar name={user.name} src={user.avatarUrl} size={26} decorative />
-              </span>
+            <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "font-bold")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
+              <Avatar name={user.name} src={user.avatarUrl} size={26} decorative />
               <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.profile)}</span>
             </Link>
           ) : (
             <>
-              <Link href="/auth/royxat" className={cn(row, "btn-ink justify-center !text-ink-fg xl:!justify-center")} title={tr(til, SHELL.nav.start)}>
+              <Link href="/auth/royxat" className={cn(row, "btn-ink justify-center !text-ink-fg xl:!justify-center")} data-tip={tr(til, SHELL.nav.start)} data-tip-pos="right">
                 <UserRound size={22} className="xl:hidden" />
                 <span className="hidden text-[14px] font-semibold xl:block">{tr(til, SHELL.nav.start)}</span>
               </Link>
-              <Link href="/auth/kirish" className={cn(row, "justify-center text-fg-2 xl:!justify-center")} title={tr(til, SHELL.nav.login)}>
+              <Link href="/auth/kirish" className={cn(row, "justify-center text-fg-2 xl:!justify-center")} data-tip={tr(til, SHELL.nav.login)} data-tip-pos="right">
                 <Compass size={22} className="xl:hidden" />
                 <span className="hidden text-[14px] font-semibold xl:block">{tr(til, SHELL.nav.login)}</span>
               </Link>
@@ -155,21 +161,29 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
           )}
 
           <div className="relative" ref={moreRef}>
-            <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn(row, "w-full")} title={tr(til, SHELL.nav.more)} aria-haspopup="menu" aria-expanded={moreOpen}>
+            <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn(row, "w-full")} data-tip={tr(til, SHELL.nav.more)} data-tip-pos="right" aria-haspopup="menu" aria-expanded={moreOpen}>
               <Menu size={24} strokeWidth={1.9} className="shrink-0" />
               <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.more)}</span>
             </button>
             {more.mounted && (
-              <div role="menu" aria-label={tr(til, SHELL.nav.more)} className={cn("card-floating absolute bottom-[calc(100%+8px)] left-0 w-64 overflow-hidden p-1.5", more.closing ? "animate-modal-out" : "animate-modal-in")}>
+              <div
+                role="menu"
+                aria-label={tr(til, SHELL.nav.more)}
+                style={{ ["--pop-origin" as string]: "bottom left" }}
+                className={cn("card-floating absolute bottom-[calc(100%+8px)] left-0 w-72 overflow-hidden p-1.5", more.closing ? "pop-out" : "pop-in")}
+              >
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />
                 <div className="my-1 h-px bg-line" />
-                <div className="flex items-center justify-between gap-2 px-3 py-2">
-                  <LocaleSwitch />
-                  <ThemeToggle />
+                <div className="px-3 py-2.5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-3">{tr(til, SHELL.appearance.title)}</span>
+                    <LocaleSwitch className="!h-8 !w-8 text-[11px]" />
+                  </div>
+                  <AppearancePanel />
                 </div>
                 {user && (
                   <>

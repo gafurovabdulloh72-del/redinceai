@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
 import { DEFAULT_VISIBILITY, VISIBILITY_FIELDS, VISIBILITY_LEVELS, type VisibilityFieldKey, type VisibilityLevelValue } from "@/lib/constants";
 import { FORCED_ORDER_FIELDS, canView, type Viewer } from "@/lib/privacy";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ export function PrivacySettings({
   const [saved, setSaved] = useState(false);
 
   const dirty = useMemo(() => VISIBILITY_FIELDS.some((f) => v[f.key] !== initial[f.key]), [v, initial]);
+  useUnsavedGuard(dirty && !busy);
   const isDefault = VISIBILITY_FIELDS.every((f) => v[f.key] === DEFAULT_VISIBILITY[f.key]);
 
   useEffect(() => {
@@ -127,17 +129,16 @@ export function PrivacySettings({
   };
 
   return (
-    <form onSubmit={submit} id="maxfiylik" className="card scroll-mt-28 p-5 sm:p-7" noValidate>
+    <form onSubmit={submit} id="maxfiylik" className="card scroll-mt-28 p-5 sm:p-6" noValidate aria-busy={busy}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="btn-ink flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]">
-            <ShieldCheck size={20} />
+          <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+            <ShieldCheck size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">Maxfiylik</h2>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Maxfiylik</h2>
             <p className="mt-0.5 text-[13px] text-fg-3">
-              Har bir shaxsiy maydon kimga ko'rinishini o'zingiz hal qilasiz. Aloqa ma'lumotlari (telefon, Telegram, Instagram, email) platforma qoidasiga ko'ra faqat
-              buyurtma qabul qilingach ochiladi. Siz va admin hamma narsani ko'rasiz.
+              Har bir maydon kimga ko'rinishini tanlang. Aloqa ma'lumotlari qoida bo'yicha faqat buyurtma qabul qilingach ochiladi.
             </p>
           </div>
         </div>
@@ -157,7 +158,7 @@ export function PrivacySettings({
           const Icon = LEVEL_ICON[l.value];
           return (
             <li key={l.value} className="card-outline flex items-start gap-2 !rounded-[16px] p-3">
-              <Icon size={15} className="mt-0.5 shrink-0 text-accent" />
+              <Icon size={15} className="mt-0.5 shrink-0 text-fg-3" />
               <div className="min-w-0">
                 <p className="text-[12px] font-semibold text-fg">{LEVEL_SHORT[l.value]}</p>
                 <p className="mt-0.5 text-[11px] leading-snug text-fg-3">{l.description}</p>
@@ -224,7 +225,7 @@ export function PrivacySettings({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
-              <Eye size={15} className="text-accent" /> Profilingiz boshqalarga shunday ko'rinadi
+              <Eye size={15} className="text-fg-3" /> Profilingiz boshqalarga shunday ko'rinadi
             </p>
             <p className="mt-0.5 text-[12px] text-fg-3">
               {hiddenNow === 0 ? "Tanlangan ko'ruvchi hamma maydonni ko'radi." : `${hiddenNow} ta maydon bu ko'ruvchidan yashirin.`}
@@ -261,9 +262,11 @@ export function PrivacySettings({
             const Icon = FIELD_ICON[r.key];
             return (
               <li key={r.key} className={cn("flex items-center gap-2 rounded-[12px] px-3 py-2 text-[13px]", r.visible ? "bg-surface text-fg" : "bg-surface-3/70 text-fg-3")}>
-                <Icon size={14} className={r.visible ? "text-accent" : "text-fg-4"} />
+                <Icon size={14} className={r.visible ? "text-fg-2" : "text-fg-4"} />
                 <span className="flex-1 truncate">{r.label}</span>
-                {r.visible ? <Eye size={14} className="text-[#15803d] dark:text-ios-green" aria-label="ko'rinadi" /> : <Lock size={13} aria-label="yopiq" />}
+                {/* lucide ikonkasi aria-hidden — holat matni sr-only bilan */}
+                {r.visible ? <Eye size={14} className="text-success-text" /> : <Lock size={13} />}
+                <span className="sr-only">{r.visible ? "ko'rinadi" : "yopiq"}</span>
               </li>
             );
           })}
@@ -271,7 +274,7 @@ export function PrivacySettings({
       </div>
 
       {error && (
-        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-ios-red/12 px-3.5 py-2 text-[13px] font-medium text-ios-red">
+        <div role="alert" className="mt-5 inline-flex items-center gap-2 rounded-full bg-danger-soft px-3.5 py-2 text-[13px] font-medium text-danger-text">
           <AlertCircle size={15} /> {error}
         </div>
       )}
@@ -279,7 +282,7 @@ export function PrivacySettings({
       <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 text-[13px]" aria-live="polite">
           {saved ? (
-            <span className="inline-flex items-center gap-1.5 font-semibold text-[#15803d] dark:text-ios-green">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
               <CheckCircle2 size={15} /> Saqlandi
             </span>
           ) : dirty ? (

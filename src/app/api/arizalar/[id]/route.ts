@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
-import { assertVacancyOwner, loadApplication, loadVacancy, setApplicationStatus, withdrawApplication } from "@/lib/vacancies/service";
-import { applicationStatusSchema } from "@/lib/vacancies/validators";
+import { assertVacancyOwner, loadApplication, loadVacancy, setApplicationNote, setApplicationStatus, withdrawApplication } from "@/lib/vacancies/service";
+import { applicationPatchSchema } from "@/lib/vacancies/validators";
 import { audit } from "@/lib/security/audit";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -13,19 +13,26 @@ async function load(id: string) {
   return { app, v };
 }
 
-/** PATCH: holat (ko'rildi / tanlovda / rad / ishga olindi) — vakansiya egasi; nomzodga bildirishnoma */
+/**
+ * PATCH: { status } — holat (ko'rildi / tanlovda / rad / ishga olindi; nomzodga bildirishnoma) va/yoki
+ * { note } — ish beruvchining shaxsiy eslatmasi (nomzodga ko'rinmaydi). Faqat vakansiya egasi.
+ */
 export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
-  const { status } = await parseBody(req, applicationStatusSchema);
+  const { status, note } = await parseBody(req, applicationPatchSchema);
   const { app, v } = await load(id);
   assertVacancyOwner(v, { id: session.sub, role: session.role });
-  const row = await setApplicationStatus(app, v, status);
-  await audit(session.sub, "application_status", { targetType: "application", targetId: app.id, meta: { status } }, req);
-  return ok({ id: row.id, status: row.status });
+  let row = app;
+  if (note !== undefined) row = await setApplicationNote(row, note);
+  if (status) {
+    row = await setApplicationStatus(row, v, status);
+    await audit(session.sub, "application_status", { targetType: "application", targetId: app.id, meta: { status } }, req);
+  }
+  return ok({ id: row.id, status: row.status, viewedAt: row.viewedAt?.getTime() ?? null, employerNote: row.employerNote });
 });
 
-/** DELETE: arizani qaytarib olish — nomzodning o'zi (yoki admin) */
+/** DELETE: arizani qaytarib olish — nomzodning o'zi (yoki admin), faqat yangi/ko'rilgan holatda */
 export const DELETE = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;

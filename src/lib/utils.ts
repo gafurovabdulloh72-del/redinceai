@@ -266,6 +266,7 @@ export function uid() {
 export function compactCount(n: number): string {
   if (!Number.isFinite(n) || n < 1000) return String(Math.max(0, Math.round(n || 0)));
   if (n < 10_000) return `${(n / 1000).toFixed(1).replace(".", ",").replace(",0", "")}K`;
-  if (n < 1_000_000) return `${Math.round(n / 1000)}K`;
+  // 999 500+ → "1M" ("1000K" emas)
+  if (n < 999_500) return `${Math.round(n / 1000)}K`;
   return `${(n / 1_000_000).toFixed(1).replace(".", ",").replace(",0", "")}M`;
 }

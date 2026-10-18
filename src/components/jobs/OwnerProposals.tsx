@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertCircle, ArrowRight, Award, CalendarClock, Check, ChevronDown, Inbox, Lock, MapPin, Phone, Star, X } from "lucide-react";
+import { AlertCircle, ArrowRight, Award, CalendarClock, Check, ChevronDown, Inbox, Lock, MapPin, Phone, Star, Table2, X } from "lucide-react";
 import { Avatar, Badge, ButtonLink, Spinner, Stars, VerifiedBadge } from "@/components/ui";
 import { CATEGORY_BY_SLUG, PROPOSAL_STATUS_LABEL, REGION_BY_SLUG } from "@/lib/constants";
 import { PROPOSAL_STATUS_TONE } from "@/lib/jobs/format";
@@ -19,6 +19,7 @@ type Tab = "all" | "shortlisted" | "declined";
  */
 export function OwnerProposals({ proposals, jobOpen, defaultPhone }: { proposals: OwnerProposal[]; jobOpen: boolean; defaultPhone: string }) {
   const [tab, setTab] = useState<Tab>("all");
+  const [compare, setCompare] = useState(false);
   const counts = {
     all: proposals.length,
     shortlisted: proposals.filter((p) => p.status === "shortlisted").length,
@@ -41,15 +42,24 @@ export function OwnerProposals({ proposals, jobOpen, defaultPhone }: { proposals
           <p className="mt-0.5 text-[13.5px] text-fg-3">Solishtiring, mosini saralang va qabul qiling — buyurtma avtomatik yaratiladi.</p>
         </div>
         {proposals.length > 0 && (
-          <div className="segment max-w-full overflow-x-auto no-scrollbar" role="tablist" aria-label="Takliflar filtri">
-            {tabs.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-active={tab === t.key} onClick={() => setTab(t.key)} className="segment-item min-h-10">
-                {t.label} <span className="tabular-nums opacity-70">{t.key === "all" ? counts.all - counts.declined : counts[t.key]}</span>
+          <div className="flex max-w-full flex-wrap items-center gap-2">
+            <div className="segment max-w-full overflow-x-auto no-scrollbar" role="tablist" aria-label="Takliflar filtri">
+              {tabs.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-active={tab === t.key} onClick={() => setTab(t.key)} className="segment-item min-h-10">
+                  {t.label} <span className="tabular-nums opacity-70">{t.key === "all" ? counts.all - counts.declined : counts[t.key]}</span>
+                </button>
+              ))}
+            </div>
+            {list.length > 1 && (
+              <button type="button" onClick={() => setCompare((v) => !v)} aria-pressed={compare} className={cn("press inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition", compare ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg")}>
+                <Table2 size={14} aria-hidden="true" /> Solishtirish
               </button>
-            ))}
+            )}
           </div>
         )}
       </div>
+
+      {compare && list.length > 1 && <CompareTable list={list} />}
 
       {list.length === 0 ? (
         <div className="card-outline mt-4 flex flex-col items-center px-6 py-10 text-center">
@@ -211,7 +221,7 @@ function ProposalItem({ p, jobOpen, defaultPhone }: { p: OwnerProposal; jobOpen:
       )}
 
       {actionable && confirming && (
-        <div className="mt-3 rounded-[var(--r-sm)] border border-line bg-surface-2 p-4" role="group" aria-label="Taklifni qabul qilishni tasdiqlang">
+        <div className="expand-in mt-3 rounded-[var(--r-sm)] border border-line bg-surface-2 p-4" role="group" aria-label="Taklifni qabul qilishni tasdiqlang">
           <p className="text-[14px] font-semibold text-fg">
             {sp.user.name} bilan {formatPrice(p.amount)} ga, {p.deliveryDays} kunlik buyurtma yaratiladi
           </p>
@@ -253,5 +263,60 @@ function ProposalItem({ p, jobOpen, defaultPhone }: { p: OwnerProposal; jobOpen:
         </p>
       )}
     </article>
+  );
+}
+
+/** Solishtirish jadvali: narx bo'yicha o'sish tartibida; eng arzon va eng tez belgilanadi. Tor ekranda jadval o'z ichida aylanadi. */
+function CompareTable({ list }: { list: OwnerProposal[] }) {
+  const rows = [...list].sort((a, b) => a.amount - b.amount);
+  const minAmount = Math.min(...rows.map((p) => p.amount));
+  const minDays = Math.min(...rows.map((p) => p.deliveryDays));
+  return (
+    <div className="expand-in card mt-4 overflow-x-auto">
+      <table className="w-full min-w-[560px] text-left text-[13px]">
+        <caption className="sr-only">Takliflarni solishtirish</caption>
+        <thead className="border-b border-line text-[11px] font-bold uppercase tracking-[0.1em] text-fg-3">
+          <tr>
+            <th scope="col" className="px-4 py-2.5">
+              Mutaxassis
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Narx
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Muddat
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Reyting
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Ishlar
+            </th>
+            <th scope="col" className="px-4 py-2.5">
+              Holat
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {rows.map((p) => (
+            <tr key={p.id}>
+              <th scope="row" className="px-4 py-2.5 font-semibold text-fg">
+                <Link href={`/mutaxassislar/${p.specialist.slug}`} className="inline-flex items-center gap-2 hover:underline">
+                  <Avatar name={p.specialist.user.name} src={p.specialist.user.avatarUrl} size={24} decorative />
+                  <span className="max-w-[180px] truncate">{p.specialist.user.name}</span>
+                </Link>
+              </th>
+              <td className={cn("whitespace-nowrap px-3 py-2.5 tabular-nums", p.amount === minAmount ? "font-semibold text-success-text" : "text-fg")}>{formatPrice(p.amount)}</td>
+              <td className={cn("whitespace-nowrap px-3 py-2.5 tabular-nums", p.deliveryDays === minDays ? "font-semibold text-success-text" : "text-fg")}>{p.deliveryDays} kun</td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-fg-2">{p.specialist.reviewCount > 0 ? `${p.specialist.rating.toFixed(1)} (${p.specialist.reviewCount})` : "—"}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-fg-2">{p.specialist.completedCount}</td>
+              <td className="px-4 py-2.5">
+                <Badge tone={PROPOSAL_STATUS_TONE[p.status]}>{PROPOSAL_STATUS_LABEL[p.status]}</Badge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

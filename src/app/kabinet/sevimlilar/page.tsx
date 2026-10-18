@@ -23,16 +23,12 @@ export default async function FavoritesPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <Heart size={13} className="text-accent" /> Kabinet
+          <Heart size={13} /> Kabinet
         </span>
-        <h1 className="display-xl mt-5 text-[32px] text-fg sm:text-[40px]">
-          Sevimli <span className="accent-serif text-accent">mutaxassislar</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Sevimli <span className="accent-serif">mutaxassislar</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
-          {items.length > 0
-            ? `${items.length} ta saqlangan profil. Yurakni qayta bosib ro'yxatdan olib tashlashingiz mumkin.`
-            : "Yoqqan mutaxassislarni yurak belgisi bilan saqlang — keyin shu yerdan tez topasiz."}
-        </p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{items.length > 0 ? `${items.length} ta saqlangan profil. Yurakni qayta bossangiz ro'yxatdan chiqadi.` : "Yoqqan mutaxassislarni yurak bilan saqlang."}</p>
       </header>
 
       {items.length > 0 ? (

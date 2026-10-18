@@ -61,8 +61,21 @@ export interface GroupView {
   canPost: boolean;
   /** Taklif kodi — faqat boshqaruvchilarga qaytadi */
   inviteCode: string | null;
-  /** Ko'ruvchi bildirishnomalarni o'chirganmi */
+  /** Taklif havolasi muddati/limiti/ishlatilgani — faqat boshqaruvchilarga */
+  invite: { expiresAt: number | null; maxUses: number | null; uses: number } | null;
+  /** Ko'ruvchi bildirishnomalarni o'chirganmi (doimiy yoki `mutedUntil`gacha) */
   muted: boolean;
+  mutedUntil: number | null;
+  /** Efir eslatmalari yoqilganmi (a'zo sozlamasi) */
+  eventReminders: boolean;
+  /** Jamoa qoidalari (markdown-lite) — hammaga */
+  rules: string | null;
+  /** Xush kelibsiz matni — faqat boshqaruvchilarga */
+  welcomeText: string | null;
+  /** Muqova vertikal joylashuvi (0–100), null = markaz */
+  coverPosition: number | null;
+  /** Chatda qadalgan xabar id'si */
+  pinnedMessageId: string | null;
 }
 
 export interface PostView {
@@ -112,9 +125,18 @@ export interface GroupMessageView {
   sender: UserBrief;
   /** Javob berilgan xabar (iqtibos); o'chirilgan bo'lsa "Xabar o'chirilgan" */
   replyTo: QuoteView | null;
+  /** Soft delete: matn/fayllar bo'sh, o'rnida «Xabar o'chirilgan» */
+  deleted: boolean;
+  edited: boolean;
+  /** Ko'ruvchi o'chira oladimi (o'ziniki yoki moderator) / tahrirlay oladimi (o'ziniki, 24 soat) */
+  canDelete: boolean;
+  canEdit: boolean;
 }
 
 type Viewer = { id: string; role: string } | null;
+
+/** O'z xabarini tahrirlash oynasi */
+export const MESSAGE_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
@@ -182,15 +204,16 @@ function canViewWith(group: Pick<Group, "isPrivate">, m: GroupMember | null, vie
 }
 
 async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
-  const [m, owner, pending] = await Promise.all([
-    getMembership(group.id, viewer?.id),
-    briefUsers([group.ownerId]),
-    db
-      .select({ n: sql<number>`count(*)` })
-      .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "pending"))),
-  ]);
+  const [m, owner] = await Promise.all([getMembership(group.id, viewer?.id), briefUsers([group.ownerId])]);
   const canManage = canManageWith(m, viewer);
+  // Kutayotgan so'rovlar soni faqat boshqaruvchiga kerak — boshqalarga so'rov bajarilmaydi
+  const pending = canManage
+    ? await db
+        .select({ n: sql<number>`count(*)` })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "pending")))
+    : [];
+  const mutedUntil = m?.mutedUntil && m.mutedUntil.getTime() > Date.now() ? m.mutedUntil.getTime() : null;
   return {
     id: group.id,
     slug: group.slug,
@@ -213,7 +236,14 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
     canView: canViewWith(group, m, viewer),
     canPost: canPostWith(group, m, viewer),
     inviteCode: canManage ? (group.inviteCode ?? null) : null,
-    muted: Boolean(m?.muted),
+    invite: canManage ? { expiresAt: group.inviteExpiresAt?.getTime() ?? null, maxUses: group.inviteMaxUses ?? null, uses: group.inviteUses ?? 0 } : null,
+    muted: Boolean(m?.muted) || mutedUntil !== null,
+    mutedUntil,
+    eventReminders: m?.eventReminders !== false,
+    rules: group.rules?.trim() ? group.rules : null,
+    welcomeText: canManage ? (group.welcomeText ?? null) : null,
+    coverPosition: group.coverPosition ?? null,
+    pinnedMessageId: group.pinnedMessageId ?? null,
   };
 }
 
@@ -314,8 +344,114 @@ export async function listGroups(
     createdAt: g.createdAt.getTime(),
     owner: owners.get(g.ownerId) ?? { id: g.ownerId, ...UNKNOWN },
     membership: membershipState(byGroup.get(g.id) ?? null),
+    coverPosition: g.coverPosition ?? null,
     hasUnread: hasUnreadFor(g, byGroup.get(g.id) ?? null),
   }));
+}
+
+/** Yo'nalish bo'yicha ochiq (rasmiy bo'lmagan) jamoalar soni — katalog chiplaridagi raqamlar */
+export async function categoryCounts(): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ category: groups.category, n: sql<number>`count(*)` })
+    .from(groups)
+    .where(eq(groups.isOfficial, false))
+    .groupBy(groups.category);
+  const out: Record<string, number> = {};
+  for (const r of rows) if (r.category) out[r.category] = Number(r.n);
+  return out;
+}
+
+/** O'xshash jamoalar: avval shu yo'nalish, keyin shu hudud (o'zi chiqarilgan), faollik bo'yicha */
+export async function similarGroups(group: Group, viewer: Viewer, limit = 4): Promise<GroupListItem[]> {
+  const conds = [sql`${groups.id} != ${group.id}`, eq(groups.isOfficial, false)];
+  const match = group.category && group.region ? or(eq(groups.category, group.category), eq(groups.region, group.region)) : group.category ? eq(groups.category, group.category) : group.region ? eq(groups.region, group.region) : undefined;
+  if (match) conds.push(match);
+  const rows = await db.query.groups.findMany({
+    where: and(...conds),
+    orderBy: [desc(sql`${groups.category} = ${group.category ?? ""}`), desc(groups.lastActivityAt)],
+    limit,
+  });
+  if (!rows.length) return [];
+  const [owners, memberships] = await Promise.all([
+    briefUsers(rows.map((g) => g.ownerId)),
+    viewer ? db.query.groupMembers.findMany({ where: and(eq(groupMembers.userId, viewer.id), inArray(groupMembers.groupId, rows.map((g) => g.id))) }) : Promise.resolve([] as GroupMember[]),
+  ]);
+  const byGroup = new Map(memberships.map((m) => [m.groupId, m]));
+  return rows.map((g) => ({
+    id: g.id,
+    slug: g.slug,
+    name: g.name,
+    description: g.description,
+    category: g.category,
+    region: g.region,
+    coverUrl: g.coverUrl,
+    isPrivate: g.isPrivate,
+    kind: g.kind,
+    isOfficial: g.isOfficial,
+    membersCount: g.membersCount,
+    postsCount: g.postsCount,
+    lastActivityAt: g.lastActivityAt?.getTime() ?? null,
+    createdAt: g.createdAt.getTime(),
+    owner: owners.get(g.ownerId) ?? { id: g.ownerId, ...UNKNOWN },
+    membership: membershipState(byGroup.get(g.id) ?? null),
+    coverPosition: g.coverPosition ?? null,
+    hasUnread: false,
+  }));
+}
+
+export interface GroupStats {
+  /** So'nggi 7 kunda: postlar, chat xabarlari, yangi a'zolar, faol (post/xabar yozgan) a'zolar */
+  postsWeek: number;
+  messagesWeek: number;
+  joinedWeek: number;
+  activeWeek: number;
+}
+
+export async function groupStats(groupId: string): Promise<GroupStats> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [p, m, j, a1, a2] = await Promise.all([
+    db.select({ n: sql<number>`count(*)` }).from(posts).where(and(eq(posts.groupId, groupId), gt(posts.createdAt, since))),
+    db.select({ n: sql<number>`count(*)` }).from(groupMessages).where(and(eq(groupMessages.groupId, groupId), gt(groupMessages.createdAt, since), isNull(groupMessages.deletedAt))),
+    db.select({ n: sql<number>`count(*)` }).from(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"), gt(groupMembers.createdAt, since))),
+    db.selectDistinct({ id: posts.authorId }).from(posts).where(and(eq(posts.groupId, groupId), gt(posts.createdAt, since))),
+    db.selectDistinct({ id: groupMessages.senderId }).from(groupMessages).where(and(eq(groupMessages.groupId, groupId), gt(groupMessages.createdAt, since))),
+  ]);
+  return { postsWeek: Number(p[0]?.n ?? 0), messagesWeek: Number(m[0]?.n ?? 0), joinedWeek: Number(j[0]?.n ?? 0), activeWeek: new Set([...a1.map((r) => r.id), ...a2.map((r) => r.id)]).size };
+}
+
+export interface MediaItem {
+  postId: string;
+  url: string;
+  type: string;
+  name: string;
+  createdAt: number;
+}
+
+/** Jamoa postlaridagi rasm/videolar (yangi → eski) — «Media» bo'limi */
+export async function listGroupMedia(group: Group, limit = 60): Promise<MediaItem[]> {
+  const rows = await db.query.posts.findMany({ where: and(eq(posts.groupId, group.id), sql`json_array_length(${posts.media}) > 0`), orderBy: [desc(posts.createdAt)], limit: 200, columns: { id: true, media: true, createdAt: true } });
+  const out: MediaItem[] = [];
+  for (const p of rows) {
+    for (const a of p.media) {
+      if (!a.type.startsWith("image/") && !a.type.startsWith("video/")) continue;
+      out.push({ postId: p.id, url: a.url, type: a.type, name: a.name, createdAt: p.createdAt.getTime() });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/** Efirlar: yaqinlashayotganlar (eng yaqini birinchi) va o'tganlar (eng yaqin o'tgani birinchi) */
+export async function listEvents(group: Group, viewer: Viewer, limit = 20): Promise<{ upcoming: PostView[]; past: PostView[] }> {
+  const m = await getMembership(group.id, viewer?.id);
+  const manager = canManageWith(m, viewer);
+  const edge = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const [up, past] = await Promise.all([
+    db.query.posts.findMany({ where: and(eq(posts.groupId, group.id), gt(posts.eventAt, edge)), orderBy: [asc(posts.eventAt)], limit }),
+    db.query.posts.findMany({ where: and(eq(posts.groupId, group.id), isNotNull(posts.eventAt), lt(posts.eventAt, edge)), orderBy: [desc(posts.eventAt)], limit }),
+  ]);
+  const [a, b] = await Promise.all([toPostViews(up, viewer, manager), toPostViews(past, viewer, manager)]);
+  return { upcoming: a, past: b };
 }
 
 /** A'zo oxirgi ko'rganidan keyin faollik bo'lganmi (lenta/chat) — "yangi" nuqtasi uchun */
@@ -325,11 +461,22 @@ function hasUnreadFor(g: Group, m: GroupMember | null): boolean {
   return g.lastActivityAt.getTime() > m.lastReadAt.getTime() + 1000;
 }
 
-export type GroupListItem = Omit<GroupView, "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "muted"> & { hasUnread: boolean };
+export type GroupListItem = Omit<GroupView, "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "invite" | "muted" | "mutedUntil" | "eventReminders" | "rules" | "welcomeText" | "pinnedMessageId"> & { hasUnread: boolean };
 
 export async function loadGroupBySlug(slug: string): Promise<Group | null> {
   return (await db.query.groups.findFirst({ where: eq(groups.slug, slug) })) ?? null;
 }
+
+/** Slug yoki eski slug (prev_slug) bo'yicha — sahifa eski manzilni yangisiga yo'naltiradi */
+export async function loadGroupByAnySlug(slug: string): Promise<Group | null> {
+  const g = await loadGroupBySlug(slug);
+  if (g) return g;
+  return (await db.query.groups.findFirst({ where: eq(groups.prevSlug, slug) })) ?? null;
+}
+
+/** Slug qoidasi: 3–40 belgi, kichik lotin harf/raqam/defis; boshi-oxiri defis emas */
+export const GROUP_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
+const RESERVED_SLUGS = new Set(["yangi", "sozlash", "api", "admin"]);
 
 export async function getGroupView(slug: string, viewer: Viewer): Promise<GroupView | null> {
   const g = await loadGroupBySlug(slug);
@@ -358,13 +505,23 @@ export async function createGroup(ownerId: string, input: GroupInput, opts: { is
     lastActivityAt: now,
     createdAt: now,
   };
-  await db.transaction(async (tx) => {
-    await tx.insert(groups).values(row);
-    await tx.insert(groupMembers).values([
-      { id: uid(), groupId: id, userId: ownerId, role: "owner", status: "active", lastReadAt: now, createdAt: now },
-      ...admins.map((userId) => ({ id: uid(), groupId: id, userId, role: "admin" as const, status: "active" as const, lastReadAt: now, createdAt: now })),
-    ]);
-  });
+  // Slug to'qnashuvi (unique indeks) — 500 o'rniga yangi suffiks bilan qayta urinish (3 marta)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(groups).values(row);
+        await tx.insert(groupMembers).values([
+          { id: uid(), groupId: id, userId: ownerId, role: "owner", status: "active", lastReadAt: now, createdAt: now },
+          ...admins.map((userId) => ({ id: uid(), groupId: id, userId, role: "admin" as const, status: "active" as const, lastReadAt: now, createdAt: now })),
+        ]);
+      });
+      break;
+    } catch (e) {
+      const unique = /unique|constraint/i.test(e instanceof Error ? e.message : String(e));
+      if (!unique || attempt >= 2) throw e;
+      row.slug = groupSlugFor(input.name);
+    }
+  }
   const created = {
     ...row,
     description: row.description ?? "",
@@ -425,7 +582,7 @@ export async function joinOfficialChannels(userId: string): Promise<void> {
   await Promise.all(official.map((g) => recountMembers(g.id)));
 }
 
-export async function updateGroup(group: Group, patch: Partial<GroupInput>): Promise<Group> {
+export async function updateGroup(group: Group, patch: Partial<GroupInput> & { slug?: string; rules?: string; welcomeText?: string; coverPosition?: number | null }): Promise<Group> {
   const set: Partial<typeof groups.$inferInsert> = {};
   if (patch.name !== undefined) set.name = patch.name;
   if (patch.description !== undefined) set.description = patch.description;
@@ -434,8 +591,20 @@ export async function updateGroup(group: Group, patch: Partial<GroupInput>): Pro
   if (patch.coverUrl !== undefined) set.coverUrl = patch.coverUrl || null;
   if (patch.isPrivate !== undefined) set.isPrivate = patch.isPrivate;
   if (patch.kind !== undefined) set.kind = patch.kind;
+  if (patch.rules !== undefined) set.rules = patch.rules.trim() || null;
+  if (patch.welcomeText !== undefined) set.welcomeText = patch.welcomeText.trim() || null;
+  if (patch.coverPosition !== undefined) set.coverPosition = patch.coverPosition === null ? null : Math.min(100, Math.max(0, Math.round(patch.coverPosition)));
   if (set.isPrivate && group.isOfficial) throw new ApiError(422, "Rasmiy kanal yopiq bo'la olmaydi", { isPrivate: "Rasmiy kanal hammaga ochiq" });
   if (set.kind === "group" && group.isOfficial) throw new ApiError(422, "Rasmiy kanal guruhga aylantirilmaydi", { kind: "Avval rasmiy belgisini oling" });
+  // Slug: egasi o'zgartiradi; eskisi prev_slug'da qoladi (yo'naltirish), boshqa jamoaniki bo'lsa — 409
+  if (patch.slug !== undefined && patch.slug !== group.slug) {
+    const slug = patch.slug.trim().toLowerCase();
+    if (!GROUP_SLUG_RE.test(slug) || RESERVED_SLUGS.has(slug)) throw new ApiError(422, "Manzil noto'g'ri", { slug: "3–40 belgi: kichik lotin harf, raqam, defis" });
+    const taken = await db.query.groups.findFirst({ where: and(or(eq(groups.slug, slug), eq(groups.prevSlug, slug)), sql`${groups.id} != ${group.id}`), columns: { id: true } });
+    if (taken) throw new ApiError(409, "Bu manzil band", { slug: "Boshqa manzil tanlang" });
+    set.slug = slug;
+    set.prevSlug = group.slug;
+  }
   if (!Object.keys(set).length) return group;
   const [row] = await db.update(groups).set(set).where(eq(groups.id, group.id)).returning();
   return row;
@@ -446,20 +615,38 @@ export async function deleteGroup(groupId: string): Promise<void> {
 }
 
 /** Qo'shilish: ochiq jamoa — darhol a'zo; yopiq — so'rov (egasi/adminlar bildirishnoma oladi) */
-export async function joinGroup(group: Group, userId: string, invite?: string | null): Promise<MembershipState> {
+/** Taklif kodi hozir yaroqlimi: mos, muddati o'tmagan, limiti tugamagan */
+function inviteValid(group: Group, invite?: string | null): boolean {
+  if (!invite || !group.inviteCode || invite !== group.inviteCode) return false;
+  if (group.inviteExpiresAt && group.inviteExpiresAt.getTime() < Date.now()) return false;
+  if (group.inviteMaxUses !== null && group.inviteMaxUses !== undefined && (group.inviteUses ?? 0) >= group.inviteMaxUses) return false;
+  return true;
+}
+
+export async function joinGroup(group: Group, userId: string, invite?: string | null, note?: string | null): Promise<MembershipState> {
   const existing = await getMembership(group.id, userId);
-  if (existing) {
-    if (existing.status === "banned") throw new ApiError(403, "Siz bu jamoadan chiqarilgansiz");
-    return membershipState(existing);
-  }
   const now = new Date();
   // Taklif havolasi to'g'ri bo'lsa — yopiq jamoaga ham darhol a'zo
-  const viaInvite = Boolean(invite && group.inviteCode && invite === group.inviteCode);
+  const viaInvite = inviteValid(group, invite);
+  if (existing) {
+    if (existing.status === "banned") throw new ApiError(403, "Siz bu jamoadan chiqarilgansiz");
+    // Kutayotgan so'rov + yaroqli taklif → darhol faollashadi (ilgari "pending" qolib ketardi)
+    if (existing.status === "pending" && viaInvite) {
+      await db.transaction(async (tx) => {
+        await tx.update(groupMembers).set({ status: "active", lastReadAt: now }).where(eq(groupMembers.id, existing.id));
+        await tx.update(groups).set({ membersCount: sql`${groups.membersCount} + 1`, lastActivityAt: now, inviteUses: sql`coalesce(${groups.inviteUses}, 0) + 1` }).where(eq(groups.id, group.id));
+      });
+      await sendWelcome(group, userId);
+      return "member";
+    }
+    return membershipState(existing);
+  }
   const status = group.isPrivate && !viaInvite ? "pending" : "active";
   await db.transaction(async (tx) => {
-    await tx.insert(groupMembers).values({ id: uid(), groupId: group.id, userId, role: "member", status, lastReadAt: now, createdAt: now });
-    if (status === "active") await tx.update(groups).set({ membersCount: sql`${groups.membersCount} + 1`, lastActivityAt: now }).where(eq(groups.id, group.id));
+    await tx.insert(groupMembers).values({ id: uid(), groupId: group.id, userId, role: "member", status, lastReadAt: now, createdAt: now, joinNote: status === "pending" ? note?.trim().slice(0, 200) || null : null });
+    if (status === "active") await tx.update(groups).set({ membersCount: sql`${groups.membersCount} + 1`, lastActivityAt: now, ...(viaInvite ? { inviteUses: sql`coalesce(${groups.inviteUses}, 0) + 1` } : {}) }).where(eq(groups.id, group.id));
   });
+  if (status === "active") await sendWelcome(group, userId);
   if (status === "pending") {
     const managers = await db.query.groupMembers.findMany({
       where: and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "active"), inArray(groupMembers.role, ["owner", "admin"])),
@@ -473,10 +660,19 @@ export async function joinGroup(group: Group, userId: string, invite?: string | 
   return status === "active" ? "member" : "pending";
 }
 
+/** Egasi yozgan xush kelibsiz matni — yangi a'zoga sayt ichi bildirishnoma (email yo'q) */
+async function sendWelcome(group: Group, userId: string): Promise<void> {
+  const text = group.welcomeText?.trim();
+  if (!text) return;
+  await notify(userId, "group_joined", `Xush kelibsiz: ${group.name}`, text.slice(0, 300), `/jamoalar/${group.slug}`, { skipMail: true }).catch(() => undefined);
+}
+
 export async function leaveGroup(group: Group, userId: string): Promise<void> {
   const m = await getMembership(group.id, userId);
   if (!m) return;
-  if (group.isOfficial && m.status === "active") throw new ApiError(400, "Bu rasmiy kanal — undan chiqib bo'lmaydi. Bildirishnomalarni kabinetda sozlashingiz mumkin.");
+  // Chiqarilgan a'zo "chiqish" bilan ban yozuvini o'chirib qayta qo'shila olmasin
+  if (m.status === "banned") throw new ApiError(403, "Siz bu jamoadan chiqarilgansiz");
+  if (group.isOfficial && m.status === "active") throw new ApiError(400, "Bu rasmiy kanal — undan chiqib bo'lmaydi. Bildirishnomalarni jim qilishingiz mumkin.");
   if (m.role === "owner") throw new ApiError(400, "Egasi jamoadan chiqa olmaydi — avval boshqa a'zoni admin qilib, jamoani o'chiring yoki qoldiring");
   await db.transaction(async (tx) => {
     await tx.delete(groupMembers).where(eq(groupMembers.id, m.id));
@@ -489,9 +685,13 @@ export interface MemberView {
   role: GroupMember["role"];
   status: GroupMember["status"];
   joinedAt: number;
+  /** So'rov izohi (faqat pending) */
+  note: string | null;
 }
 
-export async function listMembers(groupId: string, status: "active" | "pending" = "active", limit = 200): Promise<MemberView[]> {
+export type MemberStatus = "active" | "pending" | "banned";
+
+export async function listMembers(groupId: string, status: MemberStatus = "active", limit = 200): Promise<MemberView[]> {
   const rows = await db.query.groupMembers.findMany({
     where: and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, status)),
     orderBy: [asc(groupMembers.createdAt)],
@@ -500,14 +700,44 @@ export async function listMembers(groupId: string, status: "active" | "pending" 
   const briefs = await briefUsers(rows.map((r) => r.userId));
   const rank: Record<GroupMember["role"], number> = { owner: 0, admin: 1, member: 2 };
   return rows
-    .map((r) => ({ user: briefs.get(r.userId) ?? { id: r.userId, ...UNKNOWN }, role: r.role, status: r.status, joinedAt: r.createdAt.getTime() }))
+    .map((r) => ({ user: briefs.get(r.userId) ?? { id: r.userId, ...UNKNOWN }, role: r.role, status: r.status, joinedAt: r.createdAt.getTime(), note: r.status === "pending" ? (r.joinNote ?? null) : null }))
     .sort((a, b) => rank[a.role] - rank[b.role] || a.joinedAt - b.joinedAt);
 }
 
-/** Moderator amallari: tasdiqlash / rad etish / chiqarish / admin qilish / adminlikdan olish */
-export async function memberAction(group: Group, actor: { id: string; role: string }, targetUserId: string, action: "approve" | "reject" | "remove" | "promote" | "demote"): Promise<void> {
+/** CSV eksport (egasi): ism, taxallus, rol, qo'shilgan sana — kontaktlar (email/telefon) ATAYLAB yo'q */
+export async function membersCsv(groupId: string): Promise<string> {
+  const rows = await listMembers(groupId, "active", 5000);
+  const cell = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const lines = ["Ism,Taxallus,Rol,Qo'shilgan"];
+  for (const m of rows) lines.push([cell(m.user.name), cell(m.user.username ? `@${m.user.username}` : ""), cell(m.role === "owner" ? "Egasi" : m.role === "admin" ? "Admin" : "A'zo"), cell(new Date(m.joinedAt).toISOString().slice(0, 10))].join(","));
+  return `﻿${lines.join("\r\n")}`;
+}
+
+/** Barcha kutayotgan so'rovlarni tasdiqlash — har biriga bildirishnoma; qaytadi: nechta */
+export async function approveAllPending(group: Group, actor: { id: string; role: string }): Promise<number> {
   const actorM = await getMembership(group.id, actor.id);
   if (!canManageWith(actorM, actor)) throw new ApiError(403, "Faqat jamoa egasi yoki admini");
+  const pending = await db.query.groupMembers.findMany({ where: and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "pending")), columns: { id: true, userId: true } });
+  if (!pending.length) return 0;
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(groupMembers).set({ status: "active", lastReadAt: now, joinNote: null }).where(inArray(groupMembers.id, pending.map((p) => p.id)));
+    await tx.update(groups).set({ membersCount: sql`${groups.membersCount} + ${pending.length}`, lastActivityAt: now }).where(eq(groups.id, group.id));
+  });
+  for (let i = 0; i < pending.length; i += 25) {
+    await Promise.all(pending.slice(i, i + 25).map((p) => notify(p.userId, "group_joined", `«${group.name}» jamoasiga qabul qilindingiz`, "Endi lenta va chat sizga ochiq.", `/jamoalar/${group.slug}`).catch(() => undefined)));
+  }
+  await Promise.all(pending.map((p) => sendWelcome(group, p.userId)));
+  return pending.length;
+}
+
+export type MemberActionKind = "approve" | "reject" | "remove" | "promote" | "demote" | "unban";
+
+/** Moderator amallari: tasdiqlash / rad etish / chiqarish / admin qilish / adminlikdan olish / qaytarish (unban) */
+export async function memberAction(group: Group, actor: { id: string; role: string }, targetUserId: string, action: MemberActionKind): Promise<void> {
+  const actorM = await getMembership(group.id, actor.id);
+  if (!canManageWith(actorM, actor)) throw new ApiError(403, "Faqat jamoa egasi yoki admini");
+  if (targetUserId === actor.id) throw new ApiError(400, "O'zingiz ustida amal bajarib bo'lmaydi");
   const target = await getMembership(group.id, targetUserId);
   if (!target) throw new ApiError(404, "A'zo topilmadi");
   if (target.role === "owner") throw new ApiError(400, "Egasi ustida amal bajarib bo'lmaydi");
@@ -515,13 +745,20 @@ export async function memberAction(group: Group, actor: { id: string; role: stri
   const now = new Date();
 
   switch (action) {
+    case "unban": {
+      // Chiqarilganni qaytarish: yozuv o'chiriladi — odam yana qo'shilish so'rovi yubora oladi
+      if (target.status !== "banned") return;
+      await db.delete(groupMembers).where(eq(groupMembers.id, target.id));
+      return;
+    }
     case "approve": {
       if (target.status !== "pending") return;
       await db.transaction(async (tx) => {
-        await tx.update(groupMembers).set({ status: "active", lastReadAt: now }).where(eq(groupMembers.id, target.id));
+        await tx.update(groupMembers).set({ status: "active", lastReadAt: now, joinNote: null }).where(eq(groupMembers.id, target.id));
         await tx.update(groups).set({ membersCount: sql`${groups.membersCount} + 1`, lastActivityAt: now }).where(eq(groups.id, group.id));
       });
       await notify(targetUserId, "group_joined", `«${group.name}» jamoasiga qabul qilindingiz`, "Endi lenta va chat sizga ochiq.", `/jamoalar/${group.slug}`);
+      await sendWelcome(group, targetUserId);
       return;
     }
     case "reject": {
@@ -585,6 +822,8 @@ export async function createPost(
     await tx.insert(posts).values(row);
     await tx.update(groups).set({ postsCount: sql`${groups.postsCount} + 1`, lastActivityAt: now }).where(eq(groups.id, group.id));
   });
+  // Muallif o'z postidan keyin "yangi" nuqtasini ko'rmasin
+  await markGroupRead(group.id, authorId).catch(() => undefined);
   const href = `/jamoalar/${group.slug}?post=${row.id}`;
   // @username eslatmalari (yopiq jamoada faqat a'zolarga)
   try {
@@ -611,7 +850,18 @@ function formatEventDate(ms: number): string {
 
 /** A'zolarga (muallifdan tashqari) 25 talik guruhlarda bildirishnoma — minglab a'zoda navbatga o'tkaziladi (reja 2-bosqich) */
 async function notifyMembers(group: Group, exceptUserId: string, type: "channel_post" | "live_event", title: string, body: string, href: string): Promise<void> {
-  const members = await db.query.groupMembers.findMany({ where: and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "active"), eq(groupMembers.muted, false)), columns: { userId: true } });
+  const now = new Date();
+  const members = await db.query.groupMembers.findMany({
+    where: and(
+      eq(groupMembers.groupId, group.id),
+      eq(groupMembers.status, "active"),
+      eq(groupMembers.muted, false),
+      // Vaqtincha jim qilinganlar (muted_until kelajakda) va efir eslatmasini o'chirganlar chetlab o'tiladi
+      or(isNull(groupMembers.mutedUntil), lt(groupMembers.mutedUntil, now)),
+      ...(type === "live_event" ? [or(isNull(groupMembers.eventReminders), eq(groupMembers.eventReminders, true))] : []),
+    ),
+    columns: { userId: true },
+  });
   const ids = members.map((m) => m.userId).filter((id) => id !== exceptUserId);
   for (let i = 0; i < ids.length; i += 25) {
     await Promise.all(ids.slice(i, i + 25).map((id) => notify(id, type, title, body, href, { skipMail: true }).catch(() => undefined)));
@@ -870,29 +1120,109 @@ export async function deleteComment(comment: PostComment, post: Post): Promise<v
 /* ------------------------------------------------------------------ */
 /* Guruh chati (polling — DM bilan bir xil qoida)                      */
 /* ------------------------------------------------------------------ */
-export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200): Promise<GroupMessageView[]> {
-  let rows;
-  if (afterId) {
-    const m = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, afterId), eq(groupMessages.groupId, group.id)), columns: { createdAt: true } });
-    rows = m
-      ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), gt(groupMessages.createdAt, m.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit })
-      : [];
-  } else {
-    rows = (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
-  }
+type GroupMessageRow = typeof groupMessages.$inferSelect;
+
+/** Xabar qatorlarini DTO'ga: o'chirilganlar bo'shatiladi, iqtiboslar yig'iladi, huquqlar hisoblanadi */
+async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRow[], opts: { manager?: boolean } = {}): Promise<GroupMessageView[]> {
+  if (!rows.length) return [];
+  const manager = opts.manager ?? canManageWith(await getMembership(group.id, viewer?.id), viewer);
   const quoteIds = [...new Set(rows.map((r) => r.replyToId).filter((x): x is string => Boolean(x)))];
   const originals = quoteIds.length ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inArray(groupMessages.id, quoteIds)) }) : [];
   const senders = await briefUsers([...rows.map((r) => r.senderId), ...originals.map((o) => o.senderId)]);
-  const quotes = new Map(originals.map((o) => [o.id, toQuote(o, senders.get(o.senderId)?.name ?? "Foydalanuvchi")] as const));
-  return rows.map((r) => ({
-    id: r.id,
-    body: r.body,
-    attachments: r.attachments,
-    at: r.createdAt.getTime(),
-    mine: viewer?.id === r.senderId,
-    sender: senders.get(r.senderId) ?? { id: r.senderId, ...UNKNOWN },
-    replyTo: r.replyToId ? (quotes.get(r.replyToId) ?? { id: r.replyToId, body: "Xabar o'chirilgan", senderName: "", kind: "text" as const }) : null,
-  }));
+  const DELETED_QUOTE = (id: string): QuoteView => ({ id, body: "Xabar o'chirilgan", senderName: "", kind: "text" });
+  const quotes = new Map(originals.map((o) => [o.id, o.deletedAt ? DELETED_QUOTE(o.id) : toQuote(o, senders.get(o.senderId)?.name ?? "Foydalanuvchi")] as const));
+  const now = Date.now();
+  return rows.map((r) => {
+    const deleted = Boolean(r.deletedAt);
+    const mine = viewer?.id === r.senderId;
+    return {
+      id: r.id,
+      body: deleted ? "" : r.body,
+      attachments: deleted ? [] : r.attachments,
+      at: r.createdAt.getTime(),
+      mine,
+      sender: senders.get(r.senderId) ?? { id: r.senderId, ...UNKNOWN },
+      replyTo: r.replyToId ? (quotes.get(r.replyToId) ?? DELETED_QUOTE(r.replyToId)) : null,
+      deleted,
+      edited: Boolean(r.editedAt) && !deleted,
+      canDelete: !deleted && (mine || manager),
+      canEdit: !deleted && mine && Boolean(r.body) && now - r.createdAt.getTime() < MESSAGE_EDIT_WINDOW_MS,
+    };
+  });
+}
+
+export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200): Promise<GroupMessageView[]> {
+  let rows: GroupMessageRow[];
+  if (afterId) {
+    const m = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, afterId), eq(groupMessages.groupId, group.id)), columns: { createdAt: true } });
+    // Noma'lum id (eski klient / boshqa guruh) — abadiy bo'sh qolmasin: oxirgi 50 ta qaytadi
+    rows = m
+      ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), gt(groupMessages.createdAt, m.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit })
+      : (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: 50 })).reverse();
+  } else {
+    rows = (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
+  }
+  return toMessageViews(group, viewer, rows);
+}
+
+/** Tahrirlangan/o'chirilgan xabarlarning yangilanishi (polling: `since` dan keyin o'zgarganlar) */
+export async function changedGroupMessages(group: Group, viewer: Viewer, since: Date, limit = 50): Promise<GroupMessageView[]> {
+  const rows = await db.query.groupMessages.findMany({
+    where: and(eq(groupMessages.groupId, group.id), or(gt(groupMessages.editedAt, since), gt(groupMessages.deletedAt, since))),
+    orderBy: [asc(groupMessages.createdAt)],
+    limit,
+  });
+  return toMessageViews(group, viewer, rows);
+}
+
+/** Chatda qidirish: matn bo'yicha (o'chirilganlar chiqmaydi), yangi → eski, 30 tagacha */
+export async function searchGroupMessages(group: Group, viewer: Viewer, q: string, limit = 30): Promise<GroupMessageView[]> {
+  const needle = `%${q.toLowerCase().replace(/[%_]/g, "")}%`;
+  const rows = (
+    await db.query.groupMessages.findMany({
+      where: and(eq(groupMessages.groupId, group.id), isNull(groupMessages.deletedAt), like(sql`lower(${groupMessages.body})`, needle)),
+      orderBy: [desc(groupMessages.createdAt)],
+      limit,
+    })
+  ).reverse();
+  return toMessageViews(group, viewer, rows);
+}
+
+export async function loadGroupMessage(group: Group, id: string): Promise<GroupMessageRow | null> {
+  return (await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, id), eq(groupMessages.groupId, group.id)) })) ?? null;
+}
+
+/** Soft delete: o'ziniki yoki moderator; qadalgan bo'lsa qadoq ham olinadi */
+export async function deleteGroupMessage(group: Group, viewer: NonNullable<Viewer>, msg: GroupMessageRow): Promise<void> {
+  const m = await getMembership(group.id, viewer.id);
+  if (msg.senderId !== viewer.id && !canManageWith(m, viewer)) throw new ApiError(403, "Faqat o'z xabaringizni yoki moderator sifatida o'chira olasiz");
+  if (msg.deletedAt) return;
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(groupMessages).set({ deletedAt: now, body: "", attachments: [] }).where(eq(groupMessages.id, msg.id));
+    if (group.pinnedMessageId === msg.id) await tx.update(groups).set({ pinnedMessageId: null }).where(eq(groups.id, group.id));
+  });
+}
+
+/** Tahrir: faqat muallif, 24 soat ichida, matnli xabar */
+export async function editGroupMessage(viewer: NonNullable<Viewer>, msg: GroupMessageRow, body: string): Promise<void> {
+  if (msg.senderId !== viewer.id) throw new ApiError(403, "Faqat o'z xabaringizni tahrirlaysiz");
+  if (msg.deletedAt) throw new ApiError(400, "Xabar o'chirilgan");
+  if (Date.now() - msg.createdAt.getTime() > MESSAGE_EDIT_WINDOW_MS) throw new ApiError(400, "Tahrirlash muddati (24 soat) o'tgan");
+  if (body === msg.body) return;
+  await db.update(groupMessages).set({ body, editedAt: new Date() }).where(eq(groupMessages.id, msg.id));
+}
+
+/** Qadash/olib tashlash — boshqaruvchi; bitta qadalgan xabar */
+export async function setPinnedMessage(group: Group, msgId: string | null): Promise<void> {
+  await db.update(groups).set({ pinnedMessageId: msgId }).where(eq(groups.id, group.id));
+}
+
+export async function pinnedMessage(group: Group, viewer: Viewer): Promise<GroupMessageView | null> {
+  if (!group.pinnedMessageId) return null;
+  const row = await loadGroupMessage(group, group.pinnedMessageId);
+  if (!row || row.deletedAt) return null;
+  return (await toMessageViews(group, viewer, [row]))[0] ?? null;
 }
 
 export async function sendGroupMessage(group: Group, senderId: string, body: string, attachments: FileAttachment[], replyToId: string | null = null) {
@@ -955,7 +1285,12 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
   } else {
     await db.insert(follows).values({ id: uid(), followerId, followingId, createdAt: new Date() });
     const who = (await briefUsers([followerId])).get(followerId);
-    await notify(followingId, "follow", `${who?.name ?? "Foydalanuvchi"} sizga obuna bo'ldi`, "Yangi ishlaringiz uning lentasida ko'rinadi.", who?.slug ? `/mutaxassislar/${who.slug}` : who?.username ? `/yozish/${who.username}` : null);
+    const href = who?.slug ? `/mutaxassislar/${who.slug}` : who?.username ? `/yozish/${who.username}` : null;
+    // Obuna bo'lib-chiqib spam qilib bo'lmasin: bir odamdan 24 soatda bitta "obuna bo'ldi" bildirishnomasi
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const title = `${who?.name ?? "Foydalanuvchi"} sizga obuna bo'ldi`;
+    const dup = await db.query.notifications.findFirst({ where: and(eq(notifications.userId, followingId), eq(notifications.type, "follow"), eq(notifications.title, title), gt(notifications.createdAt, since)), columns: { id: true } });
+    if (!dup) await notify(followingId, "follow", title, "Yangi ishlaringiz uning lentasida ko'rinadi.", href);
   }
   const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, followingId));
   return { following: !existing, followersCount: Number(n) };
@@ -1074,16 +1409,44 @@ export async function editPost(post: Post, body: string): Promise<Post> {
   return row;
 }
 
-export async function setMuted(group: Group, userId: string, muted: boolean): Promise<void> {
-  await db.update(groupMembers).set({ muted }).where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
+/** Jim qilish: `forMs` berilsa vaqtincha (muted_until), bo'lmasa doimiy; muted=false ikkalasini tozalaydi */
+export async function setMuted(group: Group, userId: string, muted: boolean, forMs: number | null = null): Promise<{ muted: boolean; mutedUntil: number | null }> {
+  const until = muted && forMs ? new Date(Date.now() + forMs) : null;
+  await db
+    .update(groupMembers)
+    .set({ muted: muted && !until, mutedUntil: until })
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
+  return { muted, mutedUntil: until?.getTime() ?? null };
 }
 
-/** Taklif kodi: bo'lmasa yaratadi; `rotate` — eskisini bekor qilib yangisini beradi */
-export async function ensureInviteCode(group: Group, rotate = false): Promise<string> {
-  if (group.inviteCode && !rotate) return group.inviteCode;
-  const code = uid().replace(/-/g, "").slice(0, 10);
-  await db.update(groups).set({ inviteCode: code }).where(eq(groups.id, group.id));
-  return code;
+/** Efir eslatmalari (live_event bildirishnomasi) — a'zo sozlamasi */
+export async function setEventReminders(group: Group, userId: string, on: boolean): Promise<void> {
+  await db.update(groupMembers).set({ eventReminders: on }).where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
+}
+
+export interface InviteInfo {
+  code: string;
+  expiresAt: number | null;
+  maxUses: number | null;
+  uses: number;
+}
+
+/**
+ * Taklif kodi: bo'lmasa yaratadi; `rotate` — eskisini bekor qilib yangisini beradi (hisob 0 dan).
+ * `expiresInMs` / `maxUses` — null: cheksiz; berilsa yangi qoida (rotate'siz ham o'zgartirsa bo'ladi).
+ */
+export async function ensureInviteCode(group: Group, rotate = false, opts: { expiresInMs?: number | null; maxUses?: number | null } = {}): Promise<InviteInfo> {
+  const set: Partial<typeof groups.$inferInsert> = {};
+  let code = group.inviteCode;
+  if (!code || rotate) {
+    code = uid().replace(/-/g, "").slice(0, 10);
+    set.inviteCode = code;
+    set.inviteUses = 0;
+  }
+  if (opts.expiresInMs !== undefined) set.inviteExpiresAt = opts.expiresInMs ? new Date(Date.now() + opts.expiresInMs) : null;
+  if (opts.maxUses !== undefined) set.inviteMaxUses = opts.maxUses ?? null;
+  const [row] = Object.keys(set).length ? await db.update(groups).set(set).where(eq(groups.id, group.id)).returning() : [group];
+  return { code, expiresAt: row.inviteExpiresAt?.getTime() ?? null, maxUses: row.inviteMaxUses ?? null, uses: row.inviteUses ?? 0 };
 }
 
 /** Ko'ruvchining oxirgi xabarini nechta a'zo ko'rgan (lastReadAt >= xabar vaqti) — "N kishi ko'rdi" */

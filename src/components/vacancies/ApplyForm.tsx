@@ -42,15 +42,25 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
   async function withdraw() {
     if (!mine || busy) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/arizalar/${encodeURIComponent(mine.id)}`, { method: "DELETE" });
-      if (res.ok) {
-        setMine(null);
-        router.refresh();
-      }
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !j.ok) throw new Error(j.error || "Qaytarib bo'lmadi");
+      setMine(null);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Qaytarib bo'lmadi");
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Tashqi forma bosildi — egasi uchun hisoblagich (javob kutilmaydi) */
+  function countExternal() {
+    const url = `/api/vakansiyalar/${encodeURIComponent(vacancyId)}/tashqi`;
+    if (navigator.sendBeacon) navigator.sendBeacon(url);
+    else void fetch(url, { method: "POST", keepalive: true }).catch(() => undefined);
   }
 
   if (!loggedIn) {
@@ -72,9 +82,9 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
 
   if (mine) {
     return (
-      <div className="card p-5">
+      <div className="card expand-in p-5">
         <p className="inline-flex items-center gap-2 text-[15px] font-semibold text-success-text">
-          <CheckCircle2 size={18} /> Arizangiz yuborilgan
+          <CheckCircle2 size={18} className="animate-pop" /> Arizangiz yuborilgan
         </p>
         <p className="mt-1 text-[13px] text-fg-2">
           Holati: <strong className="text-fg">{APPLICATION_STATUS[mine.status]}</strong>. Ish beruvchi javobi bildirishnomaga va «Arizalarim» bo&apos;limiga keladi.
@@ -83,10 +93,15 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
           <Link href="/kabinet/arizalarim" className="inline-flex h-10 items-center rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg">
             Arizalarim
           </Link>
-          {mine.status === "new" && (
-            <button type="button" onClick={withdraw} disabled={busy} className="text-[13px] font-semibold text-fg-3 underline-offset-2 hover:text-danger-text hover:underline">
+          {(mine.status === "new" || mine.status === "viewed") && (
+            <button type="button" onClick={withdraw} disabled={busy} className="press text-[13px] font-semibold text-fg-3 underline-offset-2 hover:text-danger-text hover:underline disabled:opacity-50">
               Arizani qaytarib olish
             </button>
+          )}
+          {error && (
+            <span role="alert" className="basis-full text-[12.5px] text-danger-text">
+              {error}
+            </span>
           )}
         </div>
       </div>
@@ -129,17 +144,21 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
           {letter.length}/{COVER_LETTER_MAX}
         </span>
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-fg-3">Ariza bilan ismingiz, email va telefoningiz faqat shu vakansiya egasiga ko&apos;rinadi — u siz bilan bog&apos;lana olishi uchun.</p>
+      <p className="mt-2 text-[12px] leading-relaxed text-fg-3">Ism, email va telefoningiz faqat shu ish beruvchiga ko&apos;rinadi.</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button type="button" variant="accent" size="md" onClick={apply} disabled={!canSend}>
           <Send size={15} /> {busy ? "Yuborilmoqda…" : "Ariza yuborish"}
         </Button>
         {applyUrl && (
-          <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg">
+          <a href={applyUrl} target="_blank" rel="noopener noreferrer" onClick={countExternal} className="press inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg">
             Tashqi forma <ExternalLink size={14} />
           </a>
         )}
-        {error && <span className="basis-full text-[13px] font-semibold text-danger-text">{error}</span>}
+        {error && (
+          <span role="alert" className="basis-full text-[13px] font-semibold text-danger-text">
+            {error}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -20,15 +20,13 @@ export default async function SavedSearchesPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <Bookmark size={13} className="text-accent" /> Kabinet
+          <Bookmark size={13} /> Kabinet
         </span>
-        <h1 className="display-xl mt-5 text-[32px] text-fg sm:text-[40px]">
-          Saqlangan <span className="accent-serif text-accent">qidiruvlar</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Saqlangan <span className="accent-serif">qidiruvlar</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
-          {items.length > 0
-            ? `${items.length} / ${MAX_SAVED_SEARCHES} ta qidiruv. Bildirishnoma yoqilgan bo'lsa, filtrga mos yangi mutaxassis paydo bo'lganda xabar beramiz.`
-            : "Mutaxassislar ro'yxatida filtrlarni tanlab, «Qidiruvni saqlash» tugmasini bosing — yangi mos mutaxassislar haqida xabar olasiz."}
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">
+          {items.length > 0 ? `${items.length} / ${MAX_SAVED_SEARCHES} ta qidiruv. Yangi mos mutaxassis chiqsa — xabar beramiz.` : "Mutaxassislar ro'yxatida filtr tanlab «Qidiruvni saqlash»ni bosing."}
         </p>
       </header>
 

@@ -45,6 +45,8 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -144,10 +146,23 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
   const badge = unread > 99 ? "99+" : String(unread);
   const { mounted: panelMounted, closing: panelClosing } = usePresence(open, 180);
 
+  /* Fokus: panel ochilganda ichiga kiradi (Escape/Tab ishlashi uchun), yopilganda qo'ng'iroq tugmasiga qaytadi */
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open) {
+      wasOpen.current = true;
+      window.requestAnimationFrame(() => panelRef.current?.focus());
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      if (document.activeElement === document.body || panelRef.current?.contains(document.activeElement)) btnRef.current?.focus();
+    }
+  }, [open]);
+
   return (
     /* Mobil: panel nav kapsulasiga nisbatan (uning kengligida, 12px gutter); sm+: qo'ng'iroq ostida o'ngga tekis */
     <div className="sm:relative" ref={wrapRef}>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
@@ -169,9 +184,11 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
 
       {panelMounted && (
         <div
+          ref={panelRef}
           role="dialog"
+          tabIndex={-1}
           aria-label={tr(til, SHELL.bell.label)}
-          className={`card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden sm:left-auto sm:right-0 sm:w-[380px] ${panelClosing ? "animate-modal-out" : "animate-fade-up"}`}
+          className={`card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden outline-none sm:left-auto sm:right-0 sm:w-[380px] ${panelClosing ? "animate-modal-out" : "animate-fade-up"}`}
           style={{ animationDuration: panelClosing ? "0.16s" : "0.22s" }}
         >
           <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">

@@ -18,7 +18,7 @@ const STEPS = [
 
 const tile = (on: boolean) =>
   cn(
-    "flex min-h-11 items-center gap-2.5 rounded-[16px] border px-3.5 py-3 text-left text-[14px] font-semibold transition active:scale-[0.98]",
+    "press flex min-h-11 items-center gap-2.5 rounded-[14px] border px-3.5 py-3 text-left text-[14px] font-semibold transition",
     on ? "border-fg bg-fg/4 text-fg ring-1 ring-fg" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
   );
 
@@ -30,13 +30,19 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
   const router = useRouter();
   const [step, setStep] = useState(Math.min(3, Math.max(0, initialStep)));
   const [v, setV] = useState<WizardState>(initial);
+  /** Qadam yo'nalishi: oldinga — chapdan kiradi, orqaga — o'ngdan (slide tokenlari) */
+  const [dir, setDir] = useState<1 | -1>(1);
   const [pending, start] = useTransition();
+  const go = (next: number) => {
+    setDir(next >= step ? 1 : -1);
+    setStep(Math.min(3, Math.max(0, next)));
+  };
 
   const finish = (next: WizardState) => start(() => router.push(`/buyurtma-berish?${wizardQuery(next, { natija: "1" })}`));
   const choose = (patch: Partial<WizardState>) => {
     const next = { ...v, ...patch };
     setV(next);
-    if (step < 3) window.setTimeout(() => setStep((s) => Math.min(3, s + 1)), 140);
+    if (step < 3) window.setTimeout(() => go(step + 1), 140);
     else finish(next);
   };
   const filled = [v.yonalish, v.byudjet, v.hudud, v.muddat];
@@ -50,7 +56,7 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
           {step + 1}/{STEPS.length}-qadam
         </p>
         {step > 0 && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} className="-mr-2 inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
+          <button type="button" onClick={() => go(step - 1)} className="press -mr-2 inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
             <ArrowLeft size={14} /> Orqaga
           </button>
         )}
@@ -60,7 +66,7 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
           <button
             key={s.key}
             type="button"
-            onClick={() => (i <= step || filled[i - 1] ? setStep(i) : undefined)}
+            onClick={() => (i <= step || filled[i - 1] ? go(i) : undefined)}
             className="group py-2"
             aria-label={`${i + 1}-qadam: ${s.hint}`}
             tabIndex={-1}
@@ -73,7 +79,7 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
       <h2 className="display-xl mt-4 text-[26px] text-fg sm:text-[32px]">{current.title}</h2>
       <p className="mt-1.5 text-[14px] text-fg-3">{current.hint}</p>
 
-      <div className="mt-5 animate-fade-up" key={step} style={{ animationDuration: "0.25s" }}>
+      <div className={cn("mt-5", dir === 1 ? "animate-slide-left" : "animate-slide-right")} key={step}>
         {step === 0 && (
           <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {CATEGORIES.map((c) => {
@@ -151,10 +157,9 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <p className="text-[12px] text-fg-4">Tanlovni keyin o'zgartirishingiz mumkin.</p>
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-line pt-5">
         {step < 3 ? (
-          <Button size="md" variant="outline" onClick={() => setStep((s) => s + 1)} disabled={!filled[step]}>
+          <Button size="md" variant="outline" onClick={() => go(step + 1)} disabled={!filled[step]}>
             Keyingi <ArrowRight size={15} />
           </Button>
         ) : (

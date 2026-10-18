@@ -105,7 +105,19 @@ export function R2AdminPanel() {
     }
   }
 
-  if (!st) return <div className="card p-5 text-[13px] text-fg-3">Saqlash holati yuklanmoqda…</div>;
+  if (!st)
+    return (
+      <div className="card p-5 sm:p-6" aria-busy="true" aria-label="Saqlash holati yuklanmoqda">
+        <div className="flex items-center gap-2.5 py-2.5">
+          <span className="h-4 w-4 shrink-0 rounded-full skeleton" />
+          <span className="h-3.5 w-2/5 skeleton" />
+        </div>
+        <div className="mt-3 flex gap-3 border-t border-line pt-4">
+          <span className="h-10 w-32 skeleton !rounded-full" />
+          <span className="h-10 w-36 skeleton !rounded-full" />
+        </div>
+      </div>
+    );
 
   const tested = st.uploadOk !== undefined;
   const broken = st.backend === "none";
@@ -145,7 +157,11 @@ export function R2AdminPanel() {
         <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
           <RefreshCw size={13} /> Holatni yangilash
         </button>
-        {err && <span className="text-[13px] font-semibold text-danger-text">{err}</span>}
+        {err && (
+          <span role="alert" className="text-[13px] font-semibold text-danger-text">
+            {err}
+          </span>
+        )}
       </div>
 
       {st.backend !== "r2" && <R2Guide missing={st.r2Missing} />}

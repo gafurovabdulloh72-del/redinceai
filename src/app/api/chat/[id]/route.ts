@@ -1,23 +1,40 @@
 import { z } from "zod";
-import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { DM_BODY_MAX, dmQuotes, listMessages, loadConversationFor, markRead, peerIsTyping, sendDm, toDmView, touchLastSeen } from "@/lib/chat/dm";
+import { DM_BODY_MAX, changedMessages, dmQuotes, getPrefs, listMessages, loadConversationFor, markRead, peerIsTyping, pinnedQuote, reactionsFor, sendDm, toDmView, touchLastSeen } from "@/lib/chat/dm";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { assertCanDm, blockState } from "@/lib/privacy/blocks";
 
+const listQuery = z.object({
+  /** Polling kursori — shu xabardan keyingilar */
+  after: z.string().trim().max(64).optional(),
+  /** Polling: shu vaqtdan (ms) keyin tahrirlangan/o'chirilgan eski xabarlar ham qaytadi */
+  sync: z.coerce.number().int().min(0).optional(),
+  /** read=0 — suhbat «o'qildi» deb belgilanmaydi (oyna fokussiz bo'lganda polling yolg'on ✓✓ qilmasin) */
+  read: z.enum(["0", "1"]).optional(),
+});
+
 /**
- * GET: suhbat sarlavhasi (qarshi tomon) + xabarlar (iqtiboslar bilan); ?after=<msgId> — faqat yangilari (polling).
- * O'qish suhbatni "o'qilgan" deb belgilaydi. `peerTyping` — qarshi tomon so'nggi 6 soniyada yozayotgan bo'lsa.
+ * GET: suhbat sarlavhasi (qarshi tomon) + xabarlar (iqtibos/reaksiya/tahrir holati bilan); ?after=<msgId> — faqat yangilari (polling),
+ * ?sync=<ms> — shu vaqtdan keyin o'zgargan eski xabarlar (`updates`). O'qish suhbatni "o'qilgan" deb belgilaydi (read=0 bundan mustasno).
+ * `readAt` — MENING avvalgi o'qigan vaqtim (faqat to'liq yuklashda; «Yangi xabarlar» chizig'i uchun).
  */
 export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await ctx.params;
+  const q = parseQuery(req.url, listQuery);
   const found = await loadConversationFor(session.sub, id);
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
-  const after = new URL(req.url).searchParams.get("after");
-  const items = await listMessages(id, after);
-  const [quotes, blocked] = await Promise.all([dmQuotes(id, items), blockState(session.sub, found.peer.id)]);
-  await Promise.all([markRead(found.conv, session.sub), touchLastSeen(session.sub)]);
+  const items = await listMessages(id, session.sub, q.after ?? null);
+  const updates = q.after && q.sync ? await changedMessages(id, session.sub, q.sync) : [];
+  const [quotes, blocked, reactions, pinned, prefs] = await Promise.all([
+    dmQuotes(id, [...items, ...updates]),
+    blockState(session.sub, found.peer.id),
+    reactionsFor(id, session.sub),
+    pinnedQuote(found.conv),
+    q.after ? null : getPrefs(id, session.sub),
+  ]);
+  await Promise.all([q.read === "0" ? Promise.resolve() : markRead(found.conv, session.sub), touchLastSeen(session.sub)]);
   const showOnline = found.peer.showOnline !== false;
   return ok({
     peer: {
@@ -36,8 +53,16 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
     blocked,
     /** Qarshi tomon o'qigan vaqt (ms) — bundan oldingi mening xabarlarim "✓✓ o'qildi" */
     peerReadAt: found.peerReadAt ? found.peerReadAt.getTime() : 0,
+    /** Mening avvalgi o'qigan vaqtim (ms) — «Yangi xabarlar» ajratuvchisi shundan */
+    readAt: q.after ? null : found.myReadAt,
     peerTyping: peerIsTyping(found.conv, session.sub),
-    items: items.map((m) => toDmView(m, session.sub, quotes)),
+    pinned,
+    prefs,
+    /** Reaksiyalar: xabar id → yig'indi (so'nggi 200 ta xabar oynasi) */
+    reactions: Object.fromEntries(reactions),
+    items: items.map((m) => toDmView(m, session.sub, quotes, reactions)),
+    updates: updates.map((m) => toDmView(m, session.sub, quotes, reactions)),
+    now: Date.now(),
   });
 });
 

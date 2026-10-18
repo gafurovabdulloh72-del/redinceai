@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Megaphone, RotateCcw, UserPlus, Wand2 } from "lucide-react";
 import { ButtonLink, PageHeader } from "@/components/ui";
 import { SpecialistCard } from "@/components/specialists/SpecialistCard";
 import { SpecialistRow } from "@/components/specialists/SpecialistRow";
-import { Filters, MobileFilters, SortSelect, ViewToggle } from "@/components/specialists/Filters";
+import { Filters, MobileFilters, PerPage, SortSelect, ViewToggle } from "@/components/specialists/Filters";
 import { ActiveFilters } from "@/components/specialists/ActiveFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
+import { RecentlyViewed } from "@/components/specialists/RecentlyViewed";
 import { SaveSearchButton } from "@/components/specialists/SaveSearchButton";
 import { CompareTray } from "@/components/specialists/CompareTray";
 import { describeSavedQuery, pickSavedParams } from "@/components/specialists/saved-search-label";
@@ -15,14 +17,16 @@ import { REGIONS } from "@/lib/constants";
 import { getSession } from "@/lib/auth";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
-import { KATALOG } from "@/lib/i18n/dict/catalog";
-import { getCategoryStats, getRegionStats, listSpecialists } from "@/lib/queries";
+import { KATALOG, KATALOG_X } from "@/lib/i18n/dict/catalog";
+import { getCategoryStats, getRegionStats, getSkillStats, listSpecialists } from "@/lib/queries";
 import { specialistFilterSchema, type SpecialistFilter } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
 const BASE = "/mutaxassislar";
 const DEFAULT_LIMIT = 24;
+/** Ko'rinish (to'r/ro'yxat) cookie'si — ViewToggle yozadi, URL'da view bo'lmasa shu o'qiladi */
+const VIEW_COOKIE = "katalog_korinish";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -73,7 +77,7 @@ function parseFilter(flat: Record<string, string>): SpecialistFilter {
 }
 
 /** Kanonik URL parametrlari (standart qiymatlar yozilmaydi) */
-function filterToQuery(f: SpecialistFilter, extra: { view: View }): Record<string, string | undefined> {
+function filterToQuery(f: SpecialistFilter, extra: { view: View; viewInUrl: boolean }): Record<string, string | undefined> {
   return {
     q: f.q || undefined,
     category: f.category || undefined,
@@ -89,7 +93,8 @@ function filterToQuery(f: SpecialistFilter, extra: { view: View }): Record<strin
     workType: f.workType || undefined,
     openNow: f.openNow === "1" ? "1" : undefined,
     sort: f.sort !== "rating" ? f.sort : undefined,
-    view: extra.view === "list" ? "list" : undefined,
+    // Cookie'dan kelgan ko'rinish URL'ga yozilmaydi (havolalar toza qoladi)
+    view: extra.viewInUrl && extra.view === "list" ? "list" : undefined,
     limit: f.limit !== DEFAULT_LIMIT ? String(f.limit) : undefined,
     page: f.page > 1 ? String(f.page) : undefined,
   };
@@ -132,7 +137,9 @@ function EmptyIllustration({ className }: { className?: string }) {
 function EmptyBlock({ title, description, action }: { title: string; description: string; action: React.ReactNode }) {
   return (
     <div className="card-outline flex flex-col items-center justify-center px-6 py-12 text-center sm:py-16">
-      <EmptyIllustration className="mb-5 h-auto w-[180px] sm:w-[200px]" />
+      <div data-reveal="scale">
+        <EmptyIllustration className="mb-5 h-auto w-[180px] sm:w-[200px]" />
+      </div>
       <h3 className="font-display text-[18px] font-semibold text-fg">{title}</h3>
       <p className="mt-1.5 max-w-sm text-[14px] leading-relaxed text-fg-3">{description}</p>
       <div className="mt-6">{action}</div>
@@ -141,22 +148,25 @@ function EmptyBlock({ title, description, action }: { title: string; description
 }
 
 export default async function SpecialistsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
-  const til = await getLocale();
-  const flat = flatten(await searchParams);
+  const [til, flatRaw, jar] = await Promise.all([getLocale(), searchParams, cookies()]);
+  const flat = flatten(flatRaw);
   const filter = parseFilter(flat);
-  const view: View = flat.view === "list" ? "list" : "grid";
+  // Ko'rinish: URL ustun; bo'lmasa cookie (ViewToggle yozgan); standart — to'r
+  const viewInUrl = flat.view === "list" || flat.view === "grid";
+  const cookieView: View = jar.get(VIEW_COOKIE)?.value === "list" ? "list" : "grid";
+  const view: View = viewInUrl ? (flat.view as View) : cookieView;
 
   // Kirgan foydalanuvchiga "faqat ro'yxatdan o'tganlarga" darajadagi shahar ko'rinadi
   const session = await getSession();
   const viewer = { userId: session?.sub ?? null, role: session?.role ?? null };
-  const [result, regionStats, categoryStats] = await Promise.all([listSpecialists(filter, viewer), getRegionStats(), getCategoryStats()]);
+  const [result, regionStats, categoryStats, skillStats] = await Promise.all([listSpecialists(filter, viewer), getRegionStats(), getCategoryStats(), getSkillStats(12).catch(() => [])]);
 
-  // Mavjud bo'lmagan sahifa so'ralsa — oxirgi sahifaga qaytaramiz
-  if (result.total > 0 && filter.page > result.pages) {
-    redirect(buildHref(BASE, { ...filterToQuery(filter, { view }), page: result.pages > 1 ? String(result.pages) : undefined }));
+  // Mavjud bo'lmagan sahifa so'ralsa — oxirgi sahifaga; natija umuman yo'q bo'lsa — 1-sahifaga (bo'sh holat matni to'g'ri bo'lsin)
+  if (filter.page > 1 && (result.total === 0 || filter.page > result.pages)) {
+    redirect(buildHref(BASE, { ...filterToQuery(filter, { view, viewInUrl }), page: result.total > 0 && result.pages > 1 ? String(result.pages) : undefined }));
   }
 
-  const query = filterToQuery(filter, { view });
+  const query = filterToQuery(filter, { view, viewInUrl });
   const regionCounts = Object.fromEntries(Object.values(regionStats).map((s) => [s.slug, s.total]));
   const hasFilters = !!(
     filter.q ||
@@ -179,6 +189,8 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
   const from = total === 0 ? 0 : (page - 1) * filter.limit + 1;
   const to = Math.min(total, page * filter.limit);
   const gridKey = JSON.stringify(query);
+  // Bo'sh natijadagi "Tozalash" — ActiveFilters bilan bir xil: saralash, ko'rinish va sahifa hajmi saqlanadi
+  const clearHref = buildHref(BASE, { sort: query.sort, view: query.view, limit: query.limit });
 
   return (
     <div className="container-x">
@@ -191,7 +203,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             {tr(til, KATALOG.titleStart)} <span className="accent-serif text-accent">{tr(til, KATALOG.titleAccent)}</span>
           </>
         }
-        description={tr(til, KATALOG.description)}
+        description={tr(til, KATALOG_X.descriptionShort)}
         action={
           <ButtonLink href="/buyurtma-berish" variant="outline" size="md" className="self-start sm:self-auto">
             <Wand2 size={16} className="text-accent" /> {tr(til, KATALOG.wizard)}
@@ -205,7 +217,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           <div className="card sticky top-24 overflow-hidden">
             <div className="max-h-[calc(100dvh-7.5rem)] overflow-y-auto px-5 pb-2 pt-5">
               <Suspense fallback={<FiltersFallback />}>
-                <Filters categoryCounts={categoryStats} regionCounts={regionCounts} />
+                <Filters categoryCounts={categoryStats} regionCounts={regionCounts} skillStats={skillStats} />
               </Suspense>
             </div>
           </div>
@@ -213,13 +225,11 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
 
         {/* ---------- Natijalar ---------- */}
         <section className="min-w-0 lg:col-span-9" aria-labelledby="sp-results-title">
-          {/* Asboblar qatori: natija soni + ko'rinish + saralash */}
+          {/* Asboblar qatori: natija soni (+ oraliq) · filtr/ko'rinish/sahifa hajmi/saralash */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Natija soni + saralash bir jumlada (E98): "58 ta mutaxassis · reyting bo'yicha" */}
             <p id="sp-results-title" className="text-[15px] text-fg-2" aria-live="polite">
               <span className="font-display text-[22px] font-semibold tabular-nums text-fg">{total}</span>
               {KATALOG.resultSuffix[til](total)}
-              {total > 0 && <span className="text-fg-3"> · {tr(til, KATALOG.sortPhrase[filter.sort])}</span>}
               {total > 0 && pages > 1 && (
                 <span className="text-fg-3 max-sm:hidden">
                   {" "}
@@ -229,10 +239,13 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             </p>
             <div className="flex items-center gap-2 max-sm:w-full">
               <Suspense fallback={<div className="h-11 w-28 skeleton !rounded-full lg:hidden" />}>
-                <MobileFilters categoryCounts={categoryStats} regionCounts={regionCounts} total={total} className="lg:hidden" />
+                <MobileFilters categoryCounts={categoryStats} regionCounts={regionCounts} skillStats={skillStats} total={total} className="lg:hidden" />
               </Suspense>
               <Suspense fallback={<div className="h-11 w-24 skeleton !rounded-full max-sm:hidden" />}>
-                <ViewToggle className="max-sm:hidden" />
+                <ViewToggle className="max-sm:hidden" initial={cookieView} />
+              </Suspense>
+              <Suspense fallback={<div className="h-11 w-28 skeleton !rounded-full max-sm:hidden" />}>
+                <PerPage className="max-sm:hidden" />
               </Suspense>
               <Suspense fallback={<div className="h-11 w-48 skeleton !rounded-full max-sm:flex-1" />}>
                 <SortSelect className="max-sm:flex-1 sm:w-52" />
@@ -252,22 +265,20 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
             )}
           </div>
 
-          {/* Natijalar */}
+          {/* Natijalar — `.stagger` tokeni (inline kechikishlar o'rniga), reduced-motion'da o'chadi */}
           {items.length > 0 ? (
             view === "list" ? (
-              <ul key={gridKey} className="mt-5 space-y-2.5">
-                {items.map((sp, i) => (
-                  // Kechikish 8 talik to'lqinda takrorlanadi (i % 8) — filtr almashganda natijalar uzoq "ko'rinmay" turmasin
-                  <li key={sp.id} className="animate-fade-up" style={{ animationDelay: `${(i % 8) * 30}ms`, animationDuration: "0.3s" }}>
+              <ul key={gridKey} className="stagger mt-5 space-y-2.5">
+                {items.map((sp) => (
+                  <li key={sp.id}>
                     <SpecialistRow sp={sp} showCompare />
                   </li>
                 ))}
               </ul>
             ) : (
-              <div key={gridKey} className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div key={gridKey} className="stagger mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((sp, i) => (
-                  // Kechikish 8 talik to'lqinda takrorlanadi (i % 8) — filtr almashganda natijalar uzoq "ko'rinmay" turmasin
-                  <div key={sp.id} className="animate-fade-up" style={{ animationDelay: `${(i % 8) * 35}ms`, animationDuration: "0.3s" }}>
+                  <div key={sp.id}>
                     <SpecialistCard sp={sp} priority={i < 3} showCompare />
                   </div>
                 ))}
@@ -279,9 +290,8 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
                 title={tr(til, KATALOG.emptyFilteredTitle)}
                 description={tr(til, KATALOG.emptyFilteredDesc)}
                 action={
-                  // Bo'sh natija — boshi berk ko'cha emas: tozalash yonida sehrgar va e'lon joylash yo'llari
                   <div className="flex flex-wrap items-center justify-center gap-3">
-                    <ButtonLink href={buildHref(BASE, { sort: query.sort, view: query.view })} variant="outline" size="md">
+                    <ButtonLink href={clearHref} variant="outline" size="md">
                       <RotateCcw size={15} /> {tr(til, KATALOG.clearFilters)}
                     </ButtonLink>
                     <ButtonLink href="/buyurtma-berish" variant="accent" size="md">
@@ -309,6 +319,9 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
           )}
 
           <Pagination page={page} pages={pages} query={query} basePath={BASE} className="mt-10" />
+
+          {/* Yaqinda ko'rilganlar (localStorage) — bo'sh bo'lsa chiqmaydi */}
+          <RecentlyViewed className="mt-10" />
         </section>
       </div>
       {/* Taqqoslash paneli (F54) */}

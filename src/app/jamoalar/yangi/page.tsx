@@ -29,7 +29,7 @@ export default async function NewGroupPage() {
             Yangi <span className="accent-serif text-accent">guruh yoki kanal</span>
           </>
         }
-        description="Guruh — hamma yozadi va suhbatlashadi; kanal — faqat siz yozasiz, a'zolar o'qiydi va izoh qoldiradi. Hamma narsani keyin ham o'zgartira olasiz."
+        description="Guruh — hamma yozadi; kanal — faqat siz yozasiz. Hammasini keyin o'zgartira olasiz."
       />
       <div className="mt-8 max-w-2xl">
         <GroupForm mode="create" isSiteAdmin={user.role === "admin"} />

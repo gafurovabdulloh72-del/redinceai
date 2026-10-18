@@ -107,7 +107,7 @@ export async function ActiveFilters({
                 href={removeHref(c.keys)}
                 scroll={false}
                 aria-label={FAOL_FILTR.remove[til](c.label)}
-                className="card card-hover group inline-flex h-9 items-center gap-1.5 !rounded-full pl-3 pr-1.5 text-[13px] font-medium text-fg"
+                className="press group inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface pl-3 pr-1.5 text-[13px] font-medium text-fg transition hover:border-fg"
               >
                 {Icon ? <Icon size={13} className="text-fg-3" /> : c.node}
                 <span className="max-w-[180px] truncate">{c.label}</span>

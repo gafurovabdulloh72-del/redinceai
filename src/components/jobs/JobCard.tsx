@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Clock3, MapPin, MessageSquareText, Wallet } from "lucide-react";
-import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { BadgeCheck, Clock3, MessageSquareText } from "lucide-react";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
@@ -24,6 +23,8 @@ export interface JobCardData {
 }
 
 const MAX_SKILLS = 4;
+/** Shuncha soatdan yangi e'lonlar «Yangi» belgisi bilan */
+const NEW_HOURS = 48;
 
 /**
  * E'lon kartasi (/ishlar, bosh sahifa): butun karta — havola (after:inset-0).
@@ -35,19 +36,13 @@ export function JobCard({ job, til = "uz", className, headingLevel = "h2" }: { j
   const Heading = headingLevel;
   const extra = job.skills.length - MAX_SKILLS;
   const remote = !job.regionSlug;
+  const isNew = Date.now() - new Date(job.createdAt).getTime() < NEW_HOURS * 3_600_000;
   return (
     <article className={cn("card card-hover card-link group relative flex h-full min-w-0 flex-col p-4 sm:p-5", className)}>
       <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
-        {cat && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-fg/6 px-2.5 py-1 text-fg-2">
-            <CategoryIcon icon={cat.icon} size={12} aria-hidden="true" />
-            {cat.name}
-          </span>
-        )}
-        <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1", remote ? "bg-info-soft text-info-text" : "border border-line text-fg-2")}>
-          <MapPin size={12} aria-hidden="true" />
-          {remote ? tr(til, ISHLAR.f.remote) : jobRegionLabel(job.regionSlug)}
-        </span>
+        {isNew && <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-white">{til === "ru" ? "Новый" : "Yangi"}</span>}
+        {cat && <span className="inline-flex items-center rounded-full bg-fg/6 px-2.5 py-1 text-fg-2">{cat.name}</span>}
+        <span className={cn("inline-flex items-center rounded-full px-2.5 py-1", remote ? "bg-info-soft text-info-text" : "border border-line text-fg-2")}>{remote ? tr(til, ISHLAR.f.remote) : jobRegionLabel(job.regionSlug)}</span>
       </div>
 
       <Heading className="mt-3 font-display text-[17px] font-semibold leading-snug tracking-[-0.01em] text-fg sm:text-[18px]">
@@ -70,10 +65,7 @@ export function JobCard({ job, til = "uz", className, headingLevel = "h2" }: { j
 
       <div className="mt-auto pt-4">
         <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-t border-line pt-3.5">
-          <p className="inline-flex items-center gap-1.5 font-display text-[16px] font-semibold text-fg">
-            <Wallet size={15} className="text-accent" aria-hidden="true" />
-            {budgetLabelTr(til, budgetLabel(job.budgetMin, job.budgetMax, job.budgetType))}
-          </p>
+          <p className="font-display text-[16px] font-semibold text-fg">{budgetLabelTr(til, budgetLabel(job.budgetMin, job.budgetMax, job.budgetType))}</p>
           <p className="inline-flex items-center gap-1 text-[12.5px] font-medium text-fg-2">
             <MessageSquareText size={13} className="text-fg-3" aria-hidden="true" />
             {proposalsCountTr(til, job.proposalsCount)}

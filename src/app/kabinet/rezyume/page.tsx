@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ExternalLink, FileUser } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { ResumeForm } from "@/components/vacancies/ResumeForm";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getResume } from "@/lib/vacancies/service";
@@ -18,18 +18,16 @@ export default async function MyResumePage() {
     <div className="animate-fade-up">
       <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <span className="eyebrow">
-            <FileUser size={13} className="text-accent" /> Kabinet
-          </span>
+          <span className="eyebrow">Kabinet</span>
           <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
             Mening <span className="accent-serif text-accent">rezyumem</span>
           </h1>
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">
-            {r ? (r.isPublic ? "Rezyume katalogda ko'rinadi va arizalaringizga biriktiriladi." : "Rezyume faqat arizalaringizga biriktiriladi (katalogda ko'rinmaydi).") : "Bir marta to'ldiring — har vakansiyaga bir bosishda ariza yuborasiz, ish beruvchilar esa sizni katalogdan topadi."}
+            {r ? (r.isPublic ? `Katalogda ko'rinadi va arizalaringizga biriktiriladi · ${r.viewCount} marta ko'rilgan.` : "Faqat arizalaringizga biriktiriladi (katalogda ko'rinmaydi).") : "Bir marta to'ldiring — har vakansiyaga bir bosishda ariza yuborasiz, ish beruvchilar sizni katalogdan topadi."}
           </p>
         </div>
         {r && (
-          <Link href={`/rezyumelar/${r.id}`} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg">
+          <Link href={`/rezyumelar/${r.id}`} className="press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg">
             <ExternalLink size={14} /> Qanday ko&apos;rinadi
           </Link>
         )}

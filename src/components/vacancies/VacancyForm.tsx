@@ -31,7 +31,10 @@ type ApiResp = { ok: boolean; data?: { id?: string }; error?: string; fields?: R
 const LABEL = "text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3";
 const fmtMoney = (n: number | null) => (n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "");
 
-/** Vakansiya formasi (yaratish / tahrirlash). Tahrirda: yopish / qayta ochib uzaytirish / o'chirish. To'lovsiz. */
+/**
+ * Vakansiya formasi (yaratish / tahrirlash). Tahrirda: yopish / qayta ochib uzaytirish / o'chirish. To'lovsiz.
+ * `mode="create"` + `initial` — nusxa olish (/vakansiyalar/yangi?nusxa=<id>): maydonlar to'ldirilgan, yangi e'lon yaratiladi.
+ */
 export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initial?: VacancyFormInitial }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -111,7 +114,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
     >
       <label className="grid gap-1.5">
         <span className={LABEL}>Lavozim</span>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={VACANCY_TITLE_MAX} placeholder="Masalan: Video montajchi (Premiere Pro), masofaviy" className="field h-11 w-full text-[14px]" autoFocus={mode === "create"} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={VACANCY_TITLE_MAX} placeholder="Masalan: Video montajchi (Premiere Pro), masofaviy" className="field h-11 w-full text-[14px]" autoFocus={mode === "create" && !initial} />
         <span className="flex justify-between text-[11.5px] text-fg-4">
           <span className="text-danger-text">{errors.title}</span>
           <span>
@@ -150,7 +153,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
               role="radio"
               aria-checked={format === k}
               onClick={() => setFormat(k)}
-              className={`inline-flex h-10 items-center rounded-full border px-4 text-[13px] font-semibold transition ${format === k ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg"}`}
+              className={`press inline-flex h-10 items-center rounded-full border px-4 text-[13px] font-semibold transition ${format === k ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg"}`}
             >
               {WORK_FORMAT[k]}
             </button>
@@ -199,7 +202,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
           <input inputMode="numeric" value={salaryMax} onChange={(e) => setSalaryMax(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder="gacha: 6 000 000" className="field h-11 w-full text-[14px]" aria-label="Maosh gacha" />
         </div>
         {(errors.salaryMin || errors.salaryMax) && <span className="text-[11.5px] text-danger-text">{errors.salaryMin || errors.salaryMax}</span>}
-        {!salaryMin && !salaryMax && <span className="text-[12px] text-fg-4">Bo&apos;sh qoldirsangiz — «Kelishiladi» deb chiqadi. Maosh ko&apos;rsatilgan e&apos;lonlarga 2–3 barobar ko&apos;p ariza keladi.</span>}
+        {!salaryMin && !salaryMax && <span className="text-[12px] text-fg-4">Bo&apos;sh — «Kelishiladi». Maosh ko&apos;rsatilgan e&apos;lonlarga ko&apos;proq ariza keladi.</span>}
       </div>
 
       <label className="grid gap-1.5">
@@ -234,7 +237,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Button type="submit" variant="primary" size="md" disabled={!valid || busy}>
-          {busy ? "Saqlanmoqda…" : mode === "create" ? "Vakansiyani joylash" : "Saqlash"}
+          {busy ? "Saqlanmoqda…" : mode === "create" ? (initial ? "Nusxani joylash" : "Vakansiyani joylash") : "Saqlash"}
         </Button>
         <Button type="button" variant="outline" size="md" onClick={() => router.back()} disabled={busy}>
           Bekor
@@ -252,7 +255,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
             )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {confirmDelete ? (
-                <>
+                <span className="expand-in inline-flex flex-wrap items-center gap-2" role="group" aria-label="O'chirishni tasdiqlang">
                   <span className="text-[12.5px] text-fg-2">Vakansiya va arizalar o&apos;chadi. Aniqmi?</span>
                   <Button type="button" variant="danger" size="sm" disabled={busy} onClick={() => void send({}, "DELETE", () => { router.push("/kabinet/vakansiyalar"); router.refresh(); })}>
                     Ha, o&apos;chirish
@@ -260,7 +263,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
                   <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
                     Bekor
                   </Button>
-                </>
+                </span>
               ) : (
                 <Button type="button" variant="ghost" size="sm" className="text-danger-text hover:text-danger-text" onClick={() => setConfirmDelete(true)}>
                   <Trash2 size={14} /> O&apos;chirish
@@ -271,7 +274,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
         )}
         {error && <span className="basis-full text-[13px] font-semibold text-danger-text">{error}</span>}
       </div>
-      {mode === "create" && <p className="text-[12.5px] leading-relaxed text-fg-3">Vakansiya 30 kun ro&apos;yxatda turadi (keyin bir bosishda uzaytiriladi). Joylash bepul. Nomzodlar arizalari kabinetingizdagi «Vakansiyalarim» bo&apos;limiga va bildirishnomaga keladi.</p>}
+      {mode === "create" && <p className="text-[12.5px] leading-relaxed text-fg-3">30 kun ro&apos;yxatda turadi, bir bosishda uzaytiriladi. Arizalar «Vakansiyalarim» bo&apos;limiga keladi.</p>}
     </form>
   );
 }

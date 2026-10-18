@@ -72,11 +72,10 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
     <div className="animate-fade-up">
       {/* Xush kelibsiz */}
       {welcome && (
-        <div className="card-elevated relative mb-5 overflow-hidden p-5 sm:p-6">
-          <span className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/15 blur-3xl" />
-          <div className="relative flex items-start gap-3.5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-accent-soft text-accent">
-              <PartyPopper size={20} />
+        <div className="card mb-5 p-5 sm:p-6">
+          <div className="flex items-start gap-3.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent-text">
+              <PartyPopper size={18} />
             </span>
             <div>
               <p className="font-display text-[18px] font-semibold leading-tight text-fg">Xush kelibsiz, {firstName}!</p>
@@ -94,16 +93,12 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
 
       {/* Sarlavha */}
       <div className="mb-5 sm:mb-6">
-        <span className="eyebrow">Sozlamalar</span>
-        <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
-          Profil va <span className="accent-serif text-accent">maxfiylik</span>
+        <span className="eyebrow">Kabinet</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Profil va <span className="accent-serif">maxfiylik</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] text-fg-2">
-          {s
-            ? "Akkaunt, mutaxassis profili, kim nimani ko'rishi va ish vaqtingiz — hammasi shu yerda."
-            : user.role === "specialist"
-              ? "Avval akkaunt, keyin mutaxassis profilini to'ldiring."
-              : "Akkaunt ma'lumotlaringiz. Xohlasangiz, mutaxassis profilini ham ochishingiz mumkin."}
+        <p className="mt-2 max-w-xl text-[14px] text-fg-2">
+          {s ? "Akkaunt, mutaxassis profili, ko'rinish va ish vaqti." : user.role === "specialist" ? "Avval akkaunt, keyin mutaxassis profilini to'ldiring." : "Akkaunt ma'lumotlari. Xohlasangiz, mutaxassis profilini ham ochasiz."}
         </p>
       </div>
 
@@ -112,15 +107,15 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         <ul className="flex w-max gap-1.5">
           {sections.map((x) => (
             <li key={x.href}>
-              <Link href={x.href} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                <x.icon size={14} className="text-accent" /> {x.label}
+              <Link href={x.href} className="press inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+                <x.icon size={14} className="text-fg-3" /> {x.label}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="space-y-5">
+      <div className="stagger space-y-5 [&>*]:animate-fade-up">
         <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
 
         {telegramEnabled && <TelegramCard linked={Boolean(user.telegramChatId)} />}

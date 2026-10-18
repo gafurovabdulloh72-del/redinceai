@@ -4,11 +4,13 @@ import { RATING_CRITERIA, type RatingCriterionKey } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
-import { MEZON, PROFIL } from "@/lib/i18n/dict/profile";
+import { MEZON, PROFIL, PROFIL_X } from "@/lib/i18n/dict/profile";
 import { cn, formatDateTime } from "@/lib/utils";
 import { ReviewDeleteButton } from "./ReviewDeleteButton";
 import { ReviewReplyForm } from "./ReviewReplyForm";
 import { ReportButton } from "./ReportButton";
+import { HelpfulButton } from "./HelpfulButton";
+import { MoreList } from "./MoreList";
 
 export interface ReviewListItem {
   id: string;
@@ -143,8 +145,8 @@ export async function ReviewSummary({
 }
 
 /**
- * Sharhlar ro'yxati (server va client'da ishlaydi).
- * Har bir sharh — alohida karta: avatar, ism, yulduzlar, vaqt va matn.
+ * Sharhlar ro'yxati (server komponent). Har bir sharh — karta: avatar, ism, yulduzlar, vaqt, matn, mezonlar bitta qatorda,
+ * «Foydali» ovozi. Dastlab `initialVisible` tasi ko'rinadi, qolgani «Yana N ta» ostida (MoreList). Kartalar `.stagger` bilan kiradi.
  */
 export async function ReviewList({
   reviews,
@@ -154,6 +156,10 @@ export async function ReviewList({
   canReply = false,
   canReport = false,
   replyAuthor,
+  votes,
+  loggedIn = false,
+  loginHref = "/auth/kirish",
+  initialVisible = 4,
 }: {
   reviews: ReviewListItem[];
   highlightAuthorId?: string | null;
@@ -166,105 +172,109 @@ export async function ReviewList({
   canReport?: boolean;
   /** Javob bloki sarlavhasi uchun mutaxassis (ism + avatar) */
   replyAuthor?: { name: string; avatarUrl: string | null };
+  /** «Foydali» ovozlari: sharh id → { n, mine } */
+  votes?: Map<string, { n: number; mine: boolean }>;
+  loggedIn?: boolean;
+  loginHref?: string;
+  /** Dastlab ko'rinadigan sharhlar soni */
+  initialVisible?: number;
 }) {
   const til = await getLocale();
   if (reviews.length === 0) {
     return <EmptyState icon={MessageSquareText} title={tr(til, PROFIL.noReviewsTitle)} description={tr(til, PROFIL.noReviewsDesc)} />;
   }
+  const criteriaLine = (r: ReviewListItem) =>
+    RATING_CRITERIA.filter((c) => typeof r[c.key] === "number").map((c) => `${MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} ${r[c.key]}`);
 
-  return (
-    <ul className="space-y-3">
-      {reviews.map((r, i) => {
-        const mine = highlightAuthorId != null && r.authorId === highlightAuthorId;
-        return (
-          <li
-            key={r.id}
-            id={`sharh-${r.id}`}
-            className={cn("card animate-fade-up scroll-mt-28 p-4 sm:p-5", mine && "border-accent/40")}
-            style={{ animationDelay: `${Math.min(i, 6) * 60}ms`, animationDuration: "0.5s" }}
-          >
-            <div className="flex items-start gap-3">
-              <Avatar name={r.author.name} src={r.author.avatarUrl} size={40} decorative />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-fg">
-                    <span className="truncate">{r.author.name}</span>
-                    {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-accent-text">{tr(til, PROFIL.you)}</span>}
-                    {r.verified && (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text"
-                        title={tr(til, PROFIL.orderVerifiedHint)}
-                      >
-                        <BadgeCheck size={12} /> {tr(til, PROFIL.orderVerified)}
-                      </span>
-                    )}
-                  </p>
-                  <span className="flex items-center gap-2">
-                    <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
-                      {timeAgoLabel(til, r.createdAt)}
-                    </time>
-                    {canModerate && specialistId && r.authorId && !mine && <ReviewDeleteButton specialistId={specialistId} authorId={r.authorId} />}
+  const item = (r: ReviewListItem) => {
+    const mine = highlightAuthorId != null && r.authorId === highlightAuthorId;
+    const v = votes?.get(r.id);
+    const crit = criteriaLine(r);
+    return (
+      <li key={r.id} id={`sharh-${r.id}`} className={cn("card scroll-mt-28 p-4 sm:p-5", mine && "border-accent/40")}>
+        <div className="flex items-start gap-3">
+          <Avatar name={r.author.name} src={r.author.avatarUrl} size={40} decorative />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-fg">
+                <span className="truncate">{r.author.name}</span>
+                {mine && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-accent-text">{tr(til, PROFIL.you)}</span>}
+                {r.verified && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold text-fg-2" title={tr(til, PROFIL.orderVerifiedHint)}>
+                    <BadgeCheck size={12} className="text-success" /> {tr(til, PROFIL.orderVerified)}
                   </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Stars value={r.rating} size={13} showValue={false} />
-                  {r.recommend === true && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-text">
-                      <ThumbsUp size={11} /> {tr(til, PROFIL.recommends)}
-                    </span>
-                  )}
-                </div>
-              </div>
+                )}
+              </p>
+              <span className="flex items-center gap-2">
+                <time className="text-[12px] text-fg-3" dateTime={new Date(r.createdAt).toISOString()} title={formatDateTime(r.createdAt)}>
+                  {timeAgoLabel(til, r.createdAt)}
+                </time>
+                {canModerate && specialistId && r.authorId && !mine && <ReviewDeleteButton specialistId={specialistId} authorId={r.authorId} />}
+              </span>
             </div>
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{r.text}</p>
-            {RATING_CRITERIA.some((c) => typeof r[c.key] === "number") && (
-              <div className="mt-3 grid grid-cols-3 gap-3 sm:max-w-md">
-                {RATING_CRITERIA.map((c) => {
-                  const v = r[c.key];
-                  return typeof v === "number" ? <CriterionBar key={c.key} label={MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} value={v} compact /> : <span key={c.key} />;
-                })}
-              </div>
-            )}
-            {r.media && r.media.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {r.media.slice(0, 4).map((url, k) => (
-                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-[12px] border border-line bg-surface-3 transition hover:opacity-90">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={PROFIL.reviewImageAlt[til](r.author.name, k + 1)} loading="lazy" className="h-full w-full object-cover" />
-                  </a>
-                ))}
-              </div>
-            )}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Stars value={r.rating} size={13} showValue={false} />
+              {r.recommend === true && (
+                <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-fg-2">
+                  <ThumbsUp size={11} className="text-success" /> {tr(til, PROFIL.recommends)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{r.text}</p>
+        {/* Mezonlar — 3 ta mini chiziq o'rniga bitta tinch qator */}
+        {crit.length > 0 && <p className="mt-2 text-[12px] text-fg-3">{crit.join(" · ")}</p>}
+        {r.media && r.media.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {r.media.slice(0, 4).map((url, k) => (
+              <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="img-zoom block h-20 w-20 overflow-hidden rounded-[var(--r-sm)] border border-line bg-surface-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={PROFIL.reviewImageAlt[til](r.author.name, k + 1)} loading="lazy" className="h-full w-full object-cover" />
+              </a>
+            ))}
+          </div>
+        )}
 
-            {/* Mutaxassis javobi */}
-            {r.reply && (
-              <div className="mt-3.5 rounded-[16px] bg-surface-3 px-4 py-3 sm:ml-[52px]">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold text-fg">
-                  <CornerDownRight size={13} className="text-accent" aria-hidden />
-                  {replyAuthor ? PROFIL.replyOf[til](replyAuthor.name) : tr(til, PROFIL.specialistReply)}
-                  {r.replyAt && (
-                    <time className="font-normal text-fg-3" dateTime={new Date(r.replyAt).toISOString()} title={formatDateTime(r.replyAt)}>
-                      · {timeAgoLabel(til, r.replyAt)}
-                    </time>
-                  )}
-                </p>
-                <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-fg-2">{r.reply}</p>
-              </div>
-            )}
+        {/* Mutaxassis javobi */}
+        {r.reply && (
+          <div className="mt-3.5 rounded-[var(--r-md)] bg-surface-3 px-4 py-3 sm:ml-[52px]">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold text-fg">
+              <CornerDownRight size={13} className="text-fg-3" aria-hidden />
+              {replyAuthor ? PROFIL.replyOf[til](replyAuthor.name) : tr(til, PROFIL.specialistReply)}
+              {r.replyAt && (
+                <time className="font-normal text-fg-3" dateTime={new Date(r.replyAt).toISOString()} title={formatDateTime(r.replyAt)}>
+                  · {timeAgoLabel(til, r.replyAt)}
+                </time>
+              )}
+            </p>
+            <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-fg-2">{r.reply}</p>
+          </div>
+        )}
 
-            {/* Amallar: javob (egasi), o'z sharhini o'chirish, shikoyat */}
-            {(canReply || (mine && specialistId) || (canReport && !mine)) && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5">
-                <div className="flex flex-wrap items-center gap-1">
-                  {canReply && <ReviewReplyForm reviewId={r.id} existing={r.reply ?? null} />}
-                  {mine && specialistId && <ReviewDeleteButton specialistId={specialistId} />}
-                </div>
-                {canReport && !mine && <ReportButton targetType="review" targetId={r.id} loggedIn className="ml-auto" />}
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+        {/* Amallar: foydali (o'zinikidan tashqari), javob (egasi), o'z sharhini o'chirish, shikoyat */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {!mine && <HelpfulButton reviewId={r.id} count={v?.n ?? 0} voted={v?.mine ?? false} loggedIn={loggedIn} loginHref={loginHref} />}
+            {canReply && <ReviewReplyForm reviewId={r.id} existing={r.reply ?? null} />}
+            {mine && specialistId && <ReviewDeleteButton specialistId={specialistId} />}
+          </div>
+          {canReport && !mine && <ReportButton targetType="review" targetId={r.id} loggedIn className="ml-auto" />}
+        </div>
+      </li>
+    );
+  };
+
+  const head = reviews.slice(0, initialVisible);
+  const rest = reviews.slice(initialVisible);
+  return (
+    <>
+      <ul className="stagger space-y-3">{head.map(item)}</ul>
+      {rest.length > 0 && (
+        <MoreList labelMore={PROFIL_X.showMoreReviews[til](rest.length)} labelLess={tr(til, PROFIL_X.showLess)} className="mt-3">
+          <ul className="space-y-3 pb-3">{rest.map(item)}</ul>
+        </MoreList>
+      )}
+    </>
   );
 }

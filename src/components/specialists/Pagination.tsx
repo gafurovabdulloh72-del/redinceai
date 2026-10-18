@@ -30,7 +30,7 @@ function pageWindow(page: number, pages: number, delta = 1): Array<number | "…
 }
 
 /* 44px pill — bosish maydoni mobil uchun yetarli */
-const pill = "inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3.5 text-[14px] font-semibold tabular-nums transition";
+const pill = "press inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3.5 text-[14px] font-semibold tabular-nums transition";
 
 function PageLink({
   href,
@@ -62,7 +62,7 @@ function PageLink({
     );
   }
   return (
-    <Link href={href} rel={rel} aria-label={label} scroll className={cn(pill, "card card-hover text-fg-2 hover:text-fg")}>
+    <Link href={href} rel={rel} aria-label={label} scroll className={cn(pill, "border border-line bg-surface text-fg-2 hover:border-fg hover:text-fg")}>
       {children}
     </Link>
   );
@@ -111,7 +111,8 @@ export async function Pagination({
           <ChevronRight size={18} />
         </PageLink>
       </div>
-      <p className="text-[12px] text-fg-4">{SAHIFALASH.ofPages[til](page, pages)}</p>
+      {/* "1 / 5 sahifa" matni — faol pill allaqachon ko'rsatadi; ekran o'quvchi uchun saqlanadi */}
+      <p className="sr-only">{SAHIFALASH.ofPages[til](page, pages)}</p>
     </nav>
   );
 }

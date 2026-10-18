@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Briefcase, FileUser, Plus, Search } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Briefcase, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
+import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { getCurrentUser } from "@/lib/auth";
 import { REGIONS } from "@/lib/constants";
-import { EMPLOYMENT, EXPERIENCE, PROFESSIONS, REMOTE_REGION, WORK_FORMAT } from "@/lib/vacancies/format";
+import { EMPLOYMENT, EXPERIENCE, PAY_FILTER, PROFESSIONS, REMOTE_REGION, SALARY_CHIPS, WORK_FORMAT, professionLabel } from "@/lib/vacancies/format";
 import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/service";
-import { vacancyFilterSchema, type VacancyFilter } from "@/lib/vacancies/validators";
+import type { VacancyFilter } from "@/lib/vacancies/validators";
 import { cn } from "@/lib/utils";
+import { filterChip as chip, flatSearch as flat, parseVacancyFilter as parseFilter, vacancyQuery as toQuery, type RawSearch as Raw } from "./_shared";
 
 export const dynamic = "force-dynamic";
 
@@ -20,78 +23,53 @@ export const metadata: Metadata = {
 };
 
 const BASE = "/vakansiyalar";
-type Raw = Record<string, string | string[] | undefined>;
 
-function flat(raw: Raw): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    const s = Array.isArray(v) ? v[0] : v;
-    if (typeof s === "string" && s !== "") out[k] = s;
-  }
-  return out;
+/** Faol filtrlardan saqlanadigan qidiruv nomi: "Video · Masofaviy" */
+function alertName(f: VacancyFilter): string {
+  const parts = [f.profession && professionLabel(f.profession, true), f.format && WORK_FORMAT[f.format], f.q && `«${f.q}»`].filter(Boolean) as string[];
+  return parts.length ? parts.join(" · ") : "Barcha vakansiyalar";
 }
 
-/** Noto'g'ri kalitlar tashlab yuboriladi (422 o'rniga bo'sh filtr) */
-function parseFilter(flatQ: Record<string, string>): VacancyFilter {
-  let res = vacancyFilterSchema.safeParse(flatQ);
-  if (!res.success) {
-    const bad = new Set(res.error.issues.map((i) => String(i.path[0])));
-    res = vacancyFilterSchema.safeParse(Object.fromEntries(Object.entries(flatQ).filter(([k]) => !bad.has(k))));
-  }
-  return res.success ? res.data : vacancyFilterSchema.parse({});
-}
-
-function toQuery(f: VacancyFilter): Record<string, string | undefined> {
-  return {
-    q: f.q || undefined,
-    profession: f.profession || undefined,
-    format: f.format || undefined,
-    employment: f.employment || undefined,
-    experience: f.experience || undefined,
-    region: f.region || undefined,
-    min: f.min ? String(f.min) : undefined,
-    sort: f.sort !== "newest" ? f.sort : undefined,
-    page: f.page > 1 ? String(f.page) : undefined,
-  };
-}
-
-const chip = (active: boolean) =>
-  cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition", active ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg");
-
-/** Vakansiyalar katalogi — barcha onlayn kasblar; filtr GET forma (JS'siz ishlaydi) + kasb chiplari */
+/** Vakansiyalar katalogi — barcha onlayn kasblar; filtr GET forma (JS'siz ishlaydi) + kasb va tez chiplar */
 export default async function VacanciesPage({ searchParams }: { searchParams: Promise<Raw> }) {
   const f = parseFilter(flat(await searchParams));
   const [result, counts, user] = await Promise.all([listVacancies(f), vacancyCountsByProfession(), getCurrentUser()]);
-  const totalOpen = Object.values(counts).reduce((a, b) => a + b, 0);
   const query = toQuery(f);
-  const hasFilters = Boolean(f.q || f.profession || f.format || f.employment || f.experience || f.region || f.min);
+  // Sahifa diapazondan tashqarida — oxirgi sahifaga (bo'sh «topilmadi» o'rniga)
+  if (result.total > 0 && f.page > result.pages) redirect(buildHref(BASE, { ...query, page: result.pages > 1 ? String(result.pages) : undefined }));
+  const totalOpen = Object.values(counts).reduce((a, b) => a + b, 0);
+  const hasFilters = Boolean(f.q || f.profession || f.format || f.employment || f.experience || f.region || f.min || f.pay || f.fresh);
+  const advancedActive = Boolean(f.employment || f.experience || f.region);
+  const alertQuery = new URLSearchParams(Object.entries({ ...query, page: undefined, sort: undefined, fresh: undefined }).filter((e): e is [string, string] => Boolean(e[1]))).toString();
 
   return (
     <div className="container-x animate-fade-up">
       <PageHeader
         size="lg"
-        eyebrow={`${totalOpen} ta ochiq vakansiya · joylash va ariza bepul`}
+        eyebrow={`${totalOpen} ta ochiq vakansiya · bepul`}
         title={
           <>
             Onlayn <span className="accent-serif text-accent">vakansiyalar</span>
           </>
         }
-        description="Masofaviy va ofis ish o'rinlari: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim va boshqa onlayn kasblar. Rezyume bilan bir bosishda ariza yuboring."
+        description="Masofaviy va ofis ish o'rinlari — IT, dizayn, video, marketing, kontent va boshqa onlayn kasblar. Rezyume bilan bir bosishda ariza yuboring."
         action={
           <>
             <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="lg">
               <Plus size={18} /> Vakansiya joylash
             </ButtonLink>
             <ButtonLink href="/rezyumelar" variant="outline" size="lg">
-              <FileUser size={18} /> Rezyumelar
+              Rezyumelar
             </ButtonLink>
           </>
         }
       />
 
-      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_repeat(4,minmax(0,160px))_auto]">
+      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 lg:grid-cols-[1fr_minmax(0,160px)_auto]">
         {f.profession && <input type="hidden" name="profession" value={f.profession} />}
-        <label className="relative min-w-0 sm:col-span-2 lg:col-span-1">
+        {f.min > 0 && <input type="hidden" name="min" value={f.min} />}
+        {f.pay && <input type="hidden" name="pay" value={f.pay} />}
+        <label className="relative min-w-0">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
           <input name="q" defaultValue={f.q} maxLength={80} placeholder="Lavozim, kompaniya, ko'nikma…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
         </label>
@@ -103,64 +81,93 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
             </option>
           ))}
         </select>
-        <select name="employment" defaultValue={f.employment} aria-label="Bandlik" className="field h-11 text-[14px]">
-          <option value="">Har qanday bandlik</option>
-          {(Object.keys(EMPLOYMENT) as Array<keyof typeof EMPLOYMENT>).map((k) => (
-            <option key={k} value={k}>
-              {EMPLOYMENT[k]}
-            </option>
-          ))}
-        </select>
-        <select name="experience" defaultValue={f.experience} aria-label="Tajriba" className="field h-11 text-[14px]">
-          <option value="">Har qanday tajriba</option>
-          {(Object.keys(EXPERIENCE) as Array<keyof typeof EXPERIENCE>).map((k) => (
-            <option key={k} value={k}>
-              {EXPERIENCE[k]}
-            </option>
-          ))}
-        </select>
-        <select name="region" defaultValue={f.region} aria-label="Hudud" className="field h-11 text-[14px]">
-          <option value="">Butun O&apos;zbekiston</option>
-          <option value={REMOTE_REGION}>Faqat masofaviy</option>
-          {REGIONS.map((r) => (
-            <option key={r.slug} value={r.slug}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-        <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-          <select name="sort" defaultValue={f.sort} aria-label="Saralash" className="field h-11 flex-1 text-[14px] lg:hidden">
-            <option value="newest">Yangi</option>
-            <option value="salary_high">Maosh ↓</option>
-          </select>
-          <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold">
-            Qidirish
-          </button>
-        </div>
+        <button type="submit" className="btn-ink press inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold">
+          Qidirish
+        </button>
+        {/* Qo'shimcha filtrlar — telefonda yig'ilgan (details), faol bo'lsa ochiq */}
+        <details className="group min-w-0 lg:col-span-3" open={advancedActive}>
+          <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[13px] font-semibold text-fg-2 hover:text-fg [&::-webkit-details-marker]:hidden">
+            <SlidersHorizontal size={14} aria-hidden /> Qo&apos;shimcha filtrlar
+            {advancedActive && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />}
+          </summary>
+          <div className="expand-in mt-2 grid gap-3 sm:grid-cols-3">
+            <select name="employment" defaultValue={f.employment} aria-label="Bandlik" className="field h-11 text-[14px]">
+              <option value="">Har qanday bandlik</option>
+              {(Object.keys(EMPLOYMENT) as Array<keyof typeof EMPLOYMENT>).map((k) => (
+                <option key={k} value={k}>
+                  {EMPLOYMENT[k]}
+                </option>
+              ))}
+            </select>
+            <select name="experience" defaultValue={f.experience} aria-label="Tajriba" className="field h-11 text-[14px]">
+              <option value="">Har qanday tajriba</option>
+              {(Object.keys(EXPERIENCE) as Array<keyof typeof EXPERIENCE>).map((k) => (
+                <option key={k} value={k}>
+                  {EXPERIENCE[k]}
+                </option>
+              ))}
+            </select>
+            <select name="region" defaultValue={f.region} aria-label="Hudud" className="field h-11 text-[14px]">
+              <option value="">Butun O&apos;zbekiston</option>
+              <option value={REMOTE_REGION}>Faqat masofaviy</option>
+              {REGIONS.map((r) => (
+                <option key={r.slug} value={r.slug}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </details>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Link href={buildHref(BASE, { ...query, profession: undefined, page: undefined })} className={chip(!f.profession)}>
-          Barcha kasblar <span className={!f.profession ? "opacity-70" : "text-fg-4"}>{totalOpen}</span>
-        </Link>
-        {PROFESSIONS.map((p) => {
-          const active = f.profession === p.slug;
-          const n = counts[p.slug] ?? 0;
-          return (
-            <Link key={p.slug} href={buildHref(BASE, { ...query, profession: active ? undefined : p.slug, page: undefined })} className={chip(active)}>
-              {p.short} {n > 0 && <span className={active ? "opacity-70" : "text-fg-4"}>{n}</span>}
+      {/* Kasb chiplari */}
+      <nav aria-label="Kasblar" className="-mx-4 mt-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+        <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+          <li>
+            <Link href={buildHref(BASE, { ...query, profession: undefined, page: undefined })} className={chip(!f.profession)} aria-current={!f.profession ? "page" : undefined}>
+              Barcha kasblar <span className={!f.profession ? "opacity-70" : "text-fg-4"}>{totalOpen}</span>
             </Link>
-          );
-        })}
-        <span className="ml-auto hidden items-center gap-2 text-[13px] text-fg-3 lg:inline-flex">
-          Saralash:
-          <Link href={buildHref(BASE, { ...query, sort: undefined, page: undefined })} className={cn("font-semibold", f.sort === "newest" ? "text-fg" : "hover:text-fg")}>
-            Yangi
+          </li>
+          {PROFESSIONS.map((p) => {
+            const active = f.profession === p.slug;
+            const n = counts[p.slug] ?? 0;
+            return (
+              <li key={p.slug}>
+                <Link href={buildHref(BASE, { ...query, profession: active ? undefined : p.slug, page: undefined })} className={chip(active)} aria-current={active ? "page" : undefined}>
+                  {p.short} {n > 0 && <span className={active ? "opacity-70" : "text-fg-4"}>{n}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Tez filtrlar: masofaviy, yangi, maosh, kelishiladi */}
+      <div className="-mx-4 mt-2 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+        <div className="flex w-max items-center gap-2 sm:w-auto sm:flex-wrap" role="group" aria-label="Tez filtrlar">
+          <Link href={buildHref(BASE, { ...query, format: f.format === "remote" ? undefined : "remote", page: undefined })} className={chip(f.format === "remote")} aria-pressed={f.format === "remote"}>
+            Masofaviy
           </Link>
-          <Link href={buildHref(BASE, { ...query, sort: "salary_high", page: undefined })} className={cn("font-semibold", f.sort === "salary_high" ? "text-fg" : "hover:text-fg")}>
-            Maosh bo&apos;yicha
+          <Link href={buildHref(BASE, { ...query, fresh: f.fresh ? undefined : "1", page: undefined })} className={chip(f.fresh === "1")} aria-pressed={f.fresh === "1"}>
+            Yangi (48 soat)
           </Link>
-        </span>
+          {SALARY_CHIPS.map((c) => {
+            const on = f.min === c.min;
+            return (
+              <Link key={c.min} href={buildHref(BASE, { ...query, min: on ? undefined : String(c.min), pay: undefined, page: undefined })} className={chip(on)} aria-pressed={on}>
+                {c.label}
+              </Link>
+            );
+          })}
+          {(Object.keys(PAY_FILTER) as Array<keyof typeof PAY_FILTER>).map((k) => {
+            const on = f.pay === k;
+            return (
+              <Link key={k} href={buildHref(BASE, { ...query, pay: on ? undefined : k, min: k === "neg" ? undefined : query.min, page: undefined })} className={chip(on)} aria-pressed={on}>
+                {PAY_FILTER[k]}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       <section className="mt-6" aria-live="polite">
@@ -168,7 +175,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
           <EmptyState
             icon={Briefcase}
             title={hasFilters ? "Bunday vakansiya topilmadi" : "Hali vakansiyalar yo'q"}
-            description={hasFilters ? "Filtrlarni kengaytiring yoki rezyume qoldiring — ish beruvchilar o'zlari topadi." : "Birinchi vakansiyani siz joylang — bepul, 30 kun ro'yxatda turadi."}
+            description={hasFilters ? "Filtrlarni kengaytiring yoki qidiruvni saqlang — mos vakansiya chiqsa xabar beramiz." : "Birinchi vakansiyani siz joylang — bepul, 30 kun ro'yxatda turadi."}
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 {hasFilters && (
@@ -176,17 +183,40 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
                     Barcha vakansiyalar
                   </ButtonLink>
                 )}
-                <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="md">
-                  <Plus size={16} /> Vakansiya joylash
-                </ButtonLink>
+                {hasFilters && <VacancyAlertButton query={alertQuery} defaultName={alertName(f)} loggedIn={Boolean(user)} />}
+                {!hasFilters && (
+                  <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="md">
+                    <Plus size={16} /> Vakansiya joylash
+                  </ButtonLink>
+                )}
               </div>
             }
           />
         ) : (
           <>
-            <p className="mb-3 text-[13px] text-fg-3">
-              {result.total} ta vakansiya{hasFilters ? " (filtr bo'yicha)" : ""} · {result.page}/{result.pages}-sahifa
-            </p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-fg-3">
+              <p>
+                {result.total} ta vakansiya{hasFilters ? " (filtr bo'yicha)" : ""}
+                {result.pages > 1 ? ` · ${result.page}/${result.pages}-sahifa` : ""}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2">
+                  Saralash:
+                  {(
+                    [
+                      ["newest", "Yangi"],
+                      ["salary_high", "Maosh"],
+                      ["applications", "Ko'p ariza"],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <Link key={k} href={buildHref(BASE, { ...query, sort: k === "newest" ? undefined : k, page: undefined })} className={cn("font-semibold", f.sort === k ? "text-fg underline underline-offset-4" : "hover:text-fg")} aria-current={f.sort === k ? "true" : undefined}>
+                      {label}
+                    </Link>
+                  ))}
+                </span>
+                <VacancyAlertButton query={alertQuery} defaultName={alertName(f)} loggedIn={Boolean(user)} />
+              </div>
+            </div>
             <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((v) => (
                 <li key={v.id} className="min-w-0">
@@ -201,23 +231,17 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
 
       {/* Ikki tomon uchun CTA */}
       <section className="mt-10 grid gap-4 sm:grid-cols-2">
-        <div className="card flex flex-col gap-3 p-5">
-          <span className="icon-tile-soft !rounded-full">
-            <FileUser size={18} />
-          </span>
+        <div className="card flex flex-col gap-2 p-5">
           <h2 className="font-display text-[18px] font-semibold text-fg">Ish qidiryapsizmi?</h2>
-          <p className="text-[13.5px] leading-relaxed text-fg-2">Rezyume to&apos;ldiring — har bir vakansiyaga bir bosishda ariza yuborasiz, ish beruvchilar esa sizni katalogdan topadi. Kontaktingiz ochiq ko&apos;rsatilmaydi.</p>
-          <ButtonLink href={user ? "/kabinet/rezyume" : "/auth/royxat?next=/kabinet/rezyume"} variant="primary" size="md" className="w-fit">
+          <p className="text-[13.5px] leading-relaxed text-fg-2">Rezyume to&apos;ldiring — har vakansiyaga bir bosishda ariza yuborasiz. Kontaktingiz ochiq ko&apos;rsatilmaydi.</p>
+          <ButtonLink href={user ? "/kabinet/rezyume" : "/auth/royxat?next=/kabinet/rezyume"} variant="primary" size="md" className="mt-2 w-fit">
             Rezyume yaratish
           </ButtonLink>
         </div>
-        <div className="card flex flex-col gap-3 p-5">
-          <span className="icon-tile-soft !rounded-full">
-            <Briefcase size={18} />
-          </span>
+        <div className="card flex flex-col gap-2 p-5">
           <h2 className="font-display text-[18px] font-semibold text-fg">Xodim kerakmi?</h2>
-          <p className="text-[13.5px] leading-relaxed text-fg-2">Vakansiyani 2 daqiqada joylang — bepul. Arizalar kabinetingizga keladi: nomzodning rezyumesi, xati va kontakti bilan. Holatlarni bir bosishda boshqarasiz.</p>
-          <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="md" className="w-fit">
+          <p className="text-[13.5px] leading-relaxed text-fg-2">Vakansiyani 2 daqiqada joylang — bepul. Arizalar rezyume va kontakt bilan kabinetingizga keladi.</p>
+          <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="md" className="mt-2 w-fit">
             Vakansiya joylash
           </ButtonLink>
         </div>

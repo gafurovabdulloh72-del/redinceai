@@ -1,11 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
 
-/** Logotip: "K" harfli siyoh plitka + aniq coral nuqta (blur yo'q — kichik o'lchamda ham toza) */
+/** Logotip: "K" harfli siyoh plitka + coral nuqta (tinch — hover'da harakat yo'q). aria-label joriy tilda */
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
+  const til = useLocale();
   return (
-    <Link href="/" className={cn("group inline-flex items-center gap-2.5", className)} aria-label="Kasb Egalari — bosh sahifa">
-      <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[11px] bg-ink text-ink-fg transition-transform duration-500 ease-[var(--ease-spring)] group-hover:-rotate-6">
+    <Link href="/" className={cn("group inline-flex items-center gap-2.5", className)} aria-label={tr(til, SHELL.common.logoAria)}>
+      <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[10px] bg-ink text-ink-fg">
         <svg viewBox="0 0 24 24" className="relative h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M6 4v16" />
           <path d="M18 4l-8.5 8L18 20" />

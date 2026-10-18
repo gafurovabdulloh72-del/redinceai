@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Building2, CalendarDays, Clock3, Eye, MapPin, Pencil, Users, Wallet } from "lucide-react";
+import { BadgeCheck, Pencil, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { ApplyForm } from "@/components/vacancies/ApplyForm";
 import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
@@ -9,10 +10,11 @@ import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { TelegramShare } from "@/components/ui/TelegramShare";
 import { getCurrentUser } from "@/lib/auth";
-import { EMPLOYMENT, EXPERIENCE, WORK_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
+import { EMPLOYMENT, EXPERIENCE, WORK_FORMAT, daysLeftLabel, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
 import { bumpVacancyView, employerVacancies, getResume, getVacancyView, loadVacancy, similarVacancies } from "@/lib/vacancies/service";
+import { isBotUserAgent } from "@/lib/privacy";
 import { SITE_URL } from "@/lib/site-url";
-import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { formatDate, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
@@ -27,7 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const closed = v.status !== "open" || (v.expiresAt && v.expiresAt.getTime() < Date.now());
   return {
     title: `${v.title}${v.company ? ` — ${v.company}` : ""}`,
-    description: v.description.slice(0, 160),
+    description: v.description.replace(/\s+/g, " ").trim().slice(0, 160),
     alternates: { canonical: `/vakansiyalar/${v.id}` },
     robots: closed ? { index: false, follow: false } : undefined,
   };
@@ -35,7 +37,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="card p-5 sm:p-6">
+    <section className="card p-5 sm:p-6" data-reveal>
       <h2 className="font-display text-[18px] font-semibold text-fg">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
@@ -44,19 +46,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /** Vakansiya sahifasi: tavsif, talablar, ko'nikmalar; yon panel — ariza (yoki egasi paneli) va statistika */
 export default async function VacancyPage({ params }: { params: Params }) {
-  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
+  const [{ id }, user, hdrs] = await Promise.all([params, getCurrentUser(), headers()]);
   const viewer = user ? { id: user.id, role: user.role } : null;
   const v = await getVacancyView(id, viewer);
   if (!v) notFound();
   const raw = await loadVacancy(v.id);
+  // Ko'rishlar: egasi va botlar (crawler, skrinshot, curl) sanalmaydi
   const [resume, similar, fromEmployer] = await Promise.all([
     user ? getResume(user.id) : Promise.resolve(null),
     raw ? similarVacancies(raw, 3) : Promise.resolve([]),
     raw ? employerVacancies(raw, 3) : Promise.resolve([]),
-    v.isOwner ? Promise.resolve() : bumpVacancyView(v.id),
+    v.isOwner || isBotUserAgent(hdrs.get("user-agent")) ? Promise.resolve() : bumpVacancyView(v.id),
   ]);
   const closed = v.status !== "open" || v.expired;
   const daysLeft = v.expiresAt ? Math.max(0, Math.ceil((v.expiresAt - Date.now()) / 86_400_000)) : null;
+  const employerHref = `/vakansiyalar/kompaniya/${v.author.username ?? v.author.id}`;
   const reqLines = v.requirements
     .split(/\n+/)
     .map((s) => s.replace(/^[-•*]\s*/, "").trim())
@@ -110,36 +114,27 @@ export default async function VacancyPage({ params }: { params: Params }) {
               </p>
             )}
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
-              <span className="rounded-full bg-fg/6 px-2.5 py-1 text-fg-2">{professionLabel(v.profession)}</span>
-              <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1", v.format === "remote" ? "bg-info-soft text-info-text" : "border border-line text-fg-2")}>
-                <MapPin size={12} /> {WORK_FORMAT[v.format]}
+              <span className={v.format === "remote" ? "rounded-full bg-info-soft px-2.5 py-1 text-info-text" : "rounded-full border border-line px-2.5 py-1 text-fg-2"}>
+                {WORK_FORMAT[v.format]}
                 {v.format !== "remote" && ` · ${vacancyRegionLabel(v.regionSlug, true)}`}
               </span>
-              <span className="rounded-full border border-line px-2.5 py-1 text-fg-2">{EMPLOYMENT[v.employment]}</span>
-              <span className="rounded-full border border-line px-2.5 py-1 text-fg-2">{EXPERIENCE[v.experience]}</span>
+              <span className="text-fg-3">
+                {professionLabel(v.profession, true)} · {EMPLOYMENT[v.employment]} · {EXPERIENCE[v.experience]}
+              </span>
             </div>
             <h1 className="display-xl mt-4 text-[28px] text-fg sm:text-[38px]">{v.title}</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] text-fg-2">
-              <span className="inline-flex items-center gap-1.5">
-                <Building2 size={14} className="text-fg-3" /> {v.company || "Shaxsiy ish beruvchi"}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13.5px] text-fg-2">
+              <Link href={employerHref} className="inline-flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
                 <Avatar name={v.author.name} src={v.author.avatarUrl} size={20} decorative />
-                {v.author.specialistSlug ? (
-                  <Link href={`/mutaxassislar/${v.author.specialistSlug}`} className="font-semibold underline-offset-2 hover:underline">
-                    {v.author.name}
-                  </Link>
-                ) : (
-                  <span className="font-semibold">{v.author.name}</span>
-                )}
+                {v.company || v.author.name}
                 {v.author.emailVerified && <BadgeCheck size={14} className="text-success-text" aria-label="Email tasdiqlangan" />}
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-fg-3" suppressHydrationWarning>
-                <Clock3 size={13} /> {timeAgo(v.createdAt)}
+              </Link>
+              {v.company && <span className="text-fg-3">{v.author.name}</span>}
+              <span className="text-fg-3" suppressHydrationWarning>
+                {timeAgo(v.createdAt)}
               </span>
             </div>
-            <p className="mt-5 inline-flex items-baseline gap-2 font-display text-[26px] font-semibold text-fg">
-              <Wallet size={20} className="self-center text-accent" />
+            <p className="mt-5 flex flex-wrap items-baseline gap-2 font-display text-[26px] font-semibold text-fg">
               {salaryLabel(v.salaryMin, v.salaryMax)}
               {(v.salaryMin || v.salaryMax) && <span className="text-[14px] font-medium text-fg-3">so&apos;m / oy</span>}
             </p>
@@ -153,7 +148,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
               <ul className="grid gap-2 text-[14.5px] leading-relaxed text-fg-2">
                 {reqLines.map((l, i) => (
                   <li key={i} className="flex gap-2.5">
-                    <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                    <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-fg-3" />
                     {l}
                   </li>
                 ))}
@@ -178,13 +173,14 @@ export default async function VacancyPage({ params }: { params: Params }) {
             <div className="card p-5">
               <p className="text-[15px] font-semibold text-fg">Bu sizning vakansiyangiz</p>
               <p className="mt-1 text-[13px] text-fg-3">
-                {v.applicationsCount} ta ariza · {v.viewCount} ta ko&apos;rish{daysLeft !== null && !closed ? ` · ${daysLeft} kun qoldi` : ""}
+                {v.applicationsCount} ta ariza · {v.viewCount} ta ko&apos;rish{v.applyUrl ? ` · ${v.applyClicks} ta tashqi o'tish` : ""}
+                {daysLeft !== null && !closed ? ` · ${daysLeftLabel(daysLeft)}` : ""}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href={`/kabinet/vakansiyalar?v=${v.id}`} className="btn-ink inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold">
+                <Link href={`/kabinet/vakansiyalar?v=${v.id}`} className="btn-ink press inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold">
                   <Users size={15} /> Nomzodlar
                 </Link>
-                <Link href={`/vakansiyalar/${v.id}/tahrir`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg">
+                <Link href={`/vakansiyalar/${v.id}/tahrir`} className="press inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg">
                   <Pencil size={14} /> Tahrirlash
                 </Link>
               </div>
@@ -199,37 +195,23 @@ export default async function VacancyPage({ params }: { params: Params }) {
               <TelegramShare path={`/vakansiyalar/${v.id}`} text={`${v.title}${v.company ? ` — ${v.company}` : ""} · Kasb Egalari`} />
             </div>
           )}
-          <div className="card p-5">
-            <dl className="grid gap-2.5 text-[13px]">
+          <dl className="grid gap-2 px-1 text-[13px]">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-fg-3">Arizalar</dt>
+              <dd className="font-semibold text-fg">{v.applicationsCount}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-fg-3">Joylangan</dt>
+              <dd className="font-semibold text-fg">{formatDate(v.createdAt)}</dd>
+            </div>
+            {daysLeft !== null && !closed && (
               <div className="flex items-center justify-between gap-3">
-                <dt className="inline-flex items-center gap-1.5 text-fg-3">
-                  <Users size={13} /> Arizalar
-                </dt>
-                <dd className="font-semibold text-fg">{v.applicationsCount}</dd>
+                <dt className="text-fg-3">Muddati</dt>
+                <dd className={daysLeft <= 3 ? "font-semibold text-warning-text" : "font-semibold text-fg"}>{daysLeftLabel(daysLeft)}</dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="inline-flex items-center gap-1.5 text-fg-3">
-                  <Eye size={13} /> Ko&apos;rishlar
-                </dt>
-                <dd className="font-semibold text-fg">{v.viewCount}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="inline-flex items-center gap-1.5 text-fg-3">
-                  <CalendarDays size={13} /> Joylangan
-                </dt>
-                <dd className="font-semibold text-fg">{formatDateTime(v.createdAt)}</dd>
-              </div>
-              {daysLeft !== null && !closed && (
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="inline-flex items-center gap-1.5 text-fg-3">
-                    <Clock3 size={13} /> Muddati
-                  </dt>
-                  <dd className="font-semibold text-fg">{daysLeft} kun qoldi</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-          <p className="px-1 text-[12px] leading-relaxed text-fg-4">Shubhali e&apos;lon (oldindan to&apos;lov so&apos;rash, shaxsiy hujjat talab qilish) bo&apos;lsa — @montajor_man ga yozing. Platforma vakansiyalar uchun to&apos;lov olmaydi.</p>
+            )}
+          </dl>
+          <p className="px-1 text-[12px] leading-relaxed text-fg-4">Oldindan to&apos;lov yoki hujjat so&apos;ralsa — @montajor_man ga yozing. Vakansiyalar uchun to&apos;lov olinmaydi.</p>
         </aside>
       </div>
 
@@ -251,7 +233,10 @@ export default async function VacancyPage({ params }: { params: Params }) {
       {fromEmployer.length > 0 && (
         <section className="mt-10" aria-labelledby="employer-h" data-reveal>
           <h2 id="employer-h" className="font-display text-[20px] font-semibold text-fg">
-            {v.company || v.author.name} — boshqa vakansiyalari
+            <Link href={employerHref} className="underline-offset-4 hover:underline">
+              {v.company || v.author.name}
+            </Link>{" "}
+            — boshqa vakansiyalari
           </h2>
           <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {fromEmployer.map((s) => (

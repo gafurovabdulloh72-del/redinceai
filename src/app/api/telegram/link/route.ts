@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { ApiError, handler, ok, requireSession } from "@/lib/api";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 import { createTelegramLinkCode, isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 
 /**
@@ -12,4 +15,11 @@ export const POST = handler(async () => {
   const code = createTelegramLinkCode(session.sub);
   if (!code) throw new ApiError(500, "Ulash kodini yaratib bo'lmadi. Keyinroq qayta urinib ko'ring");
   return ok({ url: `https://t.me/${username}?start=${code}` });
+});
+
+/** GET: ulanish holati — {linked}. Karta «Telegramga ulash»dan keyin 3 soniyada bir so'rab, ulangach sahifani yangilaydi */
+export const GET = handler(async () => {
+  const session = await requireSession();
+  const u = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true } });
+  return ok({ linked: Boolean(u?.telegramChatId) }, { headers: { "Cache-Control": "no-store" } });
 });

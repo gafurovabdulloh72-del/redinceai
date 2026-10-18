@@ -297,3 +297,20 @@ export const QIDIRUV_SAQLASH = {
   save: { uz: "Saqlash", ru: "Сохранить" } satisfies Tr,
   close: { uz: "Yopish", ru: "Закрыть" } satisfies Tr,
 } as const;
+
+/* ------------------------------------------------------------------ */
+/* Katalog qo'shimchalari (batch-800, profile sohasi)                   */
+/* ------------------------------------------------------------------ */
+export const KATALOG_X = {
+  perPageAria: { uz: "Sahifadagi natijalar soni", ru: "Результатов на странице" } satisfies Tr,
+  perPage: { uz: (n: number) => `${n} tadan`, ru: (n: number) => `по ${n}` },
+  skillsGroup: { uz: "Ko'nikmalar", ru: "Навыки" } satisfies Tr,
+  skillsHint: { uz: "Eng ko'p uchraydiganlari", ru: "Самые частые" } satisfies Tr,
+  descriptionShort: { uz: "Videograf, montajor, dizayner va boshqa ijodkorlar — hudud, narx va tajriba bo'yicha.", ru: "Видеографы, монтажёры, дизайнеры и другие авторы — по региону, цене и опыту." } satisfies Tr,
+  compareRemoveOne: { uz: (name: string) => `${name} — taqqoslashdan olib tashlash`, ru: (name: string) => `${name} — убрать из сравнения` },
+  compareRow: {
+    skills: { uz: "Ko'nikmalar", ru: "Навыки" },
+    languages: { uz: "Tillar", ru: "Языки" },
+    reviews: { uz: "Sharhlar", ru: "Отзывы" },
+  } as Record<string, Tr>,
+} as const;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, ArrowRight, CalendarClock, Clock3, Search, Send, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowRight, Search, Send } from "lucide-react";
 import { Badge, ButtonLink, EmptyState } from "@/components/ui";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { WithdrawButton } from "@/components/jobs/MyProposalCard";
@@ -45,9 +45,7 @@ export default async function MyProposalsPage({ searchParams }: { searchParams: 
     <div className="animate-fade-up">
       <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <span className="eyebrow">
-            <Send size={13} className="text-accent" /> Kabinet
-          </span>
+          <span className="eyebrow">Kabinet</span>
           <h1 className="display-xl mt-4 text-[32px] text-fg sm:text-[40px]">
             Mening <span className="accent-serif text-accent">takliflarim</span>
           </h1>
@@ -132,7 +130,7 @@ export default async function MyProposalsPage({ searchParams }: { searchParams: 
           {list.length === 0 ? (
             <EmptyState icon={Send} title="Bu bo'limda taklif yo'q" description="Boshqa bo'limni tanlang." />
           ) : (
-            <ul className="space-y-3">
+            <ul className="stagger space-y-3">
               {list.map((p) => {
                 const active = p.status === "pending" || p.status === "shortlisted";
                 return (
@@ -152,15 +150,11 @@ export default async function MyProposalsPage({ searchParams }: { searchParams: 
                       </Badge>
                     </div>
 
-                    <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13.5px]">
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-fg">
-                        <Wallet size={14} className="text-fg-3" aria-hidden="true" /> {formatPrice(p.amount)}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-fg">
-                        <CalendarClock size={14} className="text-fg-3" aria-hidden="true" /> {p.deliveryDays} kun
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[12.5px] text-fg-3">
-                        <Clock3 size={12} aria-hidden="true" /> {timeAgo(p.createdAt)}
+                    <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px]">
+                      <span className="font-semibold text-fg">{formatPrice(p.amount)}</span>
+                      <span className="font-semibold text-fg">{p.deliveryDays} kun</span>
+                      <span className="text-[12.5px] text-fg-3" suppressHydrationWarning>
+                        {timeAgo(p.createdAt)}
                       </span>
                     </p>
                     <p className="mt-2 line-clamp-2 text-[13.5px] leading-relaxed text-fg-2">{p.coverLetter}</p>

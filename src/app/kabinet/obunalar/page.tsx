@@ -17,12 +17,14 @@ export default async function FollowsPage() {
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <UsersRound size={13} className="text-accent" /> Kabinet
+          <UsersRound size={13} /> Kabinet
         </span>
-        <h1 className="mt-2 font-display text-[26px] font-semibold tracking-tight text-fg sm:text-[30px]">
-          Obunachilar va <span className="accent-serif text-accent">obunalar</span>
+        <h1 className="display-xl mt-4 text-fg">
+          Obunachilar va <span className="accent-serif">obunalar</span>
         </h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">Sizga obuna bo&apos;lganlar yangi postlaringizdan xabar oladi; siz obuna bo&apos;lganlarning postlari bosh sahifadagi «Obunalarim» lentasida.</p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">
+          {st.followersCount} ta obunachi · {st.followingCount} ta obuna. Obuna bo&apos;lganlaringiz postlari bosh sahifadagi «Obunalarim»da.
+        </p>
       </header>
       <div className="card mx-auto max-w-2xl p-3 sm:p-4">
         <FollowTabs userId={user.id} followers={st.followersCount} following={st.followingCount} loggedIn viewerId={user.id} />

@@ -141,6 +141,23 @@ export async function getTopByRegion(perRegion = 3): Promise<Record<string, MapT
   return out;
 }
 
+/* ---------------- Hududning eng ko'p uchraydigan ko'nikmalari (hover kartochka) ---------------- */
+
+/** Har hudud bo'yicha ko'p uchraydigan ko'nikmalar (nom + nechta ijodkorda) — `perRegion` tagacha */
+export async function getRegionTopSkills(perRegion = 3): Promise<Record<string, Array<{ skill: string; n: number }>>> {
+  const visible = await listableWhere();
+  const rows = await db.all<{ region: string; v: string; n: number }>(
+    sql`select ${specialists.regionSlug} as region, value as v, count(*) as n from ${specialists}, json_each(${specialists.skills}) where ${visible} group by ${specialists.regionSlug}, lower(value) order by n desc, value asc`,
+  );
+  const out: Record<string, Array<{ skill: string; n: number }>> = {};
+  for (const r of rows) {
+    const list = (out[r.region] ??= []);
+    if (list.length >= perRegion) continue;
+    list.push({ skill: r.v, n: Number(r.n) });
+  }
+  return out;
+}
+
 /* ---------------- Sanaga bo'shlar ---------------- */
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

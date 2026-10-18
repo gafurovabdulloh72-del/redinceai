@@ -98,7 +98,20 @@ export const applicationInputSchema = z.object({
   coverLetter: z.string().trim().max(COVER_LETTER_MAX, `Ko'pi bilan ${COVER_LETTER_MAX} belgi`).optional().default(""),
 });
 
-export const applicationStatusSchema = z.object({ status: z.enum(["viewed", "shortlisted", "rejected", "hired"]) });
+/** Holat yoki ish beruvchi eslatmasi (kamida bittasi) */
+export const applicationPatchSchema = z
+  .object({
+    status: z.enum(["viewed", "shortlisted", "rejected", "hired"]).optional(),
+    note: z.string().trim().max(500, "Eslatma 500 belgidan oshmasin").optional(),
+  })
+  .refine((v) => v.status !== undefined || v.note !== undefined, { message: "Holat yoki eslatma kiriting" });
+export const applicationStatusSchema = applicationPatchSchema;
+
+/** Hudud: viloyat slug'i yoki "remote"; noto'g'ri qiymat — bo'sh (filtr e'tiborsiz) */
+const regionFilter = z
+  .union([z.enum(regionSlugs), z.literal(REMOTE_REGION), z.literal("")])
+  .optional()
+  .default("");
 
 export const vacancyFilterSchema = z.object({
   q: z.string().trim().max(80).optional().default(""),
@@ -106,21 +119,33 @@ export const vacancyFilterSchema = z.object({
   format: z.enum(["remote", "hybrid", "office"]).optional().or(z.literal("")).default(""),
   employment: z.enum(["full", "part", "project", "internship"]).optional().or(z.literal("")).default(""),
   experience: z.enum(["none", "junior", "middle", "senior"]).optional().or(z.literal("")).default(""),
-  region: z.string().trim().max(40).optional().default(""),
-  min: z.coerce.number().int().min(0).optional().default(0),
-  sort: z.enum(["newest", "salary_high"]).optional().default("newest"),
-  page: z.coerce.number().int().min(1).optional().default(1),
+  region: regionFilter,
+  min: z.coerce.number().int().min(0).max(1_000_000_000).optional().default(0),
+  /** set — faqat maosh ko'rsatilgan; neg — faqat «Kelishiladi» */
+  pay: z.enum(["set", "neg"]).optional().or(z.literal("")).default(""),
+  /** 1 — faqat so'nggi 48 soatdagi e'lonlar */
+  fresh: z.enum(["1"]).optional().or(z.literal("")).default(""),
+  sort: z.enum(["newest", "salary_high", "applications"]).optional().default("newest"),
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
   limit: z.coerce.number().int().min(1).max(48).optional().default(12),
 });
 export type VacancyFilter = z.infer<typeof vacancyFilterSchema>;
+
+/** Saqlangan vakansiya qidiruvi (vacancy_alerts) */
+export const VACANCY_ALERT_KEYS = ["q", "profession", "format", "employment", "experience", "region", "min", "pay"] as const;
+export const vacancyAlertCreateSchema = z.object({
+  name: z.string().trim().min(2, "Nom kamida 2 ta belgi").max(60, "Nom 60 belgidan oshmasin"),
+  query: z.string().trim().max(500),
+  notify: z.boolean().optional().default(true),
+});
 
 export const resumeFilterSchema = z.object({
   q: z.string().trim().max(80).optional().default(""),
   profession: z.enum(PROFESSION_SLUGS).optional().or(z.literal("")).default(""),
   experience: z.enum(["none", "junior", "middle", "senior"]).optional().or(z.literal("")).default(""),
   format: z.enum(["any", "remote", "hybrid", "office"]).optional().or(z.literal("")).default(""),
-  region: z.string().trim().max(40).optional().default(""),
-  page: z.coerce.number().int().min(1).optional().default(1),
+  region: regionFilter,
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
   limit: z.coerce.number().int().min(1).max(48).optional().default(12),
 });
 export type ResumeFilter = z.infer<typeof resumeFilterSchema>;

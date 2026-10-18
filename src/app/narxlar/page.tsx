@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgePercent, BriefcaseBusiness, Check, CreditCard, Crown, Gift, HelpCircle, ShieldCheck, Sprout, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, Gift } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
+import { UsdHint } from "@/components/subscription/UsdHint";
 import { PROPOSAL_DAILY_LIMIT, SITE } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
@@ -51,10 +52,10 @@ export default async function PricingPage() {
   const trial = s.subscriptionTrialDays;
   const grace = s.subscriptionGraceDays;
 
-  const tiers: Array<{ icon: LucideIcon; name: string; pct: number; rule: string; emphasis?: boolean }> = [
-    { icon: Sprout, name: tr(til, NARX.tiers.newSpec.name), pct: s.commissionPctNew, rule: NARX.tiers.newSpec.rule[til](NEW_TIER_MAX_COMPLETED) },
-    { icon: BriefcaseBusiness, name: tr(til, NARX.tiers.regular.name), pct: s.commissionPct, rule: NARX.tiers.regular.rule[til](NEW_TIER_MAX_COMPLETED) },
-    { icon: Crown, name: tr(til, NARX.tiers.top.name), pct: s.commissionPctTop, rule: NARX.tiers.top.rule[til](TOP_RATED_MIN_RATING, TOP_RATED_MIN_REVIEWS), emphasis: true },
+  const tiers: Array<{ name: string; pct: number; rule: string; emphasis?: boolean }> = [
+    { name: tr(til, NARX.tiers.newSpec.name), pct: s.commissionPctNew, rule: NARX.tiers.newSpec.rule[til](NEW_TIER_MAX_COMPLETED) },
+    { name: tr(til, NARX.tiers.regular.name), pct: s.commissionPct, rule: NARX.tiers.regular.rule[til](NEW_TIER_MAX_COMPLETED) },
+    { name: tr(til, NARX.tiers.top.name), pct: s.commissionPctTop, rule: NARX.tiers.top.rule[til](TOP_RATED_MIN_RATING, TOP_RATED_MIN_REVIEWS), emphasis: true },
   ];
 
   /** FAQ bitta joydan ikki til uchun tuziladi: UI — joriy til, JSON-LD (SEO) — doim uz */
@@ -80,9 +81,7 @@ export default async function PricingPage() {
 
       {/* ---------- Sarlavha ---------- */}
       <header className="mx-auto max-w-3xl text-center">
-        <span className="eyebrow justify-center">
-          <CreditCard size={13} className="text-accent" /> {tr(til, NARX.eyebrow)}
-        </span>
+        <span className="eyebrow justify-center">{tr(til, NARX.eyebrow)}</span>
         <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px] lg:text-[56px]">
           {tr(til, NARX.titleStart)} <span className="accent-serif text-accent">{tr(til, NARX.titleAccent)}</span> {tr(til, NARX.titleEnd)}
         </h1>
@@ -92,12 +91,7 @@ export default async function PricingPage() {
       {/* ---------- Ikki ustun ---------- */}
       <section aria-label={tr(til, NARX.plansAria)} className="mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-2 md:gap-5">
         <div className="card flex flex-col p-6 sm:p-8">
-          <div className="flex items-center gap-3">
-            <span className="icon-tile-outline" aria-hidden="true">
-              <Users size={20} />
-            </span>
-            <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.clients)}</h2>
-          </div>
+          <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.clients)}</h2>
           <p className="mt-6 font-display text-[44px] font-semibold leading-none tracking-tight text-fg">{tr(til, NARX.free)}</p>
           <p className="mt-2 text-[14px] text-fg-3">{tr(til, NARX.freeNote)}</p>
           <ul className="mt-6 space-y-3">
@@ -110,21 +104,17 @@ export default async function PricingPage() {
           </ButtonLink>
         </div>
 
-        <div className="card-elevated relative flex flex-col p-6 sm:p-8">
+        <div className="card relative flex flex-col border-fg p-6 sm:p-8">
           {trial > 0 && (
             <span className="absolute -top-3 right-6 inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-fg">
               <Gift size={12} aria-hidden="true" /> {NARX.trialBadge[til](trial)}
             </span>
           )}
-          <div className="flex items-center gap-3">
-            <span className="icon-tile" aria-hidden="true">
-              <BriefcaseBusiness size={20} />
-            </span>
-            <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.specialists)}</h2>
-          </div>
+          <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.specialists)}</h2>
           <p className="mt-6 flex flex-wrap items-baseline gap-x-2 font-display font-semibold tracking-tight text-fg">
             <span className="whitespace-nowrap text-[38px] leading-none tabular-nums sm:text-[44px]">{priceUi}</span>
             <span className="text-[16px] font-medium text-fg-3">{tr(til, NARX.perMonth)}</span>
+            <UsdHint amount={s.subscriptionPrice} usdRate={s.usdRate} til={til} />
           </p>
           <p className="mt-2 text-[14px] text-fg-3">{trial > 0 ? NARX.trialNote[til](trial) : tr(til, NARX.noTrialNote)}</p>
           <ul className="mt-6 space-y-3">
@@ -186,9 +176,7 @@ export default async function PricingPage() {
       {/* ---------- Eskrou komissiyasi ---------- */}
       <section aria-labelledby="commission-title" className="mx-auto mt-14 max-w-5xl">
         <div className="mb-5 max-w-2xl">
-          <span className="eyebrow">
-            <ShieldCheck size={13} className="text-accent" /> {tr(til, NARX.escrowEyebrow)}
-          </span>
+          <span className="eyebrow">{tr(til, NARX.escrowEyebrow)}</span>
           <h2 id="commission-title" className="mt-4 font-display text-[24px] font-semibold text-fg sm:text-[28px]">
             {tr(til, NARX.commissionTitle)}
           </h2>
@@ -196,14 +184,8 @@ export default async function PricingPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {tiers.map((t) => (
-            <div key={t.name} className={cn("flex items-center gap-4 p-4 sm:block sm:p-5", t.emphasis ? "card-elevated" : "card")}>
-              <div className="hidden items-center justify-between gap-3 sm:flex">
-                <span className={t.emphasis ? "icon-tile-soft icon-tile-sm" : "icon-tile-outline icon-tile-sm"} aria-hidden="true">
-                  <t.icon size={16} />
-                </span>
-                <BadgePercent size={16} className="text-fg-4" aria-hidden="true" />
-              </div>
-              <p className="w-[88px] shrink-0 font-display text-[30px] font-semibold leading-none tracking-tight text-fg tabular-nums sm:mt-4 sm:w-auto sm:text-[34px]">{t.pct}%</p>
+            <div key={t.name} className={cn("card flex items-center gap-4 p-4 sm:block sm:p-5", t.emphasis && "border-fg")}>
+              <p className="w-[88px] shrink-0 font-display text-[30px] font-semibold leading-none tracking-tight text-fg tabular-nums sm:w-auto sm:text-[34px]">{t.pct}%</p>
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold text-fg sm:mt-2">{t.name}</p>
                 <p className="mt-0.5 text-[12px] leading-snug text-fg-3">{t.rule}</p>
@@ -215,9 +197,7 @@ export default async function PricingPage() {
 
       {/* ---------- Savollar ---------- */}
       <section aria-labelledby="faq-title" className="mx-auto mt-14 max-w-3xl">
-        <span className="eyebrow">
-          <HelpCircle size={13} className="text-accent" /> {tr(til, NARX.faqEyebrow)}
-        </span>
+        <span className="eyebrow">{tr(til, NARX.faqEyebrow)}</span>
         <h2 id="faq-title" className="mt-4 font-display text-[24px] font-semibold text-fg sm:text-[28px]">
           {tr(til, NARX.faqTitle)}
         </h2>
@@ -245,7 +225,7 @@ export default async function PricingPage() {
 
       {/* ---------- CTA ---------- */}
       <section className="mx-auto mt-14 max-w-5xl">
-        <div className="card-elevated flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div className="card flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="max-w-xl">
             <h2 className="font-display text-[22px] font-semibold text-fg sm:text-[26px]">{tr(til, NARX.ctaTitle)}</h2>
             <p className="mt-1.5 text-[14px] text-fg-2">{trial > 0 ? NARX.ctaTrial[til](trial, price) : NARX.ctaNoTrial[til](price)}</p>

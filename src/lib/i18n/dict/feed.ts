@@ -1,30 +1,45 @@
 import type { Tr } from "@/lib/i18n";
 
-/** Bosh sahifa lentasi (ijtimoiy tarmoq qobig'i): hikoyalar qatori, lenta, o'ng panel, mehmon kartasi */
+/** Rus ko'pligi: 1 участник, 2–4 участника, 5+ участников */
+const ruPlural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+};
+
+/** Bosh sahifa lentasi (ijtimoiy tarmoq qobig'i): hikoyalar qatori, lenta, o'ng panel, mehmon kartasi, post kartasi */
 export const FEED = {
   all: { uz: "Hammasi", ru: "Все" } satisfies Tr,
   following: { uz: "Obunalarim", ru: "Подписки" } satisfies Tr,
   stories: { uz: "Faol ijodkorlar", ru: "Активные авторы" } satisfies Tr,
   live: { uz: "Efir", ru: "Эфир" } satisfies Tr,
   liveNow: { uz: "Hozir jonli", ru: "Сейчас в эфире" } satisfies Tr,
-  composerPlaceholder: { uz: "Nima yangilik? Ish jarayoni, natija, fikr…", ru: "Что нового? Процесс, результат, мысль…" } satisfies Tr,
-  emptyAll: { uz: "Lenta hali bo'sh. Birinchi postni siz joylang yoki jamoaga qo'shiling.", ru: "Лента пока пуста. Опубликуйте первый пост или вступите в сообщество." } satisfies Tr,
-  emptyFollowing: {
-    uz: "Obunalaringizdan hali post yo'q. Ijodkorlarga obuna bo'ling va jamoalarga qo'shiling — ularning yangiliklari shu yerda chiqadi.",
-    ru: "От ваших подписок пока нет постов. Подпишитесь на авторов и вступите в сообщества — их новости появятся здесь.",
-  } satisfies Tr,
+  saved: { uz: "Saqlangan", ru: "Сохранённые" } satisfies Tr,
+  storyLabel: { uz: (name: string) => `${name} — yangi postlar`, ru: (name: string) => `${name} — новые посты` },
+  composerPlaceholder: { uz: "Nima yangilik?", ru: "Что нового?" } satisfies Tr,
+  emptyAll: { uz: "Lenta hali bo'sh", ru: "Лента пока пуста" } satisfies Tr,
+  emptyAllText: { uz: "Birinchi postni siz joylang yoki jamoaga qo'shiling.", ru: "Опубликуйте первый пост или вступите в сообщество." } satisfies Tr,
+  emptyFollowing: { uz: "Obunalaringizdan hali post yo'q", ru: "От подписок пока нет постов" } satisfies Tr,
+  emptyFollowingText: { uz: "Ijodkorlarga obuna bo'ling — yangiliklari shu yerda chiqadi.", ru: "Подпишитесь на авторов — их новости появятся здесь." } satisfies Tr,
+  emptyTag: { uz: (tag: string) => `#${tag} bo'yicha post yo'q`, ru: (tag: string) => `Постов с #${tag} нет` },
   findCreators: { uz: "Ijodkorlarni topish", ru: "Найти авторов" } satisfies Tr,
-  more: { uz: "Yana yuklash", ru: "Показать ещё" } satisfies Tr,
+  more: { uz: "Yana", ru: "Ещё" } satisfies Tr,
   loading: { uz: "Yuklanmoqda…", ru: "Загрузка…" } satisfies Tr,
+  loadFailed: { uz: "Yuklanmadi", ru: "Не загрузилось" } satisfies Tr,
+  retry: { uz: "Qayta urinish", ru: "Повторить" } satisfies Tr,
   inGroup: { uz: "jamoasida", ru: "в сообществе" } satisfies Tr,
   inChannel: { uz: "kanalida", ru: "в канале" } satisfies Tr,
+  newPosts: { uz: (n: number) => `${n} ta yangi post`, ru: (n: number) => `${n} ${ruPlural(n, "новый пост", "новых поста", "новых постов")}` },
+  toTop: { uz: "Tepaga", ru: "Наверх" } satisfies Tr,
+  tagFeed: { uz: (tag: string) => `#${tag} bo'yicha postlar`, ru: (tag: string) => `Посты с #${tag}` },
+  clearTag: { uz: "Tozalash", ru: "Сбросить" } satisfies Tr,
+  shortcuts: { uz: "Klaviatura: J/K — keyingi/oldingi, L — yoqtirish, C — izohlar, S — saqlash", ru: "Клавиши: J/K — следующий/предыдущий, L — лайк, C — комментарии, S — сохранить" } satisfies Tr,
 
-  welcomeEyebrow: { uz: "Ijodkorlar ijtimoiy tarmog'i", ru: "Соцсеть для творческих" } satisfies Tr,
+  welcomeEyebrow: { uz: "Ijodkorlar tarmog'i", ru: "Сеть для творческих" } satisfies Tr,
   welcomeTitle: { uz: "Ishlaringizni ko'rsating, hamkasblar bilan bog'laning", ru: "Показывайте работы, общайтесь с коллегами" } satisfies Tr,
-  welcomeText: {
-    uz: "Postlar, videolar, jamoalar va kanallar, jonli efirlar, vakansiyalar — videograf, montajor, dizayner va barcha onlayn kasb egalari bir joyda.",
-    ru: "Посты, видео, сообщества и каналы, прямые эфиры, вакансии — видеографы, монтажёры, дизайнеры и все онлайн-профессии в одном месте.",
-  } satisfies Tr,
+  welcomeText: { uz: "Postlar, jamoalar, efirlar va vakansiyalar — videograf, montajor, dizayner va onlayn kasb egalari bir joyda.", ru: "Посты, сообщества, эфиры и вакансии — видеографы, монтажёры, дизайнеры и онлайн-профессии в одном месте." } satisfies Tr,
   start: { uz: "Qo'shilish", ru: "Присоединиться" } satisfies Tr,
   login: { uz: "Kirish", ru: "Войти" } satisfies Tr,
   about: { uz: "Platforma haqida", ru: "О платформе" } satisfies Tr,
@@ -32,13 +47,114 @@ export const FEED = {
   suggested: { uz: "Siz uchun ijodkorlar", ru: "Авторы для вас" } satisfies Tr,
   seeAll: { uz: "Barchasi", ru: "Все" } satisfies Tr,
   activeGroups: { uz: "Faol jamoalar", ru: "Активные сообщества" } satisfies Tr,
-  members: { uz: (n: number) => `${n} a'zo`, ru: (n: number) => `${n} участников` },
+  members: { uz: (n: number) => `${n} a'zo`, ru: (n: number) => `${n} ${ruPlural(n, "участник", "участника", "участников")}` },
   newVacancies: { uz: "Yangi vakansiyalar", ru: "Новые вакансии" } satisfies Tr,
+  trending: { uz: "Trend teglar", ru: "Популярные теги" } satisfies Tr,
   nextLive: { uz: "Keyingi efir", ru: "Ближайший эфир" } satisfies Tr,
   openChannel: { uz: "Kanalni ochish", ru: "Открыть канал" } satisfies Tr,
   mapCard: { uz: "Ijodkorlar xaritasi", ru: "Карта авторов" } satisfies Tr,
-  mapCardText: { uz: "14 ta hudud bo'yicha videograf, montajor va dizaynerlar — xaritada toping.", ru: "Видеографы, монтажёры и дизайнеры по 14 регионам — найдите на карте." } satisfies Tr,
+  mapCardText: { uz: "14 hudud bo'yicha ijodkorlar", ru: "Авторы по 14 регионам" } satisfies Tr,
   openMap: { uz: "Xaritani ochish", ru: "Открыть карту" } satisfies Tr,
   myProfile: { uz: "Mening profilim", ru: "Мой профиль" } satisfies Tr,
   cabinet: { uz: "Kabinet", ru: "Кабинет" } satisfies Tr,
+  follow: { uz: "Obuna", ru: "Подписаться" } satisfies Tr,
+
+  /* Post kartasi */
+  menu: { uz: "Ko'proq", ru: "Ещё" } satisfies Tr,
+  copyLink: { uz: "Havolani nusxalash", ru: "Скопировать ссылку" } satisfies Tr,
+  copyText: { uz: "Matnni nusxalash", ru: "Скопировать текст" } satisfies Tr,
+  copied: { uz: "Nusxalandi", ru: "Скопировано" } satisfies Tr,
+  notInterested: { uz: "Qiziq emas", ru: "Не интересно" } satisfies Tr,
+  hiddenToast: { uz: "Post yashirildi", ru: "Пост скрыт" } satisfies Tr,
+  muteAuthor: { uz: (name: string) => `${name} postlarini yashirish`, ru: (name: string) => `Скрыть посты: ${name}` },
+  mutedToast: { uz: "Muallif lentadan yashirildi", ru: "Автор скрыт из ленты" } satisfies Tr,
+  undo: { uz: "Bekor qilish", ru: "Отменить" } satisfies Tr,
+  edit: { uz: "Tahrirlash", ru: "Редактировать" } satisfies Tr,
+  delete: { uz: "O'chirish", ru: "Удалить" } satisfies Tr,
+  deleteConfirm: { uz: "Post o'chirilsinmi?", ru: "Удалить пост?" } satisfies Tr,
+  pin: { uz: "Tepaga qadash", ru: "Закрепить" } satisfies Tr,
+  unpin: { uz: "Qadashni olish", ru: "Открепить" } satisfies Tr,
+  pinned: { uz: "Qadalgan", ru: "Закреплено" } satisfies Tr,
+  edited: { uz: "tahrirlangan", ru: "изменено" } satisfies Tr,
+  editedAt: { uz: (d: string) => `Tahrirlangan: ${d}`, ru: (d: string) => `Изменено: ${d}` },
+  views: { uz: (n: number) => `${n} ko'rish`, ru: (n: number) => `${n} ${ruPlural(n, "просмотр", "просмотра", "просмотров")}` },
+  comments: { uz: "Izohlar", ru: "Комментарии" } satisfies Tr,
+  save: { uz: "Saqlash", ru: "Сохранить" } satisfies Tr,
+  cancel: { uz: "Bekor", ru: "Отмена" } satisfies Tr,
+  permalink: { uz: "Postga doimiy havola", ru: "Постоянная ссылка на пост" } satisfies Tr,
+
+  /* Ulashish */
+  share: { uz: "Ulashish", ru: "Поделиться" } satisfies Tr,
+  linkCopied: { uz: "Havola nusxalandi", ru: "Ссылка скопирована" } satisfies Tr,
+  shareTelegram: { uz: "Telegram orqali", ru: "В Telegram" } satisfies Tr,
+  shareDm: { uz: "Xabarda yuborish", ru: "Отправить в сообщении" } satisfies Tr,
+  pickChat: { uz: "Suhbatni tanlang", ru: "Выберите чат" } satisfies Tr,
+  noChats: { uz: "Suhbatlar hali yo'q", ru: "Чатов пока нет" } satisfies Tr,
+  sentToDm: { uz: "Xabar yuborildi", ru: "Сообщение отправлено" } satisfies Tr,
+
+  /* Reaksiyalar */
+  whoReacted: { uz: "Kim reaksiya qo'ydi", ru: "Кто отреагировал" } satisfies Tr,
+  reactionTitle: { uz: "Yoqtirish · ushlab turing — reaksiyalar", ru: "Нравится · удерживайте — реакции" } satisfies Tr,
+  joinToReact: { uz: "Reaksiya uchun jamoaga qo'shiling", ru: "Вступите в сообщество, чтобы реагировать" } satisfies Tr,
+  nobodyYet: { uz: "Hali hech kim yo'q", ru: "Пока никого" } satisfies Tr,
+
+  /* So'rovnoma */
+  poll: { uz: "So'rovnoma", ru: "Опрос" } satisfies Tr,
+  pollOption: { uz: (n: number) => `Variant ${n}`, ru: (n: number) => `Вариант ${n}` },
+  pollAddOption: { uz: "Variant qo'shish", ru: "Добавить вариант" } satisfies Tr,
+  pollRemoveOption: { uz: "Variantni olib tashlash", ru: "Убрать вариант" } satisfies Tr,
+  pollVotes: { uz: (n: number) => (n === 0 ? "Hali ovoz yo'q" : `${n} ovoz`), ru: (n: number) => (n === 0 ? "Пока нет голосов" : `${n} ${ruPlural(n, "голос", "голоса", "голосов")}`) },
+  pollRetract: { uz: "Ovozni qaytarish", ru: "Отозвать голос" } satisfies Tr,
+  pollClosed: { uz: "Yakunlangan", ru: "Завершён" } satisfies Tr,
+  pollFailed: { uz: "Ovoz berilmadi", ru: "Голос не учтён" } satisfies Tr,
+  pollHint: { uz: "2–4 ta variant", ru: "2–4 варианта" } satisfies Tr,
+
+  /* Izohlar */
+  sortOld: { uz: "Eski", ru: "Старые" } satisfies Tr,
+  sortNew: { uz: "Yangi", ru: "Новые" } satisfies Tr,
+  reply: { uz: "Javob", ru: "Ответить" } satisfies Tr,
+  replyingTo: { uz: (name: string) => `${name}ga javob`, ru: (name: string) => `Ответ для ${name}` },
+  noComments: { uz: "Hali izoh yo'q", ru: "Комментариев пока нет" } satisfies Tr,
+  firstComment: { uz: "Birinchi bo'ling", ru: "Будьте первым" } satisfies Tr,
+  commentPlaceholder: { uz: "Izoh yozing…", ru: "Напишите комментарий…" } satisfies Tr,
+  sendComment: { uz: "Izohni yuborish", ru: "Отправить комментарий" } satisfies Tr,
+  deleteComment: { uz: "Izohni o'chirish", ru: "Удалить комментарий" } satisfies Tr,
+  deleteQ: { uz: "O'chirilsinmi?", ru: "Удалить?" } satisfies Tr,
+  yes: { uz: "Ha", ru: "Да" } satisfies Tr,
+  no: { uz: "Yo'q", ru: "Нет" } satisfies Tr,
+  joinToComment: { uz: "Izoh yozish uchun jamoaga qo'shiling", ru: "Вступите в сообщество, чтобы комментировать" } satisfies Tr,
+  deleted: { uz: "O'chirildi", ru: "Удалено" } satisfies Tr,
+  notDeleted: { uz: "O'chirilmadi", ru: "Не удалось удалить" } satisfies Tr,
+  moreComments: { uz: (n: number) => `Yana ${n} ta izoh`, ru: (n: number) => `Ещё ${n} ${ruPlural(n, "комментарий", "комментария", "комментариев")}` },
+
+  /* Kompozitor */
+  post: { uz: "Joylash", ru: "Опубликовать" } satisfies Tr,
+  posting: { uz: "Yuborilmoqda…", ru: "Отправка…" } satisfies Tr,
+  media: { uz: "Rasm yoki video", ru: "Фото или видео" } satisfies Tr,
+  event: { uz: "Efir", ru: "Эфир" } satisfies Tr,
+  draftRestored: { uz: "Qoralama tiklandi", ru: "Черновик восстановлен" } satisfies Tr,
+  clearDraft: { uz: "Tozalash", ru: "Очистить" } satisfies Tr,
+  tooManyFiles: { uz: (n: number) => `Ko'pi bilan ${n} ta fayl — qolgani qo'shilmadi`, ru: (n: number) => `Не больше ${n} файлов — остальные не добавлены` },
+  onlyMedia: { uz: (name: string) => `«${name}»: faqat rasm yoki video`, ru: (name: string) => `«${name}»: только фото или видео` },
+  pastEvent: { uz: "Efir vaqti kelajakda bo'lsin", ru: "Время эфира должно быть в будущем" } satisfies Tr,
+  sendHint: { uz: "Ctrl+Enter — yuborish", ru: "Ctrl+Enter — отправить" } satisfies Tr,
+
+  /* Media */
+  close: { uz: "Yopish", ru: "Закрыть" } satisfies Tr,
+  prev: { uz: "Oldingi", ru: "Назад" } satisfies Tr,
+  next: { uz: "Keyingi", ru: "Вперёд" } satisfies Tr,
+  soundOn: { uz: "Ovozni yoqish", ru: "Включить звук" } satisfies Tr,
+  soundOff: { uz: "Ovozni o'chirish", ru: "Выключить звук" } satisfies Tr,
+  openImage: { uz: (i: number, n: number) => `Rasmni ochish (${i}/${n})`, ru: (i: number, n: number) => `Открыть фото (${i}/${n})` },
+
+  /* Nisbiy vaqt */
+  justNow: { uz: "hozirgina", ru: "только что" } satisfies Tr,
+  minutesAgo: { uz: (n: number) => `${n} daqiqa oldin`, ru: (n: number) => `${n} ${ruPlural(n, "минуту", "минуты", "минут")} назад` },
+  hoursAgo: { uz: (n: number) => `${n} soat oldin`, ru: (n: number) => `${n} ${ruPlural(n, "час", "часа", "часов")} назад` },
+  daysAgo: { uz: (n: number) => `${n} kun oldin`, ru: (n: number) => `${n} ${ruPlural(n, "день", "дня", "дней")} назад` },
+  monthsAgo: { uz: (n: number) => `${n} oy oldin`, ru: (n: number) => `${n} ${ruPlural(n, "месяц", "месяца", "месяцев")} назад` },
+  yearsAgo: { uz: (n: number) => `${n} yil oldin`, ru: (n: number) => `${n} ${ruPlural(n, "год", "года", "лет")} назад` },
+  inMinutes: { uz: (n: number) => `${n} daqiqadan keyin`, ru: (n: number) => `через ${n} ${ruPlural(n, "минуту", "минуты", "минут")}` },
+  inHours: { uz: (n: number) => `${n} soatdan keyin`, ru: (n: number) => `через ${n} ${ruPlural(n, "час", "часа", "часов")}` },
+  inDays: { uz: (n: number) => `${n} kundan keyin`, ru: (n: number) => `через ${n} ${ruPlural(n, "день", "дня", "дней")}` },
 };

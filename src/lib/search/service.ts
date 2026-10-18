@@ -49,13 +49,15 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
   const needle = `%${norm(q).replace(/[%_]/g, "")}%`;
   const nq = norm(q);
   const now = new Date();
+  // Obunasi tugagan profillar katalog kabi paletda ham chiqmasin (listableCondition)
+  const settings = await getSettings();
   const [spec, vac, grp, job] = await Promise.all([
     db
       .select({ slug: specialists.slug, title: specialists.title, name: users.name, category: specialists.category })
       .from(specialists)
       .innerJoin(users, eq(users.id, specialists.userId))
-      .where(and(eq(specialists.isHidden, false), eq(users.isBanned, false), or(like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle))))
-      .orderBy(desc(specialists.createdAt))
+      .where(and(eq(specialists.isHidden, false), eq(users.isBanned, false), listableCondition(settings), or(like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle))))
+      .orderBy(desc(specialists.rating), desc(specialists.createdAt))
       .limit(5),
     db
       .select({ id: vacancies.id, title: vacancies.title, company: vacancies.company, profession: vacancies.profession, min: vacancies.salaryMin, max: vacancies.salaryMax })
@@ -93,7 +95,7 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
 /* ------------------------------------------------------------------ */
 /* Ommaviy qidiruv zonasi (/qidiruv, Explore)                          */
 /* ------------------------------------------------------------------ */
-export const EXPLORE_TYPES = ["all", "video", "work", "post", "people"] as const;
+export const EXPLORE_TYPES = ["all", "video", "work", "post", "people", "groups", "vacancies"] as const;
 export type ExploreType = (typeof EXPLORE_TYPES)[number];
 export interface PersonHit {
   slug: string;
@@ -147,9 +149,11 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
   const needle = q ? `%${norm(q).replace(/[%_]/g, "")}%` : null;
   const settings = await getSettings();
   const visible = and(eq(users.isBanned, false), eq(specialists.isHidden, false), listableCondition(settings))!;
+  // "groups" / "vacancies" turlari — faqat bo'limlar (globalSearch), media va odamlar so'ralmaydi
+  const onlySections = type === "groups" || type === "vacancies";
   const wantPeople = Boolean(needle) && (type === "all" || type === "people");
-  const wantWorks = type === "all" || type === "video" || type === "work";
-  const wantPosts = type === "all" || type === "video" || type === "post";
+  const wantWorks = !onlySections && (type === "all" || type === "video" || type === "work");
+  const wantPosts = !onlySections && (type === "all" || type === "video" || type === "post");
   const limit = needle ? 24 : 18;
 
   const [people, works, postRows] = await Promise.all([
@@ -221,7 +225,8 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
   const mediaWorks: MediaHit[] = works.map((w) => ({
     kind: "work",
     id: w.id,
-    href: `/mutaxassislar/${w.slug}?tab=${w.type === "video" ? "videolar" : "ishlar"}`,
+    // ?ish=<id> — profil oynasida aynan shu ish ochiladi (ProfileTabs chuqur havolasi)
+    href: `/mutaxassislar/${w.slug}?tab=${w.type === "video" ? "videolar" : "ishlar"}&ish=${w.id}`,
     thumbUrl: w.type === "image" ? w.url : w.thumbnailUrl,
     videoUrl: w.type === "video" ? w.url : null,
     isVideo: w.type === "video",
@@ -236,6 +241,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
   let media = [...mediaWorks, ...mediaPosts];
   if (type === "video") media = media.filter((m) => m.isVideo);
   media.sort((a, b) => b.createdAt - a.createdAt);
-  const sections = needle ? (await globalSearch(q)).filter((s) => s.key === "groups" || s.key === "vacancies" || s.key === "jobs" || s.key === "help") : [];
+  const wantedSections = type === "groups" ? ["groups"] : type === "vacancies" ? ["vacancies", "jobs"] : type === "all" ? ["groups", "vacancies", "jobs", "help"] : [];
+  const sections = needle && wantedSections.length ? (await globalSearch(q)).filter((s) => wantedSections.includes(s.key)) : [];
   return { q, type, people, media: media.slice(0, 48), sections };
 }

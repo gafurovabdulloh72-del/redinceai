@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Avatar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ const cache = new Map<string, Suggestion[]>();
 /**
  * @eslatma maydoni: textarea (multiline) yoki input. `@` yozilganda foydalanuvchi taklifi ro'yxati chiqadi
  * (/api/users/mention), ↑↓ / Enter / Tab bilan tanlanadi, Esc yopadi. Tanlangan `@username ` matnga qo'yiladi.
+ * A11y: listbox id'si `useId` (bir sahifada bir nechta maydon), `aria-activedescendant` faol variantga ishora qiladi.
  * Server tomonda @username'lar bildirishnomaga aylanadi (lib/groups/mentions.ts).
  */
 export function MentionField({
@@ -35,8 +36,12 @@ export function MentionField({
   disabled,
   ariaLabel,
   onKeyDown,
+  onFocus,
+  onBlur,
+  onPaste,
   trailing,
   placement = "auto",
+  inputRef,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -50,12 +55,19 @@ export function MentionField({
   disabled?: boolean;
   ariaLabel?: string;
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  /** Clipboard'dan rasm qo'yish (kompozitor) */
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
   /** Maydon ichida o'ngda ko'rsatiladigan element (masalan, hisoblagich) */
   trailing?: ReactNode;
   /** Ro'yxat qayerda ochiladi: auto — pastda joy kam bo'lsa (yoki overflow-hidden karta ichida chat kompozitori) tepada */
   placement?: "auto" | "up" | "down";
+  /** Tashqaridan fokus/kursor boshqarish uchun */
+  inputRef?: (el: HTMLTextAreaElement | HTMLInputElement | null) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const listId = useId();
   const [query, setQuery] = useState<string | null>(null);
   const [start, setStart] = useState(0);
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -111,7 +123,7 @@ export function MentionField({
   const open = query !== null && items.length > 0;
 
   // Joylashuv: eng yaqin overflow-hidden/auto ota element (masalan guruh chati kartasi) va viewport chegaralari ichida
-  // qaysi tomonda joy ko'proq bo'lsa — o'sha tomonga ochiladi; balandlik mavjud joyga moslanadi (1-rasmdagi kesilish bugi).
+  // qaysi tomonda joy ko'proq bo'lsa — o'sha tomonga ochiladi; balandlik mavjud joyga moslanadi.
   useEffect(() => {
     if (!open) return;
     const el = ref.current;
@@ -139,6 +151,12 @@ export function MentionField({
     setUp(goUp);
     setMaxH(Math.max(120, Math.min(256, goUp ? above : below)));
   }, [open, placement]);
+
+  // Faol variant ko'rinishda tursin (klaviatura bilan yurganda)
+  useEffect(() => {
+    if (!open) return;
+    document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [active, open, listId]);
 
   function pick(s: Suggestion) {
     const el = ref.current;
@@ -168,6 +186,11 @@ export function MentionField({
         setActive((a) => (a - 1 + items.length) % items.length);
         return;
       }
+      if (e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        setActive(e.key === "Home" ? 0 : items.length - 1);
+        return;
+      }
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         pick(items[active]);
@@ -191,21 +214,29 @@ export function MentionField({
     "aria-label": ariaLabel,
     "aria-autocomplete": "list" as const,
     "aria-expanded": open,
-    "aria-controls": open ? "mention-listbox" : undefined,
+    "aria-controls": open ? listId : undefined,
+    "aria-activedescendant": open ? `${listId}-${active}` : undefined,
     onKeyDown: keyDown,
     onKeyUp: detect,
     onClick: detect,
-    onBlur: () => window.setTimeout(() => setQuery(null), 120),
+    onFocus,
+    onPaste,
+    onBlur: () => {
+      window.setTimeout(() => setQuery(null), 120);
+      onBlur?.();
+    },
     className,
+  };
+  const setRef = (el: HTMLTextAreaElement | HTMLInputElement | null) => {
+    ref.current = el;
+    inputRef?.(el);
   };
 
   return (
     <div className={cn("relative", wrapperClassName)}>
       {multiline ? (
         <textarea
-          ref={(el) => {
-            ref.current = el;
-          }}
+          ref={setRef}
           rows={rows}
           onChange={(e) => {
             onChange(e.target.value);
@@ -215,9 +246,7 @@ export function MentionField({
         />
       ) : (
         <input
-          ref={(el) => {
-            ref.current = el;
-          }}
+          ref={setRef}
           type="text"
           onChange={(e) => {
             onChange(e.target.value);
@@ -228,11 +257,12 @@ export function MentionField({
       )}
       {trailing}
       {open && (
-        <ul id="mention-listbox" role="listbox" aria-label="Foydalanuvchilar" style={{ maxHeight: maxH }} className={cn("card-floating absolute left-0 z-30 w-full max-w-sm overflow-auto p-1", up ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
+        <ul id={listId} role="listbox" aria-label="Foydalanuvchilar" style={{ maxHeight: maxH }} className={cn("card-floating pop-in absolute left-0 z-30 w-full max-w-sm overflow-auto p-1", up ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
           {items.map((s, i) => (
-            <li key={s.id} role="option" aria-selected={i === active}>
+            <li key={s.id} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
               <button
                 type="button"
+                tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => pick(s)}
                 onMouseEnter={() => setActive(i)}
