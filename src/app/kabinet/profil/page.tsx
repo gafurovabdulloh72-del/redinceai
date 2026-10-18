@@ -43,6 +43,8 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         isAvailable: s.isAvailable,
         packages: s.packages ?? [],
         certificates: s.certificates ?? [],
+        workHistory: s.workHistory ?? [],
+        education: s.education ?? [],
         workTypes: s.workTypes ?? [],
         rates: s.rates ?? {},
       }

@@ -115,6 +115,21 @@ export interface Certificate {
   year: number;
   url?: string;
 }
+/** Ish tarixi (LinkedIn uslubi): lavozim, kompaniya/loyiha, yillar (toYear null — hozirgacha). `experience` — daraja (junior…), bu boshqa maydon */
+export interface WorkItem {
+  role: string;
+  company: string;
+  fromYear: number;
+  toYear?: number | null;
+  description?: string;
+}
+/** Ta'lim: muassasa, yo'nalish/daraja, yillar */
+export interface EducationItem {
+  school: string;
+  degree: string;
+  fromYear: number;
+  toYear?: number | null;
+}
 /** Tariflar (so'm): soatbay, kunbay, loyihabay va donabay (1 dona ish — masalan, 1 ta video/fotosurat) */
 export interface SpecialistRates {
   hourly?: number;
@@ -186,6 +201,9 @@ export const specialists = sqliteTable(
     /** Xizmat paketlari (basic / standard / premium) */
     packages: text("packages", { mode: "json" }).$type<ServicePackage[]>().notNull().default([]),
     certificates: text("certificates", { mode: "json" }).$type<Certificate[]>().notNull().default([]),
+    /** Profil bo'limlari (LinkedIn uslubi): ish tarixi va ta'lim */
+    workHistory: text("work_history", { mode: "json" }).$type<WorkItem[]>().notNull().default([]),
+    education: text("education", { mode: "json" }).$type<EducationItem[]>().notNull().default([]),
     /** Ish turlari (constants WORK_TYPES slug'lari): ["toy", "reklama"] */
     workTypes: text("work_types", { mode: "json" }).$type<string[]>().notNull().default([]),
     rates: text("rates", { mode: "json" }).$type<SpecialistRates>().notNull().default({}),

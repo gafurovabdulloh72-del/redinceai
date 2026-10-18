@@ -146,6 +146,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   items.push({ href: "/kabinet/rezyume", label: "Rezyumem", icon: "resume" });
   items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites" });
   items.push({ href: "/kabinet/saqlanganlar", label: "Saqlanganlar", icon: "saved" });
+  items.push({ href: "/kabinet/obunalar", label: "Obunalar", icon: "follows" });
   items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
   if (user.specialist || user.role === "specialist") {
     items.push({ href: "/kabinet/portfolio", label: "Portfolio", icon: "portfolio" });

@@ -933,6 +933,39 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
   return { following: !existing, followersCount: Number(n) };
 }
 
+export interface FollowRow extends UserBrief {
+  /** Ko'ruvchi bu odamga obuna bo'lganmi */
+  following: boolean;
+  followersCount: number;
+}
+
+/** Obunachilar (kimlar userId'ga obuna) yoki obunalar (userId kimlarga obuna): yangi → eski, cursor = follows.createdAt */
+export async function listFollowers(userId: string, kind: "followers" | "following", viewer: Viewer, cursor: number | null = null, limit = 30): Promise<{ items: FollowRow[]; nextCursor: number | null }> {
+  const anchor = kind === "followers" ? follows.followingId : follows.followerId;
+  const other = kind === "followers" ? follows.followerId : follows.followingId;
+  const conds = [eq(anchor, userId)];
+  if (cursor) conds.push(lt(follows.createdAt, new Date(cursor)));
+  const rows = await db
+    .select({ id: other, at: follows.createdAt })
+    .from(follows)
+    .innerJoin(users, eq(users.id, other))
+    .where(and(...conds, eq(users.isBanned, false)))
+    .orderBy(desc(follows.createdAt))
+    .limit(limit + 1);
+  const page = rows.slice(0, limit);
+  const ids = page.map((r) => r.id);
+  if (!ids.length) return { items: [], nextCursor: null };
+  const [briefs, mine, counts] = await Promise.all([
+    briefUsers(ids),
+    viewer ? db.query.follows.findMany({ where: and(eq(follows.followerId, viewer.id), inArray(follows.followingId, ids)), columns: { followingId: true } }) : Promise.resolve([] as Array<{ followingId: string }>),
+    db.select({ id: follows.followingId, n: sql<number>`count(*)` }).from(follows).where(inArray(follows.followingId, ids)).groupBy(follows.followingId),
+  ]);
+  const mineSet = new Set(mine.map((m) => m.followingId));
+  const countMap = new Map(counts.map((c) => [c.id, Number(c.n)]));
+  const items = page.map((r) => ({ ...(briefs.get(r.id) ?? { id: r.id, ...UNKNOWN }), following: mineSet.has(r.id), followersCount: countMap.get(r.id) ?? 0 }));
+  return { items, nextCursor: rows.length > limit ? page[page.length - 1].at.getTime() : null };
+}
+
 /** Kabinet uchun: men a'zo bo'lgan jamoalar soni (nav badge/statistika) */
 export async function myGroupsCount(userId: string): Promise<number> {
   const [{ n }] = await db

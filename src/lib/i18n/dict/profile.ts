@@ -418,3 +418,16 @@ export const PROFIL = {
   notRatedAria: { uz: "Hali baholanmagan", ru: "Пока без оценок" } satisfies Tr,
   notRatedShort: { uz: "Hali yo'q", ru: "Пока нет" } satisfies Tr,
 } as const;
+
+/** Profil bo'limlari: tajriba va ta'lim (LinkedIn uslubi) */
+export const TAJRIBA = {
+  expEyebrow: { uz: "Tajriba", ru: "Опыт" } satisfies Tr,
+  expTitle: { uz: "Ish", ru: "Опыт" } satisfies Tr,
+  expTitleAccent: { uz: "tajribasi", ru: "работы" } satisfies Tr,
+  eduEyebrow: { uz: "Ta'lim", ru: "Образование" } satisfies Tr,
+  eduTitle: { uz: "Ta'lim va", ru: "Образование и" } satisfies Tr,
+  eduTitleAccent: { uz: "o'qish", ru: "учёба" } satisfies Tr,
+  present: { uz: "hozirgacha", ru: "по наст. время" } satisfies Tr,
+  studying: { uz: "o'qimoqda", ru: "учится" } satisfies Tr,
+  years: { uz: (n: number) => (n <= 0 ? "1 yildan kam" : `${n} yil`), ru: (n: number) => (n <= 0 ? "менее года" : `${n} г.`) },
+} as const;

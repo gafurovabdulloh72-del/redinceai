@@ -28,6 +28,7 @@ import {
   Star,
   Venus,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { Avatar, ButtonLink, SectionHeading, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -42,6 +43,8 @@ import { ShareButton } from "@/components/specialists/ShareButton";
 import { FollowButton } from "@/components/groups/FollowButton";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { BlockButton } from "@/components/specialists/BlockButton";
+import { FollowersDialog } from "@/components/groups/FollowersDialog";
+import { TAJRIBA } from "@/lib/i18n/dict/profile";
 import { blockState } from "@/lib/privacy/blocks";
 import { PackagesTable } from "@/components/specialists/PackagesTable";
 import { RateCalculator } from "@/components/specialists/RateCalculator";
@@ -514,6 +517,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             </ul>
           )}
 
+          <FollowersDialog userId={raw.userId} followers={follow.followersCount} following={follow.followingCount} loggedIn={Boolean(viewer)} viewerId={viewer?.id ?? null} className="mt-4 lg:hidden" />
+
           <ul className={cn("flex flex-wrap items-center gap-2", proofChips.length > 0 ? "mt-2" : "mt-5")}>
             {metaChips.map((m) => (
               <li
@@ -727,6 +732,58 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             />
           </section>
 
+          {/* Ish tajribasi (LinkedIn uslubi) */}
+          {raw.workHistory.length > 0 && (
+            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="tajriba-title">
+              <span className="eyebrow">{tr(til, TAJRIBA.expEyebrow)}</span>
+              <h2 id="tajriba-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+                {tr(til, TAJRIBA.expTitle)} <span className="accent-serif text-accent">{tr(til, TAJRIBA.expTitleAccent)}</span>
+              </h2>
+              <ol className="relative mt-5 space-y-5 border-l border-line pl-5">
+                {raw.workHistory.map((e, i) => {
+                  const end = e.toYear ?? new Date().getFullYear();
+                  return (
+                    <li key={`${e.role}-${i}`} className="relative">
+                      <span className="absolute -left-[26px] top-1.5 h-3 w-3 rounded-full border-2 border-surface bg-accent" aria-hidden />
+                      <p className="text-[15px] font-semibold leading-snug text-fg">{e.role}</p>
+                      <p className="text-[13.5px] text-fg-2">{e.company}</p>
+                      <p className="mt-0.5 text-[12.5px] text-fg-3">
+                        {e.fromYear} — {e.toYear ?? tr(til, TAJRIBA.present)} · {TAJRIBA.years[til](Math.max(0, end - e.fromYear))}
+                      </p>
+                      {e.description && <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-2">{e.description}</p>}
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          )}
+
+          {/* Ta'lim */}
+          {raw.education.length > 0 && (
+            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="talim-title">
+              <span className="eyebrow">{tr(til, TAJRIBA.eduEyebrow)}</span>
+              <h2 id="talim-title" className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
+                {tr(til, TAJRIBA.eduTitle)} <span className="accent-serif text-accent">{tr(til, TAJRIBA.eduTitleAccent)}</span>
+              </h2>
+              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                {raw.education.map((e, i) => (
+                  <li key={`${e.school}-${i}`} className="flex items-start gap-3 rounded-[var(--r-sm)] border border-line p-3.5">
+                    <span className="icon-tile-soft icon-tile-sm shrink-0">
+                      <GraduationCap size={16} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-[14px] font-semibold leading-snug text-fg">{e.school}</p>
+                      <p className="mt-0.5 text-[13px] text-fg-2">{e.degree}</p>
+                      <p className="mt-0.5 text-[12.5px] text-fg-3">
+                        {e.fromYear} — {e.toYear ?? tr(til, TAJRIBA.studying)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Sertifikatlar va litsenziyalar (F64) */}
           {sp.certificates.length > 0 && (
             <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="sertifikatlar-title">
@@ -872,6 +929,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
               </div>
+              <FollowersDialog userId={raw.userId} followers={follow.followersCount} following={follow.followingCount} loggedIn={Boolean(viewer)} viewerId={viewer?.id ?? null} className="mt-3 justify-center" />
               {PROFILE_HIRING && !isOwner && !inactive && (
                 <div className="mt-2.5 flex justify-center">
                   <CompareButton item={compareItem} variant="chip" />

@@ -143,6 +143,44 @@ export const certificateSchema = z.object({
 });
 export const certificatesSchema = z.array(certificateSchema).max(MAX_CERTIFICATES);
 
+export const MAX_EXPERIENCE = 10;
+export const MAX_EDUCATION = 6;
+const yearSchema = z.coerce
+  .number()
+  .int()
+  .min(1970, "Yil 1970 dan kam bo'lmasin")
+  .refine((y) => y <= new Date().getUTCFullYear() + 1, "Yil kelajakda bo'lmasin");
+const toYearSchema = z
+  .union([yearSchema, z.null(), z.literal(""), z.literal(0)])
+  .optional()
+  .transform((v) => (typeof v === "number" && v > 0 ? v : null));
+/** Ish tarixi — lavozim, kompaniya/loyiha, yillar (toYear null — hozirgacha), qisqa tavsif */
+export const workHistorySchema = z
+  .array(
+    z
+      .object({
+        role: z.string().trim().min(2, "Lavozim kamida 2 ta belgi").max(100),
+        company: z.string().trim().min(2, "Kompaniya/loyiha kamida 2 ta belgi").max(100),
+        fromYear: yearSchema,
+        toYear: toYearSchema,
+        description: z.string().trim().max(300, "Tavsif 300 belgidan oshmasin").optional().transform((v) => v || undefined),
+      })
+      .refine((e) => e.toYear == null || e.toYear >= e.fromYear, { message: "Tugash yili boshlanishdan oldin bo'lmasin", path: ["toYear"] }),
+  )
+  .max(MAX_EXPERIENCE);
+export const educationSchema = z
+  .array(
+    z
+      .object({
+        school: z.string().trim().min(2, "Muassasa kamida 2 ta belgi").max(120),
+        degree: z.string().trim().min(2, "Yo'nalish kamida 2 ta belgi").max(120),
+        fromYear: yearSchema,
+        toYear: toYearSchema,
+      })
+      .refine((e) => e.toYear == null || e.toYear >= e.fromYear, { message: "Tugash yili boshlanishdan oldin bo'lmasin", path: ["toYear"] }),
+  )
+  .max(MAX_EDUCATION);
+
 export const workTypesSchema = z
   .array(z.enum(workTypeSlugs))
   .max(WORK_TYPES.length)
@@ -188,6 +226,8 @@ export const specialistProfileSchema = z
   /** Berilmasa — tegilmaydi (eski klientlar paketlarni o'chirib yubormasin) */
   packages: packagesSchema.optional(),
   certificates: certificatesSchema.optional(),
+  workHistory: workHistorySchema.optional(),
+  education: educationSchema.optional(),
   workTypes: workTypesSchema.optional(),
   rates: ratesSchema.optional(),
   })

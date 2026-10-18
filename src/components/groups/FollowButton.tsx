@@ -16,6 +16,7 @@ export function FollowButton({
   loggedIn,
   size = "sm",
   compact = false,
+  showCount = true,
 }: {
   userId: string;
   initialFollowing: boolean;
@@ -24,6 +25,8 @@ export function FollowButton({
   size?: "sm" | "md" | "lg";
   /** Faqat ikonka + son (tor joylar uchun) */
   compact?: boolean;
+  /** Ro'yxatlarda son ko'rsatilmaydi */
+  showCount?: boolean;
 }) {
   const router = useRouter();
   const [following, setFollowing] = useState(initialFollowing);
@@ -58,7 +61,7 @@ export function FollowButton({
     <Button type="button" variant={following ? "outline" : "accent"} size={size} onClick={toggle} disabled={busy} aria-pressed={following} title={following ? "Obunani bekor qilish" : "Yangi ishlaridan xabardor bo'ling"}>
       {following ? <UserCheck size={15} /> : <UserPlus size={15} />}
       {!compact && (following ? "Obunasiz" : "Obuna bo'lish")}
-      <span className={following ? "text-fg-3" : "opacity-80"}>{count}</span>
+      {showCount && <span className={following ? "text-fg-3" : "opacity-80"}>{count}</span>}
     </Button>
   );
 }

@@ -3,40 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import {
-  AlertCircle,
-  ArrowRight,
-  ArrowUpRight,
-  BadgeCheck,
-  Briefcase,
-  Camera,
-  CheckCircle2,
-  ChevronDown,
-  Globe,
-  ImagePlus,
-  Instagram,
-  Languages,
-  Link2,
-  MapPin,
-  Package,
-  Plus,
-  Send,
-  Sparkles,
-  Tags,
-  Trash2,
-  Wallet,
-  Wrench,
-  X,
-  Youtube,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowUpRight, BadgeCheck, Briefcase, Camera, CheckCircle2, ChevronDown, Globe, ImagePlus, Instagram, Languages, Link2, MapPin, Package, Plus, Send, Sparkles, Tags, Trash2, Wallet, Wrench, X, Youtube, type LucideIcon, GraduationCap } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { CATEGORIES, EXPERIENCE_LEVELS, PACKAGE_TIERS, REGIONS, REGION_BY_SLUG, WORK_TYPES, type PackageTierKey } from "@/lib/constants";
-import type { Certificate, ServicePackage, SpecialistRates } from "@/lib/db/schema";
+import type { Certificate, EducationItem, ServicePackage, SpecialistRates, WorkItem } from "@/lib/db/schema";
 import type { ResolvedVisibility } from "@/lib/privacy";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -68,6 +42,8 @@ export interface ProfileInitial {
   /** F31 / F64 / F52 / F70 — eski chaqiruvlar uchun ixtiyoriy */
   packages?: ServicePackage[];
   certificates?: Certificate[];
+  workHistory?: WorkItem[];
+  education?: EducationItem[];
   workTypes?: string[];
   rates?: SpecialistRates;
 }
@@ -87,6 +63,19 @@ interface CertificateDraft {
   issuer: string;
   year: string;
   url: string;
+}
+interface WorkDraft {
+  role: string;
+  company: string;
+  fromYear: string;
+  toYear: string;
+  description: string;
+}
+interface EducationDraft {
+  school: string;
+  degree: string;
+  fromYear: string;
+  toYear: string;
 }
 
 interface FormState {
@@ -110,6 +99,8 @@ interface FormState {
   workTypes: string[];
   packages: PackageDraft[];
   certificates: CertificateDraft[];
+  workHistory: WorkDraft[];
+  education: EducationDraft[];
   rates: { hourly: string; daily: string; project: string; unit: string };
 }
 
@@ -149,6 +140,8 @@ const EQUIPMENT_SUGGESTIONS: Record<string, string[]> = {
 const OTHER_CITY = "__other__";
 const MAX_PACKAGE_FEATURES = 6;
 const MAX_CERTIFICATES = 10;
+const MAX_EXPERIENCE = 10;
+const MAX_EDUCATION = 6;
 /** Yangi paket uchun standart nomlar (mutaxassis o'zgartiradi) */
 const PACKAGE_DEFAULT_TITLE: Record<PackageTierKey, string> = { basic: "Boshlang'ich", standard: "Standart", premium: "Premium" };
 
@@ -197,6 +190,8 @@ function initialState(initial: ProfileInitial | null): FormState {
     workTypes: initial?.workTypes ?? [],
     packages: packageDrafts(initial?.packages),
     certificates: (initial?.certificates ?? []).map((c) => ({ title: c.title, issuer: c.issuer, year: String(c.year), url: c.url ?? "" })),
+    workHistory: (initial?.workHistory ?? []).map((e) => ({ role: e.role, company: e.company, fromYear: String(e.fromYear), toYear: e.toYear ? String(e.toYear) : "", description: e.description ?? "" })),
+    education: (initial?.education ?? []).map((e) => ({ school: e.school, degree: e.degree, fromYear: String(e.fromYear), toYear: e.toYear ? String(e.toYear) : "" })),
     rates: { hourly: numOrEmpty(initial?.rates?.hourly), daily: numOrEmpty(initial?.rates?.daily), project: numOrEmpty(initial?.rates?.project), unit: numOrEmpty(initial?.rates?.unit) },
   };
 }
@@ -212,6 +207,7 @@ const SECTIONS = [
   { id: "pf-narx", label: "Narx" },
   { id: "pf-paketlar", label: "Paketlar" },
   { id: "pf-sertifikat", label: "Sertifikatlar" },
+  { id: "pf-tajriba", label: "Tajriba" },
   { id: "pf-aloqa", label: "Aloqa" },
   { id: "pf-muqova", label: "Muqova" },
   { id: "pf-holat", label: "Holat" },
@@ -235,6 +231,8 @@ const FIELD_SECTION: Record<string, SectionId> = {
   workTypes: "pf-haqida",
   packages: "pf-paketlar",
   certificates: "pf-sertifikat",
+  workHistory: "pf-tajriba",
+  education: "pf-tajriba",
   telegram: "pf-aloqa",
   instagram: "pf-aloqa",
   youtube: "pf-aloqa",
@@ -460,8 +458,9 @@ export function ProfileForm({
     // Ixtiyoriy bo'limlar — progressga kirmaydi, faqat belgi
     "pf-paketlar": f.packages.some((p) => p.enabled),
     "pf-sertifikat": f.certificates.length > 0,
+    "pf-tajriba": f.workHistory.length > 0 || f.education.length > 0,
   };
-  const OPTIONAL: SectionId[] = ["pf-holat", "pf-paketlar", "pf-sertifikat"];
+  const OPTIONAL: SectionId[] = ["pf-holat", "pf-paketlar", "pf-sertifikat", "pf-tajriba"];
   const counted = SECTIONS.filter((x) => !OPTIONAL.includes(x.id));
   const progress = Math.round((counted.filter((x) => sectionDone[x.id]).length / counted.length) * 100);
   const nextOf = (id: SectionId) => {
@@ -532,6 +531,8 @@ export function ProfileForm({
       ),
     }));
   const setCert = (i: number, patch: Partial<CertificateDraft>) => setF((st) => ({ ...st, certificates: st.certificates.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
+  const setWork = (i: number, patch: Partial<WorkDraft>) => setF((st) => ({ ...st, workHistory: st.workHistory.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
+  const setEdu = (i: number, patch: Partial<EducationDraft>) => setF((st) => ({ ...st, education: st.education.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
   const thisYear = new Date().getFullYear();
 
   /* ---------- Hudud / shahar ---------- */
@@ -600,11 +601,24 @@ export function ProfileForm({
       if (!(y >= 1970 && y <= thisYear + 1)) local[`cert.${i}.year`] = `1970–${thisYear + 1}`;
       if (c.url.trim() && !/^https:\/\/\S+$/i.test(c.url.trim())) local[`cert.${i}.url`] = "https:// bilan boshlansin";
     });
+    const yearOk = (v: string) => toInt(v) >= 1970 && toInt(v) <= thisYear + 1;
+    f.workHistory.forEach((e, i) => {
+      if (e.role.trim().length < 2) local[`work.${i}.role`] = "Lavozimni yozing";
+      if (e.company.trim().length < 2) local[`work.${i}.company`] = "Kompaniya yoki loyihani yozing";
+      if (!yearOk(e.fromYear)) local[`work.${i}.fromYear`] = `1970–${thisYear + 1}`;
+      if (e.toYear.trim() && (!yearOk(e.toYear) || toInt(e.toYear) < toInt(e.fromYear))) local[`work.${i}.toYear`] = "Boshlanishdan keyin, kelajakda emas";
+    });
+    f.education.forEach((e, i) => {
+      if (e.school.trim().length < 2) local[`edu.${i}.school`] = "Muassasani yozing";
+      if (e.degree.trim().length < 2) local[`edu.${i}.degree`] = "Yo'nalish/darajani yozing";
+      if (!yearOk(e.fromYear)) local[`edu.${i}.fromYear`] = `1970–${thisYear + 1}`;
+      if (e.toYear.trim() && (!yearOk(e.toYear) || toInt(e.toYear) < toInt(e.fromYear))) local[`edu.${i}.toYear`] = "Boshlanishdan keyin, kelajakda emas";
+    });
     if (Object.keys(local).length) {
       setErrors(local);
       setError("Ba'zi maydonlarni tekshiring");
       const firstKey = Object.keys(local)[0];
-      goToSection(firstKey.startsWith("pkg.") ? "pf-paketlar" : firstKey.startsWith("cert.") ? "pf-sertifikat" : (FIELD_SECTION[firstKey] ?? SECTIONS[0].id));
+      goToSection(firstKey.startsWith("pkg.") ? "pf-paketlar" : firstKey.startsWith("cert.") ? "pf-sertifikat" : firstKey.startsWith("work.") || firstKey.startsWith("edu.") ? "pf-tajriba" : (FIELD_SECTION[firstKey] ?? SECTIONS[0].id));
       return;
     }
 
@@ -649,6 +663,8 @@ export function ProfileForm({
               features: p.features.map((x) => x.trim()).filter(Boolean).slice(0, MAX_PACKAGE_FEATURES),
             })),
           certificates: f.certificates.map((c) => ({ title: c.title.trim(), issuer: c.issuer.trim(), year: toInt(c.year), url: c.url.trim() })),
+          workHistory: f.workHistory.map((e) => ({ role: e.role.trim(), company: e.company.trim(), fromYear: toInt(e.fromYear), toYear: e.toYear.trim() ? toInt(e.toYear) : null, description: e.description.trim() })),
+          education: f.education.map((e) => ({ school: e.school.trim(), degree: e.degree.trim(), fromYear: toInt(e.fromYear), toYear: e.toYear.trim() ? toInt(e.toYear) : null })),
         }),
       });
       const json = (await res.json()) as ApiResponse<{ id: string; slug: string }>;
@@ -881,7 +897,7 @@ export function ProfileForm({
               </div>
             </div>
             <p className="mt-1.5 text-[12px] text-fg-4">{experienceLabel}</p>
-            {errors.experience && <p className="field-error">{errors.experience}</p>}
+            {errors.workHistory && <p className="field-error">{errors.workHistory}</p>}
           </div>
         </Section>
 
@@ -1464,6 +1480,137 @@ export function ProfileForm({
             </button>
           )}
           {errors.certificates && <p className="field-error">{errors.certificates}</p>}
+        </Section>
+
+        {/* ============ Tajriba va ta'lim (LinkedIn uslubi) ============ */}
+        <Section id="pf-tajriba" next={nextOf("pf-tajriba")} icon={Briefcase} title="Tajriba va ta'lim" hint="Qayerda ishlagansiz, nimani o'qigansiz — profil «Haqida» bo'limi ostida chiqadi">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-fg">
+            <Briefcase size={14} className="text-fg-3" /> Ish tajribasi
+          </p>
+          {f.workHistory.length > 0 && (
+            <ul className="mt-3 space-y-3">
+              {f.workHistory.map((e, i) => {
+                const err = (k: string) => errors[`work.${i}.${k}`] ?? errors[`workHistory.${i}.${k}`];
+                return (
+                  <li key={i} className="card-outline !rounded-[var(--r-md)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-semibold text-fg-2">Tajriba {i + 1}</p>
+                      <button type="button" onClick={() => set({ workHistory: f.workHistory.filter((_, j) => j !== i) })} className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold text-fg-3 transition hover:bg-danger-soft hover:text-danger-text">
+                        <Trash2 size={14} /> O'chirish
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor={`pf-exp-${i}-role`} className="field-label">
+                          Lavozim
+                        </label>
+                        <input id={`pf-exp-${i}-role`} className="field" value={e.role} maxLength={100} onChange={(ev) => setWork(i, { role: ev.target.value })} placeholder="Masalan: Montajor" aria-invalid={Boolean(err("role"))} />
+                        {err("role") && <p className="field-error">{err("role")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-exp-${i}-company`} className="field-label">
+                          Kompaniya / loyiha
+                        </label>
+                        <input id={`pf-exp-${i}-company`} className="field" value={e.company} maxLength={100} onChange={(ev) => setWork(i, { company: ev.target.value })} placeholder="Masalan: Sevimli TV" aria-invalid={Boolean(err("company"))} />
+                        {err("company") && <p className="field-error">{err("company")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-exp-${i}-from`} className="field-label">
+                          Boshlanish yili
+                        </label>
+                        <input id={`pf-exp-${i}-from`} className="field" type="number" inputMode="numeric" min={1970} max={thisYear + 1} value={e.fromYear} onChange={(ev) => setWork(i, { fromYear: ev.target.value })} aria-invalid={Boolean(err("fromYear"))} />
+                        {err("fromYear") && <p className="field-error">{err("fromYear")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-exp-${i}-to`} className="field-label">
+                          Tugash yili <span className="font-normal text-fg-4">(bo'sh — hozirgacha)</span>
+                        </label>
+                        <input id={`pf-exp-${i}-to`} className="field" type="number" inputMode="numeric" min={1970} max={thisYear + 1} value={e.toYear} onChange={(ev) => setWork(i, { toYear: ev.target.value })} placeholder="hozirgacha" aria-invalid={Boolean(err("toYear"))} />
+                        {err("toYear") && <p className="field-error">{err("toYear")}</p>}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor={`pf-exp-${i}-desc`} className="field-label">
+                          Qisqa tavsif <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+                        </label>
+                        <textarea id={`pf-exp-${i}-desc`} className="field min-h-[64px] resize-y" value={e.description} maxLength={300} onChange={(ev) => setWork(i, { description: ev.target.value })} placeholder="Nima qildingiz, qanday natija?" />
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {f.workHistory.length < MAX_EXPERIENCE && (
+            <button
+              type="button"
+              onClick={() => set({ workHistory: [...f.workHistory, { role: "", company: "", fromYear: String(thisYear), toYear: "", description: "" }] })}
+              className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+            >
+              <Plus size={14} /> Tajriba qo'shish
+            </button>
+          )}
+          {errors.workHistory && <p className="field-error">{errors.workHistory}</p>}
+
+          <p className="mt-6 flex items-center gap-2 text-[13px] font-bold text-fg">
+            <GraduationCap size={14} className="text-fg-3" /> Ta'lim
+          </p>
+          {f.education.length > 0 && (
+            <ul className="mt-3 space-y-3">
+              {f.education.map((e, i) => {
+                const err = (k: string) => errors[`edu.${i}.${k}`] ?? errors[`education.${i}.${k}`];
+                return (
+                  <li key={i} className="card-outline !rounded-[var(--r-md)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-semibold text-fg-2">Ta'lim {i + 1}</p>
+                      <button type="button" onClick={() => set({ education: f.education.filter((_, j) => j !== i) })} className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold text-fg-3 transition hover:bg-danger-soft hover:text-danger-text">
+                        <Trash2 size={14} /> O'chirish
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor={`pf-edu-${i}-school`} className="field-label">
+                          Muassasa
+                        </label>
+                        <input id={`pf-edu-${i}-school`} className="field" value={e.school} maxLength={120} onChange={(ev) => setEdu(i, { school: ev.target.value })} placeholder="Masalan: O'zDSMI" aria-invalid={Boolean(err("school"))} />
+                        {err("school") && <p className="field-error">{err("school")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-edu-${i}-degree`} className="field-label">
+                          Yo'nalish / daraja
+                        </label>
+                        <input id={`pf-edu-${i}-degree`} className="field" value={e.degree} maxLength={120} onChange={(ev) => setEdu(i, { degree: ev.target.value })} placeholder="Masalan: Kino va TV rejissyorligi, bakalavr" aria-invalid={Boolean(err("degree"))} />
+                        {err("degree") && <p className="field-error">{err("degree")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-edu-${i}-from`} className="field-label">
+                          Boshlanish yili
+                        </label>
+                        <input id={`pf-edu-${i}-from`} className="field" type="number" inputMode="numeric" min={1970} max={thisYear + 1} value={e.fromYear} onChange={(ev) => setEdu(i, { fromYear: ev.target.value })} aria-invalid={Boolean(err("fromYear"))} />
+                        {err("fromYear") && <p className="field-error">{err("fromYear")}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor={`pf-edu-${i}-to`} className="field-label">
+                          Tugash yili <span className="font-normal text-fg-4">(bo'sh — o'qimoqda)</span>
+                        </label>
+                        <input id={`pf-edu-${i}-to`} className="field" type="number" inputMode="numeric" min={1970} max={thisYear + 1} value={e.toYear} onChange={(ev) => setEdu(i, { toYear: ev.target.value })} placeholder="o'qimoqda" aria-invalid={Boolean(err("toYear"))} />
+                        {err("toYear") && <p className="field-error">{err("toYear")}</p>}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {f.education.length < MAX_EDUCATION && (
+            <button
+              type="button"
+              onClick={() => set({ education: [...f.education, { school: "", degree: "", fromYear: String(thisYear - 4), toYear: String(thisYear) }] })}
+              className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+            >
+              <Plus size={14} /> Ta'lim qo'shish
+            </button>
+          )}
+          {errors.education && <p className="field-error">{errors.education}</p>}
         </Section>
 
         {/* ============ Aloqa ============ */}
