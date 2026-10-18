@@ -49,7 +49,7 @@ import { CompareTray } from "@/components/specialists/CompareTray";
 import { getCurrentUser } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
 import { getProfilePostView, listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, PROFILE_HIRING, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { KARTA, experienceLabel, genderPersonLabel, localizePrice, priceFromLabel, priceRangeLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const description = [
     `«${jobTitle}» — ${sp.user.name}.`,
     metaPlace ? `${metaPlace}.` : null,
-    metaPrice > 0 ? `Narx ${formatPrice(metaPrice, { compact: true })} dan.` : null,
+    PROFILE_HIRING && metaPrice > 0 ? `Narx ${formatPrice(metaPrice, { compact: true })} dan.` : null,
     `Portfolio va sharhlar — ${SITE.name}'da.`,
   ]
     .filter(Boolean)
@@ -297,8 +297,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const responseLabel = responseTimeLabel(proof.responseHours);
   const activity = activityBucket(raw.user.lastLoginAt);
   const proofChips: Array<{ icon: typeof Briefcase; text: string; title?: string }> = [];
-  if (proof.completed > 0) proofChips.push({ icon: PackageCheck, text: PROFIL.completedOrders[til](proof.completed), title: tr(til, PROFIL.completedOrdersHint) });
-  if (proof.repeatClients > 0) proofChips.push({ icon: Repeat2, text: PROFIL.repeatClients[til](proof.repeatClients), title: tr(til, PROFIL.repeatClientsHint) });
+  if (PROFILE_HIRING && proof.completed > 0) proofChips.push({ icon: PackageCheck, text: PROFIL.completedOrders[til](proof.completed), title: tr(til, PROFIL.completedOrdersHint) });
+  if (PROFILE_HIRING && proof.repeatClients > 0) proofChips.push({ icon: Repeat2, text: PROFIL.repeatClients[til](proof.repeatClients), title: tr(til, PROFIL.repeatClientsHint) });
   if (responseLabel) proofChips.push({ icon: Clock3, text: responseLabel, title: tr(til, PROFIL.responseHint) });
   if (activity) proofChips.push({ icon: Activity, text: PROFIL.lastActivity[til](tr(til, FAOLLIK[activity])) });
   const verifiedSet = new Set(verifiedIds);
@@ -314,6 +314,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
     <ButtonLink href="/kabinet/profil" size="lg" className="w-full">
       <Settings size={18} /> {tr(til, PROFIL.editProfile)}
     </ButtonLink>
+  ) : !PROFILE_HIRING ? (
+    // Yollash bloklari yashirin: faqat ichki chat
+    <div className="flex w-full flex-col gap-2.5">{chatCta}</div>
   ) : (
     <div className="flex w-full flex-col gap-2.5">
       {orderLink ? (
@@ -330,7 +333,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   );
 
   return (
-    <div className="container-x pb-24 lg:pb-0">
+    <div className={cn("container-x", PROFILE_HIRING ? "pb-24 lg:pb-0" : "pb-10")}>
       {/* Tuzilgan ma'lumot (SEO) — "</script>" ichida chiqmasligi uchun "<" belgisi qochiriladi */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
@@ -520,7 +523,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </li>
             ))}
             <li className="ml-auto flex items-center gap-2 lg:hidden">
-              {!isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
+              {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
+              {!PROFILE_HIRING && !isOwner && sp.user.username && (
+                <ButtonLink href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`} variant="outline" size="sm">
+                  <MessageCircle size={14} /> {tr(til, PROFIL.write)}
+                </ButtonLink>
+              )}
               {!isOwner && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
               <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} size="sm" variant="outline" />
@@ -530,7 +538,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       </section>
 
       {/* ================= OBUNA FAOL EMAS (tashrif buyuruvchilar) ================= */}
-      {inactive && !showOwnerCta && (
+      {PROFILE_HIRING && inactive && !showOwnerCta && (
         <section role="status" className="card-outline mt-6 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-start gap-3.5">
             <span className="icon-tile-outline shrink-0">
@@ -632,7 +640,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           </section>
 
           {/* Xizmat paketlari (F31) */}
-          {sp.packages.length > 0 && (
+          {PROFILE_HIRING && sp.packages.length > 0 && (
             <section className="animate-fade-up scroll-mt-28" id="paketlar" aria-labelledby="paketlar-title">
               <div className="mb-4 px-1">
                 <span className="eyebrow">{tr(til, PROFIL.packagesEyebrow)}</span>
@@ -650,7 +658,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           )}
 
           {/* Aloqa — mobil/planshet (desktopda yon panelda) */}
-          {contactsLocked ? (
+          {!PROFILE_HIRING ? null : contactsLocked ? (
             <LockedContacts className="lg:hidden" />
           ) : (
             <ContactPanel
@@ -666,22 +674,53 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {shortUrl && shortDisplay && (
             <section className="lg:hidden" aria-label={tr(til, PROFIL.shortLink)}>
               <h3 className="mb-2 px-4 text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">{tr(til, PROFIL.shortLink)}</h3>
-              <ShortLink url={shortUrl} display={shortDisplay} vcardHref={`/api/vcard/${raw.slug}`} />
+              <ShortLink url={shortUrl} display={shortDisplay} vcardHref={PROFILE_HIRING ? `/api/vcard/${raw.slug}` : undefined} />
             </section>
           )}
 
           {/* Narx kalkulyatori (F70) */}
-          {(sp.rates.hourly || sp.rates.daily || sp.rates.project || sp.rates.unit) && <RateCalculator rates={sp.rates} urgentPct={settings.urgentPct} usdRate={settings.usdRate} className="animate-fade-up" />}
+          {PROFILE_HIRING && (sp.rates.hourly || sp.rates.daily || sp.rates.project || sp.rates.unit) && <RateCalculator rates={sp.rates} urgentPct={settings.urgentPct} usdRate={settings.usdRate} className="animate-fade-up" />}
 
-          {/* Ish vaqti + band kunlar (F41) */}
-          <SchedulePanel
-            schedule={sp.schedule}
-            vacationUntil={sp.vacationUntil}
-            lock={raw.schedule ? scheduleLock : null}
-            loginHref={loginHref}
-            blockedDates={sp.blockedDates}
-            className="animate-fade-up"
-          />
+          {/* Ish vaqti + band kunlar (F41) — faqat yollash rejimida */}
+          {PROFILE_HIRING && (
+            <SchedulePanel
+              schedule={sp.schedule}
+              vacationUntil={sp.vacationUntil}
+              lock={raw.schedule ? scheduleLock : null}
+              loginHref={loginHref}
+              blockedDates={sp.blockedDates}
+              className="animate-fade-up"
+            />
+          )}
+
+          {/* Profil lentasi (Instagram uslubi): Postlar / Videolar / Ishlar — portfolio shu yerda; id="portfolio" eski havolalar uchun saqlanadi */}
+          <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio" aria-label={til === "ru" ? "Лента профиля" : "Profil lentasi"}>
+            <ProfileTabs
+              til={til}
+              slug={sp.slug}
+              userId={raw.userId}
+              name={sp.user.name}
+              avatarUrl={sp.user.avatarUrl}
+              isOwner={isOwner}
+              loggedIn={Boolean(viewer)}
+              isAdmin={isAdmin}
+              viewerId={viewer?.id ?? null}
+              counts={{ posts: postCounts.posts, videos: postCounts.videos, works: sp.portfolio.length }}
+              initialPosts={profilePosts}
+              openPost={openPost}
+              initialTab={feedTab}
+              works={sp.portfolio.map((p) => ({
+                id: p.id,
+                title: p.title,
+                type: p.type,
+                url: p.url,
+                thumbnailUrl: p.thumbnailUrl,
+                description: p.description,
+                tags: p.tags,
+                beforeUrl: p.beforeUrl,
+              }))}
+            />
+          </section>
 
           {/* Sertifikatlar va litsenziyalar (F64) */}
           {sp.certificates.length > 0 && (
@@ -718,35 +757,6 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </ul>
             </section>
           )}
-
-          {/* Profil lentasi (Instagram uslubi): Postlar / Videolar / Ishlar — portfolio shu yerda; id="portfolio" eski havolalar uchun saqlanadi */}
-          <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio" aria-label={til === "ru" ? "Лента профиля" : "Profil lentasi"}>
-            <ProfileTabs
-              til={til}
-              slug={sp.slug}
-              userId={raw.userId}
-              name={sp.user.name}
-              avatarUrl={sp.user.avatarUrl}
-              isOwner={isOwner}
-              loggedIn={Boolean(viewer)}
-              isAdmin={isAdmin}
-              viewerId={viewer?.id ?? null}
-              counts={{ posts: postCounts.posts, videos: postCounts.videos, works: sp.portfolio.length }}
-              initialPosts={profilePosts}
-              openPost={openPost}
-              initialTab={feedTab}
-              works={sp.portfolio.map((p) => ({
-                id: p.id,
-                title: p.title,
-                type: p.type,
-                url: p.url,
-                thumbnailUrl: p.thumbnailUrl,
-                description: p.description,
-                tags: p.tags,
-                beforeUrl: p.beforeUrl,
-              }))}
-            />
-          </section>
 
           {/* Sharhlar */}
           <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "200ms" }} id="sharhlar">
@@ -824,16 +834,27 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         <aside className="hidden lg:col-span-4 lg:block">
           <div className="space-y-4 lg:sticky lg:top-28">
             <div className="card-elevated animate-fade-up p-5 sm:p-6" style={{ animationDelay: "60ms" }}>
-              <p className="eyebrow">{tr(til, PROFIL.priceEyebrow)}</p>
-              <p className="mt-2 font-display text-[28px] font-semibold leading-tight tracking-tight text-fg">{price}</p>
-              {priceUsd && (
-                <p className="mt-0.5 text-[12px] text-fg-3">
-                  {priceUsd}
-                  {sp.priceTo && sp.priceTo > priceFrom ? tr(til, PROFIL.usdFrom) : ""}
-                  {tr(til, PROFIL.usdApprox)}
-                </p>
+              {PROFILE_HIRING ? (
+                <>
+                  <p className="eyebrow">{tr(til, PROFIL.priceEyebrow)}</p>
+                  <p className="mt-2 font-display text-[28px] font-semibold leading-tight tracking-tight text-fg">{price}</p>
+                  {priceUsd && (
+                    <p className="mt-0.5 text-[12px] text-fg-3">
+                      {priceUsd}
+                      {sp.priceTo && sp.priceTo > priceFrom ? tr(til, PROFIL.usdFrom) : ""}
+                      {tr(til, PROFIL.usdApprox)}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[13px] text-fg-3">{priceFrom || sp.priceTo ? tr(til, PROFIL.priceFinalNote) : tr(til, PROFIL.priceNegotiable)}</p>
+                </>
+              ) : (
+                <>
+                  {/* Yollash yashirin: narx o'rniga ijodkor sarlavhasi */}
+                  <p className="eyebrow">{cat?.name ?? tr(til, PROFIL.specialists)}</p>
+                  <p className="mt-2 font-display text-[22px] font-semibold leading-tight tracking-tight text-fg">{sp.title}</p>
+                  {region && <p className="mt-1 text-[13px] text-fg-3">{region.name}</p>}
+                </>
               )}
-              <p className="mt-1 text-[13px] text-fg-3">{priceFrom || sp.priceTo ? tr(til, PROFIL.priceFinalNote) : tr(til, PROFIL.priceNegotiable)}</p>
 
               <div className="mt-5 flex items-stretch gap-2">
                 <div className="min-w-0 flex-1">{cta}</div>
@@ -841,27 +862,27 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
               </div>
-              {!isOwner && !inactive && (
+              {PROFILE_HIRING && !isOwner && !inactive && (
                 <div className="mt-2.5 flex justify-center">
                   <CompareButton item={compareItem} variant="chip" />
                 </div>
               )}
-              {!showOwnerCta && inactive && <p className="mt-2.5 text-center text-[12px] text-fg-3">{tr(til, PROFIL.subInactiveNote)}</p>}
+              {PROFILE_HIRING && !showOwnerCta && inactive && <p className="mt-2.5 text-center text-[12px] text-fg-3">{tr(til, PROFIL.subInactiveNote)}</p>}
               {!showOwnerCta && !inactive && responseLabel && !onVacation && sp.isAvailable && (
                 <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[12px] text-fg-3">
                   <Clock3 size={12} /> {responseLabel}
                 </p>
               )}
               {/* Halol muddat (#43): ta'tilda — qaytish sanasi bilan, band — bo'shagach ko'rib chiqadi */}
-              {!showOwnerCta && !inactive && onVacation && (
+              {PROFILE_HIRING && !showOwnerCta && !inactive && onVacation && (
                 <p className="mt-2.5 text-center text-[12px] text-fg-3">
                   {sp.vacationUntil ? PROFIL.vacationNote[til](formatDate(sp.vacationUntil)) : tr(til, PROFIL.vacationNoteNoDate)}
                 </p>
               )}
-              {!showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">{tr(til, PROFIL.busyNote)}</p>}
+              {PROFILE_HIRING && !showOwnerCta && !inactive && !onVacation && !sp.isAvailable && <p className="mt-2.5 text-center text-[12px] text-fg-3">{tr(til, PROFIL.busyNote)}</p>}
 
               {/* Bajarilgan buyurtmalar (D60) — faqat bor bo'lsa, yangi profilda "0 Buyurtma" chiqmasin */}
-              <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
+              <ul className={cn("mt-5 grid divide-x divide-line border-t border-line pt-4 text-center", PROFILE_HIRING && completedOrders > 0 ? "grid-cols-4" : "grid-cols-3")}>
                 <li>
                   {sp.reviewCount > 0 ? (
                     <p className="font-display text-[17px] font-semibold text-fg">{sp.rating.toFixed(1)}</p>
@@ -881,7 +902,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   <p className="font-display text-[17px] font-semibold text-fg">{sp.portfolio.length}</p>
                   <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statWorks)}</p>
                 </li>
-                {completedOrders > 0 && (
+                {PROFILE_HIRING && completedOrders > 0 && (
                   <li title={tr(til, PROFIL.completedOrdersHint)}>
                     <p className="font-display text-[17px] font-semibold text-fg">{completedOrders}</p>
                     <p className="text-[11px] text-fg-3">{tr(til, PROFIL.statOrders)}</p>
@@ -892,7 +913,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {shortUrl && shortDisplay && (
                 <div className="mt-4 border-t border-line pt-4">
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-4">{tr(til, PROFIL.shortLink)}</p>
-                  <ShortLink url={shortUrl} display={shortDisplay} vcardHref={`/api/vcard/${raw.slug}`} />
+                  <ShortLink url={shortUrl} display={shortDisplay} vcardHref={PROFILE_HIRING ? `/api/vcard/${raw.slug}` : undefined} />
                 </div>
               )}
 
@@ -901,7 +922,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               )}
             </div>
 
-            {showOwnerCta && (
+            {PROFILE_HIRING && showOwnerCta && (
               <div className="card-outline p-4">
                 <p className="flex items-center gap-2 text-[13px] font-semibold text-fg">
                   <EyeOff size={14} className="text-fg-3" /> {tr(til, PROFIL.privacy)}
@@ -922,7 +943,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </div>
             )}
 
-            {contactsLocked ? (
+            {!PROFILE_HIRING ? null : contactsLocked ? (
               <LockedContacts />
             ) : (
               <ContactPanel
@@ -970,7 +991,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                         <span className="truncate">{s.title}</span>
                       </p>
                       <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <span className="truncate font-display text-[12px] font-semibold text-fg">{priceRangeLabel(til, s.priceFrom, s.priceTo)}</span>
+                        <span className="truncate font-display text-[12px] font-semibold text-fg">{PROFILE_HIRING ? priceRangeLabel(til, s.priceFrom, s.priceTo) : (c?.name ?? "")}</span>
                         <span
                           className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-fg-2"
                           aria-label={s.rating > 0 ? PROFIL.ratingAria[til](s.rating.toFixed(1)) : tr(til, PROFIL.notRatedAria)}
@@ -990,6 +1011,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
       {/* ================= MOBIL: pastki yopishqoq narx + CTA ================= */}
       {/* Pastki tab-bar (bottom-3 + safe-area + ~64px balandlik) ustida kamida 6px oraliq: 82px + safe-area */}
+      {PROFILE_HIRING && (
       <div
         data-sticky-cta
         className="card-elevated fixed inset-x-3 bottom-[calc(5.125rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2.5 !rounded-[22px] px-4 py-2.5 md:bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden"
@@ -1028,9 +1050,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           </span>
         )}
       </div>
+      )}
 
       {/* Taqqoslash paneli (F54) — telefonda pastki CTA paneli ustida */}
-      <CompareTray aboveCta />
+      <CompareTray aboveCta={PROFILE_HIRING} />
     </div>
   );
 }

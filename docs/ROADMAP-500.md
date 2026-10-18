@@ -98,6 +98,7 @@
 - ✅ Egasi profilning o'zidan post joylaydi ("Post joylash") yoki kabinet → **Postlarim**
 - ✅ `/qidiruv` — ommaviy qidiruv zonasi (Explore): video ostidagi matnlar (ish sarlavhasi/tavsifi/teglari), post matnlari va ijodkor nomlari; turlar: Hammasi / Videolar / Ishlar / Postlar / Ijodkorlar; so'rovsiz — eng yangi media plitkalari
 - ✅ ⌘K'da Enter → to'liq qidiruv; footer va sitemap'da /qidiruv
+- ✅ Profilda yollash bloklari yashirildi (`PROFILE_HIRING=false`): narx, paketlar, kalkulyator, jadval, aloqa, «Buyurtma berish», taqqoslash, yopishqoq panel — profil faqat bio + lenta + sertifikat + sharhlar; kod saqlangan, flag bilan qaytariladi
 
 ### Kabinet va profil
 66. ✅ Ro'yxatdan o'tishda maqsad tanlovi (xizmat / buyurtma / ish / xodim) → mos sahifa

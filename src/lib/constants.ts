@@ -85,6 +85,14 @@ export const REPORT_REASONS = [
 ] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
 
+/**
+ * Ijodkor sahifasida buyurtma/yollash bloklari: narx kartasi, paketlar, kalkulyator, ish jadvali, aloqa paneli,
+ * «Buyurtma berish» CTA, taqqoslash, pastki yopishqoq panel, bajarilgan buyurtma statistikasi, vCard.
+ * false — profil Instagram ko'rinishida (bio, lenta: postlar/videolar/ishlar, sharhlar, yozish/obuna/ulashish).
+ * Buyurtma tizimi o'zi o'chmaydi: katalog kartalari va /buyurtma/<id> ishlayveradi. Qaytarish — true.
+ */
+export const PROFILE_HIRING = false;
+
 export const SITE = {
   name: "Kasb Egalari",
   /** Loyiha rahbari (footer'da ko'rinadi) */
