@@ -289,7 +289,7 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
               }}
               maxLength={GROUP_MSG_MAX}
               rows={1}
-              placeholder={replyTo ? "Javob yozing…" : "Xabar yozing… (Enter — yuborish, @ism — eslatish)"}
+              placeholder={replyTo ? "Javob yozing…" : "Xabar yozing… (@ism — eslatish)"}
               ariaLabel="Xabar"
               wrapperClassName="min-w-0 flex-1"
               className="field max-h-32 min-h-10 w-full resize-none py-2.5 text-[14px] leading-snug"
