@@ -231,6 +231,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const lastIdRef = useRef<string | null>(null);
   const syncRef = useRef(0);
   const inflightRef = useRef(false);
+  /** Faol suhbat to'liq yuklandi — shundan keyingina incremental polling */
+  const loadedRef = useRef(false);
   const dragDepth = useRef(0);
   const longPress = useRef<number | null>(null);
   const activeRef = useRef(active);
@@ -307,6 +309,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const loadThread = useCallback(
     async (id: string, incremental: boolean): Promise<boolean> => {
       if (inflightRef.current) return false;
+      // Birinchi to'liq yuklash tugamaguncha polling boshlanmasin (dev StrictMode poygasi: hammasi «yangi» bo'lib animatsiya qilmasin)
+      if (incremental && !loadedRef.current) return false;
       inflightRef.current = true;
       try {
         const params = new URLSearchParams();
@@ -333,6 +337,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
           const readAt: number = d.readAt ?? 0;
           const first = items.find((x) => !x.mine && x.at > readAt);
           setDividerId(first && readAt > 0 ? first.id : null);
+          loadedRef.current = true;
         }
         applyRows(items, updates, d.reactions, incremental);
         if (incremental && items.some((x) => !x.mine) && !nearBottomRef.current) setNewBelow((n) => n + items.filter((x) => !x.mine).length);
@@ -349,6 +354,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   useEffect(() => {
     if (!active) return;
     lastIdRef.current = null;
+    loadedRef.current = false;
     syncRef.current = 0;
     prevCountRef.current = 0;
     nearBottomRef.current = true;
@@ -945,7 +951,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const menuMsg = msgMenu ? (msgs ?? []).find((m) => m.id === msgMenu.id) ?? null : null;
   const canEdit = (m: Msg) => m.mine && !m.deleted && !m.pending && now - m.at < DM_EDIT_WINDOW_MS && m.attachments.length === 0;
   const messageMenu = menuMsg && (
-    <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", menuMsg.mine ? "right-0" : "left-0")} width="w-[250px]">
+    <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", menuMsg.mine ? "left-0" : "right-0")} width="w-[250px]">
       {!menuMsg.deleted && !menuMsg.pending && (
         <>
           <ReactionPicker

@@ -121,14 +121,13 @@ function Row({ href, icon: Icon, label, value, tone, external }: { href: string;
   const inner = (
     <>
       <Icon size={18} className="shrink-0 text-fg-3" aria-hidden="true" />
-      {/* Yorliq qisqarmaydi — qiymat (uzun bo'lsa) o'zi qisqaradi */}
-      <span className="shrink-0 text-[14px] font-medium text-fg">{label}</span>
+      {/* Yorliq kamida 55% joy oladi (qisqa yorliq hech qachon «T.» bo'lib qolmaydi); qiymat ko'pi bilan 45% va o'zi qisqaradi */}
+      <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-fg">{label}</span>
       {value !== undefined && (
-        <span className={cn("min-w-0 flex-1 truncate text-right text-[13px] tabular-nums", tone === "warning" ? "font-semibold text-warning-text" : tone === "danger" ? "font-semibold text-danger-text" : tone === "success" ? "font-semibold text-success-text" : "text-fg-3")}>
+        <span className={cn("max-w-[45%] shrink-0 truncate text-right text-[13px] tabular-nums", tone === "warning" ? "font-semibold text-warning-text" : tone === "danger" ? "font-semibold text-danger-text" : tone === "success" ? "font-semibold text-success-text" : "text-fg-3")}>
           {value}
         </span>
       )}
-      {value === undefined && <span className="flex-1" />}
       <ChevronRight size={16} className="shrink-0 text-fg-4" aria-hidden="true" />
     </>
   );

@@ -210,6 +210,18 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     }
   }, [msgs, typing]);
 
+  // Tahrir yoki javob tanlanganda fokus kompozitorga o'tadi (klaviatura bilan ham, sichqoncha bilan ham darhol yozish mumkin)
+  useEffect(() => {
+    if (!editing && !replyTo) return;
+    const t = window.setTimeout(() => {
+      const el = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Xabarni tahrirlash"], textarea[aria-label="Xabar"]');
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [editing, replyTo]);
+
   // Menyu: tashqi bosish / Esc yopadi (shikoyat oynasi ochiq bo'lsa tegilmaydi)
   useEffect(() => {
     if (!menuFor) return;
