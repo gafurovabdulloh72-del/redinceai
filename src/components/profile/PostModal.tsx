@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Heart, Link2, MessageCircle, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Link2, MessageCircle, Trash2, X } from "lucide-react";
+import { ReactionButton, SaveButton, type ReactionState } from "@/components/groups/Reactions";
 import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { usePresence } from "@/components/motion/usePresence";
@@ -57,7 +58,7 @@ export function PostModal({
   shareBase: string;
   onClose: () => void;
   onDeleted: (postId: string) => void;
-  onLiked?: (postId: string, liked: boolean, likes: number) => void;
+  onLiked?: (postId: string, state: ReactionState) => void;
 }) {
   const open = item !== null;
   const { mounted, closing } = usePresence(open, 200);
@@ -172,12 +173,10 @@ function PostBody({
   shareBase: string;
   onClose: () => void;
   onDeleted: (id: string) => void;
-  onLiked?: (postId: string, liked: boolean, likes: number) => void;
+  onLiked?: (postId: string, state: ReactionState) => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likes, setLikes] = useState(post.likesCount);
   const [comments, setComments] = useState(post.commentsCount);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -188,24 +187,6 @@ function PostBody({
     if (loggedIn) return true;
     router.push(`/auth/kirish?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     return false;
-  }
-  async function like() {
-    if (!requireLogin() || busy) return;
-    const prev = { liked, likes };
-    setLiked(!liked);
-    setLikes((n) => Math.max(0, n + (liked ? -1 : 1)));
-    try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, { method: "POST" });
-      const j = (await res.json()) as { ok: boolean; data?: { liked: boolean; likesCount: number }; error?: string };
-      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || "Bo'lmadi");
-      setLiked(j.data.liked);
-      setLikes(j.data.likesCount);
-      onLiked?.(post.id, j.data.liked, j.data.likesCount);
-    } catch (e) {
-      setLiked(prev.liked);
-      setLikes(prev.likes);
-      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
-    }
   }
   async function remove() {
     if (busy) return;
@@ -253,15 +234,14 @@ function PostBody({
   );
   const actions = (
     <div className="flex items-center gap-1 border-t border-line px-2 py-1.5">
-      <button type="button" onClick={like} aria-pressed={liked} className={cn("press inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition", liked ? "text-accent" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}>
-        <Heart key={liked ? "on" : "off"} size={18} className={cn(liked && "animate-heartbeat fill-current")} /> <span className="tabular-nums">{likes}</span>
-      </button>
+      <ReactionButton postId={post.id} initial={post} canInteract size="lg" requireLogin={requireLogin} onChange={(st) => onLiked?.(post.id, st)} />
       <span className="inline-flex h-10 items-center gap-1.5 px-3 text-[13px] font-semibold text-fg-2">
         <MessageCircle size={18} /> <span className="tabular-nums">{comments}</span>
       </span>
       <button type="button" onClick={share} className="press inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
         <Link2 size={17} /> Ulashish
       </button>
+      <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} size="lg" />
       {canDelete && (
         <span className="ml-auto">
           {confirm ? (

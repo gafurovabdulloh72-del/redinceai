@@ -13,14 +13,18 @@ import type { FeedItem, FeedPage, FeedScope } from "@/lib/feed";
 
 type ApiResp<T> = { ok: boolean; data?: T; error?: string };
 
-/** Bosh sahifa lentasi: profil va jamoa postlari aralash; jamoa posti ustida manba chipi; "Yana yuklash" */
-export function HomeFeed({ initial, scope, loggedIn }: { initial: FeedPage; scope: FeedScope; loggedIn: boolean }) {
+/**
+ * Lenta: profil va jamoa postlari aralash; jamoa posti ustida manba chipi; "Yana yuklash".
+ * `source` — boshqa manba (masalan, /api/posts/saved); bo'lmasa /api/feed?scope=.
+ */
+export function HomeFeed({ initial, scope = "all", loggedIn, source, emptyTitle }: { initial: FeedPage; scope?: FeedScope; loggedIn: boolean; source?: string; emptyTitle?: string }) {
   const til = useLocale();
   const router = useRouter();
   const [items, setItems] = useState(initial.items);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
-  const base = `/api/feed?scope=${scope}`;
+  const base = source ?? `/api/feed?scope=${scope}`;
+  const join = base.includes("?") ? "&" : "?";
 
   const reload = useCallback(async () => {
     const res = await fetch(base, { cache: "no-store" });
@@ -35,7 +39,7 @@ export function HomeFeed({ initial, scope, loggedIn }: { initial: FeedPage; scop
     if (!cursor || loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${base}&cursor=${cursor}`, { cache: "no-store" });
+      const res = await fetch(`${base}${join}cursor=${cursor}`, { cache: "no-store" });
       const j = (await res.json()) as ApiResp<FeedPage>;
       if (j.ok && j.data) {
         const more = j.data.items;
@@ -59,10 +63,10 @@ export function HomeFeed({ initial, scope, loggedIn }: { initial: FeedPage; scop
   if (items.length === 0) {
     return (
       <div className="card px-5 py-10 text-center">
-        <p className="text-[15px] font-semibold text-fg">{tr(til, scope === "following" ? FEED.emptyFollowing : FEED.emptyAll)}</p>
+        <p className="text-[15px] font-semibold text-fg">{emptyTitle ?? tr(til, scope === "following" ? FEED.emptyFollowing : FEED.emptyAll)}</p>
         <div className="mt-4 flex justify-center">
-          <ButtonLink href="/mutaxassislar" variant="accent" size="md">
-            {tr(til, FEED.findCreators)}
+          <ButtonLink href={source ? "/" : "/mutaxassislar"} variant="accent" size="md">
+            {tr(til, source ? FEED.all : FEED.findCreators)}
           </ButtonLink>
         </div>
       </div>
@@ -96,7 +100,7 @@ function FeedPost({ item, loggedIn, requireLogin, onDeleted, onChanged }: { item
           <span className="shrink-0 font-medium text-fg-4">{tr(til, item.group.kind === "channel" ? FEED.inChannel : FEED.inGroup)}</span>
         </Link>
       )}
-      <PostCard post={item} canInteract={item.canInteract} canPin={false} loggedIn={loggedIn} requireLogin={requireLogin} highlighted={false} onDeleted={onDeleted} onChanged={onChanged} />
+      <PostCard post={item} canInteract={item.canInteract} canPin={false} loggedIn={loggedIn} requireLogin={requireLogin} highlighted={false} groupSlug={item.group?.slug ?? null} onDeleted={onDeleted} onChanged={onChanged} />
     </div>
   );
 }

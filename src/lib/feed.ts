@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, groupMembers, groups, posts, specialists, users } from "@/lib/db/schema";
+import { follows, groupMembers, groups, postSaves, posts, specialists, users, type Post } from "@/lib/db/schema";
 import { briefUsers, listGroups, toPostViews, upcomingEvents, type GroupListItem, type PostView } from "@/lib/groups/service";
 import { getSettings } from "@/lib/payments/settings";
 import { listableCondition } from "@/lib/subscriptions/access";
@@ -44,6 +44,14 @@ export async function homeFeed(viewer: Viewer, opts: { cursor?: number | null; l
     .orderBy(desc(posts.createdAt))
     .limit(limit + 1);
   const page = rows.slice(0, limit);
+  const items = await toFeedItems(page, viewer);
+  return { items, nextCursor: rows.length > limit ? page[page.length - 1].p.createdAt.getTime() : null };
+}
+
+type FeedRow = { p: Post; gslug: string | null; gname: string | null; gkind: "group" | "channel" | null; goff: boolean | null };
+
+/** Post qatorlari → lenta elementlari (manba chipi + canInteract: profil posti — kirgan har kim; jamoa posti — faol a'zo/admin) */
+async function toFeedItems(page: FeedRow[], viewer: Viewer): Promise<FeedItem[]> {
   const isAdmin = viewer?.role === "admin";
   const groupIds = Array.from(new Set(page.map((r) => r.p.groupId).filter((x): x is string => Boolean(x))));
   const [views, memberships] = await Promise.all([
@@ -57,12 +65,35 @@ export async function homeFeed(viewer: Viewer, opts: { cursor?: number | null; l
       : Promise.resolve([] as Array<{ groupId: string }>),
   ]);
   const member = new Set(memberships.map((m) => m.groupId));
-  const items: FeedItem[] = views.map((v, i) => {
+  return views.map((v, i) => {
     const r = page[i];
     const group = r.p.groupId && r.gslug && r.gname ? { slug: r.gslug, name: r.gname, kind: (r.gkind ?? "group") as "group" | "channel", isOfficial: Boolean(r.goff) } : null;
     return { ...v, group, canInteract: Boolean(viewer) && (!group || isAdmin || member.has(r.p.groupId!)) };
   });
-  return { items, nextCursor: rows.length > limit ? page[page.length - 1].p.createdAt.getTime() : null };
+}
+
+/**
+ * Saqlangan postlar (bookmark): yangi saqlangan → eski, cursor = post_saves.createdAt (ms).
+ * Yopiq jamoadan chiqib ketilgan bo'lsa, u yerdagi saqlangan post ko'rinmaydi (kontent sizmaydi).
+ */
+export async function listSavedPosts(viewer: NonNullable<Viewer>, opts: { cursor?: number | null; limit?: number } = {}): Promise<FeedPage> {
+  const limit = Math.min(30, Math.max(1, opts.limit ?? 10));
+  const myGroups = db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active")));
+  const conds: SQL[] = [eq(postSaves.userId, viewer.id), eq(users.isBanned, false)];
+  if (viewer.role !== "admin") conds.push(or(isNull(posts.groupId), eq(groups.isPrivate, false), inArray(posts.groupId, myGroups))!);
+  if (opts.cursor) conds.push(lt(postSaves.createdAt, new Date(opts.cursor)));
+  const rows = await db
+    .select({ p: posts, gslug: groups.slug, gname: groups.name, gkind: groups.kind, goff: groups.isOfficial, savedAt: postSaves.createdAt })
+    .from(postSaves)
+    .innerJoin(posts, eq(posts.id, postSaves.postId))
+    .innerJoin(users, eq(users.id, posts.authorId))
+    .leftJoin(groups, eq(groups.id, posts.groupId))
+    .where(and(...conds))
+    .orderBy(desc(postSaves.createdAt))
+    .limit(limit + 1);
+  const page = rows.slice(0, limit);
+  const items = await toFeedItems(page, viewer);
+  return { items, nextCursor: rows.length > limit ? page[page.length - 1].savedAt.getTime() : null };
 }
 
 /** "Hikoyalar" qatori: so'nggi 7 kunda post joylagan ijodkorlar (profil sahifasi borlar), eng yangisi birinchi */

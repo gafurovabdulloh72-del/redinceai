@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { usePresence } from "@/components/motion/usePresence";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -162,6 +162,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
             {more.mounted && (
               <div role="menu" aria-label={tr(til, SHELL.nav.more)} className={cn("card-floating absolute bottom-[calc(100%+8px)] left-0 w-64 overflow-hidden p-1.5", more.closing ? "animate-modal-out" : "animate-modal-in")}>
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
+                {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />

@@ -1020,11 +1020,31 @@ export const postLikes = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Reaksiya turi: heart ❤️ (standart), fire 🔥, clap 👏, haha 😂, wow 😮, like 👍 — bitta foydalanuvchi = bitta reaksiya */
+    reaction: text("reaction").notNull().default("heart"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("post_likes_pair_idx").on(t.postId, t.userId)],
+);
+
+/** Saqlangan postlar (bookmark) — faqat egasiga ko'rinadi: /kabinet/saqlanganlar */
+export const postSaves = sqliteTable(
+  "post_saves",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_saves_pair_idx").on(t.postId, t.userId), index("post_saves_user_idx").on(t.userId, t.createdAt)],
 );
 
 export const postComments = sqliteTable(
@@ -1085,6 +1105,11 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   comments: many(postComments),
 }));
 
+export const postSavesRelations = relations(postSaves, ({ one }) => ({
+  post: one(posts, { fields: [postSaves.postId], references: [posts.id] }),
+  user: one(users, { fields: [postSaves.userId], references: [users.id] }),
+}));
+
 export const postCommentsRelations = relations(postComments, ({ one }) => ({
   post: one(posts, { fields: [postComments.postId], references: [posts.id] }),
   author: one(users, { fields: [postComments.authorId], references: [users.id] }),
@@ -1100,6 +1125,7 @@ export type GroupMember = typeof groupMembers.$inferSelect;
 export type GroupMessage = typeof groupMessages.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type PostComment = typeof postComments.$inferSelect;
+export type PostSave = typeof postSaves.$inferSelect;
 
 /* ------------------------------------------------------------------ */
 /* Vakansiyalar: ish beruvchi e'lonlari, rezyumelar, arizalar          */

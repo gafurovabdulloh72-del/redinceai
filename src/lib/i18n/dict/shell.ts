@@ -64,6 +64,7 @@ export const SHELL = {
     subscription: { uz: "Obuna", ru: "Подписка" },
     notifications: { uz: "Bildirishnomalar", ru: "Уведомления" },
     favorites: { uz: "Sevimlilar", ru: "Избранное" },
+    saved: { uz: "Saqlanganlar", ru: "Сохранённое" },
     profile: { uz: "Profil", ru: "Профиль" },
     admin: { uz: "Admin panel", ru: "Админ-панель" },
     logout: { uz: "Chiqish", ru: "Выйти" },

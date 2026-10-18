@@ -1,11 +1,13 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, groupMembers, groupMessages, groups, postComments, postLikes, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessages, groups, notifications, postComments, postLikes, postSaves, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
 import type { GroupInput } from "./validators";
+import { REACTION_BY_KEY, REACTION_KINDS, type ReactionKind } from "./limits";
+import { notifyMentions } from "./mentions";
 
 /**
  * Jamoalar — ijodkorlar hamjamiyati: guruhlar, a'zolik, lenta (post/like/izoh), guruh chati, obuna (follow).
@@ -76,9 +78,18 @@ export interface PostView {
   edited: boolean;
   createdAt: number;
   author: UserBrief;
+  /** Menda reaksiya bormi (myReaction !== null) — eski klientlar uchun saqlangan */
   likedByMe: boolean;
+  /** Mening reaksiyam: heart | fire | clap | haha | wow | like; null — yo'q */
+  myReaction: ReactionKind | null;
+  /** Reaksiyalar kesimi (faqat 0 dan kattalari) — umumiy soni likesCount */
+  reactions: ReactionCounts;
+  /** Saqlanganlarimda (bookmark) bormi */
+  savedByMe: boolean;
   canDelete: boolean;
 }
+
+export type ReactionCounts = Partial<Record<ReactionKind, number>>;
 
 export interface CommentView {
   id: string;
@@ -567,9 +578,16 @@ export async function createPost(
     await tx.insert(posts).values(row);
     await tx.update(groups).set({ postsCount: sql`${groups.postsCount} + 1`, lastActivityAt: now }).where(eq(groups.id, group.id));
   });
+  const href = `/jamoalar/${group.slug}?post=${row.id}`;
+  // @username eslatmalari (yopiq jamoada faqat a'zolarga)
+  try {
+    const who = (await briefUsers([authorId])).get(authorId)?.name ?? "Foydalanuvchi";
+    await notifyMentions({ text: body, actorId: authorId, actorName: who, href, where: "post", group });
+  } catch (e) {
+    console.error("[post:mentions]", e);
+  }
   // Kanal posti yoki efir e'loni — a'zolarga bildirishnoma (sayt + Telegram; email emas — kvota)
   if (group.kind === "channel" || event.at) {
-    const href = `/jamoalar/${group.slug}?post=${row.id}`;
     const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? "Yangi media" : "");
     if (event.at) {
       await notifyMembers(group, authorId, "live_event", `Jonli efir: ${group.name}`, `${formatEventDate(event.at)} — ${snippet || "efir/yig'ilish e'lon qilindi"}`, href);
@@ -611,24 +629,41 @@ export async function assertCanPost(group: Group, viewer: Viewer): Promise<Group
   return m;
 }
 
+const asReaction = (s: string): ReactionKind => (REACTION_KINDS.includes(s as ReactionKind) ? (s as ReactionKind) : "heart");
+
+/** Postlar bo'yicha reaksiya kesimi: postId → { heart: 3, fire: 1 } */
+export async function reactionCounts(postIds: string[]): Promise<Map<string, ReactionCounts>> {
+  const map = new Map<string, ReactionCounts>();
+  if (!postIds.length) return map;
+  const rows = await db
+    .select({ postId: postLikes.postId, reaction: postLikes.reaction, n: sql<number>`count(*)` })
+    .from(postLikes)
+    .where(inArray(postLikes.postId, postIds))
+    .groupBy(postLikes.postId, postLikes.reaction);
+  for (const r of rows) {
+    const cur = map.get(r.postId) ?? {};
+    const k = asReaction(r.reaction);
+    cur[k] = (cur[k] ?? 0) + Number(r.n);
+    map.set(r.postId, cur);
+  }
+  return map;
+}
+
 export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Promise<PostView[]> {
   if (!rows.length) return [];
-  const [authors, liked] = await Promise.all([
+  const ids = rows.map((p) => p.id);
+  const [authors, mine, counts, saves] = await Promise.all([
     briefUsers(rows.map((p) => p.authorId)),
     viewer
-      ? db.query.postLikes.findMany({
-          where: and(
-            eq(postLikes.userId, viewer.id),
-            inArray(
-              postLikes.postId,
-              rows.map((p) => p.id),
-            ),
-          ),
-          columns: { postId: true },
-        })
+      ? db.query.postLikes.findMany({ where: and(eq(postLikes.userId, viewer.id), inArray(postLikes.postId, ids)), columns: { postId: true, reaction: true } })
+      : Promise.resolve([] as Array<{ postId: string; reaction: string }>),
+    reactionCounts(ids),
+    viewer
+      ? db.query.postSaves.findMany({ where: and(eq(postSaves.userId, viewer.id), inArray(postSaves.postId, ids)), columns: { postId: true } })
       : Promise.resolve([] as Array<{ postId: string }>),
   ]);
-  const likedSet = new Set(liked.map((l) => l.postId));
+  const myMap = new Map(mine.map((l) => [l.postId, asReaction(l.reaction)] as const));
+  const savedSet = new Set(saves.map((x) => x.postId));
   return rows.map((p) => ({
     id: p.id,
     groupId: p.groupId,
@@ -642,7 +677,10 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     edited: p.updatedAt.getTime() - p.createdAt.getTime() > 60_000,
     createdAt: p.createdAt.getTime(),
     author: authors.get(p.authorId) ?? { id: p.authorId, ...UNKNOWN },
-    likedByMe: likedSet.has(p.id),
+    likedByMe: myMap.has(p.id),
+    myReaction: myMap.get(p.id) ?? null,
+    reactions: counts.get(p.id) ?? {},
+    savedByMe: savedSet.has(p.id),
     canDelete: Boolean(viewer && (viewer.id === p.authorId || manager)),
   }));
 }
@@ -682,22 +720,78 @@ export async function deletePost(post: Post): Promise<void> {
   });
 }
 
-export async function toggleLike(post: Post, userId: string): Promise<{ liked: boolean; likesCount: number }> {
+export interface ReactionResult {
+  liked: boolean;
+  likesCount: number;
+  myReaction: ReactionKind | null;
+  reactions: ReactionCounts;
+}
+
+/** Postning doimiy havolasi: jamoa posti → /jamoalar/<slug>?post=, profil posti → /mutaxassislar/<slug>?post= */
+export async function postHref(post: Post): Promise<string> {
+  if (post.groupId) {
+    const g = await db.query.groups.findFirst({ where: eq(groups.id, post.groupId), columns: { slug: true } });
+    if (g) return `/jamoalar/${g.slug}?post=${post.id}`;
+  }
+  const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, post.authorId), columns: { slug: true } });
+  return sp ? `/mutaxassislar/${sp.slug}?post=${post.id}` : `/?post=${post.id}`;
+}
+
+const snippetOf = (text: string, n = 100) => {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+};
+
+/**
+ * Reaksiya qo'yish (Facebook/Telegram uslubi): shu reaksiya bor — olib tashlanadi; boshqasi bor — almashtiriladi;
+ * yo'q — qo'shiladi (likesCount +1). Muallifga "post_like" bildirishnomasi faqat yangi qo'shilganda va
+ * bir odamdan bir postga 24 soatda bir marta (yoqib-o'chirib spam qilib bo'lmaydi).
+ */
+export async function setReaction(post: Post, userId: string, reaction: ReactionKind = "heart"): Promise<ReactionResult> {
   const existing = await db.query.postLikes.findFirst({ where: and(eq(postLikes.postId, post.id), eq(postLikes.userId, userId)) });
-  let liked: boolean;
+  const mode: "remove" | "switch" | "add" = existing ? (existing.reaction === reaction ? "remove" : "switch") : "add";
   await db.transaction(async (tx) => {
-    if (existing) {
-      await tx.delete(postLikes).where(eq(postLikes.id, existing.id));
+    if (mode === "remove") {
+      await tx.delete(postLikes).where(eq(postLikes.id, existing!.id));
       await tx.update(posts).set({ likesCount: sql`max(${posts.likesCount} - 1, 0)` }).where(eq(posts.id, post.id));
-      liked = false;
+    } else if (mode === "switch") {
+      await tx.update(postLikes).set({ reaction }).where(eq(postLikes.id, existing!.id));
     } else {
-      await tx.insert(postLikes).values({ id: uid(), postId: post.id, userId, createdAt: new Date() });
+      await tx.insert(postLikes).values({ id: uid(), postId: post.id, userId, reaction, createdAt: new Date() });
       await tx.update(posts).set({ likesCount: sql`${posts.likesCount} + 1` }).where(eq(posts.id, post.id));
-      liked = true;
     }
   });
-  const fresh = await loadPost(post.id);
-  return { liked: liked!, likesCount: fresh?.likesCount ?? post.likesCount };
+  const [fresh, counts] = await Promise.all([loadPost(post.id), reactionCounts([post.id])]);
+  if (mode === "add" && post.authorId !== userId) {
+    try {
+      const who = (await briefUsers([userId])).get(userId)?.name ?? "Foydalanuvchi";
+      const href = await postHref(post);
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const dup = await db.query.notifications.findFirst({
+        where: and(eq(notifications.userId, post.authorId), eq(notifications.type, "post_like"), eq(notifications.href, href), gt(notifications.createdAt, since), like(notifications.title, `${who} %`)),
+        columns: { id: true },
+      });
+      if (!dup) await notify(post.authorId, "post_like", `${who} postingizga ${REACTION_BY_KEY[reaction].emoji} qo'ydi`, snippetOf(post.body) || (post.media.length ? "Media post" : null), href, { skipMail: true });
+    } catch (e) {
+      console.error("[reaction:notify]", e);
+    }
+  }
+  const myReaction = mode === "remove" ? null : reaction;
+  return { liked: myReaction !== null, likesCount: fresh?.likesCount ?? post.likesCount, myReaction, reactions: counts.get(post.id) ?? {} };
+}
+
+/** Eski nom — bitta ❤️ toggle (mavjud chaqiruvlar uchun) */
+export const toggleLike = (post: Post, userId: string) => setReaction(post, userId, "heart");
+
+/** Postni saqlash / saqlanganlardan olish (bookmark) */
+export async function toggleSave(post: Post, userId: string): Promise<{ saved: boolean }> {
+  const existing = await db.query.postSaves.findFirst({ where: and(eq(postSaves.postId, post.id), eq(postSaves.userId, userId)) });
+  if (existing) {
+    await db.delete(postSaves).where(eq(postSaves.id, existing.id));
+    return { saved: false };
+  }
+  await db.insert(postSaves).values({ id: uid(), postId: post.id, userId, createdAt: new Date() });
+  return { saved: true };
 }
 
 export async function listComments(post: Post, viewer: Viewer, limit = 100): Promise<CommentView[]> {
@@ -721,10 +815,14 @@ export async function addComment(post: Post, authorId: string, body: string): Pr
     await tx.update(posts).set({ commentsCount: sql`${posts.commentsCount} + 1`, updatedAt: now }).where(eq(posts.id, post.id));
     if (post.groupId) await tx.update(groups).set({ lastActivityAt: now }).where(eq(groups.id, post.groupId));
   });
-  if (post.authorId !== authorId) {
+  try {
     const who = (await briefUsers([authorId])).get(authorId)?.name ?? "Foydalanuvchi";
-    const g = post.groupId ? await db.query.groups.findFirst({ where: eq(groups.id, post.groupId), columns: { slug: true } }) : null;
-    await notify(post.authorId, "post_comment", `${who} postingizga izoh qoldirdi`, body.length > 100 ? `${body.slice(0, 97)}…` : body, g ? `/jamoalar/${g.slug}?post=${post.id}` : null);
+    const href = await postHref(post);
+    if (post.authorId !== authorId) await notify(post.authorId, "post_comment", `${who} postingizga izoh qoldirdi`, body.length > 100 ? `${body.slice(0, 97)}…` : body, href);
+    const g = post.groupId ? await db.query.groups.findFirst({ where: eq(groups.id, post.groupId), columns: { id: true, isPrivate: true } }) : null;
+    await notifyMentions({ text: body, actorId: authorId, actorName: who, href, where: "comment", group: g, excludeIds: [post.authorId] });
+  } catch (e) {
+    console.error("[comment:notify]", e);
   }
   return { ...row, createdAt: now } as PostComment;
 }

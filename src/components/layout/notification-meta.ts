@@ -1,4 +1,4 @@
-import { BadgeCheck, Ban, Banknote, Bell, BellRing, BookmarkCheck, Briefcase, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, EyeOff, Flag, Inbox, ListChecks, Megaphone, MessageSquare, Radio, RadioTower, Scale, Send, ShieldCheck, Star, Undo2, UserPlus, UserRound, UsersRound, Wallet, XCircle, type LucideIcon } from "lucide-react";
+import { AtSign, BadgeCheck, Ban, Banknote, Bell, BellRing, BookmarkCheck, Briefcase, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, EyeOff, Flag, Heart, Inbox, ListChecks, Megaphone, MessageSquare, Radio, RadioTower, Scale, Send, ShieldCheck, Star, Undo2, UserPlus, UserRound, UsersRound, Wallet, XCircle, type LucideIcon } from "lucide-react";
 
 /** Sahifadagi o'zgarishdan keyin qo'ng'iroq badge'ini yangilash uchun window hodisasi */
 export const NOTIFICATIONS_CHANGED_EVENT = "redince:notifications-changed";
@@ -47,6 +47,8 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   group_joined: { icon: UsersRound, tone: "success", label: "Jamoaga qabul qilindingiz" },
   post_comment: { icon: MessageSquare, tone: "info", label: "Postga izoh" },
   follow: { icon: UserPlus, tone: "accent", label: "Yangi obunachi" },
+  post_like: { icon: Heart, tone: "accent", label: "Reaksiya" },
+  mention: { icon: AtSign, tone: "accent", label: "Sizni eslatishdi" },
   channel_post: { icon: Radio, tone: "info", label: "Kanalda yangi post" },
   live_event: { icon: RadioTower, tone: "accent", label: "Jonli efir" },
   application_new: { icon: Briefcase, tone: "accent", label: "Vakansiyaga yangi ariza" },

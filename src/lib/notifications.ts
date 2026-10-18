@@ -35,6 +35,7 @@ import { uid } from "@/lib/utils";
  *  subscription_expiring / subscription_expired / subscription_paid / subscription_pending — obuna
  *  broadcast        — admin paneldan barcha (yoki rolga ko'ra) foydalanuvchilarga ommaviy e'lon/eslatma
  *  group_request / group_joined / post_comment / follow — jamoalar (qo'shilish so'rovi, tasdiq, izoh, yangi obunachi)
+ *  post_like / mention — postga reaksiya (❤️🔥👏…; 24 soatda bir marta har bir odamdan) va @username eslatma (post yoki izohda)
  */
 export type NotificationType =
   | "order_new"
@@ -81,6 +82,8 @@ export type NotificationType =
   | "profile_post"
   | "group_joined"
   | "post_comment"
+  | "post_like"
+  | "mention"
   | "follow";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */

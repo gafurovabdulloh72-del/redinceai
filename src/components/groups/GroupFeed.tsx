@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Heart, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
+import { ExternalLink, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
 import { RichText } from "./RichText";
+import { MentionField } from "./MentionInput";
+import { postPermalink, ReactionButton, SaveButton, ShareAction } from "./Reactions";
 import { CalendarLinks } from "./CalendarLinks";
 import { useToast } from "@/components/ui/toast";
 import { Avatar, Button } from "@/components/ui";
@@ -126,6 +128,7 @@ export function GroupFeed({
             loggedIn={loggedIn}
             requireLogin={requireLogin}
             highlighted={p.id === highlightId}
+            groupSlug={apiBase ? null : slug}
             onDeleted={() => setItems((prev) => prev.filter((x) => x.id !== p.id))}
             onChanged={reload}
           />
@@ -214,12 +217,13 @@ export function Composer({ base, onPosted, allowEvent = false, kind = "group", p
 
   return (
     <div className="card p-4">
-      <textarea
+      <MentionField
+        multiline
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={setBody}
         maxLength={POST_BODY_MAX}
         rows={3}
-        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : (placeholder ?? (kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon…"))}
+        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : (placeholder ?? (kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon… (@ism — eslatish)"))}
         className="field w-full resize-y py-2.5 text-[14px] leading-relaxed"
       />
       {eventOpen && (
@@ -312,6 +316,7 @@ export function PostCard({
   loggedIn,
   requireLogin,
   highlighted,
+  groupSlug = null,
   onDeleted,
   onChanged,
 }: {
@@ -322,6 +327,8 @@ export function PostCard({
   loggedIn: boolean;
   requireLogin: () => boolean;
   highlighted: boolean;
+  /** Jamoa slug'i (ulashish havolasi uchun); profil posti — null */
+  groupSlug?: string | null;
   onDeleted: () => void;
   onChanged: () => Promise<void>;
 }) {
@@ -332,8 +339,6 @@ export function PostCard({
   const [body, setBody] = useState(post.body);
   const [edited, setEdited] = useState(post.edited);
   const [pinned, setPinned] = useState(post.isPinned);
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likes, setLikes] = useState(post.likesCount);
   const [comments, setComments] = useState(post.commentsCount);
   const [open, setOpen] = useState(highlighted);
   const [confirm, setConfirm] = useState(false);
@@ -342,23 +347,6 @@ export function PostCard({
   useEffect(() => {
     if (highlighted) ref.current?.scrollIntoView({ block: "center" });
   }, [highlighted]);
-
-  async function like() {
-    if (!requireLogin() || !canInteract || busy) return;
-    const prev = { liked, likes };
-    setLiked(!liked);
-    setLikes((n) => Math.max(0, n + (liked ? -1 : 1)));
-    try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, { method: "POST" });
-      const j = (await res.json()) as ApiResp<{ liked: boolean; likesCount: number }>;
-      if (!j.ok || !j.data) throw new Error();
-      setLiked(j.data.liked);
-      setLikes(j.data.likesCount);
-    } catch {
-      setLiked(prev.liked);
-      setLikes(prev.likes);
-    }
-  }
 
   async function remove() {
     setBusy(true);
@@ -410,6 +398,7 @@ export function PostCard({
   const media = post.media;
   const single = media.length === 1;
   const lockedLike = loggedIn && !canInteract;
+  const permalink = postPermalink(post, groupSlug);
 
   return (
     <article ref={ref} id={`post-${post.id}`} className={cn("card p-4 transition-shadow duration-300 hover:shadow-[var(--shadow-2)] sm:p-5", highlighted && "ring-2 ring-accent/40")}>
@@ -498,28 +487,18 @@ export function PostCard({
         </div>
       )}
 
-      <footer className="mt-3 flex items-center gap-1.5 border-t border-line pt-2.5">
-        <button
-          type="button"
-          onClick={like}
-          aria-pressed={liked}
-          disabled={lockedLike}
-          title={lockedLike ? "Yoqtirish uchun jamoaga qo'shiling" : liked ? "Yoqtirishni bekor qilish" : "Yoqtirish"}
-          className={cn(
-            "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition disabled:opacity-50",
-            liked ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-fg/6 hover:text-fg",
-          )}
-        >
-          <Heart key={liked ? "on" : "off"} size={16} className={cn("transition-transform", liked && "animate-heartbeat fill-current")} /> <span key={likes} className="animate-fade-in tabular-nums">{likes}</span>
-        </button>
+      <footer className="mt-3 flex items-center gap-1 border-t border-line pt-2.5">
+        <ReactionButton postId={post.id} initial={post} canInteract={canInteract} requireLogin={requireLogin} lockedTitle={lockedLike ? "Reaksiya qo'yish uchun jamoaga qo'shiling" : undefined} />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
+          className={cn("press inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
         >
           <MessageCircle size={16} /> {comments}
         </button>
+        {permalink && <ShareAction url={permalink} title={body.split("\n")[0] || post.author.name} />}
+        <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} className="ml-auto" />
       </footer>
 
       {open && (
@@ -609,7 +588,7 @@ export function Comments({ postId, canWrite, onCount }: { postId: string; canWri
       )}
       {canWrite && (
         <form onSubmit={send} className="mt-3 flex items-center gap-2">
-          <input value={text} onChange={(e) => setText(e.target.value)} maxLength={COMMENT_MAX} placeholder="Izoh yozing…" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+          <MentionField value={text} onChange={setText} maxLength={COMMENT_MAX} placeholder="Izoh yozing… (@ism — eslatish)" ariaLabel="Izoh" wrapperClassName="min-w-0 flex-1" className="field h-10 w-full text-[13.5px]" />
           <Button type="submit" variant="primary" size="sm" disabled={!text.trim() || busy} aria-label="Izohni yuborish">
             <Send size={14} />
           </Button>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactionState } from "@/components/groups/Reactions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Grid3x3, Images, PenSquare, Play, X } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -160,8 +161,8 @@ export function ProfileTabs({
     setVideoPosts((prev) => (prev ? prev.filter((p) => p.id !== id) : prev));
     setN((c) => ({ ...c, posts: Math.max(0, c.posts - 1), videos: gone && hasVideo(gone) ? Math.max(0, c.videos - 1) : c.videos }));
   }
-  function onLiked(id: string, liked: boolean, likes: number) {
-    const upd = (p: PostView) => (p.id === id ? { ...p, likedByMe: liked, likesCount: likes } : p);
+  function onLiked(id: string, st: ReactionState) {
+    const upd = (p: PostView) => (p.id === id ? { ...p, likedByMe: st.liked, likesCount: st.likesCount, myReaction: st.myReaction, reactions: st.reactions } : p);
     setItems((prev) => prev.map(upd));
     setVideoPosts((prev) => (prev ? prev.map(upd) : prev));
   }

@@ -3,6 +3,7 @@ import { and, desc, eq, isNull, like, lt, not, or, sql, type SQL } from "drizzle
 import { db } from "@/lib/db";
 import { follows, posts, type FileAttachment, type Post } from "@/lib/db/schema";
 import { briefUsers, toPostViews, type PostView } from "@/lib/groups/service";
+import { notifyMentions } from "@/lib/groups/mentions";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
 
@@ -58,8 +59,10 @@ export async function createProfilePost(authorId: string, body: string, media: F
   const author = (await briefUsers([authorId])).get(authorId);
   const href = author?.slug ? `/mutaxassislar/${author.slug}?post=${row.id}` : null;
   const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? (media.some(isVideo) ? "Yangi video" : "Yangi rasm") : "");
+  // @username eslatmalari — obunachi bo'lmasa ham xabar oladi (ochiq profil posti); eslatilganlar umumiy "yangi post" xabarini qayta olmaydi
+  const mentioned = new Set(await notifyMentions({ text: body, actorId: authorId, actorName: author?.name ?? "Ijodkor", href: href ?? `/?post=${row.id}`, where: "post" }).catch((e) => (console.error("[profile-post:mentions]", e), [] as string[])));
   const fans = await db.query.follows.findMany({ where: eq(follows.followingId, authorId), columns: { followerId: true } });
-  const ids = fans.map((f) => f.followerId).filter((id) => id !== authorId);
+  const ids = fans.map((f) => f.followerId).filter((id) => id !== authorId && !mentioned.has(id));
   for (let i = 0; i < ids.length; i += 25) {
     await Promise.all(ids.slice(i, i + 25).map((id) => notify(id, "profile_post", `${author?.name ?? "Ijodkor"} yangi post joyladi`, snippet, href, { skipMail: true }).catch(() => undefined)));
   }
