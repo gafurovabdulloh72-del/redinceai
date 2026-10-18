@@ -29,8 +29,26 @@ export const SHELL = {
     login: { uz: "Kirish", ru: "Войти" },
     loginShort: { uz: "Kirish", ru: "Вход" },
     start: { uz: "Boshlash", ru: "Начать" },
+    search: { uz: "Qidiruv", ru: "Поиск" },
+    messages: { uz: "Xabarlar", ru: "Сообщения" },
+    create: { uz: "Yaratish", ru: "Создать" },
+    more: { uz: "Yana", ru: "Ещё" },
+    profile: { uz: "Profil", ru: "Профиль" },
     mainAria: { uz: "Asosiy navigatsiya", ru: "Основная навигация" },
     mobileAria: { uz: "Mobil navigatsiya", ru: "Мобильная навигация" },
+  },
+
+  /** "Yaratish" menyusi (yon panel va mobil tab-bar) */
+  create: {
+    post: { uz: "Post joylash", ru: "Опубликовать пост" },
+    postHint: { uz: "Matn, rasm yoki video — profil lentangizga", ru: "Текст, фото или видео — в ленту профиля" },
+    postNeedsProfile: { uz: "Avval ijodkor profilini yarating", ru: "Сначала создайте профиль автора" },
+    group: { uz: "Guruh yoki kanal ochish", ru: "Создать сообщество или канал" },
+    groupHint: { uz: "Hamjamiyat, muhokama, efirlar", ru: "Сообщество, обсуждения, эфиры" },
+    vacancy: { uz: "Vakansiya joylash", ru: "Разместить вакансию" },
+    vacancyHint: { uz: "Bepul, 2 daqiqa", ru: "Бесплатно, 2 минуты" },
+    job: { uz: "E'lon berish", ru: "Разместить заказ" },
+    jobHint: { uz: "Loyiha uchun ijodkor topish", ru: "Найти исполнителя для проекта" },
   },
 
   /** Hisob (avatar) menyusi */

@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { FooterGate } from "@/components/layout/FooterGate";
 import { Backdrop } from "@/components/layout/Backdrop";
 import { BackToTop } from "@/components/layout/BackToTop";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
@@ -83,7 +84,7 @@ const ORG_JSONLD = JSON.stringify([
     url: SITE_URL,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${SITE_URL}/mutaxassislar?q={search_term_string}`,
+      target: `${SITE_URL}/qidiruv?q={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   },
@@ -123,8 +124,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ToastProvider>
             <Backdrop />
             <Navbar />
-            <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-0">{children}</main>
-            <Footer />
+            {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar */}
+            <div className="md:pl-[76px] xl:pl-[244px]">
+              <main id="asosiy" className="pt-24 pb-28 sm:pt-28 md:pb-12 md:pt-8">
+                {children}
+              </main>
+              <FooterGate>
+                <Footer />
+              </FooterGate>
+            </div>
             <BackToTop />
             {/* Harakat qatlami: marshrut progress chizig'i va qidiruv paleti — server DOM'iga tegmaydi (hydration xavfsiz); scroll-reveal CSS'da */}
             <Suspense fallback={null}>

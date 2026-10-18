@@ -305,7 +305,7 @@ export function Composer({ base, onPosted, allowEvent = false, kind = "group", p
 /* ------------------------------------------------------------------ */
 /* Post                                                                */
 /* ------------------------------------------------------------------ */
-function PostCard({
+export function PostCard({
   post,
   canInteract,
   canPin,

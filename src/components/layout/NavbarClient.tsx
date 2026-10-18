@@ -5,7 +5,8 @@ import { usePresence } from "@/components/motion/usePresence";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, ShieldCheck, UserCog, Users, UserRound, UsersRound, Briefcase, Search } from "lucide-react";
+import { Bell, BriefcaseBusiness, Clapperboard, Compass, CreditCard, Heart, Home, Info, LayoutDashboard, LogOut, Map, PlusSquare, ShieldCheck, UserCog, Users, UserRound, UsersRound, Briefcase, Search } from "lucide-react";
+import { CreateMenu } from "./CreateMenu";
 import { Avatar } from "@/components/ui";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -55,6 +56,7 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -117,21 +119,20 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
     router.refresh();
   };
 
-  const tabs = [
-    ...NAV.filter((n) => n.mobile !== false),
-    {
-      href: user ? "/kabinet" : "/auth/kirish",
-      label: user ? SHELL.nav.cabinet : SHELL.nav.login,
-      short: user ? SHELL.nav.cabinet : SHELL.nav.loginShort,
-      icon: user ? Compass : UserRound,
-      exact: false,
-    },
+  // Ijtimoiy tarmoq tab-bar'i: Bosh sahifa · Qidiruv · Yaratish · Lenta · Profil (mehmon — Kirish)
+  const profileHref = user ? (user.specialistSlug ? `/mutaxassislar/${user.specialistSlug}` : "/kabinet") : "/auth/kirish";
+  const tabs: Array<{ href: string; short: Tr; icon: typeof Home; exact?: boolean }> = [
+    { href: "/", short: SHELL.nav.homeShort, icon: Home, exact: true },
+    { href: "/qidiruv", short: SHELL.nav.search, icon: Search },
+    { href: "#yaratish", short: SHELL.nav.create, icon: PlusSquare },
+    { href: "/lenta", short: SHELL.nav.lenta, icon: Clapperboard },
+    { href: profileHref, short: user ? SHELL.nav.profile : SHELL.nav.loginShort, icon: user ? UserRound : Compass },
   ];
 
   return (
     <>
       {/* ---------- Yuqori panel: max-w-5xl (xl: 6xl, 2xl: 7xl) kapsula, scroll'da biroz ixchamlashadi ---------- */}
-      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
+      <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4 md:hidden" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <nav
           className={cn(
             "nav-bar relative mx-auto flex w-full max-w-5xl items-center xl:max-w-6xl 2xl:max-w-7xl justify-between gap-3 !rounded-full pl-3 pr-2 transition-[height,box-shadow] duration-300 sm:pl-4",
@@ -271,25 +272,29 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
         aria-label={tr(til, SHELL.nav.mobileAria)}
       >
         {tabs.map((n) => {
-          const active = isActive(n.href, n.exact);
           const Icon = n.icon;
+          // Yorliq kamida 12px — kichik shrift o'qilishi qiyin (a11y)
+          const cls = "press flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[12px] font-semibold transition-all duration-300";
+          if (n.href === "#yaratish") {
+            return (
+              <button key={n.href} type="button" onClick={() => setCreateOpen(true)} aria-haspopup="dialog" aria-expanded={createOpen} className={cn(cls, "text-fg-3")}>
+                <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-accent text-white">
+                  <Icon size={18} strokeWidth={2.4} />
+                </span>
+                <span className="max-w-full truncate">{tr(til, n.short)}</span>
+              </button>
+            );
+          }
+          const active = isActive(n.href, n.exact);
           return (
-            <Link
-              key={n.href}
-              href={n.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                // Yorliq kamida 12px — kichik shrift o'qilishi qiyin (a11y)
-                "press flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[12px] font-semibold transition-all duration-300",
-                active ? "btn-ink" : "text-fg-3",
-              )}
-            >
+            <Link key={n.href} href={n.href} aria-current={active ? "page" : undefined} className={cn(cls, active ? "btn-ink" : "text-fg-3")}>
               <Icon size={20} strokeWidth={active ? 2.4 : 2} />
               <span className="max-w-full truncate">{tr(til, n.short)}</span>
             </Link>
           );
         })}
       </nav>
+      <CreateMenu open={createOpen} onClose={() => setCreateOpen(false)} user={user ? { id: user.id, role: user.role, specialistSlug: user.specialistSlug } : null} />
     </>
   );
 }
