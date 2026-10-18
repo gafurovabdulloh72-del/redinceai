@@ -1,20 +1,32 @@
 import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { handler, ok, requireSession } from "@/lib/api";
-import { escapeLike } from "@/lib/utils";
+import { handler, ok, parseQuery, requireSession } from "@/lib/api";
+import { audit } from "@/lib/security/audit";
+import { csvResponse } from "@/lib/security/csv";
+import { escapeLike, formatDateTime } from "@/lib/utils";
+
+const schema = z.object({
+  q: z.string().trim().max(60).optional(),
+  holat: z.enum(["banned", "active", "privileged", "unlisted"]).optional(),
+  /** csv — joriy filtr bo'yicha eksport (5000 tagacha, audit jurnaliga yoziladi) */
+  format: z.enum(["json", "csv"]).default("json"),
+});
+
+const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutaxassis", admin: "Administrator" };
 
 /**
  * Admin: foydalanuvchilarni qidirish/ko'rish — ism/email/@taxallus/telefon bo'yicha.
  * Qidiruv va holat filtri SQL darajasida: LIMIT 60 FILTRDAN KEYIN qo'llanadi (avval emas),
  * shuning uchun 60-qatordan nariga "yashiringan" mosliklar yo'qolmaydi. matchTotal — filtrga
  * mos jami son (UI "N ta topildi" deb ko'rsatadi; umumiy global son chalg'itmasin).
+ * format=csv — shu filtr bo'yicha CSV (formula injection'dan himoyalangan).
  */
 export const GET = handler(async (req) => {
-  await requireSession(["admin"]);
-  const url = new URL(req.url);
-  const q = (url.searchParams.get("q") ?? "").trim().slice(0, 60);
-  const flt = url.searchParams.get("holat"); // "banned" | "active" | "privileged" | "unlisted" | null
+  const session = await requireSession(["admin"]);
+  const { q: qRaw, holat: flt, format } = parseQuery(req.url, schema);
+  const q = qRaw ?? "";
 
   const conds: SQL[] = [];
   if (q) {
@@ -44,12 +56,36 @@ export const GET = handler(async (req) => {
     db.query.users.findMany({
       where,
       orderBy: [desc(users.createdAt)],
-      limit: 60,
-      columns: { id: true, name: true, email: true, username: true, role: true, isBanned: true, bannedReason: true, avatarUrl: true, createdAt: true, lastLoginAt: true },
+      limit: format === "csv" ? 5000 : 60,
+      columns: { id: true, name: true, email: true, phone: true, username: true, role: true, isBanned: true, bannedReason: true, avatarUrl: true, createdAt: true, lastLoginAt: true, adminNote: true, adminNoteAt: true },
       with: { specialist: { columns: { slug: true, isPrivileged: true, isHidden: true } } },
     }),
     db.select({ n: sql<number>`count(*)` }).from(users).where(where),
   ]);
+
+  if (format === "csv") {
+    await audit(session.sub, "admin_export", { targetType: "users", meta: { q: q || undefined, holat: flt, rows: rows.length } }, req);
+    return csvResponse(
+      "kasbegalari-foydalanuvchilar",
+      ["id", "ism", "email", "telefon", "taxallus", "rol", "bloklangan", "blok_sababi", "imtiyozli", "katalogda", "slug", "admin_izohi", "royxatdan_otgan", "oxirgi_kirish"],
+      rows.map((u) => [
+        u.id,
+        u.name,
+        u.email,
+        u.phone ?? "",
+        u.username ?? "",
+        ROLE_LABEL[u.role] ?? u.role,
+        u.isBanned ? "ha" : "yo'q",
+        u.bannedReason ?? "",
+        u.specialist?.isPrivileged ? "ha" : "",
+        u.specialist && !u.specialist.isHidden ? "ha" : "",
+        u.specialist?.slug ?? "",
+        u.adminNote ?? "",
+        formatDateTime(u.createdAt),
+        u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "",
+      ]),
+    );
+  }
 
   return ok({
     /** Filtr/qidiruvga mos jami son (ko'rsatilganlardan ko'p bo'lishi mumkin) */
@@ -71,6 +107,8 @@ export const GET = handler(async (req) => {
       listed: Boolean(u.specialist && !u.specialist.isHidden),
       createdAt: u.createdAt.getTime(),
       lastLoginAt: u.lastLoginAt?.getTime() ?? null,
+      adminNote: u.adminNote ?? null,
+      adminNoteAt: u.adminNoteAt?.getTime() ?? null,
     })),
   });
 });

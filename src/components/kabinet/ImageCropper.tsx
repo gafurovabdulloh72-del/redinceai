@@ -150,12 +150,18 @@ export function ImageCropper({
     drag.current = null;
     setOff({ x: ox, y: oy });
   };
-  // Sichqoncha g'ildiragi / trackpad: kattalashtirish (sahifa skrolli bloklanadi)
-  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!nat) return;
-    e.preventDefault();
-    setZoom((z) => clampZoom(z - e.deltaY * 0.0025));
-  };
+  // Sichqoncha g'ildiragi / trackpad: kattalashtirish. React'ning onWheel'i passiv — preventDefault ishlamaydi,
+  // shuning uchun native tinglovchi (passive: false) — sahifa skrolli bloklanadi
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z - e.deltaY * 0.0025)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [src]);
 
   const save = () => {
     const img = imgRef.current;
@@ -212,7 +218,6 @@ export function ImageCropper({
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
-          onWheel={onWheel}
         >
           {src && nat ? (
             // eslint-disable-next-line @next/next/no-img-element

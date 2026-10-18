@@ -6,6 +6,10 @@ import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
 import { AdminSectionHeading, QueueChip } from "@/components/admin/AdminSectionHeading";
 import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
+import { AdminModeration } from "@/components/admin/AdminModeration";
+import { AdminEvents } from "@/components/admin/AdminEvents";
+import { AdminHealthCard } from "@/components/admin/AdminHealthCard";
+import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
 import { UsersPanel } from "@/components/admin/UsersPanel";
@@ -17,11 +21,13 @@ import {
   ArrowUpRight,
   BadgePercent,
   Banknote,
+  CalendarDays,
   ChartColumn,
   ClipboardList,
   CreditCard,
   Crown,
   Flag,
+  HeartPulse,
   Hourglass,
   Landmark,
   MapPinned,
@@ -34,6 +40,7 @@ import {
   SlidersHorizontal,
   UserCheck,
   Users,
+  UsersRound,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -243,11 +250,14 @@ export default async function AdminPage() {
     { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
     { href: "#payoutlar", label: "Payoutlar", icon: Banknote, count: openPayouts },
     { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
+    { href: "#moderatsiya", label: "Moderatsiya", icon: UsersRound },
     { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
     { href: "#moliya", label: "Moliya", icon: Wallet },
     { href: "#analitika", label: "Analitika", icon: ChartColumn },
     { href: "#shubhali", label: "Shubhali faollik", icon: ShieldAlert, count: fraud.total },
     { href: "#sharhlar", label: "Sharhlar", icon: MessageSquareText },
+    { href: "#efirlar", label: "Efirlar", icon: CalendarDays },
+    { href: "#tizim", label: "Tizim", icon: HeartPulse },
     { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
   ];
 
@@ -257,16 +267,19 @@ export default async function AdminPage() {
     { id: "nizolar", label: "Nizolar", badge: disputeRows.length },
     { id: "payoutlar", label: "Payoutlar", badge: openPayouts },
     { id: "shikoyatlar", label: "Shikoyatlar", badge: openReports },
+    { id: "moderatsiya", label: "Moderatsiya" },
     { id: "tolovlar", label: "To'lovlar", badge: finance.manualPending },
     { id: "moliya", label: "Moliya" },
     { id: "analitika", label: "Analitika" },
     { id: "shubhali", label: "Shubhali faollik" },
     { id: "sharhlar", label: "Sharhlar" },
+    { id: "efirlar", label: "Efirlar" },
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
     { id: "xabar", label: "Ommaviy xabar" },
     { id: "telegram-bot", label: "Telegram bot" },
     { id: "r2-saqlash", label: "Fayl saqlash" },
     { id: "faollik", label: "So'nggi faollik" },
+    { id: "tizim", label: "Tizim holati" },
     { id: "tolov-sozlamalari", label: "To'lov tizimlari" },
     { id: "sozlamalar", label: "Sozlamalar" },
   ];
@@ -383,6 +396,12 @@ export default async function AdminPage() {
           <AdminReports rows={reports} />
         </section>
 
+        {/* ---------- Moderatsiya: jamoalar va vakansiyalar ---------- */}
+        <section id="moderatsiya" className={SECTION} aria-labelledby="h-moderatsiya">
+          <AdminSectionHeading title={<span id="h-moderatsiya">Jamoalar va vakansiyalar</span>} description="Egasini almashtirish, yopiq/ochiq, o'chirish; vakansiyani yopish yoki qayta ochish. Oldindan to'lov so'ragan e'lonlar avtomatik belgilanadi." />
+          <AdminModeration />
+        </section>
+
         {/* ---------- To'lovlar ---------- */}
         <section id="tolovlar" className={SECTION} aria-labelledby="h-tolovlar">
           <AdminSectionHeading
@@ -440,6 +459,12 @@ export default async function AdminPage() {
           <AdminReviews rows={reviewRows} />
           {/* Ro'yxat chegaraga yetgan — eski sharhlar jadvalda yo'qligi haqida halol izoh */}
           {reviewRows.length === REVIEWS_CAP && <p className="mt-2 px-1 text-[12px] text-fg-4">Oxirgi {REVIEWS_CAP} tasi ko&apos;rsatilgan</p>}
+        </section>
+
+        {/* ---------- Efirlar kalendari ---------- */}
+        <section id="efirlar" className={SECTION} aria-labelledby="h-efirlar">
+          <AdminSectionHeading title={<span id="h-efirlar">Efirlar kalendari</span>} description="Barcha kanal va jamoalardagi jonli efir e'lonlari — kelgusi va o'tgan 7 kun." />
+          <AdminEvents />
         </section>
 
         {/* ---------- Foydalanuvchilar ---------- */}
@@ -541,6 +566,12 @@ export default async function AdminPage() {
           </div>
         </section>
 
+        {/* ---------- Tizim holati ---------- */}
+        <section id="tizim" className={SECTION} aria-labelledby="h-tizim">
+          <AdminSectionHeading title={<span id="h-tizim">Tizim holati</span>} description="Baza kechikishi, saqlash usuli, kunlik cron, rate-limit bosimi va kanallar — bir qarashda." />
+          <AdminHealthCard />
+        </section>
+
         {/* ---------- To'lov tizimlari ---------- */}
         <section id="tolov-sozlamalari" className={SECTION} aria-labelledby="h-tolov-tizimlari">
           <AdminSectionHeading title={<span id="h-tolov-tizimlari">To&apos;lov tizimlari</span>} description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi." />
@@ -550,8 +581,9 @@ export default async function AdminPage() {
         {/* ---------- Sozlamalar ---------- */}
         <section id="sozlamalar" className={SECTION} aria-labelledby="h-sozlamalar">
           <AdminSectionHeading title={<span id="h-sozlamalar">Sozlamalar</span>} description="Komissiya, limitlar va obuna. Foiz narx belgilanganda buyurtmaga muhrlanadi; har bir o'zgarish tarixda va audit jurnalida." />
-          <div className="mx-auto max-w-3xl xl:mx-0">
+          <div className="max-w-3xl space-y-4">
             <PlatformSettingsForm initial={settings} history={settingsHistory} />
+            <SpamFilterPanel />
           </div>
         </section>
       </div>

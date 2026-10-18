@@ -10,7 +10,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { PROFESSIONS, PROFESSION_BY_SLUG, WORK_FORMAT } from "@/lib/vacancies/format";
 import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/service";
 import { SITE_URL } from "@/lib/site-url";
-import { filterChip, flatSearch, parseVacancyFilter, vacancyQuery, type RawSearch } from "../../_shared";
+import { filterChip, flatSearch, parseVacancyFilter, toQueryString, vacancyQuery, type RawSearch } from "../../_shared";
 
 export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string }>;
@@ -94,7 +94,7 @@ export default async function ProfessionVacanciesPage({ params, searchParams }: 
             {WORK_FORMAT[k]}
           </Link>
         ))}
-        <VacancyAlertButton query={new URLSearchParams(Object.entries({ profession: p.slug, format: f.format || undefined }).filter((e): e is [string, string] => Boolean(e[1]))).toString()} defaultName={`${p.short}${f.format ? ` · ${WORK_FORMAT[f.format]}` : ""}`} loggedIn={Boolean(user)} className="ml-auto" />
+        <VacancyAlertButton query={toQueryString({ profession: p.slug, format: f.format || undefined })} defaultName={`${p.short}${f.format ? ` · ${WORK_FORMAT[f.format]}` : ""}`} loggedIn={Boolean(user)} className="ml-auto" />
       </div>
 
       <section className="mt-6" aria-live="polite">

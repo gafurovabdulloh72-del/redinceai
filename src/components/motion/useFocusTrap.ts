@@ -15,10 +15,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     if (!root) return;
     const opener = document.activeElement as HTMLElement | null;
     const items = () => Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null || el === document.activeElement);
-    // Birinchi "haqiqiy" element (yopish tugmasi emas) — bo'lmasa konteyner
+    // Birinchi "haqiqiy" element (yopish tugmasi emas) — bo'lmasa konteynerning o'zi (yopish tugmasida halqa yonib turmasin)
     const t = window.setTimeout(() => {
-      const list = items();
-      const first = list.find((el) => !el.hasAttribute("data-autofocus-skip")) ?? list[0];
+      const first = items().find((el) => !el.hasAttribute("data-autofocus-skip"));
       (first ?? root).focus({ preventScroll: true });
     }, 20);
     const onKey = (e: KeyboardEvent) => {

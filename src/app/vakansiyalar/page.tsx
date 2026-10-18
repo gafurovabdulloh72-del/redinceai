@@ -12,7 +12,7 @@ import { EMPLOYMENT, EXPERIENCE, PAY_FILTER, PROFESSIONS, REMOTE_REGION, SALARY_
 import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/service";
 import type { VacancyFilter } from "@/lib/vacancies/validators";
 import { cn } from "@/lib/utils";
-import { filterChip as chip, flatSearch as flat, parseVacancyFilter as parseFilter, vacancyQuery as toQuery, type RawSearch as Raw } from "./_shared";
+import { filterChip as chip, flatSearch as flat, parseVacancyFilter as parseFilter, toQueryString, vacancyQuery as toQuery, type RawSearch as Raw } from "./_shared";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
   const totalOpen = Object.values(counts).reduce((a, b) => a + b, 0);
   const hasFilters = Boolean(f.q || f.profession || f.format || f.employment || f.experience || f.region || f.min || f.pay || f.fresh);
   const advancedActive = Boolean(f.employment || f.experience || f.region);
-  const alertQuery = new URLSearchParams(Object.entries({ ...query, page: undefined, sort: undefined, fresh: undefined }).filter((e): e is [string, string] => Boolean(e[1]))).toString();
+  const alertQuery = toQueryString({ ...query, page: undefined, sort: undefined, fresh: undefined });
 
   return (
     <div className="container-x animate-fade-up">

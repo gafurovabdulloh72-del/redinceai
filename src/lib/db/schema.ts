@@ -52,6 +52,9 @@ export const users = sqliteTable(
     /** Qabul qilingan foydalanish shartlari versiyasi (constants TERMS_VERSION) */
     termsVersion: text("terms_version"),
     termsAcceptedAt: integer("terms_accepted_at", { mode: "timestamp_ms" }),
+    /** Admin izohi (faqat admin panelda; foydalanuvchiga ko'rsatilmaydi) va qachon yozilgani */
+    adminNote: text("admin_note"),
+    adminNoteAt: integer("admin_note_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

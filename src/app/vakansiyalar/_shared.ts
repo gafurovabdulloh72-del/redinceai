@@ -41,3 +41,10 @@ export function vacancyQuery(f: VacancyFilter): Record<string, string | undefine
 
 export const filterChip = (active: boolean) =>
   cn("press inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-semibold transition", active ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg");
+
+/** Bo'sh qiymatlarsiz querystring: { a: "1", b: undefined } → "a=1" */
+export function toQueryString(obj: Record<string, string | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(obj)) if (v) p.set(k, v);
+  return p.toString();
+}

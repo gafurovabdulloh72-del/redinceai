@@ -73,6 +73,16 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   subscription_created: "Obuna to'lovi boshlandi",
   subscription_paid: "Obuna to'landi",
   admin_subscription: "Admin: obuna amali",
+  admin_spam_filter: "Admin: spam filtri o'zgartirildi",
+  admin_user_note: "Admin: foydalanuvchiga izoh",
+  admin_group_owner: "Admin: jamoa egasi almashtirildi",
+  admin_group_private: "Admin: jamoa yopiq qilindi",
+  admin_group_public: "Admin: jamoa ochiq qilindi",
+  admin_group_delete: "Admin: jamoa o'chirildi",
+  admin_vacancy_closed: "Admin: vakansiya yopildi",
+  admin_vacancy_reopened: "Admin: vakansiya qayta ochildi",
+  admin_vacancy_delete: "Admin: vakansiya o'chirildi",
+  admin_export: "Admin: CSV eksport",
 };
 export type AuditAction = keyof typeof AUDIT_ACTION_LABEL;
 

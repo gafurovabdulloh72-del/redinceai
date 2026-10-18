@@ -17,6 +17,8 @@ const schema = z.object({
   isPrivileged: z.boolean().optional(),
   /** Katalogda ko'rsatish: true — profili bo'lmasa minimal profil yaratiladi (imtiyozli), yashirilgan bo'lsa ochiladi; false — yashiriladi */
   listed: z.boolean().optional(),
+  /** Admin izohi (faqat admin ko'radi); bo'sh satr — o'chirish */
+  adminNote: z.string().trim().max(500, "Ko'pi bilan 500 belgi").optional(),
 });
 
 /**
@@ -26,7 +28,7 @@ const schema = z.object({
 export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession(["admin"]);
   const { id } = await ctx.params;
-  const { isBanned, reason, isPrivileged, listed } = await parseBody(req, schema);
+  const { isBanned, reason, isPrivileged, listed, adminNote } = await parseBody(req, schema);
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, id),
@@ -34,6 +36,14 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
     with: { specialist: { columns: { id: true, slug: true, isPrivileged: true, isHidden: true } } },
   });
   if (!user) throw new ApiError(404, "Foydalanuvchi topilmadi");
+
+  // Admin izohi — foydalanuvchiga ko'rinmaydi, bildirishnoma yo'q; faqat audit
+  if (adminNote !== undefined) {
+    const note = adminNote.trim() || null;
+    await db.update(users).set({ adminNote: note, adminNoteAt: note ? new Date() : null }).where(eq(users.id, id));
+    await audit(session.sub, "admin_user_note", { targetType: "user", targetId: id, meta: { name: user.name, length: note?.length ?? 0 } }, req);
+    if (isBanned === undefined && isPrivileged === undefined && listed === undefined) return ok({ id, adminNote: note, adminNoteAt: note ? Date.now() : null });
+  }
 
   // Katalogda ko'rsatish / yashirish (admin qo'lda boshqaradi — profilini to'ldirmaganlar ham qo'shilsin)
   if (listed !== undefined) {

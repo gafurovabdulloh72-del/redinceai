@@ -44,13 +44,17 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
   const [createOpen, setCreateOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // Ilova ichidagi navigatsiyalar soni: faqat pathname HAQIQATAN o'zgarganda ortadi (StrictMode'da effekt ikki marta
+  // ishlaganda ham 0 qoladi) — «Orqaga» router.back() yoki ota yo'lni tanlashi uchun
   const navDepth = useRef(0);
+  const prevPath = useRef<string | null>(null);
   // Menyu yopilganda chiqish animatsiyasi o'ynab bo'lguncha DOM'da qoladi
   const { mounted: menuMounted, closing: menuClosing } = usePresence(open, 200);
 
   useEffect(() => {
     setOpen(false);
-    navDepth.current += 1;
+    if (prevPath.current !== null && prevPath.current !== pathname) navDepth.current += 1;
+    prevPath.current = pathname;
   }, [pathname]);
 
   // Sevimlilar do'koniga ko'ruvchini e'lon qilamiz — kirish/chiqishdan so'ng yurak tugmalari yangilanadi
@@ -118,7 +122,7 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
   ];
   const showBack = !TAB_ROOTS.has(pathname) && pathname !== profileHref;
   const goBack = () => {
-    if (navDepth.current > 1) router.back();
+    if (navDepth.current > 0) router.back();
     else router.push(parentPath(pathname));
   };
 
