@@ -120,7 +120,19 @@ Sxema (faqat qo'shimcha, `db-sync` o'tkazildi): `users.notify_prefs` (JSON), `us
 27. ✅ Umumiy sahifa plitkalarida ikonka plitkasi `soft` kichik (katta `ink` plitka o'rniga)
 
 ## Tekshiruv
-- (quyida to'ldiriladi)
+Skriptlar va natijalar: `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/` (`crawl.mjs`, `interact.mjs`, `t-prefs.sh`, `t-gate-e2e.sh`, `t-prefs-gate.mjs`, `crawl-v2.log`, `interact.log`, `tsc.txt`).
+- `npx tsc --noEmit` — o'z fayllarimda 0 xato (qolgan 4 tasi `src/app/api/admin/moderation/route.ts` — boshqa agent). ESLint konfiguratsiyasi loyihada yo'q.
+- API (curl, Origin bilan): `GET/PUT /api/notifications/prefs` (ok, 422 noto'g'ri tur, 401 anonim); `DELETE /api/notifications?days=` (ok, 422 manfiy); `GET /api/account/username?u=` (format/RESERVED/band/bo'sh — 7 holat); `DELETE /api/portfolio` (begona id → 0, bo'sh ro'yxat 422, mijoz 403); `GET /api/saved-searches/[id]` (hisob), `PATCH frequency` (weekly/daily, 422 noto'g'ri, 422 bo'sh, begona 404); `GET /api/account/export` (200, `social` bo'limi: 10 post, 1 izoh, 1 obunachi, 1 saqlangan post, 4 jamoa; parol hash yo'q); `/kabinet/hisobot/csv?oy=` (200 CSV, mijoz 404, anonim 307; sonlar qo'shtirnoqsiz, manfiy to'g'ri); `POST /api/telegram/test` (dev'da bot yo'q → 503 aniq xabar), `GET /api/telegram/link` → `{linked:false}`; `PUT/GET /api/account/pause` (true → bazada `is_paused=1` → false; "ha" → 422).
+- `notify()` guruh darvozasi uchidan-uchiga (`t-gate-e2e.sh`): mutaxassisda `social=false` → mijoz obuna bo'ldi → `follow` bildirishnomasi yozilmadi (0→0); `social=true` → yozildi (0→1). 
+- Playwright interaktiv (`interact.mjs`, 1440 light + 390 dark): sozlamalar paneli ochiladi, switch API bilan saqlanadi; kun sarlavhalari, guruh chiplari, «3 kishi sizga obuna bo'ldi» guruhi ochiladi; taxallus «band» ishorasi; telefon maskasi (`901234567` → `+998 90 123 45 67`, qo'yilgan raqam ham); maxfiylik segmentida 2 ta faol holat ko'rinadi; pauza switch; kirish tarixi; telefon plitkasida «Tasdiq kutilmoqda» yo'q; portfolio tutqichida ArrowDown karta o'rnini almashtiradi va saqlanadi; tanlash rejimi (3 checkbox, «1 ta tanlandi»); qo'ng'iroq: ochilganda fokus panelda, Escape → tugmaga; mobil: «Hozir tekshirish» holat matni, chastota segmenti, HSCROLL=0; umumiy sahifada «Bugun». Natija: INTERACT_RESULT
+- Playwright crawl (`crawl.mjs`, 13 sahifa × mutaxassis/mijoz × 1440 light / 390 dark = 52 sahifa): CRAWL_RESULT
+- Skrinshotlar (to'liq yo'l, eng muhimlari):
+  - `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/v2-sp-d-light-_kabinet.png` — umumiy sahifa: «Bugun», plitkalar, «Faollik», profil kartasi + tezkor amallar, inset bo'limlar
+  - `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/v2-sp-d-light-_kabinet_bildirishnomalar.png` — sozlamalar paneli, guruh chiplari, kun sarlavhasi, «3 kishi sizga obuna bo'ldi»
+  - `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/x-security-history.png` — maxfiylik segmenti (faol holat), pauza, kirish tarixi, yig'ilgan maslahatlar
+  - `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/x-portfolio-select.png` — portfolio tanlash rejimi
+  - `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/kabinet/x-m-overview-dark.png`, `x-m-qidiruvlar-dark.png` — 390 dark
+  - Oldingi holat (taqqoslash): `base-sp-d-light-_kabinet.png`, `base-sp-d-light-_kabinet_bildirishnomalar.png`, `base-sp-d-light-_kabinet_xavfsizlik.png` (shu papkada)
 
 ## Boshqa sohalarga so'rovlar
 - `src/lib/queries.ts` / `src/lib/subscriptions/access.ts` (katalog/qidiruv egasi): `listableCondition` (yoki `notBanned()` yonida) `users.is_paused = 0` sharti qo'shilsin — hisob pauzasi (A9) katalog, xarita, qidiruv va saqlangan qidiruv ogohlantirishlarida hurmat qilinsin. Bayroq va UI tayyor: `users.isPaused`.

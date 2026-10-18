@@ -50,23 +50,6 @@ export function reviewCriteriaSummary(items: ReviewCriteriaSource[]): { averages
   return { averages, recommendPct: answered.length ? Math.round((yes / answered.length) * 100) : null, recommendN: answered.length };
 }
 
-/** Mezon chizig'i: yorliq + to'ldirilgan chiziq + qiymat */
-function CriterionBar({ label, value, compact = false }: { label: string; value: number; compact?: boolean }) {
-  const pct = Math.max(0, Math.min(100, (value / 5) * 100));
-  return (
-    <div className={cn("min-w-0", compact ? "space-y-1" : "flex items-center gap-2.5")}>
-      <span className={cn("text-fg-2", compact ? "flex items-center justify-between gap-1 text-[11px]" : "w-16 shrink-0 text-[12px] font-semibold")}>
-        {label}
-        {compact && <span className="font-semibold tabular-nums text-fg">{value.toFixed(0)}</span>}
-      </span>
-      <span className={cn("block overflow-hidden rounded-full bg-surface-3", compact ? "h-1.5 w-full" : "h-2 flex-1")} role="img" aria-label={`${label}: ${value.toFixed(1)} / 5`}>
-        <span className="block h-full rounded-full bg-accent-3" style={{ width: `${pct}%` }} />
-      </span>
-      {!compact && <span className="w-8 shrink-0 text-right text-[12px] font-semibold tabular-nums text-fg">{value.toFixed(1)}</span>}
-    </div>
-  );
-}
-
 /**
  * Reyting xulosasi: katta o'rtacha baho + 5★…1★ taqsimot chiziqlari.
  * Sahifada reyting faqat shu yerda (va hero'da) ko'rsatiladi — takror yo'q.
@@ -130,13 +113,13 @@ export async function ReviewSummary({
           ) : (
             <span className="hidden sm:block" />
           )}
+          {/* Mezonlar o'rtachasi — 3 ta chiziq o'rniga bitta tinch qator */}
           {hasCriteria && (
-            <div className="space-y-2" aria-label={tr(til, PROFIL.criteriaAria)}>
-              {RATING_CRITERIA.map((c) => {
-                const a = extra.averages[c.key];
-                return a ? <CriterionBar key={c.key} label={MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} value={a.avg} /> : null;
-              })}
-            </div>
+            <p className="text-[13px] text-fg-2" aria-label={tr(til, PROFIL.criteriaAria)}>
+              {RATING_CRITERIA.filter((c) => extra.averages[c.key])
+                .map((c) => `${MEZON[c.key] ? tr(til, MEZON[c.key]) : c.label} ${extra.averages[c.key]!.avg.toFixed(1).replace(".", ",")}`)
+                .join(" · ")}
+            </p>
           )}
         </div>
       )}

@@ -1,5 +1,5 @@
 # Ish (vakansiya / e'lon / buyurtma / obuna UI) — batch-800 hisoboti (2026-10-18)
-Qisqa hisob: A 27 · B 22 · C 26 · D 25
+Qisqa hisob: A 27 · B 23 · C 26 · D 25
 
 Soha: `src/app/vakansiyalar/**`, `src/app/rezyumelar/**`, `src/components/vacancies/*`, `src/lib/vacancies/*`, `src/app/api/vakansiyalar|arizalar|rezyume/**`, `src/app/kabinet/vakansiyalar|arizalarim|rezyume|elonlar|takliflar/**`, `src/components/jobs/*`, `src/lib/jobs/service.ts`, `src/components/orders/OrderWizard.tsx|OrdersList.tsx`, `src/app/api/orders/[id]/ics`, `src/components/payments/PrintButton.tsx`, `src/app/chek/**`, `src/app/narxlar/**`, `src/app/kabinet/obuna/**`, `src/components/subscription/UsdHint.tsx`. Sxema (faqat qo'shimcha): `vacancies.apply_clicks`, `applications.viewed_at`, `applications.employer_note`, `resumes.view_count`, yangi jadval `vacancy_alerts` (`npx tsx scripts/db-sync.ts` qo'llandi).
 
@@ -55,6 +55,7 @@ Soha: `src/app/vakansiyalar/**`, `src/app/rezyumelar/**`, `src/components/vacanc
 20. ✅ Holat belgisi o'z TONE xaritasi bilan umumiy `Badge` ohanglaridan farq qilardi → `Badge` (bir xil ranglar hamma joyda)
 21. ✅ VacancyCard'da uzun kompaniya nomi 390px'da sig'masdi → `truncate` + `min-w-0`; kasb sahifalarida chip qatorlari gorizontal aylanadi (sahifa HSCROLL yo'q)
 22. ✅ Desktop filtr formasi yashirin `sort` selektini ham yuborib URLga `sort=newest` shovqini qo'shardi → saralash faqat havolalar orqali; `PATCH {status:"closed"}` applyUrl'ni saqlashi curl bilan tasdiqlandi (xavf yo'q)
+23. ✅ 390px'da kabinet vakansiya/ariza kartasida amallar qatori sarlavhani harfma-harf siqib qo'yardi (flex-1 + shrink-0) → sarlavha ustuni `basis-[240px]`, amallar pastga tushadi (skrinshotda tasdiqlandi)
 
 ## C. Dizayn va animatsiya tuzatishlari
 1. ✅ Holat belgisi almashganda `animate-badge-pop` (key=status) — `StatusBadge`
@@ -113,7 +114,8 @@ Soha: `src/app/vakansiyalar/**`, `src/app/rezyumelar/**`, `src/components/vacanc
 
 ## Tekshiruv
 - curl (`/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/work/api-test.sh`, log `api-test.log`): vakansiya yaratish (mijoz), filtrlar `pay=set|neg`, `fresh=1&sort=applications`, `min`, `region=xxx` → 422; ariza (201), takror (409), o'z vakansiyasiga (400); nomzodlar — egasi 200 / boshqa 403; CSV (BOM, sarlavha); `PATCH viewed` (viewedAt yoziladi), `note`, bo'sh (422), begona (403), `shortlisted`, keyin `viewed` no-op; hired → qaytarib olish 409; tashqi bosish (mehmon 200, egasi sanalmaydi; `applyClicks` egasiga 1, boshqaga 0); alert yaratish/takror 409/ro'yxat/`check` (sp 403, admin 200) → yangi mos vakansiya qo'shilgach `notified:1` va `saved_search` bildirishnomasi; rezyume PUT → bump 429 → 25 soatdan keyin 200; yopiq rezyume: ish beruvchi 200 (email yo'q), mehmon topilmadi; ko'rishlar: bot +0, Chrome +1 (vakansiya va rezyume); `.ics` — tomon 200 `text/calendar`, mehmon 401; `PATCH {status:"closed"}` applyUrl saqlanadi, `extend` qayta ochadi; jobs `shortlist` → `proposal_shortlisted` bildirishnoma; ommaviy JSON'larda email/telefon yo'q.
-- Playwright (`shots.mjs`, 17 sahifa × desktop 1440 light + mobil 390 dark, HSCROLL va konsol xatolari): natija `shots-report.txt`, skrinshotlar `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/work/<nom>-desktop-light.png|mobile-dark.png`.
+- Playwright (`shots.mjs`, 17 sahifa × desktop 1440 light + mobil 390 dark = 34 skrinshot): barcha sahifalarda HSCROLL=no, hydration xatosi yo'q, konsol xatosi yo'q (dev-server qayta yuklanish paytidagi 2 ta vaqtinchalik timeout qayta olindi — 200). Skrinshotlar: `/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/work/<nom>-desktop-light.png` va `…-mobile-dark.png`, nomlar: vakansiyalar, vakansiya, vakansiya-owner, kasb, kompaniya, kabinet-vakansiyalar, kabinet-arizalarim, rezyume, rezyumelar, kabinet-rezyume, ish-owner, ish-sp, narxlar, sehrgar, obuna, elonlar, takliflar; hisobot `shots-report.txt`.
+  Eng muhimlari: `vakansiyalar-desktop-light.png` (tez chiplar, «Xabardor qil», minimal kartalar), `kabinet-vakansiyalar-desktop-light.png` (holat bo'limlari, eslatma, CSV, Nusxa), `vakansiya-owner-desktop-light.png` (egasi paneli: tashqi o'tishlar, soddalashgan sarlavha), `kabinet-arizalarim-desktop-light.png` («ko'rildi», bo'limlar, mos vakansiyalar), `ish-owner-desktop-light.png` («Solishtirish»), `kabinet-vakansiyalar-mobile-dark.png`, `narxlar-desktop-light.png` (USD, tinch narxlar).
 - `npx tsc --noEmit` — soha fayllarida xato yo'q.
 
 ## Boshqa sohalarga so'rovlar

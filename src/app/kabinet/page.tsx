@@ -121,8 +121,14 @@ function Row({ href, icon: Icon, label, value, tone, external }: { href: string;
   const inner = (
     <>
       <Icon size={18} className="shrink-0 text-fg-3" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-fg">{label}</span>
-      {value !== undefined && <span className={cn("shrink-0 text-[13px] tabular-nums", tone === "warning" ? "font-semibold text-warning-text" : tone === "danger" ? "font-semibold text-danger-text" : tone === "success" ? "font-semibold text-success-text" : "text-fg-3")}>{value}</span>}
+      {/* Yorliq qisqarmaydi — qiymat (uzun bo'lsa) o'zi qisqaradi */}
+      <span className="shrink-0 text-[14px] font-medium text-fg">{label}</span>
+      {value !== undefined && (
+        <span className={cn("min-w-0 flex-1 truncate text-right text-[13px] tabular-nums", tone === "warning" ? "font-semibold text-warning-text" : tone === "danger" ? "font-semibold text-danger-text" : tone === "success" ? "font-semibold text-success-text" : "text-fg-3")}>
+          {value}
+        </span>
+      )}
+      {value === undefined && <span className="flex-1" />}
       <ChevronRight size={16} className="shrink-0 text-fg-4" aria-hidden="true" />
     </>
   );
@@ -277,7 +283,7 @@ export default async function KabinetPage() {
   if (newIncoming > 0) todayRows.push({ key: "new", href: "/kabinet/buyurtmalar?tab=kelgan", icon: Inbox, label: "Yangi buyurtma", value: newIncoming, tone: "warning" });
   for (const o of dueOrders) {
     const overdue = o.dueDate ? o.dueDate < today : false;
-    todayRows.push({ key: `due-${o.id}`, href: `/kabinet/buyurtmalar?id=${o.id}`, icon: CalendarClock, label: o.title, value: o.dueDate ? (overdue ? "muddati o'tgan" : o.dueDate === today ? "bugun" : formatDate(o.dueDate)) : "", tone: overdue ? "danger" : "warning" });
+    todayRows.push({ key: `due-${o.id}`, href: `/kabinet/buyurtmalar?id=${o.id}`, icon: CalendarClock, label: o.title.length > 48 ? `${o.title.slice(0, 48)}…` : o.title, value: o.dueDate ? (overdue ? "muddati o'tgan" : o.dueDate === today ? "bugun" : formatDate(o.dueDate)) : "", tone: overdue ? "danger" : "warning" });
   }
   for (const e of events) {
     todayRows.push({ key: `ev-${e.id}`, href: `/jamoalar/${e.groupSlug}?post=${e.id}`, icon: RadioTower, label: `Efir · ${e.groupName}`, value: e.eventAt ? formatDateTime(e.eventAt) : "" });
@@ -576,7 +582,7 @@ export default async function KabinetPage() {
             )}
             {sp && proposalStats && (
               <li>
-                <Row href="/kabinet/takliflar" icon={Send} label="Takliflar" value={`bugun ${Math.min(proposalStats.today, PROPOSAL_DAILY_LIMIT)}/${PROPOSAL_DAILY_LIMIT} · ${(proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0)} kutilmoqda`} />
+                <Row href="/kabinet/takliflar" icon={Send} label="Takliflar" value={`${Math.min(proposalStats.today, PROPOSAL_DAILY_LIMIT)}/${PROPOSAL_DAILY_LIMIT} bugun · ${(proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0)} kutilmoqda`} />
               </li>
             )}
             {jobStats && (

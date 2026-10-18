@@ -82,7 +82,7 @@ export default async function MyApplicationsPage({ searchParams }: { searchParam
                 return (
                   <li key={a.id} className={cn("card min-w-0 p-4 sm:p-5", a.status === "rejected" && "opacity-80")}>
                     <div className="flex min-w-0 flex-wrap items-start gap-3">
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-[240px]">
                         <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge status={a.status} />
                           {closed && <span className="text-[12px] text-fg-3">· vakansiya yopilgan</span>}
