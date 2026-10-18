@@ -15,7 +15,7 @@ const cleanNeedle = (s: string) => s.replace(/[%\\]/g, "");
  */
 export const GET = handler(async (req) => {
   const session = await requireSession();
-  await enforceLimit("social", session.sub);
+  await enforceLimit("mention", session.sub);
   const { q } = parseQuery(req.url, querySchema);
   const needle = cleanNeedle(q.toLowerCase().replace(/^@/, ""));
   if (!needle) return ok({ items: [] });

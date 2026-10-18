@@ -92,6 +92,8 @@ export const RATE_LIMITS = {
   typing: { limit: 900, windowMs: HOUR },
   /** Maxfiylik sozlamalari / bloklash amallari — userId */
   blocks: { limit: 60, windowMs: HOUR },
+  /** @eslatma avtoto'ldirish (har harfda so'rov, klientda kesh) — userId */
+  mention: { limit: 600, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

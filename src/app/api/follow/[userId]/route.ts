@@ -8,12 +8,17 @@ type Ctx = { params: Promise<{ userId: string }> };
 
 const listQuery = z.object({ list: z.enum(["followers", "following"]).optional(), cursor: z.coerce.number().int().positive().optional() });
 
-/** GET: obuna holati va sonlar; ?list=followers|following — ro'yxat (ommaviy, cursor bilan). POST: obuna bo'lish / bekor qilish */
+/** GET: obuna holati va sonlar (ommaviy); ?list=followers|following — ro'yxat (faqat kirganlarga, cursor bilan). POST: obuna bo'lish / bekor qilish */
 export const GET = handler(async (req, ctx: Ctx) => {
   const { userId } = await ctx.params;
   const viewer = await optionalViewer();
   const q = parseQuery(req.url, listQuery);
-  if (q.list) return ok(await listFollowers(userId, q.list, viewer, q.cursor ?? null));
+  if (q.list) {
+    // Audit: ro'yxat (ismlar, taxalluslar, onlayn holat) mehmonlarga berilmaydi — skreyping va profil yig'ishni cheklaydi
+    const session = await requireSession();
+    await enforceLimit("social", session.sub);
+    return ok(await listFollowers(userId, q.list, viewer, q.cursor ?? null));
+  }
   return ok(await followState(viewer?.id ?? null, userId));
 });
 

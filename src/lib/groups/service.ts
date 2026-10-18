@@ -772,8 +772,10 @@ export async function setReaction(post: Post, userId: string, reaction: Reaction
       const who = (await briefUsers([userId])).get(userId)?.name ?? "Foydalanuvchi";
       const href = await postHref(post);
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Ism ichidagi % va _ LIKE naqshini kengaytirmasin (escape)
+      const pattern = `${who.replace(/[\\%_]/g, (c) => `\\${c}`)} %`;
       const dup = await db.query.notifications.findFirst({
-        where: and(eq(notifications.userId, post.authorId), eq(notifications.type, "post_like"), eq(notifications.href, href), gt(notifications.createdAt, since), like(notifications.title, `${who} %`)),
+        where: and(eq(notifications.userId, post.authorId), eq(notifications.type, "post_like"), eq(notifications.href, href), gt(notifications.createdAt, since), sql`${notifications.title} like ${pattern} escape '\\'`),
         columns: { id: true },
       });
       if (!dup) await notify(post.authorId, "post_like", `${who} postingizga ${REACTION_BY_KEY[reaction].emoji} qo'ydi`, snippetOf(post.body) || (post.media.length ? "Media post" : null), href, { skipMail: true });

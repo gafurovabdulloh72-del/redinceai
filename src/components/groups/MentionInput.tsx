@@ -90,6 +90,7 @@ export function MentionField({
         const res = await fetch(`/api/users/mention?q=${encodeURIComponent(q)}`, { cache: "no-store" });
         const j = (await res.json()) as ApiResp<{ items: Suggestion[] }>;
         const list = j.ok && j.data ? j.data.items : [];
+        if (cache.size > 200) cache.clear(); // xotira chegarasi (uzoq sessiyalarda o'smasin)
         cache.set(q, list);
         if (seq.current === my) {
           setItems(list);
