@@ -1192,7 +1192,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                                 </button>
                               </span>
                             ) : peerReadAt >= m.at ? (
-                              <CheckCheck size={13} className="shrink-0 text-accent" aria-label={`${t("read")} ${clock(peerReadAt)}`} />
+                              <span title={`${t("read")} · ${fullStamp(peerReadAt, locale, now)}`} className="inline-flex">
+                                <CheckCheck size={13} className="shrink-0 text-accent" aria-label={`${t("read")} ${clock(peerReadAt)}`} />
+                              </span>
                             ) : (
                               <Check size={13} className="shrink-0" aria-label={t("sent")} />
                             ))}

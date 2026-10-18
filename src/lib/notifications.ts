@@ -168,6 +168,42 @@ async function mailNotification(userId: string, type: NotificationType, title: s
  * Email'dan farqli, barcha turlar yuboriladi (eslatmalar ham foydali); bloklangan hisobga faqat "account".
  * message_new / chat uchun email bilan bir xil 30 daqiqalik cheklov — alohida kalit (emailga xalal bermaydi).
  */
+/** Telegram inline tugma yorlig'i — bildirishnoma turiga mos (foydalanuvchi nima ochilishini oldindan biladi) */
+const TG_BUTTON_LABEL: Partial<Record<NotificationType, string>> = {
+  message_new: "Xabarni ochish",
+  chat: "Xabarni ochish",
+  proposal_new: "Taklifni ko'rish",
+  proposal_accepted: "Buyurtmani ochish",
+  proposal_declined: "E'lonni ochish",
+  proposal_shortlisted: "E'lonni ochish",
+  job_new: "E'lonni ochish",
+  job_closed: "E'lonni ochish",
+  job_expired: "E'lonni uzaytirish",
+  saved_search: "Natijalarni ko'rish",
+  payout: "Balansni ochish",
+  payout_requested: "So'rovni ko'rish",
+  refund_needed: "To'lovni ko'rish",
+  payment_pending: "To'lovni ko'rish",
+  payment_refunded: "To'lovni ko'rish",
+  payment_cancelled: "To'lovni ko'rish",
+  dispute: "Nizoni ko'rish",
+  dispute_opened: "Nizoni ko'rish",
+  dispute_resolved: "Qarorni ko'rish",
+  report: "Shikoyatni ko'rish",
+  review_new: "Sharhni ko'rish",
+  subscription_expiring: "Obunani uzaytirish",
+  subscription_expired: "Obunani uzaytirish",
+  subscription_paid: "Obunani ko'rish",
+  subscription_pending: "Hisobni ko'rish",
+  group_request: "So'rovni ko'rish",
+  channel_post: "Postni ochish",
+  live_event: "Efirga qo'shilish",
+  application_new: "Arizani ko'rish",
+  application_status: "Arizani ko'rish",
+  broadcast: "Batafsil",
+  account: "Kabinetni ochish",
+};
+
 async function telegramNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
   if (!isTelegramEnabled()) return;
   const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { telegramChatId: true, isBanned: true } });
@@ -180,14 +216,8 @@ async function telegramNotification(userId: string, type: NotificationType, titl
   const origin = mailOrigin();
   const link = absoluteHref(origin, href);
   const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "");
-  // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan
-  const buttonText = href?.startsWith("https://")
-    ? "Havolani ochish"
-    : type.startsWith("order_")
-      ? "Buyurtmani ochish"
-      : type === "message_new" || type === "chat"
-        ? "Xabarni ochish"
-        : "Saytda ochish";
+  // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan (TG_BUTTON_LABEL; order_* — umumiy)
+  const buttonText = href?.startsWith("https://") ? (type === "live_event" ? "Efirga qo'shilish" : "Havolani ochish") : (TG_BUTTON_LABEL[type] ?? (type.startsWith("order_") ? "Buyurtmani ochish" : "Saytda ochish"));
   await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
 }
 
