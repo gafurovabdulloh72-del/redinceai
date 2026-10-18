@@ -1,5 +1,5 @@
 # Jamoalar (guruhlar/kanallar) — batch-800 hisoboti (2026-10-18)
-Qisqa hisob: A 25 · B 26 · C 26 · D 26
+Qisqa hisob: A 25 · B 27 · C 26 · D 26
 
 Sxema (faqat qo'shimcha ustunlar, `npx tsx scripts/db-sync.ts` bilan qo'llandi): `groups.invite_expires_at/invite_max_uses/invite_uses/rules/welcome_text/cover_position/prev_slug/pinned_message_id`, `group_members.muted_until/event_reminders/join_note`, `group_messages.deleted_at/edited_at`.
 
@@ -57,6 +57,7 @@ Sxema (faqat qo'shimcha ustunlar, `npx tsx scripts/db-sync.ts` bilan qo'llandi):
 24. ✅ `listGroupMessages(afterId)` noma'lum id'da abadiy bo'sh qaytarardi → oxirgi 50 ta fallback — service
 25. ✅ Hero muqova 4:1, karta va kesish 3:1 — bir xil emas edi → hamma joyda 3:1 — [slug]/page
 26. ✅ `[slug]` sahifasi uchun yuklanish skeleti yo'q edi → `src/app/jamoalar/[slug]/loading.tsx`
+27. ✅ «Tahrirlash»/«Javob berish» tanlanganda fokus kompozitorga o'tmas edi (klaviaturadan yozib bo'lmasdi) → `useEffect` fokus + kursor oxirida — GroupChat
 
 ## C. Dizayn va animatsiya tuzatishlari
 1. ✅ Dastlabki yuklashda 200 xabar birdan `msg-in` o'ynardi → faqat polling orqali kelganlar animatsiyalanadi (`fresh` to'plami) — GroupChat
