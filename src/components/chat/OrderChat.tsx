@@ -1,10 +1,14 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { AlertCircle, Check, CheckCheck, ChevronDown, FileText, ImageOff, ImagePlus, Lock, MessageCircle, Plus, RotateCcw, Send, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, ChevronDown, FileText, ImageOff, ImagePlus, Lock, MessageCircle, Plus, RotateCcw, Send, ShieldAlert, X, Zap } from "lucide-react";
 import { Spinner } from "@/components/ui";
-import { cn, formatDate, timeAgo } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { usePresence } from "@/components/motion/usePresence";
+import { clock, dayKey, dayLabel, relativeTime } from "@/lib/chat/time";
+import { cn } from "@/lib/utils";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "./attachments";
+import { DayPill, claimMedia, useNowTick } from "./MessageParts";
 
 /* ------------------------------------------------------------------ */
 /* Turlar (GET/POST /api/orders/[id]/messages bilan bir xil)           */
@@ -27,7 +31,6 @@ type ListData = { messages: ChatMessage[]; readUpTo: number | null; role: "clien
 
 const POLL_MS = 5000;
 const MAX_BODY = 4000;
-const TZ_MS = 5 * 60 * 60 * 1000;
 const QUICK_KEY = "redince:quick-replies";
 
 /** Mutaxassis uchun tayyor javoblar (F39) */

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
@@ -25,11 +25,14 @@ interface PasswordFieldProps {
   labelAside?: ReactNode;
 }
 
-/** Parol maydoni: ko'rsat/yashir tugmasi fokuslanadi (A78), 44px bosish maydoni */
+/** Parol maydoni: ko'rsat/yashir tugmasi fokuslanadi (A78), 44px bosish maydoni, Caps Lock yoqilganda eslatma */
 export function PasswordField({ id, name = "password", label, value, onChange, autoComplete, placeholder, error, hint, meter = false, disabled, labelAside }: PasswordFieldProps) {
   const til = useLocale();
   const [show, setShow] = useState(false);
-  const describedBy = [error ? `${id}-error` : null, meter ? `${id}-meter` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined;
+  const [caps, setCaps] = useState(false);
+  // getModifierState — klaviatura hodisasida Caps Lock holati (telefon klaviaturasida yo'q — jim)
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => setCaps(Boolean(e.getModifierState?.("CapsLock")));
+  const describedBy = [error ? `${id}-error` : null, caps ? `${id}-caps` : null, meter ? `${id}-meter` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined;
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -53,6 +56,10 @@ export function PasswordField({ id, name = "password", label, value, onChange, a
           maxLength={100}
           disabled={disabled}
           spellCheck={false}
+          autoCapitalize="none"
+          onKeyDown={onKey}
+          onKeyUp={onKey}
+          onBlur={() => setCaps(false)}
         />
         <button
           type="button"
@@ -69,6 +76,11 @@ export function PasswordField({ id, name = "password", label, value, onChange, a
       {error && (
         <p id={`${id}-error`} className="field-error">
           {error}
+        </p>
+      )}
+      {caps && (
+        <p id={`${id}-caps`} role="status" className="expand-in mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-warning-text">
+          <TriangleAlert size={12} aria-hidden="true" /> {tr(til, AUTH.password.capsLock)}
         </p>
       )}
       {meter && <PasswordStrengthMeter password={value} id={`${id}-meter`} />}

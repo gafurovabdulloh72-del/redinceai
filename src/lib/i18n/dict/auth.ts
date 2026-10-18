@@ -239,6 +239,7 @@ export const AUTH = {
   password: {
     hide: { uz: "Parolni yashirish", ru: "Скрыть пароль" },
     show: { uz: "Parolni ko'rsatish", ru: "Показать пароль" },
+    capsLock: { uz: "Caps Lock yoqilgan", ru: "Включён Caps Lock" },
     strengthAria: { uz: "Parol kuchi", ru: "Надёжность пароля" },
     strengthAriaWith: { uz: (label: string) => `Parol kuchi: ${label}`, ru: (label: string) => `Надёжность пароля: ${label}` },
     labelTooShort: { uz: "Juda qisqa", ru: "Слишком короткий" },

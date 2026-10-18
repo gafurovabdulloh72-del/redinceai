@@ -350,7 +350,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
           )}
 
           {error && (
-            <div role="alert" className="flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
+            <div role="alert" className="expand-in flex items-start gap-2.5 rounded-[14px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
               <AlertCircle size={16} className="mt-px shrink-0" />
               <span>{error}</span>
             </div>
@@ -448,7 +448,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
                       clearField("role");
                     }}
                     className={cn(
-                      "group relative flex min-h-[96px] flex-col rounded-[18px] border p-3.5 text-left transition-all duration-300 active:scale-[0.98]",
+                      "group relative flex min-h-[96px] flex-col rounded-[14px] border p-3.5 text-left transition-all duration-300 active:scale-[0.98]",
                       active ? "border-accent bg-accent-soft/50 shadow-[var(--shadow-1)]" : "border-line bg-surface-2 hover:-translate-y-0.5 hover:border-line-2 dark:bg-surface",
                     )}
                   >
@@ -519,6 +519,10 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
             type="email"
             inputMode="email"
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoFocus={!isRegister}
             placeholder={tr(til, AUTH.fields.emailPlaceholder)}
             value={email}
             onChange={(e) => {
@@ -699,7 +703,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
 
         {/* ---------- Umumiy xato ---------- */}
         {error && (
-          <div role="alert" className="flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red animate-fade-up" style={{ animationDuration: "0.3s" }}>
+          <div role="alert" className="expand-in flex items-start gap-2.5 rounded-[14px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
             <AlertCircle size={16} className="mt-px shrink-0" />
             <span>{error}</span>
           </div>
@@ -761,7 +765,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
             </button>
 
             {demoOpen && (
-              <ul id="demo-accounts" className="divide-y divide-line border-t border-line animate-fade-up" style={{ animationDuration: "0.3s" }}>
+              <ul id="demo-accounts" className="expand-in divide-y divide-line border-t border-line">
                 {DEMO_ACCOUNTS.map((acc) => {
                   const Icon = acc.icon;
                   const filled = filledDemo === acc.email;

@@ -148,3 +148,62 @@ test("yordam markazi: /yordam va maqola → 200", async () => {
   assert.equal((await req("/yordam/eskrou-qanday-ishlaydi")).status, 200);
   assert.equal((await req("/yordam/yoq-maqola")).status, 404);
 });
+
+/* ---------- batch-800 (admin/auth/statik): yangi endpointlar va SEO himoyasi ---------- */
+
+test("admin API: mehmon uchun 401 (health, moderation, events, spam, CSV eksport)", async () => {
+  for (const p of ["/api/admin/health", "/api/admin/moderation", "/api/admin/events", "/api/admin/settings/spam", "/api/admin/users?format=csv", "/api/admin/specialists?format=csv"]) {
+    const res = await req(p);
+    assert.equal(res.status, 401, `${p} mehmonga ochiq bo'lmasligi kerak (keldi ${res.status})`);
+    const body = await json(res);
+    assert.equal(body.ok, false);
+  }
+});
+
+test("robots.txt: admin, kabinet, chek va chat yo'llari yopiq", async () => {
+  const res = await req("/robots.txt");
+  assert.equal(res.status, 200);
+  const txt = await res.text();
+  for (const p of ["/admin", "/kabinet", "/api", "/chek/", "/yozish/", "/auth"]) assert.match(txt, new RegExp(`Disallow: ${p.replace(/\//g, "\\/")}`), `robots.txt'da "Disallow: ${p}" yo'q`);
+  assert.match(txt, /Sitemap: .*\/sitemap\.xml/);
+});
+
+test("sitemap.xml: /haqida bor va har yozuvda lastmod", async () => {
+  const res = await req("/sitemap.xml");
+  assert.equal(res.status, 200);
+  const xml = await res.text();
+  assert.match(xml, /\/haqida<\/loc>/, "/haqida sitemap'da yo'q");
+  assert.match(xml, /\/oferta<\/loc>/);
+  const locs = (xml.match(/<loc>/g) || []).length;
+  const mods = (xml.match(/<lastmod>/g) || []).length;
+  assert.ok(locs > 0 && mods === locs, `lastmod soni (${mods}) loc soniga (${locs}) teng emas`);
+});
+
+test("statik sahifalar: /haqida /oferta /maxfiylik /offline → 200, canonical bilan", async () => {
+  for (const p of ["/haqida", "/oferta", "/maxfiylik"]) {
+    const res = await req(p);
+    assert.equal(res.status, 200, `${p} → ${res.status}`);
+    const html = await res.text();
+    assert.match(html, new RegExp(`rel="canonical" href="[^"]*${p}"`), `${p} canonical yo'q`);
+  }
+  assert.equal((await req("/offline")).status, 200);
+});
+
+test("auth sahifalari: kirish va ro'yxat 200, parol maydoni autocomplete bilan, noindex", async () => {
+  const login = await req("/auth/kirish");
+  assert.equal(login.status, 200);
+  const html = await login.text();
+  assert.match(html, /autocomplete="current-password"/, "kirishda current-password yo'q");
+  assert.match(html, /autocomplete="email"/);
+  const reg = await req("/auth/royxat");
+  assert.equal(reg.status, 200);
+  assert.match(await reg.text(), /autocomplete="new-password"/, "ro'yxatda new-password yo'q");
+});
+
+test("admin sahifalar: mehmon /admin va /admin/audit → kirishga yo'naltiriladi", async () => {
+  for (const p of ["/admin", "/admin/audit", "/admin/obunalar"]) {
+    const res = await req(p);
+    assert.ok([302, 303, 307, 308].includes(res.status), `${p}: yo'naltirish kutilgan edi, keldi ${res.status}`);
+    assert.match(res.headers.get("location") || "", /\/auth\/kirish/);
+  }
+});

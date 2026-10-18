@@ -317,7 +317,7 @@ export function LinkCard({ url, mine }: { url: string; mine: boolean }) {
 export function ReactionChips({ reactions, mine, onToggle }: { reactions: ReactionSummary[]; mine: boolean; onToggle?: (emoji: string) => void }) {
   if (!reactions.length) return null;
   return (
-    <div className={cn("mt-1 flex flex-wrap gap-1", mine ? "justify-end" : "justify-start")} aria-label="Reaksiyalar">
+    <div className={cn("relative z-[1] -mt-2 flex flex-wrap gap-1 px-2", mine ? "justify-end" : "justify-start")} aria-label="Reaksiyalar">
       {reactions.map((r) => (
         <button
           key={r.emoji}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ArrowRight, ChevronRight, Info } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { SITE } from "@/lib/constants";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, slugify } from "@/lib/utils";
 import { HELP_ARTICLES, HELP_BY_SLUG, HELP_CATEGORIES, type HelpBlock } from "../articles";
 import { HelpFeedback } from "../HelpFeedback";
 
@@ -26,8 +26,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 function Block({ b }: { b: HelpBlock }) {
   switch (b.type) {
-    case "h":
-      return <h2 className="mt-8 font-display text-[19px] font-semibold text-fg sm:text-[21px]">{b.text}</h2>;
+    case "h": {
+      // Chuqur havola: /yordam/<slug>#<sarlavha> — hover/fokusda «#» ko'rinadi
+      const id = slugify(b.text) || undefined;
+      return (
+        <h2 id={id} className="group mt-8 scroll-mt-24 font-display text-[19px] font-semibold text-fg sm:text-[21px]">
+          {b.text}
+          {id && (
+            <a href={`#${id}`} className="ml-2 inline-flex min-h-6 items-center text-[15px] font-medium text-fg-4 opacity-0 transition hover:text-accent-text focus-visible:opacity-100 group-hover:opacity-100" aria-label={`«${b.text}» bo'limiga havola`}>
+              #
+            </a>
+          )}
+        </h2>
+      );
+    }
     case "p":
       return <p className="mt-4 text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{b.text}</p>;
     case "list":

@@ -145,7 +145,7 @@ export function ResetConfirmForm({ token, initiallyValid }: { token: string; ini
         />
 
         {error && (
-          <div role="alert" className="flex items-start gap-2.5 rounded-[16px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
+          <div role="alert" className="expand-in flex items-start gap-2.5 rounded-[14px] bg-ios-red/10 px-4 py-3 text-[13px] font-medium text-ios-red">
             <AlertCircle size={16} className="mt-px shrink-0" />
             <span>{error}</span>
           </div>

@@ -44,8 +44,8 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             <ul className="mb-8 mt-10 divide-y divide-line border-y border-line">
               {benefits.map((b) => (
                 <li key={b.title} className="flex items-start gap-4 py-4">
-                  <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
-                    <b.icon size={17} />
+                  <span className="icon-tile-outline icon-tile-sm shrink-0" aria-hidden="true">
+                    <b.icon size={16} />
                   </span>
                   <span>
                     <span className="block font-display text-[15px] font-semibold text-fg">{b.title}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Megaphone, Send } from "lucide-react";
+import { Bell, CheckCircle2, Megaphone, Send } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 
 type Audience = "all" | "specialists" | "clients";
@@ -124,6 +124,33 @@ export function AdminBroadcast() {
           <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3">Havola (ixtiyoriy — sayt ichida yoki https://)</span>
           <input value={href} onChange={(e) => setHref(e.target.value)} maxLength={200} placeholder="/narxlar yoki https://t.me/kanal" className="field h-11 w-full text-[14px]" dir="ltr" />
         </label>
+
+        {/* Jonli ko'rinish: foydalanuvchi saytda va Telegramda nimani ko'radi */}
+        {(title.trim() || body.trim()) && (
+          <div className="expand-in grid gap-3 sm:grid-cols-2" aria-label="Ko'rinish">
+            <div className="rounded-[var(--r-sm)] border border-line p-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">Saytda (qo&apos;ng&apos;iroqcha)</p>
+              <div className="mt-2 flex items-start gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-text">
+                  <Bell size={14} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[13.5px] font-semibold text-fg">{title.trim() || "Sarlavha"}</p>
+                  <p className="line-clamp-2 text-[12.5px] leading-snug text-fg-2">{body.trim() || "Matn…"}</p>
+                  {href.trim() && <p className="mt-0.5 truncate text-[11.5px] text-fg-4">{href.trim()}</p>}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-[var(--r-sm)] border border-line p-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">Telegramda</p>
+              <div className="mt-2 max-w-[92%] rounded-[12px] rounded-tl-[4px] bg-surface-2 px-3 py-2 text-[13px] leading-snug text-fg">
+                <p className="font-semibold">{title.trim() || "Sarlavha"}</p>
+                <p className="whitespace-pre-wrap text-fg-2">{body.trim() || "Matn…"}</p>
+              </div>
+              {href.trim() && <p className="mt-1.5 inline-flex rounded-[8px] border border-line px-2.5 py-1 text-[12px] font-semibold text-fg-2">{href.trim().startsWith("https://") ? "Havolani ochish" : "Saytda ochish"}</p>}
+            </div>
+          </div>
+        )}
 
         {/* Auditoriya */}
         <div className="grid gap-1.5">
