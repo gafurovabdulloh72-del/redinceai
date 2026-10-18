@@ -68,12 +68,11 @@ export function DemoCleanButton({ count }: { count: number }) {
 
       {openModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-up"
-          style={{ animationDuration: "0.15s" }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in"
           role="presentation"
           onClick={() => !busy && setOpenModal(false)}
         >
-          <div role="dialog" aria-modal="true" aria-labelledby="demo-clean-title" className="card w-full max-w-md p-5 text-left shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="demo-clean-title" className="card w-full max-w-md p-5 text-left shadow-xl animate-modal-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <h3 id="demo-clean-title" className="flex items-center gap-2 font-display text-[17px] font-semibold text-fg">
                 <AlertTriangle size={18} className="shrink-0 text-danger" /> Demo ma'lumotlarni o'chirish

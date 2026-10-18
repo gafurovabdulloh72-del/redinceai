@@ -175,7 +175,7 @@ export function SearchBox({
         role="listbox"
         aria-label={tr(til, FILTR.suggestionsAria)}
         hidden={!visible}
-        className="card-elevated absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[320px] overflow-y-auto p-1.5"
+        className="pop-in card-elevated absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[320px] overflow-y-auto p-1.5"
       >
         {items.map((s, i) => {
           const Icon = TYPE_ICON[s.type];

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -237,16 +239,16 @@ function RegionSheet({
     };
   }, [open, onClose]);
 
-  if (!mounted || !open) return null;
+  const pres = usePresence(open, 280);
+  if (!mounted || !pres.mounted) return null;
   const sorted = [...REGIONS].sort((a, b) => a.short.localeCompare(b.short, "uz"));
 
   return createPortal(
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-labelledby="region-sheet-title">
-      <button type="button" aria-label="Yopish" onClick={onClose} className="absolute inset-0 bg-black/45" />
+      <button type="button" aria-label="Yopish" onClick={onClose} className={`absolute inset-0 bg-black/45 ${pres.closing ? "animate-fade-out" : "animate-fade-in"}`} />
       <div
         ref={ref}
-        className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[86dvh] flex-col !rounded-b-none !rounded-t-[var(--r-lg)] animate-fade-up sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:!rounded-[var(--r-lg)]"
-        style={{ animationDuration: "0.3s" }}
+        className={`card-elevated absolute inset-x-0 bottom-0 flex max-h-[86dvh] flex-col !rounded-b-none !rounded-t-[var(--r-lg)] sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:!rounded-[var(--r-lg)] ${pres.closing ? "animate-sheet-down sm:animate-modal-out" : "animate-sheet-up sm:animate-modal-in"}`}
       >
         <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-fg/15 sm:hidden" />
         <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-3 sm:pt-5">

@@ -218,7 +218,7 @@ function Composer({ base, onPosted, allowEvent = false, kind = "group" }: { base
         className="field w-full resize-y py-2.5 text-[14px] leading-relaxed"
       />
       {eventOpen && (
-        <div className="mt-2.5 grid gap-2.5 rounded-[14px] border border-accent/30 bg-accent-soft/40 p-3 sm:grid-cols-2">
+        <div className="expand-in mt-2.5 grid gap-2.5 rounded-[14px] border border-accent/30 bg-accent-soft/40 p-3 sm:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">Efir vaqti</span>
             <input type="datetime-local" value={eventAt} onChange={(e) => setEventAt(e.target.value)} className="field h-10 w-full text-[13.5px]" required />
@@ -517,7 +517,11 @@ function PostCard({
         </button>
       </footer>
 
-      {open && <Comments postId={post.id} canWrite={canInteract} onCount={setComments} />}
+      {open && (
+        <div className="expand-in">
+          <Comments postId={post.id} canWrite={canInteract} onCount={setComments} />
+        </div>
+      )}
     </article>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Briefcase, CircleHelp, Clapperboard, CornerDownLeft, FileText, Search, UsersRound, X } from "lucide-react";
@@ -42,6 +44,7 @@ export function CommandPalette() {
   const abort = useRef<AbortController | null>(null);
 
   const close = useCallback(() => setOpen(false), []);
+  const { mounted: shown, closing } = usePresence(open, 180);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -137,11 +140,11 @@ export function CommandPalette() {
     }
   }
 
-  if (!open) return null;
+  if (!shown) return null;
   let idx = -1;
   return (
-    <div className="fixed inset-0 z-[130] flex items-start justify-center bg-ink/40 px-3 pt-[12vh] backdrop-blur-sm animate-fade-in" onClick={close} role="presentation">
-      <div role="dialog" aria-modal="true" aria-label="Qidiruv" onClick={(e) => e.stopPropagation()} className="card-floating w-full max-w-xl overflow-hidden !rounded-[22px] animate-modal-in">
+    <div className={`fixed inset-0 z-[130] flex items-start justify-center bg-ink/40 px-3 pt-[12vh] backdrop-blur-sm ${closing ? "animate-fade-out" : "animate-fade-in"}`} onClick={close} role="presentation">
+      <div role="dialog" aria-modal="true" aria-label="Qidiruv" onClick={(e) => e.stopPropagation()} className={`card-floating w-full max-w-xl overflow-hidden !rounded-[22px] ${closing ? "animate-modal-out" : "animate-modal-in"}`}>
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Search size={18} className="shrink-0 text-fg-3" />
           <input

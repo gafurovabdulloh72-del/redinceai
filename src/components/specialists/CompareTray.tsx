@@ -37,7 +37,7 @@ export function CompareTray({ className, aboveCta = false }: { className?: strin
     <div
       className={cn(
         // Telefonda o'ngda "Yuqoriga" tugmasi (BackToTop, right-4) uchun joy qoldiriladi
-        "pointer-events-none fixed left-3 right-[4.25rem] z-40 flex flex-col items-center gap-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2",
+        "animate-slide-up pointer-events-none fixed left-3 right-[4.25rem] z-40 flex flex-col items-center gap-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2",
         aboveCta ? "bottom-[calc(9.75rem+env(safe-area-inset-bottom))] md:bottom-24 lg:bottom-6" : "bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6",
         className,
       )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowRight, CreditCard, Landmark, ShieldCheck, Smartphone, Wallet, X, type LucideIcon } from "lucide-react";
@@ -40,6 +42,7 @@ export function PayButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const { mounted: payMounted, closing: payClosing } = usePresence(open, 280);
   const [choice, setChoice] = useState<PaymentProvider>(providers[0] ?? "payme");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,15 +143,14 @@ export function PayButton({
         {busy ? <Spinner /> : <Wallet size={16} />} {text}
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-6" onClick={() => !busy && setOpen(false)}>
+      {payMounted && (
+        <div className={`fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-6 ${payClosing ? "animate-fade-out" : "animate-fade-in"}`} onClick={() => !busy && setOpen(false)}>
           <div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`pay-${orderId}-title`}
-            className="card-elevated w-full max-w-md !rounded-b-none p-5 animate-fade-up sm:!rounded-[24px] sm:p-6"
-            style={{ animationDuration: "0.3s" }}
+            className={`card-elevated w-full max-w-md !rounded-b-none p-5 sm:!rounded-[24px] sm:p-6 ${payClosing ? "animate-sheet-down sm:animate-modal-out" : "animate-sheet-up sm:animate-modal-in"}`}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={trapTab}
           >

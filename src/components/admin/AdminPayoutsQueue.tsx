@@ -215,7 +215,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
               </time>
             </div>
             {isOpen && rejecting !== r.id && paying !== r.id && (
-              <div className="flex flex-wrap gap-1.5 lg:justify-end">
+              <div className="expand-in flex flex-wrap gap-1.5 lg:justify-end">
                 {r.state === "requested" && (
                   <Button size="sm" variant="outline" className="h-11 md:h-9" onClick={() => act(r, "approved")} disabled={!!busy}>
                     {b ? <Spinner className="h-3.5 w-3.5" /> : <Check size={14} />} Tasdiqlash

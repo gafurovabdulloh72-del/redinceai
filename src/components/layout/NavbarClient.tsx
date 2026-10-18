@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -56,6 +58,8 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // Menyu yopilganda chiqish animatsiyasi o'ynab bo'lguncha DOM'da qoladi
+  const { mounted: menuMounted, closing: menuClosing } = usePresence(open, 200);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -187,13 +191,16 @@ export function NavbarClient({ user, unread = 0, groupsUnread = 0 }: { user: Nav
                   <span className="hidden max-w-[120px] truncate text-[14px] font-semibold text-fg xl:block">{user.name.split(" ")[0]}</span>
                 </button>
 
-                {open && (
+                {menuMounted && (
                   <div
                     role="menu"
                     aria-label={SHELL.menu.aria[til](user.name)}
                     onKeyDown={onMenuKey}
-                    className="card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 animate-scale-in max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] max-sm:top-auto max-sm:w-auto max-sm:origin-bottom max-sm:animate-slide-up max-sm:p-2"
-                    style={{ animationDuration: "0.26s" }}
+                    className={cn(
+                      "card-floating absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right overflow-hidden p-1.5 max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] max-sm:top-auto max-sm:w-auto max-sm:origin-bottom max-sm:p-2",
+                      menuClosing ? "animate-modal-out max-sm:animate-sheet-down" : "animate-scale-in max-sm:animate-slide-up",
+                    )}
+                    style={{ animationDuration: menuClosing ? "0.2s" : "0.26s" }}
                   >
                     <div className="px-3 py-2.5">
                       <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>

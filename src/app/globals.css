@@ -378,6 +378,9 @@
   --animate-check-draw: check-draw 0.5s var(--ease-out) both;
   --animate-glow: glow 2.6s ease-in-out infinite;
   --animate-bounce-soft: bounce-soft 1.4s ease-in-out infinite;
+  /* Chiqish (yopilish) juftlari */
+  --animate-fade-out: fade-out 0.18s ease-in both;
+  --animate-swap-out: swap-out 0.16s ease-in both;
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -513,6 +516,14 @@
   @keyframes bounce-soft {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes swap-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(4px); }
   }
 }
 
@@ -1611,4 +1622,55 @@ select:focus-visible {
   .hover-lift:hover, .img-zoom:hover img, .group:hover .img-zoom img, .icon-nudge:hover svg, .icon-spin-hover:hover svg {
     transform: none;
   }
+}
+
+/* ---------- Ochilish / yopilish tizimi (v3.1) ----------
+   Saytdagi har qanday ochiladigan element yagona qoidalar bilan kiradi va chiqadi:
+   - rol asosida AVTOMATIK: [role="menu"], [role="listbox"] — pop; [role="dialog"], [role="status"] — fade; <details> tanasi — swap;
+     .field-error — swap. Aniq animate-* klassi berilgan element (utilities qatlami) bu qoidadan ustun.
+   - klasslar: .expand-in/.expand-out (inline panel, akkordeon, qo'shimcha maydonlar), .pop-in/.pop-out (popover, dropdown),
+     .overlay-in/.overlay-out (fon), .sheet-in/.sheet-out (pastki varaq). `hidden` atributi olib tashlanganda ham qayta o'ynaydi.
+   - chiqish: usePresence(open) — element yopilayotganda DOM'da qoladi, `closing` bilan *-out klassi beriladi (components/motion/usePresence.ts)
+   - .chev — aria-expanded="true" tugma ichida 180° buriladi; .collapse[data-open] — balandlik animatsiyasi JS o'lchovsiz (grid-rows 0fr→1fr) */
+@layer components {
+  [role="menu"], [role="listbox"] {
+    animation: modal-in 0.22s var(--ease-out) both;
+  }
+  [role="dialog"], [role="status"] {
+    animation: fade-in 0.22s ease-out both;
+  }
+  details > :not(summary) {
+    animation: swap 0.28s var(--ease-out) both;
+  }
+  .field-error {
+    animation: swap 0.2s var(--ease-out) both;
+  }
+}
+@layer utilities {
+  .expand-in { animation: swap 0.24s var(--ease-out) both; }
+  .expand-out { animation: swap-out 0.16s ease-in both; }
+  .pop-in { animation: modal-in 0.22s var(--ease-out) both; }
+  .pop-out { animation: modal-out 0.16s ease-in both; }
+  .overlay-in { animation: fade-in 0.22s ease-out both; }
+  .overlay-out { animation: fade-out 0.18s ease-in both; }
+  .sheet-in { animation: sheet-up 0.42s var(--ease-out) both; }
+  .sheet-out { animation: sheet-down 0.28s ease-in both; }
+  .chev { transition: transform var(--dur-2) var(--ease-out); }
+  [aria-expanded="true"] .chev, [aria-expanded="true"] > .chev { transform: rotate(180deg); }
+  .collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows var(--dur-2) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+  }
+  .collapse > * { min-height: 0; overflow: hidden; }
+  .collapse[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [role="menu"], [role="listbox"], [role="dialog"], [role="status"], details > :not(summary), .field-error,
+  .expand-in, .expand-out, .pop-in, .pop-out, .overlay-in, .overlay-out, .sheet-in, .sheet-out {
+    animation: none !important;
+  }
+  .collapse { transition: none; }
+  .chev { transition: none; }
 }

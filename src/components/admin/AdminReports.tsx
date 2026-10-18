@@ -185,7 +185,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
             {showClosed ? "Yopilganlarni yashirish" : `Yopilgan shikoyatlar (${closed.length})`}
           </button>
           {showClosed && (
-            <ul className="card mt-2 divide-y divide-line overflow-hidden">
+            <ul className="expand-in card mt-2 divide-y divide-line overflow-hidden">
               {closed.map((r) => (
                 <Row key={r.id} r={r} />
               ))}

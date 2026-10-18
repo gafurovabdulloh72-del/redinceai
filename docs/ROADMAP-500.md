@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 1. 100 ta funksiya / detal | 61 | 4 | 35 |
 | 2. 100 ta UI tuzatish | 64 | 3 | 33 |
-| 3. 100 ta animatsiya | 82 | 0 | 18 |
+| 3. 100 ta animatsiya | 87 | 0 | 13 |
 | 4. 500 ta dizayn qo'shimchasi | 196 | 21 | 283 |
 | 5. 100 ta keyingi qadam | — | — | 100 (tavsiya ro'yxati) |
 
@@ -347,6 +347,13 @@ Barchasi `src/app/globals.css`da: `--animate-*` tokenlari (Tailwind `animate-*` 
 80. ✅ Jamoa tab almashinuvi fade
 81. ✅ Tab-bar faol holat `transition-all 300ms`
 82. ✅ `prefers-reduced-motion` — barcha yuqoridagilar o'chadi/0.01ms
+
+### Ochilish / yopilish tizimi (v3.1 — hamma ochiladigan joy bir xil kiradi va chiqadi)
+- ✅ Rol asosida avtomatik: `[role="menu"]`, `[role="listbox"]` — pop; `[role="dialog"]`, `[role="status"]` — fade; `<details>` tanasi — swap; `.field-error` — swap
+- ✅ `usePresence(open)` — yopilishda chiqish animatsiyasi (foydalanuvchi menyusi, qo'ng'iroq paneli, ⌘K palitra, mobil filtr varag'i, xarita hudud varag'i, to'lov varag'i)
+- ✅ `.expand-in` inline panellar: buyurtma chati, post izohlari, efir maydonlari, sana tanlagich, admin amallar, yopilgan shikoyatlar, nomzodlar ro'yxati, filtr guruhlari
+- ✅ `.pop-in` dropdownlar (qidiruv takliflari), `animate-fade-in + animate-modal-in` modallar (rasm kesish, galereya, demo tozalash), taqqoslash tarnovi `slide-up`
+- ✅ `.chev` (aria-expanded bo'yicha 180°), `.collapse[data-open]` (balandlik animatsiyasi JS'siz) — yangi komponentlar uchun tayyor
 
 ### Reja (⬜)
 83. ⬜ View Transitions API — sahifalar orasida umumiy element (karta → sahifa)

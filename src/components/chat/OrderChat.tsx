@@ -396,7 +396,7 @@ export function OrderChat({
       </button>
 
       {open && (
-        <div id={panelId} className="mt-2 overflow-hidden rounded-[16px] border border-line bg-surface-2">
+        <div id={panelId} className="expand-in mt-2 overflow-hidden rounded-[16px] border border-line bg-surface-2">
           <div ref={scroller} onScroll={onScroll} className="max-h-[420px] min-h-[160px] space-y-2 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4" role="log" aria-live="polite" aria-label={`${counterpartName} bilan yozishma`}>
             {/* Xavfsizlik eslatmasi — har bir yozishmada bir marta, eng tepada */}
             <p className="mx-auto flex max-w-md items-start gap-2 rounded-[12px] bg-warning-soft px-3 py-2 text-[12px] leading-snug text-warning-text">

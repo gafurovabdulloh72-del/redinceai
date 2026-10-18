@@ -126,8 +126,8 @@ export function ImageCropper({
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/70 p-4 backdrop-blur-sm" onClick={onCancel}>
-      <div className="card-elevated w-full max-w-xl p-4 sm:p-5" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/70 p-4 backdrop-blur-sm animate-fade-in" onClick={onCancel}>
+      <div className="card-elevated w-full max-w-xl p-4 animate-modal-in sm:p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="font-display text-[16px] font-semibold text-fg">{title}</p>
           <button type="button" onClick={onCancel} aria-label="Yopish" className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">

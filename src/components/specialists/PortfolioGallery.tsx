@@ -251,7 +251,7 @@ function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={item.title}
-      className="card-elevated fixed inset-0 z-[100] flex flex-col !rounded-none !border-0"
+      className="card-elevated fixed inset-0 z-[100] flex flex-col !rounded-none !border-0 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

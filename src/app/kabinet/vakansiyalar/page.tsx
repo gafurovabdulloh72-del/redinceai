@@ -97,7 +97,7 @@ export default async function MyVacanciesPage({ searchParams }: { searchParams: 
                   </div>
                 </div>
                 {open && (
-                  <div className="mt-4 border-t border-line pt-4">
+                  <div className="expand-in mt-4 border-t border-line pt-4">
                     <ApplicantsList vacancyId={v.id} initial={applicants} />
                   </div>
                 )}

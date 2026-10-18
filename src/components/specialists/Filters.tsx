@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -229,7 +231,7 @@ function Group({ title, summary, defaultOpen = false, children }: { title: strin
           <ChevronDown size={16} className={cn("shrink-0 text-fg-3 transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
         </span>
       </button>
-      <div id={id} hidden={!open} className="pb-4">
+      <div id={id} hidden={!open} className="expand-in pb-4">
         {children}
       </div>
     </section>
@@ -676,6 +678,7 @@ export function MobileFilters({
   }, [open]);
 
   const close = () => setOpen(false);
+  const pres = usePresence(open, 280);
 
   return (
     <>
@@ -686,14 +689,13 @@ export function MobileFilters({
       </Button>
 
       {mounted &&
-        open &&
+        pres.mounted &&
         createPortal(
           <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-labelledby="sp-filters-title">
-            <button type="button" aria-label={tr(til, FILTR.close)} onClick={close} className="absolute inset-0 bg-black/45" />
+            <button type="button" aria-label={tr(til, FILTR.close)} onClick={close} className={`absolute inset-0 bg-black/45 ${pres.closing ? "animate-fade-out" : "animate-fade-in"}`} />
             <div
               ref={sheetRef}
-              className="card-elevated absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col !rounded-b-none !rounded-t-[28px] animate-fade-up"
-              style={{ animationDuration: "0.35s" }}
+              className={`card-elevated absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col !rounded-b-none !rounded-t-[28px] ${pres.closing ? "animate-sheet-down" : "animate-sheet-up"}`}
             >
               <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-fg/15" />
               <div className="flex shrink-0 items-center justify-between px-5 pb-1 pt-3">

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePresence } from "@/components/motion/usePresence";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -140,6 +142,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
   };
 
   const badge = unread > 99 ? "99+" : String(unread);
+  const { mounted: panelMounted, closing: panelClosing } = usePresence(open, 180);
 
   return (
     /* Mobil: panel nav kapsulasiga nisbatan (uning kengligida, 12px gutter); sm+: qo'ng'iroq ostida o'ngga tekis */
@@ -164,12 +167,12 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
         )}
       </button>
 
-      {open && (
+      {panelMounted && (
         <div
           role="dialog"
           aria-label={tr(til, SHELL.bell.label)}
-          className="card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden animate-fade-up sm:left-auto sm:right-0 sm:w-[380px]"
-          style={{ animationDuration: "0.22s" }}
+          className={`card-floating absolute inset-x-0 top-[calc(100%+10px)] origin-top-right overflow-hidden sm:left-auto sm:right-0 sm:w-[380px] ${panelClosing ? "animate-modal-out" : "animate-fade-up"}`}
+          style={{ animationDuration: panelClosing ? "0.16s" : "0.22s" }}
         >
           <div className="flex items-baseline gap-2 whitespace-nowrap px-4 py-3">
             <p className="text-[15px] font-semibold text-fg">{tr(til, SHELL.bell.label)}</p>

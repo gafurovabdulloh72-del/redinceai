@@ -122,7 +122,7 @@ export function DueDatePicker({
       </div>
 
       {open && (
-        <div id={`${id}-cal`} className="card-outline mt-2 w-full max-w-[360px] !rounded-[16px] p-3">
+        <div id={`${id}-cal`} className="pop-in card-outline mt-2 w-full max-w-[360px] !rounded-[16px] p-3">
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => shift(-1)} disabled={!canPrev} className="flex h-10 w-10 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 disabled:opacity-30" aria-label="Oldingi oy">
               <ChevronLeft size={17} />
