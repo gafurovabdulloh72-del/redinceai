@@ -13,6 +13,8 @@ export const attachmentSchema = z
     name: z.string().trim().max(120).optional().default(""),
     size: z.coerce.number().int().min(0).max(MAX_VIDEO_BYTES).optional().default(0),
     type: z.string().trim().max(80).optional().default(""),
+    /** Ovozli xabar davomiyligi (soniya) — faqat ko'rsatish uchun */
+    duration: z.coerce.number().min(0).max(3600).optional(),
   })
   .transform(
     (a): Attachment => ({
@@ -20,6 +22,7 @@ export const attachmentSchema = z
       name: a.name.replace(/[\u0000-\u001f]/g, "").trim() || uploadName(a.url),
       size: a.size,
       type: mimeFromUrl(a.url) ?? "application/octet-stream",
+      ...(a.duration ? { duration: Math.round(a.duration) } : {}),
     }),
   );
 

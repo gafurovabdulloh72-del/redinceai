@@ -4,12 +4,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Paperclip, Send, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
-import { SafeImage } from "@/components/specialists/SafeImage";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { AttachmentList, QuoteBlock, ReplyBar, ReplyButton, TypingDots, typingLabel } from "@/components/chat/MessageParts";
+import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
+import type { QuoteView } from "@/lib/chat/quote";
 import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import type { GroupMessageView, UserBrief } from "@/lib/groups/service";
 import { cn } from "@/lib/utils";
+import { MentionField } from "./MentionInput";
 import { RichText } from "./RichText";
+
+/** Xabardan iqtibos (javob paneli uchun) — server bilan bir xil qoida */
+function quoteOf(m: GroupMessageView): QuoteView {
+  const a = m.attachments;
+  const kind = a.some((x) => x.type.startsWith("audio/")) ? "voice" : a.some((x) => x.type.startsWith("video/")) ? "video" : a.some((x) => x.type.startsWith("image/")) ? "image" : a.length ? "file" : "text";
+  const label = { voice: "Ovozli xabar", image: "Rasm", video: "Video", file: "Fayl", text: "" }[kind];
+  const text = m.body.replace(/\s+/g, " ").trim();
+  return { id: m.id, body: text ? (text.length > 140 ? `${text.slice(0, 139)}…` : text) : label, senderName: m.mine ? "Siz" : m.sender.name, kind };
+}
 
 /** Polling oralig'i — 2-bosqichda (real-time qatlam) WebSocket/SSE bilan almashtiriladi */
 const POLL_MS = 4000;
@@ -32,7 +44,7 @@ function SenderName({ u }: { u: UserBrief }) {
   );
 }
 
-type ApiResp = { ok: boolean; data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null }; error?: string; fields?: Record<string, string> };
+type ApiResp = { ok: boolean; data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null; typing?: string[] }; error?: string; fields?: Record<string, string> };
 
 /**
  * Jamoa chati (faqat faol a'zolar). Birinchi yuklashda butun tarix, keyin har 4 soniyada `?after=<oxirgiId>`.
@@ -47,6 +59,10 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<GroupMessageView | null>(null);
+  const [typing, setTyping] = useState<string[]>([]);
+  const [recording, setRecording] = useState(false);
+  const typingSentAt = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -64,6 +80,7 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
     }
     if (!j.ok || !j.data) return;
     if (j.data.seen !== undefined) setSeen(j.data.seen ?? null);
+    if (j.data.typing) setTyping(j.data.typing);
     const items = j.data.items;
     if (lastId.current === null) {
       setMsgs(items);
@@ -115,24 +132,47 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
     }
   }
 
+  async function deliver(body: string, attachments: Attachment[]) {
+    const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, attachments, replyToId: replyTo?.id ?? null }) });
+    const j = (await res.json()) as ApiResp;
+    if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
+    setReplyTo(null);
+    stick.current = true;
+    await fetchNew();
+  }
+
   async function send() {
     const body = text.trim();
     if ((!body && files.length === 0) || busy || uploading) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, attachments: files }) });
-      const j = (await res.json()) as ApiResp;
-      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
+      await deliver(body, files);
       setText("");
       setFiles([]);
-      stick.current = true;
-      await fetchNew();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuborilmadi");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function sendVoice(a: Attachment) {
+    setError(null);
+    try {
+      await deliver("", [a]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ovozli xabar yuborilmadi");
+    }
+  }
+
+  /** "Yozmoqda…" signali — 2.5 soniyada bir martadan ko'p emas */
+  function pingTyping(v: string) {
+    if (!v.trim()) return;
+    const now = Date.now();
+    if (now - typingSentAt.current < 2500) return;
+    typingSentAt.current = now;
+    void fetch(`${base}/typing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ typing: true }) }).catch(() => undefined);
   }
 
   const canSend = (text.trim().length > 0 || files.length > 0) && !busy && !uploading;
@@ -161,36 +201,12 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
             return (
               <div key={m.id} className={cn("animate-msg-in", sameSender ? "mt-1" : "mt-3")}>
                 {newDay && <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wide text-fg-4">{dayOf(m.at)}</p>}
-                <div className={cn("flex items-end gap-2", m.mine ? "justify-end" : "justify-start")}>
+                <div className={cn("group flex items-end gap-1.5", m.mine ? "justify-end" : "justify-start")}>
                   {!m.mine && <span className="w-7 shrink-0">{!sameSender && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={28} decorative />}</span>}
-                  <div className={cn("max-w-[80%] rounded-2xl px-3.5 py-2", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
+                  <div id={`msg-${m.id}`} className={cn("max-w-[80%] rounded-2xl px-3.5 py-2 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
                     {!m.mine && !sameSender && <SenderName u={m.sender} />}
-                    {m.attachments.length > 0 && (
-                      <div className="mb-1.5 space-y-1.5">
-                        {m.attachments.map((a) =>
-                          isVideoAttachment(a) ? (
-                            // eslint-disable-next-line jsx-a11y/media-has-caption
-                            <video key={a.url} src={a.url} controls preload="metadata" playsInline className="max-h-64 w-full rounded-lg bg-black/20" title={a.name} />
-                          ) : isImageAttachment(a) ? (
-                            <a key={a.url} href={a.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-lg">
-                              <SafeImage src={a.url} alt={a.name} width={360} height={240} className="h-auto max-h-56 w-full object-cover" />
-                            </a>
-                          ) : (
-                            <a
-                              key={a.url}
-                              href={a.url}
-                              target="_blank"
-                              rel="noopener"
-                              className={cn("flex items-center gap-2 rounded-lg px-2.5 py-2 text-[12.5px] font-semibold underline-offset-2 hover:underline", m.mine ? "bg-white/10" : "bg-fg/5")}
-                            >
-                              <Paperclip size={13} className="shrink-0" />
-                              <span className="truncate">{a.name}</span>
-                              <span className={cn("shrink-0 text-[11px] font-normal", m.mine ? "text-ink-fg/60" : "text-fg-4")}>{formatBytes(a.size)}</span>
-                            </a>
-                          ),
-                        )}
-                      </div>
-                    )}
+                    {m.replyTo && <QuoteBlock q={m.replyTo} mine={m.mine} />}
+                    <AttachmentList attachments={m.attachments} mine={m.mine} />
                     {m.body && (
                       <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">
                         <RichText text={m.body} />
@@ -201,15 +217,22 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
                       {m.mine && seen?.messageId === m.id && seen.count > 0 && <span className="ml-1.5">· {seen.count} kishi ko&apos;rdi</span>}
                     </p>
                   </div>
+                  <ReplyButton mine={m.mine} onClick={() => setReplyTo(m)} />
                 </div>
               </div>
             );
           })
         )}
+        {typing.length > 0 && (
+          <div className="mt-2">
+            <TypingDots label={typingLabel(typing)} />
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
       <div className="border-t border-line p-2.5 sm:p-3">
+        {replyTo && <ReplyBar q={quoteOf(replyTo)} onCancel={() => setReplyTo(null)} />}
         {files.length > 0 && (
           <ul className="mb-2 flex flex-wrap gap-1.5">
             {files.map((a, i) => (
@@ -225,15 +248,17 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
           </ul>
         )}
         <div className="flex items-end gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading || files.length >= MAX_ATTACHMENTS}
-            aria-label="Fayl biriktirish"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-2 text-fg-2 transition hover:text-fg disabled:opacity-50"
-          >
-            <Paperclip size={16} />
-          </button>
+          {!recording && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading || files.length >= MAX_ATTACHMENTS}
+              aria-label="Fayl biriktirish"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-2 text-fg-2 transition hover:text-fg disabled:opacity-50"
+            >
+              <Paperclip size={16} />
+            </button>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -245,24 +270,36 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
               e.target.value = "";
             }}
           />
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            maxLength={GROUP_MSG_MAX}
-            rows={1}
-            placeholder="Xabar yozing… (Enter — yuborish, Shift+Enter — yangi qator)"
-            aria-label="Xabar"
-            className="field max-h-32 min-h-10 flex-1 resize-none py-2.5 text-[14px] leading-snug"
-          />
-          <button type="button" onClick={() => void send()} disabled={!canSend} aria-label="Yuborish" className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-50">
-            <Send size={16} />
-          </button>
+          {!recording && (
+            <MentionField
+              multiline
+              value={text}
+              onChange={(v) => {
+                setText(v);
+                pingTyping(v);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+                if (e.key === "Escape" && replyTo) setReplyTo(null);
+              }}
+              maxLength={GROUP_MSG_MAX}
+              rows={1}
+              placeholder={replyTo ? "Javob yozing…" : "Xabar yozing… (Enter — yuborish, @ism — eslatish)"}
+              ariaLabel="Xabar"
+              wrapperClassName="min-w-0 flex-1"
+              className="field max-h-32 min-h-10 w-full resize-none py-2.5 text-[14px] leading-snug"
+            />
+          )}
+          {text.trim() || files.length > 0 ? (
+            <button type="button" onClick={() => void send()} disabled={!canSend} aria-label="Yuborish" className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-50">
+              <Send size={16} />
+            </button>
+          ) : (
+            <VoiceRecorder onRecorded={sendVoice} onError={setError} onPhase={setRecording} disabled={uploading} />
+          )}
         </div>
         {(error || uploading) && <p className={cn("mt-1.5 text-[12px] font-semibold", error ? "text-danger-text" : "text-fg-3")}>{error ?? "Fayl yuklanmoqda…"}</p>}
       </div>

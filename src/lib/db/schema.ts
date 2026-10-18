@@ -124,6 +124,8 @@ export interface FileAttachment {
   name: string;
   size: number;
   type: string;
+  /** Ovozli xabar / video davomiyligi (soniya) — klient o'lchaydi, ixtiyoriy */
+  duration?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -556,6 +558,9 @@ export const conversations = sqliteTable(
     /** Har bir tomon suhbatni oxirgi ko'rgan vaqti — o'qilmaganlar soni shundan */
     aReadAt: integer("a_read_at", { mode: "timestamp_ms" }),
     bReadAt: integer("b_read_at", { mode: "timestamp_ms" }),
+    /** "Yozmoqda…" — har tomon oxirgi marta yozayotganini bildirgan vaqt (6 soniya ichida bo'lsa ko'rsatiladi) */
+    aTypingAt: integer("a_typing_at", { mode: "timestamp_ms" }),
+    bTypingAt: integer("b_typing_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -575,6 +580,8 @@ export const dmMessages = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
     attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    /** Javob (iqtibos): shu suhbatdagi xabar id'si; o'chirilsa iqtibos "xabar topilmadi" bo'lib qoladi */
+    replyToId: text("reply_to_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -956,6 +963,8 @@ export const groupMembers = sqliteTable(
     lastReadAt: integer("last_read_at", { mode: "timestamp_ms" }),
     /** Bildirishnomalar o'chirilgan (kanal posti/efir xabari kelmaydi; a'zolik saqlanadi) */
     muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+    /** Guruh chatida "yozmoqda…" — oxirgi yozish signali vaqti */
+    typingAt: integer("typing_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -975,6 +984,8 @@ export const groupMessages = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
     attachments: text("attachments", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    /** Javob (iqtibos): shu guruhdagi xabar id'si */
+    replyToId: text("reply_to_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

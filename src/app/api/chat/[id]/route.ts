@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { DM_BODY_MAX, listMessages, loadConversationFor, markRead, sendDm, touchLastSeen } from "@/lib/chat/dm";
+import { DM_BODY_MAX, dmQuotes, listMessages, loadConversationFor, markRead, peerIsTyping, sendDm, toDmView, touchLastSeen } from "@/lib/chat/dm";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 /**
- * GET: suhbat sarlavhasi (qarshi tomon) + xabarlar; ?after=<msgId> — faqat yangilari (polling).
- * O'qish suhbatni "o'qilgan" deb belgilaydi.
+ * GET: suhbat sarlavhasi (qarshi tomon) + xabarlar (iqtiboslar bilan); ?after=<msgId> — faqat yangilari (polling).
+ * O'qish suhbatni "o'qilgan" deb belgilaydi. `peerTyping` — qarshi tomon so'nggi 6 soniyada yozayotgan bo'lsa.
  */
 export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
@@ -15,6 +15,7 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
   const after = new URL(req.url).searchParams.get("after");
   const items = await listMessages(id, after);
+  const quotes = await dmQuotes(id, items);
   await Promise.all([markRead(found.conv, session.sub), touchLastSeen(session.sub)]);
   return ok({
     peer: {
@@ -31,16 +32,19 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
     },
     /** Qarshi tomon o'qigan vaqt (ms) — bundan oldingi mening xabarlarim "✓✓ o'qildi" */
     peerReadAt: found.peerReadAt ? found.peerReadAt.getTime() : 0,
-    items: items.map((m) => ({ id: m.id, mine: m.senderId === session.sub, body: m.body, attachments: m.attachments, at: m.createdAt.getTime() })),
+    peerTyping: peerIsTyping(found.conv, session.sub),
+    items: items.map((m) => toDmView(m, session.sub, quotes)),
   });
 });
 
 const sendSchema = z.object({
   body: z.string().trim().max(DM_BODY_MAX).optional().default(""),
   attachments: attachmentListSchema().optional().default([]),
+  /** Javob (iqtibos) — shu suhbatdagi xabar id'si */
+  replyToId: z.string().trim().max(64).nullable().optional(),
 });
 
-/** POST: xabar yuborish (matn yoki fayl — kamida bittasi) */
+/** POST: xabar yuborish (matn, fayl yoki ovozli xabar — kamida bittasi; ixtiyoriy iqtibos) */
 export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await ctx.params;
@@ -54,6 +58,7 @@ export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }
   // Faqat o'zi yuklagan fayllarni biriktira oladi (boshqa birovning faylini ulab bo'lmaydi)
   await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
   await enforceLimit("messages", session.sub);
-  const m = await sendDm(found.conv, session.sub, input.body, input.attachments);
-  return ok({ id: m.id, mine: true, body: m.body, attachments: m.attachments, at: m.createdAt.getTime() }, { status: 201 });
+  const m = await sendDm(found.conv, session.sub, input.body, input.attachments, input.replyToId ?? null);
+  const quotes = await dmQuotes(id, [m]);
+  return ok(toDmView(m, session.sub, quotes), { status: 201 });
 });

@@ -1,8 +1,11 @@
 import { and, asc, desc, eq, gt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { conversations, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
+import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
+import { TYPING_WINDOW_MS, toQuote, type QuoteView } from "./quote";
+import { inArray } from "drizzle-orm";
 
 /**
  * Ichki chat (DM) — buyurtmadan mustaqil, ikki foydalanuvchi o'rtasida.
@@ -90,7 +93,7 @@ export async function listConversations(meId: string, limit = 50) {
   const out = [] as Array<{
     id: string;
     peer: DmPeer;
-    last: { body: string; mine: boolean; at: number; hasFiles: boolean } | null;
+    last: { body: string; mine: boolean; at: number; hasFiles: boolean; voice: boolean } | null;
     unread: number;
   }>;
   for (const c of rows) {
@@ -104,7 +107,15 @@ export async function listConversations(meId: string, limit = 50) {
     out.push({
       id: c.id,
       peer,
-      last: m ? { body: m.body, mine: m.senderId === meId, at: m.createdAt.getTime(), hasFiles: (m.attachments?.length ?? 0) > 0 } : null,
+      last: m
+        ? {
+            body: m.body,
+            mine: m.senderId === meId,
+            at: m.createdAt.getTime(),
+            hasFiles: (m.attachments?.length ?? 0) > 0,
+            voice: (m.attachments ?? []).some((a) => a.type.startsWith("audio/") || /\.(?:weba|m4a|ogg)$/i.test(a.url)),
+          }
+        : null,
       unread: Number(n),
     });
   }
@@ -153,6 +164,44 @@ export async function listMessages(convId: string, afterId?: string | null, limi
   return rows.reverse();
 }
 
+/** Iqtiboslar: xabarlar ichidagi replyToId'lar bo'yicha asl xabarlar (faqat shu suhbatdan) */
+export async function dmQuotes(convId: string, rows: Array<{ replyToId: string | null }>): Promise<Map<string, QuoteView>> {
+  const ids = [...new Set(rows.map((r) => r.replyToId).filter((x): x is string => Boolean(x)))];
+  const map = new Map<string, QuoteView>();
+  if (!ids.length) return map;
+  const originals = await db.query.dmMessages.findMany({ where: and(eq(dmMessages.conversationId, convId), inArray(dmMessages.id, ids)) });
+  const senderIds = [...new Set(originals.map((o) => o.senderId))];
+  const names = new Map((await db.query.users.findMany({ where: inArray(users.id, senderIds), columns: { id: true, name: true } })).map((u) => [u.id, u.name]));
+  for (const o of originals) map.set(o.id, toQuote(o, names.get(o.senderId) ?? "Foydalanuvchi"));
+  return map;
+}
+
+/** Xabar DTO'si (klientga): iqtibos bilan */
+export function toDmView(m: typeof dmMessages.$inferSelect, meId: string, quotes: Map<string, QuoteView>) {
+  return {
+    id: m.id,
+    mine: m.senderId === meId,
+    body: m.body,
+    attachments: m.attachments,
+    at: m.createdAt.getTime(),
+    replyTo: m.replyToId ? (quotes.get(m.replyToId) ?? { id: m.replyToId, body: "Xabar o'chirilgan", senderName: "", kind: "text" as const }) : null,
+  };
+}
+
+/** "Yozmoqda…": mening tomonimni belgilash (on=false — o'chirish). 6 soniyadan keyin o'zi so'nadi */
+export async function setDmTyping(conv: Conversation, meId: string, on: boolean): Promise<void> {
+  const v = on ? new Date() : null;
+  await db
+    .update(conversations)
+    .set(conv.aId === meId ? { aTypingAt: v } : { bTypingAt: v })
+    .where(eq(conversations.id, conv.id));
+}
+
+export function peerIsTyping(conv: Conversation, meId: string): boolean {
+  const t = conv.aId === meId ? conv.bTypingAt : conv.aTypingAt;
+  return Boolean(t && Date.now() - t.getTime() < TYPING_WINDOW_MS);
+}
+
 /** Suhbatni o'qilgan deb belgilash (mening tomonim) */
 export async function markRead(conv: Conversation, meId: string) {
   const now = new Date();
@@ -163,8 +212,13 @@ export async function markRead(conv: Conversation, meId: string) {
 }
 
 /** Xabar yuborish: yozadi, suhbat faolligini yangilaydi, kerak bo'lsa qarshi tomonga bildirishnoma */
-export async function sendDm(conv: Conversation, meId: string, body: string, attachments: FileAttachment[]) {
+export async function sendDm(conv: Conversation, meId: string, body: string, attachments: FileAttachment[], replyToId: string | null = null) {
   const peerId = peerOf(conv, meId);
+  // Javob faqat shu suhbatdagi xabarga (boshqa suhbat id'si bilan iqtibos sizdirib bo'lmaydi)
+  if (replyToId) {
+    const orig = await db.query.dmMessages.findFirst({ where: and(eq(dmMessages.id, replyToId), eq(dmMessages.conversationId, conv.id)), columns: { id: true } });
+    if (!orig) throw new ApiError(422, "Javob berilayotgan xabar topilmadi", { replyToId: "Xabar topilmadi" });
+  }
   const peerReadAt = conv.aId === peerId ? conv.aReadAt : conv.bReadAt;
   // Bildirishnoma spami bo'lmasin: qarshi tomonda allaqachon o'qilmagan xabar bo'lsa, yana yubormaymiz
   const [{ n: alreadyUnread }] = await db
@@ -173,16 +227,17 @@ export async function sendDm(conv: Conversation, meId: string, body: string, att
     .where(and(eq(dmMessages.conversationId, conv.id), eq(dmMessages.senderId, meId), gt(dmMessages.createdAt, peerReadAt ?? new Date(0))));
 
   const now = new Date();
-  const msg: typeof dmMessages.$inferInsert = { id: uid(), conversationId: conv.id, senderId: meId, body, attachments, createdAt: now };
+  const msg: typeof dmMessages.$inferInsert = { id: uid(), conversationId: conv.id, senderId: meId, body, attachments, replyToId, createdAt: now };
   await db.insert(dmMessages).values(msg);
   await db
     .update(conversations)
-    .set({ lastMessageAt: now, ...(conv.aId === meId ? { aReadAt: now } : { bReadAt: now }) })
+    .set({ lastMessageAt: now, ...(conv.aId === meId ? { aReadAt: now, aTypingAt: null } : { bReadAt: now, bTypingAt: null }) })
     .where(eq(conversations.id, conv.id));
 
   if (Number(alreadyUnread) === 0) {
     const me = await db.query.users.findFirst({ where: eq(users.id, meId), columns: { name: true } });
-    const preview = body ? (body.length > 80 ? `${body.slice(0, 77)}…` : body) : "Fayl yubordi";
+    const isVoice = attachments.some((a) => a.type.startsWith("audio/") || /\.(?:weba|m4a|ogg)$/i.test(a.url));
+    const preview = body ? (body.length > 80 ? `${body.slice(0, 77)}…` : body) : isVoice ? "🎤 Ovozli xabar yubordi" : "Fayl yubordi";
     await notify(peerId, "chat", `Yangi xabar — ${me?.name ?? "Foydalanuvchi"}`, preview, `/kabinet/chat?s=${conv.id}`);
   }
   return { ...msg, createdAt: now } as typeof dmMessages.$inferSelect;

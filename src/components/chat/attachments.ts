@@ -37,7 +37,7 @@ function uploadUrlRe(exts: string): RegExp {
   return new RegExp(`^(?:${alts.join("|")})$`, "i");
 }
 
-export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov");
+export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov|weba|m4a|ogg");
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
 
@@ -53,7 +53,14 @@ const EXT_MIME: Record<string, string> = {
   mp4: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
+  weba: "audio/webm",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
 };
+
+/** Ovozli xabar: ko'pi bilan 3 daqiqa; MediaRecorder formatlari (brauzer qaysi birini qo'llasa) */
+export const VOICE_MAX_SECONDS = 180;
+export const VOICE_MIME_CANDIDATES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
 
 /** URL kengaytmasidan haqiqiy tur (mijoz bergan `type`ga ishonmaymiz) */
 export function mimeFromUrl(url: string): string | null {
@@ -74,6 +81,16 @@ export function isVideoAttachment(a: Pick<Attachment, "url" | "type">): boolean 
   return a.type.startsWith("video/") || /\.(?:mp4|webm|mov)$/i.test(a.url);
 }
 
+/** Ovozli xabar (audio) — .weba (WebM/Opus), .m4a (Safari), .ogg */
+export function isAudioAttachment(a: Pick<Attachment, "url" | "type">): boolean {
+  return a.type.startsWith("audio/") || /\.(?:weba|m4a|ogg)$/i.test(a.url);
+}
+
+export function formatDuration(sec: number | undefined): string {
+  const s = Math.max(0, Math.round(sec ?? 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "";
   if (n < 1024) return `${n} B`;
@@ -87,10 +104,10 @@ const VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i;
 const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" };
 
 /** Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback */
-async function uploadViaApi(file: File, purpose: boolean): Promise<string> {
+async function uploadViaApi(file: File, purpose: "" | "attachment" | "voice"): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);
-  if (purpose) fd.append("purpose", "attachment");
+  if (purpose) fd.append("purpose", purpose);
   const res = await fetch("/api/upload", { method: "POST", body: fd });
   const json = (await res.json().catch(() => null)) as UploadResponse | null;
   if (!json) throw new Error("Server javob bermadi");
@@ -137,12 +154,19 @@ async function uploadVideo(file: File): Promise<string> {
   } catch {
     // Blob yo'q (dev) yoki tarmoq uzildi — server orqali (5 MB ichida bo'lsa) urinamiz
     if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}»: video yuklash xizmati hozircha ulanmagan — 5 MB dan kichik video yuboring`);
-    return uploadViaApi(file, true);
+    return uploadViaApi(file, "attachment");
   }
 }
 
 /** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi) */
-export async function uploadAttachment(file: File, opts?: { docs?: boolean }): Promise<Attachment> {
+export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } }): Promise<Attachment> {
+  // Ovozli xabar: brauzer yozib bergan audio blob (purpose="voice" — server .weba/.m4a/.ogg nom beradi)
+  if (opts?.voice) {
+    if (!/^audio\//.test(file.type) && !/\.(?:weba|webm|m4a|mp4|ogg)$/i.test(file.name)) throw new Error("Ovozli xabar formati qo'llab-quvvatlanmaydi");
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error("Ovozli xabar 5 MB dan katta — qisqaroq yozing");
+    const url = await uploadViaApi(file, "voice");
+    return { url, name: "Ovozli xabar", size: file.size, type: mimeFromUrl(url) ?? file.type, duration: Math.max(1, Math.round(opts.voice.duration)) };
+  }
   const isImage = /^image\/(?:jpeg|png|webp|gif)$/.test(file.type);
   const isDoc = /\.(?:pdf|docx?)$/i.test(file.name) || /^application\/(?:pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/.test(file.type);
   const isVideo = VIDEO_EXT_RE.test(file.name) || /^video\/(?:mp4|webm|quicktime)$/.test(file.type);
@@ -155,6 +179,6 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean }): P
     return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
   }
   if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
-  const url = await uploadViaApi(file, Boolean(opts?.docs));
+  const url = await uploadViaApi(file, opts?.docs ? "attachment" : "");
   return { url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(url) ?? file.type };
 }

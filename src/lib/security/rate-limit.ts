@@ -87,6 +87,9 @@ export const RATE_LIMITS = {
   posts: { limit: 30, windowMs: HOUR },
   comments: { limit: 60, windowMs: HOUR },
   social: { limit: 120, windowMs: HOUR },
+  /** Ovozli xabarlar (alohida kvota — oddiy fayl kvotasini yemasin) va "yozmoqda" signallari — userId */
+  voice: { limit: 200, windowMs: DAY },
+  typing: { limit: 900, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

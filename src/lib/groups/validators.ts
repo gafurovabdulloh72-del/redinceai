@@ -42,6 +42,8 @@ export const commentInputSchema = z.object({
 export const groupMessageSchema = z.object({
   body: z.string().trim().max(GROUP_MSG_MAX).optional().default(""),
   attachments: attachmentListSchema().optional().default([]),
+  /** Javob (iqtibos) — shu guruhdagi xabar id'si */
+  replyToId: z.string().trim().max(64).nullable().optional(),
 });
 
 export const memberActionSchema = z.object({

@@ -16,6 +16,9 @@ const MIME: Record<string, string> = {
   mp4: "video/mp4",
   webm: "video/webm",
   mov: "video/quicktime",
+  weba: "audio/webm",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
 };
 /** Hujjatlar inline ochilmaydi — faqat yuklab olish (brauzer plagini orqali ijro bo'lmasin) */
 const DOWNLOAD = new Set(["pdf", "doc", "docx"]);
@@ -28,7 +31,7 @@ const DOWNLOAD = new Set(["pdf", "doc", "docx"]);
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ name: string }> }) {
   const { name } = await ctx.params;
-  if (!/^[\w-]+\.(jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov)$/i.test(name)) return new Response("Not found", { status: 404 });
+  if (!/^[\w-]+\.(jpe?g|png|webp|gif|pdf|docx?|mp4|webm|mov|weba|m4a|ogg)$/i.test(name)) return new Response("Not found", { status: 404 });
   const file = path.join(uploadDir(), name);
   try {
     const s = await stat(file);

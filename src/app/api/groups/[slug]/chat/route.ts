@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
-import { assertActiveMember, listGroupMessages, markGroupRead, seenCountFor, sendGroupMessage } from "@/lib/groups/service";
+import { assertActiveMember, listGroupMessages, markGroupRead, seenCountFor, sendGroupMessage, typingMembers } from "@/lib/groups/service";
 import { groupMessageSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404 } from "../../_lib";
@@ -19,8 +19,8 @@ export const GET = handler(async (req, ctx: Ctx) => {
   await markGroupRead(group.id, session.sub);
   // "N kishi ko'rdi": ko'ruvchining oxirgi xabarini nechta a'zo o'qigan (to'liq yuklashda ham, polling'da ham qaytadi)
   const lastMine = [...items].reverse().find((m) => m.mine);
-  const seen = lastMine ? { messageId: lastMine.id, count: await seenCountFor(group, session.sub, new Date(lastMine.at)) } : null;
-  return ok({ items, seen });
+  const [seen, typing] = await Promise.all([lastMine ? seenCountFor(group, session.sub, new Date(lastMine.at)).then((count) => ({ messageId: lastMine.id, count })) : Promise.resolve(null), typingMembers(group.id, session.sub)]);
+  return ok({ items, seen, typing });
 });
 
 /** POST: xabar (matn yoki fayl — kamida bittasi), 60 / 10 daqiqa */
@@ -33,6 +33,6 @@ export const POST = handler(async (req, ctx: Ctx) => {
   await assertActiveMember(group, { id: session.sub, role: session.role });
   await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
   await enforceLimit("messages", session.sub);
-  const m = await sendGroupMessage(group, session.sub, input.body, input.attachments);
+  const m = await sendGroupMessage(group, session.sub, input.body, input.attachments, input.replyToId ?? null);
   return ok({ id: m.id, at: m.createdAt.getTime() }, { status: 201 });
 });

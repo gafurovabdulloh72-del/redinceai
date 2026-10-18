@@ -5,7 +5,10 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, Check, CheckCheck, CheckCircle2, Flag, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
-import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "./attachments";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, type Attachment } from "./attachments";
+import { AttachmentList, QuoteBlock, ReplyBar, ReplyButton, TypingDots } from "./MessageParts";
+import { VoiceRecorder } from "./VoiceRecorder";
+import type { QuoteView } from "@/lib/chat/quote";
 import { cn, timeAgo } from "@/lib/utils";
 
 /**
@@ -30,7 +33,7 @@ interface Peer {
 interface ConvRow {
   id: string;
   peer: Peer & { id: string; role: string };
-  last: { body: string; mine: boolean; at: number; hasFiles: boolean } | null;
+  last: { body: string; mine: boolean; at: number; hasFiles: boolean; voice?: boolean } | null;
   unread: number;
 }
 interface Msg {
@@ -39,6 +42,17 @@ interface Msg {
   body: string;
   attachments: Attachment[];
   at: number;
+  /** Javob berilgan xabar (iqtibos) */
+  replyTo: QuoteView | null;
+}
+
+/** Xabardan iqtibos (javob paneli uchun) — server bilan bir xil qoida */
+function quoteOf(m: Msg, peerName: string): QuoteView {
+  const a = m.attachments;
+  const kind = a.some((x) => x.type.startsWith("audio/")) ? "voice" : a.some((x) => x.type.startsWith("video/")) ? "video" : a.some((x) => x.type.startsWith("image/")) ? "image" : a.length ? "file" : "text";
+  const label = { voice: "Ovozli xabar", image: "Rasm", video: "Video", file: "Fayl", text: "" }[kind];
+  const text = m.body.replace(/\s+/g, " ").trim();
+  return { id: m.id, body: text ? (text.length > 140 ? `${text.slice(0, 139)}…` : text) : label, senderName: m.mine ? "Siz" : peerName, kind };
 }
 
 const timeOf = (t: number) => new Date(t).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
@@ -162,6 +176,13 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   /** Qarshi tomon suhbatni o'qigan vaqt (ms) — ✓✓ belgisi uchun */
   const [peerReadAt, setPeerReadAt] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
+  /** Javob berilayotgan xabar (iqtibos) */
+  const [replyTo, setReplyTo] = useState<Msg | null>(null);
+  /** Qarshi tomon hozir yozmoqda (server: so'nggi 6 soniya) */
+  const [peerTyping, setPeerTyping] = useState(false);
+  /** Ovoz yozilmoqda — matn maydoni yashirin */
+  const [recording, setRecording] = useState(false);
+  const typingSentAt = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Xabarlar oynasi — pastga yaqinlikni o'lchash uchun */
@@ -188,6 +209,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     if (!json?.ok || activeRef.current !== id) return;
     setPeer(json.data.peer);
     setPeerReadAt(json.data.peerReadAt ?? 0);
+    setPeerTyping(Boolean(json.data.peerTyping));
     const items: Msg[] = json.data.items;
     if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
     if (incremental) {
@@ -216,6 +238,8 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     setPeer(null);
     setPeerReadAt(0);
     setReportOpen(false);
+    setReplyTo(null);
+    setPeerTyping(false);
     loadThread(active, false);
     const t = window.setInterval(() => {
       if (!document.hidden) loadThread(active, true);
@@ -252,6 +276,23 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  /** Xabar yuborish (matn/fayl yoki ovozli xabar) — iqtibos bilan */
+  const deliver = async (body: string, attachments: Attachment[]) => {
+    if (!active) return;
+    const res = await fetch(`/api/chat/${active}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body, attachments, replyToId: replyTo?.id ?? null }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error((json.fields && Object.values(json.fields)[0]) || json.error || "Xabar yuborilmadi");
+    setReplyTo(null);
+    setMsgs((m) => [...(m ?? []), json.data]);
+    lastIdRef.current = json.data.id;
+    nearBottomRef.current = true;
+    loadList();
+  };
+
   const send = async (e: FormEvent) => {
     e.preventDefault();
     const body = text.trim();
@@ -259,23 +300,32 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     setSending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/chat/${active}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, attachments: files }),
-      });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error);
+      await deliver(body, files);
       setText("");
       setFiles([]);
-      setMsgs((m) => [...(m ?? []), json.data]);
-      lastIdRef.current = json.data.id;
-      loadList();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xabar yuborilmadi");
     } finally {
       setSending(false);
     }
+  };
+
+  const sendVoice = async (a: Attachment) => {
+    setError(null);
+    try {
+      await deliver("", [a]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ovozli xabar yuborilmadi");
+    }
+  };
+
+  /** "Yozmoqda…" signali — 2.5 soniyada bir martadan ko'p emas; yuborilganda server o'zi o'chiradi */
+  const pingTyping = (v: string) => {
+    if (!active || !v.trim()) return;
+    const now = Date.now();
+    if (now - typingSentAt.current < 2500) return;
+    typingSentAt.current = now;
+    void fetch(`/api/chat/${active}/typing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ typing: true }) }).catch(() => undefined);
   };
 
   const filtered = convs?.filter((c) => !q.trim() || c.peer.name.toLowerCase().includes(q.trim().toLowerCase()) || (c.peer.username ?? "").includes(q.trim().toLowerCase()));
@@ -339,7 +389,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
                       <span className={cn("truncate text-[12.5px]", c.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
-                        {c.last ? `${c.last.mine ? "Siz: " : ""}${c.last.body || (c.last.hasFiles ? "📎 Fayl" : "")}` : `@${c.peer.username ?? ""}`}
+                        {c.last ? `${c.last.mine ? "Siz: " : ""}${c.last.body || (c.last.voice ? "🎤 Ovozli xabar" : c.last.hasFiles ? "📎 Fayl" : "")}` : `@${c.peer.username ?? ""}`}
                       </span>
                       {c.unread > 0 && (
                         <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
@@ -451,34 +501,11 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                 return (
                   <div key={m.id}>
                     {newDay && <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wide text-fg-4">{dayOf(m.at)}</p>}
-                    <div className={cn("flex", m.mine ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[82%] rounded-2xl px-3.5 py-2.5", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
-                        {m.attachments.length > 0 && (
-                          <div className="mb-1.5 space-y-1.5">
-                            {m.attachments.map((a) =>
-                              isVideoAttachment(a) ? (
-                                // eslint-disable-next-line jsx-a11y/media-has-caption
-                                <video key={a.url} src={a.url} controls preload="metadata" playsInline className="max-h-64 w-full rounded-lg bg-black/20" title={a.name} />
-                              ) : isImageAttachment(a) ? (
-                                <a key={a.url} href={a.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-lg">
-                                  <SafeImage src={a.url} alt={a.name} width={360} height={240} className="h-auto max-h-56 w-full object-cover" />
-                                </a>
-                              ) : (
-                                <a
-                                  key={a.url}
-                                  href={a.url}
-                                  target="_blank"
-                                  rel="noopener"
-                                  className={cn("flex items-center gap-2 rounded-lg px-2.5 py-2 text-[12.5px] font-semibold underline-offset-2 hover:underline", m.mine ? "bg-white/10" : "bg-fg/5")}
-                                >
-                                  <Paperclip size={13} className="shrink-0" />
-                                  <span className="truncate">{a.name}</span>
-                                  <span className={cn("shrink-0 text-[11px] font-normal", m.mine ? "text-ink-fg/60" : "text-fg-4")}>{formatBytes(a.size)}</span>
-                                </a>
-                              ),
-                            )}
-                          </div>
-                        )}
+                    <div className={cn("group flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
+                      <ReplyButton mine={m.mine} onClick={() => setReplyTo(m)} />
+                      <div id={`msg-${m.id}`} className={cn("max-w-[82%] rounded-2xl px-3.5 py-2.5 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
+                        {m.replyTo && <QuoteBlock q={m.replyTo} mine={m.mine} />}
+                        <AttachmentList attachments={m.attachments} mine={m.mine} />
                         {m.body && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.body}</p>}
                         <p className={cn("mt-1 flex items-center justify-end gap-1 text-right text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
                           {timeOf(m.at)}
@@ -495,10 +522,16 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                 );
               })
             )}
+            {peerTyping && peer && (
+              <div className="pt-1">
+                <TypingDots label={`${peer.name} yozmoqda…`} />
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 
           <form onSubmit={send} className="border-t border-line p-3">
+            {replyTo && peer && <ReplyBar q={quoteOf(replyTo, peer.name)} onCancel={() => setReplyTo(null)} />}
             {files.length > 0 && (
               <ul className="mb-2 flex flex-wrap gap-1.5">
                 {files.map((f, i) => (
@@ -523,39 +556,46 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
             )}
             <div className="flex items-end gap-2">
               <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT_DOCS} multiple className="hidden" onChange={(e) => pickFiles(e.target.files)} tabIndex={-1} />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={files.length >= MAX_ATTACHMENTS}
-                aria-label="Fayl biriktirish"
-                title="Fayl biriktirish — rasm, video (50 MB) yoki PDF/DOC"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg disabled:opacity-40"
-              >
-                <Paperclip size={17} />
-              </button>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    e.currentTarget.form?.requestSubmit();
-                  }
-                }}
-                rows={1}
-                maxLength={2000}
-                placeholder="Xabar yozing…"
-                aria-label="Xabar matni"
-                className="field max-h-32 min-h-11 flex-1 resize-none rounded-[22px] py-2.5 text-[14px] leading-relaxed"
-              />
-              <button
-                type="submit"
-                disabled={sending || (!text.trim() && files.length === 0)}
-                aria-label="Yuborish"
-                className="btn-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
-              >
-                <Send size={17} />
-              </button>
+              {!recording && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={files.length >= MAX_ATTACHMENTS}
+                  aria-label="Fayl biriktirish"
+                  title="Fayl biriktirish — rasm, video (50 MB) yoki PDF/DOC"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg disabled:opacity-40"
+                >
+                  <Paperclip size={17} />
+                </button>
+              )}
+              {!recording && (
+                <textarea
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    pingTyping(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      e.currentTarget.form?.requestSubmit();
+                    }
+                    if (e.key === "Escape" && replyTo) setReplyTo(null);
+                  }}
+                  rows={1}
+                  maxLength={2000}
+                  placeholder={replyTo ? "Javob yozing…" : "Xabar yozing…"}
+                  aria-label="Xabar matni"
+                  className="field max-h-32 min-h-11 flex-1 resize-none rounded-[22px] py-2.5 text-[14px] leading-relaxed"
+                />
+              )}
+              {text.trim() || files.length > 0 ? (
+                <button type="submit" disabled={sending} aria-label="Yuborish" className="btn-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40">
+                  <Send size={17} />
+                </button>
+              ) : (
+                <VoiceRecorder size="lg" onRecorded={sendVoice} onError={setError} onPhase={setRecording} disabled={Boolean(peer?.isBanned)} />
+              )}
             </div>
           </form>
         </>

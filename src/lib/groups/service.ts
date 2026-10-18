@@ -8,6 +8,7 @@ import { translit, uid } from "@/lib/utils";
 import type { GroupInput } from "./validators";
 import { REACTION_BY_KEY, REACTION_KINDS, type ReactionKind } from "./limits";
 import { notifyMentions } from "./mentions";
+import { TYPING_WINDOW_MS, toQuote, type QuoteView } from "@/lib/chat/quote";
 
 /**
  * Jamoalar — ijodkorlar hamjamiyati: guruhlar, a'zolik, lenta (post/like/izoh), guruh chati, obuna (follow).
@@ -106,6 +107,8 @@ export interface GroupMessageView {
   at: number;
   mine: boolean;
   sender: UserBrief;
+  /** Javob berilgan xabar (iqtibos); o'chirilgan bo'lsa "Xabar o'chirilgan" */
+  replyTo: QuoteView | null;
 }
 
 type Viewer = { id: string; role: string } | null;
@@ -847,7 +850,10 @@ export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: 
   } else {
     rows = (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
   }
-  const senders = await briefUsers(rows.map((r) => r.senderId));
+  const quoteIds = [...new Set(rows.map((r) => r.replyToId).filter((x): x is string => Boolean(x)))];
+  const originals = quoteIds.length ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inArray(groupMessages.id, quoteIds)) }) : [];
+  const senders = await briefUsers([...rows.map((r) => r.senderId), ...originals.map((o) => o.senderId)]);
+  const quotes = new Map(originals.map((o) => [o.id, toQuote(o, senders.get(o.senderId)?.name ?? "Foydalanuvchi")] as const));
   return rows.map((r) => ({
     id: r.id,
     body: r.body,
@@ -855,15 +861,41 @@ export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: 
     at: r.createdAt.getTime(),
     mine: viewer?.id === r.senderId,
     sender: senders.get(r.senderId) ?? { id: r.senderId, ...UNKNOWN },
+    replyTo: r.replyToId ? (quotes.get(r.replyToId) ?? { id: r.replyToId, body: "Xabar o'chirilgan", senderName: "", kind: "text" as const }) : null,
   }));
 }
 
-export async function sendGroupMessage(group: Group, senderId: string, body: string, attachments: FileAttachment[]) {
+export async function sendGroupMessage(group: Group, senderId: string, body: string, attachments: FileAttachment[], replyToId: string | null = null) {
+  // Javob faqat shu guruhdagi xabarga
+  if (replyToId) {
+    const orig = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, replyToId), eq(groupMessages.groupId, group.id)), columns: { id: true } });
+    if (!orig) throw new ApiError(422, "Javob berilayotgan xabar topilmadi", { replyToId: "Xabar topilmadi" });
+  }
   const now = new Date();
-  const row: typeof groupMessages.$inferInsert = { id: uid(), groupId: group.id, senderId, body, attachments, createdAt: now };
+  const row: typeof groupMessages.$inferInsert = { id: uid(), groupId: group.id, senderId, body, attachments, replyToId, createdAt: now };
   await db.insert(groupMessages).values(row);
-  await Promise.all([touchActivity(group.id), markGroupRead(group.id, senderId)]);
+  await Promise.all([touchActivity(group.id), markGroupRead(group.id, senderId), setGroupTyping(group.id, senderId, false)]);
   return { ...row, createdAt: now };
+}
+
+/** "Yozmoqda…" signali (a'zolik qatoriga vaqt) — on=false tozalaydi */
+export async function setGroupTyping(groupId: string, userId: string, on: boolean): Promise<void> {
+  await db
+    .update(groupMembers)
+    .set({ typingAt: on ? new Date() : null })
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+}
+
+/** Hozir yozayotgan a'zolar ismlari (mendan tashqari, 3 tagacha) */
+export async function typingMembers(groupId: string, exceptUserId: string, limit = 3): Promise<string[]> {
+  const since = new Date(Date.now() - TYPING_WINDOW_MS);
+  const rows = await db
+    .select({ name: users.name })
+    .from(groupMembers)
+    .innerJoin(users, eq(users.id, groupMembers.userId))
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"), gt(groupMembers.typingAt, since), sql`${groupMembers.userId} != ${exceptUserId}`))
+    .limit(limit);
+  return rows.map((r) => r.name);
 }
 
 export async function markGroupRead(groupId: string, userId: string): Promise<void> {

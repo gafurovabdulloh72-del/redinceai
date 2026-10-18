@@ -48,8 +48,16 @@ function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
   return null;
 }
 
+/** Ovozli xabar (purpose="voice"): WebM/Opus (EBML) → .weba, MP4/M4A (ftyp) → .m4a, Ogg/Opus → .ogg — audio kengaytma bilan saqlanadi */
+function sniffAudio(buf: Buffer): { ext: string; mime: string } | null {
+  if (buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return { ext: "weba", mime: "audio/webm" };
+  if (buf.length >= 12 && buf.subarray(4, 8).toString("ascii") === "ftyp") return { ext: "m4a", mime: "audio/mp4" };
+  if (buf.length >= 4 && buf.subarray(0, 4).toString("ascii") === "OggS") return { ext: "ogg", mime: "audio/ogg" };
+  return null;
+}
+
 /**
- * Rasm (va buyurtma biriktirmasi sifatida hujjat) yuklash. Saqlash tanlovi (ustuvorlik):
+ * Rasm (va buyurtma biriktirmasi sifatida hujjat, chatda ovozli xabar) yuklash. Saqlash tanlovi (ustuvorlik):
  *  1) Cloudflare R2 (barcha R2_* env'lar to'liq — src/lib/storage/r2.ts) → URL: R2_PUBLIC_BASE/uploads/<nom>
  *  2) Vercel Blob (BLOB_READ_WRITE_TOKEN bor)
  *  3) lokal disk: UPLOAD_DIR (default: public/uploads) — fayllar /uploads/<nom> orqali
@@ -58,7 +66,6 @@ function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
-  await enforceLimit("upload", session.sub);
 
   // Butun tanani xotiraga o'qishdan OLDIN Content-Length bo'yicha rad etamiz (multipart sarlavhalari uchun ~64 KB zaxira).
   // Content-Length yo'q (masalan, Transfer-Encoding: chunked) bo'lsa — rad etamiz: aks holda chegarasiz
@@ -74,10 +81,14 @@ export const POST = handler(async (req) => {
   if (file.size > MAX_BYTES) throw new ApiError(413, "Fayl 5 MB dan katta");
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  // purpose="attachment" (buyurtma/chat fayllari) hujjatlarga ham ruxsat beradi; qolgan joylar (avatar, portfolio, sharh) — faqat rasm
-  const allowDocs = form?.get("purpose") === "attachment";
-  const kind = sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null);
-  if (!kind) throw new ApiError(415, allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
+  // purpose="attachment" (buyurtma/chat fayllari) hujjatlarga ham ruxsat beradi; "voice" — faqat audio (alohida kvota);
+  // qolgan joylar (avatar, portfolio, sharh) — faqat rasm
+  const purpose = form?.get("purpose");
+  const voice = purpose === "voice";
+  const allowDocs = purpose === "attachment";
+  await enforceLimit(voice ? "voice" : "upload", session.sub);
+  const kind = voice ? sniffAudio(bytes) : (sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null));
+  if (!kind) throw new ApiError(415, voice ? "Ovozli xabar formati qo'llab-quvvatlanmaydi (WebM/Opus, M4A yoki Ogg)" : allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
 
