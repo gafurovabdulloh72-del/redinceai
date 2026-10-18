@@ -72,13 +72,11 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
         <ArrowLeft size={14} /> Admin panel
       </Link>
       <header className="max-w-2xl">
-        <span className="eyebrow">
-          <CreditCard size={13} className="text-accent" /> Admin panel
-        </span>
-        <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px]">
-          Mutaxassis <span className="accent-serif text-accent">obunalari</span>
-        </h1>
-        <p className="mt-4 text-[15px] leading-relaxed text-fg-2">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">
+          <CreditCard size={12} aria-hidden="true" /> Admin panel
+        </p>
+        <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">Mutaxassis obunalari</h1>
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-3">
           Narx: {formatPrice(t.price)} / oy. Obunachilar holati, to&apos;lovlar, qo&apos;lda uzaytirish va o&apos;tkazmalarni tasdiqlash. Barcha amallar audit jurnaliga yoziladi.
         </p>
       </header>

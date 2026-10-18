@@ -31,6 +31,8 @@ export interface AuditFilter {
   from?: string;
   /** YYYY-MM-DD (shu kun oxirigacha) */
   to?: string;
+  /** Erkin matn: nishon id, harakat kodi yoki meta (JSON matni) ichida qisman moslik */
+  q?: string;
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -43,12 +45,13 @@ export function dayStartMs(day: string | undefined): number | null {
 }
 
 /** Querystring'dan xavfsiz filtr (noto'g'ri qiymatlar tashlab yuboriladi) */
-export function auditFilterFromQuery(q: { action?: string; actor?: string; from?: string; to?: string }): AuditFilter {
+export function auditFilterFromQuery(q: { action?: string; actor?: string; from?: string; to?: string; q?: string }): AuditFilter {
   return {
     action: q.action && /^[a-z_]{1,40}$/.test(q.action) ? q.action : undefined,
     actor: q.actor?.trim() ? q.actor.trim().slice(0, 120) : undefined,
     from: dayStartMs(q.from) != null ? q.from : undefined,
     to: dayStartMs(q.to) != null ? q.to : undefined,
+    q: q.q?.trim() && q.q.trim().length >= 2 ? q.q.trim().slice(0, 80) : undefined,
   };
 }
 
@@ -62,6 +65,11 @@ function auditWhere(f: AuditFilter): SQL | undefined {
       .from(users)
       .where(or(sql`lower(${users.name}) like ${term} escape '\\'`, sql`lower(${users.email}) like ${term} escape '\\'`));
     conds.push(inArray(auditLogs.actorId, match));
+  }
+  if (f.q) {
+    const term = `%${escapeLike(f.q.toLowerCase())}%`;
+    const m = or(sql`lower(coalesce(${auditLogs.targetId}, '')) like ${term} escape '\\'`, sql`lower(${auditLogs.action}) like ${term} escape '\\'`, sql`lower(cast(${auditLogs.meta} as text)) like ${term} escape '\\'`);
+    if (m) conds.push(m);
   }
   const from = dayStartMs(f.from);
   const to = dayStartMs(f.to);

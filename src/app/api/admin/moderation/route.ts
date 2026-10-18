@@ -1,7 +1,7 @@
-import { desc, or, sql } from "drizzle-orm";
+import { desc, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { groups, vacancies } from "@/lib/db/schema";
+import { groups, users, vacancies } from "@/lib/db/schema";
 import { handler, ok, parseQuery, requireSession } from "@/lib/api";
 import { escapeLike } from "@/lib/utils";
 
@@ -45,10 +45,12 @@ export const GET = handler(async (req) => {
       where: term ? or(sql`lower(${vacancies.title}) like ${term} escape '\\'`, sql`lower(${vacancies.company}) like ${term} escape '\\'`) : undefined,
       orderBy: [desc(vacancies.createdAt)],
       limit: 100,
-      columns: { id: true, title: true, company: true, profession: true, description: true, requirements: true, status: true, applicationsCount: true, viewCount: true, expiresAt: true, createdAt: true, applyUrl: true },
-      with: { author: { columns: { id: true, name: true, email: true, isBanned: true } } },
+      // vacancies jadvalida users bilan relation yo'q — muallif alohida so'rov bilan
+      columns: { id: true, authorId: true, title: true, company: true, profession: true, description: true, requirements: true, status: true, applicationsCount: true, viewCount: true, expiresAt: true, createdAt: true, applyUrl: true },
     }),
   ]);
+  const authorIds = [...new Set(vacancyRows.map((v) => v.authorId))];
+  const authors = new Map((authorIds.length ? await db.query.users.findMany({ where: inArray(users.id, authorIds), columns: { id: true, name: true, email: true, isBanned: true } }) : []).map((u) => [u.id, u]));
 
   const now = Date.now();
   return ok({
@@ -79,7 +81,7 @@ export const GET = handler(async (req) => {
       expiresAt: v.expiresAt?.getTime() ?? null,
       externalApply: Boolean(v.applyUrl),
       flags: vacancyFlags(v),
-      author: v.author ? { id: v.author.id, name: v.author.name, email: v.author.email, isBanned: v.author.isBanned } : null,
+      author: authors.get(v.authorId) ?? null,
     })),
   });
 });

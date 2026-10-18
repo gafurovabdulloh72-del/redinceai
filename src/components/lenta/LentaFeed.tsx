@@ -10,6 +10,8 @@ import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { priceFromLabel } from "@/lib/i18n/dict/catalog";
 import { LENTA } from "@/lib/i18n/dict/lenta";
+import { FEED } from "@/lib/i18n/dict/feed";
+import { showToast } from "@/components/ui/toast";
 import { formatPrice } from "@/lib/utils";
 import type { LentaItem } from "@/lib/lenta";
 
@@ -73,12 +75,13 @@ export function LentaFeed({ initialItems, initialCursor }: { initialItems: Lenta
       });
       setCursor(page.nextCursor);
     } catch {
-      /* tarmoq xatosi — tugma qoladi, foydalanuvchi qayta bosadi */
+      // Tarmoq xatosi — tugma qoladi, foydalanuvchi qayta bosadi; sababi toast bilan aytiladi (ilgari jim edi)
+      showToast(tr(til, FEED.loadFailed), "error");
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [til]);
 
   /* Scroll oxiriga yaqinlashganda keyingi sahifa o'zi yuklanadi */
   useEffect(() => {

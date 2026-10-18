@@ -49,6 +49,8 @@ export const MENTION_MAX = 10;
 export const MENTION_RE = /(^|[^\w@])@([a-z0-9_.-]{3,32})(?![\w.-])/giu;
 
 /* --- Lenta qo'shimchalari (batch-800): so'rovnoma, izoh tahriri, hashtag --- */
+/** Tanlangan lenta turi («Hammasi/Obunalarim») cookie nomi — klient yozadi, server `page.tsx` o'qiydi */
+export const FEED_SCOPE_COOKIE = "lenta_scope";
 /** So'rovnoma: variantlar soni va bitta variant uzunligi */
 export const POLL_OPTIONS_MIN = 2;
 export const POLL_OPTIONS_MAX = 4;

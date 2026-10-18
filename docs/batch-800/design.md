@@ -137,7 +137,15 @@ Token o'zgarishlari (oldin → keyin) — pastda, «Token o'zgarishlari» bo'lim
 - `npx tsc --noEmit` — o'z fayllarimda (globals/layout/manifest/api/til, components/ui|motion|layout|i18n, lib/i18n) xato yo'q (qolgan xatolar `kabinet/hisobot/csv/route.ts` — kabinet agenti fayli)
 - curl: `GET /narxlar` + `Accept-Language: ru-RU,ru;q=0.9` → `<html lang="ru">`; `GET /api/til?t=ru&next=/\evil.com` → 303 `http://localhost:3000/` (ochiq redirect yopildi); `/api/health` 200
 - Removed-klass auditi: `grep` bo'yicha o'chirilgan CSS klass/tokenlarga `src/` ichida murojaat yo'q (faqat `animate-spin-slow` chatda — token qoldirildi)
-PLAYWRIGHT_PLACEHOLDER
+- Playwright `verify.mjs` (1440 mutaxassis + 390 mobil + Accept-Language): 34 tekshiruvdan 30 ✅ birinchi urinishda:
+  Sheet (scroll qulfi, fokus ichkarida, Tab tuzog'i, Escape, qulf tiklanishi, fokus qaytishi), toast sheet ustida (z 140) + amal tugmasi, dublikat toast yo'q,
+  `?` oynasi, input ichida qisqartma o'chadi, Ko'rinish: qorong'u → `data-theme=dark` + `theme-color` meta, shrift L → `main zoom 1.08` (HSCROLL yo'q), harakat → `data-motion=reduce`,
+  Avto → localStorage tozalanadi, OS dark → avto rejim darhol, oflayn/onlayn banner (2.5 s), print'da yon panel/footer yashirin, `Accept-Language: ru` → `lang=ru`,
+  mobil «Orqaga» faqat ichki sahifada, 390 HSCROLL yo'q, Sheet pastga surib yopiladi, Ko'rinish varag'i (6 radio + switch), «Yuqoriga» tab-bar ustida (756 ≤ 766px).
+  4 ta ❌ tahlili: (1) `g l` → /lenta — dev server kompilyatsiyasi 8 s kutishdan uzun (verify2'da 60 s bilan qayta); (2) «Orqaga» ota yo'lga — HAQIQIY BUG topildi: StrictMode'da mount effekti ikki marta → `navDepth=2` → tarixsiz `router.back()`; tuzatildi (`prevPath` bilan faqat haqiqiy o'zgarishda ortadi); (3) font-display — next/font'ning lokal size-adjust `Fallback` yuzlari `auto` (to'g'ri), Unbounded/Manrope `swap`; (4) konsol — faqat tashqi rasm (`ERR_TUNNEL_CONNECTION_FAILED`, sandbox proksi), kod xatosi yo'q
+VERIFY2_PLACEHOLDER
+- Skrinshotlar (`/tmp/claude-0/-home-user-redinceai/e7eeba0d-30d9-5a8d-a460-9bb9ce1add69/scratchpad/batch/design/shots/`): `v-create-sheet-desktop.png`, `v-toast-over-sheet.png`, `v-shortcuts-dialog.png`, `v-appearance-menu.png`, `v-appearance-sheet-mobile.png`, `v-offline-banner.png`, `v-mobile-back.png`, `v-mobile-backtotop.png`, `after-guest-d1440-light-_vakansiyalar.png` (PageHeader baseline tekislash), `after-guest-d1440-light-_haqida.png`
+CRAWL_PLACEHOLDER
 
 ## Boshqa sohalarga so'rovlar
 - Barcha sohalar: `window.confirm(...)` o'rniga `useConfirm()` (`components/ui/ConfirmDialog`): `AdminSpecialistsTable.tsx`, `PortfolioManager.tsx`, `ReviewDeleteButton.tsx`, `ReviewForm.tsx` — `if (await confirm({ title, text, danger: true })) …`

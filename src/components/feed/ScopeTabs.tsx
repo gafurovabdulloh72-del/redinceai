@@ -4,10 +4,8 @@ import Link from "next/link";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
+import { FEED_SCOPE_COOKIE as SCOPE_COOKIE } from "@/lib/groups/limits";
 import type { FeedScope } from "@/lib/feed";
-
-/** Tanlangan lenta turi cookie'da eslab qolinadi (server `page.tsx` o'qiydi) */
-export const SCOPE_COOKIE = "lenta_scope";
 
 /**
  * «Hammasi / Obunalarim» almashtirgichi — yopishqoq (telefonda yuqori panel ostida), bosilganda tanlov cookie'ga yoziladi.

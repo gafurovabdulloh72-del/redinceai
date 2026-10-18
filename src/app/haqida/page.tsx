@@ -28,6 +28,7 @@ import { SITE } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Biz haqimizda",
+  alternates: { canonical: "/haqida" },
   description:
     "Kasb Egalari — ijodkorlar va barcha onlayn kasb egalari uchun platforma: buyurtmalar, jamoalar va kanallar, jonli efirlar, vakansiyalar. Loyiha, ishonch kafolatlari va asoschi haqida.",
 };

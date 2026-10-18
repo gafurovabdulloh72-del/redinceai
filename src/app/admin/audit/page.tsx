@@ -37,7 +37,7 @@ const isSystem = (action: string) => action.startsWith("cron_");
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-type Search = { action?: string | string[]; actor?: string | string[]; from?: string | string[]; to?: string | string[]; page?: string | string[]; format?: string | string[] };
+type Search = { action?: string | string[]; actor?: string | string[]; from?: string | string[]; to?: string | string[]; q?: string | string[]; page?: string | string[]; format?: string | string[] };
 
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<Search> }) {
   const user = await getCurrentUser();
@@ -45,9 +45,9 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   if (user.role !== "admin") redirect("/kabinet");
 
   const sp = await searchParams;
-  const filter = auditFilterFromQuery({ action: first(sp.action), actor: first(sp.actor), from: first(sp.from), to: first(sp.to) });
-  const { action, actor, from, to } = filter;
-  const query = { action, actor, from, to };
+  const filter = auditFilterFromQuery({ action: first(sp.action), actor: first(sp.actor), from: first(sp.from), to: first(sp.to), q: first(sp.q) });
+  const { action, actor, from, to, q } = filter;
+  const query = { action, actor, from, to, q };
   const qs = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => Boolean(e[1]))).toString();
   // ?format=csv — eksport API'siga (fayl sifatida yuklanadi)
   if (first(sp.format) === "csv") redirect(`/api/admin/audit?format=csv${qs ? `&${qs}` : ""}`);
@@ -58,7 +58,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   const [rows, { total: matching, byAction }] = await Promise.all([queryAuditLogs(filter, { limit: LIMIT, offset: (page - 1) * LIMIT }), countAuditLogs(filter)]);
   const total = byAction.reduce((s, a) => s + a.n, 0);
   const pages = Math.max(1, Math.ceil(matching / LIMIT));
-  const hasExtra = Boolean(actor || from || to);
+  const hasExtra = Boolean(actor || from || to || q);
   const chipHref = (a?: string) => {
     const q = new URLSearchParams(Object.entries({ ...query, action: a }).filter((e): e is [string, string] => Boolean(e[1])));
     const str = q.toString();
@@ -67,15 +67,13 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
 
   return (
     <div className="container-x animate-fade-up">
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-2xl">
-          <span className="eyebrow">
-            <ScrollText size={13} className="text-accent" /> Admin panel
-          </span>
-          <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px]">
-            Audit <span className="accent-serif text-accent">jurnali</span>
-          </h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">
+            <ScrollText size={12} aria-hidden="true" /> Admin panel
+          </p>
+          <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">Audit jurnali</h1>
+          <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-fg-3">
             Kirishlar, parol o'zgarishlari, yuklashlar, buyurtma va to'lov harakatlari — sahifada {LIMIT} tadan. {hasExtra ? `Filtr bo'yicha ${total} ta` : `Jami ${total} ta`}
             {action ? `, tanlangan harakat bo'yicha ${matching} ta` : ""}.
           </p>
@@ -99,6 +97,12 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
           </label>
           <input id="audit-actor" name="actor" className="field" defaultValue={actor ?? ""} placeholder="masalan: admin@redince.uz" maxLength={120} />
         </div>
+        <div className="flex-1">
+          <label htmlFor="audit-q" className="field-label">
+            Qidiruv (nishon ID, harakat, tafsilot)
+          </label>
+          <input id="audit-q" name="q" type="search" className="field" defaultValue={q ?? ""} placeholder="masalan: buyurtma ID yoki «refund»" maxLength={80} />
+        </div>
         <div className="grid grid-cols-2 gap-3 sm:w-[300px]">
           <div>
             <label htmlFor="audit-from" className="field-label">
@@ -118,7 +122,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
             <Filter size={14} /> Filtrlash
           </button>
           {hasExtra && (
-            <Link href={chipHref(action).replace(/[?&](actor|from|to)=[^&]*/g, "").replace(/\?&/, "?")} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-fg-2 hover:bg-fg/6 hover:text-fg">
+            <Link href={chipHref(action).replace(/[?&](actor|from|to|q)=[^&]*/g, "").replace(/\?&/, "?")} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-fg-2 hover:bg-fg/6 hover:text-fg">
               <X size={14} /> Tozalash
             </Link>
           )}
@@ -161,7 +165,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
                 {rows.map((r) => (
                   <tr key={r.id} className="align-top text-[13px] text-fg-2 transition hover:bg-fg/3">
                     <td className="whitespace-nowrap px-5 py-3">
-                      <time dateTime={r.createdAt.toISOString()} className="block font-medium text-fg">
+                      <time dateTime={r.createdAt.toISOString()} className="block font-medium text-fg" title="Toshkent vaqti (UTC+5)">
                         {formatDateTime(r.createdAt)}
                       </time>
                       <span className="text-[11px] text-fg-4" suppressHydrationWarning>

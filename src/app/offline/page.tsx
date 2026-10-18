@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BriefcaseBusiness, Map, RotateCw, Users, WifiOff } from "lucide-react";
+import { BriefcaseBusiness, Map, Users, WifiOff } from "lucide-react";
+import { OfflineRetry } from "@/components/pwa/OfflineRetry";
 
 export const metadata: Metadata = {
   title: "Internet aloqasi yo'q",
+  description: "Aloqa yo'q — tiklangach sahifa avtomatik qaytadi.",
   robots: { index: false, follow: false },
 };
 
@@ -22,11 +24,7 @@ export default function OfflinePage() {
         <p className="mt-3 max-w-md text-[15px] leading-relaxed text-fg-2">
           Sahifani yuklab bo&apos;lmadi. Wi-Fi yoki mobil internetni tekshiring — aloqa tiklangach qayta urinib ko&apos;ring. Avval ochilgan ommaviy sahifalar oflayn ham ochilishi mumkin.
         </p>
-        <form method="get" className="mt-8 w-full sm:w-auto">
-          <button type="submit" className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 text-[15px] font-semibold sm:w-auto">
-            <RotateCw size={17} /> Qayta urinish
-          </button>
-        </form>
+        <OfflineRetry />
         <nav aria-label="Asosiy sahifalar" className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-fg-3">
           <Link href="/xarita" className="inline-flex min-h-10 items-center gap-1.5 transition hover:text-fg">
             <Map size={15} /> Xarita

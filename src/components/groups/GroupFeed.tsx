@@ -379,7 +379,7 @@ export function Composer({
         }}
         placeholder={eventOpen ? "Efir mavzusi — birinchi qator sarlavha" : (placeholder ?? (kind === "channel" ? "Kanal e'loni…" : "Jamoa bilan bo'lishing… (@ism — eslatish)"))}
         ariaLabel={placeholder ?? "Post matni"}
-        className={cn("field w-full resize-none py-2.5 text-[14px] leading-relaxed transition-[height]", expanded && "resize-y")}
+        className={cn("field w-full py-2.5 text-[14px] leading-relaxed transition-[height]", expanded ? "resize-y" : "resize-none")}
       />
       {restored && (
         <p className="expand-in mt-1.5 flex items-center gap-2 px-1 text-[12px] text-fg-3">

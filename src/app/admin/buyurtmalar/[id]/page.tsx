@@ -163,10 +163,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       </Link>
 
       <header className="flex flex-col gap-4">
-        <span className="eyebrow">
-          <ClipboardList size={13} className="text-accent" /> Admin · Buyurtma
-        </span>
-        <h1 className="display-xl text-[28px] text-fg sm:text-[40px]">{order.title}</h1>
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">
+          <ClipboardList size={12} aria-hidden="true" /> Admin · Buyurtma
+        </p>
+        <h1 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-fg sm:text-[28px]">{order.title}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={STATUS_TONE[order.status]} className="!px-3 !py-1.5">
             {ORDER_STATUS_LABEL[order.status]}
