@@ -42,17 +42,6 @@ const DEFAULT_QUICK_REPLIES = [
   "Rahmat! Hamkorlikdan xursandman — sharh qoldirsangiz minnatdor bo'lardim.",
 ];
 
-const dayKey = (ms: number) => new Date(ms + TZ_MS).toISOString().slice(0, 10);
-const hhmm = (ms: number) => new Date(ms + TZ_MS).toISOString().slice(11, 16);
-
-function dayLabel(ms: number): string {
-  const k = dayKey(ms);
-  const now = Date.now();
-  if (k === dayKey(now)) return "Bugun";
-  if (k === dayKey(now - 86_400_000)) return "Kecha";
-  return formatDate(ms);
-}
-
 /** Matndagi http(s) havolalarni bosiladigan qilish (boshqa hech qanday HTML yo'q) */
 function Linkified({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s<>"']+)/g);
@@ -99,7 +88,7 @@ function Thumb({ a }: { a: Attachment }) {
       </span>
     );
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={a.url} alt={a.name} loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover transition group-hover:scale-105" />;
+  return <img src={a.url} alt={a.name} loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover" />;
 }
 
 /** Biriktirmalar: rasmlar — kichik ko'rinish, video — pleyer, qolganlari — fayl chipi */
@@ -112,7 +101,7 @@ export function AttachmentList({ items, className, compact = false }: { items: A
     <div className={cn("flex flex-col gap-1.5", className)}>
       {videos.map((a) => (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video key={a.url} src={a.url} controls preload="metadata" playsInline title={a.name} className={cn("w-full rounded-[12px] border border-line bg-black/20", compact ? "max-h-56" : "max-h-72")} />
+        <video key={a.url} src={a.url} controls preload="metadata" playsInline onPlay={(e) => claimMedia(e.currentTarget)} title={a.name} className={cn("w-full rounded-[10px] bg-black/20", compact ? "max-h-56" : "max-h-72")} />
       ))}
       {images.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -122,7 +111,7 @@ export function AttachmentList({ items, className, compact = false }: { items: A
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("group relative block overflow-hidden rounded-[12px] border border-line bg-surface-3", compact ? "h-16 w-16" : "h-20 w-20 sm:h-24 sm:w-24")}
+              className={cn("relative block overflow-hidden rounded-[10px] bg-surface-3", compact ? "h-16 w-16" : "h-20 w-20 sm:h-24 sm:w-24")}
               title={a.name}
             >
               <Thumb a={a} />
@@ -136,7 +125,7 @@ export function AttachmentList({ items, className, compact = false }: { items: A
           href={a.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-[12px] border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-fg-2 transition hover:border-fg"
+          className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-[10px] border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-fg-2 transition hover:border-fg"
         >
           <FileText size={14} className="shrink-0 text-fg-3" />
           <span className="truncate">{a.name}</span>
@@ -180,6 +169,14 @@ export function OrderChat({
   const [custom, setCustom] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   const [draftTpl, setDraftTpl] = useState("");
+  /** Tez javoblar qatori yig'iladigan (doimiy chip qatori shovqin qilmasin) */
+  const [quickOpen, setQuickOpen] = useState(false);
+  /** Sensorli ekran: Enter — yangi qator */
+  const [coarse, setCoarse] = useState(false);
+  const locale = useLocale();
+  const now = useNowTick(60_000);
+  const panel = usePresence(open, 160);
+  useEffect(() => setCoarse(window.matchMedia("(pointer: coarse)").matches), []);
 
   const scroller = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
@@ -336,8 +333,10 @@ export function OrderChat({
     void sendNow(body, atts);
   };
 
+  // Sensorli ekranda Enter — yangi qator (yuborish tugma yoki Ctrl/Cmd+Enter bilan); desktopda Enter yuboradi, Shift+Enter — yangi qator
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    if (coarse ? e.ctrlKey || e.metaKey : !e.shiftKey) {
       e.preventDefault();
       submit();
     }
@@ -371,10 +370,10 @@ export function OrderChat({
       const k = dayKey(m.createdAt);
       const last = out[out.length - 1];
       if (last && last.day === k) last.list.push(m);
-      else out.push({ day: k, label: dayLabel(m.createdAt), list: [m] });
+      else out.push({ day: k, label: dayLabel(m.createdAt, locale, now), list: [m] });
     }
     return out;
-  }, [items]);
+  }, [items, locale, now]);
 
   return (
     <div className="mt-3">
@@ -398,13 +397,13 @@ export function OrderChat({
         <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
       </button>
 
-      {open && (
-        <div id={panelId} className="expand-in mt-2 overflow-hidden rounded-[16px] border border-line bg-surface-2">
+      {panel.mounted && (
+        <div id={panelId} className={cn(panel.closing ? "expand-out" : "expand-in", "mt-2 overflow-hidden rounded-[16px] border border-line bg-surface-2")}>
           <div ref={scroller} onScroll={onScroll} className="max-h-[420px] min-h-[160px] space-y-2 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4" role="log" aria-live="polite" aria-label={`${counterpartName} bilan yozishma`}>
             {/* Xavfsizlik eslatmasi — har bir yozishmada bir marta, eng tepada */}
             <p className="mx-auto flex max-w-md items-start gap-2 rounded-[12px] bg-warning-soft px-3 py-2 text-[12px] leading-snug text-warning-text">
               <ShieldAlert size={14} className="mt-px shrink-0" />
-              <span>Platformadan tashqarida to'lov eskrou bilan himoyalanmaydi. Narx va to'lovni shu buyurtma ichida kelishing.</span>
+              <span>To'lovni faqat shu buyurtma ichida kelishing — tashqarida eskrou himoyasi yo'q.</span>
             </p>
 
             {items == null ? (
@@ -422,15 +421,11 @@ export function OrderChat({
             ) : (
               rows.map((g) => (
                 <div key={g.day} className="space-y-2">
-                  <div className="flex items-center gap-2 py-1" role="separator" aria-label={g.label}>
-                    <span className="h-px flex-1 bg-line" />
-                    <span className="text-[11px] font-semibold text-fg-4">{g.label}</span>
-                    <span className="h-px flex-1 bg-line" />
-                  </div>
+                  <DayPill label={g.label} />
                   {g.list.map((m) =>
                     m.sender === "system" ? (
                       <p key={m.id} className="mx-auto w-fit max-w-[92%] break-words rounded-[12px] bg-fg/6 px-3 py-1 text-center text-[11.5px] leading-snug text-fg-3">
-                        <Linkified text={m.body} /> · {hhmm(m.createdAt)}
+                        <Linkified text={m.body} /> · {clock(m.createdAt)}
                       </p>
                     ) : (
                       <div key={m.id} className={cn("flex", m.mine ? "justify-end" : "justify-start")}>
@@ -438,8 +433,8 @@ export function OrderChat({
                           {!m.mine && role === "admin" && m.senderName && <p className="mb-0.5 px-1 text-[11px] font-semibold text-fg-3">{m.senderName}</p>}
                           <div
                             className={cn(
-                              "rounded-[16px] px-3.5 py-2 text-[14px] leading-relaxed",
-                              m.mine ? "rounded-br-[6px] bg-accent-soft text-fg" : "rounded-bl-[6px] border border-line bg-surface text-fg",
+                              "rounded-[14px] px-3.5 py-2 text-[14px] leading-relaxed [overflow-wrap:anywhere]",
+                              m.mine ? "rounded-br-[4px] bg-ink text-ink-fg" : "rounded-bl-[4px] bg-surface text-fg",
                               m.pending === "failed" && "ring-1 ring-danger",
                             )}
                           >
@@ -451,8 +446,8 @@ export function OrderChat({
                             <AttachmentList items={m.attachments} compact className={m.body ? "mt-2" : undefined} />
                           </div>
                           <p className={cn("mt-0.5 flex items-center gap-1 px-1 text-[11px] text-fg-4", m.mine ? "justify-end" : "justify-start")}>
-                            <time dateTime={new Date(m.createdAt).toISOString()} title={timeAgo(m.createdAt)} suppressHydrationWarning>
-                              {Date.now() - m.createdAt < 3_600_000 ? timeAgo(m.createdAt) : hhmm(m.createdAt)}
+                            <time dateTime={new Date(m.createdAt).toISOString()} title={`${dayLabel(m.createdAt, locale, now)}, ${clock(m.createdAt)}`} suppressHydrationWarning>
+                              {now - m.createdAt < 3_600_000 ? relativeTime(m.createdAt, locale, now) : clock(m.createdAt)}
                             </time>
                             {m.mine &&
                               (m.pending === "sending" ? (
@@ -484,7 +479,12 @@ export function OrderChat({
             <div className="border-t border-line bg-surface px-3 py-2.5 sm:px-4">
               {/* Tez javob shablonlari (F39) — faqat mutaxassis */}
               {role === "specialist" && (
-                <div className="no-scrollbar -mx-3 mb-2 flex gap-1.5 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="group" aria-label="Tez javoblar">
+                <div className="mb-2">
+                  <button type="button" onClick={() => setQuickOpen((v) => !v)} aria-expanded={quickOpen} className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                    <Zap size={12} aria-hidden="true" /> Tez javoblar <ChevronDown size={12} className={cn("transition-transform", quickOpen && "rotate-180")} aria-hidden="true" />
+                  </button>
+                  {quickOpen && (
+                <div className="no-scrollbar expand-in -mx-3 mt-1.5 flex gap-1.5 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="group" aria-label="Tez javoblar">
                   {[...DEFAULT_QUICK_REPLIES, ...custom].map((t, i) => {
                     const own = i >= DEFAULT_QUICK_REPLIES.length;
                     return (
@@ -530,6 +530,8 @@ export function OrderChat({
                     >
                       <Plus size={13} /> Shablon qo'shish
                     </button>
+                  )}
+                </div>
                   )}
                 </div>
               )}
@@ -604,11 +606,10 @@ export function OrderChat({
                   <Send size={16} />
                 </button>
               </div>
-              <p className="mt-1.5 hidden text-[11px] text-fg-4 sm:block">Enter — yuborish · Shift+Enter — yangi qator</p>
             </div>
           ) : (
             <p className="flex items-center gap-2 border-t border-line bg-surface px-4 py-2.5 text-[12px] text-fg-3">
-              <Lock size={13} /> Administrator rejimi — yozishmani faqat ko'rish mumkin
+              <Lock size={13} /> Faqat ko'rish (admin)
             </p>
           )}
         </div>

@@ -578,7 +578,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                             )}
                             {!m.mine && (
                               <div className="mt-1 border-t border-line pt-1">
-                                <ReportButton targetType="message" targetId={m.id} loggedIn compact modal triggerClassName="h-9 w-full justify-start gap-2 rounded-[10px] px-2.5 text-[13px] font-semibold text-fg-2 hover:bg-fg/6 hover:text-fg" />
+                                <ReportButton targetType="message" targetId={m.id} loggedIn modal align="start" triggerClassName="flex h-9 w-full items-center justify-start gap-2 rounded-[10px] px-2.5 text-[13px] font-semibold text-fg-2 hover:bg-fg/6 hover:text-fg" />
                               </div>
                             )}
                           </div>

@@ -38,10 +38,17 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: { params: Params; searchParams: Promise<Raw> }): Promise<Metadata> {
   const { slug } = await params;
   const g = await loadGroupByAnySlug(slug);
   if (!g) return { title: "Jamoa topilmadi" };
+  // Eski manzil: metadata javob oqimi boshlanishidan OLDIN hisoblanadi — shu yerda haqiqiy 308 beriladi
+  // (sahifa ichidagi redirect loading.tsx tufayli 200 + meta refresh bo'lib qolardi)
+  if (g.slug !== slug) {
+    const sp = await searchParams;
+    const qs = new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (typeof v === "string" ? [[k, v]] : []))).toString();
+    permanentRedirect(`/jamoalar/${g.slug}${qs ? `?${qs}` : ""}`);
+  }
   return {
     title: `${g.name} — jamoa`,
     description: g.description.slice(0, 160) || `${g.name}: Kasb Egalari ijodkorlar jamoasi`,
@@ -114,9 +121,9 @@ export default async function GroupPage({ params, searchParams }: { params: Para
         <span className="text-fg-2">{view.name}</span>
       </nav>
 
-      {/* Hero */}
-      <section className="card mt-4 overflow-hidden" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
-        <div className="relative aspect-[3/1] max-h-[240px] w-full overflow-hidden bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]">
+      {/* Hero — overflow-hidden faqat muqovada (bildirishnoma menyusi karta chetidan chiqa olsin) */}
+      <section className="card mt-4" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
+        <div className="relative aspect-[3/1] max-h-[240px] w-full overflow-hidden rounded-t-[inherit] bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]">
           {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
