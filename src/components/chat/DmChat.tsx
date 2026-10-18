@@ -968,7 +968,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
       {menuMsg.body && !menuMsg.deleted && <MenuItem icon={Copy} label={t("copy")} onClick={() => (setMsgMenu(null), void copyText(menuMsg))} />}
       {!menuMsg.deleted && !menuMsg.pending && (convs?.length ?? 0) > 1 && <MenuItem icon={Forward} label={t("forward")} onClick={() => (setMsgMenu(null), setForwardOf(menuMsg))} />}
       {!menuMsg.deleted && !menuMsg.pending && <MenuItem icon={pinned?.id === menuMsg.id ? PinOff : Pin} label={pinned?.id === menuMsg.id ? t("unpin") : t("pin")} onClick={() => (setMsgMenu(null), void togglePin(menuMsg))} />}
-      {canEdit(menuMsg) && <MenuItem icon={Pencil} label={t("edit")} hint="15 min" onClick={() => (setMsgMenu(null), startEdit(menuMsg))} />}
+      {canEdit(menuMsg) && <MenuItem icon={Pencil} label={t("edit")} hint="3 soat" onClick={() => (setMsgMenu(null), startEdit(menuMsg))} />}
       {(menuMsg.mine || !menuMsg.deleted || menuMsg.pending) && <MenuDivider />}
       <MenuItem icon={Trash2} label={t("deleteMe")} onClick={() => (setMsgMenu(null), void removeMsg(menuMsg, "me"))} />
       {menuMsg.mine && !menuMsg.deleted && !menuMsg.pending && <MenuItem icon={Trash2} label={t("deleteAll")} danger onClick={() => (setMsgMenu(null), void removeMsg(menuMsg, "all"))} />}
@@ -1180,7 +1180,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         )}
                         {url && <LinkCard url={url} mine={m.mine} />}
                         <p className={cn("mt-0.5 flex items-center justify-end gap-1 text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
-                          {m.editedAt && !m.deleted && <span>{t("edited")} ·</span>}
+                          {m.editedAt && !m.deleted && <span title={fullStamp(m.editedAt, locale, now)}>{t("edited")} {clock(m.editedAt)} ·</span>}
                           <time dateTime={new Date(m.at).toISOString()} title={fullStamp(m.at, locale, now)}>
                             {clock(m.at)}
                           </time>

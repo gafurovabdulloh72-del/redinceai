@@ -128,7 +128,9 @@ export interface GroupMessageView {
   /** Soft delete: matn/fayllar bo'sh, o'rnida «Xabar o'chirilgan» */
   deleted: boolean;
   edited: boolean;
-  /** Ko'ruvchi o'chira oladimi (o'ziniki yoki moderator) / tahrirlay oladimi (o'ziniki, 24 soat) */
+  /** Tahrirlangan vaqti (ms); tahrirlanmagan bo'lsa null */
+  editedAt: number | null;
+  /** Ko'ruvchi o'chira oladimi (o'ziniki yoki moderator, doim) / tahrirlay oladimi (o'ziniki, 3 soat) */
   canDelete: boolean;
   canEdit: boolean;
 }
@@ -136,7 +138,7 @@ export interface GroupMessageView {
 type Viewer = { id: string; role: string } | null;
 
 /** O'z xabarini tahrirlash oynasi */
-export const MESSAGE_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const MESSAGE_EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 soat; o'chirish esa doim mumkin
 
 /* ------------------------------------------------------------------ */
 /* Yordamchilar                                                        */
@@ -1145,6 +1147,7 @@ async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRo
       replyTo: r.replyToId ? (quotes.get(r.replyToId) ?? DELETED_QUOTE(r.replyToId)) : null,
       deleted,
       edited: Boolean(r.editedAt) && !deleted,
+      editedAt: r.editedAt && !deleted ? r.editedAt.getTime() : null,
       canDelete: !deleted && (mine || manager),
       canEdit: !deleted && mine && Boolean(r.body) && now - r.createdAt.getTime() < MESSAGE_EDIT_WINDOW_MS,
     };
@@ -1204,11 +1207,11 @@ export async function deleteGroupMessage(group: Group, viewer: NonNullable<Viewe
   });
 }
 
-/** Tahrir: faqat muallif, 24 soat ichida, matnli xabar */
+/** Tahrir: faqat muallif, 3 soat ichida, matnli xabar. O'chirish esa doim mumkin. */
 export async function editGroupMessage(viewer: NonNullable<Viewer>, msg: GroupMessageRow, body: string): Promise<void> {
   if (msg.senderId !== viewer.id) throw new ApiError(403, "Faqat o'z xabaringizni tahrirlaysiz");
   if (msg.deletedAt) throw new ApiError(400, "Xabar o'chirilgan");
-  if (Date.now() - msg.createdAt.getTime() > MESSAGE_EDIT_WINDOW_MS) throw new ApiError(400, "Tahrirlash muddati (24 soat) o'tgan");
+  if (Date.now() - msg.createdAt.getTime() > MESSAGE_EDIT_WINDOW_MS) throw new ApiError(400, "Tahrirlash muddati (3 soat) o'tgan");
   if (body === msg.body) return;
   await db.update(groupMessages).set({ body, editedAt: new Date() }).where(eq(groupMessages.id, msg.id));
 }

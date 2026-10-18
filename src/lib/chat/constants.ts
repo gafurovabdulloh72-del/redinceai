@@ -5,7 +5,7 @@
 /** Xabar matni uzunligi */
 export const DM_BODY_MAX = 2000;
 /** Tahrirlash oynasi — yuborilgandan keyin 15 daqiqa */
-export const DM_EDIT_WINDOW_MS = 15 * 60 * 1000;
+export const DM_EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 soat; o'chirish esa doim mumkin
 /** Reaksiyalar to'plami (bitta foydalanuvchi = bitta reaksiya, qayta bosilsa olib tashlanadi) */
 export const DM_REACTIONS = ["❤️", "👍", "🔥", "😂", "😮", "🙏"] as const;
 export type DmReaction = (typeof DM_REACTIONS)[number];

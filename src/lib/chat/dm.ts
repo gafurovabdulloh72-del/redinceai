@@ -12,7 +12,7 @@ export { DM_BODY_MAX };
 /**
  * Ichki chat (DM) — buyurtmadan mustaqil, ikki foydalanuvchi o'rtasida.
  * Suhbat juftlik bo'yicha yagona (aId < bId); o'qilganlik har tomon uchun o'z vaqt belgisi bilan.
- * Qo'shimcha: tahrirlash (15 daqiqa), o'chirish (men uchun / hamma uchun), reaksiyalar, qadash,
+ * Qo'shimcha: tahrirlash (3 soat), o'chirish (men uchun / hamma uchun, doim mumkin), reaksiyalar, qadash,
  * yo'naltirish, qidiruv, media ro'yxati, suhbat sozlamalari (arxiv / ovozsiz / qadash).
  */
 
@@ -403,13 +403,13 @@ export async function sendDm(conv: Conversation, meId: string, body: string, att
   return { ...msg, editedAt: null, deletedAt: null, hiddenFor: null, createdAt: now } as DmRow;
 }
 
-/** Tahrirlash: faqat o'z xabari, 15 daqiqa ichida, o'chirilmagan */
+/** Tahrirlash: faqat o'z xabari, 3 soat ichida, o'chirilmagan. O'chirish esa doim mumkin (deleteDm). */
 export async function editDm(conv: Conversation, meId: string, msgId: string, body: string): Promise<DmRow> {
   const m = await db.query.dmMessages.findFirst({ where: and(eq(dmMessages.id, msgId), eq(dmMessages.conversationId, conv.id)) });
   if (!m) throw new ApiError(404, "Xabar topilmadi");
   if (m.senderId !== meId) throw new ApiError(403, "Faqat o'z xabaringizni tahrirlay olasiz");
   if (m.deletedAt) throw new ApiError(410, "O'chirilgan xabarni tahrirlab bo'lmaydi");
-  if (Date.now() - m.createdAt.getTime() > DM_EDIT_WINDOW_MS) throw new ApiError(403, "Tahrirlash muddati (15 daqiqa) o'tgan");
+  if (Date.now() - m.createdAt.getTime() > DM_EDIT_WINDOW_MS) throw new ApiError(403, "Tahrirlash muddati (3 soat) o'tgan");
   if (!body && m.attachments.length === 0) throw new ApiError(422, "Xabar bo'sh bo'lmasin", { body: "Bo'sh xabar" });
   const editedAt = new Date();
   await db.update(dmMessages).set({ body, editedAt }).where(eq(dmMessages.id, m.id));

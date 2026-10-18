@@ -306,8 +306,9 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     const j = (await res.json()) as ApiResp;
     if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlanmadi");
     const id = editing.id;
-    setMsgs((prev) => (prev ?? []).map((m) => (m.id === id ? { ...m, body, edited: true } : m)));
-    if (pinned?.id === id) setPinned({ ...pinned, body, edited: true });
+    const editedAt = Date.now();
+    setMsgs((prev) => (prev ?? []).map((m) => (m.id === id ? { ...m, body, edited: true, editedAt } : m)));
+    if (pinned?.id === id) setPinned({ ...pinned, body, edited: true, editedAt });
     setEditing(null);
   }
 
@@ -541,7 +542,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                       )}
                       <p className={cn("mt-0.5 flex items-center justify-end gap-1.5 text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
                         {isPinned && <Pin size={10} aria-label="Qadalgan" />}
-                        {m.edited && <span>tahrirlangan ·</span>}
+                        {m.edited && <span title={m.editedAt ? `Tahrirlangan: ${timeOf(m.editedAt)}` : undefined}>tahrirlangan{m.editedAt ? ` ${timeOf(m.editedAt)}` : ""} ·</span>}
                         <span>{timeOf(m.at)}</span>
                         {m.mine && seen?.messageId === m.id && seen.count > 0 && <span>· {seen.count} kishi ko&apos;rdi</span>}
                       </p>

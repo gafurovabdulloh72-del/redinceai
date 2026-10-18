@@ -7,7 +7,7 @@ type Ctx = { params: Promise<{ id: string; mid: string }> };
 
 const editSchema = z.object({ body: z.string().trim().max(DM_BODY_MAX) });
 
-/** PATCH { body } — xabarni tahrirlash (faqat o'z xabari, 15 daqiqa ichida) */
+/** PATCH { body } — xabarni tahrirlash (faqat o'z xabari, 3 soat ichida) */
 export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id, mid } = await ctx.params;
