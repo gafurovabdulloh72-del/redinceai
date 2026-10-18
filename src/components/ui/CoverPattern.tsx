@@ -59,14 +59,12 @@ export function CoverPattern({
   iconSize?: 20 | 24;
 }) {
   const cat = CATEGORY_BY_SLUG[category];
-  const accent = cat?.accent ?? "#df7a5a";
   const h = hashHue(seed || category);
-  const ink = `color-mix(in oklab, ${accent} 30%, transparent)`;
+  // v3: monoxrom — naqsh matn rangining 9% ohangida, yuza neytral (rangli tint/glow yo'q)
+  const ink = "color-mix(in oklab, var(--fg) 9%, transparent)";
   const p = (PATTERNS[category] ?? PATTERNS.videograf)(ink);
-  const gx = 18 + (h % 64);
-  const gy = 12 + ((h >> 3) % 56);
 
-  const base: CSSProperties = { background: `color-mix(in oklab, ${accent} 9%, var(--surface-3))` };
+  const base: CSSProperties = { background: "var(--surface-3)" };
   const pattern: CSSProperties = {
     backgroundImage: p.image,
     backgroundSize: p.size,
@@ -75,21 +73,17 @@ export function CoverPattern({
     maskImage: "radial-gradient(ellipse at 50% 50%, transparent 0 16%, #000 62%)",
     WebkitMaskImage: "radial-gradient(ellipse at 50% 50%, transparent 0 16%, #000 62%)",
   };
-  const glow: CSSProperties = {
-    background: `radial-gradient(circle at ${gx}% ${gy}%, color-mix(in oklab, ${accent} 22%, transparent), transparent 58%)`,
-  };
 
   return (
     <div className={cn("absolute inset-0 overflow-hidden", className)} style={base} aria-hidden="true">
       <div className="absolute inset-0" style={pattern} />
-      <div className="absolute inset-0" style={glow} />
       {showIcon && cat && (
         <span
           className={cn(
             "icon-tile-outline absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[var(--shadow-1)]",
             iconSize === 24 ? "icon-tile-lg" : undefined,
           )}
-          style={{ color: accent }}
+          style={{ color: "var(--fg-2)" }}
         >
           <CategoryIcon icon={cat.icon} size={iconSize} />
         </span>

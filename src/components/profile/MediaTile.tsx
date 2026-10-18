@@ -1,5 +1,5 @@
-import { Heart, Images, MessageCircle, Play, Quote } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Eye, Heart, Images, MessageCircle, Play, Quote } from "lucide-react";
+import { cn, compactCount } from "@/lib/utils";
 
 /** Kvadrat plitka (Instagram katagi): rasm / video / faqat matn; burchakda video va "bir nechta" belgilari, hover'da like/izoh sonlari */
 export interface MediaTileData {
@@ -12,6 +12,8 @@ export interface MediaTileData {
   caption: string;
   likes?: number;
   comments?: number;
+  /** Ko'rishlar — plitka pastki chap burchagida (Telegram/Reels uslubi) */
+  views?: number;
 }
 
 const PLAYABLE = /\.(?:mp4|webm|mov)(?:$|\?)/i;
@@ -40,6 +42,11 @@ export function MediaTile({ d, className, rounded = true }: { d: MediaTileData; 
           {d.isVideo && <Play size={16} className="fill-current" />}
           {d.count > 1 && <Images size={16} />}
         </div>
+      )}
+      {d.views !== undefined && d.views > 0 && !d.textOnly && (
+        <span className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm" aria-label={`${d.views} ta ko'rish`}>
+          <Eye size={11} /> {compactCount(d.views)}
+        </span>
       )}
       {(d.likes !== undefined || d.comments !== undefined) && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-4 bg-ink/45 text-[14px] font-bold text-white opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100" aria-hidden>

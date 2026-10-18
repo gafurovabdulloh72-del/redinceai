@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Link2, MessageCircle, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, Link2, MessageCircle, Trash2, X } from "lucide-react";
+import { useViewTracker } from "@/components/groups/useViewTracker";
+import { compactCount } from "@/lib/utils";
 import { ReactionButton, SaveButton, type ReactionState } from "@/components/groups/Reactions";
 import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
@@ -177,6 +179,7 @@ function PostBody({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { views } = useViewTracker(post.id, post.viewsCount, { immediate: true });
   const [comments, setComments] = useState(post.commentsCount);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -237,6 +240,9 @@ function PostBody({
       <ReactionButton postId={post.id} initial={post} canInteract size="lg" requireLogin={requireLogin} onChange={(st) => onLiked?.(post.id, st)} />
       <span className="inline-flex h-10 items-center gap-1.5 px-3 text-[13px] font-semibold text-fg-2">
         <MessageCircle size={18} /> <span className="tabular-nums">{comments}</span>
+      </span>
+      <span className="inline-flex h-10 items-center gap-1.5 px-2 text-[13px] text-fg-3" title={`${views} ta ko'rish`}>
+        <Eye size={17} /> <span className="tabular-nums">{compactCount(views)}</span>
       </span>
       <button type="button" onClick={share} className="press inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
         <Link2 size={17} /> Ulashish

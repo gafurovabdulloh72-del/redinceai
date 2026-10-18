@@ -18,7 +18,7 @@ export function Stories({ items, live, til }: { items: StoryAuthor[]; live: { hr
         {live && (
           <li className="shrink-0">
             <Link href={live.href} className="press flex w-[68px] flex-col items-center gap-1.5 text-center">
-              <span className={cn("relative flex h-[62px] w-[62px] items-center justify-center rounded-full p-[3px]", live.isLive ? "bg-accent" : "bg-[conic-gradient(from_180deg,var(--accent),#ff8a6a,var(--accent))]")}>
+              <span className={cn("relative flex h-[62px] w-[62px] items-center justify-center rounded-full p-[3px]", live.isLive ? "bg-accent" : "bg-line-2")}>
                 <span className="flex h-full w-full items-center justify-center rounded-full bg-surface text-accent">
                   <RadioTower size={22} />
                 </span>
@@ -31,7 +31,7 @@ export function Stories({ items, live, til }: { items: StoryAuthor[]; live: { hr
         {items.map((a) => (
           <li key={a.id} className="shrink-0">
             <Link href={`/mutaxassislar/${a.slug}?tab=postlar`} className="press flex w-[68px] flex-col items-center gap-1.5 text-center" title={a.name}>
-              <span className="rounded-full bg-[conic-gradient(from_180deg,var(--accent),#ff8a6a,#ffb199,var(--accent))] p-[3px]">
+              <span className="rounded-full bg-accent p-[2px]">
                 <span className="flex rounded-full bg-surface p-[2px]">
                   <Avatar name={a.name} src={a.avatarUrl} size={52} decorative />
                 </span>

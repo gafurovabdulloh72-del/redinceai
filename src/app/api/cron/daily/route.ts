@@ -10,6 +10,7 @@ import { audit } from "@/lib/security/audit";
 import { checkSavedSearchAlerts } from "@/lib/saved-searches";
 import { runSubscriptionReminders, type ReminderResult } from "@/lib/subscriptions/reminders";
 import { remindExpiringVacancies } from "@/lib/vacancies/service";
+import { purgeOldViews } from "@/lib/groups/service";
 import { formatDate } from "@/lib/utils";
 import { postSystemMessage } from "@/app/api/orders/_lib/messages";
 
@@ -90,6 +91,7 @@ export async function GET(req: Request) {
     slaCancelled: 0,
     jobsClosed: 0,
     vacanciesReminded: 0,
+    viewsPurged: 0,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -169,6 +171,12 @@ export async function GET(req: Request) {
     counts.vacanciesReminded = await remindExpiringVacancies(now);
   } catch (e) {
     counts.errors.push(`vacancies: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  // (l) Post ko'rishlari dedupe jurnali — 30 kundan eskilari o'chiriladi (hisob posts.views_count'da qoladi)
+  try {
+    counts.viewsPurged = await purgeOldViews();
+  } catch (e) {
+    counts.errors.push(`views: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (h) Saqlangan qidiruvlar bo'yicha ogohlantirishlar

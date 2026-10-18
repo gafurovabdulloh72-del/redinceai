@@ -108,7 +108,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
   return (
     <>
       <aside
-        className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[76px] flex-col border-r border-line bg-surface/85 px-2.5 py-4 backdrop-blur-xl md:flex xl:w-[244px] xl:px-3.5"
+        className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[76px] flex-col border-r border-line bg-surface px-2.5 py-4 md:flex xl:w-[244px] xl:px-3.5"
         aria-label={tr(til, SHELL.nav.mainAria)}
       >
         <div className="flex h-12 items-center px-2 md:justify-center xl:justify-start">

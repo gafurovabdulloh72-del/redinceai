@@ -1029,6 +1029,8 @@ export const posts = sqliteTable(
     media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
     likesCount: integer("likes_count").notNull().default(0),
     commentsCount: integer("comments_count").notNull().default(0),
+    /** Ko'rishlar (noyob: foydalanuvchi yoki mehmon xeshi, kuniga 1 marta — post_views) */
+    viewsCount: integer("views_count").notNull().default(0),
     isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
     /** Jonli efir / yig'ilish e'loni: vaqti va havolasi (Zoom, Meet, YouTube, Telegram); null — oddiy post */
     eventAt: integer("event_at", { mode: "timestamp_ms" }),
@@ -1060,6 +1062,24 @@ export const postLikes = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("post_likes_pair_idx").on(t.postId, t.userId)],
+);
+
+/** Ko'rishlar dedupe jurnali: (post, ko'ruvchi kaliti, kun) — kalit `u:<userId>` yoki `a:<ip+ua xeshi>` */
+export const postViews = sqliteTable(
+  "post_views",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    viewerKey: text("viewer_key").notNull(),
+    /** YYYY-MM-DD (UTC) */
+    day: text("day").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_views_unique_idx").on(t.postId, t.viewerKey, t.day), index("post_views_day_idx").on(t.day)],
 );
 
 /** Saqlangan postlar (bookmark) — faqat egasiga ko'rinadi: /kabinet/saqlanganlar */

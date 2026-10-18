@@ -36,6 +36,7 @@ export function MentionField({
   ariaLabel,
   onKeyDown,
   trailing,
+  placement = "auto",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -51,12 +52,15 @@ export function MentionField({
   onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
   /** Maydon ichida o'ngda ko'rsatiladigan element (masalan, hisoblagich) */
   trailing?: ReactNode;
+  /** Ro'yxat qayerda ochiladi: auto — pastda joy kam bo'lsa (yoki overflow-hidden karta ichida chat kompozitori) tepada */
+  placement?: "auto" | "up" | "down";
 }) {
   const ref = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
   const [query, setQuery] = useState<string | null>(null);
   const [start, setStart] = useState(0);
   const [items, setItems] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(0);
+  const [up, setUp] = useState(placement === "up");
   const seq = useRef(0);
 
   const detect = useCallback(() => {
@@ -104,6 +108,26 @@ export function MentionField({
   }, [query]);
 
   const open = query !== null && items.length > 0;
+
+  // Joylashuv: pastda 280px'dan kam joy bo'lsa yoki eng yaqin overflow-hidden/auto ota element pastki chegarasiga yaqin bo'lsa — tepaga.
+  // (Guruh chati kartasi overflow-hidden: pastga ochilsa kesilib qoladi — 1-rasmdagi bug)
+  useEffect(() => {
+    if (!open || placement !== "auto") return;
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    let limit = window.innerHeight;
+    let node: HTMLElement | null = el.parentElement;
+    while (node && node !== document.body) {
+      const ov = getComputedStyle(node).overflowY;
+      if (ov === "hidden" || ov === "auto" || ov === "scroll" || ov === "clip") {
+        limit = Math.min(limit, node.getBoundingClientRect().bottom);
+        break;
+      }
+      node = node.parentElement;
+    }
+    setUp(limit - r.bottom < 280);
+  }, [open, placement]);
 
   function pick(s: Suggestion) {
     const el = ref.current;
@@ -193,7 +217,7 @@ export function MentionField({
       )}
       {trailing}
       {open && (
-        <ul id="mention-listbox" role="listbox" aria-label="Foydalanuvchilar" className="card-floating absolute left-0 top-[calc(100%+4px)] z-30 max-h-64 w-full max-w-sm overflow-auto p-1">
+        <ul id="mention-listbox" role="listbox" aria-label="Foydalanuvchilar" className={cn("card-floating absolute left-0 z-30 max-h-64 w-full max-w-sm overflow-auto p-1", up ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
           {items.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === active}>
               <button

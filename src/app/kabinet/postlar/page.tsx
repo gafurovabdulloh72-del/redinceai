@@ -37,7 +37,7 @@ export default async function MyPostsPage() {
           <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">
             Profilingizning Instagram uslubidagi lentasi: ish jarayoni, natijalar, fikrlar — matn, rasm yoki video. Obunachilaringizga har yangi post haqida xabar boradi.{" "}
             <span className="text-fg-3">
-              Hozir: {counts.posts} ta post, {counts.videos} ta video.
+              Hozir: {counts.posts} ta post, {counts.videos} ta video, {counts.views} ta ko&apos;rish.
             </span>
           </p>
         </div>

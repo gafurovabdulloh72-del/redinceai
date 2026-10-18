@@ -32,6 +32,7 @@ function tileOf(p: PostView): MediaTileData {
     count: p.media.length,
     caption: p.body,
     likes: p.likesCount,
+    views: p.viewsCount,
     comments: p.commentsCount,
   };
 }

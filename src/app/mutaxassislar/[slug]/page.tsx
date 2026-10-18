@@ -426,7 +426,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
           <div
             className="absolute inset-0 opacity-70 dark:opacity-50"
-            style={{ background: `radial-gradient(60% 120% at 85% 0%, ${cat?.accent ?? "#ff5a36"}33, transparent 70%), radial-gradient(50% 90% at 10% 100%, ${cat?.accent ?? "#ff5a36"}1f, transparent 70%)` }}
+            style={{ background: "var(--surface-3)" }}
           />
           <div className="absolute inset-0 grain" />
           {/* Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (kabinetdagi "Birinchi ish muqovada ko'rinadi"), u ham bo'lmasa naqsh */}
@@ -509,8 +509,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {proofChips.length > 0 && (
             <ul className="mt-5 flex flex-wrap items-center gap-2" aria-label={tr(til, PROFIL.trustAria)}>
               {proofChips.map((m) => (
-                <li key={m.text} title={m.title} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5 text-[12px] font-semibold text-success-text">
-                  <m.icon size={13} />
+                <li key={m.text} title={m.title} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-surface-3 px-3 py-1.5 text-[12px] font-medium text-fg-2">
+                  <m.icon size={13} className="text-success" />
                   {m.text}
                 </li>
               ))}
@@ -525,10 +525,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 key={m.text}
                 className={cn(
                   "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold",
-                  m.tone === "accent" ? "bg-accent-soft text-accent-text" : "border border-line text-fg-2",
+                  "border border-line text-fg-2",
                 )}
               >
-                <m.icon size={13} className={m.tone === "accent" ? undefined : "text-fg-3"} />
+                <m.icon size={13} className={m.tone === "accent" ? "text-accent" : "text-fg-3"} />
                 {m.text}
               </li>
             ))}

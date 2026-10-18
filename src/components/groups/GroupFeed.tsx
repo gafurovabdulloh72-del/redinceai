@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
+import { ExternalLink, Eye, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower, Send, Trash2, X } from "lucide-react";
 import { RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, SaveButton, ShareAction } from "./Reactions";
 import { ReportButton } from "@/components/specialists/ReportButton";
+import { useViewTracker } from "./useViewTracker";
 import { CalendarLinks } from "./CalendarLinks";
 import { useToast } from "@/components/ui/toast";
 import { Avatar, Button } from "@/components/ui";
@@ -15,7 +16,7 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { COMMENT_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
 import type { CommentView, PostView, UserBrief } from "@/lib/groups/service";
-import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { cn, compactCount, formatDateTime, timeAgo } from "@/lib/utils";
 
 type Page = { items: PostView[]; nextCursor: number | null };
 type ApiResp<T> = { ok: boolean; data?: T; error?: string; fields?: Record<string, string> };
@@ -333,7 +334,8 @@ export function PostCard({
   onDeleted: () => void;
   onChanged: () => Promise<void>;
 }) {
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLElement | null>(null);
+  const { ref: viewRef, views } = useViewTracker(post.id, post.viewsCount);
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.body);
@@ -402,7 +404,14 @@ export function PostCard({
   const permalink = postPermalink(post, groupSlug);
 
   return (
-    <article ref={ref} id={`post-${post.id}`} className={cn("card p-4 transition-shadow duration-300 hover:shadow-[var(--shadow-2)] sm:p-5", highlighted && "ring-2 ring-accent/40")}>
+    <article
+      ref={(el) => {
+        ref.current = el;
+        viewRef.current = el;
+      }}
+      id={`post-${post.id}`}
+      className={cn("card p-4 transition-shadow duration-300 hover:shadow-[var(--shadow-2)] sm:p-5", highlighted && "ring-2 ring-accent/40")}
+    >
       <header className="flex items-center gap-2.5">
         <Avatar name={post.author.name} src={post.author.avatarUrl} size={36} decorative />
         <div className="min-w-0 flex-1">
@@ -500,7 +509,10 @@ export function PostCard({
           <MessageCircle size={16} /> {comments}
         </button>
         {permalink && <ShareAction url={permalink} title={body.split("\n")[0] || post.author.name} />}
-        <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} className="ml-auto" />
+        <span className="ml-auto inline-flex h-9 items-center gap-1 px-1.5 text-[12.5px] tabular-nums text-fg-3" title={`${views} ta ko'rish`} aria-label={`${views} ta ko'rish`}>
+          <Eye size={14} /> {compactCount(views)}
+        </span>
+        <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} />
       </footer>
 
       {open && (

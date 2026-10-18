@@ -264,7 +264,7 @@ export function SectionHeading({
     return (
       <div className="mb-8 flex flex-col items-center gap-4 text-center sm:mb-12">
         {eyebrow && <span className="eyebrow justify-center">{eyebrow}</span>}
-        <h2 className="mx-auto max-w-3xl font-display text-[30px] font-semibold leading-[1.02] tracking-[-0.035em] text-fg sm:text-[40px] lg:text-[48px]">{title}</h2>
+        <h2 className="mx-auto max-w-3xl font-display text-[24px] font-semibold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[28px] lg:text-[32px]">{title}</h2>
         {description && <p className="mx-auto mt-1 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
         {action && <div className="mt-2">{action}</div>}
       </div>
@@ -275,14 +275,9 @@ export function SectionHeading({
   // sarlavha (keng) + tavsif/amal (o'ngda, pastki chiziqqa tekislangan)
   return (
     <div className="mb-8 sm:mb-12">
-      {eyebrow && (
-        <div className="mb-5 flex items-center gap-4 sm:mb-7">
-          <span className="eyebrow !m-0 shrink-0">{eyebrow}</span>
-          <span className="h-px flex-1 bg-line" aria-hidden="true" />
-        </div>
-      )}
-      <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12 lg:items-end">
-        <h2 className="font-display text-[30px] font-semibold leading-[1.0] tracking-[-0.038em] text-fg sm:text-[42px] lg:col-span-7 lg:text-[52px]">{title}</h2>
+      {eyebrow && <span className="eyebrow mb-3">{eyebrow}</span>}
+      <div className="grid gap-x-10 gap-y-4 lg:grid-cols-12 lg:items-end">
+        <h2 className="font-display text-[24px] font-semibold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[28px] lg:col-span-7 lg:text-[32px]">{title}</h2>
         {(description || action) && (
           <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
             {description && <p className="max-w-lg text-[15px] leading-relaxed text-fg-2 sm:text-[16px]">{description}</p>}
@@ -316,25 +311,12 @@ export function PageHeader({
 }) {
   return (
     <header className={cn("flex flex-col", className)}>
-      {eyebrow && (
-        <div className="mb-5 flex items-center gap-4">
-          {/* min-w-0 (shrink-0 emas): uzun eyebrow 390px'da chetga chiqib ketmasin — matn o'raladi, chiziq moslashuvchan qoladi */}
-          <span className="eyebrow !m-0 min-w-0">{eyebrow}</span>
-          <span className="h-px min-w-6 flex-1 bg-line" aria-hidden="true" />
-        </div>
-      )}
-      <div className="grid gap-x-10 gap-y-5 lg:grid-cols-12 lg:items-end">
-        <h1
-          className={cn(
-            "display-xl text-fg lg:col-span-7",
-            size === "lg" ? "text-[34px] sm:text-[50px] lg:text-[60px]" : "text-[32px] sm:text-[42px] lg:text-[48px]",
-          )}
-        >
-          {title}
-        </h1>
+      {eyebrow && <span className="eyebrow mb-3 min-w-0">{eyebrow}</span>}
+      <div className="grid gap-x-10 gap-y-4 lg:grid-cols-12 lg:items-end">
+        <h1 className={cn("display-xl text-fg lg:col-span-7", size === "lg" ? "text-[30px]" : "text-[28px]")}>{title}</h1>
         {(description || action) && (
           <div className="flex flex-col gap-4 lg:col-span-5 lg:items-start lg:pb-1.5">
-            {description && <p className="max-w-lg text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{description}</p>}
+            {description && <p className="max-w-lg text-[14.5px] leading-relaxed text-fg-2 sm:text-[15px]">{description}</p>}
             {action && <div className="flex flex-wrap gap-2">{action}</div>}
           </div>
         )}

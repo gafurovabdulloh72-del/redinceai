@@ -78,7 +78,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <h2 id="people-h" className="font-display text-[20px] font-semibold text-fg">
             Ijodkorlar <span className="text-[14px] font-semibold text-fg-3">{r.people.length}</span>
           </h2>
-          <ul className="stagger mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="stagger mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {r.people.map((p) => (
               <li key={p.slug}>
                 <Link href={`/mutaxassislar/${p.slug}`} className="card card-hover flex items-center gap-3 p-3">
@@ -143,7 +143,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <h2 id={`sec-${s.key}`} className="font-display text-[18px] font-semibold text-fg">
             {s.label}
           </h2>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {s.items.map((it) => (
               <li key={it.href}>
                 <Link href={it.href} className="card card-hover icon-nudge flex items-center gap-3 px-4 py-3">

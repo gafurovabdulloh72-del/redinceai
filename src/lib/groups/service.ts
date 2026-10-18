@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, groupMembers, groupMessages, groups, notifications, postComments, postLikes, postSaves, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
@@ -72,6 +72,8 @@ export interface PostView {
   media: FileAttachment[];
   likesCount: number;
   commentsCount: number;
+  /** Ko'rishlar soni (noyob, kuniga 1) */
+  viewsCount: number;
   isPinned: boolean;
   /** Jonli efir / yig'ilish e'loni bo'lsa — vaqti (ms) va havolasi */
   eventAt: number | null;
@@ -676,6 +678,7 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     media: p.media,
     likesCount: p.likesCount,
     commentsCount: p.commentsCount,
+    viewsCount: p.viewsCount,
     isPinned: p.isPinned,
     eventAt: p.eventAt?.getTime() ?? null,
     eventUrl: p.eventUrl ?? null,
@@ -785,6 +788,29 @@ export async function setReaction(post: Post, userId: string, reaction: Reaction
   }
   const myReaction = mode === "remove" ? null : reaction;
   return { liked: myReaction !== null, likesCount: fresh?.likesCount ?? post.likesCount, myReaction, reactions: counts.get(post.id) ?? {} };
+}
+
+/**
+ * Ko'rish hisobi: (post, kalit, kun) noyob yozuv — bor bo'lsa hisob o'zgarmaydi; muallifning o'zi hisoblanmaydi.
+ * Yozuvlar kichik (id + kalit + kun); 30 kundan eskilari cron'da tozalanadi (purgeOldViews).
+ */
+export async function recordView(post: Post, viewerKey: string, viewerId: string | null): Promise<number> {
+  if (viewerId && viewerId === post.authorId) return post.viewsCount;
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    await db.insert(postViews).values({ id: uid(), postId: post.id, viewerKey, day, createdAt: new Date() });
+  } catch {
+    return post.viewsCount; // bugun allaqachon hisoblangan (unique indeks)
+  }
+  await db.update(posts).set({ viewsCount: sql`${posts.viewsCount} + 1` }).where(eq(posts.id, post.id));
+  return post.viewsCount + 1;
+}
+
+/** Cron: 30 kundan eski ko'rish yozuvlarini o'chirish (hisob posts.views_count'da saqlanib qoladi) */
+export async function purgeOldViews(days = 30): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const res = await db.delete(postViews).where(lt(postViews.day, cutoff));
+  return Number((res as unknown as { rowsAffected?: number }).rowsAffected ?? 0);
 }
 
 /** Eski nom — bitta ❤️ toggle (mavjud chaqiruvlar uchun) */

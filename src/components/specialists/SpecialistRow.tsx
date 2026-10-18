@@ -27,7 +27,7 @@ export async function SpecialistRow({ sp, showCompare = false }: { sp: Specialis
   const region = REGION_BY_SLUG[sp.regionSlug];
   const hue = hashHue(sp.slug);
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
-  const fallbackBg = `linear-gradient(135deg, hsl(${hue} 22% 30%), ${cat?.accent ?? "#df7a5a"}cc 120%)`;
+  const fallbackBg = `hsl(${hue} 14% 28%)`;
   const isNew = isRecent(sp.createdAt, 7);
 
   return (

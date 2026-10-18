@@ -83,16 +83,17 @@ export async function listProfilePosts(authorId: string, viewer: Viewer, opts: {
 }
 
 /** Profil sarlavhasi uchun sonlar: jami post, video, faqat matn */
-export async function profilePostCounts(authorId: string): Promise<{ posts: number; videos: number; texts: number }> {
+export async function profilePostCounts(authorId: string): Promise<{ posts: number; videos: number; texts: number; views: number }> {
   const [r] = await db
     .select({
       n: sql<number>`count(*)`,
       v: sql<number>`coalesce(sum(case when ${VIDEO_MEDIA} then 1 else 0 end), 0)`,
       t: sql<number>`coalesce(sum(case when ${NO_MEDIA} then 1 else 0 end), 0)`,
+      w: sql<number>`coalesce(sum(${posts.viewsCount}), 0)`,
     })
     .from(posts)
     .where(and(eq(posts.authorId, authorId), isNull(posts.groupId)));
-  return { posts: Number(r?.n ?? 0), videos: Number(r?.v ?? 0), texts: Number(r?.t ?? 0) };
+  return { posts: Number(r?.n ?? 0), videos: Number(r?.v ?? 0), texts: Number(r?.t ?? 0), views: Number(r?.w ?? 0) };
 }
 
 /** Bitta profil posti (?post=<id> bilan ochish uchun); authorId berilsa — faqat shu muallifniki */

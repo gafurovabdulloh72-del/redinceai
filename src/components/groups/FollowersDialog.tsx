@@ -84,7 +84,7 @@ export function FollowList({ userId, kind, loggedIn, viewerId, emptyText }: { us
                   {u.followersCount > 0 && <span className="text-fg-4"> · {u.followersCount} obunachi</span>}
                 </span>
               </span>
-              {loggedIn && viewerId !== u.id && <FollowButton userId={u.id} initialFollowing={u.following} initialCount={u.followersCount} loggedIn size="sm" compact showCount={false} />}
+              {loggedIn && viewerId !== u.id && <FollowButton userId={u.id} initialFollowing={u.following} initialCount={u.followersCount} loggedIn size="sm" compact showCount={false} variant="outline" />}
             </li>
           );
         })}

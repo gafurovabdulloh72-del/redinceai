@@ -103,14 +103,14 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       {/* Hero */}
       <section className="card mt-4 overflow-hidden">
-        <div className="relative aspect-[3/1] max-h-[300px] w-full overflow-hidden bg-surface-2">
+        <div className="relative aspect-[4/1] max-h-[200px] w-full overflow-hidden bg-surface-2">
           {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold">
               {cat && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-accent-text">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-3 px-2.5 py-1 text-fg-2">
                   <CategoryIcon icon={cat.icon} size={13} /> {cat.plural}
                 </span>
               )}

@@ -94,6 +94,8 @@ export const RATE_LIMITS = {
   blocks: { limit: 60, windowMs: HOUR },
   /** @eslatma avtoto'ldirish (har harfda so'rov, klientda kesh) — userId */
   mention: { limit: 600, windowMs: HOUR },
+  /** Post ko'rish hisobi — ko'ruvchi kaliti (user yoki IP xeshi) bo'yicha */
+  views: { limit: 1200, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

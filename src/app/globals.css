@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   KASB EGALARI — "Liquid Glass" dizayn tizimi
-   Minimalist, shaffof, premium. Ikki rejim: Paper (yorug') va Noir (qorong'u).
+   KASB EGALARI — dizayn tizimi v3 "Tinch" (minimalistik, yassi)
+   2026-10: suyuq shisha (blur, rim, nur dog'lari, to'r) olib tashlandi — yassi yuzalar, 1px hairline, deyarli soyasiz,
+   kichik radius (10/14/20), kichikroq sarlavhalar, urg'u so'z kulrang, aksent (coral) faqat asosiy amal va faol holatda.
+   Ikki rejim: yorug' (iliq oq) va qorong'u (neytral qora).
    - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (italic urg'u)
    - Ranglar: iliq neytral fon + bitta coral accent (binafsha — ikkilamchi) — O'ZGARMAGAN
    - Yuzalar: suyuq shisha — shaffof panel + backdrop-blur + ustki yorug' qirra (rim),
@@ -19,11 +21,11 @@
 
 /* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
-  --bg: #f6f4ee;
-  --bg-2: #eeebe3;
+  --bg: #fafaf8;
+  --bg-2: #f3f3f0;
   --surface: #ffffff;
-  --surface-2: #faf8f3;
-  --surface-3: #f0ede6;
+  --surface-2: #f6f6f4;
+  --surface-3: #eeeeeb;
   --fg: #121213;
   --fg-2: #4b4a47;
   --fg-3: #6f6d67; /* AA (4.5+) oq va qog'oz fonida */
@@ -41,8 +43,8 @@
   --accent-strong: #c93d1c; /* oq matnli kichik coral fon (hisoblagich badge) — oq 5.0 (AA) */
   --accent-3: #f0b43c;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(255, 90, 54, 0.12);
-  --accent-2-soft: rgba(123, 97, 255, 0.12);
+  --accent-soft: rgba(255, 90, 54, 0.1);
+  --accent-2-soft: rgba(123, 97, 255, 0.1);
 
   /* Semantik holat ranglari — palitraga moslashtirilgan (muted) */
   --success: #2f9e6e;
@@ -70,28 +72,28 @@
   --chart-2: #7b61ff;
 
   /* Radius — 3 daraja (12 / 18 / 26): Apple uslubidagi uzluksiz burchaklar — input 12, karta 18, katta blok 26 */
-  --r-sm: 12px;
-  --r-md: 18px;
-  --r-lg: 26px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
 
   /* Soya — 3 daraja: yassi va yumshoq (Apple): hairline + juda tarqoq past soya; chuqurlik asosan konturdan */
-  --shadow-1: 0 1px 1px rgba(18, 18, 19, 0.03), 0 8px 24px -14px rgba(18, 18, 19, 0.1);
-  --shadow-2: 0 2px 3px rgba(18, 18, 19, 0.04), 0 20px 44px -22px rgba(18, 18, 19, 0.16);
-  --shadow-3: 0 4px 8px rgba(18, 18, 19, 0.05), 0 36px 72px -26px rgba(18, 18, 19, 0.24);
-  --shadow-accent: 0 16px 40px -14px rgba(214, 62, 30, 0.5); /* btn-accent gradientining to'q coral toni bilan uyg'un */
+  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04);
+  --shadow-2: 0 4px 16px -8px rgba(18, 18, 19, 0.12);
+  --shadow-3: 0 12px 32px -12px rgba(18, 18, 19, 0.18);
+  --shadow-accent: 0 0 #0000; /* v3: tugmalarda soya yo'q */
   --card-inset: inset 0 0 0 0 transparent;
 
   /* Suyuq shisha (liquid glass) tokenlari */
-  --glass-fill: rgba(255, 255, 255, 0.5); /* karta */
-  --glass-fill-strong: rgba(255, 255, 255, 0.64); /* ko'tarilgan karta */
-  --glass-fill-float: rgba(255, 255, 255, 0.8); /* menyu/popover — o'qilishi aniq */
-  --glass-fill-weak: rgba(255, 255, 255, 0.32); /* yengil kontur-karta */
-  --glass-line: rgba(18, 18, 19, 0.07); /* tashqi nozik kontur */
-  /* Ustki yorug' qirra + ichki oq halqa — shishaning "qalinligi" */
-  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-  --glass-rim-soft: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --glass-blur: 18px;
-  --glass-sat: 160%;
+  /* v3: "shisha" tokenlari yassi yuzalarga tenglashtirildi (eski klasslar ishlayveradi) */
+  --glass-fill: var(--surface);
+  --glass-fill-strong: var(--surface);
+  --glass-fill-float: var(--surface);
+  --glass-fill-weak: transparent;
+  --glass-line: var(--line);
+  --glass-rim: 0 0 #0000;
+  --glass-rim-soft: 0 0 #0000;
+  --glass-blur: 0px;
+  --glass-sat: 100%;
 
   /* Harakat */
   --dur-1: 150ms;
@@ -157,18 +159,18 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0a0a0c;
-  --bg-2: #0e0e11;
-  --surface: #141418;
-  --surface-2: #1a1a1f;
-  --surface-3: #222228;
+  --bg: #0c0c0d;
+  --bg-2: #111113;
+  --surface: #151517;
+  --surface-2: #1b1b1e;
+  --surface-3: #232327;
   --fg: #f4f2ec;
   --fg-2: #bdbab2;
   --fg-3: #8d8b84;
   --fg-4: #8a8881; /* 11px matn ham AA (surface 5.2, surface-2 4.9, bg 5.6) */
 
-  --line: rgba(255, 255, 255, 0.09);
-  --line-2: rgba(255, 255, 255, 0.17);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.15);
   --hairline: var(--line);
 
   --accent: #ff6b47;
@@ -205,22 +207,22 @@
   --chart-2: #8f79ff;
 
   /* Noir'da soya + kartaning ustki qirrasida 1px yorug' chiziq (fon bilan ajralishi uchun) */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px -14px rgba(0, 0, 0, 0.65);
-  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 30px 60px -24px rgba(0, 0, 0, 0.85);
-  --shadow-3: 0 6px 14px rgba(0, 0, 0, 0.45), 0 50px 100px -30px rgba(0, 0, 0, 0.95);
-  --shadow-accent: 0 16px 44px -14px rgba(214, 62, 30, 0.6); /* btn-accent'ning to'q coral toni bilan uyg'un */
-  --card-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 6px 20px -10px rgba(0, 0, 0, 0.6);
+  --shadow-3: 0 16px 40px -14px rgba(0, 0, 0, 0.75);
+  --shadow-accent: 0 0 #0000;
+  --card-inset: 0 0 #0000;
 
   /* Suyuq shisha — Noir: qoramtir shaffof panel + nozik oq qirra */
-  --glass-fill: rgba(22, 22, 28, 0.52);
-  --glass-fill-strong: rgba(25, 25, 31, 0.64);
-  --glass-fill-float: rgba(27, 27, 34, 0.84);
-  --glass-fill-weak: rgba(255, 255, 255, 0.045);
-  --glass-line: rgba(255, 255, 255, 0.1);
-  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.045);
-  --glass-rim-soft: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --glass-blur: 18px;
-  --glass-sat: 140%;
+  --glass-fill: var(--surface);
+  --glass-fill-strong: var(--surface-2);
+  --glass-fill-float: var(--surface-2);
+  --glass-fill-weak: transparent;
+  --glass-line: var(--line);
+  --glass-rim: 0 0 #0000;
+  --glass-rim-soft: 0 0 #0000;
+  --glass-blur: 0px;
+  --glass-sat: 100%;
 
   --glass: var(--surface);
   --glass-strong: var(--surface-2);
@@ -543,7 +545,7 @@ body {
 
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   font-weight: 600;
 }
 /* Apple tipografikasi: sarlavhalar muvozanatli o'raladi, paragraflarda yetim so'z qolmaydi */
@@ -592,67 +594,57 @@ select:focus-visible {
 /* ---------- Yuzalar (component layer) — suyuq shisha ---------- */
 @layer components {
   /* Karta — asosiy shisha yuza: fon dog'larini blur qilib "sindiradi" */
+  /* v3: yassi karta — yuza + 1px hairline, soyasiz. (.glass* nomlari moslik uchun qoldi) */
   .glass,
   .card {
     position: relative;
-    background: var(--glass-fill);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-    border: 1px solid var(--glass-line);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-1), var(--glass-rim);
-    transition:
-      transform var(--dur-3) var(--ease-out),
-      box-shadow var(--dur-3) ease,
-      border-color var(--dur-3) ease,
-      background var(--dur-2) ease;
+    box-shadow: none;
+    transition: border-color var(--dur-2) ease, background var(--dur-2) ease, box-shadow var(--dur-2) ease;
   }
-  /* Ko'tarilgan shisha */
+  /* Ko'tarilgan karta — juda yumshoq soya (dialog, chat paneli) */
   .glass-strong,
   .card-elevated {
     position: relative;
-    background: var(--glass-fill-strong);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-    border: 1px solid var(--glass-line);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-2), var(--glass-rim);
-    transition: transform var(--dur-3) var(--ease-out), box-shadow var(--dur-3) ease, border-color var(--dur-3) ease;
+    box-shadow: var(--shadow-1);
+    transition: border-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
   }
-  /* Suzuvchi shisha (menyu, popover, tooltip) — eng quyuq, matn aniq o'qilsin */
+  /* Suzuvchi (menyu, popover, tooltip) — solid yuza + aniq soya */
   .card-floating {
     position: relative;
-    background: var(--glass-fill-float);
-    -webkit-backdrop-filter: blur(26px) saturate(var(--glass-sat));
-    backdrop-filter: blur(26px) saturate(var(--glass-sat));
-    border: 1px solid var(--glass-line);
+    background: var(--surface);
+    border: 1px solid var(--line-2);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-3), var(--glass-rim);
+    box-shadow: var(--shadow-3);
   }
-  /* Yengil shisha (blur'siz — arzon): ro'yxat ichidagi ikkilamchi bloklar */
+  /* Kontur karta — fonsiz, faqat hairline (ichki ikkilamchi bloklar) */
   .glass-weak,
   .card-outline {
     position: relative;
-    background: var(--glass-fill-weak);
-    border: 1px solid var(--glass-line);
+    background: transparent;
+    border: 1px solid var(--line);
     border-radius: var(--r-md);
-    box-shadow: var(--glass-rim-soft);
+    box-shadow: none;
     transition: background var(--dur-2) ease, border-color var(--dur-2) ease;
   }
 
-  /* Hover faqat ko'rsatkichli qurilmalarda — touch'da "yopishib qolmasin" */
+  /* Hover faqat ko'rsatkichli qurilmalarda: kontur quyuqlashadi, harakat yo'q */
   @media (hover: hover) and (pointer: fine) {
     .glass-hover:hover,
     .card-hover:hover {
-      transform: translateY(-2px);
-      background: var(--glass-fill-strong);
       border-color: var(--line-2);
-      box-shadow: var(--shadow-2), var(--glass-rim);
+      background: var(--surface);
+      box-shadow: var(--shadow-1);
     }
   }
   .glass-hover:active,
   .card-hover:active {
-    transform: translateY(-1px) scale(0.995);
+    transform: scale(0.995);
   }
 
   /* Fallback: backdrop-filter ishlamasa yoki shaffoflik kamaytirilgan bo'lsa — solid yuzalar */
@@ -710,7 +702,7 @@ select:focus-visible {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: var(--r-sm);
-    background: var(--accent-soft);
+    background: var(--surface-3);
     color: var(--accent);
   }
   .icon-tile-outline {
@@ -783,18 +775,17 @@ select:focus-visible {
 
   /* Accent tugma — coral; ohista chuqurlik. Oq matn uchun to'qlashtirilgan gradient (AA):
      #d63e1e oq bilan 4.6, #c93546 — 5.2, #c2314f — 5.5; hover to'qroq tomonga suriladi, kontrast faqat ortadi */
+  /* v3: yassi coral — #d13f1c (oq matn 4.6:1, AA), soyasiz, hover'da biroz to'qroq */
   .btn-accent {
     position: relative;
     color: #fff;
-    background: linear-gradient(100deg, #d63e1e 0%, #c93546 70%, #c2314f 120%);
-    background-size: 160% 100%;
-    background-position: 0% 0%;
+    background: #d13f1c;
     border: 1px solid transparent;
-    box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    transition: background-position var(--dur-3) ease, transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) ease;
+    box-shadow: none;
+    transition: filter var(--dur-2) ease, transform var(--dur-2) var(--ease-out);
   }
   .btn-accent:hover {
-    background-position: 100% 0%;
+    filter: brightness(0.94);
   }
   .btn-accent:active {
     transform: scale(0.97);
@@ -802,6 +793,7 @@ select:focus-visible {
 
   /* Input — yarim shaffof shisha; fokusda solid (o'qilishi aniq) */
   /* Input — Apple uslubida to'ldirilgan maydon: kulrang fon, ko'rinmas kontur; fokusda oq + accent halo */
+  /* v3: kontur input — oq yuza + hairline; fokusda qora kontur (aksent emas), xato — qizil */
   .field {
     width: 100%;
     min-height: 2.75rem;
@@ -809,8 +801,8 @@ select:focus-visible {
     padding: 0.7rem 0.95rem;
     font-size: 0.9375rem;
     color: var(--fg);
-    background: var(--surface-3);
-    border: 1px solid transparent;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
     box-shadow: none;
     outline: none;
     transition: border-color var(--dur-1), box-shadow var(--dur-2) var(--ease-out), background var(--dur-1);
@@ -823,32 +815,29 @@ select:focus-visible {
   }
   /* background-color (shorthand emas): select.field'dagi chevron (background-image) o'chib ketmasin */
   [data-theme="dark"] .field {
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: var(--surface-2);
   }
   .field::placeholder {
     color: var(--fg-4);
   }
   .field:hover {
-    background-color: color-mix(in srgb, var(--surface-3) 80%, var(--fg) 4%);
-  }
-  [data-theme="dark"] .field:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    border-color: color-mix(in srgb, var(--fg) 30%, transparent);
   }
   .field:focus,
   .field:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 4px var(--accent-soft);
+    border-color: var(--fg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 8%, transparent);
     background-color: var(--surface);
   }
   [data-theme="dark"] .field:focus,
   [data-theme="dark"] .field:focus-within {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--surface-2);
   }
   /* Xato holati: qizil kontur + halo (aria-invalid yoki .field-invalid) */
   .field[aria-invalid="true"],
   .field-invalid {
     border-color: var(--danger);
-    box-shadow: 0 0 0 4px var(--danger-soft);
+    box-shadow: 0 0 0 3px var(--danger-soft);
   }
   select.field {
     appearance: none;
@@ -904,7 +893,7 @@ select:focus-visible {
   .segment-item[data-active="true"] {
     color: var(--fg);
     background: var(--surface);
-    box-shadow: 0 1px 3px rgba(18, 18, 19, 0.12), 0 0 0 0.5px rgba(18, 18, 19, 0.04);
+    box-shadow: 0 1px 2px rgba(18, 18, 19, 0.08);
   }
   [data-theme="dark"] .segment-item[data-active="true"] {
     background: rgba(255, 255, 255, 0.16);
@@ -912,52 +901,46 @@ select:focus-visible {
   }
 
   /* Navigatsiya paneli — eng "suyuq" shisha: kontent ostidan oqib o'tadi */
+  /* v3: telefon panellari — deyarli solid yuza, yengil blur, hairline, yumshoq soya */
   .nav-bar {
-    background: var(--glass-fill);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid var(--glass-line);
-    box-shadow: 0 1px 2px rgba(18, 18, 19, 0.04), 0 14px 40px -20px rgba(18, 18, 19, 0.2), var(--glass-rim);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-2);
   }
   [data-theme="dark"] .nav-bar {
-    background: var(--glass-fill-strong);
-    box-shadow: var(--shadow-1), var(--glass-rim);
+    background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+    box-shadow: var(--shadow-2);
   }
 
   /* Katta display sarlavha */
+  /* v3: katta sarlavha — ixcham (24→34px), sahifalardagi inline o'lchamlar shu klamp bilan tenglashtiriladi */
   .display-xl {
     font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 0.98;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+    font-size: clamp(1.5rem, 1.15rem + 1.3vw, 2.125rem) !important;
   }
-  /* Italic serif urg'u so'z */
+  /* v3: urg'u so'z — italic serif/coral o'rniga shu shrift, kulrang ohang (monoxrom ierarxiya) */
   .accent-serif {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-family: inherit !important;
+    font-style: normal !important;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    color: var(--fg-3) !important;
   }
-  /* Kichik ustki yozuv */
+  /* Kichik ustki yozuv — chiziqsiz, tinch */
   .eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-3);
-  }
-  .eyebrow::before {
-    content: "";
-    flex: none;
-    /* Matn ikki qatorga o'tsa ham chiziq birinchi qator o'rtasida qoladi (line-height 1.5) */
-    align-self: flex-start;
-    margin-top: calc(0.75em - 0.5px);
-    width: 1.5rem;
-    height: 1px;
-    background: var(--accent);
   }
 
   /* Qorong'u CTA bloki — ikkala rejimda ham qora (inversiya yo'q) */

@@ -74,7 +74,7 @@ export function RightRail({ data, user, til }: { data: RailData; user: RailUser 
                   </Link>
                   <p className="truncate text-[12px] text-fg-3">{CATEGORY_BY_SLUG[c.category]?.name ?? c.title}</p>
                 </div>
-                <FollowButton userId={c.userId} initialFollowing={c.following} initialCount={c.followers} loggedIn={Boolean(user)} size="sm" compact />
+                <FollowButton userId={c.userId} initialFollowing={c.following} initialCount={c.followers} loggedIn={Boolean(user)} size="sm" compact showCount={false} variant="outline" />
               </li>
             ))}
           </ul>
