@@ -36,6 +36,10 @@ export const users = sqliteTable(
     lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
     /** Oxirgi faollik (chat "onlayn" holati uchun) — chat so'rovlarida ~60 soniyada bir yangilanadi */
     lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
+    /** Maxfiylik: kim yozishi mumkin (all | following — faqat men obuna bo'lganlar | none), kim izoh yozadi (all | followers | none), onlayn holat ko'rinsinmi */
+    dmPolicy: text("dm_policy", { enum: ["all", "following", "none"] }).notNull().default("all"),
+    commentPolicy: text("comment_policy", { enum: ["all", "followers", "none"] }).notNull().default("all"),
+    showOnline: integer("show_online", { mode: "boolean" }).notNull().default(true),
     /** 2FA (TOTP): sir AES-GCM bilan shifrlangan (payments/crypto.ts); totpEnabled — tasdiqlangandan keyin true */
     totpSecretEnc: text("totp_secret_enc"),
     totpEnabled: integer("totp_enabled", { mode: "boolean" }).notNull().default(false),
@@ -597,8 +601,8 @@ export const reports = sqliteTable(
     reporterId: text("reporter_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    targetType: text("target_type", { enum: ["specialist", "review", "user"] }).notNull(),
-    /** specialists.id, reviews.id yoki users.id (chatdagi shikoyat) */
+    targetType: text("target_type", { enum: ["specialist", "review", "user", "post", "comment", "message"] }).notNull(),
+    /** specialists.id, reviews.id, users.id (chatdagi shikoyat), posts.id, post_comments.id yoki dm/group xabari id */
     targetId: text("target_id").notNull(),
     reason: text("reason").notNull(),
     status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
@@ -1115,6 +1119,25 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
   comments: many(postComments),
 }));
+
+/** Bloklash: blocker → blocked (bir tomonlama yozuv, ta'siri ikki tomonlama) */
+export const userBlocks = sqliteTable(
+  "user_blocks",
+  {
+    id: text("id").primaryKey(),
+    blockerId: text("blocker_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedId: text("blocked_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("user_blocks_pair_idx").on(t.blockerId, t.blockedId), index("user_blocks_blocked_idx").on(t.blockedId)],
+);
+export type UserBlock = typeof userBlocks.$inferSelect;
 
 export const postSavesRelations = relations(postSaves, ({ one }) => ({
   post: one(posts, { fields: [postSaves.postId], references: [posts.id] }),

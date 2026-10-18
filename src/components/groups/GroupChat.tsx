@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { AttachmentList, QuoteBlock, ReplyBar, ReplyButton, TypingDots, typingLabel } from "@/components/chat/MessageParts";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
+import { ReportButton } from "@/components/specialists/ReportButton";
 import type { QuoteView } from "@/lib/chat/quote";
 import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import type { GroupMessageView, UserBrief } from "@/lib/groups/service";
@@ -218,6 +219,7 @@ export function GroupChat({ slug, membersCount }: { slug: string; membersCount: 
                     </p>
                   </div>
                   <ReplyButton mine={m.mine} onClick={() => setReplyTo(m)} />
+                  {!m.mine && <ReportButton targetType="message" targetId={m.id} loggedIn compact modal triggerClassName="self-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60" />}
                 </div>
               </div>
             );

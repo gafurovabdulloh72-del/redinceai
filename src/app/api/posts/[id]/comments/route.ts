@@ -6,6 +6,7 @@ import { addComment, assertActiveMember, assertCanView, listComments, loadPost }
 import { commentInputSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { optionalViewer } from "@/app/api/groups/_lib";
+import { assertCanInteractProfilePost } from "@/lib/privacy/blocks";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,6 +34,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const { post, group } = await postAndGroup(id);
   const viewer = { id: session.sub, role: session.role };
   if (group) await assertActiveMember(group, viewer);
+  else await assertCanInteractProfilePost(session.sub, post.authorId, "comment");
   await enforceLimit("comments", session.sub);
   const c = await addComment(post, session.sub, input.body);
   return ok({ id: c.id }, { status: 201 });

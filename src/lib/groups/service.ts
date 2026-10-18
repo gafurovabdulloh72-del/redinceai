@@ -9,6 +9,7 @@ import type { GroupInput } from "./validators";
 import { REACTION_BY_KEY, REACTION_KINDS, type ReactionKind } from "./limits";
 import { notifyMentions } from "./mentions";
 import { TYPING_WINDOW_MS, toQuote, type QuoteView } from "@/lib/chat/quote";
+import { isBlockedEither } from "@/lib/privacy/blocks";
 
 /**
  * Jamoalar — ijodkorlar hamjamiyati: guruhlar, a'zolik, lenta (post/like/izoh), guruh chati, obuna (follow).
@@ -128,13 +129,14 @@ export async function briefUsers(ids: string[]): Promise<Map<string, UserBrief>>
   const map = new Map<string, UserBrief>();
   if (!unique.length) return map;
   const rows = await db
-    .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl, username: users.username, slug: specialists.slug, lastSeenAt: users.lastSeenAt })
+    .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl, username: users.username, slug: specialists.slug, lastSeenAt: users.lastSeenAt, showOnline: users.showOnline })
     .from(users)
     .leftJoin(specialists, eq(specialists.userId, users.id))
     .where(inArray(users.id, unique));
   const since = Date.now() - ONLINE_WINDOW_MS;
   for (const r of rows) {
-    map.set(r.id, { id: r.id, name: r.name, avatarUrl: r.avatarUrl, username: r.username, slug: r.slug ?? null, online: Boolean(r.lastSeenAt && r.lastSeenAt.getTime() > since) });
+    // showOnline=false — maxfiylik: yashil nuqta hech kimga ko'rinmaydi
+    map.set(r.id, { id: r.id, name: r.name, avatarUrl: r.avatarUrl, username: r.username, slug: r.slug ?? null, online: Boolean(r.showOnline && r.lastSeenAt && r.lastSeenAt.getTime() > since) });
   }
   return map;
 }
@@ -918,6 +920,7 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
   if (followerId === followingId) throw new ApiError(400, "O'zingizga obuna bo'lib bo'lmaydi");
   const target = await db.query.users.findFirst({ where: eq(users.id, followingId), columns: { id: true, isBanned: true } });
   if (!target || target.isBanned) throw new ApiError(404, "Foydalanuvchi topilmadi");
+  if (await isBlockedEither(followerId, followingId)) throw new ApiError(403, "Bu foydalanuvchiga obuna bo'lib bo'lmaydi");
   const existing = await db.query.follows.findFirst({ where: and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)) });
   if (existing) {
     await db.delete(follows).where(eq(follows.id, existing.id));
@@ -975,6 +978,15 @@ export async function assertCanView(group: Group, viewer: Viewer): Promise<Group
   const m = await getMembership(group.id, viewer?.id);
   if (!canViewWith(group, m, viewer)) throw new ApiError(403, "Bu yopiq jamoa — kontent faqat a'zolarga ko'rinadi");
   return m;
+}
+
+/** Jamoa id'si bo'yicha ko'rish (yoki `memberOnly` — a'zolik) tekshiruvi; topilmasa 404 */
+export async function canViewGroupId(groupId: string, viewer: Viewer, memberOnly = false): Promise<Group> {
+  const group = await db.query.groups.findFirst({ where: eq(groups.id, groupId) });
+  if (!group) throw new ApiError(404, "Jamoa topilmadi");
+  if (memberOnly) await assertActiveMember(group, viewer);
+  else await assertCanView(group, viewer);
+  return group;
 }
 
 export async function assertCanManage(group: Group, viewer: Viewer): Promise<GroupMember | null> {

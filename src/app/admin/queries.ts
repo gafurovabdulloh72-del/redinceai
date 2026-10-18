@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, reports, reviews, specialists, users } from "@/lib/db/schema";
+import { auditLogs, dmMessages, groupMessages, postComments, posts, reports, reviews, specialists, users } from "@/lib/db/schema";
 import { auditLabel } from "@/lib/security/audit";
 import { escapeLike } from "@/lib/utils";
 
@@ -160,7 +160,7 @@ export async function listAdminReviews(limit = 30) {
 /* ------------------------------------------------------------------ */
 export interface AdminReportRow {
   id: string;
-  targetType: "specialist" | "review" | "user";
+  targetType: "specialist" | "review" | "user" | "post" | "comment" | "message";
   targetId: string;
   reason: string;
   status: "open" | "closed";
@@ -184,6 +184,9 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
   const spIds = rows.filter((r) => r.targetType === "specialist").map((r) => r.targetId);
   const rvIds = rows.filter((r) => r.targetType === "review").map((r) => r.targetId);
   const usIds = rows.filter((r) => r.targetType === "user").map((r) => r.targetId);
+  const postIds = rows.filter((r) => r.targetType === "post").map((r) => r.targetId);
+  const cmIds = rows.filter((r) => r.targetType === "comment").map((r) => r.targetId);
+  const msgIds = rows.filter((r) => r.targetType === "message").map((r) => r.targetId);
   // Yopgan adminlar — bitta qo'shimcha so'rov (yopiq shikoyatlarda "kim yopdi" ko'rinadi)
   const resolverIds = [...new Set(rows.map((r) => r.resolvedBy).filter((v): v is string => Boolean(v)))];
   const [sps, rvs, us, resolvers] = await Promise.all([
@@ -198,6 +201,22 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
     usIds.length ? db.query.users.findMany({ where: inArray(users.id, usIds), columns: { id: true, name: true, email: true, isBanned: true, bannedReason: true } }) : Promise.resolve([]),
     resolverIds.length ? db.query.users.findMany({ where: inArray(users.id, resolverIds), columns: { id: true, name: true, email: true } }) : Promise.resolve([]),
   ]);
+  // Ijtimoiy tarmoq nishonlari: post, izoh, xabar (DM yoki jamoa chati) — muallif + parcha + havola
+  const [postRows, cmRows, dmRows, gmRows] = await Promise.all([
+    postIds.length ? db.query.posts.findMany({ where: inArray(posts.id, postIds), columns: { id: true, body: true, authorId: true, groupId: true }, with: { author: { columns: { name: true, isBanned: true, bannedReason: true } }, group: { columns: { slug: true } } } }) : Promise.resolve([]),
+    cmIds.length ? db.query.postComments.findMany({ where: inArray(postComments.id, cmIds), columns: { id: true, body: true, authorId: true, postId: true }, with: { author: { columns: { name: true, isBanned: true, bannedReason: true } }, post: { columns: { groupId: true, authorId: true }, with: { group: { columns: { slug: true } } } } } }) : Promise.resolve([]),
+    msgIds.length ? db.query.dmMessages.findMany({ where: inArray(dmMessages.id, msgIds), columns: { id: true, body: true, senderId: true, attachments: true } }) : Promise.resolve([]),
+    msgIds.length ? db.query.groupMessages.findMany({ where: inArray(groupMessages.id, msgIds), columns: { id: true, body: true, senderId: true, attachments: true } }) : Promise.resolve([]),
+  ]);
+  const senderIds = [...new Set([...dmRows.map((m) => m.senderId), ...gmRows.map((m) => m.senderId)])];
+  const senders = new Map((senderIds.length ? await db.query.users.findMany({ where: inArray(users.id, senderIds), columns: { id: true, name: true, isBanned: true, bannedReason: true } }) : []).map((u) => [u.id, u]));
+  const authorSlugIds = [...new Set([...postRows.map((p) => p.authorId), ...cmRows.map((c) => c.post.authorId)])];
+  const slugs = new Map((authorSlugIds.length ? await db.query.specialists.findMany({ where: inArray(specialists.userId, authorSlugIds), columns: { userId: true, slug: true } }) : []).map((s) => [s.userId, s.slug]));
+  const postMap = new Map(postRows.map((p) => [p.id, p]));
+  const cmMap = new Map(cmRows.map((c) => [c.id, c]));
+  const msgMap = new Map<string, { body: string; senderId: string; attachments: unknown[]; where: string }>([...dmRows.map((m) => [m.id, { ...m, where: "chat" }] as const), ...gmRows.map((m) => [m.id, { ...m, where: "jamoa chati" }] as const)]);
+  const postLink = (groupSlug: string | null | undefined, authorId: string, postId: string) => (groupSlug ? `/jamoalar/${groupSlug}?post=${postId}` : slugs.get(authorId) ? `/mutaxassislar/${slugs.get(authorId)}?post=${postId}` : null);
+  const excerpt = (body: string, atts: unknown[]) => (body.trim() ? body.trim().slice(0, 160) : atts.length ? "[media]" : "");
   const spMap = new Map(sps.map((s) => [s.id, s]));
   const rvMap = new Map(rvs.map((r) => [r.id, r]));
   const usMap = new Map(us.map((u) => [u.id, u]));
@@ -214,6 +233,19 @@ export async function listAdminReports(status: "open" | "closed" | "all" = "open
       const s = spMap.get(r.targetId);
       target = s ? { label: s.user.name, href: `/mutaxassislar/${s.slug}`, snippet: null } : { label: "O'chirilgan profil", href: null, snippet: null };
       owner = s ? { userId: s.userId, name: s.user.name, isBanned: s.user.isBanned, bannedReason: s.user.bannedReason } : null;
+    } else if (r.targetType === "post") {
+      const p = postMap.get(r.targetId);
+      target = p ? { label: `${p.author.name} posti`, href: postLink(p.group?.slug, p.authorId, p.id), snippet: excerpt(p.body, []) || "[media]" } : { label: "O'chirilgan post", href: null, snippet: null };
+      owner = p ? { userId: p.authorId, name: p.author.name, isBanned: p.author.isBanned, bannedReason: p.author.bannedReason } : null;
+    } else if (r.targetType === "comment") {
+      const c = cmMap.get(r.targetId);
+      target = c ? { label: `${c.author.name} izohi`, href: postLink(c.post.group?.slug, c.post.authorId, c.postId), snippet: c.body.slice(0, 160) } : { label: "O'chirilgan izoh", href: null, snippet: null };
+      owner = c ? { userId: c.authorId, name: c.author.name, isBanned: c.author.isBanned, bannedReason: c.author.bannedReason } : null;
+    } else if (r.targetType === "message") {
+      const m = msgMap.get(r.targetId);
+      const u = m ? senders.get(m.senderId) : undefined;
+      target = m ? { label: `${u?.name ?? "Foydalanuvchi"} xabari (${m.where})`, href: null, snippet: excerpt(m.body, m.attachments) } : { label: "O'chirilgan xabar", href: null, snippet: null };
+      owner = m && u ? { userId: u.id, name: u.name, isBanned: u.isBanned, bannedReason: u.bannedReason } : null;
     } else {
       const v = rvMap.get(r.targetId);
       target = v ? { label: `${v.author.name} · ${v.rating}★`, href: `/mutaxassislar/${v.specialist.slug}#sharhlar`, snippet: v.text.slice(0, 160) } : { label: "O'chirilgan sharh", href: null, snippet: null };

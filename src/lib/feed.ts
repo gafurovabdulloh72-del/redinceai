@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/payments/settings";
 import { listableCondition } from "@/lib/subscriptions/access";
 import { listVacancies, type VacancyCard } from "@/lib/vacancies/service";
 import { vacancyFilterSchema } from "@/lib/vacancies/validators";
+import { notBlockedCondition } from "@/lib/privacy/blocks";
 
 /**
  * Bosh sahifa lentasi (ijtimoiy tarmoq): profil postlari (groupId = null) va ochiq jamoalar/kanallar postlari bir oqimda.
@@ -28,6 +29,8 @@ export async function homeFeed(viewer: Viewer, opts: { cursor?: number | null; l
   const limit = Math.min(30, Math.max(1, opts.limit ?? 10));
   const scope: FeedScope = opts.scope === "following" && viewer ? "following" : "all";
   const conds: SQL[] = [eq(users.isBanned, false), or(isNull(posts.groupId), eq(groups.isPrivate, false))!];
+  // Blok: men bloklagan / meni bloklagan mualliflarning postlari lentada chiqmaydi
+  if (viewer) conds.push(notBlockedCondition(posts.authorId, viewer.id));
   if (scope === "following" && viewer) {
     const followed = db.select({ id: follows.followingId }).from(follows).where(eq(follows.followerId, viewer.id));
     const myGroups = db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active")));

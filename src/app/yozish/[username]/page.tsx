@@ -5,6 +5,7 @@ import { getOrCreateConversation } from "@/lib/chat/dm";
 import { normalizeUsername } from "@/lib/chat/username";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { isBlockedEither } from "@/lib/privacy/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ export default async function WritePage({ params }: { params: Promise<{ username
   const other = await db.query.users.findFirst({ where: eq(users.username, username), columns: { id: true, isBanned: true } });
   if (!other || other.isBanned) redirect("/kabinet/chat");
   if (other.id === me.id) redirect("/kabinet/chat");
+  // Blok bo'lsa suhbat yaratilmaydi (siyosat tekshiruvi — xabar yuborishda, /api/chat/[id])
+  if (await isBlockedEither(me.id, other.id)) redirect("/kabinet/chat");
 
   const conv = await getOrCreateConversation(me.id, other.id);
   redirect(`/kabinet/chat?s=${conv.id}`);

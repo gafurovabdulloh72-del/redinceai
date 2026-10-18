@@ -353,10 +353,17 @@ export const reviewReplySchema = z.object({
 
 /** POST /api/reports — profil yoki sharh haqida shikoyat */
 export const reportSchema = z.object({
-  targetType: z.enum(["specialist", "review", "user"]),
+  targetType: z.enum(["specialist", "review", "user", "post", "comment", "message"]),
   targetId: z.string().min(1).max(80),
   reason: z.enum(REPORT_REASONS.map((r) => r.value) as unknown as ["spam", "fake", "offensive", "fraud", "other"]),
   text: z.string().trim().max(500, "Izoh 500 belgidan oshmasin").optional().or(z.literal("")),
+});
+
+/** PUT /api/account/privacy — maxfiylik sozlamalari */
+export const privacySchema = z.object({
+  dmPolicy: z.enum(["all", "following", "none"]),
+  commentPolicy: z.enum(["all", "followers", "none"]),
+  showOnline: z.boolean(),
 });
 
 /** GET /api/search/suggest?q= */

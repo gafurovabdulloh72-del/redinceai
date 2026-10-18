@@ -393,8 +393,8 @@ export default async function AdminPage() {
       <section id="shikoyatlar" className="mt-14 scroll-mt-28 sm:mt-16">
         <SectionHeading
           eyebrow="Shikoyatlar"
-          title="Profil va sharh shikoyatlari"
-          description="Foydalanuvchilar yuborgan shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa sharhni o'chiring (pastda) yoki profilni bloklang, so'ng shikoyatni yoping."
+          title="Shikoyatlar"
+          description="Profil, sharh, post, izoh va xabar (chat) haqidagi shikoyatlar. Nishonni ko'rib chiqing: kerak bo'lsa kontentni o'chiring yoki foydalanuvchini bloklang, so'ng shikoyatni yoping."
           action={
             <Badge tone={openReports > 0 ? "warning" : "success"} className="self-start !px-3 !py-1.5 sm:self-auto">
               {openReports > 0 ? `${openReports} ta ochiq` : "Ochiq shikoyat yo'q"}

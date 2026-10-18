@@ -6,6 +6,7 @@ import { groups } from "@/lib/db/schema";
 import { REACTION_KINDS, type ReactionKind } from "@/lib/groups/limits";
 import { assertActiveMember, loadPost, setReaction } from "@/lib/groups/service";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { assertCanInteractProfilePost } from "@/lib/privacy/blocks";
 
 type Ctx = { params: Promise<{ id: string }> };
 const schema = z.object({ reaction: z.enum(REACTION_KINDS).default("heart") });
@@ -25,6 +26,8 @@ export const POST = handler(async (req, ctx: Ctx) => {
     const group = await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) });
     if (!group) throw new ApiError(404, "Jamoa topilmadi");
     await assertActiveMember(group, { id: session.sub, role: session.role });
+  } else {
+    await assertCanInteractProfilePost(session.sub, post.authorId, "react");
   }
   return ok(await setReaction(post, session.sub, input.reaction));
 });

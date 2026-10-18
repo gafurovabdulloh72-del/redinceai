@@ -3,6 +3,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
 import { DM_BODY_MAX, dmQuotes, listMessages, loadConversationFor, markRead, peerIsTyping, sendDm, toDmView, touchLastSeen } from "@/lib/chat/dm";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { assertCanDm, blockState } from "@/lib/privacy/blocks";
 
 /**
  * GET: suhbat sarlavhasi (qarshi tomon) + xabarlar (iqtiboslar bilan); ?after=<msgId> — faqat yangilari (polling).
@@ -15,8 +16,9 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
   const after = new URL(req.url).searchParams.get("after");
   const items = await listMessages(id, after);
-  const quotes = await dmQuotes(id, items);
+  const [quotes, blocked] = await Promise.all([dmQuotes(id, items), blockState(session.sub, found.peer.id)]);
   await Promise.all([markRead(found.conv, session.sub), touchLastSeen(session.sub)]);
+  const showOnline = found.peer.showOnline !== false;
   return ok({
     peer: {
       id: found.peer.id,
@@ -25,11 +27,13 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
       avatarUrl: found.peer.avatarUrl,
       isBanned: found.peer.isBanned,
       slug: found.peer.slug ?? null,
-      /** Chatdagi real faollik — "Onlayn" (yashil) belgisi faqat shundan hisoblanadi */
-      lastSeenAt: found.peer.lastSeenAt ? found.peer.lastSeenAt.getTime() : null,
-      /** Oxirgi faollik — chat faolligi yo'q bo'lsa tizimga kirishdan olinadi (har doim biror vaqt chiqadi) */
-      lastActiveAt: (found.peer.lastSeenAt ?? found.peer.lastLoginAt)?.getTime() ?? null,
+      /** Chatdagi real faollik — "Onlayn" (yashil) belgisi faqat shundan hisoblanadi; showOnline=false bo'lsa yashirin */
+      lastSeenAt: showOnline && found.peer.lastSeenAt ? found.peer.lastSeenAt.getTime() : null,
+      /** Oxirgi faollik — chat faolligi yo'q bo'lsa tizimga kirishdan olinadi; maxfiylikda yashirin */
+      lastActiveAt: showOnline ? ((found.peer.lastSeenAt ?? found.peer.lastLoginAt)?.getTime() ?? null) : null,
     },
+    /** Blok holati: men bloklaganman / u meni bloklagan — ikkalasida ham yozib bo'lmaydi */
+    blocked,
     /** Qarshi tomon o'qigan vaqt (ms) — bundan oldingi mening xabarlarim "✓✓ o'qildi" */
     peerReadAt: found.peerReadAt ? found.peerReadAt.getTime() : 0,
     peerTyping: peerIsTyping(found.conv, session.sub),
@@ -54,6 +58,7 @@ export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }
   const found = await loadConversationFor(session.sub, id);
   if (!found) throw new ApiError(404, "Suhbat topilmadi");
   if (found.peer.isBanned) throw new ApiError(403, "Bu foydalanuvchiga yozib bo'lmaydi");
+  await assertCanDm(session.sub, found.peer, Boolean(found.conv.lastMessageAt));
 
   // Faqat o'zi yuklagan fayllarni biriktira oladi (boshqa birovning faylini ulab bo'lmaydi)
   await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));

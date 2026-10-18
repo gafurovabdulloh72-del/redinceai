@@ -93,6 +93,10 @@ export const GALEREYA = {
 export const SHIKOYAT = {
   aboutProfile: { uz: "Profil haqida shikoyat", ru: "Пожаловаться на профиль" } satisfies Tr,
   aboutReview: { uz: "Sharh haqida shikoyat", ru: "Пожаловаться на отзыв" } satisfies Tr,
+  aboutUser: { uz: "Foydalanuvchi haqida shikoyat", ru: "Пожаловаться на пользователя" } satisfies Tr,
+  aboutPost: { uz: "Post haqida shikoyat", ru: "Пожаловаться на пост" } satisfies Tr,
+  aboutComment: { uz: "Izoh haqida shikoyat", ru: "Пожаловаться на комментарий" } satisfies Tr,
+  aboutMessage: { uz: "Xabar haqida shikoyat", ru: "Пожаловаться на сообщение" } satisfies Tr,
   sent: { uz: "Shikoyatingiz yuborildi — admin ko'rib chiqadi", ru: "Жалоба отправлена — администратор рассмотрит её" } satisfies Tr,
   loginFirst: { uz: " — avval tizimga kiring", ru: " — сначала войдите" } satisfies Tr,
   button: { uz: "Shikoyat qilish", ru: "Пожаловаться" } satisfies Tr,

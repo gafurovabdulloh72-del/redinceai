@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Check, CheckCheck, CheckCircle2, Flag, MessageCircle, Paperclip, Search, Send, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Ban, Check, CheckCheck, CheckCircle2, Flag, MessageCircle, Paperclip, Search, Send, ShieldCheck, X } from "lucide-react";
+import { ReportButton } from "@/components/specialists/ReportButton";
+import { useToast } from "@/components/ui/toast";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { REPORT_REASONS, type ReportReason } from "@/lib/constants";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, type Attachment } from "./attachments";
@@ -182,6 +184,11 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
   const [peerTyping, setPeerTyping] = useState(false);
   /** Ovoz yozilmoqda — matn maydoni yashirin */
   const [recording, setRecording] = useState(false);
+  /** Blok holati (server): men bloklaganman / u meni bloklagan — ikkalasida kompozitor yopiq */
+  const [blocked, setBlocked] = useState<{ byMe: boolean; me: boolean }>({ byMe: false, me: false });
+  const [blockConfirm, setBlockConfirm] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const { toast } = useToast();
   const typingSentAt = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -210,6 +217,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     setPeer(json.data.peer);
     setPeerReadAt(json.data.peerReadAt ?? 0);
     setPeerTyping(Boolean(json.data.peerTyping));
+    if (json.data.blocked) setBlocked(json.data.blocked);
     const items: Msg[] = json.data.items;
     if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
     if (incremental) {
@@ -240,6 +248,8 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
     setReportOpen(false);
     setReplyTo(null);
     setPeerTyping(false);
+    setBlocked({ byMe: false, me: false });
+    setBlockConfirm(false);
     loadThread(active, false);
     const t = window.setInterval(() => {
       if (!document.hidden) loadThread(active, true);
@@ -316,6 +326,25 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
       await deliver("", [a]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ovozli xabar yuborilmadi");
+    }
+  };
+
+  /** Bloklash / blokdan chiqarish (chat sarlavhasidagi tugma) */
+  const setBlock = async (next: boolean) => {
+    if (!peer?.id || blockBusy) return;
+    setBlockBusy(true);
+    try {
+      const res = await fetch(`/api/blocks/${encodeURIComponent(peer.id)}`, { method: next ? "POST" : "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) throw new Error(json?.error ?? "Bo'lmadi");
+      setBlocked((b) => ({ ...b, byMe: next }));
+      setBlockConfirm(false);
+      setReplyTo(null);
+      toast(next ? `${peer.name} bloklandi — u sizga yoza olmaydi` : `${peer.name} blokdan chiqarildi`, next ? "info" : "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    } finally {
+      setBlockBusy(false);
     }
   };
 
@@ -469,6 +498,19 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                         <Flag size={15} />
                       </button>
                     )}
+                    {peer.id && (
+                      <button
+                        type="button"
+                        onClick={() => (blocked.byMe ? void setBlock(false) : setBlockConfirm((v) => !v))}
+                        aria-pressed={blocked.byMe}
+                        aria-label={blocked.byMe ? "Blokdan chiqarish" : `${peer.name}ni bloklash`}
+                        title={blocked.byMe ? "Blokdan chiqarish" : "Bloklash"}
+                        disabled={blockBusy}
+                        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50", blocked.byMe ? "bg-danger-soft text-danger-text" : "text-fg-4 hover:bg-fg/6 hover:text-fg")}
+                      >
+                        {blocked.byMe ? <ShieldCheck size={15} /> : <Ban size={15} />}
+                      </button>
+                    )}
                   </>
                 );
               })()
@@ -477,6 +519,20 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
             )}
           </div>
           {reportOpen && peer?.id && <ReportPanel peer={peer} onClose={() => setReportOpen(false)} />}
+          {blockConfirm && peer?.id && !blocked.byMe && (
+            <div className="expand-in flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3.5 py-2.5 text-[12.5px]" role="group" aria-label="Bloklashni tasdiqlash">
+              <Ban size={13} className="text-fg-3" />
+              <span className="min-w-0 flex-1 text-fg-2">
+                <b className="text-fg">{peer.name}</b>ni bloklaysizmi? U sizga yoza olmaydi, obunalar uziladi, lentada postlari chiqmaydi.
+              </span>
+              <button type="button" onClick={() => void setBlock(true)} disabled={blockBusy} className="h-8 rounded-full bg-danger-strong px-3 text-[12px] font-semibold text-white disabled:opacity-50">
+                Ha, bloklash
+              </button>
+              <button type="button" onClick={() => setBlockConfirm(false)} className="h-8 rounded-full px-3 text-[12px] font-semibold text-fg-3 hover:text-fg">
+                Bekor
+              </button>
+            </div>
+          )}
 
           <div
             ref={scrollRef}
@@ -503,6 +559,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
                     {newDay && <p className="my-3 text-center text-[11px] font-semibold uppercase tracking-wide text-fg-4">{dayOf(m.at)}</p>}
                     <div className={cn("group flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
                       <ReplyButton mine={m.mine} onClick={() => setReplyTo(m)} />
+                      {!m.mine && <ReportButton targetType="message" targetId={m.id} loggedIn compact modal triggerClassName="self-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60" />}
                       <div id={`msg-${m.id}`} className={cn("max-w-[82%] rounded-2xl px-3.5 py-2.5 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md border border-line bg-surface text-fg")}>
                         {m.replyTo && <QuoteBlock q={m.replyTo} mine={m.mine} />}
                         <AttachmentList attachments={m.attachments} mine={m.mine} />
@@ -530,6 +587,17 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
             <div ref={bottomRef} />
           </div>
 
+          {blocked.byMe || blocked.me ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line bg-surface-2 px-4 py-3 text-[13px] text-fg-2" role="status">
+              <Ban size={14} className="text-fg-3" />
+              <span className="min-w-0 flex-1">{blocked.byMe ? "Siz bu foydalanuvchini bloklagansiz — xabar yozib bo'lmaydi." : "Bu foydalanuvchiga yozib bo'lmaydi."}</span>
+              {blocked.byMe && (
+                <button type="button" onClick={() => void setBlock(false)} disabled={blockBusy} className="h-9 rounded-full border border-line px-3.5 text-[12.5px] font-semibold text-fg transition hover:border-fg disabled:opacity-50">
+                  Blokdan chiqarish
+                </button>
+              )}
+            </div>
+          ) : (
           <form onSubmit={send} className="border-t border-line p-3">
             {replyTo && peer && <ReplyBar q={quoteOf(replyTo, peer.name)} onCancel={() => setReplyTo(null)} />}
             {files.length > 0 && (
@@ -598,6 +666,7 @@ export function DmChat({ initialId }: { initialId?: string | null }) {
               )}
             </div>
           </form>
+          )}
         </>
       )}
     </div>

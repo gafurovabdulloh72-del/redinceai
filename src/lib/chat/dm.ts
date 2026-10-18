@@ -28,9 +28,12 @@ export interface DmPeer {
   lastLoginAt: Date | null;
   /** Mutaxassis profili slug'i (bor bo'lsa) — ism bosilganda profilga o'tadi; mijozlarda null */
   slug?: string | null;
+  /** Maxfiylik: onlayn holatini ko'rsatadimi; kim yozishi mumkin */
+  showOnline: boolean;
+  dmPolicy: string;
 }
 
-const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true, lastSeenAt: true, lastLoginAt: true } as const;
+const PEER_COLUMNS = { id: true, username: true, name: true, avatarUrl: true, role: true, isBanned: true, lastSeenAt: true, lastLoginAt: true, showOnline: true, dmPolicy: true } as const;
 
 /** Shu oraliqda faollik bo'lsa — "onlayn" deb ko'rsatiladi */
 export const ONLINE_WINDOW_MS = 3 * 60 * 1000;

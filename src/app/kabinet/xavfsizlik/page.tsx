@@ -4,6 +4,9 @@ import { LockKeyhole } from "lucide-react";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { SecurityPanel, type SecurityInitial } from "@/components/kabinet/SecurityPanel";
+import { PrivacyPanel } from "@/components/kabinet/PrivacyPanel";
+import { BlockedList } from "@/components/kabinet/BlockedList";
+import { listBlocked } from "@/lib/privacy/blocks";
 import { getCurrentUser, getSession, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -17,9 +20,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function SecurityPage({ searchParams }: { searchParams: SearchParams }) {
   const [user, session, sp] = await Promise.all([getCurrentUser(), getSession(), searchParams]);
   if (!user) redirect(await loginRedirectPath("/kabinet/xavfsizlik"));
-  const [codes, sessionList] = await Promise.all([
-    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { recoveryCodes: true } }),
+  const [codes, sessionList, blockedRows] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { recoveryCodes: true, dmPolicy: true, commentPolicy: true, showOnline: true } }),
     listUserSessions(user.id, session, (await headers()).get("user-agent")),
+    listBlocked(user.id),
   ]);
 
   const initial: SecurityInitial = {
@@ -46,8 +50,13 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
         <h1 className="display-xl mt-5 text-[32px] text-fg sm:text-[40px]">
           Hisob <span className="accent-serif text-accent">xavfsizligi</span>
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">Parol, ikki bosqichli himoya, faol qurilmalar va tasdiqlash holati. Parol o'zgarsa yoki «hammasidan chiqish» bosilsa, eski sessiyalar darhol bekor bo'ladi.</p>
+        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-2">Maxfiylik (kim yozadi, kim izoh qoldiradi, onlayn holat), bloklanganlar, parol, ikki bosqichli himoya, faol qurilmalar va tasdiqlash holati. Parol o'zgarsa yoki «hammasidan chiqish» bosilsa, eski sessiyalar darhol bekor bo'ladi.</p>
       </header>
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <PrivacyPanel initial={{ dmPolicy: codes?.dmPolicy ?? "all", commentPolicy: codes?.commentPolicy ?? "all", showOnline: codes?.showOnline ?? true }} />
+        <BlockedList initial={blockedRows} />
+      </div>
 
       <SecurityPanel initial={initial} />
     </div>

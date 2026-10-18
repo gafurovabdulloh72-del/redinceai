@@ -7,6 +7,7 @@ import { ExternalLink, ImagePlus, MessageCircle, Pencil, Pin, PinOff, RadioTower
 import { RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, SaveButton, ShareAction } from "./Reactions";
+import { ReportButton } from "@/components/specialists/ReportButton";
 import { CalendarLinks } from "./CalendarLinks";
 import { useToast } from "@/components/ui/toast";
 import { Avatar, Button } from "@/components/ui";
@@ -423,6 +424,7 @@ export function PostCard({
             {pinned ? <PinOff size={15} /> : <Pin size={15} />}
           </button>
         )}
+        {loggedIn && !post.canDelete && <ReportButton targetType="post" targetId={post.id} loggedIn compact modal />}
         {isAuthor && !editing && post.author.id !== "" && (
           <button type="button" onClick={() => setEditing(true)} aria-label="Postni tahrirlash" className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
             <Pencil size={15} />
@@ -503,7 +505,7 @@ export function PostCard({
 
       {open && (
         <div className="expand-in">
-          <Comments postId={post.id} canWrite={canInteract} onCount={setComments} />
+          <Comments postId={post.id} canWrite={canInteract} loggedIn={loggedIn} onCount={setComments} />
         </div>
       )}
     </article>
@@ -513,7 +515,7 @@ export function PostCard({
 /* ------------------------------------------------------------------ */
 /* Izohlar                                                             */
 /* ------------------------------------------------------------------ */
-export function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boolean; onCount: (n: number) => void }) {
+export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { postId: string; canWrite: boolean; onCount: (n: number) => void; /** Shikoyat tugmasi uchun (yoza olmasa ham kirgan bo'lishi mumkin) */ loggedIn?: boolean }) {
   const [items, setItems] = useState<CommentView[] | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -566,17 +568,20 @@ export function Comments({ postId, canWrite, onCount }: { postId: string; canWri
       ) : (
         <ul className="grid gap-2.5">
           {items.map((c) => (
-            <li key={c.id} className="flex items-start gap-2">
+            <li key={c.id} className="group flex items-start gap-2">
               <Avatar name={c.author.name} src={c.author.avatarUrl} size={28} decorative />
               <div className="min-w-0 flex-1 rounded-[14px] bg-fg/4 px-3 py-2">
                 <div className="flex min-w-0 items-baseline gap-2 text-[12.5px]">
                   <AuthorLink u={c.author} />
                   <span className="shrink-0 text-fg-4">{timeAgo(c.createdAt)}</span>
-                  {c.canDelete && (
-                    <button type="button" onClick={() => void remove(c.id)} aria-label="Izohni o'chirish" className="ml-auto shrink-0 text-fg-4 transition hover:text-danger-text">
-                      <Trash2 size={12} />
-                    </button>
-                  )}
+                  <span className="ml-auto flex shrink-0 items-center gap-0.5">
+                    {loggedIn && !c.canDelete && <ReportButton targetType="comment" targetId={c.id} loggedIn compact modal triggerClassName="!h-6 !w-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60" />}
+                    {c.canDelete && (
+                      <button type="button" onClick={() => void remove(c.id)} aria-label="Izohni o'chirish" className="flex h-6 w-6 items-center justify-center rounded-full text-fg-4 transition hover:text-danger-text">
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <p className="mt-0.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-fg">
                   <RichText text={c.body} />

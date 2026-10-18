@@ -10,7 +10,7 @@ import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 
 export interface AdminReportRowDto {
   id: string;
-  targetType: "specialist" | "review" | "user";
+  targetType: "specialist" | "review" | "user" | "post" | "comment" | "message";
   targetId: string;
   reason: string;
   status: "open" | "closed";
@@ -24,6 +24,17 @@ export interface AdminReportRowDto {
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
+
+const TYPE_META: Record<AdminReportRowDto["targetType"], { label: string; tone: "accent" | "purple" | "blue" | "neutral" }> = {
+  specialist: { label: "Profil", tone: "accent" },
+  review: { label: "Sharh", tone: "purple" },
+  user: { label: "Chat", tone: "blue" },
+  post: { label: "Post", tone: "accent" },
+  comment: { label: "Izoh", tone: "purple" },
+  message: { label: "Xabar", tone: "blue" },
+};
+/** Admin nishonning o'zini o'chira oladigan turlar (sharh — maxsus endpoint; post/izoh — umumiy DELETE, admin ruxsati bor) */
+const DELETE_LABEL: Partial<Record<AdminReportRowDto["targetType"], string>> = { review: "Sharhni o'chirish", post: "Postni o'chirish", comment: "Izohni o'chirish" };
 
 /** Admin: shikoyatlar (profil / sharh) — yopish, qayta ochish; nishonga havola (F85/F88) */
 export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] }) {
@@ -65,20 +76,22 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
     }
   };
 
-  /** Sharh shikoyati: sharhning o'zini o'chirish (mavjud admin DELETE /api/admin/reviews/[id]) —
-   *  reyting qayta hisoblanadi, shu sharh bo'yicha BARCHA ochiq shikoyatlar serverda yopiladi */
+  /** Nishonni o'chirish: sharh — /api/admin/reviews/[id] (reyting qayta hisoblanadi, barcha shikoyatlar yopiladi);
+   *  post/izoh — umumiy DELETE (sayt admini ruxsati), keyin shu shikoyat yopiladi */
   const deleteReview = async (r: AdminReportRowDto) => {
     if (busy) return;
     setError(null);
     setBusy(r.id);
     setConfirmDeleteReview(null);
     try {
-      const res = await fetch(`/api/admin/reviews/${r.targetId}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+      const url = r.targetType === "review" ? `/api/admin/reviews/${r.targetId}` : r.targetType === "post" ? `/api/posts/${r.targetId}` : `/api/comments/${r.targetId}`;
+      const res = await fetch(url, { method: "DELETE", headers: { "Content-Type": "application/json" } });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ deleted: boolean }> | null;
       if (!json || !json.ok) throw new Error(json && !json.ok ? json.error : "Server javob bermadi");
-      // Shu sharhga tegishli barcha ochiq shikoyatlar yopildi; nishon endi o'chirilgan
-      setRows((rs) => rs.map((x) => (x.targetType === "review" && x.targetId === r.targetId ? { ...x, status: "closed" as const, target: { label: "O'chirilgan sharh", href: null, snippet: null } } : x)));
-      setNotice("Sharh o'chirildi — reyting qayta hisoblandi, shikoyat yopildi");
+      if (r.targetType !== "review") await fetch(`/api/admin/reports/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "closed" }) });
+      const gone = r.targetType === "review" ? "O'chirilgan sharh" : r.targetType === "post" ? "O'chirilgan post" : "O'chirilgan izoh";
+      setRows((rs) => rs.map((x) => (x.targetType === r.targetType && x.targetId === r.targetId ? { ...x, status: "closed" as const, target: { label: gone, href: null, snippet: null } } : x)));
+      setNotice(r.targetType === "review" ? "Sharh o'chirildi — reyting qayta hisoblandi, shikoyat yopildi" : `${TYPE_META[r.targetType].label} o'chirildi, shikoyat yopildi`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "Kutilmagan xatolik");
@@ -95,7 +108,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
-            <Badge tone={r.targetType === "review" ? "purple" : r.targetType === "user" ? "blue" : "accent"}>{r.targetType === "review" ? "Sharh" : r.targetType === "user" ? "Chat" : "Profil"}</Badge>
+            <Badge tone={TYPE_META[r.targetType].tone}>{TYPE_META[r.targetType].label}</Badge>
             {r.target ? (
               r.target.href ? (
                 <Link href={r.target.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-fg hover:text-accent">
@@ -124,7 +137,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
         </div>
         <div className="flex shrink-0 flex-wrap items-start gap-2 sm:justify-end">
           {r.owner && <AdminBanToggle key={`${r.owner.userId}:${r.owner.isBanned}`} userId={r.owner.userId} name={r.owner.name} initialBanned={r.owner.isBanned} initialReason={r.owner.bannedReason} />}
-          {r.targetType === "review" && r.target?.href && r.status === "open" && (
+          {DELETE_LABEL[r.targetType] && r.target && !r.target.label.startsWith("O'chirilgan") && r.status === "open" && (
             confirmDeleteReview === r.id ? (
               <span className="flex flex-wrap items-center gap-1.5">
                 <Button size="sm" variant="danger" className="h-11 md:h-9" onClick={() => deleteReview(r)} disabled={!!busy}>
@@ -135,8 +148,8 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
                 </Button>
               </span>
             ) : (
-              <Button size="sm" variant="outline" className="h-11 text-danger-text hover:border-danger hover:bg-danger-soft md:h-9" onClick={() => setConfirmDeleteReview(r.id)} disabled={!!busy} title="Sharh butunlay o'chadi, reyting qayta hisoblanadi, shikoyat yopiladi">
-                <Trash2 size={14} /> Sharhni o'chirish
+              <Button size="sm" variant="outline" className="h-11 text-danger-text hover:border-danger hover:bg-danger-soft md:h-9" onClick={() => setConfirmDeleteReview(r.id)} disabled={!!busy} title="Kontent butunlay o'chadi, shikoyat yopiladi">
+                <Trash2 size={14} /> {DELETE_LABEL[r.targetType]}
               </Button>
             )
           )}
@@ -170,7 +183,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
       </div>
 
       {open.length === 0 ? (
-        <EmptyState icon={Flag} title="Ochiq shikoyatlar yo'q" description="Foydalanuvchilar profil yoki sharh haqida shikoyat qilsa shu yerda ko'rinadi." />
+        <EmptyState icon={Flag} title="Ochiq shikoyatlar yo'q" description="Profil, sharh, post, izoh yoki xabar haqida shikoyat kelsa shu yerda ko'rinadi." />
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
           {open.map((r) => (

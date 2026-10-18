@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { groupMembers, users, type Group } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications";
 import { MENTION_MAX, MENTION_RE } from "./limits";
+import { filterBlocked } from "@/lib/privacy/blocks";
 
 /** Matndagi @username'lar (kichik harfda, takrorsiz, ko'pi bilan MENTION_MAX) */
 export function extractMentions(text: string): string[] {
@@ -36,7 +37,8 @@ export async function notifyMentions(opts: {
     .from(users)
     .where(and(inArray(sql`lower(${users.username})`, names), eq(users.isBanned, false)));
   const skip = new Set([opts.actorId, ...(opts.excludeIds ?? [])]);
-  let ids = rows.map((r) => r.id).filter((id) => !skip.has(id));
+  // Blok juftligidagilarga eslatma yetmaydi
+  let ids = await filterBlocked(opts.actorId, rows.map((r) => r.id).filter((id) => !skip.has(id)));
   if (ids.length && opts.group?.isPrivate) {
     const members = await db.query.groupMembers.findMany({
       where: and(eq(groupMembers.groupId, opts.group.id), eq(groupMembers.status, "active"), inArray(groupMembers.userId, ids)),

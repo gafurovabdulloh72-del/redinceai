@@ -41,6 +41,8 @@ import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { FollowButton } from "@/components/groups/FollowButton";
 import { ReportButton } from "@/components/specialists/ReportButton";
+import { BlockButton } from "@/components/specialists/BlockButton";
+import { blockState } from "@/lib/privacy/blocks";
 import { PackagesTable } from "@/components/specialists/PackagesTable";
 import { RateCalculator } from "@/components/specialists/RateCalculator";
 import { ShortLink } from "@/components/specialists/ShortLink";
@@ -164,6 +166,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const isOwner = Boolean(viewer && viewer.id === raw.userId);
   // Obuna (follow) holati — jamoalar moduli; egasining o'ziga ko'rsatilmaydi
   const follow = await followState(viewer?.id ?? null, raw.userId);
+  // Blok (ikki yo'nalish): yozish/obuna tugmalari yashirin; bloklash tugmasi — shikoyat yonida
+  const blocked = viewer && !isOwner ? await blockState(viewer.id, raw.userId) : { byMe: false, me: false };
+  const blockedAny = blocked.byMe || blocked.me;
   const isAdmin = viewer?.role === "admin";
 
   // ?preview= faqat egasi uchun: profil boshqalarga qanday ko'rinishini simulyatsiya qiladi
@@ -305,7 +310,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   /** Ichki chat: mutaxassisga to'g'ridan-to'g'ri yozish (kirmaganlar login orqali qaytadi) */
   const chatCta =
-    !showOwnerCta && sp.user.username ? (
+    !showOwnerCta && sp.user.username && !blockedAny ? (
       <ButtonLink href={`/yozish/${sp.user.username}`} variant="outline" size="lg" className="w-full">
         <MessageCircle size={17} /> {tr(til, PROFIL.write)}
       </ButtonLink>
@@ -524,12 +529,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             ))}
             <li className="ml-auto flex items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
-              {!PROFILE_HIRING && !isOwner && sp.user.username && (
+              {!PROFILE_HIRING && !isOwner && sp.user.username && !blockedAny && (
                 <ButtonLink href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`} variant="outline" size="sm">
                   <MessageCircle size={14} /> {tr(til, PROFIL.write)}
                 </ButtonLink>
               )}
-              {!isOwner && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
+              {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
               <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} size="sm" variant="outline" />
             </li>
@@ -827,7 +832,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           </section>
 
           {/* Profil haqida shikoyat — mobil/planshet (desktopda yon panelda) */}
-          {!isOwner && !previewMode && <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" className="lg:hidden" />}
+          {!isOwner && !previewMode && (
+            <div className="flex flex-wrap items-center justify-center gap-2 lg:hidden">
+              <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" />
+              {viewer && <BlockButton userId={raw.userId} name={sp.user.name} initialBlocked={blocked.byMe} />}
+            </div>
+          )}
         </div>
 
         {/* O'ng ustun — yopishqoq (faqat desktop) */}
@@ -858,7 +868,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
               <div className="mt-5 flex items-stretch gap-2">
                 <div className="min-w-0 flex-1">{cta}</div>
-                {!isOwner && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact />}
+                {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact />}
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} variant="outline" size="lg" iconOnly />
               </div>
@@ -918,7 +928,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               )}
 
               {!isOwner && !previewMode && (
-                <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" className="mt-3" />
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <ReportButton targetType="specialist" targetId={raw.id} loggedIn={Boolean(viewer)} loginHref={loginHref} align="center" />
+                  {viewer && <BlockButton userId={raw.userId} name={sp.user.name} initialBlocked={blocked.byMe} />}
+                </div>
               )}
             </div>
 
