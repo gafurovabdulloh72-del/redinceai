@@ -81,6 +81,7 @@ export const SHELL = {
     about: { uz: "Biz haqimizda", ru: "О нас" },
     groups: { uz: "Jamoalar", ru: "Сообщества" },
     vacancies: { uz: "Vakansiyalar", ru: "Вакансии" },
+    search: { uz: "Qidiruv", ru: "Поиск" },
     becomeSpecialist: { uz: "Mutaxassis bo'lish", ru: "Стать специалистом" },
     terms: { uz: "Foydalanish shartlari", ru: "Условия использования" },
     privacy: { uz: "Maxfiylik siyosati", ru: "Политика конфиденциальности" },

@@ -136,7 +136,7 @@ export function CommandPalette() {
       e.preventDefault();
       const it = flat[active];
       if (it) go(it);
-      else if (q.trim()) go({ title: q, href: `/mutaxassislar?q=${encodeURIComponent(q.trim())}` });
+      else if (q.trim()) go({ title: q, href: `/qidiruv?q=${encodeURIComponent(q.trim())}` });
     }
   }
 
@@ -189,7 +189,7 @@ export function CommandPalette() {
           ) : sections.length === 0 && !loading ? (
             <div className="px-4 py-10 text-center">
               <p className="text-[14px] font-semibold text-fg">Hech narsa topilmadi</p>
-              <p className="mt-1 text-[12.5px] text-fg-3">Boshqa so&apos;z bilan urinib ko&apos;ring yoki Enter — katalogda qidirish</p>
+              <p className="mt-1 text-[12.5px] text-fg-3">Boshqa so&apos;z bilan urinib ko&apos;ring yoki Enter — to&apos;liq qidiruv (videolar, postlar, ijodkorlar)</p>
             </div>
           ) : (
             sections.map((s) => (

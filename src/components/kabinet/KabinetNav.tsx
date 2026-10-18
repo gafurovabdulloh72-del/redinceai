@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { MessageCircle, Bell, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
 
 export type KabinetNavIcon =
   | "overview"
+  | "posts"
   | "orders"
   | "chat"
   | "notifications"
@@ -90,6 +91,7 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   vacancies: Briefcase,
   applications: SendHorizontal,
   resume: FileUser,
+  posts: LayoutGrid,
 };
 
 /** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */

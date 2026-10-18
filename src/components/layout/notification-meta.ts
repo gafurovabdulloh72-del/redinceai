@@ -52,6 +52,7 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   application_new: { icon: Briefcase, tone: "accent", label: "Vakansiyaga yangi ariza" },
   application_status: { icon: Briefcase, tone: "info", label: "Ariza holati" },
   vacancy_expiring: { icon: CalendarClock, tone: "warning", label: "Vakansiya muddati" },
+  profile_post: { icon: UserRound, tone: "accent", label: "Yangi post" },
 };
 
 const FALLBACK = { icon: Bell, tone: "neutral" as NotificationTone, label: "Bildirishnoma" };

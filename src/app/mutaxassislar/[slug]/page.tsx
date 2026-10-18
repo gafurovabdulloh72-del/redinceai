@@ -32,7 +32,7 @@ import {
 import { Avatar, ButtonLink, SectionHeading, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ContactPanel } from "@/components/specialists/ContactPanel";
-import { PortfolioGallery } from "@/components/specialists/PortfolioGallery";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { ReviewForm } from "@/components/specialists/ReviewForm";
 import { ReviewList, ReviewSummary } from "@/components/specialists/ReviewList";
 import { CoverImage } from "@/components/specialists/CoverImage";
@@ -48,6 +48,7 @@ import { CompareButton } from "@/components/specialists/CompareButton";
 import { CompareTray } from "@/components/specialists/CompareTray";
 import { getCurrentUser } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
+import { getProfilePostView, listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
@@ -78,7 +79,7 @@ const PREVIEW_MODES = ["guest", "client", "order"] as const;
 type PreviewMode = (typeof PREVIEW_MODES)[number];
 
 type Params = Promise<{ slug: string }>;
-type Search = Promise<{ preview?: string }>;
+type Search = Promise<{ preview?: string; tab?: string; post?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
@@ -155,7 +156,7 @@ async function LockedContacts({ className }: { className?: string }) {
 }
 
 export default async function SpecialistPage({ params, searchParams }: { params: Params; searchParams: Search }) {
-  const [{ slug }, { preview }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { preview, tab, post: postParam }] = await Promise.all([params, searchParams]);
   const raw = await getSpecialistBySlug(slug);
   if (!raw) notFound();
 
@@ -180,6 +181,15 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   const sp = filterSpecialistForViewer(raw, effectiveViewer);
   const vis = resolveVisibility(raw.visibility);
+
+  // Profil lentasi (Instagram uslubi): shaxsiy postlar, sonlar va ?post=<id> bilan ochiladigan post
+  const feedViewer = viewer ? { id: viewer.id, role: viewer.role } : null;
+  const [profilePosts, postCounts, openPost] = await Promise.all([
+    listProfilePosts(raw.userId, feedViewer, { limit: 18 }),
+    profilePostCounts(raw.userId),
+    typeof postParam === "string" && postParam ? getProfilePostView(postParam, feedViewer, raw.userId) : Promise.resolve(null),
+  ]);
+  const feedTab = tab === "videolar" || tab === "ishlar" || tab === "postlar" ? tab : openPost || postCounts.posts > 0 ? "postlar" : "ishlar";
 
   // Obuna (subscriptions/access.ts): muddati tugagan (imtiyozli kunlardan keyin) — katalogdan yashirin, yangi buyurtma yo'q,
   // aloqalar mehmon/mijozga yopiq (egasi, admin va buyurtmasi borlar ko'radi). Egasining "mehmon ko'zi bilan" rejimi ham shuni ko'rsatadi.
@@ -709,26 +719,23 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             </section>
           )}
 
-          {/* Portfolio */}
-          <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio">
-            <div className="mb-4 flex items-end justify-between gap-3 px-1">
-              <div>
-                <span className="eyebrow">{tr(til, PROFIL.portfolioEyebrow)}</span>
-                <h2 className="mt-2 font-display text-[20px] font-semibold tracking-tight text-fg">
-                  {sp.portfolio.length > 0 ? (
-                    <>
-                      {PROFIL.portfolioTitle[til](sp.portfolio.length).pre}
-                      <span className="accent-serif text-accent">{PROFIL.portfolioTitle[til](sp.portfolio.length).accent}</span>
-                    </>
-                  ) : (
-                    tr(til, PROFIL.portfolioEmpty)
-                  )}
-                </h2>
-              </div>
-              {sp.portfolio.length > 0 && <p className="text-[13px] text-fg-3">{tr(til, PROFIL.clickToZoom)}</p>}
-            </div>
-            <PortfolioGallery
-              items={sp.portfolio.map((p) => ({
+          {/* Profil lentasi (Instagram uslubi): Postlar / Videolar / Ishlar — portfolio shu yerda; id="portfolio" eski havolalar uchun saqlanadi */}
+          <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio" aria-label={til === "ru" ? "Лента профиля" : "Profil lentasi"}>
+            <ProfileTabs
+              til={til}
+              slug={sp.slug}
+              userId={raw.userId}
+              name={sp.user.name}
+              avatarUrl={sp.user.avatarUrl}
+              isOwner={isOwner}
+              loggedIn={Boolean(viewer)}
+              isAdmin={isAdmin}
+              viewerId={viewer?.id ?? null}
+              counts={{ posts: postCounts.posts, videos: postCounts.videos, works: sp.portfolio.length }}
+              initialPosts={profilePosts}
+              openPost={openPost}
+              initialTab={feedTab}
+              works={sp.portfolio.map((p) => ({
                 id: p.id,
                 title: p.title,
                 type: p.type,

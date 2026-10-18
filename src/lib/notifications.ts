@@ -78,6 +78,7 @@ export type NotificationType =
   | "application_new"
   | "application_status"
   | "vacancy_expiring"
+  | "profile_post"
   | "group_joined"
   | "post_comment"
   | "follow";

@@ -14,6 +14,7 @@ const LINKS: Array<{ href: string; label: Tr }> = [
   { href: "/ishlar", label: SHELL.footer.jobs },
   { href: "/jamoalar", label: SHELL.footer.groups },
   { href: "/vakansiyalar", label: SHELL.footer.vacancies },
+  { href: "/qidiruv", label: SHELL.footer.search },
   { href: "/narxlar", label: SHELL.footer.prices },
   { href: "/yordam", label: SHELL.footer.help },
   { href: "/haqida", label: SHELL.footer.about },

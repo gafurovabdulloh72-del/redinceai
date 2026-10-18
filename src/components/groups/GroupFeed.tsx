@@ -44,6 +44,8 @@ export function GroupFeed({
   loggedIn,
   initial,
   highlightId = null,
+  apiBase,
+  composerPlaceholder,
 }: {
   slug: string;
   kind?: "group" | "channel";
@@ -56,12 +58,15 @@ export function GroupFeed({
   loggedIn: boolean;
   initial: Page;
   highlightId?: string | null;
+  /** Boshqa manba (profil postlari: /api/profil/postlar) — berilsa slug ishlatilmaydi */
+  apiBase?: string;
+  composerPlaceholder?: string;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(initial.items);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
-  const base = `/api/groups/${encodeURIComponent(slug)}/posts`;
+  const base = apiBase ?? `/api/groups/${encodeURIComponent(slug)}/posts`;
 
   const reload = useCallback(async () => {
     const res = await fetch(base, { cache: "no-store" });
@@ -100,7 +105,7 @@ export function GroupFeed({
   return (
     <div className="stagger grid gap-4">
       {canPost ? (
-        <Composer base={base} onPosted={reload} allowEvent={canSchedule} kind={kind} />
+        <Composer base={base} onPosted={reload} allowEvent={canSchedule} kind={kind} placeholder={composerPlaceholder} />
       ) : canInteract && kind === "channel" ? (
         <p className="card-outline rounded-[16px] px-4 py-3 text-[13px] text-fg-3">Kanalga faqat egasi va adminlar yozadi — siz postlarni yoqtirishingiz va izoh qoldirishingiz mumkin.</p>
       ) : (
@@ -147,7 +152,7 @@ function localToMs(v: string): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-function Composer({ base, onPosted, allowEvent = false, kind = "group" }: { base: string; onPosted: () => Promise<void>; allowEvent?: boolean; kind?: "group" | "channel" }) {
+export function Composer({ base, onPosted, allowEvent = false, kind = "group", placeholder }: { base: string; onPosted: () => Promise<void>; allowEvent?: boolean; kind?: "group" | "channel"; placeholder?: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<Attachment[]>([]);
@@ -214,7 +219,7 @@ function Composer({ base, onPosted, allowEvent = false, kind = "group" }: { base
         onChange={(e) => setBody(e.target.value)}
         maxLength={POST_BODY_MAX}
         rows={3}
-        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon…"}
+        placeholder={eventOpen ? "Efir mavzusi va qisqa tavsif — birinchi qator sarlavha bo'ladi" : (placeholder ?? (kind === "channel" ? "Kanal e'loni: yangilik, imkoniyat, natija…" : "Jamoa bilan bo'lishing: ish, savol, e'lon…"))}
         className="field w-full resize-y py-2.5 text-[14px] leading-relaxed"
       />
       {eventOpen && (
@@ -529,7 +534,7 @@ function PostCard({
 /* ------------------------------------------------------------------ */
 /* Izohlar                                                             */
 /* ------------------------------------------------------------------ */
-function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boolean; onCount: (n: number) => void }) {
+export function Comments({ postId, canWrite, onCount }: { postId: string; canWrite: boolean; onCount: (n: number) => void }) {
   const [items, setItems] = useState<CommentView[] | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);

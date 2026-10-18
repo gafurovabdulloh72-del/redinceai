@@ -148,6 +148,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile" });
   if (user.specialist || user.role === "specialist") {
     items.push({ href: "/kabinet/portfolio", label: "Portfolio", icon: "portfolio" });
+    items.push({ href: "/kabinet/postlar", label: "Postlarim", icon: "posts" });
   }
   items.push({ href: "/kabinet/tolovlar", label: "To'lovlar", icon: "payments" });
   items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security" });

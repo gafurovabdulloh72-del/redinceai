@@ -8,7 +8,7 @@
 
 | Ro'yxat | ✅ bajarildi | 🔶 qisman | ⬜ reja |
 |---|---|---|---|
-| 1. 100 ta funksiya / detal | 61 | 4 | 35 |
+| 1. 100 ta funksiya / detal | 61 (+6 yangi blok) | 4 | 35 |
 | 2. 100 ta UI tuzatish | 64 | 3 | 33 |
 | 3. 100 ta animatsiya | 87 | 0 | 13 |
 | 4. 500 ta dizayn qo'shimchasi | 196 | 21 | 283 |
@@ -90,6 +90,14 @@
 63. ⬜ Haftalik dayjest emaili (yangi vakansiyalar, efirlar, jamoa faolligi)
 64. ⬜ Bildirishnomalarni guruhlash ("3 kishi postingizni yoqtirdi")
 65. ⬜ "Barchasini o'qilgan deb belgilash" — jamoalar uchun ham
+
+### Profil lentasi (Instagram uslubi) va ommaviy qidiruv — 2026-10-18
+- ✅ Ijodkor profilida "Lenta" bo'limi: **Postlar / Videolar / Ishlar** (kvadrat plitkalar, hover'da like/izoh soni, matnli post — qora plitka)
+- ✅ Shaxsiy postlar (`posts.groupId = null`): matn, 4 tagacha rasm/video; like, izoh, o'chirish — mavjud `/api/posts` API orqali; obunachilarga `profile_post` bildirishnomasi
+- ✅ Post oynasi (modal): media varaqlagich, matn, like (yurak urishi), izohlar, ulashish (`?post=<id>` havolasi), muallif/admin o'chirishi; chiqish animatsiyasi
+- ✅ Egasi profilning o'zidan post joylaydi ("Post joylash") yoki kabinet → **Postlarim**
+- ✅ `/qidiruv` — ommaviy qidiruv zonasi (Explore): video ostidagi matnlar (ish sarlavhasi/tavsifi/teglari), post matnlari va ijodkor nomlari; turlar: Hammasi / Videolar / Ishlar / Postlar / Ijodkorlar; so'rovsiz — eng yangi media plitkalari
+- ✅ ⌘K'da Enter → to'liq qidiruv; footer va sitemap'da /qidiruv
 
 ### Kabinet va profil
 66. ✅ Ro'yxatdan o'tishda maqsad tanlovi (xizmat / buyurtma / ish / xodim) → mos sahifa

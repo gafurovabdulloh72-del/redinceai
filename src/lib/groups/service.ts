@@ -611,7 +611,7 @@ export async function assertCanPost(group: Group, viewer: Viewer): Promise<Group
   return m;
 }
 
-async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Promise<PostView[]> {
+export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Promise<PostView[]> {
   if (!rows.length) return [];
   const [authors, liked] = await Promise.all([
     briefUsers(rows.map((p) => p.authorId)),
