@@ -173,6 +173,14 @@ export const AUTH = {
   },
 
   /* ---------- Yuborish tugmalari va pastki havolalar ---------- */
+  google: {
+    button: { uz: "Google bilan davom etish", ru: "Продолжить с Google" },
+    divider: { uz: "yoki", ru: "или" },
+    off: { uz: "Google orqali kirish hozircha mavjud emas — email va parol bilan davom eting.", ru: "Вход через Google пока недоступен — используйте email и пароль." },
+    cancel: { uz: "Google kirishi bekor qilindi.", ru: "Вход через Google отменён." },
+    error: { uz: "Google orqali kirishda xatolik. Qayta urinib ko'ring yoki email bilan kiring.", ru: "Ошибка входа через Google. Попробуйте снова или войдите по email." },
+    unverified: { uz: "Google emailingiz tasdiqlanmagan. Boshqa usulda kiring.", ru: "Ваш email в Google не подтверждён. Войдите другим способом." },
+  },
   submit: {
     registering: { uz: "Hisob yaratilmoqda…", ru: "Создаём аккаунт…" },
     loggingIn: { uz: "Kirilmoqda…", ru: "Выполняем вход…" },

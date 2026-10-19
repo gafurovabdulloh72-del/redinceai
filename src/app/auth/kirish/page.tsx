@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { isGoogleConfigured } from "@/lib/auth/google";
 
 export const metadata: Metadata = {
   title: "Kirish",
@@ -14,5 +15,5 @@ function first(v: string | string[] | undefined) {
 
 export default async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  return <AuthForm mode="login" next={first(sp.next)} reason={first(sp.reason)} />;
+  return <AuthForm mode="login" next={first(sp.next)} reason={first(sp.reason)} googleEnabled={isGoogleConfigured()} />;
 }

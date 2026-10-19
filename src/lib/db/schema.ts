@@ -19,6 +19,8 @@ export const users = sqliteTable(
     /** Chat uchun yagona taxallus (@username) — ro'yxatdan o'tishda avtomatik, sozlamalardan o'zgartiriladi */
     username: text("username"),
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    /** Google OAuth identifikatori (sub) — «Google bilan kirish» orqali bog'langan hisob */
+    googleId: text("google_id"),
     /** Bloklangan hisob: kira olmaydi, profili ro'yxatda chiqmaydi */
     isBanned: integer("is_banned", { mode: "boolean" }).notNull().default(false),
     bannedReason: text("banned_reason"),
@@ -59,7 +61,7 @@ export const users = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_username_idx").on(t.username)],
+  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_username_idx").on(t.username), index("users_google_idx").on(t.googleId)],
 );
 
 /* ------------------------------------------------------------------ */

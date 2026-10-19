@@ -103,9 +103,15 @@ export const POST = handler(async (req) => {
 
   // Vercel: diskka yozib bo'lmaydi — Vercel Blob (BLOB_READ_WRITE_TOKEN avtomatik beriladi)
   if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(`uploads/${name}`, bytes, { access: "public", contentType: kind.mime, addRandomSuffix: false });
-    await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "blob" } }, req);
-    return ok({ url: blob.url }, { status: 201 });
+    try {
+      const blob = await put(`uploads/${name}`, bytes, { access: "public", contentType: kind.mime, addRandomSuffix: false });
+      await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "blob" } }, req);
+      return ok({ url: blob.url }, { status: 201 });
+    } catch (e) {
+      // Blob token eskirgan / store o'chgan / kvota — foydalanuvchiga aniq xabar (admin → "Fayl saqlash" → Sinab ko'rish)
+      console.error("[upload] blob put failed", e);
+      throw new ApiError(502, "Rasm saqlash xizmatida nosozlik. Birozdan keyin qayta urinib ko'ring yoki administrator bilan bog'laning.");
+    }
   }
 
   // Vercel'da Blob ulanmagan bo'lsa diskka yozib bo'lmaydi

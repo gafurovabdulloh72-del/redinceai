@@ -6,7 +6,7 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 ## Stek
 - Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4 (token tizimi `src/app/globals.css`da)
 - Drizzle ORM + @libsql/client — dev: `file:./data/redince.db`, prod: Turso (`TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`)
-- Auth: jose JWT cookie (+ 2FA TOTP, sessiyalar jadvali), zod validatsiya, lucide-react ikonkalar, @vercel/blob yuklamalar
+- Auth: jose JWT cookie (+ 2FA TOTP, sessiyalar jadvali), «Google bilan kirish» (OAuth2, `lib/auth/google.ts` + `/api/auth/google[/callback]`, `users.google_id`, yangi foydalanuvchi → `/xush-kelibsiz` onboarding), zod validatsiya, lucide-react ikonkalar, @vercel/blob yuklamalar
 - To'lovlar: Payme/Click webhook protokollari + qo'lda o'tkazma; escrow + payout CAS (`src/lib/payments/`)
 
 ## Buyruqlar
@@ -44,7 +44,7 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 - Foydalanuvchiga hisobotlar O'ZBEK tilida, skrinshotlar bilan
 
 ## Env (prod — Vercel)
-`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `NEXT_PUBLIC_SITE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY` (email), `TELEGRAM_BOT_TOKEN`/`TELEGRAM_BOT_USERNAME`/`TELEGRAM_WEBHOOK_SECRET` (bot), Payme/Click kalitlari — to'liq ro'yxat va yo'riqnoma `DEPLOY.md`da.
+`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `NEXT_PUBLIC_SITE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY` (email), `TELEGRAM_BOT_TOKEN`/`TELEGRAM_BOT_USERNAME`/`TELEGRAM_WEBHOOK_SECRET` (bot), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` («Google bilan kirish» — Google Cloud Console → OAuth; redirect URI `<SITE_URL>/api/auth/google/callback`; kalit yo'q bo'lsa tugma ko'rinmaydi), Payme/Click kalitlari — to'liq ro'yxat va yo'riqnoma `DEPLOY.md`da.
 
 ## QA rituali (har katta blokdan keyin)
 1. `npx tsc --noEmit` toza; 2. `npm run build` muvaffaqiyatli; 3. smoke testlar; 4. Playwright skrinshotlar (desktop 1440 + mobil 390, light + dark) scratchpad'ga; 5. commit+push; 6. hisobot.

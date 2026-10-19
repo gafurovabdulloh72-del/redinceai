@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { isGoogleConfigured } from "@/lib/auth/google";
 import { getSettings } from "@/lib/payments/settings";
 
 export const metadata: Metadata = {
@@ -21,5 +22,5 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
   const intent = rawIntent === "service" || rawIntent === "order" || rawIntent === "job" || rawIntent === "hire" ? rawIntent : role === "specialist" ? "service" : undefined;
   const settings = await getSettings();
   const subscription = { price: settings.subscriptionPrice, trialDays: settings.subscriptionTrialDays, enforced: settings.subscriptionEnforced === 1 };
-  return <AuthForm mode="register" defaultRole={role} defaultIntent={intent} next={first(sp.next)} reason={first(sp.reason)} subscription={subscription} />;
+  return <AuthForm mode="register" defaultRole={role} defaultIntent={intent} next={first(sp.next)} reason={first(sp.reason)} subscription={subscription} googleEnabled={isGoogleConfigured()} />;
 }
