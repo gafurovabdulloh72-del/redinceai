@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCheck, ChevronDown, Eraser } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
@@ -111,6 +111,16 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
   const isRead = (n: NotificationRow) => allRead || Boolean(n.readAt) || readIds.has(n.id);
   const left = allRead ? 0 : Math.max(0, unread - items.filter((n) => !n.readAt && readIds.has(n.id)).length);
   const sections = useMemo(() => buildSections(items, today), [items, today]);
+
+  // O'qilmagan son o'zgarishi bilan (bu sahifada o'qildi) — qobiq badge'larini (yon panel, kabinet nav, qo'ng'iroq) darhol yangilaymiz
+  const firstRef = useRef(true);
+  useEffect(() => {
+    if (firstRef.current) {
+      firstRef.current = false;
+      return;
+    }
+    window.dispatchEvent(new CustomEvent<number>(NOTIFICATIONS_UNREAD_EVENT, { detail: left }));
+  }, [left]);
 
   // Qo'ng'iroq paneli «hammasini o'qilgan» qilsa — bu ro'yxat ham "o'qilgan" bo'lsin (hisoblagich desinxron bo'lmasin)
   useEffect(() => {

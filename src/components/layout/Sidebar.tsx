@@ -11,6 +11,7 @@ import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
+import { NOTIFICATIONS_UNREAD_EVENT } from "./notification-meta";
 import { AppearancePanel } from "./Appearance";
 import { CreateMenu } from "./CreateMenu";
 import { Logo } from "./Logo";
@@ -68,6 +69,18 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     return () => window.removeEventListener("open-create", on);
   }, []);
 
+  // Jonli o'qilmagan son: bildirishnoma o'qilishi bilan badge darhol o'chadi (qo'ng'iroq/sahifa UNREAD hodisasini e'lon qiladi)
+  const [liveUnread, setLiveUnread] = useState<number | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const n = (e as CustomEvent<unknown>).detail;
+      if (typeof n === "number") setLiveUnread(n);
+    };
+    window.addEventListener(NOTIFICATIONS_UNREAD_EVENT, on);
+    return () => window.removeEventListener(NOTIFICATIONS_UNREAD_EVENT, on);
+  }, []);
+  const notifUnread = liveUnread ?? unread;
+
   const login = (next: string) => `/auth/kirish?next=${encodeURIComponent(next)}`;
 
   const primary: Item[] = [
@@ -76,7 +89,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/lenta", label: SHELL.nav.lenta, icon: Clapperboard },
     { href: "/jamoalar", label: SHELL.nav.groups, icon: UsersRound, dot: groupsUnread > 0 },
     { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread, authOnly: true },
-    { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: unread, authOnly: true },
+    { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
   const secondary: Item[] = [
     { href: "/mutaxassislar", label: SHELL.nav.specialists, icon: Users },
