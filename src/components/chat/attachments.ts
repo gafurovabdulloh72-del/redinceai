@@ -143,13 +143,28 @@ function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: Uploa
     const xhr = new XMLHttpRequest();
     xhr.open("POST", endpoint);
     xhr.responseType = "json";
+    // Qotib qolishdan himoya: 60 soniya davomida umuman siljish bo'lmasa — uzamiz (0% da cheksiz turib qolmaslik uchun)
+    let stalled = false;
+    let lastTick = Date.now();
+    const STALL_MS = 60_000;
+    const watch = window.setInterval(() => {
+      if (Date.now() - lastTick > STALL_MS) {
+        stalled = true;
+        xhr.abort();
+      }
+    }, 5_000);
+    const cleanup = () => {
+      window.clearInterval(watch);
+      p.signal?.removeEventListener("abort", onAbort);
+    };
     const onAbort = () => xhr.abort();
     p.signal?.addEventListener("abort", onAbort, { once: true });
     xhr.upload.onprogress = (e) => {
+      lastTick = Date.now();
       if (e.lengthComputable) p.onProgress?.(Math.min(1, e.loaded / e.total));
     };
     xhr.onload = () => {
-      p.signal?.removeEventListener("abort", onAbort);
+      cleanup();
       const json = (xhr.response ?? null) as UploadResponse | null;
       if (!json) return reject(new Error("Server javob bermadi"));
       if (!json.ok) return reject(new Error(xhr.status === 429 ? withRetryAfter(json.error, xhr.getResponseHeader("Retry-After")) : json.error));
@@ -157,12 +172,12 @@ function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: Uploa
       resolve(json.data.url);
     };
     xhr.onerror = () => {
-      p.signal?.removeEventListener("abort", onAbort);
+      cleanup();
       reject(new Error("Tarmoq xatosi — internetni tekshirib, qayta urinib ko'ring"));
     };
     xhr.onabort = () => {
-      p.signal?.removeEventListener("abort", onAbort);
-      reject(abortError());
+      cleanup();
+      reject(stalled ? new Error("Yuklash to'xtab qoldi — internetni tekshirib, qayta urinib ko'ring") : abortError());
     };
     xhr.send(fd);
   });
@@ -206,22 +221,43 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
   }
 
   // 2) Vercel Blob client upload (R2 yo'q, lekin Blob bor — yoki presign aniqlab bermadi)
+  // Qotib qolishdan himoya: 60 soniya umuman siljish bo'lmasa (token olinmasa yoki PUT to'xtasa) — uzamiz,
+  // 0% da cheksiz turib qolmaslik uchun. Ichki AbortController tashqi p.signal bilan birlashtiriladi.
+  const ac = new AbortController();
+  let stalled = false;
+  let lastTick = Date.now();
+  const STALL_MS = 60_000;
+  const watch = typeof window !== "undefined" ? window.setInterval(() => {
+    if (Date.now() - lastTick > STALL_MS) {
+      stalled = true;
+      ac.abort();
+    }
+  }, 5_000) : 0;
+  const onExtAbort = () => ac.abort();
+  p.signal?.addEventListener("abort", onExtAbort, { once: true });
   try {
     const { upload } = await import("@vercel/blob/client");
     const blob = await upload(`uploads/${crypto.randomUUID()}.${ext}`, file, {
       access: "public",
       handleUploadUrl: "/api/upload/video",
       contentType: VIDEO_MIME[ext],
-      onUploadProgress: (ev) => p.onProgress?.(Math.min(1, ev.percentage / 100)),
-      abortSignal: p.signal,
+      onUploadProgress: (ev) => {
+        lastTick = Date.now();
+        p.onProgress?.(Math.min(1, ev.percentage / 100));
+      },
+      abortSignal: ac.signal,
     });
     return blob.url;
   } catch (e) {
+    if (stalled) throw new Error(`«${file.name}»: video yuklash to'xtab qoldi — internetni tekshirib, qayta urinib ko'ring`);
     if (p.signal?.aborted || (e instanceof Error && e.name === "AbortError")) throw abortError();
     // Blob/R2 yo'q muhit (dev yoki o'z serveri/VPS) — video to'g'ridan-to'g'ri server diskiga (50 MB gacha).
     // Vercel'da disk yozilmaydi: u yerda Blob ulangan bo'lishi kerak (ulanmagan bo'lsa route aniq xato beradi).
     if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
     return uploadViaApi(file, "", p, "/api/upload/video");
+  } finally {
+    if (watch) window.clearInterval(watch);
+    p.signal?.removeEventListener("abort", onExtAbort);
   }
 }
 
