@@ -134,14 +134,14 @@ export function withRetryAfter(message: string, retryAfter: string | null): stri
  * Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback.
  * XHR orqali: yuklash jarayoni (onProgress) va bekor qilish (signal) uchun — fetch'da upload progress yo'q.
  */
-function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: UploadProgressOpts = {}): Promise<string> {
+function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: UploadProgressOpts = {}, endpoint = "/api/upload"): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     if (p.signal?.aborted) return reject(abortError());
     const fd = new FormData();
     fd.append("file", file);
     if (purpose) fd.append("purpose", purpose);
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload");
+    xhr.open("POST", endpoint);
     xhr.responseType = "json";
     const onAbort = () => xhr.abort();
     p.signal?.addEventListener("abort", onAbort, { once: true });
@@ -168,7 +168,7 @@ function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: Uploa
   });
 }
 
-type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; publicUrl: string; contentType: string } | { mode: "fallback" } } | { ok: false; error: string };
+type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; publicUrl: string; contentType: string } | { mode: "fallback"; blob?: boolean } } | { ok: false; error: string };
 
 /**
  * Video: avval R2 presigned PUT (server R2 sozlagan bo'lsa — /api/upload/presign), aks holda
@@ -199,7 +199,13 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
     return publicUrl;
   }
 
-  // 2) Vercel Blob client upload (R2 sozlanmagan muhit)
+  // 1.5) R2 ham, Blob ham yo'q (dev yoki o'z serveri/VPS) — to'g'ridan-to'g'ri server diskiga (Blob urinib 500 bermaydi)
+  if (presign?.ok && presign.data.mode === "fallback" && presign.data.blob === false) {
+    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
+    return uploadViaApi(file, "", p, "/api/upload/video");
+  }
+
+  // 2) Vercel Blob client upload (R2 yo'q, lekin Blob bor — yoki presign aniqlab bermadi)
   try {
     const { upload } = await import("@vercel/blob/client");
     const blob = await upload(`uploads/${crypto.randomUUID()}.${ext}`, file, {
@@ -212,9 +218,10 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
     return blob.url;
   } catch (e) {
     if (p.signal?.aborted || (e instanceof Error && e.name === "AbortError")) throw abortError();
-    // Blob yo'q (dev) yoki tarmoq uzildi — server orqali (5 MB ichida bo'lsa) urinamiz
-    if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}»: video yuklash xizmati hozircha ulanmagan — 5 MB dan kichik video yuboring`);
-    return uploadViaApi(file, "attachment", p);
+    // Blob/R2 yo'q muhit (dev yoki o'z serveri/VPS) — video to'g'ridan-to'g'ri server diskiga (50 MB gacha).
+    // Vercel'da disk yozilmaydi: u yerda Blob ulangan bo'lishi kerak (ulanmagan bo'lsa route aniq xato beradi).
+    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
+    return uploadViaApi(file, "", p, "/api/upload/video");
   }
 }
 

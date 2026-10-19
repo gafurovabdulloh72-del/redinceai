@@ -27,7 +27,8 @@ const schema = z.object({
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
-  if (!isR2Enabled()) return ok({ mode: "fallback" as const });
+  // R2 yo'q: klientga Blob bor-yo'qligini ham aytamiz — Blob ham yo'q bo'lsa (dev/VPS) u to'g'ridan server diskiga o'tadi (Blob urinib 500 bermaydi)
+  if (!isR2Enabled()) return ok({ mode: "fallback" as const, blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
 
   await enforceLimit("upload", session.sub);
   const input = await parseBody(req, schema);

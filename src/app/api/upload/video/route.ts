@@ -1,12 +1,27 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { db } from "@/lib/db";
 import { auditLogs } from "@/lib/db/schema";
-import { ApiError, handler, requireSession } from "@/lib/api";
+import { ApiError, handler, ok, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { uploadDir } from "@/lib/uploads";
+import { uid } from "@/lib/utils";
 import { MAX_VIDEO_BYTES, uploadName } from "@/components/chat/attachments";
+
+/** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
+function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
+  if (buf.length >= 12 && buf.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = buf.subarray(8, 12).toString("ascii");
+    if (brand.startsWith("qt")) return { ext: "mov", mime: "video/quicktime" };
+    return { ext: "mp4", mime: "video/mp4" };
+  }
+  if (buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return { ext: "webm", mime: "video/webm" };
+  return null;
+}
 
 /**
  * Video yuklash — brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (client upload).
@@ -23,6 +38,32 @@ import { MAX_VIDEO_BYTES, uploadName } from "@/components/chat/attachments";
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
+
+  // Disk yo'li (Blob/R2 ulanmagan muhit — dev yoki o'z serveri/VPS): video multipart bilan keladi, 50 MB gacha.
+  // Vercel'da disk yozilmaydi — u yerda Blob majburiy (ulanmagan bo'lsa aniq xato).
+  const ct = req.headers.get("content-type") ?? "";
+  if (ct.includes("multipart/form-data")) {
+    if (process.env.VERCEL) throw new ApiError(503, "Video yuklash hali sozlanmagan (Vercel → Storage → Blob).");
+    const clHeader = req.headers.get("content-length");
+    const declared = clHeader === null ? NaN : Number(clHeader);
+    if (!Number.isFinite(declared)) throw new ApiError(411, "Content-Length sarlavhasi talab qilinadi");
+    if (declared > MAX_VIDEO_BYTES + 64 * 1024) throw new ApiError(413, "Video 50 MB dan katta");
+    const form = await req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) throw new ApiError(400, "Fayl topilmadi");
+    if (file.size > MAX_VIDEO_BYTES) throw new ApiError(413, "Video 50 MB dan katta");
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const kind = sniffVideo(bytes);
+    if (!kind) throw new ApiError(415, "Faqat MP4, WebM yoki MOV video");
+    await enforceLimit("upload", session.sub);
+    const name = `${uid()}.${kind.ext}`;
+    const dir = uploadDir();
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, name), bytes);
+    await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "disk" } }, req);
+    return ok({ url: `/uploads/${name}` }, { status: 201 });
+  }
+
   const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
   if (!body) throw new ApiError(400, "JSON noto'g'ri");
 
