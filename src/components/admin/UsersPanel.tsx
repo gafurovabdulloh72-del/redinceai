@@ -277,11 +277,19 @@ export function UsersPanel() {
                           <Ban size={13} /> Bloklash
                         </button>
                       ))}
+                    <button
+                      type="button"
+                      onClick={() => setAnalyticsUser({ id: u.id, name: u.name })}
+                      title={`${u.name}: faollik analitikasi`}
+                      aria-label={`${u.name}: faollik analitikasi`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+                    >
+                      <BarChart3 size={13} /> Analitika
+                    </button>
                     <AdminRowMenu
                       label={`${u.name}: boshqa amallar`}
                       disabled={isBusy}
                       items={[
-                        { key: "stats", label: "Analitika", icon: BarChart3, onSelect: () => setAnalyticsUser({ id: u.id, name: u.name }) },
                         ...(u.username ? [{ key: "dm", label: "Xabar yozish", icon: MessageCircle, href: `/yozish/${u.username}` }] : []),
                         ...(u.slug ? [{ key: "profile", label: "Ommaviy profil", icon: ExternalLink, href: `/mutaxassislar/${u.slug}` }] : []),
                         ...(u.slug ? [{ key: "priv", label: u.isPrivileged ? "Imtiyozni bekor qilish" : "Imtiyoz berish (obunasiz)", icon: Star, active: u.isPrivileged, onSelect: () => void setPrivileged(u, !u.isPrivileged) }] : []),
