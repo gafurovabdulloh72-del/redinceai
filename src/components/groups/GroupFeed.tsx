@@ -228,6 +228,9 @@ export function Composer({
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
+  // Bir marta ochilgach ochiq qoladi: aks holda asboblar tugmasiga teginganda matn maydoni blur bo'lib,
+  // panel (`{expanded && …}`) tap "click"idan oldin DOM'dan chiqib ketardi — rasm/so'rovnoma tugmasi ishlamasdi (mobil).
+  const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,7 +241,7 @@ export function Composer({
   const pollClean = pollOptions.map((o) => o.trim()).filter(Boolean);
   const pollInvalid = pollOpen && (pollClean.length < POLL_OPTIONS_MIN || new Set(pollClean.map((o) => o.toLowerCase())).size !== pollClean.length);
   const canSend = (body.trim().length > 0 || media.length > 0) && !busy && !uploading && !eventInvalid && !pollInvalid;
-  const expanded = !collapsible || focused || body.length > 0 || media.length > 0 || eventOpen || pollOpen;
+  const expanded = !collapsible || touched || focused || body.length > 0 || media.length > 0 || eventOpen || pollOpen;
 
   // Qoralama: tiklash (bir marta) va saqlash (400 ms kechikish)
   useEffect(() => {
@@ -315,6 +318,7 @@ export function Composer({
     setPollOpen(false);
     setPollOptions(["", ""]);
     setRestored(false);
+    setTouched(false);
     try {
       localStorage.removeItem(draftKey(base));
     } catch {}
@@ -368,7 +372,10 @@ export function Composer({
         onChange={setBody}
         maxLength={POST_BODY_MAX}
         rows={expanded ? 3 : 1}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          setTouched(true);
+        }}
         onBlur={() => setFocused(false)}
         onPaste={onPaste}
         onKeyDown={(e) => {
