@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Activity, CalendarCheck, Clock, Footprints, TrendingUp } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Spinner } from "@/components/ui";
-import { formatMinutes, type UserAnalytics } from "@/lib/analytics/user-analytics";
+import { formatMinutes, type UserAnalytics } from "@/lib/analytics/types";
 import { cn, formatDate, timeAgo } from "@/lib/utils";
 
 type ApiResponse = { ok: true; data: UserAnalytics } | { ok: false; error: string };
