@@ -90,6 +90,24 @@ export const sessions = sqliteTable(
   (t) => [index("sessions_user_idx").on(t.userId)],
 );
 
+/**
+ * Kunlik faollik (admin analitikasi): har «touch» (sessiya lastSeenAt ≤5 daqiqada bir yangilanganda)
+ * bugungi faol daqiqa va tashrif qo'shiladi. `day` — Toshkent kun kaliti floor((ms + 5soat)/86400000).
+ * Vaqt taqriban (uzluksiz touch oynalari yig'indisi) — soniyagacha aniq emas, lekin kun/hafta/oy tahlili uchun yetarli.
+ */
+export const userActivity = sqliteTable(
+  "user_activity",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    day: integer("day").notNull(),
+    minutes: integer("minutes").notNull().default(0),
+    visits: integer("visits").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day] }), index("user_activity_day_idx").on(t.day)],
+);
+
 /** Har bir shaxsiy maydon kimga ko'rinadi */
 export type VisibilityLevel = "public" | "clients" | "orders" | "hidden";
 export type VisibilityField = "telegram" | "instagram" | "youtube" | "website" | "phone" | "email" | "schedule" | "gender" | "city";

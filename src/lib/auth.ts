@@ -8,6 +8,7 @@ import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "./db";
 import { rateLimits, sessions, users, type User } from "./db/schema";
 import { clientIpFromHeaders, hashIp } from "./security/request";
+import { recordActivity } from "./analytics/activity";
 import { safeInternalPath } from "./utils";
 
 export { hashPassword, verifyPassword } from "./security/password";
@@ -251,11 +252,14 @@ const sessionRowAlive = cache(async (jti: string, userId: string): Promise<boole
   const now = Date.now();
   if (!row || row.userId !== userId || row.revokedAt || row.expiresAt.getTime() <= now) return false;
   if (now - row.lastSeenAt.getTime() > TOUCH_MS) {
+    const prev = row.lastSeenAt.getTime();
     await db
       .update(sessions)
       .set({ lastSeenAt: new Date(now) })
       .where(eq(sessions.id, jti))
       .catch(() => undefined);
+    // Kunlik faollik (admin analitikasi) — fire-and-forget, so'rovni kutmaydi
+    void recordActivity(userId, prev, now);
   }
   return true;
 });

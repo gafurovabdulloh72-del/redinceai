@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Ban, Download, ExternalLink, Eye, EyeOff, Loader2, MessageCircle, Search, ShieldCheck, Star, StickyNote, Undo2 } from "lucide-react";
+import { Ban, BarChart3, Download, ExternalLink, Eye, EyeOff, Loader2, MessageCircle, Search, ShieldCheck, Star, StickyNote, Undo2 } from "lucide-react";
 import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
+import { UserAnalyticsSheet } from "@/components/admin/UserAnalyticsSheet";
 import { Avatar, Button } from "@/components/ui";
 import { showToast } from "@/components/ui/toast";
 import { cn, formatDate, formatDateTime, timeAgo } from "@/lib/utils";
@@ -52,6 +53,8 @@ export function UsersPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   /** Inline panel: bloklash sababi yoki izoh tahriri (bitta vaqtda bittasi) */
   const [panel, setPanel] = useState<{ id: string; kind: "ban" | "note" } | null>(null);
+  /** Faollik tahlili pastki varag'i (bitta foydalanuvchi) */
+  const [analyticsUser, setAnalyticsUser] = useState<{ id: string; name: string } | null>(null);
   const [reason, setReason] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +281,7 @@ export function UsersPanel() {
                       label={`${u.name}: boshqa amallar`}
                       disabled={isBusy}
                       items={[
+                        { key: "stats", label: "Analitika", icon: BarChart3, onSelect: () => setAnalyticsUser({ id: u.id, name: u.name }) },
                         ...(u.username ? [{ key: "dm", label: "Xabar yozish", icon: MessageCircle, href: `/yozish/${u.username}` }] : []),
                         ...(u.slug ? [{ key: "profile", label: "Ommaviy profil", icon: ExternalLink, href: `/mutaxassislar/${u.slug}` }] : []),
                         ...(u.slug ? [{ key: "priv", label: u.isPrivileged ? "Imtiyozni bekor qilish" : "Imtiyoz berish (obunasiz)", icon: Star, active: u.isPrivileged, onSelect: () => void setPrivileged(u, !u.isPrivileged) }] : []),
@@ -354,6 +358,7 @@ export function UsersPanel() {
           })}
         </ul>
       )}
+      <UserAnalyticsSheet user={analyticsUser} onClose={() => setAnalyticsUser(null)} />
     </div>
   );
 }
