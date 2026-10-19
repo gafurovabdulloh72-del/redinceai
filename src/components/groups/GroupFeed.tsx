@@ -226,6 +226,9 @@ export function Composer({
   const [pollOpen, setPollOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [uploading, setUploading] = useState(false);
+  // Yuklash jarayoni: umumiy ulush (0–1) va qaysi fayl nechanchidan — foydalanuvchiga % ko'rsatiladi
+  const [progress, setProgress] = useState(0);
+  const [upCount, setUpCount] = useState<{ i: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
   // Bir marta ochilgach ochiq qoladi: aks holda asboblar tugmasiga teginganda matn maydoni blur bo'lib,
@@ -281,19 +284,28 @@ export function Composer({
     const list = all.slice(0, room);
     if (all.length > room) toast(FEED.tooManyFiles[til](POST_MEDIA_MAX), "info");
     setUploading(true);
+    setProgress(0);
     setError(null);
     try {
       const added: Attachment[] = [];
-      for (const f of list) {
+      const total = list.length;
+      for (let i = 0; i < total; i++) {
+        const f = list[i];
+        setUpCount({ i: i + 1, total });
+        setProgress(i / total);
         // Ba'zi brauzerlar .mov/.webm uchun type bo'sh beradi — kengaytma bo'yicha zaxira tekshiruv
         if (!/^(image|video)\//.test(f.type) && !MEDIA_EXT.test(f.name)) throw new Error(FEED.onlyMedia[til](f.name));
-        added.push(await uploadAttachment(f, { docs: true }));
+        // Umumiy ulush = tugagan fayllar + joriy faylning qismi (bir nechta faylda silliq %)
+        added.push(await uploadAttachment(f, { docs: true, onProgress: (p) => setProgress((i + p) / total) }));
       }
+      setProgress(1);
       setMedia((m) => [...m, ...added]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuklanmadi");
     } finally {
       setUploading(false);
+      setUpCount(null);
+      setProgress(0);
     }
   }
 
@@ -396,6 +408,20 @@ export function Composer({
           </button>
         </p>
       )}
+      {uploading && (
+        <div className="expand-in mt-2.5 grid gap-1.5 rounded-[14px] bg-fg/4 px-3 py-2.5" aria-live="polite">
+          <div className="flex items-center justify-between text-[12.5px] font-semibold text-fg-2">
+            <span className="flex items-center gap-1.5">
+              <Spinner className="h-3.5 w-3.5" />
+              {upCount && upCount.total > 1 ? FEED.uploadingFile[til](upCount.i, upCount.total) : tr(til, FEED.uploading)}…
+            </span>
+            <span className="tabular-nums text-fg">{Math.round(progress * 100)}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-fg/10">
+            <div className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out" style={{ width: `${Math.max(3, Math.round(progress * 100))}%` }} />
+          </div>
+        </div>
+      )}
       {pollOpen && (
         <div className="expand-in mt-2.5 grid gap-2 rounded-[14px] bg-fg/4 p-3">
           <p className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-fg-3">
@@ -465,7 +491,7 @@ export function Composer({
         <div className="expand-in mt-2 flex items-center gap-0.5">
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || media.length >= POST_MEDIA_MAX} aria-label={tr(til, FEED.media)} title={tr(til, FEED.media)} className={toolBtn(media.length > 0)}>
             {uploading ? <Spinner className="h-4 w-4" /> : <ImagePlus size={18} />}
-            {media.length > 0 && <span className="tabular-nums">{media.length}/{POST_MEDIA_MAX}</span>}
+            {uploading ? <span className="tabular-nums">{Math.round(progress * 100)}%</span> : media.length > 0 && <span className="tabular-nums">{media.length}/{POST_MEDIA_MAX}</span>}
           </button>
           <input
             ref={fileRef}

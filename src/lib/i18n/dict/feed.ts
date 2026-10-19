@@ -130,6 +130,8 @@ export const FEED = {
   /* Kompozitor */
   post: { uz: "Joylash", ru: "Опубликовать" } satisfies Tr,
   posting: { uz: "Yuborilmoqda…", ru: "Отправка…" } satisfies Tr,
+  uploading: { uz: "Yuklanmoqda", ru: "Загрузка" } satisfies Tr,
+  uploadingFile: { uz: (i: number, n: number) => `Fayl ${i}/${n} yuklanmoqda`, ru: (i: number, n: number) => `Файл ${i}/${n} загружается` },
   media: { uz: "Rasm yoki video", ru: "Фото или видео" } satisfies Tr,
   event: { uz: "Efir", ru: "Эфир" } satisfies Tr,
   draftRestored: { uz: "Qoralama tiklandi", ru: "Черновик восстановлен" } satisfies Tr,
