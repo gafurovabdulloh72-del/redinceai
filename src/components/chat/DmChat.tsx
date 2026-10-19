@@ -1144,6 +1144,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                           {open && messageMenu}
                         </div>
                       )}
+                      <div className={cn("flex min-w-0 max-w-[82%] flex-col", m.mine ? "items-end" : "items-start")}>
                       <div
                         id={`msg-${m.id}`}
                         onContextMenu={(e) => {
@@ -1156,7 +1157,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         onPointerCancel={pressEnd}
                         onPointerMove={pressEnd}
                         className={cn(
-                          "min-w-0 max-w-[82%] select-text rounded-[14px] px-3 py-2 transition-[box-shadow,transform] active:scale-[0.995]",
+                          "min-w-0 max-w-full select-text rounded-[14px] px-3 py-2 transition-[box-shadow,transform] active:scale-[0.995]",
                           m.mine ? "rounded-br-[4px] bg-ink text-ink-fg" : "rounded-bl-[4px] bg-surface-2 text-fg",
                           m.pending === "failed" && "ring-1 ring-danger",
                           m.deleted && "opacity-70",
@@ -1206,8 +1207,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                             ))}
                         </p>
                       </div>
+                      {!m.deleted && <ReactionChips reactions={m.reactions ?? []} mine={m.mine} onToggle={(e) => void react(m, e)} />}
+                      </div>
                     </div>
-                    {!m.deleted && <ReactionChips reactions={m.reactions ?? []} mine={m.mine} onToggle={(e) => void react(m, e)} />}
                   </div>
                 );
               })
