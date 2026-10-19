@@ -1,7 +1,31 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Activity, BadgeCheck, BarChart3, Banknote, CreditCard, Flag, Gavel, HardDrive, Landmark, Megaphone, RadioTower, Scale, Send, Server, Settings, ShieldAlert, Star, TrendingUp, Users, Circle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** Bo'lim id'si → ikonka (skanlashni osonlashtiradi) */
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  tasdiqlash: BadgeCheck,
+  nizolar: Scale,
+  payoutlar: Banknote,
+  shikoyatlar: Flag,
+  moderatsiya: Gavel,
+  tolovlar: CreditCard,
+  moliya: TrendingUp,
+  analitika: BarChart3,
+  shubhali: ShieldAlert,
+  sharhlar: Star,
+  efirlar: RadioTower,
+  foydalanuvchilar: Users,
+  xabar: Megaphone,
+  "telegram-bot": Send,
+  "r2-saqlash": HardDrive,
+  faollik: Activity,
+  tizim: Server,
+  "tolov-sozlamalari": Landmark,
+  sozlamalar: Settings,
+};
 
 /**
  * Admin: o'ng tomonda DOIMIY (sticky) bo'limlar navigatsiyasi — uzun sahifada scroll o'rniga bir bosishda o'tish.
@@ -69,20 +93,28 @@ export function AdminSectionNav({ items }: { items: AdminNavItem[] }) {
       <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-4">Bo&apos;limlar</p>
       <ul ref={listRef} className="relative space-y-0.5 border-l border-line pl-0">
         {mark && <span aria-hidden="true" className="absolute -left-px w-0.5 rounded-full bg-accent transition-[top,height] duration-300 ease-out motion-reduce:transition-none" style={{ top: mark.top, height: mark.height }} />}
-        {items.map((i) => (
-          <li key={i.id}>
-            <a
-              href={`#${i.id}`}
-              data-id={i.id}
-              aria-current={active === i.id ? "location" : undefined}
-              onClick={() => setActive(i.id)}
-              className={cn("flex min-h-9 items-center justify-between gap-2 px-3 py-1.5 text-[13px] font-medium transition-colors", active === i.id ? "font-semibold text-fg" : "text-fg-3 hover:text-fg")}
-            >
-              <span className="truncate">{i.label}</span>
-              {i.badge ? <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{i.badge}</span> : null}
-            </a>
-          </li>
-        ))}
+        {items.map((i) => {
+          const Icon = SECTION_ICONS[i.id] ?? Circle;
+          const on = active === i.id;
+          return (
+            <li key={i.id}>
+              <a
+                href={`#${i.id}`}
+                data-id={i.id}
+                aria-current={on ? "location" : undefined}
+                onClick={() => setActive(i.id)}
+                className={cn(
+                  "mx-1 flex min-h-9 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+                  on ? "bg-fg/6 font-semibold text-fg" : "text-fg-3 hover:bg-fg/4 hover:text-fg",
+                )}
+              >
+                <Icon size={15} className={cn("shrink-0", on ? "text-accent" : "text-fg-4")} />
+                <span className="flex-1 truncate">{i.label}</span>
+                {i.badge ? <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{i.badge}</span> : null}
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
