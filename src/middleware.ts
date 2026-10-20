@@ -102,6 +102,20 @@ function envOrigin(value: string | undefined): string {
 const R2_PUBLIC_ORIGIN = envOrigin(process.env.R2_PUBLIC_BASE);
 const R2_ENDPOINT_ORIGIN = envOrigin(process.env.R2_ENDPOINT);
 
+/** Video qo'ng'iroq (LiveKit): signal WebSocket (wss) + region/validate so'rovlari (https). LiveKit Cloud
+ *  regional signal/media hostlari *.livekit.cloud ostida — shuning uchun butun domenga ruxsat beramiz. */
+function liveKitConnect(): string {
+  const url = process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL;
+  if (!url) return "";
+  try {
+    const host = new URL(url).hostname;
+    return host.endsWith(".livekit.cloud") ? " https://*.livekit.cloud wss://*.livekit.cloud" : ` https://${host} wss://${host}`;
+  } catch {
+    return "";
+  }
+}
+const LIVEKIT_CONNECT = liveKitConnect();
+
 /** Rasm manbalari: o'zimiz, data/blob, YouTube muqovalari, Vercel Blob, R2, next.config images.remotePatterns hostlari */
 const IMG_HOSTS = `https://i.ytimg.com https://*.public.blob.vercel-storage.com https://picsum.photos https://images.unsplash.com https://i.pravatar.cc${R2_PUBLIC_ORIGIN}`;
 
@@ -130,7 +144,7 @@ function buildCsp(nonce: string): string {
     "worker-src 'self'",
     "manifest-src 'self'",
     // Blob/R2 hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob yoki R2'ga (presigned PUT) yuklanadi
-    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${IS_PROD ? "" : " ws: wss:"}`,
+    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${LIVEKIT_CONNECT}${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "frame-ancestors 'none'",
