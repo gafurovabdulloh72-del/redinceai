@@ -29,6 +29,7 @@ export function CallRoom({
   const [state, setState] = useState<"loading" | "ready" | "error">(connection ? "ready" : "loading");
   const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
   const [error, setError] = useState<string>("");
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     if (connection || !target) return; // tayyor ulanish bor — token so'ralmaydi
@@ -70,6 +71,16 @@ export function CallRoom({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Ulanish taymauti: 25s ichida ulanmasa (ICE/tarmoq bloki) — "Connecting"da cheksiz turmasin
+  useEffect(() => {
+    if (state !== "ready" || connected) return;
+    const t = setTimeout(() => {
+      setError("Ulanib bo'lmadi — internet qo'ng'iroq serveriga yetmayapti (Wi-Fi yoki boshqa tarmoqni sinab ko'ring).");
+      setState("error");
+    }, 25_000);
+    return () => clearTimeout(t);
+  }, [state, connected]);
+
   return (
     <div className="fixed inset-0 z-[135] flex flex-col bg-[#0b0b0d]" role="dialog" aria-modal="true" aria-label={`Video qo'ng'iroq — ${title}`}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 text-white/90">
@@ -105,9 +116,16 @@ export function CallRoom({
             connect
             video
             audio
-            onDisconnected={onClose}
+            onConnected={() => setConnected(true)}
+            onDisconnected={() => {
+              // Ulangandan keyin uzilsa — yopamiz; umuman ulanmagan bo'lsa (tarmoq) — xato ko'rsatamiz
+              if (connected) onClose();
+              else {
+                setError("Ulanib bo'lmadi — internet qo'ng'iroq serveriga yetmayapti (boshqa tarmoqni sinang).");
+                setState("error");
+              }
+            }}
             onError={(e) => {
-              // Ulanish xatosi (masalan, server yetib bo'lmadi) — jim yopilmasin, xato ko'rinsin
               setError(e?.message ? `Ulanib bo'lmadi: ${e.message}` : "Qo'ng'iroq serveriga ulanib bo'lmadi.");
               setState("error");
             }}
