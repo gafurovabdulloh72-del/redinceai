@@ -28,14 +28,16 @@ export function CallRoom({ target, title, onClose }: { target: Target; title: st
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ kind: target.kind, id: target.id }),
         });
-        const data = (await res.json().catch(() => null)) as { url?: string; token?: string; error?: string } | null;
+        // Server javobi ok() o'ramida keladi: { ok:true, data:{ url, token, room } } yoki { ok:false, error }
+        const json = (await res.json().catch(() => null)) as { ok?: boolean; data?: { url?: string; token?: string }; error?: string } | null;
         if (!alive) return;
-        if (!res.ok || !data?.url || !data?.token) {
-          setError(res.status === 503 ? "Video qo'ng'iroq hozircha yoqilmagan." : data?.error ?? "Qo'ng'iroqni boshlab bo'lmadi.");
+        const payload = json?.data;
+        if (!res.ok || !json?.ok || !payload?.url || !payload?.token) {
+          setError(res.status === 503 ? "Video qo'ng'iroq hozircha yoqilmagan." : json?.error ?? "Qo'ng'iroqni boshlab bo'lmadi.");
           setState("error");
           return;
         }
-        setConn({ url: data.url, token: data.token });
+        setConn({ url: payload.url, token: payload.token });
         setState("ready");
       } catch {
         if (!alive) return;
