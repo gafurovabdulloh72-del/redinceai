@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
@@ -32,6 +32,7 @@ export type KabinetNavIcon =
   | "searches"
   | "proposals"
   | "subscription"
+  | "mentorship"
   | "report";
 
 /** Holat nuqtasi (masalan, obuna): faol — yashil, tugayapti — sariq, tugagan — qizil */
@@ -92,6 +93,7 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   searches: BookmarkCheck,
   proposals: Send,
   subscription: CreditCard,
+  mentorship: GraduationCap,
   report: FileChartColumn,
   vacancies: Briefcase,
   applications: SendHorizontal,

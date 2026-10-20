@@ -161,6 +161,9 @@ export default async function KabinetLayout({ children }: { children: React.Reac
     if (user.specialist) items.push({ href: "/kabinet/hisobot", label: "Hisobot", icon: "report", group: "Faoliyat" });
   }
 
+  // Mentorlik (barcha rollar: talaba sifatida o'qish, mutaxassis sifatida dars berish)
+  items.push({ href: "/kabinet/mentorlik", label: "Mentorlik", icon: "mentorship", group: "Faoliyat" });
+
   // Vakansiyalar bo'limi (barcha rollar, to'lovsiz)
   items.push({ href: "/kabinet/vakansiyalar", label: "Vakansiyalar", icon: "vacancies", group: "Vakansiyalar" });
   items.push({ href: "/kabinet/arizalarim", label: "Arizalarim", icon: "applications", group: "Vakansiyalar" });

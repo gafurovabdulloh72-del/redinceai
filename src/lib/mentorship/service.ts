@@ -327,6 +327,18 @@ export async function addCourseReview(userId: string, courseId: string, input: C
   await db.update(mentors).set({ rating: Math.round((Number(mAvg) || 0) * 10) / 10, reviewsCount: Number(mN) }).where(eq(mentors.id, c.mentorId));
 }
 
+/** Kurs tahrirlagich uchun (egasi/admin): kurs maydonlari + barcha darslar */
+export async function getCourseForOwner(userId: string, courseId: string, isAdmin = false) {
+  const c = await db.query.courses.findFirst({ where: eq(courses.id, courseId), with: { mentor: { columns: { userId: true } } } });
+  if (!c) return null;
+  if (c.mentor.userId !== userId && !isAdmin) return null;
+  const lessonRows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), orderBy: [asc(lessons.position)] });
+  return {
+    course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount },
+    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, isPreview: l.isPreview })),
+  };
+}
+
 /** Mentorning kurslari (kabinet) */
 export async function listMentorCourses(userId: string) {
   const m = await getMentorForUser(userId);

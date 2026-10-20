@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, GraduationCap, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { usePresence } from "@/components/motion/usePresence";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -92,6 +92,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
   const secondary: Item[] = [
+    { href: "/mentorlik", label: SHELL.nav.mentorship, icon: GraduationCap },
     { href: "/mutaxassislar", label: SHELL.nav.specialists, icon: Users },
     { href: "/xarita", label: SHELL.nav.map, icon: Map },
     { href: "/vakansiyalar", label: SHELL.nav.vacancies, icon: Briefcase },

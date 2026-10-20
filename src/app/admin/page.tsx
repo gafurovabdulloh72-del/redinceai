@@ -7,6 +7,7 @@ import { users as usersTable } from "@/lib/db/schema";
 import { AdminSectionHeading, QueueChip } from "@/components/admin/AdminSectionHeading";
 import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
 import { AdminModeration } from "@/components/admin/AdminModeration";
+import { AdminMentors } from "@/components/admin/AdminMentors";
 import { AdminEvents } from "@/components/admin/AdminEvents";
 import { AdminHealthCard } from "@/components/admin/AdminHealthCard";
 import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
@@ -268,6 +269,7 @@ export default async function AdminPage() {
     { id: "payoutlar", label: "Payoutlar", badge: openPayouts },
     { id: "shikoyatlar", label: "Shikoyatlar", badge: openReports },
     { id: "moderatsiya", label: "Moderatsiya" },
+    { id: "mentorlar", label: "Mentorlik" },
     { id: "tolovlar", label: "To'lovlar", badge: finance.manualPending },
     { id: "moliya", label: "Moliya" },
     { id: "analitika", label: "Analitika" },
@@ -400,6 +402,12 @@ export default async function AdminPage() {
         <section id="moderatsiya" className={SECTION} aria-labelledby="h-moderatsiya">
           <AdminSectionHeading title={<span id="h-moderatsiya">Jamoalar va vakansiyalar</span>} description="Egasini almashtirish, yopiq/ochiq, o'chirish; vakansiyani yopish yoki qayta ochish. Oldindan to'lov so'ragan e'lonlar avtomatik belgilanadi." />
           <AdminModeration />
+        </section>
+
+        {/* ---------- Mentorlik arizalari ---------- */}
+        <section id="mentorlar" className={SECTION} aria-labelledby="h-mentorlar">
+          <AdminSectionHeading title={<span id="h-mentorlar">Mentorlik arizalari</span>} description="Ustoz bo'lish arizalari — tasdiqlangach kurs ocha oladi." />
+          <AdminMentors />
         </section>
 
         {/* ---------- To'lovlar ---------- */}

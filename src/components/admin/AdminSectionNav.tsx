@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Activity, BadgeCheck, BarChart3, Banknote, CreditCard, Flag, Gavel, HardDrive, Landmark, Megaphone, RadioTower, Scale, Send, Server, Settings, ShieldAlert, Star, TrendingUp, Users, Circle, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, BarChart3, Banknote, CreditCard, Flag, Gavel, GraduationCap, HardDrive, Landmark, Megaphone, RadioTower, Scale, Send, Server, Settings, ShieldAlert, Star, TrendingUp, Users, Circle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Bo'lim id'si → ikonka (skanlashni osonlashtiradi) */
@@ -11,6 +11,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   payoutlar: Banknote,
   shikoyatlar: Flag,
   moderatsiya: Gavel,
+  mentorlar: GraduationCap,
   tolovlar: CreditCard,
   moliya: TrendingUp,
   analitika: BarChart3,

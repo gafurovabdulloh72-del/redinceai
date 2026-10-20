@@ -87,6 +87,7 @@ export const SHELL = {
     about: { uz: "Haqida", ru: "О нас" },
     groups: { uz: "Hamjamiyat", ru: "Сообщества" },
     vacancies: { uz: "Vakansiyalar", ru: "Вакансии" },
+    mentorship: { uz: "Mentorlik", ru: "Менторство" },
     cabinet: { uz: "Kabinet", ru: "Кабинет" },
     login: { uz: "Kirish", ru: "Войти" },
     loginShort: { uz: "Kirish", ru: "Вход" },
