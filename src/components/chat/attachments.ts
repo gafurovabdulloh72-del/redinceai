@@ -193,6 +193,12 @@ type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; public
 async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<string> {
   const ext = (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
 
+  // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
+  if (file.size > MAX_VIDEO_BYTES) {
+    const mb = Math.round(file.size / (1024 * 1024));
+    throw new Error(`«${file.name}» — ${mb} MB, chegara ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB. Videoni biroz siqib (masalan 720p) qayta yuboring.`);
+  }
+
   // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
   //    Endpoint ishlamasa (eski server, tarmoq) — null, eski oqimga o'tamiz; aniq xato (kvota, sessiya) foydalanuvchiga.
   const presign = (await fetch("/api/upload/presign", {
@@ -226,7 +232,8 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
   const ac = new AbortController();
   let stalled = false;
   let lastTick = Date.now();
-  const STALL_MS = 60_000;
+  // Sekin tarmoq (UZ→Blob) + token olish fazasi uchun 90 s: shu vaqt umuman siljish bo'lmasa uzamiz
+  const STALL_MS = 90_000;
   const watch = typeof window !== "undefined" ? window.setInterval(() => {
     if (Date.now() - lastTick > STALL_MS) {
       stalled = true;
