@@ -108,6 +108,8 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
       try {
         const res = await fetch(`/api/qongiroq/call/${inviteId}`, { cache: "no-store" });
         const json = (await res.json().catch(() => null)) as { data?: { status?: string } } | null;
+        // Fetch davomida rejim o'zgargan bo'lishi mumkin (xonaga o'tdik) — eski javob xonani yopib yubormasin
+        if (stop || modeRef.current.k !== "outgoing") return;
         const st = json?.data?.status;
         if (st === "accepted") {
           setMode({ k: "call", inviteId, conn, title: peerName });

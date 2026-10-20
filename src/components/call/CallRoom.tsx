@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Loader2, X } from "lucide-react";
 
 type Target = { kind: "dm" | "group"; id: string };
+
+/** Barqaror stil obyekti — har renderda yangisi bo'lsa LiveKitRoom'ni bezovta qilmasin */
+const ROOM_STYLE = { height: "100%" } as const;
 
 /**
  * Video qo'ng'iroq xonasi — butun ekranli ustki qatlam (overlay).
@@ -30,6 +33,37 @@ export function CallRoom({
   const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
   const [error, setError] = useState<string>("");
   const [connected, setConnected] = useState(false);
+  // Ulanish holati va onClose'ni ref'da saqlaymiz — LiveKit hodisa funksiyalari BARQAROR bo'lsin
+  // (aks holda har renderda yangi funksiya → LiveKitRoom qayta ulanadi → "Client initiated disconnect")
+  const connectedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const handleConnected = useCallback(() => {
+    connectedRef.current = true;
+    setConnected(true);
+    // eslint-disable-next-line no-console
+    console.info("[qongiroq] ulandi (connected)");
+  }, []);
+  const handleDisconnected = useCallback((reason?: unknown) => {
+    // Diagnostika: uzilish sababi (DUPLICATE_IDENTITY / SERVER_SHUTDOWN / CLIENT_INITIATED / ...)
+    // eslint-disable-next-line no-console
+    console.warn("[qongiroq] uzildi — reason:", reason, "| ulangan edi:", connectedRef.current);
+    // Ulangandan keyin uzilsa — yopamiz; umuman ulanmagan bo'lsa (tarmoq/boshqa) — xato + sabab ko'rsatiladi
+    if (connectedRef.current) onCloseRef.current();
+    else {
+      setError(`Uzildi: ${reason != null ? String(reason) : "noma'lum"} — internet yoki boshqa tarmoqni sinang.`);
+      setState("error");
+    }
+  }, []);
+  const handleError = useCallback((e?: Error) => {
+    // eslint-disable-next-line no-console
+    console.error("[qongiroq] xato:", e);
+    setError(e?.message ? `Ulanib bo'lmadi: ${e.message}` : "Qo'ng'iroq serveriga ulanib bo'lmadi.");
+    setState("error");
+  }, []);
 
   useEffect(() => {
     if (connection || !target) return; // tayyor ulanish bor — token so'ralmaydi
@@ -116,21 +150,11 @@ export function CallRoom({
             connect
             video
             audio
-            onConnected={() => setConnected(true)}
-            onDisconnected={() => {
-              // Ulangandan keyin uzilsa — yopamiz; umuman ulanmagan bo'lsa (tarmoq) — xato ko'rsatamiz
-              if (connected) onClose();
-              else {
-                setError("Ulanib bo'lmadi — internet qo'ng'iroq serveriga yetmayapti (boshqa tarmoqni sinang).");
-                setState("error");
-              }
-            }}
-            onError={(e) => {
-              setError(e?.message ? `Ulanib bo'lmadi: ${e.message}` : "Qo'ng'iroq serveriga ulanib bo'lmadi.");
-              setState("error");
-            }}
+            onConnected={handleConnected}
+            onDisconnected={handleDisconnected}
+            onError={handleError}
             data-lk-theme="default"
-            style={{ height: "100%" }}
+            style={ROOM_STYLE}
           >
             <VideoConference />
           </LiveKitRoom>
