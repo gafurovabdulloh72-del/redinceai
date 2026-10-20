@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowDown, ArrowLeft, Ban, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, User, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
+import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePresence } from "@/components/motion/usePresence";
@@ -1022,6 +1023,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                 <span className="h-4 w-32 skeleton" />
               </div>
             )}
+            {active && peer && <CallButton kind="dm" id={active} title={peer.name} />}
             <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-pressed={searchOpen} aria-label={t("searchMsgs")} title={t("searchMsgs")} className={cn(iconBtn, "hidden sm:flex", searchOpen && "bg-fg/6 text-fg")}>
               <Search size={16} />
             </button>

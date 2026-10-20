@@ -11,6 +11,7 @@ import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, uploadAttachment, typ
 import { AttachmentList, QuoteBlock, ReplyBar, TypingDots, jumpToMessage, typingLabel } from "@/components/chat/MessageParts";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
 import { ReportButton } from "@/components/specialists/ReportButton";
+import { CallButton } from "@/components/call/CallButton";
 import type { QuoteView } from "@/lib/chat/quote";
 import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import type { GroupMessageView, UserBrief } from "@/lib/groups/service";
@@ -427,19 +428,22 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
         <span className="truncate font-semibold text-fg-2">
           {chatLabel} · {compactCount(membersCount)}
         </span>
-        <button
-          type="button"
-          onClick={() => {
-            setSearchOpen((v) => !v);
-            setQ("");
-            setResults(null);
-          }}
-          aria-pressed={searchOpen}
-          aria-label={searchOpen ? "Qidiruvni yopish" : "Xabarlardan qidirish"}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
-        >
-          {searchOpen ? <X size={15} /> : <Search size={15} />}
-        </button>
+        <span className="flex shrink-0 items-center gap-1">
+          <CallButton kind="group" id={slug} title={chatLabel} className="h-8 w-8" />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setQ("");
+              setResults(null);
+            }}
+            aria-pressed={searchOpen}
+            aria-label={searchOpen ? "Qidiruvni yopish" : "Xabarlardan qidirish"}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+          >
+            {searchOpen ? <X size={15} /> : <Search size={15} />}
+          </button>
+        </span>
       </div>
 
       {searchOpen && (
