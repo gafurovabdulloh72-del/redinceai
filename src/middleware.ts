@@ -105,14 +105,19 @@ const R2_ENDPOINT_ORIGIN = envOrigin(process.env.R2_ENDPOINT);
 /** Video qo'ng'iroq (LiveKit): signal WebSocket (wss) + region/validate so'rovlari (https). LiveKit Cloud
  *  regional signal/media hostlari *.livekit.cloud ostida — shuning uchun butun domenga ruxsat beramiz. */
 function liveKitConnect(): string {
+  // LiveKit Cloud signal/region/media hostlari *.livekit.cloud ostida — DOIM ruxsat (env'ga bog'liq emas, kafolatli)
+  let out = " https://*.livekit.cloud wss://*.livekit.cloud";
+  // Agar o'z serveringizda (self-host, custom domen) bo'lsa — uni ham qo'shamiz
   const url = process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL;
-  if (!url) return "";
   try {
-    const host = new URL(url).hostname;
-    return host.endsWith(".livekit.cloud") ? " https://*.livekit.cloud wss://*.livekit.cloud" : ` https://${host} wss://${host}`;
+    if (url) {
+      const host = new URL(url).hostname;
+      if (!host.endsWith(".livekit.cloud")) out += ` https://${host} wss://${host}`;
+    }
   } catch {
-    return "";
+    /* noto'g'ri URL — faqat *.livekit.cloud qoladi */
   }
+  return out;
 }
 const LIVEKIT_CONNECT = liveKitConnect();
 
