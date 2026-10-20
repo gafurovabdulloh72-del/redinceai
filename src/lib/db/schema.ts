@@ -1579,3 +1579,177 @@ export const reviewVotes = sqliteTable(
   },
   (t) => [uniqueIndex("review_votes_uq").on(t.reviewId, t.userId), index("review_votes_review_idx").on(t.reviewId)],
 );
+
+/* ================================================================== */
+/* MENTORLIK (2026-10): ustozlar dars beradi — kurslar, darslar, yozilish, progress, sharhlar.
+   Mentor = tasdiqlangan foydalanuvchi (admin). Kurs → darslar (video/matn). Yozilgan talaba progressni yuritadi. */
+/* ================================================================== */
+
+/** Mentor (ustoz): dars beruvchi foydalanuvchi — admin tasdig'idan keyin ko'rinadi */
+export const mentors = sqliteTable(
+  "mentors",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Qisqa unvon: "10 yillik montajchi · Premiere Pro ustasi" */
+    headline: text("headline").notNull(),
+    bio: text("bio").notNull().default(""),
+    /** Yo'nalishlar (teglar): JSON string[] — ["montaj","color","motion"] */
+    expertise: text("expertise", { mode: "json" }).$type<string[]>().notNull().default([]),
+    /** Admin tasdig'i: faqat tasdiqlangan mentorlar katalogda va kurs ocha oladi */
+    isApproved: integer("is_approved", { mode: "boolean" }).notNull().default(false),
+    appliedAt: integer("applied_at", { mode: "timestamp_ms" }),
+    approvedAt: integer("approved_at", { mode: "timestamp_ms" }),
+    coursesCount: integer("courses_count").notNull().default(0),
+    studentsCount: integer("students_count").notNull().default(0),
+    rating: real("rating").notNull().default(0),
+    reviewsCount: integer("reviews_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("mentors_user_uq").on(t.userId), index("mentors_approved_idx").on(t.isApproved)],
+);
+
+/** Kurs: mentor yaratadi, darslardan iborat */
+export const courses = sqliteTable(
+  "courses",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull().default(""),
+    coverUrl: text("cover_url"),
+    /** Kasb/yo'nalish: montaj | videografiya | dizayn | motion | foto | boshqa */
+    category: text("category").notNull().default("boshqa"),
+    level: text("level", { enum: ["boshlangich", "orta", "pro"] }).notNull().default("boshlangich"),
+    /** Narx so'mda; 0 = bepul */
+    priceFrom: integer("price_from").notNull().default(0),
+    isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+    lessonsCount: integer("lessons_count").notNull().default(0),
+    studentsCount: integer("students_count").notNull().default(0),
+    rating: real("rating").notNull().default(0),
+    reviewsCount: integer("reviews_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("courses_slug_uq").on(t.slug), index("courses_mentor_idx").on(t.mentorId), index("courses_published_idx").on(t.isPublished, t.category)],
+);
+
+/** Dars: kurs ichida tartiblangan (video va/yoki matn) */
+export const lessons = sqliteTable(
+  "lessons",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    /** Tartib raqami (1,2,3…) */
+    position: integer("position").notNull().default(0),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    videoUrl: text("video_url"),
+    durationMin: integer("duration_min").notNull().default(0),
+    /** Bepul namuna — yozilmasdan ham ko'rsa bo'ladi */
+    isPreview: integer("is_preview", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("lessons_course_idx").on(t.courseId, t.position)],
+);
+
+/** Yozilish: talaba kursga yozildi (progress bilan) */
+export const enrollments = sqliteTable(
+  "enrollments",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lastLessonId: text("last_lesson_id"),
+    /** 0–100 */
+    progressPct: integer("progress_pct").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("enrollments_uq").on(t.courseId, t.userId), index("enrollments_user_idx").on(t.userId)],
+);
+
+/** Tugatilgan dars: bir foydalanuvchi — bir darsni bir marta */
+export const lessonCompletions = sqliteTable(
+  "lesson_completions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("lesson_completions_uq").on(t.userId, t.lessonId), index("lesson_completions_course_idx").on(t.courseId, t.userId)],
+);
+
+/** Kurs sharhi: yozilgan talaba baho va fikr qoldiradi (bir marta) */
+export const courseReviews = sqliteTable(
+  "course_reviews",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull().default(5),
+    body: text("body").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("course_reviews_uq").on(t.courseId, t.userId), index("course_reviews_course_idx").on(t.courseId)],
+);
+
+export const mentorsRelations = relations(mentors, ({ one, many }) => ({
+  user: one(users, { fields: [mentors.userId], references: [users.id] }),
+  courses: many(courses),
+}));
+export const coursesRelations = relations(courses, ({ one, many }) => ({
+  mentor: one(mentors, { fields: [courses.mentorId], references: [mentors.id] }),
+  lessons: many(lessons),
+  enrollments: many(enrollments),
+  reviews: many(courseReviews),
+}));
+export const lessonsRelations = relations(lessons, ({ one }) => ({
+  course: one(courses, { fields: [lessons.courseId], references: [courses.id] }),
+}));
+export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
+  course: one(courses, { fields: [enrollments.courseId], references: [courses.id] }),
+  user: one(users, { fields: [enrollments.userId], references: [users.id] }),
+}));
+
+export type Mentor = typeof mentors.$inferSelect;
+export type Course = typeof courses.$inferSelect;
+export type Lesson = typeof lessons.$inferSelect;
+export type Enrollment = typeof enrollments.$inferSelect;
+export type CourseReview = typeof courseReviews.$inferSelect;
