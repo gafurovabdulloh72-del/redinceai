@@ -14,19 +14,32 @@ type Target = { kind: "dm" | "group"; id: string };
  *
  * Holatlar: ulanmoqda · xato (503 — qo'ng'iroq o'chiq, yoki ruxsat yo'q) · xona (LiveKit UI).
  */
-export function CallRoom({ target, title, onClose }: { target: Target; title: string; onClose: () => void }) {
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [conn, setConn] = useState<{ url: string; token: string } | null>(null);
+export function CallRoom({
+  target,
+  title,
+  onClose,
+  connection,
+}: {
+  target?: Target;
+  title: string;
+  onClose: () => void;
+  /** Tayyor ulanish (CallCenter start/accept'dan) — berilsa token qayta so'ralmaydi */
+  connection?: { url: string; token: string };
+}) {
+  const [state, setState] = useState<"loading" | "ready" | "error">(connection ? "ready" : "loading");
+  const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
+    if (connection || !target) return; // tayyor ulanish bor — token so'ralmaydi
+    const tgt = target;
     let alive = true;
     (async () => {
       try {
         const res = await fetch("/api/qongiroq/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: target.kind, id: target.id }),
+          body: JSON.stringify({ kind: tgt.kind, id: tgt.id }),
         });
         // Server javobi ok() o'ramida keladi: { ok:true, data:{ url, token, room } } yoki { ok:false, error }
         const json = (await res.json().catch(() => null)) as { ok?: boolean; data?: { url?: string; token?: string }; error?: string } | null;
@@ -48,7 +61,7 @@ export function CallRoom({ target, title, onClose }: { target: Target; title: st
     return () => {
       alive = false;
     };
-  }, [target.kind, target.id]);
+  }, [target, connection]);
 
   // Esc bilan yopish
   useEffect(() => {

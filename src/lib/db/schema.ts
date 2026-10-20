@@ -669,6 +669,39 @@ export const dmMessageReactions = sqliteTable(
   (t) => [uniqueIndex("dm_message_reactions_pair_idx").on(t.messageId, t.userId)],
 );
 
+/**
+ * Video qo'ng'iroq takliflari (Telegram uslubi signalizatsiya): A chaqiradi → B'da jiringlash ekrani.
+ * Holat: ringing (jiringlamoqda) → accepted (qabul) | declined (rad) | cancelled (chaqiruvchi bekor qildi)
+ *        | missed (javobsiz, ~45s) | ended (tugadi). Jonli jiringlash — bu jadvalni klient polling qiladi.
+ */
+export const callInvites = sqliteTable(
+  "call_invites",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    callerId: text("caller_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    calleeId: text("callee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** LiveKit xona nomi (dm_<conversationId>) */
+    room: text("room").notNull(),
+    status: text("status", { enum: ["ringing", "accepted", "declined", "cancelled", "missed", "ended"] })
+      .notNull()
+      .default("ringing"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("call_invites_callee_idx").on(t.calleeId, t.status), index("call_invites_caller_idx").on(t.callerId, t.status)],
+);
+
 /** Suhbat bo'yicha shaxsiy sozlamalar: arxiv, ovozsiz, ro'yxatda qadash — har tomon o'ziniki */
 export const dmConversationPrefs = sqliteTable(
   "dm_conversation_prefs",
@@ -1011,6 +1044,7 @@ export const dmMessagesRelations = relations(dmMessages, ({ one }) => ({
 
 export type Conversation = typeof conversations.$inferSelect;
 export type DmMessage = typeof dmMessages.$inferSelect;
+export type CallInvite = typeof callInvites.$inferSelect;
 
 /* ------------------------------------------------------------------ */
 /* Jamoalar — ijodkorlar hamjamiyati (guruh, lenta, chat, obuna)        */

@@ -18,6 +18,8 @@ import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister
 import { AppearanceSync } from "@/components/layout/Appearance";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { CallCenter } from "@/components/call/CallCenter";
+import { getCurrentUser } from "@/lib/auth";
 import { getDisplayLocale, getLocale } from "@/lib/i18n/server";
 import { DISPLAY_LANG, tr } from "@/lib/i18n";
 import { DisplayLocaleProvider } from "@/components/i18n/DisplayLocale";
@@ -114,6 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Til — "til" cookie'sidan (standart: uz). Almashtirish /api/til orqali, sahifa router.refresh() bilan yangilanadi.
   const display = await getDisplayLocale();
   const locale = await getLocale();
+  const currentUser = await getCurrentUser();
   return (
     <html lang={DISPLAY_LANG[display]} data-display={display} suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
@@ -159,6 +162,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <NetworkBanner />
               <AppearanceSync />
               <ServiceWorkerRegister />
+              {/* Global qo'ng'iroq markazi (Telegram uslubi): kiruvchi/chiquvchi ekran + jiringlash — faqat kirgan foydalanuvchiga */}
+              <CallCenter enabled={!!currentUser} />
             </ConfirmProvider>
           </ToastProvider>
          </DisplayLocaleProvider>
