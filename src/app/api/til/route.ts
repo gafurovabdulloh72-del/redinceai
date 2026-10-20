@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LOCALES, LOCALE_COOKIE, pickLocale } from "@/lib/i18n";
+import { DISPLAY_LOCALES, LOCALE_COOKIE, pickDisplayLocale } from "@/lib/i18n";
 import { safeInternalPath } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ function setCookie(res: NextResponse, til: string) {
   res.cookies.set(LOCALE_COOKIE, til, { path: "/", maxAge: YEAR, sameSite: "lax" });
 }
 
-/** Tilni almashtirish: POST { til: "uz" | "ru" } — fetch + router.refresh() uchun */
+/** Tilni almashtirish: POST { til: "uz" | "uz_cyrl" | "ru" | "en" } — fetch + router.refresh() uchun */
 export async function POST(req: NextRequest) {
   let til: unknown;
   try {
@@ -18,17 +18,17 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Noto'g'ri so'rov" }, { status: 400 });
   }
-  if (!LOCALES.includes(til as (typeof LOCALES)[number])) {
+  if (!DISPLAY_LOCALES.includes(til as (typeof DISPLAY_LOCALES)[number])) {
     return NextResponse.json({ error: "Til noto'g'ri" }, { status: 400 });
   }
   const res = new NextResponse(null, { status: 204 });
-  setCookie(res, pickLocale(til));
+  setCookie(res, pickDisplayLocale(til));
   return res;
 }
 
 /** JS'siz zaxira: GET /api/til?t=ru&next=/mutaxassislar — cookie + redirect (faqat ichki yo'l) */
 export async function GET(req: NextRequest) {
-  const til = pickLocale(req.nextUrl.searchParams.get("t"));
+  const til = pickDisplayLocale(req.nextUrl.searchParams.get("t"));
   // Ochiq redirect emas: faqat sayt ichidagi yo'l ("/\evil.com" kabi backslash variantlari ham rad etiladi)
   const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin) ?? "/";
   const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);

@@ -18,8 +18,10 @@ import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister
 import { AppearanceSync } from "@/components/layout/Appearance";
 import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
-import { getLocale } from "@/lib/i18n/server";
-import { tr } from "@/lib/i18n";
+import { getDisplayLocale, getLocale } from "@/lib/i18n/server";
+import { DISPLAY_LANG, tr } from "@/lib/i18n";
+import { DisplayLocaleProvider } from "@/components/i18n/DisplayLocale";
+import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
@@ -110,9 +112,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Nonce asosidagi CSP (src/middleware.ts): tema skripti faqat shu so'rovning nonce'i bilan ishlaydi
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   // Til — "til" cookie'sidan (standart: uz). Almashtirish /api/til orqali, sahifa router.refresh() bilan yangilanadi.
+  const display = await getDisplayLocale();
   const locale = await getLocale();
   return (
-    <html lang={locale} suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
+    <html lang={DISPLAY_LANG[display]} data-display={display} suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
@@ -127,6 +130,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <LocaleProvider locale={locale}>
+         <DisplayLocaleProvider value={display}>
+          {/* Doimiy til almashtirgich — o'ng tepada (desktop; telefonda yuqori panelda) */}
+          <div className="fixed right-4 top-3 z-[115] hidden md:block print:hidden">
+            <LocaleSwitch />
+          </div>
           <ToastProvider>
             <ConfirmProvider>
               <Backdrop />
@@ -153,6 +161,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <ServiceWorkerRegister />
             </ConfirmProvider>
           </ToastProvider>
+         </DisplayLocaleProvider>
         </LocaleProvider>
       </body>
     </html>

@@ -1,25 +1,32 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, pickLocale, type Locale } from "./index";
+import { DEFAULT_DISPLAY, DEFAULT_LOCALE, LOCALE_COOKIE, baseOf, pickDisplayLocale, type DisplayLocale, type Locale } from "./index";
 
 /**
- * Joriy til — server komponent/route'larda.
- * 1) "til" cookie; 2) cookie bo'lmasa — birinchi tashrifda brauzer tili (Accept-Language: ru birinchi o'rinda bo'lsa ru);
- * 3) aks holda "uz". Cookie faqat foydalanuvchi almashtirganda (/api/til) o'rnatiladi — avtomatik aniqlash hech narsa yozmaydi.
+ * Joriy KO'RINISH tili (uz | uz_cyrl | ru | en) — switcher va CyrillicLayer uchun.
+ * 1) "til" cookie; 2) cookie bo'lmasa — brauzer tili (Accept-Language: ru → ru); 3) aks holda "uz".
  */
-export async function getLocale(): Promise<Locale> {
+export async function getDisplayLocale(): Promise<DisplayLocale> {
   try {
     const c = (await cookies()).get(LOCALE_COOKIE)?.value;
-    if (c) return pickLocale(c);
+    if (c) return pickDisplayLocale(c);
   } catch {
-    // cookies() kontekstdan tashqarida (masalan, statik render) — standart til
-    return DEFAULT_LOCALE;
+    return DEFAULT_DISPLAY;
   }
   try {
     return fromAcceptLanguage((await headers()).get("accept-language"));
   } catch {
-    return DEFAULT_LOCALE;
+    return DEFAULT_DISPLAY;
   }
+}
+
+/**
+ * Joriy LUG'AT (BASE) tili — server komponent/route'larda `tr()` va lug'at uchun (uz | ru).
+ * Ko'rinish tili BASE'ga xaritalaanadi (uz_cyrl→uz, en→ru). Komponentlar matni BASE bilan chiziladi,
+ * «uz_cyrl» tanlanganda klientda avtomatik kirillga aylantiriladi.
+ */
+export async function getLocale(): Promise<Locale> {
+  return baseOf(await getDisplayLocale());
 }
 
 /** "ru-RU,ru;q=0.9,en;q=0.8" → ru; "uz,ru;q=0.8" → uz; bo'sh/noma'lum → uz. Eng yuqori q qiymatli ma'lum til g'olib */
