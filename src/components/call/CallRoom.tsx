@@ -91,6 +91,11 @@ export function CallRoom({ target, title, onClose }: { target: Target; title: st
             video
             audio
             onDisconnected={onClose}
+            onError={(e) => {
+              // Ulanish xatosi (masalan, server yetib bo'lmadi) — jim yopilmasin, xato ko'rinsin
+              setError(e?.message ? `Ulanib bo'lmadi: ${e.message}` : "Qo'ng'iroq serveriga ulanib bo'lmadi.");
+              setState("error");
+            }}
             data-lk-theme="default"
             style={{ height: "100%" }}
           >
