@@ -20,9 +20,9 @@ const ROWS: string[][] = (() => {
  */
 export function ProfessionMarquee({ rows = 3, className, tone = "auto" }: { rows?: 1 | 2 | 3; className?: string; tone?: "auto" | "dark" }) {
   return (
-    <div className={cn("pointer-events-none select-none space-y-2.5 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]", className)} aria-hidden="true">
+    <div className={cn("marquee-wrap select-none space-y-2.5 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_18%,#000_82%,transparent)]", className)} aria-hidden="true">
       {ROWS.slice(0, rows).map((row, r) => (
-        <div key={r} className={cn("flex w-max gap-2.5", r % 2 ? "animate-marquee-rev" : "animate-marquee")}>
+        <div key={r} className={cn("marquee-row flex w-max gap-2.5 will-change-transform", r % 2 ? "animate-marquee-rev" : "animate-marquee")}>
           {[...row, ...row].map((slug, i) => {
             const c = CATEGORY_BY_SLUG[slug];
             if (!c) return null;

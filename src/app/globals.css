@@ -348,8 +348,8 @@
   --animate-check-draw: check-draw 0.4s var(--ease-out) 0.05s both;
   --animate-tilt-in: tilt-in 0.5s var(--ease-spring) both;
   /* Cheksiz lenta (kasblar chiplari): ro'yxat ikki marta takrorlanadi, -50% ga suriladi */
-  --animate-marquee: marquee 48s linear infinite;
-  --animate-marquee-rev: marquee 56s linear infinite reverse;
+  --animate-marquee: marquee 90s linear infinite;
+  --animate-marquee-rev: marquee 105s linear infinite reverse;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(14px); }
@@ -1730,6 +1730,17 @@ html:has([data-auth-screen]) main {
   padding: 0;
   max-width: none;
 }
+/* Reels (/lenta `data-reels-screen`): to'liq ekran — telefonda yuqori panel yashirinadi (pastki tab qoladi), main paddinglari yo'q */
+html:has([data-reels-screen]) .m-topbar {
+  display: none;
+}
+html:has([data-reels-screen]) main {
+  padding: 0 !important;
+}
+html:has([data-reels-screen]) .shell-capsule {
+  display: none;
+}
+
 /* Past ekranda auth maydonlari ixchamroq (44 → 40px) — forma bitta ekranga sig'sin */
 @media (max-height: 720px) {
   [data-auth-screen] .field {
@@ -1914,4 +1925,20 @@ html:has([data-auth-screen]) main {
 }
 .btn-shine:disabled::after {
   display: none;
+}
+
+/* Kasblar lentasi (auth): juda sekin, bir tekis chiziqli harakat — «harakatni kamaytirish» yoqilgan qurilmalarda ham to'xtamaydi
+   (universal 0.01ms qoidasi uni qotirib qo'yardi); kursor ustida pauza */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-row {
+    animation-duration: 140s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+:root[data-motion="reduce"] .marquee-row {
+  animation-duration: 140s !important;
+  animation-iteration-count: infinite !important;
+}
+.marquee-wrap:hover .marquee-row {
+  animation-play-state: paused;
 }
