@@ -50,8 +50,8 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // camera=(self) + microphone=(self): video qo'ng'iroq (LiveKit) va ovozli xabar (MediaRecorder) — faqat o'z sahifalarimizda, iframe/uchinchi tomonga yo'q
-  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
+  // camera/microphone/display-capture=(self): video qo'ng'iroq (LiveKit) + ekran ulashish + ovozli xabar — faqat o'z sahifalarimizda, iframe/uchinchi tomonga yo'q
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(self)" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
 ];
