@@ -192,7 +192,7 @@ export function ImageCropper({
   };
 
   return (
-    <div className={cn("fixed inset-0 z-[90] flex items-center justify-center bg-ink/70 p-4", closing ? "animate-fade-out" : "animate-fade-in")} style={{ animationDuration: closing ? `${EXIT_MS}ms` : undefined }} onClick={requestClose}>
+    <div className={cn("fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4", closing ? "animate-fade-out" : "animate-fade-in")} style={{ animationDuration: closing ? `${EXIT_MS}ms` : undefined }} onClick={requestClose}>
       <div
         ref={dialogRef}
         role="dialog"

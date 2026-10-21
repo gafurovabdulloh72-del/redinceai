@@ -303,6 +303,9 @@ export default async function AdminPage() {
               <CreditCard size={14} /> Obunalar
               {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
             </ButtonLink>
+            <ButtonLink href="/admin/reyting" variant="outline" size="sm">
+              <Crown size={14} /> TOP reyting
+            </ButtonLink>
             <ButtonLink href="/admin/audit" variant="outline" size="sm">
               <ScrollText size={14} /> Audit jurnali
             </ButtonLink>

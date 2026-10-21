@@ -3,18 +3,19 @@ import { and, asc, count, eq, gt, isNull } from "drizzle-orm";
 import { ApiError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { posts, specialists, stories, users } from "@/lib/db/schema";
-import { POST_WEEKLY_LIMIT, POST_WINDOW_MS, STORY_DAILY_LIMIT, STORY_WINDOW_MS, type QuotaInfo } from "./limits";
+import { POST_WEEKLY_LIMIT, POST_WINDOW_MS, STORY_WEEKLY_LIMIT, STORY_WINDOW_MS, type QuotaInfo } from "./limits";
 
 /**
- * Premium: admin, imtiyozli mutaxassis yoki obunasi TO'LANGAN va muddati o'tmagan mutaxassis (sinov davri premium emas).
+ * Premium: admin, imtiyozli mutaxassis, oylik TOP g'olibi (awardPremiumUntil) yoki obunasi TO'LANGAN va muddati o'tmagan mutaxassis (sinov davri premium emas).
  */
 export async function isPremium(userId: string): Promise<boolean> {
   const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { role: true } });
   if (!u) return false;
   if (u.role === "admin") return true;
-  const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, userId), columns: { isPrivileged: true, subscriptionUntil: true } });
+  const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, userId), columns: { isPrivileged: true, subscriptionUntil: true, awardPremiumUntil: true } });
   if (!sp) return false;
-  return Boolean(sp.isPrivileged || (sp.subscriptionUntil && sp.subscriptionUntil.getTime() > Date.now()));
+  const now = Date.now();
+  return Boolean(sp.isPrivileged || (sp.subscriptionUntil && sp.subscriptionUntil.getTime() > now) || (sp.awardPremiumUntil && sp.awardPremiumUntil.getTime() > now));
 }
 
 /** Oyna ichidagi sonlar va eng eski yozuv (limit qachon bo'shashini hisoblash uchun) */
@@ -35,7 +36,7 @@ export async function quotaFor(userId: string): Promise<QuotaInfo> {
   return {
     premium,
     posts: { used: p.used, limit: premium ? null : POST_WEEKLY_LIMIT, resetAt: !premium && p.used >= POST_WEEKLY_LIMIT && p.oldest ? p.oldest + POST_WINDOW_MS : null },
-    stories: { used: s.used, limit: premium ? null : STORY_DAILY_LIMIT, resetAt: !premium && s.used >= STORY_DAILY_LIMIT && s.oldest ? s.oldest + STORY_WINDOW_MS : null },
+    stories: { used: s.used, limit: premium ? null : STORY_WEEKLY_LIMIT, resetAt: !premium && s.used >= STORY_WEEKLY_LIMIT && s.oldest ? s.oldest + STORY_WINDOW_MS : null },
   };
 }
 
@@ -54,6 +55,6 @@ export async function assertQuota(userId: string, kind: "post" | "story"): Promi
     429,
     kind === "post"
       ? `Haftasiga ${POST_WEEKLY_LIMIT} ta post — limit tugadi.${after} Premium obunada cheklov yo'q.`
-      : `Sutkasiga ${STORY_DAILY_LIMIT} ta story — limit tugadi.${after} Premium obunada cheklov yo'q.`,
+      : `Haftasiga ${STORY_WEEKLY_LIMIT} ta story — limit tugadi.${after} Premium obunada cheklov yo'q.`,
   );
 }

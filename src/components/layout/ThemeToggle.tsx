@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun, SunMoon } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
@@ -17,7 +17,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   const til = useLocale();
   const a = useAppearance();
   const [open, setOpen] = useState(false);
-  const Icon = a.mode === "auto" ? Monitor : a.resolved === "dark" ? Moon : Sun;
+  const Icon = a.mode === "auto" ? SunMoon : a.resolved === "dark" ? Moon : Sun;
   const label = tr(til, SHELL.appearance.title);
   return (
     <>

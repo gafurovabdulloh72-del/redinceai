@@ -329,7 +329,7 @@ function ReelSlide({
     <section data-reel={item.key} className="relative flex h-[100svh] snap-start items-center justify-center md:py-6">
       <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] md:aspect-[9/16] md:h-full md:max-h-[880px] md:w-auto md:rounded-[26px] md:border md:border-white/10">
         {item.mediaType === "video" ? (
-          <video ref={videoRef} src={item.mediaUrl} poster={item.posterUrl ?? undefined} preload={active ? "auto" : "metadata"} playsInline loop muted onClick={onTap} className="h-full w-full cursor-pointer object-cover" />
+          <video ref={videoRef} src={item.mediaUrl} poster={item.posterUrl ?? undefined} preload={active ? "auto" : "metadata"} playsInline loop muted onClick={onTap} className="h-full w-full cursor-pointer object-contain" />
         ) : (
           <div className="relative h-full w-full" onClick={onTap}>
             {/* Orqa fon: rasmning xira nusxasi (har xil o'lchamdagi rasm chiroyli turadi) */}

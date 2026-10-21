@@ -46,6 +46,9 @@ function uploadUrlRe(exts: string): RegExp {
 export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|zip|mp4|webm|mov|weba|m4a|ogg|mp3");
 /** Musiqa (post/story): faqat audio yuklama */
 export const AUDIO_URL_RE = uploadUrlRe("mp3|m4a|ogg|weba");
+/** Ommaviy musiqa katalogi (iTunes Search) 30 soniyalik namunalari — faqat shu xostlar (CSP media-src bilan bir xil) */
+export const EXTERNAL_AUDIO_RE = /^https:\/\/(?:audio-ssl\.itunes\.apple\.com|[a-z0-9-]+\.mzstatic\.com)\/[\w\-./%~+=]+\.(?:m4a|mp3)(?:\?[\w=&.%-]*)?$/i;
+export const isAudioUrl = (u: string) => AUDIO_URL_RE.test(u) || EXTERNAL_AUDIO_RE.test(u);
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
 
@@ -117,7 +120,7 @@ export function formatBytes(n: number): string {
 type UploadResponse = { ok: true; data: { url: string } } | { ok: false; error: string };
 
 const VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i;
-const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" };
+const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", mp3: "audio/mpeg", m4a: "audio/mp4", ogg: "audio/ogg" };
 
 /** Yuklash parametrlari: jarayon (0..1) va bekor qilish signali */
 export interface UploadProgressOpts {
@@ -199,8 +202,8 @@ type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; public
  * brauzerdan to'g'ridan-to'g'ri Vercel Blob'ga (server tanasi 4.5 MB bilan cheklangani uchun).
  * Ikkalasi ham sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
  */
-async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<string> {
-  const ext = (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
+async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: string): Promise<string> {
+  const ext = forceExt ?? (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
 
   // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
   if (file.size > MAX_VIDEO_BYTES) {
@@ -318,8 +321,9 @@ async function warnLowResolution(file: File): Promise<void> {
 /** Musiqa trek (post/story): MP3/M4A/OGG, 5 MB gacha — purpose="music" */
 export async function uploadMusic(file: File, opts?: UploadProgressOpts): Promise<string> {
   if (!/^audio\//.test(file.type) && !/\.(?:mp3|m4a|ogg)$/i.test(file.name)) throw new Error("Faqat MP3, M4A yoki OGG audio");
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error("Musiqa 5 MB dan katta — qisqaroq trek tanlang");
-  return uploadViaApi(file, "music", { onProgress: opts?.onProgress, signal: opts?.signal });
+  // Hajm cheklanmaydi (amalda video chegarasi): katta audio ham R2/Blob'ga to'g'ridan-to'g'ri yuklanadi
+  const ext = (/\.(mp3|m4a|ogg)$/i.exec(file.name)?.[1] ?? (file.type === "audio/ogg" ? "ogg" : /mp4|m4a|aac/.test(file.type) ? "m4a" : "mp3")).toLowerCase();
+  return uploadVideo(file, { onProgress: opts?.onProgress, signal: opts?.signal }, ext);
 }
 
 export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } } & UploadProgressOpts): Promise<Attachment> {

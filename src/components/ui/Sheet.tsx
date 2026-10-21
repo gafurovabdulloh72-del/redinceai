@@ -124,7 +124,7 @@ export function Sheet({
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 z-[120] flex items-end justify-center bg-ink/55", center && "sm:items-center sm:p-6", closing ? "overlay-out" : "overlay-in")}
+      className={cn("fixed inset-0 z-[120] flex items-end justify-center bg-black/55", center && "sm:items-center sm:p-6", closing ? "overlay-out" : "overlay-in")}
       role="presentation"
       onClick={onClose}
     >

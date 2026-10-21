@@ -1,11 +1,11 @@
 /**
- * Ijtimoiy limitlar (klientga xavfsiz). Oddiy foydalanuvchi: profil posti — 7 kunda 2 ta, story — 24 soatda 4 ta.
+ * Ijtimoiy limitlar (klientga xavfsiz). Oddiy foydalanuvchi: profil posti — 7 kunda 2 ta, story — 7 kunda 4 ta.
  * Premium (obunasi to'langan va faol mutaxassis, imtiyozli shaxs, admin) — cheksiz. Hisob: sirpanuvchi oyna (rolling window).
  */
 export const POST_WEEKLY_LIMIT = 2;
 export const POST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-export const STORY_DAILY_LIMIT = 4;
-export const STORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const STORY_WEEKLY_LIMIT = 4;
+export const STORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** Story yashash muddati */
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 export const STORY_CAPTION_MAX = 220;

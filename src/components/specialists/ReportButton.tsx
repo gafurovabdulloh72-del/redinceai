@@ -197,7 +197,7 @@ export function ReportButton({
         {ready &&
           presence.mounted &&
           createPortal(
-            <div className={cn("fixed inset-0 z-[130] flex items-end justify-center bg-ink/55 backdrop-blur-sm sm:items-center sm:p-6", presence.closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={() => setOpen(false)}>
+            <div className={cn("fixed inset-0 z-[130] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-6", presence.closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={() => setOpen(false)}>
               <div role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()} className={cn("card-elevated w-full max-w-md !rounded-b-none p-5 sm:!rounded-[24px]", presence.closing ? "animate-sheet-down sm:animate-modal-out" : "animate-sheet-up sm:animate-modal-in")} style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
                 <div className="sheet-handle mb-3 sm:hidden" aria-hidden />
                 <button type="button" onClick={() => setOpen(false)} aria-label={tr(til, SHIKOYAT.cancel)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">

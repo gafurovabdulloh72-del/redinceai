@@ -61,7 +61,7 @@ export function CompareTray({ className, aboveCta = false }: { className?: strin
                 className="group/av press relative block rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Avatar name={i.name} src={i.avatarUrl} size={30} decorative singleInitial />
-                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-ink/70 text-white opacity-0 transition-opacity group-hover/av:opacity-100 group-focus-visible/av:opacity-100" aria-hidden>
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover/av:opacity-100 group-focus-visible/av:opacity-100" aria-hidden>
                   <X size={12} />
                 </span>
               </button>

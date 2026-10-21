@@ -127,7 +127,7 @@ export function ShareButton({
       {mounted &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className={cn("fixed inset-0 z-[120] flex items-end justify-center bg-ink/40 p-3 sm:items-center", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={close}>
+          <div className={cn("fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-3 sm:items-center", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={close}>
             <div
               ref={dialogRef}
               role="dialog"

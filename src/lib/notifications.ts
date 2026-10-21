@@ -86,6 +86,7 @@ export type NotificationType =
   | "post_like"
   | "mention"
   | "follow"
+  | "top_award"
   | "digest";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */

@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notLike, or, sql
 import { db } from "@/lib/db";
 import { auditLogs, orders, payments, rateLimits, sessions } from "@/lib/db/schema";
 import { runDigests } from "@/lib/digest";
+import { runMonthlyTop } from "@/lib/top";
 import { purgeExpiredStories } from "@/lib/stories/service";
 import { closeExpiredJobs } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
@@ -98,6 +99,7 @@ export async function GET(req: Request) {
     viewsPurged: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
     storiesPurged: 0,
+    monthlyTop: null as Record<string, unknown> | null,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -198,6 +200,14 @@ export async function GET(req: Request) {
     counts.storiesPurged = await purgeExpiredStories();
   } catch (e) {
     counts.errors.push(`stories: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (o) Oylik TOP: oyning oxirgi kunida g'oliblar e'lon qilinadi va premium beriladi (lib/top.ts; boshqa kunlarda bo'sh)
+  try {
+    const t = await runMonthlyTop(now);
+    if (t) counts.monthlyTop = { month: t.month, ...t.result };
+  } catch (e) {
+    counts.errors.push(`monthlyTop: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (m) Kunlik/haftalik jamlama xabarnoma (Telegram + email + sayt): faqat o'zi yoqqanlarga, bo'sh bo'lsa yuborilmaydi

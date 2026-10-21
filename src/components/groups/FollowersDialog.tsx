@@ -204,7 +204,7 @@ export function FollowersDialog({
       {ready &&
         mounted &&
         createPortal(
-          <div className={cn("fixed inset-0 z-[125] flex items-end justify-center bg-ink/55 backdrop-blur-sm sm:items-center sm:p-6", closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={() => setOpen(null)}>
+          <div className={cn("fixed inset-0 z-[125] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-6", closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={() => setOpen(null)}>
             <div
               role="dialog"
               aria-modal="true"

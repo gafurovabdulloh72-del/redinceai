@@ -63,7 +63,7 @@ export function ConfirmDialog({
 
   if (!mounted || !ready) return null;
   return createPortal(
-    <div className={cn("fixed inset-0 z-[130] flex items-end justify-center bg-ink/55 p-3 sm:items-center sm:p-6", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={busy ? undefined : onCancel}>
+    <div className={cn("fixed inset-0 z-[130] flex items-end justify-center bg-black/55 p-3 sm:items-center sm:p-6", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={busy ? undefined : onCancel}>
       <div
         ref={ref}
         role="alertdialog"

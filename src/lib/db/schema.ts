@@ -259,6 +259,8 @@ export const specialists = sqliteTable(
     subscriptionUntil: integer("subscription_until", { mode: "timestamp_ms" }),
     /** Imtiyozli shaxs (admin belgilaydi): obuna talab qilinmaydi, profil doim ko'rinadi */
     isPrivileged: integer("is_privileged", { mode: "boolean" }).notNull().default(false),
+    /** Oylik TOP mukofoti: shu vaqtgacha premium imtiyoz (limitlar yo'q); admin/obunadan mustaqil */
+    awardPremiumUntil: integer("award_premium_until", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1445,6 +1447,50 @@ export const storyViews = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("story_views_pair_idx").on(t.storyId, t.viewerId), index("story_views_viewer_idx").on(t.viewerId)],
+);
+
+/* Oylik TOP g'oliblari: har oyning oxirgi kuni e'lon qilinadi; g'oliblar keyingi oy uchun premium oladi */
+export const topAwards = sqliteTable(
+  "top_awards",
+  {
+    id: text("id").primaryKey(),
+    /** Oy: YYYY-MM (Toshkent vaqti) */
+    month: text("month").notNull(),
+    rank: integer("rank").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    likes: integer("likes").notNull().default(0),
+    comments: integer("comments").notNull().default(0),
+    saves: integer("saves").notNull().default(0),
+    views: integer("views").notNull().default(0),
+    followers: integer("followers").notNull().default(0),
+    /** Premium berilgan muddat (ms) */
+    premiumUntil: integer("premium_until", { mode: "timestamp_ms" }),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("top_awards_month_rank_idx").on(t.month, t.rank), uniqueIndex("top_awards_month_user_idx").on(t.month, t.userId)],
+);
+
+/* Musiqa kutubxonasi (ommaviy qidiruv): yuklangan treklar ro'yxatga olinadi, hamma story/postga qo'sha oladi */
+export const musicTracks = sqliteTable(
+  "music_tracks",
+  {
+    id: text("id").primaryKey(),
+    url: text("url").notNull(),
+    title: text("title").notNull(),
+    artist: text("artist"),
+    uploaderId: text("uploader_id").references(() => users.id, { onDelete: "set null" }),
+    usesCount: integer("uses_count").notNull().default(0),
+    isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("music_tracks_url_idx").on(t.url), index("music_tracks_uses_idx").on(t.usesCount)],
 );
 
 /* Obuna (follow): followerId → followingId foydalanuvchini kuzatadi */

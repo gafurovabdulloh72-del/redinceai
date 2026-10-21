@@ -20,6 +20,10 @@ function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
     return { ext: "mp4", mime: "video/mp4" };
   }
   if (buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return { ext: "webm", mime: "video/webm" };
+  // Musiqa (katta audio ham shu oqim orqali): MP3 (ID3/kadr sinxroni), Ogg
+  if (buf.length >= 3 && buf.subarray(0, 3).toString("ascii") === "ID3") return { ext: "mp3", mime: "audio/mpeg" };
+  if (buf.length >= 2 && buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0) return { ext: "mp3", mime: "audio/mpeg" };
+  if (buf.length >= 4 && buf.subarray(0, 4).toString("ascii") === "OggS") return { ext: "ogg", mime: "audio/ogg" };
   return null;
 }
 
@@ -72,7 +76,7 @@ export const POST = handler(async (req) => {
     request: req,
     onBeforeGenerateToken: async (pathname) => {
       await enforceLimit("upload", session.sub);
-      if (!/^uploads\/[\w-]{10,64}\.(?:mp4|webm|mov)$/i.test(pathname)) throw new ApiError(400, "Fayl yo'li noto'g'ri");
+      if (!/^uploads\/[\w-]{10,64}\.(?:mp4|webm|mov|mp3|m4a|ogg)$/i.test(pathname)) throw new ApiError(400, "Fayl yo'li noto'g'ri");
       const name = uploadName(pathname);
       // Bu nom allaqachon kimdir tomonidan yuklangan bo'lsa — qayta egalik qilib bo'lmaydi (IDOR/soxta egalik oldi)
       const taken = await db.query.auditLogs.findFirst({
@@ -83,7 +87,7 @@ export const POST = handler(async (req) => {
       // Egalik yozuvi (assertOwnUploads shundan o'qiydi) — nom band qilinadi
       await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { mime: "video", storage: "blob-client" } }, req);
       return {
-        allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime"],
+        allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/ogg"],
         maximumSizeInBytes: MAX_VIDEO_BYTES,
         addRandomSuffix: false,
         allowOverwrite: false,

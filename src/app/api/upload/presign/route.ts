@@ -7,10 +7,10 @@ import { enforceLimit } from "@/lib/security/rate-limit";
 import { MAX_VIDEO_BYTES } from "@/components/chat/attachments";
 
 /** Video kengaytmasi → MIME (faqat shu uchtasi qabul qilinadi — /api/upload/video bilan bir xil) */
-const VIDEO_MIME = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" } as const;
+const VIDEO_MIME = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", mp3: "audio/mpeg", m4a: "audio/mp4", ogg: "audio/ogg" } as const;
 
 const schema = z.object({
-  ext: z.enum(["mp4", "webm", "mov"]),
+  ext: z.enum(["mp4", "webm", "mov", "mp3", "m4a", "ogg"]),
   size: z.coerce.number().int().min(1).max(MAX_VIDEO_BYTES, `Video ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB dan katta`),
 });
 

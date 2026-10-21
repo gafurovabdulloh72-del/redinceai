@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
 import { attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { AUDIO_URL_RE } from "@/components/chat/attachments";
+import { isAudioUrl } from "@/components/chat/attachments";
 
 import { COMMENT_MAX, GROUP_DESC_MAX, GROUP_MSG_MAX, GROUP_NAME_MAX, GROUP_NAME_MIN, GROUP_RULES_MAX, GROUP_SLUG_MAX, GROUP_SLUG_MIN, GROUP_WELCOME_MAX, INVITE_EXPIRY_OPTIONS, JOIN_NOTE_MAX, MUTE_OPTIONS, POST_BODY_MAX, POST_MEDIA_MAX } from "./limits";
 
@@ -73,9 +73,9 @@ export const membersQuerySchema = z.object({
   format: z.enum(["json", "csv"]).optional().default("json"),
 });
 
-/** Musiqa: faqat o'zimizga yuklangan audio (URL keyin assertOwnUploads bilan tekshiriladi) va nomi */
+/** Musiqa: o'zimizga yuklangan audio (URL keyin useMusic bilan tekshiriladi) yoki ommaviy katalog (iTunes) namunasi, va nomi */
 export const musicSchema = z.object({
-  url: z.string().trim().max(500).regex(AUDIO_URL_RE, "Musiqa sayt orqali yuklanishi kerak"),
+  url: z.string().trim().max(500).refine(isAudioUrl, "Musiqa katalogdan tanlanishi yoki sayt orqali yuklanishi kerak"),
   title: z.string().trim().min(1, "Musiqa nomini yozing").max(80),
   artist: z.string().trim().max(80).optional(),
   start: z.coerce.number().min(0).max(600).optional(),

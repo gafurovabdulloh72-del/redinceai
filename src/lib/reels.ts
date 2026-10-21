@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { follows, portfolioItems, postComments, postLikes, postSaves, postViews, posts, specialists, users, type PostMusic } from "@/lib/db/schema";
 import { briefUsers, toPostViews, type UserBrief } from "@/lib/groups/service";
@@ -233,7 +233,7 @@ async function hydrate(slice: Candidate[], viewer: Viewer, rankBase: number | nu
 }
 
 /* ------------------------------------------------------------------ */
-/* Haftalik TOP ijodkorlar (reyting)                                   */
+/* TOP ijodkorlar reytingi (oylik; davr bo'yicha)                      */
 /* ------------------------------------------------------------------ */
 export interface TopCreator {
   rank: number;
@@ -247,17 +247,16 @@ export interface TopCreator {
 }
 
 /**
- * So'nggi 7 kun: muallif postlariga kelgan reaksiya×3 + izoh×4 + saqlash×5 + ko'rish×0.3 + yangi obunachi×6.
+ * Berilgan davr (from–to): muallif postlariga kelgan reaksiya×3 + izoh×4 + saqlash×5 + ko'rish×0.3 + yangi obunachi×6.
  * O'z-o'ziga bergan reaksiya/izoh hisoblanmaydi.
  */
-export async function weeklyTopCreators(limit = 20): Promise<TopCreator[]> {
-  const since = new Date(Date.now() - 7 * DAY);
+export async function topCreatorsBetween(from: Date, to: Date, limit = 20): Promise<TopCreator[]> {
   const [likes, comments, saves, views, fol] = await Promise.all([
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postLikes).innerJoin(posts, eq(posts.id, postLikes.postId)).where(and(gt(postLikes.createdAt, since), sql`${postLikes.userId} != ${posts.authorId}`)).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postComments).innerJoin(posts, eq(posts.id, postComments.postId)).where(and(gt(postComments.createdAt, since), sql`${postComments.authorId} != ${posts.authorId}`)).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postSaves).innerJoin(posts, eq(posts.id, postSaves.postId)).where(gt(postSaves.createdAt, since)).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postViews).innerJoin(posts, eq(posts.id, postViews.postId)).where(gt(postViews.createdAt, since)).groupBy(posts.authorId),
-    db.select({ a: follows.followingId, n: sql<number>`count(*)` }).from(follows).where(gt(follows.createdAt, since)).groupBy(follows.followingId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postLikes).innerJoin(posts, eq(posts.id, postLikes.postId)).where(and(gt(postLikes.createdAt, from), lt(postLikes.createdAt, to), sql`${postLikes.userId} != ${posts.authorId}`)).groupBy(posts.authorId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postComments).innerJoin(posts, eq(posts.id, postComments.postId)).where(and(gt(postComments.createdAt, from), lt(postComments.createdAt, to), sql`${postComments.authorId} != ${posts.authorId}`)).groupBy(posts.authorId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postSaves).innerJoin(posts, eq(posts.id, postSaves.postId)).where(and(gt(postSaves.createdAt, from), lt(postSaves.createdAt, to))).groupBy(posts.authorId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postViews).innerJoin(posts, eq(posts.id, postViews.postId)).where(and(gt(postViews.createdAt, from), lt(postViews.createdAt, to))).groupBy(posts.authorId),
+    db.select({ a: follows.followingId, n: sql<number>`count(*)` }).from(follows).where(and(gt(follows.createdAt, from), lt(follows.createdAt, to))).groupBy(follows.followingId),
   ]);
   const acc = new Map<string, { likes: number; comments: number; saves: number; views: number; followers: number }>();
   const add = (rows: Array<{ a: string; n: number }>, k: "likes" | "comments" | "saves" | "views" | "followers") => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Search, Send } from "lucide-react";
+import { Check, Link2, Search, Send } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
@@ -56,20 +56,33 @@ export function ShareSheet({ open, onClose, url, title, loggedIn }: { open: bool
     }, 250);
   }, [q]);
 
-  async function sendTo(p: Person) {
-    if (sending || sent.has(p.username)) return;
-    setSending(p.username);
-    try {
-      const body = `${note.trim() ? `${note.trim()}\n` : ""}${title ? `${title}\n` : ""}${abs}`.slice(0, 1900);
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: p.username, body }) });
-      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!res.ok || !j?.ok) throw new Error(j?.error ?? "Yuborilmadi");
-      setSent((s) => new Set(s).add(p.username));
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Yuborilmadi", "error");
-    } finally {
-      setSending(null);
+  const [picked, setPicked] = useState<Person[]>([]);
+  const toggle = (p: Person) => setPicked((l) => (l.some((x) => x.username === p.username) ? l.filter((x) => x.username !== p.username) : [...l, p]));
+
+  /** Tanlanganlarga bir vaqtda yuboradi (Instagram kabi); har biri alohida DM, xato bo'lsa xabar beriladi */
+  async function sendAll() {
+    if (sending || !picked.length) return;
+    setSending("all");
+    const body = `${note.trim() ? `${note.trim()}\n` : ""}${title ? `${title}\n` : ""}${abs}`.slice(0, 1900);
+    let okCount = 0;
+    let lastErr = "";
+    for (const p of picked) {
+      try {
+        const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: p.username, body }) });
+        const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        if (!res.ok || !j?.ok) throw new Error(j?.error ?? "Yuborilmadi");
+        okCount++;
+        setSent((x) => new Set(x).add(p.username));
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : "Yuborilmadi";
+      }
     }
+    setSending(null);
+    setPicked([]);
+    setNote("");
+    if (okCount) showToast(okCount === 1 ? "Yuborildi" : `${okCount} kishiga yuborildi`, "success");
+    if (lastErr) showToast(lastErr, "error");
+    if (okCount && !lastErr) onClose();
   }
 
   async function copy() {
@@ -83,35 +96,72 @@ export function ShareSheet({ open, onClose, url, title, loggedIn }: { open: bool
   }
 
   const list = found ?? recent ?? [];
+  const actions = (
+    <div className="no-scrollbar -mx-5 flex gap-5 overflow-x-auto px-5 pb-1 pt-1">
+      <button type="button" onClick={() => void copy()} className="press flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-fg/7 text-fg">{copied ? <Check size={22} className="text-success" /> : <Link2 size={22} />}</span>
+        <span className="text-[11.5px] font-medium text-fg-2">{copied ? "Nusxalandi" : "Havola"}</span>
+      </button>
+      <a href={`https://t.me/share/url?url=${encodeURIComponent(abs)}&text=${encodeURIComponent(title)}`} target="_blank" rel="noopener noreferrer" className="press flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#229ED9] text-white">
+          <Send size={22} />
+        </span>
+        <span className="text-[11.5px] font-medium text-fg-2">Telegram</span>
+      </a>
+    </div>
+  );
   return (
-    <Sheet open={open} onClose={onClose} title="Ulashish" size="md">
-      {loggedIn && (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Ulashish"
+      size="md"
+      footer={
+        loggedIn && picked.length > 0 ? (
+          <div className="space-y-2.5 pb-1">
+            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Xabar yozing…" aria-label="Izoh" className="h-11 w-full rounded-full bg-fg/6 px-4 text-[14px] text-fg outline-none placeholder:text-fg-3 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-fg/15" />
+            <button type="button" onClick={() => void sendAll()} disabled={sending !== null} className="btn-accent flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold disabled:opacity-60">
+              {sending ? <Spinner /> : <Send size={16} />} Yuborish{picked.length > 1 ? ` (${picked.length})` : ""}
+            </button>
+          </div>
+        ) : (
+          <div className="border-t border-line pb-1 pt-3">{actions}</div>
+        )
+      }
+    >
+      {loggedIn ? (
         <>
           <label className="relative block">
-            <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden="true" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism yoki @taxallus" aria-label="Kimga yuborish" className="field h-11 w-full pl-10 text-[14px]" />
+            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden="true" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidirish" aria-label="Kimga yuborish" className="h-11 w-full rounded-full bg-fg/6 pl-11 pr-4 text-[14.5px] text-fg outline-none placeholder:text-fg-3 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-fg/15" />
           </label>
-          <div className="mt-3 min-h-[148px]">
+          <div className="mt-4 min-h-[200px] pb-3">
             {recent === null && !found ? (
-              <div className="grid h-[148px] place-items-center text-fg-3">
+              <div className="grid h-[200px] place-items-center text-fg-3">
                 <Spinner />
               </div>
             ) : list.length === 0 ? (
-              <p className="grid h-[148px] place-items-center text-center text-[13px] text-fg-3">{q ? "Hech kim topilmadi" : "Hali suhbatlar yo'q — ism bilan qidiring"}</p>
+              <p className="grid h-[200px] place-items-center px-6 text-center text-[13.5px] leading-relaxed text-fg-3">{q ? "Hech kim topilmadi" : "Hali suhbatlar yo'q — ism bilan qidiring"}</p>
             ) : (
-              <ul className="grid grid-cols-4 gap-x-2 gap-y-3 sm:grid-cols-5">
+              <ul className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4">
                 {list.map((p) => {
-                  const done = sent.has(p.username);
+                  const on = picked.some((x) => x.username === p.username);
+                  const done = sent.has(p.username) && !on;
                   return (
                     <li key={p.key}>
-                      <button type="button" onClick={() => void sendTo(p)} disabled={done || sending === p.username} className="press flex w-full flex-col items-center gap-1.5 text-center" aria-label={`${p.name} ga yuborish`}>
+                      <button type="button" onClick={() => toggle(p)} className="press flex w-full flex-col items-center gap-1.5 text-center" aria-pressed={on} aria-label={p.name}>
                         <span className="relative">
-                          <Avatar name={p.name} src={p.avatarUrl} size={56} decorative />
-                          <span className={cn("absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full ring-2 ring-surface", done ? "bg-success text-white" : "bg-accent text-white")}>
-                            {sending === p.username ? <Spinner /> : done ? <Check size={13} strokeWidth={3} /> : <Send size={11} />}
+                          <span className={cn("block rounded-full p-[3px] transition", on ? "bg-accent" : "bg-transparent")}>
+                            <Avatar name={p.name} src={p.avatarUrl} size={64} decorative />
                           </span>
+                          {on && (
+                            <span className="absolute bottom-0 right-0 grid h-6 w-6 place-items-center rounded-full bg-accent text-white ring-2 ring-surface">
+                              <Check size={14} strokeWidth={3} />
+                            </span>
+                          )}
                         </span>
-                        <span className="w-full truncate text-[12px] font-medium text-fg-2">{done ? "Yuborildi" : p.name.split(" ")[0]}</span>
+                        <span className="w-full truncate px-1 text-[12.5px] font-medium text-fg">{p.name}</span>
+                        {done && <span className="-mt-1 text-[11px] text-success-text">Yuborildi</span>}
                       </button>
                     </li>
                   );
@@ -119,23 +169,10 @@ export function ShareSheet({ open, onClose, url, title, loggedIn }: { open: bool
               </ul>
             )}
           </div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Izoh qo'shing (ixtiyoriy)" aria-label="Izoh" className="field mt-3 h-11 w-full text-[14px]" />
-          <div className="my-4 h-px bg-line" />
         </>
+      ) : (
+        actions
       )}
-      <div className="grid grid-cols-2 gap-2.5">
-        <button type="button" onClick={() => void copy()} className="press flex h-12 items-center justify-center gap-2 rounded-[14px] border border-line bg-surface text-[14px] font-semibold text-fg transition hover:border-line-2">
-          {copied ? <Check size={16} className="text-success" /> : <Copy size={16} />} {copied ? "Nusxalandi" : "Havolani nusxalash"}
-        </button>
-        <a
-          href={`https://t.me/share/url?url=${encodeURIComponent(abs)}&text=${encodeURIComponent(title)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="press flex h-12 items-center justify-center gap-2 rounded-[14px] bg-[#229ED9] text-[14px] font-semibold text-white transition hover:brightness-110"
-        >
-          <Send size={16} /> Telegram
-        </a>
-      </div>
     </Sheet>
   );
 }

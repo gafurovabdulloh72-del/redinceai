@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
+import { useMusic } from "@/lib/music/service";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { optionalViewer } from "@/app/api/groups/_lib";
 import { postInputSchema } from "@/lib/groups/validators";
@@ -31,7 +32,8 @@ export const POST = handler(async (req) => {
   if (!input.body && input.media.length === 0) throw new ApiError(422, "Matn yoki rasm kerak", { body: "Bo'sh post" });
   await enforceLimit("posts", session.sub);
   await assertQuota(session.sub, "post");
-  await assertOwnUploads(session.sub, [...input.media.map((m) => m.url), ...(input.music ? [input.music.url] : [])], [], "media");
+  await assertOwnUploads(session.sub, input.media.map((m) => m.url), [], "media");
+  if (input.music) await useMusic(session.sub, input.music);
   const p = await createProfilePost(session.sub, input.body, input.media, input.music ?? null);
   return ok({ id: p.id }, { status: 201 });
 });

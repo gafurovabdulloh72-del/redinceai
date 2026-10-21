@@ -206,7 +206,7 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                     if (v.duration) setProgress(v.currentTime / v.duration);
                   }}
                   onEnded={next}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <>

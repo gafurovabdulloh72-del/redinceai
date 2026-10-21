@@ -157,7 +157,7 @@ export function CommandPalette() {
   let idx = -1;
   const optId = (i: number) => `${listId}-${i}`;
   return (
-    <div className={cn("fixed inset-0 z-[130] flex items-start justify-center bg-ink/40 px-3 pt-[12vh]", closing ? "overlay-out" : "overlay-in")} onClick={close} role="presentation">
+    <div className={cn("fixed inset-0 z-[130] flex items-start justify-center bg-black/40 px-3 pt-[12vh]", closing ? "overlay-out" : "overlay-in")} onClick={close} role="presentation">
       <div role="dialog" aria-modal="true" aria-label={tr(til, PALET.aria)} onClick={(e) => e.stopPropagation()} className={cn("card-floating w-full max-w-xl overflow-hidden !rounded-[var(--r-lg)]", closing ? "pop-out" : "pop-in")}>
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Search size={18} className="shrink-0 text-fg-3" aria-hidden />

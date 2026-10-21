@@ -1,98 +1,150 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Crown, Eye, Heart, MessageCircle, Play, UserPlus } from "lucide-react";
-import { Avatar, VerifiedBadge } from "@/components/ui";
+import { CalendarClock, Crown, Eye, Heart, MessageCircle, Play, Sparkles, UserPlus } from "lucide-react";
+import { Avatar } from "@/components/ui";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
-import { weeklyTopCreators } from "@/lib/reels";
-import { compactCount, cn } from "@/lib/utils";
+import { monthKeyOf, monthLabel, monthRange, publishAtOf, publishedMonths, TOP_AWARD_COUNT, type AwardView } from "@/lib/top";
+import { cn, compactCount, formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Haftaning TOP ijodkorlari",
-  description: "Kasb Egalari: so'nggi 7 kunda eng ko'p reaksiya, izoh, ko'rish va obunachi yig'gan ijodkorlar reytingi.",
+  title: "Oyning TOP ijodkorlari",
+  description: "Kasb Egalari: har oyning oxirgi kunida e'lon qilinadigan eng yaxshi ijodkorlar reytingi. G'oliblarga premium imtiyoz beriladi.",
   alternates: { canonical: "/top" },
 };
 
-const MEDAL = ["linear-gradient(135deg,#ffd76a,#f39c2a)", "linear-gradient(135deg,#e8edf2,#a9b4bf)", "linear-gradient(135deg,#f3b58a,#c26b3a)"];
+const MEDAL = [
+  { ring: "linear-gradient(135deg,#ffe08a,#f2a31b)", chip: "linear-gradient(135deg,#ffe08a,#f2a31b)", label: "1" },
+  { ring: "linear-gradient(135deg,#eef2f6,#a3afbb)", chip: "linear-gradient(135deg,#eef2f6,#a3afbb)", label: "2" },
+  { ring: "linear-gradient(135deg,#f6bf93,#bf6a36)", chip: "linear-gradient(135deg,#f6bf93,#bf6a36)", label: "3" },
+];
 
-/** Haftalik reyting: TOP-3 shohsupada, qolganlari ro'yxatda. Ball: reaksiya×3 + izoh×4 + saqlash×5 + ko'rish×0.3 + yangi obunachi×6 */
+function nextPublish(now: number): number {
+  const key = monthKeyOf(now);
+  const at = publishAtOf(key);
+  return at > now ? at : publishAtOf(monthKeyOf(monthRange(key).to.getTime()));
+}
+
+function Winner({ w, big }: { w: AwardView; big?: boolean }) {
+  const medal = MEDAL[w.rank - 1];
+  const size = big ? 104 : 84;
+  return (
+    <li className={cn("flex flex-col items-center text-center", big ? "order-2" : w.rank === 2 ? "order-1 pt-8" : "order-3 pt-12")}>
+      <div className="relative">
+        {big && <Crown size={26} className="absolute -top-7 left-1/2 -translate-x-1/2 text-[#f2a31b]" aria-hidden />}
+        <span className="block rounded-full p-[3px]" style={{ background: medal.ring }}>
+          <span className="block rounded-full bg-surface p-[3px]">
+            <Avatar name={w.author.name} src={w.author.avatarUrl} size={size} decorative className="!ring-0 !shadow-none" />
+          </span>
+        </span>
+        <span className="absolute -bottom-2.5 left-1/2 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full text-[13px] font-extrabold text-black ring-[3px] ring-surface" style={{ background: medal.chip }}>
+          {medal.label}
+        </span>
+      </div>
+      <Link href={w.author.slug ? `/mutaxassislar/${w.author.slug}` : "#"} className="mt-5 line-clamp-2 max-w-[150px] text-[14.5px] font-bold leading-tight text-fg hover:underline sm:text-[16px]">
+        {w.author.name}
+      </Link>
+      <span className="mt-0.5 line-clamp-1 text-[12px] text-fg-3">{w.category ? CATEGORY_BY_SLUG[w.category]?.name : ""}</span>
+      <span className="mt-2 font-display text-[20px] font-extrabold tabular-nums text-fg">{compactCount(w.score)}</span>
+      <span className="text-[11px] uppercase tracking-wider text-fg-4">ball</span>
+    </li>
+  );
+}
+
+/** Oylik reyting: faqat e'lon qilingan oy g'oliblari ko'rinadi (e'lon — har oyning oxirgi kuni). Jonli reyting faqat adminda */
 export default async function TopPage() {
-  const top = await weeklyTopCreators(30);
-  const podium = top.slice(0, 3);
-  const rest = top.slice(3);
+  const now = Date.now();
+  const [latest, ...older] = await publishedMonths(6);
+  const next = nextPublish(now);
+  const days = Math.max(0, Math.ceil((next - now) / 86_400_000));
+
   return (
     <div className="container-x">
-      <div className="mx-auto max-w-[760px] py-2">
-        <header className="mb-6">
-          <p className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-accent-text">
-            <Crown size={14} /> Reyting
+      <div className="mx-auto max-w-[680px] py-2">
+        <header className="mb-5 text-center">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-accent-text">
+            <Crown size={13} /> Oy reytingi
           </p>
-          <h1 className="mt-2 font-display text-[30px] font-extrabold leading-tight tracking-tight text-fg sm:text-[36px]">Haftaning TOP ijodkorlari</h1>
-          <p className="mt-2 max-w-xl text-[14.5px] leading-relaxed text-fg-3">So&apos;nggi 7 kunda postlariga eng ko&apos;p reaksiya, izoh, saqlash, ko&apos;rish va yangi obunachi yig&apos;ganlar. Reyting har kuni yangilanadi.</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/lenta?tab=top" className="btn-accent inline-flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-semibold">
-              <Play size={15} /> Top postlarni ko&apos;rish
-            </Link>
-          </div>
+          <h1 className="mt-3 font-display text-[28px] font-extrabold leading-tight tracking-tight text-fg sm:text-[34px]">Oyning TOP ijodkorlari</h1>
+          <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-fg-3">Reyting har oyning oxirgi kunida e&apos;lon qilinadi. G&apos;oliblarga keyingi oy davomida premium imtiyoz beriladi.</p>
         </header>
 
-        {top.length === 0 ? (
-          <div className="card p-10 text-center">
-            <p className="font-display text-[18px] font-bold text-fg">Bu hafta hali reyting shakllanmadi</p>
-            <p className="mt-2 text-[14px] text-fg-3">Post joylang — birinchi bo&apos;lib TOPga chiqing!</p>
-          </div>
-        ) : (
-          <>
-            <ol className="grid grid-cols-3 items-end gap-2.5 sm:gap-4">
-              {[podium[1], podium[0], podium[2]].map((t, i) =>
-                t ? (
-                  <li key={t.author.id} className={cn("card flex flex-col items-center p-3 text-center sm:p-5", i === 1 ? "pb-6 sm:pb-8" : "")}>
-                    <span className="relative">
-                      <Avatar name={t.author.name} src={t.author.avatarUrl} size={i === 1 ? 76 : 60} decorative />
-                      <span className="absolute -bottom-2 left-1/2 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full text-[13px] font-extrabold text-black ring-2 ring-surface" style={{ background: MEDAL[t.rank - 1] }}>
-                        {t.rank}
-                      </span>
-                    </span>
-                    <Link href={t.author.slug ? `/mutaxassislar/${t.author.slug}` : "#"} className="mt-4 line-clamp-2 text-[13.5px] font-bold leading-tight text-fg hover:underline sm:text-[15px]">
-                      {t.author.name}
-                    </Link>
-                    <span className="mt-0.5 line-clamp-1 text-[11.5px] text-fg-3">{t.author.category ? CATEGORY_BY_SLUG[t.author.category]?.name : ""}</span>
-                    <span className="mt-2 font-display text-[18px] font-extrabold tabular-nums text-fg">{compactCount(t.score)}</span>
-                    <span className="text-[11px] text-fg-4">ball</span>
-                  </li>
-                ) : (
-                  <li key={i} />
-                ),
-              )}
+        {latest ? (
+          <section className="card overflow-hidden">
+            <div className="border-b border-line px-5 py-3.5 text-center">
+              <p className="font-display text-[15px] font-bold text-fg">{latest.label}</p>
+              <p className="text-[12px] text-fg-3">e&apos;lon qilindi: {formatDate(new Date(latest.publishedAt))}</p>
+            </div>
+            <ol className="grid grid-cols-3 items-start gap-2 px-3 pb-8 pt-12 sm:gap-6 sm:px-6">
+              {[latest.winners.find((w) => w.rank === 2), latest.winners.find((w) => w.rank === 1), latest.winners.find((w) => w.rank === 3)].map((w, i) => (w ? <Winner key={w.author.id} w={w} big={w.rank === 1} /> : <li key={i} className={i === 1 ? "order-2" : i === 0 ? "order-1" : "order-3"} />))}
             </ol>
+            <ul className="divide-y divide-line border-t border-line">
+              {latest.winners.map((w) => (
+                <li key={w.author.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-[12.5px] text-fg-3">
+                  <span className="min-w-0 flex-1 truncate font-semibold text-fg-2">
+                    {w.rank}. {w.author.name}
+                  </span>
+                  <span className="inline-flex items-center gap-1"><Heart size={12} /> {compactCount(w.likes)}</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle size={12} /> {compactCount(w.comments)}</span>
+                  <span className="inline-flex items-center gap-1"><Eye size={12} /> {compactCount(w.views)}</span>
+                  <span className="inline-flex items-center gap-1"><UserPlus size={12} /> {compactCount(w.followers)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="flex items-center justify-center gap-1.5 border-t border-line bg-accent-soft/50 px-4 py-3 text-center text-[12.5px] font-semibold text-accent-text">
+              <Sparkles size={14} /> G&apos;oliblarga premium berildi{latest.premiumUntil ? ` — ${formatDate(new Date(latest.premiumUntil - 1))} gacha` : ""}
+            </p>
+          </section>
+        ) : (
+          <section className="card px-6 py-12 text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-accent-text">
+              <Crown size={26} />
+            </span>
+            <p className="mt-4 font-display text-[19px] font-bold text-fg">Birinchi reyting tez orada</p>
+            <p className="mx-auto mt-1.5 max-w-sm text-[14px] leading-relaxed text-fg-3">Post va story joylab, ko&apos;proq reaksiya yig&apos;ing — oyning oxirgi kuni TOP-{TOP_AWARD_COUNT} ijodkor e&apos;lon qilinadi.</p>
+          </section>
+        )}
 
-            {rest.length > 0 && (
-              <ol className="card mt-5 divide-y divide-line">
-                {rest.map((t) => (
-                  <li key={t.author.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="w-7 shrink-0 text-center font-display text-[15px] font-extrabold tabular-nums text-fg-3">{t.rank}</span>
-                    <Avatar name={t.author.name} src={t.author.avatarUrl} size={42} decorative />
-                    <div className="min-w-0 flex-1">
-                      <Link href={t.author.slug ? `/mutaxassislar/${t.author.slug}` : "#"} className="flex items-center gap-1.5 text-[14.5px] font-semibold text-fg hover:underline">
-                        <span className="truncate">{t.author.name}</span>
-                        {t.author.isVerified && <VerifiedBadge size={14} />}
-                      </Link>
-                      <p className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-fg-3">
-                        <span className="inline-flex items-center gap-1"><Heart size={12} /> {compactCount(t.likes)}</span>
-                        <span className="inline-flex items-center gap-1"><MessageCircle size={12} /> {compactCount(t.comments)}</span>
-                        <span className="inline-flex items-center gap-1"><Eye size={12} /> {compactCount(t.views)}</span>
-                        <span className="inline-flex items-center gap-1"><UserPlus size={12} /> {compactCount(t.followers)}</span>
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-right">
-                      <span className="block font-display text-[16px] font-extrabold tabular-nums text-fg">{compactCount(t.score)}</span>
-                      <span className="block text-[11px] text-fg-4">ball</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </>
+        <div className="mt-4 flex items-center justify-center gap-2 rounded-card border border-line px-4 py-3 text-[13px] text-fg-2">
+          <CalendarClock size={16} className="text-fg-3" />
+          Keyingi e&apos;lon: <b className="text-fg">{formatDate(new Date(next))}</b>
+          <span className="text-fg-4">· {days === 0 ? "bugun" : `${days} kun qoldi`} ({monthLabel(monthKeyOf(next))})</span>
+        </div>
+
+        <section className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="card p-4">
+            <p className="font-display text-[14px] font-bold text-fg">Ball qanday hisoblanadi?</p>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-3">Postlaringizga kelgan reaksiya ×3, izoh ×4, saqlash ×5, ko&apos;rish ×0.3 va yangi obunachi ×6 — oy davomida yig&apos;iladi.</p>
+          </div>
+          <Link href="/lenta?tab=top" className="card card-hover flex items-center gap-3 p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-white">
+              <Play size={16} />
+            </span>
+            <span>
+              <span className="block font-display text-[14px] font-bold text-fg">Top postlarni ko&apos;ring</span>
+              <span className="block text-[12.5px] text-fg-3">Reels&apos;da eng zo&apos;r ishlar</span>
+            </span>
+          </Link>
+        </section>
+
+        {older.length > 0 && (
+          <section className="mt-6">
+            <h2 className="mb-2 font-display text-[14px] font-bold text-fg">Oldingi oylar</h2>
+            <ul className="card divide-y divide-line">
+              {older.map((m) => (
+                <li key={m.month} className="px-4 py-3">
+                  <p className="text-[13px] font-semibold text-fg">{m.label}</p>
+                  <p className="mt-0.5 flex flex-wrap gap-x-4 text-[12.5px] text-fg-3">
+                    {m.winners.map((w) => (
+                      <span key={w.author.id}>
+                        {w.rank}. {w.author.name}
+                      </span>
+                    ))}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </div>

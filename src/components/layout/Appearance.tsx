@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import { Moon, Sun, SunMoon, type LucideIcon } from "lucide-react";
 import { haptic, prefersReducedMotion } from "@/components/motion/haptics";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Tr } from "@/lib/i18n";
@@ -117,6 +117,19 @@ export function AppearanceSync() {
   useEffect(() => {
     syncThemeColorMeta();
   }, [a.resolved]);
+  // Zaxira: init skript ishlamagan bo'lsa (CSP/nonce, kesh) — saqlangan rejimni (yo'q = avto → tizim temasi) qayta qo'llaymiz
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(KEYS.theme);
+    } catch {
+      /* private mode */
+    }
+    const mode: ThemeMode = saved === "light" || saved === "dark" ? saved : "auto";
+    const d = document.documentElement.dataset;
+    const want = mode === "auto" ? (systemDark() ? "dark" : "light") : mode;
+    if (d.themeMode !== mode || d.theme !== want) applyTheme(mode);
+  }, []);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const on = () => {
@@ -133,7 +146,7 @@ export function AppearancePanel({ className }: { className?: string }) {
   const til = useLocale();
   const a = useAppearance();
   const themes: Array<{ v: ThemeMode; label: Tr; icon: LucideIcon }> = [
-    { v: "auto", label: SHELL.appearance.themeAuto, icon: Monitor },
+    { v: "auto", label: SHELL.appearance.themeAuto, icon: SunMoon },
     { v: "light", label: SHELL.appearance.themeLight, icon: Sun },
     { v: "dark", label: SHELL.appearance.themeDark, icon: Moon },
   ];

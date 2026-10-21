@@ -64,7 +64,7 @@ export function Layer({ open, onClose, children, label, variant = "menu", anchor
   if (desktop) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className={cn(closing ? "overlay-out" : "overlay-in", "absolute inset-0 bg-ink/35")} onClick={onClose} aria-hidden="true" />
+        <div className={cn(closing ? "overlay-out" : "overlay-in", "absolute inset-0 bg-black/35")} onClick={onClose} aria-hidden="true" />
         <div role="dialog" aria-modal="true" aria-label={label} className={cn(closing ? "pop-out" : "pop-in", "card-floating relative flex max-h-[80dvh] w-full flex-col overflow-hidden !rounded-[20px]", width ?? "max-w-[440px]")}>
           {children}
         </div>
@@ -73,7 +73,7 @@ export function Layer({ open, onClose, children, label, variant = "menu", anchor
   }
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-      <div className={cn(closing ? "overlay-out" : "overlay-in", "absolute inset-0 bg-ink/40")} onClick={onClose} aria-hidden="true" />
+      <div className={cn(closing ? "overlay-out" : "overlay-in", "absolute inset-0 bg-black/40")} onClick={onClose} aria-hidden="true" />
       <div role={role} aria-modal={variant === "dialog" || undefined} aria-label={label} className={cn(closing ? "sheet-out" : "sheet-in", "relative flex max-h-[82dvh] flex-col overflow-hidden rounded-t-[20px] bg-surface pb-[max(env(safe-area-inset-bottom),10px)]")}>
         <span className="sheet-handle mx-auto mb-1 mt-2 block shrink-0 rounded-full bg-fg/15" aria-hidden="true" />
         <div className="min-h-0 flex-1 overflow-y-auto p-1.5">{children}</div>

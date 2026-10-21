@@ -65,7 +65,7 @@ export function MiniDialog({ open, onClose, title, children }: { open: boolean; 
   }, [open, onClose]);
   if (!mounted || !ready) return null;
   return createPortal(
-    <div className={cn("fixed inset-0 z-[125] flex items-end justify-center bg-ink/60 sm:items-center sm:p-6", closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={onClose}>
+    <div className={cn("fixed inset-0 z-[125] flex items-end justify-center bg-black/60 sm:items-center sm:p-6", closing ? "animate-fade-out" : "animate-fade-in")} role="presentation" onClick={onClose}>
       <div
         ref={panel}
         role="dialog"

@@ -144,7 +144,7 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
-    `media-src 'self' https://*.public.blob.vercel-storage.com${R2_PUBLIC_ORIGIN}`,
+    `media-src 'self' https://*.public.blob.vercel-storage.com https://audio-ssl.itunes.apple.com https://*.mzstatic.com${R2_PUBLIC_ORIGIN}`,
     `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
     "worker-src 'self'",
     "manifest-src 'self'",
