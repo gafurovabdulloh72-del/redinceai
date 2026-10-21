@@ -15,7 +15,7 @@ const TITLE = { uz: "Xabarlar", ru: "Сообщения" } as const;
 export default async function ChatPage({ searchParams }: { searchParams: Promise<{ s?: string; xato?: string }> }) {
   const [{ s, xato }, user, locale] = await Promise.all([searchParams, getCurrentUser(), getLocale()]);
   return (
-    <div className="animate-page-in">
+    <div>
       <h1 className="mb-3 font-display text-[20px] font-semibold tracking-tight text-fg">{TITLE[locale]}</h1>
       <DmChat initialId={s ?? null} viewerRole={user?.role ?? null} notice={xato ?? null} />
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -185,6 +186,22 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
 
   const [convs, setConvs] = useState<ConvRow[] | null>(null);
   const [active, setActive] = useState<string | null>(initialId ?? null);
+  // Suhbat ochiq bo'lsa telefon qobig'i (yuqori panel + pastki tab) yashiriladi — chat to'liq ekran (globals.css)
+  useEffect(() => {
+    const el = document.documentElement;
+    if (active) el.setAttribute("data-chat-open", "1");
+    else el.removeAttribute("data-chat-open");
+    return () => el.removeAttribute("data-chat-open");
+  }, [active]);
+  // Telefon (<lg): ochiq suhbat document.body'ga portal bilan chiziladi — sahifa o'tish animatsiyasi (transform) `fixed`ni qamab qo'ymasin
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const on = () => setIsPhone(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   const [peer, setPeer] = useState<Peer | null>(null);
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [text, setText] = useState("");
@@ -439,7 +456,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   useEffect(() => {
     if (active && msgs) {
       const desktop = window.matchMedia("(min-width: 1024px)").matches;
-      window.setTimeout(() => (desktop ? textRef.current?.focus({ preventScroll: true }) : backRef.current?.focus({ preventScroll: true })), 50);
+      window.setTimeout(() => desktop && textRef.current?.focus({ preventScroll: true }), 50);
       prevActiveRef.current = active;
     } else if (!active && prevActiveRef.current) {
       const btn = listRef.current?.querySelector<HTMLButtonElement>(`[data-conv="${prevActiveRef.current}"]`);
@@ -844,7 +861,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
 
   /* ---------------- Ro'yxat paneli ---------------- */
   const listPanel = (
-    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden", active && "hidden lg:flex")}>
+    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none", active && "hidden lg:flex")}>
       <div className="flex items-center gap-2 border-b border-line p-2.5">
         <label className="relative block min-w-0 flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
@@ -983,7 +1000,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
 
   /* ---------------- Suhbat paneli ---------------- */
   const thread = (
-    <div className={cn("card-elevated relative flex min-h-0 flex-col overflow-hidden", !active && "hidden lg:flex")} onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
+    <div className={cn("card-elevated relative flex min-h-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:shadow-none", !active && "hidden lg:flex")} onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       {!active ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 text-center">
           <span className="icon-tile-soft !rounded-full">
@@ -1383,8 +1400,16 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     </div>
   );
 
-  return (
-    <div className="grid h-[calc(100dvh-150px)] min-h-[440px] grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[300px_minmax(0,1fr)]">
+  const root = (
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[300px_minmax(0,1fr)]",
+        // Telefon: suhbat ochiq — to'liq ekran (yuqori/pastki panel yashirin, yozish maydoni pastda); ro'yxat — tab'lar orasida butun balandlik
+        active
+          ? "max-lg:fixed max-lg:inset-0 max-lg:z-[60] max-lg:h-dvh max-lg:gap-0 max-lg:bg-bg max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pt-[env(safe-area-inset-top)]"
+          : "max-lg:h-[calc(100dvh-8.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-lg:min-h-[320px]",
+      )}
+    >
       {listPanel}
       {thread}
       {/* Yo'naltirish dialogi */}
@@ -1418,4 +1443,5 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
       )}
     </div>
   );
+  return active && isPhone ? createPortal(root, document.body) : root;
 }

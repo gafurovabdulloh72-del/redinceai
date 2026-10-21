@@ -1646,3 +1646,9 @@ select:focus-visible {
   .collapse { transition: none; }
   .chev { transition: none; }
 }
+
+/* Telefon qobig'i: suhbat ochiq (to'liq ekran) bo'lganda yuqori panel va pastki tab yashiriladi (DmChat belgilaydi) */
+html[data-chat-open] .m-topbar,
+html[data-chat-open] .m-tabbar {
+  display: none;
+}

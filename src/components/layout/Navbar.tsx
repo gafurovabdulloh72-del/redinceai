@@ -32,7 +32,7 @@ export async function Navbar() {
   const navUser = user ? { id: user.id, name: user.name, role: user.role, avatarUrl: user.avatarUrl, specialistSlug: user.specialist?.slug ?? null } : null;
   return (
     <>
-      <NavbarClient unread={unread} groupsUnread={groupsUnread} user={navUser} />
+      <NavbarClient unread={unread} dmUnread={dmUnread} user={navUser} />
       <Sidebar user={navUser} unread={unread} dmUnread={dmUnread} groupsUnread={groupsUnread} />
       {/* Brauzer sarlavhasida «(n)» — o'qilmagan bildirishnoma + xabarlar */}
       <TitleUnread count={unread + dmUnread} />

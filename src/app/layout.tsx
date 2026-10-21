@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar.
                   ≥1920px: kontent 1600px bilan cheklanadi va markazda turadi */}
               <div className="md:pl-[76px] xl:pl-[244px]">
-                <main id="asosiy" tabIndex={-1} className="pt-24 pb-6 outline-none sm:pt-28 md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
+                <main id="asosiy" tabIndex={-1} className="pt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] pb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] outline-none md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
                   {children}
                 </main>
                 <FooterGate>

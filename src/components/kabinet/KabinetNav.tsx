@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
+import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Sheet } from "@/components/ui/Sheet";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
@@ -158,6 +160,75 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
   // Faol sahifa guruhli bo'lsa — telefonda uni ham pill qilib ko'rsatamiz (joriy joy ko'rinib tursin)
   const activeGrouped = items.find((i) => i.group && isActive(i)) ?? null;
 
+  /*
+   * Telefon «Menyu» (Profil tabi): iOS sozlamalaridek aniq ro'yxat — profil kartasi, bo'limlar (guruhlangan),
+   * sozlamalar (til, ko'rinish), chiqish. Gorizontal siljiydigan tugmalar o'rniga: hammasi ko'rinib turadi.
+   */
+  const menuRow = (item: KabinetNavItem) => {
+    const Icon = ICONS[item.icon];
+    const badge = badgeOf(item);
+    return (
+      <Link key={`${item.href}:${item.group ?? ""}`} href={item.href} className="press flex min-h-14 items-center gap-3.5 px-4 py-2 transition active:bg-fg/6">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-fg/6 text-fg-2">
+          <Icon size={19} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[15.5px] font-medium text-fg">{item.label}</span>
+        {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={false} />}
+        {badge ? <span className="rounded-full bg-accent-strong px-2 py-0.5 text-[12px] font-bold tabular-nums leading-none text-white">{badge > 99 ? "99+" : badge}</span> : null}
+        <ChevronRight size={18} className="shrink-0 text-fg-4" aria-hidden="true" />
+      </Link>
+    );
+  };
+  const publicItem = items.find((i) => i.icon === "public");
+  const mobileMenu = (
+    <div className="mb-5 min-w-0 space-y-5 md:hidden">
+      <div className="card flex items-center gap-4 p-4">
+        <Avatar name={user.name} src={user.avatarUrl} size={60} decorative />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-sans text-[18px] font-semibold leading-tight text-fg">{user.name}</p>
+          <p className="mt-0.5 truncate text-[13px] text-fg-3">{user.roleLabel}</p>
+          <p className="truncate text-[12.5px] text-fg-4">{user.email}</p>
+        </div>
+      </div>
+      {publicItem && (
+        <Link href={publicItem.href} className="press btn-ink flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold">
+          <ExternalLink size={17} aria-hidden="true" /> Ommaviy profilimni ko'rish
+        </Link>
+      )}
+      <section aria-label="Asosiy bo'limlar">
+        <div className="card divide-y divide-line overflow-hidden !p-0">{primary.map((item) => menuRow(item))}</div>
+      </section>
+      {groups.map((g) => (
+        <section key={g.name} aria-label={g.name}>
+          <h2 className="px-1 pb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.06em] text-fg-3">{g.name}</h2>
+          <div className="card divide-y divide-line overflow-hidden !p-0">{g.items.filter((i) => i.icon !== "public").map((item) => menuRow(item))}</div>
+        </section>
+      ))}
+      <section aria-label="Sozlamalar">
+        <h2 className="px-1 pb-2 font-sans text-[12.5px] font-semibold uppercase tracking-[0.06em] text-fg-3">Sozlamalar</h2>
+        <div className="card divide-y divide-line overflow-hidden !p-0">
+          <div className="flex min-h-14 items-center gap-3.5 px-4 py-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-fg/6 text-fg-2">
+              <Globe size={19} />
+            </span>
+            <span className="flex-1 text-[15.5px] font-medium text-fg">Til</span>
+            <LocaleSwitch />
+          </div>
+          <div className="flex min-h-14 items-center gap-3.5 px-4 py-2">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-fg/6 text-fg-2">
+              <Palette size={19} />
+            </span>
+            <span className="flex-1 text-[15.5px] font-medium text-fg">Ko'rinish</span>
+            <ThemeToggle />
+          </div>
+        </div>
+      </section>
+      <button type="button" onClick={() => void logout()} disabled={leaving} className="press card flex min-h-14 w-full items-center justify-center gap-2 text-[15.5px] font-semibold text-danger-text disabled:opacity-60">
+        {leaving ? <Spinner /> : <LogOut size={18} />} Chiqish
+      </button>
+    </div>
+  );
+
   // Umumiy vertikal qator (desktop ro'yxat + telefon varaqda bir xil)
   const renderRow = (item: KabinetNavItem, onNavigate?: () => void) => {
     const Icon = ICONS[item.icon];
@@ -250,8 +321,11 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
         </div>
       </div>
 
-      {/* ---------- Mobil / planshet: sarlavha + gorizontal pill'lar ---------- */}
-      <div className="min-w-0 lg:hidden">
+      {/* ---------- Telefon: faqat /kabinet/menyu sahifasida to'liq ro'yxat ---------- */}
+      {pathname === "/kabinet/menyu" && mobileMenu}
+
+      {/* ---------- Planshet (md–lg): sarlavha + gorizontal pill'lar. Telefonda bu yerda hech narsa yo'q — navigatsiya pastki tab + Menyu ---------- */}
+      <div className="hidden min-w-0 md:block lg:hidden">
         <div className="card flex items-center gap-3 py-2.5 pl-3 pr-2">
           <Avatar name={user.name} src={user.avatarUrl} size={40} decorative />
           <div className="min-w-0 flex-1">

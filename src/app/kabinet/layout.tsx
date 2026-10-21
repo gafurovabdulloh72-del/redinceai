@@ -189,7 +189,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
      * gorizontal qatorlar (nav pill'lari) o'z ichida aylanadi (overflow-x-auto).
      */
     <div className="container-x min-w-0 max-w-full [&_img]:max-w-full [&_table]:max-w-full">
-      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-8">
+      <div className="grid min-w-0 grid-cols-1 gap-0 md:gap-5 lg:grid-cols-12 lg:gap-8">
         <aside className="min-w-0 print:hidden lg:col-span-3">
           <KabinetNav
             items={items}
