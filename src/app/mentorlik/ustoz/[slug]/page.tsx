@@ -78,8 +78,12 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       </nav>
 
       {/* Hero: portret + qora karta */}
-      <section className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,330px)_minmax(0,1fr)]">
-        <div className="relative aspect-[4/4.4] overflow-hidden rounded-[28px] bg-surface-2 lg:aspect-auto lg:min-h-[400px]">
+      {profile.coverUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={profile.coverUrl} alt="" className="mt-4 aspect-[3/1] w-full rounded-[28px] object-cover" />
+      )}
+      <section className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,330px)_minmax(0,1fr)]">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-surface-2">
           {profile.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.photoUrl} alt={profile.name} className="absolute inset-0 h-full w-full object-cover object-top" />
@@ -95,13 +99,6 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         </div>
 
         <div className="relative flex flex-col justify-between overflow-hidden rounded-[28px] bg-[#1b1b1d] p-6 text-white sm:p-8">
-          {profile.coverUrl && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={profile.coverUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-35" />
-              <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-[#1b1b1d] via-[#1b1b1d]/80 to-transparent" />
-            </>
-          )}
           <div className="relative">
             {profile.expertise.length > 0 && (
               <p className="mb-3 flex flex-wrap gap-1.5">

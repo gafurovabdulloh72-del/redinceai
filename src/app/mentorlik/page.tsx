@@ -75,7 +75,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
           <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(200px,250px))] sm:overflow-visible sm:px-0">
             {mentors.map((m) => (
               <li key={m.id} className="w-[200px] shrink-0 sm:w-auto">
-                <Link href={`/mentorlik/ustoz/${m.slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] bg-surface-2">
+                <Link href={`/mentorlik/ustoz/${m.slug}`} className="group relative block aspect-[4/5] overflow-hidden rounded-[24px] bg-surface-2">
                   {m.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={m.photoUrl} alt={m.name} className="img-zoom absolute inset-0 h-full w-full object-cover object-top" />

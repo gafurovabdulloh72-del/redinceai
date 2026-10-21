@@ -7,9 +7,14 @@ import { ArrowUpRight, ImagePlus, Loader2, Plus, Radio, Trash2, X } from "lucide
 import { Spinner } from "@/components/ui";
 import { showToast } from "@/components/ui/toast";
 import { uploadAttachment } from "@/components/chat/attachments";
+import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { MENTOR_CATEGORIES, MENTOR_LIMITS, categoryLabel } from "@/lib/mentorship/format";
 import type { MentorProfile } from "@/lib/mentorship/service";
 import { cn } from "@/lib/utils";
+
+/** Saytda ko'rsatiladigan kadr nisbatlari (mentor sahifasi va katalog bilan bir xil) */
+export const PORTRAIT_ASPECT = 4 / 5;
+export const COVER_ASPECT = 3;
 
 interface CourseRow {
   id: string;
@@ -20,12 +25,15 @@ interface CourseRow {
   studentsCount: number;
 }
 
-/** Rasm yuklash katagi: bo'sh — «+», to'la — rasm va «×». Faqat sayt orqali yuklanadi (uploadAttachment) */
-function ImageSlot({ label, hint, value, onChange, className }: { label: string; hint: string; value: string | null; onChange: (url: string | null) => void; className?: string }) {
+/**
+ * Rasm yuklash katagi: katak ko'rsatiladigan joyning NISBATIDA (aspect) chiziladi, yuklashdan oldin ImageCropper bilan
+ * shu nisbatga moslanadi — saytda aynan shu kadr ko'rinadi (kesilib ketmaydi).
+ */
+function ImageSlot({ label, hint, value, onChange, aspect, outWidth, className }: { label: string; hint: string; value: string | null; onChange: (url: string | null) => void; aspect: number; outWidth: number; className?: string }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  async function pick(f: File | undefined) {
-    if (!f) return;
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  async function upload(f: File) {
     setBusy(true);
     try {
       const a = await uploadAttachment(f);
@@ -34,14 +42,23 @@ function ImageSlot({ label, hint, value, onChange, className }: { label: string;
       showToast(e instanceof Error ? e.message : "Yuklanmadi", "error");
     } finally {
       setBusy(false);
-      if (ref.current) ref.current.value = "";
     }
   }
   return (
     <div className={className}>
       <span className="mb-1.5 block text-[12.5px] font-semibold text-fg-2">{label}</span>
-      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => void pick(e.target.files?.[0])} />
-      <div className="relative h-[calc(100%-1.6rem)] min-h-[120px] overflow-hidden rounded-[14px] border border-dashed border-line-2 bg-fg/[0.03]">
+      <input
+        ref={ref}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) setCropFile(f);
+          if (ref.current) ref.current.value = "";
+        }}
+      />
+      <div className="relative w-full overflow-hidden rounded-[14px] border border-dashed border-line-2 bg-fg/[0.03]" style={{ aspectRatio: String(aspect) }}>
         {value ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -49,7 +66,7 @@ function ImageSlot({ label, hint, value, onChange, className }: { label: string;
             <button type="button" onClick={() => onChange(null)} aria-label="Olib tashlash" className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white">
               <X size={15} />
             </button>
-            <button type="button" onClick={() => ref.current?.click()} className="absolute inset-x-2 bottom-2 rounded-full bg-black/60 py-1.5 text-[12px] font-semibold text-white">
+            <button type="button" onClick={() => ref.current?.click()} className="absolute bottom-2 left-2 rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
               Almashtirish
             </button>
           </>
@@ -62,6 +79,19 @@ function ImageSlot({ label, hint, value, onChange, className }: { label: string;
         )}
         {busy && value && <div className="absolute inset-0 grid place-items-center bg-black/50 text-white"><Spinner /></div>}
       </div>
+      {cropFile && (
+        <ImageCropper
+          file={cropFile}
+          aspect={aspect}
+          outWidth={outWidth}
+          title={`${label} — moslang`}
+          onCancel={() => setCropFile(null)}
+          onDone={(f) => {
+            setCropFile(null);
+            void upload(f);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -144,9 +174,9 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
 
       {/* Sahifa ma'lumotlari */}
       <section className="card space-y-4 p-4 sm:p-5">
-        <div className="grid gap-4 sm:grid-cols-[150px_minmax(0,1fr)]">
-          <ImageSlot label="Portret rasm" hint="Tik, yuz ko'rinadigan" value={photoUrl} onChange={setPhotoUrl} className="h-[220px] sm:h-[250px]" />
-          <ImageSlot label="Muqova (ixtiyoriy)" hint="Keng rasm, 3:1" value={coverUrl} onChange={setCoverUrl} className="h-[160px] sm:h-[250px]" />
+        <div className="grid items-start gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
+          <ImageSlot label="Portret rasm (4:5)" hint="Tik, yuz ko'rinadigan" value={photoUrl} onChange={setPhotoUrl} aspect={PORTRAIT_ASPECT} outWidth={1000} className="max-w-[220px]" />
+          <ImageSlot label="Muqova (3:1)" hint="Keng rasm" value={coverUrl} onChange={setCoverUrl} aspect={COVER_ASPECT} outWidth={1800} />
         </div>
         <div className="grid gap-3 sm:grid-cols-[200px_minmax(0,1fr)]">
           <label className="block">

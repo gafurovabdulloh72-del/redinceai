@@ -8,6 +8,7 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { uploadAttachment } from "@/components/chat/attachments";
+import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS, formatDuration } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,7 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
     }
   };
 
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const uploadCover = async (file: File | null) => {
     if (!file) return;
     setCoverUp(true);
@@ -136,8 +138,9 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
             </div>
             <label className="press mt-2 flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-line text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
               {coverUp ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Muqova
-              <input type="file" accept="image/*" className="sr-only" onChange={(e) => { void uploadCover(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+              <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} />
             </label>
+            {cropFile && <ImageCropper file={cropFile} aspect={16 / 9} outWidth={1280} title="Muqovani moslang (16:9)" onCancel={() => setCropFile(null)} onDone={(f) => { setCropFile(null); void uploadCover(f); }} />}
           </div>
           {/* Maydonlar */}
           <div className="space-y-3">
