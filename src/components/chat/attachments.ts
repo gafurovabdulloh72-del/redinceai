@@ -1,3 +1,4 @@
+import { showToast } from "@/components/ui/toast";
 import type { FileAttachment } from "@/lib/db/schema";
 
 /**
@@ -276,6 +277,41 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
 }
 
 /** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi; bekor — name="AbortError") */
+/** Videoning haqiqiy o'lchamini o'qiydi (metadata) — o'qib bo'lmasa null */
+export function readVideoSize(file: File): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") return resolve(null);
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    const done = (r: { w: number; h: number } | null) => {
+      URL.revokeObjectURL(url);
+      v.removeAttribute("src");
+      resolve(r);
+    };
+    const timer = window.setTimeout(() => done(null), 4000);
+    v.preload = "metadata";
+    v.muted = true;
+    v.onloadedmetadata = () => {
+      window.clearTimeout(timer);
+      done(v.videoWidth && v.videoHeight ? { w: v.videoWidth, h: v.videoHeight } : null);
+    };
+    v.onerror = () => {
+      window.clearTimeout(timer);
+      done(null);
+    };
+    v.src = url;
+  });
+}
+
+/** HD (720p) dan past videoga: «xira ko'rinishi mumkin» ogohlantirishi. Qisqa tomon 720 dan kichik bo'lsa past hisoblanadi */
+async function warnLowResolution(file: File): Promise<void> {
+  const size = await readVideoSize(file);
+  if (!size) return;
+  if (Math.min(size.w, size.h) < 720) {
+    showToast(`Video sifati past (${size.w}×${size.h}) — ekranda xira ko'rinishi mumkin. Kamida 1280×720 (HD) tavsiya etiladi.`, "info", { duration: 9000 });
+  }
+}
+
 export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } } & UploadProgressOpts): Promise<Attachment> {
   const p: UploadProgressOpts = { onProgress: opts?.onProgress, signal: opts?.signal };
   // Ovozli xabar: brauzer yozib bergan audio blob (purpose="voice" — server .weba/.m4a/.ogg nom beradi)
@@ -293,6 +329,8 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
   }
   if (opts?.docs && isVideo && !isImage) {
     if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» ${mbOf(MAX_VIDEO_BYTES)} MB dan katta`);
+    // Past o'lchamli video ekranda (ayniqsa to'liq ekran/katta displeyda) xira ko'rinadi — yuklashdan oldin ogohlantiramiz (yuklash to'xtatilmaydi)
+    void warnLowResolution(file);
     const url = await uploadVideo(file, p);
     return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
   }

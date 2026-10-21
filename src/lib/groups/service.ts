@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, groupMembers, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
@@ -9,6 +9,7 @@ import type { GroupInput } from "./validators";
 import { REACTION_BY_KEY, REACTION_KINDS, type ReactionKind } from "./limits";
 import { notifyMentions } from "./mentions";
 import { TYPING_WINDOW_MS, toQuote, type QuoteView } from "@/lib/chat/quote";
+import { DM_REACTIONS, type ReactionSummary } from "@/lib/chat/constants";
 import { isBlockedEither } from "@/lib/privacy/blocks";
 
 /**
@@ -133,6 +134,8 @@ export interface GroupMessageView {
   /** Ko'ruvchi o'chira oladimi (o'ziniki yoki moderator, doim) / tahrirlay oladimi (o'ziniki, 3 soat) */
   canDelete: boolean;
   canEdit: boolean;
+  /** Emoji reaksiyalar yig'indisi (DM bilan bir xil to'plam) */
+  reactions: ReactionSummary[];
 }
 
 type Viewer = { id: string; role: string } | null;
@@ -1134,10 +1137,12 @@ async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRo
   const DELETED_QUOTE = (id: string): QuoteView => ({ id, body: "Xabar o'chirilgan", senderName: "", kind: "text" });
   const quotes = new Map(originals.map((o) => [o.id, o.deletedAt ? DELETED_QUOTE(o.id) : toQuote(o, senders.get(o.senderId)?.name ?? "Foydalanuvchi")] as const));
   const now = Date.now();
+  const reactionMap = await groupReactionsFor(rows.map((r) => r.id), viewer?.id ?? null);
   return rows.map((r) => {
     const deleted = Boolean(r.deletedAt);
     const mine = viewer?.id === r.senderId;
     return {
+      reactions: deleted ? [] : (reactionMap.get(r.id) ?? []),
       id: r.id,
       body: deleted ? "" : r.body,
       attachments: deleted ? [] : r.attachments,
@@ -1176,6 +1181,47 @@ export async function changedGroupMessages(group: Group, viewer: Viewer, since: 
     limit,
   });
   return toMessageViews(group, viewer, rows);
+}
+
+/** Xabarlar reaksiyalari yig'indisi (bitta guruhlangan so'rov): emoji, soni va ko'ruvchi qo'yganmi */
+export async function groupReactionsFor(msgIds: string[], meId: string | null): Promise<Map<string, ReactionSummary[]>> {
+  const map = new Map<string, ReactionSummary[]>();
+  if (!msgIds.length) return map;
+  const rows = await db
+    .select({ messageId: groupMessageReactions.messageId, emoji: groupMessageReactions.emoji, n: sql<number>`count(*)`, mine: sql<number>`sum(case when ${groupMessageReactions.userId} = ${meId ?? ""} then 1 else 0 end)` })
+    .from(groupMessageReactions)
+    .where(inArray(groupMessageReactions.messageId, msgIds))
+    .groupBy(groupMessageReactions.messageId, groupMessageReactions.emoji);
+  for (const r of rows) {
+    const list = map.get(r.messageId) ?? [];
+    list.push({ emoji: r.emoji, count: Number(r.n), mine: Number(r.mine) > 0 });
+    map.set(r.messageId, list);
+  }
+  return map;
+}
+
+/** Oxirgi N xabarning reaksiyalari {xabarId: yig'indi} — polling boshqalarning reaksiyalarini ham yangilab turishi uchun (bo'shlar ham `[]` bilan) */
+export async function recentGroupReactions(group: Group, meId: string | null, limit = 60): Promise<Record<string, ReactionSummary[]>> {
+  const ids = (await db.select({ id: groupMessages.id }).from(groupMessages).where(and(eq(groupMessages.groupId, group.id), isNull(groupMessages.deletedAt))).orderBy(desc(groupMessages.createdAt)).limit(limit)).map((r) => r.id);
+  const map = await groupReactionsFor(ids, meId);
+  return Object.fromEntries(ids.map((id) => [id, map.get(id) ?? []]));
+}
+
+/** Reaksiya qo'yish/almashtirish (emoji) yoki olib tashlash (null) — faqat faol a'zo; o'chirilgan xabarga yo'q */
+export async function reactGroupMessage(group: Group, userId: string, msgId: string, emoji: string | null): Promise<ReactionSummary[]> {
+  if (emoji && !(DM_REACTIONS as readonly string[]).includes(emoji)) throw new ApiError(422, "Bunday reaksiya yo'q", { emoji: "Noto'g'ri" });
+  const m = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, msgId), eq(groupMessages.groupId, group.id)), columns: { id: true, deletedAt: true } });
+  if (!m) throw new ApiError(404, "Xabar topilmadi");
+  if (m.deletedAt) throw new ApiError(410, "O'chirilgan xabarga reaksiya qo'yib bo'lmaydi");
+  const cur = await db.query.groupMessageReactions.findFirst({ where: and(eq(groupMessageReactions.messageId, msgId), eq(groupMessageReactions.userId, userId)) });
+  if (!emoji) {
+    if (cur) await db.delete(groupMessageReactions).where(eq(groupMessageReactions.id, cur.id));
+  } else if (cur) {
+    if (cur.emoji !== emoji) await db.update(groupMessageReactions).set({ emoji, createdAt: new Date() }).where(eq(groupMessageReactions.id, cur.id));
+  } else {
+    await db.insert(groupMessageReactions).values({ id: uid(), messageId: msgId, userId, emoji, createdAt: new Date() }).onConflictDoNothing();
+  }
+  return (await groupReactionsFor([msgId], userId)).get(msgId) ?? [];
 }
 
 /** Chatda qidirish: matn bo'yicha (o'chirilganlar chiqmaydi), yangi → eski, 30 tagacha */

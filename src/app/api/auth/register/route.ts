@@ -46,6 +46,8 @@ export const POST = handler(async (req) => {
     gender: input.gender ?? null,
     passwordHash: await hashPassword(input.password),
     role: input.role,
+    // Yangi ijodkorga standart — haftalik jamlama (sozlamalardan o'chiriladi); mijozga o'chiq
+    digestFreq: input.role === "specialist" ? "weekly" : "off",
     lastLoginAt: new Date(),
     termsVersion: TERMS_VERSION,
     termsAcceptedAt: new Date(),

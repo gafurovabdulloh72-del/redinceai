@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
-import { assertActiveMember, changedGroupMessages, listGroupMessages, markGroupRead, pinnedMessage, searchGroupMessages, seenCountFor, sendGroupMessage, typingMembers } from "@/lib/groups/service";
+import { assertActiveMember, changedGroupMessages, listGroupMessages, markGroupRead, pinnedMessage, recentGroupReactions, searchGroupMessages, seenCountFor, sendGroupMessage, typingMembers } from "@/lib/groups/service";
 import { chatQuerySchema, groupMessageSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404 } from "../../_lib";
@@ -25,13 +25,15 @@ export const GET = handler(async (req, ctx: Ctx) => {
   await markGroupRead(group.id, session.sub);
   // "N kishi ko'rdi": ko'ruvchining oxirgi xabarini nechta a'zo o'qigan (to'liq yuklashda ham, polling'da ham qaytadi)
   const lastMine = [...items].reverse().find((m) => m.mine);
-  const [seen, typing, changed, pinned] = await Promise.all([
+  const [seen, typing, changed, pinned, reactions] = await Promise.all([
     lastMine ? seenCountFor(group, session.sub, new Date(lastMine.at)).then((count) => ({ messageId: lastMine.id, count })) : Promise.resolve(null),
     typingMembers(group.id, session.sub),
     q.changedSince ? changedGroupMessages(group, viewer, new Date(q.changedSince)) : Promise.resolve([]),
     pinnedMessage(group, viewer),
+    // Oxirgi xabarlar reaksiyalari — boshqalar qo'ygan reaksiyalar polling bilan yangilanib turadi
+    recentGroupReactions(group, session.sub),
   ]);
-  return ok({ items, seen, typing, changed, pinned, now: Date.now() });
+  return ok({ items, seen, typing, changed, pinned, reactions, now: Date.now() });
 });
 
 /** POST: xabar (matn yoki fayl — kamida bittasi), 60 / 10 daqiqa */

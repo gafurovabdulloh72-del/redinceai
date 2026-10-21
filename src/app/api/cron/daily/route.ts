@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notLike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, orders, payments, rateLimits, sessions } from "@/lib/db/schema";
+import { runDigests } from "@/lib/digest";
 import { closeExpiredJobs } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
 import { tashkentNow } from "@/lib/privacy";
@@ -57,6 +58,7 @@ function addDays(date: string, days: number): string {
  *  (i) obuna eslatmalari (3 kun / 1 kun qolganda, tugaganda, yashirilganda) + 12 soatdan eski pending obuna hisoblari bekor
  *  (j) eskirgan sessiyalar tozalanadi
  *  (k) muddati 3 kun ichida tugaydigan ochiq vakansiyalar — egasiga bir martalik eslatma (expireRemindedAt)
+ *  (m) kunlik/haftalik jamlama (users.digest_freq): obunachi, reaksiya, izoh, ko'rish, o'qilmagan xabarlar — bo'sh bo'lsa yuborilmaydi (lib/digest.ts)
  * Har bir qadam alohida try/catch ichida — biri yiqilsa, qolganlari ishlayveradi; sonlari JSON javobda va audit meta'da.
  * `?dry=1` — hech narsa o'zgartirmasdan (d)–(f) va (i) bo'yicha nechta yozuv tegishini qaytaradi.
  */
@@ -93,6 +95,7 @@ export async function GET(req: Request) {
     vacanciesReminded: 0,
     vacancyAlerts: null as { checked: number; notified: number } | null,
     viewsPurged: 0,
+    digests: null as { due: number; sent: number; skipped: number } | null,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -105,7 +108,8 @@ export async function GET(req: Request) {
       return null;
     });
     const vacanciesReminded = await remindExpiringVacancies(now, true).catch(() => 0);
-    return Response.json({ ok: true, dry: true, ts: now, ...r, subscriptions, vacanciesReminded }, { headers });
+    const digests = await runDigests(now, { dry: true }).then((d) => ({ due: d.due })).catch(() => null);
+    return Response.json({ ok: true, dry: true, ts: now, ...r, subscriptions, vacanciesReminded, digests }, { headers });
   }
 
   // (a) Eskirgan provayder tranzaksiyalari
@@ -185,6 +189,15 @@ export async function GET(req: Request) {
     counts.viewsPurged = await purgeOldViews();
   } catch (e) {
     counts.errors.push(`views: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (m) Kunlik/haftalik jamlama xabarnoma (Telegram + email + sayt): faqat o'zi yoqqanlarga, bo'sh bo'lsa yuborilmaydi
+  try {
+    const d = await runDigests(now);
+    counts.digests = { due: d.due, sent: d.sent, skipped: d.skipped };
+    counts.errors.push(...d.errors);
+  } catch (e) {
+    counts.errors.push(`digests: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (h) Saqlangan qidiruvlar bo'yicha ogohlantirishlar

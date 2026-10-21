@@ -8,11 +8,12 @@ import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePresence } from "@/components/motion/usePresence";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, uploadAttachment, type Attachment } from "@/components/chat/attachments";
-import { AttachmentList, QuoteBlock, ReplyBar, TypingDots, jumpToMessage, typingLabel } from "@/components/chat/MessageParts";
+import { AttachmentList, QuoteBlock, ReactionChips, ReactionPicker, ReplyBar, TypingDots, jumpToMessage, typingLabel } from "@/components/chat/MessageParts";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import type { QuoteView } from "@/lib/chat/quote";
+import type { ReactionSummary } from "@/lib/chat/constants";
 import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import type { GroupMessageView, UserBrief } from "@/lib/groups/service";
 import { cn, compactCount } from "@/lib/utils";
@@ -69,7 +70,7 @@ function SenderName({ u }: { u: UserBrief }) {
 
 type ApiResp = {
   ok: boolean;
-  data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null; typing?: string[]; changed?: GroupMessageView[]; pinned?: GroupMessageView | null; now?: number };
+  data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null; typing?: string[]; changed?: GroupMessageView[]; pinned?: GroupMessageView | null; reactions?: Record<string, ReactionSummary[]>; now?: number };
   error?: string;
   fields?: Record<string, string>;
 };
@@ -92,6 +93,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessageView | null>(null);
+  /** Xabar menyusining gorizontal siljishi (px, «⋯» tugmasiga nisbatan): menyu chat ramkasidan chiqib kesilib ketmasin (telefonda ham) */
+  const [menuShift, setMenuShift] = useState(0);
   const [editing, setEditing] = useState<GroupMessageView | null>(null);
   const [typing, setTyping] = useState<string[]>([]);
   const [recording, setRecording] = useState(false);
@@ -142,6 +145,21 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     if (d.typing) setTyping(d.typing);
     if (d.pinned !== undefined) setPinned(d.pinned ?? null);
     if (d.now) lastSync.current = d.now;
+    // Boshqalar qo'ygan reaksiyalar: oxirgi xabarlar yig'indisi bilan almashtiriladi (o'zgarmaganlar tegilmaydi)
+    if (d.reactions) {
+      const rx = d.reactions;
+      setMsgs((prev) => {
+        if (!prev) return prev;
+        let changedAny = false;
+        const next = prev.map((m) => {
+          const r = rx[m.id];
+          if (!r || JSON.stringify(r) === JSON.stringify(m.reactions ?? [])) return m;
+          changedAny = true;
+          return { ...m, reactions: r };
+        });
+        return changedAny ? next : prev;
+      });
+    }
     const items = d.items;
     const changed = d.changed ?? [];
     if (!loaded.current) {
@@ -372,6 +390,35 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     }
   }
 
+  /** Emoji reaksiya: darhol almashadi (optimistik), server yig'indisi bilan aniqlanadi, xatoda qaytadi */
+  async function react(m: GroupMessageView, emoji: string) {
+    if (m.deleted) return;
+    const cur = m.reactions?.find((r) => r.mine)?.emoji ?? null;
+    const next = cur === emoji ? null : emoji;
+    const apply = (list: ReactionSummary[]) => setMsgs((prev) => prev?.map((x) => (x.id === m.id ? { ...x, reactions: list } : x)) ?? prev);
+    const before = m.reactions ?? [];
+    const opt = before
+      .map((r) => (r.mine ? { ...r, count: r.count - 1, mine: false } : r))
+      .filter((r) => r.count > 0);
+    if (next) {
+      const hit = opt.find((r) => r.emoji === next);
+      if (hit) {
+        hit.count += 1;
+        hit.mine = true;
+      } else opt.push({ emoji: next, count: 1, mine: true });
+    }
+    apply(opt);
+    try {
+      const res = await fetch(`${base}/${m.id}/reaction`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emoji: next }) });
+      const j = (await res.json()) as { ok: boolean; data?: { reactions: ReactionSummary[] }; error?: string };
+      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || "Bo'lmadi");
+      apply(j.data.reactions);
+    } catch (err) {
+      apply(before);
+      toast(err instanceof Error ? err.message : "Bo'lmadi", "error");
+    }
+  }
+
   async function togglePin(m: GroupMessageView) {
     setMenuFor(null);
     const next = pinned?.id !== m.id;
@@ -527,7 +574,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                   )}
                   <div className={cn("group flex items-end gap-1.5", m.mine ? "justify-end" : "justify-start")}>
                     {!m.mine && <span className="w-7 shrink-0">{!sameSender && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={28} decorative />}</span>}
-                    <div id={`msg-${m.id}`} className={cn("max-w-[80%] rounded-2xl px-3.5 py-2 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md bg-surface-2 text-fg", m.deleted && "opacity-70")}>
+                    <div className={cn("flex min-w-0 max-w-[80%] flex-col", m.mine ? "items-end" : "items-start")}>
+                    <div id={`msg-${m.id}`} className={cn("max-w-full rounded-2xl px-3.5 py-2 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md bg-surface-2 text-fg", m.deleted && "opacity-70")}>
                       {!m.mine && !sameSender && <SenderName u={m.sender} />}
                       {m.replyTo && !m.deleted && <QuoteBlock q={m.replyTo} mine={m.mine} />}
                       {m.deleted ? (
@@ -551,6 +599,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                         {m.mine && seen?.messageId === m.id && seen.count > 0 && <span>· {seen.count} kishi ko&apos;rdi</span>}
                       </p>
                     </div>
+                    {!m.deleted && <ReactionChips reactions={m.reactions ?? []} mine={m.mine} onToggle={(e) => void react(m, e)} />}
+                    </div>
 
                     {/* Amallar: bitta «⋯» menyu (javob, nusxa, tahrir, qadash, o'chirish) + boshqalarniki uchun shikoyat */}
                     {!m.deleted && (
@@ -560,7 +610,17 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                           aria-label="Xabar amallari"
                           aria-haspopup="menu"
                           aria-expanded={menuOpen}
-                          onClick={() => setMenuFor(menuOpen ? null : m.id)}
+                          onClick={(e) => {
+                            const btn = e.currentTarget.getBoundingClientRect();
+                            const box = listRef.current?.getBoundingClientRect();
+                            if (box) {
+                              // Menyu kengligi ≈ 256px: chap chetini ramka ichida ushlab turamiz
+                              const lo = box.left + 8;
+                              const hi = box.right - 256 - 8;
+                              setMenuShift(Math.max(lo, Math.min(btn.left, hi)) - btn.left);
+                            }
+                            setMenuFor(menuOpen ? null : m.id);
+                          }}
                           className={cn(
                             "flex h-8 w-8 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/8 hover:text-fg focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg group-hover:opacity-100 [@media(hover:none)]:opacity-60",
                             menuOpen ? "opacity-100" : "opacity-0",
@@ -569,7 +629,15 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                           <MoreHorizontal size={15} />
                         </button>
                         {menuOpen && (
-                          <div role="menu" aria-label="Xabar amallari" className={cn("pop-in absolute bottom-full z-20 mb-1 min-w-[168px] rounded-[14px] bg-surface p-1 shadow-[var(--shadow-3)]", m.mine ? "right-0" : "left-0")}>
+                          <div role="menu" aria-label="Xabar amallari" className={cn("pop-in absolute bottom-full z-20 mb-1 min-w-[168px] rounded-[14px] bg-surface p-1 shadow-[var(--shadow-3)]")} style={{ left: menuShift }}>
+                            <ReactionPicker
+                              current={m.reactions?.find((r) => r.mine)?.emoji ?? null}
+                              onPick={(e) => {
+                                setMenuFor(null);
+                                void react(m, e);
+                              }}
+                            />
+                            <div className="my-1 border-t border-line" />
                             <MenuItem icon={CornerUpLeft} onClick={() => { setMenuFor(null); setEditing(null); setReplyTo(m); }}>
                               Javob berish
                             </MenuItem>

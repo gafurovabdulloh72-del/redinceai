@@ -63,6 +63,30 @@ export const FEED = {
   meterNext: { uz: "Keyingi qadam", ru: "Следующий шаг" } satisfies Tr,
   meterHint: { uz: "To'liq profil buyurtmalarni 3 baravar ko'paytiradi", ru: "Полный профиль привлекает в 3 раза больше заказов" } satisfies Tr,
   follow: { uz: "Obuna", ru: "Подписаться" } satisfies Tr,
+  /* Yangi ijodkor yo'riqnomasi (bosh sahifa kartasi) */
+  obTitle: { uz: "Birinchi qadamlar", ru: "Первые шаги" } satisfies Tr,
+  obLead: { uz: "Profilingiz tayyor bo'lsa, mijozlar sizni tezroq topadi", ru: "Готовый профиль помогает клиентам быстрее вас найти" } satisfies Tr,
+  obProgress: { uz: (n: number, total: number) => `${n} / ${total} bajarildi`, ru: (n: number, total: number) => `${n} из ${total} выполнено` },
+  obLater: { uz: "Keyinroq", ru: "Позже" } satisfies Tr,
+  obStart: { uz: "Boshlash", ru: "Начать" } satisfies Tr,
+  obSteps: {
+    profile: { uz: "Ijodkor profilingizni yarating", ru: "Создайте профиль автора" },
+    avatar: { uz: "Profil rasmini yuklang", ru: "Загрузите фото профиля" },
+    bio: { uz: "O'zingiz haqingizda yozing", ru: "Расскажите о себе" },
+    portfolio: { uz: "Birinchi portfolio ishini qo'shing", ru: "Добавьте первую работу в портфолио" },
+    post: { uz: "Birinchi postingizni joylang", ru: "Опубликуйте первый пост" },
+    community: { uz: "Biror jamoaga qo'shiling", ru: "Вступите в сообщество" },
+    telegram: { uz: "Telegram'ni ulang", ru: "Подключите Telegram" },
+  } satisfies Record<string, Tr>,
+  obHints: {
+    profile: { uz: "Kasb, hudud va narx — 2 daqiqa", ru: "Профессия, регион и цена — 2 минуты" },
+    avatar: { uz: "Yuzli rasm ishonchni oshiradi", ru: "Фото с лицом повышает доверие" },
+    bio: { uz: "Kamida 60 belgi: nima qilasiz, qanday tajriba", ru: "От 60 символов: чем занимаетесь, какой опыт" },
+    portfolio: { uz: "Ish namunasi — mijoz qarorining asosi", ru: "Пример работы — главный аргумент для клиента" },
+    post: { uz: "Lentada ko'rinasiz, obunachi to'playsiz", ru: "Вас увидят в ленте, появятся подписчики" },
+    community: { uz: "Hamkasblar va buyurtmalar shu yerda", ru: "Коллеги и заказы — здесь" },
+    telegram: { uz: "Yangi xabar va jamlama telefoningizga keladi", ru: "Сообщения и сводка придут в телефон" },
+  } satisfies Record<string, Tr>,
 
   /* Post kartasi */
   menu: { uz: "Ko'proq", ru: "Ещё" } satisfies Tr,

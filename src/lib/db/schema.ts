@@ -44,6 +44,10 @@ export const users = sqliteTable(
     showOnline: integer("show_online", { mode: "boolean" }).notNull().default(true),
     /** Bildirishnoma sozlamalari tur-guruh bo'yicha (kabinet): { orders?: false, social?: false, ... } — yo'q kalit = yoqilgan (lib/notifications NOTIFY_GROUPS) */
     notifyPrefs: text("notify_prefs", { mode: "json" }).$type<Record<string, boolean>>().notNull().default({}),
+    /** Jamlama xabarnoma (Telegram/email/sayt): off | daily | weekly. Yangi ro'yxatdan o'tganlarga weekly, eskilarga off (lib/digest.ts) */
+    digestFreq: text("digest_freq", { enum: ["off", "daily", "weekly"] }).notNull().default("off"),
+    /** Oxirgi jamlama yuborilgan (yoki o'tkazib yuborilgan) vaqt — keyingi jamlama oynasi shundan boshlanadi */
+    digestLastAt: integer("digest_last_at", { mode: "timestamp_ms" }),
     /** Hisob pauzada (foydalanuvchi o'zi vaqtincha yashirgan): katalog/xarita/qidiruvda chiqmaydi, to'g'ridan-to'g'ri havola ochiladi */
     isPaused: integer("is_paused", { mode: "boolean" }).notNull().default(false),
     /** 2FA (TOTP): sir AES-GCM bilan shifrlangan (payments/crypto.ts); totpEnabled — tasdiqlangandan keyin true */
@@ -1166,6 +1170,25 @@ export const groupMessages = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("group_messages_group_idx").on(t.groupId, t.createdAt)],
+);
+
+/** Guruh chati xabariga emoji reaksiya — bitta foydalanuvchi = bitta reaksiya (almashtiriladi), DM bilan bir xil */
+export const groupMessageReactions = sqliteTable(
+  "group_message_reactions",
+  {
+    id: text("id").primaryKey(),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => groupMessages.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("group_message_reactions_pair_idx").on(t.messageId, t.userId)],
 );
 
 /* Postlar — jamoa lentasi (groupId) yoki shaxsiy devor (groupId null, keyingi bosqich) */

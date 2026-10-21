@@ -195,9 +195,12 @@ test("auth sahifalari: kirish va ro'yxat 200, parol maydoni autocomplete bilan, 
   const html = await login.text();
   assert.match(html, /autocomplete="current-password"/i, "kirishda current-password yo'q");
   assert.match(html, /autocomplete="email"/i);
+  // Ro'yxat bosqichli: 1-qadamda faqat ikki rol kartasi (mijoz / mutaxassis); parol maydoni (new-password) 3-qadamda chiqadi
   const reg = await req("/auth/royxat");
   assert.equal(reg.status, 200);
-  assert.match(await reg.text(), /autocomplete="new-password"/i, "ro'yxatda new-password yo'q");
+  const regHtml = await reg.text();
+  assert.match(regHtml, /role="radiogroup"/i, "ro'yxatda rol tanlovi yo'q");
+  assert.equal((regHtml.match(/role="radio"/g) ?? []).length, 2, "rol kartalari aynan 2 ta bo'lishi kerak");
 });
 
 test("admin sahifalar: mehmon /admin va /admin/audit → kirishga yo'naltiriladi", async () => {

@@ -35,7 +35,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     db.select({ total: count() }).from(notifications).where(where),
     db.select({ unread: count() }).from(notifications).where(and(mine, isNull(notifications.readAt))),
     db.select({ type: notifications.type, n: count() }).from(notifications).where(mine).groupBy(notifications.type),
-    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { notifyPrefs: true, notifyEmail: true } }),
+    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { notifyPrefs: true, notifyEmail: true, digestFreq: true } }),
   ]);
   const groupCounts: Record<NotifyGroupKey, number> = { orders: 0, jobs: 0, social: 0, chat: 0, system: 0 };
   for (const r of byType) {
@@ -71,6 +71,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const prefs = {
     groups: Object.fromEntries(NOTIFY_GROUP_KEYS.map((k) => [k, (prefsRow?.notifyPrefs ?? {})[k] !== false])) as Record<NotifyGroupKey, boolean>,
     notifyEmail: prefsRow?.notifyEmail ?? true,
+    digestFreq: prefsRow?.digestFreq ?? "off",
     meta: NOTIFY_GROUP_META,
   };
 

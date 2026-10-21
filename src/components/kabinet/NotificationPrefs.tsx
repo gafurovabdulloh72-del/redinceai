@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Mail, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Mail, Newspaper, SlidersHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { usePresence } from "@/components/motion/usePresence";
 import { cn } from "@/lib/utils";
 
 export type NotifyGroupKey = "orders" | "jobs" | "social" | "chat" | "system";
+export type DigestFreq = "off" | "daily" | "weekly";
+const DIGEST_OPTIONS: Array<{ value: DigestFreq; label: string }> = [
+  { value: "off", label: "O'chiq" },
+  { value: "daily", label: "Kunlik" },
+  { value: "weekly", label: "Haftalik" },
+];
 export interface NotifyPrefsInitial {
   groups: Record<NotifyGroupKey, boolean>;
   notifyEmail: boolean;
+  digestFreq: DigestFreq;
   meta: Record<NotifyGroupKey, { label: string; hint: string }>;
 }
 type ApiResp = { ok: boolean; data?: NotifyPrefsInitial; error?: string; fields?: Record<string, string> };
@@ -27,9 +34,9 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
   const keys = Object.keys(v.meta) as NotifyGroupKey[];
   const offCount = keys.filter((k) => !v.groups[k]).length;
 
-  async function save(patch: { groups?: Partial<Record<NotifyGroupKey, boolean>>; notifyEmail?: boolean }, key: string) {
+  async function save(patch: { groups?: Partial<Record<NotifyGroupKey, boolean>>; notifyEmail?: boolean; digestFreq?: DigestFreq }, key: string) {
     const prev = v;
-    setV((s) => ({ ...s, groups: { ...s.groups, ...(patch.groups ?? {}) }, notifyEmail: patch.notifyEmail ?? s.notifyEmail }));
+    setV((s) => ({ ...s, groups: { ...s.groups, ...(patch.groups ?? {}) }, notifyEmail: patch.notifyEmail ?? s.notifyEmail, digestFreq: patch.digestFreq ?? s.digestFreq }));
     setBusy(key);
     try {
       const res = await fetch("/api/notifications/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
@@ -60,6 +67,7 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
           </span>
           <span className="block truncate text-[12px] text-fg-3">
             {offCount === 0 ? "Hamma guruh yoqilgan" : `${offCount} ta guruh o'chirilgan`} · email {v.notifyEmail ? "yoqilgan" : "o'chiq"}
+            {v.digestFreq !== "off" && ` · ${v.digestFreq === "daily" ? "kunlik" : "haftalik"} jamlama`}
           </span>
         </span>
         <ChevronDown size={16} className={cn("shrink-0 text-fg-3 transition-transform", open && "rotate-180")} aria-hidden="true" />
@@ -100,6 +108,26 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
                 </span>
               </span>
               <button type="button" role="switch" aria-checked={v.notifyEmail} aria-labelledby="np-email" aria-describedby="np-email-hint" disabled={busy === "email"} onClick={() => void save({ notifyEmail: !v.notifyEmail }, "email")} className="switch" />
+            </li>
+            <li className="bg-surface-2/60 px-4 py-3 sm:px-5">
+              <div className="flex items-start gap-3">
+                <Newspaper size={18} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span id="np-digest" className="block text-[14px] font-medium text-fg">
+                    Jamlama xabarnoma
+                  </span>
+                  <span id="np-digest-hint" className="block text-[12px] text-fg-3">
+                    Obunachilar, reaksiya, izoh, ko&apos;rish va o&apos;qilmagan xabarlar — bitta qisqa xabarda (Telegram, email va saytda). Yangilik bo&apos;lmasa yuborilmaydi.
+                  </span>
+                </span>
+              </div>
+              <div className="segment mt-2.5 w-full max-w-sm" role="radiogroup" aria-labelledby="np-digest" aria-describedby="np-digest-hint">
+                {DIGEST_OPTIONS.map((o) => (
+                  <button key={o.value} type="button" role="radio" aria-checked={v.digestFreq === o.value} data-active={v.digestFreq === o.value} disabled={busy === "digest"} onClick={() => v.digestFreq !== o.value && void save({ digestFreq: o.value }, "digest")} className="segment-item min-h-10 flex-1">
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </li>
           </ul>
           <p className="px-4 py-2.5 text-[11.5px] text-fg-4 sm:px-5">Hisob xavfsizligi, nizo va pul qaytarish xabarlari sozlamadan qat&apos;i nazar keladi.</p>

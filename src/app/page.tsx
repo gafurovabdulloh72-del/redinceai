@@ -9,7 +9,9 @@ import { RightRail } from "@/components/feed/RightRail";
 import { ScopeTabs } from "@/components/feed/ScopeTabs";
 import { FEED_SCOPE_COOKIE as SCOPE_COOKIE } from "@/lib/groups/limits";
 import { Stories } from "@/components/feed/Stories";
+import { OnboardingCard } from "@/components/feed/OnboardingCard";
 import { ProfileMeter } from "@/components/feed/ProfileMeter";
+import { creatorOnboarding, ONBOARDING_COOKIE, ONBOARDING_DAYS } from "@/lib/onboarding";
 import { ownCompleteness } from "@/lib/profile/own-completeness";
 import { getCurrentUser } from "@/lib/auth";
 import { feedItemById, homeFeed, railData, storyAuthors, type FeedScope } from "@/lib/feed";
@@ -36,14 +38,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const scope: FeedScope = wanted === "following" && user ? "following" : "all";
   const tag = typeof sp.tag === "string" ? normalizeTag(sp.tag) : null;
   const postId = typeof sp.post === "string" && sp.post.length <= 64 ? sp.post : null;
-  const [feed, stories, rail, pinned, saved, own] = await Promise.all([
+  // Yangi ijodkor yo'riqnomasi: faqat mutaxassisga, dastlabki ONBOARDING_DAYS kunda, «Keyinroq» bosilmagan bo'lsa
+  const wantsOnboarding = Boolean(user && (user.specialist || user.role === "specialist") && user.role !== "admin" && !jar.get(ONBOARDING_COOKIE) && Date.now() - user.createdAt.getTime() < ONBOARDING_DAYS * 86_400_000);
+  const [feed, stories, rail, pinned, saved, own, onboarding] = await Promise.all([
     homeFeed(viewer, { scope, limit: 10, tag }),
     storyAuthors(14).catch(() => []),
     railData(viewer),
     postId ? feedItemById(postId, viewer).catch(() => null) : Promise.resolve(null),
     user ? savedCount(user.id).catch(() => 0) : Promise.resolve(null),
     user ? ownCompleteness(user).catch(() => null) : Promise.resolve(null),
+    user && wantsOnboarding ? creatorOnboarding(user).catch(() => null) : Promise.resolve(null),
   ]);
+  const onboardingOpen = Boolean(onboarding?.next);
   const canPost = Boolean(user && (user.specialist || user.role === "admin"));
   const now = Date.now();
   const live =
@@ -58,7 +64,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <div className="mx-auto w-full min-w-0 max-w-[640px] space-y-4 lg:mx-0">
           <h1 className="sr-only">{SITE.name} — lenta</h1>
           {!user && <WelcomeCard til={til} />}
-          {own && <ProfileMeter data={own} til={til} className="lg:hidden" />}
+          {onboarding && onboardingOpen ? <OnboardingCard steps={onboarding.steps} til={til} /> : own && <ProfileMeter data={own} til={til} className="lg:hidden" />}
           <Stories items={stories} live={live} til={til} saved={saved !== null ? { count: saved } : null} />
           {canPost && <HomeComposer />}
           {user && <ScopeTabs scope={scope} tag={tag} />}

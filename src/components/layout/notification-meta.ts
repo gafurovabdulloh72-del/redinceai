@@ -1,4 +1,4 @@
-import { AtSign, BadgeCheck, Ban, Banknote, Bell, BellRing, BookmarkCheck, Briefcase, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, EyeOff, Flag, Heart, Inbox, ListChecks, Megaphone, MessageSquare, Radio, RadioTower, Scale, Send, ShieldCheck, Star, Undo2, UserPlus, UserRound, UsersRound, Wallet, XCircle, type LucideIcon } from "lucide-react";
+import { AtSign, BadgeCheck, Ban, Banknote, Bell, BellRing, BookmarkCheck, Briefcase, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, EyeOff, Flag, Heart, Inbox, ListChecks, Megaphone, MessageSquare, Newspaper, Radio, RadioTower, Scale, Send, ShieldCheck, Star, Undo2, UserPlus, UserRound, UsersRound, Wallet, XCircle, type LucideIcon } from "lucide-react";
 
 /** Sahifadagi o'zgarishdan keyin qo'ng'iroq badge'ini yangilash uchun window hodisasi */
 export const NOTIFICATIONS_CHANGED_EVENT = "redince:notifications-changed";
@@ -56,6 +56,7 @@ const META: Record<string, { icon: LucideIcon; tone: NotificationTone; label: st
   application_status: { icon: Briefcase, tone: "info", label: "Ariza holati" },
   vacancy_expiring: { icon: CalendarClock, tone: "warning", label: "Vakansiya muddati" },
   profile_post: { icon: UserRound, tone: "accent", label: "Yangi post" },
+  digest: { icon: Newspaper, tone: "info", label: "Jamlama" },
 };
 
 const FALLBACK = { icon: Bell, tone: "neutral" as NotificationTone, label: "Bildirishnoma" };

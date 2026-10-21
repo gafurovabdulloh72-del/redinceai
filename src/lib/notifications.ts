@@ -36,6 +36,7 @@ import { uid } from "@/lib/utils";
  *  broadcast        — admin paneldan barcha (yoki rolga ko'ra) foydalanuvchilarga ommaviy e'lon/eslatma
  *  group_request / group_joined / post_comment / follow — jamoalar (qo'shilish so'rovi, tasdiq, izoh, yangi obunachi)
  *  post_like / mention — postga reaksiya (❤️🔥👏…; 24 soatda bir marta har bir odamdan) va @username eslatma (post yoki izohda)
+ *  digest           — kunlik/haftalik jamlama (lib/digest.ts). Guruhga kirmaydi: uni o'chirish yo'li — users.digest_freq='off'
  */
 export type NotificationType =
   | "order_new"
@@ -84,7 +85,8 @@ export type NotificationType =
   | "post_comment"
   | "post_like"
   | "mention"
-  | "follow";
+  | "follow"
+  | "digest";
 
 /** Email ham yuboriladigan muhim hodisalar (foydalanuvchi notifyEmail=true bo'lsa) */
 const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
@@ -112,6 +114,8 @@ const MAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
   "subscription_expiring",
   "subscription_expired",
   "subscription_paid",
+  // Jamlama: foydalanuvchi o'zi yoqqan (digest_freq) — email ham ketadi (notifyEmail=true bo'lsa)
+  "digest",
 ]);
 
 /** message_new / chat emaili: bitta buyurtma/suhbat bo'yicha 30 daqiqada ko'pi bilan bitta xat */
@@ -202,6 +206,7 @@ const TG_BUTTON_LABEL: Partial<Record<NotificationType, string>> = {
   application_status: "Arizani ko'rish",
   broadcast: "Batafsil",
   account: "Kabinetni ochish",
+  digest: "Kabinetni ochish",
 };
 
 async function telegramNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
