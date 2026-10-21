@@ -210,3 +210,38 @@ test("admin sahifalar: mehmon /admin va /admin/audit → kirishga yo'naltiriladi
     assert.match(res.headers.get("location") || "", /\/auth\/kirish/);
   }
 });
+
+test("TOP reyting va mentorlik sahifalari: /top /mentorlik → 200 HTML", async () => {
+  for (const path of ["/top", "/mentorlik"]) {
+    const res = await req(path);
+    assert.equal(res.status, 200, path);
+    assert.match(res.headers.get("content-type") || "", /text\/html/);
+  }
+});
+
+test("noma'lum ustoz sahifasi → 404", async () => {
+  const res = await req("/mentorlik/ustoz/mavjud-emas-xyz");
+  assert.equal(res.status, 404);
+});
+
+test("musiqa qidiruvi va TOP e'loni: mehmon uchun yopiq (401/403)", async () => {
+  const m = await req("/api/music?q=test");
+  assert.ok([401, 403].includes(m.status), `music ${m.status}`);
+  const p = await req("/api/admin/reyting", { method: "POST", headers: { origin: ORIGIN, "content-type": "application/json" }, body: "{}" });
+  assert.ok([401, 403].includes(p.status), `reyting ${p.status}`);
+  const a = await req("/api/admin/mentors", { method: "POST", headers: { origin: ORIGIN, "content-type": "application/json" }, body: JSON.stringify({ userId: "x" }) });
+  assert.ok([401, 403].includes(a.status), `mentors ${a.status}`);
+});
+
+test("admin yangi sahifalar: mehmon /admin/reyting va /admin/mentorlik → kirishga yo'naltiriladi", async () => {
+  for (const path of ["/admin/reyting", "/admin/mentorlik"]) {
+    const res = await req(path);
+    assert.ok([302, 303, 307, 308].includes(res.status), `${path} ${res.status}`);
+    assert.match(res.headers.get("location") || "", /\/auth\/kirish/);
+  }
+});
+
+test("sitemap.xml: /mentorlik bor", async () => {
+  const xml = await (await req("/sitemap.xml")).text();
+  assert.match(xml, /\/mentorlik</);
+});

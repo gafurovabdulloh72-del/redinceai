@@ -7,6 +7,7 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { JoinButton } from "@/components/groups/JoinButton";
 import { GroupFeed } from "@/components/groups/GroupFeed";
+import { GroupChat } from "@/components/groups/GroupChat";
 import { EventsCard, EventsList } from "@/components/groups/Events";
 import { getCurrentUser } from "@/lib/auth";
 import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, type PostView } from "@/lib/groups/service";
@@ -21,6 +22,7 @@ const TABS = [
   { key: "lenta", label: "Lenta" },
   { key: "bolimlar", label: "Bo'limlar" },
   { key: "efirlar", label: "Efirlar" },
+  { key: "muhokama", label: "Muhokama" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -69,6 +71,12 @@ export default async function MentorChannelPage({ params, searchParams }: { para
 
   return (
     <div className="container-x animate-fade-up">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({ "@context": "https://schema.org", "@type": "Person", name: profile.name, jobTitle: profile.roleLabel || profile.headline, description: profile.bio || profile.headline, image: profile.photoUrl || undefined, url: `/mentorlik/ustoz/${profile.slug}` }).replace(/</g, "\\u003c"),
+        }}
+      />
       <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
         <Link href="/mentorlik" className="transition hover:text-fg">
           Mentorlik
@@ -191,6 +199,12 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             </ul>
           ))}
         {tab === "efirlar" && <EventsList ev={ev} />}
+        {tab === "muhokama" &&
+          (view && isMember ? (
+            <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} />
+          ) : (
+            <p className="card p-8 text-center text-[14px] text-fg-3">Muhokamada qatnashish uchun ustoz kanaliga obuna bo&apos;ling.</p>
+          ))}
       </div>
     </div>
   );

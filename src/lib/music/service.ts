@@ -67,7 +67,7 @@ export async function useMusic(userId: string, m: PostMusic): Promise<void> {
 }
 
 export async function listTracksAdmin(): Promise<Array<TrackView & { isHidden: boolean; createdAt: number; uploaderId: string | null }>> {
-  const rows = await db.select().from(musicTracks).orderBy(desc(musicTracks.usesCount), desc(musicTracks.createdAt)).limit(300);
+  const rows = await db.select().from(musicTracks).orderBy(desc(musicTracks.usesCount), desc(musicTracks.createdAt)).limit(1000);
   return rows.map((r) => ({ ...toView(r), isHidden: r.isHidden, createdAt: r.createdAt.getTime(), uploaderId: r.uploaderId }));
 }
 

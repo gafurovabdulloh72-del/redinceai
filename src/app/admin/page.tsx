@@ -55,7 +55,7 @@ import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminReviews, type AdminReviewRow } from "@/components/admin/AdminReviews";
 import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admin/AdminSpecialistsTable";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
-import { Avatar, Badge, ButtonLink, type BadgeTone } from "@/components/ui";
+import { Avatar, Badge, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, REGIONS, type OrderStatus } from "@/lib/constants";
 import { listOpenDisputes } from "@/lib/payments/disputes";
@@ -299,25 +299,21 @@ export default async function AdminPage() {
             <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">Boshqaruv markazi</h1>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-3">Navbatlar, moliya, foydalanuvchilar va sozlamalar — bir joyda.</p>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-[55%] sm:justify-end">
-            <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
-              <CreditCard size={14} /> Obunalar
-              {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
-            </ButtonLink>
-            <ButtonLink href="/admin/mentorlik" variant="outline" size="sm">
-              <GraduationCap size={14} /> Mentorlik
-            </ButtonLink>
-            <ButtonLink href="/admin/reyting" variant="outline" size="sm">
-              <Crown size={14} /> TOP reyting
-            </ButtonLink>
-            <ButtonLink href="/admin/audit" variant="outline" size="sm">
-              <ScrollText size={14} /> Audit jurnali
-            </ButtonLink>
-            <ButtonLink href="/kabinet" variant="outline" size="sm">
-              Kabinet <ArrowRight size={14} />
-            </ButtonLink>
+          <nav aria-label="Admin sahifalari" className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] font-semibold sm:max-w-[60%] sm:justify-end">
+            {[
+              { href: "/admin/obunalar", label: "Obunalar", icon: CreditCard, badge: subRevenue.pendingManual },
+              { href: "/admin/mentorlik", label: "Mentorlik", icon: GraduationCap, badge: 0 },
+              { href: "/admin/reyting", label: "TOP reyting", icon: Crown, badge: 0 },
+              { href: "/admin/audit", label: "Audit", icon: ScrollText, badge: 0 },
+              { href: "/kabinet", label: "Kabinet", icon: ArrowRight, badge: 0 },
+            ].map((l) => (
+              <Link key={l.href} href={l.href} className="inline-flex items-center gap-1.5 text-fg-2 transition hover:text-fg">
+                <l.icon size={14} aria-hidden="true" /> {l.label}
+                {l.badge > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{l.badge}</span>}
+              </Link>
+            ))}
             <DemoCleanButton count={demoCount} />
-          </div>
+          </nav>
         </header>
 
         {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}

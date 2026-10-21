@@ -315,7 +315,7 @@ function ReelSlide({
   const lastTap = useRef(0);
   const onTap = () => {
     const now = Date.now();
-    if (now - lastTap.current < 280 && item.postId) {
+    if (now - lastTap.current < 240 && item.postId) {
       if (!item.myReaction) onLike();
       setBurst(true);
       window.setTimeout(() => setBurst(false), 700);
@@ -325,7 +325,7 @@ function ReelSlide({
     lastTap.current = now;
     window.setTimeout(() => {
       if (lastTap.current === now) item.mediaType === "video" ? togglePlay() : onSound();
-    }, 290);
+    }, 250);
   };
 
   const chatHref = item.author.username ? `/yozish/${item.author.username}` : null;

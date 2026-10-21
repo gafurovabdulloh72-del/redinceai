@@ -540,3 +540,9 @@ export async function listCoursesOfMentor(mentorId: string) {
   const rows = await db.query.courses.findMany({ where: eq(courses.mentorId, mentorId), orderBy: [desc(courses.updatedAt)] });
   return rows.map((c) => ({ id: c.id, slug: c.slug, title: c.title, category: c.category, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount }));
 }
+
+/** Sitemap uchun: tasdiqlangan mentorlar sahifalari */
+export async function getSitemapMentors(): Promise<Array<{ slug: string; lastModified: Date }>> {
+  const rows = await db.select({ slug: mentors.slug, at: mentors.approvedAt, created: mentors.createdAt }).from(mentors).where(and(eq(mentors.isApproved, true), sql`${mentors.slug} is not null`)).limit(2000);
+  return rows.map((r) => ({ slug: r.slug as string, lastModified: r.at ?? r.created }));
+}

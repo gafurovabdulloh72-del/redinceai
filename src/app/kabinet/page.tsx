@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Fragment } from "react";
-import { and, count, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   ArrowRight,
   Bell,
@@ -16,20 +15,12 @@ import {
   CreditCard,
   Eye,
   Heart,
-  Images,
   Inbox,
-  MapPinned,
   Megaphone,
   MessageCircle,
-  PauseCircle,
   PenSquare,
-  Plus,
   RadioTower,
-  Search,
   Send,
-  Settings,
-  ShieldCheck,
-  Sparkles,
   Star,
   Users,
   UsersRound,
@@ -37,15 +28,15 @@ import {
 } from "lucide-react";
 import { ActivityFeed } from "@/components/kabinet/ActivityFeed";
 import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
-import { Avatar, Badge, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
+import { Avatar, Badge, ButtonLink, IconTile, VerifiedBadge } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { db } from "@/lib/db";
 import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, vacancies } from "@/lib/db/schema";
-import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, REGION_BY_SLUG, type OrderStatus } from "@/lib/constants";
+import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, type OrderStatus } from "@/lib/constants";
 import { proposalsSentToday } from "@/lib/jobs/server";
 import { getSettings } from "@/lib/payments/settings";
-import { isOnVacation, scheduleSummary, tashkentNow } from "@/lib/privacy";
+import { isOnVacation, tashkentNow } from "@/lib/privacy";
 import { getOrdersForUser } from "@/lib/queries";
 import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
 import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor, timeAgo } from "@/lib/utils";
@@ -256,22 +247,6 @@ export default async function KabinetPage() {
     .slice(0, 5);
 
   /* ---------- Tezkor amallar: rolga ko'ra, 1 ta asosiy (accent) + kontur ---------- */
-  const actions: Array<{ href: string; label: string; icon: LucideIcon; external?: boolean }> = [];
-  if (sp) {
-    actions.push({ href: "/kabinet/portfolio", label: "Ish qo'shish", icon: Images });
-    actions.push({ href: "/kabinet/postlar", label: "Post yozish", icon: PenSquare });
-    actions.push({ href: "/kabinet/profil", label: "Profilni tahrirlash", icon: Settings });
-    actions.push({ href: `/mutaxassislar/${sp.slug}?preview=guest`, label: "Mehmon ko'zi bilan ko'rish", icon: Eye, external: true });
-  } else if (user.role === "specialist") {
-    actions.push({ href: "/kabinet/profil#mutaxassis", label: "Profil yaratish", icon: Sparkles });
-    actions.push({ href: "/mutaxassislar", label: "Boshqa mutaxassislar", icon: Search });
-  } else {
-    actions.push({ href: "/mutaxassislar", label: "Mutaxassis topish", icon: Search });
-    actions.push({ href: "/ishlar/yangi", label: "E'lon joylash", icon: Plus });
-    actions.push({ href: "/xarita", label: "Xarita", icon: MapPinned });
-    actions.push({ href: "/kabinet/profil", label: "Profil", icon: Settings });
-  }
-  if (user.role === "admin") actions.push({ href: "/admin", label: "Admin panel", icon: ShieldCheck });
 
   /* ---------- «Bugun» qatorlari (faqat nol bo'lmaganlar) ---------- */
   const todayRows: Array<{ key: string; href: string; icon: LucideIcon; label: string; value: React.ReactNode; tone?: "warning" | "danger" | "success" }> = [];
@@ -288,8 +263,6 @@ export default async function KabinetPage() {
   if (unreadDm > 0) todayRows.push({ key: "dm", href: "/kabinet/chat", icon: MessageCircle, label: "O'qilmagan xabar", value: unreadDm });
   if (unreadNotif > 0) todayRows.push({ key: "notif", href: "/kabinet/bildirishnomalar?filter=unread", icon: Bell, label: "O'qilmagan bildirishnoma", value: unreadNotif });
 
-  const region = sp ? REGION_BY_SLUG[sp.regionSlug] : null;
-  const scheduleParts = sp ? scheduleSummary(sp.schedule).split(" · ").filter(Boolean) : [];
 
   return (
     <div className="animate-fade-up">

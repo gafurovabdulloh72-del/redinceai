@@ -3,6 +3,7 @@ import { CATEGORIES, REGIONS, TERMS_VERSION } from "@/lib/constants";
 import { getLandingIndex, getSitemapProfiles } from "@/lib/queries";
 import { getSitemapJobs } from "@/lib/jobs";
 import { getSitemapGroups } from "@/lib/groups/service";
+import { getSitemapMentors } from "@/lib/mentorship/service";
 import { getSitemapResumes, getSitemapVacancies } from "@/lib/vacancies/service";
 import { PROFESSIONS } from "@/lib/vacancies/format";
 import { SITE_URL } from "@/lib/site-url";
@@ -26,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Ochiq e'lonlar (muddati o'tmagan, bloklangan mijozlarniki emas)
   const jobs = await getSitemapJobs().catch(() => []);
   // Hamjamiyat va vakansiyalar: ochiq jamoalar, ochiq vakansiyalar, ommaviy rezyumelar (yopiq/muddati o'tgan/bloklanganlar noindex)
-  const [groupsList, vacancyList, resumeList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => [])]);
+  const [groupsList, vacancyList, resumeList, mentorList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => []), getSitemapMentors().catch(() => [])]);
   // Katalog/xarita/bosh sahifa — eng so'nggi profil yangilanishi (hech biri bo'lmasa — hozir)
   const latestProfile = specialists.reduce<Date | null>((m, s) => (!m || s.updatedAt > m ? s.updatedAt : m), null) ?? now;
 
@@ -65,6 +66,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...landingUrls,
     ...specialists.map((s) => ({ url: `${base}/mutaxassislar/${s.slug}`, lastModified: s.updatedAt, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...jobs.map((j) => ({ url: `${base}/ishlar/${j.id}`, lastModified: j.updatedAt, changeFrequency: "daily" as const, priority: 0.5 })),
+    { url: `${base}/mentorlik`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
+    ...mentorList.map((m) => ({ url: `${base}/mentorlik/ustoz/${m.slug}`, lastModified: m.lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...groupsList.map((g) => ({ url: `${base}/jamoalar/${g.slug}`, lastModified: g.lastModified, changeFrequency: "daily" as const, priority: 0.5 })),
     ...vacancyList.map((v) => ({ url: `${base}/vakansiyalar/${v.id}`, lastModified: v.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...PROFESSIONS.map((p) => ({ url: `${base}/vakansiyalar/kasb/${p.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.5 })),

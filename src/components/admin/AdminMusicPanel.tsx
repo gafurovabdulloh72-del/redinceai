@@ -16,6 +16,7 @@ interface Row {
 /** Admin: musiqa kutubxonasi — ishlatilish soni bo'yicha; nomaqbul trekni yashirish (qidiruvdan chiqadi, mavjud story/postlarga tegmaydi) */
 export function AdminMusicPanel() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [q, setQ] = useState("");
   useEffect(() => {
     fetch("/api/admin/music")
       .then((r) => r.json())
@@ -35,13 +36,18 @@ export function AdminMusicPanel() {
         </h2>
         <p className="mt-0.5 text-[12.5px] text-fg-3">Story/postda ishlatilgan treklar. Nomaqbul trekni yashiring.</p>
       </header>
+      {rows !== null && rows.length > 5 && (
+        <div className="border-b border-line px-4 py-2.5">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Trek yoki ijrochi qidirish…" aria-label="Trek qidirish" className="field h-10 w-full text-[13.5px]" />
+        </div>
+      )}
       {rows === null ? (
         <p className="px-4 py-6 text-center text-[13px] text-fg-3">Yuklanmoqda…</p>
       ) : rows.length === 0 ? (
         <p className="px-4 py-8 text-center text-[13.5px] text-fg-3">Hali treklar yo&apos;q</p>
       ) : (
         <ul className="divide-y divide-line">
-          {rows.map((r) => (
+          {rows.filter((r) => !q.trim() || `${r.title} ${r.artist ?? ""}`.toLowerCase().includes(q.trim().toLowerCase())).map((r) => (
             <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className={r.isHidden ? "truncate text-[14px] font-semibold text-fg-4 line-through" : "truncate text-[14px] font-semibold text-fg"}>{r.title}</p>

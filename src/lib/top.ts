@@ -9,6 +9,8 @@ import { uid } from "@/lib/utils";
 
 /** Oylik TOP: g'oliblar soni va premium muddati (keyingi oy oxirigacha). Vaqt — Toshkent (UTC+5, yozgi vaqt yo'q) */
 export const TOP_AWARD_COUNT = 3;
+/** G'olib bo'lish uchun minimal ball (bo'sh yoki tasodifiy reytingni e'lon qilmaslik uchun) */
+export const MIN_AWARD_SCORE = 20;
 const TZ_OFFSET = 5 * 3_600_000;
 /** E'lon vaqti: oyning oxirgi kuni Toshkent 08:00 (cron 03:00 UTC) */
 const PUBLISH_HOUR = 8;
@@ -102,7 +104,7 @@ export async function publishMonthlyTop(key: string): Promise<{ published: numbe
   const exists = await db.query.topAwards.findFirst({ where: eq(topAwards.month, key), columns: { id: true } });
   if (exists) return { skipped: "exists" };
   const { from, to } = monthRange(key);
-  const top = (await topCreatorsBetween(from, to, TOP_AWARD_COUNT)).slice(0, TOP_AWARD_COUNT);
+  const top = (await topCreatorsBetween(from, to, TOP_AWARD_COUNT)).filter((t) => t.score >= MIN_AWARD_SCORE).slice(0, TOP_AWARD_COUNT);
   if (!top.length) return { skipped: "empty" };
   // Premium: e'londan keyingi oyning oxirigacha
   const premiumUntil = monthRange(nextMonthKey(key)).to;

@@ -251,12 +251,14 @@ export interface TopCreator {
  * O'z-o'ziga bergan reaksiya/izoh hisoblanmaydi.
  */
 export async function topCreatorsBetween(from: Date, to: Date, limit = 20): Promise<TopCreator[]> {
+  // Manipulyatsiyaga qarshi: davr oxirigacha kamida 2 kun yashagan akkauntlarning reaksiya/izoh/obunasi hisoblanadi
+  const matureBefore = new Date(to.getTime() - 2 * DAY);
   const [likes, comments, saves, views, fol] = await Promise.all([
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postLikes).innerJoin(posts, eq(posts.id, postLikes.postId)).where(and(gt(postLikes.createdAt, from), lt(postLikes.createdAt, to), sql`${postLikes.userId} != ${posts.authorId}`)).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postComments).innerJoin(posts, eq(posts.id, postComments.postId)).where(and(gt(postComments.createdAt, from), lt(postComments.createdAt, to), sql`${postComments.authorId} != ${posts.authorId}`)).groupBy(posts.authorId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postLikes).innerJoin(posts, eq(posts.id, postLikes.postId)).innerJoin(users, eq(users.id, postLikes.userId)).where(and(gt(postLikes.createdAt, from), lt(postLikes.createdAt, to), lt(users.createdAt, matureBefore), sql`${postLikes.userId} != ${posts.authorId}`)).groupBy(posts.authorId),
+    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postComments).innerJoin(posts, eq(posts.id, postComments.postId)).innerJoin(users, eq(users.id, postComments.authorId)).where(and(gt(postComments.createdAt, from), lt(postComments.createdAt, to), lt(users.createdAt, matureBefore), sql`${postComments.authorId} != ${posts.authorId}`)).groupBy(posts.authorId),
     db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postSaves).innerJoin(posts, eq(posts.id, postSaves.postId)).where(and(gt(postSaves.createdAt, from), lt(postSaves.createdAt, to))).groupBy(posts.authorId),
     db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postViews).innerJoin(posts, eq(posts.id, postViews.postId)).where(and(gt(postViews.createdAt, from), lt(postViews.createdAt, to))).groupBy(posts.authorId),
-    db.select({ a: follows.followingId, n: sql<number>`count(*)` }).from(follows).where(and(gt(follows.createdAt, from), lt(follows.createdAt, to))).groupBy(follows.followingId),
+    db.select({ a: follows.followingId, n: sql<number>`count(*)` }).from(follows).innerJoin(users, eq(users.id, follows.followerId)).where(and(gt(follows.createdAt, from), lt(follows.createdAt, to), lt(users.createdAt, matureBefore))).groupBy(follows.followingId),
   ]);
   const acc = new Map<string, { likes: number; comments: number; saves: number; views: number; followers: number }>();
   const add = (rows: Array<{ a: string; n: number }>, k: "likes" | "comments" | "saves" | "views" | "followers") => {

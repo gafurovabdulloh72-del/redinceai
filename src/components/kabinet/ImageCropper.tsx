@@ -176,17 +176,20 @@ export function ImageCropper({
       setBusy(false);
       return;
     }
-    // JPEG shaffoflikni qo'llamaydi — PNG fonlari qora bo'lib qolmasin
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outWidth, outH);
+    // PNG/WebP asl nusxasi WebP bo'lib shaffofligi bilan saqlanadi; qolgani JPEG (shaffoflik yo'q — oq fon)
+    const keepAlpha = /^image\/(png|webp)$/.test(file.type);
+    if (!keepAlpha) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, outWidth, outH);
+    }
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, -left / s, -top / s, boxW / s, boxH / s, 0, 0, outWidth, outH);
     canvas.toBlob(
       (blob) => {
         setBusy(false);
-        if (blob) onDone(new File([blob], "rasm.jpg", { type: "image/jpeg" }));
+        if (blob) onDone(new File([blob], keepAlpha ? "rasm.webp" : "rasm.jpg", { type: keepAlpha ? "image/webp" : "image/jpeg" }));
       },
-      "image/jpeg",
+      keepAlpha ? "image/webp" : "image/jpeg",
       0.9,
     );
   };

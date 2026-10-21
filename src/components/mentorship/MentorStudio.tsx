@@ -172,6 +172,20 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
         )}
       </header>
 
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { k: "Bo'limlar", v: courses.length },
+          { k: "Ochiq", v: courses.filter((c) => c.isPublished).length },
+          { k: "Talabalar", v: courses.reduce((a, c) => a + c.studentsCount, 0) },
+          { k: "Reyting", v: mentor.rating > 0 ? mentor.rating.toFixed(1) : "—" },
+        ].map((x) => (
+          <div key={x.k} className="card p-3.5">
+            <dt className="text-[12px] font-medium text-fg-3">{x.k}</dt>
+            <dd className="mt-1 font-display text-[22px] font-semibold tabular-nums leading-none text-fg">{x.v}</dd>
+          </div>
+        ))}
+      </dl>
+
       {/* Sahifa ma'lumotlari */}
       <section className="card space-y-4 p-4 sm:p-5">
         <div className="grid items-start gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
