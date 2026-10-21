@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bookmark, Crown, Eye, Heart, MessageCircle, MessageSquareText, Music2, Play, Send, Volume2, VolumeX } from "lucide-react";
+import { Bookmark, Crown, Eye, Heart, MessageCircle, MessageSquareText, Music2, Pause, Play, Send, Volume2, VolumeX } from "lucide-react";
 import { Avatar, Spinner, VerifiedBadge } from "@/components/ui";
 import { ShareSheet } from "@/components/social/ShareSheet";
 import { CommentsSheet } from "./CommentsSheet";
@@ -253,6 +253,8 @@ function ReelSlide({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  /** Davom ettirilganda qisqa «Play» belgisi */
+  const [flash, setFlash] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [burst, setBurst] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
@@ -299,8 +301,11 @@ function ReelSlide({
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return onSound();
-    if (v.paused) v.play().then(() => setPlaying(true)).catch(() => undefined);
-    else {
+    if (v.paused) {
+      v.play().then(() => setPlaying(true)).catch(() => undefined);
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 600);
+    } else {
       v.pause();
       setPlaying(false);
     }
@@ -319,7 +324,7 @@ function ReelSlide({
     }
     lastTap.current = now;
     window.setTimeout(() => {
-      if (lastTap.current === now) item.mediaType === "video" ? (playing ? onSound() : togglePlay()) : onSound();
+      if (lastTap.current === now) item.mediaType === "video" ? togglePlay() : onSound();
     }, 290);
   };
 
@@ -360,10 +365,15 @@ function ReelSlide({
             {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
         )}
-        {item.mediaType === "video" && !playing && (
-          <button type="button" onClick={togglePlay} aria-label="Ijro etish" className="absolute left-1/2 top-1/2 z-10 grid h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white backdrop-blur-md">
-            <Play size={30} className="ml-1 fill-white" />
+        {item.mediaType === "video" && active && !playing && (
+          <button type="button" onClick={togglePlay} aria-label="Davom ettirish" className="absolute left-1/2 top-1/2 z-10 grid h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 animate-pop place-items-center rounded-full bg-black/45 text-white backdrop-blur-md">
+            <Pause size={30} className="fill-white" />
           </button>
+        )}
+        {item.mediaType === "video" && playing && flash && (
+          <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 z-10 grid h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 animate-fade-in place-items-center rounded-full bg-black/45 text-white backdrop-blur-md">
+            <Play size={30} className="ml-1 fill-white" />
+          </span>
         )}
 
         {/* Top o'rni */}
@@ -400,7 +410,8 @@ function ReelSlide({
         {/* Pastki qism */}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-24 md:pb-5">
           <div className="space-y-3 px-4 pr-16 text-white">
-            <Link href={item.author.slug ? `/mutaxassislar/${item.author.slug}` : "#"} className="group flex items-center gap-2">
+            <Link href={item.author.slug ? `/mutaxassislar/${item.author.slug}` : "#"} className="group flex items-center gap-2.5">
+              <Avatar name={item.author.name} src={item.author.avatarUrl} size={34} decorative className="shrink-0 !ring-2 !ring-white/80" />
               <span className="truncate font-display text-[15.5px] font-bold group-hover:underline">{item.author.name}</span>
               {item.author.isVerified && <VerifiedBadge size={15} />}
               {cat && <span className="truncate text-[12.5px] text-white/65">· {cat.name}</span>}
