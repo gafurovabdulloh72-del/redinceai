@@ -9,5 +9,5 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   const input = await parseBody(req, lessonSchema);
-  return ok(await addLesson(session.sub, id, input), { status: 201 });
+  return ok(await addLesson(session.sub, id, input, session.role === "admin"), { status: 201 });
 });

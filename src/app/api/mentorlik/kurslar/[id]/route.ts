@@ -9,6 +9,6 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   const input = await parseBody(req, courseSchema);
-  await updateCourse(session.sub, id, input);
+  await updateCourse(session.sub, id, input, session.role === "admin");
   return ok({ ok: true });
 });

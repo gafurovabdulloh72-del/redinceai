@@ -27,6 +27,7 @@ import {
   ClipboardList,
   CreditCard,
   Crown,
+  GraduationCap,
   Flag,
   HeartPulse,
   Hourglass,
@@ -302,6 +303,9 @@ export default async function AdminPage() {
             <ButtonLink href="/admin/obunalar" variant="outline" size="sm">
               <CreditCard size={14} /> Obunalar
               {subRevenue.pendingManual > 0 && <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{subRevenue.pendingManual}</span>}
+            </ButtonLink>
+            <ButtonLink href="/admin/mentorlik" variant="outline" size="sm">
+              <GraduationCap size={14} /> Mentorlik
             </ButtonLink>
             <ButtonLink href="/admin/reyting" variant="outline" size="sm">
               <Crown size={14} /> TOP reyting

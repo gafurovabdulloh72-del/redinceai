@@ -42,6 +42,10 @@ export function formatDuration(min: number): string {
 /** Mentorlik limitlari (klientga xavfsiz) */
 export const MENTOR_LIMITS = {
   headlineMax: 90,
+  roleMax: 40,
+  highlightsMax: 4,
+  highlightTitleMax: 40,
+  highlightTextMax: 300,
   bioMax: 1200,
   expertiseMax: 6,
   courseTitleMax: 100,

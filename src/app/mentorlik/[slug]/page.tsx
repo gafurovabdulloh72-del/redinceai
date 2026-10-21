@@ -63,7 +63,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           {c.summary && <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
 
           {/* Mentor */}
-          <Link href="/mentorlik" className="card card-hover mt-5 flex items-start gap-3 p-4">
+          <Link href={c.mentor.slug ? `/mentorlik/ustoz/${c.mentor.slug}` : "/mentorlik"} className="card card-hover mt-5 flex items-start gap-3 p-4">
             <Avatar name={c.mentor.name} src={c.mentor.avatarUrl} size={48} decorative />
             <div className="min-w-0">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-fg-4">Ustoz</p>

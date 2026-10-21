@@ -1,17 +1,21 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { courseReviews, courses, enrollments, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
+import { courseReviews, courses, enrollments, groups, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
 import { uid, slugify, escapeLike } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
-import type { CourseInput, LessonInput, MentorApplyInput, CourseReviewInput } from "./validators";
+import type { CourseInput, LessonInput, MentorApplyInput, MentorProfileInput, CourseReviewInput } from "./validators";
+import { createGroup, updateGroup } from "@/lib/groups/service";
 import { MENTOR_LIMITS, type CourseLevel } from "./format";
 
 export interface MentorLite {
   id: string;
   userId: string;
+  slug: string | null;
   name: string;
   avatarUrl: string | null;
+  photoUrl: string | null;
+  roleLabel: string | null;
   headline: string;
   rating: number;
   coursesCount: number;
@@ -32,7 +36,7 @@ export interface CourseCard {
   rating: number;
   reviewsCount: number;
   createdAt: number;
-  mentor: { name: string; avatarUrl: string | null; headline: string; userId: string };
+  mentor: { name: string; avatarUrl: string | null; headline: string; userId: string; slug: string | null };
 }
 
 /** Foydalanuvchining mentor yozuvi (bo'lsa) */
@@ -53,14 +57,14 @@ export async function applyAsMentor(userId: string, input: MentorApplyInput) {
   return { id, pending: true };
 }
 
-function mentorLite(row: { id: string; userId: string; headline: string; rating: number; coursesCount: number; studentsCount: number; user: { name: string; avatarUrl: string | null } }): MentorLite {
-  return { id: row.id, userId: row.userId, name: row.user.name, avatarUrl: row.user.avatarUrl, headline: row.headline, rating: row.rating, coursesCount: row.coursesCount, studentsCount: row.studentsCount };
+function mentorLite(row: typeof mentors.$inferSelect & { user: { name: string; avatarUrl: string | null } }): MentorLite {
+  return { id: row.id, userId: row.userId, slug: row.slug, name: row.user.name, avatarUrl: row.user.avatarUrl, photoUrl: row.photoUrl, roleLabel: row.roleLabel, headline: row.headline, rating: row.rating, coursesCount: row.coursesCount, studentsCount: row.studentsCount };
 }
 
-/** Tasdiqlangan mentorlar (katalog uchun) */
+/** Tasdiqlangan mentorlar (katalog uchun); sahifasi (slug) bor bo'lganlar */
 export async function listMentors(limit = 12): Promise<MentorLite[]> {
   const rows = await db.query.mentors.findMany({
-    where: eq(mentors.isApproved, true),
+    where: and(eq(mentors.isApproved, true), sql`${mentors.slug} is not null`),
     orderBy: [desc(mentors.studentsCount), desc(mentors.rating)],
     limit,
     with: { user: { columns: { name: true, avatarUrl: true } } },
@@ -68,7 +72,7 @@ export async function listMentors(limit = 12): Promise<MentorLite[]> {
   return rows.map(mentorLite);
 }
 
-function toCard(c: typeof courses.$inferSelect & { mentor: { userId: string; user: { name: string; avatarUrl: string | null }; headline: string } }): CourseCard {
+function toCard(c: typeof courses.$inferSelect & { mentor: { userId: string; slug: string | null; user: { name: string; avatarUrl: string | null }; headline: string } }): CourseCard {
   return {
     id: c.id,
     slug: c.slug,
@@ -83,7 +87,7 @@ function toCard(c: typeof courses.$inferSelect & { mentor: { userId: string; use
     rating: c.rating,
     reviewsCount: c.reviewsCount,
     createdAt: c.createdAt.getTime(),
-    mentor: { name: c.mentor.user.name, avatarUrl: c.mentor.user.avatarUrl, headline: c.mentor.headline, userId: c.mentor.userId },
+    mentor: { name: c.mentor.user.name, avatarUrl: c.mentor.user.avatarUrl, headline: c.mentor.headline, userId: c.mentor.userId, slug: c.mentor.slug },
   };
 }
 
@@ -103,7 +107,7 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
     where: and(...conds),
     orderBy: [desc(courses.createdAt)],
     limit: limit + 1,
-    with: { mentor: { columns: { userId: true, headline: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    with: { mentor: { columns: { userId: true, headline: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
   });
   const hasMore = rows.length > limit;
   const items = rows.slice(0, limit).map(toCard);
@@ -125,7 +129,7 @@ export interface CourseDetail extends CourseCard {
 export async function getCourseBySlug(slug: string, viewerId: string | null, isAdmin = false): Promise<CourseDetail | null> {
   const c = await db.query.courses.findFirst({
     where: eq(courses.slug, slug),
-    with: { mentor: { columns: { userId: true, headline: true, bio: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    with: { mentor: { columns: { userId: true, headline: true, bio: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
   });
   if (!c) return null;
   const isOwner = Boolean(viewerId && c.mentor.userId === viewerId);
@@ -216,12 +220,21 @@ async function requireApprovedMentor(userId: string) {
   return m;
 }
 
-export async function createCourse(userId: string, input: CourseInput) {
-  const m = await requireApprovedMentor(userId);
+export async function createCourse(userId: string, input: CourseInput, opts: { mentorId?: string; admin?: boolean } = {}) {
+  let m: Awaited<ReturnType<typeof requireApprovedMentor>>;
+  if (opts.mentorId && opts.admin) {
+    const row = await db.query.mentors.findFirst({ where: eq(mentors.id, opts.mentorId) });
+    if (!row || !row.isApproved) throw new ApiError(404, "Mentor topilmadi");
+    m = row;
+  } else {
+    m = await requireApprovedMentor(userId);
+  }
+  // Yo'nalish ko'rsatilmasa — mentorning birinchi yo'nalishi (bo'lim ochishda hammasini so'ramaymiz)
+  const category = input.category && input.category !== "boshqa" ? input.category : (m.expertise[0] ?? "boshqa");
   const id = uid();
   const slug = `${slugify(input.title) || "kurs"}-${id.slice(0, 6)}`;
   await db.transaction(async (tx) => {
-    await tx.insert(courses).values({ id, mentorId: m.id, slug, title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom });
+    await tx.insert(courses).values({ id, mentorId: m.id, slug, title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category, level: input.level as CourseLevel, priceFrom: input.priceFrom });
     await tx.update(mentors).set({ coursesCount: sql`${mentors.coursesCount} + 1` }).where(eq(mentors.id, m.id));
   });
   return { id, slug };
@@ -235,19 +248,19 @@ async function ownedCourse(userId: string, courseId: string, isAdmin = false) {
   return c;
 }
 
-export async function updateCourse(userId: string, courseId: string, input: CourseInput) {
-  await ownedCourse(userId, courseId);
+export async function updateCourse(userId: string, courseId: string, input: CourseInput, isAdmin = false) {
+  await ownedCourse(userId, courseId, isAdmin);
   await db.update(courses).set({ title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom, updatedAt: new Date() }).where(eq(courses.id, courseId));
 }
 
-export async function setCoursePublished(userId: string, courseId: string, publish: boolean) {
-  const c = await ownedCourse(userId, courseId);
+export async function setCoursePublished(userId: string, courseId: string, publish: boolean, isAdmin = false) {
+  const c = await ownedCourse(userId, courseId, isAdmin);
   if (publish && c.lessonsCount < 1) throw new ApiError(422, "Kamida bitta dars qo'shing, keyin chop eting");
   await db.update(courses).set({ isPublished: publish, updatedAt: new Date() }).where(eq(courses.id, courseId));
 }
 
-export async function addLesson(userId: string, courseId: string, input: LessonInput) {
-  const c = await ownedCourse(userId, courseId);
+export async function addLesson(userId: string, courseId: string, input: LessonInput, isAdmin = false) {
+  const c = await ownedCourse(userId, courseId, isAdmin);
   if (c.lessonsCount >= MENTOR_LIMITS.maxLessonsPerCourse) throw new ApiError(422, `Kursda ko'pi bilan ${MENTOR_LIMITS.maxLessonsPerCourse} dars`);
   const id = uid();
   const pos = (c.lessonsCount ?? 0) + 1;
@@ -258,17 +271,17 @@ export async function addLesson(userId: string, courseId: string, input: LessonI
   return { id };
 }
 
-export async function updateLesson(userId: string, lessonId: string, input: LessonInput) {
+export async function updateLesson(userId: string, lessonId: string, input: LessonInput, isAdmin = false) {
   const l = await db.query.lessons.findFirst({ where: eq(lessons.id, lessonId) });
   if (!l) throw new ApiError(404, "Dars topilmadi");
-  await ownedCourse(userId, l.courseId);
+  await ownedCourse(userId, l.courseId, isAdmin);
   await db.update(lessons).set({ title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview }).where(eq(lessons.id, lessonId));
 }
 
-export async function deleteLesson(userId: string, lessonId: string) {
+export async function deleteLesson(userId: string, lessonId: string, isAdmin = false) {
   const l = await db.query.lessons.findFirst({ where: eq(lessons.id, lessonId) });
   if (!l) throw new ApiError(404, "Dars topilmadi");
-  await ownedCourse(userId, l.courseId);
+  await ownedCourse(userId, l.courseId, isAdmin);
   await db.transaction(async (tx) => {
     await tx.delete(lessons).where(eq(lessons.id, lessonId));
     await tx.update(courses).set({ lessonsCount: sql`max(${courses.lessonsCount} - 1, 0)`, updatedAt: new Date() }).where(eq(courses.id, l.courseId));
@@ -352,7 +365,7 @@ export async function listMyEnrollments(userId: string) {
   const rows = await db.query.enrollments.findMany({
     where: eq(enrollments.userId, userId),
     orderBy: [desc(enrollments.createdAt)],
-    with: { course: { with: { mentor: { columns: { userId: true, headline: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } } } },
+    with: { course: { with: { mentor: { columns: { userId: true, headline: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } } } },
   });
   return rows.map((e) => ({
     progressPct: e.progressPct,
@@ -371,7 +384,159 @@ export async function listPendingMentors() {
 export async function setMentorApproved(mentorId: string, approved: boolean) {
   const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId) });
   if (!m) throw new ApiError(404, "Mentor topilmadi");
-  if (approved) await db.update(mentors).set({ isApproved: true, approvedAt: new Date() }).where(eq(mentors.id, mentorId));
+  if (approved) {
+    await db.update(mentors).set({ isApproved: true, approvedAt: new Date() }).where(eq(mentors.id, mentorId));
+    await ensureMentorReady(mentorId);
+  }
   else await db.delete(mentors).where(eq(mentors.id, mentorId)); // rad etish — arizani o'chiradi
   return { userId: m.userId };
+}
+
+/* --------------------------- Mentor sahifasi = kanal --------------------------- */
+
+/** Mentor sahifasini (slug) va kanalini (groups, kind=channel) tayyorlaydi — takroriy chaqirilsa zarar yo'q */
+export async function ensureMentorReady(mentorId: string) {
+  const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), with: { user: { columns: { name: true } } } });
+  if (!m) throw new ApiError(404, "Mentor topilmadi");
+  let slug = m.slug;
+  if (!slug) {
+    const base = slugify(m.user.name) || "ustoz";
+    slug = base;
+    for (let i = 0; i < 5; i++) {
+      const taken = await db.query.mentors.findFirst({ where: eq(mentors.slug, slug), columns: { id: true } });
+      if (!taken) break;
+      slug = `${base}-${uid().slice(0, 4)}`;
+    }
+    await db.update(mentors).set({ slug }).where(eq(mentors.id, mentorId));
+  }
+  let channelId = m.channelId;
+  if (channelId && !(await db.query.groups.findFirst({ where: eq(groups.id, channelId), columns: { id: true } }))) channelId = null;
+  if (!channelId) {
+    const g = await createGroup(m.userId, { name: m.user.name.slice(0, 60), description: m.headline.slice(0, 500), category: null, region: null, coverUrl: m.coverUrl ?? "", isPrivate: false, kind: "channel" });
+    channelId = g.id;
+    await db.update(mentors).set({ channelId }).where(eq(mentors.id, mentorId));
+  }
+  return { slug, channelId };
+}
+
+export interface MentorProfile {
+  id: string;
+  userId: string;
+  slug: string | null;
+  name: string;
+  avatarUrl: string | null;
+  isApproved: boolean;
+  photoUrl: string | null;
+  coverUrl: string | null;
+  roleLabel: string | null;
+  headline: string;
+  bio: string;
+  expertise: string[];
+  highlights: Array<{ title: string; text: string }>;
+  channelSlug: string | null;
+  coursesCount: number;
+  studentsCount: number;
+  rating: number;
+  reviewsCount: number;
+}
+
+async function toProfile(m: typeof mentors.$inferSelect & { user: { name: string; avatarUrl: string | null } }): Promise<MentorProfile> {
+  const ch = m.channelId ? await db.query.groups.findFirst({ where: eq(groups.id, m.channelId), columns: { slug: true } }) : null;
+  return {
+    id: m.id,
+    userId: m.userId,
+    slug: m.slug,
+    name: m.user.name,
+    avatarUrl: m.user.avatarUrl,
+    isApproved: m.isApproved,
+    photoUrl: m.photoUrl,
+    coverUrl: m.coverUrl,
+    roleLabel: m.roleLabel,
+    headline: m.headline,
+    bio: m.bio,
+    expertise: m.expertise,
+    highlights: m.highlights ?? [],
+    channelSlug: ch?.slug ?? null,
+    coursesCount: m.coursesCount,
+    studentsCount: m.studentsCount,
+    rating: m.rating,
+    reviewsCount: m.reviewsCount,
+  };
+}
+
+/** Mentor profili id bo'yicha (kabinet/admin tahrirlagichi uchun) — egasi yoki admin */
+export async function getMentorProfileForEditor(mentorId: string, viewer: { id: string; admin: boolean }): Promise<MentorProfile | null> {
+  const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), with: { user: { columns: { name: true, avatarUrl: true } } } });
+  if (!m || (m.userId !== viewer.id && !viewer.admin)) return null;
+  if (m.isApproved) await ensureMentorReady(m.id);
+  const fresh = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), with: { user: { columns: { name: true, avatarUrl: true } } } });
+  return fresh ? toProfile(fresh) : null;
+}
+
+/** Ommaviy mentor sahifasi (slug bo'yicha) — faqat tasdiqlangan (egasi/admin tasdiqlanmaganini ham ko'radi) */
+export async function getMentorPageBySlug(slug: string, viewer: { id: string; admin: boolean } | null) {
+  const m = await db.query.mentors.findFirst({ where: eq(mentors.slug, slug), with: { user: { columns: { name: true, avatarUrl: true } } } });
+  if (!m) return null;
+  const can = m.isApproved || (viewer && (viewer.admin || viewer.id === m.userId));
+  if (!can) return null;
+  const [profile, courseRows] = await Promise.all([toProfile(m), db.query.courses.findMany({ where: and(eq(courses.mentorId, m.id), eq(courses.isPublished, true)), orderBy: [desc(courses.createdAt)] })]);
+  return {
+    profile,
+    isOwner: Boolean(viewer && viewer.id === m.userId),
+    courses: courseRows.map((c) => ({ id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount, rating: c.rating })),
+  };
+}
+
+/** Mentor sahifasini yangilash (egasi yoki admin); kanal nomi/muqovasi/tavsifi sinxronlanadi */
+export async function updateMentorProfile(mentorId: string, actor: { id: string; admin: boolean }, input: MentorProfileInput) {
+  const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), with: { user: { columns: { name: true } } } });
+  if (!m) throw new ApiError(404, "Mentor topilmadi");
+  if (m.userId !== actor.id && !actor.admin) throw new ApiError(403, "Bu sahifa sizniki emas");
+  await db
+    .update(mentors)
+    .set({ roleLabel: input.roleLabel, headline: input.headline, bio: input.bio, expertise: input.expertise, photoUrl: input.photoUrl, coverUrl: input.coverUrl, highlights: input.highlights })
+    .where(eq(mentors.id, mentorId));
+  if (m.channelId) {
+    const g = await db.query.groups.findFirst({ where: eq(groups.id, m.channelId) });
+    if (g) await updateGroup(g, { description: input.headline.slice(0, 500), coverUrl: input.coverUrl ?? "" }).catch(() => undefined);
+  }
+}
+
+/* --------------------------- Admin: mentorlarni boshqarish --------------------------- */
+
+/** Foydalanuvchini to'g'ridan-to'g'ri mentor qiladi (ariza shart emas): tasdiqlangan holda, sahifa va kanal bilan */
+export async function adminCreateMentor(userId: string) {
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, name: true, isBanned: true } });
+  if (!u) throw new ApiError(404, "Foydalanuvchi topilmadi");
+  if (u.isBanned) throw new ApiError(422, "Bloklangan foydalanuvchini mentor qilib bo'lmaydi");
+  const existing = await getMentorForUser(userId);
+  let id: string;
+  if (existing) {
+    id = existing.id;
+    if (!existing.isApproved) await db.update(mentors).set({ isApproved: true, approvedAt: new Date() }).where(eq(mentors.id, id));
+  } else {
+    id = uid();
+    await db.insert(mentors).values({ id, userId, headline: "Mentor", bio: "", expertise: [], isApproved: true, approvedAt: new Date() });
+  }
+  await ensureMentorReady(id);
+  return { id, created: !existing };
+}
+
+export async function adminListMentors() {
+  const rows = await db.query.mentors.findMany({ orderBy: [desc(mentors.isApproved), desc(mentors.createdAt)], limit: 200, with: { user: { columns: { id: true, name: true, email: true, avatarUrl: true } } } });
+  return rows.map((m) => ({ id: m.id, slug: m.slug, isApproved: m.isApproved, headline: m.headline, photoUrl: m.photoUrl, coursesCount: m.coursesCount, studentsCount: m.studentsCount, user: m.user }));
+}
+
+/** Mentorlikdan olib tashlash (kurslari va darslari o'chmaydi, faqat mentor yozuvi; kanal saqlanadi) */
+export async function adminRemoveMentor(mentorId: string) {
+  const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), columns: { id: true } });
+  if (!m) throw new ApiError(404, "Mentor topilmadi");
+  await db.update(mentors).set({ isApproved: false }).where(eq(mentors.id, mentorId));
+  await db.update(courses).set({ isPublished: false }).where(eq(courses.mentorId, mentorId));
+}
+
+/** Kabinet: mentorning kurslari ro'yxati — mentorId bo'yicha (admin uchun) */
+export async function listCoursesOfMentor(mentorId: string) {
+  const rows = await db.query.courses.findMany({ where: eq(courses.mentorId, mentorId), orderBy: [desc(courses.updatedAt)] });
+  return rows.map((c) => ({ id: c.id, slug: c.slug, title: c.title, category: c.category, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount }));
 }

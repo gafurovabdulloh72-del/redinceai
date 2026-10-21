@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IMAGE_URL_RE } from "@/components/chat/attachments";
 import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS } from "./format";
 
 const categoryKeys = MENTOR_CATEGORIES.map((c) => c.key) as [string, ...string[]];
@@ -43,3 +44,29 @@ export const courseReviewSchema = z.object({
   body: z.string().trim().max(MENTOR_LIMITS.reviewMax).default(""),
 });
 export type CourseReviewInput = z.infer<typeof courseReviewSchema>;
+
+const imageUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((u) => !u || IMAGE_URL_RE.test(u), "Rasm sayt orqali yuklanishi kerak")
+  .nullish()
+  .transform((u) => u || null);
+
+/** Mentor sahifasi (egasi yoki admin tahrirlaydi) */
+export const mentorProfileSchema = z.object({
+  roleLabel: z.string().trim().max(MENTOR_LIMITS.roleMax).nullish().transform((v) => v || null),
+  headline: z.string().trim().min(4, "Sarlavha kamida 4 belgi").max(MENTOR_LIMITS.headlineMax),
+  bio: z.string().trim().max(MENTOR_LIMITS.bioMax).default(""),
+  expertise: z.array(z.enum(categoryKeys)).max(MENTOR_LIMITS.expertiseMax).default([]),
+  photoUrl: imageUrl,
+  coverUrl: imageUrl,
+  highlights: z
+    .array(z.object({ title: z.string().trim().min(1).max(MENTOR_LIMITS.highlightTitleMax), text: z.string().trim().max(MENTOR_LIMITS.highlightTextMax).default("") }))
+    .max(MENTOR_LIMITS.highlightsMax)
+    .default([]),
+});
+export type MentorProfileInput = z.infer<typeof mentorProfileSchema>;
+
+/** Kurs yaratishda faqat nom kifoya (qolganini bo'lim ichida o'zgartiradi); admin boshqa mentor nomidan yaratsa mentorId beradi */
+export const courseCreateSchema = courseSchema.extend({ mentorId: z.string().min(1).max(64).optional() });

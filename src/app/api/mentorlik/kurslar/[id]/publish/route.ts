@@ -9,6 +9,6 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   const { publish } = await parseBody(req, z.object({ publish: z.boolean() }));
-  await setCoursePublished(session.sub, id, publish);
+  await setCoursePublished(session.sub, id, publish, session.role === "admin");
   return ok({ published: publish });
 });

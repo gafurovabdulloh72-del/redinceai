@@ -9,7 +9,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   const input = await parseBody(req, lessonSchema);
-  await updateLesson(session.sub, id, input);
+  await updateLesson(session.sub, id, input, session.role === "admin");
   return ok({ ok: true });
 });
 
@@ -17,6 +17,6 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
 export const DELETE = handler(async (_req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
-  await deleteLesson(session.sub, id);
+  await deleteLesson(session.sub, id, session.role === "admin");
   return ok({ ok: true });
 });

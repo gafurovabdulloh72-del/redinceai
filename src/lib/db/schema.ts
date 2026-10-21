@@ -1789,6 +1789,16 @@ export const mentors = sqliteTable(
     isApproved: integer("is_approved", { mode: "boolean" }).notNull().default(false),
     appliedAt: integer("applied_at", { mode: "timestamp_ms" }),
     approvedAt: integer("approved_at", { mode: "timestamp_ms" }),
+    /** Ommaviy sahifa manzili: /mentorlik/ustoz/{slug} */
+    slug: text("slug"),
+    /** Katta portret rasm (sahifa hero'sida), muqova va rol yorlig'i ("Modul ustozi") */
+    photoUrl: text("photo_url"),
+    coverUrl: text("cover_url"),
+    roleLabel: text("role_label"),
+    /** Ma'lumot kartalari: [{ title, text }] — sahifada "Nima o'rgatadi", yutuqlar va h.k. */
+    highlights: text("highlights", { mode: "json" }).$type<Array<{ title: string; text: string }>>().notNull().default([]),
+    /** Mentorning kanali (groups, kind=channel): postlar, jonli efir, obunachilar */
+    channelId: text("channel_id"),
     coursesCount: integer("courses_count").notNull().default(0),
     studentsCount: integer("students_count").notNull().default(0),
     rating: real("rating").notNull().default(0),
@@ -1797,7 +1807,7 @@ export const mentors = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("mentors_user_uq").on(t.userId), index("mentors_approved_idx").on(t.isApproved)],
+  (t) => [uniqueIndex("mentors_slug_uq").on(t.slug), uniqueIndex("mentors_user_uq").on(t.userId), index("mentors_approved_idx").on(t.isApproved)],
 );
 
 /** Kurs: mentor yaratadi, darslardan iborat */

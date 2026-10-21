@@ -51,68 +51,59 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
   };
 
   return (
-    <div className="container-x py-6 sm:py-8">
-      {/* Hero */}
-      <div className="card-elevated relative overflow-hidden p-6 sm:p-8">
-        <span className="eyebrow mb-2 inline-flex items-center gap-1.5">
-          <GraduationCap size={14} className="text-accent" /> Mentorlik
-        </span>
-        <h1 className="display-xl text-fg">Ustozlardan o&apos;rganing</h1>
-        <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-fg-2">
-          Tajribali videograf, montajchi, dizayner va motion-ustalar onlayn dars beradi. Amaliy kurslar, qadam-ma-qadam darslar, o&apos;z sur&apos;atingizda.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2.5">
-          {myMentor?.isApproved ? (
-            <Link href="/kabinet/mentorlik" className="btn-accent inline-flex h-11 items-center gap-2 rounded-[14px] px-5 text-[14.5px] font-semibold">
-              Kurslarimni boshqarish
-            </Link>
-          ) : (
-            <Link href="/kabinet/mentorlik" className="btn-accent inline-flex h-11 items-center gap-2 rounded-[14px] px-5 text-[14.5px] font-semibold">
-              Mentor bo&apos;lish
-            </Link>
-          )}
-          <form action="/mentorlik" className="relative flex-1 sm:max-w-xs">
-            {category && <input type="hidden" name="kasb" value={category} />}
-            {level && <input type="hidden" name="daraja" value={level} />}
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" />
-            <input name="q" defaultValue={q} placeholder="Kurs qidirish…" aria-label="Kurs qidirish" className="field h-11 w-full !rounded-[14px] pl-9 text-[14px]" />
-          </form>
+    <div className="container-x py-4 sm:py-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-tight text-fg sm:text-[34px]">Mentorlik</h1>
+          <p className="mt-1 max-w-lg text-[14.5px] leading-relaxed text-fg-3">Tajribali ustozlardan amaliy bilim: kanallarini kuzating, darslarga yoziling, jonli efirlarda qatnashing.</p>
         </div>
-      </div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <form action="/mentorlik" className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+            {category && <input type="hidden" name="kasb" value={category} />}
+            <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" />
+            <input name="q" defaultValue={q} placeholder="Kurs qidirish…" aria-label="Kurs qidirish" className="field h-11 w-full !rounded-full pl-10 text-[14px]" />
+          </form>
+          <Link href="/kabinet/mentorlik" className="btn-accent inline-flex h-11 shrink-0 items-center rounded-full px-5 text-[14px] font-semibold">
+            {myMentor?.isApproved ? "Mening sahifam" : "Ustoz bo'lish"}
+          </Link>
+        </div>
+      </header>
 
-      {/* Filtrlar */}
-      <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
-        {chip("kasb-all", withParam("kasb", undefined), "Barcha yo'nalishlar", !category)}
-        {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => chip(`kasb-${c.key}`, withParam("kasb", c.key), c.label, category === c.key))}
-      </div>
-      <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
-        {chip("daraja-all", withParam("daraja", undefined), "Har daraja", !level)}
-        {COURSE_LEVELS.map((l) => chip(`daraja-${l.key}`, withParam("daraja", l.key), l.label, level === l.key))}
-      </div>
-
-      {/* Top mentorlar */}
-      {mentors.length > 0 && !q && !category && !level && (
-        <section className="mt-7">
-          <h2 className="mb-3 text-[15px] font-bold text-fg">Tanilgan ustozlar</h2>
-          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+      {/* Ustozlar — portret kartalari (har biri — o'z kanali) */}
+      {mentors.length > 0 && !q && !category && (
+        <section className="mt-6">
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-4">
             {mentors.map((m) => (
-              <Link key={m.id} href={`/mutaxassislar`} className="card card-hover flex w-48 shrink-0 flex-col items-center p-4 text-center">
-                <Avatar name={m.name} src={m.avatarUrl} size={56} decorative />
-                <p className="mt-2 truncate text-[14px] font-semibold text-fg">{m.name}</p>
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-fg-3">{m.headline}</p>
-                <p className="mt-2 flex items-center gap-2 text-[11.5px] text-fg-4">
-                  <span className="inline-flex items-center gap-0.5"><Star size={11} className="fill-accent text-accent" /> {m.rating || "—"}</span>
-                  <span className="inline-flex items-center gap-0.5"><Users size={11} /> {m.studentsCount}</span>
-                </p>
-              </Link>
+              <li key={m.id} className="w-[200px] shrink-0 sm:w-auto">
+                <Link href={`/mentorlik/ustoz/${m.slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] bg-surface-2">
+                  {m.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={m.photoUrl} alt={m.name} className="img-zoom absolute inset-0 h-full w-full object-cover object-top" />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-fg/[0.04] to-fg/[0.14]">
+                      <Avatar name={m.name} src={m.avatarUrl} size={88} decorative />
+                    </div>
+                  )}
+                  <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] bg-[#1b1b1d]/92 px-3.5 py-2.5 text-white ring-1 ring-white/12 backdrop-blur">
+                    <p className="truncate font-display text-[15px] font-extrabold leading-tight">{m.name}</p>
+                    <p className="mt-0.5 line-clamp-1 text-[12px] text-white/65">{m.roleLabel || m.headline}</p>
+                  </div>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
 
+      {/* Yo'nalishlar */}
+      <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
+        {chip("kasb-all", withParam("kasb", undefined), "Barchasi", !category)}
+        {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => chip(`kasb-${c.key}`, withParam("kasb", c.key), c.label, category === c.key))}
+      </div>
+
       {/* Kurslar */}
-      <section className="mt-7">
-        <h2 className="mb-3 text-[15px] font-bold text-fg">{q ? `«${q}» bo'yicha` : category ? categoryLabel(category) : "Barcha kurslar"} <span className="font-medium text-fg-4">· {courses.length}</span></h2>
+      <section className="mt-5">
+        <h2 className="mb-3 text-[15px] font-bold text-fg">{q ? `«${q}» bo'yicha` : category ? categoryLabel(category) : "Kurslar"} <span className="font-medium text-fg-4">· {courses.length}</span></h2>
         {courses.length === 0 ? (
           <div className="card grid place-items-center gap-2 p-10 text-center">
             <GraduationCap size={28} className="text-fg-4" />

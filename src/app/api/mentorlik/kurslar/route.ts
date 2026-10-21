@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
-import { courseSchema } from "@/lib/mentorship/validators";
+import { courseCreateSchema } from "@/lib/mentorship/validators";
 import { createCourse, listCourses } from "@/lib/mentorship/service";
 
 const querySchema = z.object({
@@ -20,6 +20,6 @@ export const GET = handler(async (req) => {
 /** POST — yangi kurs (faqat tasdiqlangan mentor) */
 export const POST = handler(async (req) => {
   const session = await requireSession();
-  const input = await parseBody(req, courseSchema);
-  return ok(await createCourse(session.sub, input), { status: 201 });
+  const { mentorId, ...input } = await parseBody(req, courseCreateSchema);
+  return ok(await createCourse(session.sub, input, { mentorId, admin: session.role === "admin" }), { status: 201 });
 });
