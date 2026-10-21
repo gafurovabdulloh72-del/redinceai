@@ -111,7 +111,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
             <p className="text-[13px] text-fg-3">Birinchi bo&apos;lib kurs oching — «Mentor bo&apos;lish».</p>
           </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {courses.map((c) => (
               <li key={c.id}>
                 <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full flex-col overflow-hidden">

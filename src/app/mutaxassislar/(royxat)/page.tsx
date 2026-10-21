@@ -276,7 +276,7 @@ export default async function SpecialistsPage({ searchParams }: { searchParams: 
                 ))}
               </ul>
             ) : (
-              <div key={gridKey} className="stagger mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div key={gridKey} className="stagger mt-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
                 {items.map((sp, i) => (
                   <div key={sp.id}>
                     <SpecialistCard sp={sp} priority={i < 3} showCompare />

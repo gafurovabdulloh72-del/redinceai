@@ -54,12 +54,12 @@ export async function SpecialistCard({
           </div>
         )}
 
-        <div className="p-4">
-          <div className="flex items-start gap-3">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={40} decorative />
-            <div className="min-w-0 flex-1 pr-8">
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:gap-3">
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={36} decorative />
+            <div className="min-w-0 w-full flex-1 sm:pr-8">
               {/* h2: ro'yxat sahifasida h1'dan keyin karta nomi ikkinchi daraja */}
-              <h2 className="line-clamp-1 font-display text-[15px] font-semibold leading-tight text-fg">
+              <h2 className="line-clamp-1 font-display text-[14px] sm:text-[15px] font-semibold leading-tight text-fg">
                 {sp.user.name}
                 {sp.isVerified && <VerifiedBadge size={14} className="ml-1 inline-block align-[-2px]" />}
                 {sp.topRated && (
@@ -70,7 +70,7 @@ export async function SpecialistCard({
                 )}
                 {isNew && <span className="ml-1.5 align-[1px] text-[11px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
               </h2>
-              <p className="mt-0.5 truncate text-[12.5px] text-fg-3">
+              <p className="mt-0.5 truncate text-[12px] text-fg-3 sm:text-[12.5px]">
                 {cat?.name ? `${cat.name} · ` : ""}
                 {place}
                 {!sp.coverUrl && !sp.isAvailable ? ` · ${tr(til, KARTA.busy)}` : ""}
@@ -78,10 +78,10 @@ export async function SpecialistCard({
             </div>
           </div>
 
-          <p className="mt-3 line-clamp-2 text-[14px] leading-snug text-fg-2">{sp.title}</p>
+          <p className="mt-2.5 line-clamp-2 text-[13px] leading-snug text-fg-2 sm:mt-3 sm:text-[14px]">{sp.title}</p>
 
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-            <p className="min-w-0 flex-1 truncate whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
+          <div className="mt-2.5 flex flex-col items-start gap-1 border-t border-line pt-2.5 sm:mt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
+            <p className="min-w-0 flex-1 truncate whitespace-nowrap font-display text-[13px] font-semibold text-fg sm:text-[14px]" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
               {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
             </p>
             {sp.reviewCount > 0 ? (

@@ -167,7 +167,7 @@ export default async function OrderWizardPage({ searchParams }: { searchParams: 
         />
       ) : (
         <>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {items.map((s, i) => (
               <li key={s.slug} className="flex min-w-0 flex-col gap-2">
                 <SpecialistCard sp={s} priority={i < 3} />

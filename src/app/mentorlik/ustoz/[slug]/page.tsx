@@ -174,7 +174,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           (courses.length === 0 ? (
             <p className="card p-8 text-center text-[14px] text-fg-3">Hozircha ochiq bo&apos;lim yo&apos;q.</p>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="grid grid-cols-2 gap-3">
               {courses.map((c) => (
                 <li key={c.id}>
                   <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full flex-col overflow-hidden">

@@ -34,7 +34,7 @@ export default async function FavoritesPage() {
       {items.length > 0 ? (
         // Hamma karta sevimli — yuraklar SSR'dan to'ldirilgan, /api/favorites javobi kutilmaydi
         <FavoritesSeed viewerId={user.id} ids={items.map((sp) => sp.id)}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
             {items.map((sp, i) => (
               <FavoriteSlot key={sp.id} specialistId={sp.id} name={sp.user.name}>
                 <SpecialistCard sp={sp} priority={i < 3} showCompare />

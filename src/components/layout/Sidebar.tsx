@@ -119,7 +119,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     const href = it.authOnly && !user ? login(it.href) : it.href;
     return (
       <li key={it.href}>
-        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, it.emphasis ? cn("btn-ink !text-ink-fg hover:!text-ink-fg font-semibold", active && "ring-2 ring-fg/25 ring-offset-2 ring-offset-bg") : active && "bg-fg/[0.06] font-semibold text-fg")}>
+        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, it.emphasis ? cn("btn-ink !text-ink-fg hover:!text-ink-fg justify-center font-semibold xl:!justify-center", active && "ring-2 ring-fg/25 ring-offset-2 ring-offset-bg") : active && "bg-fg/[0.06] font-semibold text-fg")}>
           <span className="relative shrink-0">
             <it.icon size={20} strokeWidth={active ? 2.2 : 1.75} />
             {it.badge ? (
