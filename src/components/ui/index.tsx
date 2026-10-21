@@ -255,19 +255,16 @@ function HeadingBlock({
   action?: ReactNode;
   descClass: string;
 }) {
+  // v6: ustki yozuv (eyebrow) ko'rsatilmaydi; sarlavha chapda, amal o'ngda (bir qator), tavsif sarlavha ostida
+  void eyebrow;
   return (
-    <>
-      {eyebrow && <span className="eyebrow mb-2 min-w-0">{eyebrow}</span>}
-      <div className="grid gap-x-10 gap-y-3 lg:grid-cols-12 lg:items-baseline">
-        <Tag className={cn(titleClass, "text-fg lg:col-span-7")}>{title}</Tag>
-        {(description || action) && (
-          <div className="flex flex-col gap-3 lg:col-span-5 lg:items-start">
-            {description && <p className={cn("max-w-lg leading-relaxed text-fg-2", descClass)}>{description}</p>}
-            {action && <div className="flex flex-wrap gap-2">{action}</div>}
-          </div>
-        )}
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+        <Tag className={cn(titleClass, "text-fg")}>{title}</Tag>
+        {description && <p className={cn("mt-1.5 max-w-xl leading-relaxed text-fg-3", descClass)}>{description}</p>}
       </div>
-    </>
+      {action && <div className="flex flex-wrap items-center gap-2">{action}</div>}
+    </div>
   );
 }
 

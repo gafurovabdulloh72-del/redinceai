@@ -24,26 +24,26 @@
 
 /* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
-  --bg: #f5f4f0;
-  --bg-2: #edece7;
+  --bg: #ffffff;
+  --bg-2: #f7f7f6;
   --surface: #ffffff;
-  --surface-2: #faf9f6;
-  --surface-3: #efede9;
-  --fg: #131315;
-  --fg-2: #4b4a47;
-  --fg-3: #6b6963; /* AA (4.5+) oq, qog'oz va surface-3 (#eeeeeb → 4.7) ustida */
-  --fg-4: #6c6a64; /* eng och qadam — 11–12px matn uchun ham AA (oq 5.3, surface-3 4.65) */
+  --surface-2: #f7f7f6;
+  --surface-3: #f0f0ee;
+  --fg: #111113;
+  --fg-2: #46464a;
+  --fg-3: #6a6a6e; /* AA (4.5+) oq, qog'oz va surface-3 (#eeeeeb → 4.7) ustida */
+  --fg-4: #6c6c70; /* eng och qadam — 11–12px matn uchun ham AA (oq 5.3, surface-3 4.65) */
 
-  --line: rgba(19, 19, 21, 0.08);
-  --line-2: rgba(19, 19, 21, 0.15);
+  --line: rgba(17, 17, 19, 0.09);
+  --line-2: rgba(17, 17, 19, 0.16);
   --hairline: var(--line);
 
   /* v5: brend gradienti (asosiy CTA, hikoya halqasi) va yopishqoq panel shishasi */
-  --brand-grad: linear-gradient(135deg, #ff5a36 0%, #ff8a3c 55%, #ffb13c 100%);
-  --story-ring: conic-gradient(from 210deg, #ff5a36, #ff9f3c, #c25cff, #ff5a36);
-  --glass: color-mix(in srgb, var(--bg) 82%, transparent);
-  --aurora-1: rgba(255, 90, 54, 0.055);
-  --aurora-2: rgba(123, 97, 255, 0.045);
+  --brand-grad: #ff5a36;
+  --story-ring: var(--accent);
+  --glass: color-mix(in srgb, var(--bg) 88%, transparent);
+  --aurora-1: transparent;
+  --aurora-2: transparent;
 
   --accent: #ff5a36;
   --accent-text: #b93318; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.9, qog'oz 5.4, accent-soft oq ustida 5.2 / qog'oz ustida 4.7 (AA) */
@@ -74,7 +74,7 @@
   /* Oq matnli xavfli tugma foni — oq 5.3 (AA); --danger nuqta/chegara uchun qoladi */
   --danger-strong: #c23a30;
 
-  --ink: #121213;
+  --ink: #111113;
   --ink-fg: #ffffff;
 
   /* Grafiklar (admin analitikasi): 1 — coral, 2 — binafsha. dataviz validator: yorug' fonda (#fff) barcha tekshiruvlar o'tadi */
@@ -82,15 +82,15 @@
   --chart-2: #7b61ff;
 
   /* Radius — 3 daraja: input/plitka 10, karta 14, katta blok 20 */
-  --r-sm: 12px;
-  --r-md: 16px;
-  --r-lg: 24px;
-  --r-xl: 32px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
 
   /* Soya — 3 daraja, diffuz: 1 — karta (yengil ko'tarilish), 2 — hover/ko'tarilgan, 3 — suzuvchi menyu/toast/dialog */
-  --shadow-1: 0 1px 2px rgba(19, 19, 21, 0.05), 0 1px 1px rgba(19, 19, 21, 0.03);
-  --shadow-2: 0 8px 24px -10px rgba(19, 19, 21, 0.16);
-  --shadow-3: 0 18px 44px -14px rgba(19, 19, 21, 0.26);
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 12px 32px -12px rgba(17, 17, 19, 0.2), 0 0 0 1px rgba(17, 17, 19, 0.06);
 
   /* Boshqaruv elementlari: input foni, segment yo'lagi/thumb, switch yo'lagi (dark'da alohida qiymat — bitta qoida) */
   --field-bg: var(--surface);
@@ -148,11 +148,11 @@
 }
 
 [data-theme="dark"] {
-  --bg: #09090b;
-  --bg-2: #0e0e11;
-  --surface: #131316;
-  --surface-2: #1a1a1e;
-  --surface-3: #232328;
+  --bg: #0a0a0b;
+  --bg-2: #101012;
+  --surface: #0a0a0b;
+  --surface-2: #131315;
+  --surface-3: #1c1c1f;
   --fg: #f6f5f1;
   --fg-2: #c4c2bc;
   --fg-3: #9c9a94; /* surface-3 (#232328) ustida 5.7 — AA */
@@ -163,8 +163,8 @@
   --hairline: var(--line);
 
   --glass: color-mix(in srgb, var(--bg) 78%, transparent);
-  --aurora-1: rgba(255, 107, 71, 0.07);
-  --aurora-2: rgba(143, 121, 255, 0.065);
+  --aurora-1: transparent;
+  --aurora-2: transparent;
 
   --accent: #ff6b47;
   --accent-text: var(--accent); /* qorong'uda coral'ning o'zi 6.5:1 */
@@ -200,11 +200,11 @@
   --chart-2: #8f79ff;
 
   /* Qorong'uda soya ko'rinishi uchun to'qroq, lekin baribir qisqa */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 10px 28px -12px rgba(0, 0, 0, 0.65);
-  --shadow-3: 0 22px 52px -16px rgba(0, 0, 0, 0.75);
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 16px 40px -14px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
-  --field-bg: var(--surface-2);
+  --field-bg: var(--bg);
   --seg-track: rgba(255, 255, 255, 0.08);
   --seg-thumb: rgba(255, 255, 255, 0.16);
   --switch-track: rgba(255, 255, 255, 0.14);
@@ -251,6 +251,12 @@
   --font-display: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-brand: var(--font-unbounded), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), "Times New Roman", Georgia, serif;
+  /* v6: yengil tipografiya — qalinlik 700 dan oshmaydi */
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 650;
+  --font-weight-extrabold: 700;
+  --font-weight-black: 700;
 
   --color-bg: var(--bg);
   --color-bg-2: var(--bg-2);
@@ -638,13 +644,8 @@ select:focus-visible {
   @media (hover: hover) and (pointer: fine) {
     .card-hover:hover {
       border-color: var(--line-2);
-      background: var(--surface);
-      box-shadow: var(--shadow-2);
-      transform: translateY(-1px);
+      background: var(--surface-2);
     }
-  }
-  .card-hover:active {
-    transform: scale(0.992);
   }
 
   /* Karta ichidagi asosiy havola (yonida tugma bor): fokus halqasi kartaning o'zida chiziladi */
@@ -726,14 +727,13 @@ select:focus-visible {
   .btn-accent {
     position: relative;
     color: #fff;
-    background: linear-gradient(180deg, #e2481f 0%, #cf3d19 100%);
+    background: #d63f1a;
     border: 1px solid transparent;
-    box-shadow: 0 6px 16px -8px rgba(207, 61, 25, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    transition: filter var(--dur-2) ease, transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) ease;
+    box-shadow: none;
+    transition: background var(--dur-2) ease, transform var(--dur-2) var(--ease-out);
   }
   .btn-accent:hover {
-    filter: brightness(1.06);
-    box-shadow: 0 10px 22px -10px rgba(207, 61, 25, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    background: #c43717;
   }
   .btn-accent:active {
     transform: scale(0.97);
@@ -768,8 +768,8 @@ select:focus-visible {
   }
   .field:focus,
   .field:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color: var(--fg);
+    box-shadow: none;
   }
   /* Xato holati: qizil kontur + halo (aria-invalid yoki .field-invalid) */
   .field[aria-invalid="true"],
@@ -804,7 +804,7 @@ select:focus-visible {
     display: inline-flex;
     padding: 3px;
     gap: 2px;
-    border-radius: 9999px;
+    border-radius: 10px;
     background: var(--seg-track);
     border: 1px solid transparent;
     isolation: isolate;
@@ -814,7 +814,7 @@ select:focus-visible {
     z-index: 1;
     min-height: 36px;
     padding: 0.4rem 0.95rem;
-    border-radius: 9999px;
+    border-radius: 8px;
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--fg-2);
@@ -830,7 +830,7 @@ select:focus-visible {
   .segment-item[data-active="true"] {
     color: var(--fg);
     background: var(--seg-thumb);
-    box-shadow: var(--shadow-1);
+    box-shadow: 0 0 0 1px var(--line);
   }
 
   /* Telefon panellari (yuqori kapsula, tab-bar) — deyarli solid yuza, yengil blur, hairline, eng yumshoq soya */
@@ -845,16 +845,16 @@ select:focus-visible {
   /* Sahifa sarlavhasi (h1) — ixcham klamp 24→34px; sahifalardagi inline o'lchamlar shu bilan tenglashtiriladi */
   .display-xl {
     font-family: var(--font-display);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    font-size: clamp(1.5rem, 1.15rem + 1.3vw, 2.125rem) !important;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 1.12;
+    font-size: clamp(1.375rem, 1.1rem + 1vw, 1.875rem) !important;
   }
   /* Bo'lim sarlavhasi (h2) — bir pog'ona kichik: 22→28px */
   .display-lg {
     font-family: var(--font-display);
-    font-weight: 780;
-    letter-spacing: -0.025em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     line-height: 1.12;
     font-size: clamp(1.375rem, 1.1rem + 0.9vw, 1.75rem);
   }
@@ -864,17 +864,17 @@ select:focus-visible {
     font-style: normal !important;
     font-weight: inherit;
     letter-spacing: inherit;
-    color: var(--fg-3) !important;
+    color: inherit !important;
   }
   /* Kichik ustki yozuv — chiziqsiz, tinch */
   .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--fg-3);
   }
 
@@ -1774,17 +1774,13 @@ html:has([data-reels-screen]) .shell-capsule {
     padding: 0.8rem 1rem;
     text-align: center;
     font-size: 0.9375rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--fg-3);
     white-space: nowrap;
-    transition: color var(--dur-2) ease, background var(--dur-2) ease;
+    transition: color var(--dur-2) ease;
   }
   .tab:hover {
     color: var(--fg);
-    background: color-mix(in srgb, var(--fg) 4%, transparent);
-  }
-  .tab:active {
-    background: color-mix(in srgb, var(--fg) 7%, transparent);
   }
   .tab[aria-selected="true"],
   .tab[aria-current="page"] {
@@ -1795,16 +1791,16 @@ html:has([data-reels-screen]) .shell-capsule {
     position: absolute;
     left: 50%;
     bottom: -1px;
-    height: 3px;
+    height: 2px;
     width: 0;
-    border-radius: 3px 3px 0 0;
-    background: var(--accent);
+    border-radius: 2px;
+    background: var(--fg);
     transform: translateX(-50%);
     transition: width var(--dur-2) var(--ease-spring);
   }
   .tab[aria-selected="true"]::after,
   .tab[aria-current="page"]::after {
-    width: min(3.5rem, 60%);
+    width: 100%;
   }
 
   /* Filtr chip'i (kapsula): faol — siyoh fon (qorong'uda oq). min-h 36 — bosh barmoq uchun */
@@ -1813,12 +1809,12 @@ html:has([data-reels-screen]) .shell-capsule {
     align-items: center;
     gap: 0.4rem;
     min-height: 2.25rem;
-    padding: 0.35rem 0.95rem;
-    border-radius: 9999px;
-    border: 1px solid var(--line-2);
-    background: var(--surface);
+    padding: 0.35rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: transparent;
     font-size: 0.8125rem;
-    font-weight: 650;
+    font-weight: 600;
     color: var(--fg-2);
     white-space: nowrap;
     transition: background var(--dur-2) ease, color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) var(--ease-out);
@@ -1827,9 +1823,7 @@ html:has([data-reels-screen]) .shell-capsule {
     border-color: var(--fg-4);
     color: var(--fg);
   }
-  .chip:active {
-    transform: scale(0.96);
-  }
+
   .chip[data-active="true"],
   .chip[aria-pressed="true"],
   .chip[aria-current="page"] {
@@ -1841,13 +1835,13 @@ html:has([data-reels-screen]) .shell-capsule {
   /* Hikoya halqasi: ko'rilmagan — gradient (coral→amber→binafsha), ko'rilgan — kulrang. Ichki bo'shliq --bg rangida */
   .story-ring {
     display: inline-flex;
-    padding: 2.5px;
+    padding: 2px;
     border-radius: 9999px;
-    background: var(--story-ring);
+    background: var(--accent);
   }
   .story-ring-seen {
     display: inline-flex;
-    padding: 2.5px;
+    padding: 2px;
     border-radius: 9999px;
     background: var(--line-2);
   }
@@ -1873,7 +1867,7 @@ html:has([data-reels-screen]) .shell-capsule {
     height: 0.5rem;
     border-radius: 9999px;
     background: var(--accent);
-    box-shadow: 0 0 0 2px var(--bg);
+    box-shadow: none;
   }
 
   /* Progress meter (profil to'ldirilganlik, vazifalar): maqsad gradienti */
@@ -1894,7 +1888,7 @@ html:has([data-reels-screen]) .shell-capsule {
   /* Statistika raqami (profil, kabinet): tabular, qalin */
   .stat-num {
     font-variant-numeric: tabular-nums;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 }

@@ -135,9 +135,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider locale={locale}>
          <DisplayLocaleProvider value={display}>
           {/* Doimiy til + yorug'lik (tema) boshqaruvi — o'ng tepada bitta kapsulada (desktop; telefonda Profil → Menyu) */}
-          <div className="shell-capsule glass fixed right-4 top-3 z-[115] hidden items-center gap-0.5 rounded-full border border-line p-0.5 shadow-1 md:flex print:hidden">
+          <div className="shell-capsule fixed right-4 top-3 z-[115] hidden items-center gap-0.5 md:flex print:hidden">
             <LocaleSwitch className="[&>button]:!border-transparent [&>button]:!bg-transparent [&>button]:!shadow-none" />
-            <span className="h-5 w-px bg-line" aria-hidden />
             <ThemeToggle />
           </div>
           <ToastProvider>
@@ -146,7 +145,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Navbar />
               {/* Ijtimoiy qobiq: md+ da chap yon panel (76px, xl: 244px) — kontent o'ngga suriladi; telefonda yuqori panel + pastki tab-bar.
                   ≥1920px: kontent 1600px bilan cheklanadi va markazda turadi */}
-              <div className="app-shell md:pl-[76px] xl:pl-[244px]">
+              <div className="app-shell md:pl-[72px] xl:pl-[232px]">
                 <main id="asosiy" tabIndex={-1} className="pt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] pb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] outline-none md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
                   {children}
                 </main>

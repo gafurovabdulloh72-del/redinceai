@@ -129,7 +129,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
             if (t.href === "#yaratish") {
               return (
                 <button key={t.key} type="button" onClick={() => setCreateOpen(true)} aria-haspopup="dialog" aria-expanded={createOpen} className={cn(cls, "text-fg-3")}>
-                  <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent text-white">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ink text-ink-fg">
                     <Icon size={20} strokeWidth={2.4} />
                   </span>
                   {label}

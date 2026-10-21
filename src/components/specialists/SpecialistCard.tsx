@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowUpRight, Award, MapPin } from "lucide-react";
-import { Avatar, Stars, VerifiedBadge } from "@/components/ui";
-import { CategoryIcon } from "@/components/ui/CategoryIcon";
+import { Award, Star } from "lucide-react";
+import { Avatar, VerifiedBadge } from "@/components/ui";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { SafeImage } from "./SafeImage";
 import { FavoriteButton } from "./FavoriteButton";
@@ -47,63 +46,53 @@ export async function SpecialistCard({
     <article className="card card-hover card-link group img-zoom overflow-hidden">
       <Link href={`/mutaxassislar/${sp.slug}`} aria-label={`${sp.user.name} — ${sp.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
       <div className="pointer-events-none relative">
-        {/* Muqova: haqiqiy rasm telefonda 16:10, sm+ da 4:3; rasm yo'q bo'lsa past naqsh tasmasi */}
-        <div className={`relative overflow-hidden bg-surface-3 sm:aspect-[4/3] ${sp.coverUrl ? "aspect-[16/10]" : "h-28"}`}>
-          <SafeImage
-            src={sp.coverUrl ?? undefined}
-            alt=""
-            priority={priority}
-            className="absolute inset-0 h-full w-full object-cover"
-            fallback={<CoverPattern category={sp.category} seed={sp.slug} />}
-            overlayClassName="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/0"
-          />
-          {/* Faqat kategoriya (hairline, soyasiz) va — kerak bo'lsa — «Band» */}
-          <div className="absolute left-3 right-14 top-3 flex items-start justify-between gap-2">
-            {cat ? (
-              <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 text-[11px] font-semibold text-fg">
-                <CategoryIcon icon={cat.icon} size={12} className="text-fg-3" />
-                {cat.name}
-              </span>
-            ) : (
-              <span />
-            )}
-            {!sp.isAvailable && <span className="inline-flex h-7 shrink-0 items-center rounded-full border border-line bg-surface px-2.5 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
+        {/* v6: muqova faqat haqiqiy rasm bo'lsa; bo'lmasa karta ixcham (naqsh/bo'sh tasma yo'q) */}
+        {sp.coverUrl && (
+          <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
+            <SafeImage src={sp.coverUrl} alt="" priority={priority} className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
+            {!sp.isAvailable && <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center rounded-md bg-surface px-2 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
           </div>
-          <span className="hover-reveal absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface text-fg transition duration-300">
-            <ArrowUpRight size={16} />
-          </span>
-        </div>
+        )}
 
-        <div className="px-4 pb-4 pt-3.5">
+        <div className="p-4">
           <div className="flex items-start gap-3">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={44} decorative className="-mt-9 !ring-surface" />
-            <div className="min-w-0 flex-1 pt-0.5">
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={40} decorative />
+            <div className="min-w-0 flex-1 pr-8">
               {/* h2: ro'yxat sahifasida h1'dan keyin karta nomi ikkinchi daraja */}
-              <h2 className="line-clamp-2 font-display text-[15px] font-semibold leading-tight text-fg">
+              <h2 className="line-clamp-1 font-display text-[15px] font-semibold leading-tight text-fg">
                 {sp.user.name}
-                {sp.isVerified && <VerifiedBadge size={15} className="ml-1 inline-block align-[-2px]" />}
+                {sp.isVerified && <VerifiedBadge size={14} className="ml-1 inline-block align-[-2px]" />}
                 {sp.topRated && (
                   <span className="ml-1 inline-block align-[-2px] text-accent" title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}>
-                    <Award size={14} aria-hidden="true" />
+                    <Award size={13} aria-hidden="true" />
                     <span className="sr-only">{tr(til, KARTA.top)}</span>
                   </span>
                 )}
                 {isNew && <span className="ml-1.5 align-[1px] text-[11px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
               </h2>
-              <p className="mt-0.5 flex items-center gap-1 text-[12px] text-fg-3">
-                <MapPin size={11} className="shrink-0" /> <span className="truncate">{place}</span>
+              <p className="mt-0.5 truncate text-[12.5px] text-fg-3">
+                {cat?.name ? `${cat.name} · ` : ""}
+                {place}
+                {!sp.coverUrl && !sp.isAvailable ? ` · ${tr(til, KARTA.busy)}` : ""}
               </p>
             </div>
           </div>
 
-          <p className="mt-3 line-clamp-1 text-[14px] text-fg-2">{sp.title}</p>
+          <p className="mt-3 line-clamp-2 text-[14px] leading-snug text-fg-2">{sp.title}</p>
 
-          {/* Narx va reyting — bitta qatorda */}
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-            <p className="min-w-0 truncate font-display text-[14.5px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
+            <p className="min-w-0 flex-1 truncate whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
               {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
             </p>
-            <Stars value={sp.rating} count={sp.reviewCount} size={12} />
+            {sp.reviewCount > 0 ? (
+              <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold tabular-nums text-fg">
+                <Star size={12} className="fill-accent text-accent" aria-hidden="true" />
+                {sp.rating.toFixed(1)}
+                <span className="font-normal text-fg-3">({sp.reviewCount})</span>
+              </span>
+            ) : (
+              <span className="shrink-0 text-[12px] text-fg-4">Yangi</span>
+            )}
           </div>
         </div>
       </div>

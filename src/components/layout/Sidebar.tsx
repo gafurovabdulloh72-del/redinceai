@@ -26,6 +26,8 @@ interface Item {
   badge?: number;
   dot?: boolean;
   authOnly?: boolean;
+  /** Ajratib ko'rsatiladigan band (to'q to'ldirilgan, «Yaratish» kabi) */
+  emphasis?: boolean;
 }
 
 /**
@@ -91,11 +93,10 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread, authOnly: true },
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
+  // Ikkilamchi bandlar — to'rttagacha; TOP reyting va Xarita «Yana» menyusida (panel tinch qolsin)
   const secondary: Item[] = [
-    { href: "/top", label: SHELL.nav.top, icon: Crown },
-    { href: "/mentorlik", label: SHELL.nav.mentorship, icon: GraduationCap },
+    { href: "/mentorlik", label: SHELL.nav.mentorship, icon: GraduationCap, emphasis: true },
     { href: "/mutaxassislar", label: SHELL.nav.specialists, icon: Users },
-    { href: "/xarita", label: SHELL.nav.map, icon: Map },
     { href: "/vakansiyalar", label: SHELL.nav.vacancies, icon: Briefcase },
     { href: "/ishlar", label: SHELL.nav.jobs, icon: BriefcaseBusiness },
   ];
@@ -110,7 +111,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     router.refresh();
   };
 
-  const row = "group/side relative flex h-11 shrink-0 cozy:h-10 short:h-9 items-center gap-4 rounded-full px-3.5 text-[15.5px] text-fg transition-colors duration-200 hover:bg-fg/[0.05] md:justify-center xl:justify-start";
+  const row = "group/side relative flex h-10 shrink-0 cozy:h-9 short:h-9 items-center gap-3.5 rounded-lg px-3 text-[14.5px] text-fg-2 transition-colors duration-150 hover:bg-fg/[0.05] hover:text-fg md:justify-center xl:justify-start";
   const label = "hidden truncate xl:block";
 
   const renderItem = (it: Item) => {
@@ -118,9 +119,9 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     const href = it.authOnly && !user ? login(it.href) : it.href;
     return (
       <li key={it.href}>
-        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, active && "bg-fg/[0.07] font-bold")}>
+        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, it.emphasis ? cn("btn-ink !text-ink-fg hover:!text-ink-fg font-semibold", active && "ring-2 ring-fg/25 ring-offset-2 ring-offset-bg") : active && "bg-fg/[0.06] font-semibold text-fg")}>
           <span className="relative shrink-0">
-            <it.icon size={24} strokeWidth={active ? 2.5 : 1.9} />
+            <it.icon size={20} strokeWidth={active ? 2.2 : 1.75} />
             {it.badge ? (
               <span key={it.badge} className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] animate-badge-pop items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-white">
                 {it.badge > 99 ? "99+" : it.badge}
@@ -129,7 +130,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pop rounded-full bg-accent ring-2 ring-surface" aria-hidden />
             ) : null}
           </span>
-          <span className={cn(label, active ? "font-bold" : "font-medium")}>{tr(til, it.label)}</span>
+          <span className={label}>{tr(til, it.label)}</span>
         </Link>
       </li>
     );
@@ -137,7 +138,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
   return (
     <>
-      <aside className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[76px] flex-col border-r border-line bg-surface px-2.5 py-4 md:flex xl:w-[244px] xl:px-3.5" aria-label={tr(til, SHELL.nav.mainAria)} data-print-hide>
+      <aside className="side-rail fixed inset-y-0 left-0 z-40 hidden w-[72px] flex-col border-r border-line bg-bg px-2.5 py-4 md:flex xl:w-[232px] xl:px-3" aria-label={tr(til, SHELL.nav.mainAria)} data-print-hide>
         <div className="flex h-12 items-center px-2 md:justify-center xl:justify-start">
           <Logo className="md:[&>span:last-child]:hidden xl:[&>span:last-child]:inline" />
         </div>
@@ -145,31 +146,31 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
         <nav className="no-scrollbar mt-3 flex min-h-0 flex-1 flex-col cozy:mt-2 cozy:overflow-y-auto xl:overflow-y-auto" aria-label={tr(til, SHELL.nav.mainAria)}>
           <ul className="space-y-0.5">
             {primary.map(renderItem)}
-            <li className="pt-3 cozy:pt-2">
+            <li className="pt-2.5 cozy:pt-2">
               {/* Doimiy asosiy CTA (X "Post" tugmasi kabi): yaratish imkoni har doim ko'z oldida — odat sikli "amal" bosqichi */}
               <button
                 type="button"
                 onClick={() => setCreateOpen(true)}
-                className="btn-accent press flex h-12 items-center justify-center gap-2 rounded-full text-[15px] font-bold md:mx-auto md:w-12 xl:w-full"
+                className="btn-ink press flex h-10 items-center justify-center gap-2 rounded-lg text-[14px] font-semibold md:mx-auto md:w-10 xl:w-full"
                 data-tip={tr(til, SHELL.nav.create)}
                 data-tip-pos="right"
                 aria-haspopup="dialog"
                 aria-expanded={createOpen}
               >
-                <PlusSquare size={21} strokeWidth={2.3} className="shrink-0" />
+                <PlusSquare size={18} strokeWidth={2} className="shrink-0" />
                 <span className="hidden xl:block">{tr(til, SHELL.nav.create)}</span>
               </button>
             </li>
           </ul>
-          <div className="my-3 h-px shrink-0 bg-line cozy:my-2" aria-hidden />
+          <div className="my-2.5 h-px shrink-0 bg-line cozy:my-2" aria-hidden />
           <ul className="space-y-0.5">{secondary.map(renderItem)}</ul>
         </nav>
 
         <div className="mt-auto shrink-0 space-y-0.5 pt-2">
           {user ? (
-            <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "bg-fg/[0.07] font-bold")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
-              <Avatar name={user.name} src={user.avatarUrl} size={26} decorative />
-              <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.profile)}</span>
+            <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "bg-fg/[0.06] font-semibold text-fg")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
+              <Avatar name={user.name} src={user.avatarUrl} size={24} decorative />
+              <span className={label}>{tr(til, SHELL.nav.profile)}</span>
             </Link>
           ) : (
             <>
@@ -186,8 +187,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
           <div className="relative" ref={moreRef}>
             <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn(row, "w-full")} data-tip={tr(til, SHELL.nav.more)} data-tip-pos="right" aria-haspopup="menu" aria-expanded={moreOpen}>
-              <Menu size={24} strokeWidth={1.9} className="shrink-0" />
-              <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.more)}</span>
+              <Menu size={20} strokeWidth={1.75} className="shrink-0" />
+              <span className={label}>{tr(til, SHELL.nav.more)}</span>
             </button>
             {more.mounted && (
               <div
@@ -198,6 +199,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
               >
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
+                <MoreItem href="/top" icon={Crown} label={tr(til, SHELL.nav.top)} />
+                <MoreItem href="/xarita" icon={Map} label={tr(til, SHELL.nav.map)} />
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />
@@ -229,7 +232,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
 function MoreItem({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
   return (
-    <Link href={href} role="menuitem" className="flex min-h-11 items-center gap-2.5 rounded-tile px-3 py-2.5 text-[14px] font-medium text-fg transition hover:bg-fg/6">
+    <Link href={href} role="menuitem" className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-fg transition hover:bg-fg/6">
       <Icon size={16} className="text-fg-3" /> {label}
     </Link>
   );

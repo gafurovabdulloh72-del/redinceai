@@ -242,11 +242,11 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "press flex min-h-11 items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-[14px] font-semibold transition",
-          active ? "btn-ink" : "text-fg-2 hover:bg-fg/5 hover:text-fg",
+          "flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-[14px] transition",
+          active ? "bg-fg/[0.06] font-semibold text-fg" : "font-medium text-fg-2 hover:bg-fg/5 hover:text-fg",
         )}
       >
-        <Icon size={18} className={active ? undefined : "text-fg-3"} />
+        <Icon size={17} strokeWidth={1.75} className={active ? undefined : "text-fg-3"} />
         <span className="flex-1 truncate">{item.label}</span>
         {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={active} />}
         {badge ? (
@@ -288,34 +288,24 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
       {/* ---------- Desktop: yopishqoq yon panel ---------- */}
       {/* max-h + ichki skroll: 20 ta band past ekranda (768px) kesilib, «Chiqish» yetib bo'lmay qolmasin */}
       <div className="hidden lg:sticky lg:top-28 lg:block">
-        <div className="card no-scrollbar max-h-[calc(100vh-8rem)] overflow-y-auto p-2.5">
-          <div className="flex items-center gap-3 px-2.5 py-3">
-            <Avatar name={user.name} src={user.avatarUrl} size={46} decorative />
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold text-fg">{user.name}</p>
-              <p className="truncate text-[12px] text-fg-3">{user.roleLabel}</p>
-            </div>
-          </div>
-
-          <div className="mx-2 my-1 h-px bg-line" />
-
+        <div className="no-scrollbar max-h-[calc(100vh-8rem)] overflow-y-auto">
           <nav aria-label="Kabinet bo'limlari" className="py-1">
-            <div className="space-y-1">{primary.map((item) => renderRow(item))}</div>
+            <div className="space-y-0.5">{primary.map((item) => renderRow(item))}</div>
             {groups.map((g) => (
-              <div key={g.name} className="mt-3">
-                <p className="px-3 pb-1 pt-1 text-[11px] font-bold uppercase tracking-[0.08em] text-fg-4">{g.name}</p>
-                <div className="space-y-1">{g.items.map((item) => renderRow(item))}</div>
+              <div key={g.name} className="mt-4">
+                <p className="px-3 pb-1 pt-1 text-[12px] font-medium text-fg-4">{g.name}</p>
+                <div className="space-y-0.5">{g.items.map((item) => renderRow(item))}</div>
               </div>
             ))}
           </nav>
 
-          <div className="mx-2 my-1 h-px bg-line" />
+          <div className="mx-2 my-2 h-px bg-line" />
 
           <button
             type="button"
             onClick={logout}
             disabled={leaving}
-            className="flex min-h-11 w-full items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-left text-[14px] font-semibold text-danger-text transition hover:bg-danger-soft disabled:opacity-60"
+            className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] font-medium text-danger-text transition hover:bg-danger-soft disabled:opacity-60"
           >
             {leaving ? <Spinner /> : <LogOut size={18} />} Chiqish
           </button>

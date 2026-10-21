@@ -72,7 +72,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
       {/* Ustozlar — portret kartalari (har biri — o'z kanali) */}
       {mentors.length > 0 && !q && !category && (
         <section className="mt-6">
-          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(200px,250px))] sm:overflow-visible sm:px-0">
             {mentors.map((m) => (
               <li key={m.id} className="w-[200px] shrink-0 sm:w-auto">
                 <Link href={`/mentorlik/ustoz/${m.slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] bg-surface-2">

@@ -304,6 +304,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const orderLink = showOwnerCta || inactive ? null : orderHref;
 
   const cat = CATEGORY_BY_SLUG[sp.category];
+  const coverSrc = sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null;
+  const hasCover = Boolean(coverSrc);
   const region = REGION_BY_SLUG[sp.regionSlug];
   const expInfo = EXPERIENCE_LEVELS.find((e) => e.value === sp.experience);
   const experience = expInfo ? experienceLabel(til, expInfo.value, expInfo.label) : sp.experience;
@@ -483,23 +485,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       {/* ================= HERO ================= */}
       <section className="card animate-fade-up overflow-hidden !rounded-[var(--r-lg)]">
         {/* Balandlik 4:1 nisbatdan — kesish oynasida (ImageCropper) moslangan muqova qayta kesilmasin */}
-        <div className="relative h-40 overflow-hidden bg-surface-3 sm:h-auto sm:max-h-[360px] sm:aspect-[4/1]">
+        <div className={cn("relative overflow-hidden bg-surface-2", hasCover ? "h-36 sm:h-auto sm:max-h-[260px] sm:aspect-[4/1]" : "h-20 sm:h-24")}>
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
           <div
             className="absolute inset-0 opacity-70 dark:opacity-50"
             style={{ background: "var(--surface-3)" }}
           />
           {/* Muqova yo'q bo'lsa — birinchi portfolio ishining muqovasi (kabinetdagi "Birinchi ish muqovada ko'rinadi"), u ham bo'lmasa naqsh */}
-          <CoverImage src={sp.coverUrl ?? sp.portfolio.find((p) => p.thumbnailUrl)?.thumbnailUrl ?? null} category={sp.category} seed={sp.slug} priority />
-
-          <div className="absolute left-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:top-6">
-            {cat && (
-              <CatChip href={PROFILE_CROSS_LINKS ? `/mutaxassislar?category=${cat.slug}` : null}>
-                <CategoryIcon icon={cat.icon} size={13} />
-                {cat.name}
-              </CatChip>
-            )}
-          </div>
+          {hasCover && <CoverImage src={coverSrc} category={sp.category} seed={sp.slug} priority />}
 
           <span
             className={cn(
@@ -516,13 +509,13 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {/* Avatar muqovaga chiqadi (-mt-14), matn esa desktopda muqova chetidan PASTDA boshlanadi (sm:pt-16):
               qoraytirilgan rasm ustida yorug' mavzuda qora ism o'qilmay qolmasin */}
           <div className="relative z-10 -mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-start">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={112} className="!ring-4 !ring-surface text-[36px]" />
-            <div className="min-w-0 flex-1 sm:pt-16">
-              <h1 className="break-words font-display text-[28px] font-semibold leading-[1.05] tracking-tight text-fg sm:text-[38px]">
+            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={96} className="!ring-4 !ring-surface text-[32px]" />
+            <div className="min-w-0 flex-1 sm:pt-14">
+              <h1 className="break-words font-display text-[26px] font-semibold leading-[1.1] tracking-tight text-fg sm:text-[32px]">
                 <NameWithBadge name={sp.user.name} verified={sp.isVerified} verifiedTitle={tr(til, PROFIL.verifiedPerson)} />
               </h1>
               <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[16px] text-fg-2 sm:text-[17px]">
-                <span>{sp.title}</span>
+                <span>{sp.title}{cat ? <span className="text-fg-3"> · {cat.name}</span> : null}</span>
                 {/* «Top» va «Tanlangan» — muqovadagi pill'lar o'rniga kasb yonida kichik belgi */}
                 {sp.topRated && (
                   <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-fg" title={KARTA.topHint[til](TOP_RATED_RULE.minRating, TOP_RATED_RULE.minReviews)}>

@@ -70,20 +70,16 @@ const EVENT_SOON_DAYS = 7;
 /* ------------------------------------------------------------------ */
 /* Kichik bo'laklar                                                    */
 /* ------------------------------------------------------------------ */
-function Tile({ icon, value, label, href }: { icon: LucideIcon; value: React.ReactNode; label: string; href?: string }) {
+function Tile({ value, label, href }: { icon?: LucideIcon; value: React.ReactNode; label: string; href?: string }) {
   const inner = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <IconTile icon={icon} size="sm" tone="soft" iconSize={18} />
-        {href && <ArrowRight size={16} className="mt-1 text-fg-4 transition group-hover:translate-x-0.5 group-hover:text-fg" aria-hidden="true" />}
-      </div>
-      <div className="mt-4 font-display text-[26px] font-semibold leading-none tracking-tight text-fg sm:text-[30px]">{value}</div>
-      <div className="mt-1.5 text-[12px] font-medium text-fg-3">{label}</div>
+      <div className="text-[12.5px] font-medium text-fg-3">{label}</div>
+      <div className="mt-2 font-display text-[28px] font-semibold leading-none tracking-tight text-fg">{value}</div>
     </>
   );
-  const cls = "card group block p-4 sm:p-5";
+  const cls = "card group block p-4";
   return href ? (
-    <Link href={href} className={cn(cls, "card-hover press")}>
+    <Link href={href} className={cn(cls, "card-hover")}>
       {inner}
     </Link>
   ) : (
@@ -479,90 +475,20 @@ export default async function KabinetPage() {
 
         {/* ---------- O'ng ustun: profil + tezkor amallar + bo'limlar ---------- */}
         <div className="space-y-5">
-          <section className="card p-5" aria-labelledby="profile-card-title">
+          <section className="card p-4" aria-labelledby="profile-card-title">
             <h2 id="profile-card-title" className="sr-only">
               Profil
             </h2>
             <div className="flex items-center gap-3">
-              <Avatar name={user.name} src={user.avatarUrl} size={48} decorative />
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-[15px] font-semibold text-fg">
+              <Avatar name={user.name} src={user.avatarUrl} size={40} decorative />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-[14.5px] font-semibold text-fg">
                   <span className="truncate">{user.name}</span>
-                  {sp?.isVerified && <VerifiedBadge size={16} />}
+                  {sp?.isVerified && <VerifiedBadge size={15} />}
                 </p>
-                <p className="truncate text-[12px] text-fg-3">{sp ? sp.title : user.email}</p>
+                <p className="truncate text-[12.5px] text-fg-3">{sp ? sp.title : user.email}</p>
               </div>
-            </div>
-
-            {sp && (
-              <>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {user.isPaused ? (
-                    <Badge tone="warning">
-                      <PauseCircle size={12} /> Pauzada
-                    </Badge>
-                  ) : onVacation ? (
-                    <Badge tone="warning">Ta&apos;tilda · {formatDate(sp.vacationUntil!)} gacha</Badge>
-                  ) : sp.isAvailable ? (
-                    <Badge tone="success">
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" /> Bo&apos;sh
-                    </Badge>
-                  ) : (
-                    <Badge tone="warning">
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" /> Band
-                    </Badge>
-                  )}
-                  {!sp.isVerified && <Badge tone="neutral">Tekshiruvda</Badge>}
-                  {sp.isFeatured && <Badge tone="accent">Tavsiya etilgan</Badge>}
-                </div>
-                <dl className="mt-4 space-y-2 text-[13px]">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-fg-3">Reyting</dt>
-                    <dd>{sp.rating > 0 ? <Stars value={sp.rating} count={sp.reviewCount} size={12} /> : <span className="font-medium text-fg-3">Hali yo&apos;q</span>}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-fg-3">Narx</dt>
-                    <dd className="font-semibold text-fg">{sp.priceFrom ? `${formatPrice(sp.priceFrom)} dan` : "Kelishiladi"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-fg-3">Hudud</dt>
-                    <dd className="truncate font-semibold text-fg">{region ? `${sp.city} · ${region.short}` : sp.city}</dd>
-                  </div>
-                  <div className="flex items-start justify-between gap-3">
-                    <dt className="shrink-0 text-fg-3">Ish vaqti</dt>
-                    <dd className="min-w-0 text-right font-semibold text-fg">
-                      {scheduleParts.length > 0
-                        ? scheduleParts.map((p, i) => (
-                            <Fragment key={`${i}-${p}`}>
-                              {i > 0 && " "}
-                              <span className="whitespace-nowrap">
-                                {p}
-                                {i < scheduleParts.length - 1 && <span className="font-normal text-fg-4"> ·</span>}
-                              </span>
-                            </Fragment>
-                          ))
-                        : <span className="font-medium text-fg-3">Ko&apos;rsatilmagan</span>}
-                    </dd>
-                  </div>
-                </dl>
-              </>
-            )}
-
-            {/* Tezkor amallar: birinchisi accent, qolgani kontur */}
-            <div className="mt-4 grid grid-cols-1 gap-2 border-t border-line pt-4">
-              {actions.map((a, i) =>
-                a.external ? (
-                  <a key={a.href + a.label} href={a.href} target="_blank" rel="noopener noreferrer" className="press inline-flex h-11 w-full items-center justify-start gap-2 rounded-full border border-line-2 px-4 text-[14px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4">
-                    <a.icon size={15} className="shrink-0" />
-                    <span className="truncate">{a.label}</span>
-                  </a>
-                ) : (
-                  <ButtonLink key={a.href + a.label} href={a.href} variant={i === 0 ? "accent" : "outline"} size="md" className="w-full justify-start !px-4">
-                    <a.icon size={15} className="shrink-0" />
-                    <span className="truncate">{a.label}</span>
-                  </ButtonLink>
-                ),
-              )}
+              {sp && (user.isPaused ? <Badge tone="warning">Pauzada</Badge> : onVacation ? <Badge tone="warning">Ta&apos;tilda</Badge> : sp.isAvailable ? <Badge tone="success">Bo&apos;sh</Badge> : <Badge tone="warning">Band</Badge>)}
             </div>
           </section>
 
