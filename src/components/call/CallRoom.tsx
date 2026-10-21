@@ -22,12 +22,15 @@ export function CallRoom({
   title,
   onClose,
   connection,
+  startWithVideo = true,
 }: {
   target?: Target;
   title: string;
   onClose: () => void;
   /** Tayyor ulanish (CallCenter start/accept'dan) — berilsa token qayta so'ralmaydi */
   connection?: { url: string; token: string };
+  /** Boshlang'ich holat: true = kamera yoqilgan (video qo'ng'iroq), false = faqat ovoz (kamerani keyin yoqish mumkin) */
+  startWithVideo?: boolean;
 }) {
   const [state, setState] = useState<"loading" | "ready" | "error">(connection ? "ready" : "loading");
   const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
@@ -148,7 +151,7 @@ export function CallRoom({
             serverUrl={conn.url}
             token={conn.token}
             connect
-            video
+            video={startWithVideo}
             audio
             onConnected={handleConnected}
             onDisconnected={handleDisconnected}

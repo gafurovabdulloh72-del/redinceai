@@ -42,24 +42,24 @@ function CallAction({ label, tone, onClick, children }: { label: string; tone: "
   );
 }
 
-/** Kiruvchi qo'ng'iroq — Qabul (yashil) / Rad (qizil) */
-export function IncomingCall({ caller, onAccept, onDecline }: { caller: Person; onAccept: () => void; onDecline: () => void }) {
+/** Kiruvchi qo'ng'iroq — Qabul (yashil) / Rad (qizil). video=false → oddiy ovozli qo'ng'iroq */
+export function IncomingCall({ caller, video = true, onAccept, onDecline }: { caller: Person; video?: boolean; onAccept: () => void; onDecline: () => void }) {
   return (
-    <Stage person={caller} caption="Video qo'ng'iroq…">
+    <Stage person={caller} caption={video ? "Video qo'ng'iroq…" : "Ovozli qo'ng'iroq…"}>
       <CallAction label="Rad etish" tone="end" onClick={onDecline}>
         <PhoneOff size={26} />
       </CallAction>
       <CallAction label="Qabul qilish" tone="accept" onClick={onAccept}>
-        <Video size={26} />
+        {video ? <Video size={26} /> : <Phone size={26} />}
       </CallAction>
     </Stage>
   );
 }
 
 /** Chiquvchi qo'ng'iroq — "Chaqirilmoqda…" + Bekor (qizil) */
-export function OutgoingCall({ peer, caption, onCancel }: { peer: Person; caption: string; onCancel: () => void }) {
+export function OutgoingCall({ peer, caption, video = true, onCancel }: { peer: Person; caption: string; video?: boolean; onCancel: () => void }) {
   return (
-    <Stage person={peer} caption={caption}>
+    <Stage person={peer} caption={caption === "Chaqirilmoqda…" && !video ? "Ovozli qo'ng'iroq · Chaqirilmoqda…" : caption}>
       <CallAction label="Bekor qilish" tone="end" onClick={onCancel}>
         <Phone size={26} className="rotate-[135deg]" />
       </CallAction>

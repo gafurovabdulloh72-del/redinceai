@@ -24,7 +24,7 @@ async function brief(userId: string): Promise<BriefUser | null> {
  * Avvalgi «jiringlayotgan» (ringing) takliflarim shu suhbatda bekor qilinadi (duplikat bo'lmasin).
  * Natija: taklif + qarshi tomon brief + chaqiruvchiga token.
  */
-export async function startCall(meId: string, meName: string, conversationId: string) {
+export async function startCall(meId: string, meName: string, conversationId: string, video: boolean) {
   const conv = await loadConversationFor(meId, conversationId);
   if (!conv) throw new ApiError(404, "Suhbat topilmadi");
   if (await isBlockedEither(meId, conv.peer.id)) throw new ApiError(403, "Bu foydalanuvchi bilan bog'lanib bo'lmaydi");
@@ -36,10 +36,10 @@ export async function startCall(meId: string, meName: string, conversationId: st
     .where(and(eq(callInvites.callerId, meId), eq(callInvites.conversationId, conversationId), eq(callInvites.status, "ringing")));
 
   const room = dmRoom(conversationId);
-  const row: typeof callInvites.$inferInsert = { id: uid(), conversationId, callerId: meId, calleeId: conv.peer.id, room, status: "ringing" };
+  const row: typeof callInvites.$inferInsert = { id: uid(), conversationId, callerId: meId, calleeId: conv.peer.id, room, status: "ringing", video };
   const [invite] = await db.insert(callInvites).values(row).returning();
   const token = await mintCallToken({ identity: meId, name: meName, room });
-  return { invite, peer: { id: conv.peer.id, name: conv.peer.name, avatarUrl: conv.peer.avatarUrl ?? null }, token, room, url: LIVEKIT_WS_URL };
+  return { invite, peer: { id: conv.peer.id, name: conv.peer.name, avatarUrl: conv.peer.avatarUrl ?? null }, token, room, url: LIVEKIT_WS_URL, video };
 }
 
 /** Men uchun aktiv kiruvchi qo'ng'iroq (jiringlamoqda, muddati o'tmagan) — eng so'nggisi yoki null */
@@ -52,7 +52,7 @@ export async function getIncoming(meId: string) {
   if (!inv) return null;
   const caller = await brief(inv.callerId);
   if (!caller) return null;
-  return { id: inv.id, room: inv.room, conversationId: inv.conversationId, caller };
+  return { id: inv.id, room: inv.room, conversationId: inv.conversationId, caller, video: inv.video };
 }
 
 /** Taklifni yuklaymiz va men ishtirokchi ekanimni tekshiramiz (caller yoki callee) */
@@ -69,7 +69,7 @@ export async function getStatus(inviteId: string, meId: string) {
     await db.update(callInvites).set({ status: "missed", updatedAt: new Date() }).where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "ringing")));
     inv = { ...inv, status: "missed" };
   }
-  return { status: inv.status, room: inv.room, conversationId: inv.conversationId, callerId: inv.callerId, calleeId: inv.calleeId };
+  return { status: inv.status, room: inv.room, conversationId: inv.conversationId, callerId: inv.callerId, calleeId: inv.calleeId, video: inv.video };
 }
 
 /** Qabul qilish (faqat chaqiriluvchi): accepted + chaqiriluvchiga token */
@@ -79,7 +79,7 @@ export async function acceptCall(inviteId: string, meId: string, meName: string)
   if (!["ringing", "accepted"].includes(inv.status)) throw new ApiError(409, "Qo'ng'iroq allaqachon tugagan");
   await db.update(callInvites).set({ status: "accepted", updatedAt: new Date() }).where(eq(callInvites.id, inviteId));
   const token = await mintCallToken({ identity: meId, name: meName, room: inv.room });
-  return { room: inv.room, token, url: LIVEKIT_WS_URL };
+  return { room: inv.room, token, url: LIVEKIT_WS_URL, video: inv.video };
 }
 
 /** Rad etish (faqat chaqiriluvchi) */

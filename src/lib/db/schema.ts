@@ -689,6 +689,8 @@ export const callInvites = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     /** LiveKit xona nomi (dm_<conversationId>) */
     room: text("room").notNull(),
+    /** Chaqiruv turi: true = video qo'ng'iroq (kamera yoqilgan), false = oddiy ovozli qo'ng'iroq */
+    video: integer("video", { mode: "boolean" }).notNull().default(true),
     status: text("status", { enum: ["ringing", "accepted", "declined", "cancelled", "missed", "ended"] })
       .notNull()
       .default("ringing"),

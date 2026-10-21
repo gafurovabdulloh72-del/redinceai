@@ -6,14 +6,14 @@ import { startCall } from "@/lib/call/service";
 
 export const runtime = "nodejs";
 
-const bodySchema = z.object({ conversationId: z.string().min(1) });
+const bodySchema = z.object({ conversationId: z.string().min(1), video: z.boolean().default(true) });
 
 /** Chaqiruvni boshlash (DM): taklif yaratiladi, chaqiriluvchida jiringlash ekrani chiqadi (u /incoming polling qiladi). */
 export const POST = handler(async (req) => {
   if (!isCallEnabled()) throw new ApiError(503, "Video qo'ng'iroq hozircha o'chirilgan");
   const session = await requireSession();
   await enforceLimit("upload", session.sub); // qo'ng'iroq boshlashga ham mo'tadil chegara (spam oldini olish)
-  const { conversationId } = await parseBody(req, bodySchema);
-  const res = await startCall(session.sub, session.name ?? "Mehmon", conversationId);
-  return ok({ inviteId: res.invite.id, room: res.room, url: res.url, token: res.token, peer: res.peer });
+  const { conversationId, video } = await parseBody(req, bodySchema);
+  const res = await startCall(session.sub, session.name ?? "Mehmon", conversationId, video);
+  return ok({ inviteId: res.invite.id, room: res.room, url: res.url, token: res.token, peer: res.peer, video: res.video });
 });

@@ -9,15 +9,15 @@ const CallRoom = lazy(() => import("./CallRoom"));
 type Person = { name: string; avatarUrl: string | null };
 type Conn = { url: string; token: string };
 
-/** Chaqiruvni boshlash hodisasi (CallButton → CallCenter): DM uchun */
-export type CallStartDetail = { conversationId: string; name: string };
+/** Chaqiruvni boshlash hodisasi (CallButton → CallCenter): DM uchun. video=false → oddiy ovozli qo'ng'iroq */
+export type CallStartDetail = { conversationId: string; name: string; video: boolean };
 const START_EVENT = "kasb:call-start";
 
 type Mode =
   | { k: "idle" }
-  | { k: "outgoing"; inviteId: string; conn: Conn; peer: Person; caption: string }
-  | { k: "incoming"; inviteId: string; caller: Person }
-  | { k: "call"; inviteId: string; conn: Conn; title: string };
+  | { k: "outgoing"; inviteId: string; conn: Conn; peer: Person; caption: string; video: boolean }
+  | { k: "incoming"; inviteId: string; caller: Person; video: boolean }
+  | { k: "call"; inviteId: string; conn: Conn; title: string; video: boolean };
 
 /**
  * Global qo'ng'iroq markazi (Telegram uslubi). Faqat kirgan foydalanuvchilar uchun va LiveKit yoqilgan bo'lsa.
@@ -52,9 +52,9 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
       try {
         const res = await fetch("/api/qongiroq/incoming", { cache: "no-store" });
         if (!res.ok) return;
-        const json = (await res.json()) as { data?: { incoming?: { id: string; caller: Person } | null } };
+        const json = (await res.json()) as { data?: { incoming?: { id: string; caller: Person; video?: boolean } | null } };
         const inc = json.data?.incoming;
-        if (inc && modeRef.current.k === "idle") setMode({ k: "incoming", inviteId: inc.id, caller: inc.caller });
+        if (inc && modeRef.current.k === "idle") setMode({ k: "incoming", inviteId: inc.id, caller: inc.caller, video: inc.video !== false });
       } catch {
         /* tarmoq — keyingi tick */
       }
@@ -73,21 +73,22 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
     const onStart = async (e: Event) => {
       const detail = (e as CustomEvent<CallStartDetail>).detail;
       if (!detail?.conversationId || modeRef.current.k !== "idle") return;
+      const wantVideo = detail.video !== false;
       try {
         const res = await fetch("/api/qongiroq/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversationId: detail.conversationId }),
+          body: JSON.stringify({ conversationId: detail.conversationId, video: wantVideo }),
         });
         const json = (await res.json().catch(() => null)) as
-          | { ok?: boolean; data?: { inviteId: string; url: string; token: string; peer: Person }; error?: string }
+          | { ok?: boolean; data?: { inviteId: string; url: string; token: string; peer: Person; video?: boolean }; error?: string }
           | null;
         if (!res.ok || !json?.ok || !json.data) {
           goIdle();
           return;
         }
         const d = json.data;
-        setMode({ k: "outgoing", inviteId: d.inviteId, conn: { url: d.url, token: d.token }, peer: d.peer, caption: "Chaqirilmoqda…" });
+        setMode({ k: "outgoing", inviteId: d.inviteId, conn: { url: d.url, token: d.token }, peer: d.peer, caption: "Chaqirilmoqda…", video: d.video !== false });
       } catch {
         goIdle();
       }
@@ -102,6 +103,7 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
     const inviteId = mode.inviteId;
     const conn = mode.conn;
     const peerName = mode.peer.name;
+    const video = mode.video;
     let stop = false;
     const poll = async () => {
       if (stop) return;
@@ -112,7 +114,7 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
         if (stop || modeRef.current.k !== "outgoing") return;
         const st = json?.data?.status;
         if (st === "accepted") {
-          setMode({ k: "call", inviteId, conn, title: peerName });
+          setMode({ k: "call", inviteId, conn, title: peerName, video });
         } else if (st === "declined" || st === "missed" || st === "cancelled" || st === "ended") {
           setMode((m) => (m.k === "outgoing" ? { ...m, caption: st === "declined" ? "Rad etildi" : st === "missed" ? "Javob bermadi" : "Tugatildi" } : m));
           setTimeout(() => goIdle(), 1600);
@@ -135,12 +137,12 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
     stopRing();
     try {
       const res = await fetch(`/api/qongiroq/call/${m.inviteId}/accept`, { method: "POST" });
-      const json = (await res.json().catch(() => null)) as { ok?: boolean; data?: { url: string; token: string } } | null;
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; data?: { url: string; token: string; video?: boolean } } | null;
       if (!res.ok || !json?.ok || !json.data) {
         goIdle();
         return;
       }
-      setMode({ k: "call", inviteId: m.inviteId, conn: { url: json.data.url, token: json.data.token }, title: m.caller.name });
+      setMode({ k: "call", inviteId: m.inviteId, conn: { url: json.data.url, token: json.data.token }, title: m.caller.name, video: json.data.video !== false });
     } catch {
       goIdle();
     }
@@ -166,12 +168,12 @@ export function CallCenter({ enabled }: { enabled: boolean }) {
 
   if (!callsOn || mode.k === "idle") return null;
 
-  if (mode.k === "incoming") return <IncomingCall caller={mode.caller} onAccept={accept} onDecline={decline} />;
-  if (mode.k === "outgoing") return <OutgoingCall peer={mode.peer} caption={mode.caption} onCancel={cancelOutgoing} />;
+  if (mode.k === "incoming") return <IncomingCall caller={mode.caller} video={mode.video} onAccept={accept} onDecline={decline} />;
+  if (mode.k === "outgoing") return <OutgoingCall peer={mode.peer} caption={mode.caption} video={mode.video} onCancel={cancelOutgoing} />;
   // mode.k === "call"
   return (
     <Suspense fallback={null}>
-      <CallRoom connection={mode.conn} title={mode.title} onClose={endCall} />
+      <CallRoom connection={mode.conn} title={mode.title} startWithVideo={mode.video} onClose={endCall} />
     </Suspense>
   );
 }
