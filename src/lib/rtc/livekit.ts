@@ -43,9 +43,9 @@ type VideoGrant = {
  * `identity` — foydalanuvchi id (xonada noyob), `name` — ko'rinadigan ism, `room` — xona nomi.
  * Huquqlar: xonaga qo'shilish + ovoz/video chiqarish + obuna + data (chat/reaksiya).
  */
-export async function mintCallToken(opts: { identity: string; name: string; room: string }): Promise<string> {
+export async function mintCallToken(opts: { identity: string; name: string; room: string; /** false = faqat tomosha (jonli efir tomoshabini) */ publish?: boolean }): Promise<string> {
   if (!API_KEY || !API_SECRET) throw new Error("LIVEKIT_API_KEY/SECRET sozlanmagan");
-  const grant: VideoGrant = { room: opts.room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true };
+  const grant: VideoGrant = { room: opts.room, roomJoin: true, canPublish: opts.publish !== false, canSubscribe: true, canPublishData: true };
   const secret = new TextEncoder().encode(API_SECRET);
   // LiveKit token: iss = API_KEY, sub = identity, video = grant. jti noyob bo'lishi tavsiya etiladi.
   return new SignJWT({ video: grant, name: opts.name, metadata: "" })
@@ -66,4 +66,9 @@ export function dmRoom(conversationId: string): string {
 /** Guruh/jamoa qo'ng'irog'i uchun xona nomi */
 export function groupRoom(slug: string): string {
   return `group_${slug}`;
+}
+
+/** Jonli efir xonasi nomi */
+export function liveRoom(streamId: string): string {
+  return `live_${streamId}`;
 }

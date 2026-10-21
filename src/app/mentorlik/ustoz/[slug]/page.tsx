@@ -1,3 +1,4 @@
+import { LiveBar } from "@/components/live/LiveBar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -168,6 +169,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       <div key={tab} className="mx-auto mt-6 max-w-[720px] animate-fade-in">
         {tab === "lenta" && view && (
           <>
+            <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />
             {ev.upcoming.length > 0 && <EventsCard events={ev.upcoming.slice(0, 3)} />}
             {feed ? (
               <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />

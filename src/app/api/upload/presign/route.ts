@@ -22,7 +22,7 @@ const schema = z.object({
  *  - sessiya majburiy, kvota (upload rate limit) faqat R2 rejimida sarflanadi;
  *  - fayl NOMI SERVERDA yaratiladi (uid) — birovning yo'lini egallab bo'lmaydi;
  *  - ContentType + ContentLength imzoga kiradi — klient boshqa tur yoki kattaroq hajm yuborsa R2 rad etadi;
- *  - URL 10 daqiqa amal qiladi;
+ *  - URL amal qilish muddati hajmga qarab (kamida 10 daqiqa, ~200 KB/s tezlikka hisoblangan, 6 soatgacha);
  *  - egalik yozuvi (audit "upload", targetId=<nom>) oldindan yoziladi — assertOwnUploads shundan o'qiydi.
  */
 export const POST = handler(async (req) => {
@@ -39,7 +39,7 @@ export const POST = handler(async (req) => {
   const key = `uploads/${name}`;
   // Egalik yozuvi (assertOwnUploads shundan o'qiydi); nom tasodifiy UUID — to'qnashuv/egallash mumkin emas
   await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: input.size, mime: contentType, storage: "r2-client" } }, req);
-  const uploadUrl = await r2PresignPut(key, contentType, input.size, 600);
+  const uploadUrl = await r2PresignPut(key, contentType, input.size, Math.min(6 * 3600, Math.max(600, Math.ceil(input.size / (200 * 1024)))));
 
   return ok({ mode: "r2" as const, uploadUrl, publicUrl: r2PublicUrl(key), contentType });
 });

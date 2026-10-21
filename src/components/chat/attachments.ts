@@ -19,12 +19,12 @@ export const MAX_ORDER_ATTACHMENTS = 15;
 export const MAX_REVIEW_MEDIA = 4;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 /**
- * Video chegarasi. R2 (presigned PUT, brauzer → R2 to'g'ridan-to'g'ri, server orqali o'tmaydi) — 200 MB gacha.
+ * Video chegarasi. R2 (presigned PUT, brauzer → R2 to'g'ridan-to'g'ri, server orqali o'tmaydi) — 5 GB gacha (R2 bitta PUT chegarasi).
  * Zaxira yo'llar (Vercel Blob client-upload, server diski) — 50 MB: Blob'da katta fayl qotib qolardi.
  */
-export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
 export const MAX_VIDEO_BYTES_FALLBACK = 50 * 1024 * 1024;
-const mbOf = (n: number) => Math.round(n / (1024 * 1024));
+const mbOf = (n: number) => (n >= 1024 ** 3 ? `${Math.round((n / 1024 ** 3) * 10) / 10} GB` : `${Math.round(n / (1024 * 1024))} MB`);
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 /** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX, ZIP) + video (MP4, WebM, MOV) */
 export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.zip,.mp4,.webm,.mov`;
@@ -207,7 +207,7 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: st
 
   // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
   if (file.size > MAX_VIDEO_BYTES) {
-    throw new Error(`«${file.name}» — ${mbOf(file.size)} MB, chegara ${mbOf(MAX_VIDEO_BYTES)} MB. Videoni biroz siqib (masalan 1080p, H.264) qayta yuboring.`);
+    throw new Error(`«${file.name}» — ${mbOf(file.size)}, chegara ${mbOf(MAX_VIDEO_BYTES)}. Videoni biroz siqib (masalan 1080p, H.264) qayta yuboring.`);
   }
 
   // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
@@ -232,8 +232,9 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: st
   }
 
   // R2 yo'q — zaxira yo'llar (Blob/disk) faqat 50 MB gacha
-  if (file.size > MAX_VIDEO_BYTES_FALLBACK) {
-    throw new Error(`«${file.name}» — ${mbOf(file.size)} MB. Hozir ${mbOf(MAX_VIDEO_BYTES_FALLBACK)} MB gacha video yuklanadi (katta fayl saqlash R2 ulanganda ishlaydi). Videoni siqib qayta yuboring.`);
+  // (Vercel Blob bor bo'lsa katta fayl ham o'tadi — multipart; faqat diskka yozish 50 MB bilan cheklangan)
+  if (file.size > MAX_VIDEO_BYTES_FALLBACK && presign?.ok && presign.data.mode === "fallback" && presign.data.blob === false) {
+    throw new Error(`«${file.name}» — ${mbOf(file.size)}. Bu serverda ${mbOf(MAX_VIDEO_BYTES_FALLBACK)} gacha video yuklanadi (katta fayl uchun R2 yoki Blob ulang). Videoni siqib qayta yuboring.`);
   }
 
   // 1.5) R2 ham, Blob ham yo'q (dev yoki o'z serveri/VPS) — to'g'ridan-to'g'ri server diskiga (Blob urinib 500 bermaydi)
@@ -263,6 +264,8 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: st
       access: "public",
       handleUploadUrl: "/api/upload/video",
       contentType: VIDEO_MIME[ext],
+      // Katta fayl bo'laklab (parallel) yuklanadi — bitta so'rov uzilsa hammasi yo'qolmaydi
+      multipart: file.size > 100 * 1024 * 1024,
       onUploadProgress: (ev) => {
         lastTick = Date.now();
         p.onProgress?.(Math.min(1, ev.percentage / 100));
@@ -342,7 +345,7 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
     throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
   }
   if (opts?.docs && isVideo && !isImage) {
-    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» ${mbOf(MAX_VIDEO_BYTES)} MB dan katta`);
+    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» ${mbOf(MAX_VIDEO_BYTES)} dan katta`);
     // Past o'lchamli video ekranda (ayniqsa to'liq ekran/katta displeyda) xira ko'rinadi — yuklashdan oldin ogohlantiramiz (yuklash to'xtatilmaydi)
     void warnLowResolution(file);
     const url = await uploadVideo(file, p);

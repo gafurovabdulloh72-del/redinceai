@@ -10,7 +10,7 @@ import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
-import { MAX_VIDEO_BYTES_FALLBACK as MAX_VIDEO_BYTES, uploadName } from "@/components/chat/attachments";
+import { MAX_VIDEO_BYTES, MAX_VIDEO_BYTES_FALLBACK, uploadName } from "@/components/chat/attachments";
 
 /** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
 function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
@@ -51,11 +51,11 @@ export const POST = handler(async (req) => {
     const clHeader = req.headers.get("content-length");
     const declared = clHeader === null ? NaN : Number(clHeader);
     if (!Number.isFinite(declared)) throw new ApiError(411, "Content-Length sarlavhasi talab qilinadi");
-    if (declared > MAX_VIDEO_BYTES + 64 * 1024) throw new ApiError(413, "Video 50 MB dan katta");
+    if (declared > MAX_VIDEO_BYTES_FALLBACK + 64 * 1024) throw new ApiError(413, "Video 50 MB dan katta");
     const form = await req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) throw new ApiError(400, "Fayl topilmadi");
-    if (file.size > MAX_VIDEO_BYTES) throw new ApiError(413, "Video 50 MB dan katta");
+    if (file.size > MAX_VIDEO_BYTES_FALLBACK) throw new ApiError(413, "Video 50 MB dan katta");
     const bytes = Buffer.from(await file.arrayBuffer());
     const kind = sniffVideo(bytes);
     if (!kind) throw new ApiError(415, "Faqat MP4, WebM yoki MOV video");

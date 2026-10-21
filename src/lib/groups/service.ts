@@ -856,7 +856,7 @@ function formatEventDate(ms: number): string {
 }
 
 /** A'zolarga (muallifdan tashqari) 25 talik guruhlarda bildirishnoma — minglab a'zoda navbatga o'tkaziladi (reja 2-bosqich) */
-async function notifyMembers(group: Group, exceptUserId: string, type: "channel_post" | "live_event", title: string, body: string, href: string): Promise<void> {
+export async function notifyMembers(group: Group, exceptUserId: string, type: "channel_post" | "live_event", title: string, body: string, href: string): Promise<void> {
   const now = new Date();
   const members = await db.query.groupMembers.findMany({
     where: and(

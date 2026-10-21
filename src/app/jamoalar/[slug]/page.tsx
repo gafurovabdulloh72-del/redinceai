@@ -1,3 +1,4 @@
+import { LiveBar } from "@/components/live/LiveBar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -196,6 +197,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
         <div key={tab} className="min-w-0 animate-fade-in lg:col-span-8">
+          {tab !== "haqida" && view.canView && <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={loggedIn} />}
           {events.length > 0 && tab !== "haqida" && tab !== "efirlar" && <EventsCard events={events} />}
           {tab === "lenta" &&
             (feed ? (

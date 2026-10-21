@@ -1945,7 +1945,33 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
   user: one(users, { fields: [enrollments.userId], references: [users.id] }),
 }));
 
+/** Platforma ichidagi jonli efir (LiveKit): jamoa/kanal egasi translyatsiya qiladi, a'zolar tomosha qiladi. Bir jamoada bir vaqtda bitta jonli efir */
+export const liveStreams = sqliteTable(
+  "live_streams",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    hostId: text("host_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** LiveKit xona nomi (live_<id>) */
+    room: text("room").notNull(),
+    status: text("status", { enum: ["live", "ended"] }).notNull().default("live"),
+    /** Eng ko'p bir vaqtdagi tomoshabin (host yuboradi) */
+    peakViewers: integer("peak_viewers").notNull().default(0),
+    startedAt: integer("started_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("live_streams_group_idx").on(t.groupId, t.status)],
+);
+
 export type Mentor = typeof mentors.$inferSelect;
+export type LiveStream = typeof liveStreams.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
