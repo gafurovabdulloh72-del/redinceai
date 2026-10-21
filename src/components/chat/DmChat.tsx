@@ -225,7 +225,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [newBelow, setNewBelow] = useState(0);
   const [headerMenu, setHeaderMenu] = useState(false);
   const [plusMenu, setPlusMenu] = useState(false);
-  const [msgMenu, setMsgMenu] = useState<{ id: string; mine: boolean; up?: boolean } | null>(null);
+  const [msgMenu, setMsgMenu] = useState<{ id: string; mine: boolean; up?: boolean; side?: "left-0" | "right-0" } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ id: string; up: boolean } | null>(null);
   const [forwardOf, setForwardOf] = useState<Msg | null>(null);
   const [forwardBusy, setForwardBusy] = useState(false);
@@ -834,6 +834,15 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     return c ? r.top - c.top > c.height / 2 : false;
   };
 
+  /**
+   * Menyu gorizontal tomoni: «⋯» tugmasi x koordinatasidan o'ngga 258px (menyu kengligi) sig'sa — o'ngga (left-0), aks holda chapga (right-0).
+   * Ildiz karta `overflow-hidden` — sig'maydigan tomonga ochilgan menyu va reaksiya qatori kesilib ko'rinmay qolardi.
+   */
+  const menuSide = (btnX: number, container: HTMLElement | null): "left-0" | "right-0" => {
+    const c = container?.getBoundingClientRect();
+    return c && c.right - btnX < 258 ? "right-0" : "left-0";
+  };
+
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -852,7 +861,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const pressStart = (m: Msg) => (e: ReactPointerEvent) => {
     if (e.pointerType !== "touch" || m.pending || m.deleted) return;
     const up = menuUp(e.currentTarget as HTMLElement, scrollRef.current);
-    longPress.current = window.setTimeout(() => setMsgMenu({ id: m.id, mine: m.mine, up }), 450);
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const side = menuSide(m.mine ? r.left - 32 : r.right + 4, scrollRef.current);
+    longPress.current = window.setTimeout(() => setMsgMenu({ id: m.id, mine: m.mine, up, side }), 450);
   };
   const pressEnd = () => {
     if (longPress.current) window.clearTimeout(longPress.current);
@@ -976,7 +987,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const menuMsg = msgMenu ? (msgs ?? []).find((m) => m.id === msgMenu.id) ?? null : null;
   const canEdit = (m: Msg) => m.mine && !m.deleted && !m.pending && !m.call && now - m.at < DM_EDIT_WINDOW_MS && m.attachments.length === 0;
   const messageMenu = menuMsg && (
-    <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", menuMsg.mine ? "left-0" : "right-0")} width="w-[250px]">
+    <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", msgMenu?.side ?? (menuMsg.mine ? "left-0" : "right-0"))} width="w-[250px]">
       {!menuMsg.deleted && !menuMsg.pending && (
         <>
           <ReactionPicker
@@ -1156,10 +1167,10 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                     )}
                     <div className={cn("group relative flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
                       {!m.deleted && (
-                        <div className={cn("relative self-center", m.mine ? "order-first" : "")}>
+                        <div className={cn("relative self-center", m.mine ? "order-first" : "order-last")}>
                           <button
                             type="button"
-                            onClick={(e) => setMsgMenu(open ? null : { id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current) })}
+                            onClick={(e) => setMsgMenu(open ? null : { id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current), side: menuSide(e.currentTarget.getBoundingClientRect().left, scrollRef.current) })}
                             aria-haspopup="menu"
                             aria-expanded={open}
                             aria-label={t("msgMenu")}
@@ -1176,7 +1187,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         onContextMenu={(e) => {
                           if (m.deleted || m.pending) return;
                           e.preventDefault();
-                          setMsgMenu({ id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current) });
+                          const r = e.currentTarget.getBoundingClientRect();
+                          setMsgMenu({ id: m.id, mine: m.mine, up: menuUp(e.currentTarget, scrollRef.current), side: menuSide(m.mine ? r.left - 32 : r.right + 4, scrollRef.current) });
                         }}
                         onPointerDown={pressStart(m)}
                         onPointerUp={pressEnd}

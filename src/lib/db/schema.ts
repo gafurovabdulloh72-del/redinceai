@@ -1273,6 +1273,24 @@ export const postComments = sqliteTable(
   (t) => [index("post_comments_post_idx").on(t.postId, t.createdAt)],
 );
 
+/** Izohga yoqtirish (❤️): bitta foydalanuvchi — bitta izoh uchun bitta yurak */
+export const commentLikes = sqliteTable(
+  "comment_likes",
+  {
+    id: text("id").primaryKey(),
+    commentId: text("comment_id")
+      .notNull()
+      .references(() => postComments.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("comment_likes_pair_idx").on(t.commentId, t.userId)],
+);
+
 /* ------------------------------------------------------------------ */
 /* Lenta qo'shimchalari: so'rovnoma, «qiziq emas», muallifni yashirish  */
 /* ------------------------------------------------------------------ */

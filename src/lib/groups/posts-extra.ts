@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNull, notExists, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { feedMutes, groups, postComments, postHides, postLikes, postPolls, postPollVotes, postSaves, posts, users, type Post, type PostComment } from "@/lib/db/schema";
+import { commentLikes, feedMutes, groups, notifications, postComments, postHides, postLikes, postPolls, postPollVotes, postSaves, posts, users, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { addComment, briefUsers, canModeratePost, postHref, type CommentView, type UserBrief } from "@/lib/groups/service";
@@ -160,6 +160,9 @@ export interface CommentViewX extends CommentView {
   editedAt: number | null;
   /** Muallif 15 daqiqa ichida tahrirlay oladi */
   canEdit: boolean;
+  /** Yoqtirishlar soni va ko'ruvchi yoqtirganmi */
+  likesCount: number;
+  likedByMe: boolean;
 }
 export type CommentSort = "old" | "new";
 
@@ -178,6 +181,16 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
   ]);
   const now = Date.now();
   const UNKNOWN = { name: "Foydalanuvchi", avatarUrl: null, username: null, slug: null, online: false };
+  // Yoqtirishlar: bitta guruhlangan so'rov + ko'ruvchining o'ziniki (ikkalasi ham faqat shu sahifadagi izohlar uchun)
+  const ids = rows.map((c) => c.id);
+  const [likeRows, mineRows] = ids.length
+    ? await Promise.all([
+        db.select({ id: commentLikes.commentId, n: sql<number>`count(*)` }).from(commentLikes).where(inArray(commentLikes.commentId, ids)).groupBy(commentLikes.commentId),
+        viewer ? db.select({ id: commentLikes.commentId }).from(commentLikes).where(and(inArray(commentLikes.commentId, ids), eq(commentLikes.userId, viewer.id))) : Promise.resolve([] as { id: string }[]),
+      ])
+    : [[], []];
+  const likeCount = new Map(likeRows.map((r) => [r.id, Number(r.n)] as const));
+  const likedSet = new Set(mineRows.map((r) => r.id));
   return {
     total,
     items: rows.map((c) => {
@@ -191,6 +204,8 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
         replyTo: c.replyToId && parentAuthor ? { id: c.replyToId, authorName: authors.get(parentAuthor)?.name ?? UNKNOWN.name } : null,
         editedAt: c.editedAt?.getTime() ?? null,
         canEdit: Boolean(viewer && viewer.id === c.authorId && now - c.createdAt.getTime() < COMMENT_EDIT_WINDOW_MS),
+        likesCount: likeCount.get(c.id) ?? 0,
+        likedByMe: likedSet.has(c.id),
       };
     }),
   };
@@ -219,6 +234,39 @@ export async function addCommentX(post: Post, authorId: string, body: string, re
     return { ...c, replyToId: parent.id };
   }
   return c;
+}
+
+/**
+ * Izohni yoqtirish / olish (toggle). Natija — yangi holat va jami. Izoh muallifiga (o'zi bo'lmasa) bildirishnoma:
+ * faqat yoqtirilganda, bir xil izoh uchun 24 soatda bir marta (o'zaro bosib-olishda spam bo'lmasin), emailsiz.
+ */
+export async function toggleCommentLike(comment: PostComment, post: Post, userId: string): Promise<{ liked: boolean; likesCount: number }> {
+  const existing = await db.query.commentLikes.findFirst({ where: and(eq(commentLikes.commentId, comment.id), eq(commentLikes.userId, userId)) });
+  let liked: boolean;
+  if (existing) {
+    await db.delete(commentLikes).where(eq(commentLikes.id, existing.id));
+    liked = false;
+  } else {
+    // Noyob indeks: ikki marta tez bosilsa ikkinchisi e'tiborsiz qoladi
+    await db.insert(commentLikes).values({ id: uid(), commentId: comment.id, userId, createdAt: new Date() }).onConflictDoNothing();
+    liked = true;
+  }
+  const likesCount = await db.select({ n: sql<number>`count(*)` }).from(commentLikes).where(eq(commentLikes.commentId, comment.id)).then((r) => Number(r[0]?.n ?? 0));
+  if (liked && comment.authorId !== userId) {
+    try {
+      const who = (await briefUsers([userId])).get(userId)?.name ?? "Foydalanuvchi";
+      const href = await postHref(post);
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const title = `${who} izohingizni yoqtirdi`;
+      const dup = await db.query.notifications.findFirst({
+        where: and(eq(notifications.userId, comment.authorId), eq(notifications.type, "post_like"), eq(notifications.href, href), eq(notifications.title, title), gt(notifications.createdAt, since)),
+      });
+      if (!dup) await notify(comment.authorId, "post_like", title, comment.body.length > 100 ? `${comment.body.slice(0, 97)}…` : comment.body, href, { skipMail: true });
+    } catch (e) {
+      console.error("[comment-like:notify]", e);
+    }
+  }
+  return { liked, likesCount };
 }
 
 /** Izohni tahrirlash — faqat muallif, 15 daqiqa ichida */

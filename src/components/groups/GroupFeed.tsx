@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
-import { BadgeCheck, BarChart3, Copy, CornerDownRight, ExternalLink, EyeOff, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
+import { BadgeCheck, BarChart3, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
 import { firstUrl, RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, ReactorsButton, SaveButton, ShareAction, type ReactionState } from "./Reactions";
@@ -927,6 +927,23 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
     }
   }
 
+  /** Izohni yoqtirish: darhol almashadi (optimistik), server javobi bilan aniqlanadi, xatoda qaytadi */
+  async function likeComment(id: string) {
+    const patch = (liked: boolean, count: number) => setItems((prev) => prev?.map((c) => (c.id === id ? { ...c, likedByMe: liked, likesCount: count } : c)) ?? prev);
+    const cur = items?.find((c) => c.id === id);
+    if (!cur) return;
+    patch(!cur.likedByMe, Math.max(0, cur.likesCount + (cur.likedByMe ? -1 : 1)));
+    try {
+      const res = await fetch(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" });
+      const j = (await res.json()) as ApiResp<{ liked: boolean; likesCount: number }>;
+      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || "Bo'lmadi");
+      patch(j.data.liked, j.data.likesCount);
+    } catch (err) {
+      patch(cur.likedByMe, cur.likesCount);
+      toast(err instanceof Error ? err.message : "Bo'lmadi", "error");
+    }
+  }
+
   function startReply(c: CommentViewX) {
     setReplyTo({ id: c.replyTo?.id ?? c.id, name: c.author.name });
     const handle = c.author.username ? `@${c.author.username} ` : "";
@@ -1040,6 +1057,25 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
                   </div>
                 )}
               </div>
+              {/* Izohga yurakcha (Instagram naqshi): yozishga ruxsati bo'lmasa — faqat son */}
+              {canWrite || c.likesCount > 0 ? (
+                <div className="flex w-9 shrink-0 flex-col items-center pt-1.5">
+                  {canWrite ? (
+                    <button
+                      type="button"
+                      onClick={() => void likeComment(c.id)}
+                      aria-pressed={c.likedByMe}
+                      aria-label={c.likedByMe ? "Yoqtirishni olish" : "Izohni yoqtirish"}
+                      className={cn("press flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-fg/6", c.likedByMe ? "text-accent" : "text-fg-4 hover:text-fg")}
+                    >
+                      <Heart key={c.likedByMe ? "on" : "off"} size={15} className={cn(c.likedByMe && "animate-heartbeat fill-current")} aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <Heart size={15} className="mt-1.5 text-fg-4" aria-hidden="true" />
+                  )}
+                  {c.likesCount > 0 && <span className="-mt-0.5 text-[11px] font-semibold tabular-nums text-fg-3">{c.likesCount}</span>}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
