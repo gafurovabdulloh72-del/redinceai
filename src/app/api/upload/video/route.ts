@@ -10,7 +10,7 @@ import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
-import { MAX_VIDEO_BYTES, uploadName } from "@/components/chat/attachments";
+import { MAX_VIDEO_BYTES_FALLBACK as MAX_VIDEO_BYTES, uploadName } from "@/components/chat/attachments";
 
 /** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
 function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {

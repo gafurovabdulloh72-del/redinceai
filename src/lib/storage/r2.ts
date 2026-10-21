@@ -102,7 +102,7 @@ export async function r2Put(key: string, body: Buffer | Uint8Array, contentType:
 }
 
 /**
- * Brauzerdan to'g'ridan-to'g'ri yuklash uchun presigned PUT URL (video oqimi, ≤ 50 MB).
+ * Brauzerdan to'g'ridan-to'g'ri yuklash uchun presigned PUT URL (video oqimi, ≤ 200 MB — MAX_VIDEO_BYTES).
  * ContentType va ContentLength imzoga kiradi — klient boshqa tur/hajm yuborsa R2 so'rovni rad etadi,
  * ya'ni server bergan limitlarni chetlab o'tib bo'lmaydi.
  */

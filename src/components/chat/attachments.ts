@@ -17,8 +17,13 @@ export const MAX_ORDER_ATTACHMENTS = 15;
 /** Sharh rasmlari */
 export const MAX_REVIEW_MEDIA = 4;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-/** Video kattaroq bo'ladi — Blob'ga to'g'ridan-to'g'ri (brauzerdan) yuklanadi, server orqali o'tmaydi */
-export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+/**
+ * Video chegarasi. R2 (presigned PUT, brauzer → R2 to'g'ridan-to'g'ri, server orqali o'tmaydi) — 200 MB gacha.
+ * Zaxira yo'llar (Vercel Blob client-upload, server diski) — 50 MB: Blob'da katta fayl qotib qolardi.
+ */
+export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+export const MAX_VIDEO_BYTES_FALLBACK = 50 * 1024 * 1024;
+const mbOf = (n: number) => Math.round(n / (1024 * 1024));
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 /** Buyurtma/chat biriktirmalari: rasmlar + hujjatlar (PDF, DOC, DOCX, ZIP) + video (MP4, WebM, MOV) */
 export const UPLOAD_ACCEPT_DOCS = `${UPLOAD_ACCEPT},application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.zip,.mp4,.webm,.mov`;
@@ -195,8 +200,7 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
 
   // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
   if (file.size > MAX_VIDEO_BYTES) {
-    const mb = Math.round(file.size / (1024 * 1024));
-    throw new Error(`«${file.name}» — ${mb} MB, chegara ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB. Videoni biroz siqib (masalan 720p) qayta yuboring.`);
+    throw new Error(`«${file.name}» — ${mbOf(file.size)} MB, chegara ${mbOf(MAX_VIDEO_BYTES)} MB. Videoni biroz siqib (masalan 1080p, H.264) qayta yuboring.`);
   }
 
   // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
@@ -220,9 +224,13 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
     return publicUrl;
   }
 
+  // R2 yo'q — zaxira yo'llar (Blob/disk) faqat 50 MB gacha
+  if (file.size > MAX_VIDEO_BYTES_FALLBACK) {
+    throw new Error(`«${file.name}» — ${mbOf(file.size)} MB. Hozir ${mbOf(MAX_VIDEO_BYTES_FALLBACK)} MB gacha video yuklanadi (katta fayl saqlash R2 ulanganda ishlaydi). Videoni siqib qayta yuboring.`);
+  }
+
   // 1.5) R2 ham, Blob ham yo'q (dev yoki o'z serveri/VPS) — to'g'ridan-to'g'ri server diskiga (Blob urinib 500 bermaydi)
   if (presign?.ok && presign.data.mode === "fallback" && presign.data.blob === false) {
-    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
     return uploadViaApi(file, "", p, "/api/upload/video");
   }
 
@@ -260,7 +268,6 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}): Promise<stri
     if (p.signal?.aborted || (e instanceof Error && e.name === "AbortError")) throw abortError();
     // Blob/R2 yo'q muhit (dev yoki o'z serveri/VPS) — video to'g'ridan-to'g'ri server diskiga (50 MB gacha).
     // Vercel'da disk yozilmaydi: u yerda Blob ulangan bo'lishi kerak (ulanmagan bo'lsa route aniq xato beradi).
-    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
     return uploadViaApi(file, "", p, "/api/upload/video");
   } finally {
     if (watch) window.clearInterval(watch);
@@ -285,7 +292,7 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
     throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
   }
   if (opts?.docs && isVideo && !isImage) {
-    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» 50 MB dan katta`);
+    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» ${mbOf(MAX_VIDEO_BYTES)} MB dan katta`);
     const url = await uploadVideo(file, p);
     return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
   }

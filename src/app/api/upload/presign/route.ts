@@ -11,7 +11,7 @@ const VIDEO_MIME = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime
 
 const schema = z.object({
   ext: z.enum(["mp4", "webm", "mov"]),
-  size: z.coerce.number().int().min(1).max(MAX_VIDEO_BYTES, "Video 50 MB dan katta"),
+  size: z.coerce.number().int().min(1).max(MAX_VIDEO_BYTES, `Video ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB dan katta`),
 });
 
 /**
