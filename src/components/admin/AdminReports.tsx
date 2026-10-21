@@ -187,7 +187,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
       </div>
 
       {typeCounts.length > 1 && (
-        <div className="segment w-max max-w-full" role="group" aria-label="Shikoyat turi bo'yicha filtr">
+        <div className="segment no-scrollbar w-max max-w-full overflow-x-auto" role="group" aria-label="Shikoyat turi bo'yicha filtr">
           <button type="button" className="segment-item inline-flex min-h-9 items-center gap-1.5" data-active={typeFilter === "all"} aria-pressed={typeFilter === "all"} onClick={() => setTypeFilter("all")}>
             Hammasi <span className="text-[11px] opacity-70 tabular-nums">{openAll.length}</span>
           </button>

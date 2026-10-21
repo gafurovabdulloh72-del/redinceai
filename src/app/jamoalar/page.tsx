@@ -86,7 +86,7 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
         }
         description="Kanallar va guruhlar: tajriba almashing, savol bering, efirlarga qo'shiling."
         action={
-          <ButtonLink href={createHref} variant="accent" size="lg" className="icon-spin-hover">
+          <ButtonLink href={createHref} variant="accent" size="md" className="icon-spin-hover">
             <Plus size={18} /> Yangi jamoa
           </ButtonLink>
         }
@@ -94,7 +94,7 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
 
       {/* Rasmiy kanal — qadalgan banner */}
       {official.length > 0 && (
-        <section className="mt-8 grid gap-3" aria-label="Rasmiy kanal">
+        <section className="mt-6 grid gap-3 sm:mt-8" aria-label="Rasmiy kanal">
           {official.map((g, i) => (
             <OfficialBanner key={g.id} g={g} next={nextEvents[i]} />
           ))}
@@ -102,7 +102,7 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
       )}
 
       {/* Qidiruv + hudud (GET forma — JS'siz ishlaydi) */}
-      <form action="/jamoalar" method="get" className={cn("card flex flex-col gap-3 p-3 sm:flex-row sm:items-center", official.length ? "mt-6" : "mt-8")}>
+      <form action="/jamoalar" method="get" className={cn("card flex flex-col gap-2 p-3 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 max-sm:!shadow-none sm:flex-row sm:items-center sm:gap-3", official.length ? "mt-5 sm:mt-6" : "mt-6 sm:mt-8")}>
         {mine && <input type="hidden" name="mine" value="1" />}
         {f.category && <input type="hidden" name="category" value={f.category} />}
         {kind && <input type="hidden" name="kind" value={kind} />}
@@ -119,13 +119,13 @@ export default async function GroupsPage({ searchParams }: { searchParams: Promi
             </option>
           ))}
         </select>
-        <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold">
+        <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold max-sm:hidden">
           Qidirish
         </button>
       </form>
 
       {/* Tur + "mening jamoalarim" + yo'nalish chiplari (soni bilan) + tartib */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="no-scrollbar -mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 max-sm:[&>*]:shrink-0 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         <nav className="inline-flex rounded-full border border-line p-0.5 text-[13px] font-semibold" aria-label="Turi">
           {(
             [
@@ -231,17 +231,17 @@ function OfficialBanner({ g, next }: { g: GroupListItem; next: PostView | null }
   const live = next?.eventAt ? Date.now() >= next.eventAt && Date.now() < next.eventAt + 2 * 60 * 60 * 1000 : false;
   return (
     <article className="card relative overflow-hidden">
-      <div className="grid sm:grid-cols-[minmax(0,280px)_1fr]">
-        <Link href={`/jamoalar/${g.slug}`} className="relative aspect-[3/1] overflow-hidden bg-surface-3 sm:aspect-auto sm:min-h-[150px]" aria-label={g.name}>
+      <div className="grid grid-cols-[88px_minmax(0,1fr)] sm:grid-cols-[minmax(0,280px)_1fr]">
+        <Link href={`/jamoalar/${g.slug}`} className="relative overflow-hidden bg-surface-3 sm:min-h-[150px]" aria-label={g.name}>
           {g.coverUrl ? <CoverImage src={g.coverUrl} category={g.category ?? undefined} seed={g.slug} priority /> : <OfficialCover name={g.name} compact />}
         </Link>
-        <div className="flex flex-col gap-3 p-4 sm:p-5">
+        <div className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-5">
           <div className="min-w-0">
-            <Link href={`/jamoalar/${g.slug}`} className="inline-flex items-center gap-2 font-display text-[20px] font-semibold leading-tight text-fg hover:text-accent sm:text-[24px]">
+            <Link href={`/jamoalar/${g.slug}`} className="inline-flex items-center gap-2 font-display text-[17px] font-semibold leading-tight text-fg hover:text-accent sm:text-[24px]">
               {g.name} <BadgeCheck size={18} className="shrink-0 text-accent" aria-label="Rasmiy kanal" />
             </Link>
             <p className="mt-1 text-[12.5px] text-fg-3">Rasmiy kanal · {compactCount(g.membersCount)} a&apos;zo</p>
-            {g.description && <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-fg-2">{g.description}</p>}
+            {g.description && <p className="mt-1.5 line-clamp-2 text-[13.5px] max-sm:hidden leading-relaxed text-fg-2">{g.description}</p>}
           </div>
           <div className="mt-auto flex flex-wrap items-center gap-2">
             {next?.eventAt && (

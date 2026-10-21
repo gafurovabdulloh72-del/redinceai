@@ -105,7 +105,7 @@ export function PostModal({
   if (!mounted || !shown || !portalReady) return null;
   const key = shown.kind === "post" ? shown.post.id : shown.work.id;
   return createPortal(
-    <div className={cn("fixed inset-0 z-[120] flex items-center justify-center bg-ink/70 p-0 sm:p-6", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={onClose}>
+    <div className={cn("fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-0 sm:p-6", closing ? "overlay-out" : "overlay-in")} role="presentation" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -113,7 +113,7 @@ export function PostModal({
         aria-label={shown.kind === "post" ? tr(til, POST_OYNA.post) : shown.work.title}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "card-elevated relative flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden !rounded-none sm:max-h-[90vh] sm:!rounded-[var(--r-lg)] md:flex-row",
+          "card-elevated relative flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden !rounded-none sm:max-h-[90vh] sm:!rounded-[var(--r-lg)] md:flex-row",
           closing ? "pop-out" : "pop-in",
         )}
       >
@@ -121,7 +121,7 @@ export function PostModal({
           type="button"
           onClick={onClose}
           aria-label={tr(til, POST_OYNA.close)}
-          className="press absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink/60 text-white transition hover:bg-ink/80 md:bg-fg/10 md:text-fg md:hover:bg-fg/20"
+          className="press absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 md:bg-fg/10 md:text-fg md:hover:bg-fg/20"
         >
           <X size={18} />
         </button>
@@ -159,7 +159,7 @@ function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: stri
   if (!m) return null;
   const video = isVideoAttachment(m) || PLAYABLE.test(m.url);
   return (
-    <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-ink sm:min-h-[360px] md:min-h-[520px]">
+    <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-black sm:min-h-[360px] md:min-h-[520px]">
       {video ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video key={m.url} src={m.url} controls playsInline className="max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
@@ -370,7 +370,7 @@ function WorkBody({ work, author, til }: { work: WorkLite; author: ModalAuthor; 
       {media.length > 0 && playable ? (
         <MediaPane media={media} alt={work.title} til={til} />
       ) : (
-        <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center gap-3 bg-ink p-6 text-center text-white sm:min-h-[360px]">
+        <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center gap-3 bg-black p-6 text-center text-white sm:min-h-[360px]">
           <p className="text-[15px] font-semibold">{tr(til, work.type === "video" ? POST_OYNA.externalVideo : POST_OYNA.link)}</p>
           <a href={work.url} target="_blank" rel="noopener noreferrer" className="press inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[14px] font-semibold text-ink">
             {tr(til, POST_OYNA.open)} <ExternalLink size={15} />

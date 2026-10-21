@@ -93,6 +93,13 @@ export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
  */
 export const PROFILE_HIRING = false;
 
+/**
+ * Ijodkor sahifasidan BOSHQA mutaxassislarga olib boruvchi bloklar: «O'xshash mutaxassislar», «Yaqinda ko'rilganlar»,
+ * katalogga yo'l ko'rsatuvchi breadcrumb va yo'nalish havolasi. false — ijodkor mijoziga o'z portfoliosini ulashganda
+ * tashrif buyuruvchi boshqa ijodkorga o'tib ketmaydi. Qaytarish — true.
+ */
+export const PROFILE_CROSS_LINKS = false;
+
 export const SITE = {
   name: "Kasb Egalari",
   /** Loyiha rahbari (footer'da ko'rinadi) */

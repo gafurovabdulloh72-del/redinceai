@@ -6,7 +6,7 @@
  * ish vaqti hisob-kitobi) kabinetdagi jonli ko'rinish (preview) uchun klientda ham ishlatiladi.
  * Baza bilan ishlaydigan qism (buyurtma borligini tekshirish) queries.ts'da.
  */
-import { DEFAULT_VISIBILITY, REGION_BY_SLUG, VISIBILITY_FIELDS, WEEKDAYS, type VisibilityFieldKey, type VisibilityLevelValue, type WeekdayKey } from "./constants";
+import { DEFAULT_VISIBILITY, PROFILE_HIRING, REGION_BY_SLUG, VISIBILITY_FIELDS, WEEKDAYS, type VisibilityFieldKey, type VisibilityLevelValue, type WeekdayKey } from "./constants";
 import type { Schedule, ServicePackage, Visibility } from "./db/schema";
 
 /* ------------------------------------------------------------------ */
@@ -21,6 +21,9 @@ export type ResolvedVisibility = Record<VisibilityFieldKey, VisibilityLevelValue
  * darajasi majburan "orders"ga tushiriladi (clamp); "hidden" o'z holicha qoladi.
  */
 export const FORCED_ORDER_FIELDS: readonly VisibilityFieldKey[] = ["phone", "telegram", "instagram", "email"];
+
+/** PROFILE_HIRING=false bo'lganda hech kimga (egasi/admindan tashqari) ko'rsatilmaydigan aloqa maydonlari (YouTube/veb-sayt portfolio havolasi — ular o'z darajasi bo'yicha) */
+const HIDDEN_CONTACT_KEYS: readonly VisibilityFieldKey[] = ["phone", "telegram", "instagram", "email"];
 
 /** Platforma polini qo'llaydi: aloqa maydonlarida public/clients → "orders" (jimgina, xatosiz) */
 export function clampVisibilityLevel(key: VisibilityFieldKey, level: VisibilityLevelValue): VisibilityLevelValue {
@@ -132,6 +135,9 @@ export function filterSpecialistForViewer<T extends SpecialistLike>(sp: T, viewe
   void _visibility;
 
   const gate = <V,>(key: VisibilityFieldKey, value: V, empty: V): V => {
+    // Platforma qoidasi (PROFILE_HIRING=false): ijodkorlarning aloqa vositalari egasi va adminlardan boshqa HECH KIMGA ko'rinmaydi
+    // (buyurtma qabul qilingan bo'lsa ham) — "yopiq" belgisi ham qo'yilmaydi, iz qolmaydi
+    if (!PROFILE_HIRING && HIDDEN_CONTACT_KEYS.includes(key) && !viewer.isOwner && viewer.role !== "admin") return empty;
     if (canView(vis[key], viewer)) return value;
     const reason = lockReason(vis[key], viewer);
     const hasValue = Array.isArray(value) ? value.length > 0 : value != null && value !== "";

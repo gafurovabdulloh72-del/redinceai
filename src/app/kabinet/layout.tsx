@@ -11,6 +11,9 @@ import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
+import { getLocale } from "@/lib/i18n/server";
+import { ownCompleteness } from "@/lib/profile/own-completeness";
+import { ProfileMeter } from "@/components/feed/ProfileMeter";
 import { db } from "@/lib/db";
 import { jobs, notifications, orders, proposals } from "@/lib/db/schema";
 import { getSettings } from "@/lib/payments/settings";
@@ -94,7 +97,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   // + o'qilmagan bildirishnomalar soni (F1) — har ikkisi parallel
   const specialistId = user.specialist?.id;
   // + mijoz: ochiq e'lonlaridagi ko'rib chiqilmagan (pending) takliflar soni
-  const [newOrders, unread, settings, pendingProposals, unreadDm] = await Promise.all([
+  const [newOrders, unread, settings, pendingProposals, unreadDm, own, til] = await Promise.all([
     specialistId
       ? db
           .select({ n: count() })
@@ -119,6 +122,9 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           .catch(() => 0)
       : Promise.resolve(0),
     unreadDmCount(user.id).catch(() => 0),
+    // Profil to'ldirilganlik (maqsad gradienti) — telefon «Menyu»sida tepada ko'rinadi; 100% bo'lsa null
+    ownCompleteness(user).catch(() => null),
+    getLocale(),
   ]);
   // Obuna holati (yagona qoida — subscriptions/access.ts): navigatsiya nuqtasi va banner
   const subState = user.specialist ? subscriptionState(user.specialist, settings) : null;
@@ -189,7 +195,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
      * 390px'da gorizontal siljish bo'lmasligi uchun: grid bolalari min-w-0, rasmlar max-w-full (KabinetShell).
      * Chat sahifasida kabinet yon menyusi desktopda yashiriladi (KabinetShell) — suhbatga butun kenglik.
      */
-    <KabinetShell aside={<KabinetNav items={items} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }} />}>
+    <KabinetShell aside={<KabinetNav items={items} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }} meter={own ? <ProfileMeter data={own} til={til} /> : null} />}>
       {/* Bloklamaydigan bannerlar: shartlar (G1) va ixcham obuna pill'i (G6/#74) — chop etishda ko'rinmaydi.
           To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
       <div className="print:hidden">

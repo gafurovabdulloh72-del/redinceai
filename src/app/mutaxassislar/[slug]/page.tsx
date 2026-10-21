@@ -59,7 +59,7 @@ import { listPublicGroupsOf } from "@/lib/profile/groups";
 import { getCurrentUser } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
 import { getProfilePostView, listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, PROFILE_HIRING, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, PROFILE_CROSS_LINKS, PROFILE_HIRING, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { KARTA, experienceLabel, genderPersonLabel, localizePrice, priceFromLabel, priceRangeLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
@@ -131,6 +131,18 @@ export async function generateMetadata({ params, searchParams }: { params: Param
 }
 
 /** Ism: oxirgi so'z + tasdiq belgisi bitta "bo'linmas" bo'lakda — belgi yolg'iz qatorga tushmaydi */
+/** Muqovadagi yo'nalish belgisi: havola faqat PROFILE_CROSS_LINKS yoqilganda (aks holda tashrif buyuruvchi katalogga ketmasin) */
+function CatChip({ href, children }: { href: string | null; children: React.ReactNode }) {
+  const cls = "inline-flex h-8 items-center gap-1.5 rounded-full bg-ink px-3 text-[12px] font-semibold text-ink-fg";
+  return href ? (
+    <Link href={href} className={cn(cls, "transition hover:brightness-110")}>
+      {children}
+    </Link>
+  ) : (
+    <span className={cls}>{children}</span>
+  );
+}
+
 function NameWithBadge({ name, verified, verifiedTitle }: { name: string; verified: boolean; verifiedTitle: string }) {
   const words = name.trim().split(/\s+/);
   const last = words.pop() ?? "";
@@ -227,7 +239,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const qrHref = shortCode ? `/u/${shortCode.toUpperCase()}/qr?yuklab=1` : undefined;
   // O'xshashlar — umumiy ko'ruvchi konteksti: isOwner/hasOrder faqat SHU profilga nisbatan, boshqa profillarga o'tkazilmaydi
   const [similar, proof, verifiedIds, publicGroups, votes, views7] = await Promise.all([
-    getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }),
+    PROFILE_CROSS_LINKS ? getSimilarSpecialists(raw, 4, { userId: effectiveViewer.userId, role: effectiveViewer.role }) : Promise.resolve([] as Awaited<ReturnType<typeof getSimilarSpecialists>>),
     getSocialProof(raw.id, raw.completedCount),
     getVerifiedReviewerIds(raw.id),
     listPublicGroupsOf(raw.userId).catch(() => []),
@@ -444,6 +456,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         </div>
       )}
 
+      {PROFILE_CROSS_LINKS && (
+        <>
       {/* ================= BREADCRUMB ================= */}
       {/* Telefonda o'rta bo'g'in (kategoriya) yashiriladi — joriy sahifa nomi (ism) qisqarmasin */}
       <nav aria-label={tr(til, PROFIL.breadcrumbAria)} className="no-scrollbar mb-5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[14px] font-medium text-fg-3">
@@ -463,6 +477,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           {sp.user.name}
         </span>
       </nav>
+        </>
+      )}
 
       {/* ================= HERO ================= */}
       <section className="card animate-fade-up overflow-hidden !rounded-[var(--r-lg)]">
@@ -478,10 +494,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
           <div className="absolute left-4 top-4 flex flex-wrap gap-2 sm:left-6 sm:top-6">
             {cat && (
-              <Link href={`/mutaxassislar?category=${cat.slug}`} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-ink px-3 text-[12px] font-semibold text-ink-fg transition hover:brightness-110">
+              <CatChip href={PROFILE_CROSS_LINKS ? `/mutaxassislar?category=${cat.slug}` : null}>
                 <CategoryIcon icon={cat.icon} size={13} />
                 {cat.name}
-              </Link>
+              </CatChip>
             )}
           </div>
 
@@ -560,23 +576,37 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             </ul>
           )}
 
-          <FollowersDialog userId={raw.userId} followers={follow.followersCount} following={follow.followingCount} loggedIn={Boolean(viewer)} viewerId={viewer?.id ?? null} className="mt-4 lg:hidden" />
+          {/* Telefon/planshet: Instagram uslubidagi statistika (Ishlar · Obunachi · Obuna) — desktopda yon panelda */}
+          <FollowersDialog
+            userId={raw.userId}
+            followers={follow.followersCount}
+            following={follow.followingCount}
+            loggedIn={Boolean(viewer)}
+            viewerId={viewer?.id ?? null}
+            variant="stats"
+            extraStats={[{ value: sp.portfolio.length, label: til === "ru" ? "работ" : "ish" }]}
+            className="mt-5 lg:hidden"
+          />
 
           <ul className={cn("flex flex-wrap items-center gap-x-3 gap-y-2", proofChips.length > 0 ? "mt-3" : "mt-5")}>
             <li className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-3">
               {sp.user.username && <Handle username={sp.user.username} />}
               <span className="min-w-0">{metaParts.join(" · ")}</span>
             </li>
-            <li className="ml-auto flex items-center gap-2 lg:hidden">
+            <li className="grid w-full grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
+              {!isOwner && !blockedAny && (
+                <div className="min-w-0 [&>button]:w-full [&>button]:px-3">
+                  <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} />
+                </div>
+              )}
               {!PROFILE_HIRING && !isOwner && sp.user.username && !blockedAny && (
-                <ButtonLink href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`} variant="outline" size="sm">
-                  <MessageCircle size={14} /> {tr(til, PROFIL.write)}
+                <ButtonLink href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`} variant="outline" size="md" className="min-w-0 !px-3">
+                  <MessageCircle size={15} className="max-[380px]:hidden" /> {tr(til, PROFIL.write)}
                 </ButtonLink>
               )}
-              {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="sm" compact />}
-              {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="sm" />}
-              <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} size="sm" variant="outline" />
+              {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="md" />}
+              <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} size="md" variant="outline" iconOnly />
             </li>
           </ul>
         </div>
@@ -988,7 +1018,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       </div>
 
       {/* ================= O'XSHASH ================= */}
-      {similar.length > 0 && (
+      {PROFILE_CROSS_LINKS && similar.length > 0 && (
         <section className="mt-14 sm:mt-20" aria-labelledby="oxshash-title">
           {/* Sarlavha + «Barchasi» — eyebrow va tavsifsiz (o'xshashlik endi ko'nikma/yo'nalish/hudud bo'yicha ballanadi) */}
           <div className="mb-4 flex items-end justify-between gap-3">
@@ -1078,8 +1108,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       )}
 
       {/* Yaqinda ko'rilganlar (localStorage): shu profil yoziladi (egasi bundan mustasno), boshqalari lenta bo'lib chiqadi */}
-      <RecentViewRecorder item={{ slug: sp.slug, name: sp.user.name, title: sp.title, avatarUrl: sp.user.avatarUrl }} enabled={!isOwner} />
-      <RecentlyViewed excludeSlug={sp.slug} className="mt-10" />
+      {PROFILE_CROSS_LINKS && (
+        <>
+          <RecentViewRecorder item={{ slug: sp.slug, name: sp.user.name, title: sp.title, avatarUrl: sp.user.avatarUrl }} enabled={!isOwner} />
+          <RecentlyViewed excludeSlug={sp.slug} className="mt-10" />
+        </>
+      )}
 
       {/* Taqqoslash paneli (F54) — telefonda pastki CTA paneli ustida */}
       <CompareTray aboveCta={PROFILE_HIRING} />

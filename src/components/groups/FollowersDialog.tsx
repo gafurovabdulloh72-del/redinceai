@@ -124,7 +124,27 @@ export function FollowTabs({ userId, followers, following, loggedIn, viewerId, i
  * Profil sahifasida: "N obunachi · M obuna" — bosilganda ro'yxat oynasi (Instagram kabi).
  * Portal (body) orqali, kirish/chiqish animatsiyasi bilan; Esc / fon yopadi.
  */
-export function FollowersDialog({ userId, followers, following, loggedIn, viewerId, className }: { userId: string; followers: number; following: number; loggedIn: boolean; viewerId: string | null; className?: string }) {
+export function FollowersDialog({
+  userId,
+  followers,
+  following,
+  loggedIn,
+  viewerId,
+  className,
+  variant = "inline",
+  extraStats = [],
+}: {
+  userId: string;
+  followers: number;
+  following: number;
+  loggedIn: boolean;
+  viewerId: string | null;
+  className?: string;
+  /** inline — bir qator matn; stats — Instagram uslubidagi teng ustunli statistika (telefon profil sarlavhasi) */
+  variant?: "inline" | "stats";
+  /** stats variantida obunachi/obunadan OLDIN ko'rinadigan oddiy ko'rsatkichlar (masalan, Ishlar soni) */
+  extraStats?: Array<{ value: number | string; label: string }>;
+}) {
   const [open, setOpen] = useState<Kind | null>(null);
   const [ready, setReady] = useState(false);
   const { mounted, closing } = usePresence(open !== null, 200);
@@ -151,17 +171,36 @@ export function FollowersDialog({ userId, followers, following, loggedIn, viewer
 
   return (
     <>
-      <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-2", className)}>
-        <button type="button" onClick={() => setOpen("followers")} className="rounded-full px-1 transition hover:text-fg" aria-haspopup="dialog">
-          <b className="text-fg">{followers}</b> obunachi
-        </button>
-        <span className="text-fg-4" aria-hidden>
-          ·
-        </span>
-        <button type="button" onClick={() => setOpen("following")} className="rounded-full px-1 transition hover:text-fg" aria-haspopup="dialog">
-          <b className="text-fg">{following}</b> obuna
-        </button>
-      </div>
+      {variant === "stats" ? (
+        <div className={cn("grid divide-x divide-line rounded-card border border-line bg-surface-2/60", className)} style={{ gridTemplateColumns: `repeat(${extraStats.length + 2}, minmax(0, 1fr))` }}>
+          {extraStats.map((s) => (
+            <div key={s.label} className="px-2 py-2.5 text-center">
+              <p className="stat-num text-[19px] leading-none text-fg">{s.value}</p>
+              <p className="mt-1.5 truncate text-[12px] text-fg-3">{s.label}</p>
+            </div>
+          ))}
+          <button type="button" onClick={() => setOpen("followers")} className="press px-2 py-2.5 text-center transition hover:bg-fg/4" aria-haspopup="dialog">
+            <span className="stat-num block text-[19px] leading-none text-fg">{followers}</span>
+            <span className="mt-1.5 block truncate text-[12px] text-fg-3">obunachi</span>
+          </button>
+          <button type="button" onClick={() => setOpen("following")} className="press px-2 py-2.5 text-center transition hover:bg-fg/4" aria-haspopup="dialog">
+            <span className="stat-num block text-[19px] leading-none text-fg">{following}</span>
+            <span className="mt-1.5 block truncate text-[12px] text-fg-3">obuna</span>
+          </button>
+        </div>
+      ) : (
+        <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-2", className)}>
+          <button type="button" onClick={() => setOpen("followers")} className="rounded-full px-1 transition hover:text-fg" aria-haspopup="dialog">
+            <b className="text-fg">{followers}</b> obunachi
+          </button>
+          <span className="text-fg-4" aria-hidden>
+            ·
+          </span>
+          <button type="button" onClick={() => setOpen("following")} className="rounded-full px-1 transition hover:text-fg" aria-haspopup="dialog">
+            <b className="text-fg">{following}</b> obuna
+          </button>
+        </div>
+      )}
       {ready &&
         mounted &&
         createPortal(

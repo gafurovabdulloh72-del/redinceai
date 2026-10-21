@@ -250,7 +250,7 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
       role="dialog"
       aria-modal="true"
       aria-label={FEED.openImage[til](shown + 1, items.length)}
-      className={cn("fixed inset-0 z-[130] flex items-center justify-center bg-ink/90", closing ? "animate-fade-out" : "animate-fade-in")}
+      className={cn("fixed inset-0 z-[130] flex items-center justify-center bg-black/90", closing ? "animate-fade-out" : "animate-fade-in")}
       onClick={onClose}
       onPointerDown={(e) => {
         startX.current = e.clientX;
@@ -336,7 +336,7 @@ export function FeedVideo({ src, title, className }: { src: string; title?: stri
           if (v.paused) v.play().catch(() => undefined);
           else v.pause();
         }}
-        className={cn("w-full bg-black/80", className)}
+        className={cn("w-full bg-black", className)}
       />
       {auto && muted && (
         <button
@@ -344,7 +344,7 @@ export function FeedVideo({ src, title, className }: { src: string; title?: stri
           onClick={() => setMuted(false)}
           aria-label={tr(til, FEED.soundOn)}
           title={tr(til, FEED.soundOn)}
-          className="press animate-fade-in absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-ink/60 text-white backdrop-blur-sm transition hover:bg-ink/80"
+          className="press animate-fade-in absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-ink/80"
         >
           <VolumeX size={16} />
         </button>

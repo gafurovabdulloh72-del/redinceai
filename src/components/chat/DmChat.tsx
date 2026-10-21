@@ -861,11 +861,11 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
 
   /* ---------------- Ro'yxat paneli ---------------- */
   const listPanel = (
-    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none", active && "hidden lg:flex")}>
-      <div className="flex items-center gap-2 border-b border-line p-2.5">
+    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden max-lg:!rounded-none max-lg:!border-0 max-lg:!bg-transparent max-lg:!shadow-none", active && "hidden lg:flex")}>
+      <div className="flex items-center gap-2 border-b border-line p-2.5 max-lg:border-0 max-lg:px-0 max-lg:pt-0">
         <label className="relative block min-w-0 flex-1">
-          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchConvs")} className="field h-9 w-full rounded-full pl-8 text-[13px]" aria-label={t("searchConvs")} />
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4 max-lg:left-3.5 max-lg:size-4" aria-hidden="true" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchConvs")} className="field h-9 w-full rounded-full pl-8 text-[13px] max-lg:h-11 max-lg:pl-10 max-lg:text-[15px]" aria-label={t("searchConvs")} />
         </label>
         {archivedCount > 0 && (
           <button type="button" onClick={() => setShowArchived((v) => !v)} aria-pressed={showArchived} className={cn("h-9 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", showArchived ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
@@ -902,7 +902,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             )}
           </div>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line max-lg:divide-y-0">
             {filtered.map((c) => (
               <li key={c.id} className="group/row relative">
                 <button
@@ -911,22 +911,25 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                   onClick={() => setActive(c.id)}
                   aria-current={active === c.id ? "true" : undefined}
                   className={cn(
-                    "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none",
+                    "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3",
                     active === c.id ? "border-fg bg-surface-2" : "border-transparent",
                   )}
                 >
-                  <PeerAvatar name={c.peer.name} avatarUrl={c.peer.avatarUrl} size={40} />
+                  <span className="relative shrink-0">
+                    <PeerAvatar name={c.peer.name} avatarUrl={c.peer.avatarUrl} size={isPhone ? 52 : 40} />
+                    {presenceOf(c.peer).online && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-bg bg-success" aria-label={t("online")} />}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-1 truncate text-[13.5px] font-semibold text-fg">
+                      <span className={cn("flex min-w-0 items-center gap-1 truncate text-[13.5px] text-fg max-lg:text-[16px]", c.unread > 0 ? "font-bold" : "font-semibold")}>
                         <span className="truncate">{c.peer.name}</span>
                         {c.prefs.muted && <BellOff size={11} className="shrink-0 text-fg-4" aria-label={t("muted")} />}
                         {c.prefs.pinned && <Pin size={11} className="shrink-0 text-fg-4" aria-label={t("pin")} />}
                       </span>
-                      {c.last && <time className="shrink-0 text-[11px] text-fg-4" dateTime={new Date(c.last.at).toISOString()}>{listStamp(c.last.at, locale, now)}</time>}
+                      {c.last && <time className={cn("shrink-0 text-[11px] max-lg:text-[12px]", c.unread > 0 && !c.prefs.muted ? "font-semibold text-accent" : "text-fg-4")} dateTime={new Date(c.last.at).toISOString()}>{listStamp(c.last.at, locale, now)}</time>}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
-                      <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px]", c.peerTyping ? "text-fg-2 italic" : c.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
+                      <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px] max-lg:text-[14.5px]", c.peerTyping ? "text-fg-2 italic" : c.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
                         {c.last?.voice && !c.peerTyping && <Mic size={11} className="shrink-0" aria-hidden="true" />}
                         {c.last?.hasFiles && !c.last.voice && !c.peerTyping && <Paperclip size={11} className="shrink-0" aria-hidden="true" />}
                         <span className="truncate">{lastPreview(c)}</span>

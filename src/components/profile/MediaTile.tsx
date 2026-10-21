@@ -50,12 +50,12 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
         </div>
       )}
       {d.views !== undefined && d.views > 0 && !d.textOnly && (
-        <span className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" aria-label={POST_OYNA.views[til](d.views)}>
+        <span className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" aria-label={POST_OYNA.views[til](d.views)}>
           <Eye size={11} aria-hidden /> {compactCount(d.views)}
         </span>
       )}
       {(d.likes !== undefined || d.comments !== undefined) && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-4 bg-ink/45 text-[14px] font-bold text-white opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100" aria-hidden>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-4 bg-black/45 text-[14px] font-bold text-white opacity-0 transition-opacity duration-200 group-hover/tile:opacity-100" aria-hidden>
           {d.likes !== undefined && (
             <span className="inline-flex items-center gap-1.5">
               <Heart size={16} className="fill-current" /> {d.likes}

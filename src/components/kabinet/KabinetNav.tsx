@@ -120,7 +120,7 @@ function useOverflowing(ref: RefObject<HTMLElement | null>) {
   return over;
 }
 
-export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: KabinetNavUser }) {
+export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; user: KabinetNavUser; /** Telefon menyusida profil kartasi ostida ko'rinadigan progress kartasi (server komponent) */ meter?: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
@@ -190,6 +190,7 @@ export function KabinetNav({ items, user }: { items: KabinetNavItem[]; user: Kab
           <p className="truncate text-[12.5px] text-fg-4">{user.email}</p>
         </div>
       </div>
+      {meter}
       {publicItem && (
         <Link href={publicItem.href} className="press btn-ink flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold">
           <ExternalLink size={17} aria-hidden="true" /> Ommaviy profilimni ko'rish
