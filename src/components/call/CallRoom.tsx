@@ -15,7 +15,7 @@ import {
   type TrackReference,
 } from "@livekit/components-react";
 import { ConnectionState, MediaDeviceFailure, Room, Track, type Participant } from "livekit-client";
-import { Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SwitchCamera, Video, VideoOff, WifiOff } from "lucide-react";
+import { Loader2, Maximize2, Mic, MicOff, Minimize2, MonitorUp, MonitorX, PhoneOff, SwitchCamera, Video, VideoOff, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clockDuration } from "@/lib/call/format";
 import { useScrollLock } from "@/components/motion/useScrollLock";
@@ -92,7 +92,7 @@ function Tile({ p, cam }: { p: Participant; cam?: TrackReference }) {
  * pastda katta tugmalar (mikrofon · kamera · kamerani almashtirish · ekran · tugatish).
  * Ekranga tegilsa boshqaruv paneli yashiriladi/ko'rinadi (video bor paytda 5 s dan keyin o'zi yashiriladi).
  */
-function CallStage({ title, autoEndOnPeerLeft, notice, onEnd }: { title: string; autoEndOnPeerLeft: boolean; notice: string; onEnd: () => void }) {
+function CallStage({ title, autoEndOnPeerLeft, notice, mini, onToggleMini, onEnd }: { title: string; autoEndOnPeerLeft: boolean; notice: string; mini: boolean; onToggleMini: () => void; onEnd: () => void }) {
   const room = useRoomContext();
   const connection = useConnectionState();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
@@ -206,6 +206,43 @@ function CallStage({ title, autoEndOnPeerLeft, notice, onEnd }: { title: string;
   const shownNotice = notice || localNotice;
   const group = remotes.length > 1;
 
+  // Kichraytirilgan ko'rinish: burchakdagi suzuvchi oyna (xona uzilmaydi — faqat ko'rinish o'zgaradi)
+  if (mini) {
+    return (
+      <div className="absolute inset-0 overflow-hidden bg-[#0a0a0c] text-white">
+        <RoomAudioRenderer />
+        {screen ? (
+          <VideoTrack trackRef={screen} className="h-full w-full bg-black object-contain" />
+        ) : remoteCams[0] ? (
+          <VideoTrack trackRef={remoteCams[0]} className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full place-items-center bg-[radial-gradient(120%_80%_at_50%_0%,#1d1d22_0%,#0a0a0c_70%)]">
+            <Initial name={first ? nameOf(first) : title} size={52} />
+          </div>
+        )}
+        <button type="button" onClick={onToggleMini} aria-label="Qo'ng'iroqni kengaytirish" className="absolute inset-0 outline-none focus-visible:ring-4 focus-visible:ring-white/50" />
+        <span className="pointer-events-none absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium tabular-nums backdrop-blur-md">
+          {reconnecting && <WifiOff size={11} aria-hidden="true" />}
+          {status}
+        </span>
+        <span className="pointer-events-none absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 backdrop-blur-md">
+          <Maximize2 size={12} aria-hidden="true" />
+        </span>
+        <button
+          type="button"
+          onClick={toggleMic}
+          aria-label={isMicrophoneEnabled ? "Ovozni o'chirish" : "Ovozni yoqish"}
+          className={cn("absolute bottom-2 left-2 grid h-9 w-9 place-items-center rounded-full transition active:scale-90", isMicrophoneEnabled ? "bg-black/60 text-white backdrop-blur-md" : "bg-white text-[#0a0a0c]")}
+        >
+          {isMicrophoneEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+        </button>
+        <button type="button" onClick={onEnd} aria-label="Tugatish" className="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full bg-danger text-white transition active:scale-90">
+          <PhoneOff size={16} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#0a0a0c] text-white">
       <RoomAudioRenderer />
@@ -240,11 +277,24 @@ function CallStage({ title, autoEndOnPeerLeft, notice, onEnd }: { title: string;
           ui ? "opacity-100" : "-translate-y-2 opacity-0",
         )}
       >
-        <p className="truncate text-[17px] font-semibold">{group ? title : first ? nameOf(first) : title}</p>
-        <p className={cn("mt-0.5 flex items-center gap-1.5 text-[14px] tabular-nums", reconnecting || peerLeft ? "text-warning" : "text-white/75")} aria-live="polite">
-          {reconnecting && <WifiOff size={14} aria-hidden="true" />}
-          {status}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[17px] font-semibold">{group ? title : first ? nameOf(first) : title}</p>
+            <p className={cn("mt-0.5 flex items-center gap-1.5 text-[14px] tabular-nums", reconnecting || peerLeft ? "text-warning" : "text-white/75")} aria-live="polite">
+              {reconnecting && <WifiOff size={14} aria-hidden="true" />}
+              {status}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggleMini}
+            aria-label="Kichraytirish"
+            title="Kichraytirish — chatdan foydalanish"
+            className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/16 text-white backdrop-blur-xl transition active:scale-90"
+          >
+            <Minimize2 size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Ogohlantirish (ruxsat berilmadi va h.k.) */}
@@ -331,7 +381,9 @@ export function CallRoom({
   /** true = kamera yoqilgan (video qo'ng'iroq), false = faqat ovoz (kamerani keyin yoqish mumkin) */
   startWithVideo?: boolean;
 }) {
-  useScrollLock(true);
+  const [mini, setMini] = useState(false);
+  useScrollLock(!mini);
+  const toggleMini = useCallback(() => setMini((v) => !v), []);
   const [state, setState] = useState<"loading" | "ready" | "error">(connection ? "ready" : "loading");
   const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
   const [error, setError] = useState<string>("");
@@ -414,9 +466,9 @@ export function CallRoom({
     };
   }, [target, connection]);
 
-  // Esc bilan yopish (kompyuterda)
+  // Esc: qo'ng'iroqni tugatmaydi — kichraytiradi (tasodifan uzilib qolmasin)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMini(true);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -432,7 +484,17 @@ export function CallRoom({
   }, [state, connected]);
 
   return (
-    <div className="fixed inset-0 z-[135] h-dvh overflow-hidden bg-[#0a0a0c]" role="dialog" aria-modal="true" aria-label={`Qo'ng'iroq — ${title}`}>
+    <div
+      className={cn(
+        "fixed z-[135] overflow-hidden bg-[#0a0a0c] transition-[inset,width,height,border-radius] duration-300",
+        mini
+          ? "bottom-[calc(env(safe-area-inset-bottom)+92px)] right-3 h-[176px] w-[120px] rounded-2xl shadow-[0_14px_40px_-8px_rgba(0,0,0,0.7)] ring-1 ring-white/25 md:bottom-6 md:right-6 md:h-[170px] md:w-[300px]"
+          : "inset-0 h-dvh",
+      )}
+      role="dialog"
+      aria-modal={!mini}
+      aria-label={`Qo'ng'iroq — ${title}`}
+    >
       {state === "loading" && <Message onClose={end}>Ulanmoqda…</Message>}
       {state === "error" && (
         <Message error onClose={end}>
@@ -452,7 +514,7 @@ export function CallRoom({
           onMediaDeviceFailure={handleMediaFailure}
           className={ROOM_CLASS}
         >
-          <CallStage title={title} autoEndOnPeerLeft={!target} notice={notice} onEnd={end} />
+          <CallStage title={title} autoEndOnPeerLeft={!target} notice={notice} mini={mini} onToggleMini={toggleMini} onEnd={end} />
         </LiveKitRoom>
       )}
     </div>
