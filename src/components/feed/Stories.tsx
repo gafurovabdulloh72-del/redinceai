@@ -4,6 +4,8 @@ import { Avatar } from "@/components/ui";
 import { tr, type Locale } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
 import type { StoryAuthor } from "@/lib/feed";
+import type { StoryRailItem } from "@/lib/stories/types";
+import { StoryRail } from "@/components/stories/StoryRail";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,8 +13,26 @@ import { cn } from "@/lib/utils";
  * Halqa (v5): so'nggi 24 soatda post qo'ygan — gradient (coral→amber→binafsha, "yangi" signali), eskiroq — kulrang. Birinchi element — yaqin efir (bo'lsa),
  * kirganlar uchun — «Saqlangan» (soni bilan). Gorizontal aylanadi, skrollbarsiz.
  */
-export function Stories({ items, live, til, saved = null }: { items: StoryAuthor[]; live: { href: string; label: string; isLive: boolean } | null; til: Locale; saved?: { count: number } | null }) {
-  if (items.length === 0 && !live && !saved) return null;
+export function Stories({
+  items,
+  live,
+  til,
+  saved = null,
+  rail = [],
+  me = null,
+  canCreate = false,
+}: {
+  items: StoryAuthor[];
+  live: { href: string; label: string; isLive: boolean } | null;
+  til: Locale;
+  saved?: { count: number } | null;
+  /** Haqiqiy story'lar (24 soat) — bor bo'lsa post qilganlar ro'yxati o'rniga chiqadi */
+  rail?: StoryRailItem[];
+  me?: { id: string; name: string; avatarUrl: string | null } | null;
+  canCreate?: boolean;
+}) {
+  const hasStories = rail.some((r) => !r.isMe);
+  if (items.length === 0 && !live && !saved && !rail.length && !canCreate) return null;
   const fresh = Date.now() - 24 * 60 * 60 * 1000;
   const item = "press flex w-[72px] flex-col items-center gap-1.5 text-center";
   return (
@@ -52,7 +72,8 @@ export function Stories({ items, live, til, saved = null }: { items: StoryAuthor
             </Link>
           </li>
         )}
-        {items.map((a) => (
+        <StoryRail rail={rail} me={me} canCreate={canCreate} />
+        {!hasStories && items.map((a) => (
           <li key={a.id} className="shrink-0">
             <Link href={`/mutaxassislar/${a.slug}?tab=postlar`} className={item} aria-label={FEED.storyLabel[til](a.name)}>
               <span className={a.latestAt >= fresh ? "story-ring" : "story-ring-seen"}>

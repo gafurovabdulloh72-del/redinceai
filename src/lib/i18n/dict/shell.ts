@@ -79,6 +79,7 @@ export const SHELL = {
     homeShort: { uz: "Asosiy", ru: "Главная" },
     map: { uz: "Xarita", ru: "Карта" },
     lenta: { uz: "Reels", ru: "Reels" },
+    top: { uz: "TOP reyting", ru: "ТОП рейтинг" },
     /* "Специалисты" yuqori panelga sig'maydi (logo ikki qatorga tushadi) — ikkala joyda ham ixcham "Профи" */
     specialists: { uz: "Mutaxassislar", ru: "Профи" },
     specialistsShort: { uz: "Mutaxassislar", ru: "Профи" },

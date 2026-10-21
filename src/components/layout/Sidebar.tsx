@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, GraduationCap, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, GraduationCap, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon, Crown } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { usePresence } from "@/components/motion/usePresence";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -92,6 +92,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
   const secondary: Item[] = [
+    { href: "/top", label: SHELL.nav.top, icon: Crown },
     { href: "/mentorlik", label: SHELL.nav.mentorship, icon: GraduationCap },
     { href: "/mutaxassislar", label: SHELL.nav.specialists, icon: Users },
     { href: "/xarita", label: SHELL.nav.map, icon: Map },
@@ -109,7 +110,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     router.refresh();
   };
 
-  const row = "group/side relative flex h-12 items-center gap-4 rounded-full px-3.5 text-[15.5px] text-fg transition-colors duration-200 hover:bg-fg/[0.05] md:justify-center xl:justify-start";
+  const row = "group/side relative flex h-11 shrink-0 cozy:h-10 short:h-9 items-center gap-4 rounded-full px-3.5 text-[15.5px] text-fg transition-colors duration-200 hover:bg-fg/[0.05] md:justify-center xl:justify-start";
   const label = "hidden truncate xl:block";
 
   const renderItem = (it: Item) => {
@@ -141,10 +142,10 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
           <Logo className="md:[&>span:last-child]:hidden xl:[&>span:last-child]:inline" />
         </div>
 
-        <nav className="mt-4 flex min-h-0 flex-1 flex-col" aria-label={tr(til, SHELL.nav.mainAria)}>
+        <nav className="no-scrollbar mt-3 flex min-h-0 flex-1 flex-col cozy:mt-2 cozy:overflow-y-auto xl:overflow-y-auto" aria-label={tr(til, SHELL.nav.mainAria)}>
           <ul className="space-y-0.5">
             {primary.map(renderItem)}
-            <li className="pt-3">
+            <li className="pt-3 cozy:pt-2">
               {/* Doimiy asosiy CTA (X "Post" tugmasi kabi): yaratish imkoni har doim ko'z oldida — odat sikli "amal" bosqichi */}
               <button
                 type="button"
@@ -160,11 +161,11 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
               </button>
             </li>
           </ul>
-          <div className="my-3 h-px bg-line" aria-hidden />
+          <div className="my-3 h-px shrink-0 bg-line cozy:my-2" aria-hidden />
           <ul className="space-y-0.5">{secondary.map(renderItem)}</ul>
         </nav>
 
-        <div className="mt-auto space-y-0.5">
+        <div className="mt-auto shrink-0 space-y-0.5 pt-2">
           {user ? (
             <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "bg-fg/[0.07] font-bold")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
               <Avatar name={user.name} src={user.avatarUrl} size={26} decorative />

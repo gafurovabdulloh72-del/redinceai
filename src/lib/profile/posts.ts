@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, isNull, like, lt, not, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, posts, type FileAttachment, type Post } from "@/lib/db/schema";
+import { follows, posts, type FileAttachment, type Post, type PostMusic } from "@/lib/db/schema";
 import { briefUsers, toPostViews, type PostView } from "@/lib/groups/service";
 import { notifyMentions } from "@/lib/groups/mentions";
 import { notify } from "@/lib/notifications";
@@ -38,7 +38,7 @@ function filterCond(f: ProfilePostFilter): SQL | undefined {
 const isVideo = (m: FileAttachment) => m.type.startsWith("video/") || /\.(?:mp4|webm|mov)(?:$|\?)/i.test(m.url);
 
 /** Yangi profil posti; obunachilarga (follows) bildirishnoma — sayt + Telegram, email emas (25 talik bo'laklar) */
-export async function createProfilePost(authorId: string, body: string, media: FileAttachment[]): Promise<Post> {
+export async function createProfilePost(authorId: string, body: string, media: FileAttachment[], music: PostMusic | null = null): Promise<Post> {
   const now = new Date();
   const row: typeof posts.$inferInsert = {
     id: uid(),
@@ -46,6 +46,7 @@ export async function createProfilePost(authorId: string, body: string, media: F
     authorId,
     body,
     media,
+    music,
     likesCount: 0,
     commentsCount: 0,
     isPinned: false,

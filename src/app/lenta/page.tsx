@@ -1,61 +1,33 @@
 import type { Metadata } from "next";
-import { ArrowRight, Clapperboard } from "lucide-react";
-import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
-import { LentaFeed } from "@/components/lenta/LentaFeed";
-import { tr } from "@/lib/i18n";
-import { getLocale } from "@/lib/i18n/server";
-import { LENTA } from "@/lib/i18n/dict/lenta";
-import { getLentaItems } from "@/lib/lenta";
+import { ReelsFeed } from "@/components/reels/ReelsFeed";
+import { getCurrentUser } from "@/lib/auth";
+import { getReelByPostId, getReels, type ReelsMode } from "@/lib/reels";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Lenta — ishlar videoda",
-  description:
-    "Mutaxassislarning video ishlari — Reels uslubidagi lenta. Videograf va montajchilarning ishlarini jonli ko'ring, yoqqaniga to'g'ridan-to'g'ri buyurtma bering.",
+  title: "Reels — ijodkorlar ishlari",
+  description: "Kasb Egalari Reels: ijodkorlarning video va rasmli postlari, trend va haftalik TOP. Yoqqan ijodkorga darhol yozing.",
   alternates: { canonical: "/lenta" },
 };
 
-export default async function LentaPage() {
-  const til = await getLocale();
-  const { items, nextCursor } = await getLentaItems(8);
-
-  /* Bo'sh holat — oddiy sahifa oqimida (to'liq ekran lenta emas) */
-  if (!items.length) {
-    return (
-      <div className="container-x">
-        <PageHeader
-          eyebrow={tr(til, LENTA.eyebrow)}
-          title={
-            <>
-              {tr(til, LENTA.titleStart)} <span className="accent-serif text-accent">{tr(til, LENTA.titleAccent)}</span>
-            </>
-          }
-          description={tr(til, LENTA.description)}
-        />
-        <div className="mt-10">
-          <EmptyState
-            icon={Clapperboard}
-            title={tr(til, LENTA.emptyTitle)}
-            description={tr(til, LENTA.emptyDesc)}
-            action={
-              <ButtonLink href="/mutaxassislar" variant="accent" size="md">
-                {tr(til, LENTA.openCatalog)} <ArrowRight size={16} />
-              </ButtonLink>
-            }
-          />
-        </div>
-      </div>
-    );
-  }
-
+/**
+ * Reels (/lenta): saytdagi barcha media-postlar + portfolio videolari. `?tab=new|top`, `?post=<id>` — ulashilgan post boshida.
+ * `data-reels-screen` — globals.css telefonda yuqori panelni yashiradi (to'liq ekran), pastki tab qoladi.
+ */
+export default async function LentaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const user = await getCurrentUser();
+  const viewer = user ? { id: user.id, role: user.role } : null;
+  const tab = typeof sp.tab === "string" ? sp.tab : "";
+  const mode: ReelsMode = tab === "new" || tab === "top" ? tab : "foryou";
+  const postId = typeof sp.post === "string" && sp.post.length <= 64 ? sp.post : null;
+  const [page, pinned] = await Promise.all([getReels(viewer, mode, null, 6), postId ? getReelByPostId(postId, viewer) : Promise.resolve(null)]);
+  const items = pinned ? [pinned, ...page.items.filter((i) => i.key !== pinned.key)] : page.items;
   return (
-    <>
-      <h1 className="sr-only">{tr(til, LENTA.srTitle)}</h1>
-      {/* Layout'dagi main padding'lari bekor qilinadi — lenta ekranni to'liq egallaydi (navbar shisha, ustidan ko'rinadi) */}
-      <div className="-mb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] -mt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] md:-mt-28 md:mb-0">
-        <LentaFeed initialItems={items} initialCursor={nextCursor} />
-      </div>
-    </>
+    <div data-reels-screen>
+      <h1 className="sr-only">Reels — ijodkorlar ishlari</h1>
+      <ReelsFeed initial={items} initialCursor={page.nextCursor} initialMode={mode} me={user ? { id: user.id, username: user.username ?? null } : null} pinnedKey={pinned?.key ?? null} />
+    </div>
   );
 }

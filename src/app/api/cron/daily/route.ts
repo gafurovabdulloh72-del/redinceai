@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notLike, or, sql
 import { db } from "@/lib/db";
 import { auditLogs, orders, payments, rateLimits, sessions } from "@/lib/db/schema";
 import { runDigests } from "@/lib/digest";
+import { purgeExpiredStories } from "@/lib/stories/service";
 import { closeExpiredJobs } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
 import { tashkentNow } from "@/lib/privacy";
@@ -96,6 +97,7 @@ export async function GET(req: Request) {
     vacancyAlerts: null as { checked: number; notified: number } | null,
     viewsPurged: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
+    storiesPurged: 0,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -189,6 +191,13 @@ export async function GET(req: Request) {
     counts.viewsPurged = await purgeOldViews();
   } catch (e) {
     counts.errors.push(`views: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (n) Muddati o'tgan story'lar (3 kundan eski) o'chiriladi
+  try {
+    counts.storiesPurged = await purgeExpiredStories();
+  } catch (e) {
+    counts.errors.push(`stories: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (m) Kunlik/haftalik jamlama xabarnoma (Telegram + email + sayt): faqat o'zi yoqqanlarga, bo'sh bo'lsa yuborilmaydi

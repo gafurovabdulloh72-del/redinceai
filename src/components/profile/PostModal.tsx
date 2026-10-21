@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Eye, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
 import { useViewTracker } from "@/components/groups/useViewTracker";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { compactCount } from "@/lib/utils";
@@ -298,6 +298,12 @@ function PostBody({
           )}
         </p>
       </div>
+      {/* Mijoz post/videoni ko'rayotganda ijodkor bilan darhol gaplashish */}
+      {post.author.username && viewerId !== post.author.id && (
+        <Link href={loggedIn ? `/yozish/${post.author.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${post.author.username}`)}`} className="btn-accent inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold">
+          <MessageSquareText size={15} /> Yozish
+        </Link>
+      )}
       {canPin && (
         <button type="button" onClick={togglePin} disabled={busy} aria-pressed={pinned} aria-label={tr(til, pinned ? POST_OYNA.unpin : POST_OYNA.pin)} title={tr(til, pinned ? POST_OYNA.unpin : POST_OYNA.pin)} className={cn(iconBtn, "mr-9", pinned && "text-fg")}>
           {pinned ? <PinOff size={16} /> : <Pin size={16} />}

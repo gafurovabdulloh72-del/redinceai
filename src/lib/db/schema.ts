@@ -169,6 +169,15 @@ export interface SpecialistRates {
   unit?: number;
 }
 /** Biriktirilgan fayl (buyurtma, chat xabari) */
+/** Post/story musiqasi: foydalanuvchi yuklagan audio trek (/api/upload purpose="music") va ko'rinadigan nomi */
+export interface PostMusic {
+  url: string;
+  title: string;
+  artist?: string;
+  /** Trekdan qaysi soniyadan boshlab chalinadi (ixtiyoriy) */
+  start?: number;
+}
+
 export interface FileAttachment {
   url: string;
   name: string;
@@ -1203,6 +1212,8 @@ export const posts = sqliteTable(
     body: text("body").notNull(),
     /** Rasm/video biriktirmalari (/api/upload natijalari) */
     media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    /** Musiqa (rasmli post/reels ustida chalinadi) — null: yo'q */
+    music: text("music", { mode: "json" }).$type<PostMusic | null>(),
     likesCount: integer("likes_count").notNull().default(0),
     commentsCount: integer("comments_count").notNull().default(0),
     /** Ko'rishlar (noyob: foydalanuvchi yoki mehmon xeshi, kuniga 1 marta — post_views) */
@@ -1393,6 +1404,47 @@ export const feedMutes = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("feed_mutes_pair_idx").on(t.userId, t.authorId)],
+);
+
+/* Story (Instagram uslubi): 24 soat yashaydigan rasm/video/matn + ixtiyoriy musiqa. Limit: oddiy — sutkasiga 4 ta, premium — cheksiz (lib/social) */
+export const stories = sqliteTable(
+  "stories",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Rasm yoki video; null — faqat matnli story (rangli fon) */
+    media: text("media", { mode: "json" }).$type<FileAttachment | null>(),
+    caption: text("caption"),
+    /** Matnli story foni (CSS rang/gradient kaliti) */
+    bg: text("bg"),
+    music: text("music", { mode: "json" }).$type<PostMusic | null>(),
+    viewsCount: integer("views_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("stories_author_idx").on(t.authorId, t.createdAt), index("stories_expires_idx").on(t.expiresAt)],
+);
+
+/** Story ko'rishlari: kim ko'rgan (muallifga ro'yxat) va halqa «ko'rilgan» holati — bir foydalanuvchi bir marta */
+export const storyViews = sqliteTable(
+  "story_views",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    viewerId: text("viewer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("story_views_pair_idx").on(t.storyId, t.viewerId), index("story_views_viewer_idx").on(t.viewerId)],
 );
 
 /* Obuna (follow): followerId → followingId foydalanuvchini kuzatadi */

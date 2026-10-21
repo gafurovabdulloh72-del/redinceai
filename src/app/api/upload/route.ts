@@ -58,6 +58,15 @@ function sniffAudio(buf: Buffer): { ext: string; mime: string } | null {
   return null;
 }
 
+/** Musiqa (purpose="music"): MP3 (ID3 yoki MPEG kadr sinxroni), M4A (ftyp), Ogg */
+function sniffMusic(buf: Buffer): { ext: string; mime: string } | null {
+  if (buf.length >= 3 && buf.subarray(0, 3).toString("ascii") === "ID3") return { ext: "mp3", mime: "audio/mpeg" };
+  if (buf.length >= 2 && buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0) return { ext: "mp3", mime: "audio/mpeg" };
+  if (buf.length >= 12 && buf.subarray(4, 8).toString("ascii") === "ftyp") return { ext: "m4a", mime: "audio/mp4" };
+  if (buf.length >= 4 && buf.subarray(0, 4).toString("ascii") === "OggS") return { ext: "ogg", mime: "audio/ogg" };
+  return null;
+}
+
 /**
  * Rasm (va buyurtma biriktirmasi sifatida hujjat, chatda ovozli xabar) yuklash. Saqlash tanlovi (ustuvorlik):
  *  1) Cloudflare R2 (barcha R2_* env'lar to'liq — src/lib/storage/r2.ts) → URL: R2_PUBLIC_BASE/uploads/<nom>
@@ -87,10 +96,11 @@ export const POST = handler(async (req) => {
   // qolgan joylar (avatar, portfolio, sharh) — faqat rasm
   const purpose = form?.get("purpose");
   const voice = purpose === "voice";
+  const music = purpose === "music";
   const allowDocs = purpose === "attachment";
-  await enforceLimit(voice ? "voice" : "upload", session.sub);
-  const kind = voice ? sniffAudio(bytes) : (sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null));
-  if (!kind) throw new ApiError(415, voice ? "Ovozli xabar formati qo'llab-quvvatlanmaydi (WebM/Opus, M4A yoki Ogg)" : allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
+  await enforceLimit(voice || music ? "voice" : "upload", session.sub);
+  const kind = music ? sniffMusic(bytes) : voice ? sniffAudio(bytes) : (sniff(bytes) ?? (allowDocs ? (sniffDoc(bytes, file.name || "") ?? sniffVideo(bytes)) : null));
+  if (!kind) throw new ApiError(415, music ? "Musiqa formati qo'llab-quvvatlanmaydi (MP3, M4A yoki OGG)" : voice ? "Ovozli xabar formati qo'llab-quvvatlanmaydi (WebM/Opus, M4A yoki Ogg)" : allowDocs ? "Faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)" : "Faqat JPG, PNG, WEBP yoki GIF");
 
   const name = `${uid()}.${kind.ext}`;
 

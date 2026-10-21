@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
-import { BadgeCheck, BarChart3, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
+import { BadgeCheck, BarChart3, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
 import { firstUrl, RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, ReactorsButton, SaveButton, ShareAction, type ReactionState } from "./Reactions";
@@ -18,6 +18,8 @@ import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
+import { MusicChip } from "@/components/social/MusicChip";
 import { COMMENT_MAX, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
 import type { PostView, UserBrief } from "@/lib/groups/service";
 import type { CommentViewX, PollView } from "@/lib/groups/posts-extra";
@@ -225,6 +227,12 @@ export function Composer({
   const [eventUrl, setEventUrl] = useState("");
   const [pollOpen, setPollOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  // Profil (Reels) posti: musiqa va haftalik kvota (oddiy — 2 ta, premium — cheksiz)
+  const isProfile = base.startsWith("/api/profil/postlar");
+  const [musicOpen, setMusicOpen] = useState(false);
+  const [music, setMusic] = useState<MusicDraft | null>(null);
+  const [quotaTick, setQuotaTick] = useState(0);
+  const quota = useQuota(isProfile ? quotaTick + 1 : 0);
   const [uploading, setUploading] = useState(false);
   // Yuklash jarayoni: umumiy ulush (0–1) va qaysi fayl nechanchidan — foydalanuvchiga % ko'rsatiladi
   const [progress, setProgress] = useState(0);
@@ -329,6 +337,8 @@ export function Composer({
     setEventUrl("");
     setPollOpen(false);
     setPollOptions(["", ""]);
+    setMusic(null);
+    setMusicOpen(false);
     setRestored(false);
     setTouched(false);
     try {
@@ -341,7 +351,13 @@ export function Composer({
     setBusy(true);
     setError(null);
     try {
-      const payload = { body: body.trim(), media, eventAt: eventOpen ? eventMs : null, eventUrl: eventOpen ? eventUrl.trim() : "" };
+      const payload = {
+        body: body.trim(),
+        media,
+        eventAt: eventOpen ? eventMs : null,
+        eventUrl: eventOpen ? eventUrl.trim() : "",
+        ...(isProfile && music ? { music: { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } } : {}),
+      };
       const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
@@ -356,6 +372,7 @@ export function Composer({
         }
       }
       reset();
+      setQuotaTick((t) => t + 1);
       await onPosted(id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Yuborilmadi");
@@ -470,6 +487,11 @@ export function Composer({
           )}
         </div>
       )}
+      {isProfile && musicOpen && (
+        <div className="expand-in mt-2.5">
+          <MusicPicker value={music} onChange={setMusic} />
+        </div>
+      )}
       {media.length > 0 && (
         <ul className="mt-2.5 grid grid-cols-4 gap-2">
           {media.map((a, i) => (
@@ -510,6 +532,11 @@ export function Composer({
               <BarChart3 size={18} />
             </button>
           )}
+          {isProfile && (
+            <button type="button" onClick={() => setMusicOpen((v) => !v)} aria-pressed={musicOpen} aria-label="Musiqa" title="Musiqa qo'shish" className={toolBtn(musicOpen || Boolean(music))}>
+              <Music2 size={18} />
+            </button>
+          )}
           {allowEvent && (
             <button type="button" onClick={() => setEventOpen((v) => !v)} aria-pressed={eventOpen} aria-label={tr(til, FEED.event)} title={tr(til, FEED.event)} className={toolBtn(eventOpen)}>
               <RadioTower size={18} />
@@ -523,6 +550,11 @@ export function Composer({
           <Button type="button" variant="primary" size="sm" onClick={() => void submit()} disabled={!canSend} title={tr(til, FEED.sendHint)} className={cn(pct <= 0.8 && "ml-auto")}>
             {busy ? <Spinner className="h-4 w-4" /> : <Send size={16} />} {busy ? tr(til, FEED.posting) : eventOpen ? "Efirni e'lon qilish" : tr(til, FEED.post)}
           </Button>
+        </div>
+      )}
+      {isProfile && expanded && quota && (
+        <div className="mt-2 px-1">
+          <QuotaLine q={quota} kind="posts" />
         </div>
       )}
       {error && (
@@ -788,6 +820,7 @@ export function PostCard({
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
       <MediaGrid media={media} alt={body.slice(0, 120)} />
+      {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 
       <footer className="-mx-1.5 mt-2.5 flex items-center gap-1">
         <ReactionButton postId={post.id} initial={post} canInteract={canInteract} requireLogin={requireLogin} showCount={false} lockedTitle={loggedIn && !canInteract ? tr(til, FEED.joinToReact) : undefined} onChange={setRx} />

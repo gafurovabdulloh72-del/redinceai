@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
@@ -84,6 +84,8 @@ export interface PostView {
   groupId: string | null;
   body: string;
   media: FileAttachment[];
+  /** Musiqa (profil/Reels posti) — null: yo'q */
+  music: PostMusic | null;
   likesCount: number;
   commentsCount: number;
   /** Ko'rishlar soni (noyob, kuniga 1) */
@@ -931,6 +933,7 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     groupId: p.groupId,
     body: p.body,
     media: p.media,
+    music: p.music ?? null,
     likesCount: p.likesCount,
     commentsCount: p.commentsCount,
     viewsCount: p.viewsCount,

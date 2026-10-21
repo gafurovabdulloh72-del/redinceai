@@ -12,6 +12,7 @@ import { Stories } from "@/components/feed/Stories";
 import { OnboardingCard } from "@/components/feed/OnboardingCard";
 import { ProfileMeter } from "@/components/feed/ProfileMeter";
 import { creatorOnboarding, ONBOARDING_COOKIE, ONBOARDING_DAYS } from "@/lib/onboarding";
+import { storyRail } from "@/lib/stories/service";
 import { ownCompleteness } from "@/lib/profile/own-completeness";
 import { getCurrentUser } from "@/lib/auth";
 import { feedItemById, homeFeed, railData, storyAuthors, type FeedScope } from "@/lib/feed";
@@ -40,7 +41,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const postId = typeof sp.post === "string" && sp.post.length <= 64 ? sp.post : null;
   // Yangi ijodkor yo'riqnomasi: faqat mutaxassisga, dastlabki ONBOARDING_DAYS kunda, «Keyinroq» bosilmagan bo'lsa
   const wantsOnboarding = Boolean(user && (user.specialist || user.role === "specialist") && user.role !== "admin" && !jar.get(ONBOARDING_COOKIE) && Date.now() - user.createdAt.getTime() < ONBOARDING_DAYS * 86_400_000);
-  const [feed, stories, rail, pinned, saved, own, onboarding] = await Promise.all([
+  const [feed, stories, rail, pinned, saved, own, onboarding, storyItems] = await Promise.all([
     homeFeed(viewer, { scope, limit: 10, tag }),
     storyAuthors(14).catch(() => []),
     railData(viewer),
@@ -48,6 +49,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     user ? savedCount(user.id).catch(() => 0) : Promise.resolve(null),
     user ? ownCompleteness(user).catch(() => null) : Promise.resolve(null),
     user && wantsOnboarding ? creatorOnboarding(user).catch(() => null) : Promise.resolve(null),
+    storyRail(viewer).catch(() => []),
   ]);
   const onboardingOpen = Boolean(onboarding?.next);
   const canPost = Boolean(user && (user.specialist || user.role === "admin"));
@@ -65,7 +67,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <h1 className="sr-only">{SITE.name} — lenta</h1>
           {!user && <WelcomeCard til={til} />}
           {onboarding && onboardingOpen ? <OnboardingCard steps={onboarding.steps} til={til} /> : own && <ProfileMeter data={own} til={til} className="lg:hidden" />}
-          <Stories items={stories} live={live} til={til} saved={saved !== null ? { count: saved } : null} />
+          <Stories items={stories} live={live} til={til} saved={saved !== null ? { count: saved } : null} rail={storyItems} me={user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null} canCreate={canPost} />
           {canPost && <HomeComposer />}
           {user && <ScopeTabs scope={scope} tag={tag} />}
           <HomeFeed key={`${scope}:${tag ?? ""}:${pinned?.id ?? ""}`} initial={feed} scope={scope} loggedIn={Boolean(user)} tag={tag} suggestions={rail.creators} pinned={pinned} />

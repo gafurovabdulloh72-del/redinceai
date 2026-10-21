@@ -43,7 +43,9 @@ function uploadUrlRe(exts: string): RegExp {
   return new RegExp(`^(?:${alts.join("|")})$`, "i");
 }
 
-export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|zip|mp4|webm|mov|weba|m4a|ogg");
+export const UPLOAD_URL_RE = uploadUrlRe("jpe?g|png|webp|gif|pdf|docx?|zip|mp4|webm|mov|weba|m4a|ogg|mp3");
+/** Musiqa (post/story): faqat audio yuklama */
+export const AUDIO_URL_RE = uploadUrlRe("mp3|m4a|ogg|weba");
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
 
@@ -63,6 +65,7 @@ const EXT_MIME: Record<string, string> = {
   weba: "audio/webm",
   m4a: "audio/mp4",
   ogg: "audio/ogg",
+  mp3: "audio/mpeg",
 };
 
 /** Ovozli xabar: ko'pi bilan 3 daqiqa; MediaRecorder formatlari (brauzer qaysi birini qo'llasa) */
@@ -140,7 +143,7 @@ export function withRetryAfter(message: string, retryAfter: string | null): stri
  * Oddiy (multipart) yuklash — rasm/hujjat va dev'dagi video fallback.
  * XHR orqali: yuklash jarayoni (onProgress) va bekor qilish (signal) uchun — fetch'da upload progress yo'q.
  */
-function uploadViaApi(file: File, purpose: "" | "attachment" | "voice", p: UploadProgressOpts = {}, endpoint = "/api/upload"): Promise<string> {
+function uploadViaApi(file: File, purpose: "" | "attachment" | "voice" | "music", p: UploadProgressOpts = {}, endpoint = "/api/upload"): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     if (p.signal?.aborted) return reject(abortError());
     const fd = new FormData();
@@ -310,6 +313,13 @@ async function warnLowResolution(file: File): Promise<void> {
   if (Math.min(size.w, size.h) < 720) {
     showToast(`Video sifati past (${size.w}×${size.h}) — ekranda xira ko'rinishi mumkin. Kamida 1280×720 (HD) tavsiya etiladi.`, "info", { duration: 9000 });
   }
+}
+
+/** Musiqa trek (post/story): MP3/M4A/OGG, 5 MB gacha — purpose="music" */
+export async function uploadMusic(file: File, opts?: UploadProgressOpts): Promise<string> {
+  if (!/^audio\//.test(file.type) && !/\.(?:mp3|m4a|ogg)$/i.test(file.name)) throw new Error("Faqat MP3, M4A yoki OGG audio");
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error("Musiqa 5 MB dan katta — qisqaroq trek tanlang");
+  return uploadViaApi(file, "music", { onProgress: opts?.onProgress, signal: opts?.signal });
 }
 
 export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } } & UploadProgressOpts): Promise<Attachment> {
