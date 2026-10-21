@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { callPreview } from "@/lib/call/format";
 import { db } from "@/lib/db";
 import { conversations, dmConversationPrefs, dmMessageReactions, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -145,7 +146,7 @@ export async function listConversations(meId: string, limit = 60): Promise<ConvL
     with: {
       a: { columns: PEER_COLUMNS },
       b: { columns: PEER_COLUMNS },
-      messages: { orderBy: [desc(dmMessages.createdAt)], limit: 1, columns: { id: true, senderId: true, body: true, attachments: true, createdAt: true, deletedAt: true, hiddenFor: true } },
+      messages: { orderBy: [desc(dmMessages.createdAt)], limit: 1, columns: { id: true, senderId: true, body: true, attachments: true, createdAt: true, deletedAt: true, hiddenFor: true, call: true } },
     },
   });
   if (!rows.length) return [];
@@ -179,7 +180,7 @@ export async function listConversations(meId: string, limit = 60): Promise<ConvL
       last:
         m && !hidden
           ? {
-              body: m.deletedAt ? "" : m.body,
+              body: m.deletedAt ? "" : m.call ? callPreview(m.call, m.senderId === meId) : m.body,
               mine: m.senderId === meId,
               at: m.createdAt.getTime(),
               hasFiles: !m.deletedAt && (m.attachments?.length ?? 0) > 0,
@@ -327,8 +328,9 @@ export function toDmView(m: DmRow, meId: string, quotes: Map<string, QuoteView>,
   return {
     id: m.id,
     mine: m.senderId === meId,
-    body: deleted ? "" : m.body,
+    body: deleted ? "" : m.call ? callPreview(m.call, m.senderId === meId) : m.body,
     attachments: deleted ? [] : m.attachments,
+    call: deleted ? null : (m.call ?? null),
     at: m.createdAt.getTime(),
     replyTo: m.replyToId ? (quotes.get(m.replyToId) ?? { id: m.replyToId, body: "Xabar o'chirilgan", senderName: "", kind: "text" as const }) : null,
     editedAt: m.editedAt ? m.editedAt.getTime() : null,

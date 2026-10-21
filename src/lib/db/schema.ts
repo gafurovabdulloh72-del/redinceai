@@ -643,6 +643,8 @@ export const dmMessages = sqliteTable(
     hiddenFor: text("hidden_for", { mode: "json" }).$type<string[]>(),
     /** Yo'naltirilgan xabar — asl muallif ismi (ko'rsatish uchun) */
     forwardedFrom: text("forwarded_from"),
+    /** Qo'ng'iroq yozuvi (Telegram kabi): bo'lsa bu oddiy xabar emas, tugagan qo'ng'iroq tarixi. senderId = chaqiruvchi */
+    call: text("call", { mode: "json" }).$type<import("@/lib/call/format").CallInfo>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -694,6 +696,12 @@ export const callInvites = sqliteTable(
     status: text("status", { enum: ["ringing", "accepted", "declined", "cancelled", "missed", "ended"] })
       .notNull()
       .default("ringing"),
+    /** Javob berilgan (qabul qilingan) vaqt — davomiylik hisobi uchun */
+    answeredAt: integer("answered_at", { mode: "timestamp_ms" }),
+    /** Qo'ng'iroq tugagan vaqt */
+    endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+    /** Chat tarixiga yozilgan xabar id'si (bir marta yoziladi — CAS) */
+    messageId: text("message_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

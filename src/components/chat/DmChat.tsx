@@ -14,6 +14,8 @@ import type { QuoteView } from "@/lib/chat/quote";
 import { clock, dayKey, dayLabel, fullStamp, listStamp, relativeTime } from "@/lib/chat/time";
 import { cn } from "@/lib/utils";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, withRetryAfter, type Attachment } from "./attachments";
+import { CallBubble } from "@/components/call/CallBubble";
+import type { CallInfo } from "@/lib/call/format";
 import { AttachmentList, DayPill, LinkCard, Linkified, QuoteBlock, ReactionChips, ReactionPicker, ReplyBar, TypingDots, iconBtn, jumpToMessage, useNowTick } from "./MessageParts";
 import { ForwardDialog, InfoDialog, Layer, MenuDivider, MenuItem, PeerAvatar, PrefItems, type ConvPrefsView } from "./DmPanels";
 import { VoiceRecorder } from "./VoiceRecorder";
@@ -53,6 +55,8 @@ interface Msg {
   editedAt?: number | null;
   deleted?: boolean;
   forwardedFrom?: string | null;
+  /** Qo'ng'iroq yozuvi (oddiy xabar emas) */
+  call?: CallInfo | null;
   reactions?: ReactionSummary[];
   /** Faqat klientda: optimistik yuborish holati */
   pending?: "sending" | "failed";
@@ -950,7 +954,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
 
   /* ---------------- Xabar menyusi ---------------- */
   const menuMsg = msgMenu ? (msgs ?? []).find((m) => m.id === msgMenu.id) ?? null : null;
-  const canEdit = (m: Msg) => m.mine && !m.deleted && !m.pending && now - m.at < DM_EDIT_WINDOW_MS && m.attachments.length === 0;
+  const canEdit = (m: Msg) => m.mine && !m.deleted && !m.pending && !m.call && now - m.at < DM_EDIT_WINDOW_MS && m.attachments.length === 0;
   const messageMenu = menuMsg && (
     <Layer open={Boolean(msgMenu)} onClose={() => setMsgMenu(null)} label={t("msgMenu")} anchorClass={cn(msgMenu?.up ? "bottom-full mb-1" : "top-full mt-1", menuMsg.mine ? "left-0" : "right-0")} width="w-[250px]">
       {!menuMsg.deleted && !menuMsg.pending && (
@@ -1172,7 +1176,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         )}
                         {m.replyTo && !m.deleted && <QuoteBlock q={m.replyTo} mine={m.mine} />}
                         <AttachmentList attachments={m.attachments} mine={m.mine} />
-                        {m.deleted ? (
+                        {m.call && !m.deleted ? (
+                          <CallBubble call={m.call} mine={m.mine} conversationId={active ?? ""} peerName={peer?.name ?? ""} />
+                        ) : m.deleted ? (
                           <p className={cn("text-[13.5px] italic", m.mine ? "text-ink-fg/70" : "text-fg-3")}>{DM_DELETED_TEXT[locale]}</p>
                         ) : (
                           m.body && (

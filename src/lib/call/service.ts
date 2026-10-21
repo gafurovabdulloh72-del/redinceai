@@ -1,11 +1,13 @@
 import "server-only";
-import { and, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { callInvites, users, type CallInvite } from "@/lib/db/schema";
+import { callInvites, conversations, dmMessages, users, type CallInvite } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { loadConversationFor } from "@/lib/chat/dm";
 import { isBlockedEither } from "@/lib/privacy/blocks";
+import { notify } from "@/lib/notifications";
+import { callPreview, type CallEndStatus, type CallInfo } from "@/lib/call/format";
 import { mintCallToken, dmRoom, LIVEKIT_WS_URL } from "@/lib/rtc/livekit";
 
 /** Jiringlash muddati: shuncha vaqt javob bo'lmasa — «javobsiz» (missed) */
@@ -17,6 +19,47 @@ type BriefUser = { id: string; name: string; avatarUrl: string | null };
 async function brief(userId: string): Promise<BriefUser | null> {
   const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, name: true, avatarUrl: true } });
   return u ?? null;
+}
+
+/**
+ * Tugagan qo'ng'iroqni suhbat tarixiga yozish (Telegram kabi): kim chaqirdi, qachon boshlandi/tugadi, davomiylik.
+ * Bir marta yoziladi — `message_id` ustuniga CAS (ikkala tomon ham tugatsa ham dublikat bo'lmaydi).
+ * Javobsiz/bekor qilingan qo'ng'iroq uchun qabul qiluvchiga bildirishnoma.
+ */
+async function recordCall(inv: CallInvite, status: CallEndStatus, endedAt: Date): Promise<void> {
+  const msgId = uid();
+  const claimed = await db
+    .update(callInvites)
+    .set({ messageId: msgId })
+    .where(and(eq(callInvites.id, inv.id), isNull(callInvites.messageId)))
+    .returning({ id: callInvites.id });
+  if (!claimed.length) return; // boshqa tomon allaqachon yozgan
+
+  const answeredMs = inv.answeredAt?.getTime() ?? null;
+  const call: CallInfo = {
+    video: inv.video,
+    status,
+    startedAt: inv.createdAt.getTime(),
+    answeredAt: status === "ended" ? answeredMs : null,
+    endedAt: endedAt.getTime(),
+    durationSec: status === "ended" && answeredMs ? Math.max(0, Math.round((endedAt.getTime() - answeredMs) / 1000)) : 0,
+  };
+  const row: typeof dmMessages.$inferInsert = {
+    id: msgId,
+    conversationId: inv.conversationId,
+    senderId: inv.callerId,
+    body: callPreview(call, true),
+    attachments: [],
+    call,
+    createdAt: endedAt,
+  };
+  await db.insert(dmMessages).values(row);
+  await db.update(conversations).set({ lastMessageAt: endedAt }).where(eq(conversations.id, inv.conversationId));
+
+  if (status === "missed" || status === "cancelled") {
+    const caller = await brief(inv.callerId);
+    await notify(inv.calleeId, "chat", `Javobsiz ${inv.video ? "video " : ""}qo'ng'iroq`, caller?.name ?? "Foydalanuvchi", `/kabinet/chat?s=${inv.conversationId}`).catch(() => undefined);
+  }
 }
 
 /**
@@ -66,8 +109,14 @@ async function loadMine(inviteId: string, meId: string): Promise<CallInvite> {
 export async function getStatus(inviteId: string, meId: string) {
   let inv = await loadMine(inviteId, meId);
   if (inv.status === "ringing" && inv.createdAt.getTime() < Date.now() - RING_TTL_MS) {
-    await db.update(callInvites).set({ status: "missed", updatedAt: new Date() }).where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "ringing")));
-    inv = { ...inv, status: "missed" };
+    const at = new Date();
+    const won = await db
+      .update(callInvites)
+      .set({ status: "missed", endedAt: at, updatedAt: at })
+      .where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "ringing")))
+      .returning({ id: callInvites.id });
+    inv = { ...inv, status: "missed", endedAt: at };
+    if (won.length) await recordCall(inv, "missed", at);
   }
   return { status: inv.status, room: inv.room, conversationId: inv.conversationId, callerId: inv.callerId, calleeId: inv.calleeId, video: inv.video };
 }
@@ -77,7 +126,9 @@ export async function acceptCall(inviteId: string, meId: string, meName: string)
   const inv = await loadMine(inviteId, meId);
   if (inv.calleeId !== meId) throw new ApiError(403, "Bu qo'ng'iroqni siz qabul qila olmaysiz");
   if (!["ringing", "accepted"].includes(inv.status)) throw new ApiError(409, "Qo'ng'iroq allaqachon tugagan");
-  await db.update(callInvites).set({ status: "accepted", updatedAt: new Date() }).where(eq(callInvites.id, inviteId));
+  const now = new Date();
+  // answeredAt faqat birinchi qabulda (qayta chaqirilsa davomiylik buzilmasin)
+  await db.update(callInvites).set({ status: "accepted", updatedAt: now, ...(inv.answeredAt ? {} : { answeredAt: now }) }).where(eq(callInvites.id, inviteId));
   const token = await mintCallToken({ identity: meId, name: meName, room: inv.room });
   return { room: inv.room, token, url: LIVEKIT_WS_URL, video: inv.video };
 }
@@ -86,7 +137,15 @@ export async function acceptCall(inviteId: string, meId: string, meName: string)
 export async function declineCall(inviteId: string, meId: string) {
   const inv = await loadMine(inviteId, meId);
   if (inv.calleeId !== meId) throw new ApiError(403, "Ruxsat yo'q");
-  if (inv.status === "ringing") await db.update(callInvites).set({ status: "declined", updatedAt: new Date() }).where(eq(callInvites.id, inviteId));
+  if (inv.status === "ringing") {
+    const at = new Date();
+    const won = await db
+      .update(callInvites)
+      .set({ status: "declined", endedAt: at, updatedAt: at })
+      .where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "ringing")))
+      .returning({ id: callInvites.id });
+    if (won.length) await recordCall({ ...inv, status: "declined", endedAt: at }, "declined", at);
+  }
   return { ok: true };
 }
 
@@ -94,16 +153,32 @@ export async function declineCall(inviteId: string, meId: string) {
 export async function cancelCall(inviteId: string, meId: string) {
   const inv = await loadMine(inviteId, meId);
   if (inv.callerId !== meId) throw new ApiError(403, "Ruxsat yo'q");
-  if (inv.status === "ringing") await db.update(callInvites).set({ status: "cancelled", updatedAt: new Date() }).where(eq(callInvites.id, inviteId));
+  if (inv.status === "ringing") {
+    const at = new Date();
+    const won = await db
+      .update(callInvites)
+      .set({ status: "cancelled", endedAt: at, updatedAt: at })
+      .where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "ringing")))
+      .returning({ id: callInvites.id });
+    if (won.length) await recordCall({ ...inv, status: "cancelled", endedAt: at }, "cancelled", at);
+  }
   return { ok: true };
 }
 
-/** Tugatish (ikkala tomon ham) — suhbat yopilganda. Faqat hali faol (accepted/ringing) bo'lsa. */
+/** Tugatish (ikkala tomon ham chaqiradi — birinchisi yozadi, ikkinchisi no-op). Davomiylik tarixga yoziladi. */
 export async function endCall(inviteId: string, meId: string) {
-  await loadMine(inviteId, meId);
-  await db
+  const inv = await loadMine(inviteId, meId);
+  const at = new Date();
+  const won = await db
     .update(callInvites)
-    .set({ status: "ended", updatedAt: new Date() })
-    .where(and(eq(callInvites.id, inviteId), inArray(callInvites.status, ["accepted", "ringing"])));
+    .set({ status: "ended", endedAt: at, updatedAt: at })
+    .where(and(eq(callInvites.id, inviteId), eq(callInvites.status, "accepted")))
+    .returning({ id: callInvites.id });
+  if (won.length) {
+    await recordCall({ ...inv, status: "ended", endedAt: at }, "ended", at);
+  } else if (inv.status === "ringing" && inv.callerId === meId) {
+    // Hali jiringlayotganda chiqib ketdi — bekor qilish sifatida yoziladi
+    await cancelCall(inviteId, meId);
+  }
   return { ok: true };
 }

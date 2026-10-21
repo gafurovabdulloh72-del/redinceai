@@ -1,21 +1,320 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
-import "@livekit/components-styles";
-import { Loader2, X } from "lucide-react";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  VideoTrack,
+  isTrackReference,
+  useConnectionState,
+  useIsSpeaking,
+  useLocalParticipant,
+  useRemoteParticipants,
+  useRoomContext,
+  useTracks,
+  type TrackReference,
+} from "@livekit/components-react";
+import { ConnectionState, MediaDeviceFailure, Room, Track, type Participant } from "livekit-client";
+import { Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, SwitchCamera, Video, VideoOff, WifiOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { clockDuration } from "@/lib/call/format";
+import { useScrollLock } from "@/components/motion/useScrollLock";
+import { CallAvatar } from "./CallAvatar";
 
 type Target = { kind: "dm" | "group"; id: string };
 
-/** Barqaror stil obyekti — har renderda yangisi bo'lsa LiveKitRoom'ni bezovta qilmasin */
-const ROOM_STYLE = { height: "100%" } as const;
+/** Barqaror className — har renderda yangi qiymat LiveKitRoom'ni bezovta qilmasin */
+const ROOM_CLASS = "absolute inset-0 bg-[#0a0a0c]";
+
+const nameOf = (p: Participant) => p.name || p.identity;
+
+/** Kamera o'chiq bo'lganda: ismning bosh harfi bilan dumaloq avatar */
+function Initial({ name, size }: { name: string; size: number }) {
+  return (
+    <span className="rounded-full shadow-[0_12px_40px_-8px_rgba(0,0,0,0.6)] ring-[3px] ring-white/20">
+      <CallAvatar name={name} size={size} />
+    </span>
+  );
+}
+
+/** Dumaloq boshqaruv tugmasi (iOS uslubi): yoniq = oq fon, o'chiq = shisha, xavfli = qizil */
+function Ctl({
+  label,
+  onClick,
+  active,
+  danger,
+  big,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  danger?: boolean;
+  big?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} aria-pressed={active} className="group flex flex-col items-center gap-2 outline-none">
+      <span
+        className={cn(
+          "grid place-items-center rounded-full transition group-active:scale-90 group-focus-visible:ring-4 group-focus-visible:ring-white/50",
+          big ? "h-16 w-16" : "h-14 w-14",
+          danger ? "bg-danger text-white" : active ? "bg-white text-[#0a0a0c]" : "bg-white/16 text-white backdrop-blur-xl",
+        )}
+      >
+        {children}
+      </span>
+      <span className="text-[11.5px] font-medium text-white/75">{label}</span>
+    </button>
+  );
+}
+
+/** Guruh qo'ng'irog'ida bitta ishtirokchi katagi (gapirayotganda yashil kontur) */
+function Tile({ p, cam }: { p: Participant; cam?: TrackReference }) {
+  const speaking = useIsSpeaking(p);
+  return (
+    <div className={cn("relative overflow-hidden rounded-2xl bg-white/[0.06] transition-shadow", speaking && "ring-[3px] ring-success")}>
+      {cam ? (
+        <VideoTrack trackRef={cam} className="h-full w-full object-cover" />
+      ) : (
+        <div className="grid h-full w-full place-items-center">
+          <Initial name={nameOf(p)} size={64} />
+        </div>
+      )}
+      <span className="absolute bottom-2 left-2 max-w-[85%] truncate rounded-full bg-black/50 px-2.5 py-1 text-[12px] font-medium text-white backdrop-blur-md">{nameOf(p)}</span>
+    </div>
+  );
+}
 
 /**
- * Video qo'ng'iroq xonasi — butun ekranli ustki qatlam (overlay).
- * `/api/qongiroq/token` dan token oladi (egalik tekshiruvi serverda), keyin LiveKit xonasiga ulanadi.
+ * Xona ichidagi interfeys — LiveKitRoom kontekstida ishlaydi.
+ * Telefon uchun noldan: to'liq ekranli suhbatdosh videosi, o'z kamerasi kichik oynada, taymer,
+ * pastda katta tugmalar (mikrofon · kamera · kamerani almashtirish · ekran · tugatish).
+ * Ekranga tegilsa boshqaruv paneli yashiriladi/ko'rinadi (video bor paytda 5 s dan keyin o'zi yashiriladi).
+ */
+function CallStage({ title, autoEndOnPeerLeft, notice, onEnd }: { title: string; autoEndOnPeerLeft: boolean; notice: string; onEnd: () => void }) {
+  const room = useRoomContext();
+  const connection = useConnectionState();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
+  const remotes = useRemoteParticipants();
+  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
+
+  const [ui, setUi] = useState(true);
+  const [localNotice, setLocalNotice] = useState("");
+  const [cams, setCams] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [peerLeft, setPeerLeft] = useState(false);
+  const startedAt = useRef<number | null>(null);
+  const hadRemote = useRef(false);
+  const canShare = typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+
+  const refs = tracks.filter(isTrackReference).filter((t) => !t.publication.isMuted);
+  const camOf = (p: Participant) => refs.find((t) => t.participant.identity === p.identity && t.source === Track.Source.Camera);
+  const screen = refs.find((t) => t.source === Track.Source.ScreenShare);
+  const localCam = camOf(localParticipant);
+  const remoteCams = remotes.map((p) => camOf(p)).filter((t): t is TrackReference => Boolean(t));
+  const hasVideo = Boolean(screen) || remoteCams.length > 0;
+  const first = remotes[0];
+
+  // Taymer: birinchi suhbatdosh qo'shilgandan boshlanadi
+  useEffect(() => {
+    if (remotes.length > 0 && startedAt.current === null) startedAt.current = Date.now();
+    if (startedAt.current === null) return;
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - (startedAt.current ?? Date.now())) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [remotes.length]);
+
+  // Suhbatdosh chiqib ketdi (DM) — qisqa xabar ko'rsatib, qo'ng'iroqni yopamiz
+  useEffect(() => {
+    if (remotes.length > 0) {
+      hadRemote.current = true;
+      setPeerLeft(false);
+      return;
+    }
+    if (!hadRemote.current || !autoEndOnPeerLeft) return;
+    setPeerLeft(true);
+    const t = setTimeout(onEnd, 1400);
+    return () => clearTimeout(t);
+  }, [remotes.length, autoEndOnPeerLeft, onEnd]);
+
+  // Kamera qurilmalari soni (almashtirish tugmasi faqat 2+ bo'lsa)
+  useEffect(() => {
+    if (!isCameraEnabled) return;
+    let alive = true;
+    void Room.getLocalDevices("videoinput")
+      .then((d) => alive && setCams(d.length))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [isCameraEnabled]);
+
+  // Telefon ekrani suhbat paytida o'chib qolmasin
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    const ask = () => {
+      void navigator.wakeLock?.request("screen").then((l) => (lock = l)).catch(() => undefined);
+    };
+    ask();
+    const onVis = () => document.visibilityState === "visible" && ask();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      void lock?.release().catch(() => undefined);
+    };
+  }, []);
+
+  // Video bor paytda boshqaruv paneli 5 s dan keyin yashirinadi
+  useEffect(() => {
+    if (!ui || !hasVideo) return;
+    const t = setTimeout(() => setUi(false), 5000);
+    return () => clearTimeout(t);
+  }, [ui, hasVideo]);
+  useEffect(() => {
+    if (!hasVideo) setUi(true);
+  }, [hasVideo]);
+
+  const flash = useCallback((text: string) => {
+    setLocalNotice(text);
+    setTimeout(() => setLocalNotice(""), 4000);
+  }, []);
+
+  const toggleMic = () => void localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled).catch(() => flash("Mikrofonga ruxsat berilmadi"));
+  const toggleCam = () =>
+    void localParticipant.setCameraEnabled(!isCameraEnabled).catch(() => flash("Kameraga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering"));
+  const toggleScreen = () => void localParticipant.setScreenShareEnabled(!isScreenShareEnabled).catch(() => undefined);
+  const flip = async () => {
+    try {
+      const list = await Room.getLocalDevices("videoinput");
+      if (list.length < 2) return;
+      const cur = room.getActiveDevice("videoinput");
+      const i = list.findIndex((d) => d.deviceId === cur);
+      await room.switchActiveDevice("videoinput", list[(i + 1) % list.length].deviceId);
+    } catch {
+      flash("Kamerani almashtirib bo'lmadi");
+    }
+  };
+
+  const reconnecting = connection === ConnectionState.Reconnecting;
+  const status = peerLeft
+    ? "Suhbatdosh chiqib ketdi"
+    : reconnecting
+      ? "Qayta ulanmoqda…"
+      : remotes.length === 0
+        ? "Ulanmoqda…"
+        : clockDuration(elapsed);
+  const shownNotice = notice || localNotice;
+  const group = remotes.length > 1;
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[#0a0a0c] text-white">
+      <RoomAudioRenderer />
+
+      {/* Asosiy sahna — tegilsa boshqaruv panelini ko'rsatadi/yashiradi */}
+      <div className="absolute inset-0" onPointerDown={() => hasVideo && setUi((v) => !v)}>
+        {screen ? (
+          <VideoTrack trackRef={screen} className="h-full w-full bg-black object-contain" />
+        ) : group ? (
+          <div className="grid h-full auto-rows-fr grid-cols-2 gap-1.5 p-1.5 pb-44 pt-28">
+            {remotes.map((p) => (
+              <Tile key={p.identity} p={p} cam={camOf(p)} />
+            ))}
+          </div>
+        ) : remoteCams[0] ? (
+          <VideoTrack trackRef={remoteCams[0]} className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full place-items-center bg-[radial-gradient(120%_80%_at_50%_0%,#1d1d22_0%,#0a0a0c_70%)] px-6">
+            <div className="flex flex-col items-center gap-5 pb-24 text-center">
+              <Initial name={first ? nameOf(first) : title} size={132} />
+              <p className="max-w-[80vw] truncate font-sans text-[26px] font-semibold tracking-[-0.01em]">{first ? nameOf(first) : title}</p>
+              {first && <p className="text-[14px] text-white/55">Kamera o'chiq</p>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Yuqori panel: nom + holat/taymer */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent px-5 pb-10 pt-[max(env(safe-area-inset-top),14px)] transition duration-300",
+          ui ? "opacity-100" : "-translate-y-2 opacity-0",
+        )}
+      >
+        <p className="truncate text-[17px] font-semibold">{group ? title : first ? nameOf(first) : title}</p>
+        <p className={cn("mt-0.5 flex items-center gap-1.5 text-[14px] tabular-nums", reconnecting || peerLeft ? "text-warning" : "text-white/75")} aria-live="polite">
+          {reconnecting && <WifiOff size={14} aria-hidden="true" />}
+          {status}
+        </p>
+      </div>
+
+      {/* Ogohlantirish (ruxsat berilmadi va h.k.) */}
+      {shownNotice && (
+        <div role="alert" className="absolute inset-x-4 top-[calc(max(env(safe-area-inset-top),14px)+72px)] z-10 rounded-2xl bg-black/75 px-4 py-3 text-center text-[13.5px] text-white backdrop-blur-xl">
+          {shownNotice}
+        </div>
+      )}
+
+      {/* O'z kameram — kichik oyna (o'ng yuqori) */}
+      {localCam && !isScreenShareEnabled && (
+        <div className="absolute right-3 top-[calc(max(env(safe-area-inset-top),14px)+68px)] z-10 aspect-[3/4] w-[104px] overflow-hidden rounded-2xl bg-black shadow-[0_10px_30px_-6px_rgba(0,0,0,0.6)] ring-2 ring-white/25 sm:w-[140px]">
+          <VideoTrack trackRef={localCam} className="h-full w-full -scale-x-100 object-cover" />
+        </div>
+      )}
+
+      {/* Pastki boshqaruv paneli */}
+      <div
+        className={cn(
+          "absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-4 pb-[max(env(safe-area-inset-bottom),18px)] pt-14 transition duration-300",
+          ui ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
+        )}
+      >
+        <div className="mx-auto flex max-w-md items-end justify-center gap-3.5">
+          <Ctl label={isMicrophoneEnabled ? "Ovoz" : "Ovozsiz"} active={!isMicrophoneEnabled} onClick={toggleMic}>
+            {isMicrophoneEnabled ? <Mic size={24} /> : <MicOff size={24} />}
+          </Ctl>
+          <Ctl label={isCameraEnabled ? "Kamera" : "Kamera o'chiq"} active={!isCameraEnabled} onClick={toggleCam}>
+            {isCameraEnabled ? <Video size={24} /> : <VideoOff size={24} />}
+          </Ctl>
+          {isCameraEnabled && cams > 1 && (
+            <Ctl label="Almashtirish" onClick={() => void flip()}>
+              <SwitchCamera size={24} />
+            </Ctl>
+          )}
+          {canShare && (
+            <Ctl label={isScreenShareEnabled ? "To'xtatish" : "Ekran"} active={isScreenShareEnabled} onClick={toggleScreen}>
+              {isScreenShareEnabled ? <MonitorX size={24} /> : <MonitorUp size={24} />}
+            </Ctl>
+          )}
+          <Ctl label="Tugatish" danger big onClick={onEnd}>
+            <PhoneOff size={28} />
+          </Ctl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Holat ekrani: tokenni kutish / xato (to'liq ekranli, katta tugma) */
+function Message({ error, onClose, children }: { error?: boolean; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="absolute inset-0 grid place-items-center px-8 pb-[env(safe-area-inset-bottom)] text-center text-white">
+      <div className="flex max-w-sm flex-col items-center gap-5">
+        {error ? <WifiOff size={34} className="text-white/60" aria-hidden="true" /> : <Loader2 size={32} className="animate-spin" aria-hidden="true" />}
+        <p className="text-[15.5px] leading-relaxed text-white/85">{children}</p>
+        {error && (
+          <button type="button" onClick={onClose} className="h-12 min-w-[160px] rounded-full bg-white px-7 text-[15px] font-semibold text-[#0a0a0c] transition active:scale-95">
+            Yopish
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Video/ovozli qo'ng'iroq xonasi — butun ekranli ustki qatlam (telefon uchun noldan chizilgan).
+ * `/api/qongiroq/token` dan token oladi (egalik tekshiruvi serverda) yoki tayyor `connection` bilan ulanadi.
  * Token server-tomonda beriladi — klientga API_SECRET umuman chiqmaydi.
- *
- * Holatlar: ulanmoqda · xato (503 — qo'ng'iroq o'chiq, yoki ruxsat yo'q) · xona (LiveKit UI).
  */
 export function CallRoom({
   target,
@@ -29,20 +328,23 @@ export function CallRoom({
   onClose: () => void;
   /** Tayyor ulanish (CallCenter start/accept'dan) — berilsa token qayta so'ralmaydi */
   connection?: { url: string; token: string };
-  /** Boshlang'ich holat: true = kamera yoqilgan (video qo'ng'iroq), false = faqat ovoz (kamerani keyin yoqish mumkin) */
+  /** true = kamera yoqilgan (video qo'ng'iroq), false = faqat ovoz (kamerani keyin yoqish mumkin) */
   startWithVideo?: boolean;
 }) {
+  useScrollLock(true);
   const [state, setState] = useState<"loading" | "ready" | "error">(connection ? "ready" : "loading");
   const [conn, setConn] = useState<{ url: string; token: string } | null>(connection ?? null);
   const [error, setError] = useState<string>("");
   const [connected, setConnected] = useState(false);
-  // Ulanish holati va onClose'ni ref'da saqlaymiz — LiveKit hodisa funksiyalari BARQAROR bo'lsin
+  const [notice, setNotice] = useState("");
+  // Ulanish holati va onClose ref'da — LiveKit hodisa funksiyalari BARQAROR bo'lsin
   // (aks holda har renderda yangi funksiya → LiveKitRoom qayta ulanadi → "Client initiated disconnect")
   const connectedRef = useRef(false);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+  const end = useCallback(() => onCloseRef.current(), []);
 
   const handleConnected = useCallback(() => {
     connectedRef.current = true;
@@ -54,7 +356,6 @@ export function CallRoom({
     // Diagnostika: uzilish sababi (DUPLICATE_IDENTITY / SERVER_SHUTDOWN / CLIENT_INITIATED / ...)
     // eslint-disable-next-line no-console
     console.warn("[qongiroq] uzildi — reason:", reason, "| ulangan edi:", connectedRef.current);
-    // Ulangandan keyin uzilsa — yopamiz; umuman ulanmagan bo'lsa (tarmoq/boshqa) — xato + sabab ko'rsatiladi
     if (connectedRef.current) onCloseRef.current();
     else {
       setError(`Uzildi: ${reason != null ? String(reason) : "noma'lum"} — internet yoki boshqa tarmoqni sinang.`);
@@ -66,6 +367,18 @@ export function CallRoom({
     console.error("[qongiroq] xato:", e);
     setError(e?.message ? `Ulanib bo'lmadi: ${e.message}` : "Qo'ng'iroq serveriga ulanib bo'lmadi.");
     setState("error");
+  }, []);
+  const handleMediaFailure = useCallback((f?: MediaDeviceFailure) => {
+    setNotice(
+      f === MediaDeviceFailure.PermissionDenied
+        ? "Kamera/mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering"
+        : f === MediaDeviceFailure.NotFound
+          ? "Kamera yoki mikrofon topilmadi"
+          : f === MediaDeviceFailure.DeviceInUse
+            ? "Kamera/mikrofon boshqa ilova tomonidan band"
+            : "Kamera/mikrofonni ochib bo'lmadi",
+    );
+    setTimeout(() => setNotice(""), 5000);
   }, []);
 
   useEffect(() => {
@@ -101,14 +414,14 @@ export function CallRoom({
     };
   }, [target, connection]);
 
-  // Esc bilan yopish
+  // Esc bilan yopish (kompyuterda)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
-  // Ulanish taymauti: 25s ichida ulanmasa (ICE/tarmoq bloki) — "Connecting"da cheksiz turmasin
+  // Ulanish taymauti: 25s ichida ulanmasa (ICE/tarmoq bloki) — "Ulanmoqda"da cheksiz turmasin
   useEffect(() => {
     if (state !== "ready" || connected) return;
     const t = setTimeout(() => {
@@ -119,50 +432,29 @@ export function CallRoom({
   }, [state, connected]);
 
   return (
-    <div className="fixed inset-0 z-[135] flex flex-col bg-[#0b0b0d]" role="dialog" aria-modal="true" aria-label={`Video qo'ng'iroq — ${title}`}>
-      <div className="flex items-center justify-between gap-2 px-4 py-3 text-white/90">
-        <span className="min-w-0 truncate text-[14px] font-semibold">{title}</span>
-        <button type="button" onClick={onClose} aria-label="Yopish" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20">
-          <X size={18} />
-        </button>
-      </div>
-
-      <div className="relative flex-1 overflow-hidden">
-        {state === "loading" && (
-          <div className="absolute inset-0 grid place-items-center text-white/80">
-            <span className="flex flex-col items-center gap-3">
-              <Loader2 size={28} className="animate-spin" />
-              <span className="text-[13.5px]">Ulanmoqda…</span>
-            </span>
-          </div>
-        )}
-        {state === "error" && (
-          <div className="absolute inset-0 grid place-items-center p-6 text-center text-white/85">
-            <span className="flex max-w-sm flex-col items-center gap-4">
-              <span className="text-[14px]">{error}</span>
-              <button type="button" onClick={onClose} className="rounded-full bg-white/15 px-5 py-2.5 text-[13.5px] font-semibold text-white transition hover:bg-white/25">
-                Yopish
-              </button>
-            </span>
-          </div>
-        )}
-        {state === "ready" && conn && (
-          <LiveKitRoom
-            serverUrl={conn.url}
-            token={conn.token}
-            connect
-            video={startWithVideo}
-            audio
-            onConnected={handleConnected}
-            onDisconnected={handleDisconnected}
-            onError={handleError}
-            data-lk-theme="default"
-            style={ROOM_STYLE}
-          >
-            <VideoConference />
-          </LiveKitRoom>
-        )}
-      </div>
+    <div className="fixed inset-0 z-[135] h-dvh overflow-hidden bg-[#0a0a0c]" role="dialog" aria-modal="true" aria-label={`Qo'ng'iroq — ${title}`}>
+      {state === "loading" && <Message onClose={end}>Ulanmoqda…</Message>}
+      {state === "error" && (
+        <Message error onClose={end}>
+          {error}
+        </Message>
+      )}
+      {state === "ready" && conn && (
+        <LiveKitRoom
+          serverUrl={conn.url}
+          token={conn.token}
+          connect
+          video={startWithVideo}
+          audio
+          onConnected={handleConnected}
+          onDisconnected={handleDisconnected}
+          onError={handleError}
+          onMediaDeviceFailure={handleMediaFailure}
+          className={ROOM_CLASS}
+        >
+          <CallStage title={title} autoEndOnPeerLeft={!target} notice={notice} onEnd={end} />
+        </LiveKitRoom>
+      )}
     </div>
   );
 }
