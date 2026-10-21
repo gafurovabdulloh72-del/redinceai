@@ -127,6 +127,8 @@ export const AUTH = {
     whoTitle: { uz: "Siz kimsiz?", ru: "Кто вы?" },
     whoLead: { uz: "Bir bosishda tanlang — qolganini keyin sozlaysiz.", ru: "Выберите в один клик — остальное настроите позже." },
     clientTitle: { uz: "Men mijozman", ru: "Я клиент" },
+    clientTag: { uz: "Ijodkor qidiraman", ru: "Ищу специалиста" },
+    specTag: { uz: "Xizmat ko'rsataman", ru: "Оказываю услуги" },
     clientLead: { uz: "Ijodkor topib, loyihamni ishonib topshirmoqchiman", ru: "Хочу найти специалиста и доверить ему проект" },
     clientB1: { uz: "Tekshirilgan ijodkorlar portfoliosi", ru: "Портфолио проверенных специалистов" },
     clientB2: { uz: "Haqiqiy mijozlar sharhlari", ru: "Реальные отзывы клиентов" },
@@ -148,6 +150,8 @@ export const AUTH = {
     accountLead: { uz: "Hisob ma'lumotlarini kiriting — bir daqiqa.", ru: "Введите данные аккаунта — это минута." },
     chosen: { uz: "Tanlandi", ru: "Выбрано" },
     change: { uz: "O'zgartirish", ru: "Изменить" },
+    choose: { uz: "Tanlash", ru: "Выбрать" },
+    craftCount: { uz: (n: number, g: number) => `${n} ta kasb · ${g} ta guruh`, ru: (n: number, g: number) => `${n} профессий · ${g} групп` },
   },
   fields: {
     name: { uz: "Ism va familiya", ru: "Имя и фамилия" },

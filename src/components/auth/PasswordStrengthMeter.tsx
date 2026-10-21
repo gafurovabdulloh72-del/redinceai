@@ -49,7 +49,7 @@ export function PasswordStrengthMeter({ password, id }: { password: string; id?:
           <span key={i} className={cn("h-1.5 flex-1 rounded-full transition-colors duration-300", i <= s.score ? tone : "bg-line-2")} />
         ))}
       </div>
-      <p className="mt-1.5 flex items-center justify-between gap-3 text-[12px] leading-snug">
+      <p className="mt-1.5 flex items-center justify-between gap-3 text-[12px] leading-snug short:hidden">
         <span className="text-fg-3">{hint}</span>
         {label && <span className={cn("shrink-0 font-semibold", s.score <= 1 ? "text-ios-red" : s.score === 2 ? "text-[#c2410c] dark:text-ios-orange" : s.score === 3 ? "text-accent" : "text-[#15803d] dark:text-ios-green")}>{label}</span>}
       </p>

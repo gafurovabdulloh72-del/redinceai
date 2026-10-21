@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { BadgeCheck, MapPinned, MessageSquareText } from "lucide-react";
-import { Logo } from "@/components/layout/Logo";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CountUp } from "@/components/motion/useCountUp";
 import { CATEGORIES, CATEGORY_BY_SLUG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-/** Suzuvchi kasb belgilari: [slug, top%, left%, o'lcham, kechikish(s), burilish(deg)] */
+/** Suzuvchi kasb belgilari: [slug, top(px), left%, o'lcham, kechikish(s), burilish(deg)] — faqat bezak zonasi ichida (matn ustiga TUSHMAYDI) */
 const BUBBLES: Array<[string, number, number, number, number, number]> = [
-  ["videograf", 6, 60, 54, 0, -8],
-  ["dizayner", 4, 84, 40, 2.2, -4],
-  ["montajor", 44, 74, 44, 1.1, 10],
-  ["fotograf", 52, 88, 38, 0.6, 6],
-  ["frontend", 14, 70, 34, 2.8, 8],
+  ["videograf", 22, 3, 52, 0, -8],
+  ["dizayner", 0, 19, 40, 2.2, -4],
+  ["montajor", 46, 35, 44, 1.1, 10],
+  ["fotograf", 4, 52, 46, 0.6, 6],
+  ["frontend", 50, 69, 38, 2.8, 8],
+  ["ovoz", 6, 85, 40, 1.7, -6],
 ];
 
 /** Aylanib turuvchi kasb nomi: so'z almashganda yengil «swap» animatsiyasi */
@@ -57,21 +57,21 @@ export function AuthStage({
 }) {
   const icons = { map: MapPinned, badge: BadgeCheck, chat: MessageSquareText } as const;
   return (
-    <aside className="card relative hidden overflow-hidden p-10 lg:sticky lg:top-28 lg:flex lg:flex-col lg:self-start" aria-hidden="true">
-      {/* Nur sharlari */}
-      <span className="animate-orb pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-40 blur-3xl" style={{ background: "radial-gradient(circle, #ff5a36, transparent 68%)" }} />
-      <span className="animate-orb pointer-events-none absolute -bottom-28 -left-20 h-72 w-72 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, #8b7fd1, transparent 68%)", animationDelay: "-7s" }} />
+    <aside className="card relative hidden overflow-hidden p-8 lg:flex lg:flex-col" aria-hidden="true">
+      {/* Nur sharlari — kichik, xira va faqat chekkalarda (matn ostiga tushmaydi, ustidan blur/tus yo'q) */}
+      <span className="animate-orb pointer-events-none absolute -right-10 -top-20 h-48 w-48 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, #ff5a36, transparent 68%)" }} />
+      <span className="animate-orb pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, #8b7fd1, transparent 68%)", animationDelay: "-7s" }} />
 
-      {/* Suzuvchi kasb belgilari */}
-      <div className="pointer-events-none absolute inset-x-0 top-6 h-[22%]">
+      {/* Bezak zonasi: oqimdagi alohida qator — belgilar faqat shu ichida suzadi, matn ostida joy band (juda past (≤600px) ekranda yashirinadi) */}
+      <div className="pointer-events-none relative mb-5 h-[104px] shrink-0 tiny:hidden">
         {BUBBLES.map(([slug, top, left, size, delay, rot]) => {
           const c = CATEGORY_BY_SLUG[slug] ?? CATEGORIES[0];
           return (
             <span
               key={slug}
-              className="animate-float absolute flex items-center justify-center rounded-[28%] text-white shadow-[0_14px_30px_-12px_var(--b)]"
+              className="animate-float absolute flex items-center justify-center rounded-[28%] text-white shadow-[0_12px_24px_-12px_var(--b)]"
               style={{
-                top: `${top}%`,
+                top,
                 left: `${left}%`,
                 width: size,
                 height: size,
@@ -79,7 +79,6 @@ export function AuthStage({
                 animationDelay: `${delay}s`,
                 ["--b" as string]: c.accent,
                 ["--float-rot" as string]: `${rot}deg`,
-                opacity: 0.92,
               }}
             >
               <CategoryIcon icon={c.icon} size={Math.round(size * 0.46)} />
@@ -88,12 +87,9 @@ export function AuthStage({
         })}
       </div>
 
-      <div className="relative flex-1">
-        <div>
-          <Logo />
-        </div>
-        <span className="eyebrow mt-12">{eyebrow}</span>
-        <h2 className="display-xl mt-5 max-w-md text-[40px] text-fg xl:text-[46px]">
+      <div className="relative">
+        <span className="eyebrow">{eyebrow}</span>
+        <h2 className="display-xl mt-4 max-w-md text-fg">
           {titleA}
           <span className="accent-serif text-accent">{titleAccent}</span>
         </h2>
@@ -101,14 +97,15 @@ export function AuthStage({
           <span className="text-fg-3">{pickerLabel}</span>
           <RotatingWord />
         </p>
-        <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-fg-2">{lead}</p>
+        <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-fg-2 tiny:hidden">{lead}</p>
       </div>
 
-      <ul className="stagger relative mb-8 mt-10 divide-y divide-line border-y border-line">
+      {/* Afzalliklar — faqat yetarli balandlikda (≥ 860px); past ekranda yashirinadi, shunda forma bilan birga bitta ekranga sig'adi */}
+      <ul className="stagger relative mt-6 divide-y divide-line border-y border-line cozy:hidden">
         {benefits.map((b) => {
           const Icon = icons[b.icon];
           return (
-            <li key={b.title} className={cn("animate-fade-up flex items-start gap-4 py-4")}>
+            <li key={b.title} className={cn("animate-fade-up flex items-start gap-4 py-3.5")}>
               <span className="icon-tile-outline icon-tile-sm shrink-0">
                 <Icon size={16} />
               </span>
@@ -121,7 +118,7 @@ export function AuthStage({
         })}
       </ul>
 
-      <div className="relative flex items-end gap-8">
+      <div className="relative mt-auto flex items-end gap-8 pt-6">
         {stats.map((s) => (
           <div key={s.label}>
             <div className="stat-num font-display text-[26px] leading-none tracking-tight text-fg">

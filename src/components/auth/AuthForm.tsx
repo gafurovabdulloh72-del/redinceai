@@ -17,7 +17,6 @@ type Mode = "login" | "register";
 type Role = "client" | "specialist";
 /** Maqsad: rolga xaritalanadi va ro'yxatdan keyin qayerga olib borishni belgilaydi */
 type Intent = "service" | "order" | "job" | "hire";
-type Gender = "" | "male" | "female";
 
 interface AuthFormProps {
   mode: Mode;
@@ -64,7 +63,7 @@ const DEMO_ACCOUNTS: { label: Tr; hint: Tr; email: string; password: string; ico
 /** Matn ichidagi havola uchun 40px bosish maydoni — ko'rinishi o'zgarmaydi (manfiy margin qatorni kengaytirmaydi) */
 const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent-text transition hover:brightness-110";
 
-const FIELD_ORDER = ["name", "email", "password", "phone", "terms"] as const;
+const FIELD_ORDER = ["name", "email", "password", "terms"] as const;
 
 function withNext(path: string, next?: string) {
   return next ? `${path}?next=${encodeURIComponent(next)}` : path;
@@ -99,8 +98,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [gender, setGender] = useState<Gender>("");
   // Ro'yxatdan o'tish bosqichlari: rol → (mutaxassis) kasb/tajriba/hudud → hisob ma'lumotlari
   const initialRole: Role = defaultIntent ? (defaultIntent === "service" ? "specialist" : "client") : defaultRole;
   const [role, setRole] = useState<Role>(initialRole);
@@ -159,7 +156,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       const s = passwordStrength(password);
       if (!s.valid) errs.password = tr(til, password.length < 8 ? AUTH.errors.passwordShort : AUTH.errors.passwordWeak);
     } else if (!password) errs.password = tr(til, AUTH.errors.passwordRequired);
-    if (isRegister && phone.trim() && !/^\+?[\d\s()-]{9,16}$/.test(phone.trim())) errs.phone = tr(til, AUTH.errors.phoneInvalid);
     if (isRegister && !acceptTerms) errs.terms = tr(til, AUTH.errors.termsRequired);
     return errs;
   };
@@ -178,7 +174,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
     setLoading(true);
 
     const payload = isRegister
-      ? { name: name.trim(), email: email.trim(), password, phone: phone.trim(), role, gender: gender || null, acceptTerms }
+      ? { name: name.trim(), email: email.trim(), password, phone: "", role, gender: null, acceptTerms }
       : { email: email.trim(), password, remember };
 
     try {
@@ -439,21 +435,17 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
         </div>
       )}
       {/* ---------- Sarlavha ---------- */}
-      {isRegister && <StepBar step={stepNo} total={totalSteps} />}
-      <header className="mb-6">
-        <span className="eyebrow">{tr(til, isRegister ? AUTH.form.eyebrowRegister : AUTH.form.eyebrowLogin)}</span>
-        <h1 key={`${mode}-${stage}`} className="display-xl animate-swap mt-4 text-[30px] text-fg sm:text-[36px]">
+      {isRegister && <StepBar step={stepNo} total={totalSteps} onBack={stage === "role" ? undefined : () => goStage(stage === "account" && role === "specialist" ? "craft" : "role")} />}
+      <header className="mb-4 short:mb-3 tiny:mb-2">
+        <span className="eyebrow max-sm:hidden short:hidden">{tr(til, isRegister ? AUTH.form.eyebrowRegister : AUTH.form.eyebrowLogin)}</span>
+        <h1 key={`${mode}-${stage}`} className="display-xl animate-swap mt-0 text-[30px] text-fg sm:mt-4 sm:text-[36px] short:!mt-0">
           {isRegister ? (
             stage === "role" ? (
-              <>
-                {tr(til, AUTH.reg.whoTitle)}
-              </>
+              <>{tr(til, AUTH.reg.whoTitle)}</>
             ) : stage === "craft" ? (
               <>{tr(til, AUTH.reg.craftTitle)}</>
             ) : (
-              <>
-                {tr(til, AUTH.reg.accountTitle)}
-              </>
+              <>{tr(til, AUTH.reg.accountTitle)}</>
             )
           ) : (
             <>
@@ -462,20 +454,20 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
             </>
           )}
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
+        <p className="mt-2 text-[14.5px] leading-snug text-fg-2 max-sm:hidden short:hidden">
           {isRegister ? tr(til, stage === "role" ? AUTH.reg.whoLead : stage === "craft" ? AUTH.reg.craftLead : AUTH.reg.accountLead) : tr(til, AUTH.form.leadLogin)}
         </p>
       </header>
 
       {/* ---------- Kontekst: nega keldingiz (A23) ---------- */}
       {context && (
-        <div className="card-outline mb-5 flex items-start gap-3 px-4 py-3" role="status">
+        <div className="card-outline mb-4 flex items-start gap-3 px-4 py-2.5" role="status">
           <span className="btn-ink flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]">
             <context.icon size={16} />
           </span>
           <span className="min-w-0">
             <span className="block text-[14px] font-semibold text-fg">{context.title}</span>
-            <span className="block text-[12px] leading-snug text-fg-3">{context.text}</span>
+            <span className="block text-[12px] leading-snug text-fg-3 short:hidden">{context.text}</span>
           </span>
         </div>
       )}
@@ -512,7 +504,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
             region={region}
             onRegion={setRegion}
             error={craftError}
-            onBack={() => goStage("role")}
             onNext={() => {
               if (!category) {
                 setCraftError(tr(til, AUTH.reg.pickCraft));
@@ -525,12 +516,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       )}
 
       {(!isRegister || stage === "account") && (
-      <form key={isRegister ? "account" : "login"} onSubmit={onSubmit} noValidate className={cn("stagger space-y-4", isRegister && (dir === 1 ? "animate-slide-left" : "animate-slide-right"))}>
-        {isRegister && (
-          <button type="button" onClick={() => goStage(role === "specialist" ? "craft" : "role")} className="press -mt-1 mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-            <ArrowLeft size={14} /> {tr(til, AUTH.reg.back)}
-          </button>
-        )}
+      <form key={isRegister ? "account" : "login"} onSubmit={onSubmit} noValidate className={cn("stagger space-y-3.5 short:space-y-3 tiny:space-y-2", isRegister && (dir === 1 ? "animate-slide-left" : "animate-slide-right"))}>
         {/* ---------- Ism ---------- */}
         {isRegister && (
           <div>
@@ -616,66 +602,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
           }
         />
 
-        {/* ---------- Telefon + jins (ro'yxatdan o'tish) ---------- */}
-        {isRegister && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="auth-phone" className="field-label">
-                {tr(til, AUTH.fields.phone)} <span className="font-normal text-fg-4">{tr(til, AUTH.fields.optional)}</span>
-              </label>
-              <input
-                id="auth-phone"
-                name="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+998 90 123 45 67"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  clearField("phone");
-                }}
-                className={cn("field", fields.phone && "!border-ios-red/60")}
-                aria-invalid={!!fields.phone}
-                aria-describedby={fields.phone ? "auth-phone-error" : undefined}
-                maxLength={20}
-              />
-              {fields.phone && (
-                <p id="auth-phone-error" className="field-error">
-                  {fields.phone}
-                </p>
-              )}
-            </div>
-            <div>
-              <span id="auth-gender-label" className="field-label">
-                {tr(til, AUTH.fields.gender)} <span className="font-normal text-fg-4">{tr(til, AUTH.fields.optional)}</span>
-              </span>
-              <div role="radiogroup" aria-labelledby="auth-gender-label" className="segment w-full">
-                {(
-                  [
-                    { value: "", label: tr(til, AUTH.fields.genderNone) },
-                    { value: "male", label: tr(til, AUTH.fields.genderMale) },
-                    { value: "female", label: tr(til, AUTH.fields.genderFemale) },
-                  ] as { value: Gender; label: string }[]
-                ).map((g) => (
-                  <button
-                    key={g.value || "none"}
-                    type="button"
-                    role="radio"
-                    aria-checked={gender === g.value}
-                    data-active={gender === g.value}
-                    onClick={() => setGender(g.value)}
-                    className="segment-item min-h-[38px] flex-1 !px-2"
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-[12px] text-fg-4">{tr(til, AUTH.fields.genderHint)}</p>
-            </div>
-          </div>
-        )}
-
         {/* ---------- Oferta va maxfiylik (ro'yxatdan o'tish — majburiy) ---------- */}
         {isRegister && (
           <div>
@@ -704,7 +630,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
                   {acceptTerms && <Check size={13} strokeWidth={3} />}
                 </span>
               </label>
-              <p className="py-2.5 text-[14px] leading-snug text-fg-2">
+              <p className="py-1.5 text-[13px] leading-snug text-fg-2 sm:py-2.5 sm:text-[14px] short:!py-1 short:!text-[12.5px]">
                 <label htmlFor="auth-terms" className="cursor-pointer">
                   {tr(til, AUTH.fields.termsI)}
                 </label>{" "}
@@ -737,7 +663,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
 
         {/* ---------- Meni eslab qolish (kirish) ---------- */}
         {!isRegister && (
-          <label htmlFor="auth-remember" className="flex min-h-11 cursor-pointer select-none items-center gap-3 text-[14px] text-fg-2">
+          <label htmlFor="auth-remember" className="flex min-h-11 cursor-pointer short:min-h-9 select-none items-center gap-3 text-[14px] text-fg-2">
             <input id="auth-remember" type="checkbox" className="peer sr-only" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
             <span
               aria-hidden="true"
@@ -776,19 +702,19 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
         </Button>
 
         {isRegister && role === "specialist" && subscription?.enforced && (
-          <p className="text-center text-[12px] leading-snug text-fg-4">{AUTH.submit.subscriptionNote[til](subscription.trialDays, formatPrice(subscription.price))}</p>
+          <p className="text-center text-[12px] leading-snug text-fg-4 short:hidden">{AUTH.submit.subscriptionNote[til](subscription.trialDays, formatPrice(subscription.price))}</p>
         )}
       </form>
       )}
 
       {googleEnabled && (!isRegister || stage === "role") && (
         <>
-          <div className="my-4 flex items-center gap-3" aria-hidden="true">
+          <div className="my-3 flex items-center gap-3 short:my-2" aria-hidden="true">
             <span className="h-px flex-1 bg-line" />
             <span className="text-[12px] font-medium uppercase tracking-[0.1em] text-fg-4">{tr(til, AUTH.google.divider)}</span>
             <span className="h-px flex-1 bg-line" />
           </div>
-          <a href={withNext("/api/auth/google", target)} className="press hover-lift flex h-12 w-full items-center justify-center gap-2.5 rounded-[14px] border border-line-2 bg-surface text-[14.5px] font-semibold text-fg transition hover:border-fg">
+          <a href={withNext("/api/auth/google", target)} className="press hover-lift flex h-11 w-full items-center justify-center gap-2.5 rounded-[14px] border border-line-2 bg-surface text-[14.5px] font-semibold text-fg transition hover:border-fg">
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.15-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.85 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.67-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.67 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
             {tr(til, AUTH.google.button)}
           </a>
@@ -796,7 +722,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       )}
 
       {/* ---------- Sahifalar orasidagi havola ---------- */}
-      <p className="mt-6 text-center text-[14px] text-fg-2">
+      <p className="mt-4 text-center text-[14px] text-fg-2 short:mt-2">
         {tr(til, isRegister ? AUTH.submit.haveAccount : AUTH.submit.noAccount)}
         <Link href={withNext(isRegister ? "/auth/kirish" : "/auth/royxat", target)} className={INLINE_LINK}>
           {tr(til, isRegister ? AUTH.submit.toLogin : AUTH.submit.toRegister)}
@@ -806,7 +732,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       {/* ---------- Demo hisoblar (faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1) ---------- */}
       {DEMO_ENABLED &&
         (isRegister ? (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-fg-3">
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-fg-3 short:hidden">
             <Wand2 size={13} className="text-accent" />
             {tr(til, AUTH.demo.tryIt)}{" "}
             <Link href="/auth/kirish" className={INLINE_LINK}>

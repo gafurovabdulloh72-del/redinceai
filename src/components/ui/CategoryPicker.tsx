@@ -103,7 +103,7 @@ export function CategoryPicker({
           </div>
         )
       ) : (
-        <div className={cn("grid gap-3", !stacked && "md:grid-cols-[210px_minmax(0,1fr)]")}>
+        <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-3", !stacked && "md:grid-cols-[210px_minmax(0,1fr)]")}>
           <div className={cn("no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1", !stacked && "md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0")} role="tablist" aria-label="Kasb guruhlari">
             {groups.map(({ group, items }) => {
               const on = activeGroup?.group.slug === group.slug;
@@ -151,6 +151,7 @@ export function CategoryField({
   title = "Kasbni tanlang",
   placeholder = "Kasbni tanlang",
   className,
+  labels,
 }: {
   value: string | null;
   onChange: (slug: string) => void;
@@ -160,6 +161,8 @@ export function CategoryField({
   title?: string;
   placeholder?: string;
   className?: string;
+  /** Tilga moslash: «Tanlash» / «O'zgartirish» tugma yozuvi va tanlanmagandagi izoh (standart — o'zbekcha) */
+  labels?: { choose?: string; change?: string; hint?: string };
 }) {
   const [open, setOpen] = useState(false);
   const c = value ? CATEGORY_BY_SLUG[value] : undefined;
@@ -182,9 +185,9 @@ export function CategoryField({
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] font-semibold text-fg">{c ? c.name : placeholder}</span>
-          <span className="block truncate text-[12px] text-fg-3">{c ? CATEGORY_GROUP_BY_SLUG[c.group].name : `${CATEGORIES.length} ta kasb · ${CATEGORY_GROUPS.length} ta guruh`}</span>
+          <span className="block truncate text-[12px] text-fg-3">{c ? CATEGORY_GROUP_BY_SLUG[c.group].name : (labels?.hint ?? `${CATEGORIES.length} ta kasb · ${CATEGORY_GROUPS.length} ta guruh`)}</span>
         </span>
-        <span className="shrink-0 rounded-full bg-fg/6 px-3 py-1.5 text-[12px] font-semibold text-fg-2">{c ? "O'zgartirish" : "Tanlash"}</span>
+        <span className="shrink-0 rounded-full bg-fg/6 px-3 py-1.5 text-[12px] font-semibold text-fg-2">{c ? (labels?.change ?? "O'zgartirish") : (labels?.choose ?? "Tanlash")}</span>
       </button>
       {onClear && c && (
         <button type="button" onClick={onClear} className="mt-1.5 text-[12px] font-semibold text-fg-3 underline-offset-2 hover:text-fg hover:underline">

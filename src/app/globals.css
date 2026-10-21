@@ -17,6 +17,10 @@
    ===================================================================== */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* Past ekran (noutbuk brauzeri, kichik telefon): `short:` ≤ 720px, `cozy:` ≤ 860px balandlikda — auth kabi «bitta ekran» sahifalarni ixchamlashtirish uchun */
+@custom-variant short (@media (max-height: 720px));
+@custom-variant cozy (@media (max-height: 860px));
+@custom-variant tiny (@media (max-height: 600px));
 
 /* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
@@ -1701,6 +1705,35 @@ select:focus-visible {
 html[data-chat-open] .m-topbar,
 html[data-chat-open] .m-tabbar {
   display: none;
+}
+
+/* Kirish / ro'yxat (auth/layout.tsx `data-auth-screen`): telefonda BITTA ekran — yuqori panel va pastki tab yashiriladi, main paddinglari olib tashlanadi.
+   :has() — sahifa chizilishi bilan darhol ishlaydi (JS'siz, miltillashsiz) */
+html:has([data-auth-screen]) .m-topbar,
+html:has([data-auth-screen]) .m-tabbar {
+  display: none;
+}
+@media (max-width: 767px) {
+  html:has([data-auth-screen]) main {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+/* Past ekranda auth maydonlari ixchamroq (44 → 40px) — forma bitta ekranga sig'sin */
+@media (max-height: 720px) {
+  [data-auth-screen] .field {
+    min-height: 2.5rem;
+    padding-block: 0.5rem;
+  }
+  [data-auth-screen] .field-label {
+    margin-bottom: 0.25rem;
+  }
+}
+@media (max-height: 600px) {
+  [data-auth-screen] .field {
+    min-height: 2.25rem;
+    padding-block: 0.4rem;
+  }
 }
 
 /* =====================================================================
