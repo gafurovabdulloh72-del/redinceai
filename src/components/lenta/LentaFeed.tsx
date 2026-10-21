@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Clapperboard, Play, Star, Volume2, VolumeX } from "lucide-react";
 import { Avatar, Spinner, VerifiedBadge } from "@/components/ui";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { loadMoreLenta } from "@/app/lenta/actions";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
@@ -237,7 +238,7 @@ function LentaSlide({
           type="button"
           onClick={onToggleSound}
           aria-label={soundOn ? tr(til, LENTA.soundOff) : tr(til, LENTA.soundOn)}
-          className="absolute right-4 top-[calc(env(safe-area-inset-top)+5rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60 md:top-4"
+          className="absolute right-4 top-[calc(env(safe-area-inset-top)+4.25rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60 md:top-4"
         >
           {soundOn ? <Volume2 size={19} /> : <VolumeX size={19} />}
         </button>
@@ -254,8 +255,17 @@ function LentaSlide({
           </button>
         )}
 
+        {/* O'ng amal ustuni (TikTok uslubi): ijodkor profili (+) va ulashish — bosh barmoq zonasida */}
+        <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+13rem)] right-3 z-10 flex flex-col items-center gap-4 md:bottom-44">
+          <Link href={`/mutaxassislar/${sp.slug}`} aria-label={LENTA.profileOf[til](sp.name)} className="press relative block">
+            <span className="story-ring"><span className="story-gap !bg-black/60"><Avatar name={sp.name} src={sp.avatarUrl} size={46} decorative className="!ring-0" /></span></span>
+            <span aria-hidden="true" className="absolute -bottom-1.5 left-1/2 grid h-5 w-5 -translate-x-1/2 place-items-center rounded-full bg-accent text-[14px] font-bold leading-none text-white ring-2 ring-black/60">+</span>
+          </Link>
+          <ShareButton variant="glass" iconOnly size="lg" url={typeof window !== "undefined" ? `${window.location.origin}/mutaxassislar/${sp.slug}` : undefined} title={sp.name} className="!rounded-full" />
+        </div>
+
         {/* Pastki overlay: gradient + mutaxassis ma'lumoti + CTA */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-[calc(env(safe-area-inset-bottom)+6.5rem)] pt-24 md:pb-5">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-[calc(env(safe-area-inset-bottom)+5.25rem)] pt-24 md:pb-5">
           <div className="flex flex-col gap-3.5 px-4 sm:px-5">
             {item.title && <p className="line-clamp-2 text-[14px] font-medium leading-snug text-white/90">{item.title}</p>}
 

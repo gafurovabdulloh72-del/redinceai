@@ -9,6 +9,8 @@ import { RightRail } from "@/components/feed/RightRail";
 import { ScopeTabs } from "@/components/feed/ScopeTabs";
 import { FEED_SCOPE_COOKIE as SCOPE_COOKIE } from "@/lib/groups/limits";
 import { Stories } from "@/components/feed/Stories";
+import { ProfileMeter } from "@/components/feed/ProfileMeter";
+import { ownCompleteness } from "@/lib/profile/own-completeness";
 import { getCurrentUser } from "@/lib/auth";
 import { feedItemById, homeFeed, railData, storyAuthors, type FeedScope } from "@/lib/feed";
 import { savedCount } from "@/lib/groups/posts-extra";
@@ -34,12 +36,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const scope: FeedScope = wanted === "following" && user ? "following" : "all";
   const tag = typeof sp.tag === "string" ? normalizeTag(sp.tag) : null;
   const postId = typeof sp.post === "string" && sp.post.length <= 64 ? sp.post : null;
-  const [feed, stories, rail, pinned, saved] = await Promise.all([
+  const [feed, stories, rail, pinned, saved, own] = await Promise.all([
     homeFeed(viewer, { scope, limit: 10, tag }),
     storyAuthors(14).catch(() => []),
     railData(viewer),
     postId ? feedItemById(postId, viewer).catch(() => null) : Promise.resolve(null),
     user ? savedCount(user.id).catch(() => 0) : Promise.resolve(null),
+    user ? ownCompleteness(user).catch(() => null) : Promise.resolve(null),
   ]);
   const canPost = Boolean(user && (user.specialist || user.role === "admin"));
   const now = Date.now();
@@ -55,14 +58,15 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <div className="mx-auto w-full min-w-0 max-w-[640px] space-y-4 lg:mx-0">
           <h1 className="sr-only">{SITE.name} — lenta</h1>
           {!user && <WelcomeCard til={til} />}
+          {own && <ProfileMeter data={own} til={til} className="lg:hidden" />}
           <Stories items={stories} live={live} til={til} saved={saved !== null ? { count: saved } : null} />
           {canPost && <HomeComposer />}
           {user && <ScopeTabs scope={scope} tag={tag} />}
           <HomeFeed key={`${scope}:${tag ?? ""}:${pinned?.id ?? ""}`} initial={feed} scope={scope} loggedIn={Boolean(user)} tag={tag} suggestions={rail.creators} pinned={pinned} />
         </div>
         <aside className="hidden lg:block">
-          <div className="sticky top-8">
-            <RightRail data={rail} user={railUser} til={til} />
+          <div className="sticky top-6 pt-8">
+            <RightRail data={rail} user={railUser} til={til} meter={own} />
           </div>
         </aside>
       </div>

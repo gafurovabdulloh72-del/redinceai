@@ -53,7 +53,7 @@ export default async function LentaPage() {
     <>
       <h1 className="sr-only">{tr(til, LENTA.srTitle)}</h1>
       {/* Layout'dagi main padding'lari bekor qilinadi — lenta ekranni to'liq egallaydi (navbar shisha, ustidan ko'rinadi) */}
-      <div className="-mb-28 -mt-24 sm:-mt-28 md:mb-0">
+      <div className="-mb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] -mt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] md:-mt-28 md:mb-0">
         <LentaFeed initialItems={items} initialCursor={nextCursor} />
       </div>
     </>

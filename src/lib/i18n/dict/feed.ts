@@ -57,6 +57,11 @@ export const FEED = {
   openMap: { uz: "Xaritani ochish", ru: "Открыть карту" } satisfies Tr,
   myProfile: { uz: "Mening profilim", ru: "Мой профиль" } satisfies Tr,
   cabinet: { uz: "Kabinet", ru: "Кабинет" } satisfies Tr,
+  /* v5: o'ng rail qidiruvi va profil to'ldirilganlik kartasi */
+  railSearch: { uz: "Ijodkor, post yoki jamoa qidiring", ru: "Найти автора, пост или группу" } satisfies Tr,
+  meterTitle: { uz: "Profilingiz to'ldirilmoqda", ru: "Профиль заполняется" } satisfies Tr,
+  meterNext: { uz: "Keyingi qadam", ru: "Следующий шаг" } satisfies Tr,
+  meterHint: { uz: "To'liq profil buyurtmalarni 3 baravar ko'paytiradi", ru: "Полный профиль привлекает в 3 раза больше заказов" } satisfies Tr,
   follow: { uz: "Obuna", ru: "Подписаться" } satisfies Tr,
 
   /* Post kartasi */

@@ -261,7 +261,7 @@ export function ProfileTabs({
       <div role="tablist" aria-label={t.feed} className={cn("relative flex border-t border-line", isOwner && "mt-4")}>
         <span
           aria-hidden
-          className="pointer-events-none absolute -top-px h-0.5 bg-fg transition-[transform,width] duration-300 ease-out motion-reduce:transition-none"
+          className="pointer-events-none absolute -top-px h-[3px] rounded-b-full bg-accent transition-[transform,width] duration-300 ease-out motion-reduce:transition-none"
           style={ink ? { width: ink.width, transform: `translateX(${ink.left}px)` } : undefined}
         />
         {tabs.map((x) => {
@@ -282,10 +282,10 @@ export function ProfileTabs({
               onClick={() => selectTab(x.key)}
               onKeyDown={onTabKey}
               className={cn(
-                "press relative flex h-12 flex-1 items-center justify-center gap-1.5 text-[13px] font-semibold transition sm:flex-none sm:px-6",
+                "press relative flex h-12 flex-1 items-center justify-center gap-1.5 text-[13.5px] font-bold transition sm:flex-none sm:px-6",
                 active ? "text-fg" : "text-fg-3 hover:text-fg",
                 // Chiziq hali o'lchanmagan bo'lsa (SSR) faol tab o'z chizig'ini ko'rsatadi
-                !ink && active && "shadow-[inset_0_2px_0_0_var(--fg)]",
+                !ink && active && "shadow-[inset_0_3px_0_0_var(--accent)]",
               )}
             >
               <Icon size={15} aria-hidden /> {x.label} <span className={cn("tabular-nums", active ? "text-fg-2" : "text-fg-4")}>{x.count}</span>

@@ -20,7 +20,7 @@ export function Logo({ className, compact = false }: { className?: string; compa
         <span aria-hidden className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
       </span>
       {!compact && (
-        <span className="whitespace-nowrap font-display text-[17px] font-semibold tracking-[-0.03em] text-fg">
+        <span className="whitespace-nowrap font-brand text-[17px] font-semibold tracking-[-0.03em] text-fg">
           Kasb Egalari<span className="text-accent">.</span>
         </span>
       )}

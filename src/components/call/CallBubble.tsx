@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Phone, Video } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Phone, PhoneMissed, Video, VideoOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { callLabel, humanDuration, type CallInfo } from "@/lib/call/format";
 
@@ -15,7 +15,9 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString("uz-UZ", { hour: "
 export function CallBubble({ call, mine, conversationId, peerName }: { call: CallInfo; mine: boolean; conversationId: string; peerName: string }) {
   const l = callLabel(call, mine);
   const Dir = l.outgoing ? ArrowUpRight : ArrowDownLeft;
-  const Icon = call.video ? Video : Phone;
+  // Javobsiz/rad etilgan — alohida ikonka (rang yolg'iz ma'no tashimasin); qayta chaqirish tugmasi oddiy ikonka
+  const Icon = call.video ? (l.bad ? VideoOff : Video) : l.bad ? PhoneMissed : Phone;
+  const DialIcon = call.video ? Video : Phone;
   const answered = call.status === "ended";
 
   const redial = () => {
@@ -27,16 +29,16 @@ export function CallBubble({ call, mine, conversationId, peerName }: { call: Cal
       <span
         className={cn(
           "grid h-11 w-11 shrink-0 place-items-center rounded-full",
-          l.bad ? "bg-danger/15 text-danger" : mine ? "bg-white/15 text-ink-fg" : "bg-success/15 text-success",
+          mine ? "bg-white/20 text-ink-fg" : l.bad ? "bg-danger/15 text-danger" : "bg-success/15 text-success",
         )}
         aria-hidden="true"
       >
         <Icon size={20} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className={cn("truncate text-[14.5px] font-semibold leading-tight", l.bad && "text-danger")}>{l.title}</p>
-        <p className={cn("mt-1 flex flex-wrap items-center gap-x-1 text-[12px] leading-snug", mine ? "text-ink-fg/65" : "text-fg-3")}>
-          <Dir size={13} className={cn("shrink-0", l.bad ? "text-danger" : answered ? "text-success" : "")} aria-hidden="true" />
+        <p className={cn("truncate text-[14.5px] font-semibold leading-tight", !mine && l.bad && "text-danger")}>{l.title}</p>
+        <p className={cn("mt-1 flex flex-wrap items-center gap-x-1 text-[12px] leading-snug", mine ? "text-ink-fg/80" : "text-fg-3")}>
+          <Dir size={13} className={cn("shrink-0", mine ? "text-ink-fg/85" : l.bad ? "text-danger" : answered ? "text-success" : "")} aria-hidden="true" />
           {answered ? (
             <>
               <span className="tabular-nums">
@@ -57,7 +59,7 @@ export function CallBubble({ call, mine, conversationId, peerName }: { call: Cal
         title="Qayta chaqirish"
         className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full transition active:scale-90", mine ? "bg-white/15 text-ink-fg hover:bg-white/22" : "bg-fg/8 text-fg hover:bg-fg/14")}
       >
-        <Icon size={19} aria-hidden="true" />
+        <DialIcon size={19} aria-hidden="true" />
       </button>
     </div>
   );

@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   KASB EGALARI — dizayn tizimi v3 "Tinch" (minimalistik, yassi)
-   Yassi yuzalar, 1px hairline, deyarli soyasiz, radius 10/14/20, ixcham sarlavhalar, urg'u so'z kulrang,
-   aksent (coral) faqat asosiy amal / faol holat / semantik belgilar uchun. Ikki rejim: yorug' va qorong'u.
-   - Tipografika: Unbounded (display), Manrope (matn), Instrument Serif (ixtiyoriy urg'u)
+   KASB EGALARI — dizayn tizimi v5 "Jonli" (docs/DIZAYN-V5.md)
+   Kontent — qahramon, qobiq sokin: iliq oq / chuqur qora, yumshoq diffuz soya + hairline, radius 12/16/24,
+   bitta urg'u rangi (coral) = "sizga yangi narsa bor": asosiy tugma, o'qilmagan belgi, hikoya halqasi, faol tab. Ikki rejim.
+   - Tipografika: Manrope (UI va sarlavha, 700/800), Unbounded FAQAT logotip uchun (font-brand), Instrument Serif (ixtiyoriy)
    - Yuzalar: --surface / -2 / -3 qatlamlar + --line hairline; .card / .card-elevated / .card-floating / .card-outline
    - Radius: --r-sm 10 (input, plitka) / --r-md 14 (karta) / --r-lg 20 (katta blok)
    - Ikonkalar: 16 (menyu bandi, inline) / 18 (tugma ichida) / 20 (plitka, tab) / 24 (faqat yon panel va katta plitka)
@@ -20,19 +20,26 @@
 
 /* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
-  --bg: #fafaf8;
-  --bg-2: #f3f3f0;
+  --bg: #f5f4f0;
+  --bg-2: #edece7;
   --surface: #ffffff;
-  --surface-2: #f6f6f4;
-  --surface-3: #eeeeeb;
-  --fg: #121213;
+  --surface-2: #faf9f6;
+  --surface-3: #efede9;
+  --fg: #131315;
   --fg-2: #4b4a47;
   --fg-3: #6b6963; /* AA (4.5+) oq, qog'oz va surface-3 (#eeeeeb → 4.7) ustida */
   --fg-4: #6c6a64; /* eng och qadam — 11–12px matn uchun ham AA (oq 5.3, surface-3 4.65) */
 
-  --line: rgba(18, 18, 19, 0.08);
-  --line-2: rgba(18, 18, 19, 0.16);
+  --line: rgba(19, 19, 21, 0.08);
+  --line-2: rgba(19, 19, 21, 0.15);
   --hairline: var(--line);
+
+  /* v5: brend gradienti (asosiy CTA, hikoya halqasi) va yopishqoq panel shishasi */
+  --brand-grad: linear-gradient(135deg, #ff5a36 0%, #ff8a3c 55%, #ffb13c 100%);
+  --story-ring: conic-gradient(from 210deg, #ff5a36, #ff9f3c, #c25cff, #ff5a36);
+  --glass: color-mix(in srgb, var(--bg) 82%, transparent);
+  --aurora-1: rgba(255, 90, 54, 0.055);
+  --aurora-2: rgba(123, 97, 255, 0.045);
 
   --accent: #ff5a36;
   --accent-text: #b93318; /* kichik (<18px) coral matn uchun to'qroq ton — oq 5.9, qog'oz 5.4, accent-soft oq ustida 5.2 / qog'oz ustida 4.7 (AA) */
@@ -71,14 +78,15 @@
   --chart-2: #7b61ff;
 
   /* Radius — 3 daraja: input/plitka 10, karta 14, katta blok 20 */
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-xl: 32px;
 
-  /* Soya — 3 daraja, juda yumshoq: chuqurlik asosan konturdan; 3 — faqat suzuvchi menyu/toast */
-  --shadow-1: 0 1px 2px rgba(18, 18, 19, 0.04);
-  --shadow-2: 0 4px 16px -8px rgba(18, 18, 19, 0.12);
-  --shadow-3: 0 8px 24px -10px rgba(18, 18, 19, 0.14);
+  /* Soya — 3 daraja, diffuz: 1 — karta (yengil ko'tarilish), 2 — hover/ko'tarilgan, 3 — suzuvchi menyu/toast/dialog */
+  --shadow-1: 0 1px 2px rgba(19, 19, 21, 0.05), 0 1px 1px rgba(19, 19, 21, 0.03);
+  --shadow-2: 0 8px 24px -10px rgba(19, 19, 21, 0.16);
+  --shadow-3: 0 18px 44px -14px rgba(19, 19, 21, 0.26);
 
   /* Boshqaruv elementlari: input foni, segment yo'lagi/thumb, switch yo'lagi (dark'da alohida qiymat — bitta qoida) */
   --field-bg: var(--surface);
@@ -136,19 +144,23 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0c0c0d;
-  --bg-2: #111113;
-  --surface: #151517;
-  --surface-2: #1b1b1e;
-  --surface-3: #232327;
-  --fg: #f4f2ec;
-  --fg-2: #bdbab2;
-  --fg-3: #8d8b84; /* surface-3 (#232327) ustida 4.6 — AA */
-  --fg-4: #8f8d86; /* 11px matn ham AA (surface-3 4.7, surface 5.5) */
+  --bg: #09090b;
+  --bg-2: #0e0e11;
+  --surface: #131316;
+  --surface-2: #1a1a1e;
+  --surface-3: #232328;
+  --fg: #f6f5f1;
+  --fg-2: #c4c2bc;
+  --fg-3: #9c9a94; /* surface-3 (#232328) ustida 5.7 — AA */
+  --fg-4: #98968f; /* 11px matn ham AA (surface-3 5.4, surface 6.4) */
 
-  --line: rgba(255, 255, 255, 0.08);
-  --line-2: rgba(255, 255, 255, 0.15);
+  --line: rgba(255, 255, 255, 0.075);
+  --line-2: rgba(255, 255, 255, 0.14);
   --hairline: var(--line);
+
+  --glass: color-mix(in srgb, var(--bg) 78%, transparent);
+  --aurora-1: rgba(255, 107, 71, 0.07);
+  --aurora-2: rgba(143, 121, 255, 0.065);
 
   --accent: #ff6b47;
   --accent-text: var(--accent); /* qorong'uda coral'ning o'zi 6.5:1 */
@@ -184,9 +196,9 @@
   --chart-2: #8f79ff;
 
   /* Qorong'uda soya ko'rinishi uchun to'qroq, lekin baribir qisqa */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-2: 0 6px 20px -10px rgba(0, 0, 0, 0.55);
-  --shadow-3: 0 10px 28px -12px rgba(0, 0, 0, 0.6);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 10px 28px -12px rgba(0, 0, 0, 0.65);
+  --shadow-3: 0 22px 52px -16px rgba(0, 0, 0, 0.75);
 
   --field-bg: var(--surface-2);
   --seg-track: rgba(255, 255, 255, 0.08);
@@ -231,7 +243,9 @@
 /* ---------- Tailwind tokenlar ---------- */
 @theme inline {
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-unbounded), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  /* v5: sarlavhalar ham Manrope (o'qilishi yaxshi, zamonaviy); Unbounded faqat logotip: font-brand */
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-brand: var(--font-unbounded), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), "Times New Roman", Georgia, serif;
 
   --color-bg: var(--bg);
@@ -448,8 +462,8 @@ body {
 
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
-  font-weight: 600;
+  letter-spacing: -0.022em;
+  font-weight: 750;
 }
 /* Sarlavhalar muvozanatli o'raladi, paragraflarda yetim so'z qolmaydi.
    overflow-wrap: uzun bitta so'z ("Qoraqalpog'iston") 390px'da konteynerdan toshib (HSCROLL) ketmasin — faqat zarur bo'lsa bo'linadi */
@@ -539,13 +553,13 @@ select:focus-visible {
 
 /* ---------- Yuzalar (component layer) ---------- */
 @layer components {
-  /* Karta — yuza + 1px hairline, soyasiz */
+  /* Karta — yuza + 1px hairline + yengil soya (v5: yengil ko'tarilish — bosiladigan joy ekanini sezdiradi) */
   .card {
     position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    box-shadow: none;
+    box-shadow: var(--shadow-1);
     transition: border-color var(--dur-2) ease, background var(--dur-2) ease, box-shadow var(--dur-2) ease;
   }
   /* Ko'tarilgan karta — juda yumshoq soya (dialog, chat paneli) */
@@ -580,11 +594,12 @@ select:focus-visible {
     .card-hover:hover {
       border-color: var(--line-2);
       background: var(--surface);
-      box-shadow: var(--shadow-1);
+      box-shadow: var(--shadow-2);
+      transform: translateY(-1px);
     }
   }
   .card-hover:active {
-    transform: scale(0.995);
+    transform: scale(0.992);
   }
 
   /* Karta ichidagi asosiy havola (yonida tugma bor): fokus halqasi kartaning o'zida chiziladi */
@@ -662,17 +677,18 @@ select:focus-visible {
     transform: scale(0.97);
   }
 
-  /* Accent tugma — yassi coral #d13f1c (oq matn 4.7:1, AA), soyasiz, hover'da biroz to'qroq */
+  /* Accent tugma (v5) — gradient coral (oq matn 5.0:1, AA): saytdagi yagona asosiy CTA uslubi */
   .btn-accent {
     position: relative;
     color: #fff;
-    background: #d13f1c;
+    background: linear-gradient(180deg, #e2481f 0%, #cf3d19 100%);
     border: 1px solid transparent;
-    box-shadow: none;
-    transition: filter var(--dur-2) ease, transform var(--dur-2) var(--ease-out);
+    box-shadow: 0 6px 16px -8px rgba(207, 61, 25, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transition: filter var(--dur-2) ease, transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) ease;
   }
   .btn-accent:hover {
-    filter: brightness(0.94);
+    filter: brightness(1.06);
+    box-shadow: 0 10px 22px -10px rgba(207, 61, 25, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   }
   .btn-accent:active {
     transform: scale(0.97);
@@ -707,8 +723,8 @@ select:focus-visible {
   }
   .field:focus,
   .field:focus-within {
-    border-color: var(--fg);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 8%, transparent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
   }
   /* Xato holati: qizil kontur + halo (aria-invalid yoki .field-invalid) */
   .field[aria-invalid="true"],
@@ -774,9 +790,9 @@ select:focus-visible {
 
   /* Telefon panellari (yuqori kapsula, tab-bar) — deyarli solid yuza, yengil blur, hairline, eng yumshoq soya */
   .nav-bar {
-    background: color-mix(in srgb, var(--surface) 94%, transparent);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-1);
   }
@@ -784,17 +800,17 @@ select:focus-visible {
   /* Sahifa sarlavhasi (h1) — ixcham klamp 24→34px; sahifalardagi inline o'lchamlar shu bilan tenglashtiriladi */
   .display-xl {
     font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
     font-size: clamp(1.5rem, 1.15rem + 1.3vw, 2.125rem) !important;
   }
   /* Bo'lim sarlavhasi (h2) — bir pog'ona kichik: 22→28px */
   .display-lg {
     font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
     font-size: clamp(1.375rem, 1.1rem + 0.9vw, 1.75rem);
   }
   /* Urg'u so'z — italic serif/coral o'rniga shu shrift, kulrang ohang (monoxrom ierarxiya) */
@@ -1651,4 +1667,153 @@ select:focus-visible {
 html[data-chat-open] .m-topbar,
 html[data-chat-open] .m-tabbar {
   display: none;
+}
+
+/* =====================================================================
+   v5 "Jonli" — yangi komponent sinflari (docs/DIZAYN-V5.md)
+   ===================================================================== */
+@layer components {
+  /* Chiziqli tab (Instagram/X uslubi): faol tab ostida coral chiziq. Lenta, profil, jamoa bo'limlari */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 3rem;
+    padding: 0.8rem 1rem;
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--fg-3);
+    white-space: nowrap;
+    transition: color var(--dur-2) ease, background var(--dur-2) ease;
+  }
+  .tab:hover {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+  }
+  .tab:active {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+  .tab[aria-selected="true"],
+  .tab[aria-current="page"] {
+    color: var(--fg);
+  }
+  .tab::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -1px;
+    height: 3px;
+    width: 0;
+    border-radius: 3px 3px 0 0;
+    background: var(--accent);
+    transform: translateX(-50%);
+    transition: width var(--dur-2) var(--ease-spring);
+  }
+  .tab[aria-selected="true"]::after,
+  .tab[aria-current="page"]::after {
+    width: min(3.5rem, 60%);
+  }
+
+  /* Filtr chip'i (kapsula): faol — siyoh fon (qorong'uda oq). min-h 36 — bosh barmoq uchun */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.95rem;
+    border-radius: 9999px;
+    border: 1px solid var(--line-2);
+    background: var(--surface);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    color: var(--fg-2);
+    white-space: nowrap;
+    transition: background var(--dur-2) ease, color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) var(--ease-out);
+  }
+  .chip:hover {
+    border-color: var(--fg-4);
+    color: var(--fg);
+  }
+  .chip:active {
+    transform: scale(0.96);
+  }
+  .chip[data-active="true"],
+  .chip[aria-pressed="true"],
+  .chip[aria-current="page"] {
+    background: var(--ink);
+    color: var(--ink-fg);
+    border-color: transparent;
+  }
+
+  /* Hikoya halqasi: ko'rilmagan — gradient (coral→amber→binafsha), ko'rilgan — kulrang. Ichki bo'shliq --bg rangida */
+  .story-ring {
+    display: inline-flex;
+    padding: 2.5px;
+    border-radius: 9999px;
+    background: var(--story-ring);
+  }
+  .story-ring-seen {
+    display: inline-flex;
+    padding: 2.5px;
+    border-radius: 9999px;
+    background: var(--line-2);
+  }
+  .story-ring > .story-gap,
+  .story-ring-seen > .story-gap {
+    display: flex;
+    padding: 2px;
+    border-radius: 9999px;
+    background: var(--bg);
+  }
+
+  /* Shisha panel (yopishqoq tab/sarlavha) */
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+
+  /* O'qilmagan nuqta (qo'ng'iroqcha, tab, chat) — coral + yumshoq halqa */
+  .dot-new {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+
+  /* Progress meter (profil to'ldirilganlik, vazifalar): maqsad gradienti */
+  .meter {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-grad);
+    transition: width 0.8s var(--ease-out);
+  }
+
+  /* Statistika raqami (profil, kabinet): tabular, qalin */
+  .stat-num {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* v5: chatda o'z xabari — brend gradienti (iMessage/Telegram kabi o'qish oson). --ink/--ink-fg shu element ichida qayta
+   belgilanadi, shuning uchun bubble ichidagi mavjud `bg-ink text-ink-fg/..` sinflari ikkala temada ham to'g'ri ishlaydi */
+.bubble-mine {
+  --ink: #d6401c;
+  --ink-fg: #ffffff;
+  background-image: linear-gradient(180deg, #e04a24 0%, #cf3d19 100%);
 }

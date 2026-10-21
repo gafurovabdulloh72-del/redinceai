@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ArrowUpRight, BadgeCheck, Briefcase, Hash, MapPinned, RadioTower, UsersRound } from "lucide-react";
 import { Avatar, VerifiedBadge } from "@/components/ui";
 import { FollowButton } from "@/components/groups/FollowButton";
+import { ProfileMeter } from "./ProfileMeter";
+import { RailSearch } from "./RailSearch";
+import type { Completeness } from "@/lib/profile/completeness";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
@@ -34,12 +37,14 @@ function RailHead({ id, title, href, til }: { id: string; title: string; href?: 
 }
 
 /** O'ng panel (desktop): men, rasmiy kanal, tavsiya ijodkorlar, trend teglar, faol jamoalar, vakansiyalar, xarita — yassi, neytral plitkalar */
-export function RightRail({ data, user, til }: { data: RailData; user: RailUser | null; til: Locale }) {
+export function RightRail({ data, user, til, meter = null }: { data: RailData; user: RailUser | null; til: Locale; meter?: Completeness | null }) {
   const { creators, groups, vacancies, official, tags } = data;
   const tile = "flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-fg/5 text-fg-2";
   const rowLink = "flex items-center gap-3 rounded-[14px] transition hover:bg-fg/4";
   return (
     <div className="space-y-3">
+      <RailSearch />
+      {meter && <ProfileMeter data={meter} til={til} />}
       {user && (
         <Link href={user.specialistSlug ? `/mutaxassislar/${user.specialistSlug}` : "/kabinet"} className="card card-hover flex items-center gap-3 p-3">
           <Avatar name={user.name} src={user.avatarUrl} size={36} decorative />

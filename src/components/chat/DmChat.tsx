@@ -1181,7 +1181,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         onPointerMove={pressEnd}
                         className={cn(
                           "min-w-0 max-w-full select-text rounded-[14px] px-3 py-2 transition-[box-shadow,transform] active:scale-[0.995]",
-                          m.mine ? "rounded-br-[4px] bg-ink text-ink-fg" : "rounded-bl-[4px] bg-surface-2 text-fg",
+                          m.mine ? "bubble-mine rounded-br-[4px] bg-ink text-ink-fg" : "rounded-bl-[4px] bg-surface-2 text-fg",
                           m.pending === "failed" && "ring-1 ring-danger",
                           m.deleted && "opacity-70",
                         )}

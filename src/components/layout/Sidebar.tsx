@@ -109,7 +109,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     router.refresh();
   };
 
-  const row = "group/side relative flex h-12 items-center gap-4 rounded-tile px-3 text-[15px] text-fg transition-colors duration-200 hover:bg-fg/[0.04] md:justify-center xl:justify-start";
+  const row = "group/side relative flex h-12 items-center gap-4 rounded-full px-3.5 text-[15.5px] text-fg transition-colors duration-200 hover:bg-fg/[0.05] md:justify-center xl:justify-start";
   const label = "hidden truncate xl:block";
 
   const renderItem = (it: Item) => {
@@ -117,7 +117,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     const href = it.authOnly && !user ? login(it.href) : it.href;
     return (
       <li key={it.href}>
-        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, active && "font-bold")}>
+        <Link href={href} aria-current={active ? "page" : undefined} data-tip={tr(til, it.label)} data-tip-pos="right" className={cn(row, active && "bg-fg/[0.07] font-bold")}>
           <span className="relative shrink-0">
             <it.icon size={24} strokeWidth={active ? 2.5 : 1.9} />
             {it.badge ? (
@@ -144,10 +144,19 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
         <nav className="mt-4 flex min-h-0 flex-1 flex-col" aria-label={tr(til, SHELL.nav.mainAria)}>
           <ul className="space-y-0.5">
             {primary.map(renderItem)}
-            <li>
-              <button type="button" onClick={() => setCreateOpen(true)} className={cn(row, "w-full")} data-tip={tr(til, SHELL.nav.create)} data-tip-pos="right" aria-haspopup="dialog" aria-expanded={createOpen}>
-                <PlusSquare size={24} strokeWidth={1.9} className="shrink-0" />
-                <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.create)}</span>
+            <li className="pt-3">
+              {/* Doimiy asosiy CTA (X "Post" tugmasi kabi): yaratish imkoni har doim ko'z oldida — odat sikli "amal" bosqichi */}
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="btn-accent press flex h-12 items-center justify-center gap-2 rounded-full text-[15px] font-bold md:mx-auto md:w-12 xl:w-full"
+                data-tip={tr(til, SHELL.nav.create)}
+                data-tip-pos="right"
+                aria-haspopup="dialog"
+                aria-expanded={createOpen}
+              >
+                <PlusSquare size={21} strokeWidth={2.3} className="shrink-0" />
+                <span className="hidden xl:block">{tr(til, SHELL.nav.create)}</span>
               </button>
             </li>
           </ul>
@@ -157,7 +166,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
 
         <div className="mt-auto space-y-0.5">
           {user ? (
-            <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "font-bold")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
+            <Link href={profileHref} aria-current={profileActive ? "page" : undefined} className={cn(row, profileActive && "bg-fg/[0.07] font-bold")} data-tip={tr(til, SHELL.nav.profile)} data-tip-pos="right">
               <Avatar name={user.name} src={user.avatarUrl} size={26} decorative />
               <span className={cn(label, "font-medium")}>{tr(til, SHELL.nav.profile)}</span>
             </Link>

@@ -91,7 +91,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
   return (
     <>
       {/* ---------- Yuqori panel (telefon): yassi, 56px ---------- */}
-      <header className="m-topbar fixed inset-x-0 top-0 z-50 border-b border-line bg-bg md:hidden" style={{ paddingTop: "env(safe-area-inset-top)" }} data-print-hide>
+      <header className="m-topbar glass fixed inset-x-0 top-0 z-50 border-b border-line md:hidden" style={{ paddingTop: "env(safe-area-inset-top)" }} data-print-hide>
         <nav className="flex h-14 items-center justify-between gap-2 px-2" aria-label={tr(til, SHELL.nav.mainAria)}>
           <div className="flex min-w-0 items-center gap-0.5">
             {showBack && (
@@ -119,7 +119,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
       </header>
 
       {/* ---------- Pastki tab-bar (telefon): yassi, 5 ta teng ustun ---------- */}
-      <nav className="m-tabbar fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} aria-label={tr(til, SHELL.nav.mobileAria)} data-print-hide>
+      <nav className="m-tabbar glass fixed inset-x-0 bottom-0 z-50 border-t border-line md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} aria-label={tr(til, SHELL.nav.mobileAria)} data-print-hide>
         <div className="grid grid-cols-5">
           {tabs.map((t) => {
             const Icon = t.icon;

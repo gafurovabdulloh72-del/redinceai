@@ -706,9 +706,9 @@ export function PostCard({
       className={cn("card card-hover p-4 outline-none focus-visible:border-fg sm:p-5", highlighted && "ring-2 ring-accent/40")}
     >
       <header className="flex items-start gap-2.5">
-        <Avatar name={post.author.name} src={post.author.avatarUrl} size={36} decorative />
+        <Avatar name={post.author.name} src={post.author.avatarUrl} size={44} decorative />
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[14px] leading-tight">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[15px] font-bold leading-tight">
             <AuthorLink u={post.author} />
             {source && (
               <>
@@ -778,7 +778,7 @@ export function PostCard({
         </div>
       ) : (
         body && (
-          <p className="mt-3 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-fg">
+          <p className="mt-3.5 whitespace-pre-wrap break-words text-[15.5px] leading-[1.6] text-fg">
             <RichText text={body} />
           </p>
         )
@@ -789,7 +789,7 @@ export function PostCard({
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
       <MediaGrid media={media} alt={body.slice(0, 120)} />
 
-      <footer className="-mx-1.5 mt-2 flex items-center gap-0.5">
+      <footer className="-mx-1.5 mt-2.5 flex items-center gap-1">
         <ReactionButton postId={post.id} initial={post} canInteract={canInteract} requireLogin={requireLogin} showCount={false} lockedTitle={loggedIn && !canInteract ? tr(til, FEED.joinToReact) : undefined} onChange={setRx} />
         <ReactorsButton postId={post.id} total={rx.likesCount} counts={rx.reactions} />
         <button
@@ -798,9 +798,9 @@ export function PostCard({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={`${tr(til, FEED.comments)} (${comments})`}
-          className={cn("press inline-flex h-9 min-w-9 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
+          className={cn("press inline-flex h-10 min-w-10 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition", open ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/6 hover:text-fg")}
         >
-          <MessageCircle size={18} /> {comments > 0 && <span className="tabular-nums">{comments}</span>}
+          <MessageCircle size={20} /> {comments > 0 && <span className="tabular-nums">{comments}</span>}
         </button>
         <ShareAction url={permalink} title={title} loggedIn={loggedIn} />
         <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} className="ml-auto" />

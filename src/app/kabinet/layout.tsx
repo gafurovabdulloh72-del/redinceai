@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { TermsBanner } from "@/components/auth/TermsBanner";
 import { KabinetNav, type KabinetNavDot, type KabinetNavItem } from "@/components/kabinet/KabinetNav";
+import { KabinetShell } from "@/components/kabinet/KabinetShell";
 import { TelegramNudge } from "@/components/kabinet/TelegramNudge";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
@@ -185,30 +186,20 @@ export default async function KabinetLayout({ children }: { children: React.Reac
 
   return (
     /*
-     * 390px'da gorizontal siljish bo'lmasligi uchun: grid bolalari min-w-0, rasmlar max-w-full,
-     * gorizontal qatorlar (nav pill'lari) o'z ichida aylanadi (overflow-x-auto).
+     * 390px'da gorizontal siljish bo'lmasligi uchun: grid bolalari min-w-0, rasmlar max-w-full (KabinetShell).
+     * Chat sahifasida kabinet yon menyusi desktopda yashiriladi (KabinetShell) — suhbatga butun kenglik.
      */
-    <div className="container-x min-w-0 max-w-full [&_img]:max-w-full [&_table]:max-w-full">
-      <div className="grid min-w-0 grid-cols-1 gap-0 md:gap-5 lg:grid-cols-12 lg:gap-8">
-        <aside className="min-w-0 print:hidden lg:col-span-3">
-          <KabinetNav
-            items={items}
-            user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }}
-          />
-        </aside>
-        <div className="min-w-0 lg:col-span-9 print:col-span-12">
-          {/* Bloklamaydigan bannerlar: shartlar (G1) va ixcham obuna pill'i (G6/#74) — chop etishda ko'rinmaydi.
-              To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
-          <div className="print:hidden">
-            <TermsBanner />
-            {subState && <SubscriptionPill st={subState} />}
-            {/* Telegram ulanmagan bo'lsa — buyurtma/javob/e'lon xabarini o'tkazib yubormaslik uchun eslatma (admindan tashqari hammaga) */}
-            {user.role !== "admin" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge forClient={user.role === "client"} />}
-            <InstallPrompt />
-          </div>
-          {children}
-        </div>
+    <KabinetShell aside={<KabinetNav items={items} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }} />}>
+      {/* Bloklamaydigan bannerlar: shartlar (G1) va ixcham obuna pill'i (G6/#74) — chop etishda ko'rinmaydi.
+          To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
+      <div className="print:hidden">
+        <TermsBanner />
+        {subState && <SubscriptionPill st={subState} />}
+        {/* Telegram ulanmagan bo'lsa — buyurtma/javob/e'lon xabarini o'tkazib yubormaslik uchun eslatma (admindan tashqari hammaga) */}
+        {user.role !== "admin" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge forClient={user.role === "client"} />}
+        <InstallPrompt />
       </div>
-    </div>
+      {children}
+    </KabinetShell>
   );
 }

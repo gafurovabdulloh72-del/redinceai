@@ -16,7 +16,7 @@ import { NetworkBanner } from "@/components/layout/NetworkBanner";
 import { Shortcuts } from "@/components/layout/Shortcuts";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { AppearanceSync } from "@/components/layout/Appearance";
-import { THEME_INIT_SCRIPT } from "@/components/layout/ThemeToggle";
+import { THEME_INIT_SCRIPT, ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { CallCenter } from "@/components/call/CallCenter";
 import { getCurrentUser } from "@/lib/auth";
@@ -134,9 +134,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORG_JSONLD }} />
         <LocaleProvider locale={locale}>
          <DisplayLocaleProvider value={display}>
-          {/* Doimiy til almashtirgich — o'ng tepada (desktop; telefonda yuqori panelda) */}
-          <div className="fixed right-4 top-3 z-[115] hidden md:block print:hidden">
-            <LocaleSwitch />
+          {/* Doimiy til + yorug'lik (tema) boshqaruvi — o'ng tepada bitta kapsulada (desktop; telefonda Profil → Menyu) */}
+          <div className="glass fixed right-4 top-3 z-[115] hidden items-center gap-0.5 rounded-full border border-line p-0.5 shadow-1 md:flex print:hidden">
+            <LocaleSwitch className="[&>button]:!border-transparent [&>button]:!bg-transparent [&>button]:!shadow-none" />
+            <span className="h-5 w-px bg-line" aria-hidden />
+            <ThemeToggle />
           </div>
           <ToastProvider>
             <ConfirmProvider>
