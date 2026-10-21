@@ -1,4 +1,4 @@
-import { AuthStage } from "@/components/auth/AuthStage";
+import { AuthStage, ProfessionMarquee } from "@/components/auth/AuthStage";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { Logo } from "@/components/layout/Logo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -12,11 +12,6 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   const til = await getLocale();
   const site = await getSiteStats().catch(() => ({ specialists: 0, orders: 0, reviews: 0, regions: 0 }));
 
-  const benefits = [
-    { icon: "map" as const, title: tr(til, AUTH.panel.b1Title), text: AUTH.panel.b1Text[til](REGIONS.length) },
-    { icon: "badge" as const, title: tr(til, AUTH.panel.b2Title), text: tr(til, AUTH.panel.b2Text) },
-    { icon: "chat" as const, title: tr(til, AUTH.panel.b3Title), text: tr(til, AUTH.panel.b3Text) },
-  ];
   const stats = [
     { value: site.specialists, suffix: "+", label: tr(til, AUTH.panel.statSpecialists) },
     { value: REGIONS.length, label: tr(til, AUTH.panel.statRegions) },
@@ -24,40 +19,34 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   ];
 
   return (
-    // data-auth-screen: globals.css telefonda yuqori panel/pastki tabni yashiradi va main paddingini olib tashlaydi — sahifa BITTA ekranga sig'adi.
-    // Telefonda forma tepadan boshlanadi (qadamlar almashganda ko'rsatkich joyidan siljimaydi). Desktopda balandlik = ko'rinish oynasi − main paddinglari (pt-8 + pb-12 = 5rem) − 2rem (yuqori o'ng til/tema kapsulasi ostida qolmasin)
-    <div data-auth-screen className="container-x flex min-h-dvh flex-col md:min-h-[calc(100dvh-7rem)] md:pt-8">
-      {/* Telefon: o'z ixcham sarlavhamiz (umumiy yuqori panel yashirin) — belgi, til, tema */}
-      <header className="flex h-14 shrink-0 items-center justify-between short:h-12 md:hidden">
-        <Logo />
-        <div className="flex items-center gap-1">
-          <LocaleSwitch />
-          <ThemeToggle />
-        </div>
-      </header>
+    // data-auth-screen: globals.css ilova qobig'ini (yon menyu, telefon panellari, kapsula, main paddinglari) yashiradi —
+    // auth to'liq ekranli va BITTA ekranga sig'adi. lg+: chapda qorong'u brend paneli, o'ngda forma; telefonda kasblar lentasi + forma
+    <div data-auth-screen className="grid min-h-dvh lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
+      <AuthStage
+        eyebrow={tr(til, AUTH.panel.eyebrow)}
+        titleA={tr(til, AUTH.panel.titleA)}
+        titleAccent={tr(til, AUTH.panel.titleAccent)}
+        lead={tr(til, AUTH.panel.lead)}
+        stats={stats}
+        freeSignup={tr(til, AUTH.panel.freeSignup)}
+        pickerLabel={tr(til, AUTH.panel.needLabel)}
+      />
 
-      <div className="flex flex-1 items-start justify-center pb-3 pt-2 md:items-center md:pb-0 md:pt-0">
-        <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
-          {/* ---------- Chap: jonli brend sahnasi (faqat desktop) ---------- */}
-          <AuthStage
-            eyebrow={tr(til, AUTH.panel.eyebrow)}
-            titleA={tr(til, AUTH.panel.titleA)}
-            titleAccent={tr(til, AUTH.panel.titleAccent)}
-            lead={tr(til, AUTH.panel.lead)}
-            benefits={benefits}
-            stats={stats}
-            freeSignup={tr(til, AUTH.panel.freeSignup)}
-            pickerLabel={tr(til, AUTH.panel.needLabel)}
-          />
+      <div className="flex min-h-dvh min-w-0 flex-col bg-bg" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <header className="flex h-16 shrink-0 items-center justify-between px-4 sm:px-8 short:h-14">
+          <Logo className="lg:invisible" />
+          <div className="flex items-center gap-1">
+            <LocaleSwitch />
+            <ThemeToggle />
+          </div>
+        </header>
 
-          {/* ---------- O'ng: forma kartasi. Telefonda ramkasiz (kenglik tejaladi); md+ da balandlik oynadan oshsa karta ichida aylanadi, sahifa emas ---------- */}
-          <section
-            className="card-elevated animate-tilt-in flex flex-col justify-center p-5 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 max-sm:!shadow-none sm:p-8 short:sm:p-6 tiny:sm:!p-4 md:max-h-[calc(100dvh-7rem)] md:overflow-y-auto"
-            aria-label={tr(til, AUTH.panel.sectionAria)}
-          >
-            {children}
-          </section>
-        </div>
+        <section className="flex flex-1 items-center justify-center px-4 py-5 sm:px-8 short:py-3" aria-label={tr(til, AUTH.panel.sectionAria)}>
+          <div className="animate-fade-up w-full max-w-[420px]">{children}</div>
+        </section>
+
+        {/* Telefon/planshet: brend paneli o'rniga ekran pastida kasblar lentasi — bo'sh joyni to'ldiradi, platforma ko'lamini ko'rsatadi */}
+        <ProfessionMarquee rows={2} className="mb-4 lg:hidden short:[&>div:nth-child(2)]:hidden tiny:hidden" />
       </div>
     </div>
   );

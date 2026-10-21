@@ -62,7 +62,7 @@ export function RoleStep({ role, onPick }: { role: Role | null; onPick: (r: Role
     },
   ];
   return (
-    <div role="radiogroup" aria-label={tr(til, AUTH.role.aria)} className="grid grid-cols-2 gap-2.5 sm:gap-3">
+    <div role="radiogroup" aria-label={tr(til, AUTH.role.aria)} className="grid grid-cols-2 gap-3">
       {cards.map((c, i) => {
         const on = role === c.value;
         const Icon = c.icon;
@@ -73,40 +73,43 @@ export function RoleStep({ role, onPick }: { role: Role | null; onPick: (r: Role
             role="radio"
             aria-checked={on}
             onClick={() => onPick(c.value)}
-            style={{ animationDelay: `${i * 90}ms` }}
+            style={{ animationDelay: `${i * 80}ms` }}
             className={cn(
-              "group animate-tilt-in relative flex min-w-0 flex-col overflow-hidden rounded-[18px] border p-3.5 text-left transition-all duration-300 active:scale-[0.985] sm:rounded-[20px] sm:p-4",
-              on ? "animate-ring-pulse border-accent bg-accent-soft/40" : "border-line bg-surface hover:-translate-y-1 hover:border-line-2 hover:shadow-[var(--shadow-2)]",
+              "group animate-fade-up relative flex min-w-0 flex-col overflow-hidden rounded-[22px] border bg-surface text-left transition duration-300 active:scale-[0.985]",
+              on ? "border-accent ring-4 ring-accent/15" : "border-line hover:-translate-y-0.5 hover:border-line-2 hover:shadow-[var(--shadow-2)]",
             )}
           >
-            {/* Orqa nur shari (karta ichida, kichik) */}
-            <span aria-hidden="true" className="animate-orb pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-30 blur-2xl transition-opacity duration-300 group-hover:opacity-60" style={{ background: `radial-gradient(circle, ${c.from}, transparent 70%)`, animationDelay: `${i * 2}s` }} />
-            <span className="animate-float relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-white shadow-[0_10px_22px_-10px_var(--tile)] sm:h-12 sm:w-12" style={{ background: `linear-gradient(145deg, ${c.from}, ${c.to})`, ["--tile" as string]: c.from, animationDelay: `${i * 0.6}s` }}>
-              <Icon size={22} strokeWidth={2} />
-            </span>
-            <span className="relative mt-3 block font-display text-[14px] font-extrabold leading-tight tracking-tight text-fg sm:text-[17px]">{c.title}</span>
-            <span className="relative mt-1 block text-[12px] leading-snug text-fg-3 sm:hidden">{c.tag}</span>
-            <span className="relative mt-1 hidden text-[12.5px] leading-snug text-fg-3 sm:block short:!hidden">{c.lead}</span>
-            {/* Afzalliklar: faqat keng va yetarli baland ekranda — past ekranda bitta ekranga sig'ishi uchun yashirinadi */}
-            <ul className="relative mt-3 hidden space-y-1.5 sm:block cozy:!hidden">
-              {c.bullets.map((b) => (
-                <li key={b} className="flex items-start gap-2 text-[12px] leading-snug text-fg-2">
-                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-white" style={{ background: c.from }}>
-                    <Check size={10} strokeWidth={3.5} aria-hidden="true" />
-                  </span>
-                  {b}
-                </li>
-              ))}
-            </ul>
-            <span className="relative mt-auto inline-flex items-center gap-1.5 pt-3 text-[13px] font-semibold text-fg">
-              {tr(til, AUTH.reg.next)}
-              <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
-            </span>
-            {on && (
-              <span className="animate-badge-pop absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white" aria-hidden="true">
-                <Check size={13} strokeWidth={3} />
+            {/* Tasvir maydoni: rol rangidagi yumshoq fon + katta xira belgi (suv belgisi) + oldingi plitka */}
+            <span
+              className="relative block h-[104px] shrink-0 overflow-hidden sm:h-[124px] short:!h-[92px]"
+              style={{ background: `linear-gradient(140deg, color-mix(in srgb, ${c.from} 24%, var(--surface)), color-mix(in srgb, ${c.to} 9%, var(--surface)))` }}
+            >
+              <Icon aria-hidden="true" size={118} strokeWidth={1.25} className="absolute -bottom-6 -right-5 opacity-[0.16] transition-transform duration-500 group-hover:-translate-y-1 group-hover:-rotate-6" style={{ color: c.from }} />
+              <span className="absolute left-3.5 top-3.5 flex h-11 w-11 items-center justify-center rounded-[14px] text-white shadow-[0_8px_20px_-8px_var(--tile)] sm:left-4 sm:top-4 sm:h-12 sm:w-12" style={{ background: `linear-gradient(145deg, ${c.from}, ${c.to})`, ["--tile" as string]: c.from }}>
+                <Icon size={22} strokeWidth={2} />
               </span>
-            )}
+              <span className={cn("absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border-2 transition", on ? "animate-badge-pop border-accent bg-accent text-white" : "border-fg/15 bg-surface/70")} aria-hidden="true">
+                {on && <Check size={13} strokeWidth={3} />}
+              </span>
+            </span>
+            <span className="flex flex-1 flex-col p-3.5 sm:p-4">
+              <span className="block font-display text-[15px] font-extrabold leading-tight tracking-tight text-fg sm:text-[17px]">{c.title}</span>
+              <span className="mt-1 block text-[12.5px] leading-snug text-fg-3 sm:hidden">{c.tag}</span>
+              <span className="mt-1 hidden text-[13px] leading-snug text-fg-3 sm:block">{c.lead}</span>
+              {/* Afzalliklar: faqat keng va yetarli baland ekranda */}
+              <ul className="mt-3 hidden space-y-1.5 sm:block cozy:!hidden">
+                {c.bullets.map((b) => (
+                  <li key={b} className="flex items-start gap-2 text-[12.5px] leading-snug text-fg-2">
+                    <Check size={14} strokeWidth={2.5} className="mt-px shrink-0" style={{ color: c.from }} aria-hidden="true" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[13px] font-semibold text-fg">
+                {tr(til, AUTH.reg.next)}
+                <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+              </span>
+            </span>
           </button>
         );
       })}
@@ -201,7 +204,7 @@ export function CraftStep({
         </p>
       )}
 
-      <Button type="button" variant="accent" size="lg" onClick={onNext} className="btn-shine w-full">
+      <Button type="button" variant="accent" size="lg" onClick={onNext} className="w-full">
         {tr(til, AUTH.reg.next)} <ArrowRight size={18} />
       </Button>
     </div>

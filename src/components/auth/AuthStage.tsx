@@ -1,47 +1,77 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, MapPinned, MessageSquareText } from "lucide-react";
+import { Logo } from "@/components/layout/Logo";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { CountUp } from "@/components/motion/useCountUp";
 import { CATEGORIES, CATEGORY_BY_SLUG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-/** Suzuvchi kasb belgilari: [slug, top(px), left%, o'lcham, kechikish(s), burilish(deg)] — faqat bezak zonasi ichida (matn ustiga TUSHMAYDI) */
-const BUBBLES: Array<[string, number, number, number, number, number]> = [
-  ["videograf", 22, 3, 52, 0, -8],
-  ["dizayner", 0, 19, 40, 2.2, -4],
-  ["montajor", 46, 35, 44, 1.1, 10],
-  ["fotograf", 4, 52, 46, 0.6, 6],
-  ["frontend", 50, 69, 38, 2.8, 8],
-  ["ovoz", 6, 85, 40, 1.7, -6],
-];
+/** Lentadagi kasblar: har qator boshqa guruhlardan aralash (bir xil rang ketma-ket kelmasin) */
+const ROWS: string[][] = (() => {
+  const rows: string[][] = [[], [], []];
+  CATEGORIES.forEach((c, i) => rows[i % 3].push(c.slug));
+  return rows;
+})();
+
+/**
+ * Kasblar lentasi: chiplar cheksiz suriladi (CSS, JS'siz), chetlari niqob bilan so'nadi. Ro'yxat ikki marta chiziladi —
+ * `--animate-marquee` -50% ga suradi, uzilish ko'rinmaydi. Reduced-motion'da to'xtaydi. `rows` — nechta qator.
+ */
+export function ProfessionMarquee({ rows = 3, className, tone = "auto" }: { rows?: 1 | 2 | 3; className?: string; tone?: "auto" | "dark" }) {
+  return (
+    <div className={cn("pointer-events-none select-none space-y-2.5 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]", className)} aria-hidden="true">
+      {ROWS.slice(0, rows).map((row, r) => (
+        <div key={r} className={cn("flex w-max gap-2.5", r % 2 ? "animate-marquee-rev" : "animate-marquee")}>
+          {[...row, ...row].map((slug, i) => {
+            const c = CATEGORY_BY_SLUG[slug];
+            if (!c) return null;
+            return (
+              <span
+                key={`${slug}-${i}`}
+                className={cn(
+                  "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border pl-1.5 pr-4 text-[13.5px] font-semibold",
+                  tone === "dark" ? "border-white/10 bg-white/[0.04] text-white/85" : "border-line bg-surface text-fg-2",
+                )}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ background: c.accent }}>
+                  <CategoryIcon icon={c.icon} size={14} />
+                </span>
+                {c.name}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Aylanib turuvchi kasb nomi: so'z almashganda yengil «swap» animatsiyasi */
 function RotatingWord() {
   const [i, setI] = useState(0);
-  const words = ["videograf", "montajor", "dizayner", "fotograf", "dasturchi", "kopirayter", "targetolog", "ovoz rejissyori"].map((w) => (CATEGORY_BY_SLUG[w]?.name ?? w));
+  const words = ["videograf", "montajor", "dizayner", "fotograf", "frontend", "kopirayter", "targetolog", "ovoz"].map((w) => CATEGORY_BY_SLUG[w]?.name ?? w);
   useEffect(() => {
-    const t = window.setInterval(() => setI((v) => (v + 1) % words.length), 2200);
+    const t = window.setInterval(() => setI((v) => (v + 1) % words.length), 2400);
     return () => window.clearInterval(t);
   }, [words.length]);
   return (
-    <span key={i} className="animate-swap inline-block bg-[image:var(--brand-grad)] bg-clip-text text-transparent">
+    <span key={i} className="animate-swap inline-block text-accent">
       {words[i]}
     </span>
   );
 }
 
 /**
- * Auth chap paneli (faqat desktop): jonli sahna — sekin siljiydigan nur sharlari, suzuvchi kasb belgilari, aylanuvchi kasb nomi,
- * sonlar sanagichi. Barcha harakat `--animate-*` tokenlari orqali (reduced-motion'da o'chadi).
+ * Auth chap paneli (faqat lg+): har doim QORONG'U brend paneli (`data-theme="dark"` — ichidagi tokenlar qorong'u temaga o'tadi).
+ * Tarkib: belgi → sarlavha + aylanuvchi kasb → kasblar lentasi → sonlar. Balandlik = ekran (h-dvh, sticky) — sahifani hech qachon uzaytirmaydi;
+ * past ekranda ikkinchi darajali qismlar (izoh, lenta qatorlari) yashirinadi.
  */
 export function AuthStage({
   eyebrow,
   titleA,
   titleAccent,
   lead,
-  benefits,
   stats,
   freeSignup,
   pickerLabel,
@@ -50,85 +80,46 @@ export function AuthStage({
   titleA: string;
   titleAccent: string;
   lead: string;
-  benefits: Array<{ icon: "map" | "badge" | "chat"; title: string; text: string }>;
   stats: Array<{ value: number; suffix?: string; label: string }>;
   freeSignup: string;
   pickerLabel: string;
 }) {
-  const icons = { map: MapPinned, badge: BadgeCheck, chat: MessageSquareText } as const;
   return (
-    <aside className="card relative hidden overflow-hidden p-8 lg:flex lg:flex-col" aria-hidden="true">
-      {/* Nur sharlari — kichik, xira va faqat chekkalarda (matn ostiga tushmaydi, ustidan blur/tus yo'q) */}
-      <span className="animate-orb pointer-events-none absolute -right-10 -top-20 h-48 w-48 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, #ff5a36, transparent 68%)" }} />
-      <span className="animate-orb pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, #8b7fd1, transparent 68%)", animationDelay: "-7s" }} />
+    <aside data-theme="dark" className="relative hidden h-dvh flex-col overflow-hidden bg-[#0e0e10] text-fg lg:sticky lg:top-0 lg:flex" aria-hidden="true">
+      {/* Fon: nozik nuqtali to'r + bitta iliq nur pastki burchakda (matn ostida emas) */}
+      <span className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(180deg,#000,transparent_75%)]" />
+      <span className="pointer-events-none absolute -bottom-40 -right-32 h-[28rem] w-[28rem] rounded-full opacity-40 blur-3xl" style={{ background: "radial-gradient(circle, #ff5a36, transparent 65%)" }} />
 
-      {/* Bezak zonasi: oqimdagi alohida qator — belgilar faqat shu ichida suzadi, matn ostida joy band (juda past (≤600px) ekranda yashirinadi) */}
-      <div className="pointer-events-none relative mb-5 h-[104px] shrink-0 tiny:hidden">
-        {BUBBLES.map(([slug, top, left, size, delay, rot]) => {
-          const c = CATEGORY_BY_SLUG[slug] ?? CATEGORIES[0];
-          return (
-            <span
-              key={slug}
-              className="animate-float absolute flex items-center justify-center rounded-[28%] text-white shadow-[0_12px_24px_-12px_var(--b)]"
-              style={{
-                top,
-                left: `${left}%`,
-                width: size,
-                height: size,
-                background: `linear-gradient(145deg, ${c.accent}, ${c.accent}aa)`,
-                animationDelay: `${delay}s`,
-                ["--b" as string]: c.accent,
-                ["--float-rot" as string]: `${rot}deg`,
-              }}
-            >
-              <CategoryIcon icon={c.icon} size={Math.round(size * 0.46)} />
-            </span>
-          );
-        })}
-      </div>
+      <div className="relative flex h-full flex-col px-12 py-10 xl:px-16 short:py-7">
+        <Logo />
 
-      <div className="relative">
-        <span className="eyebrow">{eyebrow}</span>
-        <h2 className="display-xl mt-4 max-w-md text-fg">
-          {titleA}
-          <span className="accent-serif text-accent">{titleAccent}</span>
-        </h2>
-        <p className="mt-4 flex items-center gap-2 text-[15px] font-semibold text-fg-2">
-          <span className="text-fg-3">{pickerLabel}</span>
-          <RotatingWord />
-        </p>
-        <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-fg-2 tiny:hidden">{lead}</p>
-      </div>
+        <div className="mt-auto">
+          <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-accent">{eyebrow}</p>
+          <h2 className="mt-5 max-w-[30rem] font-display text-[44px] font-extrabold leading-[1.04] tracking-[-0.03em] text-white xl:text-[52px] short:text-[38px]">
+            {titleA}
+            <span className="text-white/45">{titleAccent}</span>
+          </h2>
+          <p className="mt-5 text-[17px] font-semibold text-white/60">
+            {pickerLabel} <RotatingWord />
+          </p>
+          <p className="mt-3 max-w-[27rem] text-[15px] leading-relaxed text-white/55 cozy:hidden">{lead}</p>
+        </div>
 
-      {/* Afzalliklar — faqat yetarli balandlikda (≥ 860px); past ekranda yashirinadi, shunda forma bilan birga bitta ekranga sig'adi */}
-      <ul className="stagger relative mt-6 divide-y divide-line border-y border-line cozy:hidden">
-        {benefits.map((b) => {
-          const Icon = icons[b.icon];
-          return (
-            <li key={b.title} className={cn("animate-fade-up flex items-start gap-4 py-3.5")}>
-              <span className="icon-tile-outline icon-tile-sm shrink-0">
-                <Icon size={16} />
-              </span>
-              <span>
-                <span className="block font-display text-[15px] font-semibold text-fg">{b.title}</span>
-                <span className="mt-0.5 block text-[13px] leading-snug text-fg-3">{b.text}</span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+        {/* Lenta panel chetidan chetigacha (padding'dan chiqadi) */}
+        <ProfessionMarquee tone="dark" rows={3} className="-mx-12 mt-10 xl:-mx-16 short:mt-7 tiny:hidden [&>div:nth-child(3)]:short:hidden" />
 
-      <div className="relative mt-auto flex items-end gap-8 pt-6">
-        {stats.map((s) => (
-          <div key={s.label}>
-            <div className="stat-num font-display text-[26px] leading-none tracking-tight text-fg">
-              <CountUp value={s.value} />
-              {s.suffix}
+        <div className="mt-auto flex items-end gap-10 border-t border-white/10 pt-6">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <div className="font-display text-[28px] font-extrabold leading-none tracking-tight text-white tabular-nums">
+                <CountUp value={s.value} />
+                {s.suffix}
+              </div>
+              <div className="mt-1.5 text-[12.5px] font-medium text-white/50">{s.label}</div>
             </div>
-            <div className="mt-1.5 text-[12px] font-medium text-fg-3">{s.label}</div>
-          </div>
-        ))}
-        <div className="ml-auto text-[12px] text-fg-4">{freeSignup}</div>
+          ))}
+          <div className="ml-auto pb-0.5 text-[12.5px] text-white/45">{freeSignup}</div>
+        </div>
       </div>
     </aside>
   );

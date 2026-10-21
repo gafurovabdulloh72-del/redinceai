@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, ShieldCheck, Smartphone, TimerReset, UserRound, Wand2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, ClipboardList, LifeBuoy, MessageSquareText, ShieldCheck, Smartphone, TimerReset, UserRound } from "lucide-react";
 import { PasswordField } from "./PasswordField";
 import { CraftStep, RoleStep, StepBar } from "./RegisterSteps";
 import { Button, Spinner } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { tr, type Locale, type Tr } from "@/lib/i18n";
+import { tr, type Locale } from "@/lib/i18n";
 import { AUTH } from "@/lib/i18n/dict/auth";
 import { passwordStrength } from "@/lib/security/password-strength";
 import { cn, formatPrice, safeInternalPath } from "@/lib/utils";
@@ -46,19 +46,8 @@ interface ApiFail {
   fields?: Record<string, string>;
 }
 
-/** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11); production bundle'ga hech qachon kirmaydi */
-const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1" && process.env.NODE_ENV !== "production";
-
 /** ?intent= (eski havolalar): ro'yxatdan keyin qayerga olib borish. Rol: service → mutaxassis, qolganlari → mijoz */
 const INTENT_DEST: Record<Intent, string | null> = { service: null, order: null, job: "/kabinet/rezyume?welcome=1", hire: "/vakansiyalar/yangi" };
-
-const DEMO_ACCOUNTS: { label: Tr; hint: Tr; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
-  ? [
-      { label: AUTH.demo.specialist, hint: AUTH.demo.specialistHint, email: "mutaxassis@redince.uz", password: "demo12345", icon: Clapperboard },
-      { label: AUTH.demo.client, hint: AUTH.demo.clientHint, email: "mijoz@redince.uz", password: "demo12345", icon: UserRound },
-      { label: AUTH.demo.admin, hint: AUTH.demo.adminHint, email: "admin@redince.uz", password: "admin12345", icon: ShieldCheck },
-    ]
-  : [];
 
 /** Matn ichidagi havola uchun 40px bosish maydoni — ko'rinishi o'zgarmaydi (manfiy margin qatorni kengaytirmaydi) */
 const INLINE_LINK = "inline-flex min-h-10 items-center -my-2 -mx-1 px-1 font-semibold text-accent-text transition hover:brightness-110";
@@ -121,8 +110,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [filledDemo, setFilledDemo] = useState<string | null>(null);
   /** Oferta va maxfiylik siyosatiga rozilik (ro'yxatdan o'tish — majburiy) */
   const [acceptTerms, setAcceptTerms] = useState(false);
   /** 2FA ikkinchi bosqichi: parol to'g'ri, ilova kodi kutilmoqda */
@@ -280,14 +267,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
     setError(null);
   };
 
-  const fillDemo = (acc: (typeof DEMO_ACCOUNTS)[number]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setFields({});
-    setError(null);
-    setFilledDemo(acc.email);
-  };
-
   if (ticket) {
     return (
       <div className="animate-fade-up">
@@ -381,7 +360,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
             </div>
           )}
 
-          <Button type="submit" variant="accent" size="lg" disabled={loading} className="btn-shine w-full">
+          <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
             {loading ? (
               <>
                 <Spinner /> {tr(til, AUTH.twoFactor.checking)}
@@ -436,25 +415,11 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       )}
       {/* ---------- Sarlavha ---------- */}
       {isRegister && <StepBar step={stepNo} total={totalSteps} onBack={stage === "role" ? undefined : () => goStage(stage === "account" && role === "specialist" ? "craft" : "role")} />}
-      <header className="mb-4 short:mb-3 tiny:mb-2">
-        <span className="eyebrow max-sm:hidden short:hidden">{tr(til, isRegister ? AUTH.form.eyebrowRegister : AUTH.form.eyebrowLogin)}</span>
-        <h1 key={`${mode}-${stage}`} className="display-xl animate-swap mt-0 text-[30px] text-fg sm:mt-4 sm:text-[36px] short:!mt-0">
-          {isRegister ? (
-            stage === "role" ? (
-              <>{tr(til, AUTH.reg.whoTitle)}</>
-            ) : stage === "craft" ? (
-              <>{tr(til, AUTH.reg.craftTitle)}</>
-            ) : (
-              <>{tr(til, AUTH.reg.accountTitle)}</>
-            )
-          ) : (
-            <>
-              {tr(til, AUTH.form.titleLoginA)}
-              <span className="accent-serif text-accent">{tr(til, AUTH.form.titleLoginAccent)}</span>
-            </>
-          )}
+      <header className="mb-6 short:mb-4 tiny:mb-3">
+        <h1 key={`${mode}-${stage}`} className="animate-swap font-display text-[28px] font-extrabold leading-[1.1] tracking-[-0.025em] text-fg sm:text-[32px] short:!text-[26px]">
+          {isRegister ? (stage === "role" ? tr(til, AUTH.reg.whoTitle) : stage === "craft" ? tr(til, AUTH.reg.craftTitle) : tr(til, AUTH.reg.accountTitle)) : tr(til, AUTH.form.titleLoginA) + tr(til, AUTH.form.titleLoginAccent)}
         </h1>
-        <p className="mt-2 text-[14.5px] leading-snug text-fg-2 max-sm:hidden short:hidden">
+        <p className="mt-2 text-[14.5px] leading-snug text-fg-3 tiny:hidden">
           {isRegister ? tr(til, stage === "role" ? AUTH.reg.whoLead : stage === "craft" ? AUTH.reg.craftLead : AUTH.reg.accountLead) : tr(til, AUTH.form.leadLogin)}
         </p>
       </header>
@@ -567,7 +532,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
             onChange={(e) => {
               setEmail(e.target.value);
               clearField("email");
-              setFilledDemo(null);
             }}
             className={cn("field", fields.email && "!border-ios-red/60")}
             aria-invalid={!!fields.email}
@@ -729,69 +693,6 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
         </Link>
       </p>
 
-      {/* ---------- Demo hisoblar (faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1) ---------- */}
-      {DEMO_ENABLED &&
-        (isRegister ? (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-fg-3 short:hidden">
-            <Wand2 size={13} className="text-accent" />
-            {tr(til, AUTH.demo.tryIt)}{" "}
-            <Link href="/auth/kirish" className={INLINE_LINK}>
-              {tr(til, AUTH.demo.loginDemo)}
-            </Link>
-          </p>
-        ) : (
-          <div className="card-outline mt-5 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setDemoOpen((v) => !v)}
-              aria-expanded={demoOpen}
-              aria-controls="demo-accounts"
-              className="flex min-h-12 w-full items-center gap-2.5 px-4 py-3 text-left transition hover:bg-fg/4"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-accent">
-                <KeyRound size={14} />
-              </span>
-              <span className="flex-1">
-                <span className="block text-[13px] font-semibold text-fg">{tr(til, AUTH.demo.title)}</span>
-                <span className="block text-[11px] text-fg-3">{tr(til, AUTH.demo.subtitle)}</span>
-              </span>
-              <ChevronDown size={16} className={cn("text-fg-3 transition-transform duration-300", demoOpen && "rotate-180")} />
-            </button>
-
-            {demoOpen && (
-              <ul id="demo-accounts" className="expand-in divide-y divide-line border-t border-line">
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const Icon = acc.icon;
-                  const filled = filledDemo === acc.email;
-                  return (
-                    <li key={acc.email} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
-                        <Icon size={15} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-semibold text-fg">
-                          {tr(til, acc.label)} <span className="font-normal text-fg-4">· {tr(til, acc.hint)}</span>
-                        </span>
-                        <span className="block truncate font-mono text-[11px] text-fg-3">
-                          {acc.email} / {acc.password}
-                        </span>
-                      </span>
-                      <Button type="button" size="sm" variant={filled ? "tint-soft" : "outline"} onClick={() => fillDemo(acc)} className="shrink-0 !h-9 !px-3 !text-[12px]">
-                        {filled ? (
-                          <>
-                            <Check size={13} /> {tr(til, AUTH.demo.ready)}
-                          </>
-                        ) : (
-                          tr(til, AUTH.demo.fill)
-                        )}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        ))}
     </div>
   );
 }

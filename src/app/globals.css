@@ -347,6 +347,9 @@
   --animate-ring-pulse: ring-pulse 1.8s ease-out infinite;
   --animate-check-draw: check-draw 0.4s var(--ease-out) 0.05s both;
   --animate-tilt-in: tilt-in 0.5s var(--ease-spring) both;
+  /* Cheksiz lenta (kasblar chiplari): ro'yxat ikki marta takrorlanadi, -50% ga suriladi */
+  --animate-marquee: marquee 48s linear infinite;
+  --animate-marquee-rev: marquee 56s linear infinite reverse;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(14px); }
@@ -373,6 +376,10 @@
   @keyframes check-draw {
     from { stroke-dashoffset: 24; opacity: 0; }
     to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
   }
   @keyframes tilt-in {
     from { opacity: 0; transform: translateY(18px) rotate(-1.5deg) scale(0.96); }
@@ -1707,17 +1714,21 @@ html[data-chat-open] .m-tabbar {
   display: none;
 }
 
-/* Kirish / ro'yxat (auth/layout.tsx `data-auth-screen`): telefonda BITTA ekran — yuqori panel va pastki tab yashiriladi, main paddinglari olib tashlanadi.
+/* Kirish / ro'yxat (auth/layout.tsx `data-auth-screen`): to'liq ekranli, BITTA ekranga sig'adigan sahifa — ilova qobig'i
+   (telefon yuqori paneli/pastki tab, desktop yon menyu, til/tema kapsulasi, main paddinglari) yashiriladi; auth o'z sarlavhasini chizadi.
    :has() — sahifa chizilishi bilan darhol ishlaydi (JS'siz, miltillashsiz) */
 html:has([data-auth-screen]) .m-topbar,
-html:has([data-auth-screen]) .m-tabbar {
+html:has([data-auth-screen]) .m-tabbar,
+html:has([data-auth-screen]) .side-rail,
+html:has([data-auth-screen]) .shell-capsule {
   display: none;
 }
-@media (max-width: 767px) {
-  html:has([data-auth-screen]) main {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+html:has([data-auth-screen]) .app-shell {
+  padding-left: 0;
+}
+html:has([data-auth-screen]) main {
+  padding: 0;
+  max-width: none;
 }
 /* Past ekranda auth maydonlari ixchamroq (44 → 40px) — forma bitta ekranga sig'sin */
 @media (max-height: 720px) {
