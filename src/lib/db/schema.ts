@@ -194,6 +194,10 @@ export const specialists = sqliteTable(
     /** Narxlar so'mda */
     priceFrom: integer("price_from").notNull().default(0),
     priceTo: integer("price_to"),
+    /** Narx valyutasi: UZS (standart) yoki USD. USD bo'lsa mutaxassis dollarda ko'rsatadi (priceUsdFrom/To), priceFrom/To esa so'mdagi ekvivalent (filtr/saralash uchun) */
+    priceCurrency: text("price_currency", { enum: ["UZS", "USD"] }).notNull().default("UZS"),
+    priceUsdFrom: integer("price_usd_from"),
+    priceUsdTo: integer("price_usd_to"),
     experience: text("experience", { enum: ["junior", "middle", "senior", "expert"] }).notNull().default("middle"),
     /** JSON massiv: ["Premiere Pro", "DaVinci"] */
     skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),

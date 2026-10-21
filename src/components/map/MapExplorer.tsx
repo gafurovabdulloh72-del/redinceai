@@ -16,7 +16,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ScrollRow } from "@/components/ui/ScrollRow";
 import { Avatar, Badge, Button, ButtonLink, IconTile, Stars, VerifiedBadge } from "@/components/ui";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, type Region } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, topCategories, type Region } from "@/lib/constants";
 import type { RegionStat } from "@/lib/queries";
 import { GENDER_OPTIONS, qsOf, useSpecialistList, validCategory, validGender, validRegion, type Gender, type SerializedSpecialist } from "./filter-utils";
 import { cn, formatPrice, formatPriceRange, isRecent, timeAgo } from "@/lib/utils";
@@ -124,9 +124,9 @@ const unitOf = (name: string) => (/^[A-Z0-9]{2,}/.test(name) ? name : name.charA
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
 function priceLine(from: number, to?: number | null) {
-  const full = formatPriceRange(from, to);
+  const full = formatPriceRange(from, to, { full: true });
   if (full.length <= 20) return full;
-  if (from) return `${formatPrice(from, { compact: true })} dan`;
+  if (from) return `${formatPrice(from)} dan`;
   return full;
 }
 
@@ -881,7 +881,7 @@ export function MapExplorer({
             <Chip active={!category} onClick={() => apply(region, null)} className="snap-start">
               Barchasi <Count n={regionTotalAll} active={!category} />
             </Chip>
-            {CATEGORIES.map((c) => {
+            {topCategories(Object.fromEntries(CATEGORIES.map((c) => [c.slug, categoryCount(c.slug)])), category, 12).map((c) => {
               const on = category === c.slug;
               return (
                 <Chip key={c.slug} active={on} onClick={() => apply(region, on ? null : c.slug)} className="snap-start">

@@ -8,7 +8,7 @@ import { Switch } from "@/components/specialists/Filters";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { UPLOAD_ACCEPT, uploadAttachment } from "@/components/chat/attachments";
-import { CATEGORIES, REGIONS } from "@/lib/constants";
+import { CATEGORIES_BY_GROUP, REGIONS } from "@/lib/constants";
 import { GROUP_COVER_ASPECT, GROUP_DESC_MAX, GROUP_NAME_MAX, GROUP_NAME_MIN, GROUP_RULES_MAX, GROUP_SLUG_MAX, GROUP_SLUG_MIN, GROUP_WELCOME_MAX } from "@/lib/groups/limits";
 import { cn } from "@/lib/utils";
 
@@ -307,10 +307,14 @@ export function GroupForm({
           <span className={LABEL}>Yo&apos;nalish</span>
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="field h-11 w-full text-[14px]">
             <option value="">Umumiy</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.plural}
-              </option>
+            {CATEGORIES_BY_GROUP.map(({ group, items }) => (
+              <optgroup key={group.slug} label={group.name}>
+                {items.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.plural}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

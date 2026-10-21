@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, Search, ShieldCheck, Smartphone, TimerReset, UserRound, UserSearch, Wand2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, ChevronDown, Clapperboard, ClipboardList, KeyRound, LifeBuoy, MessageSquareText, ShieldCheck, Smartphone, TimerReset, UserRound, Wand2 } from "lucide-react";
 import { PasswordField } from "./PasswordField";
+import { CraftStep, RoleStep, StepBar } from "./RegisterSteps";
 import { Button, Spinner } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Locale, type Tr } from "@/lib/i18n";
@@ -24,8 +25,10 @@ interface AuthFormProps {
   next?: string;
   /** Ro'yxatdan o'tishda boshlang'ich rol */
   defaultRole?: Role;
-  /** Boshlang'ich maqsad kartasi (?intent=) */
+  /** Boshlang'ich maqsad (?intent=) — rolni belgilaydi va ro'yxatdan keyingi manzilni tanlaydi */
   defaultIntent?: Intent;
+  /** ?role= yoki ?intent= aniq berilgan — rol tanlash qadami o'tkazib yuboriladi */
+  skipRole?: boolean;
   /** Nega kirish so'ralmoqda: ?reason=review|order|expired (A23) */
   reason?: string;
   /** Mutaxassis obunasi (admin sozlamasi) — ro'yxatdan o'tishda eslatma uchun */
@@ -47,14 +50,8 @@ interface ApiFail {
 /** Demo hisoblar paneli faqat NEXT_PUBLIC_DEMO_ACCOUNTS=1 bo'lganda ko'rinadi (A11); production bundle'ga hech qachon kirmaydi */
 const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ACCOUNTS === "1" && process.env.NODE_ENV !== "production";
 
-/** To'rtta yo'l: "mutaxassis/mijoz" o'rniga foydalanuvchi nima qilmoqchi ekanini tanlaydi */
-const INTENT_OPTIONS: { value: Intent; role: Role; title: Tr; subtitle: Tr; icon: typeof Search; dest: string | null }[] = [
-  { value: "service", role: "specialist", title: AUTH.role.serviceTitle, subtitle: AUTH.role.serviceSub, icon: Clapperboard, dest: "/kabinet/profil?welcome=1" },
-  { value: "order", role: "client", title: AUTH.role.orderTitle, subtitle: AUTH.role.orderSub, icon: Search, dest: null },
-  { value: "job", role: "client", title: AUTH.role.jobTitle, subtitle: AUTH.role.jobSub, icon: Briefcase, dest: "/kabinet/rezyume?welcome=1" },
-  { value: "hire", role: "client", title: AUTH.role.hireTitle, subtitle: AUTH.role.hireSub, icon: UserSearch, dest: "/vakansiyalar/yangi" },
-];
-const INTENT_BY_VALUE = Object.fromEntries(INTENT_OPTIONS.map((o) => [o.value, o])) as Record<Intent, (typeof INTENT_OPTIONS)[number]>;
+/** ?intent= (eski havolalar): ro'yxatdan keyin qayerga olib borish. Rol: service → mutaxassis, qolganlari → mijoz */
+const INTENT_DEST: Record<Intent, string | null> = { service: null, order: null, job: "/kabinet/rezyume?welcome=1", hire: "/vakansiyalar/yangi" };
 
 const DEMO_ACCOUNTS: { label: Tr; hint: Tr; email: string; password: string; icon: typeof UserRound }[] = DEMO_ENABLED
   ? [
@@ -86,7 +83,7 @@ function contextFor(til: Locale, mode: Mode, next?: string, reason?: string): { 
   return null;
 }
 
-export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, reason, subscription, googleEnabled }: AuthFormProps) {
+export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, skipRole = false, reason, subscription, googleEnabled }: AuthFormProps) {
   const til = useLocale();
   const router = useRouter();
   const isRegister = mode === "register";
@@ -104,8 +101,25 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<Gender>("");
-  const [intent, setIntent] = useState<Intent>(defaultIntent ?? (defaultRole === "specialist" ? "service" : "order"));
-  const role: Role = INTENT_BY_VALUE[intent].role;
+  // Ro'yxatdan o'tish bosqichlari: rol → (mutaxassis) kasb/tajriba/hudud → hisob ma'lumotlari
+  const initialRole: Role = defaultIntent ? (defaultIntent === "service" ? "specialist" : "client") : defaultRole;
+  const [role, setRole] = useState<Role>(initialRole);
+  /** Rol kartasi faqat foydalanuvchi bosgandan keyin «tanlangan» ko'rinadi (boshida hech biri belgilanmagan) */
+  const [rolePicked, setRolePicked] = useState(false);
+  const [stage, setStage] = useState<"role" | "craft" | "account">(!isRegister || !skipRole ? "role" : initialRole === "specialist" ? "craft" : "account");
+  const [dir, setDir] = useState<1 | -1>(1);
+  const [category, setCategory] = useState<string | null>(null);
+  const [experience, setExperience] = useState("middle");
+  const [region, setRegion] = useState("");
+  const [craftError, setCraftError] = useState<string | null>(null);
+  /** Muvaffaqiyatli kirish/ro'yxat: qisqa «xush kelibsiz» animatsiyasi, keyin yo'naltirish */
+  const [welcome, setWelcome] = useState<string | null>(null);
+  const goStage = (next: "role" | "craft" | "account") => {
+    setDir(next === "role" || (next === "craft" && stage === "account") ? -1 : 1);
+    setStage(next);
+  };
+  const totalSteps = role === "specialist" ? 3 : 2;
+  const stepNo = stage === "role" ? 1 : stage === "craft" ? 2 : totalSteps;
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -197,12 +211,19 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
         setLoading(false);
         return;
       }
-      // Ro'yxatdan keyin: xizmat ko'rsatuvchi — profil sozlash; ish qidiruvchi — rezyume; ish beruvchi — vakansiya; buyurtmachi — kelgan joyi yoki kabinet
-      const intentDest = isRegister ? INTENT_BY_VALUE[intent].dest : null;
-      const dest = isRegister && json.data.role === "specialist" ? "/kabinet/profil?welcome=1" : intentDest && !target ? intentDest : target || intentDest || "/kabinet";
-      router.push(dest);
-      router.refresh();
-      // loading holatini sahifa almashguncha saqlaymiz
+      // Ro'yxatdan keyin: mutaxassis — profil (kasb/tajriba/hudud oldindan to'ldirilgan); ?intent=job/hire — rezyume/vakansiya; mijoz — kelgan joyi yoki kabinet
+      const intentDest = isRegister && defaultIntent ? INTENT_DEST[defaultIntent] : null;
+      const prefill = new URLSearchParams({ welcome: "1" });
+      if (category) prefill.set("category", category);
+      if (experience) prefill.set("experience", experience);
+      if (region) prefill.set("region", region);
+      const dest = isRegister && json.data.role === "specialist" ? `/kabinet/profil?${prefill.toString()}` : intentDest && !target ? intentDest : target || intentDest || "/kabinet";
+      // Qisqa «xush kelibsiz» lahzasi (belgi chizilishi) — keyin yo'naltiramiz; loading holati sahifa almashguncha saqlanadi
+      setWelcome(json.data.name);
+      window.setTimeout(() => {
+        router.push(dest);
+        router.refresh();
+      }, 800);
     } catch {
       setError(tr(til, AUTH.errors.network));
       setLoading(false);
@@ -364,7 +385,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
             </div>
           )}
 
-          <Button type="submit" variant="accent" size="lg" disabled={loading} className="w-full">
+          <Button type="submit" variant="accent" size="lg" disabled={loading} className="btn-shine w-full">
             {loading ? (
               <>
                 <Spinner /> {tr(til, AUTH.twoFactor.checking)}
@@ -403,16 +424,37 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
   }
 
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up relative">
+      {/* ---------- Muvaffaqiyat lahzasi: belgi chiziladi, keyin yo'naltiriladi ---------- */}
+      {welcome && (
+        <div role="status" className="animate-fade-in absolute -inset-3 z-20 flex flex-col items-center justify-center gap-4 rounded-[20px] bg-surface/95 text-center backdrop-blur-sm sm:-inset-5">
+          <span className="animate-pop flex h-20 w-20 items-center justify-center rounded-full bg-[image:var(--brand-grad)] text-white shadow-[0_16px_40px_-12px_var(--accent)]">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7.5" strokeDasharray="24" className="animate-check-draw" />
+            </svg>
+          </span>
+          <p className="display-xl animate-fade-up text-[26px] text-fg" style={{ animationDelay: "120ms" }}>
+            {welcome.split(" ")[0]}
+          </p>
+        </div>
+      )}
       {/* ---------- Sarlavha ---------- */}
+      {isRegister && <StepBar step={stepNo} total={totalSteps} />}
       <header className="mb-6">
         <span className="eyebrow">{tr(til, isRegister ? AUTH.form.eyebrowRegister : AUTH.form.eyebrowLogin)}</span>
-        <h1 className="display-xl mt-4 text-[30px] text-fg sm:text-[36px]">
+        <h1 key={`${mode}-${stage}`} className="display-xl animate-swap mt-4 text-[30px] text-fg sm:text-[36px]">
           {isRegister ? (
-            <>
-              {tr(til, AUTH.form.titleRegisterA)}
-              <span className="accent-serif text-accent">{tr(til, AUTH.form.titleRegisterAccent)}</span>
-            </>
+            stage === "role" ? (
+              <>
+                {tr(til, AUTH.reg.whoTitle)}
+              </>
+            ) : stage === "craft" ? (
+              <>{tr(til, AUTH.reg.craftTitle)}</>
+            ) : (
+              <>
+                {tr(til, AUTH.reg.accountTitle)}
+              </>
+            )
           ) : (
             <>
               {tr(til, AUTH.form.titleLoginA)}
@@ -420,7 +462,9 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
             </>
           )}
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">{tr(til, isRegister ? AUTH.form.leadRegister : AUTH.form.leadLogin)}</p>
+        <p className="mt-3 text-[15px] leading-relaxed text-fg-2">
+          {isRegister ? tr(til, stage === "role" ? AUTH.reg.whoLead : stage === "craft" ? AUTH.reg.craftLead : AUTH.reg.accountLead) : tr(til, AUTH.form.leadLogin)}
+        </p>
       </header>
 
       {/* ---------- Kontekst: nega keldingiz (A23) ---------- */}
@@ -442,56 +486,51 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
           {googleReason}
         </p>
       )}
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
-        {/* ---------- Maqsad tanlash (faqat ro'yxatdan o'tish): to'rt yo'l, rolga xaritalanadi ---------- */}
-        {isRegister && (
-          <fieldset>
-            <legend className="field-label">{tr(til, AUTH.role.intentLegend)}</legend>
-            <div role="radiogroup" aria-label={tr(til, AUTH.role.intentAria)} className="grid grid-cols-2 gap-2.5">
-              {INTENT_OPTIONS.map((opt) => {
-                const active = intent === opt.value;
-                const Icon = opt.icon;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setIntent(opt.value);
-                      clearField("role");
-                    }}
-                    className={cn(
-                      "group relative flex min-h-[96px] flex-col rounded-[14px] border p-3.5 text-left transition-all duration-300 active:scale-[0.98]",
-                      active ? "border-accent bg-accent-soft/50 shadow-[var(--shadow-1)]" : "border-line bg-surface-2 hover:-translate-y-0.5 hover:border-line-2 dark:bg-surface",
-                    )}
-                  >
-                    <span className={cn("flex h-9 w-9 items-center justify-center rounded-[11px] transition-all duration-300", active ? "bg-accent text-white" : "bg-fg/6 text-fg-2 group-hover:bg-fg/10")}>
-                      <Icon size={17} />
-                    </span>
-                    <span className="mt-2.5 block text-[14px] font-semibold leading-tight text-fg">{tr(til, opt.title)}</span>
-                    <span className="mt-0.5 block text-[11.5px] leading-snug text-fg-3">{tr(til, opt.subtitle)}</span>
-                    <span
-                      className={cn(
-                        "absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white transition-all duration-300",
-                        active ? "scale-100 opacity-100" : "scale-50 opacity-0",
-                      )}
-                      aria-hidden="true"
-                    >
-                      <Check size={11} strokeWidth={3} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {fields.role && <p className="field-error">{fields.role}</p>}
-            <p className="mt-2 text-[12px] leading-snug text-fg-3">
-              {tr(til, intent === "service" ? AUTH.role.hintSpecialist : intent === "job" ? AUTH.role.hintJob : intent === "hire" ? AUTH.role.hintHire : AUTH.role.hintClient)}{" "}
-              <span className="text-fg-4">{tr(til, AUTH.role.later)}</span>
-            </p>
-          </fieldset>
-        )}
+      {/* ---------- Ro'yxatdan o'tish: 1-qadam (rol) va 2-qadam (mutaxassis kasbi) ---------- */}
+      {isRegister && stage === "role" && (
+        <div key="role" className={dir === 1 ? "animate-slide-left" : "animate-slide-right"}>
+          <RoleStep
+            role={rolePicked ? role : null}
+            onPick={(r) => {
+              setRole(r);
+              setRolePicked(true);
+              window.setTimeout(() => goStage(r === "specialist" ? "craft" : "account"), 180);
+            }}
+          />
+        </div>
+      )}
+      {isRegister && stage === "craft" && (
+        <div key="craft" className={dir === 1 ? "animate-slide-left" : "animate-slide-right"}>
+          <CraftStep
+            category={category}
+            onCategory={(c) => {
+              setCategory(c);
+              setCraftError(null);
+            }}
+            experience={experience}
+            onExperience={setExperience}
+            region={region}
+            onRegion={setRegion}
+            error={craftError}
+            onBack={() => goStage("role")}
+            onNext={() => {
+              if (!category) {
+                setCraftError(tr(til, AUTH.reg.pickCraft));
+                return;
+              }
+              goStage("account");
+            }}
+          />
+        </div>
+      )}
 
+      {(!isRegister || stage === "account") && (
+      <form key={isRegister ? "account" : "login"} onSubmit={onSubmit} noValidate className={cn("stagger space-y-4", isRegister && (dir === 1 ? "animate-slide-left" : "animate-slide-right"))}>
+        {isRegister && (
+          <button type="button" onClick={() => goStage(role === "specialist" ? "craft" : "role")} className="press -mt-1 mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+            <ArrowLeft size={14} /> {tr(til, AUTH.reg.back)}
+          </button>
+        )}
         {/* ---------- Ism ---------- */}
         {isRegister && (
           <div>
@@ -740,8 +779,9 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, re
           <p className="text-center text-[12px] leading-snug text-fg-4">{AUTH.submit.subscriptionNote[til](subscription.trialDays, formatPrice(subscription.price))}</p>
         )}
       </form>
+      )}
 
-      {googleEnabled && (
+      {googleEnabled && (!isRegister || stage === "role") && (
         <>
           <div className="my-4 flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-line" />

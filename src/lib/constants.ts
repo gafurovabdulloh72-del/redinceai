@@ -31,28 +31,8 @@ export const REGIONS: Region[] = [
 
 export const REGION_BY_SLUG: Record<string, Region> = Object.fromEntries(REGIONS.map((r) => [r.slug, r]));
 
-export interface Category {
-  slug: string;
-  name: string;
-  plural: string;
-  description: string;
-  /** lucide icon nomi (UI tomonda map qilinadi) */
-  icon: "video" | "scissors" | "palette" | "camera" | "sparkles" | "box" | "mic" | "pen-tool";
-  accent: string;
-}
-
-export const CATEGORIES: Category[] = [
-  { slug: "videograf", name: "Videograf", plural: "Videograflar", description: "To'y, reklama, event va korporativ suratga olish", icon: "video", accent: "#df7a5a" },
-  { slug: "montajor", name: "Montajor", plural: "Montajorlar", description: "Video montaj, rang korreksiya, ovoz dizayni", icon: "scissors", accent: "#8b7fd1" },
-  { slug: "dizayner", name: "Grafik dizayner", plural: "Dizaynerlar", description: "Logo, brending, poster, SMM dizayn", icon: "palette", accent: "#d4709a" },
-  { slug: "motion-dizayner", name: "Motion dizayner", plural: "Motion dizaynerlar", description: "2D/3D animatsiya, intro, infografika", icon: "sparkles", accent: "#4fa3ad" },
-  { slug: "fotograf", name: "Fotograf", plural: "Fotograflar", description: "Portret, mahsulot, to'y va event fotosessiya", icon: "camera", accent: "#cfa24e" },
-  { slug: "3d-artist", name: "3D artist", plural: "3D artistlar", description: "3D modellashtirish, render, vizualizatsiya", icon: "box", accent: "#6aa884" },
-  { slug: "ui-ux", name: "UI/UX dizayner", plural: "UI/UX dizaynerlar", description: "Sayt va mobil ilova interfeyslari", icon: "pen-tool", accent: "#6b8fcf" },
-  { slug: "ovoz", name: "Ovoz rejissyori", plural: "Ovoz rejissyorlari", description: "Dublyaj, ovoz yozish, musiqa montaji", icon: "mic", accent: "#a3729b" },
-];
-
-export const CATEGORY_BY_SLUG: Record<string, Category> = Object.fromEntries(CATEGORIES.map((c) => [c.slug, c]));
+export { CATEGORIES, CATEGORY_BY_SLUG, CATEGORY_GROUPS, CATEGORY_GROUP_BY_SLUG, CATEGORIES_BY_GROUP, topCategories } from "./categories";
+export type { Category, CategoryGroupSlug, CategoryIconName } from "./categories";
 
 export const ORDER_STATUSES = ["new", "accepted", "in_progress", "done", "cancelled"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];

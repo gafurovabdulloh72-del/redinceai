@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { Briefcase, Clock3, PartyPopper, Send, ShieldCheck, UserRound } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
 import { PrivacySettings } from "@/components/kabinet/PrivacySettings";
-import { ProfileForm, type ProfileInitial } from "@/components/kabinet/ProfileForm";
+import { ProfileForm, type ProfileInitial, type ProfilePrefill } from "@/components/kabinet/ProfileForm";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG } from "@/lib/constants";
+import { getSettings } from "@/lib/payments/settings";
 import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
 import { TelegramCard } from "@/components/kabinet/TelegramCard";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -14,7 +16,7 @@ import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Profil" };
 
-export default async function ProfilPage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
+export default async function ProfilPage({ searchParams }: { searchParams: Promise<{ welcome?: string; category?: string; experience?: string; region?: string }> }) {
   const sp = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/profil"));
@@ -31,6 +33,9 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         bio: s.bio,
         priceFrom: s.priceFrom,
         priceTo: s.priceTo,
+        priceCurrency: s.priceCurrency,
+        priceUsdFrom: s.priceUsdFrom,
+        priceUsdTo: s.priceUsdTo,
         experience: s.experience,
         skills: s.skills,
         equipment: s.equipment ?? [],
@@ -51,6 +56,16 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
     : null;
 
   const welcome = sp.welcome === "1";
+  // Ro'yxatdan o'tishda tanlangan kasb/tajriba/hudud — faqat hali profil yo'q bo'lganda oldindan to'ldiriladi (qiymatlar tekshiriladi)
+  const prefill: ProfilePrefill | null =
+    !s && (sp.category || sp.experience || sp.region)
+      ? {
+          category: sp.category && CATEGORY_BY_SLUG[sp.category] ? sp.category : undefined,
+          experience: EXPERIENCE_LEVELS.some((e) => e.value === sp.experience) ? (sp.experience as ProfilePrefill["experience"]) : undefined,
+          regionSlug: sp.region && REGION_BY_SLUG[sp.region] ? sp.region : undefined,
+        }
+      : null;
+  const usdRate = (await getSettings()).usdRate;
   const firstName = user.name.split(" ")[0] || user.name;
   const ctaFirst = !s && user.role === "client";
   // Telegram kartasi faqat bot to'liq sozlangan bo'lsa (token + username) ko'rinadi — server'da env tekshiriladi
@@ -120,7 +135,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
 
         {telegramEnabled && <TelegramCard linked={Boolean(user.telegramChatId)} />}
 
-        <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} />
+        <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} />
 
         {s && (
           <>

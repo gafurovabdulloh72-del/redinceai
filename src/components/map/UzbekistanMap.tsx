@@ -905,7 +905,7 @@ export function UzbekistanMap({
                 <li key={t.slug} className="flex items-center gap-2">
                   <Avatar name={t.name} src={t.avatarUrl} size={20} decorative />
                   <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-fg">{t.name}</span>
-                  {t.priceFrom > 0 && <span className="shrink-0 text-[11px] font-semibold text-fg-2">{formatPrice(t.priceFrom, { compact: true })}</span>}
+                  {t.priceFrom > 0 && <span className="shrink-0 text-[11px] font-semibold text-fg-2">{formatPrice(t.priceFrom)}</span>}
                 </li>
               ))}
             </ul>

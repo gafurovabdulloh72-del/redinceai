@@ -8,6 +8,7 @@ import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { JobCard } from "./JobCard";
 import { CATEGORIES, REGIONS } from "@/lib/constants";
+import { CategoryField } from "@/components/ui/CategoryPicker";
 import { BUDGET_TYPE_LABEL, budgetLabel, JOB_DESC_MAX, JOB_DESC_MIN, JOB_SKILLS_MAX, JOB_TITLE_MAX, JOB_TITLE_MIN, jobRegionLabel, REMOTE_REGION } from "@/lib/jobs/format";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { cn } from "@/lib/utils";
@@ -356,16 +357,8 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
           {/* Yo'nalish */}
           <fieldset>
             <legend className="field-label">Yo'nalish</legend>
-            <div ref={setRef("category")} tabIndex={-1} className="flex flex-wrap gap-1.5 outline-none" role="radiogroup" aria-label="Yo'nalish" aria-invalid={Boolean(errors.category)}>
-              {CATEGORIES.map((c) => {
-                const on = category === c.slug;
-                return (
-                  <button key={c.slug} type="button" role="radio" aria-checked={on} onClick={() => setCategory(c.slug)} className={chipCls(on)}>
-                    <CategoryIcon icon={c.icon} size={14} aria-hidden="true" />
-                    {c.name}
-                  </button>
-                );
-              })}
+            <div ref={setRef("category")} tabIndex={-1} className="outline-none" aria-invalid={Boolean(errors.category)}>
+              <CategoryField value={category || null} onChange={(slug) => setCategory(slug)} title="Yo'nalishni tanlang" placeholder="Yo'nalishni tanlang" />
             </div>
             {err("category")}
           </fieldset>

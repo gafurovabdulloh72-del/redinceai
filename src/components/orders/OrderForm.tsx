@@ -468,11 +468,11 @@ export function OrderForm({
           ) : (
             <p id="order-budget-hint" className={cn("mt-1.5 text-[12px]", belowPrice ? "text-warning" : "text-fg-4")}>
               {belowPrice
-                ? `Mutaxassisning boshlang'ich narxi ${formatPrice(priceFrom, { compact: true })} — kichikroq byudjet kelishuvni qiyinlashtirishi mumkin.`
+                ? `Mutaxassisning boshlang'ich narxi ${formatPrice(priceFrom)} — kichikroq byudjet kelishuvni qiyinlashtirishi mumkin.`
                 : budgetHint
                   ? `${budgetHint}. Yakuniy narxni mutaxassis bilan kelishasiz — to'lov eskrou orqali, ish qabul qilingach o'tadi.`
                   : priceFrom
-                    ? `Mutaxassis narxi ${formatPrice(priceFrom, { compact: true })} dan boshlanadi. Taxminiy summani yozing yoki bo'sh qoldiring.`
+                    ? `Mutaxassis narxi ${formatPrice(priceFrom)} dan boshlanadi. Taxminiy summani yozing yoki bo'sh qoldiring.`
                     : "Taxminiy summani yozing yoki bo'sh qoldiring — narx kelishiladi."}
             </p>
           )}

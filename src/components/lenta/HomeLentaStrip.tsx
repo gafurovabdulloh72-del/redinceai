@@ -50,7 +50,7 @@ function StripCard({ item, til, reduced, hoverPlay }: { item: LentaItem; til: Lo
   const videoRef = useRef<HTMLVideoElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const cat = CATEGORY_BY_SLUG[item.specialist.category];
-  const price = item.specialist.priceFrom > 0 ? HOME.lenta.priceFrom[til](formatPrice(item.specialist.priceFrom, { compact: true })) : tr(til, HOME.lenta.negotiable);
+  const price = item.specialist.priceFrom > 0 ? HOME.lenta.priceFrom[til](formatPrice(item.specialist.priceFrom)) : tr(til, HOME.lenta.negotiable);
 
   const play = () => videoRef.current?.play().catch(() => undefined);
   const stop = () => {

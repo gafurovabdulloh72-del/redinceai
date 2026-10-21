@@ -22,5 +22,5 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
   const intent = rawIntent === "service" || rawIntent === "order" || rawIntent === "job" || rawIntent === "hire" ? rawIntent : role === "specialist" ? "service" : undefined;
   const settings = await getSettings();
   const subscription = { price: settings.subscriptionPrice, trialDays: settings.subscriptionTrialDays, enforced: settings.subscriptionEnforced === 1 };
-  return <AuthForm mode="register" defaultRole={role} defaultIntent={intent} next={first(sp.next)} reason={first(sp.reason)} subscription={subscription} googleEnabled={isGoogleConfigured()} />;
+  return <AuthForm mode="register" defaultRole={role} defaultIntent={intent} skipRole={Boolean(first(sp.role) || rawIntent)} next={first(sp.next)} reason={first(sp.reason)} subscription={subscription} googleEnabled={isGoogleConfigured()} />;
 }

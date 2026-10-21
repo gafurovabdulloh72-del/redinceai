@@ -50,7 +50,7 @@ export async function landingMetadata(cat: Category, region: Region | null): Pro
   const n = stats?.n ?? 0;
   const description =
     n > 0
-      ? `${place.dagi} ${n} ta ${lowerFirst(cat.name)}: portfolio, narx${stats?.minPrice ? ` (${formatPrice(stats.minPrice, { compact: true })} dan)` : ""} va haqiqiy mijozlar sharhlari. ${SITE.name} orqali xavfsiz buyurtma bering.`
+      ? `${place.dagi} ${n} ta ${lowerFirst(cat.name)}: portfolio, narx${stats?.minPrice ? ` (${formatPrice(stats.minPrice)} dan)` : ""} va haqiqiy mijozlar sharhlari. ${SITE.name} orqali xavfsiz buyurtma bering.`
       : `${place.dagi} ${plural} — ${SITE.name}'da ${cat.description.toLowerCase()} bo'yicha mutaxassislarni toping.`;
   const path = landingPath(cat, region);
   return {
@@ -88,7 +88,7 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
     {
       q: `${place.da} ${singular} xizmati qancha turadi?`,
       a: stats.minPrice
-        ? `${SITE.name}'dagi ${plural} narxi ${formatPrice(stats.minPrice, { compact: true })} dan boshlanadi. Yakuniy narx loyiha hajmi, muddat va jihozlarga qarab mutaxassis bilan kelishiladi.`
+        ? `${SITE.name}'dagi ${plural} narxi ${formatPrice(stats.minPrice)} dan boshlanadi. Yakuniy narx loyiha hajmi, muddat va jihozlarga qarab mutaxassis bilan kelishiladi.`
         : `Narx loyiha hajmi, muddat va jihozlarga qarab mutaxassis bilan kelishiladi. Buyurtmada byudjetingizni ko'rsating — mutaxassis narxni belgilaydi.`,
     },
     {
@@ -113,7 +113,7 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
 
   const statTiles: Array<{ icon: ReactNode; text: string }> = [{ icon: <CategoryIcon icon={cat.icon} size={14} className="text-fg-3" />, text: `${stats.n} ta mutaxassis` }];
   if (stats.avgRating) statTiles.push({ icon: <Star size={14} className="text-fg-3" />, text: `O'rtacha reyting ${stats.avgRating.toFixed(1)}` });
-  if (stats.minPrice) statTiles.push({ icon: <Wallet size={14} className="text-fg-3" />, text: `${formatPrice(stats.minPrice, { compact: true })} dan` });
+  if (stats.minPrice) statTiles.push({ icon: <Wallet size={14} className="text-fg-3" />, text: `${formatPrice(stats.minPrice)} dan` });
   if (stats.verified > 0) statTiles.push({ icon: <BadgeCheck size={14} className="text-fg-3" />, text: `${stats.verified} ta tasdiqlangan` });
 
   // BreadcrumbList — qidiruv tizimlarida "Mutaxassislar › Videograflar › Samarqand" yo'li ko'rinadi

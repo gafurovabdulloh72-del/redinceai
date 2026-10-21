@@ -335,10 +335,44 @@
   /* Skeleton → kontent almashinuvi (crossfade) va skeletning o'zi (shimmer emas — tinch pulsatsiya) */
   --animate-skeleton: skeleton-pulse 1.6s ease-in-out infinite;
   --animate-skeleton-swap: fade-in 0.3s ease-out both;
+  /* Kirish/ro'yxat «Jonli» animatsiyalari: suzuvchi belgilar, tinch nur sharlari, tugma yaltirashi, tanlov halqasi */
+  --animate-float: float-y 6s ease-in-out infinite;
+  --animate-float-slow: float-y 9s ease-in-out infinite;
+  --animate-orb: orb-drift 18s ease-in-out infinite;
+  --animate-shine: shine-sweep 3.2s ease-in-out infinite;
+  --animate-ring-pulse: ring-pulse 1.8s ease-out infinite;
+  --animate-check-draw: check-draw 0.4s var(--ease-out) 0.05s both;
+  --animate-tilt-in: tilt-in 0.5s var(--ease-spring) both;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float-y {
+    0%, 100% { transform: translateY(0) rotate(var(--float-rot, 0deg)); }
+    50% { transform: translateY(-10px) rotate(var(--float-rot, 0deg)); }
+  }
+  @keyframes orb-drift {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    33% { transform: translate3d(5%, -6%, 0) scale(1.08); }
+    66% { transform: translate3d(-6%, 4%, 0) scale(0.94); }
+  }
+  @keyframes shine-sweep {
+    0%, 55% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+    62% { opacity: 1; }
+    100% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
+  }
+  @keyframes ring-pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+    100% { box-shadow: 0 0 0 14px transparent; }
+  }
+  @keyframes check-draw {
+    from { stroke-dashoffset: 24; opacity: 0; }
+    to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes tilt-in {
+    from { opacity: 0; transform: translateY(18px) rotate(-1.5deg) scale(0.96); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes skeleton-pulse {
     0%, 100% { opacity: 1; }
@@ -1816,4 +1850,24 @@ html[data-chat-open] .m-tabbar {
   --ink: #d6401c;
   --ink-fg: #ffffff;
   background-image: linear-gradient(180deg, #e04a24 0%, #cf3d19 100%);
+}
+
+/* Kirish/ro'yxat: tugma ustidan o'tuvchi yaltirash (accent CTA) */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: var(--animate-shine);
+  pointer-events: none;
+  z-index: -1;
+}
+.btn-shine:disabled::after {
+  display: none;
 }

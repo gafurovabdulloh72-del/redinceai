@@ -11,6 +11,9 @@ import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { VisibilityChip } from "@/components/kabinet/VisibilityChip";
+import { CategoryField } from "@/components/ui/CategoryPicker";
+import { MoneyInput, groupDigits, parseMoney } from "@/components/ui/MoneyInput";
+import { PRICE_MIN, PRICE_MIN_USD, suggestPrice } from "@/lib/pricing";
 import { CATEGORIES, EXPERIENCE_LEVELS, PACKAGE_TIERS, REGIONS, REGION_BY_SLUG, WORK_TYPES, type PackageTierKey } from "@/lib/constants";
 import type { Certificate, EducationItem, ServicePackage, SpecialistRates, WorkItem } from "@/lib/db/schema";
 import type { ResolvedVisibility } from "@/lib/privacy";
@@ -30,6 +33,9 @@ export interface ProfileInitial {
   bio: string;
   priceFrom: number;
   priceTo: number | null;
+  priceCurrency?: "UZS" | "USD";
+  priceUsdFrom?: number | null;
+  priceUsdTo?: number | null;
   experience: Experience;
   skills: string[];
   /** Jihozlar (F51) — eski chaqiruvlar uchun ixtiyoriy */
@@ -88,6 +94,8 @@ interface FormState {
   bio: string;
   priceFrom: string;
   priceTo: string;
+  /** Narx valyutasi: priceFrom/priceTo shu valyutadagi summalar (guruhlangan matn) */
+  currency: "UZS" | "USD";
   experience: Experience;
   skills: string[];
   equipment: string[];
@@ -170,16 +178,30 @@ const DEFAULT_REGION = "toshkent-shahri";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
-function initialState(initial: ProfileInitial | null): FormState {
+/** Ro'yxatdan o'tishdan kelgan oldindan to'ldirish (?category=&experience=&region=) — faqat yangi profil uchun */
+export interface ProfilePrefill {
+  category?: string;
+  experience?: Experience;
+  regionSlug?: string;
+}
+
+function initialState(initial: ProfileInitial | null, prefill?: ProfilePrefill | null): FormState {
+  const category = initial?.category ?? prefill?.category ?? CATEGORIES[0].slug;
+  const regionSlug = initial?.regionSlug ?? prefill?.regionSlug ?? DEFAULT_REGION;
+  const experience = initial?.experience ?? prefill?.experience ?? "middle";
+  const usd = initial?.priceCurrency === "USD";
+  // Yangi profil: kasb/tajriba/hududga ko'ra bozor tahlili asosidagi boshlang'ich narx (200 000 so'mdan past bo'lmaydi) — keyin o'zgartiriladi
+  const sug = !initial ? suggestPrice({ category, experience, regionSlug }) : null;
   return {
     title: initial?.title ?? "",
-    category: initial?.category ?? CATEGORIES[0].slug,
-    regionSlug: initial?.regionSlug ?? DEFAULT_REGION,
-    city: initial?.city ?? REGION_BY_SLUG[DEFAULT_REGION].capital,
+    category,
+    regionSlug,
+    city: initial?.city ?? REGION_BY_SLUG[regionSlug]?.capital ?? REGION_BY_SLUG[DEFAULT_REGION].capital,
     bio: initial?.bio ?? "",
-    priceFrom: initial && initial.priceFrom > 0 ? String(initial.priceFrom) : "",
-    priceTo: initial?.priceTo ? String(initial.priceTo) : "",
-    experience: initial?.experience ?? "middle",
+    currency: usd ? "USD" : "UZS",
+    priceFrom: usd ? (initial?.priceUsdFrom ? groupDigits(String(initial.priceUsdFrom)) : "") : initial && initial.priceFrom > 0 ? groupDigits(String(initial.priceFrom)) : sug ? groupDigits(String(sug.from)) : "",
+    priceTo: usd ? (initial?.priceUsdTo ? groupDigits(String(initial.priceUsdTo)) : "") : initial?.priceTo ? groupDigits(String(initial.priceTo)) : sug ? groupDigits(String(sug.to)) : "",
+    experience,
     skills: initial?.skills ?? [],
     equipment: initial?.equipment ?? [],
     languages: initial?.languages.length ? initial.languages : ["uz"],
@@ -194,7 +216,7 @@ function initialState(initial: ProfileInitial | null): FormState {
     certificates: (initial?.certificates ?? []).map((c) => ({ title: c.title, issuer: c.issuer, year: String(c.year), url: c.url ?? "" })),
     workHistory: (initial?.workHistory ?? []).map((e) => ({ role: e.role, company: e.company, fromYear: String(e.fromYear), toYear: e.toYear ? String(e.toYear) : "", description: e.description ?? "" })),
     education: (initial?.education ?? []).map((e) => ({ school: e.school, degree: e.degree, fromYear: String(e.fromYear), toYear: e.toYear ? String(e.toYear) : "" })),
-    rates: { hourly: numOrEmpty(initial?.rates?.hourly), daily: numOrEmpty(initial?.rates?.daily), project: numOrEmpty(initial?.rates?.project), unit: numOrEmpty(initial?.rates?.unit) },
+    rates: { hourly: groupDigits(numOrEmpty(initial?.rates?.hourly)), daily: groupDigits(numOrEmpty(initial?.rates?.daily)), project: groupDigits(numOrEmpty(initial?.rates?.project)), unit: groupDigits(numOrEmpty(initial?.rates?.unit)) },
   };
 }
 
@@ -389,8 +411,14 @@ export function ProfileForm({
   mode,
   ctaFirst = false,
   visibility = null,
+  prefill = null,
+  usdRate = 12_500,
 }: {
   initial: ProfileInitial | null;
+  /** Ro'yxatdan o'tishdan kelgan kasb/tajriba/hudud (faqat yangi profil) */
+  prefill?: ProfilePrefill | null;
+  /** 1 USD necha so'm (platforma sozlamasi) — dollarda belgilangan narxning so'mdagi ekvivalenti uchun */
+  usdRate?: number;
   mode: "create" | "edit";
   /** Mijoz uchun: avval «Mutaxassis bo'lish» kartasi, bosilganda forma ochiladi */
   ctaFirst?: boolean;
@@ -399,7 +427,7 @@ export function ProfileForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!ctaFirst);
-  const [f, setF] = useState<FormState>(() => initialState(initial));
+  const [f, setF] = useState<FormState>(() => initialState(initial, prefill));
   const [customCity, setCustomCity] = useState(() => {
     if (!initial) return false;
     return !(REGION_BY_SLUG[initial.regionSlug]?.cities ?? []).includes(initial.city);
@@ -425,7 +453,7 @@ export function ProfileForm({
 
   const set = (patch: Partial<FormState>) => setF((s) => ({ ...s, ...patch }));
 
-  const baseline = useMemo(() => JSON.stringify(initialState(initial)), [initial]);
+  const baseline = useMemo(() => JSON.stringify(initialState(initial, prefill)), [initial, prefill]);
   const dirty = JSON.stringify(f) !== baseline;
   useUnsavedGuard(dirty && !busy);
 
@@ -455,7 +483,7 @@ export function ProfileForm({
   }, [f, dirty, draftKey]);
   const discardDraft = () => {
     clearDraft(draftKey);
-    setF(initialState(initial));
+    setF(initialState(initial, prefill));
     setDraftRestored(false);
   };
 
@@ -470,21 +498,30 @@ export function ProfileForm({
   const category = CATEGORIES.find((c) => c.slug === f.category);
   const suggestions = (SKILL_SUGGESTIONS[f.category] ?? []).filter((s) => !f.skills.some((x) => x.toLowerCase() === s.toLowerCase())).slice(0, 10);
 
-  const priceFromNum = Number(f.priceFrom.replace(/\s/g, ""));
-  const priceToNum = Number(f.priceTo.replace(/\s/g, ""));
+  const usdMode = f.currency === "USD";
+  const priceFromNum = parseMoney(f.priceFrom);
+  const priceToNum = parseMoney(f.priceTo);
+  // So'mdagi ekvivalent (USD rejimida kurs bo'yicha, 1 000 ga yaxlitlanadi) — filtr/saralash va minimal narx tekshiruvi shunga tayanadi
+  const toUzs = (n: number) => (usdMode ? Math.round((n * usdRate) / 1000) * 1000 : n);
+  const priceFromUzs = toUzs(priceFromNum);
+  const priceToUzs = toUzs(priceToNum);
+  const money = (n: number) => (usdMode ? `$${groupDigits(String(n))}` : formatPrice(n));
   const priceHint =
     priceFromNum > 0
       ? priceToNum > priceFromNum
-        ? `${formatPrice(priceFromNum, { compact: true })} – ${formatPrice(priceToNum, { compact: true })}`
-        : `${formatPrice(priceFromNum, { compact: true })} dan`
+        ? `${money(priceFromNum)} – ${money(priceToNum)}`
+        : `${money(priceFromNum)} dan`
       : "Narx ko'rsatilmasa «Kelishiladi» deb chiqadi";
+  const sug = suggestPrice({ category: f.category, experience: f.experience, regionSlug: f.regionSlug });
+  const sugFrom = usdMode ? Math.max(PRICE_MIN_USD, Math.round(sug.from / usdRate / 5) * 5) : sug.from;
+  const sugTo = usdMode ? Math.max(sugFrom + 10, Math.round(sug.to / usdRate / 5) * 5) : sug.to;
 
   /* ---------- Bo'limlar to'liqligi va progress (E95) — «Holat» doim tayyor, hisobga kirmaydi ---------- */
   const sectionDone: Record<SectionId, boolean> = {
     "pf-asosiy": f.title.trim().length >= 5,
     "pf-hudud": f.city.trim().length >= 2,
     "pf-haqida": f.bio.trim().length >= 80 && f.skills.length >= 3 && f.languages.length > 0,
-    "pf-narx": priceFromNum > 0,
+    "pf-narx": priceFromUzs >= PRICE_MIN,
     "pf-aloqa": Boolean(f.telegram.trim() || f.instagram.trim()),
     "pf-muqova": Boolean(f.coverUrl.trim()),
     "pf-holat": true,
@@ -619,6 +656,7 @@ export function ProfileForm({
     if (f.title.trim().length < 5) local.title = "Sarlavha kamida 5 ta belgi";
     if (f.city.trim().length < 2) local.city = "Shaharni kiriting";
     if (f.languages.length === 0) local.languages = "Kamida bitta tilni tanlang";
+    if (priceFromUzs < PRICE_MIN || (usdMode && priceFromNum < PRICE_MIN_USD)) local.priceFrom = usdMode ? `Minimal narx — $${PRICE_MIN_USD}` : `Minimal narx — ${formatPrice(PRICE_MIN)}`;
     if (f.priceTo.trim() && priceToNum < priceFromNum) local.priceTo = "Maksimal narx minimaldan kam bo'lmasin";
     for (const p of f.packages) {
       if (!p.enabled) continue;
@@ -666,8 +704,12 @@ export function ProfileForm({
           regionSlug: f.regionSlug,
           city: f.city.trim(),
           bio: f.bio.trim(),
-          priceFrom: priceFromNum > 0 ? priceFromNum : 0,
-          priceTo: f.priceTo.trim() ? priceToNum : null,
+          // So'mdagi ekvivalent (USD rejimida server kurs bo'yicha qayta hisoblaydi); USD — asl summalar alohida
+          priceFrom: priceFromUzs,
+          priceTo: f.priceTo.trim() ? priceToUzs : null,
+          priceCurrency: f.currency,
+          priceUsdFrom: usdMode ? priceFromNum : null,
+          priceUsdTo: usdMode && f.priceTo.trim() ? priceToNum : null,
           experience: f.experience,
           skills: f.skills,
           equipment: f.equipment,
@@ -893,32 +935,7 @@ export function ProfileForm({
 
           <div className="mt-5">
             <span className="field-label">Yo'nalish</span>
-            <div role="radiogroup" aria-label="Yo'nalish" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CATEGORIES.map((c) => {
-                const active = f.category === c.slug;
-                return (
-                  <button
-                    key={c.slug}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => set({ category: c.slug })}
-                    className={cn(
-                      "card card-hover flex items-center gap-2.5 !rounded-[18px] p-3 text-left transition",
-                      active && "ring-2 ring-accent/60",
-                    )}
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] text-white" style={{ background: `linear-gradient(145deg, ${c.accent}, ${c.accent}aa)` }}>
-                      <CategoryIcon icon={c.icon} size={17} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-fg">{c.name}</span>
-                    </span>
-                    {active && <CheckCircle2 size={16} className="ml-auto shrink-0 text-accent" />}
-                  </button>
-                );
-              })}
-            </div>
+            <CategoryField value={f.category} onChange={(slug) => set({ category: slug })} title="Kasbingizni tanlang" />
             {errors.category && <p className="field-error">{errors.category}</p>}
           </div>
 
@@ -1186,54 +1203,70 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Narx ============ */}
-        <Section id="pf-narx" next={nextOf("pf-narx")} icon={Wallet} title="Narxlar" hint="So'mda. Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi">
+        <Section id="pf-narx" next={nextOf("pf-narx")} icon={Wallet} title="Narxlar" hint={`Minimal narx — ${formatPrice(PRICE_MIN)} (yoki $${PRICE_MIN_USD}). Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi`}>
+          {/* Valyuta: so'm yoki dollar */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className="field-label !mb-0">Valyuta</span>
+            <div role="radiogroup" aria-label="Narx valyutasi" className="segment">
+              {(
+                [
+                  { v: "UZS", label: "So'm" },
+                  { v: "USD", label: "Dollar ($)" },
+                ] as const
+              ).map((c) => (
+                <button
+                  key={c.v}
+                  type="button"
+                  role="radio"
+                  aria-checked={f.currency === c.v}
+                  data-active={f.currency === c.v}
+                  onClick={() => {
+                    if (f.currency === c.v) return;
+                    // Valyuta almashganda mavjud summalar kurs bo'yicha o'giriladi (yumaloqlab)
+                    const conv = (txt: string) => {
+                      const n = parseMoney(txt);
+                      if (!n) return "";
+                      return groupDigits(String(c.v === "USD" ? Math.max(PRICE_MIN_USD, Math.round(n / usdRate)) : Math.round((n * usdRate) / 50_000) * 50_000));
+                    };
+                    set({ currency: c.v, priceFrom: conv(f.priceFrom), priceTo: conv(f.priceTo) });
+                  }}
+                  className="segment-item min-h-[38px] !px-4"
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {usdMode && <span className="text-[12px] text-fg-3">Kurs: 1 $ ≈ {formatPrice(usdRate)} — katalogda so'mdagi ekvivalenti bilan saralanadi</span>}
+          </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="pf-price-from" className="field-label">
                 Minimal narx
               </label>
-              <div className="relative">
-                <input
-                  id="pf-price-from"
-                  className="field pr-16"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={50000}
-                  value={f.priceFrom}
-                  onChange={(e) => set({ priceFrom: e.target.value })}
-                  placeholder="500 000"
-                  aria-invalid={Boolean(errors.priceFrom)}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[13px] font-medium text-fg-3">so'm</span>
-              </div>
+              <MoneyInput id="pf-price-from" value={f.priceFrom} onChange={(v) => set({ priceFrom: v })} placeholder={usdMode ? "50" : "500 000"} suffix={usdMode ? "$" : "so'm"} aria-invalid={Boolean(errors.priceFrom)} />
               {errors.priceFrom && <p className="field-error">{errors.priceFrom}</p>}
             </div>
             <div>
               <label htmlFor="pf-price-to" className="field-label">
                 Maksimal narx <span className="font-normal text-fg-4">(ixtiyoriy)</span>
               </label>
-              <div className="relative">
-                <input
-                  id="pf-price-to"
-                  className="field pr-16"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={50000}
-                  value={f.priceTo}
-                  onChange={(e) => set({ priceTo: e.target.value })}
-                  placeholder="3 000 000"
-                  aria-invalid={Boolean(errors.priceTo)}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[13px] font-medium text-fg-3">so'm</span>
-              </div>
+              <MoneyInput id="pf-price-to" value={f.priceTo} onChange={(v) => set({ priceTo: v })} placeholder={usdMode ? "300" : "3 000 000"} suffix={usdMode ? "$" : "so'm"} aria-invalid={Boolean(errors.priceTo)} />
               {errors.priceTo && <p className="field-error">{errors.priceTo}</p>}
             </div>
           </div>
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-fg/6 px-3 py-1 text-[12px] font-medium text-fg-2">
-            Profilda: <span className="font-semibold text-fg">{priceHint}</span>
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-fg/6 px-3 py-1 text-[12px] font-medium text-fg-2">
+              Profilda: <span className="font-semibold text-fg">{priceHint}</span>
+            </p>
+            {/* Bozor tahlili: kasb × tajriba × hudud bo'yicha tavsiya — bir bosishda qo'llanadi */}
+            <button
+              type="button"
+              onClick={() => set({ priceFrom: groupDigits(String(sugFrom)), priceTo: groupDigits(String(sugTo)) })}
+              className="press inline-flex items-center gap-1.5 rounded-full border border-dashed border-accent/50 px-3 py-1 text-[12px] font-semibold text-accent-text transition hover:bg-accent-soft/50"
+            >
+              <Sparkles size={12} aria-hidden="true" /> Bozor tavsiyasi: {usdMode ? `$${groupDigits(String(sugFrom))} – $${groupDigits(String(sugTo))}` : `${formatPrice(sugFrom)} – ${formatPrice(sugTo)}`}
+            </button>
+          </div>
 
           {/* Tariflar (F70) — profildagi narx kalkulyatori shulardan hisoblaydi */}
           <div className="mt-6 border-t border-line pt-5">
@@ -1252,20 +1285,7 @@ export function ProfileForm({
                   <label htmlFor={`pf-rate-${r.k}`} className="field-label">
                     {r.label}
                   </label>
-                  <div className="relative">
-                    <input
-                      id={`pf-rate-${r.k}`}
-                      className="field pr-14"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      step={10000}
-                      value={f.rates[r.k]}
-                      onChange={(e) => set({ rates: { ...f.rates, [r.k]: e.target.value } })}
-                      placeholder={r.ph}
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[13px] font-medium text-fg-3">so'm</span>
-                  </div>
+                  <MoneyInput id={`pf-rate-${r.k}`} className="pr-14" value={f.rates[r.k]} onChange={(v) => set({ rates: { ...f.rates, [r.k]: v } })} placeholder={r.ph} />
                 </div>
               ))}
             </div>

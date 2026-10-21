@@ -211,7 +211,7 @@ function LentaSlide({
     }
   };
 
-  const priceLabel = sp.priceFrom > 0 ? priceFromLabel(til, formatPrice(sp.priceFrom, { compact: true })) : tr(til, LENTA.priceNegotiable);
+  const priceLabel = sp.priceFrom > 0 ? priceFromLabel(til, formatPrice(sp.priceFrom)) : tr(til, LENTA.priceNegotiable);
 
   return (
     <section data-lenta-id={item.id} className="relative flex h-[100svh] snap-start items-center justify-center md:px-6 md:pb-10 md:pt-24">

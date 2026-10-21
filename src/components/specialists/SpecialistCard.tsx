@@ -9,15 +9,16 @@ import { CompareButton } from "./CompareButton";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
-import { KARTA, priceFromLabel, priceRangeLabel } from "@/lib/i18n/dict/catalog";
+import { KARTA, priceFromLabel, priceRangeLabel, type UsdPrice } from "@/lib/i18n/dict/catalog";
 import { formatPrice, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
-function priceLine(til: Locale, from: number, to?: number | null) {
-  const full = priceRangeLabel(til, from, to);
+function priceLine(til: Locale, from: number, to?: number | null, usd?: UsdPrice) {
+  const full = priceRangeLabel(til, from, to, usd);
   if (full.length <= 20) return full;
-  if (from) return priceFromLabel(til, formatPrice(from, { compact: true }));
+  if (usd && usd.from > 0) return priceFromLabel(til, `$${usd.from}`);
+  if (from) return priceFromLabel(til, formatPrice(from));
   return full;
 }
 
@@ -99,8 +100,8 @@ export async function SpecialistCard({
 
           {/* Narx va reyting — bitta qatorda */}
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-            <p className="min-w-0 truncate font-display text-[14.5px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo)}>
-              {priceLine(til, sp.priceFrom, sp.priceTo)}
+            <p className="min-w-0 truncate font-display text-[14.5px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
+              {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
             </p>
             <Stars value={sp.rating} count={sp.reviewCount} size={12} />
           </div>

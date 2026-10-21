@@ -8,7 +8,7 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobFilters } from "@/components/jobs/JobFilters";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { getCurrentUser } from "@/lib/auth";
-import { CATEGORIES, CATEGORY_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, topCategories } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { localizePrice, priceFromLabel, priceToLabel } from "@/lib/i18n/dict/catalog";
@@ -153,7 +153,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
               {tr(til, ISHLAR.all)} <span className={cn("tabular-nums", filter.category ? "text-fg-4" : "opacity-70")}>{totalOpen}</span>
             </Link>
           </li>
-          {CATEGORIES.map((c) => {
+          {topCategories(catCounts, filter.category, 14).map((c) => {
             const on = filter.category === c.slug;
             const n = catCounts[c.slug] ?? 0;
             return (

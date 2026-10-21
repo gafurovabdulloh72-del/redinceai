@@ -51,6 +51,13 @@ if (process.env.SEED_ON_START !== "0") {
 // Chat taxalluslari: eski foydalanuvchilarga bir martalik to'ldirish (yangi ustun — additive)
 execSync("npx tsx scripts/backfill-usernames.ts", { stdio: "inherit", env: process.env });
 
+// Minimal narx (200 000 so'm): past/bo'sh narxlar bozor tahlili asosida alohida belgilanadi (idempotent; xatosi deployni to'xtatmaydi)
+try {
+  execSync("npx tsx scripts/reprice.ts", { stdio: "inherit", env: process.env });
+} catch (e) {
+  console.warn("⚠ reprice.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
+}
+
 // Admin hisobini tiklash: ADMIN_PASSWORD (kuchli) berilgan bo'lsa admin paroli har deployda shunga moslanadi.
 // Seed productionda ADMIN_PASSWORD'siz admin'ni tasodifiy parol bilan yaratadi — keyin env berib qayta deploy qilish kifoya.
 const adminPassword = process.env.ADMIN_PASSWORD;

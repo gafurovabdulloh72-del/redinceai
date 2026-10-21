@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRICE_MIN, PRICE_MIN_USD } from "./pricing";
 import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, PACKAGE_TIERS, REGIONS, REPORT_REASONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS, WORK_TYPES } from "./constants";
 import { normalizeUzPhone } from "./utils";
 
@@ -210,8 +211,12 @@ export const specialistProfileSchema = z
   regionSlug: z.enum(regionSlugs),
   city: z.string().trim().min(2).max(60),
   bio: z.string().trim().max(2000).default(""),
-  priceFrom: z.coerce.number().int().min(0).max(1_000_000_000),
+  priceFrom: z.coerce.number().int().min(PRICE_MIN, `Minimal narx — ${PRICE_MIN.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} so'm`).max(1_000_000_000),
   priceTo: z.coerce.number().int().min(0).max(1_000_000_000).optional().nullable(),
+  /** Dollarda belgilash: USD bo'lsa priceUsdFrom majburiy va so'mdagi narx serverda kurs bo'yicha qayta hisoblanadi */
+  priceCurrency: z.enum(["UZS", "USD"]).default("UZS"),
+  priceUsdFrom: z.coerce.number().int().min(PRICE_MIN_USD, `Minimal narx — $${PRICE_MIN_USD}`).max(1_000_000).optional().nullable(),
+  priceUsdTo: z.coerce.number().int().min(0).max(1_000_000).optional().nullable(),
   experience: z.enum(experienceValues),
   skills: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
   /** Jihozlar (F51): "Sony FX3", "DJI Mavic 3" … */

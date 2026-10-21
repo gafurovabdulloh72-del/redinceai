@@ -7,6 +7,7 @@
 export const AUTH = {
   /* ---------- Brend paneli (auth/layout.tsx) ---------- */
   panel: {
+    needLabel: { uz: "Sizga kerak:", ru: "Вам нужен:" },
     eyebrow: { uz: "Ijodkorlar va onlayn kasblar platformasi", ru: "Платформа творческих и онлайн-профессий" },
     titleA: { uz: "Ish, buyurtma va hamjamiyat — ", ru: "Работа, заказы и сообщество — " },
     titleAccent: { uz: "bir joyda", ru: "в одном месте" },
@@ -120,6 +121,34 @@ export const AUTH = {
   },
 
   /* ---------- Maydonlar ---------- */
+  /* Ro'yxatdan o'tish: 2 ta rol → (mutaxassis) kasb/tajriba/hudud → hisob ma'lumotlari */
+  reg: {
+    stepOf: { uz: (n: number, t: number) => `${n}-qadam · ${t} dan`, ru: (n: number, t: number) => `Шаг ${n} из ${t}` },
+    whoTitle: { uz: "Siz kimsiz?", ru: "Кто вы?" },
+    whoLead: { uz: "Bir bosishda tanlang — qolganini keyin sozlaysiz.", ru: "Выберите в один клик — остальное настроите позже." },
+    clientTitle: { uz: "Men mijozman", ru: "Я клиент" },
+    clientLead: { uz: "Ijodkor topib, loyihamni ishonib topshirmoqchiman", ru: "Хочу найти специалиста и доверить ему проект" },
+    clientB1: { uz: "Tekshirilgan ijodkorlar portfoliosi", ru: "Портфолио проверенных специалистов" },
+    clientB2: { uz: "Haqiqiy mijozlar sharhlari", ru: "Реальные отзывы клиентов" },
+    clientB3: { uz: "Chat va video qo'ng'iroq", ru: "Чат и видеозвонки" },
+    specTitle: { uz: "Men mutaxassisman", ru: "Я специалист" },
+    specLead: { uz: "Xizmat ko'rsataman: portfolio, mijozlar va buyurtmalar kerak", ru: "Оказываю услуги: нужны портфолио, клиенты и заказы" },
+    specB1: { uz: "Instagram uslubidagi portfolio profil", ru: "Профиль-портфолио в стиле Instagram" },
+    specB2: { uz: "Hamjamiyat, kanal va jonli efirlar", ru: "Сообщества, каналы и прямые эфиры" },
+    specB3: { uz: "Ish e'lonlari va mentorlik", ru: "Вакансии и менторство" },
+    craftTitle: { uz: "Kasbingizni tanlang", ru: "Выберите профессию" },
+    craftLead: { uz: "Yo'nalishingiz profilingizda va qidiruvda ko'rinadi. Keyin o'zgartirish mumkin.", ru: "Направление видно в профиле и поиске. Потом можно изменить." },
+    expTitle: { uz: "Tajriba darajangiz", ru: "Уровень опыта" },
+    regionTitle: { uz: "Qaysi hududda ishlaysiz?", ru: "В каком регионе работаете?" },
+    regionPlaceholder: { uz: "Hududni tanlang", ru: "Выберите регион" },
+    next: { uz: "Davom etish", ru: "Продолжить" },
+    back: { uz: "Orqaga", ru: "Назад" },
+    pickCraft: { uz: "Avval kasbingizni tanlang", ru: "Сначала выберите профессию" },
+    accountTitle: { uz: "Deyarli tayyor!", ru: "Почти готово!" },
+    accountLead: { uz: "Hisob ma'lumotlarini kiriting — bir daqiqa.", ru: "Введите данные аккаунта — это минута." },
+    chosen: { uz: "Tanlandi", ru: "Выбрано" },
+    change: { uz: "O'zgartirish", ru: "Изменить" },
+  },
   fields: {
     name: { uz: "Ism va familiya", ru: "Имя и фамилия" },
     namePlaceholder: { uz: "Masalan: Aziz Karimov", ru: "Например: Азиз Каримов" },

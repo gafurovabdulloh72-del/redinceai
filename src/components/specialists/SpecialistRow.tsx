@@ -9,15 +9,16 @@ import { CompareButton } from "./CompareButton";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
-import { KARTA, priceFromLabel, priceRangeLabel } from "@/lib/i18n/dict/catalog";
+import { KARTA, priceFromLabel, priceRangeLabel, type UsdPrice } from "@/lib/i18n/dict/catalog";
 import { formatPrice, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
-function priceLine(til: Locale, from: number, to?: number | null) {
-  const full = priceRangeLabel(til, from, to);
+function priceLine(til: Locale, from: number, to?: number | null, usd?: UsdPrice) {
+  const full = priceRangeLabel(til, from, to, usd);
   if (full.length <= 22) return full;
-  if (from) return priceFromLabel(til, formatPrice(from, { compact: true }));
+  if (usd && usd.from > 0) return priceFromLabel(til, `$${usd.from}`);
+  if (from) return priceFromLabel(til, formatPrice(from));
   return full;
 }
 
@@ -64,14 +65,14 @@ export async function SpecialistRow({ sp, showCompare = false }: { sp: Specialis
           </span>
           {/* Mobil: narx va reyting meta ostida, bir qatorda */}
           <span className="mt-1.5 flex items-center justify-between gap-2 sm:hidden">
-            <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg">{priceLine(til, sp.priceFrom, sp.priceTo)}</span>
+            <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg">{priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}</span>
             <Stars value={sp.rating} count={sp.reviewCount} size={11} />
           </span>
         </span>
 
         <span className="hidden w-[150px] shrink-0 flex-col items-end gap-1 text-right sm:flex">
-          <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo)}>
-            {priceLine(til, sp.priceFrom, sp.priceTo)}
+          <span className="whitespace-nowrap font-display text-[14px] font-semibold text-fg" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
+            {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
           </span>
           <Stars value={sp.rating} count={sp.reviewCount} size={11} />
         </span>

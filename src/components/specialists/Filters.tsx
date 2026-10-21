@@ -5,12 +5,13 @@ import { usePresence } from "@/components/motion/usePresence";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpDown, CheckCircle2, ChevronDown, Clock3, LayoutGrid, Rows3, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, ChevronDown, Clock3, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Spinner, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS, WORK_TYPES } from "@/lib/constants";
+import { CATEGORIES, EXPERIENCE_LEVELS, GENDERS, REGIONS, WORK_TYPES, topCategories } from "@/lib/constants";
+import { CategorySheet } from "@/components/ui/CategoryPicker";
 import { tr, type Locale } from "@/lib/i18n";
 import { FILTR, KATALOG_X, experienceParts, genderFilterLabel, localizePrice, priceFromLabel, priceToLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
 import { cn, formatPrice } from "@/lib/utils";
@@ -349,6 +350,7 @@ export interface FiltersProps {
 export function Filters({ categoryCounts, regionCounts, skillStats = [], showHeader = true, className }: FiltersProps) {
   const til = useLocale();
   const { sp, setParams, reset, pending, activeCount } = useUrlFilters();
+  const [catOpen, setCatOpen] = useState(false);
 
   const urlQ = sp.get("q") ?? "";
   const urlRange = normRange(`${sp.get("priceMin") ?? ""}|${sp.get("priceMax") ?? ""}`);
@@ -445,7 +447,7 @@ export function Filters({ categoryCounts, regionCounts, skillStats = [], showHea
           <Chip active={!category} onClick={() => setParams({ category: null })}>
             {tr(til, FILTR.all)} <Count n={totalAll} active={!category} />
           </Chip>
-          {CATEGORIES.map((c) => {
+          {topCategories(categoryCounts, category, 7).map((c) => {
             const on = category === c.slug;
             return (
               <Chip key={c.slug} active={on} onClick={() => setParams({ category: on ? null : c.slug })}>
@@ -455,7 +457,11 @@ export function Filters({ categoryCounts, regionCounts, skillStats = [], showHea
               </Chip>
             );
           })}
+          <button type="button" onClick={() => setCatOpen(true)} aria-haspopup="dialog" className="press inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-line-2 px-3 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+            <Search size={13} aria-hidden="true" /> {CATEGORIES.length} ta kasb
+          </button>
         </div>
+        <CategorySheet open={catOpen} onClose={() => setCatOpen(false)} value={category || null} counts={categoryCounts} hideEmpty onChange={(slug) => setParams({ category: slug })} title="Kasbni tanlang" />
       </Group>
 
       {/* Hudud */}

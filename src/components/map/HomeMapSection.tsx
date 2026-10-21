@@ -18,7 +18,7 @@ import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { HOME } from "@/lib/i18n/dict/home";
-import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG, topCategories } from "@/lib/constants";
 import type { RegionStat } from "@/lib/queries";
 import { GENDER_OPTIONS, qsOf, useSpecialistList, validCategory, validGender, validRegion, type Gender, type SerializedSpecialist } from "./filter-utils";
 import { cn, formatPriceRange } from "@/lib/utils";
@@ -146,7 +146,7 @@ export function HomeMapSection({ stats, total }: { stats: Record<string, RegionS
           {/* Kasb pill'lari: aylanadigan qator — chetlarda so'nish + ko'rinadigan strelka-ishora (mobilda ham) */}
           <ScrollRow label={tr(til, HOME.mapPanel.pickCategoryAria)} className="-mx-1" rowClassName="flex gap-1.5 px-1 pb-1">
             <CatPill active={!category} onClick={() => pickCategory(null)} icon={<Users size={16} />} label={tr(til, HOME.mapPanel.all)} count={countFor(null)} />
-            {CATEGORIES.map((c) => (
+            {topCategories(Object.fromEntries(CATEGORIES.map((c) => [c.slug, countFor(c.slug)])), category, 12).map((c) => (
               <CatPill
                 key={c.slug}
                 active={category === c.slug}
@@ -408,7 +408,7 @@ function SpecialistRow({ sp, showRegion }: { sp: SerializedSpecialist; showRegio
           <span className="mt-0.5 flex items-center gap-2 text-[12px]">
             <Stars value={sp.rating} count={sp.reviewCount} size={11} />
             <span className="text-fg-4" aria-hidden="true">·</span>
-            <span className="truncate font-semibold text-fg-2">{formatPriceRange(sp.priceFrom, sp.priceTo)}</span>
+            <span className="truncate font-semibold text-fg-2">{formatPriceRange(sp.priceFrom, sp.priceTo, { full: true })}</span>
           </span>
         </span>
         <span className="hover-reveal flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition">

@@ -49,11 +49,13 @@ export function formatUsd(amount: number | null | undefined, usdRate: number | n
   return `≈ $${formatNumber(rounded)}`;
 }
 
-export function formatPriceRange(from: number, to?: number | null) {
+/** `full: true` — mutaxassis narxlari uchun to'liq, uch xonali guruhlangan ko'rinish: "200 000 so'm – 500 000 so'm" (mln/ming qisqartmasiz) */
+export function formatPriceRange(from: number, to?: number | null, opts: { full?: boolean } = {}) {
+  const f = (n: number) => formatPrice(n, { compact: !opts.full });
   if (!from && !to) return "Kelishiladi";
-  if (!from && to) return `${formatPrice(to, { compact: true })} gacha`;
-  if (to && to > from) return `${formatPrice(from, { compact: true })} – ${formatPrice(to, { compact: true })}`;
-  return `${formatPrice(from, { compact: true })} dan`;
+  if (!from && to) return `${f(to)} gacha`;
+  if (to && to > from) return `${f(from)} – ${f(to)}`;
+  return `${f(from)} dan`;
 }
 
 const TRANSLIT: Record<string, string> = {

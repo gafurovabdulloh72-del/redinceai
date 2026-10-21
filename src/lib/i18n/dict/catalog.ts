@@ -36,16 +36,21 @@ export function priceToLabel(til: Locale, formatted: string): string {
   return til === "ru" ? `до ${localizePrice(til, formatted)}` : `${formatted} gacha`;
 }
 
-/** formatPriceRange'ning til-moslashgan varianti: "Kelishiladi" / "от …" / "до …" / "A – B" */
-export function priceRangeLabel(til: Locale, from: number, to?: number | null): string {
+/** Dollarda belgilangan narx (mutaxassis USD tanlagan): "$100 dan" / "$100 – $300" */
+export type UsdPrice = { from: number; to?: number | null } | null | undefined;
+const usdFmt = (n: number) => `$${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")}`;
+
+/** formatPriceRange'ning til-moslashgan varianti: "Kelishiladi" / "от …" / "до …" / "A – B" (usd berilsa — dollarda) */
+export function priceRangeLabel(til: Locale, from: number, to?: number | null, usd?: UsdPrice): string {
+  if (usd && usd.from > 0) return usd.to && usd.to > usd.from ? `${usdFmt(usd.from)} – ${usdFmt(usd.to)}` : priceFromLabel(til, usdFmt(usd.from));
   if (!from && !to) return til === "ru" ? "Договорная" : "Kelishiladi";
-  if (!from && to) return priceToLabel(til, formatPrice(to, { compact: true }));
+  if (!from && to) return priceToLabel(til, formatPrice(to));
   if (to && to > from) {
-    const a = formatPrice(from, { compact: true });
-    const b = formatPrice(to, { compact: true });
+    const a = formatPrice(from);
+    const b = formatPrice(to);
     return til === "ru" ? `${localizePrice(til, a)} – ${localizePrice(til, b)}` : `${a} – ${b}`;
   }
-  return priceFromLabel(til, formatPrice(from, { compact: true }));
+  return priceFromLabel(til, formatPrice(from));
 }
 
 /** utils.timeAgo'ning til-moslashgan varianti (hydration uchun suppressHydrationWarning kerakligicha qoladi) */

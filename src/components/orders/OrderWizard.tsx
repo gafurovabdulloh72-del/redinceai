@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, Check, Globe2, MapPin, Wallet, Zap } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
-import { CATEGORIES, REGIONS } from "@/lib/constants";
+import { REGIONS } from "@/lib/constants";
+import { CategoryPicker } from "@/components/ui/CategoryPicker";
 import { cn } from "@/lib/utils";
 import { REMOTE_KEY, WIZARD_BUDGETS, WIZARD_DEADLINES, wizardQuery, type WizardBudgetKey, type WizardDeadlineKey, type WizardState } from "./wizard-options";
 
@@ -81,22 +82,7 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
 
       <div className={cn("mt-5", dir === 1 ? "animate-slide-left" : "animate-slide-right")} key={step}>
         {step === 0 && (
-          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
-            {CATEGORIES.map((c) => {
-              const on = v.yonalish === c.slug;
-              return (
-                <button key={c.slug} type="button" aria-pressed={on} onClick={() => choose({ yonalish: c.slug })} className={tile(on)}>
-                  <span className="icon-tile icon-tile-sm shrink-0">
-                    <CategoryIcon icon={c.icon} size={15} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate">{c.name}</span>
-                    <span className="block truncate text-[12px] font-normal text-fg-3">{c.description}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <CategoryPicker value={v.yonalish || null} onChange={(slug) => choose({ yonalish: slug })} />
         )}
 
         {step === 1 && (

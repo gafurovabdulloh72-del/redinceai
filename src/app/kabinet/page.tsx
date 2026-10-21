@@ -522,7 +522,7 @@ export default async function KabinetPage() {
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-fg-3">Narx</dt>
-                    <dd className="font-semibold text-fg">{sp.priceFrom ? `${formatPrice(sp.priceFrom, { compact: true })} dan` : "Kelishiladi"}</dd>
+                    <dd className="font-semibold text-fg">{sp.priceFrom ? `${formatPrice(sp.priceFrom)} dan` : "Kelishiladi"}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-fg-3">Hudud</dt>

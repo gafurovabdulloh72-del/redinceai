@@ -7,6 +7,8 @@ import { accountSchema, specialistProfileSchema } from "@/lib/validators";
 import { setUsername } from "@/lib/chat/username";
 import { slugify, uid } from "@/lib/utils";
 import { ensureShortCode } from "@/lib/queries";
+import { getSettings } from "@/lib/payments/settings";
+import { PRICE_MIN } from "@/lib/pricing";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { verifyPassword } from "@/lib/security/password";
 import { sendMail } from "@/lib/security/mailer";
@@ -36,9 +38,27 @@ export const PUT = handler(async (req) => {
     return taken ? `${base}-${currentId.slice(0, 6)}` : base;
   };
 
+  // Dollarda belgilangan narx: so'mdagi ekvivalent serverda platforma kursi bo'yicha hisoblanadi (klientga ishonilmaydi)
+  let priceFrom = input.priceFrom;
+  let priceTo: number | null = input.priceTo || null;
+  let priceUsdFrom: number | null = null;
+  let priceUsdTo: number | null = null;
+  if (input.priceCurrency === "USD") {
+    if (!input.priceUsdFrom) throw new ApiError(422, "Dollardagi narxni kiriting", { priceFrom: "Dollardagi narxni kiriting" });
+    const rate = (await getSettings()).usdRate;
+    priceUsdFrom = input.priceUsdFrom;
+    priceUsdTo = input.priceUsdTo && input.priceUsdTo > priceUsdFrom ? input.priceUsdTo : null;
+    priceFrom = Math.round((priceUsdFrom * rate) / 1000) * 1000;
+    priceTo = priceUsdTo ? Math.round((priceUsdTo * rate) / 1000) * 1000 : null;
+    if (priceFrom < PRICE_MIN) throw new ApiError(422, `Minimal narx — ${PRICE_MIN.toLocaleString("ru-RU")} so'm ekvivalenti`, { priceFrom: "Narx juda past — oshiring" });
+  }
+
   const values = {
     ...input,
-    priceTo: input.priceTo || null,
+    priceFrom,
+    priceTo,
+    priceUsdFrom,
+    priceUsdTo,
     telegram: input.telegram?.replace(/^@/, "") || null,
     instagram: input.instagram?.replace(/^@/, "") || null,
     youtube: input.youtube || null,
