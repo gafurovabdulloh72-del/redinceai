@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 /** Darsni «tugatildi» deb belgilash tugmasi; progressni yangilaydi, keyingi darsga o'tish taklif qiladi */
-export function LessonComplete({ lessonId, completed, nextId }: { lessonId: string; completed: boolean; nextId: string | null }) {
+export function LessonComplete({ lessonId, completed, nextId, blockedReason = null }: { lessonId: string; completed: boolean; nextId: string | null; blockedReason?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const [done, setDone] = useState(completed);
@@ -15,6 +15,10 @@ export function LessonComplete({ lessonId, completed, nextId }: { lessonId: stri
 
   const toggle = async () => {
     if (busy) return;
+    if (blockedReason && !done) {
+      toast(blockedReason, "info");
+      return;
+    }
     setBusy(true);
     const next = !done;
     try {
@@ -23,9 +27,14 @@ export function LessonComplete({ lessonId, completed, nextId }: { lessonId: stri
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done: next }),
       });
-      const j = (await res.json()) as { ok: boolean; error?: string; data?: { progressPct: number } };
+      const j = (await res.json()) as { ok: boolean; error?: string; data?: { progressPct: number; certificateCode?: string | null; certificateNew?: boolean } };
       if (!res.ok || !j.ok) throw new Error(j.error || "Xatolik");
       setDone(next);
+      if (j.data?.certificateNew && j.data.certificateCode) {
+        toast("Tabriklaymiz! Kurs tugadi — sertifikat tayyor 🎓", "success");
+        router.push(`/sertifikat/${j.data.certificateCode}`);
+        return;
+      }
       router.refresh();
       if (next && nextId) toast("Dars belgilandi — keyingisiga o'ting", "success");
     } catch (e) {

@@ -16,6 +16,7 @@ import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
 import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { listRoadmaps, listShowcase } from "@/lib/mentorship/learning";
 import { listSlots, myConsults } from "@/lib/mentorship/purchases";
 import { db as _db } from "@/lib/db";
 import { mentorSubs } from "@/lib/db/schema";
@@ -73,6 +74,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   const canStudio = isOwner || user?.role === "admin";
   const subRow = user && profile.subPrice > 0 ? await _db.query.mentorSubs.findFirst({ where: _and(_eq(mentorSubs.userId, user.id), _eq(mentorSubs.mentorId, profile.id)) }) : null;
   const subActive = Boolean(subRow && subRow.until.getTime() > Date.now());
+  const [roadmaps, showcase] = tab === "bolimlar" ? await Promise.all([listRoadmaps(profile.id, user?.id ?? null), listShowcase(profile.id)]) : [[], []];
   const [slots, myBooked] = tab === "konsultatsiya" ? await Promise.all([listSlots(profile.id, false), user ? myConsults(user.id, null) : Promise.resolve([])]) : [[], []];
 
   const tabHref = (k: Tab) => (k === "lenta" ? `/mentorlik/ustoz/${profile.slug}` : `/mentorlik/ustoz/${profile.slug}?tab=${k}`);
@@ -204,6 +206,29 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           </>
         )}
         {tab === "lenta" && !view && <p className="card p-8 text-center text-[14px] text-fg-3">Kanal hali tayyor emas.</p>}
+        {tab === "bolimlar" && roadmaps.length > 0 && (
+          <div className="mb-5 space-y-3">
+            {roadmaps.map((r) => (
+              <section key={r.id} className="card p-4 sm:p-5">
+                <h2 className="font-display text-[17px] font-extrabold text-fg">{r.title}</h2>
+                {r.description && <p className="mt-0.5 text-[13.5px] text-fg-3">{r.description}</p>}
+                <ol className="mt-3 space-y-2">
+                  {r.steps.map((st, i) => (
+                    <li key={st.id}>
+                      <Link href={`/mentorlik/${st.slug}`} className="flex items-center gap-3 rounded-[12px] border border-line px-3 py-2.5 transition hover:border-fg">
+                        <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold", st.progressPct === 100 ? "bg-success text-white" : "bg-fg text-bg")}>{st.progressPct === 100 ? "✓" : i + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold text-fg">{st.title}</span>
+                          <span className="text-[12px] text-fg-3">{st.lessonsCount} dars · {formatSom(st.priceFrom)}{st.progressPct != null && st.progressPct < 100 ? ` · ${st.progressPct}% tugatilgan` : ""}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))}
+          </div>
+        )}
         {tab === "bolimlar" &&
           (courses.length === 0 ? (
             <p className="card p-8 text-center text-[14px] text-fg-3">Hozircha ochiq bo&apos;lim yo&apos;q.</p>
@@ -227,6 +252,24 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               ))}
             </ul>
           ))}
+        {tab === "bolimlar" && showcase.length > 0 && (
+          <section className="card mt-5 p-4 sm:p-5">
+            <h2 className="text-[15px] font-bold text-fg">Talabalar ishi</h2>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+              {showcase.map((w) => (
+                <li key={w.id} className="rounded-[14px] border border-line p-3">
+                  <p className="flex items-center gap-2 text-[13px] font-semibold text-fg"><Avatar name={w.student} src={w.avatarUrl} size={22} decorative /> {w.student}{w.grade != null && <span className="ml-auto rounded bg-success-soft px-1.5 py-0.5 text-[11.5px] text-success-text">{w.grade}/100</span>}</p>
+                  {w.body && <p className="mt-1.5 line-clamp-4 whitespace-pre-line text-[13.5px] text-fg-2">{w.body}</p>}
+                  {w.fileUrl && /\.(?:jpe?g|png|webp|gif)(?:\?|$)/i.test(w.fileUrl) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={w.fileUrl} alt="" className="mt-2 max-h-56 w-full rounded-lg object-cover" />
+                  )}
+                  {w.fileUrl && /\.(?:mp4|webm|mov)(?:\?|$)/i.test(w.fileUrl) && <video src={w.fileUrl} controls playsInline className="mt-2 aspect-video w-full rounded-lg bg-black" />}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {tab === "konsultatsiya" && (
           <div className="space-y-4">
             {myBooked.length > 0 && (

@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import type { CourseInput, LessonInput, MentorApplyInput, MentorProfileInput, CourseReviewInput } from "./validators";
 import { createGroup, updateGroup } from "@/lib/groups/service";
 import { MENTOR_LIMITS, type CourseLevel } from "./format";
+import { maybeIssueCertificate, myCertificateCode, mySubmission, publicQuiz, quizPassed, type QuizPublic } from "./learning";
 
 export interface MentorLite {
   id: string;
@@ -117,6 +118,7 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
 export interface CourseDetail extends CourseCard {
   mentorBio: string;
   refPercent: number;
+  certificateCode: string | null;
   isOwner: boolean;
   enrolled: boolean;
   progressPct: number;
@@ -157,6 +159,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     ...card,
     mentorBio: c.mentor.bio,
     refPercent: c.mentor.refPercent,
+    certificateCode: viewerId && enrolled ? await myCertificateCode(viewerId, c.id) : null,
     isOwner,
     enrolled,
     progressPct: enrollment?.progressPct ?? 0,
@@ -180,6 +183,16 @@ export interface LessonView {
   completed: boolean;
   prev: { id: string; title: string } | null;
   next: { id: string; title: string } | null;
+  isOwner: boolean;
+  /** Faqat kursga yozilgan/egasi/admin ko'radi */
+  materials: Array<{ name: string; url: string; size?: number }>;
+  chapters: Array<{ t: number; title: string }>;
+  quiz: QuizPublic | null;
+  quizPassed: boolean;
+  assignment: string;
+  submission: { status: string; grade: number | null; feedback: string; body: string; fileUrl: string | null } | null;
+  /** Kurs 100% tugatilgan bo'lsa sertifikat kodi */
+  certificateCode: string | null;
 }
 
 /** Bitta dars — ko'ruvchiga ruxsat bo'lsa (yozilgan / egasi / admin / bepul namuna) */
@@ -211,6 +224,14 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
     completed,
     prev: idx > 0 ? { id: siblings[idx - 1].id, title: siblings[idx - 1].title } : null,
     next: idx >= 0 && idx < siblings.length - 1 ? { id: siblings[idx + 1].id, title: siblings[idx + 1].title } : null,
+    isOwner,
+    materials: enrolled || isOwner || isAdmin ? l.materials ?? [] : [],
+    chapters: l.chapters ?? [],
+    quiz: enrolled || isOwner || isAdmin ? publicQuiz(l.quiz) : null,
+    quizPassed: viewerId ? await quizPassed(viewerId, l.id) : false,
+    assignment: enrolled || isOwner || isAdmin ? l.assignment : "",
+    submission: viewerId && l.assignment ? await mySubmission(viewerId, l.id).then((x) => (x ? { status: x.status, grade: x.grade, feedback: x.feedback, body: x.body, fileUrl: x.fileUrl } : null)) : null,
+    certificateCode: viewerId ? await myCertificateCode(viewerId, c.id) : null,
   };
 }
 
@@ -267,7 +288,7 @@ export async function addLesson(userId: string, courseId: string, input: LessonI
   const id = uid();
   const pos = (c.lessonsCount ?? 0) + 1;
   await db.transaction(async (tx) => {
-    await tx.insert(lessons).values({ id, courseId, position: pos, title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview });
+    await tx.insert(lessons).values({ id, courseId, position: pos, title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment });
     await tx.update(courses).set({ lessonsCount: sql`${courses.lessonsCount} + 1`, updatedAt: new Date() }).where(eq(courses.id, courseId));
   });
   return { id };
@@ -277,7 +298,7 @@ export async function updateLesson(userId: string, lessonId: string, input: Less
   const l = await db.query.lessons.findFirst({ where: eq(lessons.id, lessonId) });
   if (!l) throw new ApiError(404, "Dars topilmadi");
   await ownedCourse(userId, l.courseId, isAdmin);
-  await db.update(lessons).set({ title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview }).where(eq(lessons.id, lessonId));
+  await db.update(lessons).set({ title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment }).where(eq(lessons.id, lessonId));
 }
 
 export async function deleteLesson(userId: string, lessonId: string, isAdmin = false) {
@@ -312,6 +333,7 @@ export async function completeLesson(userId: string, lessonId: string, done: boo
   if (!l) throw new ApiError(404, "Dars topilmadi");
   const enrollment = await db.query.enrollments.findFirst({ where: and(eq(enrollments.courseId, l.courseId), eq(enrollments.userId, userId)) });
   if (!enrollment) throw new ApiError(403, "Avval kursga yoziling");
+  if (done && l.quiz?.questions.length && !(await quizPassed(userId, lessonId))) throw new ApiError(422, "Avval dars testidan o'ting");
   if (done) {
     await db.insert(lessonCompletions).values({ id: uid(), userId, lessonId, courseId: l.courseId }).onConflictDoNothing();
   } else {
@@ -321,7 +343,8 @@ export async function completeLesson(userId: string, lessonId: string, done: boo
   const [{ doneN }] = await db.select({ doneN: sql<number>`count(*)` }).from(lessonCompletions).where(and(eq(lessonCompletions.userId, userId), eq(lessonCompletions.courseId, l.courseId)));
   const pct = total > 0 ? Math.round((Number(doneN) / Number(total)) * 100) : 0;
   await db.update(enrollments).set({ progressPct: pct, lastLessonId: lessonId }).where(eq(enrollments.id, enrollment.id));
-  return { progressPct: pct, completed: done };
+  const cert = done && pct >= 100 ? await maybeIssueCertificate(userId, l.courseId).catch(() => null) : null;
+  return { progressPct: pct, completed: done, certificateCode: cert?.code ?? null, certificateNew: cert?.isNew ?? false };
 }
 
 export async function addCourseReview(userId: string, courseId: string, input: CourseReviewInput) {
@@ -352,7 +375,7 @@ export async function getCourseForOwner(userId: string, courseId: string, isAdmi
   const lessonRows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), orderBy: [asc(lessons.position)] });
   return {
     course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount },
-    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, isPreview: l.isPreview })),
+    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, isPreview: l.isPreview, materials: l.materials ?? [], chapters: l.chapters ?? [], quiz: l.quiz ?? null, assignment: l.assignment })),
   };
 }
 

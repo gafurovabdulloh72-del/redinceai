@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser, getMentorProfileForEditor, listCoursesOfMentor, listMyEnrollments } from "@/lib/mentorship/service";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { ClipboardCheck, Route, Wallet } from "lucide-react";
 import { ApplyBlock, MyEnrollments } from "@/components/mentorship/MentorDashboard";
 import { MentorStudio } from "@/components/mentorship/MentorStudio";
 
@@ -30,6 +30,22 @@ export default async function KabinetMentorlikPage() {
               <span className="block text-[12.5px] text-fg-3">Balans, yechish, promokod, obuna narxi, 1:1 vaqtlar</span>
             </span>
           </Link>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/kabinet/mentorlik/vazifalar" className="card card-hover flex items-center gap-3 p-4">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-fg/6"><ClipboardCheck size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold text-fg">Talabalar vazifalari</span>
+                <span className="block text-[12.5px] text-fg-3">Baholash va izoh</span>
+              </span>
+            </Link>
+            <Link href="/kabinet/mentorlik/yol-xaritasi" className="card card-hover flex items-center gap-3 p-4">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-fg/6"><Route size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold text-fg">Yo&apos;l xaritalari</span>
+                <span className="block text-[12.5px] text-fg-3">Kurslarni ketma-ketlikka yig&apos;ish</span>
+              </span>
+            </Link>
+          </div>
           <MentorStudio mentor={profile} courses={courses} />
         </>
       ) : (

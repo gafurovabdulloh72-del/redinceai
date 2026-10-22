@@ -1936,3 +1936,12 @@ html:has([data-reels-screen]) .shell-capsule {
 .marquee-wrap:hover .marquee-row {
   animation-play-state: paused;
 }
+
+/* Chop etish (sertifikat → PDF): faqat sahifa mazmuni, qobiqsiz */
+@media print {
+  .side-rail, .shell-capsule, .m-topbar, .m-tabbar, footer { display: none !important; }
+  .app-shell { padding: 0 !important; }
+  main { padding: 0 !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+  body { background: #fff !important; }
+}

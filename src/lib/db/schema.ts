@@ -1864,6 +1864,14 @@ export const lessons = sqliteTable(
     durationMin: integer("duration_min").notNull().default(0),
     /** Bepul namuna — yozilmasdan ham ko'rsa bo'ladi */
     isPreview: integer("is_preview", { mode: "boolean" }).notNull().default(false),
+    /** Dars materiallari (fayllar): preset, loyiha fayli, PDF — faqat yozilganlarga */
+    materials: text("materials", { mode: "json" }).$type<Array<{ name: string; url: string; size?: number }>>().notNull().default([]),
+    /** Video vaqt belgilari: t — soniya */
+    chapters: text("chapters", { mode: "json" }).$type<Array<{ t: number; title: string }>>().notNull().default([]),
+    /** Dars testi: o'tish foizi va savollar (to'g'ri javob indeksi faqat serverda) */
+    quiz: text("quiz", { mode: "json" }).$type<{ passPct: number; questions: Array<{ q: string; options: string[]; correct: number }> } | null>(),
+    /** Uy vazifasi topshirig'i (bo'sh = vazifa yo'q) */
+    assignment: text("assignment").notNull().default(""),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -2133,6 +2141,116 @@ export const referralRewards = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("referral_rewards_invoice_uq").on(t.invoiceId), index("referral_rewards_ref_idx").on(t.referrerId)],
+);
+
+
+/* ------------------------------------------------------------------ */
+/* Mentorlik: o'qitish (test, vazifa, savol-javob, sertifikat, yo'l xaritasi) */
+/* ------------------------------------------------------------------ */
+export const quizAttempts = sqliteTable(
+  "quiz_attempts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    scorePct: integer("score_pct").notNull(),
+    passed: integer("passed", { mode: "boolean" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("quiz_attempts_user_lesson_idx").on(t.userId, t.lessonId)],
+);
+
+/** Uy vazifasi: talaba topshiradi, mentor baholaydi; showcase — «Talabalar ishi» bo'limida ko'rsatish */
+export const assignmentSubmissions = sqliteTable(
+  "assignment_submissions",
+  {
+    id: text("id").primaryKey(),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull().default(""),
+    fileUrl: text("file_url"),
+    status: text("status", { enum: ["pending", "reviewed", "needs_work"] }).notNull().default("pending"),
+    grade: integer("grade"),
+    feedback: text("feedback").notNull().default(""),
+    showcase: integer("showcase", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [uniqueIndex("assignment_submissions_uq").on(t.lessonId, t.userId), index("assignment_submissions_course_idx").on(t.courseId, t.status)],
+);
+
+/** Dars ostidagi savol-javob: savol (parentId yo'q) va javoblar; mentor «foydali» deb belgilaydi */
+export const lessonComments = sqliteTable(
+  "lesson_comments",
+  {
+    id: text("id").primaryKey(),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    parentId: text("parent_id"),
+    body: text("body").notNull(),
+    isHelpful: integer("is_helpful", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("lesson_comments_lesson_idx").on(t.lessonId, t.createdAt)],
+);
+
+/** Sertifikat: kurs to'liq tugatilganda (barcha darslar + testlar) beriladi; ommaviy tekshiriladi */
+export const certificates = sqliteTable(
+  "certificates",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    issuedAt: integer("issued_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("certificates_code_uq").on(t.code), uniqueIndex("certificates_pair_uq").on(t.userId, t.courseId)],
+);
+
+/** Yo'l xaritasi: mentor kurslarini ketma-ketlikka yig'adi */
+export const roadmaps = sqliteTable(
+  "roadmaps",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    /** Kurs id'lari tartib bilan */
+    courseIds: text("course_ids", { mode: "json" }).$type<string[]>().notNull().default([]),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("roadmaps_mentor_idx").on(t.mentorId)],
 );
 
 export const mentorSlotsRelations = relations(mentorSlots, ({ one }) => ({

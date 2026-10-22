@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IMAGE_URL_RE } from "@/components/chat/attachments";
+import { IMAGE_URL_RE, UPLOAD_URL_RE } from "@/components/chat/attachments";
 import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS } from "./format";
 
 const categoryKeys = MENTOR_CATEGORIES.map((c) => c.key) as [string, ...string[]];
@@ -31,6 +31,25 @@ export const lessonSchema = z.object({
   videoUrl: z.string().trim().url().max(500).nullish(),
   durationMin: z.coerce.number().int().min(0).max(100000).default(0),
   isPreview: z.boolean().default(false),
+  /** Dars materiallari (yuklangan fayllar) */
+  materials: z
+    .array(z.object({ name: z.string().trim().min(1).max(120), url: z.string().trim().max(500).refine((u) => UPLOAD_URL_RE.test(u), "Fayl sayt orqali yuklanishi kerak"), size: z.number().int().min(0).optional() }))
+    .max(8)
+    .default([]),
+  /** Video vaqt belgilari */
+  chapters: z.array(z.object({ t: z.number().int().min(0).max(86400), title: z.string().trim().min(1).max(80) })).max(30).default([]),
+  /** Dars testi */
+  quiz: z
+    .object({
+      passPct: z.number().int().min(50).max(100).default(70),
+      questions: z
+        .array(z.object({ q: z.string().trim().min(3).max(200), options: z.array(z.string().trim().min(1).max(120)).min(2).max(5), correct: z.number().int().min(0).max(4) }).refine((x) => x.correct < x.options.length, "To'g'ri javob variantlar ichida bo'lsin"))
+        .min(1)
+        .max(10),
+    })
+    .nullish(),
+  /** Uy vazifasi topshirig'i */
+  assignment: z.string().trim().max(600).default(""),
 });
 export type LessonInput = z.infer<typeof lessonSchema>;
 
@@ -70,3 +89,10 @@ export type MentorProfileInput = z.infer<typeof mentorProfileSchema>;
 
 /** Kurs yaratishda faqat nom kifoya (qolganini bo'lim ichida o'zgartiradi); admin boshqa mentor nomidan yaratsa mentorId beradi */
 export const courseCreateSchema = courseSchema.extend({ mentorId: z.string().min(1).max(64).optional() });
+
+/** Test javoblari: har savol uchun tanlangan variant indeksi */
+export const quizSubmitSchema = z.object({ answers: z.array(z.number().int().min(0).max(4)).min(1).max(10) });
+export const submissionSchema = z.object({ body: z.string().trim().max(2000).default(""), fileUrl: z.string().trim().max(500).refine((u) => !u || UPLOAD_URL_RE.test(u), "Fayl sayt orqali yuklanishi kerak").nullish() });
+export const submissionReviewSchema = z.object({ status: z.enum(["reviewed", "needs_work"]), grade: z.number().int().min(0).max(100).nullish(), feedback: z.string().trim().max(1500).default(""), showcase: z.boolean().default(false) });
+export const lessonCommentSchema = z.object({ body: z.string().trim().min(2, "Juda qisqa").max(1200), parentId: z.string().max(64).nullish() });
+export const roadmapSchema = z.object({ title: z.string().trim().min(3).max(80), description: z.string().trim().max(300).default(""), courseIds: z.array(z.string().max(64)).min(1).max(12) });
