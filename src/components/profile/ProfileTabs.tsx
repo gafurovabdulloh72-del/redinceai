@@ -144,6 +144,12 @@ export function ProfileTabs({
   useEffect(() => {
     if (tab === "videolar" && videoPosts === null) void loadVideos();
   }, [tab, videoPosts, loadVideos]);
+  // Videolar bo'limini bo'sh vaqtda oldindan yuklaymiz — bosilganda kutmasdan ochiladi
+  useEffect(() => {
+    if (videoPosts !== null || counts.videos === 0) return;
+    const t = window.setTimeout(() => void loadVideos(), 600);
+    return () => window.clearTimeout(t);
+  }, [videoPosts, counts.videos, loadVideos]);
 
   function selectTab(next: Tab) {
     setTab(next);
