@@ -137,7 +137,7 @@ function Tile({ tref, small, onPin, pinned }: { tref: TrackReferenceOrPlaceholde
       className={cn("relative overflow-hidden rounded-xl bg-[#17171a] transition-shadow", small ? "h-full w-[150px] shrink-0 cursor-pointer sm:w-[176px]" : "h-full w-full", speaking && "ring-[3px] ring-success", pinned && "ring-2 ring-white/70")}
     >
       {hasVideo ? (
-        <VideoTrack trackRef={tref} className={cn("h-full w-full", isScreen || !small ? "object-contain" : "object-cover")} />
+        <VideoTrack trackRef={tref} className={cn("h-full w-full", isScreen || !small ? "object-contain" : "object-cover", p.isLocal && !isScreen && "-scale-x-100")} />
       ) : (
         <div className="grid h-full w-full place-items-center">
           <Initial name={nameOf(p)} size={small ? 44 : 88} />
