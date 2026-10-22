@@ -126,7 +126,7 @@ export async function startRoomRecording(room: string, filepath: string, s3: { a
   const r = (await roomAdmin(
     room,
     "StartRoomCompositeEgress",
-    { room_name: room, layout: "speaker", file_outputs: [{ file_type: "MP4", filepath, s3: { access_key: s3.accessKey, secret: s3.secret, region: "auto", endpoint: s3.endpoint, bucket: s3.bucket, force_path_style: true } }] },
+    { room_name: room, layout: "speaker", preset: "H264_1080P_30", file_outputs: [{ file_type: "MP4", filepath, s3: { access_key: s3.accessKey, secret: s3.secret, region: "auto", endpoint: s3.endpoint, bucket: s3.bucket, force_path_style: true } }] },
     "Egress",
     false,
   )) as { egress_id?: string; egressId?: string };

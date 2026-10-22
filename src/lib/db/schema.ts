@@ -2016,6 +2016,20 @@ export const liveBans = sqliteTable(
   (t) => [uniqueIndex("live_bans_pair_idx").on(t.streamId, t.userId)],
 );
 
+/** Sahnaga chiqarilgan tomoshabinlar — qayta ulanganda (token qayta olinganda) ruxsat saqlanadi */
+export const liveStage = sqliteTable(
+  "live_stage",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("live_stage_pair_idx").on(t.streamId, t.userId)],
+);
+
 export type LiveStream = typeof liveStreams.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;

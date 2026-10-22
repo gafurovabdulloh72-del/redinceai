@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   LiveKitRoom,
@@ -8,6 +8,8 @@ import {
   VideoTrack,
   isTrackReference,
   useChat,
+  useConnectionQualityIndicator,
+  useConnectionState,
   useIsSpeaking,
   useLocalParticipant,
   useLocalParticipantPermissions,
@@ -16,13 +18,35 @@ import {
   useTracks,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { DisconnectReason, Room, Track, type Participant } from "livekit-client";
-import { Circle, Hand, Loader2, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { ConnectionQuality, ConnectionState, DisconnectReason, Room, RoomOptions, Track, VideoPresets, type Participant } from "livekit-client";
+import { Circle, Hand, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 
 type Conn = { url: string; token: string; host: boolean; hostId: string; title: string; recording?: string; canRecord?: boolean };
 type Panel = "chat" | "people" | null;
+type Devices = { video: boolean; audio: boolean; videoId?: string; audioId?: string };
+
+/**
+ * Sifat: kuchli kompyuterda 1080p/30 (4.5 Mbit/s) + simulcast (720p/360p); telefon va kuchsiz qurilmada 720p/30 (2.2 Mbit/s) + 360p —
+ * kodlash CPU'ni bo'g'ib uzilishga olib kelmasin. Ekran ulashish 5 Mbit/s. Ovoz DTX. Tomoshabinda adaptiveStream — ko'rinmagan/kichik katak trafik yemaydi.
+ */
+function roomOptions(): RoomOptions {
+  const strong = typeof navigator !== "undefined" && !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) && (navigator.hardwareConcurrency ?? 4) >= 8;
+  return {
+    adaptiveStream: true,
+    dynacast: true,
+    videoCaptureDefaults: { resolution: (strong ? VideoPresets.h1080 : VideoPresets.h720).resolution, facingMode: "user" },
+    audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    publishDefaults: {
+      simulcast: true,
+      videoEncoding: strong ? { maxBitrate: 4_500_000, maxFramerate: 30 } : { maxBitrate: 2_200_000, maxFramerate: 30 },
+      videoSimulcastLayers: strong ? [VideoPresets.h720, VideoPresets.h360] : [VideoPresets.h360],
+      screenShareEncoding: { maxBitrate: 5_000_000, maxFramerate: 30 },
+      dtx: true,
+    },
+  };
+}
 
 const nameOf = (p: Participant) => p.name || "Ishtirokchi";
 
@@ -37,6 +61,8 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
   const [error, setError] = useState("");
   const [bye, setBye] = useState("");
   const [note, setNote] = useState("");
+  const [dev, setDev] = useState<Devices | null>(null);
+  const options = useMemo(roomOptions, []);
   // Xabarlar efir oynasi ichida (umumiy toast boshqaruv tugmalarini to'sib qo'yardi)
   const flash = useCallback((t: string) => {
     setNote(t);
@@ -99,8 +125,10 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
         <div className="grid h-full place-items-center">
           <Loader2 className="animate-spin" />
         </div>
+      ) : conn.host && !dev ? (
+        <PreJoin title={conn.title} onCancel={() => void leave(true)} onReady={setDev} />
       ) : (
-        <LiveKitRoom serverUrl={conn.url} token={conn.token} connect video={conn.host} audio={conn.host} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
+        <LiveKitRoom serverUrl={conn.url} token={conn.token} connect options={options} video={conn.host && dev?.video ? { deviceId: dev.videoId } : false} audio={conn.host && dev?.audio ? { deviceId: dev.audioId } : false} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
           <Stage conn={conn} streamId={streamId} flash={flash} peak={peak} onLeave={() => void leave(false)} onEnd={() => void leave(true)} />
           <RoomAudioRenderer />
           {note && (
@@ -162,6 +190,8 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }]);
   const { chatMessages, send, isSending } = useChat();
 
+  const connection = useConnectionState();
+  const { quality } = useConnectionQualityIndicator({ participant: localParticipant });
   const [rec, setRec] = useState(conn.recording === "recording");
   const [panel, setPanel] = useState<Panel>(null);
   const [pin, setPin] = useState<string | null>(null);
@@ -292,11 +322,21 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         )}
         <span className="text-[12.5px] tabular-nums text-white/65">{mm}:{ss}</span>
         <p className="min-w-0 flex-1 truncate text-[14px] font-semibold">{conn.title}</p>
+        {(quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost) && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-[#ffcf40]/15 px-2 py-1 text-[11.5px] font-semibold text-[#ffcf40]" title="Internet sekin — sifat avtomatik pasayadi">
+            <SignalLow size={12} /> Aloqa sust
+          </span>
+        )}
         <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[12px] font-semibold tabular-nums">
           <Users size={12} /> {everyone.length}
         </span>
       </header>
 
+      {connection === ConnectionState.Reconnecting && (
+        <p role="status" className="mx-3 mb-2 flex items-center justify-center gap-2 rounded-lg bg-[#ffcf40] px-3 py-1.5 text-[13px] font-semibold text-black">
+          <Loader2 size={14} className="animate-spin" /> Qayta ulanmoqda…
+        </p>
+      )}
       <div className="relative flex min-h-0 flex-1 gap-2 px-2 lg:px-3">
         {/* Sahna */}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -469,5 +509,93 @@ function Btn({ label, onClick, children, on, off, accent, badge }: { label: stri
       <span className="text-[10.5px] font-medium text-white/65">{label}</span>
       {badge ? <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold">{badge}</span> : null}
     </button>
+  );
+}
+
+
+/** Boshlovchi uchun efirdan oldingi oyna: kamera ko'rinishi, qurilma tanlash, mikrofon/kamerani yoqish-o'chirish */
+function PreJoin({ title, onReady, onCancel }: { title: string; onReady: (d: Devices) => void; onCancel: () => void }) {
+  const [video, setVideo] = useState(true);
+  const [audio, setAudio] = useState(true);
+  const [cams, setCams] = useState<MediaDeviceInfo[]>([]);
+  const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
+  const [camId, setCamId] = useState<string>();
+  const [micId, setMicId] = useState<string>();
+  const [err, setErr] = useState("");
+  const ref = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    stream.current?.getTracks().forEach((t) => t.stop());
+    stream.current = null;
+    if (!video) return;
+    void navigator.mediaDevices
+      .getUserMedia({ video: { deviceId: camId ? { exact: camId } : undefined, width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, audio: false })
+      .then(async (st) => {
+        if (!alive) return st.getTracks().forEach((t) => t.stop());
+        stream.current = st;
+        if (ref.current) ref.current.srcObject = st;
+        setErr("");
+        const list = await navigator.mediaDevices.enumerateDevices();
+        setCams(list.filter((d) => d.kind === "videoinput"));
+        setMics(list.filter((d) => d.kind === "audioinput"));
+      })
+      .catch(() => alive && setErr("Kameraga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering yoki kamerasiz davom eting"));
+    return () => {
+      alive = false;
+      stream.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, [video, camId]);
+
+  // Mikrofon ro'yxati kamera o'chiq bo'lsa ham kerak
+  useEffect(() => {
+    if (video) return;
+    void navigator.mediaDevices.enumerateDevices().then((l) => setMics(l.filter((d) => d.kind === "audioinput"))).catch(() => undefined);
+  }, [video]);
+
+  function go() {
+    stream.current?.getTracks().forEach((t) => t.stop());
+    onReady({ video, audio, videoId: camId, audioId: micId });
+  }
+
+  return (
+    <div className="grid h-full place-items-center overflow-y-auto p-4">
+      <div className="w-full max-w-[560px]">
+        <p className="text-center text-[13px] font-semibold uppercase tracking-wider text-white/50">Efirga tayyorlanish</p>
+        <h2 className="mt-1 text-center text-[20px] font-bold">{title}</h2>
+        <div className="relative mt-4 aspect-video overflow-hidden rounded-2xl bg-[#17171a]">
+          {video && !err ? <video ref={ref} autoPlay muted playsInline className="h-full w-full -scale-x-100 object-cover" /> : <div className="grid h-full place-items-center px-6 text-center text-[13.5px] text-white/60">{err || "Kamera o'chiq"}</div>}
+          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-3 bg-gradient-to-t from-black/60 to-transparent p-3">
+            <Btn label="Mikrofon" on={audio} off={!audio} onClick={() => setAudio(!audio)}>
+              {audio ? <Mic size={20} /> : <MicOff size={20} />}
+            </Btn>
+            <Btn label="Kamera" on={video} off={!video} onClick={() => setVideo(!video)}>
+              {video ? <Video size={20} /> : <VideoOff size={20} />}
+            </Btn>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <select value={camId ?? ""} onChange={(e) => setCamId(e.target.value || undefined)} aria-label="Kamera" className="h-10 rounded-lg bg-white/10 px-3 text-[13.5px] text-white outline-none">
+            <option value="">Kamera (standart)</option>
+            {cams.map((d, i) => (
+              <option key={d.deviceId} value={d.deviceId} className="text-black">{d.label || `Kamera ${i + 1}`}</option>
+            ))}
+          </select>
+          <select value={micId ?? ""} onChange={(e) => setMicId(e.target.value || undefined)} aria-label="Mikrofon" className="h-10 rounded-lg bg-white/10 px-3 text-[13.5px] text-white outline-none">
+            <option value="">Mikrofon (standart)</option>
+            {mics.map((d, i) => (
+              <option key={d.deviceId} value={d.deviceId} className="text-black">{d.label || `Mikrofon ${i + 1}`}</option>
+            ))}
+          </select>
+        </div>
+        <div className="mt-4 flex justify-center gap-3">
+          <button type="button" onClick={onCancel} className="h-11 rounded-full bg-white/10 px-5 text-[14px] font-semibold">Bekor qilish</button>
+          <button type="button" onClick={go} className="btn-accent inline-flex h-11 items-center gap-2 px-6 text-[14px]">
+            <Signal size={16} /> Efirga chiqish
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

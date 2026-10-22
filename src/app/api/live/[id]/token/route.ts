@@ -9,7 +9,7 @@ export const POST = handler(async (_req, ctx: { params: Promise<{ id: string }> 
   if (!isCallEnabled()) throw new ApiError(503, "Jonli efir hozircha o'chirilgan");
   const session = await requireSession();
   const { id } = await ctx.params;
-  const { stream, host } = await liveAccess(id, { id: session.sub, role: session.role });
-  const token = await mintCallToken({ identity: session.sub, name: session.name ?? "Mehmon", room: stream.room, publish: host, live: true });
+  const { stream, host, staged } = await liveAccess(id, { id: session.sub, role: session.role });
+  const token = await mintCallToken({ identity: session.sub, name: session.name ?? "Mehmon", room: stream.room, publish: host || staged, live: true });
   return ok({ url: LIVEKIT_WS_URL, token, host, hostId: stream.hostId, title: stream.title, recording: stream.recordingStatus, canRecord: host && recordingAvailable() });
 });

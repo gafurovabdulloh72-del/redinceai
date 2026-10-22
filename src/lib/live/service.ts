@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groups, liveBans, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
+import { groups, liveBans, liveStage, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
@@ -16,13 +16,14 @@ export const LIVE_MAX_MS = 6 * 60 * 60 * 1000;
 type Viewer = { id: string; role: string };
 
 /** Boshlovchi xonada yo'qmi (brauzer yopilgan/uzilgan)? 90 s imtiyoz; natija 20 s keshlanadi; LiveKit javob bermasa — "yo'q emas" */
+const HOST_GRACE_MS = Number(process.env.LIVE_HOST_GRACE_MS) || 90_000;
 const hostSeen = new Map<string, { at: number; present: boolean; firstMissing: number | null }>();
 async function hostGone(s: LiveStream): Promise<boolean> {
-  if (Date.now() - s.startedAt.getTime() < 90_000) return false;
+  if (Date.now() - s.startedAt.getTime() < HOST_GRACE_MS) return false;
   const c = hostSeen.get(s.id);
   let present = c?.present ?? true;
   let firstMissing = c?.firstMissing ?? null;
-  if (!c || Date.now() - c.at > 20_000) {
+  if (!c || Date.now() - c.at > Math.min(20_000, HOST_GRACE_MS)) {
     try {
       present = (await listIdentities(s.room)).includes(s.hostId);
       firstMissing = present ? null : (firstMissing ?? Date.now());
@@ -31,7 +32,7 @@ async function hostGone(s: LiveStream): Promise<boolean> {
       return false;
     }
   }
-  return !present && firstMissing !== null && Date.now() - firstMissing > 90_000;
+  return !present && firstMissing !== null && Date.now() - firstMissing > HOST_GRACE_MS;
 }
 
 async function endLiveSystem(s: LiveStream): Promise<void> {
@@ -104,7 +105,10 @@ export async function moderateParticipant(streamId: string, actor: Viewer, ident
     await db.insert(liveBans).values({ streamId, userId: identity }).onConflictDoNothing();
     await removeParticipant(s.room, identity);
   } else {
-    await setStage(s.room, identity, action === "allow");
+    const on = action === "allow";
+    if (on) await db.insert(liveStage).values({ streamId, userId: identity }).onConflictDoNothing();
+    else await db.delete(liveStage).where(and(eq(liveStage.streamId, streamId), eq(liveStage.userId, identity)));
+    await setStage(s.room, identity, on);
   }
 }
 
@@ -115,7 +119,7 @@ export async function pastLives(groupId: string, limit = 10): Promise<{ id: stri
 }
 
 /** Tomoshabin yoki boshlovchi uchun xona va huquq. Yopiq jamoada faqat a'zo */
-export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream: LiveStream; host: boolean; group: Group }> {
+export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream: LiveStream; host: boolean; group: Group; staged: boolean }> {
   const stream = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
   if (!stream || stream.status !== "live" || stream.startedAt.getTime() < Date.now() - LIVE_MAX_MS) throw new ApiError(404, "Efir tugagan");
   const group = await db.query.groups.findFirst({ where: eq(groups.id, stream.groupId) });
@@ -129,7 +133,8 @@ export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream:
     const ban = await db.query.liveBans.findFirst({ where: and(eq(liveBans.streamId, streamId), eq(liveBans.userId, v.id)) });
     if (ban) throw new ApiError(403, "Boshlovchi sizni bu efirdan chiqargan");
   }
-  return { stream, host, group };
+  const staged = host ? false : Boolean(await db.query.liveStage.findFirst({ where: and(eq(liveStage.streamId, streamId), eq(liveStage.userId, v.id)) }));
+  return { stream, host, group, staged };
 }
 
 const CHAT_MAX = 300;
