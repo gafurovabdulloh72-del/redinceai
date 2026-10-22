@@ -11,7 +11,7 @@ import { cancelInvoice, invoiceHref, loadInvoice, markInvoicePaid } from "@/lib/
 import { invoiceNumber } from "@/lib/subscriptions/labels";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
 import { formatPrice } from "@/lib/utils";
-import { handleBuyStart, handleMyPurchases, handlePayCallback } from "@/lib/mentorship/telegram-pay";
+import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -51,7 +51,11 @@ interface TelegramUpdate {
   message?: {
     text?: unknown;
     chat?: { id?: unknown; type?: unknown };
+    photo?: { file_id?: string; file_size?: number }[];
+    document?: { file_id?: string; mime_type?: string };
+    successful_payment?: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown };
   };
+  pre_checkout_query?: { id: string; from?: { id?: unknown }; invoice_payload?: unknown; total_amount?: unknown; currency?: unknown };
   callback_query?: {
     id?: unknown;
     data?: unknown;
@@ -191,8 +195,24 @@ export async function POST(req: Request) {
       await handleCallback(update.callback_query);
       return Response.json({ ok: true });
     }
+    if (update?.pre_checkout_query) {
+      await handlePreCheckout(update.pre_checkout_query);
+      return Response.json({ ok: true });
+    }
     const msg = update?.message;
     const chatId = msg?.chat?.id != null ? String(msg.chat.id) : "";
+    if (chatId && msg?.chat?.type === "private") {
+      if (msg.successful_payment) {
+        await handleSuccessfulPayment(chatId, msg.successful_payment);
+        return Response.json({ ok: true });
+      }
+      // Chek rasmi (siqilgan rasm — eng kattasi, yoki rasm-hujjat)
+      const fileId = msg.photo?.length ? msg.photo[msg.photo.length - 1].file_id : msg.document?.mime_type?.startsWith("image/") ? msg.document.file_id : undefined;
+      if (fileId) {
+        await handleReceiptPhoto(chatId, fileId);
+        return Response.json({ ok: true });
+      }
+    }
     const text = typeof msg?.text === "string" ? msg.text.trim() : "";
     // Faqat shaxsiy chat: guruhga qo'shilgan botdagi buyruqlar e'tiborga olinmaydi
     if (!chatId || !text || msg?.chat?.type !== "private") return Response.json({ ok: true });

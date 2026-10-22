@@ -136,6 +136,24 @@ export async function telegramApi<T = unknown>(method: string, body?: Record<str
   }
 }
 
+/** Telegram'dagi faylni (chek rasmi) yuklab olish — ≤5 MB, xato bo'lsa null */
+export async function telegramDownloadFile(fileId: string): Promise<Buffer | null> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  const info = await telegramApi<{ file_path?: string; file_size?: number }>("getFile", { file_id: fileId });
+  const path = info?.result?.file_path;
+  if (!path || (info?.result?.file_size ?? 0) > 5 * 1024 * 1024) return null;
+  try {
+    const res = await fetch(`${apiBase()}/file/bot${token}/${path}`, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > 5 * 1024 * 1024 ? null : buf;
+  } catch (e) {
+    console.error("[telegram] file", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 function signPart(input: string): string {
   return createHmac("sha256", linkKey()).update(input).digest("base64url").slice(0, SIG_LEN);
 }
