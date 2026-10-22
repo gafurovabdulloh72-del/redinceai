@@ -35,6 +35,12 @@ function filterCond(f: ProfilePostFilter): SQL | undefined {
   return undefined;
 }
 
+/**
+ * Ijodkor profilida ko'rinadigan postlar: shaxsiy postlar (groupId = null) + OCHIQ jamoa/kanallarga (masalan, mentor kanali)
+ * yozgan postlari. Yopiq jamoa postlari profilda chiqmaydi.
+ */
+const PROFILE_VISIBLE: SQL = or(isNull(posts.groupId), sql`${posts.groupId} in (select g.id from groups g where g.is_private = 0)`)!;
+
 const isVideo = (m: FileAttachment) => m.type.startsWith("video/") || /\.(?:mp4|webm|mov)(?:$|\?)/i.test(m.url);
 
 /** Yangi profil posti; obunachilarga (follows) bildirishnoma — sayt + Telegram, email emas (25 talik bo'laklar) */
@@ -73,7 +79,7 @@ export async function createProfilePost(authorId: string, body: string, media: F
 /** Ijodkorning profil lentasi: yangi → eski, cursor = oxirgi postning createdAt (ms); filtr — video / rasm / matn */
 export async function listProfilePosts(authorId: string, viewer: Viewer, opts: { cursor?: number | null; limit?: number; filter?: ProfilePostFilter } = {}): Promise<ProfilePostPage> {
   const limit = Math.min(48, Math.max(1, opts.limit ?? 18));
-  const conds: SQL[] = [eq(posts.authorId, authorId), isNull(posts.groupId)];
+  const conds: SQL[] = [eq(posts.authorId, authorId), PROFILE_VISIBLE];
   const f = filterCond(opts.filter ?? "all");
   if (f) conds.push(f);
   if (opts.cursor) conds.push(lt(posts.createdAt, new Date(opts.cursor)));
@@ -112,13 +118,13 @@ export async function profilePostCounts(authorId: string): Promise<{ posts: numb
       w: sql<number>`coalesce(sum(${posts.viewsCount}), 0)`,
     })
     .from(posts)
-    .where(and(eq(posts.authorId, authorId), isNull(posts.groupId)));
+    .where(and(eq(posts.authorId, authorId), PROFILE_VISIBLE));
   return { posts: Number(r?.n ?? 0), videos: Number(r?.v ?? 0), texts: Number(r?.t ?? 0), views: Number(r?.w ?? 0) };
 }
 
 /** Bitta profil posti (?post=<id> bilan ochish uchun); authorId berilsa — faqat shu muallifniki */
 export async function getProfilePostView(id: string, viewer: Viewer, authorId?: string): Promise<PostView | null> {
-  const conds: SQL[] = [eq(posts.id, id), isNull(posts.groupId)];
+  const conds: SQL[] = [eq(posts.id, id), PROFILE_VISIBLE];
   if (authorId) conds.push(eq(posts.authorId, authorId));
   const row = await db.query.posts.findFirst({ where: and(...conds) });
   if (!row) return null;

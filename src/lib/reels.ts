@@ -76,7 +76,20 @@ interface Candidate {
 const engagementOf = (likes: number, comments: number, saves: number, views: number) => likes * 3 + comments * 4 + saves * 5 + views * 0.3;
 const trendScore = (e: number, createdAt: number, now: number) => (e + 2) / Math.pow((now - createdAt) / HOUR + 2, 1.3);
 
-async function candidates(): Promise<Candidate[]> {
+/** Nomzodlar ro'yxati qisqa muddat keshlanadi — tablar almashganda 3 ta og'ir so'rov har safar takrorlanmasin */
+let candCache: { at: number; data: Promise<Candidate[]> } | null = null;
+const CAND_TTL_MS = 10_000;
+function candidates(): Promise<Candidate[]> {
+  if (candCache && Date.now() - candCache.at < CAND_TTL_MS) return candCache.data.then((d) => [...d]);
+  const data = loadCandidates();
+  candCache = { at: Date.now(), data };
+  data.catch(() => {
+    if (candCache?.data === data) candCache = null;
+  });
+  return data.then((d) => [...d]);
+}
+
+async function loadCandidates(): Promise<Candidate[]> {
   const settings = await getSettings();
   const [postRows, workRows] = await Promise.all([
     db

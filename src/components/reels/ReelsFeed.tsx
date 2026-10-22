@@ -39,6 +39,9 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
+  const reqId = useRef(0);
+  // Tab keshi: almashganda tayyor ro'yxat darhol ko'rinadi (so'rov kutilmaydi); boshqa tablar fonda oldindan yuklanadi
+  const cache = useRef(new Map<ReelsMode, { items: ReelItem[]; cursor: string | null }>());
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -63,14 +66,16 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
 
   const load = useCallback(
     async (m: ReelsMode, c: string | null, replace: boolean) => {
-      if (busy.current) return;
+      if (busy.current && !replace) return;
       busy.current = true;
+      const req = ++reqId.current;
       setLoading(true);
       try {
         const res = await fetch(`/api/reels?mode=${m}${c ? `&cursor=${encodeURIComponent(c)}` : ""}`);
         const j = (await res.json()) as { ok: boolean; data?: { items: ReelItem[]; nextCursor: string | null } };
         if (!j.ok || !j.data) throw new Error();
         const data = j.data;
+        if (req !== reqId.current) return; // eskirgan javob (tab almashgan)
         setItems((prev) => {
           if (replace) return data.items;
           const seen = new Set(prev.map((i) => i.key));
@@ -84,8 +89,10 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
       } catch {
         showToast("Yuklanmadi — qayta urinib ko'ring", "error");
       } finally {
-        busy.current = false;
-        setLoading(false);
+        if (req === reqId.current) {
+          busy.current = false;
+          setLoading(false);
+        }
       }
     },
     [],
@@ -100,15 +107,45 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
     return () => io.disconnect();
   }, [cursor, mode, load, items.length]);
 
+  useEffect(() => {
+    cache.current.set(mode, { items, cursor });
+  }, [mode, items, cursor]);
+
+  // Boshqa tablarni bo'sh vaqtda oldindan yuklab qo'yamiz
+  useEffect(() => {
+    const run = () => {
+      for (const m of ["foryou", "new", "top"] as ReelsMode[]) {
+        if (m === mode || cache.current.has(m)) continue;
+        void fetch(`/api/reels?mode=${m}`)
+          .then((r) => r.json())
+          .then((j: { ok: boolean; data?: { items: ReelItem[]; nextCursor: string | null } }) => {
+            if (j.ok && j.data && !cache.current.has(m)) cache.current.set(m, { items: j.data.items, cursor: j.data.nextCursor });
+          })
+          .catch(() => undefined);
+      }
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(run);
+    else setTimeout(run, 800);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const switchMode = (m: ReelsMode) => {
     if (m === mode) return;
     setMode(m);
+    const hit = cache.current.get(m);
+    if (hit) {
+      setItems(hit.items);
+      setCursor(hit.cursor);
+      setActiveKey(hit.items[0]?.key ?? null);
+      containerRef.current?.scrollTo({ top: 0 });
+    }
     const url = new URL(window.location.href);
     if (m === "foryou") url.searchParams.delete("tab");
     else url.searchParams.set("tab", m);
     url.searchParams.delete("post");
     window.history.replaceState(null, "", url.toString());
-    void load(m, null, true);
+    if (!hit) void load(m, null, true);
   };
 
   const needLogin = () => {
