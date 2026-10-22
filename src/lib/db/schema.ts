@@ -1971,6 +1971,23 @@ export const liveStreams = sqliteTable(
 );
 
 export type Mentor = typeof mentors.$inferSelect;
+/** Efirdan chiqarib yuborilgan tomoshabinlar (shu efirga qayta kira olmaydi) */
+export const liveBans = sqliteTable(
+  "live_bans",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("live_bans_pair_idx").on(t.streamId, t.userId)],
+);
+
 export type LiveStream = typeof liveStreams.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;

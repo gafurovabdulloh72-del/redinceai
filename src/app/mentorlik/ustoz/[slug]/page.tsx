@@ -2,7 +2,7 @@ import { LiveBar } from "@/components/live/LiveBar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, GraduationCap, Settings2, Star, Users } from "lucide-react";
+import { BookOpen, GraduationCap, RadioTower, Settings2, Star, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { ShareButton } from "@/components/specialists/ShareButton";
@@ -14,7 +14,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, type PostView } from "@/lib/groups/service";
 import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
-import { cn, compactCount } from "@/lib/utils";
+import { activeLive, pastLives } from "@/lib/live/service";
+import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   if (user && channel && isMember) await markGroupRead(channel.id, user.id).catch(() => undefined);
 
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "lenta";
+  const [liveNow, past] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([])]) : [null, []];
   const [feed, ev] = await Promise.all([
     channel && view && tab === "lenta" ? listPosts(channel, viewer, null) : null,
     channel && view ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
@@ -131,6 +133,11 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                 </div>
               ))}
             </dl>
+            {liveNow && (
+              <Link href={`/mentorlik/ustoz/${profile.slug}?efir=1`} className="inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
+                <span className="h-2 w-2 animate-ping-soft rounded-full bg-white" /> Hozir jonli efirda — qo&apos;shilish
+              </Link>
+            )}
             <div className="flex flex-wrap items-center gap-2" data-theme="dark">
               {view && (view.membership === "member" || view.membership === "pending" || view.membership === null) && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={Boolean(user)} official={view.isOfficial} />}
               <ShareButton title={profile.name} size="md" variant="outline" iconOnly />
@@ -157,7 +164,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       )}
 
       <nav className="mt-7 flex gap-1 border-b border-line" aria-label="Ustoz bo'limlari">
-        {TABS.filter((t) => t.key !== "efirlar" || ev.upcoming.length + ev.past.length > 0 || tab === "efirlar").map((t) => (
+        {TABS.map((t) => (
           <Link key={t.key} href={tabHref(t.key)} aria-current={t.key === tab ? "page" : undefined} className={cn("relative inline-flex h-11 shrink-0 items-center px-4 text-[14px] font-semibold transition-colors", t.key === tab ? "text-fg" : "text-fg-3 hover:text-fg")}>
             {t.label}
             {t.key === "bolimlar" && courses.length > 0 && <span className="ml-1.5 text-[12px] font-medium text-fg-4">{courses.length}</span>}
@@ -200,7 +207,27 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               ))}
             </ul>
           ))}
-        {tab === "efirlar" && <EventsList ev={ev} />}
+        {tab === "efirlar" && (
+          <>
+            {view && <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />}
+            <EventsList ev={ev} />
+            {past.length > 0 && (
+              <section className="card mt-4 p-4 sm:p-5">
+                <h2 className="flex items-center gap-2 text-[15px] font-bold text-fg">
+                  <RadioTower size={16} className="text-fg-3" /> O&apos;tgan jonli efirlar
+                </h2>
+                <ul className="mt-3 divide-y divide-line">
+                  {past.map((l) => (
+                    <li key={l.id} className="flex items-center gap-3 py-2.5">
+                      <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{l.title}</p>
+                      <span className="shrink-0 text-[12px] text-fg-3">{formatDateTime(l.startedAt)} · {l.minutes} daq{l.peak > 0 ? ` · ${l.peak} tomoshabin` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
         {tab === "muhokama" &&
           (view && isMember ? (
             <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} />

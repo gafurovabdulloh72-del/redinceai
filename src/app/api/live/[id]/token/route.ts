@@ -10,6 +10,6 @@ export const POST = handler(async (_req, ctx: { params: Promise<{ id: string }> 
   const session = await requireSession();
   const { id } = await ctx.params;
   const { stream, host } = await liveAccess(id, { id: session.sub, role: session.role });
-  const token = await mintCallToken({ identity: session.sub, name: session.name ?? "Mehmon", room: stream.room, publish: host });
-  return ok({ url: LIVEKIT_WS_URL, token, host, title: stream.title });
+  const token = await mintCallToken({ identity: session.sub, name: session.name ?? "Mehmon", room: stream.room, publish: host, live: true });
+  return ok({ url: LIVEKIT_WS_URL, token, host, hostId: stream.hostId, title: stream.title });
 });

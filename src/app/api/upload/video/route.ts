@@ -10,7 +10,8 @@ import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
-import { MAX_VIDEO_BYTES, MAX_VIDEO_BYTES_FALLBACK, uploadName } from "@/components/chat/attachments";
+import { isPremium } from "@/lib/social/quota";
+import { MAX_VIDEO_BYTES_FALLBACK, videoLimitFor, uploadName } from "@/components/chat/attachments";
 
 /** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
 function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
@@ -68,6 +69,7 @@ export const POST = handler(async (req) => {
     return ok({ url: `/uploads/${name}` }, { status: 201 });
   }
 
+  const maxBytes = videoLimitFor(await isPremium(session.sub));
   const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
   if (!body) throw new ApiError(400, "JSON noto'g'ri");
 
@@ -88,7 +90,7 @@ export const POST = handler(async (req) => {
       await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { mime: "video", storage: "blob-client" } }, req);
       return {
         allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/ogg"],
-        maximumSizeInBytes: MAX_VIDEO_BYTES,
+        maximumSizeInBytes: maxBytes,
         addRandomSuffix: false,
         allowOverwrite: false,
         tokenPayload: JSON.stringify({ userId: session.sub }),

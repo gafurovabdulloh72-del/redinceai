@@ -36,6 +36,8 @@ type VideoGrant = {
   canPublish: boolean;
   canSubscribe: boolean;
   canPublishData: boolean;
+  /** Jonli efir: tomoshabin o'z atributini («qo'l ko'tardi») yangilay oladi */
+  canUpdateOwnMetadata?: boolean;
 };
 
 /**
@@ -43,9 +45,9 @@ type VideoGrant = {
  * `identity` — foydalanuvchi id (xonada noyob), `name` — ko'rinadigan ism, `room` — xona nomi.
  * Huquqlar: xonaga qo'shilish + ovoz/video chiqarish + obuna + data (chat/reaksiya).
  */
-export async function mintCallToken(opts: { identity: string; name: string; room: string; /** false = faqat tomosha (jonli efir tomoshabini) */ publish?: boolean }): Promise<string> {
+export async function mintCallToken(opts: { identity: string; name: string; room: string; /** false = faqat tomosha (jonli efir tomoshabini) */ publish?: boolean; /** jonli efir: atribut (qo'l ko'tarish) huquqi */ live?: boolean }): Promise<string> {
   if (!API_KEY || !API_SECRET) throw new Error("LIVEKIT_API_KEY/SECRET sozlanmagan");
-  const grant: VideoGrant = { room: opts.room, roomJoin: true, canPublish: opts.publish !== false, canSubscribe: true, canPublishData: true };
+  const grant: VideoGrant = { room: opts.room, roomJoin: true, canPublish: opts.publish !== false, canSubscribe: true, canPublishData: true, ...(opts.live ? { canUpdateOwnMetadata: true } : {}) };
   const secret = new TextEncoder().encode(API_SECRET);
   // LiveKit token: iss = API_KEY, sub = identity, video = grant. jti noyob bo'lishi tavsiya etiladi.
   return new SignJWT({ video: grant, name: opts.name, metadata: "" })
@@ -72,3 +74,34 @@ export function groupRoom(slug: string): string {
 export function liveRoom(streamId: string): string {
   return `live_${streamId}`;
 }
+
+/**
+ * LiveKit server API (Twirp/JSON): efirni boshqarish — tomoshabinni chiqarish, sahnaga chiqarish/tushirish, xonani yopish.
+ * Admin tokeni (roomAdmin) qisqa muddatli, faqat shu xona uchun.
+ */
+async function roomAdmin(room: string, method: string, body: Record<string, unknown>): Promise<void> {
+  if (!API_KEY || !API_SECRET) throw new Error("LIVEKIT sozlanmagan");
+  const secret = new TextEncoder().encode(API_SECRET);
+  const token = await new SignJWT({ video: { room, roomAdmin: true, roomCreate: true } })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuer(API_KEY)
+    .setSubject("server")
+    .setIssuedAt()
+    .setExpirationTime("1m")
+    .sign(secret);
+  const base = LIVEKIT_WS_URL.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+  const res = await fetch(`${base}/twirp/livekit.RoomService/${method}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ room, ...body }),
+    cache: "no-store",
+  });
+  // 404 (xona/ishtirokchi allaqachon yo'q) — xato emas
+  if (!res.ok && res.status !== 404) throw new Error(`LiveKit ${method}: ${res.status}`);
+}
+
+export const removeParticipant = (room: string, identity: string) => roomAdmin(room, "RemoveParticipant", { identity });
+export const closeRoom = (room: string) => roomAdmin(room, "DeleteRoom", {});
+/** Sahnaga chiqarish (mikrofon/kamera huquqi) yoki tushirish; `stage` atributi ro'yxatda ko'rsatish uchun */
+export const setStage = (room: string, identity: string, on: boolean) =>
+  roomAdmin(room, "UpdateParticipant", { identity, permission: { can_subscribe: true, can_publish: on, can_publish_data: true }, attributes: { stage: on ? "1" : "", hand: "" } });

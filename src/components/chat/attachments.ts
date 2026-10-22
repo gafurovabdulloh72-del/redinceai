@@ -19,10 +19,24 @@ export const MAX_ORDER_ATTACHMENTS = 15;
 export const MAX_REVIEW_MEDIA = 4;
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 /**
- * Video chegarasi. R2 (presigned PUT, brauzer → R2 to'g'ridan-to'g'ri, server orqali o'tmaydi) — 5 GB gacha (R2 bitta PUT chegarasi).
+ * Video chegarasi. R2 (presigned PUT, brauzer → R2 to'g'ridan-to'g'ri, server orqali o'tmaydi) — oddiy akkaunt 200 MB, premium/imtiyozli 600 MB (server /api/upload/limit orqali tekshiradi).
  * Zaxira yo'llar (Vercel Blob client-upload, server diski) — 50 MB: Blob'da katta fayl qotib qolardi.
  */
-export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
+export const MAX_VIDEO_BYTES_FREE = 200 * 1024 * 1024;
+/** Premium / imtiyozli / TOP g'olibi / admin */
+export const MAX_VIDEO_BYTES = 600 * 1024 * 1024;
+/** Foydalanuvchi turiga qarab video chegarasi */
+export const videoLimitFor = (premium: boolean) => (premium ? MAX_VIDEO_BYTES : MAX_VIDEO_BYTES_FREE);
+let limitCache: Promise<number> | null = null;
+/** Klient: serverdan o'z chegaramni olaman (sessiya davomida keshlanadi; xato bo'lsa — oddiy chegara) */
+export function myVideoLimit(): Promise<number> {
+  limitCache ??= fetch("/api/upload/limit", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j: { data?: { maxBytes: number } }) => j.data?.maxBytes ?? MAX_VIDEO_BYTES_FREE)
+    .catch(() => MAX_VIDEO_BYTES_FREE);
+  return limitCache;
+}
+const limitText = (max: number) => (max > MAX_VIDEO_BYTES_FREE ? "" : ` Premium yoki imtiyozli akkauntda ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB gacha.`);
 export const MAX_VIDEO_BYTES_FALLBACK = 50 * 1024 * 1024;
 const mbOf = (n: number) => (n >= 1024 ** 3 ? `${Math.round((n / 1024 ** 3) * 10) / 10} GB` : `${Math.round(n / (1024 * 1024))} MB`);
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
@@ -206,8 +220,9 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: st
   const ext = forceExt ?? (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
 
   // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
-  if (file.size > MAX_VIDEO_BYTES) {
-    throw new Error(`«${file.name}» — ${mbOf(file.size)}, chegara ${mbOf(MAX_VIDEO_BYTES)}. Videoni biroz siqib (masalan 1080p, H.264) qayta yuboring.`);
+  const myMax = await myVideoLimit();
+  if (file.size > myMax) {
+    throw new Error(`«${file.name}» — ${mbOf(file.size)}, chegara ${mbOf(myMax)}.${limitText(myMax)} Videoni biroz siqib (masalan 1080p, H.264) qayta yuboring.`);
   }
 
   // 1) Cloudflare R2: server qisqa muddatli presigned PUT URL beradi (nom serverda yaratiladi).
@@ -345,7 +360,8 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
     throw new Error(opts?.docs ? `«${file.name}»: faqat rasm (JPG, PNG, WEBP, GIF), hujjat (PDF, DOC, DOCX, ZIP) yoki video (MP4, WebM, MOV)` : `«${file.name}»: hozircha faqat JPG, PNG, WEBP yoki GIF rasm yuklanadi`);
   }
   if (opts?.docs && isVideo && !isImage) {
-    if (file.size > MAX_VIDEO_BYTES) throw new Error(`«${file.name}» ${mbOf(MAX_VIDEO_BYTES)} dan katta`);
+    const myMax = await myVideoLimit();
+    if (file.size > myMax) throw new Error(`«${file.name}» ${mbOf(myMax)} dan katta.${limitText(myMax)}`);
     // Past o'lchamli video ekranda (ayniqsa to'liq ekran/katta displeyda) xira ko'rinadi — yuklashdan oldin ogohlantiramiz (yuklash to'xtatilmaydi)
     void warnLowResolution(file);
     const url = await uploadVideo(file, p);
