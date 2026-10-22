@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Crown, ImagePlus, Music2, Pause, Play, Search, Type, Upload, X } from "lucide-react";
+import { ChevronRight, ImagePlus, Music2, Pause, Play, Search, Type, Upload, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
@@ -190,17 +190,13 @@ export function MusicPicker({ value, onChange }: { value: MusicDraft | null; onC
   );
 }
 
-/** Limit ko'rsatkichi: premium — markazda «Premium — cheksiz»; oddiy — bo'lakli chiziq + «Bu hafta 1/3 · yana 2 ta» */
+/** Limit ko'rsatkichi: premium/imtiyozli/admin — yashirin; oddiy — bo'lakli chiziq + «Bu hafta 1/3 · yana 2 ta» */
 export function QuotaLine({ q, kind }: { q: QuotaInfo | null; kind: "posts" | "stories" }) {
   if (!q) return null;
   const part = q[kind];
   const noun = kind === "posts" ? "post" : "story";
-  if (q.premium || part.limit === null)
-    return (
-      <p className="mx-auto flex w-fit items-center justify-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[12.5px] font-semibold text-accent-text">
-        <Crown size={13} /> Premium — {noun} cheksiz
-      </p>
-    );
+  // Premium / imtiyozli / admin — limit yo'q, hech narsa ko'rsatilmaydi (faqat oddiy foydalanuvchiga limit chizig'i)
+  if (q.premium || part.limit === null) return null;
   const left = Math.max(0, part.limit - part.used);
   return (
     <div className="w-full" role="status">
