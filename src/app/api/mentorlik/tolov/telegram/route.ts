@@ -12,11 +12,11 @@ import { purchaseQuoteSchema } from "@/lib/mentorship/purchase-schemas";
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
-  const input = await parseBody(req, purchaseQuoteSchema.pick({ type: true, id: true }));
+  const input = await parseBody(req, purchaseQuoteSchema.pick({ type: true, id: true, promo: true }));
   const username = telegramBotUsername();
   if (!isTelegramEnabled() || !username) throw new ApiError(503, "Telegram bot sozlanmagan");
   const u = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true } });
-  if (u?.telegramChatId) return ok({ linked: true, url: `https://t.me/${username}?start=${buyStartPayload(input.type, input.id)}` });
+  if (u?.telegramChatId) return ok({ linked: true, url: `https://t.me/${username}?start=${buyStartPayload(input.type, input.id, input.promo)}` });
   const code = createTelegramLinkCode(session.sub);
   if (!code) throw new ApiError(500, "Ulash kodini yaratib bo'lmadi");
   return ok({ linked: false, url: `https://t.me/${username}?start=${code}` });

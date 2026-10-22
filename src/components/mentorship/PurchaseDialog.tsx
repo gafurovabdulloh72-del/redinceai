@@ -85,7 +85,7 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
   async function payViaTelegram() {
     setBusy(true);
     try {
-      const r = await fetch("/api/mentorlik/tolov/telegram", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id }) });
+      const r = await fetch("/api/mentorlik/tolov/telegram", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id, promo: appliedPromo || undefined }) });
       const j = (await r.json()) as { data?: { linked: boolean; url: string }; error?: string };
       if (!r.ok || !j.data) throw new Error(j.error || "Telegram ochilmadi");
       if (!j.data.linked) showToast("Avval botga ulaning — «Start» bosing, so'ng bu tugmani qayta bosing", "info");

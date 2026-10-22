@@ -29,7 +29,12 @@ const CODE_TYPE: Record<string, PurchaseType> = { c: "course", t: "ticket", s: "
 const METHOD: Record<string, "payme" | "click" | "manual"> = { p: "payme", c: "click", m: "manual" };
 
 /** Saytdagi tugma uchun deep-link payload (`b_c_<id>`) — 64 belgidan oshmaydi (UUID bilan ~47) */
-export const buyStartPayload = (type: PurchaseType, id: string): string => `b_${TYPE_CODE[type]}_${id}`;
+export function buyStartPayload(type: PurchaseType, id: string, promo?: string): string {
+  const base = `b_${TYPE_CODE[type]}_${id}`;
+  const code = promo?.trim().toUpperCase();
+  // Promokod ham sig'sa qo'shiladi (callback_data 64 baytdan oshmasligi uchun ≤12 belgi)
+  return code && /^[A-Z0-9]{3,12}$/.test(code) && base.length + code.length + 1 <= 52 ? `${base}.${code}` : base;
+}
 
 const origin = () => siteOrigin();
 
@@ -39,7 +44,7 @@ async function userByChat(chatId: string) {
 
 /** `/start b_c_<id>` — xarid xulosasi va to'lov usullari */
 export async function handleBuyStart(chatId: string, payload: string): Promise<boolean> {
-  const m = /^b_([ctsk])_([\w-]{1,60})$/.exec(payload);
+  const m = /^b_([ctsk])_([\w-]{1,48})(?:\.([A-Z0-9]{3,12}))?$/.exec(payload);
   if (!m) return false;
   const user = await userByChat(chatId);
   if (!user || user.isBanned) {
@@ -49,23 +54,25 @@ export async function handleBuyStart(chatId: string, payload: string): Promise<b
   const type = CODE_TYPE[m[1]];
   try {
     const q = await quoteItem(type, m[2], user.id);
-    const price = await priceFor(q, user.id, {});
+    const promo = m[3];
+    const price = await priceFor(q, user.id, { promo });
+    const suffix = promo ? `.${promo}` : "";
     const keyboard: TelegramButton[][] = [];
     if (price.amount <= 0) {
-      keyboard.push([{ text: "🎁 Bepul boshlash", data: `bp:f:${m[1]}:${m[2]}` }]);
+      keyboard.push([{ text: "🎁 Bepul boshlash", data: `bp:f:${m[1]}:${m[2]}${suffix}` }]);
     } else {
       const row: TelegramButton[] = [];
-      if (await isProviderConfigured("payme")) row.push({ text: "Payme", data: `bp:p:${m[1]}:${m[2]}` });
-      if (await isProviderConfigured("click")) row.push({ text: "Click", data: `bp:c:${m[1]}:${m[2]}` });
+      if (await isProviderConfigured("payme")) row.push({ text: "Payme", data: `bp:p:${m[1]}:${m[2]}${suffix}` });
+      if (await isProviderConfigured("click")) row.push({ text: "Click", data: `bp:c:${m[1]}:${m[2]}${suffix}` });
       if (row.length) keyboard.push(row);
-      if (nativeEnabled()) keyboard.push([{ text: "💬 Telegram ichida to'lash", data: `bp:t:${m[1]}:${m[2]}` }]);
-      if (await isProviderConfigured("manual")) keyboard.push([{ text: "💳 Karta o'tkazmasi", data: `bp:m:${m[1]}:${m[2]}` }]);
+      if (nativeEnabled()) keyboard.push([{ text: "💬 Telegram ichida to'lash", data: `bp:t:${m[1]}:${m[2]}${suffix}` }]);
+      if (await isProviderConfigured("manual")) keyboard.push([{ text: "💳 Karta o'tkazmasi", data: `bp:m:${m[1]}:${m[2]}${suffix}` }]);
       if (!keyboard.length) {
         await sendTelegram(chatId, "To'lov usullari hozircha ulanmagan — administrator bilan bog'laning.");
         return true;
       }
     }
-    await sendTelegram(chatId, `🛒 <b>${escapeTelegramHtml(q.title)}</b>\n${PURCHASE_LABEL[type]} · <b>${price.amount <= 0 ? "Bepul" : formatSom(price.amount)}</b>\n\nTo'lov usulini tanlang:`, { keyboard });
+    await sendTelegram(chatId, `🛒 <b>${escapeTelegramHtml(q.title)}</b>\n${PURCHASE_LABEL[type]} · <b>${price.amount <= 0 ? "Bepul" : formatSom(price.amount)}</b>${price.promo ? ` (promokod −${price.promo.percent}%)` : ""}\n\nTo'lov usulini tanlang:`, { keyboard });
   } catch (e) {
     await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : "Xatolik. Keyinroq qayta urinib ko'ring.");
   }
@@ -74,7 +81,7 @@ export async function handleBuyStart(chatId: string, payload: string): Promise<b
 
 /** `bp:<usul>:<tur>:<id>` va `bd:<hisob>` callback'lari. false — bu callback bizniki emas */
 export async function handlePayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>): Promise<boolean> {
-  const buy = /^bp:([pcmft]):([ctsk]):([\w-]{1,60})$/.exec(data);
+  const buy = /^bp:([pcmft]):([ctsk]):([\w-]{1,48})(?:\.([A-Z0-9]{3,12}))?$/.exec(data);
   const done = /^bd:([\w-]{1,64})$/.exec(data);
   if (!buy && !done) return false;
   const user = await userByChat(chatId);
@@ -87,7 +94,7 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
       const type = CODE_TYPE[buy[2]];
       const method = buy[1] === "f" || buy[1] === "t" ? "manual" : METHOD[buy[1]];
       if (buy[1] === "t" && !nativeEnabled()) throw new ApiError(400, "Telegram to'lovi ulanmagan");
-      const r = await startPurchase({ id: user.id }, { type, id: buy[3], provider: method });
+      const r = await startPurchase({ id: user.id }, { type, id: buy[3], provider: method, promo: buy[4] });
       if (r.free) {
         await answer("Tayyor ✓");
         await sendTelegram(chatId, "🎉 Kirish ochildi! Saytda Kabinet → Mentorlik bo'limiga qarang.");
