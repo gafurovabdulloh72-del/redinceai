@@ -104,10 +104,12 @@ export function ApplicantsList({ vacancyId, initial, vacancyOpen = true }: { vac
     }
   }
 
+  const [copied, setCopied] = useState(false);
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/vakansiyalar/${vacancyId}`);
-      toast("Havola nusxalandi", "info");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
     } catch {
       toast("Nusxalab bo'lmadi", "error");
     }
@@ -118,7 +120,7 @@ export function ApplicantsList({ vacancyId, initial, vacancyOpen = true }: { vac
       <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-line px-4 py-6 text-center text-[13px] text-fg-3">
         <p>Hali ariza yo&apos;q. Vakansiya havolasini jamoalarda va Telegramda ulashing.</p>
         <button type="button" onClick={copyLink} className="press inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[12.5px] font-semibold text-fg">
-          <Copy size={13} /> Havolani nusxalash
+          {copied ? <Check key="ok" size={13} className="animate-pop text-success-text" /> : <Copy key="c" size={13} />} {copied ? "Nusxalandi" : "Havolani nusxalash"}
         </button>
       </div>
     );

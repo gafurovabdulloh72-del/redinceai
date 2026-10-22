@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, Heart, Link2, MessageSquareShare, Send, Share2, X } from "lucide-react";
+import { Bookmark, Check, Heart, Link2, MessageSquareShare, Send, Share2, X } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -494,6 +494,7 @@ export function ShareAction({ url, title, size = "md", label = false, loggedIn =
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [dm, setDm] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [convs, setConvs] = useState<ConvRow[] | null>(null);
   const [sending, setSending] = useState<string | null>(null);
   const [canNative, setCanNative] = useState(false);
@@ -532,11 +533,16 @@ export function ShareAction({ url, title, size = "md", label = false, loggedIn =
   }, [dm, convs]);
 
   async function copy() {
-    setOpen(false);
     try {
       await navigator.clipboard.writeText(abs());
-      toast(tr(til, FEED.linkCopied));
+      // Menyu ✓ ko'rsatib, biroz o'tib yopiladi
+      setCopied(true);
+      window.setTimeout(() => {
+        setCopied(false);
+        setOpen(false);
+      }, 900);
     } catch {
+      setOpen(false);
       toast(abs(), "info");
     }
   }
@@ -589,7 +595,7 @@ export function ShareAction({ url, title, size = "md", label = false, loggedIn =
             </button>
           )}
           <button type="button" role="menuitem" onClick={() => void copy()} className={row}>
-            <Link2 size={16} className="text-fg-3" /> {tr(til, FEED.copyLink)}
+            {copied ? <Check key="ok" size={16} className="animate-pop text-success-text" /> : <Link2 key="l" size={16} className="text-fg-3" />} {copied ? tr(til, FEED.linkCopied) : tr(til, FEED.copyLink)}
           </button>
           <a role="menuitem" href={tg()} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className={row}>
             <Send size={16} className="text-fg-3" /> {tr(til, FEED.shareTelegram)}

@@ -6,7 +6,7 @@ import { ButtonLink } from "@/components/ui";
 import { HomeComposer } from "@/components/feed/HomeComposer";
 import { HomeFeed } from "@/components/feed/HomeFeed";
 import { RightRail } from "@/components/feed/RightRail";
-import { ScopeTabs } from "@/components/feed/ScopeTabs";
+import { HomeFeedSwitcher } from "@/components/feed/HomeFeedSwitcher";
 import { FEED_SCOPE_COOKIE as SCOPE_COOKIE } from "@/lib/groups/limits";
 import { Stories } from "@/components/feed/Stories";
 import { OnboardingCard } from "@/components/feed/OnboardingCard";
@@ -69,8 +69,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           {onboarding && onboardingOpen ? <OnboardingCard steps={onboarding.steps} til={til} /> : own && <ProfileMeter data={own} til={til} className="lg:hidden" />}
           <Stories items={stories} live={live} til={til} saved={saved !== null ? { count: saved } : null} rail={storyItems} me={user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null} canCreate={canPost} />
           {canPost && <HomeComposer />}
-          {user && <ScopeTabs scope={scope} tag={tag} />}
-          <HomeFeed key={`${scope}:${tag ?? ""}:${pinned?.id ?? ""}`} initial={feed} scope={scope} loggedIn={Boolean(user)} tag={tag} suggestions={rail.creators} pinned={pinned} />
+          {user ? (
+            <HomeFeedSwitcher key={`${tag ?? ""}:${pinned?.id ?? ""}`} initialScope={scope} initialFeed={feed} tag={tag} loggedIn suggestions={rail.creators} pinned={pinned} />
+          ) : (
+            <HomeFeed key={`${scope}:${tag ?? ""}:${pinned?.id ?? ""}`} initial={feed} scope={scope} loggedIn={false} tag={tag} suggestions={rail.creators} pinned={pinned} />
+          )}
         </div>
         <aside className="hidden lg:block">
           <div className="sticky top-6 pt-8">

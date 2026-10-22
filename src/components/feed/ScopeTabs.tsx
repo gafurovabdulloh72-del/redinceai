@@ -11,7 +11,7 @@ import type { FeedScope } from "@/lib/feed";
  * «Hammasi / Obunalarim» tablari (v5: chiziqli tab, faol ostida coral chiziq) — yopishqoq shisha panel, bosilganda tanlov cookie'ga yoziladi.
  * Teg filtri bo'lsa havolalarda saqlanadi.
  */
-export function ScopeTabs({ scope, tag }: { scope: FeedScope; tag: string | null }) {
+export function ScopeTabs({ scope, tag, onSelect }: { scope: FeedScope; tag: string | null; onSelect?: (s: FeedScope) => void }) {
   const til = useLocale();
   const remember = (s: FeedScope) => {
     try {
@@ -27,7 +27,20 @@ export function ScopeTabs({ scope, tag }: { scope: FeedScope; tag: string | null
     <div className="glass sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 -mx-4 px-4 sm:mx-0 sm:rounded-t-[var(--r-md)] sm:px-0 md:top-0">
       <div className="tabs" role="tablist" aria-label="Lenta">
         {tabs.map(([k, label, href]) => (
-          <Link key={k} href={href} role="tab" aria-selected={scope === k} onClick={() => remember(k)} className="tab focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent">
+          <Link
+            key={k}
+            href={href}
+            role="tab"
+            aria-selected={scope === k}
+            onClick={(e) => {
+              if (onSelect && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+                // Sahifa qayta yuklanmasdan almashadi (HomeFeedSwitcher)
+                e.preventDefault();
+                onSelect(k);
+              } else remember(k);
+            }}
+            className="tab focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+          >
             {label}
           </Link>
         ))}

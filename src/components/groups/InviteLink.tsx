@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, RefreshCw } from "lucide-react";
+import { Check, Link2, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { INVITE_EXPIRY_OPTIONS, INVITE_USES_OPTIONS } from "@/lib/groups/limits";
 import { formatDateTime } from "@/lib/utils";
@@ -18,6 +18,7 @@ export function InviteLink({ slug, initialCode, initialInfo = null, options = fa
   const [code, setCode] = useState(initialCode);
   const [info, setInfo] = useState<Info>(initialInfo);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function post(body: Record<string, unknown>, copy: boolean) {
     setBusy(true);
@@ -31,7 +32,9 @@ export function InviteLink({ slug, initialCode, initialInfo = null, options = fa
         const url = `${window.location.origin}${j.data.path}`;
         try {
           await navigator.clipboard.writeText(url);
-          toast(body.rotate ? "Yangi havola nusxalandi — eskisi bekor" : "Taklif havolasi nusxalandi");
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1800);
+          if (body.rotate) toast("Yangi havola nusxalandi — eskisi bekor");
         } catch {
           toast(url, "info");
         }
@@ -51,7 +54,7 @@ export function InviteLink({ slug, initialCode, initialInfo = null, options = fa
     <div className="grid gap-3">
       <span className="inline-flex items-center gap-1">
         <button type="button" onClick={() => void post({}, true)} disabled={busy} className="inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[14px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-50">
-          <Link2 size={15} /> {code ? "Havolani nusxalash" : "Havola yaratish"}
+          {copied ? <Check key="ok" size={15} className="animate-pop text-success-text" /> : <Link2 key="l" size={15} />} {copied ? "Nusxalandi" : code ? "Havolani nusxalash" : "Havola yaratish"}
         </button>
         {code && (
           <button type="button" onClick={() => void post({ rotate: true }, true)} disabled={busy} aria-label="Havolani yangilash (eskisi bekor bo'ladi)" title="Yangilash — eski havola ishlamay qoladi" className="flex h-11 w-11 items-center justify-center rounded-full border border-line-2 text-fg-3 transition hover:text-fg disabled:opacity-50">
