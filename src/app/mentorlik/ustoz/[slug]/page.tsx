@@ -15,6 +15,11 @@ import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, ty
 import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
+import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { listSlots, myConsults } from "@/lib/mentorship/purchases";
+import { db as _db } from "@/lib/db";
+import { mentorSubs } from "@/lib/db/schema";
+import { and as _and, eq as _eq } from "drizzle-orm";
 import { activeLive, listRecordings, pastLives } from "@/lib/live/service";
 import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
@@ -26,6 +31,7 @@ const TABS = [
   { key: "bolimlar", label: "Bo'limlar" },
   { key: "efirlar", label: "Efirlar" },
   { key: "muhokama", label: "Muhokama" },
+  { key: "konsultatsiya", label: "1:1" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -59,12 +65,16 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   if (user && channel && isMember) await markGroupRead(channel.id, user.id).catch(() => undefined);
 
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "lenta";
-  const [liveNow, past, recs] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([]), tab === "efirlar" || tab === "lenta" ? listRecordings(channel.id, Boolean(view.canManage)) : Promise.resolve([])]) : [null, [], []];
+  const [liveNow, past, recs] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([]), tab === "efirlar" || tab === "lenta" ? listRecordings(channel.id, Boolean(view.canManage), viewer) : Promise.resolve([])]) : [null, [], []];
   const [feed, ev] = await Promise.all([
     channel && view && tab === "lenta" ? listPosts(channel, viewer, null) : null,
     channel && view ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
   ]);
   const canStudio = isOwner || user?.role === "admin";
+  const subRow = user && profile.subPrice > 0 ? await _db.query.mentorSubs.findFirst({ where: _and(_eq(mentorSubs.userId, user.id), _eq(mentorSubs.mentorId, profile.id)) }) : null;
+  const subActive = Boolean(subRow && subRow.until.getTime() > Date.now());
+  const [slots, myBooked] = tab === "konsultatsiya" ? await Promise.all([listSlots(profile.id, false), user ? myConsults(user.id, null) : Promise.resolve([])]) : [[], []];
+
   const tabHref = (k: Tab) => (k === "lenta" ? `/mentorlik/ustoz/${profile.slug}` : `/mentorlik/ustoz/${profile.slug}?tab=${k}`);
   const stats = [
     { icon: Users, v: compactCount(view?.membersCount ?? 0), l: "obunachi" },
@@ -75,6 +85,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
 
   return (
     <div className="container-x animate-fade-up">
+      <RefCapture />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -140,6 +151,14 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               </Link>
             )}
             <div className="flex flex-wrap items-center gap-2" data-theme="dark">
+              {profile.subPrice > 0 && !canStudio &&
+                (subActive ? (
+                  <span className="inline-flex h-11 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">✓ Obunachisiz · {formatDateTime(subRow!.until.getTime())} gacha</span>
+                ) : (
+                  <BuyButton type="sub" id={profile.id} loggedIn={Boolean(user)} className="inline-flex h-11 items-center rounded-full bg-white px-5 text-[14px] font-bold text-black">
+                    Obuna — {formatSom(profile.subPrice)}/oy
+                  </BuyButton>
+                ))}
               {view && (view.membership === "member" || view.membership === "pending" || view.membership === null) && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={Boolean(user)} official={view.isOfficial} />}
               <ShareButton title={profile.name} size="md" variant="outline" iconOnly />
               {canStudio && (
@@ -180,7 +199,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />
             {ev.upcoming.length > 0 && <EventsCard events={ev.upcoming.slice(0, 3)} />}
             {feed ? (
-              <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />
+              <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} allowSubOnly={view.canManage && profile.subPrice > 0} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />
             ) : null}
           </>
         )}
@@ -208,6 +227,46 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               ))}
             </ul>
           ))}
+        {tab === "konsultatsiya" && (
+          <div className="space-y-4">
+            {myBooked.length > 0 && (
+              <section className="card p-4 sm:p-5">
+                <h2 className="text-[15px] font-bold text-fg">Mening konsultatsiyalarim</h2>
+                <ul className="mt-3 divide-y divide-line">
+                  {myBooked.map((b) => (
+                    <li key={b.id} className="flex flex-wrap items-center gap-3 py-2.5 text-[14px]">
+                      <span className="font-semibold text-fg">{formatDateTime(b.startsAt.getTime())}</span>
+                      <span className="text-fg-3">{b.durationMin} daq · {b.mentor.user.name}{b.bookedBy !== user?.id ? ` ↔ ${b.buyerName}` : ""}</span>
+                      <Link href={`/mentorlik/konsultatsiya/${b.id}`} className="ml-auto text-[13px] font-semibold text-accent-text">Ochish</Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            <section className="card p-4 sm:p-5">
+              <h2 className="text-[15px] font-bold text-fg">1:1 konsultatsiya</h2>
+              <p className="mt-0.5 text-[13px] text-fg-3">Vaqtni tanlang, to&apos;lang — belgilangan soatda video qo&apos;ng&apos;iroq shu yerda ochiladi.</p>
+              {slots.length === 0 ? (
+                <p className="mt-4 text-[14px] text-fg-3">Hozircha bo&apos;sh vaqt yo&apos;q.{canStudio ? " Vaqtlarni «Daromad va sozlamalar» sahifasida qo'shing." : ""}</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-line">
+                  {slots.map((sl) => (
+                    <li key={sl.id} className="flex flex-wrap items-center gap-3 py-3 text-[14px]">
+                      <span className="font-semibold text-fg">{formatDateTime(sl.startsAt.getTime())}</span>
+                      <span className="text-fg-3">{sl.durationMin} daq</span>
+                      <span className="ml-auto font-semibold tabular-nums text-fg">{formatSom(sl.priceSom)}</span>
+                      {!canStudio && (
+                        <BuyButton type="consult" id={sl.id} loggedIn={Boolean(user)} className="btn-accent inline-flex h-9 items-center px-4 text-[13px] font-semibold">
+                          Band qilish
+                        </BuyButton>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
         {tab === "efirlar" && (
           <>
             {view && <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />}

@@ -192,6 +192,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
             and(
               eq(users.isBanned, false),
               or(isNull(posts.groupId), eq(groups.isPrivate, false)),
+              eq(posts.subscribersOnly, false),
               type === "video" ? POST_VIDEO : undefined,
               needle ? or(like(sql`lower(${posts.body})`, needle), like(sql`lower(${users.name})`, needle)) : sql`${posts.media} != '[]'`,
             ),

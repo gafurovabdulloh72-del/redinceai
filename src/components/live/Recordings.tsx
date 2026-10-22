@@ -6,9 +6,10 @@ import { Eye, EyeOff, Loader2, Pencil, Play, Video } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import { showToast as toast } from "@/components/ui/toast";
 import { uploadAttachment } from "@/components/chat/attachments";
+import { BuyButton } from "@/components/mentorship/PurchaseDialog";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 
-export type RecItem = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: "none" | "recording" | "processing" | "ready" | "failed"; hidden: boolean };
+export type RecItem = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: "none" | "recording" | "processing" | "ready" | "failed"; hidden: boolean; price?: number; locked?: boolean };
 
 const dur = (s: number) => {
   const h = Math.floor(s / 3600);
@@ -37,6 +38,14 @@ export function Recordings({ items, canManage }: { items: RecItem[]; canManage: 
                   {playing === r.id && r.url ? (
                     <video src={r.url} poster={r.coverUrl ?? undefined} controls autoPlay playsInline className="h-full w-full object-contain" />
                   ) : (
+                    r.locked ? (
+                      <div className="absolute inset-0 grid place-items-center">
+                        {r.coverUrl && /* eslint-disable-next-line @next/next/no-img-element */ <img src={r.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />}
+                        <BuyButton type="ticket" id={r.id} loggedIn className="relative inline-flex h-9 items-center rounded-full bg-white px-4 text-[13px] font-bold text-black">
+                          🔒 Chipta — {r.price?.toLocaleString("ru-RU")} so&apos;m
+                        </BuyButton>
+                      </div>
+                    ) : (
                     <button type="button" disabled={r.status !== "ready"} onClick={() => setPlaying(r.id)} aria-label={`${r.title} — ko'rish`} className="group absolute inset-0 grid place-items-center">
                       {r.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -52,6 +61,7 @@ export function Recordings({ items, canManage }: { items: RecItem[]; canManage: 
                         <span className="relative rounded-full bg-black/65 px-3 py-1 text-[12px] font-semibold text-white">{r.status === "failed" ? "Yozilmadi" : "Tayyorlanmoqda…"}</span>
                       )}
                     </button>
+                    )
                   )}
                   {r.status === "ready" && playing !== r.id && <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white">{dur(r.seconds)}</span>}
                 </div>

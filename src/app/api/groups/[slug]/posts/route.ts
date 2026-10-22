@@ -3,6 +3,9 @@ import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { assertCanPost, assertCanView, createPost, listPosts } from "@/lib/groups/service";
 import { postInputSchema } from "@/lib/groups/validators";
+import { db } from "@/lib/db";
+import { mentors } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404, optionalViewer } from "../../_lib";
 
@@ -31,6 +34,12 @@ export const POST = handler(async (req, ctx: Ctx) => {
   await assertCanPost(group, { id: session.sub, role: session.role });
   await enforceLimit("posts", session.sub);
   await assertOwnUploads(session.sub, input.media.map((m) => m.url), [], "media");
-  const p = await createPost(group, session.sub, input.body, input.media, { at: input.eventAt ?? null, url: input.eventUrl || null });
+  // Yopiq (obunachilar uchun) post faqat obuna narxi qo'yilgan mentor kanalida
+  let subscribersOnly = false;
+  if (input.subscribersOnly) {
+    const m = await db.query.mentors.findFirst({ where: eq(mentors.channelId, group.id), columns: { subPrice: true } });
+    subscribersOnly = Boolean(m && m.subPrice > 0);
+  }
+  const p = await createPost(group, session.sub, input.body, input.media, { at: input.eventAt ?? null, url: input.eventUrl || null }, { subscribersOnly });
   return ok({ id: p.id }, { status: 201 });
 });

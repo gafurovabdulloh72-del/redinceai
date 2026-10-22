@@ -5,6 +5,8 @@ import { CheckCircle2, GraduationCap, Lock, PlayCircle, Star, Users } from "luci
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
+import { RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseBySlug } from "@/lib/mentorship/service";
@@ -32,6 +34,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="container-x py-6 sm:py-8">
+      <RefCapture />
       <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
         ← Mentorlik
       </Link>
@@ -123,7 +126,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         </div>
 
         {/* Yon panel: narx + yozilish */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
           <div className="card-elevated p-5">
             <p className="text-[26px] font-bold leading-none text-fg">{formatSom(c.priceFrom)}</p>
             {c.enrolled && c.progressPct > 0 && (
@@ -149,9 +152,10 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             <ul className="mt-4 space-y-2 text-[13px] text-fg-2">
               <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> {c.lessonsCount} ta video/matn dars</li>
               <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> O&apos;z sur&apos;atingizda, cheksiz kirish</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> Progress kuzatuvi va sertifikat (tez orada)</li>
+              <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> Progress kuzatuvi va tugatganingizda sertifikat</li>
             </ul>
           </div>
+          {user && !c.isOwner && c.priceFrom > 0 && <div className="mt-3"><ReferralCard path={`/mentorlik/${c.slug}`} percent={c.refPercent} /></div>}
         </aside>
       </div>
     </div>

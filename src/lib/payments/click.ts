@@ -1,4 +1,5 @@
 import "server-only";
+import { isPurchase } from "@/lib/mentorship/purchases";
 import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -207,7 +208,7 @@ async function complete(f: Fields, secret: string) {
  */
 async function prepareInvoice(f: Fields) {
   const inv = await loadInvoice(f.merchant_trans_id);
-  if (!inv || !inv.specialistId || inv.provider !== "click") return respond(f, CLICK_ERR.USER_NOT_FOUND);
+  if (!inv || (!inv.specialistId && !isPurchase(inv)) || inv.provider !== "click") return respond(f, CLICK_ERR.USER_NOT_FOUND);
   if (inv.state === "paid") return respond(f, CLICK_ERR.ALREADY_PAID);
   if (inv.state === "cancelled" || inv.state === "refunded") return respond(f, CLICK_ERR.CANCELLED);
   if (!amountMatches(f.amount, inv.amount)) return respond(f, CLICK_ERR.AMOUNT);

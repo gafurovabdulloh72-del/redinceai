@@ -116,6 +116,7 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
 
 export interface CourseDetail extends CourseCard {
   mentorBio: string;
+  refPercent: number;
   isOwner: boolean;
   enrolled: boolean;
   progressPct: number;
@@ -129,7 +130,7 @@ export interface CourseDetail extends CourseCard {
 export async function getCourseBySlug(slug: string, viewerId: string | null, isAdmin = false): Promise<CourseDetail | null> {
   const c = await db.query.courses.findFirst({
     where: eq(courses.slug, slug),
-    with: { mentor: { columns: { userId: true, headline: true, bio: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    with: { mentor: { columns: { userId: true, headline: true, bio: true, slug: true, refPercent: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
   });
   if (!c) return null;
   const isOwner = Boolean(viewerId && c.mentor.userId === viewerId);
@@ -155,6 +156,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
   return {
     ...card,
     mentorBio: c.mentor.bio,
+    refPercent: c.mentor.refPercent,
     isOwner,
     enrolled,
     progressPct: enrollment?.progressPct ?? 0,
@@ -290,9 +292,11 @@ export async function deleteLesson(userId: string, lessonId: string, isAdmin = f
 
 /* --------------------------- Talaba amallari --------------------------- */
 
-export async function enroll(userId: string, courseId: string) {
-  const c = await db.query.courses.findFirst({ where: eq(courses.id, courseId), columns: { id: true, isPublished: true, mentorId: true } });
+export async function enroll(userId: string, courseId: string, isAdmin = false) {
+  const c = await db.query.courses.findFirst({ where: eq(courses.id, courseId), columns: { id: true, isPublished: true, mentorId: true, priceFrom: true }, with: { mentor: { columns: { userId: true } } } });
   if (!c || !c.isPublished) throw new ApiError(404, "Kurs topilmadi");
+  // Pulli kurs: faqat to'lov orqali (purchases.startPurchase); mentor va admin sinash uchun bepul
+  if (c.priceFrom > 0 && !isAdmin && c.mentor.userId !== userId) throw new ApiError(402, "Bu kurs pulli — to'lov orqali yoziling");
   const existing = await db.query.enrollments.findFirst({ where: and(eq(enrollments.courseId, courseId), eq(enrollments.userId, userId)) });
   if (existing) return { already: true };
   await db.transaction(async (tx) => {
@@ -434,6 +438,8 @@ export interface MentorProfile {
   expertise: string[];
   highlights: Array<{ title: string; text: string }>;
   channelSlug: string | null;
+  subPrice: number;
+  refPercent: number;
   coursesCount: number;
   studentsCount: number;
   rating: number;
@@ -457,6 +463,8 @@ async function toProfile(m: typeof mentors.$inferSelect & { user: { name: string
     expertise: m.expertise,
     highlights: m.highlights ?? [],
     channelSlug: ch?.slug ?? null,
+    subPrice: m.subPrice,
+    refPercent: m.refPercent,
     coursesCount: m.coursesCount,
     studentsCount: m.studentsCount,
     rating: m.rating,

@@ -83,6 +83,7 @@ export const musicSchema = z.object({
 
 export const postInputSchema = z.object({
   music: musicSchema.nullable().optional(),
+  subscribersOnly: z.boolean().optional(),
   body: z.string().trim().max(POST_BODY_MAX, `Matn ko'pi bilan ${POST_BODY_MAX} belgi`).optional().default(""),
   media: attachmentListSchema(POST_MEDIA_MAX).optional().default([]),
   /** Efir/yig'ilish: vaqti (ms, kelajakda) va https havola (Zoom/Meet/YouTube/Telegram) — ikkalasi ixtiyoriy, havola vaqtsiz bo'lmaydi */

@@ -5,8 +5,9 @@ import { Loader2, RadioTower } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { showToast } from "@/components/ui/toast";
 import { LiveRoomOverlay } from "./LiveRoom";
+import { BuyButton } from "@/components/mentorship/PurchaseDialog";
 
-type Live = { id: string; title: string; startedAt: number };
+type Live = { id: string; title: string; startedAt: number; price?: number; access?: boolean };
 
 /**
  * Jamoa/kanal tepasidagi jonli efir paneli: efir bor bo'lsa «Tomosha qilish», egasi/moderatorda
@@ -18,6 +19,7 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
   const [open, setOpen] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,11 +49,12 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
   async function start() {
     setBusy(true);
     try {
-      const r = await fetch("/api/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug, title }) });
+      const r = await fetch("/api/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug, title, price: price ? Number(price) : 0 }) });
       const j = (await r.json()) as { data?: { id: string }; error?: string };
       if (!r.ok || !j.data) throw new Error(j.error || "Efirni boshlab bo'lmadi");
       setAsking(false);
       setTitle("");
+      setPrice("");
       setOpen(j.data.id);
       void load();
     } catch (e) {
@@ -73,19 +76,28 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-danger">
                 <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-danger" /> Hozir jonli
               </p>
-              <p className="truncate text-[14px] font-semibold text-fg">{live.title}</p>
+              <p className="truncate text-[14px] font-semibold text-fg">{live.title}{(live.price ?? 0) > 0 && <span className="ml-1.5 rounded bg-fg/8 px-1.5 py-0.5 text-[11px] font-bold">pullik</span>}</p>
             </>
           ) : asking ? (
-            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Efir mavzusi" aria-label="Efir mavzusi" className="field h-10 w-full" autoFocus />
+            <div className="flex gap-2">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Efir mavzusi" aria-label="Efir mavzusi" className="field h-10 min-w-0 flex-1" autoFocus />
+              <input value={price} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Chipta, so'm (ixtiyoriy)" aria-label="Chipta narxi" className="field h-10 w-[150px]" />
+            </div>
           ) : (
             <p className="text-[14px] font-semibold text-fg">Jonli efir</p>
           )}
         </div>
         {live ? (
           loggedIn ? (
-            <button type="button" className="btn-accent h-10 px-4 text-[13.5px]" onClick={() => setOpen(live.id)}>
-              {canHost ? "Efirga qaytish" : "Tomosha qilish"}
-            </button>
+            (live.price ?? 0) > 0 && !live.access && !canHost ? (
+              <BuyButton type="ticket" id={live.id} loggedIn className="btn-accent h-10 px-4 text-[13.5px]">
+                🎟 Chipta — {(live.price ?? 0).toLocaleString("ru-RU")} so&apos;m
+              </BuyButton>
+            ) : (
+              <button type="button" className="btn-accent h-10 px-4 text-[13.5px]" onClick={() => setOpen(live.id)}>
+                {canHost ? "Efirga qaytish" : "Tomosha qilish"}
+              </button>
+            )
           ) : (
             <a href="/auth/kirish" className="btn-accent inline-flex h-10 items-center px-4 text-[13.5px]">Kirish</a>
           )

@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { notPurchaseSql } from "@/lib/mentorship/purchases";
 import { orders, payments, specialists, subscriptionInvoices, users } from "@/lib/db/schema";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 
@@ -85,7 +86,7 @@ export async function getAdminAnalytics(now = Date.now()): Promise<AdminAnalytic
     db
       .select({ d: subDay, v: sql<number>`coalesce(sum(${subscriptionInvoices.amount}), 0)` })
       .from(subscriptionInvoices)
-      .where(and(eq(subscriptionInvoices.state, "paid"), gte(subscriptionInvoices.paidAt, since)))
+      .where(and(eq(subscriptionInvoices.state, "paid"), notPurchaseSql, gte(subscriptionInvoices.paidAt, since)))
       .groupBy(subDay),
     db.select({ d: orderDay, v: sql<number>`count(*)` }).from(orders).where(gte(orders.createdAt, since)).groupBy(orderDay),
     db

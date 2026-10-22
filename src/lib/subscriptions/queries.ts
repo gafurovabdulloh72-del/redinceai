@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { notPurchaseSql } from "@/lib/mentorship/purchases";
 import { specialists, subscriptionInvoices, users, type SubscriptionInvoice } from "@/lib/db/schema";
 import type { PaymentProvider } from "@/lib/constants";
 import { availableProviders } from "@/lib/payments/config";
@@ -134,11 +135,11 @@ export async function getSubscriptionRevenueSummary(now = Date.now()): Promise<{
       n: sql<number>`count(*)`,
     })
     .from(subscriptionInvoices)
-    .where(eq(subscriptionInvoices.state, "paid"));
+    .where(and(eq(subscriptionInvoices.state, "paid"), notPurchaseSql));
   const [pending] = await db
     .select({ n: sql<number>`count(*)` })
     .from(subscriptionInvoices)
-    .where(and(eq(subscriptionInvoices.state, "pending"), eq(subscriptionInvoices.provider, "manual")));
+    .where(and(eq(subscriptionInvoices.state, "pending"), eq(subscriptionInvoices.provider, "manual"), notPurchaseSql));
   return { revenueMonth: Number(paid?.month ?? 0), revenueTotal: Number(paid?.total ?? 0), paidCount: Number(paid?.n ?? 0), pendingManual: Number(pending?.n ?? 0) };
 }
 
@@ -166,12 +167,12 @@ export async function getAdminSubscriptionData(filter: { status?: AdminSubFilter
       .from(specialists)
       .innerJoin(users, eq(users.id, specialists.userId)),
     db.query.subscriptionInvoices.findMany({
-      where: eq(subscriptionInvoices.state, "paid"),
+      where: and(eq(subscriptionInvoices.state, "paid"), notPurchaseSql),
       columns: { specialistId: true, amount: true, months: true, paidAt: true, periodStart: true, periodEnd: true },
       orderBy: [desc(subscriptionInvoices.paidAt)],
     }),
     db.query.subscriptionInvoices.findMany({
-      where: and(eq(subscriptionInvoices.state, "pending"), eq(subscriptionInvoices.provider, "manual")),
+      where: and(eq(subscriptionInvoices.state, "pending"), eq(subscriptionInvoices.provider, "manual"), notPurchaseSql),
       columns: { id: true },
     }),
   ]);

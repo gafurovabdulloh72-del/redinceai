@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { mentorSubs, mentors } from "@/lib/db/schema";
 import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
@@ -91,6 +92,11 @@ export interface PostView {
   /** Ko'rishlar soni (noyob, kuniga 1) */
   viewsCount: number;
   isPinned: boolean;
+  /** Mentor kanalida: faqat oylik obunachilar uchun yopiq post */
+  subscribersOnly: boolean;
+  /** Yopiq post va ko'ruvchi obunachi emas: matn/media bo'sh, `subMentorId` — obuna olinadigan mentor */
+  locked: boolean;
+  subMentorId: string | null;
   /** Jonli efir / yig'ilish e'loni bo'lsa — vaqti (ms) va havolasi */
   eventAt: number | null;
   eventUrl: string | null;
@@ -809,6 +815,7 @@ export async function createPost(
   body: string,
   media: FileAttachment[],
   event: { at: number | null; url: string | null } = { at: null, url: null },
+  opts: { subscribersOnly?: boolean } = {},
 ): Promise<Post> {
   const now = new Date();
   const row: typeof posts.$inferInsert = {
@@ -817,6 +824,7 @@ export async function createPost(
     authorId,
     body,
     media,
+    subscribersOnly: Boolean(opts.subscribersOnly),
     likesCount: 0,
     commentsCount: 0,
     isPinned: false,
@@ -841,7 +849,7 @@ export async function createPost(
   }
   // Kanal posti yoki efir e'loni — a'zolarga bildirishnoma (sayt + Telegram; email emas — kvota)
   if (group.kind === "channel" || event.at) {
-    const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? "Yangi media" : "");
+    const snippet = opts.subscribersOnly ? "Yangi yopiq post — obunachilar uchun" : body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? "Yangi media" : "");
     if (event.at) {
       await notifyMembers(group, authorId, "live_event", `Jonli efir: ${group.name}`, `${formatEventDate(event.at)} — ${snippet || "efir/yig'ilish e'lon qilindi"}`, href);
     } else {
@@ -928,12 +936,30 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
   ]);
   const myMap = new Map(mine.map((l) => [l.postId, asReaction(l.reaction)] as const));
   const savedSet = new Set(saves.map((x) => x.postId));
-  return rows.map((p) => ({
+  // Obunachilarga yopiq postlar: ko'ruvchi mentor obunachisi (yoki muallif/boshqaruvchi/admin) bo'lmasa matn va media berilmaydi
+  const closed = rows.filter((p) => p.subscribersOnly && p.groupId);
+  const subMentor = new Map<string, string>();
+  const subOk = new Set<string>();
+  if (closed.length) {
+    const ms = await db.query.mentors.findMany({ where: inArray(mentors.channelId, [...new Set(closed.map((p) => p.groupId as string))]), columns: { id: true, channelId: true } });
+    for (const m of ms) if (m.channelId) subMentor.set(m.channelId, m.id);
+    if (viewer && ms.length) {
+      const active = await db.query.mentorSubs.findMany({ where: and(eq(mentorSubs.userId, viewer.id), inArray(mentorSubs.mentorId, ms.map((m) => m.id)), gt(mentorSubs.until, new Date())), columns: { mentorId: true } });
+      for (const a of active) subOk.add(a.mentorId);
+    }
+  }
+  return rows.map((p) => {
+    const mid = p.groupId ? (subMentor.get(p.groupId) ?? null) : null;
+    const locked = Boolean(p.subscribersOnly && !manager && viewer?.id !== p.authorId && viewer?.role !== "admin" && !(mid && subOk.has(mid)));
+    return {
     id: p.id,
     groupId: p.groupId,
-    body: p.body,
-    media: p.media,
-    music: p.music ?? null,
+    body: locked ? "" : p.body,
+    media: locked ? [] : p.media,
+    music: locked ? null : (p.music ?? null),
+    subscribersOnly: p.subscribersOnly,
+    locked,
+    subMentorId: locked ? mid : null,
     likesCount: p.likesCount,
     commentsCount: p.commentsCount,
     viewsCount: p.viewsCount,
@@ -948,7 +974,8 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     reactions: counts.get(p.id) ?? {},
     savedByMe: savedSet.has(p.id),
     canDelete: Boolean(viewer && (viewer.id === p.authorId || manager)),
-  }));
+    };
+  });
 }
 
 /** Jamoa lentasi: yangi → eski, cursor = oxirgi postning createdAt (ms) */

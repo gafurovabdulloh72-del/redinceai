@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser, getMentorProfileForEditor, listCoursesOfMentor, listMyEnrollments } from "@/lib/mentorship/service";
+import Link from "next/link";
+import { Wallet } from "lucide-react";
 import { ApplyBlock, MyEnrollments } from "@/components/mentorship/MentorDashboard";
 import { MentorStudio } from "@/components/mentorship/MentorStudio";
 
@@ -20,7 +22,16 @@ export default async function KabinetMentorlikPage() {
   return (
     <div className="space-y-8">
       {profile ? (
-        <MentorStudio mentor={profile} courses={courses} />
+        <>
+          <Link href="/kabinet/mentorlik/daromad" className="card card-hover flex items-center gap-3 p-4">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-fg/6"><Wallet size={18} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14.5px] font-bold text-fg">Daromad va sozlamalar</span>
+              <span className="block text-[12.5px] text-fg-3">Balans, yechish, promokod, obuna narxi, 1:1 vaqtlar</span>
+            </span>
+          </Link>
+          <MentorStudio mentor={profile} courses={courses} />
+        </>
       ) : (
         <>
           <header>

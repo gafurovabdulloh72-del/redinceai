@@ -1212,6 +1212,8 @@ export const posts = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    /** Mentor kanalida: faqat oylik obunachilar (va mentorning o'zi) ko'radi */
+    subscribersOnly: integer("subscribers_only", { mode: "boolean" }).notNull().default(false),
     /** Rasm/video biriktirmalari (/api/upload natijalari) */
     media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
     /** Musiqa (rasmli post/reels ustida chalinadi) — null: yo'q */
@@ -1799,6 +1801,10 @@ export const mentors = sqliteTable(
     highlights: text("highlights", { mode: "json" }).$type<Array<{ title: string; text: string }>>().notNull().default([]),
     /** Mentorning kanali (groups, kind=channel): postlar, jonli efir, obunachilar */
     channelId: text("channel_id"),
+    /** Oylik obuna narxi (so'm): 0 = o'chiq. Obunachilar yopiq postlarni ko'radi */
+    subPrice: integer("sub_price").notNull().default(0),
+    /** Tavsiya (referral) chegirmasi foizi: yangi talaba shu foiz chegirma oladi, tavsiya qilgan — shuncha kredit */
+    refPercent: integer("ref_percent").notNull().default(10),
     coursesCount: integer("courses_count").notNull().default(0),
     studentsCount: integer("students_count").notNull().default(0),
     rating: real("rating").notNull().default(0),
@@ -1962,6 +1968,8 @@ export const liveStreams = sqliteTable(
     status: text("status", { enum: ["live", "ended"] }).notNull().default("live"),
     /** Eng ko'p bir vaqtdagi tomoshabin (host yuboradi) */
     peakViewers: integer("peak_viewers").notNull().default(0),
+    /** Efir chiptasi narxi (so'm): 0 = bepul. Narxli efir va yozuvni faqat chipta/obuna egalari ko'radi */
+    priceSom: integer("price_som").notNull().default(0),
     /** Yozuv (LiveKit Egress → R2): none → recording → processing → ready | failed */
     recordingStatus: text("recording_status", { enum: ["none", "recording", "processing", "ready", "failed"] }).notNull().default("none"),
     recordingEgressId: text("recording_egress_id"),
@@ -1978,6 +1986,161 @@ export const liveStreams = sqliteTable(
   },
   (t) => [index("live_streams_group_idx").on(t.groupId, t.status)],
 );
+
+
+/* ------------------------------------------------------------------ */
+/* Mentorlik: pul oqimi (kurs/chipta/obuna/konsultatsiya)             */
+/* ------------------------------------------------------------------ */
+
+/** Mentor promokodi: foiz chegirma (kursga bog'langan yoki mentorning barcha pulli mahsulotlariga) */
+export const promoCodes = sqliteTable(
+  "promo_codes",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    /** Katta harflar, bo'shliqsiz (noyob) */
+    code: text("code").notNull(),
+    percent: integer("percent").notNull(),
+    courseId: text("course_id").references(() => courses.id, { onDelete: "cascade" }),
+    maxUses: integer("max_uses"),
+    uses: integer("uses").notNull().default(0),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("promo_codes_code_uq").on(t.code), index("promo_codes_mentor_idx").on(t.mentorId)],
+);
+
+/** Mentor daromadi: har to'langan sotuv — bir yozuv. pending (7 kun ushlab turiladi) → available → paid_out; qaytarilsa refunded */
+export const mentorEarnings = sqliteTable(
+  "mentor_earnings",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    invoiceId: text("invoice_id").notNull(),
+    kind: text("kind", { enum: ["course", "ticket", "sub", "consult"] }).notNull(),
+    title: text("title").notNull().default(""),
+    gross: integer("gross").notNull(),
+    fee: integer("fee").notNull(),
+    net: integer("net").notNull(),
+    status: text("status", { enum: ["pending", "available", "paid_out", "refunded"] }).notNull().default("pending"),
+    availableAt: integer("available_at", { mode: "timestamp_ms" }).notNull(),
+    payoutId: text("payout_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("mentor_earnings_invoice_uq").on(t.invoiceId), index("mentor_earnings_mentor_idx").on(t.mentorId, t.status)],
+);
+
+/** Mentorning yechib olish so'rovi (admin kartaga o'tkazib «to'landi» deb belgilaydi) */
+export const mentorPayouts = sqliteTable(
+  "mentor_payouts",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    card: text("card").notNull(),
+    status: text("status", { enum: ["requested", "paid", "rejected"] }).notNull().default("requested"),
+    note: text("note"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("mentor_payouts_mentor_idx").on(t.mentorId, t.status)],
+);
+
+/** Mentor obunachisi (oylik obuna): until gacha yopiq postlar, narxli efirlar ochiq */
+export const mentorSubs = sqliteTable(
+  "mentor_subs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    until: integer("until", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("mentor_subs_pair_uq").on(t.userId, t.mentorId)],
+);
+
+/** 1:1 konsultatsiya vaqtlari: mentor ochadi, talaba band qiladi va to'laydi */
+export const mentorSlots = sqliteTable(
+  "mentor_slots",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    durationMin: integer("duration_min").notNull().default(30),
+    priceSom: integer("price_som").notNull().default(0),
+    note: text("note").notNull().default(""),
+    /** open (bo'sh) → held (to'lov kutilmoqda, 20 daq) → booked (to'langan) | cancelled */
+    status: text("status", { enum: ["open", "held", "booked", "cancelled"] }).notNull().default("open"),
+    bookedBy: text("booked_by").references(() => users.id, { onDelete: "set null" }),
+    invoiceId: text("invoice_id"),
+    heldUntil: integer("held_until", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("mentor_slots_mentor_idx").on(t.mentorId, t.startsAt), index("mentor_slots_buyer_idx").on(t.bookedBy)],
+);
+
+/** Tavsif kodi: har foydalanuvchida bitta (do'stini kursga olib kelish uchun) */
+export const refCodes = sqliteTable(
+  "ref_codes",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+  },
+  (t) => [uniqueIndex("ref_codes_code_uq").on(t.code)],
+);
+
+/** Tavsiya mukofoti: do'sti to'lagach tavsiya qilganga kredit (keyingi xaridda chegirma) */
+export const referralRewards = sqliteTable(
+  "referral_rewards",
+  {
+    id: text("id").primaryKey(),
+    referrerId: text("referrer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    buyerId: text("buyer_id").references(() => users.id, { onDelete: "set null" }),
+    invoiceId: text("invoice_id").notNull(),
+    amount: integer("amount").notNull(),
+    /** Ishlatilgan (yoki band qilingan) hisob */
+    consumedInvoiceId: text("consumed_invoice_id"),
+    voided: integer("voided", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("referral_rewards_invoice_uq").on(t.invoiceId), index("referral_rewards_ref_idx").on(t.referrerId)],
+);
+
+export const mentorSlotsRelations = relations(mentorSlots, ({ one }) => ({
+  mentor: one(mentors, { fields: [mentorSlots.mentorId], references: [mentors.id] }),
+}));
+export const mentorPayoutsRelations = relations(mentorPayouts, ({ one }) => ({
+  mentor: one(mentors, { fields: [mentorPayouts.mentorId], references: [mentors.id] }),
+}));
 
 export type Mentor = typeof mentors.$inferSelect;
 /** Efir chati tarixi (kech kirganlar ko'radi; realtime LiveKit data kanalida) */
@@ -2028,6 +2191,23 @@ export const liveStage = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
   },
   (t) => [uniqueIndex("live_stage_pair_idx").on(t.streamId, t.userId)],
+);
+
+/** Narxli efir chiptalari (to'langan) */
+export const liveTickets = sqliteTable(
+  "live_tickets",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("live_tickets_pair_idx").on(t.streamId, t.userId)],
 );
 
 export type LiveStream = typeof liveStreams.$inferSelect;

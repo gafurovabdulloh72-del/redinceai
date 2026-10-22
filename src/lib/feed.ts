@@ -43,7 +43,7 @@ export interface FeedQuery {
 
 /** Lenta shartlari — homeFeed va countNewPosts bir xil filtrdan foydalanadi */
 function feedConditions(viewer: Viewer, scope: FeedScope, tag: string | null | undefined): SQL[] {
-  const conds: SQL[] = [eq(users.isBanned, false), or(isNull(posts.groupId), eq(groups.isPrivate, false))!];
+  const conds: SQL[] = [eq(users.isBanned, false), or(isNull(posts.groupId), eq(groups.isPrivate, false))!, eq(posts.subscribersOnly, false)];
   if (viewer) {
     // Blok: men bloklagan / meni bloklagan mualliflar; «qiziq emas» postlar; lentadan yashirilgan mualliflar
     conds.push(notBlockedCondition(posts.authorId, viewer.id), notHiddenCondition(viewer.id), notMutedCondition(viewer.id));

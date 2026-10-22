@@ -21,7 +21,7 @@ import { clockDuration } from "@/lib/call/format";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { CallAvatar } from "./CallAvatar";
 
-type Target = { kind: "dm" | "group"; id: string };
+type Target = { kind: "dm" | "group" | "consult"; id: string };
 
 /** Barqaror className — har renderda yangi qiymat LiveKitRoom'ni bezovta qilmasin */
 const ROOM_CLASS = "absolute inset-0 bg-[#0a0a0c]";

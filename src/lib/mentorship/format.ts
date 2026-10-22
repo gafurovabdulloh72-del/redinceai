@@ -56,3 +56,13 @@ export const MENTOR_LIMITS = {
   maxLessonsPerCourse: 60,
   priceMax: 50_000_000,
 } as const;
+
+/** Pul qoidalari (klientga xavfsiz): platforma komissiyasi, daromadni ushlab turish va yechish chegarasi */
+export const MENTOR_FEE_PCT = 15;
+export const EARNING_HOLD_DAYS = 7;
+export const MIN_PAYOUT = 100_000;
+export const SLOT_HOLD_MS = 20 * 60_000;
+export const SUB_DAYS = 30;
+
+export type PurchaseType = "course" | "ticket" | "sub" | "consult";
+export const PURCHASE_LABEL: Record<PurchaseType, string> = { course: "Kurs", ticket: "Efir chiptasi", sub: "Oylik obuna", consult: "Konsultatsiya" };

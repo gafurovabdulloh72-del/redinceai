@@ -1,5 +1,6 @@
 "use client";
 
+import { BuyButton } from "@/components/mentorship/PurchaseDialog";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
 import { BadgeCheck, BarChart3, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
@@ -66,6 +67,7 @@ export function GroupFeed({
   canPost,
   canInteract,
   canSchedule = false,
+  allowSubOnly = false,
   loggedIn,
   initial,
   highlightId = null,
@@ -80,6 +82,7 @@ export function GroupFeed({
   canInteract: boolean;
   /** Efir/yig'ilish e'lon qila oladimi (egasi/admin) */
   canSchedule?: boolean;
+  allowSubOnly?: boolean;
   loggedIn: boolean;
   initial: Page;
   highlightId?: string | null;
@@ -154,7 +157,7 @@ export function GroupFeed({
   return (
     <div className="stagger grid gap-4">
       {canPost ? (
-        <Composer base={base} onPosted={onPosted} allowEvent={canSchedule} kind={kind} placeholder={composerPlaceholder} />
+        <Composer base={base} onPosted={onPosted} allowEvent={canSchedule} allowSubOnly={allowSubOnly} kind={kind} placeholder={composerPlaceholder} />
       ) : canInteract && kind === "channel" ? (
         <p className="px-1 text-[13px] text-fg-3">Kanalga faqat adminlar yozadi — yoqtirish va izoh mumkin.</p>
       ) : (
@@ -203,11 +206,14 @@ export function Composer({
   onPosted,
   allowEvent = false,
   allowPoll = false,
+  allowSubOnly = false,
   kind = "group",
   placeholder,
   collapsible = true,
 }: {
   base: string;
+  /** Mentor kanali (obuna narxi bor): «faqat obunachilar uchun» belgisi */
+  allowSubOnly?: boolean;
   onPosted: (id?: string) => Promise<void> | void;
   allowEvent?: boolean;
   /** So'rovnoma qo'shish imkoni (post joylangach POST /api/posts/[id]/poll) */
@@ -225,6 +231,7 @@ export function Composer({
   const [eventOpen, setEventOpen] = useState(false);
   const [eventAt, setEventAt] = useState("");
   const [eventUrl, setEventUrl] = useState("");
+  const [subOnly, setSubOnly] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   // Profil (Reels) posti: musiqa va haftalik kvota (oddiy — 2 ta, premium — cheksiz)
@@ -356,6 +363,7 @@ export function Composer({
         media,
         eventAt: eventOpen ? eventMs : null,
         eventUrl: eventOpen ? eventUrl.trim() : "",
+        ...(allowSubOnly && subOnly ? { subscribersOnly: true } : {}),
         ...(isProfile && music ? { music: { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } } : {}),
       };
       const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -467,6 +475,11 @@ export function Composer({
             </button>
           )}
         </div>
+      )}
+      {allowSubOnly && expanded && (
+        <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-fg-2">
+          <input type="checkbox" checked={subOnly} onChange={(e) => setSubOnly(e.target.checked)} /> 🔒 Faqat obunachilar uchun
+        </label>
       )}
       {eventOpen && (
         <div className="expand-in mt-2.5 grid gap-2.5 rounded-[14px] bg-fg/4 p-3 sm:grid-cols-2">
@@ -816,10 +829,20 @@ export function PostCard({
         )
       )}
 
-      {url && <LinkPreviewCard url={url} />}
+      {post.locked && (
+        <div className="mt-3 flex flex-col items-center gap-2.5 rounded-[14px] bg-fg/[0.04] px-4 py-7 text-center">
+          <p className="text-[14.5px] font-semibold text-fg">🔒 Bu post faqat obunachilar uchun</p>
+          {post.subMentorId && (
+            <BuyButton type="sub" id={post.subMentorId} loggedIn={loggedIn} className="btn-accent inline-flex h-10 items-center px-5 text-[13.5px] font-semibold">
+              Obuna bo&apos;lish
+            </BuyButton>
+          )}
+        </div>
+      )}
+      {url && !post.locked && <LinkPreviewCard url={url} />}
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
-      <MediaGrid media={media} alt={body.slice(0, 120)} />
+      {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} />}
       {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 
       <footer className="-mx-1.5 mt-2.5 flex items-center gap-1">

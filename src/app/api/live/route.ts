@@ -3,6 +3,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { isCallEnabled } from "@/lib/rtc/livekit";
 import { getVerifiedSession } from "@/lib/auth";
 import { getMembership, loadGroupByAnySlug } from "@/lib/groups/service";
+import { canWatchPaid } from "@/lib/mentorship/purchases";
 import { activeLive, startLive } from "@/lib/live/service";
 
 export const runtime = "nodejs";
@@ -18,10 +19,13 @@ export const GET = handler(async (req) => {
     if (me?.role !== "admin" && m?.status !== "active") return ok({ live: null });
   }
   const s = await activeLive(group.id);
-  return ok({ live: s ? { id: s.id, title: s.title, startedAt: s.startedAt.getTime() } : null });
+  if (!s) return ok({ live: null });
+  const me = await getVerifiedSession();
+  const access = s.priceSom <= 0 || (me ? await canWatchPaid(me.sub, s, me.role === "admin") || s.hostId === me.sub : false);
+  return ok({ live: { id: s.id, title: s.title, startedAt: s.startedAt.getTime(), price: s.priceSom, access } });
 });
 
-const bodySchema = z.object({ slug: z.string().min(1), title: z.string().max(100).default("") });
+const bodySchema = z.object({ slug: z.string().min(1), title: z.string().max(100).default(""), price: z.number().int().min(0).max(1_000_000).default(0) });
 
 /** POST — efir boshlash (egasi/moderator) */
 export const POST = handler(async (req) => {
@@ -30,6 +34,6 @@ export const POST = handler(async (req) => {
   const input = await parseBody(req, bodySchema);
   const group = await loadGroupByAnySlug(input.slug);
   if (!group) throw new ApiError(404, "Jamoa topilmadi");
-  const s = await startLive(group, { id: session.sub, role: session.role }, input.title);
+  const s = await startLive(group, { id: session.sub, role: session.role }, input.title, input.price);
   return ok({ id: s.id, title: s.title });
 });

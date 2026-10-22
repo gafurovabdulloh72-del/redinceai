@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Loader2, PlayCircle } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { BuyButton } from "./PurchaseDialog";
+import { formatSom } from "@/lib/mentorship/format";
 
 /** Kursga yozilish tugmasi; yozilgach birinchi darsga o'tadi (yoki sahifani yangilaydi) */
 export function EnrollButton({ courseId, enrolled, loggedIn, firstLessonId, price }: { courseId: string; enrolled: boolean; loggedIn: boolean; firstLessonId: string | null; price: number }) {
@@ -18,6 +20,14 @@ export function EnrollButton({ courseId, enrolled, loggedIn, firstLessonId, pric
       </button>
     ) : (
       <span className="inline-flex h-12 w-full items-center justify-center rounded-[14px] bg-success-soft text-[14px] font-semibold text-success-text">Siz yozilgansiz</span>
+    );
+  }
+
+  if (price > 0) {
+    return (
+      <BuyButton type="course" id={courseId} loggedIn={loggedIn}>
+        <GraduationCap size={18} /> Sotib olish — {formatSom(price)}
+      </BuyButton>
     );
   }
 

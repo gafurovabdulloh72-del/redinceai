@@ -1,4 +1,5 @@
 import "server-only";
+import { isPurchase } from "@/lib/mentorship/purchases";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, subscriptionInvoices, type Payment, type SubscriptionInvoice } from "@/lib/db/schema";
@@ -412,7 +413,7 @@ async function expireInvoiceIfStale(i: SubscriptionInvoice): Promise<Subscriptio
  */
 async function validateInvoiceAccount(params: Json, invoiceId: string, existing?: SubscriptionInvoice | null): Promise<SubscriptionInvoice> {
   let inv = await loadInvoice(invoiceId);
-  if (!inv || !inv.specialistId || inv.provider !== "payme") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+  if (!inv || (!inv.specialistId && !isPurchase(inv)) || inv.provider !== "payme") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
   if (!existing) {
     if (inv.state === "pending") inv = await expireInvoiceIfStale(inv);
     if (inv.state !== "created" && inv.state !== "pending") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");

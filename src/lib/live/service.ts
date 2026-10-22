@@ -1,11 +1,12 @@
 import "server-only";
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groups, liveBans, liveStage, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
+import { mentors, groups, liveBans, liveStage, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
 import { r2Config, r2PublicUrl } from "@/lib/storage/r2";
+import { canWatchPaid } from "@/lib/mentorship/purchases";
 import { egressInfo, startRoomRecording, stopRecording } from "@/lib/rtc/livekit";
 import { IMAGE_URL_RE } from "@/lib/validators";
 import { closeRoom, listIdentities, liveRoom, muteTrack, removeParticipant, setStage } from "@/lib/rtc/livekit";
@@ -60,11 +61,16 @@ export async function activeLive(groupId: string): Promise<LiveStream | null> {
   return row ?? null;
 }
 
-export async function startLive(group: Group, host: Viewer, title: string): Promise<LiveStream> {
+export async function startLive(group: Group, host: Viewer, title: string, priceSom = 0): Promise<LiveStream> {
   if (!(await canHost(group, host))) throw new ApiError(403, "Efir boshlash faqat egasi yoki moderatorlar uchun");
   if (await activeLive(group.id)) throw new ApiError(409, "Bu yerda efir allaqachon davom etmoqda");
+  if (priceSom !== 0) {
+    if (!Number.isInteger(priceSom) || priceSom < 5000 || priceSom > 1_000_000) throw new ApiError(422, "Chipta narxi 5 000 – 1 000 000 so'm", { price: "5 000 – 1 000 000" });
+    const m = await db.query.mentors.findFirst({ where: eq(mentors.channelId, group.id), columns: { id: true } });
+    if (!m) throw new ApiError(400, "Narxli efir faqat ustoz kanalida");
+  }
   const id = uid();
-  const row: typeof liveStreams.$inferInsert = { id, groupId: group.id, hostId: host.id, title: title.trim().slice(0, 100) || "Jonli efir", room: liveRoom(id) };
+  const row: typeof liveStreams.$inferInsert = { id, groupId: group.id, hostId: host.id, title: title.trim().slice(0, 100) || "Jonli efir", room: liveRoom(id), priceSom };
   await db.insert(liveStreams).values(row);
   const stream = (await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, id) }))!;
   void notifyMembers(group, host.id, "live_event", `Jonli efir boshlandi: ${group.name}`, stream.title, `/jamoalar/${group.slug}?efir=1`).catch(() => undefined);
@@ -129,6 +135,7 @@ export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream:
     const m = await getMembership(group.id, v.id);
     if (!m || m.status !== "active") throw new ApiError(403, "Bu efir yopiq jamoa a'zolari uchun");
   }
+  if (!host && stream.priceSom > 0 && !(await canWatchPaid(v.id, stream, v.role === "admin"))) throw new ApiError(402, "Bu efir pullik — chipta oling yoki ustozga obuna bo'ling");
   if (!host) {
     const ban = await db.query.liveBans.findFirst({ where: and(eq(liveBans.streamId, streamId), eq(liveBans.userId, v.id)) });
     if (ban) throw new ApiError(403, "Boshlovchi sizni bu efirdan chiqargan");
@@ -217,19 +224,24 @@ async function syncRecording(s: LiveStream): Promise<LiveStream> {
   return s;
 }
 
-export type RecordingView = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: LiveStream["recordingStatus"]; hidden: boolean };
+export type RecordingView = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: LiveStream["recordingStatus"]; hidden: boolean; price: number; locked: boolean };
 
 /** Mentor bo'limidagi yozuvlar. Mehmon/obunachi: faqat tayyor va yashirilmagan; boshqaruvchi: hammasi (jarayondagilari ham) */
-export async function listRecordings(groupId: string, manage: boolean, limit = 30): Promise<RecordingView[]> {
+export async function listRecordings(groupId: string, manage: boolean, viewer: Viewer | null = null, limit = 30): Promise<RecordingView[]> {
   let rows = await db.query.liveStreams.findMany({
     where: and(eq(liveStreams.groupId, groupId), eq(liveStreams.status, "ended"), sql`${liveStreams.recordingStatus} <> 'none'`),
     orderBy: [desc(liveStreams.startedAt)],
     limit,
   });
   rows = await Promise.all(rows.map(syncRecording));
-  return rows
-    .filter((r) => (manage ? true : r.recordingStatus === "ready" && !r.recordingHidden))
-    .map((r) => ({ id: r.id, title: r.title, startedAt: r.startedAt.getTime(), seconds: r.recordingSeconds ?? Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 1000)), url: r.recordingUrl, coverUrl: r.coverUrl, status: r.recordingStatus, hidden: r.recordingHidden }));
+  const visible = rows.filter((r) => (manage ? true : r.recordingStatus === "ready" && !r.recordingHidden));
+  return Promise.all(
+    visible.map(async (r) => {
+      // Narxli efir yozuvi: chipta/obuna bo'lmasa video manzili berilmaydi
+      const locked = r.priceSom > 0 && !manage && !(await canWatchPaid(viewer?.id ?? null, r, viewer?.role === "admin"));
+      return { id: r.id, title: r.title, startedAt: r.startedAt.getTime(), seconds: r.recordingSeconds ?? Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 1000)), url: locked ? null : r.recordingUrl, coverUrl: r.coverUrl, status: r.recordingStatus, hidden: r.recordingHidden, price: r.priceSom, locked };
+    }),
+  );
 }
 
 /** Mentor (egasi/admin) yozuv nomi, muqovasi va ko'rinishini tahrirlaydi */
