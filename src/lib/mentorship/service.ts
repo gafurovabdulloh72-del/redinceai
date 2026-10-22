@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { courseReviews, courses, enrollments, groups, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
 import { uid, slugify, escapeLike } from "@/lib/utils";
@@ -93,7 +93,7 @@ function toCard(c: typeof courses.$inferSelect & { mentor: { userId: string; slu
 }
 
 /** Ommaviy kurslar katalogi (chop etilgan) — filtr/qidiruv/sahifalash */
-export async function listCourses(opts: { category?: string; level?: string; q?: string; cursor?: number | null; limit?: number } = {}): Promise<{ items: CourseCard[]; nextCursor: number | null }> {
+export async function listCourses(opts: { category?: string; level?: string; q?: string; price?: "free" | "paid"; sort?: "new" | "popular" | "rating" | "cheap" | "expensive"; cursor?: number | null; limit?: number } = {}): Promise<{ items: CourseCard[]; nextCursor: number | null }> {
   const limit = Math.min(Math.max(opts.limit ?? 18, 1), 48);
   const conds = [eq(courses.isPublished, true)];
   if (opts.category) conds.push(eq(courses.category, opts.category));
@@ -103,10 +103,14 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
     const m = or(sql`lower(${courses.title}) like ${term} escape '\\'`, sql`lower(${courses.summary}) like ${term} escape '\\'`);
     if (m) conds.push(m);
   }
-  if (opts.cursor) conds.push(lt(courses.createdAt, new Date(opts.cursor)));
+  if (opts.price === "free") conds.push(eq(courses.priceFrom, 0));
+  if (opts.price === "paid") conds.push(gt(courses.priceFrom, 0));
+  const sort = opts.sort ?? "new";
+  if (opts.cursor && sort === "new") conds.push(lt(courses.createdAt, new Date(opts.cursor)));
+  const order = sort === "popular" ? [desc(courses.studentsCount), desc(courses.createdAt)] : sort === "rating" ? [desc(courses.rating), desc(courses.studentsCount)] : sort === "cheap" ? [asc(courses.priceFrom), desc(courses.createdAt)] : sort === "expensive" ? [desc(courses.priceFrom), desc(courses.createdAt)] : [desc(courses.createdAt)];
   const rows = await db.query.courses.findMany({
     where: and(...conds),
-    orderBy: [desc(courses.createdAt)],
+    orderBy: order,
     limit: limit + 1,
     with: { mentor: { columns: { userId: true, headline: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
   });

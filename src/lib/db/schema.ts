@@ -1212,6 +1212,8 @@ export const posts = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    /** Efir eslatmalari yuborilganmi: 1 = 1 soat oldin, 2 = 10 daqiqa oldin (bit maska) */
+    reminderFlags: integer("reminder_flags").notNull().default(0),
     /** Mentor kanalida: faqat oylik obunachilar (va mentorning o'zi) ko'radi */
     subscribersOnly: integer("subscribers_only", { mode: "boolean" }).notNull().default(false),
     /** Rasm/video biriktirmalari (/api/upload natijalari) */
@@ -1835,6 +1837,8 @@ export const courses = sqliteTable(
     priceFrom: integer("price_from").notNull().default(0),
     isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
     lessonsCount: integer("lessons_count").notNull().default(0),
+    /** Kurs sahifasi ko'rilishlari (tahlil uchun) */
+    viewsCount: integer("views_count").notNull().default(0),
     studentsCount: integer("students_count").notNull().default(0),
     rating: real("rating").notNull().default(0),
     reviewsCount: integer("reviews_count").notNull().default(0),
@@ -2251,6 +2255,75 @@ export const roadmaps = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("roadmaps_mentor_idx").on(t.mentorId)],
+);
+
+
+/* ------------------------------------------------------------------ */
+/* Jonli efir: savollar va so'rovnoma                                  */
+/* ------------------------------------------------------------------ */
+export const liveQuestions = sqliteTable(
+  "live_questions",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    votes: integer("votes").notNull().default(0),
+    answered: integer("answered", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_questions_stream_idx").on(t.streamId, t.votes)],
+);
+
+export const liveQuestionVotes = sqliteTable(
+  "live_question_votes",
+  {
+    questionId: text("question_id")
+      .notNull()
+      .references(() => liveQuestions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("live_question_votes_pair_idx").on(t.questionId, t.userId)],
+);
+
+/** Efirdagi so'rovnoma: bir vaqtda bitta ochiq; variantlar JSON, ovozlar alohida jadvalda */
+export const livePolls = sqliteTable(
+  "live_polls",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    options: text("options", { mode: "json" }).$type<string[]>().notNull(),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_polls_stream_idx").on(t.streamId)],
+);
+
+export const livePollVotes = sqliteTable(
+  "live_poll_votes",
+  {
+    pollId: text("poll_id")
+      .notNull()
+      .references(() => livePolls.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    optionIdx: integer("option_idx").notNull(),
+  },
+  (t) => [uniqueIndex("live_poll_votes_pair_idx").on(t.pollId, t.userId)],
 );
 
 export const mentorSlotsRelations = relations(mentorSlots, ({ one }) => ({

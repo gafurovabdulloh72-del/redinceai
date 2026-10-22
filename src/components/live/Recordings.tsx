@@ -18,7 +18,7 @@ const dur = (s: number) => {
 };
 
 /** Mentor bo'limidagi efir yozuvlari: muqova + nom, bosilsa o'ynaydi; ustoz nom, muqova va ko'rinishni tahrirlaydi */
-export function Recordings({ items, canManage }: { items: RecItem[]; canManage: boolean }) {
+export function Recordings({ items, canManage, courses = [] }: { items: RecItem[]; canManage: boolean; courses?: Array<{ id: string; title: string }> }) {
   const [playing, setPlaying] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   if (!items.length) return null;
@@ -31,7 +31,7 @@ export function Recordings({ items, canManage }: { items: RecItem[]; canManage: 
         {items.map((r) => (
           <li key={r.id} className={cn("overflow-hidden rounded-[14px] border border-line bg-surface", r.hidden && "opacity-60")}>
             {editing === r.id ? (
-              <Editor r={r} onDone={() => setEditing(null)} />
+              <Editor r={r} courses={courses} onDone={() => setEditing(null)} />
             ) : (
               <>
                 <div className="relative aspect-video bg-black">
@@ -85,7 +85,7 @@ export function Recordings({ items, canManage }: { items: RecItem[]; canManage: 
   );
 }
 
-function Editor({ r, onDone }: { r: RecItem; onDone: () => void }) {
+function Editor({ r, courses, onDone }: { r: RecItem; courses: Array<{ id: string; title: string }>; onDone: () => void }) {
   const router = useRouter();
   const [title, setTitle] = useState(r.title);
   const [cover, setCover] = useState<string | null>(r.coverUrl);
@@ -93,6 +93,22 @@ function Editor({ r, onDone }: { r: RecItem; onDone: () => void }) {
   const [crop, setCrop] = useState<File | null>(null);
   const [upBusy, setUpBusy] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [course, setCourse] = useState("");
+  const [toLesson, setToLesson] = useState(false);
+
+  async function addToCourse() {
+    setToLesson(true);
+    try {
+      const res = await fetch(`/api/live/${r.id}/darsga`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ courseId: course }) });
+      const j = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !j.ok) throw new Error(j.error || "Xatolik");
+      toast("Kursga dars qo'shildi", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Xatolik", "error");
+    } finally {
+      setToLesson(false);
+    }
+  }
 
   async function upload(file: File) {
     setUpBusy(true);
@@ -144,6 +160,19 @@ function Editor({ r, onDone }: { r: RecItem; onDone: () => void }) {
       <button type="button" onClick={() => setHidden(!hidden)} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-fg-2 hover:text-fg">
         {hidden ? <EyeOff size={14} /> : <Eye size={14} />} {hidden ? "Yashirin — ko'rsatish" : "Ommaga ko'rinadi — yashirish"}
       </button>
+      {r.status === "ready" && courses.length > 0 && (
+        <div className="flex gap-2">
+          <select value={course} onChange={(e) => setCourse(e.target.value)} aria-label="Kurs" className="field h-9 min-w-0 flex-1 text-[12.5px]">
+            <option value="">Kursga dars qilish…</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
+          <button type="button" disabled={!course || toLesson} onClick={() => void addToCourse()} className="h-9 rounded-lg border border-line-2 px-3 text-[12.5px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
+            {toLesson ? <Loader2 size={13} className="animate-spin" /> : "Qo'shish"}
+          </button>
+        </div>
+      )}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onDone} className="h-9 rounded-full px-3 text-[13px] font-semibold text-fg-3">Bekor</button>
         <button type="button" disabled={busy || upBusy || !title.trim()} onClick={() => void save()} className="btn-accent inline-flex h-9 items-center gap-1.5 px-4 text-[13px]">

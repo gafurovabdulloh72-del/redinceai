@@ -9,6 +9,7 @@ import { RefCapture } from "@/components/mentorship/PurchaseDialog";
 import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { getCurrentUser } from "@/lib/auth";
+import { recordCourseView } from "@/lib/mentorship/growth";
 import { getCourseBySlug } from "@/lib/mentorship/service";
 import { categoryLabel, formatSom, levelLabel, formatDuration } from "@/lib/mentorship/format";
 import { cn, timeAgo } from "@/lib/utils";
@@ -28,6 +29,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const user = await getCurrentUser();
   const c = await getCourseBySlug(slug, user?.id ?? null, user?.role === "admin");
   if (!c) notFound();
+  if (!c.isOwner && user?.role !== "admin") void recordCourseView(c.id).catch(() => undefined);
 
   const firstLesson = c.lessons[0]?.id ?? null;
   const resumeLesson = c.lessons.find((l) => !l.completed)?.id ?? firstLesson;

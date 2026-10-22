@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser, getMentorProfileForEditor, listCoursesOfMentor, listMyEnrollments } from "@/lib/mentorship/service";
 import Link from "next/link";
-import { ClipboardCheck, Route, Wallet } from "lucide-react";
+import { BarChart3, ClipboardCheck, Route, Wallet } from "lucide-react";
 import { ApplyBlock, MyEnrollments } from "@/components/mentorship/MentorDashboard";
 import { MentorStudio } from "@/components/mentorship/MentorStudio";
 
@@ -36,6 +36,13 @@ export default async function KabinetMentorlikPage() {
               <span className="min-w-0 flex-1">
                 <span className="block text-[14.5px] font-bold text-fg">Talabalar vazifalari</span>
                 <span className="block text-[12.5px] text-fg-3">Baholash va izoh</span>
+              </span>
+            </Link>
+            <Link href="/kabinet/mentorlik/statistika" className="card card-hover flex items-center gap-3 p-4">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-fg/6"><BarChart3 size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-bold text-fg">Tahlil</span>
+                <span className="block text-[12.5px] text-fg-3">Ko&apos;rilish, progress, efirlar, daromad</span>
               </span>
             </Link>
             <Link href="/kabinet/mentorlik/yol-xaritasi" className="card card-hover flex items-center gap-3 p-4">

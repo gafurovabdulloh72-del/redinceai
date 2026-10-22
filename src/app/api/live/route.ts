@@ -3,6 +3,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { isCallEnabled } from "@/lib/rtc/livekit";
 import { getVerifiedSession } from "@/lib/auth";
 import { getMembership, loadGroupByAnySlug } from "@/lib/groups/service";
+import { runEventReminders } from "@/lib/events/reminders";
 import { canWatchPaid } from "@/lib/mentorship/purchases";
 import { activeLive, startLive } from "@/lib/live/service";
 
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
 
 /** GET ?slug= — jamoadagi hozirgi efir (ommaviy, faqat id/sarlavha) */
 export const GET = handler(async (req) => {
+  void runEventReminders().catch(() => undefined);
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
   const group = slug ? await loadGroupByAnySlug(slug) : null;
   if (!group || !isCallEnabled()) return ok({ live: null });

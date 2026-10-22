@@ -5,6 +5,9 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { listCourses, listMentors, getMentorForUser } from "@/lib/mentorship/service";
+import { liveAndUpcoming } from "@/lib/mentorship/growth";
+import { formatDateTime } from "@/lib/utils";
+import { RadioTower } from "lucide-react";
 import { MENTOR_CATEGORIES, COURSE_LEVELS, categoryLabel, levelLabel, formatSom } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
 
@@ -24,8 +27,11 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
   const category = sp.kasb && MENTOR_CATEGORIES.some((c) => c.key === sp.kasb) ? sp.kasb : undefined;
   const level = sp.daraja && COURSE_LEVELS.some((l) => l.key === sp.daraja) ? sp.daraja : undefined;
   const q = sp.q?.trim().slice(0, 80) || undefined;
+  const price = sp.narx === "bepul" ? "free" : sp.narx === "pulli" ? "paid" : undefined;
+  const SORTS = [["new", "Yangilari"], ["popular", "Ommabop"], ["rating", "Yuqori baho"], ["cheap", "Arzonlari"], ["expensive", "Qimmatlari"]] as const;
+  const sort = SORTS.find(([k]) => k === sp.tartib)?.[0] ?? "new";
 
-  const [user, { items: courses }, mentors] = await Promise.all([getCurrentUser(), listCourses({ category, level, q, limit: 24 }), listMentors(10)]);
+  const [user, { items: courses }, mentors, lives] = await Promise.all([getCurrentUser(), listCourses({ category, level, q, price, sort, limit: 24 }), listMentors(10), liveAndUpcoming(6)]);
   const myMentor = user ? await getMentorForUser(user.id) : null;
 
   const chip = (k: string, href: string, label: string, active: boolean) => (
@@ -45,6 +51,8 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
     if (category && key !== "kasb") p.set("kasb", category);
     if (level && key !== "daraja") p.set("daraja", level);
     if (q) p.set("q", q);
+    if (price && key !== "narx") p.set("narx", price === "free" ? "bepul" : "pulli");
+    if (sort !== "new" && key !== "tartib") p.set("tartib", sort);
     if (val) p.set(key, val);
     const s = p.toString();
     return `/mentorlik${s ? `?${s}` : ""}`;
@@ -95,10 +103,43 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
         </section>
       )}
 
+      {/* Bu hafta jonli efirlar */}
+      {lives.length > 0 && !q && !category && (
+        <section className="mt-6">
+          <h2 className="mb-2.5 flex items-center gap-2 text-[15px] font-bold text-fg"><RadioTower size={16} className="text-accent-text" /> Jonli efirlar</h2>
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            {lives.map((l) => (
+              <li key={l.key} className="w-[260px] shrink-0">
+                <Link href={l.mentorSlug ? `/mentorlik/ustoz/${l.mentorSlug}?tab=efirlar${l.live ? "&efir=1" : ""}` : "/mentorlik"} className={cn("card card-hover flex h-full flex-col gap-2 p-3.5", l.live && "border-danger/50")}>
+                  <span className="flex items-center gap-2">
+                    <Avatar name={l.mentorName} src={l.avatarUrl} size={26} decorative />
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-fg-2">{l.mentorName}</span>
+                    {l.live ? <span className="inline-flex items-center gap-1 rounded bg-danger px-1.5 py-0.5 text-[10.5px] font-bold uppercase text-white"><span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-white" /> Jonli</span> : null}
+                  </span>
+                  <span className="line-clamp-2 text-[14.5px] font-bold leading-snug text-fg">{l.title}</span>
+                  <span className="mt-auto text-[12px] text-fg-3">{l.live ? "Hozir efirda" : formatDateTime(l.startsAt)}{l.price > 0 ? ` · chipta ${formatSom(l.price)}` : ""}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Yo'nalishlar */}
       <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
         {chip("kasb-all", withParam("kasb", undefined), "Barchasi", !category)}
         {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => chip(`kasb-${c.key}`, withParam("kasb", c.key), c.label, category === c.key))}
+      </div>
+
+      {/* Narx, daraja va tartib */}
+      <div className="no-scrollbar mt-2.5 flex items-center gap-2 overflow-x-auto pb-1">
+        {chip("narx-all", withParam("narx", undefined), "Har qanday narx", !price)}
+        {chip("narx-free", withParam("narx", "bepul"), "Bepul", price === "free")}
+        {chip("narx-paid", withParam("narx", "pulli"), "Pullik", price === "paid")}
+        <span className="mx-1 h-5 w-px shrink-0 bg-line" />
+        {COURSE_LEVELS.map((l) => chip(`lv-${l.key}`, withParam("daraja", level === l.key ? undefined : l.key), l.label, level === l.key))}
+        <span className="mx-1 h-5 w-px shrink-0 bg-line" />
+        {SORTS.map(([k, label]) => chip(`s-${k}`, withParam("tartib", k === "new" ? undefined : k), label, sort === k))}
       </div>
 
       {/* Kurslar */}

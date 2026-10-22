@@ -245,3 +245,12 @@ test("sitemap.xml: /mentorlik bor", async () => {
   const xml = await (await req("/sitemap.xml")).text();
   assert.match(xml, /\/mentorlik</);
 });
+
+test("mentorlik: katalog va sertifikat tekshiruvi", async () => {
+  const cat = await req("/mentorlik");
+  assert.equal(cat.status, 200);
+  const nope = await req("/sertifikat/YOQKOD0000");
+  assert.equal(nope.status, 404);
+  const live = await req("/api/live?slug=yoq-jamoa");
+  assert.equal(live.status, 200);
+});

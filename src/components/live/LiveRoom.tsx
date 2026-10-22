@@ -19,12 +19,13 @@ import {
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { ConnectionQuality, ConnectionState, DisconnectReason, Room, RoomOptions, Track, VideoPresets, type Participant } from "livekit-client";
-import { Circle, Hand, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { Circle, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
+import { LiveQA } from "./LiveQA";
 
 type Conn = { url: string; token: string; host: boolean; hostId: string; title: string; recording?: string; canRecord?: boolean };
-type Panel = "chat" | "people" | null;
+type Panel = "chat" | "people" | "qa" | null;
 type Devices = { video: boolean; audio: boolean; videoId?: string; audioId?: string };
 
 /**
@@ -362,9 +363,9 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         {panel && (
           <aside className="absolute inset-x-2 bottom-2 z-10 flex h-[62%] flex-col overflow-hidden rounded-2xl bg-[#17171a] shadow-[0_-8px_40px_rgba(0,0,0,0.5)] lg:static lg:h-auto lg:w-[340px] lg:shrink-0 lg:shadow-none">
             <div className="flex items-center gap-1 border-b border-white/10 p-2">
-              {(["chat", "people"] as const).map((k) => (
+              {(["chat", "qa", "people"] as const).map((k) => (
                 <button key={k} type="button" onClick={() => setPanel(k)} className={cn("h-8 rounded-lg px-3 text-[13px] font-semibold", panel === k ? "bg-white/15" : "text-white/60 hover:text-white")}>
-                  {k === "chat" ? "Chat" : `Ishtirokchilar ${everyone.length}`}
+                  {k === "chat" ? "Chat" : k === "qa" ? "Savollar" : `Odamlar ${everyone.length}`}
                 </button>
               ))}
               <button type="button" aria-label="Yopish" onClick={() => setPanel(null)} className="ml-auto grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10">
@@ -395,6 +396,8 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
                   </button>
                 </form>
               </>
+            ) : panel === "qa" ? (
+              <LiveQA streamId={streamId} isHost={conn.host} flash={flash} />
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
                 {[...everyone]
@@ -442,6 +445,9 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         )}
         <Btn label="Odamlar" on={panel === "people"} badge={conn.host ? raisedCount : 0} onClick={() => setPanel(panel === "people" ? null : "people")}>
           <Users size={20} />
+        </Btn>
+        <Btn label="Savollar" on={panel === "qa"} onClick={() => setPanel(panel === "qa" ? null : "qa")}>
+          <HelpCircle size={20} />
         </Btn>
         <Btn label="Chat" on={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")}>
           <MessageSquare size={20} />

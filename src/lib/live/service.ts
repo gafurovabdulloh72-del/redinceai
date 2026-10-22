@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { mentors, groups, liveBans, liveStage, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
+import { courses, lessons, mentors, groups, liveBans, liveStage, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
@@ -91,7 +91,7 @@ export async function endLive(streamId: string, actor: Viewer, peak?: number): P
   await closeRoom(s.room).catch((e) => console.error("[live:close]", e));
 }
 
-async function hostedStream(streamId: string, actor: Viewer): Promise<LiveStream> {
+export async function hostedStream(streamId: string, actor: Viewer): Promise<LiveStream> {
   const s = await db.query.liveStreams.findFirst({ where: and(eq(liveStreams.id, streamId), eq(liveStreams.status, "live")) });
   if (!s) throw new ApiError(404, "Efir tugagan");
   if (s.hostId !== actor.id && actor.role !== "admin") throw new ApiError(403, "Faqat boshlovchi boshqara oladi");
@@ -262,4 +262,20 @@ export async function updateRecording(streamId: string, actor: Viewer, patch: { 
   }
   if (patch.hidden !== undefined) set.recordingHidden = patch.hidden;
   if (Object.keys(set).length) await db.update(liveStreams).set(set).where(eq(liveStreams.id, streamId));
+}
+
+/** Tayyor efir yozuvini kursning yangi darsiga aylantiradi (qayta yuklash shart emas) */
+export async function recordingToLesson(streamId: string, actor: Viewer, courseId: string): Promise<{ lessonId: string }> {
+  const s = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
+  if (!s || s.status !== "ended") throw new ApiError(404, "Yozuv topilmadi");
+  if (s.recordingStatus !== "ready" || !s.recordingUrl) throw new ApiError(409, "Yozuv hali tayyor emas");
+  const group = await db.query.groups.findFirst({ where: eq(groups.id, s.groupId) });
+  if (!group || !(await canHost(group, actor))) throw new ApiError(403, "Faqat ustoz uchun");
+  const { addLesson } = await import("@/lib/mentorship/service");
+  const course = await db.query.courses.findFirst({ where: eq(courses.id, courseId), with: { mentor: { columns: { userId: true, channelId: true } } } });
+  if (!course || course.mentor.channelId !== s.groupId) throw new ApiError(404, "Bu kurs shu ustozniki emas");
+  const dup = await db.query.lessons.findFirst({ where: and(eq(lessons.courseId, courseId), eq(lessons.videoUrl, s.recordingUrl)), columns: { id: true } });
+  if (dup) throw new ApiError(409, "Bu yozuv allaqachon shu kursga qo'shilgan");
+  const r = await addLesson(course.mentor.userId, courseId, { title: s.title, body: "Jonli efir yozuvi", videoUrl: s.recordingUrl, durationMin: Math.max(1, Math.round((s.recordingSeconds ?? 60) / 60)), isPreview: false, materials: [], chapters: [], quiz: null, assignment: "" }, actor.role === "admin");
+  return { lessonId: r.id };
 }

@@ -16,6 +16,7 @@ import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
 import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { mentorBadges } from "@/lib/mentorship/growth";
 import { listRoadmaps, listShowcase } from "@/lib/mentorship/learning";
 import { listSlots, myConsults } from "@/lib/mentorship/purchases";
 import { db as _db } from "@/lib/db";
@@ -72,6 +73,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
     channel && view ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
   ]);
   const canStudio = isOwner || user?.role === "admin";
+  const badges = await mentorBadges({ id: profile.id, userId: profile.userId, channelId: channel?.id ?? null, studentsCount: profile.studentsCount, rating: profile.rating, reviewsCount: profile.reviewsCount });
   const subRow = user && profile.subPrice > 0 ? await _db.query.mentorSubs.findFirst({ where: _and(_eq(mentorSubs.userId, user.id), _eq(mentorSubs.mentorId, profile.id)) }) : null;
   const subActive = Boolean(subRow && subRow.until.getTime() > Date.now());
   const [roadmaps, showcase] = tab === "bolimlar" ? await Promise.all([listRoadmaps(profile.id, user?.id ?? null), listShowcase(profile.id)]) : [[], []];
@@ -135,6 +137,15 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               </p>
             )}
             <h1 className="max-w-2xl font-display text-[28px] font-extrabold leading-[1.1] tracking-tight sm:text-[38px]">{profile.headline}</h1>
+            {badges.length > 0 && (
+              <p className="mt-4 flex flex-wrap gap-1.5">
+                {badges.map((b) => (
+                  <span key={b.key} title={b.hint} className="inline-flex items-center gap-1 rounded-full bg-white/14 px-2.5 py-1 text-[12px] font-semibold text-white">
+                    ✓ {b.label}
+                  </span>
+                ))}
+              </p>
+            )}
             {profile.bio && <p className="mt-4 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-white/72 sm:text-[16px]">{profile.bio}</p>}
           </div>
           <div className="relative mt-6 space-y-4">
@@ -314,7 +325,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           <>
             {view && <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />}
             <EventsList ev={ev} />
-            <Recordings items={recs} canManage={Boolean(view?.canManage)} />
+            <Recordings items={recs} canManage={Boolean(view?.canManage)} courses={courses.map((c) => ({ id: c.id, title: c.title }))} />
             {past.length > 0 && (
               <section className="card mt-4 p-4 sm:p-5">
                 <h2 className="flex items-center gap-2 text-[15px] font-bold text-fg">

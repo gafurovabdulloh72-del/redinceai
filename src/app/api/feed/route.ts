@@ -1,3 +1,4 @@
+import { runEventReminders } from "@/lib/events/reminders";
 import { z } from "zod";
 import { handler, ok, parseQuery } from "@/lib/api";
 import { optionalViewer } from "@/app/api/groups/_lib";
@@ -14,6 +15,7 @@ const querySchema = z.object({
 
 /** GET ?cursor=<ms>&scope=all|following&tag= — bosh sahifa lentasi (ommaviy; "following" faqat kirganlarga ma'no beradi) */
 export const GET = handler(async (req) => {
+  void runEventReminders().catch(() => undefined);
   const { cursor, scope, limit, tag } = parseQuery(req.url, querySchema);
   const viewer = await optionalViewer();
   return ok(await homeFeed(viewer, { cursor: cursor ?? null, scope, limit, tag: tag ? normalizeTag(tag) : null }));

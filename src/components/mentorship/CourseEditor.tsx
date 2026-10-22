@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Eye, Pencil, GripVertical, ImagePlus, Loader2, Plus, Trash2, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, Check, Eye, Pencil, GripVertical, ImagePlus, Loader2, Plus, Trash2, Upload, Video } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
