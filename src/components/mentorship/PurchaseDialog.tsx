@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Tag } from "lucide-react";
+import { Loader2, Send, Tag } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
 import { formatSom } from "@/lib/mentorship/format";
@@ -22,6 +22,7 @@ type Quote = {
   creditUsed: number;
   creditBalance: number;
   providers: Provider[];
+  telegram?: boolean;
 };
 
 /** ?ref=KOD bo'lsa, brauzerda eslab qoladi (xarid vaqtida do'st chegirmasi qo'llanadi) */
@@ -79,6 +80,22 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
     }
     void load();
   }, [open, loggedIn, load, router, onClose]);
+
+  /** Telegram bot orqali to'lash: bot ochiladi, usulni u yerda tanlaydi */
+  async function payViaTelegram() {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/mentorlik/tolov/telegram", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id }) });
+      const j = (await r.json()) as { data?: { linked: boolean; url: string }; error?: string };
+      if (!r.ok || !j.data) throw new Error(j.error || "Telegram ochilmadi");
+      if (!j.data.linked) showToast("Avval botga ulaning — «Start» bosing, so'ng bu tugmani qayta bosing", "info");
+      window.open(j.data.url, "_blank", "noopener");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function pay() {
     if (!q) return;
@@ -164,6 +181,11 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
           <button type="button" disabled={busy || (!free && !provider)} onClick={() => void pay()} className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold disabled:opacity-50">
             {busy && <Loader2 size={16} className="animate-spin" />} {free ? "Bepul boshlash" : `To'lash — ${formatSom(q.amount)}`}
           </button>
+          {!free && q.telegram && (
+            <button type="button" disabled={busy} onClick={() => void payViaTelegram()} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-line-2 text-[14px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
+              <Send size={15} /> Telegramda to&apos;lash
+            </button>
+          )}
         </div>
       )}
     </Sheet>

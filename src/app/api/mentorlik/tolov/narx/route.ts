@@ -1,5 +1,6 @@
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { availableProviders } from "@/lib/payments/config";
+import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { creditBalance, priceFor, quoteItem } from "@/lib/mentorship/purchases";
 import { purchaseQuoteSchema } from "@/lib/mentorship/purchase-schemas";
 
@@ -18,5 +19,6 @@ export const POST = handler(async (req) => {
     creditUsed: p.creditUsed,
     creditBalance: await creditBalance(session.sub),
     providers: await availableProviders(),
+    telegram: isTelegramEnabled() && Boolean(telegramBotUsername()),
   });
 });

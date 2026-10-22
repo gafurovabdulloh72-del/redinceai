@@ -11,6 +11,7 @@ import { cancelInvoice, invoiceHref, loadInvoice, markInvoicePaid } from "@/lib/
 import { invoiceNumber } from "@/lib/subscriptions/labels";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
 import { formatPrice } from "@/lib/utils";
+import { handleBuyStart, handleMyPurchases, handlePayCallback } from "@/lib/mentorship/telegram-pay";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -21,6 +22,8 @@ import { formatPrice } from "@/lib/utils";
  *
  * Faqat shaxsiy chatdagi matnli xabarlar:
  *   /start <kod> — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
+ *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
+ *   /kurslarim   — mening kurslarim va kutilayotgan to'lovlar
  *   /stop        — shu chatga ulangan hisobdan uzish
  *   boshqa matn  — qisqa yordam
  *
@@ -31,6 +34,7 @@ import { formatPrice } from "@/lib/utils";
 const HELP_TEXT =
   "Bu bot — <b>Kasb Egalari</b> bildirishnomalari (buyurtma, to'lov, xabarlar).\n" +
   "Hisobni ulash: saytda Kabinet → Profil → «Telegramga ulash».\n" +
+  "Kurslar va to'lovlar: /kurslarim\n" +
   "Uzish: /stop";
 
 function secretOk(req: Request): boolean {
@@ -117,6 +121,9 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const msgId = typeof cb.message?.message_id === "number" ? cb.message.message_id : null;
   const answer = (text: string) => telegramApi("answerCallbackQuery", { callback_query_id: cbId, text: text.slice(0, 190) });
 
+  // Mentorlik xaridi (xaridor tugmalari) — admin tekshiruvi kerak emas
+  if (chatId && (await handlePayCallback(chatId, data, answer))) return;
+
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
   if (!m || !chatId) {
     await answer("Noma'lum amal");
@@ -192,7 +199,10 @@ export async function POST(req: Request) {
 
     const [rawCmd = "", arg = ""] = text.split(/\s+/);
     const cmd = rawCmd.split("@")[0].toLowerCase(); // "/start@BotNomi" ham qabul qilinadi
-    if (cmd === "/start") await handleStart(chatId, arg);
+    if (cmd === "/start") {
+      // b_<tur>_<id> — mentorlik xaridi (saytdagi «Telegramda to'lash»)
+      if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg);
+    } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
     else if (cmd === "/stop") await handleStop(chatId);
     else await sendTelegram(chatId, HELP_TEXT);
   } catch (e) {
