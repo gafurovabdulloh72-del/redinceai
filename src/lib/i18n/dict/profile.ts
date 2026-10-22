@@ -442,6 +442,7 @@ export const POST_OYNA = {
   next: { uz: "Keyingi", ru: "Следующее" } satisfies Tr,
   share: { uz: "Havolani nusxalash", ru: "Скопировать ссылку" } satisfies Tr,
   shareTelegram: { uz: "Telegram orqali ulashish", ru: "Поделиться в Telegram" } satisfies Tr,
+  sendTo: { uz: "Saytdagi odamga yuborish", ru: "Отправить пользователю сайта" } satisfies Tr,
   linkCopied: { uz: "Havola nusxalandi", ru: "Ссылка скопирована" } satisfies Tr,
   edited: { uz: "tahrirlangan", ru: "изменено" } satisfies Tr,
   views: { uz: (n: number) => `${n} ta ko'rish`, ru: (n: number) => `${n} ${ruPlural(n, ["просмотр", "просмотра", "просмотров"])}` },

@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Eye, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Check, Eye, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
 import { useViewTracker } from "@/components/groups/useViewTracker";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { compactCount } from "@/lib/utils";
 import { ReactionButton, SaveButton, type ReactionState } from "@/components/groups/Reactions";
 import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
+import { ShareSheet } from "@/components/social/ShareSheet";
 import { usePresence } from "@/components/motion/usePresence";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { Comments } from "@/components/groups/GroupFeed";
@@ -227,7 +228,6 @@ function PostBody({
   const canDelete = Boolean(viewerId && (viewerId === post.author.id || isAdmin));
   const textOnly = post.media.length === 0;
   const shareUrl = `${window.location.origin}${shareBase}?post=${post.id}`;
-  const tgHref = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post.body.slice(0, 120))}`;
 
   function requireLogin(): boolean {
     if (loggedIn) return true;
@@ -250,10 +250,14 @@ function PostBody({
       setBusy(false);
     }
   }
+  // Havolani nusxalash: ikonka vaqtincha ✓ ga almashadi (pop animatsiyasi bilan)
+  const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   async function share() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast(tr(til, POST_OYNA.linkCopied));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
     } catch {
       toast(shareUrl, "info");
     }
@@ -320,12 +324,14 @@ function PostBody({
       <span className="inline-flex h-10 items-center gap-1.5 px-2 text-[13px] text-fg-3" aria-label={POST_OYNA.views[til](views)} title={POST_OYNA.views[til](views)}>
         <Eye size={17} aria-hidden /> <span className="tabular-nums">{compactCount(views)}</span>
       </span>
-      <button type="button" onClick={share} aria-label={tr(til, POST_OYNA.share)} title={tr(til, POST_OYNA.share)} className={iconBtn}>
-        <Link2 size={17} />
+      <button type="button" onClick={share} aria-label={tr(til, copied ? POST_OYNA.linkCopied : POST_OYNA.share)} title={tr(til, copied ? POST_OYNA.linkCopied : POST_OYNA.share)} className={cn(iconBtn, copied && "text-success-text")}>
+        {copied ? <Check key="ok" size={18} className="animate-pop" /> : <Link2 key="link" size={17} />}
       </button>
-      <a href={tgHref} target="_blank" rel="noopener noreferrer" aria-label={tr(til, POST_OYNA.shareTelegram)} title={tr(til, POST_OYNA.shareTelegram)} className={iconBtn}>
+      <span role="status" className="sr-only">{copied ? tr(til, POST_OYNA.linkCopied) : ""}</span>
+      <button type="button" onClick={() => setShareOpen(true)} aria-label={tr(til, POST_OYNA.sendTo)} title={tr(til, POST_OYNA.sendTo)} className={iconBtn}>
         <Send size={16} />
-      </a>
+      </button>
+      {shareOpen && <ShareSheet open onClose={() => setShareOpen(false)} loggedIn={loggedIn} title={post.body.slice(0, 80) || "Post"} url={shareUrl} />}
       <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} size="lg" />
       {canDelete && (
         <span className="ml-auto">
