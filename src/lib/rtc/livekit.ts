@@ -79,10 +79,10 @@ export function liveRoom(streamId: string): string {
  * LiveKit server API (Twirp/JSON): efirni boshqarish — tomoshabinni chiqarish, sahnaga chiqarish/tushirish, xonani yopish.
  * Admin tokeni (roomAdmin) qisqa muddatli, faqat shu xona uchun.
  */
-async function roomAdmin(room: string, method: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function roomAdmin(room: string, method: string, body: Record<string, unknown>, service = "RoomService", withRoom = true): Promise<Record<string, unknown>> {
   if (!API_KEY || !API_SECRET) throw new Error("LIVEKIT sozlanmagan");
   const secret = new TextEncoder().encode(API_SECRET);
-  const token = await new SignJWT({ video: { room, roomAdmin: true, roomCreate: true } })
+  const token = await new SignJWT({ video: { room, roomAdmin: true, roomCreate: true, roomRecord: true } })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuer(API_KEY)
     .setSubject("server")
@@ -90,10 +90,10 @@ async function roomAdmin(room: string, method: string, body: Record<string, unkn
     .setExpirationTime("1m")
     .sign(secret);
   const base = LIVEKIT_WS_URL.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-  const res = await fetch(`${base}/twirp/livekit.RoomService/${method}`, {
+  const res = await fetch(`${base}/twirp/livekit.${service}/${method}`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ room, ...body }),
+    body: JSON.stringify(withRoom ? { room, ...body } : body),
     cache: "no-store",
   });
   // 404 (xona/ishtirokchi allaqachon yo'q) — xato emas
@@ -117,3 +117,36 @@ export const closeRoom = (room: string) => roomAdmin(room, "DeleteRoom", {}).the
 /** Sahnaga chiqarish (mikrofon/kamera huquqi) yoki tushirish; `stage` atributi ro'yxatda ko'rsatish uchun */
 export const setStage = (room: string, identity: string, on: boolean) =>
   roomAdmin(room, "UpdateParticipant", { identity, permission: { can_subscribe: true, can_publish: on, can_publish_data: true }, attributes: { stage: on ? "1" : "", hand: "" } }).then(() => undefined);
+
+/**
+ * Efir yozuvi: LiveKit Egress (RoomComposite, MP4) → bizning R2 bucket'ga. R2 sozlanmagan bo'lsa chaqirilmaydi.
+ * Natija: egressId. Fayl `filepath` kaliti bilan R2'da paydo bo'ladi (ommaviy URL — r2PublicUrl).
+ */
+export async function startRoomRecording(room: string, filepath: string, s3: { accessKey: string; secret: string; endpoint: string; bucket: string }): Promise<string> {
+  const r = (await roomAdmin(
+    room,
+    "StartRoomCompositeEgress",
+    { room_name: room, layout: "speaker", file_outputs: [{ file_type: "MP4", filepath, s3: { access_key: s3.accessKey, secret: s3.secret, region: "auto", endpoint: s3.endpoint, bucket: s3.bucket, force_path_style: true } }] },
+    "Egress",
+    false,
+  )) as { egress_id?: string; egressId?: string };
+  const id = r.egress_id ?? r.egressId;
+  if (!id) throw new Error("Egress boshlanmadi");
+  return id;
+}
+
+export const stopRecording = (room: string, egressId: string) => roomAdmin(room, "StopEgress", { egress_id: egressId }, "Egress", false).then(() => undefined);
+
+export type EgressInfo = { status: string; seconds: number | null };
+/** Egress holati: ACTIVE | ENDING | COMPLETE | FAILED | ABORTED | LIMIT_REACHED (matn yoki raqam bo'lishi mumkin) */
+export async function egressInfo(room: string, egressId: string): Promise<EgressInfo | null> {
+  const r = (await roomAdmin(room, "ListEgress", { egress_id: egressId }, "Egress", false)) as { items?: { status?: string | number; file_results?: { duration?: string | number }[]; fileResults?: { duration?: string | number }[] }[] };
+  const it = r.items?.[0];
+  if (!it) return null;
+  const NUM = ["STARTING", "ACTIVE", "ENDING", "COMPLETE", "FAILED", "ABORTED", "LIMIT_REACHED"];
+  const status = typeof it.status === "number" ? (NUM[it.status] ?? String(it.status)) : String(it.status ?? "").replace("EGRESS_", "");
+  const dur = (it.file_results ?? it.fileResults)?.[0]?.duration;
+  // duration — nanosekund (string)
+  const seconds = dur ? Math.max(1, Math.round(Number(dur) / 1e9)) : null;
+  return { status, seconds };
+}

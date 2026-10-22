@@ -1962,6 +1962,15 @@ export const liveStreams = sqliteTable(
     status: text("status", { enum: ["live", "ended"] }).notNull().default("live"),
     /** Eng ko'p bir vaqtdagi tomoshabin (host yuboradi) */
     peakViewers: integer("peak_viewers").notNull().default(0),
+    /** Yozuv (LiveKit Egress → R2): none → recording → processing → ready | failed */
+    recordingStatus: text("recording_status", { enum: ["none", "recording", "processing", "ready", "failed"] }).notNull().default("none"),
+    recordingEgressId: text("recording_egress_id"),
+    recordingUrl: text("recording_url"),
+    recordingSeconds: integer("recording_seconds"),
+    /** Yozuv muqovasi (mentor tahrirlaydi) */
+    coverUrl: text("cover_url"),
+    /** Mentor yozuvni ommaviy ro'yxatdan yashirgan */
+    recordingHidden: integer("recording_hidden", { mode: "boolean" }).notNull().default(false),
     startedAt: integer("started_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

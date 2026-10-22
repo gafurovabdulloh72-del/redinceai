@@ -17,11 +17,11 @@ import {
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { DisconnectReason, Room, Track, type Participant } from "livekit-client";
-import { Hand, Loader2, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { Circle, Hand, Loader2, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 
-type Conn = { url: string; token: string; host: boolean; hostId: string; title: string };
+type Conn = { url: string; token: string; host: boolean; hostId: string; title: string; recording?: string; canRecord?: boolean };
 type Panel = "chat" | "people" | null;
 
 const nameOf = (p: Participant) => p.name || "Ishtirokchi";
@@ -162,6 +162,7 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }]);
   const { chatMessages, send, isSending } = useChat();
 
+  const [rec, setRec] = useState(conn.recording === "recording");
   const [panel, setPanel] = useState<Panel>(null);
   const [pin, setPin] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -253,6 +254,17 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
     }
   }
 
+  async function startRec() {
+    try {
+      const r = await fetch(`/api/live/${streamId}/recording`, { method: "POST" });
+      if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Xatolik");
+      setRec(true);
+      flash("Yozib olish boshlandi — efir tugagach yozuv ustoz bo'limida paydo bo'ladi");
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Yozib olib bo'lmadi");
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const t = text.trim();
@@ -273,6 +285,11 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         <span className="inline-flex items-center gap-1.5 rounded-md bg-danger px-2 py-1 text-[11px] font-bold uppercase tracking-wider">
           <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-white" /> Jonli
         </span>
+        {rec && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-danger">
+            <Circle size={8} fill="currentColor" className="animate-ping-soft" /> Yozilmoqda
+          </span>
+        )}
         <span className="text-[12.5px] tabular-nums text-white/65">{mm}:{ss}</span>
         <p className="min-w-0 flex-1 truncate text-[14px] font-semibold">{conn.title}</p>
         <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[12px] font-semibold tabular-nums">
@@ -372,6 +389,11 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
               </Btn>
             )}
           </>
+        )}
+        {conn.host && conn.canRecord && !rec && (
+          <Btn label="Yozish" onClick={() => void startRec()}>
+            <Circle size={20} className="text-danger" fill="currentColor" />
+          </Btn>
         )}
         {!conn.host && (
           <Btn label={handUp ? "Tushirish" : "Qo'l"} accent={handUp} onClick={() => void localParticipant.setAttributes({ hand: handUp ? "" : "1" }).catch(() => undefined)}>

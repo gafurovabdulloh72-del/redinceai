@@ -14,7 +14,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, type PostView } from "@/lib/groups/service";
 import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
-import { activeLive, pastLives } from "@/lib/live/service";
+import { Recordings } from "@/components/live/Recordings";
+import { activeLive, listRecordings, pastLives } from "@/lib/live/service";
 import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   if (user && channel && isMember) await markGroupRead(channel.id, user.id).catch(() => undefined);
 
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "lenta";
-  const [liveNow, past] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([])]) : [null, []];
+  const [liveNow, past, recs] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([]), tab === "efirlar" || tab === "lenta" ? listRecordings(channel.id, Boolean(view.canManage)) : Promise.resolve([])]) : [null, [], []];
   const [feed, ev] = await Promise.all([
     channel && view && tab === "lenta" ? listPosts(channel, viewer, null) : null,
     channel && view ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
@@ -211,6 +212,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           <>
             {view && <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />}
             <EventsList ev={ev} />
+            <Recordings items={recs} canManage={Boolean(view?.canManage)} />
             {past.length > 0 && (
               <section className="card mt-4 p-4 sm:p-5">
                 <h2 className="flex items-center gap-2 text-[15px] font-bold text-fg">

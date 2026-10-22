@@ -1,10 +1,13 @@
 import "server-only";
-import { and, desc, eq, gt, lt } from "drizzle-orm";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groups, liveBans, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
+import { r2Config, r2PublicUrl } from "@/lib/storage/r2";
+import { egressInfo, startRoomRecording, stopRecording } from "@/lib/rtc/livekit";
+import { IMAGE_URL_RE } from "@/lib/validators";
 import { closeRoom, listIdentities, liveRoom, muteTrack, removeParticipant, setStage } from "@/lib/rtc/livekit";
 
 /** Token 6 soat yashaydi — undan uzoq "jonli" yozuv yetim (host yopmagan) hisoblanadi */
@@ -34,6 +37,7 @@ async function hostGone(s: LiveStream): Promise<boolean> {
 async function endLiveSystem(s: LiveStream): Promise<void> {
   await db.update(liveStreams).set({ status: "ended", endedAt: new Date() }).where(and(eq(liveStreams.id, s.id), eq(liveStreams.status, "live")));
   hostSeen.delete(s.id);
+  await finishRecording(s).catch(() => undefined);
   await closeRoom(s.room).catch(() => undefined);
 }
 
@@ -75,6 +79,7 @@ export async function endLive(streamId: string, actor: Viewer, peak?: number): P
     .update(liveStreams)
     .set({ status: "ended", endedAt: new Date(), peakViewers: Math.max(s.peakViewers, Math.min(Math.floor(peak ?? 0), 1_000_000)) })
     .where(and(eq(liveStreams.id, streamId), eq(liveStreams.status, "live")));
+  await finishRecording(s).catch(() => undefined);
   // Xonani yopamiz — hamma tomoshabin uziladi (host sahifani yopib ketgan bo'lsa ham)
   await closeRoom(s.room).catch((e) => console.error("[live:close]", e));
 }
@@ -148,4 +153,96 @@ export async function chatHistory(streamId: string, v: Viewer): Promise<{ id: st
     .orderBy(desc(liveMessages.createdAt))
     .limit(50);
   return rows.reverse().map((r) => ({ id: r.id, name: r.name ?? "Ishtirokchi", body: r.body, at: r.at.getTime() }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Efir yozuvi (LiveKit Egress → R2)                                   */
+/* ------------------------------------------------------------------ */
+
+export function recordingAvailable(): boolean {
+  return r2Config() !== null;
+}
+
+const recKey = (id: string) => `recordings/${id}.mp4`;
+
+/** Boshlovchi «Yozib olish»ni bosadi: nom — efir mavzusi; efir tugaganda yozuv avtomatik to'xtaydi va mentor bo'limiga tushadi */
+export async function startRecording(streamId: string, actor: Viewer): Promise<void> {
+  const s = await hostedStream(streamId, actor);
+  const cfg = r2Config();
+  if (!cfg) throw new ApiError(503, "Yozib olish uchun fayl saqlash (R2) sozlanmagan");
+  if (s.recordingStatus === "recording" || s.recordingStatus === "processing") throw new ApiError(409, "Yozib olish allaqachon boshlangan");
+  // CAS: bir vaqtda ikki marta bosilsa faqat bittasi o'tadi
+  const claimed = await db
+    .update(liveStreams)
+    .set({ recordingStatus: "recording" })
+    .where(and(eq(liveStreams.id, streamId), eq(liveStreams.status, "live"), sql`${liveStreams.recordingStatus} in ('none','failed')`))
+    .returning({ id: liveStreams.id });
+  if (!claimed.length) throw new ApiError(409, "Yozib olish allaqachon boshlangan");
+  try {
+    const egressId = await startRoomRecording(s.room, recKey(s.id), { accessKey: cfg.accessKeyId, secret: cfg.secretAccessKey, endpoint: cfg.endpoint, bucket: cfg.bucket });
+    await db.update(liveStreams).set({ recordingEgressId: egressId }).where(eq(liveStreams.id, streamId));
+  } catch (e) {
+    await db.update(liveStreams).set({ recordingStatus: "failed" }).where(eq(liveStreams.id, streamId));
+    console.error("[live:record]", e);
+    throw new ApiError(502, "Yozib olishni boshlab bo'lmadi — keyinroq urinib ko'ring");
+  }
+}
+
+/** Efir tugaganda: yozuv ketayotgan bo'lsa to'xtatamiz (fayl tayyorlanishi — processing) */
+export async function finishRecording(s: LiveStream): Promise<void> {
+  if (s.recordingStatus !== "recording" || !s.recordingEgressId) return;
+  await db.update(liveStreams).set({ recordingStatus: "processing" }).where(and(eq(liveStreams.id, s.id), eq(liveStreams.recordingStatus, "recording")));
+  await stopRecording(s.room, s.recordingEgressId).catch((e) => console.error("[live:stop-rec]", e));
+}
+
+/** processing holatdagi yozuvni Egress bilan solishtiramiz (webhook yo'q — ro'yxat ochilganda tekshiriladi) */
+async function syncRecording(s: LiveStream): Promise<LiveStream> {
+  if (s.recordingStatus !== "processing" || !s.recordingEgressId) return s;
+  const info = await egressInfo(s.room, s.recordingEgressId).catch(() => null);
+  if (!info) return s;
+  if (info.status === "COMPLETE") {
+    const patch = { recordingStatus: "ready" as const, recordingUrl: r2PublicUrl(recKey(s.id)), recordingSeconds: info.seconds };
+    await db.update(liveStreams).set(patch).where(eq(liveStreams.id, s.id));
+    return { ...s, ...patch };
+  }
+  if (["FAILED", "ABORTED", "LIMIT_REACHED"].includes(info.status)) {
+    await db.update(liveStreams).set({ recordingStatus: "failed" }).where(eq(liveStreams.id, s.id));
+    return { ...s, recordingStatus: "failed" };
+  }
+  return s;
+}
+
+export type RecordingView = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: LiveStream["recordingStatus"]; hidden: boolean };
+
+/** Mentor bo'limidagi yozuvlar. Mehmon/obunachi: faqat tayyor va yashirilmagan; boshqaruvchi: hammasi (jarayondagilari ham) */
+export async function listRecordings(groupId: string, manage: boolean, limit = 30): Promise<RecordingView[]> {
+  let rows = await db.query.liveStreams.findMany({
+    where: and(eq(liveStreams.groupId, groupId), eq(liveStreams.status, "ended"), sql`${liveStreams.recordingStatus} <> 'none'`),
+    orderBy: [desc(liveStreams.startedAt)],
+    limit,
+  });
+  rows = await Promise.all(rows.map(syncRecording));
+  return rows
+    .filter((r) => (manage ? true : r.recordingStatus === "ready" && !r.recordingHidden))
+    .map((r) => ({ id: r.id, title: r.title, startedAt: r.startedAt.getTime(), seconds: r.recordingSeconds ?? Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 1000)), url: r.recordingUrl, coverUrl: r.coverUrl, status: r.recordingStatus, hidden: r.recordingHidden }));
+}
+
+/** Mentor (egasi/admin) yozuv nomi, muqovasi va ko'rinishini tahrirlaydi */
+export async function updateRecording(streamId: string, actor: Viewer, patch: { title?: string; coverUrl?: string | null; hidden?: boolean }): Promise<void> {
+  const s = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
+  if (!s) throw new ApiError(404, "Yozuv topilmadi");
+  const group = await db.query.groups.findFirst({ where: eq(groups.id, s.groupId) });
+  if (!group || !(await canHost(group, actor))) throw new ApiError(403, "Tahrirlash faqat ustoz uchun");
+  const set: Partial<typeof liveStreams.$inferInsert> = {};
+  if (patch.title !== undefined) {
+    const t = patch.title.trim().slice(0, 100);
+    if (!t) throw new ApiError(422, "Nom bo'sh bo'lmasin");
+    set.title = t;
+  }
+  if (patch.coverUrl !== undefined) {
+    if (patch.coverUrl !== null && !IMAGE_URL_RE.test(patch.coverUrl)) throw new ApiError(422, "Muqova manzili noto'g'ri");
+    set.coverUrl = patch.coverUrl;
+  }
+  if (patch.hidden !== undefined) set.recordingHidden = patch.hidden;
+  if (Object.keys(set).length) await db.update(liveStreams).set(set).where(eq(liveStreams.id, streamId));
 }
