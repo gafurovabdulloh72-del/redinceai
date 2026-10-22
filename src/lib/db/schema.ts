@@ -1971,6 +1971,25 @@ export const liveStreams = sqliteTable(
 );
 
 export type Mentor = typeof mentors.$inferSelect;
+/** Efir chati tarixi (kech kirganlar ko'radi; realtime LiveKit data kanalida) */
+export const liveMessages = sqliteTable(
+  "live_messages",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_messages_stream_idx").on(t.streamId, t.createdAt)],
+);
+
 /** Efirdan chiqarib yuborilgan tomoshabinlar (shu efirga qayta kira olmaydi) */
 export const liveBans = sqliteTable(
   "live_bans",

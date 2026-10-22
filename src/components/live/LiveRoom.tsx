@@ -166,11 +166,23 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   const [pin, setPin] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [text, setText] = useState("");
+  const [history, setHistory] = useState<{ id: string; name: string; body: string }[]>([]);
   const [cams, setCams] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
   const wasStage = useRef(canPublish);
   const canShare = typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
 
+  // Chat tarixi (kech kirganlar oldingi xabarlarni ko'radi)
+  useEffect(() => {
+    let alive = true;
+    void fetch(`/api/live/${streamId}/chat`)
+      .then((r) => r.json())
+      .then((j: { data?: { items: { id: string; name: string; body: string }[] } }) => alive && setHistory(j.data?.items ?? []))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [streamId]);
   // Keng ekranda chat avtomatik ochiq
   useEffect(() => {
     if (window.matchMedia("(min-width: 1024px)").matches) setPanel("chat");
@@ -185,7 +197,7 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   }, []);
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [chatMessages.length, panel]);
+  }, [chatMessages.length, history.length, panel]);
   // Sahnaga chiqarilganda / tushirilganda xabar
   useEffect(() => {
     if (!conn.host && canPublish !== wasStage.current) {
@@ -246,6 +258,9 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
     const t = text.trim();
     if (!t) return;
     setText("");
+    // Tarixga yozish (taqiqlangan bo'lsa server rad etadi) + realtime LiveKit data kanali
+    const saved = await fetch(`/api/live/${streamId}/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: t }) }).catch(() => null);
+    if (saved && !saved.ok) return flash("Xabar yuborilmadi");
     await send(t).catch(() => undefined);
   }
 
@@ -302,7 +317,13 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
             {panel === "chat" ? (
               <>
                 <ul ref={listRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 text-[13.5px]">
-                  {chatMessages.length === 0 && <li className="py-6 text-center text-white/45">Savol yoki fikringizni yozing</li>}
+                  {chatMessages.length + history.length === 0 && <li className="py-6 text-center text-white/45">Savol yoki fikringizni yozing</li>}
+                  {history.map((m) => (
+                    <li key={m.id} className="leading-snug opacity-80">
+                      <span className="font-semibold text-white/60">{m.name}: </span>
+                      <span className="break-words">{m.body}</span>
+                    </li>
+                  ))}
                   {chatMessages.map((m, i) => (
                     <li key={i} className="leading-snug">
                       <span className="font-semibold text-white/60">{m.from?.name || "…"}: </span>
@@ -378,10 +399,10 @@ function PersonRow({ p, hostId, iAmHost, streamId, flash }: { p: Participant; ho
   const onStage = Boolean(p.permissions?.canPublish);
   const hand = attributes?.hand === "1";
 
-  async function act(action: "kick" | "allow" | "revoke") {
+  async function act(action: "kick" | "allow" | "revoke" | "mute") {
     setBusy(true);
     try {
-      const r = await fetch(`/api/live/${streamId}/participants`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: p.identity, action }) });
+      const r = await fetch(`/api/live/${streamId}/participants`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: p.identity, action, trackSid: action === "mute" ? p.getTrackPublication(Track.Source.Microphone)?.trackSid : undefined }) });
       if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Xatolik");
       if (action === "kick") flash(`${nameOf(p)} efirdan chiqarildi`);
     } catch (e) {
@@ -402,6 +423,11 @@ function PersonRow({ p, hostId, iAmHost, streamId, flash }: { p: Participant; ho
       {onStage ? (p.isMicrophoneEnabled ? <Mic size={14} className="text-white/60" /> : <MicOff size={14} className="text-danger" />) : null}
       {iAmHost && !isHost && !p.isLocal && (
         <div className="flex gap-1">
+          {onStage && p.isMicrophoneEnabled && (
+            <button type="button" disabled={busy} onClick={() => void act("mute")} aria-label="Mikrofonni o'chirish" title="Mikrofonni o'chirish" className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 hover:bg-white/20">
+              <MicOff size={14} />
+            </button>
+          )}
           <button type="button" disabled={busy} onClick={() => void act(onStage ? "revoke" : "allow")} className={cn("h-8 rounded-lg px-2.5 text-[12px] font-semibold", onStage ? "bg-white/10" : hand ? "bg-accent text-white" : "bg-white/10")}>
             {onStage ? "Tushirish" : "Gapirsin"}
           </button>

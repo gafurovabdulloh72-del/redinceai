@@ -79,7 +79,7 @@ export function liveRoom(streamId: string): string {
  * LiveKit server API (Twirp/JSON): efirni boshqarish — tomoshabinni chiqarish, sahnaga chiqarish/tushirish, xonani yopish.
  * Admin tokeni (roomAdmin) qisqa muddatli, faqat shu xona uchun.
  */
-async function roomAdmin(room: string, method: string, body: Record<string, unknown>): Promise<void> {
+async function roomAdmin(room: string, method: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (!API_KEY || !API_SECRET) throw new Error("LIVEKIT sozlanmagan");
   const secret = new TextEncoder().encode(API_SECRET);
   const token = await new SignJWT({ video: { room, roomAdmin: true, roomCreate: true } })
@@ -98,10 +98,22 @@ async function roomAdmin(room: string, method: string, body: Record<string, unkn
   });
   // 404 (xona/ishtirokchi allaqachon yo'q) — xato emas
   if (!res.ok && res.status !== 404) throw new Error(`LiveKit ${method}: ${res.status}`);
+  return res.ok ? ((await res.json().catch(() => ({}))) as Record<string, unknown>) : {};
 }
 
-export const removeParticipant = (room: string, identity: string) => roomAdmin(room, "RemoveParticipant", { identity });
-export const closeRoom = (room: string) => roomAdmin(room, "DeleteRoom", {});
+/** Xonadagi ishtirokchilar identity'lari (xona yo'q bo'lsa bo'sh) */
+export async function listIdentities(room: string): Promise<string[]> {
+  const r = (await roomAdmin(room, "ListParticipants", {})) as { participants?: { identity: string }[] };
+  return (r.participants ?? []).map((p) => p.identity);
+}
+
+/** Ishtirokchi mikrofonini majburan o'chirish (boshlovchi) */
+export async function muteTrack(room: string, identity: string, trackSid: string): Promise<void> {
+  await roomAdmin(room, "MutePublishedTrack", { identity, track_sid: trackSid, muted: true });
+}
+
+export const removeParticipant = (room: string, identity: string) => roomAdmin(room, "RemoveParticipant", { identity }).then(() => undefined);
+export const closeRoom = (room: string) => roomAdmin(room, "DeleteRoom", {}).then(() => undefined);
 /** Sahnaga chiqarish (mikrofon/kamera huquqi) yoki tushirish; `stage` atributi ro'yxatda ko'rsatish uchun */
 export const setStage = (room: string, identity: string, on: boolean) =>
-  roomAdmin(room, "UpdateParticipant", { identity, permission: { can_subscribe: true, can_publish: on, can_publish_data: true }, attributes: { stage: on ? "1" : "", hand: "" } });
+  roomAdmin(room, "UpdateParticipant", { identity, permission: { can_subscribe: true, can_publish: on, can_publish_data: true }, attributes: { stage: on ? "1" : "", hand: "" } }).then(() => undefined);

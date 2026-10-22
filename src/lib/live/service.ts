@@ -1,16 +1,41 @@
 import "server-only";
 import { and, desc, eq, gt, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groups, liveBans, liveStreams, type Group, type LiveStream } from "@/lib/db/schema";
+import { groups, liveBans, liveMessages, liveStreams, users, type Group, type LiveStream } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
-import { closeRoom, liveRoom, removeParticipant, setStage } from "@/lib/rtc/livekit";
+import { closeRoom, listIdentities, liveRoom, muteTrack, removeParticipant, setStage } from "@/lib/rtc/livekit";
 
 /** Token 6 soat yashaydi — undan uzoq "jonli" yozuv yetim (host yopmagan) hisoblanadi */
 export const LIVE_MAX_MS = 6 * 60 * 60 * 1000;
 
 type Viewer = { id: string; role: string };
+
+/** Boshlovchi xonada yo'qmi (brauzer yopilgan/uzilgan)? 90 s imtiyoz; natija 20 s keshlanadi; LiveKit javob bermasa — "yo'q emas" */
+const hostSeen = new Map<string, { at: number; present: boolean; firstMissing: number | null }>();
+async function hostGone(s: LiveStream): Promise<boolean> {
+  if (Date.now() - s.startedAt.getTime() < 90_000) return false;
+  const c = hostSeen.get(s.id);
+  let present = c?.present ?? true;
+  let firstMissing = c?.firstMissing ?? null;
+  if (!c || Date.now() - c.at > 20_000) {
+    try {
+      present = (await listIdentities(s.room)).includes(s.hostId);
+      firstMissing = present ? null : (firstMissing ?? Date.now());
+      hostSeen.set(s.id, { at: Date.now(), present, firstMissing });
+    } catch {
+      return false;
+    }
+  }
+  return !present && firstMissing !== null && Date.now() - firstMissing > 90_000;
+}
+
+async function endLiveSystem(s: LiveStream): Promise<void> {
+  await db.update(liveStreams).set({ status: "ended", endedAt: new Date() }).where(and(eq(liveStreams.id, s.id), eq(liveStreams.status, "live")));
+  hostSeen.delete(s.id);
+  await closeRoom(s.room).catch(() => undefined);
+}
 
 async function canHost(group: Group, v: Viewer): Promise<boolean> {
   if (v.role === "admin" || group.ownerId === v.id) return true;
@@ -23,6 +48,10 @@ export async function activeLive(groupId: string): Promise<LiveStream | null> {
   const cutoff = new Date(Date.now() - LIVE_MAX_MS);
   await db.update(liveStreams).set({ status: "ended", endedAt: new Date() }).where(and(eq(liveStreams.groupId, groupId), eq(liveStreams.status, "live"), lt(liveStreams.startedAt, cutoff)));
   const row = await db.query.liveStreams.findFirst({ where: and(eq(liveStreams.groupId, groupId), eq(liveStreams.status, "live"), gt(liveStreams.startedAt, cutoff)), orderBy: [desc(liveStreams.startedAt)] });
+  if (row && (await hostGone(row))) {
+    await endLiveSystem(row);
+    return null;
+  }
   return row ?? null;
 }
 
@@ -58,9 +87,14 @@ async function hostedStream(streamId: string, actor: Viewer): Promise<LiveStream
 }
 
 /** Boshlovchi amallari: chiqarish (qayta kira olmaydi) · sahnaga ruxsat · ruxsatni olish */
-export async function moderateParticipant(streamId: string, actor: Viewer, identity: string, action: "kick" | "allow" | "revoke"): Promise<void> {
+export async function moderateParticipant(streamId: string, actor: Viewer, identity: string, action: "kick" | "allow" | "revoke" | "mute", trackSid?: string): Promise<void> {
   const s = await hostedStream(streamId, actor);
   if (identity === s.hostId) throw new ApiError(400, "Boshlovchini chiqarib bo'lmaydi");
+  if (action === "mute") {
+    if (!trackSid) throw new ApiError(400, "Trek topilmadi");
+    await muteTrack(s.room, identity, trackSid);
+    return;
+  }
   if (action === "kick") {
     await db.insert(liveBans).values({ streamId, userId: identity }).onConflictDoNothing();
     await removeParticipant(s.room, identity);
@@ -91,4 +125,27 @@ export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream:
     if (ban) throw new ApiError(403, "Boshlovchi sizni bu efirdan chiqargan");
   }
   return { stream, host, group };
+}
+
+const CHAT_MAX = 300;
+
+/** Efir chatiga yozuv (tarix uchun; realtime — LiveKit data). Taqiqlanganlar yoza olmaydi (liveAccess) */
+export async function saveChat(streamId: string, v: Viewer, body: string): Promise<void> {
+  await liveAccess(streamId, v);
+  const t = body.trim().slice(0, CHAT_MAX);
+  if (!t) return;
+  await db.insert(liveMessages).values({ id: uid(), streamId, userId: v.id, body: t });
+}
+
+/** Oxirgi 50 ta xabar, eskidan yangiga */
+export async function chatHistory(streamId: string, v: Viewer): Promise<{ id: string; name: string; body: string; at: number }[]> {
+  await liveAccess(streamId, v);
+  const rows = await db
+    .select({ id: liveMessages.id, body: liveMessages.body, at: liveMessages.createdAt, name: users.name })
+    .from(liveMessages)
+    .innerJoin(users, eq(users.id, liveMessages.userId))
+    .where(eq(liveMessages.streamId, streamId))
+    .orderBy(desc(liveMessages.createdAt))
+    .limit(50);
+  return rows.reverse().map((r) => ({ id: r.id, name: r.name ?? "Ishtirokchi", body: r.body, at: r.at.getTime() }));
 }
