@@ -108,7 +108,7 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
   }, [cursor, mode, load, items.length]);
 
   useEffect(() => {
-    cache.current.set(mode, { items, cursor });
+    if (items.length > 0) cache.current.set(mode, { items, cursor });
   }, [mode, items, cursor]);
 
   // Boshqa tablarni bo'sh vaqtda oldindan yuklab qo'yamiz
@@ -119,14 +119,17 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
         void fetch(`/api/reels?mode=${m}`)
           .then((r) => r.json())
           .then((j: { ok: boolean; data?: { items: ReelItem[]; nextCursor: string | null } }) => {
-            if (j.ok && j.data && !cache.current.has(m)) cache.current.set(m, { items: j.data.items, cursor: j.data.nextCursor });
+            if (j.ok && j.data && !cache.current.has(m)) {
+              cache.current.set(m, { items: j.data.items, cursor: j.data.nextCursor });
+              warm(j.data.items[0]);
+            }
           })
           .catch(() => undefined);
       }
     };
-    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
-    if (w.requestIdleCallback) w.requestIdleCallback(run);
-    else setTimeout(run, 800);
+    // Darhol (kechikmasdan) — foydalanuvchi tez bosishi mumkin; faol videoning yuklanishi bilan poygalashmasligi uchun qisqa pauza
+    const t = window.setTimeout(run, 400);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -145,7 +148,12 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
     else url.searchParams.set("tab", m);
     url.searchParams.delete("post");
     window.history.replaceState(null, "", url.toString());
-    if (!hit) void load(m, null, true);
+    if (!hit) {
+      // Kesh yo'q: eski ro'yxat turib qolmasin — darhol bo'shatamiz (yuklanish belgisi chiqadi)
+      setItems([]);
+      setCursor(null);
+      void load(m, null, true);
+    }
   };
 
   const needLogin = () => {
@@ -215,11 +223,12 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
             </div>
           </div>
         )}
-        {items.map((it) => (
+        {items.map((it, idx) => (
           <ReelSlide
             key={it.key}
             item={it}
             active={it.key === activeKey}
+            near={Math.abs(idx - Math.max(0, items.findIndex((x) => x.key === activeKey))) <= 1}
             pinned={it.key === pinnedKey}
             reduced={reduced}
             soundOn={soundOn}
@@ -259,10 +268,21 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
   );
 }
 
+/** Tab almashganda birinchi video darhol chiqishi uchun uning boshini (512 KB) brauzer keshiga yuklab qo'yamiz */
+function warm(it: ReelItem | undefined) {
+  if (!it) return;
+  try {
+    if (it.mediaType === "video") void fetch(it.mediaUrl, { headers: { Range: "bytes=0-524287" } }).catch(() => undefined);
+    else void (new Image().src = it.mediaUrl);
+    if (it.posterUrl) void (new Image().src = it.posterUrl);
+  } catch {}
+}
+
 /* ------------------------------------------------------------------ */
 function ReelSlide({
   item,
   active,
+  near,
   pinned,
   reduced,
   soundOn,
@@ -276,6 +296,8 @@ function ReelSlide({
 }: {
   item: ReelItem;
   active: boolean;
+  /** Faol slayd yoki uning qo'shnisi — videoni oldindan yuklaydi */
+  near: boolean;
   pinned: boolean;
   reduced: boolean;
   soundOn: boolean;
@@ -371,7 +393,7 @@ function ReelSlide({
     <section data-reel={item.key} className="relative flex h-[100svh] snap-start items-center justify-center md:py-6">
       <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] md:aspect-[9/16] md:h-full md:max-h-[880px] md:w-auto md:rounded-[26px] md:border md:border-white/10">
         {item.mediaType === "video" ? (
-          <video ref={videoRef} src={item.mediaUrl} poster={item.posterUrl ?? undefined} preload={active ? "auto" : "metadata"} playsInline loop muted onClick={onTap} className="h-full w-full cursor-pointer object-contain" />
+          <video ref={videoRef} src={`${item.mediaUrl}#t=0.1`} poster={item.posterUrl ?? undefined} preload={active ? "auto" : near ? "metadata" : "none"} playsInline loop muted onClick={onTap} className="h-full w-full cursor-pointer object-contain" />
         ) : (
           <div className="relative h-full w-full" onClick={onTap}>
             {/* Orqa fon: rasmning xira nusxasi (har xil o'lchamdagi rasm chiroyli turadi) */}
