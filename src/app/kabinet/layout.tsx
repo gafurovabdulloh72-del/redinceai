@@ -180,6 +180,10 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   items.push({ href: "/kabinet/sevimlilar", label: "Sevimlilar", icon: "favorites", group: "Saqlangan" });
   items.push({ href: "/kabinet/saqlanganlar", label: "Saqlangan postlar", icon: "saved", group: "Saqlangan" });
   items.push({ href: "/kabinet/obunalar", label: "Obunalar", icon: "follows", group: "Saqlangan" });
+  // Kutubxona: ko'rish tarixi, keyinroq ko'rish navbati va to'plamlar (pleylist)
+  items.push({ href: "/kabinet/tarix", label: "Ko'rish tarixi", icon: "history", group: "Saqlangan" });
+  items.push({ href: "/kabinet/keyinroq", label: "Keyinroq ko'rish", icon: "later", group: "Saqlangan" });
+  items.push({ href: "/kabinet/toplamlar", label: "To'plamlar", icon: "collections", group: "Saqlangan" });
 
   // Hisob (sozlamalar)
   if (user.role === "client") items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile", group: "Hisob" });

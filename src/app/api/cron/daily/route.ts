@@ -14,6 +14,7 @@ import { checkSavedSearchAlerts } from "@/lib/saved-searches";
 import { runSubscriptionReminders, type ReminderResult } from "@/lib/subscriptions/reminders";
 import { remindExpiringVacancies, checkVacancyAlerts } from "@/lib/vacancies/service";
 import { purgeOldViews } from "@/lib/groups/service";
+import { purgeOldHistory } from "@/lib/social/library";
 import { formatDate } from "@/lib/utils";
 import { postSystemMessage } from "@/app/api/orders/_lib/messages";
 
@@ -97,6 +98,7 @@ export async function GET(req: Request) {
     vacanciesReminded: 0,
     vacancyAlerts: null as { checked: number; notified: number } | null,
     viewsPurged: 0,
+    historyPurged: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
     storiesPurged: 0,
     monthlyTop: null as Record<string, unknown> | null,
@@ -193,6 +195,13 @@ export async function GET(req: Request) {
     counts.viewsPurged = await purgeOldViews();
   } catch (e) {
     counts.errors.push(`views: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (l2) Ko'rish tarixi — 90 kundan eskilari o'chiriladi
+  try {
+    counts.historyPurged = await purgeOldHistory();
+  } catch (e) {
+    counts.errors.push(`history: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (n) Muddati o'tgan story'lar (3 kundan eski) o'chiriladi

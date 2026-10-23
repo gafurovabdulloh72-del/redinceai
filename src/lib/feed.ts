@@ -121,6 +121,14 @@ export async function feedItemById(id: string, viewer: Viewer): Promise<FeedItem
 type FeedRow = { p: Post; gslug: string | null; gname: string | null; gkind: "group" | "channel" | null; goff: boolean | null };
 
 /** Post qatorlari → lenta elementlari (manba chipi, canInteract, so'rovnoma, tahrir vaqti, obuna holati) */
+/** Ichki yordamchi (kutubxona/pleylist sahifalari uchun ham): tayyor qatorlardan lenta elementlari */
+export async function buildFeedItems(page: FeedRow[], viewer: Viewer): Promise<FeedItem[]> {
+  return toFeedItems(page, viewer);
+}
+
+/** Lenta qatorini postdan yig'adi (jamoa ma'lumoti ixtiyoriy) — kutubxona ro'yxatlari uchun */
+export type FeedRowLite = FeedRow;
+
 async function toFeedItems(page: FeedRow[], viewer: Viewer): Promise<FeedItem[]> {
   if (!page.length) return [];
   const isAdmin = viewer?.role === "admin";

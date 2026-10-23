@@ -68,7 +68,8 @@ export async function createProfilePost(authorId: string, body: string, media: F
   const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? (media.some(isVideo) ? "Yangi video" : "Yangi rasm") : "");
   // @username eslatmalari — obunachi bo'lmasa ham xabar oladi (ochiq profil posti); eslatilganlar umumiy "yangi post" xabarini qayta olmaydi
   const mentioned = new Set(await notifyMentions({ text: body, actorId: authorId, actorName: author?.name ?? "Ijodkor", href: href ?? `/?post=${row.id}`, where: "post" }).catch((e) => (console.error("[profile-post:mentions]", e), [] as string[])));
-  const fans = await db.query.follows.findMany({ where: eq(follows.followingId, authorId), columns: { followerId: true } });
+  // Faqat «har post» darajasini tanlaganlarga xabar (qo'ng'iroq: all / highlights / off)
+  const fans = await db.query.follows.findMany({ where: and(eq(follows.followingId, authorId), eq(follows.notifyLevel, "all")), columns: { followerId: true } });
   const ids = fans.map((f) => f.followerId).filter((id) => id !== authorId && !mentioned.has(id));
   for (let i = 0; i < ids.length; i += 25) {
     await Promise.all(ids.slice(i, i + 25).map((id) => notify(id, "profile_post", `${author?.name ?? "Ijodkor"} yangi post joyladi`, snippet, href, { skipMail: true }).catch(() => undefined)));

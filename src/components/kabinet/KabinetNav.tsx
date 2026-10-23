@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -35,7 +35,10 @@ export type KabinetNavIcon =
   | "proposals"
   | "subscription"
   | "mentorship"
-  | "report";
+  | "report"
+  | "history"
+  | "later"
+  | "collections";
 
 /** Holat nuqtasi (masalan, obuna): faol — yashil, tugayapti — sariq, tugagan — qizil */
 export type KabinetNavDot = "success" | "warning" | "danger";
@@ -103,6 +106,9 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   posts: LayoutGrid,
   saved: Bookmark,
   follows: UsersRound,
+  history: History,
+  later: Clock,
+  collections: ListVideo,
 };
 
 /** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */

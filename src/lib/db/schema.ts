@@ -1310,6 +1310,8 @@ export const postComments = sqliteTable(
     body: text("body").notNull(),
     /** Javob berilgan izoh (1 daraja; shu postdagi izoh) — null: oddiy izoh */
     replyToId: text("reply_to_id"),
+    /** Post muallifi qadagan izoh — ro'yxatda birinchi turadi (bitta post uchun bitta qadalgan) */
+    isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
     /** Muallif tahrirlagan vaqt (null — tahrirlanmagan) */
     editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -1510,11 +1512,100 @@ export const follows = sqliteTable(
     followingId: text("following_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Bildirishnoma darajasi: all — har post, highlights — faqat efir/muhim, off — jim (lentada baribir ko'rinadi) */
+    notifyLevel: text("notify_level", { enum: ["all", "highlights", "off"] }).notNull().default("highlights"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("follows_pair_idx").on(t.followerId, t.followingId), index("follows_following_idx").on(t.followingId)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Ko'rish tarixi, «keyinroq ko'rish» va to'plamlar (pleylist)          */
+/* ------------------------------------------------------------------ */
+
+/** Video ko'rish holati: qaysi joyda to'xtagan (davom ettirish) + tarix ro'yxati */
+export const videoProgress = sqliteTable(
+  "video_progress",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    /** Oxirgi joy (soniya) va umumiy davomiylik — `done` bo'lsa oxirigacha ko'rilgan */
+    positionSec: integer("position_sec").notNull().default(0),
+    durationSec: integer("duration_sec").notNull().default(0),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("video_progress_pair_idx").on(t.userId, t.postId), index("video_progress_user_idx").on(t.userId, t.updatedAt)],
+);
+
+/** «Keyinroq ko'rish» navbati — faqat egasiga ko'rinadi */
+export const watchLater = sqliteTable(
+  "watch_later",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("watch_later_pair_idx").on(t.userId, t.postId), index("watch_later_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** To'plam (pleylist): ijodkor yoki foydalanuvchi o'z postlaridan/saqlanganlaridan ro'yxat tuzadi */
+export const collections = sqliteTable(
+  "collections",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    coverUrl: text("cover_url"),
+    /** Ommaviy to'plam profilda ko'rinadi; yopiq — faqat egasiga */
+    isPublic: integer("is_public", { mode: "boolean" }).notNull().default(true),
+    itemsCount: integer("items_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("collections_owner_idx").on(t.ownerId, t.updatedAt)],
+);
+
+export const collectionItems = sqliteTable(
+  "collection_items",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    /** Tartib raqami (kichikdan kattaga) */
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("collection_items_pair_idx").on(t.collectionId, t.postId), index("collection_items_order_idx").on(t.collectionId, t.position)],
 );
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -1581,6 +1672,9 @@ export type PostComment = typeof postComments.$inferSelect;
 export type PostSave = typeof postSaves.$inferSelect;
 export type PostPoll = typeof postPolls.$inferSelect;
 export type PostPollVote = typeof postPollVotes.$inferSelect;
+export type Collection = typeof collections.$inferSelect;
+export type CollectionItem = typeof collectionItems.$inferSelect;
+export type VideoProgress = typeof videoProgress.$inferSelect;
 
 /* ------------------------------------------------------------------ */
 /* Vakansiyalar: ish beruvchi e'lonlari, rezyumelar, arizalar          */

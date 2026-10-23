@@ -163,13 +163,24 @@ export interface CommentViewX extends CommentView {
   /** Yoqtirishlar soni va ko'ruvchi yoqtirganmi */
   likesCount: number;
   likedByMe: boolean;
+  /** Post muallifi qadagan izoh — ro'yxatda birinchi */
+  isPinned: boolean;
+  /** Post muallifi shu izohni yoqtirgan (❤️ belgisi) */
+  creatorLiked: boolean;
+  /** Ko'ruvchi bu izohni qada oladimi (post muallifi yoki admin) */
+  canPin: boolean;
 }
 export type CommentSort = "old" | "new";
 
 export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: CommentSort; limit?: number } = {}): Promise<{ items: CommentViewX[]; total: number }> {
   const limit = Math.min(200, Math.max(1, opts.limit ?? 100));
   const sort: CommentSort = opts.sort === "new" ? "new" : "old";
-  const rows = await db.query.postComments.findMany({ where: eq(postComments.postId, post.id), orderBy: [sort === "new" ? desc(postComments.createdAt) : asc(postComments.createdAt)], limit });
+  // Qadalgan izoh doim birinchi, qolgani tanlangan tartibda
+  const rows = await db.query.postComments.findMany({
+    where: eq(postComments.postId, post.id),
+    orderBy: [desc(postComments.isPinned), sort === "new" ? desc(postComments.createdAt) : asc(postComments.createdAt)],
+    limit,
+  });
   // Javob berilgan izohlar sahifadan tashqarida bo'lishi mumkin — alohida olinadi
   const replyIds = Array.from(new Set(rows.map((c) => c.replyToId).filter((x): x is string => Boolean(x)))).filter((id) => !rows.some((r) => r.id === id));
   const extra = replyIds.length ? await db.query.postComments.findMany({ where: inArray(postComments.id, replyIds), columns: { id: true, authorId: true } }) : [];
@@ -191,6 +202,10 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
     : [[], []];
   const likeCount = new Map(likeRows.map((r) => [r.id, Number(r.n)] as const));
   const likedSet = new Set(mineRows.map((r) => r.id));
+  // «Ijodkor yoqtirdi» — post muallifining yurakchalari
+  const creatorRows = ids.length ? await db.select({ id: commentLikes.commentId }).from(commentLikes).where(and(inArray(commentLikes.commentId, ids), eq(commentLikes.userId, post.authorId))) : [];
+  const creatorSet = new Set(creatorRows.map((r) => r.id));
+  const canPin = Boolean(viewer && (viewer.id === post.authorId || viewer.role === "admin"));
   return {
     total,
     items: rows.map((c) => {
@@ -206,6 +221,9 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
         canEdit: Boolean(viewer && viewer.id === c.authorId && now - c.createdAt.getTime() < COMMENT_EDIT_WINDOW_MS),
         likesCount: likeCount.get(c.id) ?? 0,
         likedByMe: likedSet.has(c.id),
+        isPinned: c.isPinned,
+        creatorLiked: creatorSet.has(c.id),
+        canPin,
       };
     }),
   };
@@ -267,6 +285,20 @@ export async function toggleCommentLike(comment: PostComment, post: Post, userId
     }
   }
   return { liked, likesCount };
+}
+
+/**
+ * Izohni qadash / qadashni olish — faqat post muallifi (yoki sayt admini).
+ * Bitta postda bitta qadalgan izoh: yangisi qadalganda eskisi avtomatik yechiladi.
+ */
+export async function setCommentPinned(comment: PostComment, post: Post, viewer: NonNullable<Viewer>, pinned: boolean): Promise<{ isPinned: boolean }> {
+  if (viewer.id !== post.authorId && viewer.role !== "admin") throw new ApiError(403, "Izohni faqat post muallifi qadaydi");
+  if (comment.postId !== post.id) throw new ApiError(400, "Izoh boshqa postga tegishli");
+  await db.transaction(async (tx) => {
+    if (pinned) await tx.update(postComments).set({ isPinned: false }).where(and(eq(postComments.postId, post.id), eq(postComments.isPinned, true)));
+    await tx.update(postComments).set({ isPinned: pinned }).where(eq(postComments.id, comment.id));
+  });
+  return { isPinned: pinned };
 }
 
 /** Izohni tahrirlash — faqat muallif, 15 daqiqa ichida */

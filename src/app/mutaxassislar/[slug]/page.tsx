@@ -590,7 +590,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && !blockedAny && (
                 <div className="min-w-0 [&>button]:w-full [&>button]:px-3">
-                  <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} />
+                  <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} showBell initialNotifyLevel={follow.notifyLevel} />
                 </div>
               )}
               {!PROFILE_HIRING && !isOwner && sp.user.username && !blockedAny && (

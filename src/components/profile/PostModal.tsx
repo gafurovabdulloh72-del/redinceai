@@ -145,7 +145,7 @@ export function PostModal({
 /* ------------------------------------------------------------------ */
 /* Media varaqlagich — tugmalar va ←/→ (matn maydonida emas)             */
 /* ------------------------------------------------------------------ */
-function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: string; poster?: string }>; alt: string; til: Locale }) {
+function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ url: string; type: string; poster?: string }>; alt: string; til: Locale; /** Ko'rish holatini saqlash (davom ettirish + tarix) */ postId?: string; resumeAt?: number }) {
   const [i, setI] = useState(0);
   const total = media.length;
   const prev = useCallback(() => setI((v) => (v - 1 + total) % total), [total]);
@@ -168,7 +168,40 @@ function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: stri
     <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-black sm:min-h-[360px] md:min-h-[520px]">
       {video ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video key={m.url} src={m.url} poster={m.poster} controls playsInline className="max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
+        <video
+          key={m.url}
+          src={m.url}
+          poster={m.poster}
+          ref={(el) => {
+            if (!el || !postId) return;
+            // Davom ettirish: saqlangan joydan (oxiriga 10 s qolmagan bo'lsa)
+            if (resumeAt && !el.dataset.resumed) {
+              el.dataset.resumed = "1";
+              const apply = () => {
+                if (el.duration && resumeAt < el.duration - 10) el.currentTime = resumeAt;
+              };
+              if (el.readyState >= 1) apply();
+              else el.addEventListener("loadedmetadata", apply, { once: true });
+            }
+            if (el.dataset.tracked) return;
+            el.dataset.tracked = "1";
+            let last = 0;
+            const send = (force = false) => {
+              const now = Date.now();
+              if ((!force && now - last < 15_000) || !el.currentTime) return;
+              last = now;
+              void fetch(`/api/posts/${encodeURIComponent(postId)}/progress`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ position: Math.floor(el.currentTime), duration: Math.floor(el.duration || 0) }),
+                keepalive: true,
+              }).catch(() => undefined);
+            };
+            el.addEventListener("timeupdate", () => send());
+            el.addEventListener("pause", () => send(true));
+            el.addEventListener("ended", () => send(true));
+          }}
+          controls playsInline className="max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={m.url} src={m.url} alt={alt} className="animate-fade-in max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
@@ -388,7 +421,7 @@ function PostBody({
 
   return (
     <>
-      {!textOnly && <MediaPane media={mediaList} alt={post.body.slice(0, 120)} til={til} />}
+      {!textOnly && <MediaPane media={mediaList} alt={post.body.slice(0, 120)} til={til} postId={post.id} resumeAt={post.resumeAt} />}
       <div className={cn("flex min-h-0 flex-col bg-surface", textOnly ? "w-full" : "md:w-[380px] md:shrink-0 md:border-l md:border-line")}>
         {header}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

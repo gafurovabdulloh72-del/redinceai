@@ -3,7 +3,7 @@
 import { BuyButton } from "@/components/mentorship/PurchaseDialog";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
-import { BadgeCheck, BarChart3, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
+import { BadgeCheck, BarChart3, Clock, FolderPlus, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
 import { firstUrl, RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, ReactorsButton, SaveButton, ShareAction, type ReactionState } from "./Reactions";
@@ -19,6 +19,7 @@ import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
+import { CollectionSheet } from "@/components/social/CollectionSheet";
 import { captureVideoPoster, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
 import { MusicChip } from "@/components/social/MusicChip";
@@ -650,6 +651,8 @@ export function PostCard({
   // Video muqovasini almashtirish (muallif): media nusxasi lokal yangilanadi
   const [mediaList, setMediaList] = useState(post.media);
   const [posterOpen, setPosterOpen] = useState(false);
+  const [collectOpen, setCollectOpen] = useState(false);
+  const [queued, setQueued] = useState(post.queuedLater);
   const posterIdx = useRef(0);
   const [editedAt, setEditedAt] = useState<number | null>(post.editedAt ?? (post.edited ? 0 : null));
   const [pinned, setPinned] = useState(post.isPinned);
@@ -686,6 +689,23 @@ export function PostCard({
     if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Bo'lmadi");
     return j.data;
   }
+  // «Keyinroq ko'rish» navbati (YouTube uslubi) — toggle
+  async function toggleWatchLater() {
+    if (!requireLogin()) return;
+    const was = queued;
+    setQueued(!was);
+    try {
+      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/keyinroq`, { method: "POST" });
+      const j = (await res.json()) as ApiResp<{ queued: boolean }>;
+      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || "Bo'lmadi");
+      setQueued(j.data.queued);
+      toast(j.data.queued ? "Keyinroq ko'rish navbatiga qo'shildi" : "Navbatdan olindi");
+    } catch (e) {
+      setQueued(was);
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    }
+  }
+
   async function changePoster(file: File) {
     try {
       const up = await uploadAttachment(file);
@@ -769,6 +789,8 @@ export function PostCard({
     { key: "link", label: tr(til, FEED.copyLink), icon: Link2, onSelect: () => void copyText(`${window.location.origin}${permalink}`) },
     { key: "text", label: tr(til, FEED.copyText), icon: Copy, onSelect: () => void copyText(body), hidden: !body },
     { key: "edit", label: tr(til, FEED.edit), icon: Pencil, onSelect: () => setEditing(true), hidden: !isAuthor || editing },
+    { key: "later", label: queued ? "Navbatdan olish" : "Keyinroq ko'rish", icon: Clock, onSelect: () => void toggleWatchLater(), hidden: !loggedIn || media.length === 0 },
+    { key: "collect", label: "To'plamga qo'shish", icon: FolderPlus, onSelect: () => setCollectOpen(true), hidden: !loggedIn },
     {
       key: "poster",
       label: "Muqovani o'zgartirish",
@@ -900,7 +922,8 @@ export function PostCard({
       {url && !post.locked && <LinkPreviewCard url={url} />}
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
-      {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} />}
+      {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} postId={post.id} resumeAt={post.resumeAt} />}
+      {collectOpen && <CollectionSheet open onClose={() => setCollectOpen(false)} postId={post.id} />}
       {posterOpen && media[posterIdx.current] && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={media[posterIdx.current].url} onPick={(f) => changePoster(f)} />}
       {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 
@@ -1059,6 +1082,21 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
     }
   }
 
+  /** Izohni qadash: qadalgani ro'yxat tepasiga chiqadi (bitta postda bitta qadalgan) */
+  async function togglePin(c: CommentViewX) {
+    const next = !c.isPinned;
+    setItems((prev) => prev?.map((x) => ({ ...x, isPinned: x.id === c.id ? next : next ? false : x.isPinned })).sort((a, b) => Number(b.isPinned) - Number(a.isPinned)) ?? prev);
+    try {
+      const res = await fetch(`/api/comments/${encodeURIComponent(c.id)}/pin`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pinned: next }) });
+      const j = (await res.json()) as ApiResp<unknown>;
+      if (!res.ok || !j.ok) throw new Error(j.error || "Bo'lmadi");
+    } catch (e) {
+      setItems((prev) => prev?.map((x) => (x.id === c.id ? { ...x, isPinned: !next } : x)) ?? prev);
+      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+    }
+  }
+
+
   function startReply(c: CommentViewX) {
     setReplyTo({ id: c.replyTo?.id ?? c.id, name: c.author.name });
     const handle = c.author.username ? `@${c.author.username} ` : "";
@@ -1111,6 +1149,16 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
               <div className="min-w-0 flex-1 rounded-[14px] bg-fg/4 px-3 py-2">
                 <div className="flex min-w-0 items-baseline gap-2 text-[12.5px]">
                   <AuthorLink u={c.author} />
+                  {c.isPinned && (
+                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-fg/8 px-1.5 text-[11px] font-semibold text-fg-2" title="Muallif qadagan izoh">
+                      <Pin size={10} className="fill-current" /> qadalgan
+                    </span>
+                  )}
+                  {c.creatorLiked && (
+                    <span className="shrink-0 text-accent" title="Muallif yoqtirdi" aria-label="Muallif yoqtirdi">
+                      <Heart size={11} className="fill-current" />
+                    </span>
+                  )}
                   <RelativeTime at={c.createdAt} className="shrink-0 text-fg-4" />
                   {c.editedAt && (
                     <span className="shrink-0 text-fg-4" title={formatDateTime(c.editedAt)}>
@@ -1168,6 +1216,11 @@ export function Comments({ postId, canWrite, onCount, loggedIn = canWrite }: { p
                           {tr(til, FEED.delete)}
                         </button>
                       ))}
+                    {c.canPin && (
+                      <button type="button" onClick={() => void togglePin(c)} className={actionCls}>
+                        {c.isPinned ? "Qadashni olish" : "Qadash"}
+                      </button>
+                    )}
                     {loggedIn && !c.canDelete && <ReportButton targetType="comment" targetId={c.id} loggedIn compact modal triggerClassName="!h-6 !w-6" />}
                   </div>
                 )}

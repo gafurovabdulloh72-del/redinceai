@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { UserCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui";
+import { NotifyBell, type NotifyLevel } from "./NotifyBell";
 
 /**
  * Ijodkorga obuna bo'lish (follow): bosilganda darhol almashadi, server javobi bilan son yangilanadi.
@@ -18,6 +19,8 @@ export function FollowButton({
   compact = false,
   showCount = true,
   variant = "accent",
+  initialNotifyLevel = null,
+  showBell = false,
 }: {
   userId: string;
   initialFollowing: boolean;
@@ -30,6 +33,10 @@ export function FollowButton({
   showCount?: boolean;
   /** accent — profil sahifasidagi asosiy tugma; outline — ro'yxat/panel ichida (v3: ko'p coral bo'lmasin) */
   variant?: "accent" | "outline";
+  /** Obuna qo'ng'irog'i boshlang'ich darajasi (followState.notifyLevel) */
+  initialNotifyLevel?: NotifyLevel | null;
+  /** Obuna bo'lganda yonida qo'ng'iroq tugmasi (profil sahifasi) */
+  showBell?: boolean;
 }) {
   const router = useRouter();
   const [following, setFollowing] = useState(initialFollowing);
@@ -60,11 +67,18 @@ export function FollowButton({
     }
   }
 
-  return (
+  const btn = (
     <Button type="button" variant={following ? "ghost" : variant} size={size} onClick={toggle} disabled={busy} aria-pressed={following} title={following ? "Obunani bekor qilish" : "Yangi ishlaridan xabardor bo'ling"}>
       {following ? <UserCheck size={15} /> : <UserPlus size={15} />}
       {!compact && (following ? "Obunasiz" : "Obuna bo'lish")}
       {showCount && <span className={following ? "text-fg-3" : "opacity-80"}>{count}</span>}
     </Button>
+  );
+  if (!showBell) return btn;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {btn}
+      {following && <NotifyBell userId={userId} initial={initialNotifyLevel ?? "highlights"} />}
+    </span>
   );
 }

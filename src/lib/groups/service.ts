@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mentorSubs, mentors } from "@/lib/db/schema";
-import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, videoProgress, watchLater, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
@@ -104,6 +104,10 @@ export interface PostView {
   edited: boolean;
   createdAt: number;
   author: UserBrief;
+  /** Videoni qaysi soniyadan davom ettirish (ko'rish tarixidan; 0 — boshidan) */
+  resumeAt: number;
+  /** «Keyinroq ko'rish» navbatidami */
+  queuedLater: boolean;
   /** Menda reaksiya bormi (myReaction !== null) — eski klientlar uchun saqlangan */
   likedByMe: boolean;
   /** Mening reaksiyam: heart | fire | clap | haha | wow | like; null — yo'q */
@@ -924,7 +928,7 @@ export async function reactionCounts(postIds: string[]): Promise<Map<string, Rea
 export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean): Promise<PostView[]> {
   if (!rows.length) return [];
   const ids = rows.map((p) => p.id);
-  const [authors, mine, counts, saves] = await Promise.all([
+  const [authors, mine, counts, saves, progress, later] = await Promise.all([
     briefUsers(rows.map((p) => p.authorId)),
     viewer
       ? db.query.postLikes.findMany({ where: and(eq(postLikes.userId, viewer.id), inArray(postLikes.postId, ids)), columns: { postId: true, reaction: true } })
@@ -933,9 +937,18 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     viewer
       ? db.query.postSaves.findMany({ where: and(eq(postSaves.userId, viewer.id), inArray(postSaves.postId, ids)), columns: { postId: true } })
       : Promise.resolve([] as Array<{ postId: string }>),
+    // Davom ettirish joyi va «keyinroq ko'rish» navbati — faqat kirgan foydalanuvchiga
+    viewer
+      ? db.query.videoProgress.findMany({ where: and(eq(videoProgress.userId, viewer.id), inArray(videoProgress.postId, ids)), columns: { postId: true, positionSec: true, done: true } })
+      : Promise.resolve([] as Array<{ postId: string; positionSec: number; done: boolean }>),
+    viewer
+      ? db.query.watchLater.findMany({ where: and(eq(watchLater.userId, viewer.id), inArray(watchLater.postId, ids)), columns: { postId: true } })
+      : Promise.resolve([] as Array<{ postId: string }>),
   ]);
   const myMap = new Map(mine.map((l) => [l.postId, asReaction(l.reaction)] as const));
   const savedSet = new Set(saves.map((x) => x.postId));
+  const resumeMap = new Map(progress.filter((r) => !r.done).map((r) => [r.postId, r.positionSec] as const));
+  const laterSet = new Set(later.map((x) => x.postId));
   // Obunachilarga yopiq postlar: ko'ruvchi mentor obunachisi (yoki muallif/boshqaruvchi/admin) bo'lmasa matn va media berilmaydi
   const closed = rows.filter((p) => p.subscribersOnly && p.groupId);
   const subMentor = new Map<string, string>();
@@ -969,6 +982,8 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     edited: p.updatedAt.getTime() - p.createdAt.getTime() > 60_000,
     createdAt: p.createdAt.getTime(),
     author: authors.get(p.authorId) ?? { id: p.authorId, ...UNKNOWN },
+    resumeAt: resumeMap.get(p.id) ?? 0,
+    queuedLater: laterSet.has(p.id),
     likedByMe: myMap.has(p.id),
     myReaction: myMap.get(p.id) ?? null,
     reactions: counts.get(p.id) ?? {},
@@ -1344,13 +1359,13 @@ export async function markGroupRead(groupId: string, userId: string): Promise<vo
 /* ------------------------------------------------------------------ */
 /* Obuna (follow)                                                      */
 /* ------------------------------------------------------------------ */
-export async function followState(viewerId: string | null, userId: string): Promise<{ following: boolean; followersCount: number; followingCount: number }> {
+export async function followState(viewerId: string | null, userId: string): Promise<{ following: boolean; followersCount: number; followingCount: number; notifyLevel: "all" | "highlights" | "off" | null }> {
   const [followers, following, mine] = await Promise.all([
     db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, userId)),
     db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followerId, userId)),
     viewerId ? db.query.follows.findFirst({ where: and(eq(follows.followerId, viewerId), eq(follows.followingId, userId)) }) : Promise.resolve(null),
   ]);
-  return { following: Boolean(mine), followersCount: Number(followers[0]?.n ?? 0), followingCount: Number(following[0]?.n ?? 0) };
+  return { following: Boolean(mine), followersCount: Number(followers[0]?.n ?? 0), followingCount: Number(following[0]?.n ?? 0), notifyLevel: mine?.notifyLevel ?? null };
 }
 
 export async function toggleFollow(followerId: string, followingId: string): Promise<{ following: boolean; followersCount: number }> {
@@ -1373,6 +1388,22 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
   }
   const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, followingId));
   return { following: !existing, followersCount: Number(n) };
+}
+
+export type NotifyLevel = "all" | "highlights" | "off";
+
+/** Obuna bildirishnoma darajasi: all — har post, highlights — faqat efir/muhim, off — jim */
+export async function setFollowNotifyLevel(followerId: string, followingId: string, level: NotifyLevel): Promise<{ notifyLevel: NotifyLevel }> {
+  const row = await db.query.follows.findFirst({ where: and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)), columns: { id: true } });
+  if (!row) throw new ApiError(404, "Avval obuna bo'ling");
+  await db.update(follows).set({ notifyLevel: level }).where(eq(follows.id, row.id));
+  return { notifyLevel: level };
+}
+
+/** Muallifning obunachilari: `level` berilsa faqat shu darajadagilar (yangi post xabari uchun "all") */
+export async function followerIdsByLevel(authorId: string, levels: NotifyLevel[]): Promise<string[]> {
+  const rows = await db.query.follows.findMany({ where: and(eq(follows.followingId, authorId), inArray(follows.notifyLevel, levels)), columns: { followerId: true } });
+  return rows.map((r) => r.followerId);
 }
 
 export interface FollowRow extends UserBrief {

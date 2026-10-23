@@ -295,11 +295,66 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
  * Lenta videosi: karta 60% ko'rinishda — ovozsiz o'ynaydi, chiqsa pauza; ovoz tugmasi pastki o'ngda.
  * prefers-reduced-motion — avtoijro yo'q, oddiy boshqaruv. Ovoz yoqilgach brauzer boshqaruvi ko'rinadi.
  */
-export function FeedVideo({ src, title, className, poster }: { src: string; title?: string; className?: string; poster?: string }) {
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+/** Ko'rish holati 15 soniyada bir saqlanadi (davom ettirish uchun) */
+const PROGRESS_EVERY_MS = 15_000;
+
+export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 }: { src: string; title?: string; className?: string; poster?: string; /** Ko'rish holatini saqlash uchun (davom ettirish + tarix) */ postId?: string; /** Qaysi soniyadan davom ettirish */ resumeAt?: number }) {
   const til = useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   const [auto, setAuto] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const lastSent = useRef(0);
+  const resumed = useRef(false);
+
+  // Tezlik — video elementiga qo'llanadi (menyudan tanlangach)
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = speed;
+  }, [speed]);
+
+  // «Davom ettirish»: saqlangan joydan boshlanadi (oxiriga 10 s qolmagan bo'lsa)
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !resumeAt || resumed.current) return;
+    const apply = () => {
+      if (resumed.current) return;
+      if (el.duration && resumeAt < el.duration - 10) el.currentTime = resumeAt;
+      resumed.current = true;
+    };
+    if (el.readyState >= 1) apply();
+    else el.addEventListener("loadedmetadata", apply, { once: true });
+  }, [resumeAt]);
+
+  // Ko'rish holatini 15 soniyada bir va pauzada saqlaymiz
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !postId) return;
+    const send = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastSent.current < PROGRESS_EVERY_MS) return;
+      if (!el.currentTime) return;
+      lastSent.current = now;
+      void fetch(`/api/posts/${encodeURIComponent(postId)}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ position: Math.floor(el.currentTime), duration: Math.floor(el.duration || 0) }),
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+    const onTime = () => send();
+    const onPause = () => send(true);
+    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("pause", onPause);
+    el.addEventListener("ended", onPause);
+    return () => {
+      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("pause", onPause);
+      el.removeEventListener("ended", onPause);
+    };
+  }, [postId]);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -355,6 +410,39 @@ export function FeedVideo({ src, title, className, poster }: { src: string; titl
           <Volume2 size={16} />
         </button>
       )}
+      {/* Tezlik (0.5×–2×): brauzer menyusidan mustaqil — har qurilmada bir xil */}
+      <div className="absolute left-2.5 top-2.5">
+        <button
+          type="button"
+          onClick={() => setSpeedOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={speedOpen}
+          aria-label="Ijro tezligi"
+          title="Ijro tezligi"
+          className={cn("press flex h-7 items-center rounded-full bg-black/55 px-2 text-[11.5px] font-bold tabular-nums text-white transition hover:bg-black/75", speed !== 1 && "bg-accent text-white")}
+        >
+          {speed}×
+        </button>
+        {speedOpen && (
+          <div role="menu" aria-label="Ijro tezligi" className="pop-in absolute left-0 top-[calc(100%+4px)] z-20 grid gap-0.5 rounded-[10px] bg-black/85 p-1 backdrop-blur-sm">
+            {SPEEDS.map((x) => (
+              <button
+                key={x}
+                type="button"
+                role="menuitemradio"
+                aria-checked={speed === x}
+                onClick={() => {
+                  setSpeed(x);
+                  setSpeedOpen(false);
+                }}
+                className={cn("rounded-[7px] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-white/80 transition hover:bg-white/15", speed === x && "bg-white/20 text-white")}
+              >
+                {x}×
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -363,7 +451,7 @@ export function FeedVideo({ src, title, className, poster }: { src: string; titl
 /* Media to'ri                                                          */
 /* ------------------------------------------------------------------ */
 /** Rasmlar (lightbox'ga ochiladi) va videolar (avtoijro) — 1 ta: to'liq, 2–4 ta: 2 ustun, 3-chi to'liq qator */
-export function MediaGrid({ media, alt }: { media: Attachment[]; alt: string }) {
+export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachment[]; alt: string; /** Ko'rish holati (davom ettirish) uchun */ postId?: string; resumeAt?: number }) {
   const til = useLocale();
   const [idx, setIdx] = useState<number | null>(null);
   const images = media.filter((a) => !isVideoAttachment(a));
@@ -374,7 +462,7 @@ export function MediaGrid({ media, alt }: { media: Attachment[]; alt: string }) 
       <div className={cn("mt-3 grid gap-1 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
         {media.map((a, i) =>
           isVideoAttachment(a) ? (
-            <FeedVideo key={a.url} src={a.url} poster={a.poster} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
+            <FeedVideo key={a.url} src={a.url} poster={a.poster} postId={postId} resumeAt={resumeAt} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
           ) : (
             <button
               key={a.url}
