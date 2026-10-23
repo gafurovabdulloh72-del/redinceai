@@ -2248,6 +2248,12 @@ export const liveStreams = sqliteTable(
     coverUrl: text("cover_url"),
     /** Mentor yozuvni ommaviy ro'yxatdan yashirgan */
     recordingHidden: integer("recording_hidden", { mode: "boolean" }).notNull().default(false),
+    /** Kutish xonasi: tomoshabin boshlovchi ruxsat bermaguncha xonaga kirmaydi (Zoom naqshi) */
+    waitingRoom: integer("waiting_room", { mode: "boolean" }).notNull().default(false),
+    /** Efir kodi (parol): bo'sh bo'lmasa tomoshabin kirishda kodni kiritadi */
+    passcode: text("passcode"),
+    /** Faol breakout sessiya belgisi: 1 = kichik xonalar ochilgan (tomoshabinlar o'z xonasiga ketadi) */
+    breakoutOpen: integer("breakout_open", { mode: "boolean" }).notNull().default(false),
     startedAt: integer("started_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -2656,6 +2662,118 @@ export const liveTickets = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("live_tickets_pair_idx").on(t.streamId, t.userId)],
+);
+
+/** Kutish xonasi navbati: tomoshabin «kutyapti» → boshlovchi ruxsat beradi (approved) yoki rad etadi (denied) */
+export const liveWaiting = sqliteTable(
+  "live_waiting",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["waiting", "approved", "denied"] }).notNull().default("waiting"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("live_waiting_pair_idx").on(t.streamId, t.userId), index("live_waiting_stream_idx").on(t.streamId, t.status)],
+);
+
+/** Hammuallif (co-host): boshlovchi huquqlarining bir qismi — sahnaga ruxsat, chiqarish, mikrofonni o'chirish */
+export const liveCohosts = sqliteTable(
+  "live_cohosts",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("live_cohosts_pair_idx").on(t.streamId, t.userId)],
+);
+
+/** Davomat: har ulanish — bir yozuv (kirish/chiqish vaqti). Boshlovchi CSV qilib yuklab oladi */
+export const liveAttendance = sqliteTable(
+  "live_attendance",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: integer("joined_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    /** Oxirgi «tirik» signal — chiqish vaqti sifatida ishlatiladi (brauzer yopilsa ham to'g'ri chiqadi) */
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_attendance_stream_idx").on(t.streamId, t.joinedAt)],
+);
+
+/** Breakout (kichik xona): efir ichidagi guruhlar. Xona nomi = live_<streamId>_b<position> */
+export const liveBreakouts = sqliteTable(
+  "live_breakouts",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_breakouts_stream_idx").on(t.streamId, t.position)],
+);
+
+/** Kichik xona a'zosi: bir ishtirokchi bir vaqtda bitta xonada */
+export const liveBreakoutMembers = sqliteTable(
+  "live_breakout_members",
+  {
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    breakoutId: text("breakout_id")
+      .notNull()
+      .references(() => liveBreakouts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("live_breakout_members_pair_idx").on(t.streamId, t.userId), index("live_breakout_members_room_idx").on(t.breakoutId)],
+);
+
+/** Efir subtitrlari (brauzer nutq tanish → tarix): yozuv sifatida transkript ham bo'ladi */
+export const liveCaptions = sqliteTable(
+  "live_captions",
+  {
+    id: text("id").primaryKey(),
+    streamId: text("stream_id")
+      .notNull()
+      .references(() => liveStreams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    /** Efir boshidan o'tgan soniya — transkriptda vaqt belgisi */
+    atSec: integer("at_sec").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("live_captions_stream_idx").on(t.streamId, t.createdAt)],
 );
 
 export type LiveStream = typeof liveStreams.$inferSelect;

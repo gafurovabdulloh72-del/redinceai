@@ -85,6 +85,8 @@ function safeNext(raw: string | null, origin: string): string | null {
 /* ------------------------------------------------------------------ */
 /** To'lov tizimlari (Payme/Click) checkout sahifalari — iframe, form yuborish va connect uchun */
 const PAYMENT_HOSTS = "https://checkout.paycom.uz https://checkout.test.paycom.uz https://my.click.uz";
+/** Jonli efirdagi virtual fon: MediaPipe wasm (jsdelivr) va segmentatsiya modeli (Google storage) */
+const MEDIAPIPE_HOSTS = "https://cdn.jsdelivr.net https://storage.googleapis.com";
 
 /** Env'dagi URL'dan https origin (" https://host" ko'rinishida, CSP ro'yxatiga qo'shish uchun). Yo'q/noto'g'ri bo'lsa bo'sh — build sinmaydi. */
 function envOrigin(value: string | undefined): string {
@@ -140,16 +142,19 @@ function nonceValue(): string {
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
+    // 'wasm-unsafe-eval' — virtual fon (MediaPipe selfie segmentation) wasm modulini ishga tushirish uchun
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' ${MEDIAPIPE_HOSTS}${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
     `media-src 'self' https://*.public.blob.vercel-storage.com https://audio-ssl.itunes.apple.com https://*.mzstatic.com${R2_PUBLIC_ORIGIN}`,
     `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
-    "worker-src 'self'",
+    // blob: — virtual fon (MediaPipe) wasm ishchisini blob URL'dan ishga tushiradi
+    "worker-src 'self' blob:",
     "manifest-src 'self'",
-    // Blob/R2 hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob yoki R2'ga (presigned PUT) yuklanadi
-    `connect-src 'self' ${PAYMENT_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${LIVEKIT_CONNECT}${IS_PROD ? "" : " ws: wss:"}`,
+    // Blob/R2 hostlari — chat videosi brauzerdan to'g'ridan-to'g'ri Vercel Blob yoki R2'ga (presigned PUT) yuklanadi.
+    // MEDIAPIPE_HOSTS — jonli efirdagi virtual fon modeli va wasm fayllari
+    `connect-src 'self' ${PAYMENT_HOSTS} ${MEDIAPIPE_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${LIVEKIT_CONNECT}${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "frame-ancestors 'none'",

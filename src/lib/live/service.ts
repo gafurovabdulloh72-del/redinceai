@@ -99,9 +99,10 @@ export async function hostedStream(streamId: string, actor: Viewer): Promise<Liv
   return s;
 }
 
-/** Boshlovchi amallari: chiqarish (qayta kira olmaydi) · sahnaga ruxsat · ruxsatni olish */
+/** Boshlovchi va hammuallif amallari: chiqarish (qayta kira olmaydi) · sahnaga ruxsat · ruxsatni olish · mikrofon */
 export async function moderateParticipant(streamId: string, actor: Viewer, identity: string, action: "kick" | "allow" | "revoke" | "mute", trackSid?: string): Promise<void> {
-  const s = await hostedStream(streamId, actor);
+  const { moderatedStream } = await import("@/lib/live/zoom");
+  const s = await moderatedStream(streamId, actor);
   if (identity === s.hostId) throw new ApiError(400, "Boshlovchini chiqarib bo'lmaydi");
   if (action === "mute") {
     if (!trackSid) throw new ApiError(400, "Trek topilmadi");
@@ -109,8 +110,9 @@ export async function moderateParticipant(streamId: string, actor: Viewer, ident
     return;
   }
   if (action === "kick") {
+    // Taqiq birinchi: LiveKit javob bermasa ham odam qayta kira olmaydi
     await db.insert(liveBans).values({ streamId, userId: identity }).onConflictDoNothing();
-    await removeParticipant(s.room, identity);
+    await removeParticipant(s.room, identity).catch((e) => console.error("[live:kick]", e));
   } else {
     const on = action === "allow";
     if (on) await db.insert(liveStage).values({ streamId, userId: identity }).onConflictDoNothing();
@@ -125,8 +127,16 @@ export async function pastLives(groupId: string, limit = 10): Promise<{ id: stri
   return rows.map((r) => ({ id: r.id, title: r.title, startedAt: r.startedAt.getTime(), minutes: Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 60_000)), peak: r.peakViewers }));
 }
 
-/** Tomoshabin yoki boshlovchi uchun xona va huquq. Yopiq jamoada faqat a'zo */
-export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream: LiveStream; host: boolean; group: Group; staged: boolean }> {
+/**
+ * Tomoshabin yoki boshlovchi uchun xona va huquq. Yopiq jamoada faqat a'zo.
+ * `opts.enroll` — haqiqiy kirish urinishi (token olish): kutish xonasi navbatiga qo'shadi va
+ * darvoza yopiq bo'lsa xato tashlamaydi (chaqiruvchi `gate`ni o'zi ko'rsatadi).
+ */
+export async function liveAccess(
+  streamId: string,
+  v: Viewer,
+  opts: { passcode?: string; enroll?: boolean } = {},
+): Promise<{ stream: LiveStream; host: boolean; group: Group; staged: boolean; moderator: boolean; gate: "open" | "code" | "waiting" | "denied"; room: string; breakout: string | null }> {
   const stream = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
   if (!stream || stream.status !== "live" || stream.startedAt.getTime() < Date.now() - LIVE_MAX_MS) throw new ApiError(404, "Efir tugagan");
   const group = await db.query.groups.findFirst({ where: eq(groups.id, stream.groupId) });
@@ -142,7 +152,16 @@ export async function liveAccess(streamId: string, v: Viewer): Promise<{ stream:
     if (ban) throw new ApiError(403, "Boshlovchi sizni bu efirdan chiqargan");
   }
   const staged = host ? false : Boolean(await db.query.liveStage.findFirst({ where: and(eq(liveStage.streamId, streamId), eq(liveStage.userId, v.id)) }));
-  return { stream, host, group, staged };
+  const { canModerate, entryGate, roomFor } = await import("@/lib/live/zoom");
+  const moderator = host || (await canModerate(stream, v));
+  const { gate } = await entryGate(stream, v, opts.passcode, opts.enroll === true);
+  // Kirish darvozasi: kod yoki kutish xonasi. Token so'rovidan tashqari chaqiriqlar darhol rad etiladi
+  if (gate !== "open" && !opts.enroll) {
+    if (gate === "denied") throw new ApiError(403, "Boshlovchi sizni efirga qo'ymadi");
+    throw new ApiError(403, gate === "code" ? "Efir kodi kerak" : "Kutish xonasidasiz — boshlovchi ruxsatini kuting");
+  }
+  const { room, breakout } = gate === "open" ? await roomFor(stream, v.id) : { room: stream.room, breakout: null };
+  return { stream, host, group, staged, moderator, gate, room, breakout };
 }
 
 const CHAT_MAX = 300;

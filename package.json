@@ -25,6 +25,7 @@
     "@libsql/client": "^0.15.0",
     "@livekit/components-react": "^2.9.0",
     "@livekit/components-styles": "^1.1.6",
+    "@livekit/track-processors": "^0.5.4",
     "@vercel/blob": "^2.8.1",
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.44.0",

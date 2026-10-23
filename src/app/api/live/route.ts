@@ -27,7 +27,15 @@ export const GET = handler(async (req) => {
   return ok({ live: { id: s.id, title: s.title, startedAt: s.startedAt.getTime(), price: s.priceSom, access } });
 });
 
-const bodySchema = z.object({ slug: z.string().min(1), title: z.string().max(100).default(""), price: z.number().int().min(0).max(1_000_000).default(0) });
+const bodySchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().max(100).default(""),
+  price: z.number().int().min(0).max(1_000_000).default(0),
+  /** Kutish xonasi: har bir yangi odamni boshlovchi qo'shadi */
+  waitingRoom: z.boolean().default(false),
+  /** Efir kodi (4–12 belgi) yoki bo'sh — kodsiz */
+  passcode: z.string().max(32).optional(),
+});
 
 /** POST — efir boshlash (egasi/moderator) */
 export const POST = handler(async (req) => {
@@ -36,6 +44,11 @@ export const POST = handler(async (req) => {
   const input = await parseBody(req, bodySchema);
   const group = await loadGroupByAnySlug(input.slug);
   if (!group) throw new ApiError(404, "Jamoa topilmadi");
-  const s = await startLive(group, { id: session.sub, role: session.role }, input.title, input.price);
+  const actor = { id: session.sub, role: session.role };
+  const s = await startLive(group, actor, input.title, input.price);
+  if (input.waitingRoom || input.passcode) {
+    const { setEntryRules } = await import("@/lib/live/zoom");
+    await setEntryRules(s.id, actor, { waitingRoom: input.waitingRoom, passcode: input.passcode || null });
+  }
   return ok({ id: s.id, title: s.title });
 });

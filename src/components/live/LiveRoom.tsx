@@ -19,13 +19,39 @@ import {
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { ConnectionQuality, ConnectionState, DisconnectReason, Room, RoomOptions, Track, VideoPresets, type Participant } from "livekit-client";
-import { Circle, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, SwitchCamera, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { Circle, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Pencil, Send, Sparkles, SwitchCamera, SlidersHorizontal, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { LiveQA } from "./LiveQA";
+import { LiveGate, type Gate } from "./LiveGate";
+import { ReactionButton, ReactionLayer, useLiveReactions } from "./LiveReactions";
+import { CaptionBar, CaptionButton, captionsSupported, useLiveCaptions } from "./LiveCaptions";
+import { LiveWhiteboard } from "./LiveWhiteboard";
+import { CohostToggle, HostTools } from "./LiveHostTools";
+import { useVirtualBg, type BgMode } from "./useVirtualBg";
 
-type Conn = { url: string; token: string; host: boolean; hostId: string; title: string; recording?: string; canRecord?: boolean };
-type Panel = "chat" | "people" | "qa" | null;
+type Conn = {
+  url: string;
+  token: string;
+  host: boolean;
+  /** Boshlovchi yoki hammuallif — moderatsiya va gapirish huquqi */
+  moderator: boolean;
+  hostId: string;
+  title: string;
+  recording?: string;
+  canRecord?: boolean;
+  /** Kichik xonada bo'lsa — xona nomi */
+  breakout: string | null;
+  waitingRoom: boolean;
+  hasPasscode: boolean;
+  /** Faqat boshqaruvchiga: amaldagi kod */
+  passcode?: string | null;
+  breakoutOpen: boolean;
+  startedAt: number;
+};
+type TokenResp = (Conn & { gate: "open" }) | { gate: Gate; title: string };
+type Panel = "chat" | "people" | "qa" | "host" | null;
+type HostTab = "navbat" | "xonalar" | "davomat" | "kirish";
 type Devices = { video: boolean; audio: boolean; videoId?: string; audioId?: string };
 
 /**
@@ -59,6 +85,9 @@ const nameOf = (p: Participant) => p.name || "Ishtirokchi";
  */
 export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClose: () => void }) {
   const [conn, setConn] = useState<Conn | null>(null);
+  const [gate, setGate] = useState<{ gate: Gate; title: string } | null>(null);
+  const [gateBusy, setGateBusy] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState("");
   const [bye, setBye] = useState("");
   const [note, setNote] = useState("");
@@ -73,20 +102,41 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
   const closed = useRef(false);
   useScrollLock(true);
 
+  /**
+   * Tokenni so'rash. Darvoza (kod/kutish xonasi) yopiq bo'lsa `gate` qo'yiladi, token berilmaydi.
+   * Kichik xonaga ko'chirilganda ham aynan shu chaqiriq ishlaydi — yangi xona tokeni keladi.
+   */
+  const connect = useCallback(
+    async (passcode?: string, silent = false): Promise<boolean> => {
+      setGateBusy(true);
+      try {
+        const r = await fetch(`/api/live/${streamId}/token`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ passcode }) });
+        const j = (await r.json().catch(() => ({}))) as { data?: TokenResp; error?: string };
+        if (!r.ok || !j.data) {
+          if (!silent) setError(j.error || "Efirga ulanib bo'lmadi");
+          return false;
+        }
+        if (j.data.gate !== "open") {
+          setGate({ gate: j.data.gate, title: j.data.title });
+          setConn(null);
+          return false;
+        }
+        setGate(null);
+        setConn(j.data);
+        return true;
+      } catch {
+        if (!silent) setError("Tarmoq xatosi");
+        return false;
+      } finally {
+        setGateBusy(false);
+      }
+    },
+    [streamId],
+  );
+
   useEffect(() => {
-    let alive = true;
-    void fetch(`/api/live/${streamId}/token`, { method: "POST" })
-      .then(async (r) => {
-        const j = (await r.json()) as { data?: Conn; error?: string };
-        if (!alive) return;
-        if (!r.ok || !j.data) setError(j.error || "Efirga ulanib bo'lmadi");
-        else setConn(j.data);
-      })
-      .catch(() => alive && setError("Tarmoq xatosi"));
-    return () => {
-      alive = false;
-    };
-  }, [streamId]);
+    void connect();
+  }, [connect]);
 
   const leave = useCallback(
     async (endStream: boolean) => {
@@ -98,12 +148,20 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
     [streamId, onClose],
   );
 
+  /**
+   * Uzilish: xona o'chirilgan yoki chiqarib yuborilgan bo'lsa tokenni qayta so'raymiz —
+   * kichik xonaga ko'chirish ham xuddi shunday ko'rinadi (yangi token → yangi xona).
+   * Token kelmasa haqiqiy sabab ko'rsatiladi.
+   */
   function onDisconnected(reason?: DisconnectReason) {
     if (closed.current) return;
-    if (reason === DisconnectReason.PARTICIPANT_REMOVED) return setBye("Boshlovchi sizni efirdan chiqardi");
-    if (reason === DisconnectReason.ROOM_DELETED) {
-      if (conn?.host) void leave(false);
-      else setBye("Efir tugadi");
+    if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED) {
+      if (conn?.host && reason === DisconnectReason.ROOM_DELETED) return void leave(false);
+      setMoving(true);
+      void connect(undefined, true).then((okNow) => {
+        setMoving(false);
+        if (!okNow) setBye(reason === DisconnectReason.PARTICIPANT_REMOVED ? "Boshlovchi sizni efirdan chiqardi" : "Efir tugadi");
+      });
       return;
     }
     void leave(Boolean(conn?.host));
@@ -122,14 +180,19 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
             </button>
           </div>
         </div>
-      ) : !conn ? (
+      ) : gate ? (
+        <LiveGate gate={gate.gate} title={gate.title} busy={gateBusy} onRetry={(code) => void connect(code, true)} onClose={() => void leave(false)} />
+      ) : !conn || moving ? (
         <div className="grid h-full place-items-center">
-          <Loader2 className="animate-spin" />
+          <div className="text-center">
+            <Loader2 className="mx-auto animate-spin" />
+            {moving && <p className="mt-3 text-[13.5px] text-white/60">Xonaga ko&apos;chirilmoqda…</p>}
+          </div>
         </div>
       ) : conn.host && !dev ? (
         <PreJoin title={conn.title} onCancel={() => void leave(true)} onReady={setDev} />
       ) : (
-        <LiveKitRoom serverUrl={conn.url} token={conn.token} connect options={options} video={conn.host && dev?.video ? { deviceId: dev.videoId } : false} audio={conn.host && dev?.audio ? { deviceId: dev.audioId } : false} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
+        <LiveKitRoom key={conn.token.slice(-28)} serverUrl={conn.url} token={conn.token} connect options={options} video={conn.host && dev?.video ? { deviceId: dev.videoId } : false} audio={conn.host && dev?.audio ? { deviceId: dev.audioId } : false} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
           <Stage conn={conn} streamId={streamId} flash={flash} peak={peak} onLeave={() => void leave(false)} onEnd={() => void leave(true)} />
           <RoomAudioRenderer />
           {note && (
@@ -195,14 +258,26 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   const { quality } = useConnectionQualityIndicator({ participant: localParticipant });
   const [rec, setRec] = useState(conn.recording === "recording");
   const [panel, setPanel] = useState<Panel>(null);
+  const [hostTab, setHostTab] = useState<HostTab>("navbat");
   const [pin, setPin] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [text, setText] = useState("");
   const [history, setHistory] = useState<{ id: string; name: string; body: string }[]>([]);
   const [cams, setCams] = useState(0);
+  // Zoom qo'shimchalari
+  const [cohosts, setCohosts] = useState<string[]>([]);
+  const [waitingCount, setWaitingCount] = useState(0);
+  const [rules, setRules] = useState({ waitingRoom: conn.waitingRoom, passcode: conn.passcode ?? null });
+  const [breakoutOpen, setBreakoutOpen] = useState(conn.breakoutOpen);
+  const [board, setBoard] = useState(false);
+  const [bgMenu, setBgMenu] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const wasStage = useRef(canPublish);
   const canShare = typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+  const { items: reactions, react } = useLiveReactions();
+  const caps = useLiveCaptions({ streamId, speak: canPublish, startedAt: conn.startedAt });
+  const bg = useVirtualBg(localParticipant, flash);
+  const canDrawBoard = conn.moderator || canPublish;
 
   // Chat tarixi (kech kirganlar oldingi xabarlarni ko'radi)
   useEffect(() => {
@@ -219,6 +294,42 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   useEffect(() => {
     if (window.matchMedia("(min-width: 1024px)").matches) setPanel("chat");
   }, []);
+  // Hammuallif ro'yxati (ro'yxatdagi belgilar uchun)
+  useEffect(() => {
+    let alive = true;
+    void fetch(`/api/live/${streamId}/hammuallif`)
+      .then((r) => r.json())
+      .then((j: { data?: { items: string[] } }) => alive && setCohosts(j.data?.items ?? []))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [streamId]);
+  // Davomat: har 60 s «tirik» signal (brauzer yopilsa oxirgi signal chiqish vaqti bo'ladi)
+  useEffect(() => {
+    const ping = () => void fetch(`/api/live/${streamId}/davomat`, { method: "POST", keepalive: true }).catch(() => undefined);
+    const t = window.setInterval(ping, 60_000);
+    return () => {
+      window.clearInterval(t);
+      ping();
+    };
+  }, [streamId]);
+  // Navbatdagilar soni (boshqaruvchi panelni ochmasa ham belgi ko'rinadi)
+  useEffect(() => {
+    if (!conn.moderator || !rules.waitingRoom) return;
+    let alive = true;
+    const load = () =>
+      void fetch(`/api/live/${streamId}/navbat`)
+        .then((r) => r.json())
+        .then((j: { data?: { items: unknown[] } }) => alive && setWaitingCount(j.data?.items.length ?? 0))
+        .catch(() => undefined);
+    load();
+    const t = window.setInterval(load, 8000);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+    };
+  }, [streamId, conn.moderator, rules.waitingRoom]);
   useEffect(() => {
     peak.current = Math.max(peak.current, everyone.length - 1);
   }, [everyone.length, peak]);
@@ -328,6 +439,7 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
             <SignalLow size={12} /> Aloqa sust
           </span>
         )}
+        {conn.breakout && <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11.5px] font-semibold">{conn.breakout}</span>}
         <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[12px] font-semibold tabular-nums">
           <Users size={12} /> {everyone.length}
         </span>
@@ -341,7 +453,7 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
       <div className="relative flex min-h-0 flex-1 gap-2 px-2 lg:px-3">
         {/* Sahna */}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1">
             {main ? (
               <Tile tref={main} pinned={Boolean(pinned)} onPin={pinned ? () => setPin(null) : undefined} />
             ) : (
@@ -349,6 +461,10 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
                 <p className="text-[15px]">{conn.host ? "Kamerangiz yoqilmoqda…" : "Boshlovchi hozircha kamerani yoqmagan"}</p>
               </div>
             )}
+            {/* Uchayotgan reaksiyalar · subtitr · umumiy doska — sahna ustida */}
+            <ReactionLayer items={reactions} />
+            {caps.on && <CaptionBar line={caps.line} />}
+            {board && <LiveWhiteboard canDraw={canDrawBoard} onClose={() => setBoard(false)} />}
           </div>
           {strip.length > 0 && (
             <div className="flex h-[92px] gap-2 overflow-x-auto sm:h-[108px]">
@@ -362,6 +478,24 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         {/* Yon panel: chat / ishtirokchilar (telefonda pastdan varaq) */}
         {panel && (
           <aside className="absolute inset-x-2 bottom-2 z-10 flex h-[62%] flex-col overflow-hidden rounded-2xl bg-[#17171a] shadow-[0_-8px_40px_rgba(0,0,0,0.5)] lg:static lg:h-auto lg:w-[340px] lg:shrink-0 lg:shadow-none">
+            {panel === "host" ? (
+              <HostTools
+                streamId={streamId}
+                tab={hostTab}
+                setTab={setHostTab}
+                waitingCount={waitingCount}
+                waitingRoom={rules.waitingRoom}
+                passcode={rules.passcode}
+                breakoutOpen={breakoutOpen}
+                viewerIds={everyone.filter((p) => p.identity !== conn.hostId).map((p) => p.identity)}
+                flash={flash}
+                onRules={setRules}
+                onBreakoutOpen={setBreakoutOpen}
+                onWaitingCount={setWaitingCount}
+                onClose={() => setPanel(null)}
+              />
+            ) : (
+              <>
             <div className="flex items-center gap-1 border-b border-white/10 p-2">
               {(["chat", "qa", "people"] as const).map((k) => (
                 <button key={k} type="button" onClick={() => setPanel(k)} className={cn("h-8 rounded-lg px-3 text-[13px] font-semibold", panel === k ? "bg-white/15" : "text-white/60 hover:text-white")}>
@@ -403,9 +537,21 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
                 {[...everyone]
                   .sort((a, b) => Number(b.identity === conn.hostId) - Number(a.identity === conn.hostId) || Number(b.attributes?.hand === "1") - Number(a.attributes?.hand === "1"))
                   .map((p) => (
-                    <PersonRow key={p.identity} p={p} hostId={conn.hostId} iAmHost={conn.host} streamId={streamId} flash={flash} />
+                    <PersonRow
+                      key={p.identity}
+                      p={p}
+                      hostId={conn.hostId}
+                      iAmHost={conn.moderator}
+                      canAssignCohost={conn.host}
+                      isCohost={cohosts.includes(p.identity)}
+                      onCohost={(on) => setCohosts((l) => (on ? [...l, p.identity] : l.filter((x) => x !== p.identity)))}
+                      streamId={streamId}
+                      flash={flash}
+                    />
                   ))}
               </ul>
+            )}
+              </>
             )}
           </aside>
         )}
@@ -431,6 +577,14 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
                 {isScreenShareEnabled ? <Presentation size={20} /> : <MonitorUp size={20} />}
               </Btn>
             )}
+            {bg.supported && (
+              <div className="relative">
+                {bgMenu && <BgMenu mode={bg.mode} busy={bg.busy} onPick={(m) => void bg.apply(m)} onClose={() => setBgMenu(false)} />}
+                <Btn label="Fon" on={bg.mode !== "off"} onClick={() => setBgMenu((o) => !o)}>
+                  <Sparkles size={20} />
+                </Btn>
+              </div>
+            )}
           </>
         )}
         {conn.host && conn.canRecord && !rec && (
@@ -443,7 +597,12 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
             <Hand size={20} />
           </Btn>
         )}
-        <Btn label="Odamlar" on={panel === "people"} badge={conn.host ? raisedCount : 0} onClick={() => setPanel(panel === "people" ? null : "people")}>
+        <ReactionButton react={react} />
+        {captionsSupported() && <CaptionButton on={caps.on} onToggle={() => caps.setOn(!caps.on)} />}
+        <Btn label="Doska" on={board} accent={board} onClick={() => setBoard(!board)}>
+          <Pencil size={20} />
+        </Btn>
+        <Btn label="Odamlar" on={panel === "people"} badge={conn.moderator ? raisedCount : 0} onClick={() => setPanel(panel === "people" ? null : "people")}>
           <Users size={20} />
         </Btn>
         <Btn label="Savollar" on={panel === "qa"} onClick={() => setPanel(panel === "qa" ? null : "qa")}>
@@ -452,6 +611,11 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
         <Btn label="Chat" on={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")}>
           <MessageSquare size={20} />
         </Btn>
+        {conn.moderator && (
+          <Btn label="Boshqaruv" on={panel === "host"} badge={waitingCount} onClick={() => setPanel(panel === "host" ? null : "host")}>
+            <SlidersHorizontal size={20} />
+          </Btn>
+        )}
         <button type="button" onClick={conn.host ? onEnd : onLeave} className="ml-1 inline-flex h-12 items-center gap-2 rounded-full bg-danger px-4 text-[13.5px] font-bold sm:px-5">
           <PhoneOff size={18} /> <span className="max-sm:hidden">{conn.host ? "Efirni tugatish" : "Chiqish"}</span>
         </button>
@@ -460,7 +624,7 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   );
 }
 
-function PersonRow({ p, hostId, iAmHost, streamId, flash }: { p: Participant; hostId: string; iAmHost: boolean; streamId: string; flash: (t: string) => void }) {
+function PersonRow({ p, hostId, iAmHost, canAssignCohost, isCohost, onCohost, streamId, flash }: { p: Participant; hostId: string; iAmHost: boolean; canAssignCohost: boolean; isCohost: boolean; onCohost: (on: boolean) => void; streamId: string; flash: (t: string) => void }) {
   const { attributes } = useParticipantAttributes({ participant: p });
   const [busy, setBusy] = useState(false);
   const isHost = p.identity === hostId;
@@ -485,12 +649,13 @@ function PersonRow({ p, hostId, iAmHost, streamId, flash }: { p: Participant; ho
       <Initial name={nameOf(p)} size={34} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13.5px] font-semibold">{nameOf(p)}{p.isLocal ? " (siz)" : ""}</p>
-        <p className="text-[11.5px] text-white/50">{isHost ? "Boshlovchi" : onStage ? "Sahnada" : "Tomoshabin"}</p>
+        <p className="text-[11.5px] text-white/50">{isHost ? "Boshlovchi" : isCohost ? "Hammuallif" : onStage ? "Sahnada" : "Tomoshabin"}</p>
       </div>
       {hand && <Hand size={16} className="text-[#ffcf40]" aria-label="Qo'l ko'tardi" />}
       {onStage ? (p.isMicrophoneEnabled ? <Mic size={14} className="text-white/60" /> : <MicOff size={14} className="text-danger" />) : null}
       {iAmHost && !isHost && !p.isLocal && (
         <div className="flex gap-1">
+          {canAssignCohost && <CohostToggle streamId={streamId} userId={p.identity} on={isCohost} flash={flash} onToggle={onCohost} />}
           {onStage && p.isMicrophoneEnabled && (
             <button type="button" disabled={busy} onClick={() => void act("mute")} aria-label="Mikrofonni o'chirish" title="Mikrofonni o'chirish" className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 hover:bg-white/20">
               <MicOff size={14} />
@@ -518,6 +683,35 @@ function Btn({ label, onClick, children, on, off, accent, badge }: { label: stri
   );
 }
 
+
+/** Virtual fon menyusi: o'chiq · bulutlash · kuchli bulutlash (MediaPipe segmentatsiyasi) */
+function BgMenu({ mode, busy, onPick, onClose }: { mode: BgMode; busy: boolean; onPick: (m: BgMode) => void; onClose: () => void }) {
+  const items: [BgMode, string][] = [
+    ["off", "O'chiq"],
+    ["blur", "Bulutlash"],
+    ["blur-strong", "Kuchli bulutlash"],
+  ];
+  return (
+    <div className="absolute bottom-full left-1/2 mb-2 w-[172px] -translate-x-1/2 rounded-xl bg-[#1f1f23] p-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)]" role="menu" aria-label="Virtual fon">
+      {items.map(([k, label]) => (
+        <button
+          key={k}
+          type="button"
+          role="menuitem"
+          disabled={busy}
+          onClick={() => {
+            onPick(k);
+            onClose();
+          }}
+          className={cn("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[13px] font-semibold transition disabled:opacity-50", mode === k ? "bg-white/15" : "hover:bg-white/10")}
+        >
+          {busy && mode !== k ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} className={mode === k ? "text-accent" : "text-white/50"} />}
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Boshlovchi uchun efirdan oldingi oyna: kamera ko'rinishi, qurilma tanlash, mikrofon/kamerani yoqish-o'chirish */
 function PreJoin({ title, onReady, onCancel }: { title: string; onReady: (d: Devices) => void; onCancel: () => void }) {
