@@ -18,6 +18,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
+import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
 import { captureVideoPoster, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
 import { MusicChip } from "@/components/social/MusicChip";
@@ -228,6 +229,9 @@ export function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<Attachment[]>([]);
+  // Muqova tanlash: yuklangan videoning lokal nusxasi (CORS'siz kadr olish uchun)
+  const localVideo = useRef(new Map<string, string>());
+  const [coverIdx, setCoverIdx] = useState<number | null>(null);
   const [eventOpen, setEventOpen] = useState(false);
   const [eventAt, setEventAt] = useState("");
   const [eventUrl, setEventUrl] = useState("");
@@ -314,6 +318,7 @@ export function Composer({
         const att = await uploadAttachment(f, { docs: true, onProgress: (p) => setProgress((i + p) / total) });
         // Video: muqovani (birinchi kadr) avtomatik olib yuklaymiz — plitka/oldindan ko'rinishda qora kvadrat chiqmasin
         if (isVideoAttachment(att)) {
+          localVideo.current.set(att.url, URL.createObjectURL(f));
           try {
             const pf = await captureVideoPoster(f);
             if (pf) att.poster = (await uploadAttachment(pf)).url;
@@ -526,25 +531,9 @@ export function Composer({
                 <SafeImage src={a.url} alt={a.name} width={160} height={160} className="h-full w-full object-cover" />
               )}
               {isVideoAttachment(a) && (
-                <label className="press absolute inset-x-1 bottom-1 flex h-6 cursor-pointer items-center justify-center rounded-full bg-ink/75 text-[10.5px] font-semibold text-white">
+                <button type="button" onClick={() => setCoverIdx(i)} className="press absolute inset-x-1 bottom-1 flex h-6 items-center justify-center rounded-full bg-ink/75 text-[10.5px] font-semibold text-white">
                   Muqova
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      try {
-                        const up = await uploadAttachment(file);
-                        setMedia((m) => m.map((x, j) => (j === i ? { ...x, poster: up.url } : x)));
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : "Muqova yuklanmadi");
-                      }
-                    }}
-                  />
-                </label>
+                </button>
               )}
               <button type="button" aria-label="Olib tashlash" onClick={() => setMedia((m) => m.filter((_, j) => j !== i))} className="press absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white">
                 <X size={12} />
@@ -552,6 +541,18 @@ export function Composer({
             </li>
           ))}
         </ul>
+      )}
+      {coverIdx !== null && media[coverIdx] && (
+        <VideoCoverPicker
+          open
+          onClose={() => setCoverIdx(null)}
+          src={localVideo.current.get(media[coverIdx].url) ?? media[coverIdx].url}
+          onPick={async (file) => {
+            const up = await uploadAttachment(file);
+            const i = coverIdx;
+            setMedia((m) => m.map((x, j) => (j === i ? { ...x, poster: up.url } : x)));
+          }}
+        />
       )}
       {expanded && (
         <div className="expand-in mt-2 flex items-center gap-0.5">
@@ -648,7 +649,7 @@ export function PostCard({
   const [body, setBody] = useState(post.body);
   // Video muqovasini almashtirish (muallif): media nusxasi lokal yangilanadi
   const [mediaList, setMediaList] = useState(post.media);
-  const posterInput = useRef<HTMLInputElement>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
   const posterIdx = useRef(0);
   const [editedAt, setEditedAt] = useState<number | null>(post.editedAt ?? (post.edited ? 0 : null));
   const [pinned, setPinned] = useState(post.isPinned);
@@ -774,7 +775,7 @@ export function PostCard({
       icon: ImagePlus,
       onSelect: () => {
         posterIdx.current = Math.max(0, media.findIndex((m) => isVideoAttachment(m)));
-        posterInput.current?.click();
+        setPosterOpen(true);
       },
       hidden: !isAuthor || !media.some((m) => isVideoAttachment(m)),
     },
@@ -900,19 +901,7 @@ export function PostCard({
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
       {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} />}
-      <input
-        ref={posterInput}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        aria-label="Video muqovasini tanlash"
-        tabIndex={-1}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (f) void changePoster(f);
-        }}
-      />
+      {posterOpen && media[posterIdx.current] && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={media[posterIdx.current].url} onPick={(f) => changePoster(f)} />}
       {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 
       <footer className="-mx-1.5 mt-2.5 flex items-center gap-1">

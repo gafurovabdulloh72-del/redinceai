@@ -13,6 +13,7 @@ import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ShareSheet } from "@/components/social/ShareSheet";
 import { uploadAttachment } from "@/components/chat/attachments";
+import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
 import { usePresence } from "@/components/motion/usePresence";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { Comments } from "@/components/groups/GroupFeed";
@@ -233,7 +234,7 @@ function PostBody({
   const [busy, setBusy] = useState(false);
   const [pinned, setPinned] = useState(post.isPinned);
   const [mediaList, setMediaList] = useState(post.media);
-  const posterRef = useRef<HTMLInputElement>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
   const videoIdx = mediaList.findIndex((m) => isVideoAttachment(m));
   const canDelete = Boolean(viewerId && (viewerId === post.author.id || isAdmin));
   const textOnly = post.media.length === 0;
@@ -357,10 +358,10 @@ function PostBody({
       {shareOpen && <ShareSheet open onClose={() => setShareOpen(false)} loggedIn={loggedIn} title={post.body.slice(0, 80) || "Post"} url={shareUrl} />}
       {canDelete && videoIdx >= 0 && (
         <>
-          <button type="button" onClick={() => posterRef.current?.click()} aria-label="Muqovani o'zgartirish" title="Muqovani o'zgartirish" className={iconBtn}>
+          <button type="button" onClick={() => setPosterOpen(true)} aria-label="Muqovani o'zgartirish" title="Muqovani o'zgartirish" className={iconBtn}>
             <ImagePlus size={17} />
           </button>
-          <input ref={posterRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-label="Video muqovasini tanlash" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void changePoster(f); }} />
+          {posterOpen && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={mediaList[videoIdx].url} onPick={(f) => changePoster(f)} />}
         </>
       )}
       <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} size="lg" />
