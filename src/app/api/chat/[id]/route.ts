@@ -58,6 +58,8 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
     peerTyping: peerIsTyping(found.conv, session.sub),
     pinned,
     prefs,
+    /** O'z-o'zidan yo'qoladigan xabarlar muddati (soniya; 0 — o'chiq) — ikki tomon uchun umumiy */
+    ttlSeconds: found.conv.ttlSeconds,
     /** Reaksiyalar: xabar id → yig'indi (so'nggi 200 ta xabar oynasi) */
     reactions: Object.fromEntries(reactions),
     items: items.map((m) => toDmView(m, session.sub, quotes, reactions)),

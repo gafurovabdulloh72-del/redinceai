@@ -215,6 +215,9 @@ export function AttachmentList({ attachments, mine }: { attachments: Attachment[
       {attachments.map((a) =>
         isAudioAttachment(a) ? (
           <AudioBubble key={a.url} a={a} mine={mine} />
+        ) : isVideoAttachment(a) && a.round ? (
+          // Doira video xabar (Telegram «video note») — aylana, boshqaruvsiz, bosilganda o'ynaydi
+          <RoundVideo key={a.url} a={a} />
         ) : isVideoAttachment(a) ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <video key={a.url} src={a.url} controls preload="metadata" playsInline onPlay={(e) => claimMedia(e.currentTarget)} className="max-h-64 w-full rounded-[10px] bg-black/20" title={a.name} />
@@ -475,4 +478,35 @@ export function useNowTick(ms = 60_000): number {
     return () => window.clearInterval(t);
   }, [ms]);
   return now;
+}
+
+
+/** Doira video xabar: aylana ko'rinish, bosilganda o'ynaydi/to'xtaydi, davomiyligi pastda */
+function RoundVideo({ a }: { a: Attachment }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const v = ref.current;
+        if (!v) return;
+        if (v.paused) {
+          claimMedia(v);
+          void v.play().catch(() => undefined);
+        } else v.pause();
+      }}
+      aria-label={playing ? "Doira videoni to'xtatish" : "Doira videoni o'ynatish"}
+      className="relative block h-[200px] w-[200px] overflow-hidden rounded-full bg-black sm:h-[232px] sm:w-[232px]"
+    >
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video ref={ref} src={a.url} preload="metadata" playsInline onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} className="h-full w-full object-cover" />
+      {!playing && (
+        <span className="absolute inset-0 grid place-items-center bg-black/25 text-white">
+          <Play size={30} fill="currentColor" />
+        </span>
+      )}
+      {a.duration ? <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/65 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-white">{formatDuration(a.duration)}</span> : null}
+    </button>
+  );
 }

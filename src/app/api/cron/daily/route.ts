@@ -101,6 +101,7 @@ export async function GET(req: Request) {
     viewsPurged: 0,
     historyPurged: 0,
     pushPurged: 0,
+    dmsExpired: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -223,6 +224,14 @@ export async function GET(req: Request) {
     counts.pushPurged = await purgeStalePush();
   } catch (e) {
     counts.errors.push(`push: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (l4) O'z-o'zidan yo'qoladigan DM xabarlari — muddati o'tganlari butunlay o'chiriladi
+  try {
+    const { purgeExpiredDms } = await import("@/lib/chat/dm");
+    counts.dmsExpired = await purgeExpiredDms();
+  } catch (e) {
+    counts.errors.push(`dmTtl: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (n) Muddati o'tgan story'lar (3 kundan eski) o'chiriladi

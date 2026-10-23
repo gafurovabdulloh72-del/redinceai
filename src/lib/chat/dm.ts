@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { callPreview } from "@/lib/call/format";
 import { db } from "@/lib/db";
-import { conversations, dmConversationPrefs, dmMessageReactions, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
+import { conversations, dmConversationPrefs, dmFolders, dmMessageReactions, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { escapeLike, uid } from "@/lib/utils";
@@ -93,26 +93,33 @@ export interface ConvPrefs {
   archived: boolean;
   muted: boolean;
   pinned: boolean;
+  /** Papka (dm_folders.id) yoki null — «Hammasi» */
+  folderId: string | null;
 }
-const DEFAULT_PREFS: ConvPrefs = { archived: false, muted: false, pinned: false };
+const DEFAULT_PREFS: ConvPrefs = { archived: false, muted: false, pinned: false, folderId: null };
+const toPrefs = (r: { archived: boolean; muted: boolean; pinned: boolean; folderId: string | null }): ConvPrefs => ({ archived: r.archived, muted: r.muted, pinned: r.pinned, folderId: r.folderId });
 
 export async function getPrefs(convId: string, meId: string): Promise<ConvPrefs> {
   const row = await db.query.dmConversationPrefs.findFirst({ where: and(eq(dmConversationPrefs.conversationId, convId), eq(dmConversationPrefs.userId, meId)) });
-  return row ? { archived: row.archived, muted: row.muted, pinned: row.pinned } : DEFAULT_PREFS;
+  return row ? toPrefs(row) : DEFAULT_PREFS;
 }
 
 async function prefsMap(meId: string, convIds: string[]): Promise<Map<string, ConvPrefs>> {
   const map = new Map<string, ConvPrefs>();
   if (!convIds.length) return map;
   const rows = await db.query.dmConversationPrefs.findMany({ where: and(eq(dmConversationPrefs.userId, meId), inArray(dmConversationPrefs.conversationId, convIds)) });
-  for (const r of rows) map.set(r.conversationId, { archived: r.archived, muted: r.muted, pinned: r.pinned });
+  for (const r of rows) map.set(r.conversationId, toPrefs(r));
   return map;
 }
 
 /** Sozlamani yangilash (upsert) — qaytaradi: yangi holat */
 export async function setPrefs(convId: string, meId: string, patch: Partial<ConvPrefs>): Promise<ConvPrefs> {
   const cur = await db.query.dmConversationPrefs.findFirst({ where: and(eq(dmConversationPrefs.conversationId, convId), eq(dmConversationPrefs.userId, meId)) });
-  const next: ConvPrefs = { ...(cur ? { archived: cur.archived, muted: cur.muted, pinned: cur.pinned } : DEFAULT_PREFS), ...patch };
+  if (patch.folderId) {
+    const f = await db.query.dmFolders.findFirst({ where: and(eq(dmFolders.id, patch.folderId), eq(dmFolders.userId, meId)), columns: { id: true } });
+    if (!f) throw new ApiError(404, "Papka topilmadi");
+  }
+  const next: ConvPrefs = { ...(cur ? toPrefs(cur) : DEFAULT_PREFS), ...patch };
   if (cur) await db.update(dmConversationPrefs).set({ ...next, updatedAt: new Date() }).where(eq(dmConversationPrefs.id, cur.id));
   else await db.insert(dmConversationPrefs).values({ id: uid(), conversationId: convId, userId: meId, ...next, updatedAt: new Date() });
   return next;
@@ -135,7 +142,7 @@ export interface ConvListRow {
  * Mening suhbatlarim: qarshi tomon, oxirgi xabar, o'qilmaganlar, sozlamalar (qadalganlar birinchi, keyin faollik bo'yicha).
  * Xabarsiz suhbat faqat uni ochgan tomonga ko'rinadi (dm_policy'ni /yozish orqali chetlab o'tib bo'lmasin).
  */
-export async function listConversations(meId: string, limit = 60): Promise<ConvListRow[]> {
+export async function listConversations(meId: string, limit = 60, folder?: string | null): Promise<ConvListRow[]> {
   const rows = await db.query.conversations.findMany({
     where: and(
       or(eq(conversations.aId, meId), eq(conversations.bId, meId)),
@@ -193,8 +200,10 @@ export async function listConversations(meId: string, limit = 60): Promise<ConvL
       peerTyping: Boolean(peerTypingAt && now - peerTypingAt.getTime() < TYPING_WINDOW_MS),
     };
   });
+  // Papka filtri: `folder` berilsa faqat shu papkadagilar («arxiv» — arxivlanganlar)
+  const filtered = !folder ? out : folder === "arxiv" ? out.filter((r) => r.prefs.archived) : out.filter((r) => r.prefs.folderId === folder);
   // Qadalganlar tepada (o'z tartibi saqlanadi)
-  return [...out.filter((r) => r.prefs.pinned), ...out.filter((r) => !r.prefs.pinned)];
+  return [...filtered.filter((r) => r.prefs.pinned), ...filtered.filter((r) => !r.prefs.pinned)];
 }
 
 /** Suhbatga a'zolik tekshiruvi bilan yuklash */
@@ -222,6 +231,9 @@ type DmRow = typeof dmMessages.$inferSelect;
 
 const visibleTo = (meId: string) => (m: Pick<DmRow, "hiddenFor">) => !(m.hiddenFor ?? []).includes(meId);
 
+/** O'z-o'zidan yo'qoladigan xabar vaqti o'tgan bo'lsa so'rovlarda chiqmaydi (cron keyinroq o'chiradi) */
+const notExpired = () => or(isNull(dmMessages.expiresAt), gt(dmMessages.expiresAt, new Date()));
+
 /** Xabarlar (eski → yangi); afterId berilsa — faqat undan keyingilar (polling). «Men uchun o'chirilgan»lar chiqmaydi */
 export async function listMessages(convId: string, meId: string, afterId?: string | null, limit = 200): Promise<DmRow[]> {
   let afterAt: Date | null = null;
@@ -231,7 +243,7 @@ export async function listMessages(convId: string, meId: string, afterId?: strin
   }
   if (afterAt) {
     const rows = await db.query.dmMessages.findMany({
-      where: and(eq(dmMessages.conversationId, convId), gt(dmMessages.createdAt, afterAt)),
+      where: and(eq(dmMessages.conversationId, convId), gt(dmMessages.createdAt, afterAt), notExpired()),
       orderBy: [asc(dmMessages.createdAt), asc(dmMessages.id)],
       limit,
     });
@@ -239,7 +251,7 @@ export async function listMessages(convId: string, meId: string, afterId?: strin
   }
   // Birinchi ochilish: OXIRGI 200 ta xabar — teskari tartibda olib, eski → yangi qilib qaytaramiz
   const rows = await db.query.dmMessages.findMany({
-    where: eq(dmMessages.conversationId, convId),
+    where: and(eq(dmMessages.conversationId, convId), notExpired()),
     orderBy: [desc(dmMessages.createdAt), desc(dmMessages.id)],
     limit,
   });
@@ -386,7 +398,9 @@ export async function sendDm(conv: Conversation, meId: string, body: string, att
     .where(and(eq(dmMessages.conversationId, conv.id), eq(dmMessages.senderId, meId), gt(dmMessages.createdAt, peerReadAt ?? new Date(0))));
 
   const now = new Date();
-  const msg: typeof dmMessages.$inferInsert = { id: uid(), conversationId: conv.id, senderId: meId, body, attachments, replyToId, forwardedFrom: opts.forwardedFrom ?? null, createdAt: now };
+  // O'z-o'zidan yo'qoladigan suhbat: xabar necha soniyadan keyin o'chadi
+  const expiresAt = conv.ttlSeconds > 0 ? new Date(now.getTime() + conv.ttlSeconds * 1000) : null;
+  const msg: typeof dmMessages.$inferInsert = { id: uid(), conversationId: conv.id, senderId: meId, body, attachments, replyToId, forwardedFrom: opts.forwardedFrom ?? null, expiresAt, createdAt: now };
   await db.insert(dmMessages).values(msg);
   await db
     .update(conversations)
@@ -519,4 +533,78 @@ export async function unreadDmCount(meId: string): Promise<number> {
       ),
     );
   return Number(n);
+}
+
+/* ------------------------------------------------------------------ */
+/* Papkalar (Telegram naqshi) va o'z-o'zidan yo'qoladigan xabarlar     */
+/* ------------------------------------------------------------------ */
+
+/** Bir foydalanuvchida ko'pi bilan shuncha papka */
+export const DM_FOLDER_MAX = 10;
+/** Yo'qolish muddati variantlari (soniya): o'chiq · 1 soat · 1 kun · 1 hafta */
+export const DM_TTL_OPTIONS = [0, 3600, 86_400, 604_800] as const;
+
+export interface DmFolder {
+  id: string;
+  name: string;
+  position: number;
+  count: number;
+}
+
+/** Mening papkalarim (har birida nechta suhbat borligi bilan) */
+export async function listFolders(meId: string): Promise<DmFolder[]> {
+  const rows = await db.query.dmFolders.findMany({ where: eq(dmFolders.userId, meId), orderBy: [asc(dmFolders.position), asc(dmFolders.createdAt)] });
+  if (!rows.length) return [];
+  const counts = await db
+    .select({ folderId: dmConversationPrefs.folderId, n: sql<number>`count(*)` })
+    .from(dmConversationPrefs)
+    .where(and(eq(dmConversationPrefs.userId, meId), inArray(dmConversationPrefs.folderId, rows.map((r) => r.id))))
+    .groupBy(dmConversationPrefs.folderId);
+  const map = new Map(counts.map((c) => [c.folderId, Number(c.n)]));
+  return rows.map((r) => ({ id: r.id, name: r.name, position: r.position, count: map.get(r.id) ?? 0 }));
+}
+
+export async function createFolder(meId: string, name: string): Promise<DmFolder> {
+  const t = name.trim().slice(0, 24);
+  if (!t) throw new ApiError(422, "Papka nomi bo'sh", { name: "Nom kerak" });
+  const n = await db.$count(dmFolders, eq(dmFolders.userId, meId));
+  if (n >= DM_FOLDER_MAX) throw new ApiError(422, `Ko'pi bilan ${DM_FOLDER_MAX} papka`);
+  const id = uid();
+  await db.insert(dmFolders).values({ id, userId: meId, name: t, position: n + 1 });
+  return { id, name: t, position: n + 1, count: 0 };
+}
+
+export async function renameFolder(meId: string, id: string, name: string): Promise<void> {
+  const t = name.trim().slice(0, 24);
+  if (!t) throw new ApiError(422, "Papka nomi bo'sh", { name: "Nom kerak" });
+  const r = await db.update(dmFolders).set({ name: t }).where(and(eq(dmFolders.id, id), eq(dmFolders.userId, meId))).returning({ id: dmFolders.id });
+  if (!r.length) throw new ApiError(404, "Papka topilmadi");
+}
+
+/** Papkani o'chirish: ichidagi suhbatlar «Hammasi»ga qaytadi (suhbatlar o'chmaydi) */
+export async function deleteFolder(meId: string, id: string): Promise<void> {
+  const r = await db.delete(dmFolders).where(and(eq(dmFolders.id, id), eq(dmFolders.userId, meId))).returning({ id: dmFolders.id });
+  if (!r.length) throw new ApiError(404, "Papka topilmadi");
+  await db.update(dmConversationPrefs).set({ folderId: null }).where(and(eq(dmConversationPrefs.userId, meId), eq(dmConversationPrefs.folderId, id)));
+}
+
+/**
+ * O'z-o'zidan yo'qoladigan xabarlar muddatini belgilash (ikki tomon uchun umumiy — Telegram naqshi).
+ * Mavjud xabarlarga tegmaydi; faqat shundan keyin yuborilganlar yo'qoladi.
+ */
+export async function setDmTtl(conv: Conversation, meId: string, seconds: number): Promise<number> {
+  if (!DM_TTL_OPTIONS.includes(seconds as (typeof DM_TTL_OPTIONS)[number])) throw new ApiError(422, "Noto'g'ri muddat");
+  if (conv.ttlSeconds === seconds) return seconds;
+  await db.update(conversations).set({ ttlSeconds: seconds }).where(eq(conversations.id, conv.id));
+  // Qarshi tomon ham bilsin — suhbatga tizim xabari sifatida emas, oddiy bildirishnoma
+  const label = seconds === 0 ? "o'chirildi" : seconds === 3600 ? "1 soat" : seconds === 86_400 ? "1 kun" : "1 hafta";
+  const me = await db.query.users.findFirst({ where: eq(users.id, meId), columns: { name: true } });
+  await notify(peerOf(conv, meId), "chat", "Yo'qoladigan xabarlar", `${me?.name ?? "Suhbatdosh"}: ${seconds === 0 ? "yo'qolish o'chirildi" : `xabarlar ${label}dan keyin o'chadi`}`, `/kabinet/chat?s=${conv.id}`).catch(() => undefined);
+  return seconds;
+}
+
+/** Cron: muddati o'tgan xabarlarni butunlay o'chirish (so'rovlarda ular allaqachon ko'rinmaydi) */
+export async function purgeExpiredDms(): Promise<number> {
+  const r = await db.delete(dmMessages).where(and(sql`${dmMessages.expiresAt} is not null`, lt(dmMessages.expiresAt, new Date()))).returning({ id: dmMessages.id });
+  return r.length;
 }

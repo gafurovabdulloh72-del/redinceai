@@ -189,6 +189,8 @@ export interface FileAttachment {
   duration?: number;
   /** Video muqovasi (rasm URL) — plitka/oldindan ko'rinishda ko'rsatiladi; kompozitor kadrdan yoki yuklangan rasmdan qo'yadi */
   poster?: string;
+  /** Doira video xabar (Telegram «video note») — chatda aylana shaklida ko'rsatiladi */
+  round?: boolean;
 }
 
 /**
@@ -645,6 +647,8 @@ export const conversations = sqliteTable(
     bTypingAt: integer("b_typing_at", { mode: "timestamp_ms" }),
     /** Qadalgan xabar (bitta suhbatga bitta) — ikkala tomon ko'radi */
     pinnedMessageId: text("pinned_message_id"),
+    /** O'z-o'zidan yo'qoladigan xabarlar: xabar necha soniyadan keyin o'chadi (0 — o'chiq). Ikki tomon uchun umumiy */
+    ttlSeconds: integer("ttl_seconds").notNull().default(0),
     /** Suhbatni kim ochgan — bo'sh (xabarsiz) suhbat faqat yaratuvchining ro'yxatida ko'rinadi (dm_policy chetlab o'tilmasin) */
     createdBy: text("created_by"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -676,6 +680,8 @@ export const dmMessages = sqliteTable(
     hiddenFor: text("hidden_for", { mode: "json" }).$type<string[]>(),
     /** Yo'naltirilgan xabar — asl muallif ismi (ko'rsatish uchun) */
     forwardedFrom: text("forwarded_from"),
+    /** O'z-o'zidan yo'qolish vaqti (conversations.ttl_seconds bo'yicha) — kelgach so'rovlarda chiqmaydi, cron o'chiradi */
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     /** Qo'ng'iroq yozuvi (Telegram kabi): bo'lsa bu oddiy xabar emas, tugagan qo'ng'iroq tarixi. senderId = chaqiruvchi */
     call: text("call", { mode: "json" }).$type<import("@/lib/call/format").CallInfo>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -759,11 +765,30 @@ export const dmConversationPrefs = sqliteTable(
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
     muted: integer("muted", { mode: "boolean" }).notNull().default(false),
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+    /** Papka (dm_folders.id) — null bo'lsa «Hammasi» ro'yxatida */
+    folderId: text("folder_id"),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("dm_conversation_prefs_pair_idx").on(t.conversationId, t.userId)],
+  (t) => [uniqueIndex("dm_conversation_prefs_pair_idx").on(t.conversationId, t.userId), index("dm_conversation_prefs_folder_idx").on(t.userId, t.folderId)],
+);
+
+/** Chat papkalari (Telegram naqshi): foydalanuvchi o'zi uchun yaratadi, suhbatlarni qo'lda joylaydi */
+export const dmFolders = sqliteTable(
+  "dm_folders",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("dm_folders_user_idx").on(t.userId, t.position)],
 );
 
 /* Shikoyatlar (mutaxassis profili yoki sharh haqida) */

@@ -4,16 +4,18 @@ import { db } from "@/lib/db";
 import { conversations, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
-import { DM_BODY_MAX, getOrCreateConversation, listConversations, sendDm, touchLastSeen } from "@/lib/chat/dm";
+import { DM_BODY_MAX, getOrCreateConversation, listConversations, listFolders, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { normalizeUsername } from "@/lib/chat/username";
 import { assertCanDm } from "@/lib/privacy/blocks";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
-/** GET: mening suhbatlarim (qarshi tomon, oxirgi xabar, o'qilmaganlar) */
-export const GET = handler(async () => {
+/** GET ?papka=<id|arxiv> — mening suhbatlarim (qarshi tomon, oxirgi xabar, o'qilmaganlar) + papkalar */
+export const GET = handler(async (req) => {
   const session = await requireSession();
   await touchLastSeen(session.sub);
-  return ok({ items: await listConversations(session.sub) });
+  const folder = new URL(req.url).searchParams.get("papka");
+  const [items, folders] = await Promise.all([listConversations(session.sub, 60, folder), listFolders(session.sub)]);
+  return ok({ items, folders });
 });
 
 /** Tana ixtiyoriy: bo'sh bo'lsa faqat suhbat ochiladi (xabarsiz); bor bo'lsa birinchi xabar ham yuboriladi */

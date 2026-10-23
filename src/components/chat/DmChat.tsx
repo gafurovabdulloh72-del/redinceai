@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowDown, ArrowLeft, Ban, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, User, X, Zap } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Ban, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
@@ -18,8 +18,9 @@ import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, withRetryAfter, 
 import { CallBubble } from "@/components/call/CallBubble";
 import type { CallInfo } from "@/lib/call/format";
 import { AttachmentList, DayPill, LinkCard, Linkified, QuoteBlock, ReactionChips, ReactionPicker, ReplyBar, TypingDots, iconBtn, jumpToMessage, useNowTick } from "./MessageParts";
-import { ForwardDialog, InfoDialog, Layer, MenuDivider, MenuItem, PeerAvatar, PrefItems, type ConvPrefsView } from "./DmPanels";
+import { DialogHead, ForwardDialog, InfoDialog, Layer, MenuDivider, MenuItem, PeerAvatar, PrefItems, type ConvPrefsView } from "./DmPanels";
 import { VoiceRecorder } from "./VoiceRecorder";
+import { VideoNoteRecorder, videoNoteSupported } from "./VideoNoteRecorder";
 
 /**
  * Ichki chat (DM) — kabinetdagi "Chat" bo'limi.
@@ -46,6 +47,15 @@ interface ConvRow {
   prefs: ConvPrefsView;
   peerTyping?: boolean;
 }
+/** Yo'qolish muddati variantlari va yorliqlari (lib/chat/dm.ts DM_TTL_OPTIONS bilan bir xil) */
+const TTL_CHOICES: Array<{ sec: number; label: string }> = [
+  { sec: 0, label: "O'chiq" },
+  { sec: 3600, label: "1 soat" },
+  { sec: 86_400, label: "1 kun" },
+  { sec: 604_800, label: "1 hafta" },
+];
+const ttlLabel = (sec: number) => TTL_CHOICES.find((c) => c.sec === sec)?.label ?? "O'chiq";
+
 interface Msg {
   id: string;
   mine: boolean;
@@ -218,7 +228,14 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [blocked, setBlocked] = useState<{ byMe: boolean; me: boolean }>({ byMe: false, me: false });
   const [blockConfirm, setBlockConfirm] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
-  const [prefs, setPrefs] = useState<ConvPrefsView>({ archived: false, muted: false, pinned: false });
+  const [prefs, setPrefs] = useState<ConvPrefsView>({ archived: false, muted: false, pinned: false, folderId: null });
+  // Papkalar (Telegram naqshi) va o'z-o'zidan yo'qoladigan xabarlar
+  const [folders, setFolders] = useState<Array<{ id: string; name: string; count: number }>>([]);
+  const [folder, setFolder] = useState<string | null>(null);
+  const [folderMgr, setFolderMgr] = useState(false);
+  const [newFolder, setNewFolder] = useState("");
+  const [ttl, setTtl] = useState(0);
+  const [ttlMenu, setTtlMenu] = useState(false);
   const [pinned, setPinned] = useState<QuoteView | null>(null);
   const [dividerId, setDividerId] = useState<string | null>(null);
   const [nearBottom, setNearBottom] = useState(true);
@@ -283,7 +300,10 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const loadList = useCallback(async () => {
     const res = await fetch("/api/chat").catch(() => null);
     const json = res ? await res.json().catch(() => null) : null;
-    if (json?.ok) setConvs(json.data.items);
+    if (json?.ok) {
+      setConvs(json.data.items);
+      setFolders(json.data.folders ?? []);
+    }
   }, []);
 
   useEffect(() => {
@@ -350,6 +370,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         setPinned(d.pinned ?? null);
         if (d.blocked) setBlocked(d.blocked);
         if (d.prefs) setPrefs(d.prefs);
+        if (typeof d.ttlSeconds === "number") setTtl(d.ttlSeconds);
         const items: Msg[] = d.items;
         const updates: Msg[] = d.updates ?? [];
         if (items.length > 0) lastIdRef.current = items[items.length - 1].id;
@@ -664,6 +685,47 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     }
   };
 
+  /** Yo'qolish muddatini o'zgartirish (ikki tomon uchun umumiy) */
+  const setTtlFor = async (convId: string, seconds: number) => {
+    const prev = ttl;
+    setTtl(seconds);
+    const res = await fetch(`/api/chat/${convId}/ttl`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seconds }) }).catch(() => null);
+    if (!res?.ok) {
+      setTtl(prev);
+      toast("Saqlanmadi", "error");
+      return;
+    }
+    toast(seconds ? `Xabarlar ${ttlLabel(seconds).toLowerCase()}dan keyin o'chadi` : "Yo'qolish o'chirildi", "success");
+  };
+
+  /** Yangi papka */
+  const addFolder = async () => {
+    const name = newFolder.trim();
+    if (!name) return;
+    const res = await fetch("/api/chat/papkalar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).catch(() => null);
+    const json = res ? await res.json().catch(() => null) : null;
+    if (!res?.ok || !json?.data) {
+      toast(json?.error ?? "Yaratilmadi", "error");
+      return;
+    }
+    setFolders((l) => [...l, { id: json.data.id, name: json.data.name, count: 0 }]);
+    setNewFolder("");
+  };
+
+  /** Papkani o'chirish (suhbatlar «Hammasi»ga qaytadi) */
+  const removeFolder = async (id: string) => {
+    setFolders((l) => l.filter((f) => f.id !== id));
+    if (folder === id) setFolder(null);
+    const res = await fetch(`/api/chat/papkalar/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) {
+      toast("O'chirilmadi", "error");
+      void loadList();
+      return;
+    }
+    setConvs((c) => c?.map((r) => (r.prefs.folderId === id ? { ...r, prefs: { ...r.prefs, folderId: null } } : r)) ?? c);
+    if (prefs.folderId === id) setPrefs((p) => ({ ...p, folderId: null }));
+  };
+
   const updatePrefs = async (convId: string, patch: Partial<ConvPrefsView>) => {
     setConvs((c) => c?.map((r) => (r.id === convId ? { ...r, prefs: { ...r.prefs, ...patch } } : r)) ?? c);
     if (convId === active) setPrefs((p) => ({ ...p, ...patch }));
@@ -783,8 +845,13 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   /* ---------------- Klaviatura: suhbatlar orasida (Alt+↑/↓), Esc ---------------- */
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return (convs ?? []).filter((c) => c.prefs.archived === showArchived && (!needle || c.peer.name.toLowerCase().includes(needle) || (c.peer.username ?? "").includes(needle) || (c.last?.body ?? "").toLowerCase().includes(needle)));
-  }, [convs, q, showArchived]);
+    return (convs ?? []).filter(
+      (c) =>
+        c.prefs.archived === showArchived &&
+        (!folder || c.prefs.folderId === folder) &&
+        (!needle || c.peer.name.toLowerCase().includes(needle) || (c.peer.username ?? "").includes(needle) || (c.last?.body ?? "").toLowerCase().includes(needle)),
+    );
+  }, [convs, q, showArchived, folder]);
   const archivedCount = useMemo(() => (convs ?? []).filter((c) => c.prefs.archived).length, [convs]);
 
   useEffect(() => {
@@ -883,7 +950,24 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             {t("archived")} {archivedCount}
           </button>
         )}
+        <button type="button" onClick={() => setFolderMgr(true)} aria-label="Papkalar" title="Papkalar" className={cn(iconBtn, "h-9 w-9 shrink-0")}>
+          <Folder size={16} />
+        </button>
       </div>
+      {/* Papka tanlovi (telefonda gorizontal aylanadi) */}
+      {folders.length > 0 && (
+        <nav aria-label="Papkalar" className="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-line px-2.5 pb-2 max-lg:border-0 max-lg:px-0">
+          <button type="button" onClick={() => setFolder(null)} aria-pressed={!folder} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", !folder ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+            Hammasi
+          </button>
+          {folders.map((f) => (
+            <button key={f.id} type="button" onClick={() => setFolder(folder === f.id ? null : f.id)} aria-pressed={folder === f.id} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", folder === f.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+              {f.name}
+              {f.count > 0 && <span className="ml-1 opacity-60">{f.count}</span>}
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!convs ? (
           <ul className="stagger divide-y divide-line" aria-busy="true" aria-label="Yuklanmoqda">
@@ -1071,6 +1155,13 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
               <MenuItem icon={Info} label={t("info")} onClick={() => (setHeaderMenu(false), setInfoOpen(true))} />
               <MenuDivider />
               <PrefItems prefs={prefs} locale={locale} onChange={(p) => (setHeaderMenu(false), active && void updatePrefs(active, p))} />
+              <MenuItem icon={Timer} label={ttl ? `Yo'qoladi: ${ttlLabel(ttl)}` : "Yo'qoladigan xabarlar"} onClick={() => (setHeaderMenu(false), setTtlMenu(true))} active={ttl > 0} />
+              {folders.length > 0 && active && (
+                <>
+                  <MenuDivider />
+                  <MenuItem icon={FolderPlus} label={prefs.folderId ? `Papka: ${folders.find((f) => f.id === prefs.folderId)?.name ?? "—"}` : "Papkaga qo'shish"} onClick={() => (setHeaderMenu(false), setFolderMgr(true))} active={Boolean(prefs.folderId)} />
+                </>
+              )}
               {peer?.id && (
                 <>
                   <MenuDivider />
@@ -1405,7 +1496,10 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                     {editing ? <Check size={17} /> : <Send size={17} className={cn("transition-all duration-300 ease-out", flying && "-translate-y-6 translate-x-6 opacity-0")} />}
                   </button>
                 ) : (
-                  <VoiceRecorder size="md" onRecorded={sendVoice} onError={setError} onPhase={setRecording} />
+                  <>
+                    {videoNoteSupported() && <VideoNoteRecorder onRecorded={sendVoice} onError={setError} onPhase={setRecording} />}
+                    <VoiceRecorder size="md" onRecorded={sendVoice} onError={setError} onPhase={setRecording} />
+                  </>
                 )}
               </div>
             </form>
@@ -1436,6 +1530,72 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         items={(convs ?? []).filter((c) => c.id !== active && !c.peer.isBanned).map((c) => ({ id: c.id, name: c.peer.name, username: c.peer.username, avatarUrl: c.peer.avatarUrl }))}
         onPick={(id) => void doForward(id)}
       />
+      {/* Yo'qoladigan xabarlar muddati */}
+      {ttlMenu && active && (
+        <Layer open onClose={() => setTtlMenu(false)} variant="dialog" label="Yo'qoladigan xabarlar" width="w-[320px]">
+          <DialogHead title="Yo'qoladigan xabarlar" onClose={() => setTtlMenu(false)} />
+          <p className="px-3 pb-2 text-[12.5px] text-fg-3">Shundan keyin yuborilgan xabarlar belgilangan vaqtdan so&apos;ng ikki tomonda ham o&apos;chadi. Avvalgi xabarlarga ta&apos;sir qilmaydi.</p>
+          <div className="pb-2">
+            {TTL_CHOICES.map((c) => (
+              <MenuItem
+                key={c.sec}
+                icon={Timer}
+                label={c.label}
+                active={ttl === c.sec}
+                onClick={() => {
+                  setTtlMenu(false);
+                  void setTtlFor(active, c.sec);
+                }}
+              />
+            ))}
+          </div>
+        </Layer>
+      )}
+      {/* Papkalar: yaratish, tanlash, o'chirish */}
+      {folderMgr && (
+        <Layer open onClose={() => setFolderMgr(false)} variant="dialog" label="Papkalar" width="w-[340px]">
+          <DialogHead title="Papkalar" onClose={() => setFolderMgr(false)} />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addFolder();
+            }}
+            className="flex gap-2 px-3 pb-2"
+          >
+            <input value={newFolder} onChange={(e) => setNewFolder(e.target.value)} maxLength={24} placeholder="Yangi papka nomi" aria-label="Papka nomi" className="field h-9 min-w-0 flex-1 text-[13px]" />
+            <button type="submit" disabled={!newFolder.trim()} className="btn-accent h-9 shrink-0 px-3 text-[12.5px] disabled:opacity-50">
+              Qo&apos;shish
+            </button>
+          </form>
+          {folders.length === 0 ? (
+            <p className="px-3 pb-3 text-[12.5px] text-fg-3">Hali papka yo&apos;q. Papka yaratib, suhbatlarni ajratib qo&apos;yishingiz mumkin.</p>
+          ) : (
+            <ul className="max-h-[40vh] overflow-y-auto pb-2">
+              {folders.map((f) => (
+                <li key={f.id} className="flex items-center gap-1 px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (active) void updatePrefs(active, { folderId: prefs.folderId === f.id ? null : f.id });
+                      setFolderMgr(false);
+                    }}
+                    disabled={!active}
+                    className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-2 text-left text-[13.5px] transition hover:bg-fg/5 disabled:opacity-50", prefs.folderId === f.id && "bg-fg/5 font-semibold")}
+                  >
+                    <Folder size={15} className="shrink-0 text-fg-3" />
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    <span className="shrink-0 text-[12px] text-fg-4">{f.count}</span>
+                  </button>
+                  <button type="button" onClick={() => void removeFolder(f.id)} aria-label={`${f.name} — o'chirish`} className={cn(iconBtn, "h-8 w-8 hover:text-danger-text")}>
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!active && folders.length > 0 && <p className="px-3 pb-3 text-[12px] text-fg-4">Suhbatni papkaga joylash uchun avval suhbatni oching.</p>}
+        </Layer>
+      )}
       {/* Ma'lumot + media */}
       {active && peer && (
         <InfoDialog

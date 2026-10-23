@@ -127,6 +127,8 @@ export interface ConvPrefsView {
   archived: boolean;
   muted: boolean;
   pinned: boolean;
+  /** Papka (dm_folders.id) yoki null — «Hammasi» */
+  folderId?: string | null;
 }
 const PREF_T = {
   archive: { uz: "Arxivlash", ru: "В архив" },
