@@ -32,7 +32,7 @@ export const POST = handler(async (req) => {
   if (!input.body && input.media.length === 0) throw new ApiError(422, "Matn yoki rasm kerak", { body: "Bo'sh post" });
   await enforceLimit("posts", session.sub);
   await assertQuota(session.sub, "post");
-  await assertOwnUploads(session.sub, input.media.map((m) => m.url), [], "media");
+  await assertOwnUploads(session.sub, input.media.flatMap((m) => (m.poster ? [m.url, m.poster] : [m.url])), [], "media");
   if (input.music) await useMusic(session.sub, input.music);
   const p = await createProfilePost(session.sub, input.body, input.media, input.music ?? null);
   return ok({ id: p.id }, { status: 201 });

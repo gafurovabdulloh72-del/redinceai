@@ -140,7 +140,7 @@ export function PostModal({
 /* ------------------------------------------------------------------ */
 /* Media varaqlagich — tugmalar va ←/→ (matn maydonida emas)             */
 /* ------------------------------------------------------------------ */
-function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: string }>; alt: string; til: Locale }) {
+function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: string; poster?: string }>; alt: string; til: Locale }) {
   const [i, setI] = useState(0);
   const total = media.length;
   const prev = useCallback(() => setI((v) => (v - 1 + total) % total), [total]);
@@ -163,7 +163,7 @@ function MediaPane({ media, alt, til }: { media: Array<{ url: string; type: stri
     <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-black sm:min-h-[360px] md:min-h-[520px]">
       {video ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video key={m.url} src={m.url} controls playsInline className="max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
+        <video key={m.url} src={m.url} poster={m.poster} controls playsInline className="max-h-[70vh] w-full object-contain md:max-h-[90vh]" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={m.url} src={m.url} alt={alt} className="animate-fade-in max-h-[70vh] w-full object-contain md:max-h-[90vh]" />

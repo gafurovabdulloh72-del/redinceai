@@ -15,6 +15,8 @@ export const attachmentSchema = z
     type: z.string().trim().max(80).optional().default(""),
     /** Ovozli xabar davomiyligi (soniya) — faqat ko'rsatish uchun */
     duration: z.coerce.number().min(0).max(3600).optional(),
+    /** Video muqovasi: faqat sayt yuklamasi (rasm) */
+    poster: z.string().trim().max(500).regex(UPLOAD_URL_RE, "Muqova sayt orqali yuklanishi kerak").optional(),
   })
   .transform(
     (a): Attachment => ({
@@ -23,6 +25,7 @@ export const attachmentSchema = z
       size: a.size,
       type: mimeFromUrl(a.url) ?? "application/octet-stream",
       ...(a.duration ? { duration: Math.round(a.duration) } : {}),
+      ...(a.poster ? { poster: a.poster } : {}),
     }),
   );
 

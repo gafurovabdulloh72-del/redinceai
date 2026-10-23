@@ -36,7 +36,7 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
         // eslint-disable-next-line @next/next/no-img-element
         <img src={d.thumbUrl} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover text-transparent" />
       ) : playable ? (
-        <video src={d.videoUrl ?? undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" aria-hidden />
+        <video src={d.videoUrl ? `${d.videoUrl}#t=0.5` : undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" aria-hidden />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-fg-3">
           <Play size={28} aria-hidden />

@@ -28,7 +28,7 @@ function tileOf(p: PostView): MediaTileData {
   const first = p.media[0];
   const video = first ? isVideoAttachment(first) : false;
   return {
-    thumbUrl: first && !video ? first.url : null,
+    thumbUrl: first ? (video ? (first.poster ?? null) : first.url) : null,
     videoUrl: first && video ? first.url : null,
     isVideo: video,
     textOnly: p.media.length === 0,

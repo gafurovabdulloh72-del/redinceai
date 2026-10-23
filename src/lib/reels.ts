@@ -202,7 +202,7 @@ async function hydrate(slice: Candidate[], viewer: Viewer, rankBase: number | nu
         mediaType: video ? "video" : "image",
         mediaUrl: main,
         extraImages: video ? [] : images.slice(1, 10),
-        posterUrl: video ? (images[0] ?? null) : null,
+        posterUrl: video ? (video.poster ?? images[0] ?? null) : null,
         caption: v.body,
         music: v.music,
         createdAt: v.createdAt,

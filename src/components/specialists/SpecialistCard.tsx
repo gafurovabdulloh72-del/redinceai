@@ -43,18 +43,20 @@ export async function SpecialistCard({
   const isNew = isRecent(sp.createdAt, 7);
 
   return (
-    <article className="card card-hover card-link group img-zoom overflow-hidden">
+    <article className="card card-hover card-link group img-zoom flex h-full flex-col overflow-hidden">
       <Link href={`/mutaxassislar/${sp.slug}`} aria-label={`${sp.user.name} — ${sp.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
-      <div className="pointer-events-none relative">
-        {/* v6: muqova faqat haqiqiy rasm bo'lsa; bo'lmasa karta ixcham (naqsh/bo'sh tasma yo'q) */}
-        {sp.coverUrl && (
-          <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
+      <div className="pointer-events-none relative flex flex-1 flex-col">
+        {/* Barcha kartalar bir xil balandlikda: rasm bo'lmasa tekis yuza + yo'nalish ikonkasi (katalog to'ri tekis turadi) */}
+        <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
+          {sp.coverUrl ? (
             <SafeImage src={sp.coverUrl} alt="" priority={priority} className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
-            {!sp.isAvailable && <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center rounded-md bg-surface px-2 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
-          </div>
-        )}
+          ) : (
+            <CoverPattern category={sp.category} seed={sp.slug} />
+          )}
+          {!sp.isAvailable && <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center rounded-md bg-surface px-2 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
+        </div>
 
-        <div className="p-3 sm:p-4">
+        <div className="flex flex-1 flex-col p-3 sm:p-4">
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:gap-3">
             <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={36} decorative />
             <div className="min-w-0 w-full flex-1 sm:pr-8">
@@ -73,14 +75,14 @@ export async function SpecialistCard({
               <p className="mt-0.5 truncate text-[12px] text-fg-3 sm:text-[12.5px]">
                 {cat?.name ? `${cat.name} · ` : ""}
                 {place}
-                {!sp.coverUrl && !sp.isAvailable ? ` · ${tr(til, KARTA.busy)}` : ""}
+                
               </p>
             </div>
           </div>
 
-          <p className="mt-2.5 line-clamp-2 text-[13px] leading-snug text-fg-2 sm:mt-3 sm:text-[14px]">{sp.title}</p>
+          <p className="mb-3 mt-2.5 line-clamp-2 min-h-[2.6em] text-[13px] leading-snug text-fg-2 sm:mt-3 sm:text-[14px]">{sp.title}</p>
 
-          <div className="mt-2.5 flex flex-col items-start gap-1 border-t border-line pt-2.5 sm:mt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
+          <div className="mt-auto flex flex-col items-start gap-1 border-t border-line pt-2.5 sm:mt-auto sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
             <p className="min-w-0 flex-1 truncate whitespace-nowrap font-display text-[13px] font-semibold text-fg sm:text-[14px]" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
               {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
             </p>

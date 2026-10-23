@@ -18,7 +18,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
-import { isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
+import { captureVideoPoster, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
 import { MusicChip } from "@/components/social/MusicChip";
 import { COMMENT_MAX, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
@@ -311,7 +311,17 @@ export function Composer({
         // Ba'zi brauzerlar .mov/.webm uchun type bo'sh beradi — kengaytma bo'yicha zaxira tekshiruv
         if (!/^(image|video)\//.test(f.type) && !MEDIA_EXT.test(f.name)) throw new Error(FEED.onlyMedia[til](f.name));
         // Umumiy ulush = tugagan fayllar + joriy faylning qismi (bir nechta faylda silliq %)
-        added.push(await uploadAttachment(f, { docs: true, onProgress: (p) => setProgress((i + p) / total) }));
+        const att = await uploadAttachment(f, { docs: true, onProgress: (p) => setProgress((i + p) / total) });
+        // Video: muqovani (birinchi kadr) avtomatik olib yuklaymiz — plitka/oldindan ko'rinishda qora kvadrat chiqmasin
+        if (isVideoAttachment(att)) {
+          try {
+            const pf = await captureVideoPoster(f);
+            if (pf) att.poster = (await uploadAttachment(pf)).url;
+          } catch {
+            /* muqova ixtiyoriy */
+          }
+        }
+        added.push(att);
       }
       setProgress(1);
       setMedia((m) => [...m, ...added]);
@@ -511,9 +521,30 @@ export function Composer({
             <li key={a.url} className="expand-in relative aspect-square overflow-hidden rounded-[14px] border border-line bg-surface-2">
               {isVideoAttachment(a) ? (
                 // eslint-disable-next-line jsx-a11y/media-has-caption
-                <video src={a.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                a.poster ? <SafeImage src={a.poster} alt="" width={160} height={160} className="h-full w-full object-cover" /> : <video src={a.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
               ) : (
                 <SafeImage src={a.url} alt={a.name} width={160} height={160} className="h-full w-full object-cover" />
+              )}
+              {isVideoAttachment(a) && (
+                <label className="press absolute inset-x-1 bottom-1 flex h-6 cursor-pointer items-center justify-center rounded-full bg-ink/75 text-[10.5px] font-semibold text-white">
+                  Muqova
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      try {
+                        const up = await uploadAttachment(file);
+                        setMedia((m) => m.map((x, j) => (j === i ? { ...x, poster: up.url } : x)));
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Muqova yuklanmadi");
+                      }
+                    }}
+                  />
+                </label>
               )}
               <button type="button" aria-label="Olib tashlash" onClick={() => setMedia((m) => m.filter((_, j) => j !== i))} className="press absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white">
                 <X size={12} />

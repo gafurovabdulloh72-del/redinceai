@@ -185,6 +185,8 @@ export interface FileAttachment {
   type: string;
   /** Ovozli xabar / video davomiyligi (soniya) — klient o'lchaydi, ixtiyoriy */
   duration?: number;
+  /** Video muqovasi (rasm URL) — plitka/oldindan ko'rinishda ko'rsatiladi; kompozitor kadrdan yoki yuklangan rasmdan qo'yadi */
+  poster?: string;
 }
 
 /* ------------------------------------------------------------------ */

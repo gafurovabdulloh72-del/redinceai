@@ -295,7 +295,7 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
  * Lenta videosi: karta 60% ko'rinishda — ovozsiz o'ynaydi, chiqsa pauza; ovoz tugmasi pastki o'ngda.
  * prefers-reduced-motion — avtoijro yo'q, oddiy boshqaruv. Ovoz yoqilgach brauzer boshqaruvi ko'rinadi.
  */
-export function FeedVideo({ src, title, className }: { src: string; title?: string; className?: string }) {
+export function FeedVideo({ src, title, className, poster }: { src: string; title?: string; className?: string; poster?: string }) {
   const til = useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
@@ -324,6 +324,7 @@ export function FeedVideo({ src, title, className }: { src: string; title?: stri
       <video
         ref={ref}
         src={src}
+        poster={poster}
         muted={muted}
         loop={auto && muted}
         playsInline
@@ -373,7 +374,7 @@ export function MediaGrid({ media, alt }: { media: Attachment[]; alt: string }) 
       <div className={cn("mt-3 grid gap-1 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
         {media.map((a, i) =>
           isVideoAttachment(a) ? (
-            <FeedVideo key={a.url} src={a.url} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
+            <FeedVideo key={a.url} src={a.url} poster={a.poster} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
           ) : (
             <button
               key={a.url}

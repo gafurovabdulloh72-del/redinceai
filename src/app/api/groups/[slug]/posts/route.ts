@@ -33,7 +33,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const group = await groupOr404(slug);
   await assertCanPost(group, { id: session.sub, role: session.role });
   await enforceLimit("posts", session.sub);
-  await assertOwnUploads(session.sub, input.media.map((m) => m.url), [], "media");
+  await assertOwnUploads(session.sub, input.media.flatMap((m) => (m.poster ? [m.url, m.poster] : [m.url])), [], "media");
   // Yopiq (obunachilar uchun) post faqat obuna narxi qo'yilgan mentor kanalida
   let subscribersOnly = false;
   if (input.subscribersOnly) {

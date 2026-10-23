@@ -371,3 +371,52 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
   const url = await uploadViaApi(file, opts?.docs ? "attachment" : "", p);
   return { url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(url) ?? file.type };
 }
+
+
+/**
+ * Videodan muqova kadrini oladi (brauzerda, canvas): ~0.5 s yoki video 10% joyidagi kadr → JPEG fayl.
+ * Brauzer kodekni ocholmasa yoki 6 soniyada kadr kelmasa null (muqova ixtiyoriy).
+ */
+export async function captureVideoPoster(file: File): Promise<File | null> {
+  if (typeof document === "undefined") return null;
+  const url = URL.createObjectURL(file);
+  try {
+    const v = document.createElement("video");
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    v.src = url;
+    await new Promise<void>((resolve, reject) => {
+      const t = window.setTimeout(() => reject(new Error("timeout")), 6000);
+      v.onloadedmetadata = () => {
+        try {
+          v.currentTime = Math.min(0.5, Math.max(0, (v.duration || 1) * 0.1));
+        } catch {
+          reject(new Error("seek"));
+        }
+      };
+      v.onseeked = () => {
+        window.clearTimeout(t);
+        resolve();
+      };
+      v.onerror = () => {
+        window.clearTimeout(t);
+        reject(new Error("decode"));
+      };
+    });
+    const w = v.videoWidth;
+    const h = v.videoHeight;
+    if (!w || !h) return null;
+    const scale = Math.min(1, 720 / Math.max(w, h));
+    const c = document.createElement("canvas");
+    c.width = Math.round(w * scale);
+    c.height = Math.round(h * scale);
+    c.getContext("2d")?.drawImage(v, 0, 0, c.width, c.height);
+    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/jpeg", 0.82));
+    return blob ? new File([blob], "muqova.jpg", { type: "image/jpeg" }) : null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
