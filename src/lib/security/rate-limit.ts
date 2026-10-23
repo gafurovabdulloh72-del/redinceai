@@ -102,6 +102,10 @@ export const RATE_LIMITS = {
   preview: { limit: 120, windowMs: HOUR },
   /** Push sinov xabari (o'ziga) — userId */
   pushTest: { limit: 10, windowMs: HOUR },
+  /** «Telegram bilan kirish»: yangi kod so'rash — IP bo'yicha */
+  tgLogin: { limit: 10, windowMs: 15 * MIN },
+  /** «Telegram bilan kirish»: holatni so'rash (har 2 s) — IP bo'yicha */
+  tgLoginPoll: { limit: 400, windowMs: 15 * MIN },
   /** DM: xabarni tahrirlash/o'chirish — userId */
   dmEdit: { limit: 120, windowMs: HOUR },
   /** DM: havola prevyusi (server OG so'rovi, keshlanadi) — userId */

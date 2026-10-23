@@ -67,7 +67,7 @@ export const users = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_username_idx").on(t.username), index("users_google_idx").on(t.googleId)],
+  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_username_idx").on(t.username), index("users_google_idx").on(t.googleId), index("users_telegram_idx").on(t.telegramChatId)],
 );
 
 /* ------------------------------------------------------------------ */
@@ -2800,6 +2800,32 @@ export const pushSubscriptions = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("push_subs_endpoint_uq").on(t.endpoint), index("push_subs_user_idx").on(t.userId)],
+);
+
+/**
+ * «Telegram bilan kirish» so'rovi: saytda 6 xonali kod ko'rsatiladi, bot o'sha kod bilan
+ * ochiladi va foydalanuvchi tasdiqlaydi. Sayt `secret_hash` (cookie'dagi sir) bo'yicha
+ * natijani oladi — havolani boshqa brauzerda ishlatib bo'lmaydi. 5 daqiqa amal qiladi.
+ */
+export const loginRequests = sqliteTable(
+  "login_requests",
+  {
+    id: text("id").primaryKey(),
+    /** 6 xonali kod (foydalanuvchi ko'radi, botda tasdiqlaydi) */
+    code: text("code").notNull(),
+    /** Brauzer cookie'sidagi sirning sha256 xeshi */
+    secretHash: text("secret_hash").notNull(),
+    status: text("status", { enum: ["pending", "approved", "denied", "used"] }).notNull().default("pending"),
+    telegramChatId: text("telegram_chat_id"),
+    /** Tasdiqlagan Telegram foydalanuvchisining ismi (yangi hisob yaratilsa ishlatiladi) */
+    telegramName: text("telegram_name"),
+    telegramUsername: text("telegram_username"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("login_requests_code_idx").on(t.code, t.status), index("login_requests_created_idx").on(t.createdAt)],
 );
 
 export type LiveStream = typeof liveStreams.$inferSelect;

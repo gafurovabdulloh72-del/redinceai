@@ -222,9 +222,36 @@ async function telegramNotification(userId: string, type: NotificationType, titl
   const origin = mailOrigin();
   const link = absoluteHref(origin, href);
   const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "");
+  // Yangi buyurtma mutaxassisga: xabar ostida «Qabul qilish / Rad etish» tugmalari (botda bir bosishda)
+  const orderId = type === "order_new" && link ? /\/buyurtma\/([\w-]+)/.exec(href ?? "")?.[1] : undefined;
+  if (orderId) {
+    const kb = await orderActionButtons(orderId, userId, link!);
+    if (kb) return void (await sendTelegram(u.telegramChatId, text, { keyboard: kb }));
+  }
   // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan (TG_BUTTON_LABEL; order_* — umumiy)
   const buttonText = href?.startsWith("https://") ? (type === "live_event" ? "Efirga qo'shilish" : "Havolani ochish") : (TG_BUTTON_LABEL[type] ?? (type.startsWith("order_") ? "Buyurtmani ochish" : "Saytda ochish"));
   await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
+}
+
+/**
+ * Yangi buyurtma bildirishnomasi mutaxassisga ketayotgan bo'lsa, botda tezkor tugmalar beramiz.
+ * Faqat `new` holatidagi va AYNAN shu mutaxassisning buyurtmasi uchun (mijozga oddiy havola ketadi).
+ */
+async function orderActionButtons(orderId: string, recipientId: string, link: string) {
+  try {
+    const { orders, specialists } = await import("@/lib/db/schema");
+    const row = await db
+      .select({ status: orders.status, spUserId: specialists.userId })
+      .from(orders)
+      .innerJoin(specialists, eq(specialists.id, orders.specialistId))
+      .where(eq(orders.id, orderId))
+      .limit(1);
+    if (row[0]?.status !== "new" || row[0]?.spUserId !== recipientId) return null;
+    const { orderButtons } = await import("@/lib/telegram-bot/actions");
+    return orderButtons(orderId, link);
+  } catch {
+    return null;
+  }
 }
 
 /** Darhol ko'rinishi kerak bo'lgan turlar — push `urgency: high` bilan ketadi (telefon uyg'onadi) */

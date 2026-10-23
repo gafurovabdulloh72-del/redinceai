@@ -1,4 +1,5 @@
 "use client";
+import { TelegramLogin } from "./TelegramLogin";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -683,6 +684,13 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
             {tr(til, AUTH.google.button)}
           </a>
         </>
+      )}
+
+      {/* Telegram bilan kirish — bot orqali (kalitlar bo'lmasa komponent hech narsa chizmaydi) */}
+      {(!isRegister || stage === "role") && (
+        <div className={googleEnabled ? "mt-2.5 short:mt-2" : "mt-3 short:mt-2"}>
+          <TelegramLogin next={target} />
+        </div>
       )}
 
       {/* ---------- Sahifalar orasidagi havola ---------- */}

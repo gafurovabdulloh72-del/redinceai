@@ -12,6 +12,7 @@ import { invoiceNumber } from "@/lib/subscriptions/labels";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
+import { handleLoginCallback, handleLoginStart, handleMyOrders, handleOrderCallback } from "@/lib/telegram-bot/actions";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -35,6 +36,7 @@ const HELP_TEXT =
   "Bu bot — <b>Kasb Egalari</b> bildirishnomalari (buyurtma, to'lov, xabarlar).\n" +
   "Hisobni ulash: saytda Kabinet → Profil → «Telegramga ulash».\n" +
   "Kurslar va to'lovlar: /kurslarim\n" +
+  "Buyurtmalarim: /buyurtmalarim\n" +
   "Uzish: /stop";
 
 function secretOk(req: Request): boolean {
@@ -50,6 +52,7 @@ function secretOk(req: Request): boolean {
 interface TelegramUpdate {
   message?: {
     text?: unknown;
+    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string };
     chat?: { id?: unknown; type?: unknown };
     photo?: { file_id?: string; file_size?: number }[];
     document?: { file_id?: string; mime_type?: string };
@@ -59,6 +62,7 @@ interface TelegramUpdate {
   callback_query?: {
     id?: unknown;
     data?: unknown;
+    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string };
     message?: { message_id?: unknown; text?: unknown; chat?: { id?: unknown } };
   };
 }
@@ -125,8 +129,12 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const msgId = typeof cb.message?.message_id === "number" ? cb.message.message_id : null;
   const answer = (text: string) => telegramApi("answerCallbackQuery", { callback_query_id: cbId, text: text.slice(0, 190) });
 
-  // Mentorlik xaridi (xaridor tugmalari) — admin tekshiruvi kerak emas
+  const from = cb.from ?? {};
+  const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined };
+  // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
+  if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
+  if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
 
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
   if (!m || !chatId) {
@@ -220,9 +228,14 @@ export async function POST(req: Request) {
     const [rawCmd = "", arg = ""] = text.split(/\s+/);
     const cmd = rawCmd.split("@")[0].toLowerCase(); // "/start@BotNomi" ham qabul qilinadi
     if (cmd === "/start") {
-      // b_<tur>_<id> — mentorlik xaridi (saytdagi «Telegramda to'lash»)
-      if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg);
+      const mf = msg?.from ?? {};
+      const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
+      // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
+      if (await handleLoginStart(chatId, arg, who)) {
+        /* kirish so'rovi */
+      } else if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg);
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
+    else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId);
     else if (cmd === "/stop") await handleStop(chatId);
     else await sendTelegram(chatId, HELP_TEXT);
   } catch (e) {
