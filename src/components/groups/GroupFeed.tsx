@@ -20,6 +20,7 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
 import { CollectionSheet } from "@/components/social/CollectionSheet";
+import { PostStatsSheet } from "@/components/social/PostStatsSheet";
 import { AudiencePicker, PlaceField, SchedulePicker, TagPeopleSheet, type TaggedUser } from "@/components/social/PostExtras";
 import { captureVideoPoster, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
@@ -709,6 +710,7 @@ export function PostCard({
   const [mediaList, setMediaList] = useState(post.media);
   const [posterOpen, setPosterOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [queued, setQueued] = useState(post.queuedLater);
   const posterIdx = useRef(0);
   const [editedAt, setEditedAt] = useState<number | null>(post.editedAt ?? (post.edited ? 0 : null));
@@ -858,6 +860,7 @@ export function PostCard({
       },
       hidden: !isAuthor || !media.some((m) => isVideoAttachment(m)),
     },
+    { key: "stats", label: "Statistika", icon: BarChart3, onSelect: () => setStatsOpen(true), hidden: !isAuthor && !canPin },
     { key: "pin", label: tr(til, pinned ? FEED.unpin : FEED.pin), icon: pinned ? PinOff : Pin, onSelect: () => void togglePin(), hidden: !canPin },
     { key: "hide", label: tr(til, FEED.notInterested), icon: EyeOff, onSelect: () => void hidePost(true), hidden: !loggedIn || isAuthor },
     { key: "mute", label: FEED.muteAuthor[til](post.author.name.split(" ")[0]), icon: UserRoundX, onSelect: () => void muteAuthor(true), hidden: !loggedIn || isAuthor },
@@ -1007,6 +1010,7 @@ export function PostCard({
       )}
       {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} postId={post.id} resumeAt={post.resumeAt} />}
       {collectOpen && <CollectionSheet open onClose={() => setCollectOpen(false)} postId={post.id} />}
+      {statsOpen && <PostStatsSheet open onClose={() => setStatsOpen(false)} postId={post.id} />}
       {posterOpen && media[posterIdx.current] && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={media[posterIdx.current].url} onPick={(f) => changePoster(f)} />}
       {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 

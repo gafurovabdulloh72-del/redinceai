@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, Check, Copy, CornerUpLeft, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, Check, Copy, CornerUpLeft, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -68,9 +68,19 @@ function SenderName({ u }: { u: UserBrief }) {
   );
 }
 
+/** Guruh mavzusi (Telegram «forum topics») */
+interface TopicRow {
+  id: string;
+  name: string;
+  position: number;
+  isClosed: boolean;
+  messages: number;
+  lastAt: number | null;
+}
+
 type ApiResp = {
   ok: boolean;
-  data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null; typing?: string[]; changed?: GroupMessageView[]; pinned?: GroupMessageView | null; reactions?: Record<string, ReactionSummary[]>; now?: number };
+  data?: { items: GroupMessageView[]; seen?: { messageId: string; count: number } | null; typing?: string[]; changed?: GroupMessageView[]; pinned?: GroupMessageView | null; reactions?: Record<string, ReactionSummary[]>; topics?: TopicRow[]; topicId?: string | null; now?: number };
   error?: string;
   fields?: Record<string, string>;
 };
@@ -82,6 +92,7 @@ type ApiResp = {
  */
 export function GroupChat({ slug, membersCount, kind = "group", canManage = false }: { slug: string; membersCount: number; kind?: "group" | "channel"; canManage?: boolean }) {
   const base = `/api/groups/${encodeURIComponent(slug)}/chat`;
+  const topicsBase = `/api/groups/${encodeURIComponent(slug)}/mavzular`;
   const til = useLocale();
   const { toast } = useToast();
   const [msgs, setMsgs] = useState<GroupMessageView[] | null>(null);
@@ -104,6 +115,11 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<GroupMessageView[] | null>(null);
+  // Mavzular: null — «Umumiy» oqim
+  const [topics, setTopics] = useState<TopicRow[]>([]);
+  const [topic, setTopic] = useState<string | null>(null);
+  const [newTopic, setNewTopic] = useState("");
+  const [topicForm, setTopicForm] = useState(false);
   const typingSentAt = useRef(0);
   const typingOn = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -126,11 +142,50 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     setNewCount(0);
   }, []);
 
+  // Mavzu almashganda: ro'yxat tozalanadi va shu mavzu oqimi qaytadan yuklanadi
+  useEffect(() => {
+    loaded.current = false;
+    lastId.current = null;
+    lastSync.current = null;
+    fresh.current.clear();
+    setMsgs(null);
+    setSeen(null);
+    setNewCount(0);
+  }, [topic]);
+
+  /** Mavzu yaratish (boshqaruvchi) */
+  const addTopic = async () => {
+    const name = newTopic.trim();
+    if (!name) return;
+    const res = await fetch(topicsBase, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).catch(() => null);
+    const j = res ? ((await res.json().catch(() => null)) as { ok?: boolean; data?: TopicRow; error?: string } | null) : null;
+    if (!res?.ok || !j?.data) {
+      setError(j?.error ?? "Mavzu yaratilmadi");
+      return;
+    }
+    setTopics((l) => [...l, j.data!]);
+    setNewTopic("");
+    setTopicForm(false);
+    setTopic(j.data.id);
+  };
+
+  /** Mavzuni o'chirish — xabarlar «Umumiy» oqimga qaytadi */
+  const removeTopic = async (id: string) => {
+    const res = await fetch(`${topicsBase}/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) {
+      setError("Mavzu o'chirilmadi");
+      return;
+    }
+    setTopics((l) => l.filter((x) => x.id !== id));
+    if (topic === id) setTopic(null);
+  };
+
   /** Yangi/o'zgargan xabarlarni olish; muvaffaqiyat — true (backoff uchun) */
   const fetchNew = useCallback(async (): Promise<boolean> => {
     const sp = new URLSearchParams();
     if (lastId.current) sp.set("after", lastId.current);
     if (lastSync.current) sp.set("changedSince", String(lastSync.current));
+    if (topic) sp.set("topic", topic);
     const qs = sp.toString();
     let j: ApiResp;
     try {
@@ -144,6 +199,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     if (d.seen !== undefined) setSeen(d.seen ?? null);
     if (d.typing) setTyping(d.typing);
     if (d.pinned !== undefined) setPinned(d.pinned ?? null);
+    if (d.topics) setTopics(d.topics);
     if (d.now) lastSync.current = d.now;
     // Boshqalar qo'ygan reaksiyalar: oxirgi xabarlar yig'indisi bilan almashtiriladi (o'zgarmaganlar tegilmaydi)
     if (d.reactions) {
@@ -186,7 +242,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     function add(list: GroupMessageView[]) {
       return list.filter((m) => !m.mine);
     }
-  }, [base]);
+  }, [base, topic]);
 
   // Polling: visible bo'lmaganda to'xtaydi, qaytganda darhol; xatoda oraliq 2× (30 s gacha)
   useEffect(() => {
@@ -311,7 +367,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   }
 
   async function deliver(body: string, attachments: Attachment[]) {
-    const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, attachments, replyToId: replyTo?.id ?? null }) });
+    const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, attachments, replyToId: replyTo?.id ?? null, topicId: topic }) });
     const j = (await res.json()) as ApiResp;
     if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
     setReplyTo(null);
@@ -513,6 +569,53 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                 ))
               )}
             </ul>
+          )}
+        </div>
+      )}
+
+      {/* Mavzular (Telegram forum naqshi): «Umumiy» + mavzular; boshqaruvchi yangi mavzu qo'shadi */}
+      {(topics.length > 0 || canManage) && (
+        <div className="border-b border-line px-3 py-2 sm:px-4">
+          <nav aria-label="Mavzular" className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
+            <button type="button" onClick={() => setTopic(null)} aria-pressed={!topic} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", !topic ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+              Umumiy
+            </button>
+            {topics.map((tp) => (
+              <span key={tp.id} className="relative shrink-0">
+                <button type="button" onClick={() => setTopic(tp.id)} aria-pressed={topic === tp.id} className={cn("h-8 rounded-full border px-3 text-[12px] font-semibold transition", topic === tp.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+                  {tp.isClosed && "🔒 "}
+                  {tp.name}
+                  {tp.messages > 0 && <span className="ml-1 opacity-60">{tp.messages}</span>}
+                </button>
+                {canManage && topic === tp.id && (
+                  <button type="button" onClick={() => void removeTopic(tp.id)} aria-label={`${tp.name} — o'chirish`} title="Mavzuni o'chirish" className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-surface text-fg-3 shadow-[var(--shadow-3)] transition hover:text-danger-text">
+                    <X size={11} />
+                  </button>
+                )}
+              </span>
+            ))}
+            {canManage && !topicForm && (
+              <button type="button" onClick={() => setTopicForm(true)} aria-label="Yangi mavzu" title="Yangi mavzu" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-dashed border-line-2 text-fg-3 transition hover:border-fg hover:text-fg">
+                <Plus size={14} />
+              </button>
+            )}
+          </nav>
+          {canManage && topicForm && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void addTopic();
+              }}
+              className="mt-2 flex gap-2"
+            >
+              <input value={newTopic} onChange={(e) => setNewTopic(e.target.value)} maxLength={40} autoFocus placeholder="Mavzu nomi" aria-label="Mavzu nomi" className="field h-9 min-w-0 flex-1 text-[13px]" />
+              <button type="submit" disabled={!newTopic.trim()} className="btn-accent h-9 shrink-0 px-3 text-[12.5px] disabled:opacity-50">
+                Qo&apos;shish
+              </button>
+              <button type="button" onClick={() => (setTopicForm(false), setNewTopic(""))} className="h-9 shrink-0 px-2 text-[12.5px] font-semibold text-fg-3 hover:text-fg">
+                Bekor
+              </button>
+            </form>
           )}
         </div>
       )}

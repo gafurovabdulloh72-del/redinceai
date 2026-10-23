@@ -66,6 +66,8 @@ export const chatQuerySchema = z.object({
   q: z.string().trim().min(2).max(80).optional(),
   /** Polling: shu vaqtdan (ms) keyin tahrirlangan/o'chirilganlar */
   changedSince: z.coerce.number().int().positive().optional(),
+  /** Mavzu oqimi (group_topics.id) — berilmasa «Umumiy» (mavzusiz) xabarlar */
+  topic: z.string().trim().max(64).optional(),
 });
 
 export const membersQuerySchema = z.object({
@@ -100,6 +102,8 @@ export const groupMessageSchema = z.object({
   attachments: attachmentListSchema().optional().default([]),
   /** Javob (iqtibos) — shu guruhdagi xabar id'si */
   replyToId: z.string().trim().max(64).nullable().optional(),
+  /** Mavzu (group_topics.id) — berilmasa «Umumiy» oqimga tushadi */
+  topicId: z.string().trim().max(64).nullable().optional(),
 });
 
 export const memberActionSchema = z.union([

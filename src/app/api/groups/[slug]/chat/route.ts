@@ -3,6 +3,7 @@ import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { assertActiveMember, changedGroupMessages, listGroupMessages, markGroupRead, pinnedMessage, recentGroupReactions, searchGroupMessages, seenCountFor, sendGroupMessage, typingMembers } from "@/lib/groups/service";
 import { chatQuerySchema, groupMessageSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { assertTopicWritable, listTopics } from "@/lib/groups/topics";
 import { groupOr404 } from "../../_lib";
 
 type Ctx = { params: Promise<{ slug: string }> };
@@ -21,7 +22,8 @@ export const GET = handler(async (req, ctx: Ctx) => {
   await assertActiveMember(group, viewer);
   const q = parseQuery(req.url, chatQuerySchema);
   if (q.q) return ok({ items: await searchGroupMessages(group, viewer, q.q) });
-  const items = await listGroupMessages(group, viewer, q.after ?? null);
+  const topicId = q.topic ? await assertTopicWritable(group, viewer, q.topic).catch(() => q.topic) : null;
+  const items = await listGroupMessages(group, viewer, q.after ?? null, 200, topicId ?? null);
   await markGroupRead(group.id, session.sub);
   // "N kishi ko'rdi": ko'ruvchining oxirgi xabarini nechta a'zo o'qigan (to'liq yuklashda ham, polling'da ham qaytadi)
   const lastMine = [...items].reverse().find((m) => m.mine);
@@ -33,7 +35,8 @@ export const GET = handler(async (req, ctx: Ctx) => {
     // Oxirgi xabarlar reaksiyalari — boshqalar qo'ygan reaksiyalar polling bilan yangilanib turadi
     recentGroupReactions(group, session.sub),
   ]);
-  return ok({ items, seen, typing, changed, pinned, reactions, now: Date.now() });
+  const topics = q.after || q.changedSince ? undefined : await listTopics(group, viewer);
+  return ok({ items, seen, typing, changed, pinned, reactions, topics, topicId: topicId ?? null, now: Date.now() });
 });
 
 /** POST: xabar (matn yoki fayl — kamida bittasi), 60 / 10 daqiqa */
@@ -46,6 +49,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   await assertActiveMember(group, { id: session.sub, role: session.role });
   await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
   await enforceLimit("messages", session.sub);
-  const m = await sendGroupMessage(group, session.sub, input.body, input.attachments, input.replyToId ?? null);
+  const topicId = await assertTopicWritable(group, { id: session.sub, role: session.role }, input.topicId);
+  const m = await sendGroupMessage(group, session.sub, input.body, input.attachments, input.replyToId ?? null, topicId);
   return ok({ id: m.id, at: m.createdAt.getTime() }, { status: 201 });
 });

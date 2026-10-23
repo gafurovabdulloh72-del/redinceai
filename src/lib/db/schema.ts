@@ -1215,11 +1215,38 @@ export const groupMessages = sqliteTable(
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
     /** Tahrirlangan vaqti («tahrirlangan» belgisi) */
     editedAt: integer("edited_at", { mode: "timestamp_ms" }),
+    /** Mavzu (group_topics.id) — null bo'lsa «Umumiy» oqim (Telegram forum naqshi) */
+    topicId: text("topic_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [index("group_messages_group_idx").on(t.groupId, t.createdAt)],
+  (t) => [index("group_messages_group_idx").on(t.groupId, t.createdAt), index("group_messages_topic_idx").on(t.topicId, t.createdAt)],
+);
+
+/**
+ * Guruh mavzulari (Telegram «forum topics»): chat bir nechta mavzuga bo'linadi.
+ * Mavzusiz xabarlar «Umumiy» oqimda qoladi. Yopilgan mavzuga faqat boshqaruvchilar yozadi.
+ */
+export const groupTopics = sqliteTable(
+  "group_topics",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    /** Yopilgan: yangi xabar yozilmaydi (boshqaruvchilardan tashqari) */
+    isClosed: integer("is_closed", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("group_topics_group_idx").on(t.groupId, t.position)],
 );
 
 /** Guruh chati xabariga emoji reaksiya — bitta foydalanuvchi = bitta reaksiya (almashtiriladi), DM bilan bir xil */

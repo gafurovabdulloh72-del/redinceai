@@ -1224,16 +1224,18 @@ async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRo
   });
 }
 
-export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200): Promise<GroupMessageView[]> {
+export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200, topicId: string | null = null): Promise<GroupMessageView[]> {
+  // Mavzu oqimi: topicId berilsa faqat shu mavzu, aks holda «Umumiy» (mavzusiz) xabarlar
+  const inTopic = topicId ? eq(groupMessages.topicId, topicId) : sql`${groupMessages.topicId} is null`;
   let rows: GroupMessageRow[];
   if (afterId) {
     const m = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, afterId), eq(groupMessages.groupId, group.id)), columns: { createdAt: true } });
     // Noma'lum id (eski klient / boshqa guruh) — abadiy bo'sh qolmasin: oxirgi 50 ta qaytadi
     rows = m
-      ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), gt(groupMessages.createdAt, m.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit })
-      : (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: 50 })).reverse();
+      ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic, gt(groupMessages.createdAt, m.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit })
+      : (await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: 50 })).reverse();
   } else {
-    rows = (await db.query.groupMessages.findMany({ where: eq(groupMessages.groupId, group.id), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
+    rows = (await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
   }
   return toMessageViews(group, viewer, rows);
 }
@@ -1339,14 +1341,14 @@ export async function pinnedMessage(group: Group, viewer: Viewer): Promise<Group
   return (await toMessageViews(group, viewer, [row]))[0] ?? null;
 }
 
-export async function sendGroupMessage(group: Group, senderId: string, body: string, attachments: FileAttachment[], replyToId: string | null = null) {
+export async function sendGroupMessage(group: Group, senderId: string, body: string, attachments: FileAttachment[], replyToId: string | null = null, topicId: string | null = null) {
   // Javob faqat shu guruhdagi xabarga
   if (replyToId) {
     const orig = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, replyToId), eq(groupMessages.groupId, group.id)), columns: { id: true } });
     if (!orig) throw new ApiError(422, "Javob berilayotgan xabar topilmadi", { replyToId: "Xabar topilmadi" });
   }
   const now = new Date();
-  const row: typeof groupMessages.$inferInsert = { id: uid(), groupId: group.id, senderId, body, attachments, replyToId, createdAt: now };
+  const row: typeof groupMessages.$inferInsert = { id: uid(), groupId: group.id, senderId, body, attachments, replyToId, topicId, createdAt: now };
   await db.insert(groupMessages).values(row);
   await Promise.all([touchActivity(group.id), markGroupRead(group.id, senderId), setGroupTyping(group.id, senderId, false)]);
   return { ...row, createdAt: now };
