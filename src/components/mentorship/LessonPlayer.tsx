@@ -69,7 +69,7 @@ export function LessonPlayer({ lessonId, videoUrl, chapters }: { lessonId: strin
   return (
     <div>
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <video ref={ref} src={videoUrl} controls playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} className="aspect-video w-full rounded-[16px] bg-black" />
+      <video ref={ref} src={videoUrl} controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} className="aspect-video w-full rounded-[16px] bg-black" />
       <div className="mt-2 flex items-center gap-2 text-[12.5px] text-fg-3">
         <span className="font-semibold">Tezlik:</span>
         {SPEEDS.map((s) => (

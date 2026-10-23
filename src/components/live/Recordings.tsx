@@ -37,7 +37,7 @@ export function Recordings({ items, canManage, courses = [] }: { items: RecItem[
               <>
                 <div className="relative aspect-video bg-black">
                   {playing === r.id && r.url ? (
-                    <video src={r.url} poster={r.coverUrl ?? undefined} controls autoPlay playsInline className="h-full w-full object-contain" />
+                    <video src={r.url} poster={r.coverUrl ?? undefined} controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} autoPlay playsInline className="h-full w-full object-contain" />
                   ) : (
                     r.locked ? (
                       <div className="absolute inset-0 grid place-items-center">

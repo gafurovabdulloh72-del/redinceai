@@ -276,7 +276,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={w.fileUrl} alt="" className="mt-2 max-h-56 w-full rounded-lg object-cover" />
                   )}
-                  {w.fileUrl && /\.(?:mp4|webm|mov)(?:\?|$)/i.test(w.fileUrl) && <video src={w.fileUrl} controls playsInline className="mt-2 aspect-video w-full rounded-lg bg-black" />}
+                  {w.fileUrl && /\.(?:mp4|webm|mov)(?:\?|$)/i.test(w.fileUrl) && <video src={w.fileUrl} controls controlsList="nodownload noremoteplayback" disablePictureInPicture playsInline className="mt-2 aspect-video w-full rounded-lg bg-black" />}
                 </li>
               ))}
             </ul>
