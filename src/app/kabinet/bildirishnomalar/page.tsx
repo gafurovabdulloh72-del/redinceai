@@ -6,6 +6,7 @@ import { Bell, BellOff } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
 import { Pagination } from "@/components/specialists/Pagination";
 import { NotificationPrefs } from "@/components/kabinet/NotificationPrefs";
+import { PushPanel } from "@/components/kabinet/PushPanel";
 import { NotificationsList, type NotificationRow } from "@/components/kabinet/NotificationsList";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -87,6 +88,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
       <div className="mb-4 space-y-3">
         <NotificationPrefs initial={prefs} />
+        <PushPanel />
         {/* Filtr chiplari: telefonda gorizontal aylanadi (16px gutter) */}
         <nav aria-label="Saralash" className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <ul className="flex w-max gap-1.5">

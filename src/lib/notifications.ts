@@ -227,6 +227,22 @@ async function telegramNotification(userId: string, type: NotificationType, titl
   await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
 }
 
+/** Darhol ko'rinishi kerak bo'lgan turlar — push `urgency: high` bilan ketadi (telefon uyg'onadi) */
+const PUSH_URGENT: ReadonlySet<NotificationType> = new Set<NotificationType>(["chat", "message_new", "live_event", "order_new", "order_paid", "dispute", "dispute_opened"]);
+
+/**
+ * Brauzer push bildirishnomasi (Web Push / VAPID). VAPID kalitlari sozlanmagan bo'lsa
+ * yoki qurilma obunasi yo'q bo'lsa jim o'tadi. Bloklangan foydalanuvchiga faqat `account`.
+ */
+async function pushNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined): Promise<void> {
+  const { isPushEnabled } = await import("@/lib/push/web-push");
+  if (!isPushEnabled()) return;
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { isBanned: true } });
+  if (u?.isBanned && type !== "account") return;
+  const { pushToUser } = await import("@/lib/push/service");
+  await pushToUser(userId, { title, body, href: href ?? "/kabinet/bildirishnomalar", tag: type, urgency: PUSH_URGENT.has(type) ? "high" : "normal" });
+}
+
 /** Javobdan keyin bajarish (Next after()); so'rov kontekstidan tashqarida — oddiy fon promise */
 function inBackground(task: () => Promise<void>): void {
   const run = () => task().catch((e) => console.error("[notify:mail]", e));
@@ -266,6 +282,7 @@ export async function notify(userId: string, type: NotificationType, title: stri
       const results = await Promise.allSettled([
         MAIL_TYPES.has(type) || opts.forceMail ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(),
         telegramNotification(userId, type, t, b, href, opts),
+        pushNotification(userId, type, t, b, href),
       ]);
       for (const r of results) if (r.status === "rejected") console.error("[notify:fanout]", type, r.reason);
     });

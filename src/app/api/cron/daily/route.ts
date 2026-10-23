@@ -100,6 +100,7 @@ export async function GET(req: Request) {
     vacancyAlerts: null as { checked: number; notified: number } | null,
     viewsPurged: 0,
     historyPurged: 0,
+    pushPurged: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -214,6 +215,14 @@ export async function GET(req: Request) {
     counts.historyPurged = await purgeOldHistory();
   } catch (e) {
     counts.errors.push(`history: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (l3) Eskirgan push obunalari (6 oydan beri hech narsa yetib bormagan) — tozalanadi
+  try {
+    const { purgeStalePush } = await import("@/lib/push/service");
+    counts.pushPurged = await purgeStalePush();
+  } catch (e) {
+    counts.errors.push(`push: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (n) Muddati o'tgan story'lar (3 kundan eski) o'chiriladi

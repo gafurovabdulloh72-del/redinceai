@@ -2776,6 +2776,32 @@ export const liveCaptions = sqliteTable(
   (t) => [index("live_captions_stream_idx").on(t.streamId, t.createdAt)],
 );
 
+/**
+ * Brauzer push obunasi (Web Push / VAPID). Bir foydalanuvchida bir nechta qurilma bo'lishi mumkin —
+ * har biri o'z `endpoint`i bilan. `failures` ketma-ket xatolar: 404/410 kelsa qator o'chiriladi.
+ */
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    /** Brauzer ochiq kaliti (base64url, P-256 nuqtasi) */
+    p256dh: text("p256dh").notNull(),
+    /** Brauzer auth siri (base64url, 16 bayt) */
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    failures: integer("failures").notNull().default(0),
+    lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("push_subs_endpoint_uq").on(t.endpoint), index("push_subs_user_idx").on(t.userId)],
+);
+
 export type LiveStream = typeof liveStreams.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;

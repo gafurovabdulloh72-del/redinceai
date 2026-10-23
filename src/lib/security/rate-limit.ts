@@ -100,6 +100,8 @@ export const RATE_LIMITS = {
   feedActions: { limit: 240, windowMs: HOUR },
   /** Havola kartasi (OG) — server tashqi so'rov qiladi; ko'ruvchi kaliti (user yoki IP) bo'yicha */
   preview: { limit: 120, windowMs: HOUR },
+  /** Push sinov xabari (o'ziga) — userId */
+  pushTest: { limit: 10, windowMs: HOUR },
   /** DM: xabarni tahrirlash/o'chirish — userId */
   dmEdit: { limit: 120, windowMs: HOUR },
   /** DM: havola prevyusi (server OG so'rovi, keshlanadi) — userId */

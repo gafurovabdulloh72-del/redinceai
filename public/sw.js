@@ -8,7 +8,7 @@
  *  - /kabinet, /admin, /auth, /buyurtma, /tolov, /chek HTML → hech qachon keshlanmaydi (shaxsiy ma'lumot); oflaynda /offline
  *  - kirish/chiqish (/api/auth/*) bo'lganda sahifalar keshi tozalanadi — boshqa foydalanuvchining ismi oflayn nusxada qolmasin
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `kasbegalari-static-${VERSION}`;
 const PAGES_CACHE = `kasbegalari-pages-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -113,4 +113,51 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || (STATIC_RE.test(url.pathname) && !url.pathname.startsWith("/uploads/"))) {
     event.respondWith(cacheFirst(request));
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* Web Push: bildirishnoma ko'rsatish va bosilganda sahifani ochish    */
+/* ------------------------------------------------------------------ */
+
+self.addEventListener("push", (event) => {
+  let d = {};
+  try {
+    d = event.data ? event.data.json() : {};
+  } catch {
+    d = { title: "Kasb Egalari", body: event.data ? event.data.text() : "" };
+  }
+  const title = d.title || "Kasb Egalari";
+  const href = d.href || "/kabinet/bildirishnomalar";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: d.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      // Bir xil turdagi xabarlar bir-birini almashtiradi (chat xabarlari to'planib ketmasin)
+      tag: d.tag || "kasbegalari",
+      renotify: Boolean(d.tag),
+      data: { href },
+      lang: "uz",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href = (event.notification.data && event.notification.data.href) || "/kabinet/bildirishnomalar";
+  const target = new URL(href, self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // Sayt allaqachon ochiq bo'lsa shu oynani ishlatamiz
+      for (const c of all) {
+        if (new URL(c.url).origin === self.location.origin) {
+          await c.focus();
+          if ("navigate" in c) await c.navigate(target).catch(() => undefined);
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
 });
