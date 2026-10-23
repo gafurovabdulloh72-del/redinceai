@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Check, Eye, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Check, Eye, ImagePlus, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
 import { useViewTracker } from "@/components/groups/useViewTracker";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { compactCount } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { ReactionButton, SaveButton, type ReactionState } from "@/components/gro
 import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ShareSheet } from "@/components/social/ShareSheet";
+import { uploadAttachment } from "@/components/chat/attachments";
 import { usePresence } from "@/components/motion/usePresence";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { Comments } from "@/components/groups/GroupFeed";
@@ -60,6 +61,7 @@ export function PostModal({
   onDeleted,
   onLiked,
   onPinned,
+  onPoster,
 }: {
   item: ModalItem | null;
   author: ModalAuthor;
@@ -74,6 +76,8 @@ export function PostModal({
   onDeleted: (postId: string) => void;
   onLiked?: (postId: string, state: ReactionState) => void;
   onPinned?: (postId: string, pinned: boolean) => void;
+  /** Video muqovasi almashtirildi (ota ro'yxat plitkasini yangilaydi) */
+  onPoster?: (postId: string, index: number, url: string) => void;
 }) {
   const til = useLocale();
   const open = item !== null;
@@ -127,7 +131,7 @@ export function PostModal({
           <X size={18} />
         </button>
         {shown.kind === "post" ? (
-          <PostBody key={key} post={shown.post} til={til} loggedIn={loggedIn} viewerId={viewerId} isAdmin={isAdmin} shareBase={shareBase} canPin={canPin} onClose={onClose} onDeleted={onDeleted} onLiked={onLiked} onPinned={onPinned} />
+          <PostBody key={key} post={shown.post} til={til} loggedIn={loggedIn} viewerId={viewerId} isAdmin={isAdmin} shareBase={shareBase} canPin={canPin} onClose={onClose} onDeleted={onDeleted} onLiked={onLiked} onPinned={onPinned} onPoster={onPoster} />
         ) : (
           <WorkBody key={key} work={shown.work} author={author} til={til} />
         )}
@@ -205,6 +209,7 @@ function PostBody({
   onDeleted,
   onLiked,
   onPinned,
+  onPoster,
 }: {
   post: PostView;
   til: Locale;
@@ -217,6 +222,8 @@ function PostBody({
   onDeleted: (id: string) => void;
   onLiked?: (postId: string, state: ReactionState) => void;
   onPinned?: (postId: string, pinned: boolean) => void;
+  /** Video muqovasi almashtirildi (ota ro'yxat plitkasini yangilaydi) */
+  onPoster?: (postId: string, index: number, url: string) => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -225,6 +232,9 @@ function PostBody({
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pinned, setPinned] = useState(post.isPinned);
+  const [mediaList, setMediaList] = useState(post.media);
+  const posterRef = useRef<HTMLInputElement>(null);
+  const videoIdx = mediaList.findIndex((m) => isVideoAttachment(m));
   const canDelete = Boolean(viewerId && (viewerId === post.author.id || isAdmin));
   const textOnly = post.media.length === 0;
   const shareUrl = `${window.location.origin}${shareBase}?post=${post.id}`;
@@ -260,6 +270,19 @@ function PostBody({
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       toast(shareUrl, "info");
+    }
+  }
+  async function changePoster(file: File) {
+    try {
+      const up = await uploadAttachment(file);
+      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poster: { index: videoIdx, url: up.url } }) });
+      const j = (await res.json()) as { ok: boolean; error?: string; fields?: Record<string, string> };
+      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Muqova saqlanmadi");
+      setMediaList((l) => l.map((m, i) => (i === videoIdx ? { ...m, poster: up.url } : m)));
+      onPoster?.(post.id, videoIdx, up.url);
+      toast("Muqova yangilandi");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Muqova saqlanmadi", "error");
     }
   }
   async function togglePin() {
@@ -332,6 +355,14 @@ function PostBody({
         <Send size={16} />
       </button>
       {shareOpen && <ShareSheet open onClose={() => setShareOpen(false)} loggedIn={loggedIn} title={post.body.slice(0, 80) || "Post"} url={shareUrl} />}
+      {canDelete && videoIdx >= 0 && (
+        <>
+          <button type="button" onClick={() => posterRef.current?.click()} aria-label="Muqovani o'zgartirish" title="Muqovani o'zgartirish" className={iconBtn}>
+            <ImagePlus size={17} />
+          </button>
+          <input ref={posterRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-label="Video muqovasini tanlash" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void changePoster(f); }} />
+        </>
+      )}
       <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} size="lg" />
       {canDelete && (
         <span className="ml-auto">
@@ -356,7 +387,7 @@ function PostBody({
 
   return (
     <>
-      {!textOnly && <MediaPane media={post.media} alt={post.body.slice(0, 120)} til={til} />}
+      {!textOnly && <MediaPane media={mediaList} alt={post.body.slice(0, 120)} til={til} />}
       <div className={cn("flex min-h-0 flex-col bg-surface", textOnly ? "w-full" : "md:w-[380px] md:shrink-0 md:border-l md:border-line")}>
         {header}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

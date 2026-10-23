@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { db } from "@/lib/db";
-import { groups } from "@/lib/db/schema";
+import { groups, posts } from "@/lib/db/schema";
+import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
+import { UPLOAD_URL_RE } from "@/components/chat/attachments";
+import { IMAGE_URL_RE } from "@/lib/validators";
 import { eq } from "drizzle-orm";
 import { assertCanManage, canModeratePost, deletePost, editPost, loadPost, setPostPinned } from "@/lib/groups/service";
 import { markPostEdited } from "@/lib/groups/posts-extra";
@@ -14,6 +17,8 @@ type Ctx = { params: Promise<{ id: string }> };
 const patchSchema = z.object({
   body: z.string().trim().min(1, "Matn bo'sh").max(POST_BODY_MAX).optional(),
   isPinned: z.boolean().optional(),
+  /** Video muqovasini almashtirish/olib tashlash: media[index] videosi uchun (faqat muallif) */
+  poster: z.object({ index: z.number().int().min(0).max(9), url: z.string().trim().max(500).nullable() }).optional(),
 });
 
 /** GET: bitta post lenta elementi sifatida (so'rovnoma, manba chipi bilan) — ko'ra olmasa 404 (yopiq jamoa, blok, ban) */
@@ -41,6 +46,25 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
       editedAt = await markPostEdited(post.id);
     }
   }
+  let posterOut: { index: number; url: string | null } | null = null;
+  if (input.poster) {
+    if (post.authorId !== session.sub && session.role !== "admin") throw new ApiError(403, "Faqat muallif o'zgartiradi");
+    const { index, url } = input.poster;
+    const target = post.media[index];
+    if (!target || !(target.type.startsWith("video/") || /\.(?:mp4|webm|mov)(?:$|\?)/i.test(target.url))) throw new ApiError(422, "Bu fayl video emas");
+    if (url) {
+      if (!UPLOAD_URL_RE.test(url) || !IMAGE_URL_RE.test(url)) throw new ApiError(422, "Muqova rasm bo'lishi va sayt orqali yuklanishi kerak");
+      await assertOwnUploads(session.sub, [url], [target.poster ?? ""], "poster");
+    }
+    const media = post.media.map((m, i) => {
+      if (i !== index) return m;
+      const { poster: _old, ...rest } = m;
+      void _old;
+      return url ? { ...rest, poster: url } : rest;
+    });
+    await db.update(posts).set({ media, updatedAt: new Date() }).where(eq(posts.id, post.id));
+    posterOut = { index, url };
+  }
   if (input.isPinned !== undefined) {
     const group = post.groupId ? await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) }) : null;
     if (!group) throw new ApiError(400, "Faqat jamoa postini qadash mumkin");
@@ -48,7 +72,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
     post = await setPostPinned(post, input.isPinned);
     await audit(session.sub, "post_pin", { targetType: "post", targetId: post.id, meta: { pinned: input.isPinned } }, req);
   }
-  return ok({ id: post.id, isPinned: post.isPinned, body: post.body, editedAt });
+  return ok({ id: post.id, isPinned: post.isPinned, body: post.body, editedAt, poster: posterOut });
 });
 
 /** DELETE: postni o'chirish — muallif, jamoa egasi/admin yoki sayt admini */

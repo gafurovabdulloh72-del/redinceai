@@ -646,6 +646,10 @@ export function PostCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.body);
   const [body, setBody] = useState(post.body);
+  // Video muqovasini almashtirish (muallif): media nusxasi lokal yangilanadi
+  const [mediaList, setMediaList] = useState(post.media);
+  const posterInput = useRef<HTMLInputElement>(null);
+  const posterIdx = useRef(0);
   const [editedAt, setEditedAt] = useState<number | null>(post.editedAt ?? (post.edited ? 0 : null));
   const [pinned, setPinned] = useState(post.isPinned);
   const [comments, setComments] = useState(post.commentsCount);
@@ -680,6 +684,18 @@ export function PostCard({
     const j = (await res.json()) as ApiResp<{ isPinned: boolean; body: string; editedAt: number | null }>;
     if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Bo'lmadi");
     return j.data;
+  }
+  async function changePoster(file: File) {
+    try {
+      const up = await uploadAttachment(file);
+      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poster: { index: posterIdx.current, url: up.url } }) });
+      const j = (await res.json()) as ApiResp<unknown>;
+      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Muqova saqlanmadi");
+      setMediaList((l) => l.map((m, i) => (i === posterIdx.current ? { ...m, poster: up.url } : m)));
+      toast("Muqova yangilandi");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Muqova saqlanmadi", "error");
+    }
   }
   async function togglePin() {
     try {
@@ -742,7 +758,7 @@ export function PostCard({
   }
 
   const isAuthor = post.canDelete && loggedIn && post.author.id !== "";
-  const media = post.media;
+  const media = mediaList;
   const permalink = postPermalink(post, groupSlug ?? post.group?.slug ?? null);
   const source = post.group ?? null;
   const url = media.length === 0 ? firstUrl(body) : null;
@@ -752,6 +768,16 @@ export function PostCard({
     { key: "link", label: tr(til, FEED.copyLink), icon: Link2, onSelect: () => void copyText(`${window.location.origin}${permalink}`) },
     { key: "text", label: tr(til, FEED.copyText), icon: Copy, onSelect: () => void copyText(body), hidden: !body },
     { key: "edit", label: tr(til, FEED.edit), icon: Pencil, onSelect: () => setEditing(true), hidden: !isAuthor || editing },
+    {
+      key: "poster",
+      label: "Muqovani o'zgartirish",
+      icon: ImagePlus,
+      onSelect: () => {
+        posterIdx.current = Math.max(0, media.findIndex((m) => isVideoAttachment(m)));
+        posterInput.current?.click();
+      },
+      hidden: !isAuthor || !media.some((m) => isVideoAttachment(m)),
+    },
     { key: "pin", label: tr(til, pinned ? FEED.unpin : FEED.pin), icon: pinned ? PinOff : Pin, onSelect: () => void togglePin(), hidden: !canPin },
     { key: "hide", label: tr(til, FEED.notInterested), icon: EyeOff, onSelect: () => void hidePost(true), hidden: !loggedIn || isAuthor },
     { key: "mute", label: FEED.muteAuthor[til](post.author.name.split(" ")[0]), icon: UserRoundX, onSelect: () => void muteAuthor(true), hidden: !loggedIn || isAuthor },
@@ -874,6 +900,19 @@ export function PostCard({
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
       {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} />}
+      <input
+        ref={posterInput}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="Video muqovasini tanlash"
+        tabIndex={-1}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void changePoster(f);
+        }}
+      />
       {post.music && <MusicChip music={post.music} className="mt-2.5" />}
 
       <footer className="-mx-1.5 mt-2.5 flex items-center gap-1">

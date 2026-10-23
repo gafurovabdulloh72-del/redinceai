@@ -230,6 +230,11 @@ export function ProfileTabs({
     setItems((prev) => prev.map(upd));
     setVideoPosts((prev) => (prev ? prev.map(upd) : prev));
   }
+  function onPoster(id: string, index: number, url: string) {
+    const upd = (p: PostView) => (p.id === id ? { ...p, media: p.media.map((m, i) => (i === index ? { ...m, poster: url } : m)) } : p);
+    setItems((prev) => prev.map(upd));
+    setVideoPosts((prev) => (prev ? prev.map(upd) : prev));
+  }
   function onPinned(id: string, pinned: boolean) {
     const upd = (p: PostView) => ({ ...p, isPinned: p.id === id ? pinned : pinned ? false : p.isPinned });
     setItems((prev) => orderPosts(prev.map(upd)));
@@ -374,7 +379,7 @@ export function ProfileTabs({
         )}
       </div>
 
-      <PostModal item={openItem} author={{ name, avatarUrl, slug }} loggedIn={loggedIn} viewerId={viewerId} isAdmin={isAdmin} shareBase={shareBase} canPin={isOwner} onClose={close} onDeleted={onDeleted} onLiked={onLiked} onPinned={onPinned} />
+      <PostModal item={openItem} author={{ name, avatarUrl, slug }} loggedIn={loggedIn} viewerId={viewerId} isAdmin={isAdmin} shareBase={shareBase} canPin={isOwner} onClose={close} onDeleted={onDeleted} onLiked={onLiked} onPinned={onPinned} onPoster={onPoster} />
     </div>
   );
 }
