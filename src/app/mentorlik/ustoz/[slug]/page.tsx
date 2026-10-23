@@ -22,6 +22,7 @@ import { listSlots, myConsults } from "@/lib/mentorship/purchases";
 import { db as _db } from "@/lib/db";
 import { mentorSubs } from "@/lib/db/schema";
 import { and as _and, eq as _eq } from "drizzle-orm";
+import { DeleteLiveButton } from "@/components/live/DeleteLiveButton";
 import { activeLive, listRecordings, pastLives } from "@/lib/live/service";
 import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
@@ -336,6 +337,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                     <li key={l.id} className="flex items-center gap-3 py-2.5">
                       <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{l.title}</p>
                       <span className="shrink-0 text-[12px] text-fg-3">{formatDateTime(l.startedAt)} · {l.minutes} daq{l.peak > 0 ? ` · ${l.peak} tomoshabin` : ""}</span>
+                      {view?.canManage && <DeleteLiveButton id={l.id} title={l.title} />}
                     </li>
                   ))}
                 </ul>

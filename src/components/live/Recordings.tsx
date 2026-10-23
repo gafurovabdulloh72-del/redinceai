@@ -7,6 +7,7 @@ import { cn, formatDateTime } from "@/lib/utils";
 import { showToast as toast } from "@/components/ui/toast";
 import { uploadAttachment } from "@/components/chat/attachments";
 import { BuyButton } from "@/components/mentorship/PurchaseDialog";
+import { DeleteLiveButton } from "./DeleteLiveButton";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 
 export type RecItem = { id: string; title: string; startedAt: number; seconds: number; url: string | null; coverUrl: string | null; status: "none" | "recording" | "processing" | "ready" | "failed"; hidden: boolean; price?: number; locked?: boolean };
@@ -71,9 +72,12 @@ export function Recordings({ items, canManage, courses = [] }: { items: RecItem[
                     <p className="mt-0.5 text-[12px] text-fg-3">{formatDateTime(r.startedAt)}{r.hidden ? " · yashirin" : ""}</p>
                   </div>
                   {canManage && (
-                    <button type="button" aria-label="Tahrirlash" onClick={() => setEditing(r.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-fg/5 hover:text-fg">
-                      <Pencil size={15} />
-                    </button>
+                    <div className="flex shrink-0 items-center">
+                      <button type="button" aria-label="Tahrirlash" onClick={() => setEditing(r.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-fg/5 hover:text-fg">
+                        <Pencil size={15} />
+                      </button>
+                      <DeleteLiveButton id={r.id} title={r.title} />
+                    </div>
                   )}
                 </div>
               </>

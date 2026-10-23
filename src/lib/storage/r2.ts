@@ -1,4 +1,4 @@
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
@@ -81,6 +81,17 @@ export async function r2Has(key: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Obyektni o'chirish (xato bo'lsa jim — chaqiruvchi bazani baribir tozalaydi) */
+export async function r2Delete(key: string): Promise<void> {
+  const cfg = r2Config();
+  if (!cfg) return;
+  try {
+    await getR2Client().send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
+  } catch (e) {
+    console.error("[r2] delete", e instanceof Error ? e.message : e);
   }
 }
 

@@ -5,7 +5,8 @@ import { courses, lessons, mentors, groups, liveBans, liveStage, liveMessages, l
 import { ApiError } from "@/lib/api";
 import { getMembership, notifyMembers } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
-import { r2Config, r2PublicUrl } from "@/lib/storage/r2";
+import { r2Config, r2Delete, r2PublicUrl } from "@/lib/storage/r2";
+import { liveTickets } from "@/lib/db/schema";
 import { canWatchPaid } from "@/lib/mentorship/purchases";
 import { egressInfo, startRoomRecording, stopRecording } from "@/lib/rtc/livekit";
 import { IMAGE_URL_RE } from "@/lib/validators";
@@ -262,6 +263,32 @@ export async function updateRecording(streamId: string, actor: Viewer, patch: { 
   }
   if (patch.hidden !== undefined) set.recordingHidden = patch.hidden;
   if (Object.keys(set).length) await db.update(liveStreams).set(set).where(eq(liveStreams.id, streamId));
+}
+
+/**
+ * Tugagan efirni (yozuvi va tarixi bilan) butunlay o'chirish — faqat ustoz/admin.
+ * Pullik efirda chipta sotilgan bo'lsa o'chirib bo'lmaydi (xaridorlar huquqi) — yashirish mumkin.
+ * Fayl (R2) faqat biror dars shu yozuvdan foydalanmasa o'chiriladi.
+ */
+export async function deleteRecording(streamId: string, actor: Viewer): Promise<{ fileRemoved: boolean }> {
+  const s = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
+  if (!s) throw new ApiError(404, "Efir topilmadi");
+  if (s.status !== "ended") throw new ApiError(409, "Avval efirni tugating");
+  const group = await db.query.groups.findFirst({ where: eq(groups.id, s.groupId) });
+  if (!group || !(await canHost(group, actor))) throw new ApiError(403, "O'chirish faqat ustoz uchun");
+  const sold = await db.query.liveTickets.findFirst({ where: eq(liveTickets.streamId, streamId), columns: { streamId: true } });
+  if (sold) throw new ApiError(409, "Bu efirga chipta sotilgan — o'chirib bo'lmaydi, uni yashirishingiz mumkin");
+  let fileRemoved = false;
+  if (s.recordingUrl) {
+    const used = await db.query.lessons.findFirst({ where: eq(lessons.videoUrl, s.recordingUrl), columns: { id: true } });
+    if (!used) {
+      await r2Delete(recKey(s.id));
+      fileRemoved = true;
+    }
+  }
+  // Bog'liq jadvallar (xabarlar, savollar, so'rovnomalar, taqiqlar…) ON DELETE CASCADE bilan ketadi
+  await db.delete(liveStreams).where(eq(liveStreams.id, streamId));
+  return { fileRemoved };
 }
 
 /** Tayyor efir yozuvini kursning yangi darsiga aylantiradi (qayta yuklash shart emas) */
