@@ -231,6 +231,12 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
 
 /** Izoh qo'shish — javob bo'lsa `reply_to_id` yoziladi va javob berilgan izoh muallifiga xabar boradi */
 export async function addCommentX(post: Post, authorId: string, body: string, replyToId: string | null): Promise<PostComment> {
+  // Post muallifining so'z filtri: mos kelsa izoh qabul qilinmaydi (muallif o'zi bundan mustasno)
+  if (authorId !== post.authorId) {
+    const { commentFilterWords, matchesFilter } = await import("@/lib/social/instagram");
+    const words = await commentFilterWords(post.authorId);
+    if (matchesFilter(body, words)) throw new ApiError(422, "Izoh muallif filtriga tushdi — so'zlarni o'zgartiring", { body: "Bu izoh qabul qilinmadi" });
+  }
   let parent: PostComment | null = null;
   if (replyToId) {
     parent = (await db.query.postComments.findFirst({ where: and(eq(postComments.id, replyToId), eq(postComments.postId, post.id)) })) ?? null;

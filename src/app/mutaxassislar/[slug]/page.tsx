@@ -30,6 +30,7 @@ import { Avatar, ButtonLink, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ContactPanel } from "@/components/specialists/ContactPanel";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
+import { Highlights } from "@/components/stories/Highlights";
 import { ReviewForm } from "@/components/specialists/ReviewForm";
 import { ReviewList, ReviewSummary } from "@/components/specialists/ReviewList";
 import { CoverImage } from "@/components/specialists/CoverImage";
@@ -59,6 +60,7 @@ import { listPublicGroupsOf } from "@/lib/profile/groups";
 import { getCurrentUser } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
 import { getProfilePostView, listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
+import { listHighlights, storyArchive } from "@/lib/social/instagram";
 import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, GENDERS, PROFILE_CROSS_LINKS, PROFILE_HIRING, REGION_BY_SLUG, SITE, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
@@ -214,11 +216,14 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   // Profil lentasi (Instagram uslubi): shaxsiy postlar, sonlar va ?post=<id> bilan ochiladigan post
   const feedViewer = viewer ? { id: viewer.id, role: viewer.role } : null;
-  const [profilePosts, postCounts, openPost] = await Promise.all([
+  const [profilePosts, postCounts, openPost, highlights] = await Promise.all([
     listProfilePosts(raw.userId, feedViewer, { limit: 18 }),
     profilePostCounts(raw.userId),
     typeof postParam === "string" && postParam ? getProfilePostView(postParam, feedViewer, raw.userId) : Promise.resolve(null),
+    listHighlights(raw.userId).catch(() => []),
   ]);
+  // Highlights'ga story qo'shish uchun arxiv — faqat egasiga
+  const archive = viewer?.id === raw.userId ? await storyArchive(raw.userId, 40).catch(() => []) : [];
   // ?ish=<id> — portfolio ishi oynada ochiladi (qidiruvdan chuqur havola); ?post= topilmasa — ProfileTabs bildirishnoma ko'rsatadi
   const openWork = typeof ishParam === "string" && ishParam ? (raw.portfolio.find((p) => p.id === ishParam) ?? null) : null;
   const missingPost = Boolean(typeof postParam === "string" && postParam && !openPost);
@@ -752,6 +757,13 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               blockedDates={sp.blockedDates}
               className="animate-fade-up"
             />
+          )}
+
+          {/* Highlights: doimiy story to'plamlari (profil lentasidan yuqorida) */}
+          {(highlights.length > 0 || isOwner) && (
+            <section className="animate-fade-up" style={{ animationDelay: "120ms" }} aria-label="Story to'plamlari">
+              <Highlights initial={highlights} canManage={isOwner} archive={isOwner ? archive : undefined} />
+            </section>
           )}
 
           {/* Profil lentasi (Instagram uslubi): Postlar / Videolar / Ishlar — portfolio shu yerda; id="portfolio" eski havolalar uchun saqlanadi */}

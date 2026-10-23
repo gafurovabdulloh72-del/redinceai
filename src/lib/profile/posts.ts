@@ -81,6 +81,10 @@ export async function createProfilePost(authorId: string, body: string, media: F
 export async function listProfilePosts(authorId: string, viewer: Viewer, opts: { cursor?: number | null; limit?: number; filter?: ProfilePostFilter } = {}): Promise<ProfilePostPage> {
   const limit = Math.min(48, Math.max(1, opts.limit ?? 18));
   const conds: SQL[] = [eq(posts.authorId, authorId), PROFILE_VISIBLE];
+  // «Yaqin do'stlar» postlari: egasi, admin va ro'yxatdagilardan boshqaga ko'rinmaydi
+  if (!viewer || (viewer.id !== authorId && viewer.role !== "admin")) {
+    conds.push(viewer ? or(eq(posts.audience, "public"), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)! : eq(posts.audience, "public"));
+  }
   const f = filterCond(opts.filter ?? "all");
   if (f) conds.push(f);
   if (opts.cursor) conds.push(lt(posts.createdAt, new Date(opts.cursor)));
@@ -127,6 +131,9 @@ export async function profilePostCounts(authorId: string): Promise<{ posts: numb
 export async function getProfilePostView(id: string, viewer: Viewer, authorId?: string): Promise<PostView | null> {
   const conds: SQL[] = [eq(posts.id, id), PROFILE_VISIBLE];
   if (authorId) conds.push(eq(posts.authorId, authorId));
+  if (!viewer || viewer.role !== "admin") {
+    conds.push(viewer ? or(eq(posts.audience, "public"), eq(posts.authorId, viewer.id), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)! : eq(posts.audience, "public"));
+  }
   const row = await db.query.posts.findFirst({ where: and(...conds) });
   if (!row) return null;
   return (await toPostViews([row], viewer, viewer?.role === "admin"))[0] ?? null;

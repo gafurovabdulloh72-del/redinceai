@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, CalendarClock, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -38,7 +38,9 @@ export type KabinetNavIcon =
   | "report"
   | "history"
   | "later"
-  | "collections";
+  | "collections"
+  | "closeFriends"
+  | "scheduled";
 
 /** Holat nuqtasi (masalan, obuna): faol — yashil, tugayapti — sariq, tugagan — qizil */
 export type KabinetNavDot = "success" | "warning" | "danger";
@@ -109,6 +111,8 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   history: History,
   later: Clock,
   collections: ListVideo,
+  closeFriends: Users,
+  scheduled: CalendarClock,
 };
 
 /** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */

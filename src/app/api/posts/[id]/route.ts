@@ -19,6 +19,10 @@ const patchSchema = z.object({
   isPinned: z.boolean().optional(),
   /** Video muqovasini almashtirish/olib tashlash: media[index] videosi uchun (faqat muallif) */
   poster: z.object({ index: z.number().int().min(0).max(9), url: z.string().trim().max(500).nullable() }).optional(),
+  /** Kim ko'radi: public | close (yaqin do'stlar) — faqat muallif */
+  audience: z.enum(["public", "close"]).optional(),
+  /** Joy belgisi — faqat muallif */
+  placeName: z.string().trim().max(80).nullable().optional(),
 });
 
 /** GET: bitta post lenta elementi sifatida (so'rovnoma, manba chipi bilan) — ko'ra olmasa 404 (yopiq jamoa, blok, ban) */
@@ -45,6 +49,13 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
       post = await editPost(post, input.body);
       editedAt = await markPostEdited(post.id);
     }
+  }
+  if (input.audience !== undefined || input.placeName !== undefined) {
+    if (post.authorId !== session.sub && session.role !== "admin") throw new ApiError(403, "Faqat muallif o'zgartiradi");
+    const set: Partial<typeof posts.$inferInsert> = {};
+    if (input.audience !== undefined) set.audience = input.audience;
+    if (input.placeName !== undefined) set.placeName = input.placeName || null;
+    await db.update(posts).set(set).where(eq(posts.id, post.id));
   }
   let posterOut: { index: number; url: string | null } | null = null;
   if (input.poster) {

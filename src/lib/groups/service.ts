@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mentorSubs, mentors } from "@/lib/db/schema";
-import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postViews, posts, specialists, users, videoProgress, watchLater, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
+import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postTags, postViews, posts, specialists, users, videoProgress, watchLater, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { translit, uid } from "@/lib/utils";
@@ -104,6 +104,12 @@ export interface PostView {
   edited: boolean;
   createdAt: number;
   author: UserBrief;
+  /** Joy belgisi (Instagram naqshi) — null: yo'q */
+  placeName: string | null;
+  /** public — hamma; close — faqat yaqin do'stlar */
+  audience: "public" | "close";
+  /** Belgilangan odamlar (tag / hamkor) */
+  tags: Array<{ id: string; name: string; slug: string | null; username: string | null; role: "tagged" | "collab" }>;
   /** Videoni qaysi soniyadan davom ettirish (ko'rish tarixidan; 0 — boshidan) */
   resumeAt: number;
   /** «Keyinroq ko'rish» navbatidami */
@@ -949,6 +955,17 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
   const savedSet = new Set(saves.map((x) => x.postId));
   const resumeMap = new Map(progress.filter((r) => !r.done).map((r) => [r.postId, r.positionSec] as const));
   const laterSet = new Set(later.map((x) => x.postId));
+  // Belgilangan odamlar (tag/collab)
+  const tagRows = await db.query.postTags.findMany({ where: inArray(postTags.postId, ids) });
+  const tagUsers = tagRows.length ? await briefUsers(tagRows.map((t) => t.userId)) : new Map();
+  const tagMap = new Map<string, PostView["tags"]>();
+  for (const t of tagRows) {
+    const u = tagUsers.get(t.userId);
+    if (!u) continue;
+    const list = tagMap.get(t.postId) ?? [];
+    list.push({ id: u.id, name: u.name, slug: u.slug, username: u.username, role: t.role });
+    tagMap.set(t.postId, list);
+  }
   // Obunachilarga yopiq postlar: ko'ruvchi mentor obunachisi (yoki muallif/boshqaruvchi/admin) bo'lmasa matn va media berilmaydi
   const closed = rows.filter((p) => p.subscribersOnly && p.groupId);
   const subMentor = new Map<string, string>();
@@ -982,6 +999,9 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     edited: p.updatedAt.getTime() - p.createdAt.getTime() > 60_000,
     createdAt: p.createdAt.getTime(),
     author: authors.get(p.authorId) ?? { id: p.authorId, ...UNKNOWN },
+    placeName: p.placeName ?? null,
+    audience: p.audience,
+    tags: tagMap.get(p.id) ?? [],
     resumeAt: resumeMap.get(p.id) ?? 0,
     queuedLater: laterSet.has(p.id),
     likedByMe: myMap.has(p.id),

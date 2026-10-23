@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, Heart, Music2, Pause, Play, Send, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { ShareSheet } from "@/components/social/ShareSheet";
+import { StoryStickerCard } from "./StorySticker";
 import { showToast } from "@/components/ui/toast";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { STORY_BACKGROUNDS } from "@/lib/social/limits";
@@ -269,6 +270,13 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                 </p>
               )}
             </div>
+
+            {/* Stiker (so'rovnoma / savol / hisoblagich / havola) — media ustida, pastki paneldan yuqorida */}
+            {story.sticker && (
+              <div className="pointer-events-auto absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] flex justify-center px-4" onPointerDown={(e) => e.stopPropagation()}>
+                <StoryStickerCard storyId={story.id} sticker={story.sticker} isMe={data.isMe} onBusy={setPaused} />
+              </div>
+            )}
 
             {/* Pastki panel */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-10">

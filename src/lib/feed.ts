@@ -44,6 +44,12 @@ export interface FeedQuery {
 /** Lenta shartlari — homeFeed va countNewPosts bir xil filtrdan foydalanadi */
 function feedConditions(viewer: Viewer, scope: FeedScope, tag: string | null | undefined): SQL[] {
   const conds: SQL[] = [eq(users.isBanned, false), or(isNull(posts.groupId), eq(groups.isPrivate, false))!, eq(posts.subscribersOnly, false)];
+  // «Yaqin do'stlar» postlari: faqat muallifning ro'yxatidagilarga (va o'ziga) ko'rinadi
+  conds.push(
+    viewer
+      ? or(eq(posts.audience, "public"), eq(posts.authorId, viewer.id), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)!
+      : eq(posts.audience, "public"),
+  );
   if (viewer) {
     // Blok: men bloklagan / meni bloklagan mualliflar; «qiziq emas» postlar; lentadan yashirilgan mualliflar
     conds.push(notBlockedCondition(posts.authorId, viewer.id), notHiddenCondition(viewer.id), notMutedCondition(viewer.id));
@@ -104,6 +110,11 @@ export async function countNewPosts(viewer: Viewer, opts: { scope?: FeedScope; t
 export async function feedItemById(id: string, viewer: Viewer): Promise<FeedItem | null> {
   const conds: SQL[] = [eq(posts.id, id), eq(users.isBanned, false)];
   if (viewer) conds.push(notBlockedCondition(posts.authorId, viewer.id));
+  conds.push(
+    viewer
+      ? or(eq(posts.audience, "public"), eq(posts.authorId, viewer.id), eq(sql`${viewer.role}`, "admin"), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)!
+      : eq(posts.audience, "public"),
+  );
   const [row] = await db.select(feedSelect).from(posts).innerJoin(users, eq(users.id, posts.authorId)).leftJoin(groups, eq(groups.id, posts.groupId)).where(and(...conds)).limit(1);
   if (!row) return null;
   if (row.p.groupId) {

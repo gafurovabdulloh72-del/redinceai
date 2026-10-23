@@ -32,6 +32,8 @@ export const users = sqliteTable(
      * unique indekssiz, dastur darajasida ta'minlanadi.
      */
     telegramChatId: text("telegram_chat_id"),
+    /** Izoh filtri: shu so'zlar bor izohlar avtomatik yashiriladi (vergul bilan); bo'sh — o'chiq */
+    commentFilter: text("comment_filter"),
     /** Sessiya versiyasi: oshirilsa barcha eski JWT'lar bekor bo'ladi (parol o'zgarishi, "hamma qurilmadan chiqish") */
     sessionVersion: integer("session_version").notNull().default(1),
     passwordChangedAt: integer("password_changed_at", { mode: "timestamp_ms" }),
@@ -188,6 +190,16 @@ export interface FileAttachment {
   /** Video muqovasi (rasm URL) — plitka/oldindan ko'rinishda ko'rsatiladi; kompozitor kadrdan yoki yuklangan rasmdan qo'yadi */
   poster?: string;
 }
+
+/**
+ * Story stikeri (bittadan): so'rovnoma (2 variant), savol (ochiq javob),
+ * hisoblagich (sanagacha) yoki havola. Javoblar `story_sticker_answers` jadvalida.
+ */
+export type StorySticker =
+  | { kind: "poll"; question: string; options: [string, string] }
+  | { kind: "question"; prompt: string }
+  | { kind: "countdown"; title: string; at: number }
+  | { kind: "link"; url: string; label: string };
 
 /* ------------------------------------------------------------------ */
 /* Mutaxassis profillari (videograf / montajor / dizayner ...)         */
@@ -1218,6 +1230,10 @@ export const posts = sqliteTable(
     reminderFlags: integer("reminder_flags").notNull().default(0),
     /** Mentor kanalida: faqat oylik obunachilar (va mentorning o'zi) ko'radi */
     subscribersOnly: integer("subscribers_only", { mode: "boolean" }).notNull().default(false),
+    /** Kim ko'radi: public — hamma; close — faqat «yaqin do'stlar» ro'yxatidagilar (Instagram naqshi) */
+    audience: text("audience", { enum: ["public", "close"] }).notNull().default("public"),
+    /** Joy nomi (ixtiyoriy belgi) — post ustida ko'rinadi */
+    placeName: text("place_name"),
     /** Rasm/video biriktirmalari (/api/upload natijalari) */
     media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
     /** Musiqa (rasmli post/reels ustida chalinadi) — null: yo'q */
@@ -1431,6 +1447,10 @@ export const stories = sqliteTable(
     bg: text("bg"),
     music: text("music", { mode: "json" }).$type<PostMusic | null>(),
     viewsCount: integer("views_count").notNull().default(0),
+    /** Kim ko'radi: public — hamma; close — faqat yaqin do'stlar */
+    audience: text("audience", { enum: ["public", "close"] }).notNull().default("public"),
+    /** Stiker: so'rovnoma / savol / hisoblagich / havola (bittadan) */
+    sticker: text("sticker", { mode: "json" }).$type<StorySticker | null>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1672,7 +1692,148 @@ export type PostComment = typeof postComments.$inferSelect;
 export type PostSave = typeof postSaves.$inferSelect;
 export type PostPoll = typeof postPolls.$inferSelect;
 export type PostPollVote = typeof postPollVotes.$inferSelect;
+/* ------------------------------------------------------------------ */
+/* Instagram naqshlari: tag, yaqin do'stlar, story stikerlari, Highlights */
+/* ------------------------------------------------------------------ */
+
+/** Postda belgilangan odamlar (tag) va hamkorlik (collab): `role` — tagged yoki collab */
+export const postTags = sqliteTable(
+  "post_tags",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** tagged — oddiy belgi; collab — hamkor muallif (uning profilida ham chiqadi) */
+    role: text("role", { enum: ["tagged", "collab"] }).notNull().default("tagged"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("post_tags_pair_idx").on(t.postId, t.userId), index("post_tags_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Yaqin do'stlar ro'yxati (faqat egasiga ko'rinadi) — `audience: "close"` postlar/story shularga ko'rinadi */
+export const closeFriends = sqliteTable(
+  "close_friends",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    friendId: text("friend_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("close_friends_pair_idx").on(t.ownerId, t.friendId), index("close_friends_owner_idx").on(t.ownerId)],
+);
+
+/** Story stikeriga javob: so'rovnoma varianti (0/1) yoki savolga matn */
+export const storyStickerAnswers = sqliteTable(
+  "story_sticker_answers",
+  {
+    id: text("id").primaryKey(),
+    storyId: text("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** So'rovnoma: 0 yoki 1; savol: null */
+    choice: integer("choice"),
+    /** Savolga matnli javob */
+    text: text("text"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("story_answers_pair_idx").on(t.storyId, t.userId), index("story_answers_story_idx").on(t.storyId)],
+);
+
+/** Story to'plamlari (Highlights): profilda doimiy qoladi, story 24 soatdan keyin ham ko'rinadi */
+export const storyHighlights = sqliteTable(
+  "story_highlights",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    coverUrl: text("cover_url"),
+    itemsCount: integer("items_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("story_highlights_owner_idx").on(t.ownerId, t.updatedAt)],
+);
+
+/**
+ * Highlight ichidagi story nusxasi: asl story o'chsa ham saqlanadi
+ * (shuning uchun media/caption shu yerda takrorlanadi).
+ */
+export const storyHighlightItems = sqliteTable(
+  "story_highlight_items",
+  {
+    id: text("id").primaryKey(),
+    highlightId: text("highlight_id")
+      .notNull()
+      .references(() => storyHighlights.id, { onDelete: "cascade" }),
+    /** Asl story (o'chgan bo'lishi mumkin) */
+    storyId: text("story_id"),
+    media: text("media", { mode: "json" }).$type<FileAttachment | null>(),
+    caption: text("caption"),
+    bg: text("bg"),
+    position: integer("position").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("story_highlight_items_idx").on(t.highlightId, t.position)],
+);
+
+/** Rejalashtirilgan post: cron vaqti kelganda haqiqiy postni yaratadi */
+export const scheduledPosts = sqliteTable(
+  "scheduled_posts",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** null — profil posti; aks holda jamoa/kanal */
+    groupId: text("group_id").references(() => groups.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    media: text("media", { mode: "json" }).$type<FileAttachment[]>().notNull().default([]),
+    music: text("music", { mode: "json" }).$type<PostMusic | null>(),
+    audience: text("audience", { enum: ["public", "close"] }).notNull().default("public"),
+    placeName: text("place_name"),
+    /** Belgilanadigan odamlar (userId) */
+    tagIds: text("tag_ids", { mode: "json" }).$type<string[]>().notNull().default([]),
+    runAt: integer("run_at", { mode: "timestamp_ms" }).notNull(),
+    /** pending — kutmoqda; done — joylandi; failed — xato (`error`) */
+    status: text("status", { enum: ["pending", "done", "failed"] }).notNull().default("pending"),
+    postId: text("post_id"),
+    error: text("error"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("scheduled_posts_run_idx").on(t.status, t.runAt), index("scheduled_posts_author_idx").on(t.authorId, t.runAt)],
+);
+
 export type Collection = typeof collections.$inferSelect;
+export type PostTag = typeof postTags.$inferSelect;
+export type StoryHighlight = typeof storyHighlights.$inferSelect;
+export type ScheduledPost = typeof scheduledPosts.$inferSelect;
 export type CollectionItem = typeof collectionItems.$inferSelect;
 export type VideoProgress = typeof videoProgress.$inferSelect;
 

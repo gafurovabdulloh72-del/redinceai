@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, ImagePlus, Music2, Pause, Play, Search, Type, Upload, X } from "lucide-react";
+import { BarChart3, ChevronRight, HelpCircle, ImagePlus, Link2, Music2, Pause, Play, Search, Timer, Type, Upload, Users, UsersRound, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
 import { uploadAttachment, uploadMusic, type Attachment } from "@/components/chat/attachments";
 import { STORY_BACKGROUNDS, STORY_CAPTION_MAX, type QuotaInfo } from "@/lib/social/limits";
 import { cn } from "@/lib/utils";
+import { AudiencePicker } from "@/components/social/PostExtras";
 
 export interface MusicDraft {
   url: string;
@@ -236,6 +237,14 @@ export function StoryComposer({ open, onClose, onCreated }: { open: boolean; onC
   const [previewVideo, setPreviewVideo] = useState(false);
   const [caption, setCaption] = useState("");
   const [bg, setBg] = useState("coral");
+  // Stiker (bittadan) va auditoriya
+  const [audience, setAudience] = useState<"public" | "close">("public");
+  const [stickerKind, setStickerKind] = useState<"" | "poll" | "question" | "countdown" | "link">("");
+  const [sQ, setSQ] = useState("");
+  const [sA, setSA] = useState("Ha");
+  const [sB, setSB] = useState("Yo'q");
+  const [sAt, setSAt] = useState("");
+  const [sUrl, setSUrl] = useState("");
   const [music, setMusic] = useState<MusicDraft | null>(null);
   const [uploading, setUploading] = useState<number | null>(null);
   const [posting, setPosting] = useState(false);
@@ -274,13 +283,21 @@ export function StoryComposer({ open, onClose, onCreated }: { open: boolean; onC
   async function publish() {
     if (posting) return;
     if (mode === "media" && !media) return showToast("Rasm yoki video tanlang", "error");
+    if (stickerKind && !stickerValid()) return showToast("Stiker maydonlarini to'ldiring", "error");
     if (mode === "text" && !caption.trim()) return showToast("Matn yozing", "error");
     setPosting(true);
     try {
       const res = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ media: mode === "media" ? media : null, caption: caption.trim(), bg: mode === "text" ? bg : null, music: music ? { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } : null }),
+        body: JSON.stringify({
+          media: mode === "media" ? media : null,
+          caption: caption.trim(),
+          bg: mode === "text" ? bg : null,
+          music: music ? { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } : null,
+          audience,
+          sticker: buildSticker(),
+        }),
       });
       const j = (await res.json()) as { ok: boolean; error?: string; fields?: Record<string, string> };
       if (!j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Joylanmadi");
@@ -292,6 +309,24 @@ export function StoryComposer({ open, onClose, onCreated }: { open: boolean; onC
     } finally {
       setPosting(false);
     }
+  }
+
+  /** Stiker to'g'ri to'ldirilganmi */
+  function stickerValid(): boolean {
+    if (stickerKind === "poll") return Boolean(sQ.trim() && sA.trim() && sB.trim());
+    if (stickerKind === "question") return Boolean(sQ.trim());
+    if (stickerKind === "countdown") return Boolean(sQ.trim() && sAt && new Date(sAt).getTime() > Date.now());
+    if (stickerKind === "link") return /^https:\/\/\S+$/.test(sUrl.trim());
+    return true;
+  }
+
+  /** Serverga yuboriladigan stiker obyekti */
+  function buildSticker() {
+    if (!stickerKind || !stickerValid()) return null;
+    if (stickerKind === "poll") return { kind: "poll", question: sQ.trim(), options: [sA.trim(), sB.trim()] };
+    if (stickerKind === "question") return { kind: "question", prompt: sQ.trim() };
+    if (stickerKind === "countdown") return { kind: "countdown", title: sQ.trim(), at: new Date(sAt).getTime() };
+    return { kind: "link", url: sUrl.trim(), label: sQ.trim() || "Havola" };
   }
 
   return (
@@ -367,6 +402,57 @@ export function StoryComposer({ open, onClose, onCreated }: { open: boolean; onC
       <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, STORY_CAPTION_MAX))} rows={2} placeholder={mode === "text" ? "Nima demoqchisiz?" : "Izoh qo'shing…"} aria-label="Matn" className="mt-4 w-full resize-none rounded-[16px] bg-fg/5 px-4 py-3 text-[14.5px] text-fg outline-none placeholder:text-fg-3 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-fg/15" />
       <div className="mb-3 mt-3">
         <MusicPicker value={music} onChange={setMusic} />
+      </div>
+
+      {/* Kim ko'radi */}
+      <div className="mb-3">
+        <AudiencePicker value={audience} onChange={setAudience} />
+      </div>
+
+      {/* Stiker: bittadan — so'rovnoma / savol / hisoblagich / havola */}
+      <div className="mb-3 space-y-2.5">
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              ["poll", "So'rovnoma", BarChart3],
+              ["question", "Savol", HelpCircle],
+              ["countdown", "Hisoblagich", Timer],
+              ["link", "Havola", Link2],
+            ] as const
+          ).map(([k, label, Icon]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setStickerKind((v) => (v === k ? "" : k))}
+              aria-pressed={stickerKind === k}
+              className={cn("press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition", stickerKind === k ? "border-fg bg-fg text-bg" : "border-line text-fg-2 hover:text-fg")}
+            >
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
+        {stickerKind === "poll" && (
+          <div className="expand-in space-y-2">
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} maxLength={100} placeholder="Savol" aria-label="So'rovnoma savoli" className="field h-10 w-full text-[13.5px]" />
+            <div className="flex gap-2">
+              <input value={sA} onChange={(e) => setSA(e.target.value)} maxLength={30} aria-label="1-variant" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+              <input value={sB} onChange={(e) => setSB(e.target.value)} maxLength={30} aria-label="2-variant" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+            </div>
+          </div>
+        )}
+        {stickerKind === "question" && <input value={sQ} onChange={(e) => setSQ(e.target.value)} maxLength={100} placeholder="Savolingiz (javoblar faqat sizga ko'rinadi)" aria-label="Savol" className="expand-in field h-10 w-full text-[13.5px]" />}
+        {stickerKind === "countdown" && (
+          <div className="expand-in flex gap-2">
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} maxLength={60} placeholder="Nomi" aria-label="Hisoblagich nomi" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+            <input type="datetime-local" value={sAt} onChange={(e) => setSAt(e.target.value)} aria-label="Sana" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+          </div>
+        )}
+        {stickerKind === "link" && (
+          <div className="expand-in flex gap-2">
+            <input value={sUrl} onChange={(e) => setSUrl(e.target.value)} placeholder="https://…" aria-label="Havola" className="field h-10 min-w-0 flex-[2] text-[13.5px]" />
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} maxLength={24} placeholder="Yorliq" aria-label="Havola yorlig'i" className="field h-10 min-w-0 flex-1 text-[13.5px]" />
+          </div>
+        )}
       </div>
     </Sheet>
   );

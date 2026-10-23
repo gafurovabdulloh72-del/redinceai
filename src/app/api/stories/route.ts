@@ -19,6 +19,18 @@ const schema = z.object({
   caption: z.string().trim().max(STORY_CAPTION_MAX, `Matn ko'pi bilan ${STORY_CAPTION_MAX} belgi`).optional().default(""),
   bg: z.enum(Object.keys(STORY_BACKGROUNDS) as [string, ...string[]]).nullable().optional(),
   music: musicSchema.nullable().optional(),
+  /** public — hamma; close — faqat yaqin do'stlar */
+  audience: z.enum(["public", "close"]).optional(),
+  /** Bitta stiker: so'rovnoma / savol / hisoblagich / havola */
+  sticker: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("poll"), question: z.string().trim().min(1).max(100), options: z.tuple([z.string().trim().min(1).max(30), z.string().trim().min(1).max(30)]) }),
+      z.object({ kind: z.literal("question"), prompt: z.string().trim().min(1).max(100) }),
+      z.object({ kind: z.literal("countdown"), title: z.string().trim().min(1).max(60), at: z.coerce.number().int().positive() }),
+      z.object({ kind: z.literal("link"), url: z.string().trim().url().max(300).refine((u) => u.startsWith("https://"), "Faqat https"), label: z.string().trim().max(24) }),
+    ])
+    .nullable()
+    .optional(),
 });
 
 /** POST: yangi story (ijodkor yoki admin). Limit: oddiy — 7 kunda 4 ta, premium — cheksiz */
@@ -31,6 +43,6 @@ export const POST = handler(async (req) => {
   await enforceLimit("posts", session.sub);
   await assertOwnUploads(session.sub, media ? [media.url] : [], [], "media");
   if (input.music) await useMusic(session.sub, input.music);
-  const res = await createStory(session.sub, { media, caption: input.caption, bg: input.bg ?? null, music: input.music ?? null });
+  const res = await createStory(session.sub, { media, caption: input.caption, bg: input.bg ?? null, music: input.music ?? null, audience: input.audience, sticker: input.sticker ?? null });
   return ok(res, { status: 201 });
 });

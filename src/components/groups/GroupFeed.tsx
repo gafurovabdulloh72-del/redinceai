@@ -3,7 +3,7 @@
 import { BuyButton } from "@/components/mentorship/PurchaseDialog";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import Link from "next/link";
-import { BadgeCheck, BarChart3, Clock, FolderPlus, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
+import { AtSign, BadgeCheck, BarChart3, CalendarClock, Clock, FolderPlus, MapPin, Music2, Copy, CornerDownRight, ExternalLink, EyeOff, Heart, ImagePlus, Link2, MessageCircle, Pencil, Pin, PinOff, Radio, RadioTower, Send, Trash2, UserRoundX, UsersRound, X } from "lucide-react";
 import { firstUrl, RichText } from "./RichText";
 import { MentionField } from "./MentionInput";
 import { postPermalink, ReactionButton, ReactorsButton, SaveButton, ShareAction, type ReactionState } from "./Reactions";
@@ -20,6 +20,7 @@ import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
 import { CollectionSheet } from "@/components/social/CollectionSheet";
+import { AudiencePicker, PlaceField, SchedulePicker, TagPeopleSheet, type TaggedUser } from "@/components/social/PostExtras";
 import { captureVideoPoster, isVideoAttachment, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { MusicPicker, QuotaLine, useQuota, type MusicDraft } from "@/components/stories/StoryComposer";
 import { MusicChip } from "@/components/social/MusicChip";
@@ -233,6 +234,13 @@ export function Composer({
   // Muqova tanlash: yuklangan videoning lokal nusxasi (CORS'siz kadr olish uchun)
   const localVideo = useRef(new Map<string, string>());
   const [coverIdx, setCoverIdx] = useState<number | null>(null);
+  // Instagram qo'shimchalari: auditoriya, joy, belgilangan odamlar, rejalashtirish
+  const [audience, setAudience] = useState<"public" | "close">("public");
+  const [placeName, setPlaceName] = useState("");
+  const [tagged, setTagged] = useState<TaggedUser[]>([]);
+  const [tagOpen, setTagOpen] = useState(false);
+  const [extrasOpen, setExtrasOpen] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
   const [eventOpen, setEventOpen] = useState(false);
   const [eventAt, setEventAt] = useState("");
   const [eventUrl, setEventUrl] = useState("");
@@ -362,6 +370,11 @@ export function Composer({
     setPollOptions(["", ""]);
     setMusic(null);
     setMusicOpen(false);
+    setAudience("public");
+    setPlaceName("");
+    setTagged([]);
+    setExtrasOpen(false);
+    setScheduleAt("");
     setRestored(false);
     setTouched(false);
     try {
@@ -382,10 +395,31 @@ export function Composer({
         ...(allowSubOnly && subOnly ? { subscribersOnly: true } : {}),
         ...(isProfile && music ? { music: { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } } : {}),
       };
+      // Rejalashtirilgan post: darhol joylanmaydi, cron vaqti kelganda qo'yadi
+      const runAt = scheduleAt ? new Date(scheduleAt).getTime() : 0;
+      if (runAt) {
+        const sr = await fetch("/api/rejalashtirilgan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: body.trim(), media, audience, placeName: placeName.trim() || null, tagIds: tagged.map((t) => t.id), groupId: isProfile ? null : undefined, runAt }),
+        });
+        const sj = (await sr.json()) as ApiResp<{ id: string }>;
+        if (!sr.ok || !sj.ok) throw new Error((sj.fields && Object.values(sj.fields)[0]) || sj.error || "Rejalashtirilmadi");
+        reset();
+        toast("Post rejalashtirildi");
+        return;
+      }
       const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
       const id = j.data?.id;
+      // Auditoriya / joy / belgilanganlar — post yaratilgandan keyin
+      if (id && (audience === "close" || placeName.trim())) {
+        await fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience, placeName: placeName.trim() || null }) }).catch(() => undefined);
+      }
+      if (id && tagged.length) {
+        await fetch(`/api/posts/${encodeURIComponent(id)}/tags`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: tagged.map((t) => t.id) }) }).catch(() => undefined);
+      }
       if (id && pollOpen && pollClean.length >= POLL_OPTIONS_MIN) {
         try {
           const pr = await fetch(`/api/posts/${encodeURIComponent(id)}/poll`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ options: pollClean }) });
@@ -555,6 +589,15 @@ export function Composer({
           }}
         />
       )}
+      {expanded && extrasOpen && (
+        <div className="expand-in mt-2.5 space-y-2.5 rounded-[14px] border border-line p-3">
+          <AudiencePicker value={audience} onChange={setAudience} />
+          <PlaceField value={placeName} onChange={setPlaceName} />
+          <SchedulePicker value={scheduleAt} onChange={setScheduleAt} />
+          <p className="text-[11.5px] leading-snug text-fg-4">«Yaqin do&apos;stlar» — post faqat ro&apos;yxatdagilarga ko&apos;rinadi. Vaqt belgilansa, post o&apos;sha paytda avtomatik joylanadi.</p>
+        </div>
+      )}
+      {tagOpen && <TagPeopleSheet open onClose={() => setTagOpen(false)} value={tagged} onChange={setTagged} />}
       {expanded && (
         <div className="expand-in mt-2 flex items-center gap-0.5">
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || media.length >= POST_MEDIA_MAX} aria-label={tr(til, FEED.media)} title={tr(til, FEED.media)} className={toolBtn(media.length > 0)}>
@@ -588,13 +631,27 @@ export function Composer({
               <RadioTower size={18} />
             </button>
           )}
+          <button type="button" onClick={() => setTagOpen(true)} aria-label="Odamlarni belgilash" title="Odamlarni belgilash" className={toolBtn(tagged.length > 0)}>
+            <AtSign size={18} />
+            {tagged.length > 0 && <span className="tabular-nums">{tagged.length}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setExtrasOpen((v) => !v)}
+            aria-pressed={extrasOpen}
+            aria-label="Qo'shimcha: joy, kim ko'radi, vaqt"
+            title="Joy, kim ko'radi, rejalashtirish"
+            className={toolBtn(extrasOpen || audience === "close" || Boolean(placeName) || Boolean(scheduleAt))}
+          >
+            {scheduleAt ? <CalendarClock size={18} /> : <MapPin size={18} />}
+          </button>
           {pct > 0.8 && (
             <span className={cn("ml-auto text-[11.5px] tabular-nums", pct > 0.95 ? "font-semibold text-danger-text" : "text-fg-4")} aria-live="polite">
               {POST_BODY_MAX - body.length}
             </span>
           )}
           <Button type="button" variant="primary" size="sm" onClick={() => void submit()} disabled={!canSend} title={tr(til, FEED.sendHint)} className={cn(pct <= 0.8 && "ml-auto")}>
-            {busy ? <Spinner className="h-4 w-4" /> : <Send size={16} />} {busy ? tr(til, FEED.posting) : eventOpen ? "Efirni e'lon qilish" : tr(til, FEED.post)}
+            {busy ? <Spinner className="h-4 w-4" /> : <Send size={16} />} {busy ? tr(til, FEED.posting) : scheduleAt ? "Rejalashtirish" : eventOpen ? "Efirni e'lon qilish" : tr(til, FEED.post)}
           </Button>
         </div>
       )}
@@ -922,6 +979,32 @@ export function PostCard({
       {url && !post.locked && <LinkPreviewCard url={url} />}
       {post.poll && <PollBlock postId={post.id} poll={post.poll} canInteract={canInteract} requireLogin={requireLogin} />}
       {post.eventAt && <EventBlock at={post.eventAt} url={post.eventUrl} title={body.split("\n")[0] || "Jonli efir"} />}
+      {!post.locked && (post.placeName || post.tags.length > 0 || post.audience === "close") && (
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-fg-3">
+          {post.audience === "close" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-1.5 py-0.5 font-semibold text-success-text" title="Faqat yaqin do'stlarga ko'rinadi">
+              <UsersRound size={11} /> Yaqin do&apos;stlar
+            </span>
+          )}
+          {post.placeName && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={12} /> {post.placeName}
+            </span>
+          )}
+          {post.tags.length > 0 && (
+            <span className="inline-flex flex-wrap items-center gap-1">
+              <AtSign size={12} />
+              {post.tags.slice(0, 3).map((t, i) => (
+                <Link key={t.id} href={t.slug ? `/mutaxassislar/${t.slug}` : t.username ? `/yozish/${t.username}` : "#"} className="font-semibold text-fg-2 underline-offset-2 hover:underline">
+                  {t.name}
+                  {i < Math.min(post.tags.length, 3) - 1 ? "," : ""}
+                </Link>
+              ))}
+              {post.tags.length > 3 && <span>va yana {post.tags.length - 3} ta</span>}
+            </span>
+          )}
+        </p>
+      )}
       {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} postId={post.id} resumeAt={post.resumeAt} />}
       {collectOpen && <CollectionSheet open onClose={() => setCollectOpen(false)} postId={post.id} />}
       {posterOpen && media[posterIdx.current] && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={media[posterIdx.current].url} onPick={(f) => changePoster(f)} />}

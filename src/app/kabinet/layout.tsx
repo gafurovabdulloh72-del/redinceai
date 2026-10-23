@@ -153,6 +153,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
     items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile", group: "Ijodim", ...profileDot });
     items.push({ href: "/kabinet/portfolio", label: "Portfolio", icon: "portfolio", group: "Ijodim" });
     items.push({ href: "/kabinet/postlar", label: "Postlarim", icon: "posts", group: "Ijodim" });
+    items.push({ href: "/kabinet/rejalashtirilgan", label: "Rejalashtirilgan", icon: "scheduled", group: "Ijodim" });
     if (user.specialist) items.push({ href: `/mutaxassislar/${user.specialist.slug}`, label: "Ommaviy profilim", icon: "public", group: "Ijodim" });
   }
 
@@ -184,6 +185,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   items.push({ href: "/kabinet/tarix", label: "Ko'rish tarixi", icon: "history", group: "Saqlangan" });
   items.push({ href: "/kabinet/keyinroq", label: "Keyinroq ko'rish", icon: "later", group: "Saqlangan" });
   items.push({ href: "/kabinet/toplamlar", label: "To'plamlar", icon: "collections", group: "Saqlangan" });
+  items.push({ href: "/kabinet/yaqin-doslar", label: "Yaqin do'stlar", icon: "closeFriends", group: "Saqlangan" });
+
 
   // Hisob (sozlamalar)
   if (user.role === "client") items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile", group: "Hisob" });

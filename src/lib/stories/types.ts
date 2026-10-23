@@ -1,4 +1,4 @@
-import type { FileAttachment, PostMusic } from "@/lib/db/schema";
+import type { FileAttachment, PostMusic, StorySticker } from "@/lib/db/schema";
 import type { UserBrief } from "@/lib/groups/service";
 
 /** Story qatoridagi bitta muallif (halqa) — klientga xavfsiz DTO */
@@ -22,6 +22,10 @@ export interface StoryView {
   seen: boolean;
   /** Faqat egasiga (va adminga): ko'rishlar soni; boshqalarga null */
   viewsCount: number | null;
+  /** Stiker (so'rovnoma / savol / hisoblagich / havola) — null: yo'q */
+  sticker: StorySticker | null;
+  /** public — hamma; close — yaqin do'stlar */
+  audience: "public" | "close";
 }
 
 export interface AuthorStories {

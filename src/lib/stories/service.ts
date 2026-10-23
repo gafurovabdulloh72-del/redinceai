@@ -1,8 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import { ApiError } from "@/lib/api";
 import { db } from "@/lib/db";
-import { stories, storyViews, users, type FileAttachment, type PostMusic } from "@/lib/db/schema";
+import { stories, storyViews, users, type FileAttachment, type PostMusic, type StorySticker } from "@/lib/db/schema";
 import { briefUsers } from "@/lib/groups/service";
 import { STORY_TTL_MS } from "@/lib/social/limits";
 import { assertQuota } from "@/lib/social/quota";
@@ -15,7 +15,7 @@ type Viewer = { id: string; role: string } | null;
  * Story'lar (Instagram uslubi): 24 soat yashaydi, hammaga ochiq (bloklangan hisob muallifi chiqmaydi).
  * Qator tartibi: o'zim → ko'rilmaganlar (yangisi birinchi) → ko'rilganlar. Limit — lib/social/quota (oddiy: sutkada 4).
  */
-export async function createStory(authorId: string, input: { media: FileAttachment | null; caption: string; bg: string | null; music: PostMusic | null }): Promise<{ id: string }> {
+export async function createStory(authorId: string, input: { media: FileAttachment | null; caption: string; bg: string | null; music: PostMusic | null; audience?: "public" | "close"; sticker?: StorySticker | null }): Promise<{ id: string }> {
   await assertQuota(authorId, "story");
   const now = Date.now();
   const id = uid();
@@ -26,6 +26,8 @@ export async function createStory(authorId: string, input: { media: FileAttachme
     caption: input.caption || null,
     bg: input.media ? null : (input.bg ?? "coral"),
     music: input.music,
+    audience: input.audience ?? "public",
+    sticker: input.sticker ?? null,
     createdAt: new Date(now),
     expiresAt: new Date(now + STORY_TTL_MS),
   });
@@ -33,13 +35,21 @@ export async function createStory(authorId: string, input: { media: FileAttachme
 }
 
 /** Faol story'lari bor mualliflar (bloklanmagan) — qator uchun */
+/** «Yaqin do'stlar» story'lari: faqat muallifning ro'yxatidagilarga (va o'ziga/adminga) ko'rinadi */
+function closeCond(viewer: Viewer) {
+  if (viewer?.role === "admin") return undefined;
+  return viewer
+    ? or(eq(stories.audience, "public"), eq(stories.authorId, viewer.id), sql`${stories.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)
+    : eq(stories.audience, "public");
+}
+
 export async function storyRail(viewer: Viewer, limit = 30): Promise<StoryRailItem[]> {
   const now = new Date();
   const rows = await db
     .select({ authorId: stories.authorId, n: sql<number>`count(*)`, latest: sql<number>`max(${stories.createdAt})` })
     .from(stories)
     .innerJoin(users, eq(users.id, stories.authorId))
-    .where(and(gt(stories.expiresAt, now), eq(users.isBanned, false)))
+    .where(and(gt(stories.expiresAt, now), eq(users.isBanned, false), closeCond(viewer)))
     .groupBy(stories.authorId)
     .orderBy(desc(sql`max(${stories.createdAt})`))
     .limit(limit);
@@ -73,7 +83,7 @@ export async function authorStories(authorId: string, viewer: Viewer): Promise<A
   if (!author) return null;
   const u = await db.query.users.findFirst({ where: eq(users.id, authorId), columns: { isBanned: true } });
   if (!u || u.isBanned) return null;
-  const rows = await db.query.stories.findMany({ where: and(eq(stories.authorId, authorId), gt(stories.expiresAt, new Date())), orderBy: [asc(stories.createdAt)] });
+  const rows = await db.query.stories.findMany({ where: and(eq(stories.authorId, authorId), gt(stories.expiresAt, new Date()), closeCond(viewer)), orderBy: [asc(stories.createdAt)] });
   if (!rows.length) return null;
   const isMe = viewer?.id === authorId;
   const canSeeViews = isMe || viewer?.role === "admin";
@@ -82,6 +92,8 @@ export async function authorStories(authorId: string, viewer: Viewer): Promise<A
     : new Set<string>();
   const items: StoryView[] = rows.map((r) => ({
     id: r.id,
+    sticker: r.sticker ?? null,
+    audience: r.audience,
     media: r.media ?? null,
     caption: r.caption,
     bg: r.bg,
