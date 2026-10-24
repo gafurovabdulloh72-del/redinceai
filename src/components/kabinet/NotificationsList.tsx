@@ -305,7 +305,7 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
   };
 
   return (
-    <section className="card overflow-hidden" aria-labelledby="notif-list-title">
+    <section className="card m-flat overflow-hidden" aria-labelledby="notif-list-title">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
         <h2 id="notif-list-title" className="text-[14px] font-semibold text-fg">
           {left > 0 ? (

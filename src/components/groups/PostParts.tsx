@@ -80,7 +80,7 @@ export function PostMenu({ items, extra, label }: { items: MenuItem[]; extra?: R
         aria-label={label ?? tr(til, FEED.menu)}
         title={label ?? tr(til, FEED.menu)}
         onClick={() => setOpen((v) => !v)}
-        className={cn("press flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg", open && "bg-fg/6 text-fg")}
+        className={cn("press flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg max-sm:h-10 max-sm:w-10", open && "bg-fg/6 text-fg")}
       >
         <MoreHorizontal size={18} />
       </button>

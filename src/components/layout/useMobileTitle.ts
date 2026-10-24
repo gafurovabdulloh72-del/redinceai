@@ -23,7 +23,9 @@ export function useMobileTitle(): string | null {
       const suffix = ` · ${SITE.name}`;
       if (!t.endsWith(suffix)) return setTitle(null);
       // Ba'zi sahifalar sarlavhaga o'qilmagan sonini qo'shadi («(99+) Xabarlar») — panelda kerak emas
-      setTitle(t.slice(0, -suffix.length).replace(/^\(\d+\+?\)\s*/, "").trim() || null);
+      // Ichki qoliplar nomga bo'lim qo'shadi («Bildirishnomalar · Kabinet») — panelga faqat birinchi bo'lak
+      const head = t.slice(0, -suffix.length).replace(/^\(\d+\+?\)\s*/, "").split(" · ")[0];
+      setTitle(head.trim() || null);
     };
     read();
     const obs = new MutationObserver(read);

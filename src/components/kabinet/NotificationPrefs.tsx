@@ -52,7 +52,7 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
   }
 
   return (
-    <section className="card overflow-hidden" aria-labelledby="notif-prefs-title">
+    <section className="card m-flat overflow-hidden" aria-labelledby="notif-prefs-title">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

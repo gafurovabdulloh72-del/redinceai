@@ -275,7 +275,7 @@ export function ReactionButton({
         }}
         className={cn(
           "press inline-flex items-center gap-1.5 rounded-full font-semibold transition disabled:opacity-50",
-          lg ? "h-10 px-3 text-[13px]" : "h-9 px-2.5 text-[13px]",
+          lg ? "h-10 px-3 text-[13px]" : "h-9 px-2.5 text-[13px] max-sm:h-10",
           my ? "bg-accent-soft text-accent-text" : "text-fg-2 hover:bg-fg/6 hover:text-fg",
         )}
       >
@@ -470,7 +470,7 @@ export function SaveButton({ postId, initial, requireLogin, size = "md", classNa
       aria-pressed={saved}
       aria-label={saved ? "Saqlanganlardan olish" : "Postni saqlash"}
       title={saved ? "Saqlangan — olish" : "Saqlash"}
-      className={cn("press flex items-center justify-center rounded-full transition", size === "lg" ? "h-10 w-10" : "h-9 w-9", saved ? "text-fg" : "text-fg-3 hover:bg-fg/6 hover:text-fg", className)}
+      className={cn("press flex items-center justify-center rounded-full transition", size === "lg" ? "h-10 w-10" : "h-9 w-9 max-sm:h-10 max-sm:w-10", saved ? "text-fg" : "text-fg-3 hover:bg-fg/6 hover:text-fg", className)}
     >
       <Bookmark key={saved ? "on" : "off"} size={18} className={cn(saved && "animate-pop fill-current")} />
     </button>
@@ -583,7 +583,7 @@ export function ShareAction({ url, title, size = "md", label = false, loggedIn =
         aria-expanded={open}
         aria-label={tr(til, FEED.share)}
         title={tr(til, FEED.share)}
-        className={cn("press inline-flex items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg", size === "lg" ? "h-10 min-w-10" : "h-9 min-w-9", label ? "px-3" : "px-0", open && "bg-fg/6 text-fg")}
+        className={cn("press inline-flex items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg", size === "lg" ? "h-10 min-w-10" : "h-9 min-w-9 max-sm:h-10 max-sm:min-w-10", label ? "px-3" : "px-0", open && "bg-fg/6 text-fg")}
       >
         <Share2 size={18} /> {label && <span className="hidden sm:inline">{tr(til, FEED.share)}</span>}
       </button>

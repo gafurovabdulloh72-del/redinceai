@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   title: "Qidiruv — videolar, ishlar, postlar, ijodkorlar",
   description: "Ommaviy qidiruv: ish nomi, post matni yoki ijodkor ismi bo'yicha. Barcha ochiq kontent bir joyda.",
   alternates: { canonical: "/qidiruv" },
+  other: { "m-title": "Qidiruv" },
 };
 
 function href(q: string, type: ExploreType) {
@@ -81,10 +82,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <h2 id="people-h" className="font-display text-[20px] font-semibold text-fg">
             {tr(til, QIDIRUV.people)} <span className="text-[14px] font-semibold text-fg-3">{QIDIRUV.countShort[til](r.people.length)}</span>
           </h2>
-          <ul className="stagger mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
+          <ul className="stagger mt-3 grid grid-cols-1 gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
             {r.people.map((p) => (
               <li key={p.slug}>
-                <Link href={`/mutaxassislar/${p.slug}`} data-result className="card hover-lift press flex items-center gap-3 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <Link href={`/mutaxassislar/${p.slug}`} data-result className="card hover-lift press m-plain flex items-center gap-3 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent max-sm:px-4">
                   <Avatar name={p.name} src={p.avatarUrl} size={48} decorative />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1 truncate text-[14px] font-semibold text-fg">
@@ -114,12 +115,12 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               tr(til, QIDIRUV.fresh)
             )}
           </h2>
-          <ul className="stagger mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
+          <ul className="stagger mt-3 grid grid-cols-2 gap-3 max-sm:m-bleed max-sm:mt-2 max-sm:grid-cols-3 max-sm:gap-0.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
             {r.media.map((m) => (
               <li key={`${m.kind}-${m.id}`} className="min-w-0">
                 <Link href={m.href} data-result className={cn(resultTile, "hover-lift")}>
                   <MediaTile til={til} d={{ thumbUrl: m.thumbUrl, videoUrl: m.videoUrl, isVideo: m.isVideo, textOnly: m.textOnly, count: m.count, caption: m.caption, likes: m.kind === "post" ? m.likes : undefined, comments: m.kind === "post" ? m.comments : undefined }} />
-                  <span className="mt-2 block px-0.5">
+                  <span className="mt-2 block px-0.5 max-sm:hidden">
                     {m.caption && !m.textOnly && (
                       <span className="line-clamp-2 text-[13px] leading-snug text-fg">
                         <Highlight text={m.caption} q={q} />
@@ -148,10 +149,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <h2 id={`sec-${s.key}`} className="font-display text-[18px] font-semibold text-fg">
             {PALET.sections[s.key] ? tr(til, PALET.sections[s.key]) : s.label}
           </h2>
-          <ul className="stagger mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={tr(til, QIDIRUV.resultsAria)}>
+          <ul className="stagger mt-3 grid grid-cols-1 gap-2 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2" aria-label={tr(til, QIDIRUV.resultsAria)}>
             {s.items.map((it) => (
               <li key={it.href}>
-                <Link href={it.href} data-result className="card hover-lift press icon-nudge flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <Link href={it.href} data-result className="card hover-lift press icon-nudge m-plain flex items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-semibold text-fg">
                       <Highlight text={it.title} q={q} />

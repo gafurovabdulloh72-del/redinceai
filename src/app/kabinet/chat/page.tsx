@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/server";
 import { DmChat } from "@/components/chat/DmChat";
 
-export const metadata: Metadata = { title: "Chat" };
+export const metadata: Metadata = { title: "Chat", other: { "m-title": "Xabarlar" } };
 
 const TITLE = { uz: "Xabarlar", ru: "Сообщения" } as const;
 

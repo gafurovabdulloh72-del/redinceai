@@ -105,7 +105,7 @@ export function ExploreForm({ q, type, popular }: { q: string; type: string; pop
 
   return (
     <div>
-      <form action="/qidiruv" method="get" role="search" onSubmit={onSubmit} className="card mt-6 flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+      <form action="/qidiruv" method="get" role="search" onSubmit={onSubmit} className="card m-flat mt-6 flex flex-col gap-3 p-3 max-sm:mt-3 max-sm:!border-0 sm:flex-row sm:items-center">
         {type !== "all" && <input type="hidden" name="type" value={type} />}
         <label className="relative min-w-0 flex-1">
           <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />

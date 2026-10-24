@@ -1774,6 +1774,11 @@ select:focus-visible {
     min-height: 2.75rem;
     min-width: 2.75rem;
   }
+  /* Kabinet va admin: sahifa nomi yuqori panelda turadi — ichkarida takrorlanmaydi */
+  [data-kabinet] h1.display-xl,
+  [data-kabinet] .eyebrow {
+    display: none;
+  }
 }
 
 /* Telefon qobig'i: suhbat ochiq (to'liq ekran) bo'lganda yuqori panel va pastki tab yashiriladi (DmChat belgilaydi) */

@@ -124,6 +124,7 @@ export async function generateMetadata({ params, searchParams }: { params: Param
   // OG rasm — shu segmentdagi opengraph-image.tsx (ism, kasb, hudud, reyting; mehmon ma'lumoti)
   return {
     title,
+    other: { "m-title": sp.user.name },
     description,
     alternates: { canonical: `/mutaxassislar/${sp.slug}` },
     openGraph: { title: `${title} · ${SITE.name}`, description, type: "profile", url: `/mutaxassislar/${sp.slug}` },
@@ -488,7 +489,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       )}
 
       {/* ================= HERO ================= */}
-      <section className="card animate-fade-up overflow-hidden !rounded-[var(--r-lg)]">
+      <section className="card animate-fade-up m-flat overflow-hidden !rounded-[var(--r-lg)] max-sm:!rounded-none">
         {/* Balandlik 4:1 nisbatdan — kesish oynasida (ImageCropper) moslangan muqova qayta kesilmasin */}
         <div className={cn("relative overflow-hidden bg-surface-2", hasCover ? "h-36 sm:h-auto sm:max-h-[260px] sm:aspect-[4/1]" : "h-20 sm:h-24")}>
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
