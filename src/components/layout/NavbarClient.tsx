@@ -10,6 +10,7 @@ import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsBell } from "./NotificationsBell";
 import { parentPath } from "./nav-utils";
+import { useMobileTitle } from "./useMobileTitle";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Tr } from "@/lib/i18n";
@@ -42,6 +43,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
   const til = useLocale();
   const pathname = usePathname();
   const router = useRouter();
+  const pageTitle = useMobileTitle();
   const [createOpen, setCreateOpen] = useState(false);
   // Ilova ichidagi navigatsiyalar soni: faqat pathname HAQIQATAN o'zgarganda ortadi (StrictMode'da effekt ikki marta
   // ishlaganda ham 0 qoladi) — «Orqaga» router.back() yoki ota yo'lni tanlashi uchun
@@ -93,16 +95,20 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
       {/* ---------- Yuqori panel (telefon): yassi, 56px ---------- */}
       <header className="m-topbar glass fixed inset-x-0 top-0 z-50 border-b border-line md:hidden" style={{ paddingTop: "env(safe-area-inset-top)" }} data-print-hide>
         <nav className="flex h-14 items-center justify-between gap-2 px-2" aria-label={tr(til, SHELL.nav.mainAria)}>
-          <div className="flex min-w-0 items-center gap-0.5">
+          <div className="flex min-w-0 flex-1 items-center gap-0.5">
             {showBack && (
-              <button type="button" onClick={goBack} aria-label={tr(til, SHELL.common.back)} className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg transition hover:bg-fg/6">
+              <button type="button" onClick={goBack} aria-label={tr(til, SHELL.common.back)} className="press -ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg transition hover:bg-fg/6">
                 <ChevronLeft size={26} />
               </button>
             )}
-            {/* So'z belgisi faqat kirgan foydalanuvchida (joy bor) — mehmonda til/tema/«Boshlash» bilan sig'maydi, faqat belgi */}
-            <Logo className={cn("pl-1", (showBack || !user) && "[&>span:last-child]:hidden")} />
+            {/* Ichki sahifada panel sahifa nomini ko'rsatadi (ilova hissi) — logo faqat tab ildizlarida */}
+            {pageTitle ? (
+              <span className="min-w-0 truncate pl-0.5 text-[17px] font-bold leading-tight text-fg">{pageTitle}</span>
+            ) : (
+              <Logo className={cn("pl-1", (showBack || !user) && "[&>span:last-child]:hidden")} />
+            )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             {user ? (
               <NotificationsBell initialUnread={unread} />
             ) : (

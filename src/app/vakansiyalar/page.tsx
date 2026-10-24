@@ -217,7 +217,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
                 <VacancyAlertButton query={alertQuery} defaultName={alertName(f)} loggedIn={Boolean(user)} />
               </div>
             </div>
-            <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="stagger grid gap-4 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((v) => (
                 <li key={v.id} className="min-w-0">
                   <VacancyCard v={v} />

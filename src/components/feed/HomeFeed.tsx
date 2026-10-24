@@ -274,7 +274,7 @@ export function HomeFeed({
           </button>
         </div>
       )}
-      <div className="stagger grid gap-4">
+      <div className="stagger grid gap-4 max-sm:gap-0">
         {items.map((p) => (
           <PostCard
             key={p.id}

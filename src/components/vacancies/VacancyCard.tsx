@@ -16,7 +16,7 @@ export function VacancyCard({ v, className, headingLevel = "h2", href }: { v: Va
   const remote = v.format === "remote";
   const isNew = Date.now() - v.createdAt < NEW_HOURS * 3_600_000;
   return (
-    <article className={cn("card card-hover card-link group relative flex h-full min-w-0 flex-col p-4 sm:p-5", className)}>
+    <article className={cn("card card-hover card-link m-plain group relative flex h-full min-w-0 flex-col p-4 max-sm:px-4 max-sm:py-3.5 sm:p-5", className)}>
       <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
         {isNew && <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-white">Yangi</span>}
         <span className={cn("inline-flex items-center rounded-full px-2.5 py-1", remote ? "bg-info-soft text-info-text" : "border border-line text-fg-2")}>

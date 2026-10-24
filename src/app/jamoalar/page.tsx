@@ -215,7 +215,7 @@ function GroupSection({ icon: Icon, title, hint, items }: { icon: typeof Radio; 
         </h2>
         <p className="text-[13px] text-fg-3">{hint}</p>
       </div>
-      <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="stagger grid gap-4 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 lg:grid-cols-3">
         {items.map((g) => (
           <li key={g.id} className="min-w-0">
             <GroupCard g={g} />
@@ -230,7 +230,7 @@ function GroupSection({ icon: Icon, title, hint, items }: { icon: typeof Radio; 
 function OfficialBanner({ g, next }: { g: GroupListItem; next: PostView | null }) {
   const live = next?.eventAt ? Date.now() >= next.eventAt && Date.now() < next.eventAt + 2 * 60 * 60 * 1000 : false;
   return (
-    <article className="card relative overflow-hidden">
+    <article className="card m-plain relative overflow-hidden">
       <div className="grid grid-cols-[88px_minmax(0,1fr)] sm:grid-cols-[minmax(0,280px)_1fr]">
         <Link href={`/jamoalar/${g.slug}`} className="relative overflow-hidden bg-surface-3 sm:min-h-[150px]" aria-label={g.name}>
           {g.coverUrl ? <CoverImage src={g.coverUrl} category={g.category ?? undefined} seed={g.slug} priority /> : <OfficialCover name={g.name} compact />}

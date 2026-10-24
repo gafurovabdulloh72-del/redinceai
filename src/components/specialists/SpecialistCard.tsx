@@ -43,11 +43,16 @@ export async function SpecialistCard({
   const isNew = isRecent(sp.createdAt, 7);
 
   return (
-    <article className="card card-hover card-link group img-zoom flex h-full flex-col overflow-hidden">
+    /* Telefonda (max-sm) — ro'yxat qatori: avatar + ism/kasb/narx, muqovasiz va ramkasiz (`m-plain`).
+       sm+ da — eski karta: muqova ustida, matn ostida. */
+    <article className="card card-hover card-link group img-zoom m-plain flex h-full flex-col overflow-hidden max-sm:flex-row max-sm:items-center max-sm:gap-3 max-sm:px-4 max-sm:py-2.5">
       <Link href={`/mutaxassislar/${sp.slug}`} aria-label={`${sp.user.name} — ${sp.title}`} className="absolute inset-0 z-0 rounded-[inherit]" />
-      <div className="pointer-events-none relative flex flex-1 flex-col">
+      <span className="pointer-events-none relative shrink-0 sm:hidden">
+        <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={54} decorative />
+      </span>
+      <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col">
         {/* Barcha kartalar bir xil balandlikda: rasm bo'lmasa tekis yuza + yo'nalish ikonkasi (katalog to'ri tekis turadi) */}
-        <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
+        <div className="relative aspect-[16/10] overflow-hidden bg-surface-2 max-sm:hidden">
           {sp.coverUrl ? (
             <SafeImage src={sp.coverUrl} alt="" priority={priority} className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
           ) : (
@@ -56,12 +61,14 @@ export async function SpecialistCard({
           {!sp.isAvailable && <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center rounded-md bg-surface px-2 text-[11px] font-semibold text-fg-2">{tr(til, KARTA.busy)}</span>}
         </div>
 
-        <div className="flex flex-1 flex-col p-3 sm:p-4">
+        <div className="flex flex-1 flex-col p-3 sm:p-4 max-sm:p-0">
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:gap-3">
-            <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={36} decorative />
-            <div className="min-w-0 w-full flex-1 sm:pr-8">
+            <span className="max-sm:hidden">
+              <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={36} decorative />
+            </span>
+            <div className="min-w-0 w-full flex-1 max-sm:pr-9 sm:pr-8">
               {/* h2: ro'yxat sahifasida h1'dan keyin karta nomi ikkinchi daraja */}
-              <h2 className="line-clamp-1 font-display text-[14px] sm:text-[15px] font-semibold leading-tight text-fg">
+              <h2 className="line-clamp-1 font-display text-[14px] font-semibold leading-tight text-fg max-sm:text-[15px] sm:text-[15px]">
                 {sp.user.name}
                 {sp.isVerified && <VerifiedBadge size={14} className="ml-1 inline-block align-[-2px]" />}
                 {sp.topRated && (
@@ -80,9 +87,9 @@ export async function SpecialistCard({
             </div>
           </div>
 
-          <p className="mb-3 mt-2.5 line-clamp-2 min-h-[2.6em] text-[13px] leading-snug text-fg-2 sm:mt-3 sm:text-[14px]">{sp.title}</p>
+          <p className="mb-3 mt-2.5 line-clamp-2 min-h-[2.6em] text-[13px] leading-snug text-fg-2 max-sm:mb-0 max-sm:mt-0.5 max-sm:line-clamp-1 max-sm:min-h-0 max-sm:text-[13px] sm:mt-3 sm:text-[14px]">{sp.title}</p>
 
-          <div className="mt-auto flex flex-col items-start gap-1 border-t border-line pt-2.5 sm:mt-auto sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
+          <div className="mt-auto flex flex-col items-start gap-1 border-t border-line pt-2.5 max-sm:mt-1 max-sm:flex-row max-sm:items-center max-sm:gap-2.5 max-sm:border-0 max-sm:pt-0 sm:mt-auto sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
             <p className="min-w-0 flex-1 truncate whitespace-nowrap font-display text-[13px] font-semibold text-fg sm:text-[14px]" title={priceRangeLabel(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}>
               {priceLine(til, sp.priceFrom, sp.priceTo, sp.priceCurrency === "USD" ? { from: sp.priceUsdFrom ?? 0, to: sp.priceUsdTo } : null)}
             </p>
@@ -98,8 +105,8 @@ export async function SpecialistCard({
           </div>
         </div>
       </div>
-      <FavoriteButton specialistId={sp.id} variant="overlay" className="absolute right-2 top-2 z-10" />
-      {showCompare && <CompareButton item={{ id: sp.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl }} variant="overlay" className="absolute right-2 top-12 z-10" />}
+      <FavoriteButton specialistId={sp.id} variant="overlay" className="absolute right-2 top-2 z-10 max-sm:right-3 max-sm:top-1/2 max-sm:-translate-y-1/2" />
+      {showCompare && <CompareButton item={{ id: sp.id, name: sp.user.name, avatarUrl: sp.user.avatarUrl }} variant="overlay" className="absolute right-2 top-12 z-10 max-sm:hidden" />}
     </article>
   );
 }

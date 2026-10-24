@@ -13,7 +13,7 @@ import { getLessonForViewer, type LessonView } from "@/lib/mentorship/service";
 import { formatDuration } from "@/lib/mentorship/format";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Dars", robots: { index: false, follow: false } };
 
 /**
  * Dars sahifasi (2026-10-24 qayta tuzildi).

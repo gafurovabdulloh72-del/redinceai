@@ -315,7 +315,8 @@ export function PageHeader({
 }) {
   return (
     <header className={cn("flex flex-col", className)}>
-      <HeadingBlock as="h1" titleClass="display-xl" eyebrow={eyebrow} title={title} description={description} action={action} descClass="text-[14.5px] sm:text-[15px]" />
+      {/* Telefonda sarlavha va tavsif yashirin: yuqori panel sahifa nomini ko'rsatadi (ilova hissi), ekran matnga ketmaydi */}
+      <HeadingBlock as="h1" titleClass="display-xl max-sm:hidden" eyebrow={eyebrow} title={title} description={description} action={action} descClass="text-[14.5px] max-sm:hidden sm:text-[15px]" />
     </header>
   );
 }

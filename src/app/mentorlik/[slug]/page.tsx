@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const user = await getCurrentUser();
   const c = await getCourseBySlug(slug, user?.id ?? null, user?.role === "admin");
   if (!c) return { title: "Kurs topilmadi" };
-  return { title: `${c.title} — Mentorlik`, description: c.summary || `${c.mentor.name} kursi`, alternates: { canonical: `/mentorlik/${slug}` } };
+  return { title: `${c.title} — Mentorlik`, description: c.summary || `${c.mentor.name} kursi`, alternates: { canonical: `/mentorlik/${slug}` }, other: { "m-title": c.title } };
 }
 
 export default async function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -37,7 +37,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   return (
     <div className="container-x py-6 sm:py-8">
       <RefCapture />
-      <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
+      <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-fg-3 transition hover:text-fg max-sm:hidden">
         <ChevronLeft size={15} /> Mentorlik
       </Link>
 
@@ -79,7 +79,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
           {/* Darslar */}
           <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Dastur · {c.lessonsCount} dars</h2>
-          <ul className="card divide-y divide-line overflow-hidden">
+          <ul className="card divide-y divide-line overflow-hidden max-sm:m-flat">
             {c.lessons.map((l) => {
               const open = !l.locked;
               const inner = (
@@ -97,7 +97,20 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                   {open ? <PlayCircle size={18} className="shrink-0 text-fg-3" /> : <Lock size={15} className="shrink-0 text-fg-4" />}
                 </div>
               );
-              return <li key={l.id}>{open ? <Link href={`/mentorlik/dars/${l.id}`} className="block transition hover:bg-fg/4">{inner}</Link> : <div>{inner}</div>}</li>;
+              return (
+                <li key={l.id}>
+                  {open ? (
+                    <Link href={`/mentorlik/dars/${l.id}`} className="block transition hover:bg-fg/4">
+                      {inner}
+                    </Link>
+                  ) : (
+                    /* Qulflangan dars — «o'lik» qator emas: bosilganda narx/yozilish blokiga olib boradi */
+                    <a href="#kursga-yozilish" className="block transition hover:bg-fg/4" aria-label={`${l.title} — kursga yozilgach ochiladi`}>
+                      {inner}
+                    </a>
+                  )}
+                </li>
+              );
             })}
             {c.lessons.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-fg-3">Darslar tez orada qo&apos;shiladi.</li>}
           </ul>
@@ -128,8 +141,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         </div>
 
         {/* Yon panel: narx + yozilish */}
-        <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-          <div className="card-elevated p-5">
+        <aside id="kursga-yozilish" className="min-w-0 max-sm:order-first lg:sticky lg:top-24 lg:self-start">
+          <div className="card-elevated p-5 max-sm:m-flat max-sm:px-0 max-sm:pb-4 max-sm:pt-0">
             <p className="text-[26px] font-bold leading-none text-fg">{formatSom(c.priceFrom)}</p>
             {c.enrolled && c.progressPct > 0 && (
               <div className="mt-3">
@@ -151,7 +164,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                 <EnrollButton courseId={c.id} enrolled={c.enrolled} loggedIn={Boolean(user)} firstLessonId={c.enrolled ? resumeLesson : firstLesson} price={c.priceFrom} />
               )}
             </div>
-            <ul className="mt-4 space-y-2 text-[13px] text-fg-2">
+            <ul className="mt-4 space-y-2 text-[13px] text-fg-2 max-sm:hidden">
               <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> {c.lessonsCount} ta video/matn dars</li>
               <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> O&apos;z sur&apos;atingizda, cheksiz kirish</li>
               <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> Progress kuzatuvi va tugatganingizda sertifikat</li>

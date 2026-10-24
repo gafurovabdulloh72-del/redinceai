@@ -37,8 +37,8 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
 export function CourseCard({ c }: { c: CourseCardItem }) {
   const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
   return (
-    <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full flex-col overflow-hidden">
-      <div className="relative aspect-[16/9] overflow-hidden">
+    <Link href={`/mentorlik/${c.slug}`} className="card card-hover m-plain group flex h-full flex-col overflow-hidden max-sm:flex-row max-sm:items-center max-sm:gap-3 max-sm:px-4 max-sm:py-3">
+      <div className="relative aspect-[16/9] overflow-hidden max-sm:aspect-square max-sm:w-[76px] max-sm:shrink-0 max-sm:self-start max-sm:overflow-hidden max-sm:rounded-[12px]">
         {c.coverUrl ? (
           <SafeImage src={c.coverUrl} alt={c.title} width={480} height={270} className="img-zoom h-full w-full object-cover" />
         ) : (
@@ -46,17 +46,17 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
             <Icon size={26} />
           </span>
         )}
-        <span className="absolute left-2 top-2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white">{levelLabel(c.level)}</span>
+        <span className="absolute left-2 top-2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white max-sm:hidden">{levelLabel(c.level)}</span>
       </div>
-      <div className="flex flex-1 flex-col p-3.5">
+      <div className="flex min-w-0 flex-1 flex-col p-3.5 max-sm:p-0">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">{categoryLabel(c.category)}</span>
-        <h3 className="mt-1 line-clamp-2 min-h-[2.6em] text-[15px] font-bold leading-snug text-fg">{c.title}</h3>
-        {c.summary && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-fg-3">{c.summary}</p>}
-        <div className="mt-3 flex items-center gap-2">
+        <h3 className="mt-1 line-clamp-2 min-h-[2.6em] text-[15px] font-bold leading-snug text-fg max-sm:mt-0.5 max-sm:min-h-0">{c.title}</h3>
+        {c.summary && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-fg-3 max-sm:hidden">{c.summary}</p>}
+        <div className="mt-3 flex items-center gap-2 max-sm:mt-1">
           <Avatar name={c.mentor.name} src={c.mentor.avatarUrl} size={22} decorative />
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg-2">{c.mentor.name}</span>
         </div>
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-2.5 text-[12px] text-fg-4">
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-2.5 text-[12px] text-fg-4 max-sm:mt-1 max-sm:border-0 max-sm:pt-0">
           <span className="flex items-center gap-2.5">
             <span className="inline-flex items-center gap-1">
               <GraduationCap size={12} /> {c.lessonsCount}

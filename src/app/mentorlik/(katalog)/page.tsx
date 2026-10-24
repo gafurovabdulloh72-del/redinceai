@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: "Mentorlik — ustozlardan o'rganing",
   description: "Tajribali videograf, montajchi va dizaynerlardan onlayn kurslar. Haqiqiy ustozlar dars beradi.",
   alternates: { canonical: "/mentorlik" },
+  other: { "m-title": "Mentorlik" },
 };
 
 /**
@@ -45,7 +46,8 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
     <div className="container-x py-4 sm:py-6">
       {/* Sarlavha: bitta qator — nom + qidiruv + bitta amal (v6: faqat bitta accent yo'q, ink tugma) */}
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
+        {/* Telefonda yuqori panel sahifa nomini ko'rsatadi — bu yerda takrorlanmaydi */}
+        <div className="min-w-0 max-sm:hidden">
           <h1 className="display-xl text-fg">Mentorlik</h1>
           <p className="mt-1 text-[14px] text-fg-3">Tajribali ustozlardan amaliy bilim — bo&apos;limlar, jonli efirlar va 1:1 darslar.</p>
         </div>
@@ -135,7 +137,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
             <p className="text-[13px] text-fg-3">{browsing ? "Filtrlarni tozalab ko'ring." : "Birinchi bo'lib bo'lim oching — «Ustoz bo'lish»."}</p>
           </div>
         ) : (
-          <ul className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="mt-3 grid grid-cols-2 gap-3 max-sm:mt-2 max-sm:grid-cols-1 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {courses.map((c) => (
               <li key={c.id}>
                 <CourseCard c={c} />

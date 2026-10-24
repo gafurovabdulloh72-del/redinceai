@@ -159,7 +159,7 @@ export function GroupFeed({
   }
 
   return (
-    <div className="stagger grid gap-4">
+    <div className="stagger grid gap-4 max-sm:gap-0">
       {canPost ? (
         <Composer base={base} onPosted={onPosted} allowEvent={canSchedule} allowSubOnly={allowSubOnly} kind={kind} placeholder={composerPlaceholder} />
       ) : canInteract && kind === "channel" ? (
@@ -446,7 +446,7 @@ export function Composer({
 
   return (
     <div
-      className={cn("card p-3 transition-colors sm:p-4", dragging && "border-fg")}
+      className={cn("card m-flat p-3 transition-colors sm:p-4", dragging && "border-fg")}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -888,7 +888,7 @@ export function PostCard({
       id={`post-${post.id}`}
       data-post-id={post.id}
       tabIndex={-1}
-      className={cn("card card-hover p-4 outline-none focus-visible:border-fg sm:p-5", highlighted && "ring-2 ring-accent/40")}
+      className={cn("card card-hover m-flat p-4 outline-none focus-visible:border-fg sm:p-5", highlighted && "ring-2 ring-accent/40")}
     >
       <header className="flex items-start gap-2.5">
         <Avatar name={post.author.name} src={post.author.avatarUrl} size={44} decorative />
