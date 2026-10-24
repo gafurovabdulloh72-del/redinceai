@@ -5,6 +5,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { Logo } from "./Logo";
+import { FooterLandings } from "./FooterLandings";
 
 const LINKS: Array<{ href: string; label: Tr }> = [
   { href: "/xarita", label: SHELL.footer.map },
@@ -49,6 +50,9 @@ export async function Footer() {
           ))}
         </div>
       </div>
+      {/* SEO: yo'nalish sahifalariga ichki havolalar — ular aks holda «yetim» qolardi (faqat sitemap'da) */}
+      <FooterLandings til={til} />
+
       <div className="mt-4 flex flex-col gap-1 text-[12px] text-fg-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="flex flex-wrap items-center gap-x-4">
           <span className="inline-flex min-h-9 items-center">

@@ -158,7 +158,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <main id="asosiy" tabIndex={-1} className="pt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] pb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] outline-none md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
                   {children}
                 </main>
-                <FooterGate>
+                <FooterGate guest={!currentUser}>
                   <Footer />
                 </FooterGate>
               </div>
