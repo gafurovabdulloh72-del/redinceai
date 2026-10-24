@@ -75,6 +75,15 @@ export const metadata: Metadata = {
     images: ["/opengraph-image"],
   },
   icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  /*
+   * Qidiruv tizimlariga egalikni tasdiqlash (Google Search Console / Yandex Webmaster).
+   * Domen DNS'iga kira olmaganda (masalan *.vercel.app) yagona qulay usul — meta teg.
+   * Env'siz hech narsa chizilmaydi: `GOOGLE_SITE_VERIFICATION` / `YANDEX_VERIFICATION`.
+   */
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.YANDEX_VERIFICATION ? { yandex: process.env.YANDEX_VERIFICATION } : {}),
+  },
 };
 
 /** Organization + WebSite (SearchAction) strukturaviy ma'lumoti — qidiruv tizimlari uchun ("<" ekranlanadi) */

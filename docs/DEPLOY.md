@@ -275,3 +275,41 @@ Endi `scripts/db-prepare.mjs` sxemani `scripts/db-sync.ts` orqali sinxronlaydi:
 - `ADMIN_PASSWORD` (kamida 10 belgi) berilsa admin paroli har deployda shunga o'rnatiladi — parol yo'qolsa env'ni
   o'zgartirib qayta deploy qilish kifoya;
 - `ADMIN_PASSWORD` bo'lmasa build endi to'xtamaydi (admin tasodifiy parol bilan yaratiladi, logda ogohlantirish).
+
+## 12. Qidiruv tizimlarida ko'rinish (SEO indekslash)
+
+Sayt Google/Yandex'da chiqishi uchun kodda hammasi tayyor (`robots.ts`, `sitemap.ts`,
+har sahifada `title`/`description`/`canonical`, JSON-LD). Qolgani — bir martalik sozlash.
+
+**0. Avval shuni tekshiring (eng ko'p uchraydigan xato).**
+Vercel → Project → Settings → Environment Variables da `NEXT_PUBLIC_SITE_URL`
+PRODUCTION uchun to'g'ri qo'yilganmi (`https://kasbegalari.vercel.app` yoki o'z domeningiz).
+Qo'yilmagan bo'lsa — `sitemap.xml`, `robots.txt` va barcha `canonical` havolalar
+`http://localhost:3000` ga ishora qiladi va Google hech narsani indekslamaydi.
+Tekshirish: `https://<domen>/robots.txt` va `/sitemap.xml` ni brauzerda oching —
+ichidagi manzillar to'g'ri domen bilan boshlanishi kerak.
+
+**1. O'z domeni (eng katta ta'sir).** `*.vercel.app` — Vercel'ning umumiy domeni;
+Google unga kam ishonadi va ko'pincha umuman indekslamaydi. `kasbegalari.uz` kabi
+o'z domeningizni oling → Vercel → Settings → Domains → qo'shing →
+`NEXT_PUBLIC_SITE_URL` ni yangilang → qayta deploy.
+
+**2. Google Search Console** (https://search.google.com/search-console):
+«Add property» → URL prefix → domeningiz → tasdiqlash usuli «HTML tag» →
+`content="..."` qiymatini oling → Vercel env'ga `GOOGLE_SITE_VERIFICATION` deb qo'ying →
+qayta deploy → «Verify». So'ng: Sitemaps → `sitemap.xml` yuboring;
+URL Inspection → bosh sahifa → «Request indexing».
+
+**3. Yandex Webmaster** (https://webmaster.yandex.com) — O'zbekistonda Yandex ulushi katta.
+Xuddi shunday: meta teg qiymatini `YANDEX_VERIFICATION` env'iga qo'ying, sitemap'ni yuboring.
+
+**4. Tashqi havolalar.** Google yangi saytni faqat sitemap bilan tez indekslamaydi.
+Telegram kanal/guruh, Instagram bio, YouTube tavsifi, mahalliy kataloglar (olx, uz
+biznes kataloglari) — har bir havola indekslashni tezlashtiradi.
+
+**5. Kutish.** Yangi domen uchun odatda 3 kundan 4 haftagacha. Holatni Search Console →
+«Pages» bo'limida kuzating: «Discovered – currently not indexed» — kutilmoqda,
+«Crawled – currently not indexed» — kontent yetarli emas (ko'proq profil/post kerak).
+
+Env (ikkalasi ham ixtiyoriy, bo'lmasa meta teg chizilmaydi):
+`GOOGLE_SITE_VERIFICATION`, `YANDEX_VERIFICATION`.
