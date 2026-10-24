@@ -197,6 +197,10 @@ export interface LessonView {
   submission: { status: string; grade: number | null; feedback: string; body: string; fileUrl: string | null } | null;
   /** Kurs 100% tugatilgan bo'lsa sertifikat kodi */
   certificateCode: string | null;
+  /** Kursning barcha darslari — yon ro'yxat uchun (qulflangani `locked`) */
+  siblings: Array<{ id: string; title: string; position: number; durationMin: number; completed: boolean; locked: boolean }>;
+  /** Kurs bo'yicha progress (0–100) */
+  progressPct: number;
 }
 
 /** Bitta dars — ko'ruvchiga ruxsat bo'lsa (yozilgan / egasi / admin / bepul namuna) */
@@ -211,7 +215,7 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
   const access = enrolled || isOwner || isAdmin || l.isPreview;
   if (!access) throw new ApiError(403, "Bu darsni ko'rish uchun kursga yoziling");
 
-  const siblings = await db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)], columns: { id: true, title: true, position: true } });
+  const siblings = await db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)], columns: { id: true, title: true, position: true, durationMin: true, isPreview: true } });
   const idx = siblings.findIndex((s) => s.id === l.id);
   const completed = viewerId ? Boolean(await db.query.lessonCompletions.findFirst({ where: and(eq(lessonCompletions.userId, viewerId), eq(lessonCompletions.lessonId, l.id)) })) : false;
 
@@ -236,7 +240,34 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
     assignment: enrolled || isOwner || isAdmin ? l.assignment : "",
     submission: viewerId && l.assignment ? await mySubmission(viewerId, l.id).then((x) => (x ? { status: x.status, grade: x.grade, feedback: x.feedback, body: x.body, fileUrl: x.fileUrl } : null)) : null,
     certificateCode: viewerId ? await myCertificateCode(viewerId, c.id) : null,
+    ...(await siblingsWithProgress(c.id, siblings, viewerId, enrolled || isOwner || isAdmin)),
   };
+}
+
+/**
+ * Yon ro'yxat uchun: kursning barcha darslari + har birining «bajarildi» holati va umumiy progress.
+ * Yozilmagan ko'ruvchiga faqat bepul namunalar ochiq (`locked`), qolgani qulf bilan ko'rinadi —
+ * kurs tarkibi ko'rinsin, lekin ochilmasin.
+ */
+async function siblingsWithProgress(
+  courseId: string,
+  rows: Array<{ id: string; title: string; position: number; durationMin: number; isPreview: boolean }>,
+  viewerId: string | null,
+  hasAccess: boolean,
+): Promise<{ siblings: LessonView["siblings"]; progressPct: number }> {
+  const done = viewerId
+    ? new Set(
+        (
+          await db.query.lessonCompletions.findMany({
+            where: and(eq(lessonCompletions.userId, viewerId), inArray(lessonCompletions.lessonId, rows.map((r) => r.id))),
+            columns: { lessonId: true },
+          })
+        ).map((x) => x.lessonId),
+      )
+    : new Set<string>();
+  void courseId;
+  const siblings = rows.map((r) => ({ id: r.id, title: r.title, position: r.position, durationMin: r.durationMin, completed: done.has(r.id), locked: !hasAccess && !r.isPreview }));
+  return { siblings, progressPct: rows.length ? Math.round((done.size / rows.length) * 100) : 0 };
 }
 
 /* --------------------------- Mentor amallari --------------------------- */

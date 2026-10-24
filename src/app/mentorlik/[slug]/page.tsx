@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, GraduationCap, Lock, PlayCircle, Star, Users } from "lucide-react";
+import { CheckCircle2, ChevronLeft, GraduationCap, Lock, PlayCircle, Star, Users } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
@@ -37,8 +37,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   return (
     <div className="container-x py-6 sm:py-8">
       <RefCapture />
-      <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
-        ← Mentorlik
+      <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
+        <ChevronLeft size={15} /> Mentorlik
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -144,7 +144,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             )}
             <div className="mt-4">
               {c.isOwner ? (
-                <Link href="/kabinet/mentorlik" className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold">
+                <Link href="/kabinet/mentorlik" className="btn-ink inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold">
                   Kursni tahrirlash
                 </Link>
               ) : (

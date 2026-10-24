@@ -50,7 +50,7 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
     await load();
   }
 
-  if (!items) return <div className="mt-6 grid h-16 place-items-center"><Loader2 className="animate-spin text-fg-3" /></div>;
+  if (!items) return <div className="grid h-16 place-items-center"><Loader2 className="animate-spin text-fg-3" /></div>;
   const top = items.filter((c) => !c.parentId).sort((a, b) => Number(b.helpful) - Number(a.helpful) || b.createdAt - a.createdAt);
   const replies = (id: string) => items.filter((c) => c.parentId === id);
 
@@ -75,8 +75,8 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
   );
 
   return (
-    <section className="mt-8 border-t border-line pt-5">
-      <h2 className="text-[16px] font-bold text-fg">Savol va javoblar <span className="text-fg-4">· {top.length}</span></h2>
+    <section>
+      <h2 className="sr-only">Savol va javoblar</h2>
       <form onSubmit={(e) => { e.preventDefault(); if (text.trim().length >= 2) void send(text.trim(), null); }} className="mt-3 flex gap-2">
         <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200} placeholder="Savolingizni yozing…" aria-label="Savol" className="field h-11 min-w-0 flex-1 text-[14px]" />
         <button type="submit" disabled={busy || text.trim().length < 2} className="btn-accent h-11 px-5 text-[14px] font-semibold disabled:opacity-50">Yuborish</button>

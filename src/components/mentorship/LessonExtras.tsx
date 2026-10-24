@@ -19,8 +19,7 @@ const kb = (n?: number) => (n ? (n > 1_048_576 ? `${(n / 1_048_576).toFixed(1)} 
 export function Materials({ items }: { items: Array<{ name: string; url: string; size?: number }> }) {
   if (!items.length) return null;
   return (
-    <section className="mt-6">
-      <h2 className="mb-2 text-[15px] font-bold text-fg">Dars materiallari</h2>
+    <section>
       <ul className="divide-y divide-line rounded-[14px] border border-line">
         {items.map((m) => (
           <li key={m.url}>
@@ -61,7 +60,7 @@ export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: 
   }
 
   return (
-    <section className="mt-6 rounded-[16px] border border-line p-4 sm:p-5">
+    <section className="rounded-[16px] border border-line p-4 sm:p-5">
       <div className="flex items-center gap-2">
         <h2 className="text-[15px] font-bold text-fg">Dars testi</h2>
         <span className="text-[12px] text-fg-3">o&apos;tish: {quiz.passPct}%</span>
@@ -132,7 +131,7 @@ export function AssignmentBlock({ lessonId, prompt, submission, canSubmit }: { l
   }
 
   return (
-    <section className="mt-6 rounded-[16px] border border-line p-4 sm:p-5">
+    <section className="rounded-[16px] border border-line p-4 sm:p-5">
       <h2 className="text-[15px] font-bold text-fg">Uy vazifasi</h2>
       <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-fg-2">{prompt}</p>
       {submission && (

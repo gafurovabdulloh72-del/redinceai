@@ -96,11 +96,35 @@ function ImageSlot({ label, hint, value, onChange, aspect, outWidth, className }
   );
 }
 
+/* --------------------------------- Ko'rsatkichlar --------------------------------- */
+
+/** Mentor ko'rsatkichlari — kabinet «Umumiy» sahifasida ham, admin studiyasida ham bir xil */
+export function MentorStats({ mentor, courses }: { mentor: MentorProfile; courses: CourseRow[] }) {
+  const rows = [
+    { k: "Bo'limlar", v: courses.length },
+    { k: "Ochiq", v: courses.filter((c) => c.isPublished).length },
+    { k: "Talabalar", v: courses.reduce((a, c) => a + c.studentsCount, 0) },
+    { k: "Reyting", v: mentor.rating > 0 ? mentor.rating.toFixed(1) : "—" },
+  ];
+  return (
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {rows.map((x) => (
+        <div key={x.k} className="card p-3.5">
+          <dt className="text-[12px] font-medium text-fg-3">{x.k}</dt>
+          <dd className="mt-1 font-display text-[22px] font-semibold tabular-nums leading-none text-fg">{x.v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/* ------------------------------ Sahifa ma'lumotlari ------------------------------ */
+
 /**
- * Mentor studiyasi — bitta sahifa: sahifa ma'lumotlari (rasm, muqova, sarlavha, bio, ma'lumot kartalari) va bo'limlar (kurslar).
- * Mentorning o'zi (/kabinet/mentorlik) ham, admin ham (/admin/mentorlik/[id]) shu komponent bilan ishlaydi.
+ * Mentorning ommaviy sahifasi ma'lumotlari: portret, muqova, sarlavha, tavsif, yo'nalish, ma'lumot kartalari.
+ * Kabinetda alohida sahifada (`/kabinet/mentorlik/sahifa`), adminda studiya ichida ishlatiladi.
  */
-export function MentorStudio({ mentor, courses, admin = false }: { mentor: MentorProfile; courses: CourseRow[]; admin?: boolean }) {
+export function MentorPageForm({ mentor }: { mentor: MentorProfile }) {
   const router = useRouter();
   const [roleLabel, setRoleLabel] = useState(mentor.roleLabel ?? "");
   const [headline, setHeadline] = useState(mentor.headline);
@@ -110,12 +134,9 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
   const [coverUrl, setCoverUrl] = useState<string | null>(mentor.coverUrl);
   const [highlights, setHighlights] = useState(mentor.highlights);
   const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [adding, setAdding] = useState(false);
 
   const toggle = (k: string) => setExpertise((s) => (s.includes(k) ? s.filter((x) => x !== k) : s.length < MENTOR_LIMITS.expertiseMax ? [...s, k] : s));
   const setH = (i: number, patch: Partial<{ title: string; text: string }>) => setHighlights((l) => l.map((h, j) => (j === i ? { ...h, ...patch } : h)));
-  const pageHref = mentor.slug ? `/mentorlik/ustoz/${mentor.slug}` : null;
 
   async function save() {
     if (saving) return;
@@ -138,6 +159,72 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
     }
   }
 
+  return (
+    <section className="card space-y-4 p-4 sm:p-5">
+      <div className="grid items-start gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
+        <ImageSlot label="Portret rasm (4:5)" hint="Tik, yuz ko'rinadigan" value={photoUrl} onChange={setPhotoUrl} aspect={PORTRAIT_ASPECT} outWidth={1000} className="max-w-[220px]" />
+        <ImageSlot label="Muqova (3:1)" hint="Keng rasm" value={coverUrl} onChange={setCoverUrl} aspect={COVER_ASPECT} outWidth={1800} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[200px_minmax(0,1fr)]">
+        <label className="block">
+          <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Rol yorlig&apos;i</span>
+          <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} maxLength={MENTOR_LIMITS.roleMax} placeholder="Modul ustozi" className="field h-11 w-full text-[14px]" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Asosiy sarlavha</span>
+          <input value={headline} onChange={(e) => setHeadline(e.target.value)} maxLength={MENTOR_LIMITS.headlineMax} placeholder="Dunyodagi eng yirik frilans platformasida ishlash" className="field h-11 w-full text-[14px]" />
+        </label>
+      </div>
+      <label className="block">
+        <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Tavsif</span>
+        <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={MENTOR_LIMITS.bioMax} rows={5} placeholder="Ustoz haqida: tajriba, nima o'rgatadi, natijalar…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
+      </label>
+      <div>
+        <span className="mb-1.5 block text-[12.5px] font-semibold text-fg-2">Yo&apos;nalish</span>
+        <div className="flex flex-wrap gap-2">
+          {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => (
+            <button key={c.key} type="button" onClick={() => toggle(c.key)} aria-pressed={expertise.includes(c.key)} className={cn("inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-semibold transition", expertise.includes(c.key) ? "btn-ink border-transparent" : "border-line text-fg-2 hover:border-fg")}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-[12.5px] font-semibold text-fg-2">Ma&apos;lumot kartalari <span className="font-normal text-fg-4">(masalan: «Nima o&apos;rganasiz», raqamlar)</span></span>
+          {highlights.length < MENTOR_LIMITS.highlightsMax && (
+            <button type="button" onClick={() => setHighlights((l) => [...l, { title: "", text: "" }])} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-accent-text">
+              <Plus size={14} /> Qo&apos;shish
+            </button>
+          )}
+        </div>
+        <div className="space-y-2.5">
+          {highlights.map((h, i) => (
+            <div key={i} className="grid gap-2 rounded-[14px] bg-fg/[0.04] p-3 sm:grid-cols-[200px_minmax(0,1fr)_auto]">
+              <input value={h.title} onChange={(e) => setH(i, { title: e.target.value })} maxLength={MENTOR_LIMITS.highlightTitleMax} placeholder="Sarlavha" aria-label="Karta sarlavhasi" className="field h-10 text-[13.5px]" />
+              <input value={h.text} onChange={(e) => setH(i, { text: e.target.value })} maxLength={MENTOR_LIMITS.highlightTextMax} placeholder="Qisqa matn" aria-label="Karta matni" className="field h-10 text-[13.5px]" />
+              <button type="button" onClick={() => setHighlights((l) => l.filter((_, j) => j !== i))} aria-label="Kartani o'chirish" className="grid h-10 w-10 place-items-center rounded-full text-fg-3 hover:bg-fg/8">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button type="button" onClick={() => void save()} disabled={saving} className="btn-accent inline-flex h-11 items-center gap-2 rounded-full px-6 text-[14.5px] font-semibold disabled:opacity-60">
+        {saving && <Loader2 size={16} className="animate-spin" />} Saqlash
+      </button>
+    </section>
+  );
+}
+
+/* ---------------------------------- Bo'limlar ---------------------------------- */
+
+/** Bo'limlar (kurslar): yangi bo'lim qo'shish + ro'yxat. Bo'lim ichidagi darslar — `/kabinet/mentorlik/[courseId]` */
+export function MentorSections({ mentor, courses, admin = false }: { mentor: MentorProfile; courses: CourseRow[]; admin?: boolean }) {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [adding, setAdding] = useState(false);
+
   async function addSection() {
     if (adding) return;
     if (title.trim().length < 5) return showToast("Bo'lim nomi kamida 5 belgi", "error");
@@ -154,6 +241,54 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
   }
 
   return (
+    <section>
+      <h2 className="text-[15px] font-bold text-fg">
+        Bo&apos;limlar <span className="font-normal text-fg-4">· {courses.length}</span>
+      </h2>
+      <form
+        className="mt-2.5 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void addSection();
+        }}
+      >
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={MENTOR_LIMITS.courseTitleMax} placeholder="Yangi bo'lim nomi — masalan «Fiverr'da ishlash»" aria-label="Bo'lim nomi" className="field h-11 min-w-0 flex-1 text-[14px]" />
+        <button type="submit" disabled={adding} className="btn-ink inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-5 text-[14px] font-semibold disabled:opacity-60">
+          {adding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />} Qo&apos;shish
+        </button>
+      </form>
+      {courses.length > 0 ? (
+        <ul className="mt-1 divide-y divide-line border-t border-line">
+          {courses.map((c) => (
+            <li key={c.id}>
+              <Link href={`/kabinet/mentorlik/${c.id}`} className="flex items-center gap-3 py-3 transition hover:opacity-80">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14.5px] font-semibold text-fg">{c.title}</span>
+                  <span className="block text-[12px] text-fg-3">
+                    {categoryLabel(c.category)} · {c.lessonsCount} dars · {c.studentsCount} talaba
+                  </span>
+                </span>
+                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold", c.isPublished ? "bg-success-soft text-success-text" : "bg-fg/8 text-fg-3")}>{c.isPublished ? "Ochiq" : "Qoralama"}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-[13.5px] text-fg-3">Hali bo&apos;lim yo&apos;q — yuqoridagi maydonga nom yozib qo&apos;shing.</p>
+      )}
+    </section>
+  );
+}
+
+/* --------------------------------- Admin studiyasi --------------------------------- */
+
+/**
+ * Admin uchun to'liq studiya: ko'rsatkichlar + sahifa ma'lumotlari + bo'limlar bitta sahifada.
+ * Mentorning o'z kabineti bu qismlarni alohida sahifalarga bo'lib ishlatadi (MentorNav bilan).
+ */
+export function MentorStudio({ mentor, courses, admin = false }: { mentor: MentorProfile; courses: CourseRow[]; admin?: boolean }) {
+  const pageHref = mentor.slug ? `/mentorlik/ustoz/${mentor.slug}` : null;
+  return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
@@ -162,7 +297,7 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
         </div>
         {pageHref && (
           <div className="flex flex-wrap gap-2">
-            <Link href={pageHref} className="btn-accent inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold">
+            <Link href={pageHref} className="btn-ink inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold">
               <Radio size={15} /> Post va efir qo&apos;yish
             </Link>
             <Link href={pageHref} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13.5px] font-semibold text-fg-2 hover:border-fg hover:text-fg">
@@ -171,112 +306,9 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
           </div>
         )}
       </header>
-
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { k: "Bo'limlar", v: courses.length },
-          { k: "Ochiq", v: courses.filter((c) => c.isPublished).length },
-          { k: "Talabalar", v: courses.reduce((a, c) => a + c.studentsCount, 0) },
-          { k: "Reyting", v: mentor.rating > 0 ? mentor.rating.toFixed(1) : "—" },
-        ].map((x) => (
-          <div key={x.k} className="card p-3.5">
-            <dt className="text-[12px] font-medium text-fg-3">{x.k}</dt>
-            <dd className="mt-1 font-display text-[22px] font-semibold tabular-nums leading-none text-fg">{x.v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      {/* Sahifa ma'lumotlari */}
-      <section className="card space-y-4 p-4 sm:p-5">
-        <div className="grid items-start gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
-          <ImageSlot label="Portret rasm (4:5)" hint="Tik, yuz ko'rinadigan" value={photoUrl} onChange={setPhotoUrl} aspect={PORTRAIT_ASPECT} outWidth={1000} className="max-w-[220px]" />
-          <ImageSlot label="Muqova (3:1)" hint="Keng rasm" value={coverUrl} onChange={setCoverUrl} aspect={COVER_ASPECT} outWidth={1800} />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-[200px_minmax(0,1fr)]">
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Rol yorlig&apos;i</span>
-            <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} maxLength={MENTOR_LIMITS.roleMax} placeholder="Modul ustozi" className="field h-11 w-full text-[14px]" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Asosiy sarlavha</span>
-            <input value={headline} onChange={(e) => setHeadline(e.target.value)} maxLength={MENTOR_LIMITS.headlineMax} placeholder="Dunyodagi eng yirik frilans platformasida ishlash" className="field h-11 w-full text-[14px]" />
-          </label>
-        </div>
-        <label className="block">
-          <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Tavsif</span>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={MENTOR_LIMITS.bioMax} rows={5} placeholder="Ustoz haqida: tajriba, nima o'rgatadi, natijalar…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
-        </label>
-        <div>
-          <span className="mb-1.5 block text-[12.5px] font-semibold text-fg-2">Yo&apos;nalish</span>
-          <div className="flex flex-wrap gap-2">
-            {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => (
-              <button key={c.key} type="button" onClick={() => toggle(c.key)} aria-pressed={expertise.includes(c.key)} className={cn("inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-semibold transition", expertise.includes(c.key) ? "btn-ink border-transparent" : "border-line text-fg-2 hover:border-fg")}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[12.5px] font-semibold text-fg-2">Ma&apos;lumot kartalari <span className="font-normal text-fg-4">(masalan: «Nima o&apos;rganasiz», raqamlar)</span></span>
-            {highlights.length < MENTOR_LIMITS.highlightsMax && (
-              <button type="button" onClick={() => setHighlights((l) => [...l, { title: "", text: "" }])} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-accent-text">
-                <Plus size={14} /> Qo&apos;shish
-              </button>
-            )}
-          </div>
-          <div className="space-y-2.5">
-            {highlights.map((h, i) => (
-              <div key={i} className="grid gap-2 rounded-[14px] bg-fg/[0.04] p-3 sm:grid-cols-[200px_minmax(0,1fr)_auto]">
-                <input value={h.title} onChange={(e) => setH(i, { title: e.target.value })} maxLength={MENTOR_LIMITS.highlightTitleMax} placeholder="Sarlavha" aria-label="Karta sarlavhasi" className="field h-10 text-[13.5px]" />
-                <input value={h.text} onChange={(e) => setH(i, { text: e.target.value })} maxLength={MENTOR_LIMITS.highlightTextMax} placeholder="Qisqa matn" aria-label="Karta matni" className="field h-10 text-[13.5px]" />
-                <button type="button" onClick={() => setHighlights((l) => l.filter((_, j) => j !== i))} aria-label="Kartani o'chirish" className="grid h-10 w-10 place-items-center rounded-full text-fg-3 hover:bg-fg/8">
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-        <button type="button" onClick={() => void save()} disabled={saving} className="btn-accent inline-flex h-11 items-center gap-2 rounded-full px-6 text-[14.5px] font-semibold disabled:opacity-60">
-          {saving && <Loader2 size={16} className="animate-spin" />} Saqlash
-        </button>
-      </section>
-
-      {/* Bo'limlar */}
-      <section className="card p-4 sm:p-5">
-        <h2 className="font-display text-[16px] font-bold text-fg">
-          Bo&apos;limlar <span className="font-normal text-fg-4">· {courses.length}</span>
-        </h2>
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void addSection();
-          }}
-        >
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={MENTOR_LIMITS.courseTitleMax} placeholder="Yangi bo'lim nomi — masalan «Fiverr'da ishlash»" aria-label="Bo'lim nomi" className="field h-11 min-w-0 flex-1 text-[14px]" />
-          <button type="submit" disabled={adding} className="btn-accent inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-5 text-[14px] font-semibold disabled:opacity-60">
-            {adding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />} Qo&apos;shish
-          </button>
-        </form>
-        {courses.length > 0 && (
-          <ul className="mt-3 divide-y divide-line">
-            {courses.map((c) => (
-              <li key={c.id}>
-                <Link href={`/kabinet/mentorlik/${c.id}`} className="flex items-center gap-3 py-3 transition hover:opacity-80">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14.5px] font-semibold text-fg">{c.title}</span>
-                    <span className="block text-[12px] text-fg-3">
-                      {categoryLabel(c.category)} · {c.lessonsCount} dars · {c.studentsCount} talaba
-                    </span>
-                  </span>
-                  <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold", c.isPublished ? "bg-success-soft text-success-text" : "bg-fg/8 text-fg-3")}>{c.isPublished ? "Ochiq" : "Qoralama"}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <MentorStats mentor={mentor} courses={courses} />
+      <MentorPageForm mentor={mentor} />
+      <MentorSections mentor={mentor} courses={courses} admin={admin} />
     </div>
   );
 }
