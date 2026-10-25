@@ -11,6 +11,7 @@ import bcrypt from "bcryptjs";
 import * as schema from "./schema";
 import { CATEGORIES, JOB_TTL_DAYS, PLATFORM_DEFAULTS, REGIONS, SUBSCRIPTION_INVOICE_PREFIX, SUBSCRIPTION_PLANS, TERMS_VERSION, type WorkTypeSlug } from "../constants";
 import { formatPrice, slugify } from "../utils";
+import { CATEGORY_BASE_PRICE, PRICE_MIN } from "../pricing";
 
 const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || "file:./data/redince.db";
 if (url.startsWith("file:")) mkdirSync("data", { recursive: true });
@@ -86,6 +87,7 @@ const EQUIPMENT: Record<string, string[]> = {
   ovoz: ["Shure SM7B", "Neumann TLM 103", "Focusrite Scarlett", "Akustik studiya"],
 };
 
+/** Qo'lda tanlangan oraliqlar — DB'dagi 8 ta eski slug uchun (ko'rinishi o'zgarmasin) */
 const PRICE: Record<string, [number, number]> = {
   videograf: [1_500_000, 12_000_000],
   montajor: [300_000, 5_000_000],
@@ -96,6 +98,21 @@ const PRICE: Record<string, [number, number]> = {
   "ui-ux": [1_000_000, 20_000_000],
   ovoz: [150_000, 2_000_000],
 };
+
+
+/**
+ * Kasb bo'yicha narx oralig'i. DIQQAT: ilgari bu yerda faqat 8 ta slug'li xarita bor edi va
+ * `PRICE[category]` to'g'ridan-to'g'ri destrukturatsiya qilinardi. `CATEGORIES` 8 → 94 kasbga
+ * o'sgach (2026-10-21) yangi slug xaritada topilmay, bo'sh bazaga seed «undefined is not iterable»
+ * bilan yiqilardi (CI va yangi prod bazasi). Endi oraliq `CATEGORY_BASE_PRICE` dan hisoblanadi —
+ * yangi kasb qo'shilsa seed o'zi moslashadi.
+ */
+function priceRange(category: string): [number, number] {
+  const fixed = PRICE[category];
+  if (fixed) return fixed;
+  const base = CATEGORY_BASE_PRICE[category] ?? 400_000;
+  return [Math.max(PRICE_MIN, base), Math.max(PRICE_MIN * 4, base * 8)];
+}
 
 const BIO_INTRO = [
   "{years} yildan beri {cat} sifatida ishlayman.",
@@ -126,6 +143,18 @@ const PORTFOLIO_TITLES: Record<string, string[]> = {
   "ui-ux": ["Mobil bank ilovasi UI", "Landing — ta'lim platformasi", "Dizayn tizimi", "E-commerce ilova", "Dashboard UI"],
   ovoz: ["Reklama diktor ovozi", "Podkast — 20 epizod", "Dublyaj namunasi", "Audiokitob"],
 };
+
+/**
+ * Seed FAQAT quyidagi kasblar bo'yicha namuna yaratadi: TITLES/SKILLS/EQUIPMENT/PORTFOLIO_TITLES
+ * xaritalarida o'zbekcha kuratsiya qilingan matn bor kasblar (DB'dagi 8 ta kanonik slug).
+ * DIQQAT: ilgari `pick(CATEGORIES)` ishlatilardi; `CATEGORIES` 8 → 94 kasbga o'sgach (2026-10-21)
+ * yangi slug xaritalarda topilmay, BO'SH bazaga seed yiqilardi («undefined is not iterable» →
+ * keyin «Cannot read properties of undefined»). Shu sababli CI 174–178 runlari qizil edi va
+ * yangi prod bazasida `vercel-build` ham to'xtar edi. Yangi kasbga namuna kerak bo'lsa —
+ * uning matnini to'rt xaritaga qo'shing, ro'yxat o'zi kengayadi.
+ */
+const SEED_CATEGORIES = CATEGORIES.filter((c) => TITLES[c.slug] && SKILLS[c.slug] && EQUIPMENT[c.slug] && PORTFOLIO_TITLES[c.slug]);
+if (SEED_CATEGORIES.length === 0) throw new Error("Seed: kuratsiya qilingan kasb topilmadi (TITLES/SKILLS/EQUIPMENT/PORTFOLIO_TITLES xaritalarini tekshiring)");
 
 const YOUTUBE = ["https://www.youtube.com/watch?v=ysz5S6PUM-U", "https://www.youtube.com/watch?v=aqz-KE-bpKQ", "https://www.youtube.com/watch?v=LXb3EKWsInQ", "https://www.youtube.com/watch?v=hY7m5jjJ9mM"];
 
@@ -330,9 +359,9 @@ async function main() {
       });
       if (isDemo) demoSpecialistMade = true;
 
-      const category = pick(CATEGORIES).slug;
-      const [pmin, pmax] = PRICE[category];
-      const priceFrom = Math.round(between(pmin, (pmin + pmax) / 2) / 50_000) * 50_000;
+      const category = pick(SEED_CATEGORIES).slug;
+      const [pmin, pmax] = priceRange(category);
+      const priceFrom = Math.max(PRICE_MIN, Math.round(between(pmin, (pmin + pmax) / 2) / 50_000) * 50_000);
       const priceTo = rnd() < 0.7 ? Math.round(between(priceFrom * 1.5, pmax) / 50_000) * 50_000 : null;
       const years = between(1, 12);
       const experience = years < 1.5 ? "junior" : years < 3 ? "middle" : years < 6 ? "senior" : "expert";
@@ -351,7 +380,7 @@ async function main() {
         id: spId,
         userId,
         slug,
-        title: pick(TITLES[category]),
+        title: pick(TITLES[category] ?? TITLES.dizayner),
         category,
         regionSlug: region.slug,
         city,
@@ -359,8 +388,8 @@ async function main() {
         priceFrom,
         priceTo,
         experience,
-        skills: pickN(SKILLS[category], between(3, 7)),
-        equipment: EQUIPMENT[category].slice(0, 2 + (i % 3)),
+        skills: pickN(SKILLS[category] ?? SKILLS.dizayner, between(3, 7)),
+        equipment: (EQUIPMENT[category] ?? EQUIPMENT.dizayner).slice(0, 2 + (i % 3)),
         languages: rnd() < 0.6 ? ["uz", "ru"] : rnd() < 0.5 ? ["uz", "ru", "en"] : ["uz"],
         // Telegram/Instagram yozilmaydi — namuna profillar begona (mavjud bo'lishi mumkin) hisoblarga ishora qilmasin
         youtube: rnd() < 0.4 ? "https://youtube.com/@" + slug : null,
@@ -387,7 +416,7 @@ async function main() {
       specialistIds.push({ id: spId, userId, category });
 
       /* portfolio */
-      const titles = pickN(PORTFOLIO_TITLES[category], between(3, 6));
+      const titles = pickN(PORTFOLIO_TITLES[category] ?? PORTFOLIO_TITLES.dizayner, between(3, 6));
       for (let k = 0; k < titles.length; k++) {
         const isVideo = ["videograf", "montajor", "motion-dizayner", "ovoz"].includes(category) && rnd() < 0.5;
         const yt = pick(YOUTUBE);
