@@ -110,3 +110,108 @@ Avtomatik skriptlar (sessiya scratchpad'ida bor edi): `b2-api-test.sh` (reaksiya
 6. 🔜 **Audit jurnali**: `report_created`, `user_block/unblock`, `privacy_update` yoziladi; reaksiya/saqlash yozilmaydi (hajm) — kerak bo'lsa yoqing.
 7. 🔜 **Zaxira nusxa**: Turso point-in-time restore yoqilganini tekshiring (migratsiyalardan oldin).
 8. 🔜 **Pentest**: ushbu hujjat 3-bo'limdagi ssenariylarni staging'da takrorlash; CSP hisobotlarini (`report-to`) yig'ish.
+
+---
+
+# 2-audit: 30 ta muhim kamchilik (2026-10-25)
+
+Birinchi audit (2026-10-18) ijtimoiy tarmoq blokini qamragan edi. Undan keyin qo'shilganlar
+(jonli efir + Zoom qo'shimchalari, Web Push, Telegram bilan kirish va bot to'lovlari, DM papka/TTL,
+guruh mavzulari, mentorlik pul oqimi) tekshirilmagan edi. Quyida shular bo'yicha topilganlar.
+
+Belgilar: 🔴 yuqori · 🟠 o'rta · 🟡 past/qattiqlashtirish. «✔ tuzatildi» — shu commit'da.
+
+## A. Kod zaifliklari
+
+1. 🔴 **Saqlangan XSS — vakansiya JSON-LD** (`app/vakansiyalar/[id]/page.tsx`). `JSON.stringify(jobPosting)`
+   `<script type="application/ld+json">` ichiga `<` ekranlanmasdan qo'yilardi; `title`/`description`/
+   `requirements`/`company` — foydalanuvchi matni. Tavsifga `</script><script>…` yozib skriptdan chiqib
+   ketish mumkin edi. (CSP nonce + `strict-dynamic` zarbani yumshatadi, lekin bu himoya qatlami, yechim emas.)
+   Boshqa barcha JSON-LD joylari allaqachon `.replace(/</g, "<")` qiladi. **✔ tuzatildi.**
+2. 🟠 **Web Push endpoint — ko'r SSRF** (`lib/push/service.ts`). `ENDPOINT_RE` istalgan `https://host/...` ni
+   qabul qiladi. Kirgan foydalanuvchi o'z hisobiga ixtiyoriy manzil yozib, server har bildirishnomada
+   o'sha manzilga POST qilishiga erishadi (ichki xizmatlarni skanerlash, tashqi xostni «urish»).
+   Yechim: haqiqiy push xizmatlari oq ro'yxati — `*.googleapis.com`, `*.push.apple.com`,
+   `*.notify.windows.com`, `updates.push.services.mozilla.com`.
+3. 🟠 **Efir kodi (passcode) brute-force** (`api/live/[id]/token`). Rate limit YO'Q, kod 4 belgidan
+   boshlanadi, taqqoslash oddiy `!==`. Kirgan foydalanuvchi yopiq efir kodini topa oladi.
+   Yechim: `enforceLimit("liveGate", userId)` + kodni `timingSafeEqual` bilan solishtirish + minimal uzunlikni 6 ga ko'tarish.
+4. 🟠 **Promokod brute-force** (`api/mentorlik/tolov/narx`). Limit yo'q — kod lug'at bo'yicha terib,
+   boshqa mentorlarning chegirma kodlarini topish mumkin. Yechim: `promo` limiti (30/soat) + noto'g'ri kodda bir xil javob.
+5. 🟠 **Telegram login CSRF** (`lib/auth/telegram-login.ts`). 6 xonali kodni taxmin qilgan odam botga
+   `/start l_<kod>` yuborib, O'Z chatId'si bilan tasdiqlasa — qurbonning brauzeri HUJUMCHI hisobiga kiradi
+   (login CSRF: qurbon o'z ma'lumotini begona hisobga kiritadi). TTL 5 daqiqa muammoni kamaytiradi, lekin
+   bot tomonida urinishlar sanalmaydi. Yechim: chatId bo'yicha `/start l_` urinishlariga limit (10/soat) +
+   saytda tasdiqlashdan oldin «bu sizmi?» ko'rsatish.
+6. 🟠 **Telegram bot hisob spami** (`lib/mentorship/telegram-pay.ts` `handlePayCallback`). `bp:` tugmasiga
+   limit yo'q — bitta chat cheksiz `subscription_invoices` qatori yaratishi mumkin. Yechim: chatId bo'yicha limit.
+7. 🟡 **Efir subtitri va davomati ishonchsiz** (`api/live/[id]/{subtitr,davomat}`). Har qanday ishtirokchi
+   ixtiyoriy transkript matni va «tirik» signal yuborishi mumkin, limit yo'q — yozuvni ifloslantirish /
+   davomat hisobotini soxtalashtirish. Yechim: limit + faqat sahnadagilar subtitr yoza oladi.
+8. 🟡 **Efir passcode'i ochiq matnda** (`live_streams.passcode`). Baza sizib chiqsa barcha yopiq efirlar ochiladi.
+   Yechim: xesh (bcrypt/sha256+sol) yoki hech bo'lmasa shifrlash.
+
+## B. Tezlik chegaralari (DoS, abuz)
+
+9. 🔴 **100 ta mutatsiya route'ida limit yo'q** (254 tadan). Eng muhimlari: butun `/api/live/*` (16 ta),
+   butun `/api/mentorlik/*` (20 ta), `/api/qongiroq/*`, `/api/push`, `/api/stories/[id]`,
+   `/api/orders/[id]/*`, `/api/jobs`, `/api/proposals`. Kirgan bitta foydalanuvchi bazaga va
+   tashqi xizmatlarga (LiveKit, Telegram, Blob) cheksiz so'rov yuborishi mumkin.
+   Yechim: `handler()` ga standart limit (masalan 300/soat/userId) qo'yib, keyin alohida route'larga moslash.
+10. 🟠 **LiveKit token cheksiz** (`api/live/[id]/token`, `api/qongiroq/token`). Har so'rovda yangi token
+    beriladi; limit yo'q — LiveKit hisobidagi daqiqalarni «yoqib» yuborish mumkin (to'g'ridan-to'g'ri pul).
+11. 🟠 **Egress (efir yozuvi) limiti yo'q** (`api/live/[id]/yozuv`). Boshlovchi yozishni ketma-ket yoqib-o'chirib
+    R2 va Egress xarajatini oshira oladi.
+12. 🟠 **Web Push fan-out o'lchanmagan.** `notify()` har bildirishnomada bir hisobdagi 10 tagacha
+    qurilmaga parallel POST qiladi; ommaviy bildirishnomada (broadcast) bu minglab so'rov — navbat yo'q.
+13. 🟡 **`/api/til` limitsiz** — cookie yozadi, arzon, lekin cheksiz.
+
+## C. Avtorizatsiya va ma'lumot sizishi
+
+14. 🟠 **Efir kichik xonalari (breakout)**. `xonalar` route'ida limit yo'q va xona a'zoligi faqat
+    `roomFor()` da hisoblanadi — tekshiruv testlari yozilmagan. Yopiq muhokamaga kirish xavfi bor,
+    qo'lda sinash kerak (hozircha isbotlanmagan).
+15. 🟠 **Mentor daromadi** (`api/mentorlik/daromad`): limit yo'q, `mentorId` klientdan kelmaydi — bu yaxshi,
+    lekin yechish so'rovi (`payouts`) CAS bilanmi — tekshirilmagan, pul oqimi uchun test yozilsin.
+16. 🟡 **Post statistikasi** (`api/posts/[id]/statistika`): muallif/admin tekshiruvi bor, lekin limit yo'q —
+    raqobatchi postlarni ketma-ket so'rab ko'rsatkich yig'a olmaydi (403), xavf past.
+17. 🟡 **Shikoyatdagi xabar parchasi** (1-auditdan qolgan): admin navbatida 160 belgi ko'rinadi, foydalanuvchiga
+    bu aytilmagan. Formaga eslatma qo'shilsin.
+18. 🟡 **Obunachilar/reaksiya ro'yxatlari ommaviy** (ongli qaror, Instagram modeli). Yopiq profil rejimi yo'q —
+    skreypingga ochiq. Mahsulot qarori sifatida qoldirilgan.
+
+## D. Infratuzilma va sozlash
+
+19. 🔴 **`.env` da soxta Telegram kalitlari** (`TELEGRAM_API_BASE=http://127.0.0.1:8099`). Lokal sinov uchun,
+    lekin prod'ga tasodifan ketsa bot butunlay ishlamaydi va xatolik jim o'tadi. `.env.example` ga ajratilsin,
+    `.env` repoda bo'lmasin (`git check-ignore .env` bilan tasdiqlang).
+20. 🟠 **HSTS `preload` yo'q** (`next.config.ts`). `max-age=63072000; includeSubDomains` bor; o'z domeni
+    olingach `preload` qo'shilib, hstspreload.org ga yuborilsin.
+21. 🟠 **Web Push VAPID kalitlari yo'q** — push jim o'chiq. Prod'ga `NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
+    `VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` qo'yilsin (`node scripts/gen-vapid.mjs`).
+22. 🟠 **`CRON_SECRET` tekshirilmagan.** Kod productionda uni MAJBURIY qiladi (yo'q bo'lsa cron o'chadi) —
+    Vercel'da haqiqatan o'rnatilganini tasdiqlang, aks holda kunlik vazifalar (jamlama, TOP, tozalash) ishlamaydi.
+23. 🟠 **Sxema sinxronizatsiyasi prod'da qo'lda.** `scripts/db-sync.ts` faqat qo'shimcha o'zgarishlarga ruxsat
+    beradi, lekin oxirgi bloklardagi yangi jadvallar (`live_*`, `push_subscriptions`, `dm_folders`,
+    `group_topics`, `login_requests`…) Turso'da yaratilganini tekshiring — aks holda route'lar 500 beradi.
+24. 🟡 **Blob/R2 ochiq o'qish.** Yuklangan fayllar ommaviy URL bilan ochiq (dizayn qarori), lekin shaxsiy
+    chat biriktirmalari ham shu yerda — URL bilgan har kim ko'radi. Maxfiy fayllar uchun imzolangan URL kerak.
+25. 🟡 **Audit jurnali aylanmasi yo'q** — `audit_log` cheksiz o'sadi (Turso o'lchov limiti). Cron'ga 180 kunlik tozalash qo'shilsin.
+
+## E. Jarayon va monitoring
+
+26. 🔴 **Avtomatik xavfsizlik testi yo'q.** `scripts/smoke.mjs` — 23 ta funksional test, avtorizatsiya
+    (IDOR) testlari yo'q. Har bo'limga «begona foydalanuvchi 403 oladi» testi yozilsin (eng arzon himoya).
+27. 🟠 **Paket zaifliklari tekshirilmaydi.** CI'da `npm audit --production` yoki Dependabot yo'q.
+28. 🟠 **Xatolik monitoringi yo'q** (Sentry va h.k.). 500 xatolar faqat Vercel loglarida, ogohlantirish yo'q —
+    hujum yoki buzilish payqalmay qoladi.
+29. 🟡 **Rate-limit jadvali tozalanmaydi**: `rate_limits` qatorlari muddati o'tgach ham qoladi
+    (`lt(expiresAt)` bo'yicha o'chirish faqat ba'zi joylarda) — cron'ga qo'shilsin.
+30. 🟡 **Zaxira nusxa sinalmagan.** `docs/DEPLOY.md` 6-bo'limda tartib bor, lekin tiklash amalda sinalmagan.
+    Ransomware/noto'g'ri migratsiya holatida bu yagona himoya — chorakda bir marta sinab ko'ring.
+
+## Tavsiya etilgan tartib
+
+**Darhol:** 1 (✔), 2, 3, 9 (hech bo'lmasa `/api/live/*` va `/api/mentorlik/*`), 19, 22, 23.
+**Bir hafta ichida:** 4, 5, 6, 10, 11, 26, 28.
+**Keyingi oy:** qolganlari.

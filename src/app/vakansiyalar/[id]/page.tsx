@@ -92,7 +92,8 @@ export default async function VacancyPage({ params }: { params: Params }) {
 
   return (
     <div className="container-x animate-fade-up">
-      {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPosting) }} />}
+      {/* `<` ekranlanadi: title/description/company — foydalanuvchi matni, aks holda `</script>` bilan chiqib ketish mumkin */}
+      {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPosting).replace(/</g, "\\u003c") }} />}
       <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
           Vakansiyalar
