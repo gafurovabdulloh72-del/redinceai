@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { notify, type NotificationType } from "@/lib/notifications";
+import { SITE_URL } from "@/lib/site-url";
 import { escapeTelegramHtml, isTelegramEnabled, sendTelegram, type TelegramButton } from "@/lib/telegram";
 
 /**
@@ -15,8 +16,17 @@ import { escapeTelegramHtml, isTelegramEnabled, sendTelegram, type TelegramButto
 /** p — buyurtma to'lovi (payments), s — obuna hisobi (subscription_invoices) */
 export type ApprovalKind = "pay" | "sub";
 
+/**
+ * Sayt manzili — umumiy `SITE_URL` orqali (NEXT_PUBLIC_SITE_URL → SITE_URL → VERCEL_URL).
+ * DIQQAT: ilgari bu yerda FAQAT `process.env.NEXT_PUBLIC_SITE_URL` o'qilardi. Prod'da esa
+ * `SITE_URL` qo'yilgan, `NEXT_PUBLIC_SITE_URL` yo'q — natijada `absoluteUrl()` doim null
+ * qaytarib, adminning Telegramidagi «Admin panel» va «Chek» tugmalari chizilmay qolardi
+ * (qo'lda o'tkazmani tasdiqlash uchun saytga alohida kirishga to'g'ri kelardi).
+ */
 function siteOrigin(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
+  const base = SITE_URL.trim().replace(/\/$/, "");
+  // Lokal dev manzili Telegram tugmasiga yaramaydi (faqat https qabul qilinadi)
+  return base.startsWith("https://") ? base : "";
 }
 
 /** Mutlaq URL: https bo'lsa o'zi, /yo'l bo'lsa sayt manzili bilan (manzil noma'lum bo'lsa null) */
