@@ -182,9 +182,10 @@ Belgilar: 🔴 yuqori · 🟠 o'rta · 🟡 past/qattiqlashtirish. «✔ tuzatil
 
 ## D. Infratuzilma va sozlash
 
-19. 🔴 **`.env` da soxta Telegram kalitlari** (`TELEGRAM_API_BASE=http://127.0.0.1:8099`). Lokal sinov uchun,
-    lekin prod'ga tasodifan ketsa bot butunlay ishlamaydi va xatolik jim o'tadi. `.env.example` ga ajratilsin,
-    `.env` repoda bo'lmasin (`git check-ignore .env` bilan tasdiqlang).
+19. 🟠 **Lokal `.env` da soxta Telegram kalitlari** (`TELEGRAM_API_BASE=http://127.0.0.1:8099` — scratchpad'dagi
+    soxta Bot API uchun). Tekshirildi: `.env` `.gitignore`da va repoda YO'Q ✓ — ya'ni sizib chiqmagan.
+    Qolgan xavf operatsion: `.env` ni Vercel env'ga ko'chirib qo'ysangiz bot jim ishlamay qoladi.
+    Prod'da `TELEGRAM_API_BASE` **umuman bo'lmasligi** kerak — deploy'dan keyin tekshiring.
 20. 🟠 **HSTS `preload` yo'q** (`next.config.ts`). `max-age=63072000; includeSubDomains` bor; o'z domeni
     olingach `preload` qo'shilib, hstspreload.org ga yuborilsin.
 21. 🟠 **Web Push VAPID kalitlari yo'q** — push jim o'chiq. Prod'ga `NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
