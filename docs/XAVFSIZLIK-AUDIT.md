@@ -232,10 +232,18 @@ Holat: **✔ tuzatildi** (kod o'zgardi) · **✓ allaqachon to'g'ri** (tekshiril
 22. 🟠 **`CRON_SECRET` tekshirilmagan.** Kod productionda uni MAJBURIY qiladi (yo'q bo'lsa cron o'chadi).
     **⚙ operatsion**: Vercel'da o'rnatilganini tasdiqlang — aks holda kunlik vazifalar
     (jamlama, TOP e'loni, tozalash, eslatmalar) ishlamaydi.
-23. 🟠 **Sxema sinxronizatsiyasi prod'da qo'lda.** **⚙ operatsion**: `npx tsx scripts/db-sync.ts` ni
-    Turso'ga qarshi ishga tushirib, oxirgi bloklardagi jadvallar (`live_*`, `push_subscriptions`,
-    `dm_folders`, `group_topics`, `login_requests`, `story_*`, `mentor_*`…) borligini tekshiring —
-    aks holda shu route'lar 500 beradi.
+23. 🟠 **Sxema sinxronizatsiyasi prod'da qo'lda.** **✓ aniqlashtirildi — qo'lda EMAS**: topilmam
+    noto'g'ri edi. `npm run vercel-build` = `node scripts/db-prepare.mjs && next build`, va
+    `db-prepare` ning o'zi Turso'ga qarshi `npx tsx scripts/db-sync.ts` ni ishga tushiradi,
+    keyin `users` jadvali borligini tekshiradi (yo'q bo'lsa deploy to'xtaydi). Ya'ni yangi
+    jadvallar (`live_*`, `push_subscriptions`, `dm_folders`, `group_topics`, `login_requests`,
+    `story_*`, `mentor_*`…) HAR deployda avtomatik qo'llanadi. **⚙ sizdan**: deploy log'ida
+    `→ N ta sxema o'zgarishi qo'llanmoqda` va `✓ Sxema joyida` satrlarini ko'rib qo'ying.
+    DIQQAT (2026-10-25 da topildi va tuzatildi): shu zanjirning seed qadami BO'SH bazada
+    yiqilardi (`seed.ts` kasb xaritalari 8 ta slug'da qolgan, `CATEGORIES` esa 94 ta) —
+    ya'ni YANGI/bo'sh Turso bazasiga deploy build paytida to'xtar edi. Mavjud prod bazasi
+    to'la bo'lgani uchun `--if-empty` seedni o'tkazib yuborardi va muammo sezilmagan.
+    Endi `SEED_CATEGORIES` bilan tuzatildi va CI shu yo'lni har push'da tekshiradi.
 24. 🟡 **Blob/R2 ochiq o'qish.** **◔ holat aniqlandi, xavf kutilganidan past**: fayl nomi
     `crypto.randomUUID()` (122 bit) — ro'yxatini olish yoki taxmin qilish mumkin emas, ya'ni
     «hamma chatni skanerlash» yo'q. Qolgan xavf: URL bir marta tarqalsa (skrinshot, forward,
@@ -290,7 +298,7 @@ Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja
 
 **Sizdan talab qiladi (⚙), muhimlik tartibida:**
 1. `CRON_SECRET` Vercel'da bor-yo'qligi (22) — bo'lmasa kunlik vazifalar ishlamaydi.
-2. `npx tsx scripts/db-sync.ts` Turso'ga (23) — bo'lmasa yangi bo'limlar 500 beradi.
+2. Deploy log'ida `✓ Sxema joyida` (23) — sxema avtomatik qo'llanadi, faqat ko'rib qo'yiladi.
 3. `TELEGRAM_API_BASE` prod'da YO'Q (19).
 4. VAPID kalitlari (21) — push kerak bo'lsa.
 5. Zaxira nusxani bir marta tiklab sinash (30).
