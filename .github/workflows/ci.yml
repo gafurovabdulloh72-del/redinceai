@@ -67,6 +67,13 @@ jobs:
             echo "ESLint sozlanmagan — o'tkazib yuborildi"
           fi
 
+      # Web Push (VAPID) kalitlari — FAQAT shu CI runi uchun yaratiladi, hech qayerda saqlanmaydi.
+      # Kalitsiz `/api/push` 503 qaytaradi (push sozlanmagan) va SSRF regressiya testi xost oq
+      # ro'yxati tekshiruvigacha yetib bormaydi — ya'ni hech narsani tekshirmagan bo'ladi.
+      # Build'dan OLDIN: NEXT_PUBLIC_* build vaqtida inline bo'ladi, server ham shu env bilan ko'tariladi.
+      - name: VAPID kalitlari (shu run uchun)
+        run: node scripts/gen-vapid.mjs | grep -E '^(NEXT_PUBLIC_VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|VAPID_SUBJECT)=' >> "$GITHUB_ENV"
+
       - name: "Baza — sxema (drizzle push) + seed"
         run: node scripts/db-prepare.mjs
 
