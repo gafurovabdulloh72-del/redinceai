@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { courseCreateSchema } from "@/lib/mentorship/validators";
 import { createCourse, listCourses } from "@/lib/mentorship/service";
 
@@ -20,6 +21,7 @@ export const GET = handler(async (req) => {
 /** POST — yangi kurs (faqat tasdiqlangan mentor) */
 export const POST = handler(async (req) => {
   const session = await requireSession();
+  await enforceLimit("mentor", session.sub);
   const { mentorId, ...input } = await parseBody(req, courseCreateSchema);
   return ok(await createCourse(session.sub, input, { mentorId, admin: session.role === "admin" }), { status: 201 });
 });

@@ -110,6 +110,34 @@ export const RATE_LIMITS = {
   dmEdit: { limit: 120, windowMs: HOUR },
   /** DM: havola prevyusi (server OG so'rovi, keshlanadi) — userId */
   linkPreview: { limit: 300, windowMs: HOUR },
+
+  /* ---- 2026-10-25 xavfsizlik auditi ---- */
+  /** Efirga kirish urinishi (kod terishga qarshi) — userId (3-band) */
+  liveGate: { limit: 20, windowMs: 15 * MIN },
+  /** LiveKit tokeni — userId; har token LiveKit daqiqasini yoqadi (10-band) */
+  liveToken: { limit: 60, windowMs: HOUR },
+  /** Efir ichidagi yozuvlar: subtitr, davomat signali, qo'l ko'tarish (7-band) */
+  liveWrite: { limit: 600, windowMs: HOUR },
+  /** Efir yozuvini yoqish/o'chirish — Egress xarajatiga qarshi (11-band) */
+  liveRecord: { limit: 20, windowMs: HOUR },
+  /** Promokod tekshiruvi — kod terishga qarshi (4-band) */
+  promo: { limit: 30, windowMs: HOUR },
+  /** Mentorlik yozuvlari: kurs/dars CRUD, sharh, vazifa — userId */
+  mentor: { limit: 240, windowMs: HOUR },
+  /** Xarid boshlash (hisob ochish) — saytda ham, botda ham (6-band) */
+  purchase: { limit: 30, windowMs: HOUR },
+  /** Telegram bot: tugma bosishlari — chatId bo'yicha (6-band) */
+  tgBot: { limit: 120, windowMs: HOUR },
+  /** Telegram bot: `/start l_<kod>` — kodni terishga qarshi, chatId bo'yicha (5-band) */
+  tgStart: { limit: 10, windowMs: HOUR },
+  /** Qo'ng'iroq tokeni va taklif amallari — userId */
+  call: { limit: 120, windowMs: HOUR },
+  /** Story yaratish/o'chirish/ko'rish belgisi — userId */
+  stories: { limit: 300, windowMs: HOUR },
+  /** Til almashtirish — IP bo'yicha (13-band: cookie yozadi, arzon, lekin cheksiz edi) */
+  locale: { limit: 120, windowMs: HOUR },
+  /** Post statistikasi — userId (16-band) */
+  postStats: { limit: 120, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

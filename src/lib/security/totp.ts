@@ -123,6 +123,11 @@ const MIN_SECRET_PROD = 32;
  * productionda namunaviy yoki 32 belgidan qisqa AUTH_SECRET ishlatilmaydi (aks holda DB sizsa,
  * taxmin qilinadigan kalit bilan TOTP urug'larini ochish mumkin edi) — Turso tokeniga o'tiladi.
  */
+/** Ildiz kalit materiali — `secret-box` ham shundan HKDF qiladi (maqsad bo'yicha ajratilgan) */
+export function authIkm(): string {
+  return ikm();
+}
+
 function ikm(): string {
   const prod = process.env.NODE_ENV === "production";
   const s = process.env.AUTH_SECRET?.trim();

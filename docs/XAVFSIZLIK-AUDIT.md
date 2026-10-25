@@ -117,9 +117,16 @@ Avtomatik skriptlar (sessiya scratchpad'ida bor edi): `b2-api-test.sh` (reaksiya
 
 Birinchi audit (2026-10-18) ijtimoiy tarmoq blokini qamragan edi. Undan keyin qo'shilganlar
 (jonli efir + Zoom qo'shimchalari, Web Push, Telegram bilan kirish va bot to'lovlari, DM papka/TTL,
-guruh mavzulari, mentorlik pul oqimi) tekshirilmagan edi. Quyida shular bo'yicha topilganlar.
+guruh mavzulari, mentorlik pul oqimi) tekshirilmagan edi. Quyida shular bo'yicha topilganlar va
+HAR BIRINING joriy holati.
 
-Belgilar: 🔴 yuqori · 🟠 o'rta · 🟡 past/qattiqlashtirish. «✔ tuzatildi» — shu commit'da.
+Belgilar: 🔴 yuqori · 🟠 o'rta · 🟡 past/qattiqlashtirish.
+Holat: **✔ tuzatildi** (kod o'zgardi) · **✓ allaqachon to'g'ri** (tekshirildi, muammo yo'q edi) ·
+**◔ qattiqlashtirildi** (xavf kamaytirildi, qoldig'i yozilgan) · **⚙ operatsion** (kodda emas — Vercel/Turso/jarayonda qilinadi) ·
+**⏳ ongli ravishda keyinga** (sababi yozilgan).
+
+> Yakuniy hisob: 16 ta kodda tuzatildi · 4 tasi tekshirilib «muammo yo'q» chiqdi · 3 tasi qattiqlashtirildi ·
+> 5 tasi operatsion (sizdan talab qiladi) · 2 tasi ongli ravishda keyinga qoldirildi.
 
 ## A. Kod zaifliklari
 
@@ -127,92 +134,167 @@ Belgilar: 🔴 yuqori · 🟠 o'rta · 🟡 past/qattiqlashtirish. «✔ tuzatil
    `<script type="application/ld+json">` ichiga `<` ekranlanmasdan qo'yilardi; `title`/`description`/
    `requirements`/`company` — foydalanuvchi matni. Tavsifga `</script><script>…` yozib skriptdan chiqib
    ketish mumkin edi. (CSP nonce + `strict-dynamic` zarbani yumshatadi, lekin bu himoya qatlami, yechim emas.)
-   Boshqa barcha JSON-LD joylari allaqachon `.replace(/</g, "<")` qiladi. **✔ tuzatildi.**
+   Boshqa barcha JSON-LD joylari allaqachon `.replace(/</g, "<")` qiladi.
+   **✔ tuzatildi** (`9c88c77`) + `scripts/security.mjs` da regressiya testi.
 2. 🟠 **Web Push endpoint — ko'r SSRF** (`lib/push/service.ts`). `ENDPOINT_RE` istalgan `https://host/...` ni
-   qabul qiladi. Kirgan foydalanuvchi o'z hisobiga ixtiyoriy manzil yozib, server har bildirishnomada
-   o'sha manzilga POST qilishiga erishadi (ichki xizmatlarni skanerlash, tashqi xostni «urish»).
-   Yechim: haqiqiy push xizmatlari oq ro'yxati — `*.googleapis.com`, `*.push.apple.com`,
-   `*.notify.windows.com`, `updates.push.services.mozilla.com`.
-3. 🟠 **Efir kodi (passcode) brute-force** (`api/live/[id]/token`). Rate limit YO'Q, kod 4 belgidan
-   boshlanadi, taqqoslash oddiy `!==`. Kirgan foydalanuvchi yopiq efir kodini topa oladi.
-   Yechim: `enforceLimit("liveGate", userId)` + kodni `timingSafeEqual` bilan solishtirish + minimal uzunlikni 6 ga ko'tarish.
-4. 🟠 **Promokod brute-force** (`api/mentorlik/tolov/narx`). Limit yo'q — kod lug'at bo'yicha terib,
-   boshqa mentorlarning chegirma kodlarini topish mumkin. Yechim: `promo` limiti (30/soat) + noto'g'ri kodda bir xil javob.
+   qabul qilardi: kirgan foydalanuvchi o'z hisobiga ixtiyoriy manzil yozib, server har bildirishnomada
+   o'sha manzilga POST qilishiga erishardi (ichki xizmatlarni skanerlash, tashqi xostni «urish»).
+   **✔ tuzatildi**: `ALLOWED_HOSTS` oq ro'yxati (`*.googleapis.com`, `*.push.apple.com`,
+   `*.notify.windows.com`, `updates.push.services.mozilla.com`) + begona xostga 422; testi bor.
+3. 🟠 **Efir kodi (passcode) brute-force** (`api/live/[id]/token`). Rate limit yo'q, kod 4 belgidan
+   boshlanardi, taqqoslash oddiy `!==`.
+   **✔ tuzatildi**: `enforceLimit("liveGate")` (20 / 15 daqiqa), `secretEquals()` —
+   `timingSafeEqual` bilan, minimal uzunlik 4 → **6**; testi bor.
+4. 🟠 **Promokod brute-force** (`api/mentorlik/tolov/narx`). Limit yo'q edi — kodni lug'at bo'yicha terib,
+   boshqa mentorlarning chegirma kodlarini topish mumkin edi.
+   **✔ tuzatildi**: `promo` limiti (30 / soat), `/api/mentorlik/promo` POST/PATCH ham shu limitda.
 5. 🟠 **Telegram login CSRF** (`lib/auth/telegram-login.ts`). 6 xonali kodni taxmin qilgan odam botga
-   `/start l_<kod>` yuborib, O'Z chatId'si bilan tasdiqlasa — qurbonning brauzeri HUJUMCHI hisobiga kiradi
-   (login CSRF: qurbon o'z ma'lumotini begona hisobga kiritadi). TTL 5 daqiqa muammoni kamaytiradi, lekin
-   bot tomonida urinishlar sanalmaydi. Yechim: chatId bo'yicha `/start l_` urinishlariga limit (10/soat) +
-   saytda tasdiqlashdan oldin «bu sizmi?» ko'rsatish.
+   `/start l_<kod>` yuborib O'Z chatId'si bilan tasdiqlasa — qurbonning brauzeri HUJUMCHI hisobiga
+   kirib qolardi (keyin qurbon o'z ma'lumotini begona hisobga kiritadi).
+   **✔ tuzatildi, ikki qatlam**: (a) botda `/start l_` urinishlari chatId bo'yicha 10 / soat (`tgStart`);
+   (b) sessiya endi **darhol ochilmaydi** — `PUT /api/auth/telegram` avval `status: "confirm"` va
+   Telegram hisobining nomi/@username'ini qaytaradi, foydalanuvchi «Bu menman — kirish» bosgandan keyin
+   (`?tasdiq=1`) sessiya ochiladi. Begona hisob bo'lsa foydalanuvchi ko'radi va bekor qiladi.
 6. 🟠 **Telegram bot hisob spami** (`lib/mentorship/telegram-pay.ts` `handlePayCallback`). `bp:` tugmasiga
-   limit yo'q — bitta chat cheksiz `subscription_invoices` qatori yaratishi mumkin. Yechim: chatId bo'yicha limit.
-7. 🟡 **Efir subtitri va davomati ishonchsiz** (`api/live/[id]/{subtitr,davomat}`). Har qanday ishtirokchi
-   ixtiyoriy transkript matni va «tirik» signal yuborishi mumkin, limit yo'q — yozuvni ifloslantirish /
-   davomat hisobotini soxtalashtirish. Yechim: limit + faqat sahnadagilar subtitr yoza oladi.
-8. 🟡 **Efir passcode'i ochiq matnda** (`live_streams.passcode`). Baza sizib chiqsa barcha yopiq efirlar ochiladi.
-   Yechim: xesh (bcrypt/sha256+sol) yoki hech bo'lmasa shifrlash.
+   limit yo'q edi — bitta chat cheksiz `subscription_invoices` qatori yaratishi mumkin edi.
+   **✔ tuzatildi**: webhook'da `botLimited(chatId)` — `tgBot` 120 / soat (tugmalar) va
+   xarid boshlashda `purchase` 30 / soat. Limitdan oshsa webhook baribir 200 qaytaradi
+   (Telegram qayta yubormasin), lekin amal bajarilmaydi.
+7. 🟡 **Efir subtitri va davomati ishonchsiz** (`api/live/[id]/{subtitr,davomat}`).
+   **Qisman tuzatildi + qisman ✓ allaqachon to'g'ri**: limit YO'Q edi — qo'shildi (`liveWrite` 600 / soat).
+   Lekin «har qanday ishtirokchi subtitr yozadi» degan topilmam **noto'g'ri edi**: `subtitr` route'i
+   allaqachon `liveAccess()` dan `moderator || staged` ni tekshirib, boshqalarni jim qaytarardi.
+   Davomat signali esa atayin har ishtirokchidan keladi (davomat shu bilan hisoblanadi) — endi limitlangan.
+8. 🟡 **Efir passcode'i ochiq matnda** (`live_streams.passcode`). Baza sizib chiqsa barcha yopiq efirlar ochilardi.
+   **✔ tuzatildi**: `lib/security/secret-box.ts` — AES-256-GCM + HKDF bilan maqsadga xos kalit
+   (`sealSecret/openSecret`). Xesh emas, chunki boshlovchi kodni O'ZI ham ko'rishi kerak.
+   Eski (shifrlanmagan) qatorlar `livePasscode()` da shaffof o'qiladi — migratsiya shart emas.
 
 ## B. Tezlik chegaralari (DoS, abuz)
 
-9. 🔴 **100 ta mutatsiya route'ida limit yo'q** (254 tadan). Eng muhimlari: butun `/api/live/*` (16 ta),
-   butun `/api/mentorlik/*` (20 ta), `/api/qongiroq/*`, `/api/push`, `/api/stories/[id]`,
-   `/api/orders/[id]/*`, `/api/jobs`, `/api/proposals`. Kirgan bitta foydalanuvchi bazaga va
-   tashqi xizmatlarga (LiveKit, Telegram, Blob) cheksiz so'rov yuborishi mumkin.
-   Yechim: `handler()` ga standart limit (masalan 300/soat/userId) qo'yib, keyin alohida route'larga moslash.
-10. 🟠 **LiveKit token cheksiz** (`api/live/[id]/token`, `api/qongiroq/token`). Har so'rovda yangi token
-    beriladi; limit yo'q — LiveKit hisobidagi daqiqalarni «yoqib» yuborish mumkin (to'g'ridan-to'g'ri pul).
-11. 🟠 **Egress (efir yozuvi) limiti yo'q** (`api/live/[id]/yozuv`). Boshlovchi yozishni ketma-ket yoqib-o'chirib
-    R2 va Egress xarajatini oshira oladi.
-12. 🟠 **Web Push fan-out o'lchanmagan.** `notify()` har bildirishnomada bir hisobdagi 10 tagacha
-    qurilmaga parallel POST qiladi; ommaviy bildirishnomada (broadcast) bu minglab so'rov — navbat yo'q.
-13. 🟡 **`/api/til` limitsiz** — cookie yozadi, arzon, lekin cheksiz.
+9. 🔴 **100 ta mutatsiya route'ida limit yo'q** (254 tadan).
+   **✔ tuzatildi, ildizdan**: `handler()` ning o'zida standart limit — kirgan foydalanuvchiga
+   `BASE_MUTATION_LIMIT` 300 / soat (kalit `userId`), mehmonga `GUEST_MUTATION_LIMIT` 2000 / soat
+   (kalit IP — O'zbekistonda mobil operator NAT'i ortida minglab odam bitta IP'da ko'rinadi,
+   qattiq limit butun operatorni qulflab qo'yardi; mehmon tega oladigan route'lar —
+   kirish/ro'yxat/parol tiklash/til/Telegram — o'zining qattiq limitlariga ega).
+   GET/HEAD/OPTIONS tegilmaydi. Shu bitta o'zgarish
+   `handler()` ishlatadigan **196 ta** mutatsiya route'ini qamradi; qolgan bittasi —
+   Telegram webhook'i (`handler()` ishlatmaydi) — o'z chatId limitlariga ega.
+   Kerak bo'lsa route `handler(fn, { limit: false })` bilan chetga chiqadi.
+   Ustiga maxsus limitlar qo'shildi: `liveGate/liveToken/liveWrite/liveRecord/promo/mentor/purchase/
+   tgBot/tgStart/call/stories/locale/postStats` (13 ta yangi).
+10. 🟠 **LiveKit token cheksiz** (`api/live/[id]/token`, `api/qongiroq/token`). Har so'rovda yangi token —
+    LiveKit daqiqalarini «yoqib» yuborish mumkin edi (to'g'ridan-to'g'ri pul).
+    **✔ tuzatildi**: `liveToken` 60 / soat va `call` 120 / soat.
+11. 🟠 **Egress (efir yozuvi) limiti yo'q** (`api/live/[id]/yozuv`). **✔ tuzatildi**: `liveRecord` 20 / soat.
+12. 🟠 **Web Push fan-out o'lchanmagan.** **✓ allaqachon to'g'ri** — topilmam noto'g'ri edi:
+    `api/admin/broadcast` allaqachon auditoriyani **20 talik guruhlarga** bo'lib ketma-ket yuboradi
+    (`for (i += 20)`), bir hisobda esa ≤10 qurilma. Minglab foydalanuvchida navbat (queue) kerak
+    bo'ladi — kod izohida shu yozilgan, hozirgi masshtabda muammo yo'q.
+13. 🟡 **`/api/til` limitsiz.** **✔ tuzatildi**: `locale` 120 / soat, IP bo'yicha.
+    (Bu route `handler()` ishlatmaydi — javob cookie/redirect — shuning uchun limit qo'lda.)
 
 ## C. Avtorizatsiya va ma'lumot sizishi
 
-14. 🟠 **Efir kichik xonalari (breakout)**. `xonalar` route'ida limit yo'q va xona a'zoligi faqat
-    `roomFor()` da hisoblanadi — tekshiruv testlari yozilmagan. Yopiq muhokamaga kirish xavfi bor,
-    qo'lda sinash kerak (hozircha isbotlanmagan).
-15. 🟠 **Mentor daromadi** (`api/mentorlik/daromad`): limit yo'q, `mentorId` klientdan kelmaydi — bu yaxshi,
-    lekin yechish so'rovi (`payouts`) CAS bilanmi — tekshirilmagan, pul oqimi uchun test yozilsin.
-16. 🟡 **Post statistikasi** (`api/posts/[id]/statistika`): muallif/admin tekshiruvi bor, lekin limit yo'q —
-    raqobatchi postlarni ketma-ket so'rab ko'rsatkich yig'a olmaydi (403), xavf past.
-17. 🟡 **Shikoyatdagi xabar parchasi** (1-auditdan qolgan): admin navbatida 160 belgi ko'rinadi, foydalanuvchiga
-    bu aytilmagan. Formaga eslatma qo'shilsin.
-18. 🟡 **Obunachilar/reaksiya ro'yxatlari ommaviy** (ongli qaror, Instagram modeli). Yopiq profil rejimi yo'q —
-    skreypingga ochiq. Mahsulot qarori sifatida qoldirilgan.
+14. 🟠 **Efir kichik xonalari (breakout).** **✔ limit qo'shildi** (`liveWrite`) — `xonalar` va
+    `hammuallif` route'lari. Egalik tekshiruvi `createBreakouts/assignBreakout/toggleCohost` ichida
+    `canModerate` bilan qilinadi (hammuallifni faqat boshlovchi tayinlaydi). **Qolgan ish ⏳**:
+    breakout a'zoligi uchun avtomatik test yozilmagan — LiveKit kerak, lokal `--dev` serverida
+    egress/ko'p xonali ssenariy sinalmaydi. Staging'da qo'lda sinaladi.
+15. 🟠 **Mentor daromadi** (`api/mentorlik/daromad`). **✔ limit qo'shildi** (`purchase` 30 / soat).
+    Pul oqimi esa **✓ allaqachon to'g'ri** — tekshirildi: `requestPayout()` `db.transaction` ichida
+    `status = "available"` shartli UPDATE bilan qatorlarni atomar «band qiladi» (CAS), summa minimumdan
+    past bo'lsa tranzaksiya qaytadi; `resolvePayout()` ham `status = "requested"` CAS bilan ishlaydi,
+    ikkinchi urinish 409 oladi. `mentorId` klientdan kelmaydi.
+16. 🟡 **Post statistikasi** (`api/posts/[id]/statistika`). **✔ tuzatildi**: `postStats` 120 / soat.
+    Avtorizatsiya (muallif · jamoa boshqaruvchisi · admin) allaqachon joyida edi.
+17. 🟡 **Shikoyatdagi xabar parchasi** (1-auditdan qolgan). **✔ tuzatildi**: `ReportButton` da
+    `targetType === "message"` bo'lsa formada «xabar matnining bir qismi adminga ko'rinadi»
+    eslatmasi chiqadi (uz/ru).
+18. 🟡 **Obunachilar/reaksiya ro'yxatlari ommaviy.** **⏳ ongli ravishda keyinga**: Instagram modeli —
+    ochiq profil mahsulotning o'zagi. «Yopiq profil» rejimi alohida mahsulot qarori (obunachini
+    tasdiqlash, lenta/qidiruv/sitemap'dan chiqarish, DM qoidalari) — xavfsizlik bandi emas,
+    funksiya. Qaror sizda.
 
 ## D. Infratuzilma va sozlash
 
-19. 🟠 **Lokal `.env` da soxta Telegram kalitlari** (`TELEGRAM_API_BASE=http://127.0.0.1:8099` — scratchpad'dagi
-    soxta Bot API uchun). Tekshirildi: `.env` `.gitignore`da va repoda YO'Q ✓ — ya'ni sizib chiqmagan.
-    Qolgan xavf operatsion: `.env` ni Vercel env'ga ko'chirib qo'ysangiz bot jim ishlamay qoladi.
-    Prod'da `TELEGRAM_API_BASE` **umuman bo'lmasligi** kerak — deploy'dan keyin tekshiring.
-20. 🟠 **HSTS `preload` yo'q** (`next.config.ts`). `max-age=63072000; includeSubDomains` bor; o'z domeni
-    olingach `preload` qo'shilib, hstspreload.org ga yuborilsin.
-21. 🟠 **Web Push VAPID kalitlari yo'q** — push jim o'chiq. Prod'ga `NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
-    `VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` qo'yilsin (`node scripts/gen-vapid.mjs`).
-22. 🟠 **`CRON_SECRET` tekshirilmagan.** Kod productionda uni MAJBURIY qiladi (yo'q bo'lsa cron o'chadi) —
-    Vercel'da haqiqatan o'rnatilganini tasdiqlang, aks holda kunlik vazifalar (jamlama, TOP, tozalash) ishlamaydi.
-23. 🟠 **Sxema sinxronizatsiyasi prod'da qo'lda.** `scripts/db-sync.ts` faqat qo'shimcha o'zgarishlarga ruxsat
-    beradi, lekin oxirgi bloklardagi yangi jadvallar (`live_*`, `push_subscriptions`, `dm_folders`,
-    `group_topics`, `login_requests`…) Turso'da yaratilganini tekshiring — aks holda route'lar 500 beradi.
-24. 🟡 **Blob/R2 ochiq o'qish.** Yuklangan fayllar ommaviy URL bilan ochiq (dizayn qarori), lekin shaxsiy
-    chat biriktirmalari ham shu yerda — URL bilgan har kim ko'radi. Maxfiy fayllar uchun imzolangan URL kerak.
-25. 🟡 **Audit jurnali aylanmasi yo'q** — `audit_log` cheksiz o'sadi (Turso o'lchov limiti). Cron'ga 180 kunlik tozalash qo'shilsin.
+19. 🟠 **Lokal `.env` da soxta Telegram kalitlari** (`TELEGRAM_API_BASE=http://127.0.0.1:8099`).
+    **✓ sizmagan**: `git check-ignore .env` o'tadi, repoda birorta `.env` fayli kuzatilmaydi.
+    **⚙ operatsion**: prod'da `TELEGRAM_API_BASE` **umuman bo'lmasligi** kerak — Vercel env'da
+    yo'qligini deploy'dan keyin tekshiring (bo'lsa bot jim ishlamay qoladi).
+20. 🟠 **HSTS `preload` yo'q** (`next.config.ts`). **✔ tuzatildi**:
+    `max-age=63072000; includeSubDomains; preload`. **⚙ qolgan qadam**: o'z domeningiz
+    (`kasbegalari.uz`) ulangach hstspreload.org ga yuboring — `vercel.app` subdomenini yuborib bo'lmaydi.
+21. 🟠 **Web Push VAPID kalitlari yo'q** — push jim o'chiq. **⚙ operatsion**: `node scripts/gen-vapid.mjs`
+    bilan yarating va Vercel'ga `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`
+    qo'ying. Kalit yo'q bo'lsa panel ko'rinmaydi, xato bermaydi.
+22. 🟠 **`CRON_SECRET` tekshirilmagan.** Kod productionda uni MAJBURIY qiladi (yo'q bo'lsa cron o'chadi).
+    **⚙ operatsion**: Vercel'da o'rnatilganini tasdiqlang — aks holda kunlik vazifalar
+    (jamlama, TOP e'loni, tozalash, eslatmalar) ishlamaydi.
+23. 🟠 **Sxema sinxronizatsiyasi prod'da qo'lda.** **⚙ operatsion**: `npx tsx scripts/db-sync.ts` ni
+    Turso'ga qarshi ishga tushirib, oxirgi bloklardagi jadvallar (`live_*`, `push_subscriptions`,
+    `dm_folders`, `group_topics`, `login_requests`, `story_*`, `mentor_*`…) borligini tekshiring —
+    aks holda shu route'lar 500 beradi.
+24. 🟡 **Blob/R2 ochiq o'qish.** **◔ holat aniqlandi, xavf kutilganidan past**: fayl nomi
+    `crypto.randomUUID()` (122 bit) — ro'yxatini olish yoki taxmin qilish mumkin emas, ya'ni
+    «hamma chatni skanerlash» yo'q. Qolgan xavf: URL bir marta tarqalsa (skrinshot, forward,
+    brauzer tarixi) muddatsiz ochiq qoladi. **⏳ keyinga**: to'liq yechim — `/api/fayl/[id]` proksi
+    route'i + imzolangan qisqa muddatli URL; bu chat/portfolio/story'dagi barcha media yo'llarini
+    o'zgartiradi, shuning uchun alohida blok sifatida rejalashtirilgan (Blob store Public rejimda
+    yaratilgan — rejimi keyin o'zgarmaydi, ya'ni store ham qayta yaratilishi kerak).
+25. 🟡 **Audit jurnali aylanmasi yo'q.** **✓ allaqachon bor** — topilmam noto'g'ri edi:
+    `/api/cron/daily` da `AUDIT_RETENTION_DAYS` (180 kun) bo'yicha tozalash ishlaydi va
+    muhim yozuvlarni (`upload`, `pay%`, `admin_%`) saqlab qoladi. `auditDeleted` soni javobda qaytadi.
 
 ## E. Jarayon va monitoring
 
-26. 🔴 **Avtomatik xavfsizlik testi yo'q.** `scripts/smoke.mjs` — 23 ta funksional test, avtorizatsiya
-    (IDOR) testlari yo'q. Har bo'limga «begona foydalanuvchi 403 oladi» testi yozilsin (eng arzon himoya).
-27. 🟠 **Paket zaifliklari tekshirilmaydi.** CI'da `npm audit --production` yoki Dependabot yo'q.
-28. 🟠 **Xatolik monitoringi yo'q** (Sentry va h.k.). 500 xatolar faqat Vercel loglarida, ogohlantirish yo'q —
-    hujum yoki buzilish payqalmay qoladi.
-29. 🟡 **Rate-limit jadvali tozalanmaydi**: `rate_limits` qatorlari muddati o'tgach ham qoladi
-    (`lt(expiresAt)` bo'yicha o'chirish faqat ba'zi joylarda) — cron'ga qo'shilsin.
-30. 🟡 **Zaxira nusxa sinalmagan.** `docs/DEPLOY.md` 6-bo'limda tartib bor, lekin tiklash amalda sinalmagan.
-    Ransomware/noto'g'ri migratsiya holatida bu yagona himoya — chorakda bir marta sinab ko'ring.
+26. 🔴 **Avtomatik xavfsizlik testi yo'q.** **✔ tuzatildi**: `scripts/security.mjs` — `node --test` uchun
+    **21 ta** avtorizatsiya/regressiya testi: mehmon 401 (6 route), admin-only 403 (3), CSRF (Origin yo'q /
+    begona Origin), IDOR (4 probe), XSS regressiyasi (JSON-LD'da ekranlanmagan `<` yo'qligi),
+    SSRF regressiyasi (begona push xosti rad etiladi), 4 belgili efir kodi rad etiladi,
+    xavfsizlik sarlavhalari, API `no-store`. CI'da majburiy qadam; `CLAUDE.md` ga yozilgan.
+    Qoida: yangi API qo'shilsa shu yerga «begona foydalanuvchi 403 oladi» testi qo'shiladi.
+27. 🟠 **Paket zaifliklari tekshirilmaydi.** **✔ tuzatildi**: CI'da `npm audit --omit=dev` —
+    `--audit-level=critical` bloklaydi, `--audit-level=high` ogohlantiradi (`continue-on-error`).
+    Shu qadam darhol **critical** topdi va tuzatildi: Next.js 15.3 → **15.5.28**
+    (rasm optimizatsiyasidagi zaiflik; bizda `dangerouslyAllowSVG` yoqilmagani uchun yo'l
+    yopiq edi, baribir yangilandi). Qolgan 6 ta `high` — pastdagi jadval.
+28. 🟠 **Xatolik monitoringi yo'q** (Sentry va h.k.). **⚙ operatsion / ⏳**: kodga Sentry qo'shish
+    oson, lekin loyihaga yangi tashqi xizmat, DSN va CSP'ga `*.sentry.io` kiritadi — buni sizning
+    qaroringizsiz qo'shmadim. Hozircha: `/api/admin/health` va `/api/health` bor, kunlik cron
+    xatolarni audit meta'ga yozadi. Tavsiya: Sentry bepul reja + Vercel integratsiyasi.
+29. 🟡 **Rate-limit jadvali tozalanmaydi.** **✓ allaqachon bor** — topilmam noto'g'ri edi:
+    `/api/cron/daily` da `delete(rateLimits).where(lt(resetAt, now))` ishlaydi
+    (`rateLimitsDeleted` javobda), ustiga `rateLimit()` ning o'zi ~2% chaqiriqda `sweep()` qiladi.
+30. 🟡 **Zaxira nusxa sinalmagan.** **⚙ operatsion**: Turso point-in-time restore yoqilganini
+    tekshirib, `docs/DEPLOY.md` 6-bo'limi bo'yicha tiklashni **bir marta amalda** sinab ko'ring
+    (staging bazaga). Buni kod bilan qilib bo'lmaydi.
 
-## Tavsiya etilgan tartib
+## Paket zaifliklari — qolgan 6 ta `high` (2026-10-25)
 
-**Darhol:** 1 (✔), 2, 3, 9 (hech bo'lmasa `/api/live/*` va `/api/mentorlik/*`), 19, 22, 23.
-**Bir hafta ichida:** 4, 5, 6, 10, 11, 26, 28.
-**Keyingi oy:** qolganlari.
+`npm audit --omit=dev`: critical 0 · high 6 · moderate 1. CI critical'da yiqiladi, high'da ogohlantiradi.
+Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja:
+
+| Paket | Zaiflik | Nega hozir xavf emas | Reja |
+|---|---|---|---|
+| `drizzle-orm` <0.45.2 | SQL injection — identifikator (jadval/ustun nomi) ekranlanmasligi | Jadval/ustun nomlari faqat sxemadan keladi, foydalanuvchi matnidan HECH QAYERDA yasalmaydi; qiymatlar doim parametr | 0.45.x ga yangilash — breaking: relational query API o'zgargan, alohida blok |
+| `zod` <4.6.6 | Katta kolleksiyani tekshirishda xotira tugashi | Barcha `z.array()` larimizda `.max()` bor, `handler()` body hajmini cheklaydi | zod v4 migratsiyasi (`.default()`/`.optional()` semantikasi o'zgargan) — alohida blok |
+| `postcss` <=8.5.22 | CSS stringify'da XSS; attacker kiritgan CSS'ni o'qish | Faqat **build vaqtida** ishlaydi, foydalanuvchi CSS yozmaydi | Next 16 bilan keladi (Next 15 pin qilib turadi) |
+| `@vercel/blob` | `@vercel/oidc` orqali tranzitiv | OIDC oqimi ishlatilmaydi (token env'dan) | `@vercel/blob` yangilanishini kuzatish |
+| `@vercel/oidc`, `@vercel/cli-config` | `zod` orqali tranzitiv | Runtime'da chaqirilmaydi | `zod` v4 bilan birga yopiladi |
+
+## Tavsiya etilgan tartib (yangilangan)
+
+**Kodda qiladigan ish qolmadi** — 1–17, 20, 26, 27 yopildi; 12, 25, 29 tekshirilib «allaqachon to'g'ri» chiqdi.
+
+**Sizdan talab qiladi (⚙), muhimlik tartibida:**
+1. `CRON_SECRET` Vercel'da bor-yo'qligi (22) — bo'lmasa kunlik vazifalar ishlamaydi.
+2. `npx tsx scripts/db-sync.ts` Turso'ga (23) — bo'lmasa yangi bo'limlar 500 beradi.
+3. `TELEGRAM_API_BASE` prod'da YO'Q (19).
+4. VAPID kalitlari (21) — push kerak bo'lsa.
+5. Zaxira nusxani bir marta tiklab sinash (30).
+6. O'z domeni + HSTS preload (20), Sentry (28).
+
+**Keyingi blok uchun (⏳):** 24 (imzolangan fayl URL'lari), 14 (breakout e2e testi staging'da),
+18 (yopiq profil — mahsulot qarori), paket migratsiyalari (drizzle 0.45, zod v4).

@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { createTelegramLinkCode, isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
@@ -12,6 +13,7 @@ import { purchaseQuoteSchema } from "@/lib/mentorship/purchase-schemas";
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
+  await enforceLimit("purchase", session.sub);
   const input = await parseBody(req, purchaseQuoteSchema.pick({ type: true, id: true, promo: true }));
   const username = telegramBotUsername();
   if (!isTelegramEnabled() || !username) throw new ApiError(503, "Telegram bot sozlanmagan");

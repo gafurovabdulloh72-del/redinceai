@@ -6,7 +6,8 @@ import { Check, Loader2, Send, X } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
 
 type Start = { code: string; link: string; expiresAt: number };
-type Poll = { status: "pending" | "denied" | "expired" | "ok"; next?: string };
+type Tg = { name: string; username: string | null };
+type Poll = { status: "pending" | "denied" | "expired" | "confirm" | "ok"; next?: string; telegram?: Tg };
 
 /**
  * «Telegram bilan kirish» (bot orqali): tugma bosilganda 6 xonali kod olinadi va bot ochiladi,
@@ -19,6 +20,8 @@ export function TelegramLogin({ next }: { next?: string }) {
   const [start, setStart] = useState<Start | null>(null);
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState(0);
+  /** Bot tasdiqladi — sessiya ochilishidan oldin «bu hisob sizmi?» (auditning 5-bandi) */
+  const [tg, setTg] = useState<Tg | null>(null);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -47,6 +50,7 @@ export function TelegramLogin({ next }: { next?: string }) {
       const r = await fetch("/api/auth/telegram", { method: "POST" });
       const j = (await r.json()) as { data?: Start; error?: string };
       if (!r.ok || !j.data) throw new Error(j.error || "Boshlanmadi");
+      setTg(null);
       setStart(j.data);
       window.open(j.data.link, "_blank", "noopener,noreferrer");
       stop();
@@ -58,9 +62,9 @@ export function TelegramLogin({ next }: { next?: string }) {
     }
   }
 
-  async function poll() {
+  async function poll(confirm = false) {
     try {
-      const r = await fetch("/api/auth/telegram", { method: "PUT" });
+      const r = await fetch(`/api/auth/telegram${confirm ? "?tasdiq=1" : ""}`, { method: "PUT" });
       const j = (await r.json()) as { data?: Poll; error?: string };
       const st = j.data?.status;
       if (st === "ok") {
@@ -70,9 +74,16 @@ export function TelegramLogin({ next }: { next?: string }) {
         router.refresh();
         return;
       }
+      // Bot tasdiqladi: so'rashni to'xtatamiz va qaysi Telegram hisobi ekanini ko'rsatamiz
+      if (st === "confirm" && j.data?.telegram) {
+        stop();
+        setTg(j.data.telegram);
+        return;
+      }
       if (st === "denied" || st === "expired") {
         stop();
         setStart(null);
+        setTg(null);
         showToast(st === "denied" ? "Kirish rad etildi" : "Kod eskirdi — qayta urinib ko'ring", "info");
       }
     } catch {
@@ -80,7 +91,42 @@ export function TelegramLogin({ next }: { next?: string }) {
     }
   }
 
+  /** «Bu menman» — sessiya shu bosishdan keyin ochiladi */
+  async function finish() {
+    setBusy(true);
+    try {
+      await poll(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!enabled) return null;
+
+  if (tg)
+    return (
+      <div className="card p-3.5 text-center">
+        <p className="text-[12.5px] text-fg-3">Telegram tasdiqlandi</p>
+        <p className="mt-1 truncate text-[15px] font-bold text-fg">{tg.name}</p>
+        {tg.username && <p className="truncate text-[12.5px] text-fg-3">@{tg.username}</p>}
+        <p className="mt-1.5 text-[12px] leading-snug text-fg-3">Shu hisob sizgami? Agar bu siz emas bo'lsangiz — bekor qiling.</p>
+        <div className="mt-2.5 flex justify-center gap-2">
+          <button type="button" onClick={() => void finish()} disabled={busy} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13px] font-semibold text-bg disabled:opacity-60">
+            {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Bu menman — kirish
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTg(null);
+              setStart(null);
+            }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-fg-3 hover:text-fg"
+          >
+            <X size={13} /> Bekor
+          </button>
+        </div>
+      </div>
+    );
 
   if (start)
     return (
@@ -112,7 +158,6 @@ export function TelegramLogin({ next }: { next?: string }) {
     <button type="button" onClick={() => void begin()} disabled={busy} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-line-2 text-[14px] font-semibold text-fg transition hover:bg-fg/4 disabled:opacity-60">
       {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} className="text-[#2aabee]" />}
       Telegram bilan kirish
-      <Check size={0} aria-hidden />
     </button>
   );
 }

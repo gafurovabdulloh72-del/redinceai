@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { isCallEnabled, LIVEKIT_WS_URL, mintCallToken } from "@/lib/rtc/livekit";
 import { liveAccess, recordingAvailable } from "@/lib/live/service";
-import { touchAttendance } from "@/lib/live/zoom";
+import { livePasscode, touchAttendance } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,7 @@ const bodySchema = z.object({ passcode: z.string().max(32).optional() });
 export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   if (!isCallEnabled()) throw new ApiError(503, "Jonli efir hozircha o'chirilgan");
   const session = await requireSession();
+  await enforceLimit("liveGate", session.sub);
   const { id } = await ctx.params;
   const input = await parseBody(req, bodySchema).catch(() => ({ passcode: undefined }));
   const { stream, host, staged, moderator, gate, room, breakout } = await liveAccess(id, { id: session.sub, role: session.role }, { passcode: input.passcode, enroll: true });
@@ -36,7 +38,7 @@ export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }
     breakout,
     waitingRoom: stream.waitingRoom,
     hasPasscode: Boolean(stream.passcode),
-    passcode: moderator ? stream.passcode : undefined,
+    passcode: moderator ? livePasscode(stream.passcode) ?? undefined : undefined,
     breakoutOpen: stream.breakoutOpen,
     startedAt: stream.startedAt.getTime(),
   });

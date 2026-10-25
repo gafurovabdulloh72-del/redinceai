@@ -15,6 +15,7 @@ import {
   type LiveStream,
 } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
+import { openSecret, sealSecret, secretEquals } from "@/lib/security/secret-box";
 import { getMembership } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
 import { closeRoom, liveRoom, removeParticipant } from "@/lib/rtc/livekit";
@@ -36,7 +37,8 @@ type Viewer = { id: string; role: string };
 /** Kichik xona nomi: live_<streamId>_b<position> */
 export const breakoutRoom = (streamId: string, position: number) => `${liveRoom(streamId)}_b${position}`;
 
-export const PASSCODE_RE = /^[A-Za-z0-9]{4,12}$/;
+/** Efir kodi: 6–12 belgi (auditdan keyin 4 dan 6 ga ko'tarildi — 4 belgi terib topiladi) */
+export const PASSCODE_RE = /^[A-Za-z0-9]{6,12}$/;
 export const MAX_BREAKOUTS = 10;
 /** Davomat «tirik» signali: shu oynadan keyin kelgan signal yangi sessiya hisoblanadi */
 const ATTEND_GAP_MS = 5 * 60_000;
@@ -88,7 +90,7 @@ export async function entryGate(s: LiveStream, v: Viewer, passcode?: string, enr
   // Bir marta kiritilgan odam qayta kod so'ralmaydi: chat/savol/subtitr chaqiriqlari ham ishlaydi
   if (row?.status === "approved") return { gate: "open" };
   if (row?.status === "denied") return { gate: "denied" };
-  if (s.passcode && s.passcode !== (passcode ?? "").trim()) return { gate: "code" };
+  if (s.passcode && !secretEquals(livePasscode(s.passcode) ?? "", (passcode ?? "").trim())) return { gate: "code" };
   if (!s.waitingRoom) {
     // Kutish xonasi yo'q — kirishni belgilaymiz (keyingi chaqiriqlarda kod talab qilinmaydi)
     if (enroll) await admit(s.id, v.id);
@@ -142,6 +144,15 @@ export async function decideWaiting(streamId: string, actor: Viewer, userId: str
   return { count: 1 };
 }
 
+/**
+ * Efir kodini ochiq ko'rinishda qaytaradi (boshlavchi/hammuallifga ko'rsatish va solishtirish uchun).
+ * Eski yozuvlar shifrlanmagan bo'lishi mumkin — o'sha holda qiymatning o'zi qaytadi (orqaga moslik).
+ */
+export function livePasscode(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  return openSecret(stored, "live-passcode") ?? stored;
+}
+
 /** Kutish xonasi va kodni yoqish/o'chirish (boshlovchi, efir davomida ham) */
 export async function setEntryRules(streamId: string, actor: Viewer, patch: { waitingRoom?: boolean; passcode?: string | null }): Promise<void> {
   const s = await moderatedStream(streamId, actor);
@@ -150,8 +161,9 @@ export async function setEntryRules(streamId: string, actor: Viewer, patch: { wa
   if (patch.passcode !== undefined) {
     if (patch.passcode === null || patch.passcode === "") set.passcode = null;
     else {
-      if (!PASSCODE_RE.test(patch.passcode)) throw new ApiError(422, "Kod 4–12 belgi, faqat harf va raqam", { passcode: "4–12 belgi" });
-      set.passcode = patch.passcode;
+      if (!PASSCODE_RE.test(patch.passcode)) throw new ApiError(422, "Kod 6–12 belgi, faqat harf va raqam", { passcode: "6–12 belgi" });
+      // Bazada shifrlangan holda (boshlovchiga qayta ko'rsatish uchun ochiladi)
+      set.passcode = sealSecret(patch.passcode, "live-passcode");
     }
   }
   if (Object.keys(set).length) await db.update(liveStreams).set(set).where(eq(liveStreams.id, s.id));

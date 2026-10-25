@@ -53,7 +53,9 @@ const SECURITY_HEADERS = [
   // camera/microphone/display-capture=(self): video qo'ng'iroq (LiveKit) + ekran ulashish + ovozli xabar — faqat o'z sahifalarimizda, iframe/uchinchi tomonga yo'q
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(self)" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
-  ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
+  // `preload` — hstspreload.org ro'yxatiga yuborish uchun shart (2026-10-25 auditi, 20-band).
+  // DIQQAT: ro'yxatga tushgach barcha subdomenlar MAJBURAN HTTPS bo'ladi va qaytarish oylab ketadi.
+  ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : []),
 ];
 
 const nextConfig: NextConfig = {

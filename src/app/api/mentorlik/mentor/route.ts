@@ -1,4 +1,5 @@
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { mentorApplySchema } from "@/lib/mentorship/validators";
 import { applyAsMentor, getMentorForUser } from "@/lib/mentorship/service";
 
@@ -12,6 +13,7 @@ export const GET = handler(async () => {
 /** POST — mentor bo'lish arizasi (yoki tasdiqdan oldin yangilash) */
 export const POST = handler(async (req) => {
   const session = await requireSession();
+  await enforceLimit("mentor", session.sub);
   const input = await parseBody(req, mentorApplySchema);
   return ok(await applyAsMentor(session.sub, input), { status: 201 });
 });

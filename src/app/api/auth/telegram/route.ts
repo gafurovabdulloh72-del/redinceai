@@ -23,7 +23,9 @@ export const POST = handler(async (req) => {
 });
 
 /**
- * PUT — holatni so'rash (klient har 2 s chaqiradi). Tasdiqlangan bo'lsa sessiya ochiladi.
+ * PUT — holatni so'rash (klient har 2 s chaqiradi). Bot tasdiqlagach `status: "confirm"` va
+ * Telegram hisobining nomi qaytadi — sessiya HALI ochilmaydi. Foydalanuvchi «Kirish» bosgach
+ * klient `?tasdiq=1` bilan qayta chaqiradi va sessiya shunda ochiladi (auditning 5-bandi).
  * Faqat mehmon uchun: kirgan foydalanuvchi Telegramni Kabinet → Profil orqali bog'laydi.
  */
 export const PUT = handler(async (req) => {
@@ -31,7 +33,9 @@ export const PUT = handler(async (req) => {
   await enforceLimit("tgLoginPoll", clientIp(req));
   const jar = await cookies();
   const secret = jar.get(TG_LOGIN_COOKIE)?.value ?? "";
-  const r = await consumeTelegramLogin(secret);
+  const confirm = new URL(req.url).searchParams.get("tasdiq") === "1";
+  const r = await consumeTelegramLogin(secret, { confirm });
+  if (r.status === "confirm") return ok({ status: "confirm", telegram: r.telegram });
   if (r.status !== "ok") return ok({ status: r.status });
   jar.delete(TG_LOGIN_COOKIE);
   await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true });

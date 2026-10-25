@@ -168,6 +168,8 @@ export function ReportButton({
         </label>
         <textarea id={`${uid}-text`} className="field min-h-[72px] resize-y" value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder={tr(til, SHIKOYAT.placeholder)} />
       </div>
+      {/* Xabar shikoyatida matn parchasi adminga ko'rinadi — buni oldindan aytamiz (2026-10-25 auditi, 17-band) */}
+      {targetType === "message" && <p className="text-[12px] leading-snug text-fg-3">{tr(til, SHIKOYAT.messagePrivacy)}</p>}
       {error && (
         <p role="alert" className="flex items-center gap-1.5 text-[12px] font-medium text-danger">
           <AlertCircle size={13} /> {error}

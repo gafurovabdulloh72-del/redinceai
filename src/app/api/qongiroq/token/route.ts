@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { isCallEnabled, mintCallToken, dmRoom, groupRoom, LIVEKIT_WS_URL } from "@/lib/rtc/livekit";
 import { loadConversationFor } from "@/lib/chat/dm";
 import { loadGroupByAnySlug, assertActiveMember } from "@/lib/groups/service";
@@ -27,6 +28,7 @@ const bodySchema = z.discriminatedUnion("kind", [
 export const POST = handler(async (req) => {
   if (!isCallEnabled()) throw new ApiError(503, "Video qo'ng'iroq hozircha o'chirilgan");
   const session = await requireSession();
+  await enforceLimit("call", session.sub);
   const input = await parseBody(req, bodySchema);
 
   let room: string;

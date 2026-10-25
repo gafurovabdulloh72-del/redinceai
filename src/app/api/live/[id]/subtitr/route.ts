@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { liveAccess } from "@/lib/live/service";
 import { saveCaption, transcript } from "@/lib/live/zoom";
 
@@ -17,6 +18,7 @@ const bodySchema = z.object({ body: z.string().min(1).max(300), atSec: z.number(
 /** POST — sahnadagi odam nutqining matni (brauzer nutq tanish); tomoshabinlar data kanalidan oladi */
 export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
+  await enforceLimit("liveWrite", session.sub);
   const { id } = await ctx.params;
   const input = await parseBody(req, bodySchema);
   const viewer = { id: session.sub, role: session.role };

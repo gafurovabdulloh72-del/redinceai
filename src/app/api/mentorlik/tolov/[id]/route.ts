@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { siteOrigin } from "@/lib/payments/config";
 import { buildInvoiceRedirectUrl, loadInvoice, manualRequisites, markInvoiceSent } from "@/lib/subscriptions/billing";
 import { isPurchase, purchaseMeta } from "@/lib/mentorship/purchases";
@@ -37,6 +38,7 @@ export const GET = handler(async (req, ctx: Ctx) => {
 /** PATCH {action:"sent", receiptUrl?} — o'tkazma qildim («To'ladim»): admin tasdiqlaydi */
 export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
+  await enforceLimit("purchase", session.sub);
   const { id } = await ctx.params;
   const input = await parseBody(req, z.object({ action: z.literal("sent"), receiptUrl: z.string().max(500).nullish() }));
   const inv = await own(id, session);

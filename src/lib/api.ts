@@ -38,6 +38,40 @@ export interface HandlerOptions {
    * webhook'lari) chaqiradigan route'larda `csrf: false` qo'ying va o'z imzosini tekshiring.
    */
   csrf?: boolean;
+  /**
+   * Asosiy tezlik chegarasi (2026-10-25 auditi, 9-band). Standart: HAR qanday mutatsiyada
+   * (POST/PUT/PATCH/DELETE) foydalanuvchi yoki IP bo'yicha {@link BASE_MUTATION_LIMIT}.
+   * Bu — «tubi»: route o'zining aniqroq `enforceLimit()`ini qo'shishi mumkin va qo'shishi kerak.
+   * `limit: false` — faqat webhook'lar uchun (ular o'z imzosi bilan himoyalangan va tashqi
+   * tizim tezligini biz boshqarmaymiz).
+   */
+  limit?: false;
+}
+
+/** Har mutatsiya route'i uchun asosiy chegara: bitta HISOB soatiga 300 ta o'zgartirish */
+export const BASE_MUTATION_LIMIT = { limit: 300, windowMs: 60 * 60 * 1000 } as const;
+
+/**
+ * Mehmon uchun IP bo'yicha chegara ANIQ YUMSHOQ: O'zbekistonda mobil operatorlar NAT ortida
+ * minglab odamni bitta IP'da ko'rsatadi — 300 ta qo'ysak, bir operator abonentlari birgalikda
+ * ro'yxatdan o'ta olmay qoladi. Mehmon tega oladigan mutatsiyalar (kirish, ro'yxat, parol tiklash,
+ * til, Telegram bilan kirish) allaqachon o'zining qattiq limitlariga ega — bu faqat qo'pol DoS to'sig'i.
+ */
+export const GUEST_MUTATION_LIMIT = { limit: 2000, windowMs: 60 * 60 * 1000 } as const;
+
+/**
+ * Asosiy chegara: mutatsiya usullarida hisob (yoki mehmonda IP) bo'yicha.
+ * `rate-limit` moduli `ApiError`ni shu fayldan import qiladi — doiraviy importni oldini olish
+ * uchun dinamik import (birinchi chaqiruvdan keyin keshlanadi).
+ */
+async function baseLimit(req: Request): Promise<void> {
+  const method = req.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
+  const [{ rateLimit }, { clientIp }] = await Promise.all([import("./security/rate-limit"), import("./security/request")]);
+  const session = await getVerifiedSession();
+  const { limit, windowMs } = session ? BASE_MUTATION_LIMIT : GUEST_MUTATION_LIMIT;
+  const key = session ? `api:u:${session.sub}` : `api:ip:${clientIp(req)}`;
+  await rateLimit(key, limit, windowMs);
 }
 
 /**
@@ -52,6 +86,7 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         const problem = checkSameOrigin(req);
         if (problem) throw new ApiError(403, `${problem}. Sahifani yangilab, qayta urinib ko'ring`);
       }
+      if (opts.limit !== false) await baseLimit(req);
       return await fn(req, ctx);
     } catch (e) {
       if (e instanceof ApiError) return fail(e.status, e.message, e.fields, e.headers);

@@ -86,19 +86,27 @@ export type ConsumeResult =
   | { status: "pending" }
   | { status: "denied" }
   | { status: "expired" }
+  /** Bot tasdiqladi, lekin sessiya HALI ochilmadi — brauzerda «bu hisob sizmi?» so'raladi */
+  | { status: "confirm"; telegram: { name: string; username: string | null } }
   | { status: "ok"; userId: string; role: string; name: string; isNew: boolean };
 
 /**
  * Sayt tomoni: cookie'dagi sir bo'yicha holatni o'qiydi. Tasdiqlangan bo'lsa hisobni
  * topadi yoki yaratadi va so'rovni «used» qiladi (CAS — ikki marta ishlatilmaydi).
+ *
+ * `confirm: false` (standart) — faqat Telegram hisobining nomini qaytaradi, sessiya OCHILMAYDI
+ * (2026-10-25 auditi, 5-band: begona odam qurbonning kodini taxmin qilib o'z chatId'si bilan
+ * tasdiqlasa, qurbon o'zi bilmay HUJUMCHI hisobiga kirib qolardi — endi brauzerda nom ko'rsatiladi
+ * va foydalanuvchi aniq «Kirish» bosishi kerak). `confirm: true` — sessiya ochiladi.
  */
-export async function consumeTelegramLogin(secret: string): Promise<ConsumeResult> {
+export async function consumeTelegramLogin(secret: string, opts: { confirm?: boolean } = {}): Promise<ConsumeResult> {
   if (!secret) return { status: "expired" };
   const row = await db.query.loginRequests.findFirst({ where: eq(loginRequests.secretHash, sha(secret)) });
   if (!row) return { status: "expired" };
   if (row.expiresAt.getTime() < Date.now()) return { status: "expired" };
   if (row.status === "denied") return { status: "denied" };
   if (row.status !== "approved" || !row.telegramChatId) return { status: "pending" };
+  if (!opts.confirm) return { status: "confirm", telegram: { name: row.telegramName || row.telegramUsername || "Telegram foydalanuvchisi", username: row.telegramUsername } };
 
   // CAS: faqat bitta so'rov «used» qilib oladi
   const claimed = await db

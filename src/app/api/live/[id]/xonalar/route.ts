@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { assignBreakout, autoAssign, breakouts, createBreakouts, MAX_BREAKOUTS, setBreakoutOpen } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
@@ -21,6 +22,7 @@ const bodySchema = z.discriminatedUnion("action", [
 /** POST — kichik xonalarni yaratish · avtomatik taqsimlash · biriktirish · ochish/yopish */
 export const POST = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
+  await enforceLimit("liveWrite", session.sub);
   const { id } = await ctx.params;
   const input = await parseBody(req, bodySchema);
   const actor = { id: session.sub, role: session.role };

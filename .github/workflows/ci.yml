@@ -44,6 +44,17 @@ jobs:
       - name: TypeScript (tsc --noEmit)
         run: npx tsc --noEmit
 
+      # Paket zaifliklari (2026-10-25 auditi, 27-band).
+      # Bloklovchi: faqat KRITIK (hozir 0 ta). «high» darajadagilar — hisobot, chunki
+      # qolganlari major yangilanish talab qiladi (drizzle-orm, zod v4, @vercel/blob) —
+      # ular rejalashtirilgan, docs/XAVFSIZLIK-AUDIT.md 27-bandiga qarang.
+      - name: Paket zaifliklari — kritik (bloklaydi)
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Paket zaifliklari — hisobot (bloklamaydi)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
       - name: ESLint (sozlangan bo'lsa)
         continue-on-error: true
         run: |
@@ -72,6 +83,10 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
         run: node --test scripts/smoke.mjs
+
+      # Avtorizatsiya (IDOR/CSRF/sarlavha) testlari — 2026-10-25 auditi, 26-band
+      - name: Xavfsizlik testlari
+        run: node --test scripts/security.mjs
 
       - name: Server logi (xato bo'lsa)
         if: failure()

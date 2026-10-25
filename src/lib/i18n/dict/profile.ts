@@ -97,6 +97,11 @@ export const SHIKOYAT = {
   aboutPost: { uz: "Post haqida shikoyat", ru: "Пожаловаться на пост" } satisfies Tr,
   aboutComment: { uz: "Izoh haqida shikoyat", ru: "Пожаловаться на комментарий" } satisfies Tr,
   aboutMessage: { uz: "Xabar haqida shikoyat", ru: "Пожаловаться на сообщение" } satisfies Tr,
+  /** Xabar shikoyatida: moderatsiya uchun xabar matnining parchasi adminga ko'rinadi — foydalanuvchi bilishi kerak */
+  messagePrivacy: {
+    uz: "Moderatsiya uchun xabarning qisqa parchasi administratorga ko'rinadi.",
+    ru: "Для модерации администратору будет виден короткий фрагмент сообщения.",
+  } satisfies Tr,
   sent: { uz: "Shikoyatingiz yuborildi — admin ko'rib chiqadi", ru: "Жалоба отправлена — администратор рассмотрит её" } satisfies Tr,
   loginFirst: { uz: " — avval tizimga kiring", ru: " — сначала войдите" } satisfies Tr,
   button: { uz: "Shikoyat qilish", ru: "Пожаловаться" } satisfies Tr,

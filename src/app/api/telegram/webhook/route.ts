@@ -3,6 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
+import { RATE_LIMITS, rateLimit } from "@/lib/security/rate-limit";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { loadPaymentDetail } from "@/lib/payments/dto";
@@ -195,11 +196,28 @@ async function handleStop(chatId: string): Promise<void> {
   }
 }
 
+/**
+ * Bot tomonidagi chegara (2026-10-25 auditi, 5 va 6-bandlar): chatId bo'yicha.
+ * `true` — chegaradan o'tildi, davom etmaymiz. Telegram update'ini baribir 200 bilan
+ * tasdiqlaymiz (aks holda Telegram qayta-qayta yuboraveradi).
+ */
+async function botLimited(chatId: string, name: "tgBot" | "tgStart"): Promise<boolean> {
+  try {
+    await rateLimit(`${name}:${chatId}`, RATE_LIMITS[name].limit, RATE_LIMITS[name].windowMs);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(req: Request) {
   if (!secretOk(req)) return Response.json({ ok: false }, { status: 401 });
   try {
     const update = (await req.json()) as TelegramUpdate;
     if (update?.callback_query) {
+      const cbChat = update.callback_query.message?.chat?.id;
+      const cbId = cbChat != null ? String(cbChat) : "";
+      if (cbId && (await botLimited(cbId, "tgBot"))) return Response.json({ ok: true });
       await handleCallback(update.callback_query);
       return Response.json({ ok: true });
     }
@@ -230,6 +248,11 @@ export async function POST(req: Request) {
     if (cmd === "/start") {
       const mf = msg?.from ?? {};
       const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
+      // `l_<kod>` — kirish kodini TERIB topishga qarshi alohida (qattiqroq) chegara
+      if (arg.startsWith("l_") && (await botLimited(chatId, "tgStart"))) {
+        await sendTelegram(chatId, "Juda ko'p urinish. Bir soatdan keyin qayta urinib ko'ring.");
+        return Response.json({ ok: true });
+      }
       // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */

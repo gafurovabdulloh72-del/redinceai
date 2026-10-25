@@ -13,12 +13,42 @@ const MAX_FAILURES = 5;
 
 const ENDPOINT_RE = /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}\/[\w./@%:+-]*$/i;
 
+/**
+ * Push xizmatlari OQ RO'YXATI (2026-10-25 auditi, 2-band). Ilgari istalgan `https://host/...`
+ * qabul qilinardi — kirgan foydalanuvchi o'z hisobiga ixtiyoriy manzil yozib, server har
+ * bildirishnomada o'sha manzilga POST qilishiga erishardi (ko'r SSRF + tashqi xostni «urish»).
+ * Endi faqat brauzerlarning haqiqiy push xizmatlari.
+ */
+const ALLOWED_HOSTS = [
+  "android.googleapis.com", // eski FCM
+  "fcm.googleapis.com", // Chrome / Android
+  "updates.push.services.mozilla.com", // Firefox
+  "push.services.mozilla.com",
+  "web.push.apple.com", // Safari / iOS
+  "notify.windows.com", // Edge (WNS)
+  "wns2-by3p.notify.windows.com",
+] as const;
+
+/** Xost oq ro'yxatdami: aniq moslik yoki shu domenning subdomeni */
+function hostAllowed(endpoint: string): boolean {
+  let host: string;
+  try {
+    const u = new URL(endpoint);
+    if (u.protocol !== "https:") return false;
+    host = u.hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return ALLOWED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
 export type PushInput = { endpoint: string; p256dh: string; auth: string; userAgent?: string | null };
 
 /** Obunani saqlash (bir endpoint — bir qator; boshqa hisobda bo'lsa egasi o'zgaradi) */
 export async function savePushSubscription(userId: string, input: PushInput): Promise<void> {
   if (!isPushEnabled()) throw new ApiError(503, "Push bildirishnomalar sozlanmagan");
   if (!ENDPOINT_RE.test(input.endpoint) || input.endpoint.length > 500) throw new ApiError(422, "Obuna manzili noto'g'ri");
+  if (!hostAllowed(input.endpoint)) throw new ApiError(422, "Bu push xizmati qo'llab-quvvatlanmaydi");
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(input.p256dh) || !/^[A-Za-z0-9_-]{10,80}$/.test(input.auth)) throw new ApiError(422, "Obuna kalitlari noto'g'ri");
   await db
     .insert(pushSubscriptions)

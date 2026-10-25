@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
+import { enforceLimit } from "@/lib/security/rate-limit";
 import { setCoursePublished } from "@/lib/mentorship/service";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -7,6 +8,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /** POST { publish } — kursni chop etish / yashirish (faqat egasi) */
 export const POST = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
+  await enforceLimit("mentor", session.sub);
   const { id } = await ctx.params;
   const { publish } = await parseBody(req, z.object({ publish: z.boolean() }));
   await setCoursePublished(session.sub, id, publish, session.role === "admin");
