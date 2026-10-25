@@ -27,6 +27,9 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       ADMIN_EMAIL: admin@redince.uz
       ADMIN_PASSWORD: ci-admin-Password-2026!
+      # Xavfsizlik testlari seed demo hisoblari bilan kiradi (avtorizatsiya/IDOR'ni mehmon emas,
+      # haqiqiy foydalanuvchi sifatida tekshirish uchun). Faqat CI'ning ci.db fayliga tegishli.
+      DEMO_PASSWORD: ci-demo-Password-2026
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - name: Kodni olish

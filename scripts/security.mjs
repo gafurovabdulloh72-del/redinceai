@@ -26,7 +26,38 @@ const jar = (p) => {
     .join("; ");
 };
 
-const COOKIES = { sp: jar("/tmp/sp.jar"), cl: jar("/tmp/cl.jar"), ad: jar("/tmp/ad.jar"), guest: "" };
+/**
+ * Sessiya cookie'lari. Ikki manba:
+ *  1) API orqali kirish (seed demo hisoblari) — CI shu yo'ldan ketadi, jar fayllar yo'q;
+ *  2) lokal jar fayllar (scratchpad `restart-dev.sh` yaratadi) — kirish ishlamasa zaxira.
+ * Hisob topilmasa IDOR/admin testlari jim o'tkazib yuborilmaydi — aniq xato beradi
+ * (sabab: cookie'siz «401» keladi va test avtorizatsiyani emas, mehmonlikni tekshirgan bo'ladi).
+ */
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "demo12345";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+
+async function login(email, password) {
+  if (!password) return "";
+  try {
+    const r = await fetch(`${BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      redirect: "manual",
+    });
+    if (!r.ok) return "";
+    const list = typeof r.headers.getSetCookie === "function" ? r.headers.getSetCookie() : [r.headers.get("set-cookie") ?? ""];
+    return list.filter(Boolean).map((c) => c.split(";")[0]).join("; ");
+  } catch {
+    return "";
+  }
+}
+
+const COOKIES = { sp: "", cl: "", ad: "", guest: "" };
+COOKIES.sp = (await login("mutaxassis@redince.uz", DEMO_PASSWORD)) || jar("/tmp/sp.jar");
+COOKIES.cl = (await login("mijoz@redince.uz", DEMO_PASSWORD)) || jar("/tmp/cl.jar");
+COOKIES.ad = (await login(process.env.ADMIN_EMAIL || "admin@redince.uz", ADMIN_PASSWORD)) || jar("/tmp/ad.jar");
+if (!COOKIES.cl) throw new Error("Xavfsizlik testlari: mijoz sessiyasi olinmadi (seed demo hisobi yoki DEMO_PASSWORD ni tekshiring) — avtorizatsiya testlari ma'nosiz bo'lib qoladi");
 
 async function req(who, path, init = {}) {
   const headers = { Origin: ORIGIN, "Content-Type": "application/json", ...(init.headers ?? {}) };
@@ -135,6 +166,12 @@ test("Efir kodi: 4 belgi qabul qilinmaydi (6+ kerak)", async () => {
   assert.ok([403, 404, 422].includes(r.status), `kutilgan 403/404/422, keldi ${r.status}`);
 });
 
+test("Efir kodi: 6 belgi validatsiyadan o'tadi (xato egalik bo'yicha bo'ladi)", async () => {
+  const r = await req("cl", "/api/live/begona-efir/sozlama", { method: "PATCH", body: JSON.stringify({ passcode: "123456" }) });
+  // Efir mavjud emas → 403/404. 422 kelsa — uzunlik qoidasi 6 belgini ham rad etadi (regressiya).
+  assert.ok([403, 404].includes(r.status), `6 belgili kod rad etildi (${r.status}) — PASSCODE_RE ni tekshiring`);
+});
+
 /* ------------------------- 6. Xavfsizlik sarlavhalari ------------------------- */
 
 test("Xavfsizlik sarlavhalari o'rnatilgan", async () => {
@@ -168,8 +205,11 @@ for (const bad of ["//evil.example", "https://evil.example", "/\\evil.example", 
 
 // LiveKit tokeni = pul (daqiqa). Mehmonga HECH QACHON berilmasligi kerak.
 for (const path of ["/api/live/begona-efir/token", "/api/qongiroq/token?id=yoq"]) {
-  test(`mehmon: POST ${path} → 401`, async () => {
+  test(`mehmon: POST ${path} — token bermaydi`, async () => {
     const r = await req("guest", path, { method: "POST", body: "{}" });
-    assert.equal(r.status, 401, `${path} kutilgan 401, keldi ${r.status}`);
+    // 401 — kutilgan javob; 503 — LiveKit env'i sozlanmagan muhit (CI) auth'dan oldin to'xtaydi.
+    // Muhimi: mehmon HECH QACHON 2xx va token olmasligi kerak.
+    assert.ok(r.status >= 400, `${path} mehmonga ${r.status} qaytardi — token sizishi mumkin`);
+    assert.ok([401, 503].includes(r.status), `${path} kutilgan 401 (yoki 503 — LiveKit sozlanmagan), keldi ${r.status}`);
   });
 }
