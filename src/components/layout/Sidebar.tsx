@@ -93,9 +93,11 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread, authOnly: true },
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
-  // Ikkilamchi bandlar — to'rttagacha; TOP reyting va Xarita «Yana» menyusida (panel tinch qolsin)
+  // Ikkilamchi bandlar; TOP reyting «Yana» menyusida (panel tinch qolsin).
+  // Xarita — Mutaxassislardan OLDIN: hudud bo'yicha ijodkor izlash katalogga kirishdan oldingi qadam.
   const secondary: Item[] = [
     { href: "/mentorlik", label: SHELL.nav.mentorship, icon: GraduationCap, emphasis: true },
+    { href: "/xarita", label: SHELL.nav.map, icon: Map },
     { href: "/mutaxassislar", label: SHELL.nav.specialists, icon: Users },
     { href: "/vakansiyalar", label: SHELL.nav.vacancies, icon: Briefcase },
     { href: "/ishlar", label: SHELL.nav.jobs, icon: BriefcaseBusiness },
@@ -200,7 +202,6 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
                 <MoreItem href="/top" icon={Crown} label={tr(til, SHELL.nav.top)} />
-                <MoreItem href="/xarita" icon={Map} label={tr(til, SHELL.nav.map)} />
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />
