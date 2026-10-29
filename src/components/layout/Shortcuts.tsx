@@ -21,6 +21,7 @@ const GO: Array<{ key: string; href: string; label: Tr }> = [
   { key: "q", href: "/qidiruv", label: SHELL.shortcuts.goSearch },
   { key: "l", href: "/lenta", label: SHELL.shortcuts.goLenta },
   { key: "j", href: "/jamoalar", label: SHELL.shortcuts.goGroups },
+  { key: "m", href: "/xarita", label: SHELL.shortcuts.goMap },
   { key: "x", href: "/kabinet/chat", label: SHELL.shortcuts.goMessages },
   { key: "b", href: "/kabinet/bildirishnomalar", label: SHELL.shortcuts.goNotifications },
   { key: "k", href: "/kabinet", label: SHELL.shortcuts.goCabinet },

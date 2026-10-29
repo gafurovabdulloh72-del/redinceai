@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Briefcase, Plus } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
+import { FeedLink } from "@/components/ui/FeedLink";
 import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
@@ -95,6 +96,8 @@ export default async function ProfessionVacanciesPage({ params, searchParams }: 
           </Link>
         ))}
         <VacancyAlertButton query={toQueryString({ profession: p.slug, format: f.format || undefined })} defaultName={`${p.short}${f.format ? ` · ${WORK_FORMAT[f.format]}` : ""}`} loggedIn={Boolean(user)} className="ml-auto" />
+        {/* Faqat shu kasb bo'yicha RSS — umumiy lentada boshqa yo'nalishlar shovqin bo'ladi */}
+        <FeedLink href={`/vakansiyalar/kasb/${p.slug}/feed.xml`} label="RSS" title={`${p.name} vakansiyalari RSS lentasi`} />
       </div>
 
       <section className="mt-6" aria-live="polite">

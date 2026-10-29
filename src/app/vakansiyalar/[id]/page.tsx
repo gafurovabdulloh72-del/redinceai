@@ -97,6 +97,21 @@ export default async function VacancyPage({ params }: { params: Params }) {
     <div className="container-x animate-fade-up">
       {/* `<` ekranlanadi: title/description/company — foydalanuvchi matni, aks holda `</script>` bilan chiqib ketish mumkin */}
       {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPosting).replace(/</g, "\\u003c") }} />}
+      {/* Yo'l (breadcrumb) — Google natijalarda «Vakansiyalar › Kasb › E'lon» ko'rsatadi */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Vakansiyalar", item: `${SITE_URL}/vakansiyalar` },
+              { "@type": "ListItem", position: 2, name: professionLabel(v.profession), item: `${SITE_URL}/vakansiyalar/kasb/${v.profession}` },
+              { "@type": "ListItem", position: 3, name: v.title, item: `${SITE_URL}/vakansiyalar/${v.id}` },
+            ],
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
       <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
           Vakansiyalar

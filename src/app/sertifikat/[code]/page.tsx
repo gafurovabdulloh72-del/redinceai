@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCertificate } from "@/lib/mentorship/learning";
 import { PrintButton } from "@/components/mentorship/PrintButton";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,12 @@ export default async function CertificatePage({ params }: { params: Promise<{ co
       <div className="mx-auto max-w-[900px]">
         <div className="mb-4 flex items-center justify-between gap-3 print:hidden">
           <p className="text-[13px] font-semibold text-success-text">✓ Sertifikat haqiqiy — Kasb Egalari platformasi tomonidan berilgan</p>
-          <PrintButton />
+          <div className="flex items-center gap-2">
+            {/* Ulashish — sertifikatni ijtimoiy tarmoqqa/ish beruvchiga yuborish uchun
+                (ilgari faqat chop etish bor edi, havolani qo'lda nusxalash kerak edi) */}
+            <ShareButton title={`${c.student} — ${c.course} sertifikati`} size="md" variant="outline" iconOnly />
+            <PrintButton />
+          </div>
         </div>
         <article className="cert relative aspect-[1.414/1] overflow-hidden rounded-[8px] border-[10px] border-[#1a1a1c] bg-[#fbfaf6] p-[5%] text-[#1a1a1c] print:rounded-none" style={{ colorScheme: "light" }}>
           <div className="flex h-full flex-col items-center justify-between border border-[#1a1a1c]/25 px-[4%] py-[3%] text-center">

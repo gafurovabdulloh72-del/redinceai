@@ -11,6 +11,7 @@ import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { CourseCard } from "@/components/mentorship/CourseCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site-url";
 import { recordCourseView } from "@/lib/mentorship/growth";
 import { getCourseBySlug, similarCourses } from "@/lib/mentorship/service";
 import { categoryLabel, formatSom, levelLabel, formatDuration } from "@/lib/mentorship/format";
@@ -33,6 +34,39 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   if (!c) notFound();
   // O'xshash kurslar — shu yo'nalishdagi mashhurlar (vakansiyalarda allaqachon bor edi)
   const similar = await similarCourses(c.id, c.category, 3);
+
+  /*
+   * JSON-LD (2026-10-29): kurs sahifasida tuzilgan ma'lumot YO'Q edi — Google kursni
+   * oddiy sahifa deb oladi. `Course` sxemasi bilan natijalarda ustoz, reyting va narx
+   * ko'rinishi mumkin; `BreadcrumbList` — «Mentorlik › Kurs» yo'li.
+   * `<` ekranlanadi (XSS): sarlavha/tavsif foydalanuvchi matni.
+   */
+  const ld = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Course",
+        name: c.title,
+        description: c.summary || c.title,
+        url: `${SITE_URL}/mentorlik/${c.slug}`,
+        inLanguage: "uz",
+        provider: { "@type": "Organization", name: "Kasb Egalari", url: SITE_URL },
+        ...(c.mentor?.name ? { author: { "@type": "Person", name: c.mentor.name } } : {}),
+        ...(c.reviewsCount > 0 && c.rating > 0
+          ? { aggregateRating: { "@type": "AggregateRating", ratingValue: c.rating, reviewCount: c.reviewsCount, bestRating: 5, worstRating: 1 } }
+          : {}),
+        offers: { "@type": "Offer", price: c.priceFrom, priceCurrency: "UZS", availability: "https://schema.org/InStock", url: `${SITE_URL}/mentorlik/${c.slug}` },
+        hasCourseInstance: { "@type": "CourseInstance", courseMode: "online", courseWorkload: `PT${Math.max(1, c.lessonsCount)}H` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Mentorlik", item: `${SITE_URL}/mentorlik` },
+          { "@type": "ListItem", position: 2, name: c.title, item: `${SITE_URL}/mentorlik/${c.slug}` },
+        ],
+      },
+    ],
+  };
   if (!c.isOwner && user?.role !== "admin") void recordCourseView(c.id).catch(() => undefined);
 
   const firstLesson = c.lessons[0]?.id ?? null;
@@ -40,6 +74,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="container-x py-6 sm:py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
       <RefCapture />
       <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-fg-3 transition hover:text-fg max-sm:hidden">
         <ChevronLeft size={15} /> Mentorlik

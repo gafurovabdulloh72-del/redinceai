@@ -66,6 +66,7 @@ export const SHELL = {
     goSearch: { uz: "Qidiruv sahifasi", ru: "Страница поиска" },
     goLenta: { uz: "Lenta", ru: "Лента" },
     goGroups: { uz: "Jamoalar", ru: "Сообщества" },
+    goMap: { uz: "Xarita", ru: "Карта" },
     goMessages: { uz: "Xabarlar", ru: "Сообщения" },
     goNotifications: { uz: "Bildirishnomalar", ru: "Уведомления" },
     goCabinet: { uz: "Kabinet", ru: "Кабинет" },

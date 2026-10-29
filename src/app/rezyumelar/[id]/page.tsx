@@ -8,6 +8,7 @@ import { PrintButton } from "@/components/payments/PrintButton";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { ResumeCard } from "@/components/vacancies/ResumeCard";
 import { getCurrentUser } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site-url";
 import { isBotUserAgent } from "@/lib/privacy";
 import { RESUME_EXPERIENCE, RESUME_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
 import { bumpResumeView, getResumeView, similarResumes } from "@/lib/vacancies/service";
@@ -53,6 +54,22 @@ export default async function ResumePage({ params }: { params: Params }) {
   return (
     <div className="container-x animate-fade-up">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
+      {r.isPublic && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Rezyumelar", item: `${SITE_URL}/rezyumelar` },
+                { "@type": "ListItem", position: 2, name: professionLabel(r.profession), item: `${SITE_URL}/rezyumelar?kasb=${r.profession}` },
+                { "@type": "ListItem", position: 3, name: r.title, item: `${SITE_URL}/rezyumelar/${r.id}` },
+              ],
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
       <nav aria-label="Yo'l" className="no-print text-[13px] text-fg-3">
         <Link href="/rezyumelar" className="transition hover:text-fg">
           Rezyumelar

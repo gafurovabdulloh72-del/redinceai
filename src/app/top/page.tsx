@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock, Crown, Eye, Heart, MessageCircle, Play, Sparkles, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/ui";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { monthKeyOf, monthLabel, monthRange, publishAtOf, publishedMonths, TOP_AWARD_COUNT, type AwardView } from "@/lib/top";
 import { cn, compactCount, formatDate } from "@/lib/utils";
@@ -71,7 +72,11 @@ export default async function TopPage() {
           <p className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-accent-text">
             <Crown size={13} /> {tr(til, TOP.badge)}
           </p>
-          <h1 className="mt-3 font-display text-[28px] font-extrabold leading-tight tracking-tight text-fg sm:text-[34px]">{tr(til, TOP.title)}</h1>
+          <div className="mt-3 flex items-start justify-center gap-3">
+            <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-tight text-fg sm:text-[34px]">{tr(til, TOP.title)}</h1>
+            {/* Oylik g'oliblar ro'yxatini ulashish — ijodkorlar o'z o'rnini e'lon qiladi */}
+            <ShareButton title={tr(til, TOP.title)} size="md" variant="outline" iconOnly className="mt-1 shrink-0" />
+          </div>
           <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-fg-3">{tr(til, TOP.lead)}</p>
         </header>
 
