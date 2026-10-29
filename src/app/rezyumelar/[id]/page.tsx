@@ -6,10 +6,11 @@ import { BadgeCheck, ExternalLink, MessageCircle, Pencil, UserRound } from "luci
 import { Avatar } from "@/components/ui";
 import { PrintButton } from "@/components/payments/PrintButton";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { ResumeCard } from "@/components/vacancies/ResumeCard";
 import { getCurrentUser } from "@/lib/auth";
 import { isBotUserAgent } from "@/lib/privacy";
 import { RESUME_EXPERIENCE, RESUME_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
-import { bumpResumeView, getResumeView } from "@/lib/vacancies/service";
+import { bumpResumeView, getResumeView, similarResumes } from "@/lib/vacancies/service";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,8 @@ export default async function ResumePage({ params }: { params: Params }) {
   if (!r) notFound();
   // Ko'rishlar: egasi va botlar sanalmaydi; natija kutilmaydi
   if (!r.isOwner && r.isPublic && !isBotUserAgent(hdrs.get("user-agent"))) void bumpResumeView(r.id).catch(() => {});
+  // Shu kasbdagi boshqa nomzodlar — faqat ommaviy rezyumeda (yopiqda ro'yxat ko'rsatilmaydi)
+  const similar = r.isPublic ? await similarResumes({ id: r.id, profession: r.profession }, 3) : [];
   return (
     <div className="container-x animate-fade-up">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
@@ -153,6 +156,17 @@ export default async function ResumePage({ params }: { params: Params }) {
           <p className="px-1 text-[12px] text-fg-4">Yangilangan: {formatDate(r.updatedAt)}</p>
         </aside>
       </div>
+
+      {similar.length > 0 && (
+        <section className="mt-10" aria-label="O'xshash rezyumelar">
+          <h2 className="display-xl mb-3 text-[20px] text-fg max-sm:px-4">Shu kasbdagi boshqa nomzodlar</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
+            {similar.map((x) => (
+              <ResumeCard key={x.id} r={x} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

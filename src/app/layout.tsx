@@ -84,6 +84,15 @@ export const metadata: Metadata = {
     ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
     ...(process.env.YANDEX_VERIFICATION ? { yandex: process.env.YANDEX_VERIFICATION } : {}),
   },
+  // RSS lentalar — brauzer va lenta o'quvchilar (Feedly, Telegram RSS bot) avtomatik topadi
+  alternates: {
+    types: {
+      "application/rss+xml": [
+        { url: "/vakansiyalar/feed.xml", title: "Kasb Egalari — vakansiyalar" },
+        { url: "/mentorlik/feed.xml", title: "Kasb Egalari — mentorlik kurslari" },
+      ],
+    },
+  },
 };
 
 /** Organization + WebSite (SearchAction) strukturaviy ma'lumoti — qidiruv tizimlari uchun ("<" ekranlanadi) */

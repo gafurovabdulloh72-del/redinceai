@@ -808,6 +808,16 @@ export async function checkVacancyAlerts(now = Date.now()): Promise<{ checked: n
   return { checked: rows.length, notified };
 }
 
+/**
+ * O'xshash rezyumelar (2026-10-29): shu kasbdagi boshqa nomzodlar — ish beruvchi
+ * bitta rezyumeni ochgach darhol qiyoslay oladi. Vakansiyalarda `similarVacancies`
+ * allaqachon bor edi, rezyumelarda yo'q edi.
+ */
+export async function similarResumes(r: { id: string; profession: string }, limit = 3): Promise<ResumeCard[]> {
+  const { items } = await listResumes({ q: "", profession: r.profession as never, experience: "", format: "any", region: "", page: 1, limit: limit + 1 });
+  return items.filter((x) => x.id !== r.id).slice(0, limit);
+}
+
 export async function listResumes(filter: ResumeFilter): Promise<{ items: ResumeCard[]; total: number; page: number; pages: number }> {
   const conds: SQL[] = [eq(resumes.isPublic, true), eq(users.isBanned, false)];
   if (filter.profession) conds.push(eq(resumes.profession, filter.profession));

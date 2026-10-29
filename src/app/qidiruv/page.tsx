@@ -4,6 +4,7 @@ import { ArrowUpRight, Compass } from "lucide-react";
 import { Avatar, EmptyState, PageHeader, Stars, VerifiedBadge } from "@/components/ui";
 import { MediaTile } from "@/components/profile/MediaTile";
 import { ExploreForm } from "@/components/search/ExploreForm";
+import { RecentSearches } from "@/components/search/RecentSearches";
 import { Highlight } from "@/components/search/Highlight";
 import { ResultsKeyNav } from "@/components/search/ResultsKeyNav";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
@@ -65,6 +66,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       />
 
       <ExploreForm q={q} type={type} popular={skills.map((s) => s.skill)} />
+      <RecentSearches q={q} />
 
       {/* Tur chiplari */}
       <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={tr(til, QIDIRUV.typeAria)}>

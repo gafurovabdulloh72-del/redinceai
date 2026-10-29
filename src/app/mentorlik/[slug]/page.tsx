@@ -8,9 +8,11 @@ import { EnrollButton } from "@/components/mentorship/EnrollButton";
 import { RefCapture } from "@/components/mentorship/PurchaseDialog";
 import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
+import { CourseCard } from "@/components/mentorship/CourseCard";
+import { ShareButton } from "@/components/specialists/ShareButton";
 import { getCurrentUser } from "@/lib/auth";
 import { recordCourseView } from "@/lib/mentorship/growth";
-import { getCourseBySlug } from "@/lib/mentorship/service";
+import { getCourseBySlug, similarCourses } from "@/lib/mentorship/service";
 import { categoryLabel, formatSom, levelLabel, formatDuration } from "@/lib/mentorship/format";
 import { cn, timeAgo } from "@/lib/utils";
 
@@ -29,6 +31,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const user = await getCurrentUser();
   const c = await getCourseBySlug(slug, user?.id ?? null, user?.role === "admin");
   if (!c) notFound();
+  // O'xshash kurslar — shu yo'nalishdagi mashhurlar (vakansiyalarda allaqachon bor edi)
+  const similar = await similarCourses(c.id, c.category, 3);
   if (!c.isOwner && user?.role !== "admin") void recordCourseView(c.id).catch(() => undefined);
 
   const firstLesson = c.lessons[0]?.id ?? null;
@@ -64,7 +68,11 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             {c.rating > 0 && <span className="inline-flex items-center gap-1 text-fg-4"><Star size={13} className="fill-accent text-accent" /> {c.rating} ({c.reviewsCount})</span>}
           </div>
 
-          <h1 className="display-xl mt-3 text-fg">{c.title}</h1>
+          <div className="mt-3 flex items-start gap-3">
+            <h1 className="display-xl min-w-0 flex-1 text-fg">{c.title}</h1>
+            {/* Kursni ulashish — ilgari kurs sahifasida ulashish yo'q edi (havolani qo'lda nusxalash kerak edi) */}
+            <ShareButton title={c.title} size="md" variant="outline" iconOnly className="mt-1 shrink-0" />
+          </div>
           {c.summary && <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
 
           {/* Mentor */}
@@ -173,6 +181,17 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           {user && !c.isOwner && c.priceFrom > 0 && <div className="mt-3"><ReferralCard path={`/mentorlik/${c.slug}`} percent={c.refPercent} /></div>}
         </aside>
       </div>
+
+      {similar.length > 0 && (
+        <section className="mt-10" aria-label="O'xshash kurslar">
+          <h2 className="display-xl mb-3 text-[20px] text-fg max-sm:px-4">O&apos;xshash kurslar</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
+            {similar.map((s) => (
+              <CourseCard key={s.id} c={s} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
+import { FeedLink } from "@/components/ui/FeedLink";
 import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
@@ -58,6 +59,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
             <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="lg">
               <Plus size={18} /> Vakansiya joylash
             </ButtonLink>
+            <FeedLink href="/vakansiyalar/feed.xml" title="Yangi vakansiyalar RSS lentasi" />
             <ButtonLink href="/rezyumelar" variant="outline" size="lg">
               Rezyumelar
             </ButtonLink>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GraduationCap, RadioTower, Search } from "lucide-react";
 import { Avatar } from "@/components/ui";
+import { FeedLink } from "@/components/ui/FeedLink";
 import { CourseCard } from "@/components/mentorship/CourseCard";
 import { COURSE_SORTS, CourseFilters, type FilterState } from "@/components/mentorship/CourseFilters";
 import { getCurrentUser } from "@/lib/auth";
@@ -50,6 +51,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
         <div className="min-w-0 max-sm:hidden">
           <h1 className="display-xl text-fg">Mentorlik</h1>
           <p className="mt-1 text-[14px] text-fg-3">Tajribali ustozlardan amaliy bilim — bo&apos;limlar, jonli efirlar va 1:1 darslar.</p>
+          <FeedLink href="/mentorlik/feed.xml" label="Yangi kurslar RSS" className="mt-2.5" />
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <form action="/mentorlik" className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">

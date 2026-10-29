@@ -111,6 +111,42 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
     if (items.length > 0) cache.current.set(mode, { items, cursor });
   }, [mode, items, cursor]);
 
+  /**
+   * Klaviatura boshqaruvi (2026-10-29): ↑/↓ yoki j/k — oldingi/keyingi reels,
+   * Home/End — birinchi/oxirgi. Ilgari reels faqat sichqoncha g'ildiragi yoki barmoq
+   * bilan aylanardi; kompyuterda ko'rayotgan odam uchun qisqartma yo'q edi.
+   * Matn maydoniga (izoh) yozayotganda qisqartmalar o'chadi.
+   */
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const slides = Array.from(root.querySelectorAll<HTMLElement>("[data-reel]"));
+      if (slides.length === 0) return;
+      // Joriy slayd — ko'rinish markaziga eng yaqini
+      const mid = root.scrollTop + root.clientHeight / 2;
+      let cur = 0;
+      let best = Infinity;
+      slides.forEach((el, i) => {
+        const d = Math.abs(el.offsetTop + el.clientHeight / 2 - mid);
+        if (d < best) { best = d; cur = i; }
+      });
+      let next: number | null = null;
+      if (e.key === "ArrowDown" || e.key === "j") next = Math.min(cur + 1, slides.length - 1);
+      else if (e.key === "ArrowUp" || e.key === "k") next = Math.max(cur - 1, 0);
+      else if (e.key === "Home") next = 0;
+      else if (e.key === "End") next = slides.length - 1;
+      if (next === null || next === cur) return;
+      e.preventDefault();
+      slides[next].scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [items.length]);
+
   // Boshqa tablarni bo'sh vaqtda oldindan yuklab qo'yamiz
   useEffect(() => {
     const run = () => {

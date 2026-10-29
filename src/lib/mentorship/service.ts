@@ -403,6 +403,21 @@ export async function addCourseReview(userId: string, courseId: string, input: C
 }
 
 /** Kurs tahrirlagich uchun (egasi/admin): kurs maydonlari + barcha darslar */
+/**
+ * O'xshash kurslar (2026-10-29): avval shu yo'nalishdagi, keyin boshqa yo'nalishdagi
+ * e'lon qilingan kurslar — reyting va o'quvchi soni bo'yicha. Kurs sahifasining
+ * oxiridagi «boshqa nimani o'qish mumkin» savoliga javob (vakansiyalarda allaqachon bor edi).
+ */
+export async function similarCourses(courseId: string, category: string, limit = 3): Promise<CourseCard[]> {
+  const same = await listCourses({ category, sort: "popular", limit: limit + 1 });
+  const picked = same.items.filter((c) => c.id !== courseId).slice(0, limit);
+  if (picked.length >= limit) return picked;
+  // Yo'nalishda yetarli kurs yo'q — umumiy mashhurlardan to'ldiramiz (takrorlanmasin)
+  const seen = new Set([courseId, ...picked.map((c) => c.id)]);
+  const rest = await listCourses({ sort: "popular", limit: limit + picked.length + 2 });
+  return [...picked, ...rest.items.filter((c) => !seen.has(c.id))].slice(0, limit);
+}
+
 export async function getCourseForOwner(userId: string, courseId: string, isAdmin = false) {
   const c = await db.query.courses.findFirst({ where: eq(courses.id, courseId), with: { mentor: { columns: { userId: true } } } });
   if (!c) return null;
