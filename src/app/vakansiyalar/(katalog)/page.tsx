@@ -12,7 +12,7 @@ import { EMPLOYMENT, EXPERIENCE, PAY_FILTER, PROFESSIONS, REMOTE_REGION, SALARY_
 import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/service";
 import type { VacancyFilter } from "@/lib/vacancies/validators";
 import { cn } from "@/lib/utils";
-import { filterChip as chip, flatSearch as flat, parseVacancyFilter as parseFilter, toQueryString, vacancyQuery as toQuery, type RawSearch as Raw } from "./_shared";
+import { filterChip as chip, flatSearch as flat, parseVacancyFilter as parseFilter, toQueryString, vacancyQuery as toQuery, type RawSearch as Raw } from "../_shared";
 
 export const dynamic = "force-dynamic";
 

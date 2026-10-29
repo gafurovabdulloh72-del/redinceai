@@ -42,7 +42,10 @@ type Tab = (typeof TABS)[number]["key"];
 export async function generateMetadata({ params, searchParams }: { params: Params; searchParams: Promise<Raw> }): Promise<Metadata> {
   const { slug } = await params;
   const g = await loadGroupByAnySlug(slug);
-  if (!g) return { title: "Jamoa topilmadi" };
+  // notFound() aynan SHU YERDA: `[slug]/loading.tsx` Suspense chegarasi sahifa tanasidagi
+  // notFound() dan oldin javobni oqizib yuboradi va holat 200 bo‘lib qoladi (yumshoq 404 —
+  // Google mavjud bo‘lmagan manzillarni indekslaydi). generateMetadata oqimdan oldin ishlaydi.
+  if (!g) notFound();
   // Eski manzil: metadata javob oqimi boshlanishidan OLDIN hisoblanadi — shu yerda haqiqiy 308 beriladi
   // (sahifa ichidagi redirect loading.tsx tufayli 200 + meta refresh bo'lib qolardi)
   if (g.slug !== slug) {

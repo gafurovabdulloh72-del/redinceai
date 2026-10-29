@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, CalendarClock, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, CalendarClock, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette, Map, Crown, HelpCircle } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -187,6 +187,18 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
       </Link>
     );
   };
+  /**
+   * Kabinetdan TASHQARI bo'limlar uchun qator (telefon menyusi). Desktopda bular yon panelda
+   * turadi, telefonda esa yon panel chizilmaydi va 5 ta tabga ham sig'maydi — shuning uchun
+   * ularga yagona yo'l shu menyu (2026-10-29: Xarita telefonda umuman topilmasdi).
+   */
+  const extRow = (href: string, Icon: LucideIcon, label: string) => (
+    <Link key={href} href={href} className="press m-row transition active:bg-fg/6">
+      <Icon size={21} strokeWidth={1.7} className="shrink-0 text-fg-3" />
+      <span className="min-w-0 flex-1 truncate text-[16px] text-fg">{label}</span>
+      <ChevronRight size={18} className="shrink-0 text-fg-4" aria-hidden="true" />
+    </Link>
+  );
   const publicItem = items.find((i) => i.icon === "public");
   /*
    * Telefon menyusi (v5 «Native», 2026-10-24): iOS/Telegram uslubidagi guruhlangan ro'yxat —
@@ -214,6 +226,14 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
           <div className="m-rows border-y border-line">{g.items.filter((i) => i.icon !== "public").map((item) => menuRow(item))}</div>
         </section>
       ))}
+
+      <h2 className="m-label">Kashf etish</h2>
+      <div className="m-rows border-y border-line">
+        {extRow("/xarita", Map, "Xarita")}
+        {extRow("/top", Crown, "TOP reyting")}
+        {extRow("/narxlar", CreditCard, "Narxlar")}
+        {extRow("/yordam", HelpCircle, "Yordam")}
+      </div>
 
       <h2 className="m-label">Sozlamalar</h2>
       <div className="m-rows border-y border-line">

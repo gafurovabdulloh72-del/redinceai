@@ -5,6 +5,8 @@ import { ArrowRight, Compass, ImagePlus, Sparkles, UserRound, UsersRound, Briefc
 import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
+  // Telefon yuqori paneli uzun SEO sarlavhani emas, shu qisqa nomni ko'rsatadi
+  other: { "m-title": "Xush kelibsiz" },
   title: "Xush kelibsiz",
   robots: { index: false, follow: false },
 };

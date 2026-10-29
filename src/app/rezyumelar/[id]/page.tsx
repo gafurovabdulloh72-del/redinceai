@@ -33,7 +33,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
   // Yopiq rezyume egasi uchun ham to'g'ri sarlavha (ko'ruvchi bilan)
   const r = await getResumeView(id, user ? { id: user.id, role: user.role } : null);
-  if (!r) return { title: "Rezyume topilmadi", robots: { index: false } };
+  // notFound() aynan SHU YERDA: `[id]/loading.tsx` Suspense chegarasi sahifa tanasidagi
+  // notFound() dan oldin javobni oqizib yuboradi va holat 200 bo‘lib qoladi (yumshoq 404).
+  // generateMetadata oqimdan oldin ishlaydi — haqiqiy 404 shu yerdan chiqadi.
+  if (!r) notFound();
   return { title: `${r.title} — ${r.user.name}`, description: r.summary.replace(/\s+/g, " ").trim().slice(0, 160) || `${r.user.name}: ${professionLabel(r.profession)}`, alternates: { canonical: `/rezyumelar/${r.id}` }, robots: r.isPublic ? undefined : { index: false } };
 }
 

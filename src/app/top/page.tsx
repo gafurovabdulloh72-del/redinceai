@@ -11,6 +11,8 @@ import { getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
+  // Telefon yuqori paneli uzun SEO sarlavhani emas, shu qisqa nomni ko'rsatadi
+  other: { "m-title": "TOP reyting" },
   title: "Oyning TOP ijodkorlari",
   description: "Kasb Egalari: har oyning oxirgi kunida e'lon qilinadigan eng yaxshi ijodkorlar reytingi. G'oliblarga premium imtiyoz beriladi.",
   alternates: { canonical: "/top" },

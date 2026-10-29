@@ -12,6 +12,8 @@ import { specialistFilterSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
+  // Telefon yuqori paneli uzun SEO sarlavhani emas, shu qisqa nomni ko'rsatadi
+  other: { "m-title": "Buyurtma berish" },
   title: "Buyurtma sehrgari",
   description: "4 ta savolga javob bering — yo'nalish, byudjet, hudud va muddat bo'yicha sizga mos mutaxassislarni tavsiya qilamiz.",
   alternates: { canonical: "/buyurtma-berish" },

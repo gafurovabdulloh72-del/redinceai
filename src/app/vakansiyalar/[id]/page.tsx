@@ -25,7 +25,10 @@ const EMPLOYMENT_SCHEMA: Record<string, string> = { full: "FULL_TIME", part: "PA
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   const v = await loadVacancy(id);
-  if (!v) return { title: "Vakansiya topilmadi" };
+  // notFound() aynan SHU YERDA: `[id]/loading.tsx` Suspense chegarasi sahifa tanasidagi
+  // notFound() dan oldin javobni oqizib yuboradi va holat 200 bo‘lib qoladi (yumshoq 404).
+  // generateMetadata oqimdan oldin ishlaydi — haqiqiy 404 shu yerdan chiqadi.
+  if (!v) notFound();
   const closed = v.status !== "open" || (v.expiresAt && v.expiresAt.getTime() < Date.now());
   return {
     title: `${v.title}${v.company ? ` — ${v.company}` : ""}`,

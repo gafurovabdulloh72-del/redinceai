@@ -80,7 +80,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
                     <Avatar name={l.mentorName} src={l.avatarUrl} size={22} decorative />
                     <span className="min-w-0 flex-1 truncate text-[12px] text-fg-2">{l.mentorName}</span>
                     {l.live && (
-                      <span className="inline-flex items-center gap-1 rounded bg-danger px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                      <span className="inline-flex items-center gap-1 rounded bg-danger px-1.5 py-0.5 text-[11px] font-bold uppercase text-white">
                         <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-white" /> Jonli
                       </span>
                     )}

@@ -56,6 +56,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/vakansiyalar`, lastModified: vacancyList[0]?.updatedAt ?? now, changeFrequency: "hourly", priority: 0.8 },
     { url: `${base}/rezyumelar`, lastModified: resumeList[0]?.updatedAt ?? now, changeFrequency: "daily", priority: 0.6 },
     { url: `${base}/qidiruv`, lastModified: latestProfile, changeFrequency: "daily", priority: 0.7 },
+    // /top — oylik g'oliblar; har oy yangilanadi, shuning uchun monthly
+    { url: `${base}/top`, lastModified: STATIC_UPDATED, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/narxlar`, lastModified: STATIC_UPDATED, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/buyurtma-berish`, lastModified: STATIC_UPDATED, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/haqida`, lastModified: STATIC_UPDATED, changeFrequency: "monthly", priority: 0.5 },
