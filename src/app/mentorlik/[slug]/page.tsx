@@ -9,6 +9,7 @@ import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { CourseCard } from "@/components/mentorship/CourseCard";
 import { CoursePreview } from "@/components/mentorship/CoursePreview";
+import { CourseSaveButton } from "@/components/mentorship/CourseSaveButton";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { StickyCta } from "@/components/ui/StickyCta";
 import { getCurrentUser } from "@/lib/auth";
@@ -115,7 +116,10 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           <div className="mt-3 flex items-start gap-3">
             <h1 className="display-xl min-w-0 flex-1 text-fg">{c.title}</h1>
             {/* Kursni ulashish — ilgari kurs sahifasida ulashish yo'q edi (havolani qo'lda nusxalash kerak edi) */}
-            <ShareButton title={c.title} size="md" variant="outline" iconOnly className="mt-1 shrink-0" />
+            <div className="mt-1 flex shrink-0 items-center gap-2">
+              <CourseSaveButton courseId={c.id} initialSaved={c.savedByMe} loggedIn={Boolean(user)} />
+              <ShareButton title={c.title} size="md" variant="outline" iconOnly />
+            </div>
           </div>
           {c.summary && <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
 

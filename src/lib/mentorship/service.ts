@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { courseReviews, courses, enrollments, groups, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
+import { courseReviews, courseSaves, courses, enrollments, groups, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
 import { uid, slugify, escapeLike } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
 import type { CourseInput, LessonInput, MentorApplyInput, MentorProfileInput, CourseReviewInput } from "./validators";
@@ -140,6 +140,8 @@ export interface CourseDetail extends CourseCard {
   materialsCount: number;
   quizCount: number;
   assignmentCount: number;
+  /** Ko'ruvchi kursni saqlaganmi (wishlist) */
+  savedByMe: boolean;
   mentorBio: string;
   refPercent: number;
   certificateCode: string | null;
@@ -164,11 +166,12 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
   const isOwner = Boolean(viewerId && c.mentor.userId === viewerId);
   if (!c.isPublished && !isOwner && !isAdmin) return null;
 
-  const [lessonRows, enrollment, reviewRows, distRows] = await Promise.all([
+  const [lessonRows, enrollment, reviewRows, distRows, savedRow] = await Promise.all([
     db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)] }),
     viewerId ? db.query.enrollments.findFirst({ where: and(eq(enrollments.courseId, c.id), eq(enrollments.userId, viewerId)) }) : Promise.resolve(undefined),
     db.query.courseReviews.findMany({ where: eq(courseReviews.courseId, c.id), orderBy: [desc(courseReviews.createdAt)], limit: 20 }),
     db.select({ rating: courseReviews.rating, n: sql<number>`count(*)` }).from(courseReviews).where(eq(courseReviews.courseId, c.id)).groupBy(courseReviews.rating),
+    viewerId ? db.query.courseSaves.findFirst({ where: and(eq(courseSaves.courseId, c.id), eq(courseSaves.userId, viewerId)), columns: { id: true } }) : Promise.resolve(undefined),
   ]);
   const ratingDist: [number, number, number, number, number] = [0, 0, 0, 0, 0];
   for (const d of distRows) {
@@ -195,6 +198,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     language: c.language ?? "uz",
     totalMin: lessonRows.reduce((a, l) => a + (l.durationMin || 0), 0),
     updatedAt: c.updatedAt.getTime(),
+    savedByMe: Boolean(savedRow),
     materialsCount: lessonRows.reduce((a, l) => a + (l.materials?.length ?? 0), 0),
     quizCount: lessonRows.filter((l) => l.quiz && l.quiz.questions?.length).length,
     assignmentCount: lessonRows.filter((l) => l.assignment && l.assignment.trim()).length,
@@ -668,4 +672,32 @@ export async function listCoursesOfMentor(mentorId: string) {
 export async function getSitemapMentors(): Promise<Array<{ slug: string; lastModified: Date }>> {
   const rows = await db.select({ slug: mentors.slug, at: mentors.approvedAt, created: mentors.createdAt }).from(mentors).where(and(eq(mentors.isApproved, true), sql`${mentors.slug} is not null`)).limit(2000);
   return rows.map((r) => ({ slug: r.slug as string, lastModified: r.at ?? r.created }));
+}
+
+/* --------------------------- Saqlangan kurslar (wishlist) --------------------------- */
+/** Saqlash/olib tashlash (toggle). Chop etilmagan kursni faqat egasi/admin saqlay oladi */
+export async function toggleCourseSave(courseId: string, userId: string, isAdmin = false): Promise<{ saved: boolean }> {
+  const c = await db.query.courses.findFirst({ where: eq(courses.id, courseId), with: { mentor: { columns: { userId: true } } } });
+  if (!c || (!c.isPublished && c.mentor.userId !== userId && !isAdmin)) throw new ApiError(404, "Kurs topilmadi");
+  const existing = await db.query.courseSaves.findFirst({ where: and(eq(courseSaves.courseId, courseId), eq(courseSaves.userId, userId)) });
+  if (existing) {
+    await db.delete(courseSaves).where(eq(courseSaves.id, existing.id));
+    return { saved: false };
+  }
+  await db.insert(courseSaves).values({ id: uid(), courseId, userId }).onConflictDoNothing();
+  return { saved: true };
+}
+
+/** Foydalanuvchining saqlangan kurslari — yangi saqlangani birinchi, chop etilmagani ko'rinmaydi */
+export async function listSavedCourses(userId: string, limit = 48): Promise<CourseCard[]> {
+  const rows = await db.query.courseSaves.findMany({ where: eq(courseSaves.userId, userId), orderBy: [desc(courseSaves.createdAt)], limit });
+  if (!rows.length) return [];
+  const ids = rows.map((r) => r.courseId);
+  const cs = await db.query.courses.findMany({
+    where: and(inArray(courses.id, ids), eq(courses.isPublished, true)),
+    with: { mentor: { columns: { userId: true, headline: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    extras: { totalMin: sql<number>`(select coalesce(sum(l.duration_min), 0) from lessons l where l.course_id = "courses"."id")`.as("total_min") },
+  });
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return cs.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).map((r) => toCard(r as never));
 }

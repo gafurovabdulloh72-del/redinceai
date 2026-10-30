@@ -76,6 +76,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Kurs sahifasi: «Kursni ko'rib chiqish» — birinchi bepul namuna darsining videosi muqova ustida o'ynaydi (`CoursePreview`,
   `CourseDetail.previewVideo`), «Bu kursga kiradi» ro'yxati haqiqiy sonlar bilan (video daqiqa, material, test, vazifa —
   `materialsCount/quizCount/assignmentCount`); telefonda asosiy ustunda, keng ekranda narx panelida. Qidiruv tur chiplari telefonda bitta aylanuvchi qator.
+- Kursni saqlash (Udemy Wishlist): `course_saves` (kurs+foydalanuvchi noyob), `toggleCourseSave`/`listSavedCourses`,
+  `POST /api/mentorlik/kurslar/[id]/saqlash`, `GET /api/mentorlik/kurslar/saqlangan`; kurs sahifasida belgi tugmasi (`CourseSaveButton`,
+  mehmon → kirish), Kabinet → Saqlanganlar endi Postlar · Kurslar (`?tur=kurslar`). Xavfsizlik: mehmon 401 + begona kurs 404 testlari (32/32).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

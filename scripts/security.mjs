@@ -74,6 +74,7 @@ const GUEST_FORBIDDEN = [
   ["GET", "/api/account/privacy"],
   ["GET", "/api/users/mention?q=a"],
   ["GET", "/api/mentorlik/daromad"],
+  ["GET", "/api/mentorlik/kurslar/saqlangan"],
 ];
 
 test("mehmon: POST /api/push → 401 (GET ataylab ommaviy — VAPID ochiq kaliti)", async () => {
@@ -128,6 +129,11 @@ test("IDOR: mavjud bo'lmagan suhbatga xabar → 403/404", async () => {
 
 test("IDOR: begona postni o'chirish → 403/404", async () => {
   const r = await req("cl", "/api/posts/begona-post-id", { method: "DELETE" });
+  assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
+});
+
+test("IDOR: mavjud bo'lmagan kursni saqlash → 404", async () => {
+  const r = await req("cl", "/api/mentorlik/kurslar/begona-kurs-id/saqlash", { method: "POST" });
   assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
 });
 

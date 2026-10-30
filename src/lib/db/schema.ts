@@ -2542,6 +2542,24 @@ export const lessonComments = sqliteTable(
   (t) => [index("lesson_comments_lesson_idx").on(t.lessonId, t.createdAt)],
 );
 
+/** Saqlangan kurslar (Udemy «Wishlist»): foydalanuvchi keyinroq ko'rish uchun belgilaydi — Kabinet → Saqlanganlar → Kurslar */
+export const courseSaves = sqliteTable(
+  "course_saves",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("course_saves_uq").on(t.courseId, t.userId), index("course_saves_user_idx").on(t.userId, t.createdAt)],
+);
+
 /** Dars eslatmalari (Udemy «Notes»): talabaning shaxsiy qaydlari, videodagi vaqt belgisi bilan — faqat o'ziga ko'rinadi */
 export const lessonNotes = sqliteTable(
   "lesson_notes",
