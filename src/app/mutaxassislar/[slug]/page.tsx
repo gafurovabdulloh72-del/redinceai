@@ -38,6 +38,7 @@ import { FavoriteButton } from "@/components/specialists/FavoriteButton";
 import { SchedulePanel } from "@/components/specialists/SchedulePanel";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { FollowButton } from "@/components/groups/FollowButton";
+import { StickyCta } from "@/components/ui/StickyCta";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { BlockButton } from "@/components/specialists/BlockButton";
 import { FollowersDialog } from "@/components/groups/FollowersDialog";
@@ -592,7 +593,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {sp.user.username && <Handle username={sp.user.username} />}
               <span className="min-w-0">{metaParts.join(" · ")}</span>
             </li>
-            <li className="grid w-full grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
+            <li id="profil-amallar" className="grid w-full grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && !blockedAny && (
                 <div className="min-w-0 [&>button]:w-full [&>button]:px-3">
@@ -1123,6 +1124,17 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
       {/* Taqqoslash paneli (F54) — telefonda pastki CTA paneli ustida */}
       <CompareTray aboveCta={PROFILE_HIRING} />
+      {/* Telefon: profil pastga aylantirilganda yopishqoq «Yozish» (Instagram «Message» odati); amallar qatori ko'ringanda yashirinadi */}
+      {!PROFILE_HIRING && !isOwner && !blockedAny && sp.user.username && (
+        <StickyCta targetId="profil-amallar">
+          <a
+            href={viewer ? `/yozish/${sp.user.username}` : `/auth/kirish?next=${encodeURIComponent(`/yozish/${sp.user.username}`)}`}
+            className="btn-ink press flex h-12 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]"
+          >
+            <MessageCircle size={17} /> {tr(til, PROFIL.write)} · {sp.user.name.split(" ")[0]}
+          </a>
+        </StickyCta>
+      )}
     </div>
   );
 }
