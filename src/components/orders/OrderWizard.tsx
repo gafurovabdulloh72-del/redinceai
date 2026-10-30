@@ -50,7 +50,7 @@ export function OrderWizard({ initial, initialStep = 0 }: { initial: WizardState
   const current = STEPS[step];
 
   return (
-    <div className="card-elevated max-w-3xl p-5 sm:p-8">
+    <div className="card-elevated max-w-3xl p-5 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 max-sm:!shadow-none sm:p-8">
       {/* Progress */}
       <div className="flex items-center justify-between gap-3">
         <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-fg-3">

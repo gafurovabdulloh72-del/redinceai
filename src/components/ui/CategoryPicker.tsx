@@ -58,7 +58,7 @@ export function CategoryPicker({
         onClick={() => onChange(c.slug)}
         style={{ animationDelay: `${Math.min(i, 12) * 18}ms` }}
         className={cn(
-          "press animate-fade-up flex w-full items-center gap-3 rounded-[14px] border p-2.5 text-left transition",
+          "press animate-fade-up flex w-full min-w-0 items-center gap-3 rounded-[14px] border p-2.5 text-left transition",
           on ? "border-accent/60 bg-accent-soft ring-1 ring-accent/40" : "border-line bg-surface hover:border-line-2 hover:bg-fg/4",
         )}
       >
@@ -98,7 +98,7 @@ export function CategoryPicker({
         results.length === 0 ? (
           <p className="rounded-[14px] border border-dashed border-line px-4 py-8 text-center text-[13px] text-fg-3">{labels?.empty ?? "Bunday kasb topilmadi — boshqa so'z bilan urinib ko'ring"}</p>
         ) : (
-          <div role="radiogroup" aria-label="Kasblar" className={cn("grid gap-2", !stacked && "sm:grid-cols-2")}>
+          <div role="radiogroup" aria-label="Kasblar" className={cn("grid grid-cols-1 gap-2", !stacked && "sm:grid-cols-2")}>
             {results.map((c, i) => item(c, i))}
           </div>
         )
@@ -129,7 +129,7 @@ export function CategoryPicker({
               );
             })}
           </div>
-          <div key={activeGroup?.group.slug} role="radiogroup" aria-label={activeGroup?.group.name} className={cn("grid content-start gap-2", !stacked && "sm:grid-cols-2")}>
+          <div key={activeGroup?.group.slug} role="radiogroup" aria-label={activeGroup?.group.name} className={cn("grid grid-cols-1 content-start gap-2", !stacked && "sm:grid-cols-2")}>
             {activeGroup?.items.map((c, i) => item(c, i))}
           </div>
         </div>

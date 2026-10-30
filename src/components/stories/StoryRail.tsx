@@ -33,11 +33,11 @@ export function StoryRail({ rail, me, canCreate }: { rail: StoryRailItem[]; me: 
                   <Avatar name={me.name} src={me.avatarUrl} size={58} decorative className="!ring-0 !shadow-none" />
                 </span>
               </button>
-              <button type="button" onClick={() => setComposer(true)} aria-label="Yangi story" className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-white ring-2 ring-bg">
+              <button type="button" onClick={() => setComposer(true)} aria-label="Yangi story" className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-accent text-white ring-2 ring-bg">
                 <Plus size={14} strokeWidth={3} />
               </button>
             </span>
-            <span className="w-full truncate text-[11.5px] font-semibold text-fg">{mine ? "Sizning story" : "Story qo'shish"}</span>
+            <span className="w-full truncate text-[11.5px] font-semibold text-fg">{mine ? "Sizniki" : "Story"}</span>
           </div>
         </li>
       )}

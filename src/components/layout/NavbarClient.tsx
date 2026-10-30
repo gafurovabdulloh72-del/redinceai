@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { haptic, prefersReducedMotion } from "@/components/motion/haptics";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Clapperboard, Compass, Home, MessageCircle, PlusSquare, Search } from "lucide-react";
 import { CreateMenu } from "./CreateMenu";
@@ -58,6 +59,41 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
   // Sevimlilar do'koniga ko'ruvchini e'lon qilamiz — kirish/chiqishdan so'ng yurak tugmalari yangilanadi
   const userId = user?.id ?? null;
   useEffect(() => setFavoritesViewer(userId), [userId]);
+
+  // Instagram uslubi: telefonda pastga aylantirilganda yuqori panel yashirinadi, yuqoriga — qaytadi
+  // (html[data-topbar-hidden] — globals.css transform). Sahifa almashganda bayroq tozalanadi.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    let last = window.scrollY;
+    let ticking = false;
+    const root = document.documentElement;
+    const onScroll = () => {
+      if (!mq.matches || ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const d = y - last;
+        if (y < 72) root.removeAttribute("data-topbar-hidden");
+        else if (d > 8) root.setAttribute("data-topbar-hidden", "");
+        else if (d < -8) root.removeAttribute("data-topbar-hidden");
+        if (Math.abs(d) > 8) last = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      root.removeAttribute("data-topbar-hidden");
+    };
+  }, [pathname]);
+
+  // Faol tab qayta bosilsa — sahifa tepasiga (Instagram/Telegram odati)
+  const onTabClick = (href: string, active: boolean) => (e: React.MouseEvent) => {
+    if (!active || pathname !== href) return;
+    e.preventDefault();
+    haptic("light");
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  };
 
   // Klaviatura qisqartmasi `c` — telefon kengligida shu yerda (md+ da Sidebar)
   useEffect(() => {
@@ -144,7 +180,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
             }
             const active = t.match(pathname);
             return (
-              <Link key={t.key} href={t.href} aria-current={active ? "page" : undefined} className={cn(cls, active ? "text-fg" : "text-fg-3")}>
+              <Link key={t.key} href={t.href} onClick={onTabClick(t.href, active)} aria-current={active ? "page" : undefined} className={cn(cls, active ? "text-fg" : "text-fg-3")}>
                 {active && <span aria-hidden="true" className="absolute inset-x-7 top-0 h-0.5 rounded-full bg-ink" />}
                 <span className="relative">
                   {t.avatar && user ? (

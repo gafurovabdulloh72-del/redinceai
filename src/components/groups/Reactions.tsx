@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Bookmark, Check, Heart, Link2, MessageSquareShare, Send, Share2, X } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
+import { LIKE_EVENT } from "./PostParts";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Avatar } from "@/components/ui";
@@ -212,6 +213,19 @@ export function ReactionButton({
       busy.current = false;
     }
   }
+
+  // Rasmga ikki marta bosilganda (MediaGrid) — reaksiya yo'q bo'lsa yurak qo'yiladi, bor bo'lsa tegilmaydi
+  const myRef = useRef(my);
+  myRef.current = my;
+  useEffect(() => {
+    const onLike = (e: Event) => {
+      const d = (e as CustomEvent<{ postId: string }>).detail;
+      if (d?.postId !== postId || myRef.current) return;
+      void send("heart");
+    };
+    window.addEventListener(LIKE_EVENT, onLike);
+    return () => window.removeEventListener(LIKE_EVENT, onLike);
+  }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const locked = !canInteract && Boolean(lockedTitle);
   const others = showCount ? topKinds(counts, my, 3) : [];

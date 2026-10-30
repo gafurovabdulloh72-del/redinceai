@@ -108,16 +108,17 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       {/* Hero: portret + qora karta */}
       {profile.coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={profile.coverUrl} alt="" className="mt-4 aspect-[3/1] w-full rounded-[28px] object-cover" />
+        <img src={profile.coverUrl} alt="" className="mt-4 aspect-[3/1] w-full rounded-[20px] object-cover sm:rounded-[28px]" />
       )}
       <section className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,330px)_minmax(0,1fr)]">
-        <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-surface-2">
+        <div className="relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface-2 sm:aspect-[4/5] sm:rounded-[28px]">
           {profile.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.photoUrl} alt={profile.name} className="absolute inset-0 h-full w-full object-cover object-top" />
           ) : (
-            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-fg/[0.04] to-fg/[0.12]">
-              <Avatar name={profile.name} src={profile.avatarUrl} size={120} decorative />
+            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-fg/[0.04] to-fg/[0.12] max-sm:pb-10">
+              <span className="sm:hidden"><Avatar name={profile.name} src={profile.avatarUrl} size={84} decorative /></span>
+              <span className="max-sm:hidden"><Avatar name={profile.name} src={profile.avatarUrl} size={120} decorative /></span>
             </div>
           )}
           <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-[18px] bg-[#1b1b1d]/95 px-4 py-3 text-white ring-1 ring-white/15 backdrop-blur">
@@ -126,7 +127,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           </div>
         </div>
 
-        <div className="relative flex flex-col justify-between overflow-hidden rounded-[28px] bg-[#1b1b1d] p-6 text-white sm:p-8">
+        <div className="relative flex flex-col justify-between overflow-hidden rounded-[20px] bg-[#1b1b1d] p-5 text-white sm:rounded-[28px] sm:p-8">
           <div className="relative">
             {profile.expertise.length > 0 && (
               <p className="mb-3 flex flex-wrap gap-1.5">
@@ -137,7 +138,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                 ))}
               </p>
             )}
-            <h1 className="max-w-2xl font-display text-[28px] font-extrabold leading-[1.1] tracking-tight sm:text-[38px]">{profile.headline}</h1>
+            <h1 className="max-w-2xl font-display text-[23px] font-extrabold leading-[1.1] tracking-tight sm:text-[38px]">{profile.headline}</h1>
             {badges.length > 0 && (
               <p className="mt-4 flex flex-wrap gap-1.5">
                 {badges.map((b) => (
@@ -197,7 +198,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         </section>
       )}
 
-      <nav className="mt-7 flex gap-1 border-b border-line" aria-label="Ustoz bo'limlari">
+      <nav className="no-scrollbar -mx-4 mt-7 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" aria-label="Ustoz bo'limlari">
         {TABS.map((t) => (
           <Link key={t.key} href={tabHref(t.key)} aria-current={t.key === tab ? "page" : undefined} className={cn("relative inline-flex h-11 shrink-0 items-center px-4 text-[14px] font-semibold transition-colors", t.key === tab ? "text-fg" : "text-fg-3 hover:text-fg")}>
             {t.label}

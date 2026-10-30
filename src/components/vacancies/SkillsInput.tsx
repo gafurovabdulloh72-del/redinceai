@@ -28,7 +28,7 @@ export function SkillsInput({ value, onChange, max, placeholder = "Masalan: Figm
       {value.map((s, i) => (
         <span key={s} className="inline-flex h-7 items-center gap-1 rounded-full bg-fg/6 pl-2.5 pr-1.5 text-[12.5px] font-semibold text-fg">
           {s}
-          <button type="button" aria-label={`${s} ni olib tashlash`} onClick={() => onChange(value.filter((_, j) => j !== i))} className="flex h-5 w-5 items-center justify-center rounded-full text-fg-3 hover:bg-fg/10 hover:text-fg">
+          <button type="button" aria-label={`${s} ni olib tashlash`} onClick={() => onChange(value.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 flex h-7 w-7 items-center justify-center rounded-full text-fg-3 hover:bg-fg/10 hover:text-fg">
             <X size={11} />
           </button>
         </span>

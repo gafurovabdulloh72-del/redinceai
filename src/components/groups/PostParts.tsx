@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BarChart3, ChevronLeft, ChevronRight, ExternalLink, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, ExternalLink, Heart, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -451,15 +451,42 @@ export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 
 /* Media to'ri                                                          */
 /* ------------------------------------------------------------------ */
 /** Rasmlar (lightbox'ga ochiladi) va videolar (avtoijro) — 1 ta: to'liq, 2–4 ta: 2 ustun, 3-chi to'liq qator */
+/** Ikki marta bosib yoqtirish hodisasi (MediaGrid → ReactionButton): detail.postId */
+export const LIKE_EVENT = "ke:double-like";
+
 export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachment[]; alt: string; /** Ko'rish holati (davom ettirish) uchun */ postId?: string; resumeAt?: number }) {
   const til = useLocale();
   const [idx, setIdx] = useState<number | null>(null);
+  const [heart, setHeart] = useState(0);
+  const tapTimer = useRef<number | null>(null);
   const images = media.filter((a) => !isVideoAttachment(a));
   const single = media.length === 1;
+  useEffect(() => () => { if (tapTimer.current) window.clearTimeout(tapTimer.current); }, []);
   if (!media.length) return null;
+  // Instagram: bitta bosish — lightbox (260 ms kutib), ikki marta — yoqtirish + katta yurak
+  const tapImage = (i: number) => {
+    if (tapTimer.current) {
+      window.clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      if (postId) {
+        setHeart((n) => n + 1);
+        window.dispatchEvent(new CustomEvent(LIKE_EVENT, { detail: { postId } }));
+      }
+      return;
+    }
+    tapTimer.current = window.setTimeout(() => {
+      tapTimer.current = null;
+      setIdx(i);
+    }, 260);
+  };
   return (
     <>
-      <div className={cn("mt-3 grid gap-1 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
+      <div className={cn("relative mt-3 grid gap-1 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
+        {heart > 0 && (
+          <span key={heart} aria-hidden className="pointer-events-none absolute inset-0 z-[1] grid place-items-center">
+            <Heart size={96} className="animate-double-heart fill-white text-white drop-shadow-[0_6px_24px_rgba(0,0,0,.45)]" />
+          </span>
+        )}
         {media.map((a, i) =>
           isVideoAttachment(a) ? (
             <FeedVideo key={a.url} src={a.url} poster={a.poster} postId={postId} resumeAt={resumeAt} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
@@ -467,7 +494,7 @@ export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachm
             <button
               key={a.url}
               type="button"
-              onClick={() => setIdx(images.indexOf(a))}
+              onClick={() => tapImage(images.indexOf(a))}
               aria-label={FEED.openImage[til](images.indexOf(a) + 1, images.length)}
               className={cn("img-zoom block w-full overflow-hidden bg-surface-2 text-left focus-visible:outline-2 focus-visible:outline-accent", !single && "aspect-[4/3]", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")}
             >
