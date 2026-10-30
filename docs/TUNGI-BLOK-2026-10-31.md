@@ -100,6 +100,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Kurs BO'LIMLARI (Udemy sections): `lessons.section` (ixtiyoriy nom; LessonForm'da maydon + mavjud bo'limlar `datalist`), ketma-ket bir xil
   nomli darslar kurs sahifasida yig'iladigan `<details>` (dars soni · davomiylik · bajarildi; birinchisi va bajarilmagani ochiq), dars yon panelida
   bo'lim sarlavhalari; efir yozuvi dars qilinganda «Efir yozuvlari» bo'limiga tushadi. Bo'lim nomi bo'lmasa — avvalgidek yassi ro'yxat.
+- Mentor tahlili: har kurs ostida «Talabalar · N» (yig'iladigan) — ism/avatar, progress chizig'i, oxirgi ochilgan dars, yozilgan sana,
+  «Yozish» (username bo'lsa); faqat ommaviy maydonlar, kontakt yo'q (`mentorAnalytics().courses[].studentsList`, ≤100).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

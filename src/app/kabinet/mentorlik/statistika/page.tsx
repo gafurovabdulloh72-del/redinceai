@@ -1,11 +1,14 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser } from "@/lib/mentorship/service";
+import { ChevronRight, MessageCircle } from "lucide-react";
+import { Avatar } from "@/components/ui";
 import { MentorNav } from "@/components/mentorship/MentorNav";
 import { mentorAnalytics } from "@/lib/mentorship/growth";
 import { formatSom } from "@/lib/mentorship/format";
-import { cn } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Tahlil", robots: { index: false, follow: false } };
@@ -69,6 +72,36 @@ export default async function MentorAnalyticsPage() {
                 </ul>
                 <p className="mt-2 text-[11.5px] text-fg-4">Qizil — oldingi darsga nisbatan keskin tushish: shu darsni qisqartiring yoki soddalashtiring.</p>
               </div>
+            )}
+            {c.studentsList.length > 0 && (
+              /* Talabalar ro'yxati — kimlar qayerda: progress chizig'i, oxirgi dars, «Yozish» (faqat ommaviy ism/avatar/username) */
+              <details className="group mt-4">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-fg-2 hover:text-fg [&::-webkit-details-marker]:hidden">
+                  <ChevronRight size={14} className="transition group-open:rotate-90" aria-hidden /> Talabalar · {c.studentsList.length}
+                </summary>
+                <ul className="mt-2 divide-y divide-line rounded-[14px] border border-line">
+                  {c.studentsList.map((st) => (
+                    <li key={st.userId} className="flex items-center gap-3 px-3 py-2.5">
+                      <Avatar name={st.name} src={st.avatarUrl} size={32} decorative />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[13.5px] font-semibold text-fg">{st.name}</span>
+                          <span className="shrink-0 text-[12px] font-semibold tabular-nums text-fg-3">{st.progressPct}%</span>
+                        </span>
+                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-fg/8"><span className={cn("block h-full rounded-full", st.progressPct >= 100 ? "bg-success" : "bg-accent")} style={{ width: `${Math.max(2, st.progressPct)}%` }} /></span>
+                        <span className="mt-1 block truncate text-[11.5px] text-fg-4">
+                          {st.lastLesson ? `Oxirgi: ${st.lastLesson}` : "Hali boshlamagan"} · yozilgan {timeAgo(st.enrolledAt)}
+                        </span>
+                      </span>
+                      {st.username && (
+                        <Link href={`/yozish/${st.username}`} aria-label={`${st.name}ga yozish`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg">
+                          <MessageCircle size={14} />
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </section>
         ))}

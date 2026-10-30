@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { certificates, courses, enrollments, lessonCompletions, lessonComments, lessons, liveStreams, liveTickets, mentorSubs, mentors, posts, subscriptionInvoices } from "@/lib/db/schema";
+import { certificates, courses, enrollments, lessonCompletions, lessonComments, lessons, liveStreams, liveTickets, mentorSubs, mentors, posts, subscriptionInvoices, users } from "@/lib/db/schema";
 
 /* ------------------------------ Belgilar ------------------------------ */
 export type MentorBadge = { key: string; label: string; hint: string };
@@ -57,7 +57,7 @@ export async function mentorAnalytics(mentorId: string, channelId: string | null
   const cs = await db.query.courses.findMany({ where: eq(courses.mentorId, mentorId), orderBy: [desc(courses.createdAt)] });
   const ids = cs.map((c) => c.id);
   const [enr, comps, certs, lessonRows, paid] = await Promise.all([
-    ids.length ? db.query.enrollments.findMany({ where: inArray(enrollments.courseId, ids), columns: { courseId: true, progressPct: true } }) : [],
+    ids.length ? db.query.enrollments.findMany({ where: inArray(enrollments.courseId, ids), columns: { courseId: true, progressPct: true, userId: true, lastLessonId: true, createdAt: true }, orderBy: [desc(enrollments.createdAt)] }) : [],
     ids.length ? db.select({ lessonId: lessonCompletions.lessonId, n: sql<number>`count(*)` }).from(lessonCompletions).where(inArray(lessonCompletions.courseId, ids)).groupBy(lessonCompletions.lessonId) : [],
     ids.length ? db.select({ courseId: certificates.courseId, n: sql<number>`count(*)` }).from(certificates).where(inArray(certificates.courseId, ids)).groupBy(certificates.courseId) : [],
     ids.length ? db.query.lessons.findMany({ where: inArray(lessons.courseId, ids), orderBy: [asc(lessons.position)], columns: { id: true, courseId: true, title: true, position: true } }) : [],
@@ -67,13 +67,23 @@ export async function mentorAnalytics(mentorId: string, channelId: string | null
       .where(and(eq(subscriptionInvoices.state, "paid"), sql`json_extract(${subscriptionInvoices.meta}, '$.kind') = 'purchase'`, sql`json_extract(${subscriptionInvoices.meta}, '$.mentorId') = ${mentorId}`))
       .groupBy(sql`json_extract(${subscriptionInvoices.meta}, '$.itemId')`, sql`json_extract(${subscriptionInvoices.meta}, '$.type')`),
   ]);
+  // Talabalar ro'yxati (Teachable/Coursera instructor ko'rinishi): ism, progress, oxirgi dars, yozilgan sana — kontaktlar YO'Q (faqat ommaviy maydonlar)
+  const studentIds = [...new Set(enr.map((e) => e.userId))];
+  const studentRows = studentIds.length ? await db.query.users.findMany({ where: inArray(users.id, studentIds), columns: { id: true, name: true, avatarUrl: true, username: true } }) : [];
+  const studentMap = new Map(studentRows.map((u) => [u.id, u]));
+  const lessonTitle = new Map(lessonRows.map((l) => [l.id, l.title]));
   const compMap = new Map(comps.map((c) => [c.lessonId, Number(c.n)]));
   const certMap = new Map(certs.map((c) => [c.courseId, Number(c.n)]));
   const courseStats = cs.map((c) => {
     const e = enr.filter((x) => x.courseId === c.id);
     const done = e.filter((x) => x.progressPct >= 100).length;
     const rev = paid.find((p) => p.type === "course" && p.item === c.id);
+    const students = e.slice(0, 100).map((x) => {
+      const u = studentMap.get(x.userId);
+      return { userId: x.userId, name: u?.name ?? "Foydalanuvchi", avatarUrl: u?.avatarUrl ?? null, username: u?.username ?? null, progressPct: x.progressPct, lastLesson: x.lastLessonId ? (lessonTitle.get(x.lastLessonId) ?? null) : null, enrolledAt: x.createdAt.getTime() };
+    });
     return {
+      studentsList: students,
       id: c.id,
       title: c.title,
       published: c.isPublished,
