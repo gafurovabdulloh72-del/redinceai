@@ -141,7 +141,7 @@ export function ExploreForm({ q, type, popular }: { q: string; type: string; pop
             )
           )}
         </label>
-        <button type="submit" className="btn-ink press inline-flex h-13 items-center justify-center rounded-full px-6 text-[15px] font-semibold">
+        <button type="submit" className="btn-ink press inline-flex h-13 items-center justify-center rounded-full px-6 text-[15px] font-semibold max-sm:hidden">
           {tr(til, QIDIRUV.submit)}
         </button>
       </form>
