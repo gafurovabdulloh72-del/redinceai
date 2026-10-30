@@ -208,6 +208,38 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
           {/* Sharhlar */}
           <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Sharhlar · {c.reviewsCount}</h2>
+          {c.reviewsCount > 0 && (
+            /* Udemy kabi reyting taqsimoti: katta ball + 5★…1★ chiziqlar */
+            <div className="card flex items-center gap-5 p-4 m-flat">
+              <div className="shrink-0 text-center">
+                <p className="text-[34px] font-bold leading-none tabular-nums text-fg">{c.rating.toFixed(1)}</p>
+                <p className="mt-1.5 flex justify-center gap-0.5" aria-label={`${c.rating} / 5`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} size={12} className={n <= Math.round(c.rating) ? "fill-accent text-accent" : "text-fg-4"} />
+                  ))}
+                </p>
+                <p className="mt-1 text-[11.5px] text-fg-4">{c.reviewsCount} sharh</p>
+              </div>
+              <ol className="min-w-0 flex-1 space-y-1.5" aria-label="Reyting taqsimoti">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const n = c.ratingDist[star - 1];
+                  const pct = Math.round((n / c.reviewsCount) * 100);
+                  return (
+                    <li key={star} className="flex items-center gap-2 text-[12px] tabular-nums text-fg-3">
+                      <span className="inline-flex w-6 shrink-0 items-center gap-0.5 font-semibold text-fg-2">
+                        {star}
+                        <Star size={10} className="fill-current" />
+                      </span>
+                      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-fg/8">
+                        <span className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
+                      </span>
+                      <span className="w-8 shrink-0 text-right">{pct}%</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
           {c.enrolled && <CourseReviewForm courseId={c.id} initial={c.myReview} />}
           <ul className="mt-3 space-y-3">
             {c.reviews.map((r) => (

@@ -55,7 +55,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         {/* Chap ustun: pleyer + sarlavha + tablar */}
         <div className="min-w-0">
-          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} chapters={lesson.chapters} />
+          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} chapters={lesson.chapters} next={lesson.next} />
 
           <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">

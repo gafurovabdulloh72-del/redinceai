@@ -143,6 +143,8 @@ export interface CourseDetail extends CourseCard {
   completedLessonIds: string[];
   lessons: Array<{ id: string; position: number; title: string; durationMin: number; isPreview: boolean; locked: boolean; completed: boolean }>;
   reviews: Array<{ id: string; rating: number; body: string; createdAt: number; name: string; avatarUrl: string | null }>;
+  /** Reyting taqsimoti: indeks 0 → 1★ … indeks 4 → 5★ (Udemy kabi chiziqlar) */
+  ratingDist: [number, number, number, number, number];
   myReview: { rating: number; body: string } | null;
 }
 
@@ -156,11 +158,17 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
   const isOwner = Boolean(viewerId && c.mentor.userId === viewerId);
   if (!c.isPublished && !isOwner && !isAdmin) return null;
 
-  const [lessonRows, enrollment, reviewRows] = await Promise.all([
+  const [lessonRows, enrollment, reviewRows, distRows] = await Promise.all([
     db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)] }),
     viewerId ? db.query.enrollments.findFirst({ where: and(eq(enrollments.courseId, c.id), eq(enrollments.userId, viewerId)) }) : Promise.resolve(undefined),
     db.query.courseReviews.findMany({ where: eq(courseReviews.courseId, c.id), orderBy: [desc(courseReviews.createdAt)], limit: 20 }),
+    db.select({ rating: courseReviews.rating, n: sql<number>`count(*)` }).from(courseReviews).where(eq(courseReviews.courseId, c.id)).groupBy(courseReviews.rating),
   ]);
+  const ratingDist: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+  for (const d of distRows) {
+    const i = Math.min(5, Math.max(1, Math.round(Number(d.rating)))) - 1;
+    ratingDist[i] += Number(d.n);
+  }
   const enrolled = Boolean(enrollment);
   const access = enrolled || isOwner || isAdmin;
   const completed = viewerId && enrolled ? await db.query.lessonCompletions.findMany({ where: and(eq(lessonCompletions.userId, viewerId), eq(lessonCompletions.courseId, c.id)), columns: { lessonId: true } }) : [];
@@ -190,6 +198,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     completedLessonIds: [...completedSet],
     lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, durationMin: l.durationMin, isPreview: l.isPreview, locked: !(access || l.isPreview), completed: completedSet.has(l.id) })),
     reviews: reviewRows.map((r) => ({ id: r.id, rating: r.rating, body: r.body, createdAt: r.createdAt.getTime(), name: rmap.get(r.userId)?.name ?? "Foydalanuvchi", avatarUrl: rmap.get(r.userId)?.avatarUrl ?? null })),
+    ratingDist,
     myReview: myReviewRow ? { rating: myReviewRow.rating, body: myReviewRow.body } : null,
   };
 }

@@ -55,6 +55,11 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Yorug' va qorong'u tema regressiya crawl'i: yangi muammo yo'q (qolgan bayroqlar — marquee, dekorativ SVG,
   truncate ichidagi inline span — soxta).
 
+- Kurs kartalarida jami davomiylik («50 daq», «2 soat 10 daq») — `listCourses` extras (korrelyatsion sum; DIQQAT:
+  relational `extras` ichida `${courses.id}` yalang'och "id" bo'lib ichki jadvalga tegadi — tashqi jadval nomi aniq yoziladi).
+- Kurs sahifasida reyting taqsimoti (katta ball + 5★…1★ foiz chiziqlari, `CourseDetail.ratingDist`).
+- Dars pleyeri: video tugagach «Keyingi dars» kartasi — 6 soniyalik halqa sanoq, «Bekor qilish», «Avto-o'tishni o'chirish»
+  (`kasb_autonext` localStorage), tugagan darsning saqlangan joyi tozalanadi; overlay chiqqanda native boshqaruv yashirinadi.
+
 ## Keyingi g'oyalar
-- Kurs kartasiga jami davomiylik (listCourses'da sum).
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
