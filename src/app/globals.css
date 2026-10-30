@@ -1809,6 +1809,11 @@ html[data-chat-open] .m-topbar,
 html[data-chat-open] .m-tabbar {
   display: none;
 }
+/* «Yuqoriga» tugmasi to'liq ekranli suhbat va Reels ustida ko'rinmasin */
+html[data-chat-open] [data-back-to-top],
+html:has([data-reels-screen]) [data-back-to-top] {
+  display: none !important;
+}
 
 /* Kirish / ro'yxat (auth/layout.tsx `data-auth-screen`): to'liq ekranli, BITTA ekranga sig'adigan sahifa — ilova qobig'i
    (telefon yuqori paneli/pastki tab, desktop yon menyu, til/tema kapsulasi, main paddinglari) yashiriladi; auth o'z sarlavhasini chizadi.
