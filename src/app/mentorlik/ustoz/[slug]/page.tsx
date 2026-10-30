@@ -107,11 +107,28 @@ export default async function MentorChannelPage({ params, searchParams }: { para
 
       {/* Hero: portret + qora karta */}
       {profile.coverUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={profile.coverUrl} alt="" className="mt-4 aspect-[3/1] w-full rounded-[20px] object-cover sm:rounded-[28px]" />
+        <div className="mt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={profile.coverUrl} alt="" className="aspect-[3/1] w-full rounded-[20px] object-cover sm:rounded-[28px]" />
+          {/* Telefon: portret muqova ustida doira + ism — alohida portret kartasi o'rniga (uchta katta blok ikki ekranni egallamasin) */}
+          <div className="-mt-9 flex items-end gap-3 px-3 sm:hidden">
+            <span className="grid h-[76px] w-[76px] shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 ring-4 ring-bg">
+              {profile.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.photoUrl} alt={profile.name} className="h-full w-full object-cover object-top" />
+              ) : (
+                <Avatar name={profile.name} src={profile.avatarUrl} size={76} decorative />
+              )}
+            </span>
+            <div className="min-w-0 pb-1">
+              <p className="truncate font-display text-[17px] font-extrabold leading-tight text-fg">{profile.name}</p>
+              <p className="truncate text-[13px] text-fg-3">{profile.roleLabel || "Ustoz"}</p>
+            </div>
+          </div>
+        </div>
       )}
       <section className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,330px)_minmax(0,1fr)]">
-        <div className="relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface-2 sm:aspect-[4/5] sm:rounded-[28px]">
+        <div className={`relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface-2 sm:aspect-[4/5] sm:rounded-[28px]${profile.coverUrl ? " max-sm:hidden" : ""}`}>
           {profile.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.photoUrl} alt={profile.name} className="absolute inset-0 h-full w-full object-cover object-top" />
