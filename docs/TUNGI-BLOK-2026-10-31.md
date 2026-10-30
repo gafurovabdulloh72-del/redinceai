@@ -66,6 +66,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Rasm yuklashdan OLDIN brauzerda siqiladi (`compressImage` attachments.ts): uzun tomon 2048px, JPEG 0.86, PNG→WebP (shaffoflik saqlanadi,
   Safari WebP yoza olmasa asl fayl), GIF tegilmaydi, siqilgan nusxa kattaroq chiqsa asl fayl; sinov: 3600×2400 395 KB → 2048×1365 139 KB.
   `uploadAttachment(file, { raw: true })` — siqmasdan.
+- Chat ro'yxati: Telegram kabi qatorni chapga surish → Qadash · Ovozsiz · Arxiv (faqat telefon, 150px, vertikal scroll buzilmaydi,
+  ochiq qatorga bosish — yopadi). Klaviatura: `viewport.interactiveWidget="resizes-content"` (Android) + `useVisualViewport()`
+  (iOS Safari — to'liq ekranli chat balandligi ko'rinadigan maydonga teng, yozish maydoni klaviatura ustida qoladi).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

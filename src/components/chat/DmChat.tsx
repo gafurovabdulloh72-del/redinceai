@@ -1,10 +1,11 @@
 "use client";
 
 import { createPortal } from "react-dom";
+import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowDown, ArrowLeft, Ban, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
+import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
@@ -112,6 +113,10 @@ const T = {
   edit: { uz: "Tahrirlash", ru: "Изменить" },
   pin: { uz: "Qadash", ru: "Закрепить" },
   unpin: { uz: "Yechish", ru: "Открепить" },
+  swMute: { uz: "Ovozsiz", ru: "Без звука" },
+  swUnmute: { uz: "Ovozli", ru: "Со звуком" },
+  swArchive: { uz: "Arxiv", ru: "В архив" },
+  swUnarchive: { uz: "Qaytarish", ru: "Вернуть" },
   deleteMe: { uz: "Men uchun o'chirish", ru: "Удалить у меня" },
   deleteAll: { uz: "Hamma uchun o'chirish", ru: "Удалить у всех" },
   report: { uz: "Shikoyat", ru: "Пожаловаться" },
@@ -213,6 +218,46 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
+  // Klaviatura ochiq bo'lsa to'liq ekranli chat balandligi — ko'rinadigan maydon (iOS Safari uchun)
+  const vv = useVisualViewport(isPhone && Boolean(active));
+  // Telegram uslubida suhbat qatorini chapga surish — Qadash · Ovozsiz · Arxiv tugmalari ochiladi (faqat telefon)
+  const SWIPE_W = 150;
+  const [rowSwipe, setRowSwipe] = useState<{ id: string; dx: number; open: boolean } | null>(null);
+  const rowTouch = useRef<{ x: number; y: number; base: number; axis: "" | "x" | "y" } | null>(null);
+  const rowSwipeHandlers = (id: string) =>
+    isPhone
+      ? {
+          onTouchStart: (e: React.TouchEvent) => {
+            const t = e.touches[0];
+            rowTouch.current = { x: t.clientX, y: t.clientY, base: rowSwipe?.id === id && rowSwipe.open ? -SWIPE_W : 0, axis: "" };
+          },
+          onTouchMove: (e: React.TouchEvent) => {
+            const st = rowTouch.current;
+            if (!st) return;
+            const t = e.touches[0];
+            const dx = t.clientX - st.x;
+            const dy = t.clientY - st.y;
+            if (!st.axis) {
+              if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+              st.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+            }
+            if (st.axis !== "x") return;
+            const next = Math.max(-SWIPE_W, Math.min(0, st.base + dx));
+            setRowSwipe({ id, dx: next, open: false });
+          },
+          onTouchEnd: () => {
+            const st = rowTouch.current;
+            rowTouch.current = null;
+            if (!st || st.axis !== "x") return;
+            setRowSwipe((s) => {
+              if (!s || s.id !== id) return s;
+              const open = s.dx < -SWIPE_W / 2.4;
+              if (open) haptic("light");
+              return open ? { id, dx: -SWIPE_W, open: true } : null;
+            });
+          },
+        }
+      : {};
   const [peer, setPeer] = useState<Peer | null>(null);
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [text, setText] = useState("");
@@ -1041,11 +1086,44 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         ) : (
           <ul className="divide-y divide-line max-lg:divide-y-0">
             {filtered.map((c) => (
-              <li key={c.id} className="group/row relative">
+              <li key={c.id} className="group/row relative overflow-hidden" {...rowSwipeHandlers(c.id)}>
+                {/* Surilganda ochiladigan amallar (orqada turadi) */}
+                {isPhone && rowSwipe?.id === c.id && (
+                  <div className="absolute inset-y-0 right-0 flex" style={{ width: SWIPE_W }} aria-hidden={!rowSwipe.open}>
+                    {(
+                      [
+                        { k: "pinned", icon: c.prefs.pinned ? PinOff : Pin, label: t(c.prefs.pinned ? "unpin" : "pin"), cls: "bg-fg/80 text-bg" },
+                        { k: "muted", icon: c.prefs.muted ? Bell : BellOff, label: t(c.prefs.muted ? "swUnmute" : "swMute"), cls: "bg-warning text-white" },
+                        { k: "archived", icon: c.prefs.archived ? ArchiveRestore : Archive, label: t(c.prefs.archived ? "swUnarchive" : "swArchive"), cls: "bg-accent text-white" },
+                      ] as const
+                    ).map((a) => (
+                      <button
+                        key={a.k}
+                        type="button"
+                        tabIndex={rowSwipe.open ? 0 : -1}
+                        onClick={() => {
+                          setRowSwipe(null);
+                          void updatePrefs(c.id, { [a.k]: !c.prefs[a.k] } as Partial<ConvPrefsView>);
+                        }}
+                        className={cn("flex w-[50px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold", a.cls)}
+                      >
+                        <a.icon size={18} />
+                        <span className="truncate px-0.5">{a.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div
+                  className={cn("relative bg-bg", rowSwipe?.id === c.id && !rowTouch.current && "transition-transform duration-200")}
+                  style={rowSwipe?.id === c.id ? { transform: `translateX(${rowSwipe.dx}px)` } : undefined}
+                >
                 <button
                   type="button"
                   data-conv={c.id}
-                  onClick={() => setActive(c.id)}
+                  onClick={() => {
+                    if (rowSwipe?.id === c.id && rowSwipe.open) return setRowSwipe(null);
+                    setActive(c.id);
+                  }}
                   aria-current={active === c.id ? "true" : undefined}
                   className={cn(
                     "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3",
@@ -1100,6 +1178,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                       }}
                     />
                   </Layer>
+                </div>
                 </div>
               </li>
             ))}
@@ -1569,6 +1648,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
           ? "max-lg:fixed max-lg:inset-0 max-lg:z-[60] max-lg:h-dvh max-lg:gap-0 max-lg:bg-bg max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pt-[env(safe-area-inset-top)]"
           : "max-lg:h-[calc(100dvh-8.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-lg:min-h-[320px]",
       )}
+      // Klaviatura ochiq (iOS): balandlik = ko'rinadigan maydon, pastki safe-area klaviatura ostida qolgani uchun 0
+      style={active && isPhone && vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined}
     >
       {listPanel}
       {thread}

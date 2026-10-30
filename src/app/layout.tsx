@@ -126,6 +126,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Android Chrome: klaviatura ochilganda layout viewport kichraysin — `100dvh`/`fixed` chat yozish maydoni klaviatura ustida qoladi
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
