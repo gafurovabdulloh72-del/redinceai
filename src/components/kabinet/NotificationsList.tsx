@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CheckCheck, ChevronDown, Eraser } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
@@ -100,6 +100,10 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
   const router = useRouter();
   const { toast } = useToast();
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(() => new Set());
+  // Telefon: qatorni chapga surish — o'qilgan deb belgilash (Mail/Telegram odati)
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
+  const swipeStart = useRef<{ id: string; x: number; y: number; locked: boolean | null } | null>(null);
+  const SWIPE_READ = 64;
   const [allRead, setAllRead] = useState(false);
   const [busy, setBusy] = useState<"all" | "purge" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,8 +229,51 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
       </>
     );
     const cls = rowCls(fresh);
+    const swipeHandlers = fresh
+      ? {
+          onTouchStart: (e: React.TouchEvent) => {
+            const t0 = e.touches[0];
+            swipeStart.current = { id: n.id, x: t0.clientX, y: t0.clientY, locked: null };
+          },
+          onTouchMove: (e: React.TouchEvent) => {
+            const st = swipeStart.current;
+            if (!st || st.id !== n.id) return;
+            const t0 = e.touches[0];
+            const dx = t0.clientX - st.x;
+            const dy = t0.clientY - st.y;
+            if (st.locked === null) {
+              if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+              st.locked = Math.abs(dx) > Math.abs(dy) && dx < 0;
+            }
+            if (!st.locked) return;
+            setSwipe({ id: n.id, dx: Math.max(-96, Math.min(0, dx * 0.7)) });
+          },
+          onTouchEnd: () => {
+            const st = swipeStart.current;
+            swipeStart.current = null;
+            if (st && swipe && swipe.id === st.id && -swipe.dx >= SWIPE_READ) markMany([n], false);
+            setSwipe(null);
+          },
+          onTouchCancel: () => {
+            swipeStart.current = null;
+            setSwipe(null);
+          },
+        }
+      : {};
+    const wrap = (node: ReactNode) => (
+      <div {...swipeHandlers} className="relative overflow-hidden">
+        {swipe?.id === n.id && (
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 flex w-24 items-center justify-center bg-success/15 text-[12px] font-semibold text-success-text" style={{ opacity: Math.min(1, -swipe.dx / SWIPE_READ) }}>
+            O&apos;qildi
+          </span>
+        )}
+        <div style={swipe?.id === n.id ? { transform: `translateX(${swipe.dx}px)`, transition: "none" } : undefined} className="transition-transform duration-200">
+          {node}
+        </div>
+      </div>
+    );
     if (n.href) {
-      return n.href.startsWith("https://") ? (
+      return wrap(n.href.startsWith("https://") ? (
         // Tashqi havola (masalan, admin e'lonidagi Telegram) — yangi oynada
         <a href={n.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={() => markMany([n])}>
           {inner}
@@ -235,12 +282,12 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
         <Link href={n.href} className={cls} onClick={() => markMany([n])}>
           {inner}
         </Link>
-      );
+      ));
     }
-    return (
+    return wrap(
       <button type="button" className={cls} onClick={() => markMany([n])}>
         {inner}
-      </button>
+      </button>,
     );
   };
 
