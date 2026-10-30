@@ -1,0 +1,59 @@
+# Tungi blok — 2026-10-30/31 (telefon UI, Instagram/Telegram/Udemy odatlari)
+
+Maqsad: telefon ko'rinishini boshqa ijtimoiy tarmoqlar darajasiga chiqarish, mentorlikni Udemy/Skillshare/Coursera bilan
+solishtirib yetishmaganlarni qo'shish, topilgan kamchiliklarni tuzatish. Hammasi `claude/quirky-volta-tzlqwh` (prod) ga
+ketdi, CI har commit'da yashil. 22 commit, 45 fayl, +1035/−138 qator.
+
+## Audit usuli
+Scratchpad `night-crawl.mjs <outDir> <light,dark> [width]` — 45 sahifa × 2 tema × 390px (+1440px): HSCROLL, viewport'dan
+chiqqan elementlar, <32px bosish nuqtalari, kesilgan matn, konsol xatolari, to'liq va fold skrinshotlar. SMALL/CLIP
+bayroqlari ko'pincha `sr-only` matnlar — qo'lda tekshiriladi. Qo'shimcha: 360×640, 375×667, 430×932 o'lchamlar; auth
+sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
+
+## Instagram / Telegram / TikTok odatlari (telefon)
+- Yuqori panel pastga aylantirilganda yashirinadi, yuqoriga — qaytadi (`html[data-topbar-hidden]`).
+- Faol tab qayta bosilsa sahifa tepasiga (haptic, reduced-motion hisobga olinadi).
+- Rasmga ikki marta bosish = yurak (katta oq yurak animatsiyasi, haptic); bitta bosish 260 ms kutib lightbox.
+- Lightbox: pinch 1–5×, surish, ikki marta bosish 2.5×, g'ildirak; kattalashganda svayp-slayd o'chadi.
+- Lenta: izohlar pastki varaqda (`CommentsSheet`), media chetdan chetgacha, post «⋯» menyusi action sheet.
+- Tortib yangilash (`usePullToRefresh` + `PullIndicator`).
+- DM va guruh chati: xabarni o'ngga surib javob berish (56px bo'sag'a, orqada belgi, haptic).
+- Story ko'ruvchi: pastga surish yopadi, chap/o'ng svayp — keyingi/oldingi muallif.
+- «Yaratish → Post joylash» bosh sahifada kompozitorga fokus beradi (sahifa almashmaydi).
+- Qidiruv: telefonda «Qidirish» tugmasi yo'q — yozish bilan qidiradi (enterKeyHint=search).
+- Jamoa sahifasi: sarlavha yassi, muqova chetdan chetgacha, breadcrumb yo'q.
+- Yopishqoq CTA (`components/ui/StickyCta.tsx`, sticky — fixed emas): vakansiyada «Ariza yuborish», e'londa «Taklif
+  yuborish»; maqsad forma ko'ringanda o'zi yashirinadi.
+
+## Kabinet telefonda
+- Profil sahifasi tablar (`ProfilePanels`): Akkaunt · Telegram · Mutaxassis profili · Maxfiylik · Ish vaqti — faqat
+  tanlangani chiziladi (16 000px → 1 700px); `?tab=` va `#hash` havolalari ishlaydi; sm+ da avvalgidek.
+- Mutaxassis profili formasi akkordeon (`Section defaultOpen`, `ke:open-section` hodisasi).
+- Buyurtmalar ro'yxati 8 tadan «Yana ko'rsatish» (15 900px → 5 400px).
+- Ishlar filtri «Filtrlar» tugmasi ostida; qisqa panel nomlari (Vakansiyalar · Rezyumelar · Ishlar).
+
+## Mentorlik (Udemy/Skillshare/Coursera taqqosi)
+- Kurs sahifasi: «Nimalarni o'rganasiz» ✓ to'ri, «Talablar», «Kimlar uchun», jami video daqiqa, dars tili,
+  yangilangan sana, «Sertifikat beriladi». Sxema: `courses.outcomes/requirements` (json), `audience`, `language`
+  (faqat qo'shimcha ustunlar, db-prepare o'zi qo'llaydi). Tahrirlagichda har qator bitta band.
+- Katalog: yo'nalish chiplari ikonka bilan, «Mashhur kurslar» karuseli (`CourseMiniCard`), telefonda ustozlar
+  story-doira qatori; kartalarda «Mashhur» (≥10 talaba) / «Yangi» (≤14 kun) belgilari.
+- Ustoz sahifasi telefonda: hero 16:10, kichik avatar, tablar gorizontal aylanadi.
+
+## Tuzatilgan kamchiliklar
+- Buyurtma sehrgari kasb qatorlari ekrandan 48px chiqib ketardi (grid `minmax(0,1fr)`), sehrgar kartasi telefonda yassi.
+- Story qatorida «Story qo'shi…» kesilgan yorliq; «+» 28px; rezyume ko'nikma o'chirish tugmasi 20→28px.
+- **Yashirin xato**: `max-sm:m-flat` / `max-sm:m-bleed` Tailwind utility emas — hech narsa qilmas edi (kurs sahifasida
+  3 joy, jamoa, qidiruv). CLAUDE.md'ga qoida yozildi: `m-*` sinflari variantsiz yoziladi.
+- Takror sarlavhalar: chat h1, Narxlar/Yordam eyebrow telefonda yashirin.
+- `ZoomableImage` effekt cleanup xatosi («destroy is not a function») — lightbox ochilmay qolgan edi, tuzatildi.
+
+## Tekshiruv
+- tsc toza, smoke 23/23, xavfsizlik 28/28, CI (build+smoke+security) har commit'da yashil.
+- Yorug' va qorong'u tema regressiya crawl'i: yangi muammo yo'q (qolgan bayroqlar — marquee, dekorativ SVG,
+  truncate ichidagi inline span — soxta).
+
+## Keyingi g'oyalar
+- Bildirishnoma qatorini surib o'qilgan deb belgilash; kurs kartasiga jami davomiylik (listCourses'da sum).
+- Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
+- StickyCta'ni kurs sahifasi (pulli kurs «Yozilish») va mutaxassis profili («Yozish») uchun ham ko'rib chiqish.
