@@ -258,7 +258,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           {c.lessons.length === 0 && <p className="card px-4 py-6 text-center text-[13px] text-fg-3 m-flat">Darslar tez orada qo&apos;shiladi.</p>}
 
           {/* Sharhlar */}
-          <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Sharhlar · {c.reviewsCount}</h2>
+          <h2 id="sharh" className="mb-2 mt-6 scroll-mt-24 text-[15px] font-bold text-fg">Sharhlar · {c.reviewsCount}</h2>
           {c.reviewsCount > 0 && (
             /* Udemy kabi reyting taqsimoti: katta ball + 5★…1★ chiziqlar */
             <div className="card flex items-center gap-5 p-4 m-flat">

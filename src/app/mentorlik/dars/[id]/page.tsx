@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Award, ChevronLeft, ChevronRight } from "lucide-react";
+import { Award, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { LessonComplete } from "@/components/mentorship/LessonComplete";
 import { LessonControls, LessonPlayer } from "@/components/mentorship/LessonPlayer";
 import { LessonSidebar } from "@/components/mentorship/LessonSidebar";
@@ -91,9 +91,15 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
           )}
 
           {lesson.certificateCode && (
-            <Link href={`/sertifikat/${lesson.certificateCode}`} className="mt-3 flex items-center gap-2.5 rounded-[14px] border border-line p-3.5 text-[14px] font-bold text-fg transition hover:border-fg">
-              <Award size={17} className="shrink-0 text-fg-3" /> Kurs tugatildi — sertifikatni oching
-            </Link>
+            /* Kurs tugadi: sertifikat + sharh so'rovi (Udemy «Leave a rating» odati) */
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+              <Link href={`/sertifikat/${lesson.certificateCode}`} className="flex items-center gap-2.5 rounded-[14px] border border-line p-3.5 text-[14px] font-bold text-fg transition hover:border-fg">
+                <Award size={17} className="shrink-0 text-fg-3" /> Kurs tugatildi — sertifikatni oching
+              </Link>
+              <Link href={`/mentorlik/${lesson.course.slug}#sharh`} className="flex items-center justify-center gap-2 rounded-[14px] border border-line px-4 py-3.5 text-[14px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+                <Star size={16} className="shrink-0" /> Kursga baho bering
+              </Link>
+            </div>
           )}
 
           <LessonTabs tabs={tabs} />
