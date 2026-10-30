@@ -30,7 +30,7 @@ export default async function HelpCenterPage({ searchParams }: { searchParams: P
     <div className="container-x animate-fade-up">
       {/* ---------- Sarlavha + qidiruv ---------- */}
       <header className="mx-auto max-w-3xl text-center">
-        <span className="eyebrow justify-center">
+        <span className="eyebrow justify-center max-sm:hidden">
           <LifeBuoy size={13} className="text-accent" /> Yordam markazi
         </span>
         <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px]">

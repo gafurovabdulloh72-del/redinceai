@@ -81,7 +81,7 @@ export default async function PricingPage() {
 
       {/* ---------- Sarlavha ---------- */}
       <header className="mx-auto max-w-3xl text-center">
-        <span className="eyebrow justify-center">{tr(til, NARX.eyebrow)}</span>
+        <span className="eyebrow justify-center max-sm:hidden">{tr(til, NARX.eyebrow)}</span>
         <h1 className="display-xl mt-5 text-[34px] text-fg sm:text-[48px] lg:text-[56px]">
           {tr(til, NARX.titleStart)} <span className="accent-serif text-accent">{tr(til, NARX.titleAccent)}</span> {tr(til, NARX.titleEnd)}
         </h1>
