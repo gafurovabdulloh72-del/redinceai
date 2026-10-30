@@ -18,7 +18,19 @@ export interface CourseCardItem {
   studentsCount: number;
   rating: number;
   mentor: { name: string; avatarUrl: string | null };
+  /** Yaratilgan vaqt (ms) — «Yangi» belgisi uchun (ixtiyoriy) */
+  createdAt?: number;
 }
+
+const NEW_DAYS = 14;
+const POPULAR_STUDENTS = 10;
+/** Udemy uslubidagi belgi: «Mashhur» (≥10 talaba) yoki «Yangi» (≤14 kun) — bittasi, mashhurlik ustun */
+export function courseBadge(c: Pick<CourseCardItem, "studentsCount" | "createdAt">): { label: string; tone: "pop" | "new" } | null {
+  if (c.studentsCount >= POPULAR_STUDENTS) return { label: "Mashhur", tone: "pop" };
+  if (c.createdAt && Date.now() - c.createdAt < NEW_DAYS * 86_400_000) return { label: "Yangi", tone: "new" };
+  return null;
+}
+const BADGE_CLS = { pop: "bg-accent text-white", new: "bg-ink text-ink-fg" } as const;
 
 /** Yo'nalish ikonkasi — muqova yo'q bo'lsa karta boshiga qo'yiladi */
 export const CATEGORY_ICON: Record<string, LucideIcon> = {
@@ -35,6 +47,7 @@ export const CATEGORY_ICON: Record<string, LucideIcon> = {
  * tekis yuza + yo'nalish ikonkasi (SpecialistCard CoverPattern naqshi), bo'sh kulrang maydon emas.
  */
 export function CourseCard({ c }: { c: CourseCardItem }) {
+  const badge = courseBadge(c);
   const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
   return (
     <Link href={`/mentorlik/${c.slug}`} className="card card-hover m-plain group flex h-full flex-col overflow-hidden max-sm:flex-row max-sm:items-center max-sm:gap-3 max-sm:px-4 max-sm:py-3">
@@ -47,10 +60,14 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
           </span>
         )}
         <span className="absolute left-2 top-2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white max-sm:hidden">{levelLabel(c.level)}</span>
+        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide max-sm:hidden", BADGE_CLS[badge.tone])}>{badge.label}</span>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col p-3.5 max-sm:p-0">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">{categoryLabel(c.category)}</span>
-        <h3 className="mt-1 line-clamp-2 min-h-[2.6em] text-[15px] font-bold leading-snug text-fg max-sm:mt-0.5 max-sm:min-h-0">{c.title}</h3>
+        <h3 className="mt-1 line-clamp-2 min-h-[2.6em] text-[15px] font-bold leading-snug text-fg max-sm:mt-0.5 max-sm:min-h-0">
+          {c.title}
+          {badge && <span className={cn("ml-1.5 inline-block align-middle rounded px-1 py-px text-[10px] font-bold uppercase tracking-wide sm:hidden", BADGE_CLS[badge.tone])}>{badge.label}</span>}
+        </h3>
         {c.summary && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-fg-3 max-sm:hidden">{c.summary}</p>}
         <div className="mt-3 flex items-center gap-2 max-sm:mt-1">
           <Avatar name={c.mentor.name} src={c.mentor.avatarUrl} size={22} decorative />
@@ -85,6 +102,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
  */
 export function CourseMiniCard({ c }: { c: CourseCardItem }) {
   const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
+  const badge = courseBadge(c);
   return (
     <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full w-[220px] flex-col overflow-hidden">
       <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
@@ -96,6 +114,7 @@ export function CourseMiniCard({ c }: { c: CourseCardItem }) {
           </div>
         )}
         {c.priceFrom === 0 && <span className="absolute left-2 top-2 rounded-md bg-success px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white">Bepul</span>}
+        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide", BADGE_CLS[badge.tone])}>{badge.label}</span>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col p-3">
         <h3 className="line-clamp-2 min-h-[2.5em] text-[13.5px] font-bold leading-snug text-fg">{c.title}</h3>
