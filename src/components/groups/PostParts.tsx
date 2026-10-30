@@ -481,7 +481,7 @@ export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachm
   };
   return (
     <>
-      <div className={cn("relative mt-3 grid gap-1 overflow-hidden rounded-[14px]", single ? "grid-cols-1" : "grid-cols-2")}>
+      <div className={cn("relative mt-3 grid gap-1 overflow-hidden rounded-[14px] max-sm:-mx-4 max-sm:rounded-none", single ? "grid-cols-1" : "grid-cols-2")}>
         {heart > 0 && (
           <span key={heart} aria-hidden className="pointer-events-none absolute inset-0 z-[1] grid place-items-center">
             <Heart size={96} className="animate-double-heart fill-white text-white drop-shadow-[0_6px_24px_rgba(0,0,0,.45)]" />

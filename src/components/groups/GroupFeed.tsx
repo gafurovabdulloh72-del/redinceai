@@ -14,6 +14,8 @@ import { useViewTracker } from "./useViewTracker";
 import { CalendarLinks } from "./CalendarLinks";
 import { useToast } from "@/components/ui/toast";
 import { usePresence } from "@/components/motion/usePresence";
+import { useIsPhone } from "@/components/motion/useMediaQuery";
+import { CommentsSheet } from "@/components/reels/CommentsSheet";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
@@ -719,6 +721,8 @@ export function PostCard({
   const [rx, setRx] = useState<ReactionState>({ liked: post.likedByMe, likesCount: post.likesCount, myReaction: post.myReaction, reactions: post.reactions });
   const [open, setOpen] = useState(highlighted);
   const panel = usePresence(open, 180);
+  // Telefonda izohlar Instagram kabi pastki varaqda ochiladi, keng ekranda karta ichida yoyiladi
+  const phone = useIsPhone();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hidden, setHidden] = useState<"post" | "author" | null>(null);
@@ -1031,7 +1035,8 @@ export function PostCard({
         <SaveButton postId={post.id} initial={post.savedByMe} requireLogin={requireLogin} className="ml-auto" />
       </footer>
 
-      {panel.mounted && (
+      {panel.mounted && phone && <CommentsSheet postId={post.id} open={open} onClose={() => setOpen(false)} loggedIn={loggedIn && canInteract} onCount={setComments} />}
+      {panel.mounted && !phone && (
         <div className={panel.closing ? "expand-out" : "expand-in"}>
           <Comments postId={post.id} canWrite={canInteract} loggedIn={loggedIn} onCount={setComments} />
         </div>
