@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { follows, postComments, postLikes, postViews, posts, profileViews, users } from "@/lib/db/schema";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { notify } from "@/lib/notifications";
+import { learningStreak } from "@/lib/mentorship/streak";
 import { creatorOnboarding, ONBOARDING_DAYS, type OnboardingKey } from "@/lib/onboarding";
 
 /**
@@ -125,13 +126,17 @@ export async function buildDigest(u: DigestUser, now: number): Promise<DigestMes
     const ob = await creatorOnboarding(u).catch(() => null);
     if (ob?.next) step = { key: ob.next.key, href: ob.next.href };
   }
-  if (!line && !step) return null;
+  // O'quv seriyasi (Duolingo odati): 2+ kun ketma-ket dars tugatgan talabaga eslatma — uzilmasin
+  const streak = await learningStreak(u.id, now).then((x) => x.current).catch(() => 0);
+  if (!line && !step && streak < 2) return null;
 
   const label = u.digestFreq === "daily" ? "Kunlik jamlama" : "Haftalik jamlama";
   const bits: string[] = [];
   if (line) bits.push(line + ".");
   if (step) bits.push(`${line ? "Keyingi qadam" : "Profilingizni to'ldiring"}: ${NEXT_STEP_TEXT[step.key]}.`);
-  return { title: line ? `${label}: ${u.digestFreq === "daily" ? "kecha" : "o'tgan hafta"} nima bo'ldi` : `${label}: boshlanish uchun bitta qadam`, body: bits.join(" "), href: line ? "/kabinet" : (step?.href ?? "/kabinet") };
+  if (streak >= 2) bits.push(`🔥 ${streak} kunlik o'quv seriyangiz davom etmoqda — bugun ham bitta dars.`);
+  const title = line ? `${label}: ${u.digestFreq === "daily" ? "kecha" : "o'tgan hafta"} nima bo'ldi` : step ? `${label}: boshlanish uchun bitta qadam` : `🔥 ${streak} kunlik seriya — davom eting`;
+  return { title, body: bits.join(" "), href: line ? "/kabinet" : step ? step.href : "/kabinet/mentorlik" };
 }
 
 export interface DigestRun {
