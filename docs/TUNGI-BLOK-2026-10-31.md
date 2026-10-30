@@ -102,6 +102,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   bo'lim sarlavhalari; efir yozuvi dars qilinganda «Efir yozuvlari» bo'limiga tushadi. Bo'lim nomi bo'lmasa — avvalgidek yassi ro'yxat.
 - Mentor tahlili: har kurs ostida «Talabalar · N» (yig'iladigan) — ism/avatar, progress chizig'i, oxirgi ochilgan dars, yozilgan sana,
   «Yozish» (username bo'lsa); faqat ommaviy maydonlar, kontakt yo'q (`mentorAnalytics().courses[].studentsList`, ≤100).
+- Kabinet telefonda ixcham: Telegram eslatmasi bitta qator («Telegram'ni ulang — xabarlar darhol keladi»), Bildirishnomalar sahifasida
+  tavsif yashirin, Web Push kartasi yassi va tavsifsiz — ro'yxat ~500px yuqoriroq boshlanadi. Dars sahifasida kurs tugagach «Kursga baho bering».
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

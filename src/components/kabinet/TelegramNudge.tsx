@@ -36,12 +36,14 @@ export function TelegramNudge({ forClient = false }: { forClient?: boolean }) {
     }
   };
   return (
-    <div role="status" className="expand-in mb-5 flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 py-2.5">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-text">
+    <div role="status" className="expand-in mb-5 flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 py-2.5 max-sm:mb-4 max-sm:gap-2.5 max-sm:px-3 max-sm:py-2 max-sm:text-[12.5px]">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-text max-sm:h-8 max-sm:w-8">
         <Send size={15} />
       </span>
       <p className="min-w-0 flex-1 text-[13px] leading-snug text-fg">
-        <strong className="font-semibold">{forClient ? "Muhim xabarni o'tkazib yubormang." : "Yangi buyurtmani o'tkazib yubormang."}</strong>{" "}
+        {/* Telefonda qisqa (bitta qator), keng ekranda to'liq matn */}
+        <strong className="font-semibold sm:hidden">Telegram&apos;ni ulang — xabarlar darhol keladi</strong>
+        <strong className="hidden font-semibold sm:inline">{forClient ? "Muhim xabarni o'tkazib yubormang." : "Yangi buyurtmani o'tkazib yubormang."}</strong>{" "}
         <span className="hidden text-fg-2 sm:inline">{forClient ? "Buyurtma holati va javoblar Telegramga darhol keladi." : "Mijoz buyurtma yuborganida bot darhol yozadi."}</span>
       </p>
       <button type="button" onClick={() => hide(SNOOZE_KEY, String(Date.now() + SNOOZE_MS))} className="hidden h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg sm:inline-flex">

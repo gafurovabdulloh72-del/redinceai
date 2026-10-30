@@ -113,12 +113,13 @@ export function PushPanel() {
   if (!info.enabled) return null;
 
   return (
-    <section className="card p-4" aria-label="Brauzer bildirishnomalari">
+    <section className="card p-4 m-flat max-sm:px-0 max-sm:py-3" aria-label="Brauzer bildirishnomalari">
       <div className="flex items-start gap-3">
         <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full", on ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>{on ? <Bell size={16} /> : <BellOff size={16} />}</span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[14.5px] font-bold text-fg">Brauzer bildirishnomalari</h3>
-          <p className="mt-0.5 text-[12.5px] text-fg-3">
+          {/* Telefonda tavsif yashirin — bitta qator + tugma (ixcham) */}
+          <p className="mt-0.5 text-[12.5px] text-fg-3 max-sm:hidden">
             Sayt yopiq bo'lsa ham xabar, buyurtma va efir haqida darhol xabar beradi.
             {info.devices > 0 && (
               <span className="ml-1 inline-flex items-center gap-1 align-middle">
@@ -131,7 +132,7 @@ export function PushPanel() {
       {!supported ? (
         <p className="mt-3 rounded-xl bg-fg/5 p-3 text-[12.5px] text-fg-3">Bu brauzer push bildirishnomani qo&apos;llab-quvvatlamaydi. iPhone&apos;da saytni «Asosiy ekranga qo&apos;shish» orqali ilova sifatida o&apos;rnatsangiz ishlaydi.</p>
       ) : (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2 max-sm:mt-2.5">
           <button type="button" disabled={busy} onClick={() => void (on ? disable() : enable())} className={cn("inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold transition disabled:opacity-60", on ? "border border-line-2 text-fg-2 hover:text-fg" : "btn-accent")}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : on ? <BellOff size={14} /> : <Bell size={14} />}
             {on ? "Bu qurilmada o'chirish" : "Shu qurilmada yoqish"}

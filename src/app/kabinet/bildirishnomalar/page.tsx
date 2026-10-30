@@ -83,7 +83,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
           <Bell size={13} /> Kabinet
         </span>
         <h1 className="display-xl mt-4 text-fg">Bildirishnomalar</h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">Buyurtma, xabar, obuna va hisob yangiliklari bir joyda.</p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2 max-sm:hidden">Buyurtma, xabar, obuna va hisob yangiliklari bir joyda.</p>
       </header>
 
       <div className="mb-4 space-y-3">
