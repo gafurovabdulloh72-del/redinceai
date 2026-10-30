@@ -108,5 +108,15 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Story ko'ruvchi: Instagram tez reaksiyalar — javob maydoni fokusda 6 emoji (❤️🔥👏😂😮😢), bosilsa DM ketadi va markazda emoji
   «portlashi» (`animate-pop`); `pointerdown` ishlatiladi (blur'dan oldin).
 
+## Ertalabki yakun (01:50 UTC / 06:50 Toshkent)
+- 54 commit, 67 fayl, +2167/−277 qator; CI (build + smoke + security) har push'da yashil; smoke 23/23, xavfsizlik 32/32.
+- Telefon: Instagram/Telegram/TikTok odatlari (ikki marta bosish, pull-to-refresh, pinch-zoom, swipe-javob, swipe-o'qildi, swipe-pin/mute/arxiv,
+  pastki varaqlar, yopishqoq CTA'lar, to'liq ekranli chat, karusel swipe, story tez reaksiyalar, Reels progress + svayp ishorasi, ixcham formalar,
+  klaviatura moslashuvi, rasm siqish).
+- Mentorlik (Udemy/Coursera pariteti): natijalar/talablar/auditoriya, davomiylik, reyting taqsimoti, namuna video, «Bu kursga kiradi», bo'limlar,
+  eslatmalar, avto-keyingi dars, yopishqoq pleyer, wishlist, streak, «Davom etish», talabalar ro'yxati, baho so'rovi, jamlama eslatmasi.
+- Ertalab foydalanuvchi qiladigan ishlar o'zgarmadi: Vercel'da `VAPID_PRIVATE_KEY` → Secret, push sinovi, Google OAuth kalitlari,
+  Yandex sitemap/hudud, domen + Resend, Payme/Click kalitlari, Google «Request indexing» qayta urinish.
+
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
