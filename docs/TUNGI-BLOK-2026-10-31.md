@@ -60,6 +60,12 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Kurs sahifasida reyting taqsimoti (katta ball + 5★…1★ foiz chiziqlari, `CourseDetail.ratingDist`).
 - Dars pleyeri: video tugagach «Keyingi dars» kartasi — 6 soniyalik halqa sanoq, «Bekor qilish», «Avto-o'tishni o'chirish»
   (`kasb_autonext` localStorage), tugagan darsning saqlangan joyi tozalanadi; overlay chiqqanda native boshqaruv yashirinadi.
+- Reels: TikTok kabi pastki progress chizig'i (2px, bosilganda 4px + tutqich), bosish/surish bilan videoning istalgan joyiga o'tish
+  (`role=slider`, pointer capture); tab panelining ustida turadi (`bottom: safe-area + 3.75rem`).
+- Lenta posti: uzun matn 4 qatorga yig'iladi, «ko'proq»/«yig'ish» (`PostBody`, 220 belgi yoki 4+ qator; lug'at `FEED.readMore/readLess`).
+- Rasm yuklashdan OLDIN brauzerda siqiladi (`compressImage` attachments.ts): uzun tomon 2048px, JPEG 0.86, PNG→WebP (shaffoflik saqlanadi,
+  Safari WebP yoza olmasa asl fayl), GIF tegilmaydi, siqilgan nusxa kattaroq chiqsa asl fayl; sinov: 3600×2400 395 KB → 2048×1365 139 KB.
+  `uploadAttachment(file, { raw: true })` — siqmasdan.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

@@ -344,7 +344,7 @@ export async function uploadMusic(file: File, opts?: UploadProgressOpts): Promis
   return uploadVideo(file, { onProgress: opts?.onProgress, signal: opts?.signal }, ext);
 }
 
-export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number } } & UploadProgressOpts): Promise<Attachment> {
+export async function uploadAttachment(file: File, opts?: { docs?: boolean; voice?: { duration: number }; /** rasmni siqmasdan asl holida yuborish */ raw?: boolean } & UploadProgressOpts): Promise<Attachment> {
   const p: UploadProgressOpts = { onProgress: opts?.onProgress, signal: opts?.signal };
   // Ovozli xabar: brauzer yozib bergan audio blob (purpose="voice" — server .weba/.m4a/.ogg nom beradi)
   if (opts?.voice) {
@@ -367,9 +367,57 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
     const url = await uploadVideo(file, p);
     return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
   }
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
-  const url = await uploadViaApi(file, opts?.docs ? "attachment" : "", p);
-  return { url, name: file.name.slice(0, 120) || "rasm", size: file.size, type: mimeFromUrl(url) ?? file.type };
+  // Telefon kamerasi 4–12 MB rasm beradi — yuklashdan OLDIN brauzerda siqamiz (Instagram/Telegram kabi): trafik va vaqt tejaladi,
+  // «5 MB dan katta» xatosi kamayadi. GIF tegilmaydi (animatsiya yo'qoladi), siqilgan nusxa kattaroq chiqsa asl fayl ketadi.
+  const sendFile = isImage && !opts?.raw ? await compressImage(file) : file;
+  if (sendFile.size > MAX_UPLOAD_BYTES) throw new Error(`«${file.name}» 5 MB dan katta`);
+  const url = await uploadViaApi(sendFile, opts?.docs ? "attachment" : "", p);
+  return { url, name: sendFile.name.slice(0, 120) || "rasm", size: sendFile.size, type: mimeFromUrl(url) ?? sendFile.type };
+}
+
+/** Siqish chegaralari: uzun tomon 2048px (Instagram 1080, Telegram 1280/2560 — bizda portfolio sifati muhim), JPEG 0.86 */
+export const IMAGE_MAX_SIDE = 2048;
+const IMAGE_COMPRESS_MIN_BYTES = 700 * 1024;
+const IMAGE_QUALITY = 0.86;
+
+/**
+ * Rasmni brauzerda siqadi: 700 KB dan kichik va 2048px dan kichik rasm o'zgarmaydi. JPEG → JPEG, PNG/WebP → WebP
+ * (shaffoflik saqlanadi; brauzer WebP yoza olmasa — PNG → asl fayl qoladi). EXIF burilishi `imageOrientation` bilan qo'llanadi.
+ * Xatolikda (eski brauzer, buzilgan fayl) asl fayl qaytadi — yuklash hech qachon shu bosqichda to'xtamaydi.
+ */
+export async function compressImage(file: File): Promise<File> {
+  if (!/^image\/(?:jpeg|png|webp)$/.test(file.type)) return file;
+  if (typeof createImageBitmap !== "function" || typeof document === "undefined") return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
+    const maxSide = Math.max(bmp.width, bmp.height);
+    if (file.size < IMAGE_COMPRESS_MIN_BYTES && maxSide <= IMAGE_MAX_SIDE) {
+      bmp.close();
+      return file;
+    }
+    const scale = Math.min(1, IMAGE_MAX_SIDE / maxSide);
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bmp.close();
+      return file;
+    }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const outType = file.type === "image/jpeg" ? "image/jpeg" : "image/webp";
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, outType, IMAGE_QUALITY));
+    // Brauzer so'ralgan formatni yoza olmasa (Safari WebP) PNG qaytaradi — unda asl fayl afzal
+    if (!blob || blob.type !== outType || blob.size >= file.size) return file;
+    const ext = outType === "image/jpeg" ? "jpg" : "webp";
+    const base = file.name.replace(/\.[a-z0-9]+$/i, "") || "rasm";
+    return new File([blob], `${base}.${ext}`, { type: outType, lastModified: Date.now() });
+  } catch {
+    return file;
+  }
 }
 
 

@@ -30,7 +30,7 @@ import { MusicChip } from "@/components/social/MusicChip";
 import { COMMENT_MAX, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, POST_BODY_MAX, POST_MEDIA_MAX } from "@/lib/groups/limits";
 import type { PostView, UserBrief } from "@/lib/groups/service";
 import type { CommentViewX, PollView } from "@/lib/groups/posts-extra";
-import { tr } from "@/lib/i18n";
+import { tr, type Locale } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -676,6 +676,26 @@ export function Composer({
 /* ------------------------------------------------------------------ */
 /* Post                                                                */
 /* ------------------------------------------------------------------ */
+/** Uzun matn Instagram kabi 4 qatorga yig'iladi — «…ko'proq» bosilsa to'liq ochiladi (qisqa matnga tugma chiqmaydi) */
+const CLAMP_CHARS = 220;
+const CLAMP_LINES = 4;
+function PostBody({ body, til }: { body: string; til: Locale }) {
+  const [open, setOpen] = useState(false);
+  const long = body.length > CLAMP_CHARS || body.split("\n").length > CLAMP_LINES;
+  return (
+    <div className="mt-3.5">
+      <p className={cn("whitespace-pre-wrap break-words text-[15.5px] leading-[1.6] text-fg", long && !open && "line-clamp-4")}>
+        <RichText text={body} />
+      </p>
+      {long && (
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-1 text-[14px] font-semibold text-fg-3 transition hover:text-fg">
+          {open ? tr(til, FEED.readLess) : tr(til, FEED.readMore)}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PostCard({
   post,
   canInteract,
@@ -967,11 +987,7 @@ export function PostCard({
           </div>
         </div>
       ) : (
-        body && (
-          <p className="mt-3.5 whitespace-pre-wrap break-words text-[15.5px] leading-[1.6] text-fg">
-            <RichText text={body} />
-          </p>
-        )
+        body && <PostBody body={body} til={til} />
       )}
 
       {post.locked && (

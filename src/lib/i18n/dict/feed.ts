@@ -26,6 +26,8 @@ export const FEED = {
   emptyTag: { uz: (tag: string) => `#${tag} bo'yicha post yo'q`, ru: (tag: string) => `Постов с #${tag} нет` },
   findCreators: { uz: "Ijodkorlarni topish", ru: "Найти авторов" } satisfies Tr,
   more: { uz: "Yana", ru: "Ещё" } satisfies Tr,
+  readMore: { uz: "ko'proq", ru: "ещё" } satisfies Tr,
+  readLess: { uz: "yig'ish", ru: "свернуть" } satisfies Tr,
   loading: { uz: "Yuklanmoqda…", ru: "Загрузка…" } satisfies Tr,
   loadFailed: { uz: "Yuklanmadi", ru: "Не загрузилось" } satisfies Tr,
   retry: { uz: "Qayta urinish", ru: "Повторить" } satisfies Tr,

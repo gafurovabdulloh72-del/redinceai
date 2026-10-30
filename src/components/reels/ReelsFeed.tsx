@@ -353,6 +353,22 @@ function ReelSlide({
   const [expanded, setExpanded] = useState(false);
   const [burst, setBurst] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
+  // TikTok uslubidagi pastki progress chizig'i: 0..1, surib o'tkazish (scrub) mumkin
+  const [prog, setProg] = useState(0);
+  const [scrubbing, setScrubbing] = useState(false);
+  const onTime = () => {
+    const v = videoRef.current;
+    if (!v || scrubbing || !v.duration) return;
+    setProg(v.currentTime / v.duration);
+  };
+  const scrubTo = (clientX: number, el: HTMLElement) => {
+    const v = videoRef.current;
+    if (!v || !v.duration) return;
+    const r = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    v.currentTime = ratio * v.duration;
+    setProg(ratio);
+  };
   const viewed = useRef(false);
   const isMe = me?.id === item.author.id;
   const cat = item.author.category ? CATEGORY_BY_SLUG[item.author.category] : undefined;
@@ -429,7 +445,7 @@ function ReelSlide({
     <section data-reel={item.key} className="relative flex h-[100svh] snap-start items-center justify-center md:py-6">
       <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] md:aspect-[9/16] md:h-full md:max-h-[880px] md:w-auto md:rounded-[26px] md:border md:border-white/10">
         {item.mediaType === "video" ? (
-          <video ref={videoRef} src={`${item.mediaUrl}#t=0.1`} poster={item.posterUrl ?? undefined} preload={active ? "auto" : near ? "metadata" : "none"} playsInline loop muted onClick={onTap} className="h-full w-full cursor-pointer object-contain" />
+          <video ref={videoRef} src={`${item.mediaUrl}#t=0.1`} poster={item.posterUrl ?? undefined} preload={active ? "auto" : near ? "metadata" : "none"} playsInline loop muted onClick={onTap} onTimeUpdate={onTime} className="h-full w-full cursor-pointer object-contain" />
         ) : (
           <div className="relative h-full w-full" onClick={onTap}>
             {/* Orqa fon: rasmning xira nusxasi (har xil o'lchamdagi rasm chiroyli turadi) */}
@@ -449,6 +465,37 @@ function ReelSlide({
           </div>
         )}
         {item.music && <audio ref={audioRef} src={item.music.url} loop preload="none" />}
+
+        {/* Progress chizig'i (faqat video): 2px, surilganda 4px; bosish/surish — shu joyga o'tadi */}
+        {item.mediaType === "video" && (
+          <div
+            role="slider"
+            aria-label="Video holati"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(prog * 100)}
+            tabIndex={-1}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setScrubbing(true);
+              scrubTo(e.clientX, e.currentTarget);
+            }}
+            onPointerMove={(e) => scrubbing && scrubTo(e.clientX, e.currentTarget)}
+            onPointerUp={(e) => {
+              setScrubbing(false);
+              scrubTo(e.clientX, e.currentTarget);
+            }}
+            onPointerCancel={() => setScrubbing(false)}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-20 flex h-6 cursor-pointer touch-none items-end md:bottom-0"
+          >
+            <div className={cn("relative w-full bg-white/25 transition-[height]", scrubbing ? "h-1" : "h-0.5")}>
+              <div className="absolute inset-y-0 left-0 bg-white" style={{ width: `${prog * 100}%` }} />
+              {scrubbing && <span aria-hidden className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow" style={{ left: `${prog * 100}%` }} />}
+            </div>
+          </div>
+        )}
 
         <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent" aria-hidden="true" />
 
