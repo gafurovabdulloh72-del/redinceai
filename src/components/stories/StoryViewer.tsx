@@ -60,6 +60,7 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
     };
   }, [ai]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
   const next = useCallback(() => {
     setProgress(0);
     elapsedRef.current = 0;
@@ -185,7 +186,28 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
 
   return createPortal(
     <div className="overlay-in fixed inset-0 z-[136] flex items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label={`${author?.author.name ?? ""} story'lari`}>
-      <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] sm:h-[min(92vh,880px)] sm:w-auto sm:aspect-[9/16] sm:rounded-[22px]">
+      <div
+        className="relative h-full w-full overflow-hidden bg-[#0b0b0c] sm:h-[min(92vh,880px)] sm:w-auto sm:aspect-[9/16] sm:rounded-[22px]"
+        /* Instagram imo-ishoralari: pastga surish — yopish, chapga/o'ngga — keyingi/oldingi. Oddiy bosish zonalariga tegmaydi */
+        onTouchStart={(e) => {
+          const t0 = e.touches[0];
+          swipeRef.current = { x: t0.clientX, y: t0.clientY };
+        }}
+        onTouchEnd={(e) => {
+          const st = swipeRef.current;
+          swipeRef.current = null;
+          if (!st) return;
+          const t0 = e.changedTouches[0];
+          const dx = t0.clientX - st.x;
+          const dy = t0.clientY - st.y;
+          if (dy > 90 && Math.abs(dx) < 80) return onClose();
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+            e.preventDefault();
+            if (dx < 0) next();
+            else prev();
+          }
+        }}
+      >
         {!data || !story ? (
           <div className="grid h-full place-items-center text-white/70">
             <Spinner />

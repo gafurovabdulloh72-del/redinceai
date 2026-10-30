@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { haptic } from "@/components/motion/haptics";
 import { ArrowDown, Check, Copy, CornerUpLeft, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
@@ -104,6 +105,45 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessageView | null>(null);
+  // Telegram odati: xabarni o'ngga surib javob berish (sensorli ekran)
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
+  const swipeStart = useRef<{ id: string; x: number; y: number; locked: boolean | null } | null>(null);
+  const SWIPE_REPLY = 56;
+  const swipeHandlers = (m: GroupMessageView) =>
+    m.deleted
+      ? {}
+      : {
+          onTouchStart: (e: React.TouchEvent) => {
+            const t0 = e.touches[0];
+            swipeStart.current = { id: m.id, x: t0.clientX, y: t0.clientY, locked: null };
+          },
+          onTouchMove: (e: React.TouchEvent) => {
+            const st = swipeStart.current;
+            if (!st || st.id !== m.id) return;
+            const t0 = e.touches[0];
+            const dx = t0.clientX - st.x;
+            const dy = t0.clientY - st.y;
+            if (st.locked === null) {
+              if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+              st.locked = Math.abs(dx) > Math.abs(dy) && dx > 0;
+            }
+            if (!st.locked) return;
+            setSwipe({ id: m.id, dx: Math.min(80, Math.max(0, dx * 0.7)) });
+          },
+          onTouchEnd: () => {
+            const st = swipeStart.current;
+            swipeStart.current = null;
+            if (st && swipe && swipe.id === st.id && swipe.dx >= SWIPE_REPLY) {
+              haptic("light");
+              setReplyTo(m);
+            }
+            setSwipe(null);
+          },
+          onTouchCancel: () => {
+            swipeStart.current = null;
+            setSwipe(null);
+          },
+        };
   /** Xabar menyusining gorizontal siljishi (px, «⋯» tugmasiga nisbatan): menyu chat ramkasidan chiqib kesilib ketmasin (telefonda ham) */
   const [menuShift, setMenuShift] = useState(0);
   const [editing, setEditing] = useState<GroupMessageView | null>(null);
@@ -675,7 +715,16 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                       <span className="inline-block rounded-full bg-fg/6 px-2.5 py-0.5 text-[11px] font-semibold text-fg-3">{dayLabel(m.at, til)}</span>
                     </p>
                   )}
-                  <div className={cn("group flex items-end gap-1.5", m.mine ? "justify-end" : "justify-start")}>
+                  <div
+                    {...swipeHandlers(m)}
+                    style={swipe?.id === m.id ? { transform: `translateX(${swipe.dx}px)`, transition: "none" } : undefined}
+                    className={cn("group relative flex items-end gap-1.5 transition-transform duration-200", m.mine ? "justify-end" : "justify-start")}
+                  >
+                    {swipe?.id === m.id && (
+                      <span aria-hidden className="pointer-events-none absolute top-1/2 -left-10 grid h-8 w-8 place-items-center rounded-full bg-fg/10 text-fg" style={{ opacity: Math.min(1, swipe.dx / SWIPE_REPLY), transform: `translateY(-50%) scale(${swipe.dx >= SWIPE_REPLY ? 1 : 0.8})` }}>
+                        <CornerUpLeft size={15} />
+                      </span>
+                    )}
                     {!m.mine && <span className="w-7 shrink-0">{!sameSender && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={28} decorative />}</span>}
                     <div className={cn("flex min-w-0 max-w-[80%] flex-col", m.mine ? "items-end" : "items-start")}>
                     <div id={`msg-${m.id}`} className={cn("max-w-full rounded-2xl px-3.5 py-2 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md bg-surface-2 text-fg", m.deleted && "opacity-70")}>
