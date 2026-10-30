@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Pencil, Users } from "lucide-react";
+import { BadgeCheck, Pencil, Users, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { ApplyForm } from "@/components/vacancies/ApplyForm";
 import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
@@ -187,7 +187,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
           )}
         </div>
 
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
+        <aside id="ariza" className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
           {v.isOwner ? (
             <div className="card p-5">
               <p className="text-[15px] font-semibold text-fg">Bu sizning vakansiyangiz</p>
@@ -265,6 +265,15 @@ export default async function VacancyPage({ params }: { params: Params }) {
             ))}
           </ul>
         </section>
+      )}
+      {/* Telefon: pastda yopishqoq «Ariza yuborish» — forma sahifa oxirida, ko'rinmay qolmasin (Udemy/HeadHunter odati). fixed emas — sticky */}
+      {!v.isOwner && !closed && !v.myApplication && (
+        <div className="pointer-events-none sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)] z-20 -mx-4 mt-4 px-4 sm:hidden">
+          <a href="#ariza" className="btn-accent press pointer-events-auto flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
+            <span className="truncate">{salaryLabel(v.salaryMin, v.salaryMax)}</span>
+            <span className="inline-flex items-center gap-1.5">Ariza yuborish <ArrowRight size={16} /></span>
+          </a>
+        </div>
       )}
     </div>
   );
