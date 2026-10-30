@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useIsPhone } from "@/components/motion/useMediaQuery";
 import { AlertCircle, ArrowRight, ArrowUpRight, BadgeCheck, Briefcase, Camera, CheckCircle2, ChevronDown, Globe, ImagePlus, Instagram, Languages, Link2, MapPin, Package, Plus, Send, Sparkles, Tags, Trash2, Wallet, Wrench, X, Youtube, type LucideIcon, GraduationCap } from "lucide-react";
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -268,28 +269,54 @@ const FIELD_SECTION: Record<string, SectionId> = {
  * Bo'limga silliq o'tish; fokus bo'lim sarlavhasiga (tabIndex=-1) — klaviatura/ekran o'quvchi joyini yo'qotmaydi,
  * mobilda esa klaviatura o'z-o'zidan ochilib ketmaydi.
  */
+/** Telefonda yig'ilgan bo'limni ochish uchun hodisa (Section tinglaydi) */
+const OPEN_SECTION_EVENT = "ke:open-section";
 function goToSection(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
+  window.dispatchEvent(new CustomEvent(OPEN_SECTION_EVENT, { detail: { id } }));
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
 }
 
-function Section({ id, icon: Icon, title, hint, next, children }: { id: SectionId; icon: LucideIcon; title: string; hint?: string; next?: { id: string; label: string }; children: ReactNode }) {
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-[150px] border-t border-line pt-6 first:border-t-0 first:pt-0 sm:scroll-mt-[160px]">
-      <div className="mb-4 flex items-center gap-2.5">
-        <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
-          <Icon size={15} />
-        </span>
-        <div>
-          <h3 id={`${id}-title`} tabIndex={-1} className="text-[15px] font-semibold leading-tight text-fg outline-none">
-            {title}
-          </h3>
-          {hint && <p className="text-[12px] text-fg-3">{hint}</p>}
-        </div>
+function Section({ id, icon: Icon, title, hint, next, defaultOpen = true, children }: { id: SectionId; icon: LucideIcon; title: string; hint?: string; next?: { id: string; label: string }; /** Telefonda boshlang'ich holat (to'ldirilgan bo'limlar yig'ilgan keladi) */ defaultOpen?: boolean; children: ReactNode }) {
+  // Telefonda 16 000px li forma akkordeon bo'ladi: sarlavha bosilsa ochiladi/yig'iladi; sm+ da doim ochiq.
+  // Forma noValidate — yashirin maydon submit'ni bloklamaydi.
+  const phone = useIsPhone();
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      if ((e as CustomEvent<{ id: string }>).detail?.id === id) setOpen(true);
+    };
+    window.addEventListener(OPEN_SECTION_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_SECTION_EVENT, onOpen);
+  }, [id]);
+  const collapsed = phone && !open;
+  const head = (
+    <>
+      <span className="btn-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]">
+        <Icon size={15} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 id={`${id}-title`} tabIndex={-1} className="text-[15px] font-semibold leading-tight text-fg outline-none">
+          {title}
+        </h3>
+        {hint && <p className={cn("text-[12px] text-fg-3", collapsed && "truncate")}>{hint}</p>}
       </div>
+      <ChevronDown size={18} className={cn("shrink-0 text-fg-3 transition-transform sm:hidden", !collapsed && "rotate-180")} aria-hidden="true" />
+    </>
+  );
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-[150px] border-t border-line pt-6 first:border-t-0 first:pt-0 max-sm:pt-4 sm:scroll-mt-[160px]">
+      {phone ? (
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={!collapsed} aria-controls={`${id}-body`} className={cn("press -mx-2 flex w-[calc(100%+1rem)] items-center gap-2.5 rounded-[12px] px-2 py-1 text-left", collapsed ? "mb-0" : "mb-4")}>
+          {head}
+        </button>
+      ) : (
+        <div className="mb-4 flex items-center gap-2.5">{head}</div>
+      )}
+      <div id={`${id}-body`} className={cn(collapsed && "hidden")}>
       {children}
       {next && (
         <div className="mt-5 flex justify-end">
@@ -302,6 +329,7 @@ function Section({ id, icon: Icon, title, hint, next, children }: { id: SectionI
           </button>
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -531,6 +559,14 @@ export function ProfileForm({
     "pf-tajriba": f.workHistory.length > 0 || f.education.length > 0,
   };
   const OPTIONAL: SectionId[] = ["pf-holat", "pf-paketlar", "pf-sertifikat", "pf-tajriba"];
+  // Telefon akkordeoni: birinchi bo'lim va hali to'ldirilmagan asosiy bo'limlar ochiq, qolgani yig'ilgan (boshlang'ich holat)
+  const initialOpen = useRef<Record<string, boolean> | null>(null);
+  if (initialOpen.current === null) {
+    const m: Record<string, boolean> = {};
+    for (const x of SECTIONS) m[x.id] = x.id === "pf-asosiy" || (!OPTIONAL.includes(x.id) && !sectionDone[x.id]);
+    initialOpen.current = m;
+  }
+  const openAtStart = (id: SectionId) => initialOpen.current?.[id] ?? true;
   const counted = SECTIONS.filter((x) => !OPTIONAL.includes(x.id));
   const progress = Math.round((counted.filter((x) => sectionDone[x.id]).length / counted.length) * 100);
   const nextOf = (id: SectionId) => {
@@ -913,7 +949,7 @@ export function ProfileForm({
 
       <div className="mt-6 space-y-6">
         {/* ============ Asosiy ============ */}
-        <Section id="pf-asosiy" next={nextOf("pf-asosiy")} icon={Sparkles} title="Asosiy ma'lumotlar" hint="Sarlavha va yo'nalish — mijoz birinchi ko'radigan narsa">
+        <Section id="pf-asosiy" defaultOpen={openAtStart("pf-asosiy")} next={nextOf("pf-asosiy")} icon={Sparkles} title="Asosiy ma'lumotlar" hint="Sarlavha va yo'nalish — mijoz birinchi ko'radigan narsa">
           <div>
             <label htmlFor="pf-title" className="field-label">
               Sarlavha
@@ -964,7 +1000,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Hudud ============ */}
-        <Section id="pf-hudud" next={nextOf("pf-hudud")} icon={MapPin} title="Hudud" hint="Xaritada shu hududda ko'rinasiz">
+        <Section id="pf-hudud" defaultOpen={openAtStart("pf-hudud")} next={nextOf("pf-hudud")} icon={MapPin} title="Hudud" hint="Xaritada shu hududda ko'rinasiz">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="pf-region" className="field-label">
@@ -1010,7 +1046,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Haqida ============ */}
-        <Section id="pf-haqida" next={nextOf("pf-haqida")} icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, jihozlar va ish jarayoni — mijoz ishonchini oshiradigan narsalar">
+        <Section id="pf-haqida" defaultOpen={openAtStart("pf-haqida")} next={nextOf("pf-haqida")} icon={Tags} title="O'zingiz haqingizda" hint="Tajriba, uslub, jihozlar va ish jarayoni — mijoz ishonchini oshiradigan narsalar">
           <div>
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
               <label htmlFor="pf-bio" className="field-label !mb-0">
@@ -1203,7 +1239,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Narx ============ */}
-        <Section id="pf-narx" next={nextOf("pf-narx")} icon={Wallet} title="Narxlar" hint={`Minimal narx — ${formatPrice(PRICE_MIN)} (yoki $${PRICE_MIN_USD}). Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi`}>
+        <Section id="pf-narx" defaultOpen={openAtStart("pf-narx")} next={nextOf("pf-narx")} icon={Wallet} title="Narxlar" hint={`Minimal narx — ${formatPrice(PRICE_MIN)} (yoki $${PRICE_MIN_USD}). Diapazon ko'rsatsangiz, mijozga tushunarli bo'ladi`}>
           {/* Valyuta: so'm yoki dollar */}
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <span className="field-label !mb-0">Valyuta</span>
@@ -1296,6 +1332,7 @@ export function ProfileForm({
         {/* ============ Paketlar (F31) ============ */}
         <Section
           id="pf-paketlar"
+          defaultOpen={openAtStart("pf-paketlar")}
           next={nextOf("pf-paketlar")}
           icon={Package}
           title="Xizmat paketlari"
@@ -1439,6 +1476,7 @@ export function ProfileForm({
         {/* ============ Sertifikatlar (F64) ============ */}
         <Section
           id="pf-sertifikat"
+          defaultOpen={openAtStart("pf-sertifikat")}
           next={nextOf("pf-sertifikat")}
           icon={BadgeCheck}
           title="Sertifikatlar va litsenziyalar"
@@ -1548,7 +1586,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Tajriba va ta'lim (LinkedIn uslubi) ============ */}
-        <Section id="pf-tajriba" next={nextOf("pf-tajriba")} icon={Briefcase} title="Tajriba va ta'lim" hint="Qayerda ishlagansiz, nimani o'qigansiz — profil «Haqida» bo'limi ostida chiqadi">
+        <Section id="pf-tajriba" defaultOpen={openAtStart("pf-tajriba")} next={nextOf("pf-tajriba")} icon={Briefcase} title="Tajriba va ta'lim" hint="Qayerda ishlagansiz, nimani o'qigansiz — profil «Haqida» bo'limi ostida chiqadi">
           <p className="flex items-center gap-2 text-[13px] font-bold text-fg">
             <Briefcase size={14} className="text-fg-3" /> Ish tajribasi
           </p>
@@ -1679,7 +1717,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Aloqa ============ */}
-        <Section id="pf-aloqa" next={nextOf("pf-aloqa")} icon={Send} title="Aloqa va havolalar" hint="Mijozlar siz bilan qanday bog'lanadi">
+        <Section id="pf-aloqa" defaultOpen={openAtStart("pf-aloqa")} next={nextOf("pf-aloqa")} icon={Send} title="Aloqa va havolalar" hint="Mijozlar siz bilan qanday bog'lanadi">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -1734,7 +1772,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Muqova ============ */}
-        <Section id="pf-muqova" next={nextOf("pf-muqova")} icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm — yuklashda kesish oynasi 4:1 nisbatga o'zi moslaydi">
+        <Section id="pf-muqova" defaultOpen={openAtStart("pf-muqova")} next={nextOf("pf-muqova")} icon={ImagePlus} title="Muqova rasmi" hint="Profil sarlavhasida keng rasm — yuklashda kesish oynasi 4:1 nisbatga o'zi moslaydi">
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
             <div>
               <label htmlFor="pf-cover" className="field-label">
@@ -1804,7 +1842,7 @@ export function ProfileForm({
         </Section>
 
         {/* ============ Holat ============ */}
-        <Section id="pf-holat" icon={CheckCircle2} title="Holat">
+        <Section id="pf-holat" defaultOpen={openAtStart("pf-holat")} icon={CheckCircle2} title="Holat">
           <div className="card-outline flex items-center justify-between gap-4 !rounded-[18px] px-4 py-3">
             <div>
               <p className="text-[15px] font-semibold text-fg">Buyurtma qabul qilaman</p>

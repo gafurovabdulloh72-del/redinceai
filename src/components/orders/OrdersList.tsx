@@ -324,7 +324,13 @@ export function OrdersList({
     return c;
   }, [list]);
 
-  const visible = filter === "all" ? list : list.filter((o) => o.status === filter);
+  const filteredAll = filter === "all" ? list : list.filter((o) => o.status === filter);
+  // Uzun ro'yxat (telefonda 15 000px) — avval 8 ta, «Yana ko'rsatish» bilan 8 tadan qo'shiladi; tab/filtr almashganda qaytadi
+  const PAGE = 8;
+  const [shownCount, setShownCount] = useState(PAGE);
+  useEffect(() => setShownCount(PAGE), [tab, filter]);
+  const visible = filteredAll.slice(0, shownCount);
+  const hiddenCount = filteredAll.length - visible.length;
 
   const switchTab = (t: Tab) => {
     setTab(t);
@@ -558,6 +564,13 @@ export function OrdersList({
               }}
             />
           ))}
+          {hiddenCount > 0 && (
+            <div className="xl:col-span-2">
+              <button type="button" onClick={() => setShownCount((n) => n + PAGE)} className="press inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-line text-[14px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4">
+                Yana ko'rsatish <span className="text-fg-3">· {hiddenCount} ta</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
