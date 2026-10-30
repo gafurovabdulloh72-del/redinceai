@@ -120,7 +120,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
           {/* Nimalarni o'rganasiz — ✓ ro'yxat (Udemy) */}
           {c.outcomes.length > 0 && (
-            <section className="card mt-5 p-4 max-sm:m-flat sm:p-5" aria-labelledby="kurs-natija">
+            <section className="card mt-5 p-4 m-flat sm:p-5" aria-labelledby="kurs-natija">
               <h2 id="kurs-natija" className="mb-3 text-[15px] font-bold text-fg">Nimalarni o&apos;rganasiz</h2>
               <ul className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
                 {c.outcomes.map((o) => (
@@ -169,7 +169,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
           {/* Darslar */}
           <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Dastur · {c.lessonsCount} dars</h2>
-          <ul className="card divide-y divide-line overflow-hidden max-sm:m-flat">
+          <ul className="card divide-y divide-line overflow-hidden m-flat">
             {c.lessons.map((l) => {
               const open = !l.locked;
               const inner = (
@@ -232,7 +232,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
         {/* Yon panel: narx + yozilish */}
         <aside id="kursga-yozilish" className="min-w-0 max-sm:order-first lg:sticky lg:top-24 lg:self-start">
-          <div className="card-elevated p-5 max-sm:m-flat max-sm:px-0 max-sm:pb-4 max-sm:pt-0">
+          <div className="card-elevated p-5 m-flat max-sm:px-0 max-sm:pb-4 max-sm:pt-0">
             <p className="text-[26px] font-bold leading-none text-fg">{formatSom(c.priceFrom)}</p>
             {c.enrolled && c.progressPct > 0 && (
               <div className="mt-3">
