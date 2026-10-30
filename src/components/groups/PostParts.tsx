@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from "react-dom";
 import { BarChart3, ChevronLeft, ChevronRight, ExternalLink, Heart, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
+import { useIsPhone } from "@/components/motion/useMediaQuery";
+import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { SafeImage } from "@/components/specialists/SafeImage";
@@ -39,9 +41,11 @@ export function PostMenu({ items, extra, label }: { items: MenuItem[]; extra?: R
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const visible = items.filter((i) => !i.hidden);
+  // Telefonda — Instagram uslubidagi pastki varaq (katta qatorlar), keng ekranda popover
+  const phone = useIsPhone();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || phone) return;
     const onDown = (e: PointerEvent) => {
       if (!wrap.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -67,7 +71,7 @@ export function PostMenu({ items, extra, label }: { items: MenuItem[]; extra?: R
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(t);
     };
-  }, [open]);
+  }, [open, phone]);
 
   if (!visible.length && !extra) return null;
   return (
@@ -84,7 +88,29 @@ export function PostMenu({ items, extra, label }: { items: MenuItem[]; extra?: R
       >
         <MoreHorizontal size={18} />
       </button>
-      {presence.mounted && (
+      {presence.mounted && phone && (
+        <Sheet open={open} onClose={() => setOpen(false)} title={label ?? tr(til, FEED.menu)} size="sm">
+          <ul className="-mx-1 divide-y divide-line">
+            {visible.map((it) => (
+              <li key={it.key}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    it.onSelect();
+                  }}
+                  className={cn("press flex h-13 w-full items-center gap-3 px-3 text-left text-[15.5px] font-semibold", it.danger ? "text-danger-text" : "text-fg")}
+                >
+                  {it.icon && <it.icon size={20} className={cn("shrink-0", it.danger ? "text-danger-text" : "text-fg-3")} />}
+                  <span className="truncate">{it.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {extra && <div className="mt-2 border-t border-line pt-2">{extra}</div>}
+        </Sheet>
+      )}
+      {presence.mounted && !phone && (
         <div ref={menu} role="menu" aria-label={label ?? tr(til, FEED.menu)} className={cn("card-floating absolute right-0 top-[calc(100%+6px)] z-30 min-w-[200px] origin-top-right p-1", presence.closing ? "pop-out" : "pop-in")}>
           {visible.map((it) => (
             <button
