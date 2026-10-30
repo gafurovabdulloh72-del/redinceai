@@ -2183,6 +2183,8 @@ export const lessons = sqliteTable(
     body: text("body").notNull().default(""),
     videoUrl: text("video_url"),
     durationMin: integer("duration_min").notNull().default(0),
+    /** Kurs bo'limi (Udemy section): bir xil nomli ketma-ket darslar bitta modulga yig'iladi; bo'sh — bo'limsiz */
+    section: text("section").notNull().default(""),
     /** Bepul namuna — yozilmasdan ham ko'rsa bo'ladi */
     isPreview: integer("is_preview", { mode: "boolean" }).notNull().default(false),
     /** Dars materiallari (fayllar): preset, loyiha fayli, PDF — faqat yozilganlarga */

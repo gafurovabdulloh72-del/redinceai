@@ -187,6 +187,8 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
       <section>
         <h2 className="mb-3 text-[16px] font-bold text-fg">Darslar <span className="text-fg-4">· {lessons.length}</span></h2>
         <ul className="space-y-2">
+          {/* LessonForm «Bo'lim nomi» maydoni uchun mavjud bo'limlar taklifi */}
+          <datalist id="lesson-sections">{[...new Set(lessons.map((l) => l.section).filter(Boolean))].map((x) => <option key={x} value={x} />)}</datalist>
           {lessons.map((l) => (
             editingId === l.id ? (
               <li key={l.id}>

@@ -13,6 +13,8 @@ export interface LessonFull {
   body: string;
   videoUrl: string | null;
   durationMin: number;
+  /** Kurs bo'limi (ixtiyoriy) */
+  section?: string;
   isPreview: boolean;
   materials: Array<{ name: string; url: string; size?: number }>;
   chapters: Array<{ t: number; title: string }>;
@@ -41,6 +43,7 @@ export function LessonForm({ courseId, initial, nextPos, onSaved, onCancel }: { 
   const [videoUrl, setVideoUrl] = useState<string | null>(initial?.videoUrl ?? null);
   const [duration, setDuration] = useState(initial?.durationMin ? String(initial.durationMin) : "");
   const [isPreview, setIsPreview] = useState(initial?.isPreview ?? false);
+  const [section, setSection] = useState(initial?.section ?? "");
   const [materials, setMaterials] = useState(initial?.materials ?? []);
   const [chaptersText, setChaptersText] = useState((initial?.chapters ?? []).map((c) => `${fmtT(c.t)} ${c.title}`).join("\n"));
   const [quiz, setQuiz] = useState<LessonFull["quiz"]>(initial?.quiz ?? null);
@@ -88,12 +91,12 @@ export function LessonForm({ courseId, initial, nextPos, onSaved, onCancel }: { 
     }
     setBusy(true);
     try {
-      const payload = { title: title.trim(), body: body.trim(), videoUrl, durationMin: Number(duration) || 0, isPreview, materials, chapters, quiz: q, assignment: assignment.trim() };
+      const payload = { title: title.trim(), body: body.trim(), videoUrl, durationMin: Number(duration) || 0, section: section.trim(), isPreview, materials, chapters, quiz: q, assignment: assignment.trim() };
       const url = initial ? `/api/mentorlik/darslar/${initial.id}` : `/api/mentorlik/kurslar/${courseId}/darslar`;
       const res = await fetch(url, { method: initial ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = (await res.json()) as { ok: boolean; error?: string; fields?: Record<string, string>; data?: { id: string } };
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlanmadi");
-      onSaved({ id: initial?.id ?? j.data!.id, position: initial?.position ?? nextPos, title: payload.title, body: payload.body, videoUrl, durationMin: payload.durationMin, isPreview, materials, chapters, quiz: q, assignment: payload.assignment });
+      onSaved({ id: initial?.id ?? j.data!.id, position: initial?.position ?? nextPos, title: payload.title, body: payload.body, videoUrl, durationMin: payload.durationMin, section: payload.section, isPreview, materials, chapters, quiz: q, assignment: payload.assignment });
       toast(initial ? "Dars saqlandi" : "Dars qo'shildi", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Xatolik", "error");
@@ -109,6 +112,8 @@ export function LessonForm({ courseId, initial, nextPos, onSaved, onCancel }: { 
         <button type="button" onClick={onCancel} aria-label="Yopish" className="press flex h-8 w-8 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6"><X size={16} /></button>
       </div>
       <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={MENTOR_LIMITS.lessonTitleMax} placeholder="Dars nomi" className="field h-11 w-full text-[14px]" autoFocus />
+      {/* Udemy «section»: bir xil nomli ketma-ket darslar kurs sahifasida bitta bo'limga yig'iladi */}
+      <input value={section} onChange={(e) => setSection(e.target.value)} maxLength={80} list="lesson-sections" placeholder="Bo'lim nomi (ixtiyoriy, masalan: 1-modul · Asoslar)" aria-label="Kurs bo'limi" className="field h-10 w-full text-[13px]" />
       <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={MENTOR_LIMITS.lessonBodyMax} rows={4} placeholder="Dars matni / izoh (ixtiyoriy)…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
       <div className="flex flex-wrap items-center gap-2">
         <label className="press flex h-10 cursor-pointer items-center gap-1.5 rounded-[12px] border border-line px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">

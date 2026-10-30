@@ -8,6 +8,8 @@ export interface SidebarLesson {
   title: string;
   position: number;
   durationMin: number;
+  /** Kurs bo'limi (Udemy section) — bo'sh bo'lishi mumkin */
+  section?: string;
   completed: boolean;
   locked: boolean;
 }
@@ -18,6 +20,7 @@ export interface SidebarLesson {
  */
 export function LessonSidebar({ courseTitle, courseSlug, lessons, currentId, progressPct }: { courseTitle: string; courseSlug: string; lessons: SidebarLesson[]; currentId: string; progressPct: number }) {
   const done = lessons.filter((l) => l.completed).length;
+  const hasSections = new Set(lessons.map((l) => l.section ?? "")).size > 1;
   return (
     <aside className="card overflow-hidden" aria-label="Kurs darslari">
       <div className="border-b border-line p-3.5">
@@ -32,8 +35,10 @@ export function LessonSidebar({ courseTitle, courseSlug, lessons, currentId, pro
         </span>
       </div>
       <ol className="max-h-[60vh] overflow-y-auto">
-        {lessons.map((l) => {
+        {lessons.map((l, i) => {
           const on = l.id === currentId;
+          // Bo'lim sarlavhasi — yangi bo'lim boshlanganda (bir nechta bo'lim bo'lsa)
+          const sectionHead = hasSections && (i === 0 || (lessons[i - 1].section ?? "") !== (l.section ?? "")) ? l.section || "Bo'limsiz" : null;
           const Row = (
             <>
               <span className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold", l.completed ? "bg-fg text-ink-fg" : on ? "bg-fg/10 text-fg" : "bg-fg/6 text-fg-3")}>
@@ -48,6 +53,7 @@ export function LessonSidebar({ courseTitle, courseSlug, lessons, currentId, pro
           );
           return (
             <li key={l.id} className={cn("border-b border-line last:border-0", on && "bg-fg/[0.03]")}>
+              {sectionHead && <p className="border-b border-line bg-fg/[0.03] px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-wide text-fg-3">{sectionHead}</p>}
               {l.locked ? (
                 <span className="flex cursor-not-allowed items-center gap-2.5 px-3.5 py-2.5 opacity-55" title="Kursga yozilgach ochiladi">
                   {Row}

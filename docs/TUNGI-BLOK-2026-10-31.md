@@ -97,6 +97,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   orqali boshqaradi, bob bosilsa `ke:lesson-seek`). Yopishish doirasi — chap ustun (tablar/eslatmalar/savol-javob).
 - Vakansiyalar/Ishlar qidiruv formasi telefonda ixcham: katta «Qidirish» tugmasi yashirin (Enter / klaviatura «Qidirish»),
   tanlov o'zgarsa darhol qidiradi (`components/ui/AutoSubmitSelect.tsx` — server GET formalar uchun), forma kartasi yassi.
+- Kurs BO'LIMLARI (Udemy sections): `lessons.section` (ixtiyoriy nom; LessonForm'da maydon + mavjud bo'limlar `datalist`), ketma-ket bir xil
+  nomli darslar kurs sahifasida yig'iladigan `<details>` (dars soni · davomiylik · bajarildi; birinchisi va bajarilmagani ochiq), dars yon panelida
+  bo'lim sarlavhalari; efir yozuvi dars qilinganda «Efir yozuvlari» bo'limiga tushadi. Bo'lim nomi bo'lmasa — avvalgidek yassi ro'yxat.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

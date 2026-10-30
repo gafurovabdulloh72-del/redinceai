@@ -150,7 +150,7 @@ export interface CourseDetail extends CourseCard {
   enrolled: boolean;
   progressPct: number;
   completedLessonIds: string[];
-  lessons: Array<{ id: string; position: number; title: string; durationMin: number; isPreview: boolean; locked: boolean; completed: boolean }>;
+  lessons: Array<{ id: string; position: number; title: string; durationMin: number; section: string; isPreview: boolean; locked: boolean; completed: boolean }>;
   reviews: Array<{ id: string; rating: number; body: string; createdAt: number; name: string; avatarUrl: string | null }>;
   /** Reyting taqsimoti: indeks 0 → 1★ … indeks 4 → 5★ (Udemy kabi chiziqlar) */
   ratingDist: [number, number, number, number, number];
@@ -214,7 +214,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     enrolled,
     progressPct: enrollment?.progressPct ?? 0,
     completedLessonIds: [...completedSet],
-    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, durationMin: l.durationMin, isPreview: l.isPreview, locked: !(access || l.isPreview), completed: completedSet.has(l.id) })),
+    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, durationMin: l.durationMin, section: l.section ?? "", isPreview: l.isPreview, locked: !(access || l.isPreview), completed: completedSet.has(l.id) })),
     reviews: reviewRows.map((r) => ({ id: r.id, rating: r.rating, body: r.body, createdAt: r.createdAt.getTime(), name: rmap.get(r.userId)?.name ?? "Foydalanuvchi", avatarUrl: rmap.get(r.userId)?.avatarUrl ?? null })),
     ratingDist,
     myReview: myReviewRow ? { rating: myReviewRow.rating, body: myReviewRow.body } : null,
@@ -245,7 +245,7 @@ export interface LessonView {
   /** Kurs 100% tugatilgan bo'lsa sertifikat kodi */
   certificateCode: string | null;
   /** Kursning barcha darslari — yon ro'yxat uchun (qulflangani `locked`) */
-  siblings: Array<{ id: string; title: string; position: number; durationMin: number; completed: boolean; locked: boolean }>;
+  siblings: Array<{ id: string; title: string; position: number; durationMin: number; section: string; completed: boolean; locked: boolean }>;
   /** Kurs bo'yicha progress (0–100) */
   progressPct: number;
 }
@@ -262,7 +262,7 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
   const access = enrolled || isOwner || isAdmin || l.isPreview;
   if (!access) throw new ApiError(403, "Bu darsni ko'rish uchun kursga yoziling");
 
-  const siblings = await db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)], columns: { id: true, title: true, position: true, durationMin: true, isPreview: true } });
+  const siblings = await db.query.lessons.findMany({ where: eq(lessons.courseId, c.id), orderBy: [asc(lessons.position)], columns: { id: true, title: true, position: true, durationMin: true, isPreview: true, section: true } });
   const idx = siblings.findIndex((s) => s.id === l.id);
   const completed = viewerId ? Boolean(await db.query.lessonCompletions.findFirst({ where: and(eq(lessonCompletions.userId, viewerId), eq(lessonCompletions.lessonId, l.id)) })) : false;
 
@@ -298,7 +298,7 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
  */
 async function siblingsWithProgress(
   courseId: string,
-  rows: Array<{ id: string; title: string; position: number; durationMin: number; isPreview: boolean }>,
+  rows: Array<{ id: string; title: string; position: number; durationMin: number; isPreview: boolean; section?: string | null }>,
   viewerId: string | null,
   hasAccess: boolean,
 ): Promise<{ siblings: LessonView["siblings"]; progressPct: number }> {
@@ -313,7 +313,7 @@ async function siblingsWithProgress(
       )
     : new Set<string>();
   void courseId;
-  const siblings = rows.map((r) => ({ id: r.id, title: r.title, position: r.position, durationMin: r.durationMin, completed: done.has(r.id), locked: !hasAccess && !r.isPreview }));
+  const siblings = rows.map((r) => ({ id: r.id, title: r.title, position: r.position, durationMin: r.durationMin, section: r.section ?? "", completed: done.has(r.id), locked: !hasAccess && !r.isPreview }));
   return { siblings, progressPct: rows.length ? Math.round((done.size / rows.length) * 100) : 0 };
 }
 
@@ -370,7 +370,7 @@ export async function addLesson(userId: string, courseId: string, input: LessonI
   const id = uid();
   const pos = (c.lessonsCount ?? 0) + 1;
   await db.transaction(async (tx) => {
-    await tx.insert(lessons).values({ id, courseId, position: pos, title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment });
+    await tx.insert(lessons).values({ id, courseId, position: pos, title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, section: input.section ?? "", isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment });
     await tx.update(courses).set({ lessonsCount: sql`${courses.lessonsCount} + 1`, updatedAt: new Date() }).where(eq(courses.id, courseId));
   });
   return { id };
@@ -380,7 +380,7 @@ export async function updateLesson(userId: string, lessonId: string, input: Less
   const l = await db.query.lessons.findFirst({ where: eq(lessons.id, lessonId) });
   if (!l) throw new ApiError(404, "Dars topilmadi");
   await ownedCourse(userId, l.courseId, isAdmin);
-  await db.update(lessons).set({ title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment }).where(eq(lessons.id, lessonId));
+  await db.update(lessons).set({ title: input.title, body: input.body, videoUrl: input.videoUrl ?? null, durationMin: input.durationMin, section: input.section ?? "", isPreview: input.isPreview, materials: input.materials, chapters: [...input.chapters].sort((a, b) => a.t - b.t), quiz: input.quiz ?? null, assignment: input.assignment }).where(eq(lessons.id, lessonId));
 }
 
 export async function deleteLesson(userId: string, lessonId: string, isAdmin = false) {
@@ -474,7 +474,7 @@ export async function getCourseForOwner(userId: string, courseId: string, isAdmi
   const lessonRows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), orderBy: [asc(lessons.position)] });
   return {
     course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount, outcomes: c.outcomes ?? [], requirements: c.requirements ?? [], audience: c.audience ?? "", language: c.language ?? "uz" },
-    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, isPreview: l.isPreview, materials: l.materials ?? [], chapters: l.chapters ?? [], quiz: l.quiz ?? null, assignment: l.assignment })),
+    lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, section: l.section ?? "", isPreview: l.isPreview, materials: l.materials ?? [], chapters: l.chapters ?? [], quiz: l.quiz ?? null, assignment: l.assignment })),
   };
 }
 

@@ -322,6 +322,6 @@ export async function recordingToLesson(streamId: string, actor: Viewer, courseI
   if (!course || course.mentor.channelId !== s.groupId) throw new ApiError(404, "Bu kurs shu ustozniki emas");
   const dup = await db.query.lessons.findFirst({ where: and(eq(lessons.courseId, courseId), eq(lessons.videoUrl, s.recordingUrl)), columns: { id: true } });
   if (dup) throw new ApiError(409, "Bu yozuv allaqachon shu kursga qo'shilgan");
-  const r = await addLesson(course.mentor.userId, courseId, { title: s.title, body: "Jonli efir yozuvi", videoUrl: s.recordingUrl, durationMin: Math.max(1, Math.round((s.recordingSeconds ?? 60) / 60)), isPreview: false, materials: [], chapters: [], quiz: null, assignment: "" }, actor.role === "admin");
+  const r = await addLesson(course.mentor.userId, courseId, { title: s.title, body: "Jonli efir yozuvi", videoUrl: s.recordingUrl, durationMin: Math.max(1, Math.round((s.recordingSeconds ?? 60) / 60)), section: "Efir yozuvlari", isPreview: false, materials: [], chapters: [], quiz: null, assignment: "" }, actor.role === "admin");
   return { lessonId: r.id };
 }

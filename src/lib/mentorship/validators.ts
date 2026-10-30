@@ -35,6 +35,8 @@ export const lessonSchema = z.object({
   videoUrl: z.string().trim().url().max(500).nullish(),
   durationMin: z.coerce.number().int().min(0).max(100000).default(0),
   isPreview: z.boolean().default(false),
+  /** Kurs bo'limi nomi (ixtiyoriy) */
+  section: z.string().trim().max(80).default(""),
   /** Dars materiallari (yuklangan fayllar) */
   materials: z
     .array(z.object({ name: z.string().trim().min(1).max(120), url: z.string().trim().max(500).refine((u) => UPLOAD_URL_RE.test(u), "Fayl sayt orqali yuklanishi kerak"), size: z.number().int().min(0).optional() }))

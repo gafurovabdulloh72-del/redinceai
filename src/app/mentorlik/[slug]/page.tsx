@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Award, CheckCircle2, ChevronLeft, ClipboardCheck, Clock, Download, Infinity, Languages, ListChecks, Lock, PlayCircle, RefreshCw, Smartphone, Star, Target, Users } from "lucide-react";
+import { Award, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Clock, Download, Infinity, Languages, ListChecks, Lock, PlayCircle, RefreshCw, Smartphone, Star, Target, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
 import { RefCapture } from "@/components/mentorship/PurchaseDialog";
@@ -90,6 +90,49 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
     inc(<Infinity size={15} />, "Cheksiz kirish, o'z sur'atingizda", "inf"),
     inc(<Award size={15} />, "Tugatganingizda sertifikat", "cert"),
   ].filter(Boolean);
+
+  // Udemy bo'limlari: ketma-ket bir xil `section` nomli darslar bitta guruh (bo'lim nomi bo'lmasa — bo'limsiz oqim)
+  const sections = c.lessons.reduce<Array<{ name: string; items: typeof c.lessons; min: number; done: number }>>((acc, l) => {
+    const last = acc[acc.length - 1];
+    if (last && last.name === l.section) {
+      last.items.push(l);
+      last.min += l.durationMin || 0;
+      last.done += l.completed ? 1 : 0;
+    } else acc.push({ name: l.section, items: [l], min: l.durationMin || 0, done: l.completed ? 1 : 0 });
+    return acc;
+  }, []);
+  const lessonRow = (l: (typeof c.lessons)[number]) => {
+              const open = !l.locked;
+              const inner = (
+                <div className={cn("flex items-center gap-3 px-4 py-3", !open && "opacity-70")}>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fg/6 text-[13px] font-bold tabular-nums text-fg-2">
+                    {l.completed ? <CheckCircle2 size={17} className="text-success-text" /> : l.position}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-medium text-fg">{l.title}</span>
+                    <span className="flex items-center gap-2 text-[12px] text-fg-4">
+                      {l.durationMin > 0 && <span>{formatDuration(l.durationMin)}</span>}
+                      {l.isPreview && !l.completed && <span className="font-semibold text-accent-text">Bepul namuna</span>}
+                    </span>
+                  </span>
+                  {open ? <PlayCircle size={18} className="shrink-0 text-fg-3" /> : <Lock size={15} className="shrink-0 text-fg-4" />}
+                </div>
+              );
+              return (
+                <li key={l.id}>
+                  {open ? (
+                    <Link href={`/mentorlik/dars/${l.id}`} className="block transition hover:bg-fg/4">
+                      {inner}
+                    </Link>
+                  ) : (
+                    /* Qulflangan dars — «o'lik» qator emas: bosilganda narx/yozilish blokiga olib boradi */
+                    <a href="#kursga-yozilish" className="block transition hover:bg-fg/4" aria-label={`${l.title} — kursga yozilgach ochiladi`}>
+                      {inner}
+                    </a>
+                  )}
+                </li>
+              );
+              };
 
   return (
     <div className="container-x py-6 sm:py-8">
@@ -187,42 +230,32 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           </Link>
 
           {/* Darslar */}
-          <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Dastur · {c.lessonsCount} dars</h2>
-          <ul className="card divide-y divide-line overflow-hidden m-flat">
-            {c.lessons.map((l) => {
-              const open = !l.locked;
-              const inner = (
-                <div className={cn("flex items-center gap-3 px-4 py-3", !open && "opacity-70")}>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fg/6 text-[13px] font-bold tabular-nums text-fg-2">
-                    {l.completed ? <CheckCircle2 size={17} className="text-success-text" /> : l.position}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium text-fg">{l.title}</span>
-                    <span className="flex items-center gap-2 text-[12px] text-fg-4">
-                      {l.durationMin > 0 && <span>{formatDuration(l.durationMin)}</span>}
-                      {l.isPreview && !l.completed && <span className="font-semibold text-accent-text">Bepul namuna</span>}
+          <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">
+            Dastur · {c.lessonsCount} dars{sections.length > 1 ? ` · ${sections.length} bo'lim` : ""}
+          </h2>
+          {sections.length > 1 ? (
+            /* Udemy kabi bo'limlar: har biri yig'iladigan, sarlavhada dars soni va davomiylik; birinchisi ochiq */
+            <div className="card divide-y divide-line overflow-hidden m-flat">
+              {sections.map((sec, si) => (
+                <details key={`${sec.name}-${si}`} open={si === 0 || sec.items.some((l) => !l.completed && !l.locked && c.enrolled)} className="group">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-fg/4 [&::-webkit-details-marker]:hidden">
+                    <ChevronRight size={16} className="shrink-0 text-fg-4 transition group-open:rotate-90" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-bold text-fg">{sec.name || `${si + 1}-bo'lim`}</span>
+                      <span className="text-[12px] text-fg-4">
+                        {sec.items.length} dars{sec.min > 0 ? ` · ${formatDuration(sec.min)}` : ""}
+                        {sec.done > 0 ? ` · ${sec.done}/${sec.items.length} bajarildi` : ""}
+                      </span>
                     </span>
-                  </span>
-                  {open ? <PlayCircle size={18} className="shrink-0 text-fg-3" /> : <Lock size={15} className="shrink-0 text-fg-4" />}
-                </div>
-              );
-              return (
-                <li key={l.id}>
-                  {open ? (
-                    <Link href={`/mentorlik/dars/${l.id}`} className="block transition hover:bg-fg/4">
-                      {inner}
-                    </Link>
-                  ) : (
-                    /* Qulflangan dars — «o'lik» qator emas: bosilganda narx/yozilish blokiga olib boradi */
-                    <a href="#kursga-yozilish" className="block transition hover:bg-fg/4" aria-label={`${l.title} — kursga yozilgach ochiladi`}>
-                      {inner}
-                    </a>
-                  )}
-                </li>
-              );
-            })}
-            {c.lessons.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-fg-3">Darslar tez orada qo&apos;shiladi.</li>}
-          </ul>
+                  </summary>
+                  <ul className="divide-y divide-line border-t border-line bg-fg/[0.015]">{sec.items.map(lessonRow)}</ul>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <ul className="card divide-y divide-line overflow-hidden m-flat">{c.lessons.map(lessonRow)}</ul>
+          )}
+          {c.lessons.length === 0 && <p className="card px-4 py-6 text-center text-[13px] text-fg-3 m-flat">Darslar tez orada qo&apos;shiladi.</p>}
 
           {/* Sharhlar */}
           <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">Sharhlar · {c.reviewsCount}</h2>
