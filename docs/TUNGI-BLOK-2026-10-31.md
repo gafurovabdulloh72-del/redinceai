@@ -105,6 +105,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Kabinet telefonda ixcham: Telegram eslatmasi bitta qator («Telegram'ni ulang — xabarlar darhol keladi»), Bildirishnomalar sahifasida
   tavsif yashirin, Web Push kartasi yassi va tavsifsiz — ro'yxat ~500px yuqoriroq boshlanadi. Dars sahifasida kurs tugagach «Kursga baho bering».
 - PostModal karuseli telefonda: chap/o'ng surish — keyingi/oldingi rasm (Instagram), strelkalar yashirin, o'ng yuqorida «1/3» hisoblagich.
+- Story ko'ruvchi: Instagram tez reaksiyalar — javob maydoni fokusda 6 emoji (❤️🔥👏😂😮😢), bosilsa DM ketadi va markazda emoji
+  «portlashi» (`animate-pop`); `pointerdown` ishlatiladi (blur'dan oldin).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

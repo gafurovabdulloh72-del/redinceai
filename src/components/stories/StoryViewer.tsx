@@ -26,6 +26,15 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
   const [si, setSi] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Instagram tez reaksiyalar: javob maydoni fokusda — 6 emoji qatori; bosilsa DM ketadi + markazda «portlash»
+  const [replyFocus, setReplyFocus] = useState(false);
+  const [burst, setBurst] = useState<string | null>(null);
+  const QUICK = ["❤️", "🔥", "👏", "😂", "😮", "😢"];
+  function quickReact(e: string) {
+    setBurst(e);
+    window.setTimeout(() => setBurst(null), 900);
+    void sendDm(`${e} Story'ingizga`);
+  }
   const [muted, setMuted] = useState(false);
   const [reply, setReply] = useState("");
   const [viewers, setViewers] = useState<Array<{ user: { name: string; avatarUrl: string | null }; at: number }> | null>(null);
@@ -300,6 +309,11 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
               </div>
             )}
 
+            {burst && (
+              <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 animate-pop text-[96px] leading-none drop-shadow-xl">
+                {burst}
+              </span>
+            )}
             {/* Pastki panel */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-10">
               {data.isMe ? (
@@ -315,12 +329,22 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                   </button>
                 </div>
               ) : (
-                <form onSubmit={onReply} className="flex items-center gap-2">
+                <form onSubmit={onReply} className="relative flex items-center gap-2">
+                  {replyFocus && data.author.username && (
+                    /* pointerdown — blur'dan oldin ishlaydi (qator yo'qolib ketmasin) */
+                    <div className="pop-in absolute inset-x-0 bottom-full mb-3 flex justify-around px-1" role="group" aria-label="Tez reaksiya">
+                      {QUICK.map((x) => (
+                        <button key={x} type="button" aria-label={`Reaksiya ${x}`} onPointerDown={(e) => { e.preventDefault(); quickReact(x); }} className="press grid h-12 w-12 place-items-center rounded-full text-[30px] leading-none transition hover:scale-110">
+                          {x}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    onFocus={() => setPaused(true)}
-                    onBlur={() => setPaused(false)}
+                    onFocus={() => { setPaused(true); setReplyFocus(true); }}
+                    onBlur={() => { setPaused(false); setReplyFocus(false); }}
                     maxLength={500}
                     placeholder={data.author.username ? `${data.author.name.split(" ")[0]}ga javob…` : "Javob yozib bo'lmaydi"}
                     disabled={!data.author.username}
