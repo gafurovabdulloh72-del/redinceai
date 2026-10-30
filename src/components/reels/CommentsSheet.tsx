@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { Heart, Send } from "lucide-react";
+import { CornerDownRight, Heart, Send, X } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
@@ -15,6 +15,8 @@ interface C {
   author: { name: string; avatarUrl: string | null; slug: string | null };
   likesCount: number;
   likedByMe: boolean;
+  /** Javob berilgan izoh (iqtibos) */
+  replyTo?: { id: string; authorName: string } | null;
 }
 
 /** Reels izohlari varag'i: ro'yxat (eskisi tepada), izohga ❤️, pastda yozish maydoni. Mavjud /api/posts/[id]/comments ustida */
@@ -22,6 +24,8 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
   const [items, setItems] = useState<C[] | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // Instagram/TikTok kabi «Javob»: kimga javob yozilayotgani chip bo'lib turadi, so'rov replyToId bilan ketadi
+  const [reply, setReply] = useState<{ id: string; name: string } | null>(null);
 
   const load = () =>
     fetch(`/api/posts/${postId}/comments`)
@@ -42,10 +46,11 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
     if (!body || busy) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/posts/${postId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+      const res = await fetch(`/api/posts/${postId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, replyToId: reply?.id ?? null }) });
       const j = (await res.json()) as { ok: boolean; error?: string };
       if (!j.ok) throw new Error(j.error ?? "Yuborilmadi");
       setText("");
+      setReply(null);
       await load();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Yuborilmadi", "error");
@@ -68,8 +73,16 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
       size="md"
       footer={
         loggedIn ? (
-          <form onSubmit={submit} className="flex items-center gap-2">
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder="Izoh yozing…" aria-label="Izoh" className="field h-11 flex-1 text-[14px]" />
+          <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
+            {reply && (
+              <span className="flex w-full items-center gap-1.5 text-[12.5px] text-fg-3">
+                <CornerDownRight size={13} /> <span className="truncate"><span className="font-semibold text-fg">{reply.name}</span>ga javob</span>
+                <button type="button" onClick={() => setReply(null)} aria-label="Javobni bekor qilish" className="ml-auto grid h-6 w-6 place-items-center rounded-full hover:bg-fg/6">
+                  <X size={13} />
+                </button>
+              </span>
+            )}
+            <input id="reels-comment-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={reply ? `${reply.name}ga javob…` : "Izoh yozing…"} aria-label="Izoh" className="field h-11 min-w-0 flex-1 text-[14px]" />
             <button type="submit" disabled={!text.trim() || busy} aria-label="Yuborish" className="btn-accent grid h-11 w-11 shrink-0 place-items-center rounded-full disabled:opacity-50">
               {busy ? <Spinner /> : <Send size={17} />}
             </button>
@@ -97,7 +110,24 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
                   <p className="text-[13px]">
                     <span className="font-semibold text-fg">{c.author.name}</span> <span className="text-fg-4">· {timeAgo(c.createdAt)}</span>
                   </p>
+                  {c.replyTo && (
+                    <p className="mt-0.5 flex items-center gap-1 truncate text-[12px] text-fg-4">
+                      <CornerDownRight size={11} className="shrink-0" /> <span className="font-semibold">{c.replyTo.authorName}</span>ga javob
+                    </p>
+                  )}
                   <p className="mt-0.5 whitespace-pre-wrap break-words text-[14px] leading-snug text-fg-2">{c.body}</p>
+                  {loggedIn && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReply({ id: c.replyTo?.id ?? c.id, name: c.author.name });
+                        document.getElementById("reels-comment-input")?.focus();
+                      }}
+                      className="mt-1 text-[12px] font-semibold text-fg-3 hover:text-fg"
+                    >
+                      Javob
+                    </button>
+                  )}
                 </div>
                 <button type="button" onClick={() => void like(c)} aria-label="Izohni yoqtirish" aria-pressed={c.likedByMe} className="press flex shrink-0 flex-col items-center gap-0.5 pt-1 text-fg-3">
                   <Heart size={15} className={cn(c.likedByMe && "fill-[#ff3b5c] text-[#ff3b5c]")} />

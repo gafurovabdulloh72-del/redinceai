@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bookmark, Crown, Eye, Heart, MessageCircle, MessageSquareText, Music2, Pause, Play, Send, Volume2, VolumeX } from "lucide-react";
+import { Bookmark, Crown, Eye, Heart, MessageCircle, MessageSquareText, Music2, Pause, Play, Send, Volume2, VolumeX, ChevronsUp } from "lucide-react";
 import { Avatar, Spinner, VerifiedBadge } from "@/components/ui";
 import { ShareSheet } from "@/components/social/ShareSheet";
 import { CommentsSheet } from "./CommentsSheet";
@@ -36,6 +36,20 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
   const [activeKey, setActiveKey] = useState<string | null>(initial[0]?.key ?? null);
   const [comments, setComments] = useState<ReelItem | null>(null);
   const [share, setShare] = useState<ReelItem | null>(null);
+  // Birinchi tashrif (sensorli ekran): «Keyingisi uchun yuqoriga suring» ishorasi — bir marta, 3 s yoki birinchi scroll'gacha
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    try {
+      if (!window.matchMedia("(pointer: coarse)").matches || localStorage.getItem("kasb_reels_hint")) return;
+      if (initial.length < 2) return;
+      setHint(true);
+      localStorage.setItem("kasb_reels_hint", "1");
+      const t = window.setTimeout(() => setHint(false), 3200);
+      return () => window.clearTimeout(t);
+    } catch {
+      /* noop */
+    }
+  }, [initial.length]);
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
@@ -56,7 +70,12 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
     if (!root) return;
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActiveKey((e.target as HTMLElement).dataset.reel ?? null);
+        for (const e of entries)
+          if (e.isIntersecting) {
+            const k = (e.target as HTMLElement).dataset.reel ?? null;
+            setActiveKey(k);
+            if (k !== initial[0]?.key) setHint(false); // foydalanuvchi surdi — ishora kerak emas
+          }
       },
       { root, threshold: 0.6 },
     );
@@ -251,6 +270,17 @@ export function ReelsFeed({ initial, initialCursor, initialMode, me, pinnedKey }
       </div>
 
       <div ref={containerRef} className="no-scrollbar h-[100svh] snap-y snap-mandatory overflow-y-auto bg-black" aria-label="Reels">
+        {hint && (
+          /* sticky+h-0: scroll konteyner ichida «fixed»siz qalqib turadi (page-in transformi fixed'ni qamaydi) */
+          <div className="pointer-events-none sticky top-0 z-30 h-0" aria-hidden onTransitionEnd={undefined}>
+            <div className="absolute inset-x-0 top-[calc(50svh-6rem)] flex flex-col items-center gap-1 text-white animate-fade-in">
+              <span className="animate-float rounded-full bg-black/55 p-2.5 backdrop-blur-sm">
+                <ChevronsUp size={26} />
+              </span>
+              <span className="rounded-full bg-black/55 px-3 py-1 text-[12.5px] font-semibold backdrop-blur-sm">Keyingisi uchun yuqoriga suring</span>
+            </div>
+          </div>
+        )}
         {items.length === 0 && !loading && (
           <div className="grid h-[100svh] place-items-center px-6 text-center text-white/70">
             <div>

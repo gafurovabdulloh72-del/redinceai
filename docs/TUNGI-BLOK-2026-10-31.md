@@ -84,6 +84,11 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   javobda `streak` → toast «🔥 N kunlik seriya».
 - Bosh sahifada «O'qishni davom ettirish» (Udemy/Coursera): tugallanmagan eng so'nggi kursning navbatdagi darsi + progress
   (`continueLearning()` service.ts, `components/feed/ContinueLearningCard.tsx`, story qatoridan keyin, faqat yozilganlarga).
+- Reels: birinchi tashrifda (sensorli ekran) «Keyingisi uchun yuqoriga suring» ishorasi — 3 s yoki birinchi surishgacha, `kasb_reels_hint`
+  (scroll konteyner ichida `sticky top-0 h-0` + absolute — `fixed`siz). Izohlar varag'ida «Javob» (Instagram/TikTok): chip + `replyToId`,
+  javob izohida «…ga javob» iqtibosi.
+- Regressiya crawl (yorug'+qorong'u, 86 sahifa): yangi HSCROLL/xato yo'q; OVER — marquee/dekorativ SVG/`truncate` ichidagi span (soxta),
+  ERR — kompilyatsiya paytidagi vaqtinchalik «network error» (qayta tekshirildi: toza), BTN-NONAME — `aria-labelledby` switch'lar (crawler hisobga olmaydi).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
