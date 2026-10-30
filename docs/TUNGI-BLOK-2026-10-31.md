@@ -18,6 +18,7 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Lenta: izohlar pastki varaqda (`CommentsSheet`), media chetdan chetgacha, post «⋯» menyusi action sheet.
 - Tortib yangilash (`usePullToRefresh` + `PullIndicator`).
 - DM va guruh chati: xabarni o'ngga surib javob berish (56px bo'sag'a, orqada belgi, haptic).
+- Bildirishnomalar: qatorni chapga surish — o'qilgan deb belgilash (yashil «O'qildi» fon).
 - Story ko'ruvchi: pastga surish yopadi, chap/o'ng svayp — keyingi/oldingi muallif.
 - «Yaratish → Post joylash» bosh sahifada kompozitorga fokus beradi (sahifa almashmaydi).
 - Qidiruv: telefonda «Qidirish» tugmasi yo'q — yozish bilan qidiradi (enterKeyHint=search).
@@ -54,6 +55,6 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   truncate ichidagi inline span — soxta).
 
 ## Keyingi g'oyalar
-- Bildirishnoma qatorini surib o'qilgan deb belgilash; kurs kartasiga jami davomiylik (listCourses'da sum).
+- Kurs kartasiga jami davomiylik (listCourses'da sum).
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
 - StickyCta'ni mutaxassis profili («Yozish») uchun ham ko'rib chiqish.
