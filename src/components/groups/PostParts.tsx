@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from "react-dom";
 import { BarChart3, ChevronLeft, ChevronRight, ExternalLink, Heart, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
+import { haptic } from "@/components/motion/haptics";
 import { useIsPhone } from "@/components/motion/useMediaQuery";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/toast";
@@ -591,6 +592,7 @@ export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachm
       tapTimer.current = null;
       if (postId) {
         setHeart((n) => n + 1);
+        haptic("medium");
         window.dispatchEvent(new CustomEvent(LIKE_EVENT, { detail: { postId } }));
       }
       return;

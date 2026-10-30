@@ -117,7 +117,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               tr(til, QIDIRUV.fresh)
             )}
           </h2>
-          <ul className="stagger mt-3 grid grid-cols-2 gap-3 max-sm:m-bleed max-sm:mt-2 max-sm:grid-cols-3 max-sm:gap-0.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
+          <ul className="stagger mt-3 grid grid-cols-2 gap-3 m-bleed max-sm:mt-2 max-sm:grid-cols-3 max-sm:gap-0.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={tr(til, QIDIRUV.resultsAria)}>
             {r.media.map((m) => (
               <li key={`${m.kind}-${m.id}`} className="min-w-0">
                 <Link href={m.href} data-result className={cn(resultTile, "hover-lift")}>
