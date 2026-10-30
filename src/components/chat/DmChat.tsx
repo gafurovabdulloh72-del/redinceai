@@ -10,6 +10,7 @@ import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePresence } from "@/components/motion/usePresence";
+import { haptic } from "@/components/motion/haptics";
 import { DM_BODY_MAX, DM_DELETED_TEXT, DM_EDIT_WINDOW_MS, DM_SEARCH_MIN, type ReactionSummary } from "@/lib/chat/constants";
 import type { QuoteView } from "@/lib/chat/quote";
 import { clock, dayKey, dayLabel, fullStamp, listStamp, relativeTime } from "@/lib/chat/time";
@@ -222,6 +223,47 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [showArchived, setShowArchived] = useState(false);
   const [peerReadAt, setPeerReadAt] = useState(0);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
+  // Telegram odati: xabarni o'ngga surib javob berish (sensorli ekran). swipe — hozir surilayotgan xabar va masofa
+  const [swipe, setSwipe] = useState<{ id: string; dx: number } | null>(null);
+  const swipeStart = useRef<{ id: string; x: number; y: number; locked: boolean | null } | null>(null);
+  const SWIPE_REPLY = 56;
+  const swipeHandlers = (m: Msg) =>
+    m.deleted || m.pending
+      ? {}
+      : {
+          onTouchStart: (e: React.TouchEvent) => {
+            const t0 = e.touches[0];
+            swipeStart.current = { id: m.id, x: t0.clientX, y: t0.clientY, locked: null };
+          },
+          onTouchMove: (e: React.TouchEvent) => {
+            const st = swipeStart.current;
+            if (!st || st.id !== m.id) return;
+            const t0 = e.touches[0];
+            const dx = t0.clientX - st.x;
+            const dy = t0.clientY - st.y;
+            if (st.locked === null) {
+              if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+              st.locked = Math.abs(dx) > Math.abs(dy) && dx > 0; // faqat o'ngga gorizontal
+            }
+            if (!st.locked) return;
+            setSwipe({ id: m.id, dx: Math.min(80, Math.max(0, dx * 0.7)) });
+          },
+          onTouchEnd: () => {
+            const st = swipeStart.current;
+            swipeStart.current = null;
+            if (st && swipe && swipe.id === st.id && swipe.dx >= SWIPE_REPLY) {
+              haptic("light");
+              setEditing(null);
+              setReplyTo(m);
+              textRef.current?.focus();
+            }
+            setSwipe(null);
+          },
+          onTouchCancel: () => {
+            swipeStart.current = null;
+            setSwipe(null);
+          },
+        };
   const [editing, setEditing] = useState<Msg | null>(null);
   const [peerTyping, setPeerTyping] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -1256,7 +1298,16 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         <span className="h-px flex-1 bg-accent/40" />
                       </div>
                     )}
-                    <div className={cn("group relative flex items-end gap-1", m.mine ? "justify-end" : "justify-start")}>
+                    <div
+                      {...swipeHandlers(m)}
+                      style={swipe?.id === m.id ? { transform: `translateX(${swipe.dx}px)`, transition: "none" } : undefined}
+                      className={cn("group relative flex items-end gap-1 transition-transform duration-200", m.mine ? "justify-end" : "justify-start")}
+                    >
+                      {swipe?.id === m.id && (
+                        <span aria-hidden className="pointer-events-none absolute top-1/2 -left-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-fg/10 text-fg" style={{ opacity: Math.min(1, swipe.dx / SWIPE_REPLY), transform: `translateY(-50%) scale(${swipe.dx >= SWIPE_REPLY ? 1 : 0.8})` }}>
+                          <CornerUpLeft size={15} />
+                        </span>
+                      )}
                       {!m.deleted && (
                         <div className={cn("relative self-center", m.mine ? "order-first" : "order-last")}>
                           <button
