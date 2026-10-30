@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   UserPlus,
   Wallet,
+  ArrowRight,
 } from "lucide-react";
 import { Badge, ButtonLink } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
@@ -25,6 +26,7 @@ import { JobOwnerActions } from "@/components/jobs/JobOwnerActions";
 import { MyProposalCard } from "@/components/jobs/MyProposalCard";
 import { OwnerProposals } from "@/components/jobs/OwnerProposals";
 import { ProposalForm } from "@/components/jobs/ProposalForm";
+import { StickyCta } from "@/components/ui/StickyCta";
 import { getCurrentUser } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, JOB_STATUS_LABEL, SITE } from "@/lib/constants";
 import { tr } from "@/lib/i18n";
@@ -316,6 +318,15 @@ export default async function JobPage({ params, searchParams }: { params: Params
           </div>
         </aside>
       </div>
+      {/* Telefon: pastda yopishqoq «Taklif yuborish» — forma ko'ringanda o'zi yashirinadi */}
+      {proposer && !sentMine && live && proposer.canPropose && (
+        <StickyCta targetId="taklif">
+          <a href="#taklif" className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
+            <span className="truncate">{budget}</span>
+            <span className="inline-flex items-center gap-1.5">{tr(til, ISHLAR.d.proposeCta)} <ArrowRight size={16} /></span>
+          </a>
+        </StickyCta>
+      )}
     </div>
   );
 }

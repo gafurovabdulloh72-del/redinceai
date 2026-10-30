@@ -99,6 +99,7 @@ export const ISHLAR = {
   /* --------- Detal sahifasi --------- */
   d: {
     backToAll: { uz: "Barcha e'lonlar", ru: "Все заказы" } satisfies Tr,
+    proposeCta: { uz: "Taklif yuborish", ru: "Отправить предложение" } satisfies Tr,
     postedTitle: { uz: "E'loningiz joylandi", ru: "Ваш заказ размещён" } satisfies Tr,
     postedDesc: {
       uz: "Mos mutaxassislar taklif yuborganda bildirishnoma keladi. Takliflar shu sahifada va «E'lonlarim» bo'limida.",
