@@ -117,7 +117,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
   return (
     <div className="container-x animate-fade-up">
-      <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
+      <nav aria-label="Yo'l" className="text-[13px] text-fg-3 max-sm:hidden">
         <Link href="/jamoalar" className="transition hover:text-fg">
           Jamoalar
         </Link>
@@ -126,7 +126,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
       </nav>
 
       {/* Hero — overflow-hidden faqat muqovada (bildirishnoma menyusi karta chetidan chiqa olsin) */}
-      <section className="card mt-4" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
+      <section className="card mt-4 max-sm:m-flat max-sm:mt-0" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
         <div className="relative aspect-[3/1] max-h-[240px] w-full overflow-hidden rounded-t-[inherit] bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]">
           {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
