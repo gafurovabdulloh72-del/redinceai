@@ -69,9 +69,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       <RecentSearches q={q} />
 
       {/* Tur chiplari */}
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={tr(til, QIDIRUV.typeAria)}>
+      {/* Telefonda bitta gorizontal qator (Instagram Explore kabi), keng ekranda o'raladi */}
+      <div className="no-scrollbar mt-4 flex gap-2 max-sm:-mx-4 max-sm:snap-x max-sm:overflow-x-auto max-sm:px-4 sm:flex-wrap" role="group" aria-label={tr(til, QIDIRUV.typeAria)}>
         {EXPLORE_TYPES.map((k) => (
-          <Link key={k} href={href(q, k)} aria-current={type === k ? "true" : undefined} className={cn("press inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-semibold transition", type === k ? "btn-ink border-transparent" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+          <Link key={k} href={href(q, k)} aria-current={type === k ? "true" : undefined} className={cn("press inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-[13px] font-semibold transition max-sm:snap-start", type === k ? "btn-ink border-transparent" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
             {tr(til, QIDIRUV.types[k])}
           </Link>
         ))}

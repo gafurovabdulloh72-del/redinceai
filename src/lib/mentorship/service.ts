@@ -134,6 +134,8 @@ export interface CourseDetail extends CourseCard {
   /** Barcha darslar davomiyligi (daqiqa) */
   totalMin: number;
   updatedAt: number;
+  /** Udemy «Preview this course»: birinchi bepul namuna darsining videosi (muqova ustida o'ynaydi) */
+  previewVideo: { lessonId: string; title: string; url: string; durationMin: number } | null;
   mentorBio: string;
   refPercent: number;
   certificateCode: string | null;
@@ -189,6 +191,10 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     language: c.language ?? "uz",
     totalMin: lessonRows.reduce((a, l) => a + (l.durationMin || 0), 0),
     updatedAt: c.updatedAt.getTime(),
+    previewVideo: (() => {
+      const pv = lessonRows.find((l) => l.isPreview && l.videoUrl);
+      return pv && pv.videoUrl ? { lessonId: pv.id, title: pv.title, url: pv.videoUrl, durationMin: pv.durationMin } : null;
+    })(),
     mentorBio: c.mentor.bio,
     refPercent: c.mentor.refPercent,
     certificateCode: viewerId && enrolled ? await myCertificateCode(viewerId, c.id) : null,

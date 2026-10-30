@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Award, CheckCircle2, ChevronLeft, Clock, GraduationCap, Languages, Lock, PlayCircle, RefreshCw, Star, Target, Users } from "lucide-react";
-import { SafeImage } from "@/components/specialists/SafeImage";
+import { Award, CheckCircle2, ChevronLeft, Clock, Languages, Lock, PlayCircle, RefreshCw, Star, Target, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
 import { RefCapture } from "@/components/mentorship/PurchaseDialog";
 import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { CourseCard } from "@/components/mentorship/CourseCard";
+import { CoursePreview } from "@/components/mentorship/CoursePreview";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { StickyCta } from "@/components/ui/StickyCta";
 import { getCurrentUser } from "@/lib/auth";
@@ -84,17 +84,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Asosiy */}
         <div className="min-w-0">
-          <div className="card overflow-hidden">
-            <div className="relative aspect-video bg-surface-2">
-              {c.coverUrl ? (
-                <SafeImage src={c.coverUrl} alt={c.title} width={900} height={506} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-fg/5">
-                  <GraduationCap size={40} className="text-fg-4" />
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Muqova + «Kursni ko'rib chiqish» (bepul namuna video shu yerda o'ynaydi) */}
+          <CoursePreview coverUrl={c.coverUrl} title={c.title} preview={c.previewVideo} />
 
           <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px]">
             <span className="rounded-full bg-accent-soft px-2.5 py-1 font-bold text-accent-text">{categoryLabel(c.category)}</span>
