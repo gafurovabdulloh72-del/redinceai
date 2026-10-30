@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export function ProfileGroups({ groups, til, className }: { groups: PublicGroupLite[]; til: Locale; className?: string }) {
   if (groups.length === 0) return null;
   return (
-    <section className={cn("card p-5 sm:p-7", className)} aria-label={tr(til, PROFIL_X.groupsAria)}>
+    <section className={cn("card m-flat p-5 sm:p-7", className)} aria-label={tr(til, PROFIL_X.groupsAria)}>
       <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">{tr(til, PROFIL_X.groupsTitle)}</h2>
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {groups.map((g) => (

@@ -642,7 +642,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
         {/* Chap ustun */}
         <div className="min-w-0 space-y-6 lg:col-span-8">
           {/* Haqida */}
-          <section className="card animate-fade-up p-5 sm:p-7" style={{ animationDelay: "80ms" }}>
+          <section className="card m-flat animate-fade-up p-5 sm:p-7" style={{ animationDelay: "80ms" }}>
             <h2 className="font-display text-[20px] font-semibold tracking-tight text-fg">
               {til === "ru" ? (
                 <>
@@ -805,7 +805,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
           {/* Sertifikatlar va litsenziyalar (F64) */}
           {sp.certificates.length > 0 && (
-            <section className="card animate-fade-up p-5 sm:p-7" aria-labelledby="sertifikatlar-title">
+            <section className="card m-flat animate-fade-up p-5 sm:p-7" aria-labelledby="sertifikatlar-title">
               <h2 id="sertifikatlar-title" className="font-display text-[20px] font-semibold tracking-tight text-fg">
                 {tr(til, PROFIL.certsTitleStart)} <span className="accent-serif text-accent">{tr(til, PROFIL.certsTitleAccent)}</span>
               </h2>

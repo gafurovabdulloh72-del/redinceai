@@ -74,7 +74,7 @@ export async function ReviewSummary({
   const extra = items?.length ? reviewCriteriaSummary(items) : null;
   const hasCriteria = Boolean(extra && Object.keys(extra.averages).length);
   return (
-    <div className={cn("card-outline p-5 sm:p-6", className)}>
+    <div className={cn("card-outline m-flat p-5 sm:p-6", className)}>
       <div className="grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8">
         <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-1">
           <p className="font-display text-[44px] font-semibold leading-none tracking-tight text-fg sm:text-[52px]">{rating.toFixed(1)}</p>

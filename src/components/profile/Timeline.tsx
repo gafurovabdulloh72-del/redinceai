@@ -43,7 +43,7 @@ export function Timeline({ work, education, til, className }: { work: readonly W
   const total = work.length ? totalExperienceYears(work, now) : 0;
 
   return (
-    <section className={cn("card p-5 sm:p-7", className)} aria-labelledby="yol-title">
+    <section className={cn("card m-flat p-5 sm:p-7", className)} aria-labelledby="yol-title">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="yol-title" className="font-display text-[20px] font-semibold tracking-tight text-fg">
           {tr(til, PROFIL_X.timelineTitle)}

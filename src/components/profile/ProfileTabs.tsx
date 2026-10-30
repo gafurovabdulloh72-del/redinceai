@@ -251,10 +251,10 @@ export function ProfileTabs({
     { key: "videolar", label: t.videos, icon: Play, count: totalVideos },
     { key: "ishlar", label: t.works, icon: Images, count: n.works },
   ];
-  const tileBtn = "press block w-full rounded-[var(--r-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:rounded-[var(--r-md)]";
+  const tileBtn = "press block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:rounded-[var(--r-md)]"; // telefonda burchaksiz, 2px oraliq — Instagram to'ri
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card m-flat overflow-hidden">
       {isOwner && (
         <div className="flex items-center justify-end px-4 pt-4 sm:px-6 sm:pt-5">
           <Button type="button" variant={composer ? "outline" : "accent"} size="md" onClick={() => setComposer((v) => !v)} className="icon-spin-hover">
@@ -317,13 +317,13 @@ export function ProfileTabs({
         </div>
       )}
 
-      <div className="p-1.5 sm:p-3">
+      <div className="max-sm:pt-0.5 sm:p-3">
         {tab === "postlar" && (
           <div key="postlar" id="panel-postlar" role="tabpanel" aria-labelledby="tab-postlar" className="animate-fade-in">
             {items.length === 0 ? (
               <EmptyState icon={Grid3x3} title={isOwner ? t.emptyPostsOwn : t.emptyPosts} />
             ) : (
-              <ul className="stagger grid grid-cols-3 gap-1 sm:gap-2" aria-label={t.posts}>
+              <ul className="stagger grid grid-cols-3 gap-[2px] sm:gap-2" aria-label={t.posts}>
                 {items.map((p) => (
                   <li key={p.id}>
                     <button type="button" onClick={() => open({ kind: "post", post: p })} className={tileBtn} aria-label={p.body.slice(0, 80) || tr(til, POST_OYNA.post)}>
@@ -345,15 +345,15 @@ export function ProfileTabs({
         {tab === "videolar" && (
           <div key="videolar" id="panel-videolar" role="tabpanel" aria-labelledby="tab-videolar" className="animate-fade-in">
             {videosSkeleton ? (
-              <ul className="grid grid-cols-3 gap-1 sm:gap-2" aria-busy="true" aria-label={tr(til, POST_OYNA.loadingVideos)}>
+              <ul className="grid grid-cols-3 gap-[2px] sm:gap-2" aria-busy="true" aria-label={tr(til, POST_OYNA.loadingVideos)}>
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <li key={i} className="skeleton aspect-square !rounded-[var(--r-sm)] sm:!rounded-[var(--r-md)]" />
+                  <li key={i} className="skeleton aspect-square max-sm:!rounded-none sm:!rounded-[var(--r-md)]" />
                 ))}
               </ul>
             ) : videoList.length === 0 && videoWorks.length === 0 ? (
               <EmptyState icon={Play} title={t.emptyVideos} />
             ) : (
-              <ul className="stagger grid grid-cols-3 gap-1 sm:gap-2" aria-label={t.videos}>
+              <ul className="stagger grid grid-cols-3 gap-[2px] sm:gap-2" aria-label={t.videos}>
                 {videoList.map((p) => (
                   <li key={p.id}>
                     <button type="button" onClick={() => open({ kind: "post", post: p })} className={tileBtn} aria-label={p.body.slice(0, 80) || "Video"}>

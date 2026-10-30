@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="card p-5 sm:p-6" data-reveal>
+    <section className="card m-flat p-5 sm:p-6" data-reveal>
       <h2 className="font-display text-[18px] font-semibold text-fg">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
@@ -123,7 +123,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
         <div className="min-w-0 space-y-5 lg:col-span-8">
-          <header className="card p-5 sm:p-7">
+          <header className="card m-flat p-5 sm:p-7">
             {closed && (
               <p role="status" className="mb-4 rounded-[14px] border border-warning/30 bg-warning-soft px-4 py-2.5 text-[13px] font-semibold text-warning-text">
                 {v.status === "closed" ? "Bu vakansiya yopilgan — o'rin to'ldirilgan." : "Bu vakansiyaning muddati o'tgan."} Shunga o&apos;xshash ochiq vakansiyalarni{" "}
@@ -190,7 +190,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
 
         <aside id="ariza" className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
           {v.isOwner ? (
-            <div className="card p-5">
+            <div className="card m-flat p-5">
               <p className="text-[15px] font-semibold text-fg">Bu sizning vakansiyangiz</p>
               <p className="mt-1 text-[13px] text-fg-3">
                 {v.applicationsCount} ta ariza · {v.viewCount} ta ko&apos;rish{v.applyUrl ? ` · ${v.applyClicks} ta tashqi o'tish` : ""}

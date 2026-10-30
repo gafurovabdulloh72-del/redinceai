@@ -79,7 +79,7 @@ export default async function ResumePage({ params }: { params: Params }) {
       </nav>
       <div className="resume-grid mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
         <div className="min-w-0 space-y-5 lg:col-span-8">
-          <header className="card p-5 sm:p-7">
+          <header className="card m-flat p-5 sm:p-7">
             {!r.isPublic && <p className="no-print mb-4 rounded-[14px] bg-warning-soft px-4 py-2.5 text-[13px] font-semibold text-warning-text">{r.isOwner ? "Bu rezyume katalogda ko'rinmaydi — faqat siz ko'ryapsiz." : "Yopiq rezyume — nomzod sizning vakansiyangizga ariza yuborgani uchun ko'rinadi."}</p>}
             <div className="flex flex-wrap items-center gap-4">
               <Avatar name={r.user.name} src={r.user.avatarUrl} size={72} />
@@ -101,13 +101,13 @@ export default async function ResumePage({ params }: { params: Params }) {
             </p>
           </header>
           {r.summary && (
-            <section className="card p-5 sm:p-6">
+            <section className="card m-flat p-5 sm:p-6">
               <h2 className="font-display text-[18px] font-semibold text-fg">Men haqimda</h2>
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-fg-2">{r.summary}</p>
             </section>
           )}
           {r.skills.length > 0 && (
-            <section className="card p-5 sm:p-6">
+            <section className="card m-flat p-5 sm:p-6">
               <h2 className="font-display text-[18px] font-semibold text-fg">Ko&apos;nikmalar</h2>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {r.skills.map((s) => (
@@ -119,7 +119,7 @@ export default async function ResumePage({ params }: { params: Params }) {
             </section>
           )}
           {r.links.length > 0 && (
-            <section className="card p-5 sm:p-6">
+            <section className="card m-flat p-5 sm:p-6">
               <h2 className="font-display text-[18px] font-semibold text-fg">Havolalar</h2>
               <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                 {r.links.map((l) => (
@@ -135,7 +135,7 @@ export default async function ResumePage({ params }: { params: Params }) {
           )}
         </div>
         <aside className="no-print min-w-0 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
-          <div className="card p-5">
+          <div className="card m-flat p-5">
             {r.isOwner ? (
               <>
                 <p className="text-[15px] font-semibold text-fg">Bu sizning rezyumeingiz</p>

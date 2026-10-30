@@ -26,7 +26,7 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
   const playable = Boolean(d.videoUrl && PLAYABLE.test(d.videoUrl));
   return (
     // img-zoom — hover'da rasm/video yumshoq kattalashadi (token; reduced-motion'da o'chadi)
-    <div className={cn("group/tile img-zoom relative aspect-square w-full overflow-hidden bg-surface-3", rounded && "rounded-[var(--r-sm)] sm:rounded-[var(--r-md)]", className)}>
+    <div className={cn("group/tile img-zoom relative aspect-square w-full overflow-hidden bg-surface-3", rounded && "sm:rounded-[var(--r-md)]", className)}>
       {d.textOnly ? (
         <div className="flex h-full w-full flex-col justify-between bg-ink p-3 text-left text-ink-fg sm:p-4">
           <Quote size={16} className="shrink-0 text-accent" aria-hidden />
