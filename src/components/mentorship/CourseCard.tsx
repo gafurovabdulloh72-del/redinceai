@@ -21,7 +21,7 @@ export interface CourseCardItem {
 }
 
 /** Yo'nalish ikonkasi — muqova yo'q bo'lsa karta boshiga qo'yiladi */
-const CATEGORY_ICON: Record<string, LucideIcon> = {
+export const CATEGORY_ICON: Record<string, LucideIcon> = {
   montaj: Clapperboard,
   videografiya: Video,
   dizayn: PenTool,
@@ -73,6 +73,43 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
             )}
           </span>
           <span className={cn("shrink-0 font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSom(c.priceFrom)}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Mini karta — gorizontal karusel uchun (Udemy «Mashhur» qatori): 16:9 muqova, 2 qatorli sarlavha, ustoz, reyting/narx.
+ * Telefonda ham karta ko'rinishida (m-plain emas — qator bo'ylab aylanadi).
+ */
+export function CourseMiniCard({ c }: { c: CourseCardItem }) {
+  const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
+  return (
+    <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full w-[220px] flex-col overflow-hidden">
+      <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
+        {c.coverUrl ? (
+          <SafeImage src={c.coverUrl} alt="" width={440} height={248} className="img-zoom h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full w-full place-items-center bg-fg/[0.04]">
+            <Icon size={26} className="text-fg-4" aria-hidden />
+          </div>
+        )}
+        {c.priceFrom === 0 && <span className="absolute left-2 top-2 rounded-md bg-success px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white">Bepul</span>}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+        <h3 className="line-clamp-2 min-h-[2.5em] text-[13.5px] font-bold leading-snug text-fg">{c.title}</h3>
+        <p className="mt-1 truncate text-[12px] text-fg-3">{c.mentor.name}</p>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[12px] text-fg-4">
+          <span className="inline-flex items-center gap-2">
+            {c.rating > 0 && (
+              <span className="inline-flex items-center gap-0.5 font-semibold text-fg">
+                <Star size={11} className="fill-accent text-accent" /> {c.rating}
+              </span>
+            )}
+            <span>{c.lessonsCount} dars</span>
+          </span>
+          <span className={cn("font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSom(c.priceFrom)}</span>
         </div>
       </div>
     </Link>

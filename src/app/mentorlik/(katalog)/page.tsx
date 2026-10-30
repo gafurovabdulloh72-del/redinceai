@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GraduationCap, RadioTower, Search } from "lucide-react";
+import { GraduationCap, RadioTower, Search, Flame } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { FeedLink } from "@/components/ui/FeedLink";
-import { CourseCard } from "@/components/mentorship/CourseCard";
+import { CATEGORY_ICON, CourseCard, CourseMiniCard } from "@/components/mentorship/CourseCard";
 import { COURSE_SORTS, CourseFilters, type FilterState } from "@/components/mentorship/CourseFilters";
 import { getCurrentUser } from "@/lib/auth";
 import { listCourses, listMentors, getMentorForUser } from "@/lib/mentorship/service";
@@ -35,11 +35,13 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
   const state: FilterState = { category, level, price, sort, q };
   const browsing = Boolean(q || category || level || price || sort !== "new");
 
-  const [user, { items: courses }, mentors, lives] = await Promise.all([
+  const [user, { items: courses }, mentors, lives, popular] = await Promise.all([
     getCurrentUser(),
     listCourses({ category, level, q, price, sort, limit: 24 }),
     listMentors(12),
     liveAndUpcoming(6),
+    // Udemy «Mashhur» qatori — faqat filtr qo'yilmaganda ko'rinadi
+    browsing ? Promise.resolve({ items: [] as Awaited<ReturnType<typeof listCourses>>["items"] }) : listCourses({ sort: "popular", limit: 8 }),
   ]);
   const myMentor = user ? await getMentorForUser(user.id) : null;
 
@@ -99,11 +101,67 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
         </section>
       )}
 
-      {/* Ustozlar — ixcham qator (oldin bitta karta 330px joy egallardi) */}
+      {/* Yo'nalishlar — ikonkali chiplar (Udemy kategoriya qatori), faqat filtr yo'q bo'lganda */}
+      {!browsing && (
+        <nav className="mt-4" aria-label="Yo'nalishlar">
+          <ul className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => {
+              const Icon = CATEGORY_ICON[c.key] ?? GraduationCap;
+              return (
+                <li key={c.key} className="shrink-0">
+                  <Link href={`/mentorlik?kasb=${c.key}`} className="chip inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
+                    <Icon size={14} className="text-fg-3" aria-hidden /> {c.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
+
+      {/* Mashhur kurslar — muqovali karusel (telefonda gorizontal aylanadi) */}
+      {popular.items.length > 1 && (
+        <section className="mt-5">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-fg"><Flame size={14} className="text-accent" aria-hidden /> Mashhur kurslar</h2>
+            <Link href="/mentorlik?sort=popular" className="text-[12.5px] font-semibold text-fg-3 hover:text-fg">Hammasi</Link>
+          </div>
+          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            {popular.items.map((c) => (
+              <li key={c.id} className="shrink-0 snap-start">
+                <CourseMiniCard c={c} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Ustozlar — telefonda story-doira qatori (Instagram), sm+ da kartalar */}
       {mentors.length > 0 && !browsing && (
         <section className="mt-5">
           <h2 className="mb-2 text-[15px] font-bold text-fg">Ustozlar</h2>
-          <ul className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:hidden">
+            {mentors.map((m) => (
+              <li key={m.id} className="w-[72px] shrink-0">
+                <Link href={`/mentorlik/ustoz/${m.slug}`} className="press flex flex-col items-center gap-1.5 text-center">
+                  <span className="story-ring-seen block">
+                    <span className="story-gap block">
+                      <span className="relative block h-[58px] w-[58px] overflow-hidden rounded-full bg-surface-2">
+                        {m.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.photoUrl} alt="" className="h-full w-full object-cover object-top" />
+                        ) : (
+                          <Avatar name={m.name} src={m.avatarUrl} size={58} decorative className="!ring-0 !shadow-none" />
+                        )}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="w-full truncate text-[11.5px] font-semibold text-fg">{m.name.split(" ")[0]}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <ul className="no-scrollbar -mx-4 hidden gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3 xl:grid-cols-4">
             {mentors.map((m) => (
               <li key={m.id} className="w-[230px] shrink-0 sm:w-auto">
                 <Link href={`/mentorlik/ustoz/${m.slug}`} className="card card-hover flex items-center gap-3 p-3">
