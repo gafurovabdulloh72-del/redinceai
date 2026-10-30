@@ -21,6 +21,10 @@ export const courseSchema = z.object({
   category: z.enum(categoryKeys).default("boshqa"),
   level: z.enum(levelKeys).default("boshlangich"),
   priceFrom: z.coerce.number().int().min(0).max(MENTOR_LIMITS.priceMax).default(0),
+  outcomes: z.array(z.string().trim().min(1).max(MENTOR_LIMITS.outcomeMax)).max(MENTOR_LIMITS.outcomesMax).default([]),
+  requirements: z.array(z.string().trim().min(1).max(MENTOR_LIMITS.outcomeMax)).max(MENTOR_LIMITS.requirementsMax).default([]),
+  audience: z.string().trim().max(MENTOR_LIMITS.audienceMax).default(""),
+  language: z.enum(["uz", "ru", "en"]).default("uz"),
 });
 export type CourseInput = z.infer<typeof courseSchema>;
 

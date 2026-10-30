@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, ChevronLeft, GraduationCap, Lock, PlayCircle, Star, Users } from "lucide-react";
+import { Award, CheckCircle2, ChevronLeft, Clock, GraduationCap, Languages, Lock, PlayCircle, RefreshCw, Star, Target, Users } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
@@ -14,7 +14,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site-url";
 import { recordCourseView } from "@/lib/mentorship/growth";
 import { getCourseBySlug, similarCourses } from "@/lib/mentorship/service";
-import { categoryLabel, formatSom, levelLabel, formatDuration } from "@/lib/mentorship/format";
+import { categoryLabel, formatSom, levelLabel, formatDuration, languageLabel } from "@/lib/mentorship/format";
 import { cn, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +109,53 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             <ShareButton title={c.title} size="md" variant="outline" iconOnly className="mt-1 shrink-0" />
           </div>
           {c.summary && <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
+
+          {/* Udemy uslubidagi meta qator: davomiylik · til · yangilangan · sertifikat */}
+          <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-fg-3">
+            {c.totalMin > 0 && <li className="inline-flex items-center gap-1"><Clock size={13} /> {formatDuration(c.totalMin)} video</li>}
+            <li className="inline-flex items-center gap-1"><Languages size={13} /> {languageLabel(c.language)} tilida</li>
+            <li className="inline-flex items-center gap-1"><RefreshCw size={13} /> Yangilangan {timeAgo(c.updatedAt)}</li>
+            <li className="inline-flex items-center gap-1"><Award size={13} /> Sertifikat beriladi</li>
+          </ul>
+
+          {/* Nimalarni o'rganasiz — ✓ ro'yxat (Udemy) */}
+          {c.outcomes.length > 0 && (
+            <section className="card mt-5 p-4 max-sm:m-flat sm:p-5" aria-labelledby="kurs-natija">
+              <h2 id="kurs-natija" className="mb-3 text-[15px] font-bold text-fg">Nimalarni o&apos;rganasiz</h2>
+              <ul className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
+                {c.outcomes.map((o) => (
+                  <li key={o} className="flex items-start gap-2 text-[14px] leading-snug text-fg-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-success-text" aria-hidden />
+                    <span>{o}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {(c.requirements.length > 0 || c.audience) && (
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {c.requirements.length > 0 && (
+                <section aria-labelledby="kurs-talab">
+                  <h2 id="kurs-talab" className="mb-2 text-[15px] font-bold text-fg">Talablar</h2>
+                  <ul className="space-y-1.5">
+                    {c.requirements.map((r) => (
+                      <li key={r} className="flex items-start gap-2 text-[14px] leading-snug text-fg-2">
+                        <span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-fg-3" />
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {c.audience && (
+                <section aria-labelledby="kurs-kim">
+                  <h2 id="kurs-kim" className="mb-2 flex items-center gap-1.5 text-[15px] font-bold text-fg"><Target size={15} className="text-fg-3" /> Kimlar uchun</h2>
+                  <p className="text-[14px] leading-relaxed text-fg-2">{c.audience}</p>
+                </section>
+              )}
+            </div>
+          )}
 
           {/* Mentor */}
           <Link href={c.mentor.slug ? `/mentorlik/ustoz/${c.mentor.slug}` : "/mentorlik"} className="card card-hover mt-5 flex items-start gap-3 p-4">

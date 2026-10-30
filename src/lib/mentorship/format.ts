@@ -50,6 +50,10 @@ export const MENTOR_LIMITS = {
   expertiseMax: 6,
   courseTitleMax: 100,
   courseSummaryMax: 600,
+  outcomesMax: 10,
+  requirementsMax: 8,
+  outcomeMax: 140,
+  audienceMax: 300,
   lessonTitleMax: 120,
   lessonBodyMax: 8000,
   reviewMax: 800,
@@ -66,3 +70,13 @@ export const SUB_DAYS = 30;
 
 export type PurchaseType = "course" | "ticket" | "sub" | "consult";
 export const PURCHASE_LABEL: Record<PurchaseType, string> = { course: "Kurs", ticket: "Efir chiptasi", sub: "Oylik obuna", consult: "Konsultatsiya" };
+
+/** Kurs tili yorlig'i (courses.language) */
+export const COURSE_LANGUAGES = [
+  { key: "uz", label: "O'zbek" },
+  { key: "ru", label: "Rus" },
+  { key: "en", label: "Ingliz" },
+] as const;
+export function languageLabel(key: string): string {
+  return COURSE_LANGUAGES.find((l) => l.key === key)?.label ?? key;
+}

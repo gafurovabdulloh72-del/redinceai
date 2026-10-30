@@ -2144,6 +2144,14 @@ export const courses = sqliteTable(
     level: text("level", { enum: ["boshlangich", "orta", "pro"] }).notNull().default("boshlangich"),
     /** Narx so'mda; 0 = bepul */
     priceFrom: integer("price_from").notNull().default(0),
+    /** «Nimalarni o'rganasiz» — ✓ ro'yxat (Udemy uslubi), ≤10 */
+    outcomes: text("outcomes", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    /** «Talablar» — boshlashdan oldin nima kerak, ≤8 */
+    requirements: text("requirements", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    /** «Kimlar uchun» — qisqa matn */
+    audience: text("audience").notNull().default(""),
+    /** Dars tili: uz | ru | en */
+    language: text("language").notNull().default("uz"),
     isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
     lessonsCount: integer("lessons_count").notNull().default(0),
     /** Kurs sahifasi ko'rilishlari (tahlil uchun) */

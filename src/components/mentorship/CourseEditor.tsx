@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { uploadAttachment } from "@/components/chat/attachments";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { LessonForm, type LessonFull } from "./LessonForm";
-import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS, formatDuration } from "@/lib/mentorship/format";
+import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS, formatDuration, COURSE_LANGUAGES } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
 
 interface CourseData {
@@ -25,6 +25,10 @@ interface CourseData {
   isPublished: boolean;
   lessonsCount: number;
   studentsCount: number;
+  outcomes?: string[];
+  requirements?: string[];
+  audience?: string;
+  language?: string;
 }
 type LessonData = LessonFull;
 
@@ -39,6 +43,12 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
   const [category, setCategory] = useState(course.category);
   const [level, setLevel] = useState(course.level);
   const [price, setPrice] = useState(String(course.priceFrom));
+  // Udemy uslubidagi bo'limlar: har qator — bitta band
+  const [outcomes, setOutcomes] = useState((course.outcomes ?? []).join("\n"));
+  const [requirements, setRequirements] = useState((course.requirements ?? []).join("\n"));
+  const [audience, setAudience] = useState(course.audience ?? "");
+  const [language, setLanguage] = useState(course.language ?? "uz");
+  const lines = (s: string, max: number) => s.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, max);
   const [published, setPublished] = useState(course.isPublished);
   const [savingCourse, setSavingCourse] = useState(false);
   const [coverUp, setCoverUp] = useState(false);
@@ -52,7 +62,7 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
     }
     setSavingCourse(true);
     try {
-      const res = await fetch(`/api/mentorlik/kurslar/${course.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title.trim(), summary: summary.trim(), coverUrl, category, level, priceFrom: Number(price) || 0 }) });
+      const res = await fetch(`/api/mentorlik/kurslar/${course.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title.trim(), summary: summary.trim(), coverUrl, category, level, priceFrom: Number(price) || 0, outcomes: lines(outcomes, MENTOR_LIMITS.outcomesMax), requirements: lines(requirements, MENTOR_LIMITS.requirementsMax), audience: audience.trim(), language }) });
       const j = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !j.ok) throw new Error(j.error || "Saqlanmadi");
       toast("Saqlandi", "success");
@@ -145,6 +155,27 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
               <select value={level} onChange={(e) => setLevel(e.target.value)} className="field h-10 w-full text-[13.5px]">{COURSE_LEVELS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
               <input value={price} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Narx so'm (0=bepul)" className="field h-10 w-full text-[13.5px]" />
             </div>
+          </div>
+        </div>
+        {/* Udemy uslubidagi «sotuvchi» bo'limlar — kurs sahifasida ✓ ro'yxat bo'lib chiqadi */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Nimalarni o&apos;rganasiz <span className="font-normal text-fg-4">· har qator bitta band, {MENTOR_LIMITS.outcomesMax} tagacha</span></span>
+            <textarea value={outcomes} onChange={(e) => setOutcomes(e.target.value)} rows={5} placeholder={"Premiere Pro interfeysi va tezkor tugmalar\nRang korreksiyasi va LUT\nOvoz tozalash va mikslash"} className="field w-full resize-y py-2.5 text-[13.5px] leading-relaxed" />
+          </label>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Talablar <span className="font-normal text-fg-4">· har qator bitta band</span></span>
+              <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} rows={2} placeholder={"Kompyuter (8 GB RAM)\nPremiere Pro o'rnatilgan"} className="field w-full resize-y py-2.5 text-[13.5px] leading-relaxed" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Kimlar uchun</span>
+              <input value={audience} onChange={(e) => setAudience(e.target.value)} maxLength={MENTOR_LIMITS.audienceMax} placeholder="Montajni noldan boshlamoqchi bo'lganlar, SMM mutaxassislari…" className="field h-10 w-full text-[13.5px]" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">Dars tili</span>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className="field h-10 w-full text-[13.5px]">{COURSE_LANGUAGES.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
+            </label>
           </div>
         </div>
         <button onClick={saveCourse} disabled={savingCourse} className="btn-accent mt-4 inline-flex h-10 items-center gap-2 rounded-[12px] px-5 text-[14px] font-semibold disabled:opacity-60">

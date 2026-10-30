@@ -120,6 +120,14 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
 }
 
 export interface CourseDetail extends CourseCard {
+  /** Udemy uslubidagi bo'limlar */
+  outcomes: string[];
+  requirements: string[];
+  audience: string;
+  language: string;
+  /** Barcha darslar davomiyligi (daqiqa) */
+  totalMin: number;
+  updatedAt: number;
   mentorBio: string;
   refPercent: number;
   certificateCode: string | null;
@@ -161,6 +169,12 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
   const card = toCard(c as never);
   return {
     ...card,
+    outcomes: c.outcomes ?? [],
+    requirements: c.requirements ?? [],
+    audience: c.audience ?? "",
+    language: c.language ?? "uz",
+    totalMin: lessonRows.reduce((a, l) => a + (l.durationMin || 0), 0),
+    updatedAt: c.updatedAt.getTime(),
     mentorBio: c.mentor.bio,
     refPercent: c.mentor.refPercent,
     certificateCode: viewerId && enrolled ? await myCertificateCode(viewerId, c.id) : null,
@@ -292,7 +306,7 @@ export async function createCourse(userId: string, input: CourseInput, opts: { m
   const id = uid();
   const slug = `${slugify(input.title) || "kurs"}-${id.slice(0, 6)}`;
   await db.transaction(async (tx) => {
-    await tx.insert(courses).values({ id, mentorId: m.id, slug, title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category, level: input.level as CourseLevel, priceFrom: input.priceFrom });
+    await tx.insert(courses).values({ id, mentorId: m.id, slug, title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category, level: input.level as CourseLevel, priceFrom: input.priceFrom, outcomes: input.outcomes, requirements: input.requirements, audience: input.audience, language: input.language });
     await tx.update(mentors).set({ coursesCount: sql`${mentors.coursesCount} + 1` }).where(eq(mentors.id, m.id));
   });
   return { id, slug };
@@ -308,7 +322,7 @@ async function ownedCourse(userId: string, courseId: string, isAdmin = false) {
 
 export async function updateCourse(userId: string, courseId: string, input: CourseInput, isAdmin = false) {
   await ownedCourse(userId, courseId, isAdmin);
-  await db.update(courses).set({ title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom, updatedAt: new Date() }).where(eq(courses.id, courseId));
+  await db.update(courses).set({ title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom, outcomes: input.outcomes, requirements: input.requirements, audience: input.audience, language: input.language, updatedAt: new Date() }).where(eq(courses.id, courseId));
 }
 
 export async function setCoursePublished(userId: string, courseId: string, publish: boolean, isAdmin = false) {
@@ -424,7 +438,7 @@ export async function getCourseForOwner(userId: string, courseId: string, isAdmi
   if (c.mentor.userId !== userId && !isAdmin) return null;
   const lessonRows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), orderBy: [asc(lessons.position)] });
   return {
-    course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount },
+    course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount, outcomes: c.outcomes ?? [], requirements: c.requirements ?? [], audience: c.audience ?? "", language: c.language ?? "uz" },
     lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, isPreview: l.isPreview, materials: l.materials ?? [], chapters: l.chapters ?? [], quiz: l.quiz ?? null, assignment: l.assignment })),
   };
 }
