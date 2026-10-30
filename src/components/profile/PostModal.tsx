@@ -224,7 +224,7 @@ function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ u
       {total > 1 && (
         <>
           {/* Telefonda strelkalar yo'q (surish bilan), o'ngda «1/3» hisoblagich */}
-          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-white sm:hidden" aria-hidden>
+          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-white sm:hidden" aria-hidden>
             {i + 1}/{total}
           </span>
           <button type="button" onClick={prev} aria-label={tr(til, POST_OYNA.prev)} className="press absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white max-sm:hidden">
