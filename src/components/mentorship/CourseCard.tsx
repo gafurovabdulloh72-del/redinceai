@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Camera, Clapperboard, GraduationCap, Megaphone, PenTool, Sparkles, Star, Users, Video, type LucideIcon } from "lucide-react";
+import { Camera, Clapperboard, Clock, GraduationCap, Megaphone, PenTool, Sparkles, Star, Users, Video, type LucideIcon } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
-import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
+import { categoryLabel, formatDuration, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
 
 export interface CourseCardItem {
@@ -20,6 +20,8 @@ export interface CourseCardItem {
   mentor: { name: string; avatarUrl: string | null };
   /** Yaratilgan vaqt (ms) — «Yangi» belgisi uchun (ixtiyoriy) */
   createdAt?: number;
+  /** Jami davomiylik (daqiqa), ixtiyoriy */
+  totalMin?: number;
 }
 
 const NEW_DAYS = 14;
@@ -78,6 +80,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
             <span className="inline-flex items-center gap-1">
               <GraduationCap size={12} /> {c.lessonsCount}
             </span>
+            {c.totalMin ? <span className="inline-flex items-center gap-1"><Clock size={12} /> {formatDuration(c.totalMin)}</span> : null}
             {c.studentsCount > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Users size={12} /> {c.studentsCount}
@@ -126,7 +129,7 @@ export function CourseMiniCard({ c }: { c: CourseCardItem }) {
                 <Star size={11} className="fill-accent text-accent" /> {c.rating}
               </span>
             )}
-            <span>{c.lessonsCount} dars</span>
+            <span>{c.totalMin ? formatDuration(c.totalMin) : `${c.lessonsCount} dars`}</span>
           </span>
           <span className={cn("font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSom(c.priceFrom)}</span>
         </div>

@@ -37,6 +37,8 @@ export interface CourseCard {
   rating: number;
   reviewsCount: number;
   createdAt: number;
+  /** Barcha darslar davomiyligi (daqiqa) — katalog kartasida «N soat» */
+  totalMin: number;
   mentor: { name: string; avatarUrl: string | null; headline: string; userId: string; slug: string | null };
 }
 
@@ -88,6 +90,7 @@ function toCard(c: typeof courses.$inferSelect & { mentor: { userId: string; slu
     rating: c.rating,
     reviewsCount: c.reviewsCount,
     createdAt: c.createdAt.getTime(),
+    totalMin: Number((c as { totalMin?: number | null }).totalMin ?? 0),
     mentor: { name: c.mentor.user.name, avatarUrl: c.mentor.user.avatarUrl, headline: c.mentor.headline, userId: c.mentor.userId, slug: c.mentor.slug },
   };
 }
@@ -113,9 +116,12 @@ export async function listCourses(opts: { category?: string; level?: string; q?:
     orderBy: order,
     limit: limit + 1,
     with: { mentor: { columns: { userId: true, headline: true, slug: true }, with: { user: { columns: { name: true, avatarUrl: true } } } } },
+    // Udemy kabi «jami N soat» — darslar davomiyligi yig'indisi (bitta korrelyatsion so'rov, N+1 emas)
+    // DIQQAT: relational so'rov ichida `${courses.id}` yalang'och "id" bo'lib chiqadi (ichki jadvalga tegadi) — tashqi jadval nomi aniq yoziladi
+    extras: { totalMin: sql<number>`(select coalesce(sum(l.duration_min), 0) from lessons l where l.course_id = "courses"."id")`.as("total_min") },
   });
   const hasMore = rows.length > limit;
-  const items = rows.slice(0, limit).map(toCard);
+  const items = rows.slice(0, limit).map((r) => toCard(r as never));
   return { items, nextCursor: hasMore ? items[items.length - 1].createdAt : null };
 }
 
