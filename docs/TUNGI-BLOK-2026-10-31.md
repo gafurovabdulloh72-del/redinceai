@@ -79,6 +79,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Kursni saqlash (Udemy Wishlist): `course_saves` (kurs+foydalanuvchi noyob), `toggleCourseSave`/`listSavedCourses`,
   `POST /api/mentorlik/kurslar/[id]/saqlash`, `GET /api/mentorlik/kurslar/saqlangan`; kurs sahifasida belgi tugmasi (`CourseSaveButton`,
   mehmon → kirish), Kabinet → Saqlanganlar endi Postlar · Kurslar (`?tur=kurslar`). Xavfsizlik: mehmon 401 + begona kurs 404 testlari (32/32).
+- O'quv seriyasi (Duolingo/Coursera odati): `lib/mentorship/streak.ts` `learningStreak()` — faqat `lesson_completions`dan (Toshkent kuni,
+  90 kunlik oyna): joriy zanjir, rekord, hafta nuqtalari; kabinet → Mentorlik'da `LearningStreakCard` (yozilganlarga), dars tugatilganda
+  javobda `streak` → toast «🔥 N kunlik seriya».
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

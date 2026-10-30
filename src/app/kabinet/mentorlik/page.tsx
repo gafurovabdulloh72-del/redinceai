@@ -7,6 +7,8 @@ import { getMentorForUser, getMentorProfileForEditor, listCoursesOfMentor, listM
 import { ApplyBlock, MyEnrollments } from "@/components/mentorship/MentorDashboard";
 import { MentorNav } from "@/components/mentorship/MentorNav";
 import { MentorSections, MentorStats } from "@/components/mentorship/MentorStudio";
+import { LearningStreakCard } from "@/components/mentorship/LearningStreak";
+import { learningStreak } from "@/lib/mentorship/streak";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Mentorlik", robots: { index: false, follow: false } };
@@ -21,7 +23,7 @@ export default async function KabinetMentorlikPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik"));
 
-  const [mentor, enrollments] = await Promise.all([getMentorForUser(user.id), listMyEnrollments(user.id)]);
+  const [mentor, enrollments, streak] = await Promise.all([getMentorForUser(user.id), listMyEnrollments(user.id), learningStreak(user.id)]);
   const profile = mentor?.isApproved ? await getMentorProfileForEditor(mentor.id, { id: user.id, admin: user.role === "admin" }) : null;
   const courses = profile ? await listCoursesOfMentor(profile.id) : [];
   const pageHref = profile?.slug ? `/mentorlik/ustoz/${profile.slug}` : null;
@@ -59,6 +61,8 @@ export default async function KabinetMentorlikPage() {
             <ApplyBlock status={mentor ? "pending" : "none"} mentor={mentor ? { headline: mentor.headline, bio: mentor.bio, expertise: mentor.expertise } : null} />
           </>
         )}
+        {/* O'quv seriyasi — faqat kursga yozilganlarga (Duolingo/Coursera odati) */}
+        {enrollments.length > 0 && <LearningStreakCard s={streak} />}
         <MyEnrollments
           enrollments={enrollments.map((e) => ({ progressPct: e.progressPct, lastLessonId: e.lastLessonId, title: e.course.title, slug: e.course.slug, coverUrl: e.course.coverUrl, mentorName: e.course.mentor.name, lessonsCount: e.course.lessonsCount }))}
         />

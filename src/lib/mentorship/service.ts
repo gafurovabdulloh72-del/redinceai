@@ -8,6 +8,7 @@ import type { CourseInput, LessonInput, MentorApplyInput, MentorProfileInput, Co
 import { createGroup, updateGroup } from "@/lib/groups/service";
 import { MENTOR_LIMITS, type CourseLevel } from "./format";
 import { maybeIssueCertificate, myCertificateCode, mySubmission, publicQuiz, quizPassed, type QuizPublic } from "./learning";
+import { learningStreak } from "./streak";
 
 export interface MentorLite {
   id: string;
@@ -425,7 +426,9 @@ export async function completeLesson(userId: string, lessonId: string, done: boo
   const pct = total > 0 ? Math.round((Number(doneN) / Number(total)) * 100) : 0;
   await db.update(enrollments).set({ progressPct: pct, lastLessonId: lessonId }).where(eq(enrollments.id, enrollment.id));
   const cert = done && pct >= 100 ? await maybeIssueCertificate(userId, l.courseId).catch(() => null) : null;
-  return { progressPct: pct, completed: done, certificateCode: cert?.code ?? null, certificateNew: cert?.isNew ?? false };
+  // O'quv seriyasi (kun ketma-ketligi) — klient toast'da ko'rsatadi
+  const streak = done ? await learningStreak(userId).then((x) => x.current).catch(() => 0) : 0;
+  return { progressPct: pct, completed: done, certificateCode: cert?.code ?? null, certificateNew: cert?.isNew ?? false, streak };
 }
 
 export async function addCourseReview(userId: string, courseId: string, input: CourseReviewInput) {

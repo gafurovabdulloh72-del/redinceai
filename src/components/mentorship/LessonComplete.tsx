@@ -27,7 +27,7 @@ export function LessonComplete({ lessonId, completed, nextId, blockedReason = nu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done: next }),
       });
-      const j = (await res.json()) as { ok: boolean; error?: string; data?: { progressPct: number; certificateCode?: string | null; certificateNew?: boolean } };
+      const j = (await res.json()) as { ok: boolean; error?: string; data?: { progressPct: number; certificateCode?: string | null; certificateNew?: boolean; streak?: number } };
       if (!res.ok || !j.ok) throw new Error(j.error || "Xatolik");
       setDone(next);
       if (j.data?.certificateNew && j.data.certificateCode) {
@@ -36,7 +36,8 @@ export function LessonComplete({ lessonId, completed, nextId, blockedReason = nu
         return;
       }
       router.refresh();
-      if (next && nextId) toast("Dars belgilandi — keyingisiga o'ting", "success");
+      if (next && (j.data?.streak ?? 0) >= 2) toast(`🔥 ${j.data?.streak} kunlik seriya — shu zaylda davom eting!`, "success");
+      else if (next && nextId) toast("Dars belgilandi — keyingisiga o'ting", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Xatolik", "error");
     } finally {
