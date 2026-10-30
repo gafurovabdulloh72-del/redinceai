@@ -175,11 +175,16 @@ export function MentorMoney({ d }: { d: MoneyData }) {
         ) : (
           <ul className="divide-y divide-line text-[13.5px]">
             {d.earnings.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2.5">
-                <span className="rounded-md bg-fg/6 px-2 py-0.5 text-[11.5px] font-bold text-fg-2">{PURCHASE_LABEL[e.kind]}</span>
-                <span className="min-w-0 flex-1 truncate font-semibold text-fg">{e.title}</span>
-                <span className="tabular-nums text-fg">{formatSom(e.net)}</span>
-                <span className="text-[12px] text-fg-3">{formatDateTime(e.createdAt)} · {STATUS[e.status]}</span>
+              /* Telefonda ikki qator: nom + summa, ostida tur · sana · holat (nom kesilmasin) */
+              <li key={e.id} className="py-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate font-semibold text-fg">{e.title}</span>
+                  <span className="shrink-0 tabular-nums text-fg">{formatSom(e.net)}</span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-3">
+                  <span className="rounded-md bg-fg/6 px-1.5 py-px text-[11px] font-bold text-fg-2">{PURCHASE_LABEL[e.kind]}</span>
+                  <span>{formatDateTime(e.createdAt)} · {STATUS[e.status]}</span>
+                </div>
               </li>
             ))}
           </ul>

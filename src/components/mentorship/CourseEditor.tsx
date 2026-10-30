@@ -195,12 +195,12 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
                 <LessonForm courseId={course.id} initial={l} nextPos={l.position} onCancel={() => setEditingId(null)} onSaved={(nl) => { setLessons((ls) => ls.map((x) => (x.id === nl.id ? nl : x))); setEditingId(null); }} />
               </li>
             ) : (
-            <li key={l.id} className="card flex items-center gap-3 p-3">
-              <GripVertical size={16} className="shrink-0 text-fg-4" />
+            <li key={l.id} className="card flex items-center gap-3 p-3 max-sm:gap-2">
+              <GripVertical size={16} className="shrink-0 text-fg-4 max-sm:hidden" />
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-fg/6 text-[12px] font-bold tabular-nums text-fg-2">{l.position}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] font-medium text-fg">{l.title}</span>
-                <span className="flex items-center gap-2 text-[12px] text-fg-4">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-fg-4">
                   {l.videoUrl ? <span className="inline-flex items-center gap-0.5 text-success-text"><Video size={12} /> video</span> : <span>matn</span>}
                   {l.durationMin > 0 && <span>{formatDuration(l.durationMin)}</span>}
                   {l.isPreview && <span className="font-semibold text-accent-text">namuna</span>}
