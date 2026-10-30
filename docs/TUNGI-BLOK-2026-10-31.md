@@ -54,6 +54,10 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Takror sarlavhalar: chat h1, Narxlar/Yordam eyebrow telefonda yashirin.
 - `ZoomableImage` effekt cleanup xatosi («destroy is not a function») — lightbox ochilmay qolgan edi, tuzatildi.
 
+- `mutaxassislar/[slug]/loading.tsx` olib tashlandi — tafsilot sahifasida Suspense chegarasi `notFound()` dan oldin 200 oqizib
+  yuborardi (CLAUDE.md «Yumshoq 404 qoidasi»); ijodkor profili indekslanadigan eng muhim sahifa. Prod build'da `/mutaxassislar/<yo'q>`
+  endi haqiqiy 404.
+
 ## Tekshiruv
 - tsc toza, smoke 23/23, xavfsizlik 28/28, CI (build+smoke+security) har commit'da yashil.
 - Yorug' va qorong'u tema regressiya crawl'i: yangi muammo yo'q (qolgan bayroqlar — marquee, dekorativ SVG,
