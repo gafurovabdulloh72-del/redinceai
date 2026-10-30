@@ -161,11 +161,26 @@ function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ u
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [total, prev, next]);
+  // Telefon: chap/o'ng surish — keyingi/oldingi rasm (Instagram karuseli); vertikal harakat scroll'ga qoldiriladi
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touch.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const st = touch.current;
+    touch.current = null;
+    if (!st || total < 2) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - st.x;
+    const dy = t.clientY - st.y;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) (dx < 0 ? next : prev)();
+  };
   const m = media[i];
   if (!m) return null;
   const video = isVideoAttachment(m) || PLAYABLE.test(m.url);
   return (
-    <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-black sm:min-h-[360px] md:min-h-[520px]">
+    <div className="relative flex min-h-[260px] flex-1 items-center justify-center bg-black sm:min-h-[360px] md:min-h-[520px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       {video ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
@@ -208,10 +223,14 @@ function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ u
       )}
       {total > 1 && (
         <>
-          <button type="button" onClick={prev} aria-label={tr(til, POST_OYNA.prev)} className="press absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white">
+          {/* Telefonda strelkalar yo'q (surish bilan), o'ngda «1/3» hisoblagich */}
+          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-white sm:hidden" aria-hidden>
+            {i + 1}/{total}
+          </span>
+          <button type="button" onClick={prev} aria-label={tr(til, POST_OYNA.prev)} className="press absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white max-sm:hidden">
             <ChevronLeft size={18} />
           </button>
-          <button type="button" onClick={next} aria-label={tr(til, POST_OYNA.next)} className="press absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white">
+          <button type="button" onClick={next} aria-label={tr(til, POST_OYNA.next)} className="press absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white max-sm:hidden">
             <ChevronRight size={18} />
           </button>
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5" aria-hidden>

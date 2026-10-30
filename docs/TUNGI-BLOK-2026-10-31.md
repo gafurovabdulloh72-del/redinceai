@@ -104,6 +104,7 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   «Yozish» (username bo'lsa); faqat ommaviy maydonlar, kontakt yo'q (`mentorAnalytics().courses[].studentsList`, ≤100).
 - Kabinet telefonda ixcham: Telegram eslatmasi bitta qator («Telegram'ni ulang — xabarlar darhol keladi»), Bildirishnomalar sahifasida
   tavsif yashirin, Web Push kartasi yassi va tavsifsiz — ro'yxat ~500px yuqoriroq boshlanadi. Dars sahifasida kurs tugagach «Kursga baho bering».
+- PostModal karuseli telefonda: chap/o'ng surish — keyingi/oldingi rasm (Instagram), strelkalar yashirin, o'ng yuqorida «1/3» hisoblagich.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
