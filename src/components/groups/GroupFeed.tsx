@@ -448,6 +448,7 @@ export function Composer({
 
   return (
     <div
+      data-composer=""
       className={cn("card m-flat p-3 transition-colors sm:p-4", dragging && "border-fg")}
       onDragOver={(e) => {
         e.preventDefault();

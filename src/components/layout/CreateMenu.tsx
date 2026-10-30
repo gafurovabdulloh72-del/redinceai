@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Briefcase, Megaphone, PenSquare, UsersRound, type LucideIcon } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -22,11 +23,24 @@ export interface CreateMenuUser {
  */
 export function CreateMenu({ open, onClose, user }: { open: boolean; onClose: () => void; user: CreateMenuUser | null }) {
   const til = useLocale();
+  const pathname = usePathname();
   const login = (next: string) => `/auth/kirish?next=${encodeURIComponent(next)}`;
+  // Bosh sahifada «Post joylash» — sahifa almashtirmasdan lentadagi kompozitorga fokus (Instagram tezkor yo'li)
+  const focusComposer = (e: React.MouseEvent) => {
+    const ta = document.querySelector<HTMLTextAreaElement>("[data-composer] textarea");
+    if (!ta) return;
+    e.preventDefault();
+    onClose();
+    window.setTimeout(() => {
+      ta.scrollIntoView({ block: "center", behavior: "smooth" });
+      ta.focus();
+    }, 220);
+  };
   const canPost = Boolean(user && (user.specialistSlug || user.role === "specialist" || user.role === "admin"));
-  const items: Array<{ href: string; icon: LucideIcon; label: string; hint: string; accent?: boolean }> = [
+  const items: Array<{ href: string; icon: LucideIcon; label: string; hint: string; accent?: boolean; onClick?: (e: React.MouseEvent) => void }> = [
     {
       href: !user ? login("/kabinet/postlar") : canPost ? "/kabinet/postlar" : "/kabinet/profil",
+      onClick: canPost && pathname === "/" ? focusComposer : undefined,
       icon: PenSquare,
       label: tr(til, SHELL.create.post),
       hint: canPost || !user ? tr(til, SHELL.create.postHint) : tr(til, SHELL.create.postNeedsProfile),
@@ -42,7 +56,7 @@ export function CreateMenu({ open, onClose, user }: { open: boolean; onClose: ()
       <ul className="grid gap-1 pb-2">
         {items.map((it) => (
           <li key={it.href + it.label}>
-            <Link href={it.href} onClick={onClose} className="press flex items-center gap-3.5 rounded-card px-3 py-3 transition hover:bg-fg/5">
+            <Link href={it.href} onClick={(e) => (it.onClick ? it.onClick(e) : onClose())} className="press flex items-center gap-3.5 rounded-card px-3 py-3 transition hover:bg-fg/5">
               <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-tile", it.accent ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>
                 <it.icon size={20} />
               </span>
