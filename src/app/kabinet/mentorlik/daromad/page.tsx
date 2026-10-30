@@ -31,8 +31,8 @@ export default async function MentorMoneyPage() {
       <MentorNav active="daromad" />
       <div className="space-y-5">
         <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Daromad va sozlamalar</h1>
-          <p className="mt-0.5 text-[13px] text-fg-3">Balans va yechish, promokod, obuna narxi va 1:1 vaqtlar</p>
+          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Daromad va sozlamalar</h1>
+          <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Balans va yechish, promokod, obuna narxi va 1:1 vaqtlar</p>
         </header>
         <MentorMoney
           d={{

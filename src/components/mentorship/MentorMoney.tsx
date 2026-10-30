@@ -200,7 +200,7 @@ function Stat({ label, value, hint, strong }: { label: string; value: string; hi
 }
 function Box({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="card p-4 sm:p-5">
+    <section className="card m-flat p-4 sm:p-5">
       <h2 className="text-[15px] font-bold text-fg">{title}</h2>
       {hint && <p className="mb-3 mt-0.5 text-[12.5px] text-fg-3">{hint}</p>}
       {!hint && <div className="mb-3" />}

@@ -22,8 +22,8 @@ export default async function RoadmapPage() {
       <MentorNav active="yol-xaritasi" />
       <div className="space-y-5">
         <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Yo&apos;l xaritalari</h1>
-          <p className="mt-1 text-[13px] text-fg-3">Kurslaringizni ketma-ketlikka yig&apos;ing — talaba qayerdaligini va keyingi qadamni ko&apos;radi.</p>
+          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Yo&apos;l xaritalari</h1>
+          <p className="mt-1 text-[13px] text-fg-3 max-sm:hidden">Kurslaringizni ketma-ketlikka yig&apos;ing — talaba qayerdaligini va keyingi qadamni ko&apos;radi.</p>
         </header>
         <RoadmapManager roadmaps={rms.map((r) => ({ id: r.id, title: r.title, description: r.description, courseIds: r.courseIds }))} courses={cs} />
       </div>

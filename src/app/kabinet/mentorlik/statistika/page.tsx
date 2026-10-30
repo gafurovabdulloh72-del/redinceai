@@ -27,8 +27,8 @@ export default async function MentorAnalyticsPage() {
       <MentorNav active="statistika" />
       <div className="space-y-5">
         <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Tahlil</h1>
-          <p className="mt-0.5 text-[13px] text-fg-3">Kurs ko&apos;rilishi, yozilish, progress, efirlar va daromad manbalari</p>
+          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Tahlil</h1>
+          <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Kurs ko&apos;rilishi, yozilish, progress, efirlar va daromad manbalari</p>
         </header>
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -40,7 +40,7 @@ export default async function MentorAnalyticsPage() {
 
         {a.courses.length === 0 && <p className="card p-6 text-center text-[14px] text-fg-3">Hali kurs yo&apos;q.</p>}
         {a.courses.map((c) => (
-          <section key={c.id} className="card p-4 sm:p-5">
+          <section key={c.id} className="card m-flat p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="min-w-0 flex-1 truncate text-[15.5px] font-bold text-fg">{c.title}</h2>
               {!c.published && <span className="rounded bg-fg/8 px-2 py-0.5 text-[11px] font-bold text-fg-3">chop etilmagan</span>}

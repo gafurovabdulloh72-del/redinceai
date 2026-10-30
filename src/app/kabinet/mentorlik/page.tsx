@@ -36,8 +36,8 @@ export default async function KabinetMentorlikPage() {
           <>
             <header className="flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0">
-                <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Mentorlik</h1>
-                <p className="mt-0.5 text-[13px] text-fg-3">Bo&apos;limlar, darslar, talabalar va daromad — hammasi shu bo&apos;limda</p>
+                <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Mentorlik</h1>
+                <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Bo&apos;limlar, darslar, talabalar va daromad — hammasi shu bo&apos;limda</p>
               </div>
               {pageHref && (
                 <div className="flex flex-wrap gap-2">
@@ -56,7 +56,7 @@ export default async function KabinetMentorlikPage() {
         ) : (
           <>
             <header>
-              <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Ustoz bo&apos;ling</h1>
+              <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Ustoz bo&apos;ling</h1>
             </header>
             <ApplyBlock status={mentor ? "pending" : "none"} mentor={mentor ? { headline: mentor.headline, bio: mentor.bio, expertise: mentor.expertise } : null} />
           </>

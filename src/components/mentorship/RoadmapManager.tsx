@@ -67,7 +67,7 @@ export function RoadmapManager({ roadmaps, courses }: { roadmaps: Rm[]; courses:
       )}
       {courses.length === 0 && <p className="text-[13.5px] text-fg-3">Avval kamida bitta bo&apos;lim (kurs) yarating.</p>}
       {editing && (
-        <div className="card space-y-3 p-4">
+        <div className="card m-flat space-y-3 p-4">
           <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="Nomi: Boshlovchidan professionalgacha" className="field h-11 w-full text-[14px]" />
           <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} placeholder="Qisqa tavsif (ixtiyoriy)" className="field h-11 w-full text-[14px]" />
           <div>

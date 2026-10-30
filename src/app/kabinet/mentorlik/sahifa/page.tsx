@@ -26,8 +26,8 @@ export default async function MentorPagePage() {
       <div className="space-y-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg">Mentorlik sahifam</h1>
-            <p className="mt-0.5 text-[13px] text-fg-3">Talabalar ko&apos;radigan sahifa: rasm, sarlavha, tavsif va ma&apos;lumot kartalari</p>
+            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Mentorlik sahifam</h1>
+            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Talabalar ko&apos;radigan sahifa: rasm, sarlavha, tavsif va ma&apos;lumot kartalari</p>
           </div>
           {pageHref && (
             <Link href={pageHref} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">

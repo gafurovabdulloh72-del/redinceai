@@ -132,7 +132,7 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
       </div>
 
       {/* Kurs sozlamalari */}
-      <section className="card p-4 sm:p-5">
+      <section className="card m-flat p-4 sm:p-5">
         <h2 className="mb-3 text-[15px] font-bold text-fg">Kurs ma&apos;lumotlari</h2>
         <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
           {/* Muqova */}

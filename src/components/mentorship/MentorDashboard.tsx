@@ -86,7 +86,7 @@ export function ApplyBlock({ status, mentor }: { status: MentorStatus; mentor: {
   };
 
   return (
-    <section className="card p-5 sm:p-6">
+    <section className="card m-flat p-5 sm:p-6">
       {status === "pending" && (
         <div className="mb-4 flex items-center gap-2 rounded-[12px] bg-warning-soft px-4 py-2.5 text-[13px] font-semibold text-warning-text">
           <Clock size={15} /> Arizangiz ko&apos;rib chiqilmoqda. Tasdiqlangach kurs ocha olasiz.

@@ -42,7 +42,7 @@ function Item({ s }: { s: SubItem }) {
   }
 
   return (
-    <li className="card p-4">
+    <li className="card m-flat p-4">
       <p className="text-[12px] text-fg-3">{s.course} · {s.lesson} · {formatDateTime(s.createdAt)}</p>
       <p className="mt-0.5 text-[15px] font-bold text-fg">{s.student}</p>
       {s.prompt && <p className="mt-1 text-[12.5px] italic text-fg-3">Topshiriq: {s.prompt}</p>}
