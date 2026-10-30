@@ -41,6 +41,8 @@ export const SHELL = {
     fontL: { uz: "Katta", ru: "Крупный" },
     reduceMotion: { uz: "Harakatni kamaytirish", ru: "Меньше анимации" },
     reduceMotionHint: { uz: "Animatsiyalar va o'tishlar o'chadi", ru: "Анимации и переходы отключаются" },
+    dataSaver: { uz: "Ma'lumot tejash", ru: "Экономия трафика" },
+    dataSaverHint: { uz: "Lentada video o'zi o'ynamaydi, rasm va video oldindan yuklanmaydi, yuklanadigan rasmlar kichikroq", ru: "Видео в ленте не автовоспроизводится, медиа не подгружается заранее, загружаемые фото меньше" },
   },
 
   /** Tarmoq banneri */

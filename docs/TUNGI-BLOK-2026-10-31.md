@@ -26,6 +26,10 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Yopishqoq CTA (`components/ui/StickyCta.tsx`, sticky — fixed emas): vakansiyada «Ariza yuborish», e'londa «Taklif
   yuborish», kurs sahifasida «Kursga yozilish / Bepul boshlash» (narx bilan), mutaxassis profilida «Yozish · Ism»;
   maqsad blok ko'ringanda o'zi yashirinadi.
+- «Ma'lumot tejash» (Ko'rinish paneli, `html[data-saver]`, localStorage `redince-saver`; brauzer Data Saver
+  yoqilgan bo'lsa avtomatik): lentada video o'zi o'ynamaydi (controls bilan), Reels'da qo'shni videolar `preload=none`,
+  yuklashdan oldin rasm 1280px/0.78 sifatda siqiladi. Hook `components/motion/useDataSaver.ts`. Instagram «Use less
+  mobile data» muqobili.
 
 ## Kabinet telefonda
 - Profil sahifasi tablar (`ProfilePanels`): Akkaunt · Telegram · Mutaxassis profili · Maxfiylik · Ish vaqti — faqat

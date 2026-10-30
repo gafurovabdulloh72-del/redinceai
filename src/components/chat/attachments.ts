@@ -391,11 +391,15 @@ export async function compressImage(file: File): Promise<File> {
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
     const maxSide = Math.max(bmp.width, bmp.height);
-    if (file.size < IMAGE_COMPRESS_MIN_BYTES && maxSide <= IMAGE_MAX_SIDE) {
+    if (file.size < IMAGE_COMPRESS_MIN_BYTES && maxSide <= IMAGE_MAX_SIDE && document.documentElement.dataset.saver !== "1") {
       bmp.close();
       return file;
     }
-    const scale = Math.min(1, IMAGE_MAX_SIDE / maxSide);
+    // Ma'lumot tejash rejimida (html[data-saver]) — 1280px va past sifat
+    const saver = document.documentElement.dataset.saver === "1";
+    const limit = saver ? 1280 : IMAGE_MAX_SIDE;
+    const quality = saver ? 0.78 : IMAGE_QUALITY;
+    const scale = Math.min(1, limit / maxSide);
     const w = Math.max(1, Math.round(bmp.width * scale));
     const h = Math.max(1, Math.round(bmp.height * scale));
     const canvas = document.createElement("canvas");
@@ -409,7 +413,7 @@ export async function compressImage(file: File): Promise<File> {
     ctx.drawImage(bmp, 0, 0, w, h);
     bmp.close();
     const outType = file.type === "image/jpeg" ? "image/jpeg" : "image/webp";
-    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, outType, IMAGE_QUALITY));
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, outType, quality));
     // Brauzer so'ralgan formatni yoza olmasa (Safari WebP) PNG qaytaradi — unda asl fayl afzal
     if (!blob || blob.type !== outType || blob.size >= file.size) return file;
     const ext = outType === "image/jpeg" ? "jpg" : "webp";

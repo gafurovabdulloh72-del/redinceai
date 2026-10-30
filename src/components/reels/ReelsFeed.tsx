@@ -8,6 +8,7 @@ import { Avatar, Spinner, VerifiedBadge } from "@/components/ui";
 import { ShareSheet } from "@/components/social/ShareSheet";
 import { CommentsSheet } from "./CommentsSheet";
 import { showToast } from "@/components/ui/toast";
+import { useDataSaver } from "@/components/motion/useDataSaver";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { compactCount, cn } from "@/lib/utils";
 import type { ReelItem, ReelsMode } from "@/lib/reels";
@@ -383,6 +384,8 @@ function ReelSlide({
   const [expanded, setExpanded] = useState(false);
   const [burst, setBurst] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
+  // Ma'lumot tejash: qo'shni videolar oldindan yuklanmaydi
+  const saver = useDataSaver();
   // TikTok uslubidagi pastki progress chizig'i: 0..1, surib o'tkazish (scrub) mumkin
   const [prog, setProg] = useState(0);
   const [scrubbing, setScrubbing] = useState(false);
@@ -475,7 +478,7 @@ function ReelSlide({
     <section data-reel={item.key} className="relative flex h-[100svh] snap-start items-center justify-center md:py-6">
       <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] md:aspect-[9/16] md:h-full md:max-h-[880px] md:w-auto md:rounded-[26px] md:border md:border-white/10">
         {item.mediaType === "video" ? (
-          <video ref={videoRef} src={`${item.mediaUrl}#t=0.1`} poster={item.posterUrl ?? undefined} preload={active ? "auto" : near ? "metadata" : "none"} playsInline loop muted onClick={onTap} onTimeUpdate={onTime} className="h-full w-full cursor-pointer object-contain" />
+          <video ref={videoRef} src={`${item.mediaUrl}#t=0.1`} poster={item.posterUrl ?? undefined} preload={active ? "auto" : near && !saver ? "metadata" : "none"} playsInline loop muted onClick={onTap} onTimeUpdate={onTime} className="h-full w-full cursor-pointer object-contain" />
         ) : (
           <div className="relative h-full w-full" onClick={onTap}>
             {/* Orqa fon: rasmning xira nusxasi (har xil o'lchamdagi rasm chiroyli turadi) */}

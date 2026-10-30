@@ -16,10 +16,12 @@ interface Appearance {
   resolved: "light" | "dark";
   font: FontSize;
   reduceMotion: boolean;
+  /** Ma'lumot tejash (html[data-saver]) — lentada autoplay yo'q, preload yo'q, kichik rasm */
+  dataSaver: boolean;
 }
 
-const KEYS = { theme: "redince-theme", font: "redince-font", motion: "redince-motion" } as const;
-const SERVER: Appearance = { mode: "auto", resolved: "light", font: "m", reduceMotion: false };
+const KEYS = { theme: "redince-theme", font: "redince-font", motion: "redince-motion", saver: "redince-saver" } as const;
+const SERVER: Appearance = { mode: "auto", resolved: "light", font: "m", reduceMotion: false, dataSaver: false };
 
 /* ---- Do'kon: <html> atributlari haqiqat manbai (init skripti birinchi render'dan oldin o'rnatadi) ---- */
 function read(): Appearance {
@@ -30,18 +32,19 @@ function read(): Appearance {
     resolved: d.theme === "dark" ? "dark" : "light",
     font: d.font === "s" || d.font === "l" ? d.font : "m",
     reduceMotion: d.motion === "reduce",
+    dataSaver: d.saver === "1",
   };
 }
 let cache: Appearance | null = null;
 function snapshot(): Appearance {
   const next = read();
-  if (cache && cache.mode === next.mode && cache.resolved === next.resolved && cache.font === next.font && cache.reduceMotion === next.reduceMotion) return cache;
+  if (cache && cache.mode === next.mode && cache.resolved === next.resolved && cache.font === next.font && cache.reduceMotion === next.reduceMotion && cache.dataSaver === next.dataSaver) return cache;
   cache = next;
   return next;
 }
 function subscribe(cb: () => void) {
   const mo = new MutationObserver(cb);
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-theme-mode", "data-font", "data-motion"] });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-theme-mode", "data-font", "data-motion", "data-saver"] });
   return () => mo.disconnect();
 }
 function save(key: string, value: string | null) {
@@ -102,6 +105,13 @@ export function setReduceMotion(on: boolean) {
   if (on) d.dataset.motion = "reduce";
   else delete d.dataset.motion;
   save(KEYS.motion, on ? "reduce" : null);
+}
+/** Ma'lumot tejash — aniq tanlov saqlanadi ("1"/"0"); yo'q bo'lsa init skripti brauzerning Data Saver holatidan oladi */
+export function setDataSaver(on: boolean) {
+  const d = document.documentElement;
+  if (on) d.dataset.saver = "1";
+  else delete d.dataset.saver;
+  save(KEYS.saver, on ? "1" : "0");
 }
 
 export function useAppearance(): Appearance {
@@ -182,6 +192,13 @@ export function AppearancePanel({ className }: { className?: string }) {
           <span className="block text-[11.5px] leading-snug text-fg-3">{tr(til, SHELL.appearance.reduceMotionHint)}</span>
         </span>
         <button type="button" role="switch" aria-checked={a.reduceMotion} aria-label={tr(til, SHELL.appearance.reduceMotion)} onClick={() => setReduceMotion(!a.reduceMotion)} className="switch" />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-[13px] font-semibold text-fg">{tr(til, SHELL.appearance.dataSaver)}</span>
+          <span className="block text-[11.5px] leading-snug text-fg-3">{tr(til, SHELL.appearance.dataSaverHint)}</span>
+        </span>
+        <button type="button" role="switch" aria-checked={a.dataSaver} aria-label={tr(til, SHELL.appearance.dataSaver)} onClick={() => setDataSaver(!a.dataSaver)} className="switch" />
       </div>
     </div>
   );

@@ -481,7 +481,9 @@ export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 
     const el = ref.current;
     if (!el) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || typeof IntersectionObserver === "undefined") return;
+    // Ma'lumot tejash (html[data-saver]) — lentada video o'zi o'ynamaydi, foydalanuvchi bosadi
+    const saver = document.documentElement.dataset.saver === "1";
+    if (reduce || saver || typeof IntersectionObserver === "undefined") return;
     setAuto(true);
     const io = new IntersectionObserver(
       (entries) => {

@@ -44,8 +44,8 @@ export function ThemeToggle({ className }: { className?: string }) {
 
 /**
  * <head> ichida chaqiriladi: birinchi render'dan oldin tema (auto → tizim), shrift o'lchami va harakat rejimini o'rnatadi
- * (flash bo'lmasligi uchun). Kalitlar: redince-theme (light|dark; yo'q = auto), redince-font (s|l), redince-motion (reduce).
+ * (flash bo'lmasligi uchun). Kalitlar: redince-theme (light|dark; yo'q = auto), redince-font (s|l), redince-motion (reduce), redince-saver (1|0; yo'q = brauzerning Data Saver holati).
  */
 export const THEME_INIT_SCRIPT = `
-(function(){try{var d=document.documentElement,s=localStorage,t=s.getItem('redince-theme');if(t!=='light'&&t!=='dark'){t='auto'}d.dataset.theme=t==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;d.dataset.themeMode=t;var f=s.getItem('redince-font');if(f==='s'||f==='l'){d.dataset.font=f}if(s.getItem('redince-motion')==='reduce'){d.dataset.motion='reduce'}}catch(e){document.documentElement.dataset.theme='light'}})();
+(function(){try{var d=document.documentElement,s=localStorage,t=s.getItem('redince-theme');if(t!=='light'&&t!=='dark'){t='auto'}d.dataset.theme=t==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;d.dataset.themeMode=t;var f=s.getItem('redince-font');if(f==='s'||f==='l'){d.dataset.font=f}if(s.getItem('redince-motion')==='reduce'){d.dataset.motion='reduce'}var sv=s.getItem('redince-saver');if(sv==='1'||(sv===null&&navigator.connection&&navigator.connection.saveData)){d.dataset.saver='1'}}catch(e){document.documentElement.dataset.theme='light'}})();
 `.trim();
