@@ -1794,6 +1794,12 @@ select:focus-visible {
   transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
   will-change: transform;
 }
+/* Dars pleyeri yopishqoq (LessonPlayer): yuqori panel yashiringanda tepaga yopishadi */
+@media (max-width: 1023px) {
+  html[data-topbar-hidden] [data-sticky-player] {
+    top: env(safe-area-inset-top, 0px);
+  }
+}
 html[data-topbar-hidden] .m-topbar {
   transform: translateY(-100%);
 }

@@ -17,11 +17,9 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "
 
 /** Dars videosi: tezlik tanlash (eslab qoladi), vaqt belgilari (bosilsa shu joyga o'tadi), to'xtagan joydan davom etish,
  *  tugagach «Keyingi dars» sanog'i (bekor qilish mumkin; o'chirilsa eslab qoladi) */
-export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { lessonId: string; videoUrl: string | null; chapters: Array<{ t: number; title: string }>; next?: { id: string; title: string } | null }) {
+export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: string; videoUrl: string | null; chapters?: Array<{ t: number; title: string }>; next?: { id: string; title: string } | null }) {
   const ref = useRef<HTMLVideoElement>(null);
   const router = useRouter();
-  const [speed, setSpeed] = useState(1);
-  const [now, setNow] = useState(0);
   const [left, setLeft] = useState<number | null>(null); // avto-o'tish sanog'i (null — ko'rinmaydi)
   const [autoNext, setAutoNext] = useState(true);
   const posKey = `kasb_pos_${lessonId}`;
@@ -77,22 +75,16 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
     }
   }
 
-  useEffect(() => {
-    try {
-      const sp = Number(localStorage.getItem("kasb_speed"));
-      if (SPEEDS.includes(sp)) setSpeed(sp);
-    } catch {
-      /* noop */
-    }
-  }, []);
-  useEffect(() => {
-    if (ref.current) ref.current.playbackRate = speed;
-  }, [speed]);
-
   function onLoaded() {
     const v = ref.current;
     if (!v) return;
-    v.playbackRate = speed;
+    try {
+      // Saqlangan tezlik (LessonControls o'zgartiradi) — video yuklanganda qo'llanadi
+      const sp = Number(localStorage.getItem("kasb_speed"));
+      if (SPEEDS.includes(sp)) v.playbackRate = sp;
+    } catch {
+      /* noop */
+    }
     try {
       const p = Number(localStorage.getItem(posKey));
       if (p > 5 && p < v.duration - 5) v.currentTime = p;
@@ -104,7 +96,6 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
   function onTime() {
     const v = ref.current;
     if (!v) return;
-    setNow(Math.floor(v.currentTime));
     if (Date.now() - lastSave.current > 4000) {
       lastSave.current = Date.now();
       try {
@@ -114,14 +105,6 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
       }
     }
   }
-  function seek(t: number) {
-    const v = ref.current;
-    if (!v) return;
-    v.currentTime = t;
-    void v.play().catch(() => undefined);
-  }
-  const activeIdx = chapters.reduce((a, c, i) => (now >= c.t ? i : a), -1);
-
   if (!videoUrl) {
     return (
       <div className="grid aspect-video w-full place-items-center rounded-[16px] bg-fg/5">
@@ -130,7 +113,9 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
     );
   }
   return (
-    <div>
+    /* Telefon/planshet: video yopishqoq — tablar/eslatmalar o'qilganda ham ko'rinib turadi (YouTube/Udemy mobil odati);
+       yuqori panel yashiringanda top 0 (globals.css [data-sticky-player]) */
+    <div data-sticky-player="" className="max-lg:sticky max-lg:top-[calc(3.5rem+env(safe-area-inset-top))] max-lg:z-20 max-lg:-mx-4 max-lg:bg-bg max-lg:px-4 max-lg:pb-2 transition-[top] duration-200">
       <div className="relative overflow-hidden rounded-[16px] bg-black">
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video ref={ref} data-lesson-video="" src={videoUrl} controls={left === null} controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onEnded={onEnded} onPlay={() => setLeft(null)} className="aspect-video w-full bg-black" />
@@ -160,22 +145,53 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Tezlik va vaqt belgilari — pleyerdan ALOHIDA komponent (pleyer yopishqoq bo'lishi uchun faqat videoni o'z ichiga oladi).
+ * Video elementni `data-lesson-video` orqali topadi; joriy vaqtni `timeupdate` dan o'qiydi.
+ */
+export function LessonControls({ chapters, hasVideo }: { chapters: Array<{ t: number; title: string }>; hasVideo: boolean }) {
+  const [speed, setSpeed] = useState(1);
+  const [now, setNow] = useState(0);
+  const video = () => document.querySelector<HTMLVideoElement>(`[${LESSON_VIDEO_ATTR}]`);
+
+  useEffect(() => {
+    try {
+      const sp = Number(localStorage.getItem("kasb_speed"));
+      if (SPEEDS.includes(sp)) setSpeed(sp);
+    } catch {
+      /* noop */
+    }
+  }, []);
+  useEffect(() => {
+    const v = video();
+    if (!v) return;
+    const on = () => setNow(Math.floor(v.currentTime));
+    v.addEventListener("timeupdate", on);
+    return () => v.removeEventListener("timeupdate", on);
+  }, [hasVideo]);
+
+  if (!hasVideo) return null;
+  const activeIdx = chapters.reduce((a, c, i) => (now >= c.t ? i : a), -1);
+  const pick = (s: number) => {
+    setSpeed(s);
+    const v = video();
+    if (v) v.playbackRate = s;
+    try {
+      localStorage.setItem("kasb_speed", String(s));
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <div>
       <div className="mt-2 flex items-center gap-2 text-[12.5px] text-fg-3">
         <span className="font-semibold">Tezlik:</span>
         {SPEEDS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => {
-              setSpeed(s);
-              try {
-                localStorage.setItem("kasb_speed", String(s));
-              } catch {
-                /* noop */
-              }
-            }}
-            className={cn("rounded-md px-2 py-1 font-semibold tabular-nums transition", speed === s ? "bg-fg text-bg" : "bg-fg/6 text-fg-2 hover:bg-fg/10")}
-          >
+          <button key={s} type="button" onClick={() => pick(s)} aria-pressed={speed === s} className={cn("rounded-md px-2 py-1 font-semibold tabular-nums transition", speed === s ? "bg-fg text-bg" : "bg-fg/6 text-fg-2 hover:bg-fg/10")}>
             {s}×
           </button>
         ))}
@@ -184,7 +200,7 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
         <ol className="mt-3 divide-y divide-line rounded-[14px] border border-line">
           {chapters.map((c, i) => (
             <li key={`${c.t}-${i}`}>
-              <button type="button" onClick={() => seek(c.t)} className={cn("flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-[13.5px] transition hover:bg-fg/[0.04]", i === activeIdx && "bg-accent-soft/50")}>
+              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent(LESSON_SEEK_EVENT, { detail: { sec: c.t } }))} className={cn("flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-[13.5px] transition hover:bg-fg/[0.04]", i === activeIdx && "bg-accent-soft/50")}>
                 <span className="w-11 shrink-0 font-semibold tabular-nums text-accent-text">{fmt(c.t)}</span>
                 <span className={cn("min-w-0 flex-1 truncate", i === activeIdx ? "font-semibold text-fg" : "text-fg-2")}>{c.title}</span>
               </button>

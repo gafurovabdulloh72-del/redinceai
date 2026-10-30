@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Award, ChevronLeft, ChevronRight } from "lucide-react";
 import { LessonComplete } from "@/components/mentorship/LessonComplete";
-import { LessonPlayer } from "@/components/mentorship/LessonPlayer";
+import { LessonControls, LessonPlayer } from "@/components/mentorship/LessonPlayer";
 import { LessonSidebar } from "@/components/mentorship/LessonSidebar";
 import { LessonTabs, type LessonTab } from "@/components/mentorship/LessonTabs";
 import { AssignmentBlock, Materials, QuizBlock } from "@/components/mentorship/LessonExtras";
@@ -58,7 +58,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         {/* Chap ustun: pleyer + sarlavha + tablar */}
         <div className="min-w-0">
-          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} chapters={lesson.chapters} next={lesson.next} />
+          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} next={lesson.next} />
+          <LessonControls chapters={lesson.chapters} hasVideo={Boolean(lesson.videoUrl)} />
 
           <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">

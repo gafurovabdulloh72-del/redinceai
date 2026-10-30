@@ -92,6 +92,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Guruh chati telefonda TO'LIQ EKRAN (Telegram): `GroupChat` DmChat naqshida — `createPortal(document.body)` + `data-chat-open`
   (yuqori panel/pastki tab yashirinadi), sarlavhada «Orqaga» (inline kartaga qaytadi), inline kartada «To'liq ekran» tugmasi,
   klaviatura ochilganda balandlik `useVisualViewport`dan. Chat tabi ochilganda telefonda darhol to'liq ekran.
+- Dars pleyeri telefon/planshetda YOPISHQOQ (YouTube/Udemy mobil): `LessonPlayer` endi faqat video (`max-lg:sticky`, `data-sticky-player`,
+  yuqori panel yashiringanda `top: 0` — globals.css), tezlik va vaqt belgilari alohida `LessonControls` (video elementni `data-lesson-video`
+  orqali boshqaradi, bob bosilsa `ke:lesson-seek`). Yopishish doirasi — chap ustun (tablar/eslatmalar/savol-javob).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
