@@ -704,3 +704,52 @@ export async function listSavedCourses(userId: string, limit = 48): Promise<Cour
   const order = new Map(ids.map((id, i) => [id, i]));
   return cs.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).map((r) => toCard(r as never));
 }
+
+/* --------------------------- Bosh sahifa: «Davom etish» --------------------------- */
+export interface ContinueLearning {
+  courseTitle: string;
+  courseSlug: string;
+  coverUrl: string | null;
+  mentorName: string;
+  progressPct: number;
+  lessonId: string;
+  lessonTitle: string;
+  lessonPosition: number;
+  lessonsCount: number;
+}
+
+/**
+ * Bosh sahifadagi «O'qishni davom ettirish» kartasi (Udemy/Coursera odati): tugallanmagan eng so'nggi kurs —
+ * oxirgi ochilgan dars yoki birinchi bajarilmagan dars. Yozilmagan/hammasi tugagan bo'lsa null.
+ */
+export async function continueLearning(userId: string): Promise<ContinueLearning | null> {
+  const rows = await db.query.enrollments.findMany({
+    where: and(eq(enrollments.userId, userId), lt(enrollments.progressPct, 100)),
+    orderBy: [desc(enrollments.createdAt)],
+    limit: 5,
+    with: { course: { columns: { id: true, title: true, slug: true, coverUrl: true, isPublished: true, lessonsCount: true }, with: { mentor: { columns: { id: true }, with: { user: { columns: { name: true } } } } } } },
+  });
+  // Oxirgi ochilgan darsi borini afzal ko'ramiz (haqiqatan o'qiyotgan)
+  const e = rows.find((r) => r.lastLessonId && r.course.isPublished) ?? rows.find((r) => r.course.isPublished);
+  if (!e) return null;
+  const [lessonRows, done] = await Promise.all([
+    db.query.lessons.findMany({ where: eq(lessons.courseId, e.course.id), orderBy: [asc(lessons.position)], columns: { id: true, title: true, position: true } }),
+    db.query.lessonCompletions.findMany({ where: and(eq(lessonCompletions.userId, userId), eq(lessonCompletions.courseId, e.course.id)), columns: { lessonId: true } }),
+  ]);
+  if (!lessonRows.length) return null;
+  const doneSet = new Set(done.map((d) => d.lessonId));
+  // Oxirgi ochilgan dars bajarilgan bo'lsa — undan keyingi bajarilmagan dars
+  const lastIdx = lessonRows.findIndex((l) => l.id === e.lastLessonId);
+  const next = (lastIdx >= 0 && !doneSet.has(lessonRows[lastIdx].id) ? lessonRows[lastIdx] : null) ?? lessonRows.slice(Math.max(0, lastIdx)).find((l) => !doneSet.has(l.id)) ?? lessonRows.find((l) => !doneSet.has(l.id)) ?? lessonRows[0];
+  return {
+    courseTitle: e.course.title,
+    courseSlug: e.course.slug,
+    coverUrl: e.course.coverUrl,
+    mentorName: e.course.mentor.user.name,
+    progressPct: e.progressPct,
+    lessonId: next.id,
+    lessonTitle: next.title,
+    lessonPosition: next.position,
+    lessonsCount: lessonRows.length,
+  };
+}

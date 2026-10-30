@@ -82,6 +82,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - O'quv seriyasi (Duolingo/Coursera odati): `lib/mentorship/streak.ts` `learningStreak()` — faqat `lesson_completions`dan (Toshkent kuni,
   90 kunlik oyna): joriy zanjir, rekord, hafta nuqtalari; kabinet → Mentorlik'da `LearningStreakCard` (yozilganlarga), dars tugatilganda
   javobda `streak` → toast «🔥 N kunlik seriya».
+- Bosh sahifada «O'qishni davom ettirish» (Udemy/Coursera): tugallanmagan eng so'nggi kursning navbatdagi darsi + progress
+  (`continueLearning()` service.ts, `components/feed/ContinueLearningCard.tsx`, story qatoridan keyin, faqat yozilganlarga).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
