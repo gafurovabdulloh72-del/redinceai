@@ -16,7 +16,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
   const [{ s, xato }, user, locale] = await Promise.all([searchParams, getCurrentUser(), getLocale()]);
   return (
     <div>
-      <h1 className="mb-3 font-display text-[20px] font-semibold tracking-tight text-fg">{TITLE[locale]}</h1>
+      <h1 className="mb-3 font-display text-[20px] font-semibold tracking-tight text-fg max-sm:hidden">{TITLE[locale]}</h1>
       <DmChat initialId={s ?? null} viewerRole={user?.role ?? null} notice={xato ?? null} />
     </div>
   );

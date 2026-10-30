@@ -200,6 +200,100 @@ export function FadeImage({ src, alt, className, width, height }: { src: string;
 /**
  * Lightbox: rasmlar to'plami, ←/→ va swipe, Esc; ochilganda yopish tugmasiga, yopilganda ochgan tugmaga fokus qaytadi.
  */
+/**
+ * Lightbox rasmi: ikki barmoq bilan kattalashtirish (pinch), kattalashganda surish, ikki marta bosish = 2.5× / qaytish.
+ * Pointer hodisalari (touch + sichqoncha g'ildiragi). Kattalashgan holatda ota elementning svayp-slayd almashuvi o'chadi.
+ */
+function ZoomableImage({ src, alt, closing, onZoomChange }: { src: string; alt: string; closing: boolean; onZoomChange: (zoomed: boolean) => void }) {
+  const [t, setT] = useState({ s: 1, x: 0, y: 0 });
+  const pts = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; s: number; cx: number; cy: number; x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const lastTap = useRef(0);
+  const moved = useRef(false);
+  const clamp = (n: { s: number; x: number; y: number }) => {
+    const s = Math.min(5, Math.max(1, n.s));
+    if (s === 1) return { s: 1, x: 0, y: 0 };
+    const lim = (s - 1) * 0.5 * Math.min(window.innerWidth, 1200);
+    return { s, x: Math.max(-lim, Math.min(lim, n.x)), y: Math.max(-lim, Math.min(lim, n.y)) };
+  };
+  useEffect(() => {
+    onZoomChange(t.s > 1);
+  }, [t.s, onZoomChange]);
+  const dist = () => {
+    const [a, b] = [...pts.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+  const center = () => {
+    const [a, b] = [...pts.current.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        moved.current = false;
+        if (pts.current.size === 2) {
+          const c = center();
+          pinch.current = { d: dist(), s: t.s, cx: c.x, cy: c.y, x: t.x, y: t.y };
+          drag.current = null;
+        } else if (t.s > 1) {
+          drag.current = { x: e.clientX, y: e.clientY, tx: t.x, ty: t.y };
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        }
+      }}
+      onPointerMove={(e) => {
+        if (!pts.current.has(e.pointerId)) return;
+        pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinch.current && pts.current.size === 2) {
+          e.stopPropagation();
+          const p = pinch.current;
+          const s = p.s * (dist() / Math.max(1, p.d));
+          setT(clamp({ s, x: p.x, y: p.y }));
+          moved.current = true;
+        } else if (drag.current && t.s > 1) {
+          e.stopPropagation();
+          const d = drag.current;
+          if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) moved.current = true;
+          setT((cur) => clamp({ s: cur.s, x: d.tx + (e.clientX - d.x), y: d.ty + (e.clientY - d.y) }));
+        }
+      }}
+      onPointerUp={(e) => {
+        pts.current.delete(e.pointerId);
+        if (pts.current.size < 2) pinch.current = null;
+        if (pts.current.size === 0) drag.current = null;
+        if (t.s > 1) e.stopPropagation();
+        // Ikki marta bosish: 2.5× ↔ 1×
+        if (!moved.current && pts.current.size === 0) {
+          const now = Date.now();
+          if (now - lastTap.current < 300) {
+            e.stopPropagation();
+            setT((cur) => (cur.s > 1 ? { s: 1, x: 0, y: 0 } : { s: 2.5, x: 0, y: 0 }));
+            lastTap.current = 0;
+          } else lastTap.current = now;
+        }
+      }}
+      onPointerCancel={(e) => {
+        pts.current.delete(e.pointerId);
+        pinch.current = null;
+        drag.current = null;
+      }}
+      onWheel={(e) => {
+        if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return;
+        e.stopPropagation();
+        setT((cur) => clamp({ s: cur.s * (e.deltaY < 0 ? 1.12 : 0.9), x: cur.x, y: cur.y }));
+      }}
+      style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})`, transition: pinch.current || drag.current ? "none" : "transform 0.18s ease-out", touchAction: "none", cursor: t.s > 1 ? "grab" : "zoom-in" }}
+      className={cn("max-h-[92dvh] max-w-[96vw] select-none object-contain will-change-transform", closing ? "animate-modal-out" : "animate-modal-in")}
+    />
+  );
+}
+
 export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment[]; index: number | null; onClose: () => void; onIndex: (i: number) => void }) {
   const til = useLocale();
   const open = index !== null;
@@ -208,6 +302,7 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
   const closeBtn = useRef<HTMLButtonElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const startX = useRef<number | null>(null);
+  const zoomed = useRef(false);
   const [shown, setShown] = useState(index ?? 0);
   useEffect(() => setReady(true), []);
   useEffect(() => {
@@ -259,6 +354,7 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
         if (startX.current === null) return;
         const dx = e.clientX - startX.current;
         startX.current = null;
+        if (zoomed.current) return;
         if (Math.abs(dx) > 48) {
           e.stopPropagation();
           go(dx < 0 ? 1 : -1);
@@ -268,8 +364,7 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
       <button ref={closeBtn} type="button" onClick={onClose} aria-label={tr(til, FEED.close)} className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20">
         <X size={18} />
       </button>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={m.url} src={m.url} alt={m.name} onClick={(e) => e.stopPropagation()} className={cn("max-h-[92dvh] max-w-[96vw] select-none object-contain", closing ? "animate-modal-out" : "animate-modal-in")} draggable={false} />
+      <ZoomableImage key={m.url} src={m.url} alt={m.name} closing={closing} onZoomChange={(z) => (zoomed.current = z)} />
       {items.length > 1 && (
         <>
           <button type="button" onClick={(e) => (e.stopPropagation(), go(-1))} aria-label={tr(til, FEED.prev)} className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20">

@@ -7,6 +7,8 @@ import { ButtonLink, Avatar } from "@/components/ui";
 import { PostCard } from "@/components/groups/GroupFeed";
 import { FollowButton } from "@/components/groups/FollowButton";
 import { usePresence } from "@/components/motion/usePresence";
+import { usePullToRefresh } from "@/components/motion/usePullToRefresh";
+import { PullIndicator } from "@/components/motion/PullIndicator";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { FEED_POSTED_EVENT } from "./HomeComposer";
 import { FeedEmpty, LoadMore, PostSkeleton, useInfiniteSentinel, useRequireLogin, useVisibleInterval, withQuery } from "./shared";
@@ -117,6 +119,9 @@ export function HomeFeed({
       setLoadError(tr(til, FEED.loadFailed));
     }
   }, [base, storeKey, til]);
+
+  // Telefonda tortib yangilash (Instagram odati) — lentani qayta yuklaydi
+  const ptr = usePullToRefresh(reload);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loadingRef.current) return;
@@ -258,6 +263,7 @@ export function HomeFeed({
 
   return (
     <div className="relative grid gap-4">
+      <PullIndicator pull={ptr.pull} refreshing={ptr.refreshing} armed={ptr.armed} />
       {tagChip}
       {pill.mounted && (
         <div className="pointer-events-none sticky top-[4.75rem] z-20 flex justify-center md:top-3">
