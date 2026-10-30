@@ -73,6 +73,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   boshlanganda pleyerdagi soniya (`data-lesson-video`), belgi bosilsa pleyer o'sha joyga o'tadi (`ke:lesson-seek` hodisasi);
   API `/api/mentorlik/darslar/[id]/eslatmalar` (GET/POST, kursga yozilgan/egasi/admin) va `/api/mentorlik/eslatmalar/[id]` (DELETE, faqat egasi);
   xavfsizlik testlariga 2 ta IDOR holati qo'shildi (30/30).
+- Kurs sahifasi: «Kursni ko'rib chiqish» — birinchi bepul namuna darsining videosi muqova ustida o'ynaydi (`CoursePreview`,
+  `CourseDetail.previewVideo`), «Bu kursga kiradi» ro'yxati haqiqiy sonlar bilan (video daqiqa, material, test, vazifa —
+  `materialsCount/quizCount/assignmentCount`); telefonda asosiy ustunda, keng ekranda narx panelida. Qidiruv tur chiplari telefonda bitta aylanuvchi qator.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

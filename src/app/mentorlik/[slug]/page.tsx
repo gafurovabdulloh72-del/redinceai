@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Award, CheckCircle2, ChevronLeft, Clock, Languages, Lock, PlayCircle, RefreshCw, Star, Target, Users } from "lucide-react";
+import { Award, CheckCircle2, ChevronLeft, ClipboardCheck, Clock, Download, Infinity, Languages, ListChecks, Lock, PlayCircle, RefreshCw, Smartphone, Star, Target, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
 import { RefCapture } from "@/components/mentorship/PurchaseDialog";
@@ -73,6 +73,23 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const firstLesson = c.lessons[0]?.id ?? null;
   const resumeLesson = c.lessons.find((l) => !l.completed)?.id ?? firstLesson;
 
+  // «Bu kursga kiradi» bandlari — aside (keng ekran) va asosiy ustunda (telefon) bir xil ro'yxat
+  const inc = (icon: React.ReactNode, text: string, key: string) => (
+    <li key={key} className="flex items-center gap-2">
+      <span className="grid h-5 w-5 shrink-0 place-items-center text-fg-3">{icon}</span>
+      <span>{text}</span>
+    </li>
+  );
+  const includes = [
+    c.totalMin > 0 ? inc(<PlayCircle size={15} />, `${formatDuration(c.totalMin)} video dars`, "video") : inc(<PlayCircle size={15} />, `${c.lessonsCount} ta dars`, "dars"),
+    c.materialsCount > 0 ? inc(<Download size={15} />, `${c.materialsCount} ta yuklab olinadigan material`, "mat") : null,
+    c.quizCount > 0 ? inc(<ListChecks size={15} />, `${c.quizCount} ta bilim testi`, "quiz") : null,
+    c.assignmentCount > 0 ? inc(<ClipboardCheck size={15} />, `${c.assignmentCount} ta amaliy vazifa (ustoz tekshiradi)`, "hw") : null,
+    inc(<Smartphone size={15} />, "Telefon va kompyuterda", "dev"),
+    inc(<Infinity size={15} />, "Cheksiz kirish, o'z sur'atingizda", "inf"),
+    inc(<Award size={15} />, "Tugatganingizda sertifikat", "cert"),
+  ].filter(Boolean);
+
   return (
     <div className="container-x py-6 sm:py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
@@ -109,6 +126,12 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             <li className="inline-flex items-center gap-1"><RefreshCw size={13} /> Yangilangan {timeAgo(c.updatedAt)}</li>
             <li className="inline-flex items-center gap-1"><Award size={13} /> Sertifikat beriladi</li>
           </ul>
+
+          {/* Telefonda «Bu kursga kiradi» asosiy ustunda (aside tepada, ro'yxat u yerda yashirin) */}
+          <section className="card mt-5 p-4 m-flat sm:hidden" aria-labelledby="kurs-kiradi-m">
+            <h2 id="kurs-kiradi-m" className="mb-2.5 text-[15px] font-bold text-fg">Bu kursga kiradi</h2>
+            <ul className="space-y-2 text-[13.5px] text-fg-2">{includes}</ul>
+          </section>
 
           {/* Nimalarni o'rganasiz — ✓ ro'yxat (Udemy) */}
           {c.outcomes.length > 0 && (
@@ -278,11 +301,9 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                 <EnrollButton courseId={c.id} enrolled={c.enrolled} loggedIn={Boolean(user)} firstLessonId={c.enrolled ? resumeLesson : firstLesson} price={c.priceFrom} />
               )}
             </div>
-            <ul className="mt-4 space-y-2 text-[13px] text-fg-2 max-sm:hidden">
-              <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> {c.lessonsCount} ta video/matn dars</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> O&apos;z sur&apos;atingizda, cheksiz kirish</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={15} className="text-success-text" /> Progress kuzatuvi va tugatganingizda sertifikat</li>
-            </ul>
+            {/* «Bu kursga kiradi» (Udemy): haqiqiy sonlar — video daqiqa, dars, material, test, vazifa */}
+            <p className="mt-5 text-[13px] font-bold text-fg max-sm:hidden">Bu kursga kiradi</p>
+            <ul className="mt-2 space-y-2 text-[13px] text-fg-2 max-sm:hidden">{includes}</ul>
           </div>
           {user && !c.isOwner && c.priceFrom > 0 && <div className="mt-3"><ReferralCard path={`/mentorlik/${c.slug}`} percent={c.refPercent} /></div>}
         </aside>
