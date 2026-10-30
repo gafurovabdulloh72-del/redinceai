@@ -10,6 +10,7 @@ import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { CourseCard } from "@/components/mentorship/CourseCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
+import { StickyCta } from "@/components/ui/StickyCta";
 import { getCurrentUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site-url";
 import { recordCourseView } from "@/lib/mentorship/growth";
@@ -273,6 +274,15 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             ))}
           </div>
         </section>
+      )}
+      {/* Telefon: narx paneli tepada — darslarga aylantirilganda «Yozilish» ko'rinmay qoladi, yopishqoq CTA (panel ko'ringanda yashirinadi) */}
+      {!c.isOwner && !c.enrolled && (
+        <StickyCta targetId="kursga-yozilish">
+          <a href="#kursga-yozilish" className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
+            <span className="truncate">{formatSom(c.priceFrom)}</span>
+            <span className="inline-flex items-center gap-1.5">{c.priceFrom ? "Kursga yozilish" : "Bepul boshlash"} <ChevronLeft size={16} className="rotate-180" /></span>
+          </a>
+        </StickyCta>
       )}
     </div>
   );
