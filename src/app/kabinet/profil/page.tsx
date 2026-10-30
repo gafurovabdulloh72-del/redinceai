@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Briefcase, Clock3, PartyPopper, Send, ShieldCheck, UserRound } from "lucide-react";
+import { PartyPopper } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
 import { PrivacySettings } from "@/components/kabinet/PrivacySettings";
 import { ProfileForm, type ProfileInitial, type ProfilePrefill } from "@/components/kabinet/ProfileForm";
@@ -9,6 +8,7 @@ import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, REGION_BY_SLUG } from "@/lib/const
 import { getSettings } from "@/lib/payments/settings";
 import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
 import { TelegramCard } from "@/components/kabinet/TelegramCard";
+import { ProfilePanels } from "@/components/kabinet/ProfilePanels";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { resolveVisibility } from "@/lib/privacy";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
@@ -71,17 +71,6 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
   // Telegram kartasi faqat bot to'liq sozlangan bo'lsa (token + username) ko'rinadi — server'da env tekshiriladi
   const telegramEnabled = isTelegramEnabled() && Boolean(telegramBotUsername());
 
-  const sections = [
-    { href: "#akkaunt", label: "Akkaunt", icon: UserRound },
-    ...(telegramEnabled ? [{ href: "#telegram", label: "Telegram", icon: Send }] : []),
-    { href: "#mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: Briefcase },
-    ...(s
-      ? [
-          { href: "#maxfiylik", label: "Maxfiylik", icon: ShieldCheck },
-          { href: "#ish-vaqti", label: "Ish vaqti", icon: Clock3 },
-        ]
-      : []),
-  ];
 
   return (
     <div className="animate-fade-up">
@@ -117,47 +106,41 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         </p>
       </div>
 
-      {/* Bo'limlar bo'ylab tez o'tish */}
-      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <ul className="flex w-max gap-1.5">
-          {sections.map((x) => (
-            <li key={x.href}>
-              <Link href={x.href} className="press inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                <x.icon size={14} className="text-fg-3" /> {x.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="stagger space-y-5 [&>*]:animate-fade-up">
-        <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} />
-
-        {telegramEnabled && <TelegramCard linked={Boolean(user.telegramChatId)} />}
-
-        <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} />
-
-        {s && (
-          <>
-            <PrivacySettings
-              initial={visibility ?? resolveVisibility(s.visibility)}
-              slug={s.slug}
-              present={{
-                phone: Boolean(user.phone),
-                telegram: Boolean(s.telegram),
-                instagram: Boolean(s.instagram),
-                youtube: Boolean(s.youtube),
-                website: Boolean(s.website),
-                email: true,
-                schedule: Boolean(s.schedule),
-                gender: Boolean(user.gender),
-                city: true,
-              }}
-            />
-            <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} blockedDates={s.blockedDates ?? []} />
-          </>
-        )}
-      </div>
+      {/* Bo'limlar: telefonda tablar (faqat tanlangani chiziladi), sm+ da chiplar + hammasi ustma-ust */}
+      <ProfilePanels
+        panels={[
+          { key: "akkaunt", label: "Akkaunt", icon: "user", node: <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} /> },
+          ...(telegramEnabled ? [{ key: "telegram", label: "Telegram", icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} /> }] : []),
+          { key: "mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: "briefcase", node: <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} /> },
+          ...(s
+            ? [
+                {
+                  key: "maxfiylik",
+                  label: "Maxfiylik",
+                  icon: "shield" as const,
+                  node: (
+                    <PrivacySettings
+                      initial={visibility ?? resolveVisibility(s.visibility)}
+                      slug={s.slug}
+                      present={{
+                        phone: Boolean(user.phone),
+                        telegram: Boolean(s.telegram),
+                        instagram: Boolean(s.instagram),
+                        youtube: Boolean(s.youtube),
+                        website: Boolean(s.website),
+                        email: true,
+                        schedule: Boolean(s.schedule),
+                        gender: Boolean(user.gender),
+                        city: true,
+                      }}
+                    />
+                  ),
+                },
+                { key: "ish-vaqti", label: "Ish vaqti", icon: "clock" as const, node: <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} blockedDates={s.blockedDates ?? []} /> },
+              ]
+            : []),
+        ]}
+      />
     </div>
   );
 }
