@@ -89,6 +89,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   javob izohida «…ga javob» iqtibosi.
 - Regressiya crawl (yorug'+qorong'u, 86 sahifa): yangi HSCROLL/xato yo'q; OVER — marquee/dekorativ SVG/`truncate` ichidagi span (soxta),
   ERR — kompilyatsiya paytidagi vaqtinchalik «network error» (qayta tekshirildi: toza), BTN-NONAME — `aria-labelledby` switch'lar (crawler hisobga olmaydi).
+- Guruh chati telefonda TO'LIQ EKRAN (Telegram): `GroupChat` DmChat naqshida — `createPortal(document.body)` + `data-chat-open`
+  (yuqori panel/pastki tab yashirinadi), sarlavhada «Orqaga» (inline kartaga qaytadi), inline kartada «To'liq ekran» tugmasi,
+  klaviatura ochilganda balandlik `useVisualViewport`dan. Chat tabi ochilganda telefonda darhol to'liq ekran.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

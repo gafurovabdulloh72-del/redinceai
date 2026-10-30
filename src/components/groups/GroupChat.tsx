@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useIsPhone } from "@/components/motion/useMediaQuery";
+import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { haptic } from "@/components/motion/haptics";
-import { ArrowDown, Check, Copy, CornerUpLeft, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, Check, Copy, CornerUpLeft, Maximize2, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -564,14 +567,41 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   const canSend = (text.trim().length > 0 || (files.length > 0 && !editing)) && !busy && !uploading;
   const nearLimit = text.length > GROUP_MSG_MAX - 200;
 
-  return (
-    <div className="card flex flex-col overflow-hidden" style={{ height: "min(70vh, 640px)" }}>
-      {/* Sarlavha: nom · a'zolar · qidiruv */}
-      <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2 text-[12.5px] text-fg-3 sm:px-4">
-        <span className="truncate font-semibold text-fg-2">
-          {chatLabel} · {compactCount(membersCount)}
+  // Telefon: Telegram kabi TO'LIQ EKRAN (DmChat naqshi — portal + data-chat-open; `fixed` sahifa ichida emas, body'da)
+  const phone = useIsPhone();
+  const [full, setFull] = useState(true);
+  const fullscreen = phone && full;
+  const vv = useVisualViewport(fullscreen);
+  useEffect(() => {
+    const el = document.documentElement;
+    if (fullscreen) el.setAttribute("data-chat-open", "1");
+    else el.removeAttribute("data-chat-open");
+    return () => el.removeAttribute("data-chat-open");
+  }, [fullscreen]);
+
+  const root = (
+    <div
+      className={cn(fullscreen ? "fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "card flex flex-col overflow-hidden")}
+      style={fullscreen ? (vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined) : { height: "min(70vh, 640px)" }}
+    >
+      {/* Sarlavha: nom · a'zolar · qidiruv (to'liq ekranda — orqaga tugmasi, kattaroq) */}
+      <div className={cn("flex items-center justify-between gap-2 border-b border-line px-3 text-[12.5px] text-fg-3 sm:px-4", fullscreen ? "min-h-14 py-2" : "py-2")}>
+        <span className="flex min-w-0 items-center gap-1">
+          {fullscreen && (
+            <button type="button" onClick={() => setFull(false)} aria-label="Orqaga" className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-fg transition hover:bg-fg/6">
+              <ArrowLeft size={20} />
+            </button>
+          )}
+          <span className={cn("truncate font-semibold", fullscreen ? "text-[15px] text-fg" : "text-fg-2")}>
+            {chatLabel} · {compactCount(membersCount)}
+          </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
+          {phone && !fullscreen && (
+            <button type="button" onClick={() => setFull(true)} aria-label="To'liq ekran" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+              <Maximize2 size={15} />
+            </button>
+          )}
           <CallButton kind="group" id={slug} title={chatLabel} className="h-8 w-8" />
           <button
             type="button"
@@ -941,6 +971,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
       </div>
     </div>
   );
+  return fullscreen ? createPortal(root, document.body) : root;
 }
 
 function MenuItem({ icon: Icon, tone = "default", onClick, children }: { icon: typeof Pin; tone?: "default" | "danger"; onClick: () => void; children: React.ReactNode }) {
