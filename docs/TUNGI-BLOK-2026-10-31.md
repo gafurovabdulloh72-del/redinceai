@@ -24,7 +24,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Qidiruv: telefonda «Qidirish» tugmasi yo'q — yozish bilan qidiradi (enterKeyHint=search).
 - Jamoa sahifasi: sarlavha yassi, muqova chetdan chetgacha, breadcrumb yo'q.
 - Yopishqoq CTA (`components/ui/StickyCta.tsx`, sticky — fixed emas): vakansiyada «Ariza yuborish», e'londa «Taklif
-  yuborish», kurs sahifasida «Kursga yozilish / Bepul boshlash» (narx bilan); maqsad blok ko'ringanda o'zi yashirinadi.
+  yuborish», kurs sahifasida «Kursga yozilish / Bepul boshlash» (narx bilan), mutaxassis profilida «Yozish · Ism»;
+  maqsad blok ko'ringanda o'zi yashirinadi.
 
 ## Kabinet telefonda
 - Profil sahifasi tablar (`ProfilePanels`): Akkaunt · Telegram · Mutaxassis profili · Maxfiylik · Ish vaqti — faqat
@@ -57,4 +58,3 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 ## Keyingi g'oyalar
 - Kurs kartasiga jami davomiylik (listCourses'da sum).
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
-- StickyCta'ni mutaxassis profili («Yozish») uchun ham ko'rib chiqish.
