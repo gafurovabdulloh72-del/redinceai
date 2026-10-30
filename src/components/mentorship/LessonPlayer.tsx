@@ -6,6 +6,10 @@ import { PlayCircle, SkipForward, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/components/motion/haptics";
 
+/** Eslatmalar (LessonNotes) pleyerni shu hodisa bilan kerakli soniyaga o'tkazadi: `detail: { sec }` */
+export const LESSON_SEEK_EVENT = "ke:lesson-seek";
+/** Pleyer videosi shu atribut bilan belgilanadi — boshqa komponentlar joriy vaqtni o'qiydi */
+export const LESSON_VIDEO_ATTR = "data-lesson-video";
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
 /** Video tugagach keyingi darsga avto-o'tish sanog'i (soniya) — Udemy/YouTube odati */
 const AUTONEXT_SEC = 6;
@@ -39,6 +43,19 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
     const t = setTimeout(() => setLeft((v) => (v === null ? null : v - 1)), 1000);
     return () => clearTimeout(t);
   }, [left, next, router]);
+
+  // Eslatmadagi vaqt belgisi bosilganda — shu joyga o'tish
+  useEffect(() => {
+    const on = (e: Event) => {
+      const sec = (e as CustomEvent<{ sec: number }>).detail?.sec;
+      const v = ref.current;
+      if (!v || typeof sec !== "number") return;
+      v.currentTime = Math.max(0, sec);
+      void v.play().catch(() => undefined);
+    };
+    window.addEventListener(LESSON_SEEK_EVENT, on);
+    return () => window.removeEventListener(LESSON_SEEK_EVENT, on);
+  }, []);
 
   function onEnded() {
     try {
@@ -116,7 +133,7 @@ export function LessonPlayer({ lessonId, videoUrl, chapters, next = null }: { le
     <div>
       <div className="relative overflow-hidden rounded-[16px] bg-black">
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video ref={ref} src={videoUrl} controls={left === null} controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onEnded={onEnded} onPlay={() => setLeft(null)} className="aspect-video w-full bg-black" />
+        <video ref={ref} data-lesson-video="" src={videoUrl} controls={left === null} controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onEnded={onEnded} onPlay={() => setLeft(null)} className="aspect-video w-full bg-black" />
         {left !== null && next && (
           /* Video tugadi — keyingi dars kartasi (sanoq halqasi + bekor qilish). Parda bg-black/.. — bg-ink qorong'uda krem bo'ladi */
           <div className={cn("absolute inset-0 grid place-items-center bg-black/70 p-3 text-white sm:p-4", !prefersReducedMotion() && "pop-in")} role="status" aria-live="polite">

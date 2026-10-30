@@ -131,6 +131,16 @@ test("IDOR: begona postni o'chirish → 403/404", async () => {
   assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
 });
 
+test("IDOR: kursga yozilmagan mijoz dars eslatmalarini ko'ra olmaydi → 403/404", async () => {
+  const r = await req("cl", "/api/mentorlik/darslar/begona-dars-id/eslatmalar");
+  assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
+});
+
+test("IDOR: begona eslatmani o'chirish → 404", async () => {
+  const r = await req("cl", "/api/mentorlik/eslatmalar/begona-eslatma-id", { method: "DELETE" });
+  assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
+});
+
 test("IDOR: begona post statistikasi → 403/404", async () => {
   const r = await req("cl", "/api/posts/begona-post-id/statistika");
   assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);

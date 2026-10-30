@@ -99,4 +99,5 @@ export const quizSubmitSchema = z.object({ answers: z.array(z.number().int().min
 export const submissionSchema = z.object({ body: z.string().trim().max(2000).default(""), fileUrl: z.string().trim().max(500).refine((u) => !u || UPLOAD_URL_RE.test(u), "Fayl sayt orqali yuklanishi kerak").nullish() });
 export const submissionReviewSchema = z.object({ status: z.enum(["reviewed", "needs_work"]), grade: z.number().int().min(0).max(100).nullish(), feedback: z.string().trim().max(1500).default(""), showcase: z.boolean().default(false) });
 export const lessonCommentSchema = z.object({ body: z.string().trim().min(2, "Juda qisqa").max(1200), parentId: z.string().max(64).nullish() });
+export const lessonNoteSchema = z.object({ body: z.string().trim().min(1, "Bo'sh eslatma").max(2000), atSec: z.number().int().min(0).max(24 * 3600).default(0) });
 export const roadmapSchema = z.object({ title: z.string().trim().min(3).max(80), description: z.string().trim().max(300).default(""), courseIds: z.array(z.string().max(64)).min(1).max(12) });

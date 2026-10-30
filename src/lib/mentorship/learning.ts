@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { assignmentSubmissions, certificates, courses, enrollments, lessonCompletions, lessonComments, lessons, mentors, quizAttempts, roadmaps, users } from "@/lib/db/schema";
+import { assignmentSubmissions, certificates, courses, enrollments, lessonCompletions, lessonComments, lessonNotes, lessons, mentors, quizAttempts, roadmaps, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
@@ -187,6 +187,34 @@ export async function deleteLessonComment(commentId: string, userId: string, adm
   const { isOwner } = await lessonWithAccess(cm.lessonId, userId, admin);
   if (cm.userId !== userId && !isOwner && !admin) throw new ApiError(403, "Ruxsat yo'q");
   await db.delete(lessonComments).where(sql`${lessonComments.id} = ${commentId} or ${lessonComments.parentId} = ${commentId}`);
+}
+
+/* --------------------------- Eslatmalar (Udemy «Notes») --------------------------- */
+export type LessonNoteView = { id: string; atSec: number; body: string; createdAt: number; lessonId: string; lessonTitle?: string };
+export const LESSON_NOTES_MAX = 200;
+
+/** Talabaning shu darsdagi eslatmalari — faqat o'ziniki (ustoz ham ko'rmaydi), vaqt bo'yicha */
+export async function listLessonNotes(lessonId: string, userId: string, admin: boolean): Promise<LessonNoteView[]> {
+  const { access } = await lessonWithAccess(lessonId, userId, admin);
+  if (!access) throw new ApiError(403, "Eslatmalar faqat kursga yozilganlar uchun");
+  const rows = await db.query.lessonNotes.findMany({ where: and(eq(lessonNotes.lessonId, lessonId), eq(lessonNotes.userId, userId)), orderBy: [asc(lessonNotes.atSec), asc(lessonNotes.createdAt)], limit: LESSON_NOTES_MAX });
+  return rows.map((r) => ({ id: r.id, atSec: r.atSec, body: r.body, createdAt: r.createdAt.getTime(), lessonId: r.lessonId }));
+}
+
+export async function addLessonNote(lessonId: string, userId: string, admin: boolean, input: { body: string; atSec: number }) {
+  const { l, access } = await lessonWithAccess(lessonId, userId, admin);
+  if (!access) throw new ApiError(403, "Eslatma yozish uchun kursga yoziling");
+  const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(lessonNotes).where(and(eq(lessonNotes.lessonId, lessonId), eq(lessonNotes.userId, userId)));
+  if (Number(n) >= LESSON_NOTES_MAX) throw new ApiError(409, `Bir darsga ko'pi bilan ${LESSON_NOTES_MAX} ta eslatma`);
+  const id = uid();
+  await db.insert(lessonNotes).values({ id, lessonId, courseId: l.courseId, userId, atSec: Math.max(0, Math.floor(input.atSec)), body: input.body });
+  return { id };
+}
+
+/** Faqat egasi o'chiradi (admin ham emas — shaxsiy qaydlar) */
+export async function deleteLessonNote(noteId: string, userId: string) {
+  const r = await db.delete(lessonNotes).where(and(eq(lessonNotes.id, noteId), eq(lessonNotes.userId, userId))).returning({ id: lessonNotes.id });
+  if (!r.length) throw new ApiError(404, "Eslatma topilmadi");
 }
 
 /* --------------------------- Yo'l xaritalari --------------------------- */

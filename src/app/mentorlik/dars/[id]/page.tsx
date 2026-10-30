@@ -8,6 +8,7 @@ import { LessonSidebar } from "@/components/mentorship/LessonSidebar";
 import { LessonTabs, type LessonTab } from "@/components/mentorship/LessonTabs";
 import { AssignmentBlock, Materials, QuizBlock } from "@/components/mentorship/LessonExtras";
 import { LessonQA } from "@/components/mentorship/LessonQA";
+import { LessonNotes } from "@/components/mentorship/LessonNotes";
 import { getCurrentUser } from "@/lib/auth";
 import { getLessonForViewer, type LessonView } from "@/lib/mentorship/service";
 import { formatDuration } from "@/lib/mentorship/format";
@@ -45,6 +46,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       content: <AssignmentBlock lessonId={lesson.id} prompt={lesson.assignment} submission={lesson.submission} canSubmit={lesson.enrolled && !lesson.isOwner} />,
     });
   if (canSeeQA && user) tabs.push({ key: "savol", label: "Savol-javob", content: <LessonQA lessonId={lesson.id} isMentor={lesson.isOwner || user.role === "admin"} /> });
+  // Udemy «Notes»: shaxsiy eslatmalar, video vaqt belgisi bilan — faqat kursga kirganlarga
+  if (canSeeQA && user) tabs.push({ key: "eslatma", label: "Eslatmalar", content: <LessonNotes lessonId={lesson.id} hasVideo={Boolean(lesson.videoUrl)} /> });
 
   return (
     <div className="container-x py-4 sm:py-6">

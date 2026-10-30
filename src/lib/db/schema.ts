@@ -2542,6 +2542,30 @@ export const lessonComments = sqliteTable(
   (t) => [index("lesson_comments_lesson_idx").on(t.lessonId, t.createdAt)],
 );
 
+/** Dars eslatmalari (Udemy «Notes»): talabaning shaxsiy qaydlari, videodagi vaqt belgisi bilan — faqat o'ziga ko'rinadi */
+export const lessonNotes = sqliteTable(
+  "lesson_notes",
+  {
+    id: text("id").primaryKey(),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Videodagi soniya (0 — vaqtsiz eslatma) */
+    atSec: integer("at_sec").notNull().default(0),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("lesson_notes_user_lesson_idx").on(t.userId, t.lessonId, t.atSec)],
+);
+
 /** Sertifikat: kurs to'liq tugatilganda (barcha darslar + testlar) beriladi; ommaviy tekshiriladi */
 export const certificates = sqliteTable(
   "certificates",

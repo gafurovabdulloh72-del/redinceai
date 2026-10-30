@@ -69,6 +69,10 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Chat ro'yxati: Telegram kabi qatorni chapga surish → Qadash · Ovozsiz · Arxiv (faqat telefon, 150px, vertikal scroll buzilmaydi,
   ochiq qatorga bosish — yopadi). Klaviatura: `viewport.interactiveWidget="resizes-content"` (Android) + `useVisualViewport()`
   (iOS Safari — to'liq ekranli chat balandligi ko'rinadigan maydonga teng, yozish maydoni klaviatura ustida qoladi).
+- Dars «Eslatmalar» (Udemy Notes): `lesson_notes` jadvali (faqat egasiga ko'rinadi, ustoz ham ko'rmaydi), vaqt belgisi — yozish
+  boshlanganda pleyerdagi soniya (`data-lesson-video`), belgi bosilsa pleyer o'sha joyga o'tadi (`ke:lesson-seek` hodisasi);
+  API `/api/mentorlik/darslar/[id]/eslatmalar` (GET/POST, kursga yozilgan/egasi/admin) va `/api/mentorlik/eslatmalar/[id]` (DELETE, faqat egasi);
+  xavfsizlik testlariga 2 ta IDOR holati qo'shildi (30/30).
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
