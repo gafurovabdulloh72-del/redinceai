@@ -280,7 +280,7 @@ export default async function KabinetPage() {
       </header>
 
       {/* ---------- Bugun ---------- */}
-      <section className="card mb-5" aria-labelledby="today-title">
+      <section className="card m-flat mb-5" aria-labelledby="today-title">
         <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
           <h2 id="today-title" className="font-display text-[17px] font-semibold text-fg">
             Bugun
@@ -389,7 +389,7 @@ export default async function KabinetPage() {
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
         {/* ---------- Chap: so'nggi buyurtmalar + faollik ---------- */}
         <div className="space-y-5 lg:col-span-2">
-          <section className="card" aria-labelledby="recent-title">
+          <section className="card m-flat" aria-labelledby="recent-title">
             <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
               <div>
                 <h2 id="recent-title" className="font-display text-[17px] font-semibold text-fg">
@@ -448,7 +448,7 @@ export default async function KabinetPage() {
 
         {/* ---------- O'ng ustun: profil + tezkor amallar + bo'limlar ---------- */}
         <div className="space-y-5">
-          <section className="card p-4" aria-labelledby="profile-card-title">
+          <section className="card m-flat p-4" aria-labelledby="profile-card-title">
             <h2 id="profile-card-title" className="sr-only">
               Profil
             </h2>
@@ -466,7 +466,7 @@ export default async function KabinetPage() {
           </section>
 
           {/* Bo'limlar: obuna / takliflar (mutaxassis), e'lonlar / sevimlilar (mijoz) — bitta inset ro'yxat */}
-          <ul className="list-inset">
+          <ul className="list-inset m-flat">
             {sp && subState && subState.status !== "off" && (
               <li>
                 <Row

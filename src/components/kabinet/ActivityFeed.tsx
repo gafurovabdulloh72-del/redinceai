@@ -109,7 +109,7 @@ export async function ActivityFeed({ userId, specialist }: { userId: string; spe
   if (items.length === 0 && myPosts.length === 0) return null;
 
   return (
-    <section className="card" aria-labelledby="activity-title">
+    <section className="card m-flat" aria-labelledby="activity-title">
       <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
         <div>
           <h2 id="activity-title" className="font-display text-[17px] font-semibold text-fg">
