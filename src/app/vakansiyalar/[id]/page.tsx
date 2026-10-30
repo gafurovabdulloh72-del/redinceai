@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { BadgeCheck, Pencil, Users, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { ApplyForm } from "@/components/vacancies/ApplyForm";
+import { StickyCta } from "@/components/ui/StickyCta";
 import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
@@ -268,12 +269,12 @@ export default async function VacancyPage({ params }: { params: Params }) {
       )}
       {/* Telefon: pastda yopishqoq «Ariza yuborish» — forma sahifa oxirida, ko'rinmay qolmasin (Udemy/HeadHunter odati). fixed emas — sticky */}
       {!v.isOwner && !closed && !v.myApplication && (
-        <div className="pointer-events-none sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom)+0.5rem)] z-20 -mx-4 mt-4 px-4 sm:hidden">
-          <a href="#ariza" className="btn-accent press pointer-events-auto flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
+        <StickyCta targetId="ariza">
+          <a href="#ariza" className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
             <span className="truncate">{salaryLabel(v.salaryMin, v.salaryMax)}</span>
             <span className="inline-flex items-center gap-1.5">Ariza yuborish <ArrowRight size={16} /></span>
           </a>
-        </div>
+        </StickyCta>
       )}
     </div>
   );
