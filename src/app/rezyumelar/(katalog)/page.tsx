@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Rezyumelar — nomzodlar katalogi",
+  other: { "m-title": "Rezyumelar" },
   description: "Onlayn kasblar bo'yicha nomzodlar: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim. Rezyumeni ko'ring va sayt ichidagi chat orqali yozing.",
   alternates: { canonical: "/rezyumelar" },
 };

@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Ishlar — ochiq e'lonlar",
+  other: { "m-title": "Ishlar" },
   description: "Mijozlarning ochiq loyihalari: videosyomka, montaj, dizayn, animatsiya va boshqalar. Mos e'lonni toping va taklif yuboring.",
   alternates: { canonical: "/ishlar" },
 };

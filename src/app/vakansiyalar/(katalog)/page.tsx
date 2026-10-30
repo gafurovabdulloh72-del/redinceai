@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Vakansiyalar — onlayn ish o'rinlari",
+  other: { "m-title": "Vakansiyalar" },
   description: "Masofaviy va ofis vakansiyalari: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim. Joylash ham, ariza berish ham bepul.",
   alternates: { canonical: "/vakansiyalar" },
 };
@@ -59,7 +60,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
             <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="lg">
               <Plus size={18} /> Vakansiya joylash
             </ButtonLink>
-            <FeedLink href="/vakansiyalar/feed.xml" title="Yangi vakansiyalar RSS lentasi" />
+            <FeedLink href="/vakansiyalar/feed.xml" title="Yangi vakansiyalar RSS lentasi" className="max-sm:hidden" />
             <ButtonLink href="/rezyumelar" variant="outline" size="lg">
               Rezyumelar
             </ButtonLink>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useTransition, type FormEvent } from "react";
-import { Search } from "lucide-react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { REGIONS } from "@/lib/constants";
@@ -34,6 +35,10 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
+  // Telefonda hudud/saralash/byudjet maydonlari yig'ilgan — filtr qo'yilgan bo'lsa ochiq turadi
+  const hasExtra = Boolean(values.region || values.min || values.max || (values.sort && values.sort !== "newest"));
+  const [more, setMore] = useState(hasExtra);
+  const extra = cn("min-w-0", !more && "max-sm:hidden");
 
   const go = (form: HTMLFormElement) => {
     const fd = new FormData(form);
@@ -92,7 +97,11 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
         />
       </div>
 
-      <div className="min-w-0 lg:order-2">
+      <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} className={cn("chip col-span-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold sm:hidden", more ? "bg-fg text-bg" : "text-fg-2")}>
+        <SlidersHorizontal size={14} aria-hidden /> {tr(til, more ? ISHLAR.f.less : hasExtra ? ISHLAR.f.moreActive : ISHLAR.f.more)}
+      </button>
+
+      <div className={cn(extra, "lg:order-2")}>
         <label htmlFor="job-region" className="sr-only">
           {tr(til, ISHLAR.f.region)}
         </label>
@@ -107,7 +116,7 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
         </select>
       </div>
 
-      <div className="min-w-0 lg:order-5">
+      <div className={cn(extra, "lg:order-5")}>
         <label htmlFor="job-sort" className="sr-only">
           {tr(til, ISHLAR.f.sort)}
         </label>
@@ -120,13 +129,13 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
         </select>
       </div>
 
-      <div className="min-w-0 lg:order-3">
+      <div className={cn(extra, "lg:order-3")}>
         <label htmlFor="job-min" className="sr-only">
           {tr(til, ISHLAR.f.minLabel)}
         </label>
         <input id="job-min" name="min" inputMode="numeric" defaultValue={values.min ? String(values.min) : ""} placeholder={tr(til, ISHLAR.f.minPlaceholder)} className="field h-11 px-3.5 text-[14px]" />
       </div>
-      <div className="min-w-0 lg:order-4">
+      <div className={cn(extra, "lg:order-4")}>
         <label htmlFor="job-max" className="sr-only">
           {tr(til, ISHLAR.f.maxLabel)}
         </label>
