@@ -95,6 +95,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Dars pleyeri telefon/planshetda YOPISHQOQ (YouTube/Udemy mobil): `LessonPlayer` endi faqat video (`max-lg:sticky`, `data-sticky-player`,
   yuqori panel yashiringanda `top: 0` — globals.css), tezlik va vaqt belgilari alohida `LessonControls` (video elementni `data-lesson-video`
   orqali boshqaradi, bob bosilsa `ke:lesson-seek`). Yopishish doirasi — chap ustun (tablar/eslatmalar/savol-javob).
+- Vakansiyalar/Ishlar qidiruv formasi telefonda ixcham: katta «Qidirish» tugmasi yashirin (Enter / klaviatura «Qidirish»),
+  tanlov o'zgarsa darhol qidiradi (`components/ui/AutoSubmitSelect.tsx` — server GET formalar uchun), forma kartasi yassi.
 
 ## Keyingi g'oyalar
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { AutoSubmitSelect } from "@/components/ui/AutoSubmitSelect";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { FeedLink } from "@/components/ui/FeedLink";
 import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
@@ -68,23 +69,24 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 lg:grid-cols-[1fr_minmax(0,160px)_auto]">
+      {/* Telefonda: ixcham — «Qidirish» tugmasi yo'q (Enter/klaviatura «Qidirish»), format tanlansa darhol qidiradi */}
+      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 m-flat max-sm:mt-4 max-sm:px-0 max-sm:pb-3 lg:grid-cols-[1fr_minmax(0,160px)_auto]">
         {f.profession && <input type="hidden" name="profession" value={f.profession} />}
         {f.min > 0 && <input type="hidden" name="min" value={f.min} />}
         {f.pay && <input type="hidden" name="pay" value={f.pay} />}
         <label className="relative min-w-0">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
-          <input name="q" defaultValue={f.q} maxLength={80} placeholder="Lavozim, kompaniya, ko'nikma…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
+          <input name="q" defaultValue={f.q} maxLength={80} enterKeyHint="search" placeholder="Lavozim, kompaniya, ko'nikma…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
         </label>
-        <select name="format" defaultValue={f.format} aria-label="Ish formati" className="field h-11 text-[14px]">
+        <AutoSubmitSelect name="format" defaultValue={f.format} aria-label="Ish formati" className="field h-11 text-[14px]">
           <option value="">Har qanday format</option>
           {(Object.keys(WORK_FORMAT) as Array<keyof typeof WORK_FORMAT>).map((k) => (
             <option key={k} value={k}>
               {WORK_FORMAT[k]}
             </option>
           ))}
-        </select>
-        <button type="submit" className="btn-ink press inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold">
+        </AutoSubmitSelect>
+        <button type="submit" className="btn-ink press inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold max-sm:hidden">
           Qidirish
         </button>
         {/* Qo'shimcha filtrlar — telefonda yig'ilgan (details), faol bo'lsa ochiq */}

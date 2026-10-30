@@ -142,7 +142,8 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
         <input id="job-max" name="max" inputMode="numeric" defaultValue={values.max ? String(values.max) : ""} placeholder={tr(til, ISHLAR.f.maxPlaceholder)} className="field h-11 px-3.5 text-[14px]" />
       </div>
 
-      <button type="submit" className="btn-ink col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-semibold lg:order-6 lg:col-span-1">
+      {/* Telefonda tugma yo'q: tanlovlar o'zi yuboradi, matn — klaviaturadagi «Qidirish» (enterKeyHint) */}
+      <button type="submit" className="btn-ink col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-semibold max-sm:hidden lg:order-6 lg:col-span-1">
         {pending ? <Spinner /> : <Search size={16} aria-hidden="true" />}
         {tr(til, ISHLAR.f.submit)}
       </button>
