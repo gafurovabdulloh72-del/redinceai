@@ -87,12 +87,12 @@ export async function handleIncomingMedia(chatId: string, media: IncomingMedia, 
   await setBotSession(chatId, "post", cap ? "confirm" : "caption", { fileId: media.fileId, kind: media.kind, mime: media.mime, size: media.size, caption: cap, duration: media.duration ?? null, width: media.width ?? null, height: media.height ?? null });
   const what = media.kind === "video" ? "🎬 Video" : "🖼 Rasm";
   if (cap) {
-    await sendTelegram(chatId, `${what} qabul qilindi.\n<i>${escapeTelegramHtml(cap.slice(0, 200))}${cap.length > 200 ? "…" : ""}</i>\n\n<b>Lentaga post qilamizmi?</b> Obunachilaringizga bildirishnoma ketadi.`, {
-      keyboard: [[{ text: "✅ Post qilish", data: "pst:ok" }], [{ text: "✍️ Izohni o'zgartirish", data: "pst:cap" }, { text: "✖️ Bekor", data: "pst:no" }]],
+    await sendTelegram(chatId, `${what} qabul qilindi.\n<i>${escapeTelegramHtml(cap.slice(0, 200))}${cap.length > 200 ? "…" : ""}</i>\n\n<b>Qayerga joylaymiz?</b> Post — lentaga (obunachilarga bildirishnoma), Story — 24 soatlik halqaga.`, {
+      keyboard: [[{ text: "✅ Post qilish", data: "pst:ok" }, { text: "📖 Story qilish", data: "pst:story" }], [{ text: "✍️ Izohni o'zgartirish", data: "pst:cap" }, { text: "✖️ Bekor", data: "pst:no" }]],
     });
   } else {
     await sendTelegram(chatId, `${what} qabul qilindi. <b>Izoh yozing</b> (post matni) yoki izohsiz joylang.`, {
-      keyboard: [[{ text: "✅ Izohsiz joylash", data: "pst:ok" }], [{ text: "✖️ Bekor", data: "pst:no" }]],
+      keyboard: [[{ text: "✅ Izohsiz post", data: "pst:ok" }, { text: "📖 Story qilish", data: "pst:story" }], [{ text: "✖️ Bekor", data: "pst:no" }]],
     });
   }
 }
@@ -104,8 +104,8 @@ export async function handlePostText(chatId: string, text: string): Promise<bool
   if (s.step === "caption") {
     const cap = text.trim().slice(0, 2000);
     await setBotSession(chatId, "post", "confirm", { ...s.data, caption: cap });
-    await sendTelegram(chatId, `Izoh: <i>${escapeTelegramHtml(cap.slice(0, 200))}${cap.length > 200 ? "…" : ""}</i>\n\n<b>Lentaga post qilamizmi?</b>`, {
-      keyboard: [[{ text: "✅ Post qilish", data: "pst:ok" }], [{ text: "✍️ Izohni o'zgartirish", data: "pst:cap" }, { text: "✖️ Bekor", data: "pst:no" }]],
+    await sendTelegram(chatId, `Izoh: <i>${escapeTelegramHtml(cap.slice(0, 200))}${cap.length > 200 ? "…" : ""}</i>\n\n<b>Qayerga joylaymiz?</b>`, {
+      keyboard: [[{ text: "✅ Post qilish", data: "pst:ok" }, { text: "📖 Story qilish", data: "pst:story" }], [{ text: "✍️ Izohni o'zgartirish", data: "pst:cap" }, { text: "✖️ Bekor", data: "pst:no" }]],
     });
     return true;
   }
@@ -133,13 +133,14 @@ export async function handlePostCallback(chatId: string, data: string, answer: (
     await sendTelegram(chatId, "✍️ Post izohini yozing (2000 belgigacha):");
     return true;
   }
-  if (data !== "pst:ok") return false;
+  if (data !== "pst:ok" && data !== "pst:story") return false;
+  const asStory = data === "pst:story";
   await answer("Joylanmoqda…");
   const user = await db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, role: true } });
   if (!user) return true;
   try {
     const { assertQuota } = await import("@/lib/social/quota");
-    await assertQuota(user.id, "post");
+    await assertQuota(user.id, asStory ? "story" : "post");
     const bytes = await telegramDownloadFile(s.data.fileId, MAX_BYTES);
     if (!bytes) throw new ApiError(400, "Faylni Telegram'dan olib bo'lmadi (20 MB gacha bo'lishi kerak). Qaytadan yuboring.");
     let mime = s.data.mime;
@@ -156,6 +157,16 @@ export async function handlePostCallback(chatId: string, data: string, answer: (
     const url = await storeTelegramFile(bytes, mime, ext);
     if (!url) throw new ApiError(500, "Saqlash xizmati sozlanmagan");
     const att: FileAttachment = { url, name: `telegram.${ext}`, size: bytes.length, type: mime, ...(s.data.duration ? { duration: s.data.duration } : {}) };
+    if (asStory) {
+      // Story: 24 soat yashaydi, bosh sahifadagi halqada; izoh — story matni
+      const { createStory } = await import("@/lib/stories/service");
+      await createStory(user.id, { media: att, caption: s.data.caption, bg: null, music: null });
+      await clearBotSession(chatId);
+      const app = appUrl("/");
+      if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: "✅ <b>Story joylandi!</b> 24 soat davomida obunachilaringiz halqada ko'radi.", parse_mode: "HTML" });
+      await sendTelegram(chatId, "Story'ni ko'rish:", { keyboard: [[app ? { text: "Lentani ochish", webApp: app } : { text: "Lentani ochish", url: `${site()}/` }]] });
+      return true;
+    }
     const { createProfilePost } = await import("@/lib/profile/posts");
     const post = await createProfilePost(user.id, s.data.caption, [att]);
     await clearBotSession(chatId);
@@ -165,14 +176,14 @@ export async function handlePostCallback(chatId: string, data: string, answer: (
     if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: "✅ <b>Post joylandi!</b> Obunachilaringizga xabar ketdi.", parse_mode: "HTML" });
     await sendTelegram(chatId, "Postni ko'rish va tahrirlash:", { keyboard: [[app ? { text: "Postni ochish", webApp: app } : { text: "Postni ochish", url: `${site()}${href}` }]] });
   } catch (e) {
-    await sendTelegram(chatId, `⚠️ ${escapeTelegramHtml(e instanceof ApiError ? e.message : "Post joylanmadi — keyinroq qayta urinib ko'ring.")}`);
+    await sendTelegram(chatId, `⚠️ ${escapeTelegramHtml(e instanceof ApiError ? e.message : `${asStory ? "Story" : "Post"} joylanmadi — keyinroq qayta urinib ko'ring.`)}`);
   }
   return true;
 }
 
 /** /post — yo'riqnoma */
 export async function sendPostHelp(chatId: string): Promise<void> {
-  await sendTelegram(chatId, "📸 <b>Bot orqali post</b>\nShu chatga rasm yoki video yuboring (20 MB gacha), izohini rasm ostiga yozing — men lentangizga joylashni taklif qilaman. Obunachilaringizga bildirishnoma ketadi.\n\nStory, musiqa va bir nechta rasm — ilovada «Yaratish» orqali.", {
+  await sendTelegram(chatId, "📸 <b>Bot orqali post va story</b>\nShu chatga rasm yoki video yuboring (20 MB gacha), izohini rasm ostiga yozing — post (lentaga) yoki story (24 soat) sifatida joylashni taklif qilaman.\n\nMusiqa, stikerlar va bir nechta rasm — ilovada «Yaratish» orqali.", {
     keyboard: [[appUrl("/kabinet/postlar") ? { text: "📱 Ilovada yaratish", webApp: appUrl("/kabinet/postlar")! } : { text: "Saytda yaratish", url: `${site()}/kabinet/postlar` }]],
   });
 }
