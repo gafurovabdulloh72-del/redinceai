@@ -108,7 +108,7 @@ export const PATCH = handler(async (req) => {
     await audit(session.sub, "admin_settings", { meta: { action: "telegram_daily_report_now" } }, req);
     return ok({ sent: true, kind });
   }
-  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /user · /narx · /elon`, {
+  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /nizolar · /payoutlar · /user · /narx · /elon`, {
     keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }]],
   });
   if (!sent) throw new ApiError(502, "Telegram xabarni qabul qilmadi — token yoki chat holatini tekshiring");

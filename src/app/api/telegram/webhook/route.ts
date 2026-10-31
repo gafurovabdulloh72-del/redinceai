@@ -22,7 +22,7 @@ import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { botLang, type BotLang } from "@/lib/telegram-bot/lang";
-import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminMentorApps, sendAdminPayments, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
+import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -343,7 +343,7 @@ export async function POST(req: Request) {
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
     else if (cmd === "/post") await sendPostHelp(chatId);
     else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId, lang);
-    else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx" || cmd === "/shikoyatlar" || cmd === "/mentorlar") {
+    else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx" || cmd === "/shikoyatlar" || cmd === "/mentorlar" || cmd === "/nizolar" || cmd === "/payoutlar") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
       if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
       else if (cmd === "/admin") await sendAdminMenu(chatId);
@@ -352,6 +352,8 @@ export async function POST(req: Request) {
       else if (cmd === "/tolovlar") await sendAdminPayments(chatId);
       else if (cmd === "/shikoyatlar") await sendAdminReports(chatId);
       else if (cmd === "/mentorlar") await sendAdminMentorApps(chatId);
+      else if (cmd === "/nizolar") await sendAdminDisputes(chatId);
+      else if (cmd === "/payoutlar") await sendAdminPayouts(chatId);
       else if (cmd === "/narx") await handleAdminPrices(chatId, normalized.slice(rawCmd.length));
       else await handleAdminUserSearch(chatId, normalized.slice(rawCmd.length));
     }

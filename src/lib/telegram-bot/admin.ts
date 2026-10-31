@@ -18,6 +18,9 @@ import { listAdminReports, type AdminReportRow } from "@/app/admin/queries";
 import { listPendingMentors, setMentorApproved } from "@/lib/mentorship/service";
 import { deleteComment, deletePost } from "@/lib/groups/service";
 import { recalcRating } from "@/lib/queries";
+import { listOpenDisputes } from "@/lib/payments/disputes";
+import { getSpecialistBalance, listAdminPayouts, specialistOwnerId } from "@/lib/payments/queries";
+import { PAYOUT_STATE_LABEL } from "@/lib/constants";
 
 /**
  * ADMIN BOTI (2026-10-31): administrator Telegramdan platformani kuzatadi va navbatni hal qiladi.
@@ -310,12 +313,13 @@ export async function sendAdminMenu(chatId: string): Promise<void> {
   const total = q.pendingSpecialists + q.manualPayments + q.manualInvoices + q.reports + q.disputes + q.payouts + q.mentorPayouts + q.mentorApps;
   await sendTelegram(
     chatId,
-    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /user ism — foydalanuvchi · /narx — kontakt narxlari · /elon — ommaviy e'lon`,
+    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /nizolar — nizolar · /payoutlar — pul chiqarish · /user ism — foydalanuvchi · /narx — kontakt narxlari · /elon — ommaviy e'lon`,
     {
       keyboard: [
         [{ text: "📊 Statistika", data: "adm:stat:today" }, { text: `📥 Navbat${total ? ` (${total})` : ""}`, data: "adm:queue" }],
         [{ text: `💳 To'lovlar${q.manualPayments + q.manualInvoices ? ` (${q.manualPayments + q.manualInvoices})` : ""}`, data: "adm:pay" }, { text: `🚩 Shikoyatlar${q.reports ? ` (${q.reports})` : ""}`, data: "adm:reports" }],
-        [{ text: `🎓 Mentor arizalari${q.mentorApps ? ` (${q.mentorApps})` : ""}`, data: "adm:mentors" }, { text: "📣 E'lon", data: "adm:elon" }],
+        [{ text: `🎓 Mentor arizalari${q.mentorApps ? ` (${q.mentorApps})` : ""}`, data: "adm:mentors" }, { text: `💸 Payoutlar${q.payouts ? ` (${q.payouts})` : ""}`, data: "adm:payouts" }],
+        [{ text: `⚖️ Nizolar${q.disputes ? ` (${q.disputes})` : ""}`, data: "adm:disputes" }, { text: "📣 E'lon", data: "adm:elon" }],
         [panelButton()],
       ],
       // Doimiy menyuga «🛠 Admin» qatori qo'shiladi
@@ -341,8 +345,8 @@ export async function sendAdminQueues(chatId: string): Promise<void> {
   const keyboard: TelegramButton[][] = [];
   if (q.manualPayments + q.manualInvoices > 0) keyboard.push([{ text: `💳 O'tkazmalarni ko'rish (${q.manualPayments + q.manualInvoices})`, data: "adm:pay" }]);
   if (q.reports > 0) keyboard.push([{ text: `🚩 Shikoyatlarni ko'rish (${q.reports})`, data: "adm:reports" }]);
-  if (q.disputes > 0) keyboard.push([panelButton("/admin#nizolar", `⚖️ Nizolar (${q.disputes})`)]);
-  if (q.payouts > 0) keyboard.push([panelButton("/admin#payoutlar", `💸 Payoutlar (${q.payouts})`)]);
+  if (q.disputes > 0) keyboard.push([{ text: `⚖️ Nizolar (${q.disputes})`, data: "adm:disputes" }]);
+  if (q.payouts > 0) keyboard.push([{ text: `💸 Payout so'rovlari (${q.payouts})`, data: "adm:payouts" }]);
   if (q.mentorApps > 0) keyboard.push([{ text: `🎓 Mentor arizalari (${q.mentorApps})`, data: "adm:mentors" }]);
   if (q.mentorPayouts > 0) keyboard.push([panelButton("/admin/mentorlik", `💸 Mentor yechish so'rovlari (${q.mentorPayouts})`)]);
   keyboard.push([panelButton()]);
@@ -447,6 +451,83 @@ export async function sendAdminMentorApps(chatId: string): Promise<void> {
     await sendTelegram(chatId, text.join("\n"), { keyboard: [[{ text: "✅ Tasdiqlash", data: `adm:ma:ok:${m.id}` }, { text: "❌ Rad etish", data: `adm:ma:no:${m.id}` }], [panelButton("/admin/mentorlik", "👁 Admin panelda")]] });
   }
   if (all.length > rows.length) await sendTelegram(chatId, `… va yana ${all.length - rows.length} ta — admin panelda.`, { keyboard: [[panelButton("/admin/mentorlik", "Barchasini ko'rish")]] });
+}
+
+/** /nizolar — ochiq nizolar ro'yxati; QAROR (pulni chiqarish/qaytarish) faqat admin panelda */
+export async function sendAdminDisputes(chatId: string): Promise<void> {
+  const rows = await listOpenDisputes(5);
+  if (!rows.length) {
+    await sendTelegram(chatId, "⚖️ Ochiq nizo yo'q ✅");
+    return;
+  }
+  const total = await db.select({ c: sql<number>`count(*)` }).from(orders).where(eq(orders.disputeState, "open")).then((r) => n(r[0]?.c));
+  await sendTelegram(chatId, `⚖️ <b>Ochiq nizolar:</b> ${total} ta. Qaror (pulni mutaxassisga chiqarish yoki mijozga qaytarish) faqat admin panelda — chat va dalillar o'sha yerda.`);
+  for (const o of rows) {
+    const by = o.disputeOpenedBy === o.clientId ? `mijoz (${o.client.name})` : o.disputeOpenedBy === o.specialist.userId ? `mutaxassis (${o.specialist.user.name})` : "tomon";
+    const age = Math.max(0, Math.floor((Date.now() - o.updatedAt.getTime()) / DAY));
+    const text = [
+      `⚖️ <b>${escapeTelegramHtml(o.title)}</b> — ${formatPrice(o.amount ?? 0)}`,
+      `${escapeTelegramHtml(o.client.name)} ↔ ${escapeTelegramHtml(o.specialist.user.name)} · ochdi: ${escapeTelegramHtml(by)} · ${age} kun`,
+      o.disputeReason ? `Sabab: <i>${escapeTelegramHtml(o.disputeReason.slice(0, 200))}</i>` : "",
+    ].filter(Boolean);
+    await sendTelegram(chatId, text.join("\n"), { keyboard: [[panelButton("/admin#nizolar", "⚖️ Hal qilish (panel)"), { text: "📦 Buyurtma", url: `${site()}/buyurtma/${o.id}` }]] });
+  }
+  if (total > rows.length) await sendTelegram(chatId, `… va yana ${total - rows.length} ta — admin panelda.`, { keyboard: [[panelButton("/admin#nizolar", "Barchasini ko'rish")]] });
+}
+
+/** /payoutlar — pul chiqarish so'rovlari: «To'landi» (kartaga o'tkazgach) / «Rad etish» (summa balansga qaytadi); rekvizit faqat panelda */
+export async function sendAdminPayouts(chatId: string): Promise<void> {
+  const rows = (await listAdminPayouts(40)).filter((p) => p.state === "requested" || p.state === "approved").slice(0, 5);
+  if (!rows.length) {
+    await sendTelegram(chatId, "💸 Kutilayotgan pul chiqarish so'rovi yo'q ✅");
+    return;
+  }
+  await sendTelegram(chatId, `💸 <b>Pul chiqarish so'rovlari:</b> ${rows.length} ta. Rekvizitni admin panelda ko'rib, kartaga o'tkazing — so'ng «To'landi» bosing.`);
+  for (const p of rows) {
+    const masked = p.details.replace(/\d(?=\d{4})/g, "•");
+    const text = [
+      `💸 <b>${escapeTelegramHtml(p.specialist.user.name)}</b> — ${formatPrice(p.amount)} (${PAYOUT_STATE_LABEL[p.state]})`,
+      `${escapeTelegramHtml(p.method)} · ${escapeTelegramHtml(masked)} · ${fmtDate(p.createdAt.getTime())}`,
+      `Balans qoplaydi: ${p.releasedBalance >= p.amount ? "ha ✅" : `yo'q ❌ (mavjud ${formatPrice(Math.max(0, p.releasedBalance))})`}`,
+    ];
+    await sendTelegram(chatId, text.join("\n"), {
+      keyboard: [
+        [{ text: "✅ To'landi", data: `adm:po:paid:${p.id}` }, { text: "❌ Rad etish", data: `adm:po:rej:${p.id}` }],
+        [panelButton("/admin#payoutlar", "👁 Rekvizit (panel)")],
+      ],
+    });
+  }
+}
+
+/** Payout qarori botdan — admin panel route'i bilan bir xil CAS/balans tekshiruvi; rad etish sababi standart */
+async function decidePayout(payoutId: string, admin: { id: string; name: string }, state: "paid" | "rejected"): Promise<string> {
+  const payout = await db.query.payouts.findFirst({ where: eq(payouts.id, payoutId) });
+  if (!payout) throw new ApiError(404, "So'rov topilmadi");
+  if (payout.state !== "requested" && payout.state !== "approved") return `Allaqachon «${PAYOUT_STATE_LABEL[payout.state]}»`;
+  if (state === "paid") {
+    const b = await getSpecialistBalance(payout.specialistId);
+    const cover = b.released - b.paidOut - (b.pendingPayouts - payout.amount);
+    if (cover < payout.amount) throw new ApiError(400, `Balans yetarli emas (mavjud ${formatPrice(Math.max(0, cover))})`);
+  }
+  const note = state === "rejected" ? "Administrator tomonidan rad etildi (Telegram)" : payout.note;
+  const [row] = await db
+    .update(payouts)
+    .set({ state, note, processedBy: admin.id, processedAt: new Date() })
+    .where(and(eq(payouts.id, payoutId), eq(payouts.state, payout.state)))
+    .returning({ id: payouts.id });
+  if (!row) throw new ApiError(409, "Holat parallel o'zgargan — panelda tekshiring");
+  await audit(admin.id, "admin_payout", { targetType: "payout", targetId: payoutId, meta: { from: payout.state, to: state, amount: payout.amount, via: "telegram" } });
+  const ownerId = await specialistOwnerId(payout.specialistId);
+  if (ownerId) {
+    await notify(
+      ownerId,
+      "payout",
+      state === "paid" ? `Pul o'tkazildi: ${formatPrice(payout.amount)}` : `Pul chiqarish rad etildi: ${formatPrice(payout.amount)}`,
+      state === "paid" ? `${payout.details} rekvizitiga o'tkazildi.` : `Sabab: ${note}. Summa balansingizga qaytdi.`,
+      "/kabinet/tolovlar",
+    ).catch(() => undefined);
+  }
+  return state === "paid" ? "To'landi deb belgilandi ✅" : "Rad etildi, summa balansga qaytdi";
 }
 
 /** Shikoyat nishonini o'chirish (post/izoh/sharh) — admin panel bilan bir xil mantiq */
@@ -598,6 +679,22 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
       ).catch(() => undefined);
       await answer(approve ? "Mentor tasdiqlandi 🎓" : "Ariza rad etildi");
       if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `${approve ? "✅" : "❌"} <b>${escapeTelegramHtml(mentor.user.name)}</b> — ${approve ? "mentor sifatida tasdiqlandi" : "arizasi rad etildi"} · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
+      return true;
+    }
+    if (data === "adm:disputes") {
+      await answer("");
+      await sendAdminDisputes(chatId);
+      return true;
+    }
+    if (data === "adm:payouts") {
+      await answer("");
+      await sendAdminPayouts(chatId);
+      return true;
+    }
+    if ((m = /^adm:po:(paid|rej):([\w-]{1,64})$/.exec(data))) {
+      const note = await decidePayout(m[2], admin, m[1] === "paid" ? "paid" : "rejected");
+      await answer(note);
+      if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `${m[1] === "paid" ? "✅" : "❌"} <b>Payout:</b> ${escapeTelegramHtml(note)} · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
       return true;
     }
     if (data === "adm:menu") {

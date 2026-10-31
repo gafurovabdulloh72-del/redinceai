@@ -281,9 +281,13 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
 
 7. **Admin boti va qo'shimchalar (2026-10-31)**: admin hisobi Telegramga ulangan bo'lsa (Kabinet → Profil → «Telegramga ulash») botda
    `/admin` (menyu), `/stat` (bugun/7/30 kun), `/navbat` (tasdiq navbati — mutaxassisni bir bosishda tasdiqlash), `/tolovlar`,
-   `/user <ism|email>` (bloklash/blokdan chiqarish), `/elon` (ommaviy e'lon) ishlaydi; har kuni ertalab kunlik hisobot keladi;
-   yangi mutaxassis va kontakt sotuvi haqida jonli ogohlantirish keladi. Admin panel → Telegram bot → «Sinov xabari» tugmasi
-   bildirishnoma yo'lini tekshiradi. **Har deploydan keyin** «Bot profilini sozlash» (buyruqlar menyusi: /post, /royxat, admin buyruqlari)
+   `/user <ism|email>` (bloklash/blokdan chiqarish, kontakt rejimi/maxsus narx), `/narx` (kontakt narxlari), `/elon` (ommaviy e'lon),
+   `/shikoyatlar` (yopish / kontentni o'chirish / muallifni bloklash), `/mentorlar` (mentor arizasini tasdiqlash/rad etish),
+   `/nizolar` (ochiq nizolar — qaror panelda), `/payoutlar` (pul chiqarish so'rovlari — «To'landi» / «Rad etish») ishlaydi;
+   `/stat` oldingi davr bilan taqqoslaydi (▲/▼ %) va 7/30 kunlik trend chizadi; har kuni ertalab kunlik hisobot keladi
+   (dushanba — haftalik ham); jonli ogohlantirishlar: yangi mutaxassis, yangi shikoyat (tugmalar bilan), mentor arizasi,
+   kontakt sotuvi, qo'lda o'tkazma. Admin panel → Telegram bot → «Sinov xabari» tugmasi bildirishnoma yo'lini tekshiradi,
+   «Kunlik hisobot» — kechagi hisobotni hozir yuboradi. Bot tili: Telegram tili ruscha bo'lgan foydalanuvchiga bot ruscha javob beradi. **Har deploydan keyin** «Bot profilini sozlash» (buyruqlar menyusi: /post, /royxat, admin buyruqlari)
    va «Webhookni yangilash» (allowed_updates: inline_query) bosilsin.
 8. **Inline rejim** (`@bot montajchi` — istalgan chatda ijodkor kartasini ulashish): BotFather → `/setinline` → bot → placeholder
    («ijodkor qidirish…»). Admin panelda «Inline rejim yoqilgan» qatori ko'rinadi.
