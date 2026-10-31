@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, favorites, follows, groupMembers, groups, notifications, orders, payments, payouts, portfolioItems, postComments, postSaves, posts, reviews, savedSearches, sessions, specialists, userBlocks, users } from "@/lib/db/schema";
 import { ApiError, handler, requireSession } from "@/lib/api";
+import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
@@ -19,7 +20,8 @@ export const GET = handler(async (req) => {
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
-    columns: { passwordHash: false, sessionVersion: false, totpSecretEnc: false, recoveryCodes: false },
+    // Ichki maydonlar chiqarilmaydi: maxfiy kalitlar va admin izohi (moderatsiya eslatmasi — firibgarga «ogohlantirish» bo'lmasin)
+    columns: { passwordHash: false, sessionVersion: false, totpSecretEnc: false, recoveryCodes: false, adminNote: false, adminNoteAt: false, googleId: false },
     with: { specialist: { with: { portfolio: { orderBy: [portfolioItems.sortOrder] } } } },
   });
   if (!user) throw new ApiError(401, "Foydalanuvchi topilmadi");
@@ -120,6 +122,14 @@ export const GET = handler(async (req) => {
   };
 
   await audit(user.id, "account_export", { targetType: "user", targetId: user.id }, req);
+  // Eksport — barcha shaxsiy ma'lumot bir faylda: o'g'irlangan sessiya bilan yuklab olinsa egasi bilsin (sayt + Telegram + email)
+  await notify(
+    user.id,
+    "account",
+    "Ma'lumotlaringiz yuklab olindi",
+    "Hisobingizdagi barcha ma'lumotlar (profil, buyurtmalar, xabarlar ro'yxati) JSON fayl sifatida yuklab olindi. Bu siz bo'lmasangiz — Kabinet → Xavfsizlik'da «Barcha qurilmalardan chiqish»ni bosing va parolni almashtiring.",
+    "/kabinet/xavfsizlik",
+  ).catch(() => undefined);
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
