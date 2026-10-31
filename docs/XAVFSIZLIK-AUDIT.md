@@ -312,7 +312,7 @@ Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja
 # 3-audit: Telegram, sessiya va monitoring (2026-10-31)
 
 Mini App (Telegram Web iframe), bot orqali kirish va kunlik bot oqimlari qo'shilgach qayta ko'rib chiqildi.
-Hammasi kodda yopildi, `scripts/security.mjs` 44 ta test (oldin 21), bot oqimlari — `scripts/bot.mjs` (CI'da soxta Bot API bilan).
+Hammasi kodda yopildi, `scripts/security.mjs` 45 ta test (oldin 21), bot oqimlari — `scripts/bot.mjs` (CI'da soxta Bot API bilan).
 
 | # | Kamchilik | Xavf | Yechim |
 |---|---|---|---|
@@ -324,6 +324,8 @@ Hammasi kodda yopildi, `scripts/security.mjs` 44 ta test (oldin 21), bot oqimlar
 | 6 | Admin hisobida 2FA ixtiyoriy — parol sizsa butun platforma ochiladi | 🟠 | Admin panel tepasida 2FA yoqilmagan admin uchun ogohlantirish kartasi («2FA'ni yoqish»). Majburiy qilish — keyingi qadam (pastda) |
 | 7 | CSP buzilishlari (XSS urinishi, noto'g'ri sozlangan manba) ko'rinmaydi | 🟡 | `report-uri /api/csp-report` → Vercel loglarida `[csp]` yozuvi (yo'nalish, bloklangan manba, sahifa — **so'rov/hash parametrlari kesiladi**, token logga tushmaydi). Qabul qiluvchi: tana ≤16 KB (413), buzuq JSON 400, bir so'rovda ≤5 hisobot, IP bo'yicha xotiradagi limit (bazaga yozmaydi), brauzer kengaytmasi shovqini tashlanadi. `report-to` ATAYLAB qo'shilmagan: u bo'lsa Chrome `report-uri`ni e'tiborsiz qoldirib Reporting API'ga o'tadi (to'plab, kechiktirib yuboradi; background-sync bloklangan brauzerda umuman yubormaydi — sinovda tasdiqlandi). Test: 204/400/413/405 |
 | 8 | Telegram ko'prigi `message` hodisalarini istalgan oynadan qabul qilsa, begona sahifa soxta `back_button_pressed`/`theme_changed` yuborishi mumkin | 🟡 | `TgAppBridge` — faqat ota-oyna (`event.source === window.parent`) va `*.telegram.org` manbasidan; tashqi havolalar `web_app_open_link`, t.me — `web_app_open_tg_link` orqali |
+| 9 | Guruh posti havola prevyusi (`/api/posts/preview`, mehmonga ham ochiq) `redirect: "follow"` bilan so'rov yuborardi va faqat host NOMINI tekshirardi: ommaviy sayt → 302 → `169.254.169.254`/ichki xizmat (javob o'qilmasa ham «ko'r» SSRF), `127.0.0.1.nip.io` kabi DNS nomi ham o'tardi | 🟠 | Yangi `lib/security/safe-fetch.ts` (`safeFetchText`): IP **ulanish paytida** tekshiriladi (Node `lookup` ilgagi — DNS rebinding ham ishlamaydi), raqamli IP oldindan, redirect qo'lda va har qadamda qayta tekshiriladi, faqat standart port, login/parolli URL rad, CGNAT/link-local/IPv6 ULA/`::ffff:` ham bloklangan, gzip/br ochiladi va hajm chegarasi ochilgan javobga qo'llanadi. Post va chat prevyusi shunga o'tkazildi. Test: 5 ta ichki manzil (metadata, loopback, IPv6, o'nlik IP) |
+| 10 | Mini App `/api/tg/auth` qaytaradigan `next` yo'li tab/yangi qator belgisini o'tkazib yuborardi — URL parser ularni tashlaydi va `/\t/evil.com` → `//evil.com` (begona sayt) | 🟡 | Umumiy `safeInternalPath` (middleware va `/api/til` bilan bir xil): boshqaruv belgilari, `//`, `\\`, begona origin rad |
 
 **Qolgan (keyingi blok):**
 - Admin uchun 2FA'ni **majburiy** qilish (hozir ogohlantirish) — avval barcha adminlar yoqqanini tekshirish kerak, aks holda o'zingizni qulflab qo'yasiz.

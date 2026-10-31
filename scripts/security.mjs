@@ -305,3 +305,15 @@ test("CSP hisobotlari: report-uri ulangan, qabul qiluvchi chegaralangan (204/400
   assert.equal((await post("x".repeat(20_000))).status, 413);
   assert.equal((await fetch(`${BASE}/api/csp-report`)).status, 405);
 });
+
+test("SSRF: havola prevyusi ichki manzillarni o'qimaydi (metadata, loopback, IPv6, redirect)", async () => {
+  for (const u of ["http://169.254.169.254/latest/meta-data/", "https://127.0.0.1/", `${BASE}/api/health`, "http://[::1]/", "https://2130706433/"]) {
+    const r = await fetch(`${BASE}/api/posts/preview?url=${encodeURIComponent(u)}`);
+    assert.equal(r.status, 200, `${u}: ${r.status}`);
+    assert.equal((await r.json()).data, null, `post prevyusi ichki manzilni o'qidi: ${u}`);
+    if (COOKIES.cl) {
+      const c = await req("cl", `/api/chat/preview?url=${encodeURIComponent(u)}`);
+      if (c.status === 200) assert.equal((await c.json()).data?.preview ?? null, null, `chat prevyusi ichki manzilni o'qidi: ${u}`);
+    }
+  }
+});

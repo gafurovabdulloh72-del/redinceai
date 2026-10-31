@@ -7,6 +7,7 @@ import { notify } from "@/lib/notifications";
 import { addComment, briefUsers, canModeratePost, postHref, type CommentView, type UserBrief } from "@/lib/groups/service";
 import { COMMENT_EDIT_WINDOW_MS, extractTags, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, REACTION_KINDS, type ReactionKind } from "./limits";
 import { uid } from "@/lib/utils";
+import { safeFetchText } from "@/lib/security/safe-fetch";
 
 /**
  * Postlar sohasi — qo'shimcha server funksiyalari (batch-800, lenta agenti).
@@ -391,23 +392,6 @@ const PREVIEW_TTL_MS = 60 * 60 * 1000;
 const PREVIEW_MAX_BYTES = 300 * 1024;
 const previewCache = new Map<string, { exp: number; data: LinkPreview | null }>();
 
-/** Ichki/xususiy manzillar (SSRF) — faqat ommaviy hostlar; dev'da localhost'ga ruxsat (sinov) */
-function isPublicHttpUrl(u: URL): boolean {
-  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-  if (u.username || u.password) return false;
-  if (u.port && u.port !== "80" && u.port !== "443") return process.env.NODE_ENV === "development" && u.hostname === "localhost";
-  const h = u.hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || h === "0.0.0.0") return process.env.NODE_ENV === "development" && h === "localhost";
-  // Raqamli IP: xususiy diapazonlar taqiqlanadi
-  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(h);
-  if (m) {
-    const [a, b] = [Number(m[1]), Number(m[2])];
-    if (a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a >= 224) return false;
-  }
-  if (h.includes(":")) return false; // IPv6 — oddiylik uchun ruxsat yo'q
-  return true;
-}
-
 const decodeEntities = (s: string) =>
   s
     .replace(/&(#x([0-9a-f]+)|#(\d+)|amp|lt|gt|quot|apos|nbsp);/gi, (_, _w, hex, dec) => {
@@ -429,7 +413,11 @@ function metaContent(html: string, keys: string[]): string | null {
   return null;
 }
 
-/** HTML'dan sarlavha/tavsif — rasm yo'q (CSP img-src cheklangan), faqat matn. Xato/timeout — null (karta chiqmaydi) */
+/**
+ * HTML'dan sarlavha/tavsif — rasm yo'q (CSP img-src cheklangan), faqat matn. Xato/timeout — null (karta chiqmaydi).
+ * Tarmoq so'rovi `safeFetchText` orqali (3-audit, 2026-10-31): IP ulanish paytida tekshiriladi (DNS rebinding),
+ * redirect har qadamda qayta tekshiriladi — oldin `redirect: "follow"` ichki manzilga so'rov yuborib qo'yardi.
+ */
 export async function fetchLinkPreview(raw: string): Promise<LinkPreview | null> {
   let u: URL;
   try {
@@ -437,38 +425,20 @@ export async function fetchLinkPreview(raw: string): Promise<LinkPreview | null>
   } catch {
     return null;
   }
-  if (!isPublicHttpUrl(u)) return null;
+  if (u.protocol !== "http:" && u.protocol !== "https:") return null;
   u.hash = "";
   const key = u.toString();
   const hit = previewCache.get(key);
   if (hit && hit.exp > Date.now()) return hit.data;
   let data: LinkPreview | null = null;
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 4000);
-  try {
-    const res = await fetch(key, { signal: ctl.signal, redirect: "follow", headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; KasbEgalariBot/1.0; +https://kasbegalari.vercel.app)" } });
-    const finalUrl = new URL(res.url || key);
-    if (!res.ok || !isPublicHttpUrl(finalUrl) || !(res.headers.get("content-type") ?? "").includes("html")) throw new Error("skip");
-    const reader = res.body?.getReader();
-    let html = "";
-    let bytes = 0;
-    const dec = new TextDecoder();
-    while (reader) {
-      const { value, done } = await reader.read();
-      if (done || !value) break;
-      bytes += value.byteLength;
-      html += dec.decode(value, { stream: true });
-      if (bytes > PREVIEW_MAX_BYTES || /<\/head>/i.test(html)) break;
-    }
-    reader?.cancel().catch(() => undefined);
-    const title = metaContent(html, ["og:title", "twitter:title"]) ?? (/<title[^>]*>([^<]{1,300})<\/title>/i.exec(html)?.[1] ? decodeEntities(/<title[^>]*>([^<]{1,300})<\/title>/i.exec(html)![1]) : null);
+  const res = await safeFetchText(key, { allowHttp: true, timeoutMs: 4000, maxBytes: PREVIEW_MAX_BYTES, stopAt: /<\/head>/i, accept: "text/html,application/xhtml+xml" });
+  if (res && res.status >= 200 && res.status < 300 && res.contentType.includes("html")) {
+    const html = res.body;
+    const titleTag = /<title[^>]*>([^<]{1,300})<\/title>/i.exec(html)?.[1];
+    const title = metaContent(html, ["og:title", "twitter:title"]) ?? (titleTag ? decodeEntities(titleTag) : null);
     const description = metaContent(html, ["og:description", "twitter:description", "description"]);
     const siteName = metaContent(html, ["og:site_name"]);
-    data = title || description ? { url: key, host: finalUrl.hostname.replace(/^www\./, ""), title, description, siteName } : null;
-  } catch {
-    data = null;
-  } finally {
-    clearTimeout(timer);
+    data = title || description ? { url: key, host: res.url.hostname.replace(/^www\./, ""), title, description, siteName } : null;
   }
   if (previewCache.size > 500) previewCache.clear();
   // Topilmagan/xato — qisqa kesh (5 daqiqa): vaqtinchalik timeout havolani bir soatga «o'chirib» qo'ymasin
