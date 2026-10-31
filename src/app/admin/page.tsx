@@ -318,6 +318,16 @@ export default async function AdminPage() {
             <DemoCleanButton count={demoCount} />
           </nav>
         </header>
+        {!user.totpEnabled && (
+          <div role="alert" className="mt-4 flex flex-wrap items-start gap-3 rounded-2xl border border-warning/40 bg-warning-soft p-4 text-[13.5px] sm:flex-nowrap">
+            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warning-text" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-fg">Admin hisobida ikki bosqichli himoya (2FA) yoqilmagan</p>
+              <p className="mt-0.5 leading-relaxed text-fg-3">Admin parolini bilgan odam butun platformani boshqara oladi. Autentifikator ilovasi bilan 2FA&apos;ni yoqing — bir daqiqa.</p>
+            </div>
+            <a href="/kabinet/xavfsizlik" className="btn-ink inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold">2FA&apos;ni yoqish</a>
+          </div>
+        )}
 
         {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}
         <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 xl:hidden">

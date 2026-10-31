@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { hkdfSync, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
@@ -154,6 +155,34 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
  * sessions qatorini yozadi (user-agent, IP hash). Shu brauzerdagi oldingi token (rol o'zgarishi, parol yangilash,
  * boshqa hisobga kirish — cookie ustidan yoziladi) bekor qilinadi, ro'yxatda "osilib" qolmasin. Vaqti-vaqti bilan eski qatorlar tozalanadi.
  */
+/**
+ * Yangi qurilma tekshiruvi javobdan keyin (after) — kirish sekinlashmasin. Shu foydalanuvchining oldingi
+ * sessiyalari ichida bir xil «brauzer · OS» bo'lsa yoki bu birinchi sessiya bo'lsa — jim.
+ */
+function alertNewDevice(userId: string, jti: string, userAgent: string | null): void {
+  const run = async () => {
+    const { describeUserAgent } = await import("./security/device");
+    const label = describeUserAgent(userAgent).label;
+    const prev = await db.query.sessions.findMany({
+      where: and(eq(sessions.userId, userId), sql`${sessions.id} <> ${jti}`),
+      columns: { userAgent: true },
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+      limit: 50,
+    });
+    if (!prev.length) return; // ro'yxatdan o'tish / birinchi kirish
+    if (prev.some((p) => describeUserAgent(p.userAgent).label === label)) return;
+    const { notify } = await import("./notifications");
+    const when = new Date().toLocaleString("uz-UZ", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+    await notify(userId, "account", "Yangi qurilmadan kirish", `${label} · ${when}. Bu siz bo'lmasangiz — darhol parolni almashtiring va «Barcha qurilmalardan chiqish»ni bosing.`, "/kabinet/xavfsizlik");
+  };
+  const safe = () => run().catch((e) => console.error("[auth:newDevice]", e));
+  try {
+    after(safe);
+  } catch {
+    void safe(); // so'rov kontekstidan tashqarida (skript/test)
+  }
+}
+
 async function recordSession(userId: string, jti: string, expiresAt: Date, previous?: { jti: string; userId: string }): Promise<void> {
   let userAgent: string | null = null;
   let ipHash: string | null = null;
@@ -165,6 +194,9 @@ async function recordSession(userId: string, jti: string, expiresAt: Date, previ
     /* so'rov kontekstidan tashqarida */
   }
   await db.insert(sessions).values({ id: jti, userId, userAgent, ipHash, expiresAt });
+  // Yangi qurilmadan kirish — foydalanuvchiga ogohlantirish (hisob o'g'irlanganini erta bilsin). Shu brauzerdagi
+  // sessiya almashinuvi (parol/rol o'zgarishi, Mini App qayta ochilishi — `previous` shu foydalanuvchiniki) va birinchi kirish emas.
+  if (previous?.userId !== userId) alertNewDevice(userId, jti, userAgent);
   if (previous) {
     await db
       .update(sessions)
