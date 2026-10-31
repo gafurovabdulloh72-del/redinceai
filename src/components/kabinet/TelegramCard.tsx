@@ -5,12 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, ExternalLink, RefreshCw, Send, SendHorizontal, Unlink } from "lucide-react";
 import { Badge, Button, Spinner } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { BILDIRISHNOMA } from "@/lib/i18n/dict/kabinet-pages";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
 
 /** Botda «Start» bosilishini kutish: 3 soniyada bir so'rov, ko'pi bilan 2 daqiqa */
 const POLL_MS = 3000;
 const POLL_MAX = 40;
+const T = BILDIRISHNOMA.tg;
 
 /**
  * Telegram bildirishnomalari kartasi (Kabinet → Profil). Karta faqat bot sozlangan bo'lsa render qilinadi —
@@ -21,6 +25,7 @@ const POLL_MAX = 40;
 export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
+  const til = useLocale();
   const [busy, setBusy] = useState<"link" | "unlink" | "test" | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Havola ochildi — botda «Start» bosilishini kutyapmiz */
@@ -44,7 +49,7 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
         if (json.ok && json.data.linked) {
           window.clearInterval(id);
           setWaiting(false);
-          toast("Telegram ulandi");
+          toast(tr(til, T.linked));
           router.refresh();
         }
       } catch {
@@ -52,7 +57,7 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
       }
     }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [waiting, linked, router, toast]);
+  }, [waiting, linked, router, toast, til]);
 
   const connect = async () => {
     if (busy) return;
@@ -73,7 +78,7 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
       setWaiting(true);
     } catch {
       win?.close();
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, T.networkRetry));
     } finally {
       setBusy(null);
     }
@@ -84,11 +89,11 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
       const res = await fetch("/api/telegram/link", { cache: "no-store" });
       const json = (await res.json()) as ApiResponse<{ linked: boolean }>;
       if (json.ok && json.data.linked) {
-        toast("Telegram ulandi");
+        toast(tr(til, T.linked));
         router.refresh();
-      } else toast("Hali ulanmagan — botda «Start» tugmasini bosing", "info");
+      } else toast(tr(til, T.notYet), "info");
     } catch {
-      toast("Tekshirib bo'lmadi", "error");
+      toast(tr(til, T.checkFailed), "error");
     }
   };
 
@@ -104,10 +109,10 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
         return;
       }
       setWaiting(false);
-      toast("Telegram uzildi");
+      toast(tr(til, T.unlinked));
       router.refresh();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, T.networkRetry));
     } finally {
       setBusy(null);
     }
@@ -124,16 +129,16 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
         setError(json.error);
         return;
       }
-      toast("Sinov xabari yuborildi — Telegramni tekshiring");
+      toast(tr(til, T.testSent));
     } catch {
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, T.networkShort));
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <section className="card scroll-mt-28 p-5 sm:p-6" id="telegram" aria-label="Telegram bildirishnomalari">
+    <section className="card scroll-mt-28 p-5 sm:p-6" id="telegram" aria-label={tr(til, T.aria)}>
       <div className="flex items-start gap-3">
         <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
           <Send size={18} />
@@ -143,17 +148,17 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
             <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Telegram</h2>
             {linked && (
               <Badge tone="success">
-                <CheckCircle2 size={12} /> Ulangan
+                <CheckCircle2 size={12} /> {tr(til, T.badge)}
               </Badge>
             )}
           </div>
-          <p className="mt-0.5 text-[13px] text-fg-3">{linked ? "Buyurtma, to'lov, takliflar va xabarlar botga ham keladi. Uzish — tugma yoki botda /stop." : "Hisobni botga ulang — muhim xabarlar Telegramga darhol keladi."}</p>
+          <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, linked ? T.linkedText : T.unlinkedText)}</p>
           {linked && (
             <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-fg-3">
-              <li>📦 buyurtmani botda qabul qilish</li>
-              <li>📱 Telegram ichidagi ilova</li>
-              <li>🔎 ijodkor qidiruvi</li>
-              <li>🔔 /sozlamalar</li>
+              <li>{tr(til, T.featOrders)}</li>
+              <li>{tr(til, T.featApp)}</li>
+              <li>{tr(til, T.featSearch)}</li>
+              <li>{tr(til, T.featSettings)}</li>
             </ul>
           )}
         </div>
@@ -169,25 +174,25 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
         {linked ? (
           <>
             <Button type="button" variant="outline" onClick={sendTest} disabled={busy !== null}>
-              {busy === "test" ? <Spinner /> : <SendHorizontal size={14} />} Sinov xabari
+              {busy === "test" ? <Spinner /> : <SendHorizontal size={14} />} {tr(til, T.test)}
             </Button>
             {botLink && (
               <Button type="button" variant="ghost" onClick={() => window.open(botLink, "_blank", "noopener")}>
-                <ExternalLink size={14} /> Botni ochish
+                <ExternalLink size={14} /> {tr(til, T.openBot)}
               </Button>
             )}
             <Button type="button" variant="ghost" onClick={unlink} disabled={busy !== null}>
-              {busy === "unlink" ? <Spinner /> : <Unlink size={14} />} Uzish
+              {busy === "unlink" ? <Spinner /> : <Unlink size={14} />} {tr(til, T.unlink)}
             </Button>
           </>
         ) : (
           <>
             <Button type="button" onClick={connect} disabled={busy !== null}>
-              {busy === "link" ? <Spinner /> : <ExternalLink size={14} />} Telegramga ulash
+              {busy === "link" ? <Spinner /> : <ExternalLink size={14} />} {tr(til, T.connect)}
             </Button>
             {waiting && (
               <Button type="button" variant="outline" onClick={check} disabled={busy !== null} className="expand-in">
-                <RefreshCw size={14} /> Tekshirish
+                <RefreshCw size={14} /> {tr(til, T.check)}
               </Button>
             )}
           </>
@@ -195,7 +200,7 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
       </div>
       {!linked && waiting && (
         <p className="expand-in mt-3 flex items-center gap-2 text-[12px] text-fg-4" role="status">
-          <Spinner className="!h-3 !w-3" /> Botda «Start» bosilishini kutyapmiz — ulangach bu karta o&apos;zi yangilanadi. Havola 15 daqiqa amal qiladi.
+          <Spinner className="!h-3 !w-3" /> {tr(til, T.waiting)}
         </p>
       )}
     </section>

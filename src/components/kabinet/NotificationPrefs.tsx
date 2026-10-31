@@ -4,14 +4,18 @@ import { useState } from "react";
 import { ChevronDown, Mail, Newspaper, SlidersHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { usePresence } from "@/components/motion/usePresence";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Tr } from "@/lib/i18n";
+import { BILDIRISHNOMA } from "@/lib/i18n/dict/kabinet-pages";
 import { cn } from "@/lib/utils";
 
 export type NotifyGroupKey = "orders" | "jobs" | "social" | "chat" | "system";
 export type DigestFreq = "off" | "daily" | "weekly";
-const DIGEST_OPTIONS: Array<{ value: DigestFreq; label: string }> = [
-  { value: "off", label: "O'chiq" },
-  { value: "daily", label: "Kunlik" },
-  { value: "weekly", label: "Haftalik" },
+const P = BILDIRISHNOMA.prefs;
+const DIGEST_OPTIONS: Array<{ value: DigestFreq; label: Tr }> = [
+  { value: "off", label: P.digestOff },
+  { value: "daily", label: P.digestDaily },
+  { value: "weekly", label: P.digestWeekly },
 ];
 export interface NotifyPrefsInitial {
   groups: Record<NotifyGroupKey, boolean>;
@@ -27,6 +31,7 @@ type ApiResp = { ok: boolean; data?: NotifyPrefsInitial; error?: string; fields?
  */
 export function NotificationPrefs({ initial, defaultOpen = false }: { initial: NotifyPrefsInitial; defaultOpen?: boolean }) {
   const { toast } = useToast();
+  const til = useLocale();
   const [open, setOpen] = useState(defaultOpen);
   const [v, setV] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
@@ -41,11 +46,11 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
     try {
       const res = await fetch("/api/notifications/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       const j = (await res.json()) as ApiResp;
-      if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlanmadi");
+      if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, P.notSaved));
       setV(j.data);
     } catch (e) {
       setV(prev);
-      toast(e instanceof Error ? e.message : "Saqlanmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, P.notSaved), "error");
     } finally {
       setBusy(null);
     }
@@ -63,11 +68,11 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
         <SlidersHorizontal size={18} className="shrink-0 text-fg-3" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span id="notif-prefs-title" className="block text-[14px] font-semibold text-fg">
-            Sozlamalar
+            {tr(til, P.settings)}
           </span>
           <span className="block truncate text-[12px] text-fg-3">
-            {offCount === 0 ? "Hamma guruh yoqilgan" : `${offCount} ta guruh o'chirilgan`} · email {v.notifyEmail ? "yoqilgan" : "o'chiq"}
-            {v.digestFreq !== "off" && ` · ${v.digestFreq === "daily" ? "kunlik" : "haftalik"} jamlama`}
+            {offCount === 0 ? tr(til, P.allOn) : P.offCount[til](offCount)} · {tr(til, v.notifyEmail ? P.emailOn : P.emailOff)}
+            {v.digestFreq !== "off" && ` · ${tr(til, v.digestFreq === "daily" ? P.digestDailySummary : P.digestWeeklySummary)}`}
           </span>
         </span>
         <ChevronDown size={16} className={cn("shrink-0 text-fg-3 transition-transform", open && "rotate-180")} aria-hidden="true" />
@@ -101,10 +106,10 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
               <Mail size={18} className="shrink-0 text-fg-3" aria-hidden="true" />
               <span className="min-w-0 flex-1">
                 <span id="np-email" className="block text-[14px] font-medium text-fg">
-                  Email orqali ham
+                  {tr(til, P.email)}
                 </span>
                 <span id="np-email-hint" className="block text-[12px] text-fg-3">
-                  Muhim hodisalar (buyurtma, to'lov, taklif, xabar) emailga ham keladi. Xavfsizlik xatlari doim yuboriladi.
+                  {tr(til, P.emailHint)}
                 </span>
               </span>
               <button type="button" role="switch" aria-checked={v.notifyEmail} aria-labelledby="np-email" aria-describedby="np-email-hint" disabled={busy === "email"} onClick={() => void save({ notifyEmail: !v.notifyEmail }, "email")} className="switch" />
@@ -114,23 +119,23 @@ export function NotificationPrefs({ initial, defaultOpen = false }: { initial: N
                 <Newspaper size={18} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span id="np-digest" className="block text-[14px] font-medium text-fg">
-                    Jamlama xabarnoma
+                    {tr(til, P.digest)}
                   </span>
                   <span id="np-digest-hint" className="block text-[12px] text-fg-3">
-                    Obunachilar, reaksiya, izoh, ko&apos;rish va o&apos;qilmagan xabarlar — bitta qisqa xabarda (Telegram, email va saytda). Yangilik bo&apos;lmasa yuborilmaydi.
+                    {tr(til, P.digestHint)}
                   </span>
                 </span>
               </div>
               <div className="segment mt-2.5 w-full max-w-sm" role="radiogroup" aria-labelledby="np-digest" aria-describedby="np-digest-hint">
                 {DIGEST_OPTIONS.map((o) => (
                   <button key={o.value} type="button" role="radio" aria-checked={v.digestFreq === o.value} data-active={v.digestFreq === o.value} disabled={busy === "digest"} onClick={() => v.digestFreq !== o.value && void save({ digestFreq: o.value }, "digest")} className="segment-item min-h-10 flex-1">
-                    {o.label}
+                    {tr(til, o.label)}
                   </button>
                 ))}
               </div>
             </li>
           </ul>
-          <p className="px-4 py-2.5 text-[11.5px] text-fg-4 sm:px-5">Hisob xavfsizligi, nizo va pul qaytarish xabarlari sozlamadan qat&apos;i nazar keladi.</p>
+          <p className="px-4 py-2.5 text-[11.5px] text-fg-4 sm:px-5">{tr(til, P.footer)}</p>
         </div>
       )}
     </section>

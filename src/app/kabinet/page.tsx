@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
-import { tr } from "@/lib/i18n";
+import { tr, type Locale } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { OBUNA_HOLATI, UMUMIY, greetingLabel, orderStatusLabel } from "@/lib/i18n/dict/kabinet-pages";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
@@ -42,7 +44,7 @@ import { getSettings } from "@/lib/payments/settings";
 import { isOnVacation, tashkentNow } from "@/lib/privacy";
 import { getOrdersForUser } from "@/lib/queries";
 import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
-import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor, timeAgo } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -84,11 +86,11 @@ function Tile({ value, label, href }: { icon?: LucideIcon; value: React.ReactNod
   );
 }
 
-function ProgressRing({ pct, size = 72, stroke = 6 }: { pct: number; size?: number; stroke?: number }) {
+function ProgressRing({ pct, label, size = 72, stroke = 6 }: { pct: number; label: string; size?: number; stroke?: number }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Profil ${pct}% to'ldirilgan`} className="shrink-0">
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label} className="shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line-2)" strokeWidth={stroke} />
       <circle
         cx={size / 2}
@@ -144,7 +146,8 @@ interface CheckItem {
   hint?: string;
 }
 
-const SUB_LABEL: Record<SubscriptionState["status"], string> = { trial: "Sinov", active: "Faol", grace: "Imtiyozli muddat", expired: "Faol emas", off: "Talab qilinmaydi", exempt: "Imtiyozli" };
+/** Obuna holati yorliqlari — lug'atda (`OBUNA_HOLATI`), kalit `SubscriptionState["status"]` */
+const subLabel = (til: Locale, status: SubscriptionState["status"]) => tr(til, OBUNA_HOLATI[status]);
 
 /* ------------------------------------------------------------------ */
 /* Sahifa                                                              */
@@ -152,6 +155,7 @@ const SUB_LABEL: Record<SubscriptionState["status"], string> = { trial: "Sinov",
 export default async function KabinetPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet"));
+  const til = await getLocale();
 
   const sp = user.specialist;
   const now = new Date();
@@ -229,14 +233,14 @@ export default async function KabinetPage() {
   const needsProfile = !sp && user.role === "specialist";
   const checklist: CheckItem[] = sp
     ? [
-        { key: "title", label: "Haqiqiy sarlavha", done: sp.title.trim().length >= 5 && !/yangi mutaxassis$/i.test(sp.title.trim()), href: "/kabinet/profil#mutaxassis", hint: "Masalan: To'y videografi · Sony FX3" },
-        { key: "bio", label: "O'zingiz haqingizda (bio)", done: sp.bio.trim().length >= 80, href: "/kabinet/profil#mutaxassis", hint: "Kamida 80 ta belgi" },
-        { key: "price", label: "Narx belgilangan", done: sp.priceFrom > 0, href: "/kabinet/profil#mutaxassis" },
-        { key: "skills", label: "Kamida 3 ta ko'nikma", done: sp.skills.length >= 3, href: "/kabinet/profil#mutaxassis" },
-        { key: "photo", label: "Muqova yoki avatar rasmi", done: Boolean(sp.coverUrl || user.avatarUrl), href: "/kabinet/profil" },
-        { key: "portfolio", label: "Portfolioda kamida 3 ta ish", done: portfolioCount >= 3, href: "/kabinet/portfolio", hint: `Hozir: ${portfolioCount} ta` },
-        { key: "schedule", label: "Ish vaqti kiritilgan", done: Boolean(sp.schedule && Object.values(sp.schedule.days ?? {}).some((d) => d?.enabled)), href: "/kabinet/profil#ish-vaqti" },
-        { key: "contact", label: "Aloqa: Telegram yoki Instagram", done: Boolean(sp.telegram || sp.instagram), href: "/kabinet/profil#mutaxassis" },
+        { key: "title", label: tr(til, UMUMIY.ck.title), done: sp.title.trim().length >= 5 && !/yangi mutaxassis$/i.test(sp.title.trim()), href: "/kabinet/profil#mutaxassis", hint: tr(til, UMUMIY.ck.titleHint) },
+        { key: "bio", label: tr(til, UMUMIY.ck.bio), done: sp.bio.trim().length >= 80, href: "/kabinet/profil#mutaxassis", hint: tr(til, UMUMIY.ck.bioHint) },
+        { key: "price", label: tr(til, UMUMIY.ck.price), done: sp.priceFrom > 0, href: "/kabinet/profil#mutaxassis" },
+        { key: "skills", label: tr(til, UMUMIY.ck.skills), done: sp.skills.length >= 3, href: "/kabinet/profil#mutaxassis" },
+        { key: "photo", label: tr(til, UMUMIY.ck.photo), done: Boolean(sp.coverUrl || user.avatarUrl), href: "/kabinet/profil" },
+        { key: "portfolio", label: tr(til, UMUMIY.ck.portfolio), done: portfolioCount >= 3, href: "/kabinet/portfolio", hint: UMUMIY.ck.portfolioHint[til](portfolioCount) },
+        { key: "schedule", label: tr(til, UMUMIY.ck.schedule), done: Boolean(sp.schedule && Object.values(sp.schedule.days ?? {}).some((d) => d?.enabled)), href: "/kabinet/profil#ish-vaqti" },
+        { key: "contact", label: tr(til, UMUMIY.ck.contact), done: Boolean(sp.telegram || sp.instagram), href: "/kabinet/profil#mutaxassis" },
       ]
     : [];
   const doneCount = checklist.filter((c) => c.done).length;
@@ -256,18 +260,18 @@ export default async function KabinetPage() {
 
   /* ---------- «Bugun» qatorlari (faqat nol bo'lmaganlar) ---------- */
   const todayRows: Array<{ key: string; href: string; icon: LucideIcon; label: string; value: React.ReactNode; tone?: "warning" | "danger" | "success" }> = [];
-  if (newIncoming > 0) todayRows.push({ key: "new", href: "/kabinet/buyurtmalar?tab=kelgan", icon: Inbox, label: "Yangi buyurtma", value: newIncoming, tone: "warning" });
+  if (newIncoming > 0) todayRows.push({ key: "new", href: "/kabinet/buyurtmalar?tab=kelgan", icon: Inbox, label: tr(til, UMUMIY.newOrder), value: newIncoming, tone: "warning" });
   for (const o of dueOrders) {
     const overdue = o.dueDate ? o.dueDate < today : false;
-    todayRows.push({ key: `due-${o.id}`, href: `/kabinet/buyurtmalar?id=${o.id}`, icon: CalendarClock, label: o.title.length > 48 ? `${o.title.slice(0, 48)}…` : o.title, value: o.dueDate ? (overdue ? "muddati o'tgan" : o.dueDate === today ? "bugun" : formatDate(o.dueDate)) : "", tone: overdue ? "danger" : "warning" });
+    todayRows.push({ key: `due-${o.id}`, href: `/kabinet/buyurtmalar?id=${o.id}`, icon: CalendarClock, label: o.title.length > 48 ? `${o.title.slice(0, 48)}…` : o.title, value: o.dueDate ? (overdue ? tr(til, UMUMIY.overdue) : o.dueDate === today ? tr(til, UMUMIY.dueToday) : formatDate(o.dueDate, til)) : "", tone: overdue ? "danger" : "warning" });
   }
   for (const e of events) {
-    todayRows.push({ key: `ev-${e.id}`, href: `/jamoalar/${e.groupSlug}?post=${e.id}`, icon: RadioTower, label: `Efir · ${e.groupName}`, value: e.eventAt ? formatDateTime(e.eventAt) : "" });
+    todayRows.push({ key: `ev-${e.id}`, href: `/jamoalar/${e.groupSlug}?post=${e.id}`, icon: RadioTower, label: UMUMIY.live[til](e.groupName), value: e.eventAt ? formatDateTime(e.eventAt) : "" });
   }
-  if (newApplications > 0) todayRows.push({ key: "apps", href: "/kabinet/vakansiyalar", icon: Briefcase, label: "Vakansiyaga yangi ariza", value: newApplications, tone: "warning" });
-  if (jobStats && jobStats.newProposals > 0) todayRows.push({ key: "props", href: "/kabinet/elonlar", icon: Megaphone, label: "E'lonlaringizga yangi taklif", value: jobStats.newProposals, tone: "warning" });
-  if (unreadDm > 0) todayRows.push({ key: "dm", href: "/kabinet/chat", icon: MessageCircle, label: "O'qilmagan xabar", value: unreadDm });
-  if (unreadNotif > 0) todayRows.push({ key: "notif", href: "/kabinet/bildirishnomalar?filter=unread", icon: Bell, label: "O'qilmagan bildirishnoma", value: unreadNotif });
+  if (newApplications > 0) todayRows.push({ key: "apps", href: "/kabinet/vakansiyalar", icon: Briefcase, label: tr(til, UMUMIY.newApplication), value: newApplications, tone: "warning" });
+  if (jobStats && jobStats.newProposals > 0) todayRows.push({ key: "props", href: "/kabinet/elonlar", icon: Megaphone, label: tr(til, UMUMIY.newProposal), value: jobStats.newProposals, tone: "warning" });
+  if (unreadDm > 0) todayRows.push({ key: "dm", href: "/kabinet/chat", icon: MessageCircle, label: tr(til, UMUMIY.unreadDm), value: unreadDm });
+  if (unreadNotif > 0) todayRows.push({ key: "notif", href: "/kabinet/bildirishnomalar?filter=unread", icon: Bell, label: tr(til, UMUMIY.unreadNotif), value: unreadNotif });
 
 
   return (
@@ -278,10 +282,10 @@ export default async function KabinetPage() {
       {/* ---------- Sarlavha ---------- */}
       <header className="mb-5 sm:mb-6">
         <span className="eyebrow">
-          {greetingFor()} · {sp ? "Mutaxassis" : user.role === "admin" ? "Administrator" : "Mijoz"}
+          {greetingLabel(til, greetingFor())} · {tr(til, sp ? KABINET_NAV.role.specialist : user.role === "admin" ? KABINET_NAV.role.admin : KABINET_NAV.role.client)}
         </span>
         <h1 className="display-xl mt-3 text-fg">
-          Salom, <span className="accent-serif">{firstName}</span>
+          {tr(til, UMUMIY.hello)} <span className="accent-serif">{firstName}</span>
         </h1>
       </header>
 
@@ -289,15 +293,15 @@ export default async function KabinetPage() {
       <section className="card m-flat mb-5" aria-labelledby="today-title">
         <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
           <h2 id="today-title" className="font-display text-[17px] font-semibold text-fg">
-            Bugun
+            {tr(til, UMUMIY.today)}
           </h2>
           <span className="text-[12px] text-fg-4" suppressHydrationWarning>
-            {formatDate(Date.now())}
+            {formatDate(Date.now(), til)}
           </span>
         </div>
         {todayRows.length === 0 ? (
           <p className="flex items-center gap-2 border-t border-line px-4 py-4 text-[13px] text-fg-3 sm:px-5">
-            <CheckCircle2 size={16} className="text-success" aria-hidden="true" /> Hammasi tinch — yangi buyurtma, muddat yoki xabar yo&apos;q.
+            <CheckCircle2 size={16} className="text-success" aria-hidden="true" /> {tr(til, UMUMIY.todayEmpty)}
           </p>
         ) : (
           <ul className="divide-y divide-line border-t border-line">
@@ -314,14 +318,14 @@ export default async function KabinetPage() {
       {needsProfile && (
         <section className="card mb-5 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <ProgressRing pct={0} />
+            <ProgressRing pct={0} label={UMUMIY.profileAria[til](0)} />
             <div>
-              <p className="font-display text-[17px] font-semibold leading-tight text-fg">Mutaxassis profilingizni yarating</p>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-fg-2">Yo&apos;nalish, hudud, narx va ko&apos;nikmalar — profil xaritada paydo bo&apos;ladi.</p>
+              <p className="font-display text-[17px] font-semibold leading-tight text-fg">{tr(til, UMUMIY.createTitle)}</p>
+              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-fg-2">{tr(til, UMUMIY.createText)}</p>
             </div>
           </div>
           <ButtonLink href="/kabinet/profil#mutaxassis" variant="accent" className="shrink-0">
-            Profilni yaratish <ArrowRight size={15} />
+            {tr(til, UMUMIY.createBtn)} <ArrowRight size={15} />
           </ButtonLink>
         </section>
       )}
@@ -330,22 +334,22 @@ export default async function KabinetPage() {
       <div className="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 [&>*]:animate-fade-up">
         {sp ? (
           <>
-            <Tile icon={Eye} value={formatNumber(sp.viewCount)} label="Profil ko'rishlar" href={`/mutaxassislar/${sp.slug}`} />
+            <Tile icon={Eye} value={formatNumber(sp.viewCount)} label={tr(til, UMUMIY.views)} href={`/mutaxassislar/${sp.slug}`} />
             <Tile
               icon={Star}
-              value={sp.rating > 0 ? sp.rating.toFixed(1) : <span className="text-[18px] font-medium text-fg-3 sm:text-[20px]">Hali yo&apos;q</span>}
-              label={sp.reviewCount > 0 ? `Reyting · ${sp.reviewCount} ta sharh` : "Reyting"}
+              value={sp.rating > 0 ? sp.rating.toFixed(1) : <span className="text-[18px] font-medium text-fg-3 sm:text-[20px]">{tr(til, UMUMIY.notYet)}</span>}
+              label={sp.reviewCount > 0 ? UMUMIY.ratingReviews[til](sp.reviewCount) : tr(til, UMUMIY.rating)}
               href={sp.reviewCount > 0 ? `/mutaxassislar/${sp.slug}#sharhlar` : undefined}
             />
-            <Tile icon={UsersRound} value={followersCount} label="Obunachilar" href="/kabinet/obunalar" />
-            <Tile icon={ClipboardList} value={activeIncoming} label={`Jarayonda · ${doneIncoming} bajarilgan`} href="/kabinet/buyurtmalar?tab=kelgan" />
+            <Tile icon={UsersRound} value={followersCount} label={tr(til, UMUMIY.followers)} href="/kabinet/obunalar" />
+            <Tile icon={ClipboardList} value={activeIncoming} label={UMUMIY.inProgressDone[til](doneIncoming)} href="/kabinet/buyurtmalar?tab=kelgan" />
           </>
         ) : (
           <>
-            <Tile icon={Send} value={sent} label="Yuborilgan buyurtmalar" href="/kabinet/buyurtmalar" />
-            <Tile icon={Clock3} value={inProgress} label="Jarayonda" href="/kabinet/buyurtmalar" />
-            <Tile icon={CheckCircle2} value={doneOutgoing} label="Bajarilgan" href="/kabinet/buyurtmalar" />
-            <Tile icon={Users} value={partners} label="Ishlagan mutaxassislar" href="/kabinet/mutaxassislarim" />
+            <Tile icon={Send} value={sent} label={tr(til, UMUMIY.sentOrders)} href="/kabinet/buyurtmalar" />
+            <Tile icon={Clock3} value={inProgress} label={tr(til, UMUMIY.inProgress)} href="/kabinet/buyurtmalar" />
+            <Tile icon={CheckCircle2} value={doneOutgoing} label={tr(til, UMUMIY.done)} href="/kabinet/buyurtmalar" />
+            <Tile icon={Users} value={partners} label={tr(til, UMUMIY.partners)} href="/kabinet/mutaxassislarim" />
           </>
         )}
       </div>
@@ -355,13 +359,13 @@ export default async function KabinetPage() {
         <section className="card mt-5 p-5" aria-labelledby="onb-title">
           <div className="flex flex-col gap-5 sm:flex-row">
             <div className="flex items-start gap-4 sm:w-[280px] sm:shrink-0">
-              <ProgressRing pct={pct} />
+              <ProgressRing pct={pct} label={UMUMIY.profileAria[til](pct)} />
               <div className="min-w-0">
                 <h2 id="onb-title" className="font-display text-[17px] font-semibold leading-tight text-fg">
-                  {pct < 50 ? "Profilni to'ldiring" : "Yana ozgina qoldi"}
+                  {tr(til, pct < 50 ? UMUMIY.fillProfile : UMUMIY.almostThere)}
                 </h2>
                 <p className="mt-1 text-[13px] leading-snug text-fg-2">
-                  {doneCount}/{checklist.length} bajarildi · {sp.isVerified ? "tasdiqlangan" : "tasdiq kutilmoqda"}
+                  {UMUMIY.progress[til](doneCount, checklist.length, sp.isVerified)}
                 </p>
               </div>
             </div>
@@ -399,15 +403,15 @@ export default async function KabinetPage() {
             <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
               <div>
                 <h2 id="recent-title" className="font-display text-[17px] font-semibold text-fg">
-                  So&apos;nggi buyurtmalar
+                  {tr(til, UMUMIY.recent)}
                 </h2>
                 <p className="text-[12px] text-fg-3">
-                  {sp && asSpecialist.length > 0 ? `${activeIncoming} ta jarayonda · ${doneIncoming} ta bajarilgan` : asClient.length > 0 ? `${inProgress} ta jarayonda · ${doneOutgoing} ta bajarilgan` : "Hozircha bo'sh"}
+                  {sp && asSpecialist.length > 0 ? UMUMIY.recentSub[til](activeIncoming, doneIncoming) : asClient.length > 0 ? UMUMIY.recentSub[til](inProgress, doneOutgoing) : tr(til, UMUMIY.recentEmptySub)}
                 </p>
               </div>
               {recent.length > 0 && (
                 <Link href="/kabinet/buyurtmalar" className="text-[13px] font-semibold text-fg-2 underline-offset-2 hover:underline">
-                  Barchasi
+                  {tr(til, UMUMIY.all)}
                 </Link>
               )}
             </div>
@@ -415,11 +419,11 @@ export default async function KabinetPage() {
             {recent.length === 0 ? (
               <div className="flex flex-col items-center border-t border-line px-6 pb-7 pt-6 text-center">
                 <IconTile icon={Inbox} tone="soft" size="lg" className="mb-3" />
-                <p className="font-display text-[15px] font-semibold text-fg">{sp ? "Hali buyurtmalar kelmagan" : "Hali buyurtma bermagansiz"}</p>
-                <p className="mt-1 max-w-xs text-[13px] text-fg-3">{sp ? "Profil va portfolioni to'ldiring — mijozlar sizni tezroq topadi." : "Xaritadan mutaxassis tanlang va loyihangizni yuboring."}</p>
+                <p className="font-display text-[15px] font-semibold text-fg">{tr(til, sp ? UMUMIY.noIncoming : UMUMIY.noOutgoing)}</p>
+                <p className="mt-1 max-w-xs text-[13px] text-fg-3">{tr(til, sp ? UMUMIY.noIncomingText : UMUMIY.noOutgoingText)}</p>
                 {!sp && (
                   <ButtonLink href="/xarita" variant="outline" size="sm" className="mt-4">
-                    Xaritani ochish <ArrowRight size={14} />
+                    {tr(til, UMUMIY.openMap)} <ArrowRight size={14} />
                   </ButtonLink>
                 )}
               </div>
@@ -432,15 +436,15 @@ export default async function KabinetPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold text-fg">{o.title}</p>
                         <p className="truncate text-[12px] text-fg-3">
-                          {o.kind === "incoming" ? "Mijoz: " : "Mutaxassis: "}
+                          {tr(til, o.kind === "incoming" ? UMUMIY.clientPrefix : UMUMIY.specialistPrefix)}
                           {o.who}
-                          {o.amount ? ` · ${formatPrice(o.amount, { compact: true })}` : o.budget ? ` · byudjet ${formatPrice(o.budget, { compact: true })}` : ""}
+                          {o.amount ? UMUMIY.amount[til](formatPrice(o.amount, { compact: true })) : o.budget ? UMUMIY.budget[til](formatPrice(o.budget, { compact: true })) : ""}
                           {" · "}
-                          <time dateTime={new Date(o.createdAt).toISOString()}>{timeAgo(o.createdAt)}</time>
+                          <time dateTime={new Date(o.createdAt).toISOString()}>{timeAgoLabel(til, o.createdAt)}</time>
                         </p>
                       </div>
                       <Badge tone={STATUS_TONE[o.status]} className="shrink-0">
-                        {ORDER_STATUS_LABEL[o.status]}
+                        {orderStatusLabel(til, o.status, ORDER_STATUS_LABEL[o.status])}
                       </Badge>
                     </Link>
                   </li>
@@ -456,7 +460,7 @@ export default async function KabinetPage() {
         <div className="space-y-5">
           <section className="card m-flat p-4" aria-labelledby="profile-card-title">
             <h2 id="profile-card-title" className="sr-only">
-              Profil
+              {tr(til, UMUMIY.profile)}
             </h2>
             <div className="flex items-center gap-3">
               <Avatar name={user.name} src={user.avatarUrl} size={40} decorative />
@@ -467,7 +471,7 @@ export default async function KabinetPage() {
                 </p>
                 <p className="truncate text-[12.5px] text-fg-3">{sp ? sp.title : user.email}</p>
               </div>
-              {sp && (user.isPaused ? <Badge tone="warning">Pauzada</Badge> : onVacation ? <Badge tone="warning">Ta&apos;tilda</Badge> : sp.isAvailable ? <Badge tone="success">Bo&apos;sh</Badge> : <Badge tone="warning">Band</Badge>)}
+              {sp && (user.isPaused ? <Badge tone="warning">{tr(til, UMUMIY.paused)}</Badge> : onVacation ? <Badge tone="warning">{tr(til, UMUMIY.vacation)}</Badge> : sp.isAvailable ? <Badge tone="success">{tr(til, UMUMIY.available)}</Badge> : <Badge tone="warning">{tr(til, UMUMIY.busy)}</Badge>)}
             </div>
           </section>
 
@@ -478,37 +482,37 @@ export default async function KabinetPage() {
                 <Row
                   href="/kabinet/obuna"
                   icon={CreditCard}
-                  label="Obuna"
-                  value={subState.status === "expired" ? SUB_LABEL.expired : subState.status === "exempt" ? SUB_LABEL.exempt : `${SUB_LABEL[subState.status]} · ${subState.daysLeft} kun`}
+                  label={tr(til, UMUMIY.subscription)}
+                  value={subState.status === "expired" || subState.status === "exempt" ? subLabel(til, subState.status) : UMUMIY.subDays[til](subLabel(til, subState.status), subState.daysLeft)}
                   tone={subState.status === "expired" ? "danger" : subState.status === "grace" || subState.daysLeft <= BANNER_DAYS ? "warning" : undefined}
                 />
               </li>
             )}
             {sp && proposalStats && (
               <li>
-                <Row href="/kabinet/takliflar" icon={Send} label="Takliflar" value={`${Math.min(proposalStats.today, PROPOSAL_DAILY_LIMIT)}/${PROPOSAL_DAILY_LIMIT} bugun · ${(proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0)} kutilmoqda`} />
+                <Row href="/kabinet/takliflar" icon={Send} label={tr(til, UMUMIY.proposals)} value={UMUMIY.proposalsValue[til](Math.min(proposalStats.today, PROPOSAL_DAILY_LIMIT), PROPOSAL_DAILY_LIMIT, (proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0))} />
               </li>
             )}
             {jobStats && (
               <li>
-                <Row href="/kabinet/elonlar" icon={Megaphone} label="E'lonlarim" value={`${jobStats.open} ochiq`} />
+                <Row href="/kabinet/elonlar" icon={Megaphone} label={tr(til, UMUMIY.myJobs)} value={UMUMIY.openJobs[til](jobStats.open)} />
               </li>
             )}
             {(!sp || favCount > 0) && (
               <li>
-                <Row href={favCount > 0 ? "/kabinet/sevimlilar" : "/mutaxassislar"} icon={Heart} label="Sevimlilar" value={favCount > 0 ? favCount : "Mutaxassis tanlang"} />
+                <Row href={favCount > 0 ? "/kabinet/sevimlilar" : "/mutaxassislar"} icon={Heart} label={tr(til, UMUMIY.favorites)} value={favCount > 0 ? favCount : tr(til, UMUMIY.pickSpecialist)} />
               </li>
             )}
-            <li>{sp ? <Row href="/kabinet/postlar" icon={PenSquare} label="Postlarim" /> : <Row href="/kabinet/saqlanganlar" icon={PenSquare} label="Saqlangan postlar" />}</li>
+            <li>{sp ? <Row href="/kabinet/postlar" icon={PenSquare} label={tr(til, UMUMIY.myPosts)} /> : <Row href="/kabinet/saqlanganlar" icon={PenSquare} label={tr(til, UMUMIY.savedPosts)} />}</li>
           </ul>
 
           {/* Mijoz uchun maslahat */}
           {!sp && user.role === "client" && (
             <section className="card p-5">
-              <p className="font-display text-[15px] font-semibold text-fg">Siz ijodkormisiz?</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-fg-2">Portfolio joylang, narx belgilang — buyurtmalar kabinetingizga keladi.</p>
+              <p className="font-display text-[15px] font-semibold text-fg">{tr(til, UMUMIY.creatorQ)}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-fg-2">{tr(til, UMUMIY.creatorText)}</p>
               <ButtonLink href="/kabinet/profil#mutaxassis" variant="outline" size="md" className="mt-4 w-full">
-                Mutaxassis bo&apos;lish <ArrowRight size={14} />
+                {tr(til, UMUMIY.becomeSpecialist)} <ArrowRight size={14} />
               </ButtonLink>
             </section>
           )}

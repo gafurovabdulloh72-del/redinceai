@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { OBUNALAR } from "@/lib/i18n/dict/kabinet-pages";
 import { redirect } from "next/navigation";
 import { UsersRound } from "lucide-react";
 import { FollowTabs } from "@/components/groups/FollowersDialog";
@@ -18,18 +19,19 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FollowsPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/obunalar"));
+  const til = await getLocale();
   const st = await followState(user.id, user.id);
   return (
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <UsersRound size={13} /> Kabinet
+          <UsersRound size={13} /> {tr(til, OBUNALAR.cabinet)}
         </span>
         <h1 className="display-xl mt-4 text-fg">
-          Obunachilar va <span className="accent-serif">obunalar</span>
+          {tr(til, OBUNALAR.titleStart)} <span className="accent-serif">{tr(til, OBUNALAR.titleAccent)}</span>
         </h1>
         <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">
-          {st.followersCount} ta obunachi · {st.followingCount} ta obuna. Obuna bo&apos;lganlaringiz postlari bosh sahifadagi «Obunalarim»da.
+          {OBUNALAR.description[til](st.followersCount, st.followingCount)}
         </p>
       </header>
       <div className="card mx-auto max-w-2xl p-3 sm:p-4">

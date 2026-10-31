@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { BILDIRISHNOMA, notifyGroupMeta, notifyGroupShort } from "@/lib/i18n/dict/kabinet-pages";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
@@ -32,6 +33,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const sp = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath(BASE));
+  const til = await getLocale();
 
   const onlyUnread = sp.filter === "unread";
   const group = sp.filter && GROUP_SET.has(sp.filter) ? (sp.filter as NotifyGroupKey) : null;
@@ -71,25 +73,26 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
   const filterKey = onlyUnread ? "unread" : (group ?? undefined);
   const tabs: Array<{ key: string; label: string; href: string; active: boolean; count?: number }> = [
-    { key: "all", label: "Hammasi", href: BASE, active: !onlyUnread && !group },
-    { key: "unread", label: "O'qilmagan", href: `${BASE}?filter=unread`, active: onlyUnread, count: unread },
-    ...NOTIFY_GROUP_KEYS.filter((k) => groupCounts[k] > 0).map((k) => ({ key: k, label: NOTIFY_GROUP_META[k].label.split(" ")[0], href: `${BASE}?filter=${k}`, active: group === k, count: groupCounts[k] })),
+    { key: "all", label: tr(til, BILDIRISHNOMA.all), href: BASE, active: !onlyUnread && !group },
+    { key: "unread", label: tr(til, BILDIRISHNOMA.unread), href: `${BASE}?filter=unread`, active: onlyUnread, count: unread },
+    ...NOTIFY_GROUP_KEYS.filter((k) => groupCounts[k] > 0).map((k) => ({ key: k, label: notifyGroupShort(til, k, NOTIFY_GROUP_META[k].label), href: `${BASE}?filter=${k}`, active: group === k, count: groupCounts[k] })),
   ];
   const prefs = {
     groups: Object.fromEntries(NOTIFY_GROUP_KEYS.map((k) => [k, (prefsRow?.notifyPrefs ?? {})[k] !== false])) as Record<NotifyGroupKey, boolean>,
     notifyEmail: prefsRow?.notifyEmail ?? true,
     digestFreq: prefsRow?.digestFreq ?? "off",
-    meta: NOTIFY_GROUP_META,
+    // Guruh yorliqlari tilga moslab klientga uzatiladi (NOTIFY_GROUP_META server-only)
+    meta: Object.fromEntries(NOTIFY_GROUP_KEYS.map((k) => [k, notifyGroupMeta(til, k, NOTIFY_GROUP_META[k])])) as Record<NotifyGroupKey, { label: string; hint: string }>,
   };
 
   return (
     <div className="animate-fade-up">
       <header className="mb-5 sm:mb-6">
         <span className="eyebrow">
-          <Bell size={13} /> Kabinet
+          <Bell size={13} /> {tr(til, BILDIRISHNOMA.cabinet)}
         </span>
-        <h1 className="display-xl mt-4 text-fg">Bildirishnomalar</h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2 max-sm:hidden">Buyurtma, xabar, obuna va hisob yangiliklari bir joyda.</p>
+        <h1 className="display-xl mt-4 text-fg">{tr(til, BILDIRISHNOMA.title)}</h1>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2 max-sm:hidden">{tr(til, BILDIRISHNOMA.description)}</p>
       </header>
 
       <div className="mb-4 space-y-3">
@@ -98,7 +101,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </div>
         <PushPanel />
         {/* Filtr chiplari: telefonda gorizontal aylanadi (16px gutter) */}
-        <nav aria-label="Saralash" className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <nav aria-label={tr(til, BILDIRISHNOMA.filterAria)} className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <ul className="flex w-max gap-1.5">
             {tabs.map((t) => (
               <li key={t.key}>
@@ -127,12 +130,12 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       ) : (
         <EmptyState
           icon={onlyUnread ? Bell : BellOff}
-          title={onlyUnread ? "O'qilmagan bildirishnoma yo'q" : group ? `«${NOTIFY_GROUP_META[group].label}» bo'yicha bildirishnoma yo'q` : "Hali bildirishnoma yo'q"}
-          description={onlyUnread ? "Hammasi ko'rib chiqilgan." : "Yangi hodisalar shu yerda jamlanadi."}
+          title={onlyUnread ? tr(til, BILDIRISHNOMA.emptyUnread) : group ? BILDIRISHNOMA.emptyGroup[til](prefs.meta[group].label) : tr(til, BILDIRISHNOMA.emptyAll)}
+          description={tr(til, onlyUnread ? BILDIRISHNOMA.emptyUnreadText : BILDIRISHNOMA.emptyAllText)}
           action={
             onlyUnread || group ? (
               <ButtonLink href={BASE} variant="outline" size="md">
-                Barchasini ko&apos;rish
+                {tr(til, BILDIRISHNOMA.showAll)}
               </ButtonLink>
             ) : undefined
           }
