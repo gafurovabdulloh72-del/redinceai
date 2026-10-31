@@ -312,7 +312,35 @@ export interface BotPerson {
   contactPrice?: number | null;
 }
 
-/** Ijodkor qidiruvi (bot va inline rejim umumiy): ism/sarlavha → bo'lmasa kasb+hudud bo'yicha katalog; bo'sh so'rov — eng yaxshilari */
+/** Ruscha so'rov so'zlari → kasb slug'i (bot/inline qidiruvi; DB'dagi 8 asosiy slug) */
+const RU_CATEGORY_ALIASES: [RegExp, string][] = [
+  [/видеограф|видеосъ[её]м|видеооператор|оператор/, "videograf"],
+  [/монтаж/, "montajor"],
+  [/моушн|motion|анимац/, "motion-dizayner"],
+  [/фотограф|фотосъ[её]м|фотосесс/, "fotograf"],
+  [/\b3d\b|3д|тр[её]хмер/, "3d-artist"],
+  [/\bui\b|\bux\b|интерфейс|веб-?дизайн|сайт/, "ui-ux"],
+  [/звук|озвуч|диктор|саунд|аудио/, "ovoz"],
+  [/дизайн|логотип|бренд|графич|иллюстр/, "dizayner"],
+];
+/** Ruscha hudud nomlari → REGIONS slug'i */
+const RU_REGION_ALIASES: [RegExp, string][] = [
+  [/ташкент/, "toshkent-shahri"],
+  [/самарканд/, "samarqand"],
+  [/бухар/, "buxoro"],
+  [/ферган/, "fargona"],
+  [/андижан/, "andijon"],
+  [/наманган/, "namangan"],
+  [/хорезм|ургенч|хива/, "xorazm"],
+  [/навои/, "navoiy"],
+  [/кашкадар|карши/, "qashqadaryo"],
+  [/сурхандар|термез/, "surxondaryo"],
+  [/джизак/, "jizzax"],
+  [/сырдар|гулистан/, "sirdaryo"],
+  [/каракалпак|нукус/, "qoraqalpogiston"],
+];
+
+/** Ijodkor qidiruvi (bot va inline rejim umumiy): ism/sarlavha → bo'lmasa kasb+hudud bo'yicha katalog (o'zbekcha yoki ruscha so'zlar); bo'sh so'rov — eng yaxshilari */
 export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
   const { exploreSearch } = await import("@/lib/search/service");
   const { CATEGORIES, REGIONS } = await import("@/lib/constants");
@@ -330,11 +358,15 @@ export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
     const ql = q.toLowerCase();
     // Kasb: so'rovdagi so'z kasb nomi/ko'pligi/slug'ining boshi bilan mos kelsa («montaj» → Montajchi)
     const words = ql.split(/\s+/).filter((w) => w.length >= 4);
-    const cat = CATEGORIES.find((c) => {
-      const names = [c.name, c.plural, c.slug].map((x) => x.toLowerCase());
-      return words.some((w) => names.some((n) => n.startsWith(w.slice(0, 5)) || n.includes(w)));
-    });
-    const reg = REGIONS.find((r) => ql.includes(r.short.toLowerCase().replace(/\s*(sh\.|vil\.)$/, "")) || ql.includes(r.slug));
+    const ruCat = RU_CATEGORY_ALIASES.find(([re]) => re.test(ql))?.[1];
+    const ruReg = RU_REGION_ALIASES.find(([re]) => re.test(ql))?.[1];
+    const cat =
+      (ruCat && CATEGORIES.find((c) => c.slug === ruCat)) ||
+      CATEGORIES.find((c) => {
+        const names = [c.name, c.plural, c.slug].map((x) => x.toLowerCase());
+        return words.some((w) => names.some((n) => n.startsWith(w.slice(0, 5)) || n.includes(w)));
+      });
+    const reg = (ruReg && REGIONS.find((r) => r.slug === ruReg)) || REGIONS.find((r) => ql.includes(r.short.toLowerCase().replace(/\s*(sh\.|vil\.)$/, "")) || ql.includes(r.slug));
     if (cat || reg) people = await fromCatalog({ category: cat?.slug, region: reg?.slug });
   }
   return withContactPrices(people);
