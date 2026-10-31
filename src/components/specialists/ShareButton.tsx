@@ -1,5 +1,6 @@
 "use client";
 
+import { telegramShareHref } from "@/lib/telegram-share";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronLeft, Download, Link2, QrCode, Send, Share2, X } from "lucide-react";
@@ -104,7 +105,7 @@ export function ShareButton({
       if (e instanceof Error && e.name === "AbortError") return;
     }
   };
-  const tgHref = `https://t.me/share/url?url=${encodeURIComponent(href)}&text=${encodeURIComponent(title ?? "")}`;
+  const tgHref = telegramShareHref(href, title ?? "");
   const sizeCls = size === "lg" ? "h-13 w-13" : size === "sm" ? "h-9 w-9" : "h-11 w-11";
   const row = "press flex min-h-12 w-full items-center gap-3 rounded-[var(--r-sm)] px-3 text-left text-[14px] font-medium text-fg transition hover:bg-fg/6";
 

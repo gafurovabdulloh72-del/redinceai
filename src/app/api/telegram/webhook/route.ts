@@ -14,7 +14,7 @@ import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, v
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
-import { accountOf, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
 import { MENU_COMMAND, sendApp, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
 
 /**
@@ -30,7 +30,7 @@ import { MENU_COMMAND, sendApp, sendHelp, sendWelcome } from "@/lib/telegram-bot
  *   /start l_<kod>   — «Telegram bilan kirish» tasdig'i
  *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
  *   /ilova · /buyurtmalarim · /xabarlar · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
- *   /profil · /sozlamalar · /yordam · /stop
+ *   /profil · /sozlamalar · /yordam · /stop · /elon (faqat admin: ommaviy e'lon, auditoriya tugmalari)
  *   doimiy menyu tugmalari (📦 Buyurtmalarim …) — MENU_COMMAND orqali shu buyruqlarga aylanadi
  *   boshqa matn      — ijodkor qidiruvi (exploreSearch)
  *
@@ -136,6 +136,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
   if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handleMenuCallback(chatId, data, answer))) return;
+  if (chatId && (await handleBroadcastCallback(chatId, data, answer, msgId))) return;
 
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
   if (!m || !chatId) {
@@ -282,8 +283,12 @@ export async function POST(req: Request) {
     else if (cmd === "/profil") await handleProfile(chatId);
     else if (cmd === "/sozlamalar") await handleSettings(chatId);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
+    else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
     else if (cmd === "/stop") await handleStop(chatId);
-    else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) await sendHelp(chatId, Boolean(await accountOf(chatId)));
+    else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) {
+      const me = await accountOf(chatId);
+      await sendHelp(chatId, Boolean(me), me?.role === "admin");
+    }
     else await handleSearch(chatId, text); // oddiy matn — ijodkor qidiruvi
   } catch (e) {
     // Har doim 200 — Telegram xatoli javobni qayta-qayta yuborib turadi

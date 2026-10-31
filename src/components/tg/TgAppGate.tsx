@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
+import { decodeStartParam } from "@/lib/tg-start-param";
 
 /**
  * Mini App darvozasi — Telegram SDK'SIZ (tashqi skript CSP/tarmoqqa bog'liq bo'lmasin):
@@ -24,11 +25,13 @@ function postEvent(eventType: string, eventData: Record<string, unknown> = {}) {
 }
 
 /** Hash yoki sessionStorage'dan initData (Telegram SDK ham `__telegram__initParams`ga shunday saqlaydi) */
-function readInitData(): { initData: string; dark: boolean } | null {
+function readInitData(): { initData: string; dark: boolean; startPath: string | null } | null {
   const hash = window.location.hash.replace(/^#/, "");
   const params = new URLSearchParams(hash);
   let initData = params.get("tgWebAppData") ?? "";
   let theme = params.get("tgWebAppThemeParams") ?? "";
+  // Ulashilgan havola (`t.me/<bot>?startapp=…`) — qaysi sahifaga ochish: hash yoki query'da keladi
+  const startPath = decodeStartParam(params.get("tgWebAppStartParam") ?? new URLSearchParams(window.location.search).get("tgWebAppStartParam"));
   if (!initData) {
     try {
       const saved = JSON.parse(sessionStorage.getItem("__telegram__initParams") ?? "null") as Record<string, string> | null;
@@ -46,7 +49,7 @@ function readInitData(): { initData: string; dark: boolean } | null {
   } catch {
     /* tema berilmagan */
   }
-  return { initData, dark };
+  return { initData, dark, startPath };
 }
 
 export function TgAppGate({ to, botLink }: { to: string; botLink: string | null }) {
@@ -70,7 +73,7 @@ export function TgAppGate({ to, botLink }: { to: string; botLink: string | null 
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to }) });
+        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: launch.startPath ?? to }) });
         const j = (await r.json()) as { ok: boolean; data?: { next: string }; error?: string };
         if (cancelled) return;
         if (!r.ok || !j.ok) throw new Error(j.error || "Kirib bo'lmadi");

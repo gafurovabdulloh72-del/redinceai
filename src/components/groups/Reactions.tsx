@@ -1,5 +1,6 @@
 "use client";
 
+import { telegramShareHref } from "@/lib/telegram-share";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Bookmark, Check, Heart, Link2, MessageSquareShare, Send, Share2, X } from "lucide-react";
@@ -585,7 +586,7 @@ export function ShareAction({ url, title, size = "md", label = false, loggedIn =
       setSending(null);
     }
   }
-  const tg = () => `https://t.me/share/url?url=${encodeURIComponent(abs())}&text=${encodeURIComponent(title || "Kasb Egalari")}`;
+  const tg = () => telegramShareHref(abs(), title || "Kasb Egalari");
   const row = "flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-semibold text-fg transition hover:bg-fg/6 focus-visible:bg-fg/6 focus-visible:outline-none";
 
   return (

@@ -346,3 +346,102 @@ export async function handleTop(chatId: string): Promise<void> {
   const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${r.score} ball\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
   await sendTelegram(chatId, `🏆 <b>Oyning TOP ijodkorlari</b> (jonli hisob)\n\n${lines.join("\n\n")}`, { button: { text: "To'liq reyting", url: `${s}/top` } });
 }
+
+/* ------------------------------------------------------------------ */
+/* Admin: ommaviy e'lon botdan (`/elon`)                               */
+/* ------------------------------------------------------------------ */
+
+const DRAFT_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * `/elon Sarlavha | Matn` yoki ko'p qatorli (`/elon` + Enter, 1-qator sarlavha, qolgani matn) — faqat ADMIN chat.
+ * Qoralama `bot_drafts`ga yoziladi va auditoriya tugmalari chiqadi (`bc:<all|specialists|clients|no>`).
+ */
+export async function handleBroadcastStart(chatId: string, text: string): Promise<void> {
+  const me = await accountOf(chatId);
+  if (!me || me.role !== "admin" || me.isBanned) {
+    await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
+    return;
+  }
+  const raw = text.replace(/^\/elon(@\w+)?\s*/i, "").trim();
+  let title = "";
+  let body = "";
+  if (raw.includes("|")) {
+    const i = raw.indexOf("|");
+    title = raw.slice(0, i).trim();
+    body = raw.slice(i + 1).trim();
+  } else if (raw.includes("\n")) {
+    const i = raw.indexOf("\n");
+    title = raw.slice(0, i).trim();
+    body = raw.slice(i + 1).trim();
+  }
+  if (!raw || title.length < 4 || body.length < 10) {
+    await sendTelegram(
+      chatId,
+      "📣 <b>Ommaviy e'lon</b>\nBarcha foydalanuvchilarga (sayt + Telegram) bir vaqtda yuboriladi.\n\nFormat:\n<code>/elon Sarlavha | Matn</code>\nyoki\n<code>/elon</code> dan keyin yangi qatorda sarlavha, keyingi qatorlarda matn.\n\nSarlavha 4–120 belgi, matn 10–600 belgi. Yuborishdan oldin auditoriya so'raladi.",
+    );
+    return;
+  }
+  title = title.slice(0, 120);
+  body = body.slice(0, 600);
+  const { botDrafts } = await import("@/lib/db/schema");
+  await db.insert(botDrafts).values({ chatId, title, body, createdAt: new Date() }).onConflictDoUpdate({ target: botDrafts.chatId, set: { title, body, createdAt: new Date() } });
+  const { audienceRows, channelStat } = await import("@/lib/broadcast");
+  const all = await audienceRows("all");
+  const st = channelStat(all);
+  const sp = all.filter((r) => r.role === "specialist").length;
+  const cl = all.filter((r) => r.role === "client").length;
+  await sendTelegram(chatId, `<b>${escapeTelegramHtml(title)}</b>\n${escapeTelegramHtml(body)}\n\n— Shunday ketadi. Kimga yuboramiz? (saytda ${all.length} kishi, Telegramda ${st.telegram} kishi)`, {
+    keyboard: [
+      [{ text: `👥 Hammaga (${all.length})`, data: "bc:all" }],
+      [
+        { text: `🎨 Mutaxassislar (${sp})`, data: "bc:specialists" },
+        { text: `🧑‍💼 Mijozlar (${cl})`, data: "bc:clients" },
+      ],
+      [{ text: "✖️ Bekor qilish", data: "bc:no" }],
+    ],
+  });
+}
+
+/** `bc:<auditoriya|no>` — admin tasdiqlaydi; natija asl xabar ostiga yoziladi, tugmalar yo'qoladi */
+export async function handleBroadcastCallback(chatId: string, data: string, answer: Answer, messageId: number | null): Promise<boolean> {
+  const m = /^bc:(all|specialists|clients|no)$/.exec(data);
+  if (!m) return false;
+  const me = await accountOf(chatId);
+  if (!me || me.role !== "admin" || me.isBanned) {
+    await answer("Faqat administrator uchun");
+    return true;
+  }
+  const { botDrafts } = await import("@/lib/db/schema");
+  const draft = await db.query.botDrafts.findFirst({ where: eq(botDrafts.chatId, chatId) });
+  const finish = async (result: string) => {
+    await answer(result.slice(0, 190));
+    if (messageId) {
+      await telegramApi("editMessageText", { chat_id: chatId, message_id: messageId, text: `${draft ? `<b>${escapeTelegramHtml(draft.title)}</b>\n${escapeTelegramHtml(draft.body)}\n\n` : ""}<b>${escapeTelegramHtml(result)}</b>`, parse_mode: "HTML" });
+    }
+  };
+  if (m[1] === "no") {
+    await db.delete(botDrafts).where(eq(botDrafts.chatId, chatId));
+    await finish("Bekor qilindi");
+    return true;
+  }
+  if (!draft || Date.now() - draft.createdAt.getTime() > DRAFT_TTL_MS) {
+    await finish("Qoralama topilmadi yoki eskirgan — /elon bilan qaytadan yozing");
+    return true;
+  }
+  // CAS: qoralama o'chirilgach yuboriladi — ikki marta bosilsa ikkinchi marta ketmaydi
+  const del = await db.delete(botDrafts).where(eq(botDrafts.chatId, chatId)).returning({ chatId: botDrafts.chatId });
+  if (!del.length) {
+    await answer("Allaqachon yuborilmoqda");
+    return true;
+  }
+  const { AUDIENCE_LABEL, sendBroadcast } = await import("@/lib/broadcast");
+  const aud = m[1] as "all" | "specialists" | "clients";
+  try {
+    const r = await sendBroadcast({ title: draft.title, body: draft.body, audience: aud }, me.id, "telegram");
+    await finish(`✅ Yuborildi — ${AUDIENCE_LABEL[aud].toLowerCase()}: ${r.sent} kishi (Telegram ${r.channels.telegram})`);
+  } catch (e) {
+    await finish(`Xatolik: ${e instanceof Error ? e.message : "yuborilmadi"}`);
+  }
+  return true;
+}

@@ -126,7 +126,7 @@ export async function sendApp(chatId: string): Promise<void> {
 }
 
 /** Yordam — bot nima qila oladi (ulangan/ulanmagan holatga qarab) */
-export async function sendHelp(chatId: string, linked: boolean): Promise<void> {
+export async function sendHelp(chatId: string, linked: boolean, admin = false): Promise<void> {
   const text =
     "<b>Kasb Egalari boti nima qiladi</b>\n\n" +
     "📦 /buyurtmalarim — ochiq buyurtmalar; yangi buyurtmani «Qabul qilish» / «Rad etish» tugmasi bilan hal qilasiz\n" +
@@ -139,7 +139,9 @@ export async function sendHelp(chatId: string, linked: boolean): Promise<void> {
     "👤 /profil — hisob va ulanish holati\n" +
     "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
-    "⛔ /stop — Telegramni hisobdan uzish\n\n" +
+    "⛔ /stop — Telegramni hisobdan uzish\n" +
+    (admin ? "📣 /elon Sarlavha | Matn — barcha foydalanuvchilarga e'lon (faqat admin)\n" : "") +
+    "\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
   await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows() } : { button: { text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` } });
 }

@@ -1,19 +1,17 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
+import { AUDIENCES, channelStat, sendBroadcast, type AudienceRow } from "@/lib/broadcast";
 
 /**
  * Admin: ommaviy e'lon/eslatma — barcha (yoki rolga ko'ra) foydalanuvchilarga bir vaqtda.
  * Har bir qabul qiluvchiga saytdagi bildirishnoma + Telegram (ulangan bo'lsa); email ixtiyoriy
  * (forceMail) — notifyEmail=false qilganlarga baribir bormaydi. Adminlarga va bloklanganlarga yuborilmaydi.
  */
-
-const AUDIENCES = ["all", "specialists", "clients"] as const;
-type Audience = (typeof AUDIENCES)[number];
 
 const schema = z.object({
   title: z.string().trim().min(4, "Sarlavha juda qisqa").max(120, "Ko'pi bilan 120 belgi"),
@@ -33,38 +31,11 @@ const schema = z.object({
   test: z.boolean().optional().default(false),
 });
 
-function audienceWhere(a: Audience) {
-  const base = and(eq(users.isBanned, false), ne(users.role, "admin"))!;
-  if (a === "specialists") return and(base, eq(users.role, "specialist"))!;
-  if (a === "clients") return and(base, eq(users.role, "client"))!;
-  return base;
-}
-
-/** O'chirilgan (anonimlashtirilgan) hisob — email kanalida sanalmaydi (notifications.ts bilan bir xil qoida) */
-const DELETED_EMAIL_RE = /^deleted-.*@redince\.invalid$/i;
-
-interface AudienceRow {
-  role: string;
-  banned: boolean;
-  tg: string | null;
-  mail: boolean;
-  email: string | null;
-}
-
-/** Auditoriyaning kanal kesimi: sayt (hammaga), Telegram (botni ulaganlar), email (yoqilganlar) */
-function channelStat(list: AudienceRow[]) {
-  return {
-    total: list.length,
-    telegram: process.env.TELEGRAM_BOT_TOKEN ? list.filter((r) => r.tg).length : 0,
-    email: list.filter((r) => r.mail && r.email && !DELETED_EMAIL_RE.test(r.email)).length,
-  };
-}
-
 /** Auditoriya hajmi + kanal kesimi — UI'da "nechta odamga qaysi kanal orqali boradi" uchun */
 export const GET = handler(async () => {
   await requireSession(["admin"]);
   const rows: AudienceRow[] = await db
-    .select({ role: users.role, banned: users.isBanned, tg: users.telegramChatId, mail: users.notifyEmail, email: users.email })
+    .select({ id: users.id, role: users.role, banned: users.isBanned, tg: users.telegramChatId, mail: users.notifyEmail, email: users.email })
     .from(users)
     .where(ne(users.role, "admin"));
   const active = rows.filter((r) => !r.banned);
@@ -104,26 +75,8 @@ export const POST = handler(async (req) => {
     return ok({ sent: 1, test: true });
   }
 
-  const targets = await db
-    .select({ id: users.id, role: users.role, banned: users.isBanned, tg: users.telegramChatId, mail: users.notifyEmail, email: users.email })
-    .from(users)
-    .where(audienceWhere(input.audience));
-  if (targets.length === 0) throw new ApiError(400, "Auditoriya bo'sh — yuboriladigan foydalanuvchi yo'q");
-
-  // Hozirgi masshtabda (yuzlab foydalanuvchi) 20 talik guruhlar bilan ketma-ket yuborish yetarli.
-  // Minglab bo'lganda navbat (queue)ga o'tkazish kerak bo'ladi — kunlik cron shunga tayyor joy.
-  let sent = 0;
-  for (let i = 0; i < targets.length; i += 20) {
-    const chunk = targets.slice(i, i + 20);
-    await Promise.all(chunk.map((u) => notify(u.id, "broadcast", input.title, input.body, href, { forceMail: input.email })));
-    sent += chunk.length;
-  }
-
-  // Kanal kesimi — "hammasi yuborilganini" admin aniq ko'rsin: sayt hammaga, Telegram ulaganlarga, email yoqilganlarga
-  const st = channelStat(targets);
-  const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
-  const channels = { site: sent, telegram: st.telegram, email: input.email && emailConfigured ? st.email : 0 };
-
-  await audit(session.sub, "admin_broadcast", { meta: { audience: input.audience, sent, email: input.email, title: input.title, channels } }, req);
+  const r = await sendBroadcast({ title: input.title, body: input.body, href, audience: input.audience, email: input.email }, session.sub, "admin", req);
+  if (r.sent === 0) throw new ApiError(400, "Auditoriya bo'sh — yuboriladigan foydalanuvchi yo'q");
+  const { sent, channels } = r;
   return ok({ sent, audience: input.audience, email: input.email, channels });
 });

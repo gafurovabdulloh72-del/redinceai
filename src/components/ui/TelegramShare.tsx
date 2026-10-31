@@ -1,3 +1,5 @@
+import { tgAppShareLink } from "@/lib/tg-start-param";
+import { telegramBotUsername } from "@/lib/telegram";
 import { Send } from "lucide-react";
 import { SITE_URL } from "@/lib/site-url";
 import { getLocale } from "@/lib/i18n/server";
@@ -12,7 +14,9 @@ import { cn } from "@/lib/utils";
 export async function TelegramShare({ path, text, className, iconOnly = true }: { path: string; text: string; className?: string; iconOnly?: boolean }) {
   const til = await getLocale();
   const label = tr(til, SHELL.common.shareTelegram);
-  const href = `https://t.me/share/url?url=${encodeURIComponent(`${SITE_URL}${path}`)}&text=${encodeURIComponent(text)}`;
+  // Ichki yo'l bo'lsa Mini App'da ochiladigan havola (qabul qiluvchi darhol kirgan holda ko'radi), aks holda oddiy URL
+  const deep = tgAppShareLink(telegramBotUsername(), path);
+  const href = `https://t.me/share/url?url=${encodeURIComponent(deep ?? `${SITE_URL}${path}`)}&text=${encodeURIComponent(text)}`;
   return (
     <a
       href={href}

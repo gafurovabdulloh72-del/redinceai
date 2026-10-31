@@ -2937,3 +2937,13 @@ export type Course = typeof courses.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type CourseReview = typeof courseReviews.$inferSelect;
+
+/** Telegram botdagi admin e'loni qoralamasi (`/elon` → tasdiqlash tugmalari): chat → sarlavha/matn, 1 soat */
+export const botDrafts = sqliteTable("bot_drafts", {
+  chatId: text("chat_id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});

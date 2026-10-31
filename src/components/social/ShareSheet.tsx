@@ -1,5 +1,6 @@
 "use client";
 
+import { telegramShareHref } from "@/lib/telegram-share";
 import { useEffect, useRef, useState } from "react";
 import { Check, Link2, Search, Send } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
@@ -102,7 +103,7 @@ export function ShareSheet({ open, onClose, url, title, loggedIn }: { open: bool
         <span className="grid h-14 w-14 place-items-center rounded-full bg-fg/7 text-fg">{copied ? <Check size={22} className="text-success" /> : <Link2 size={22} />}</span>
         <span className="text-[11.5px] font-medium text-fg-2">{copied ? "Nusxalandi" : "Havola"}</span>
       </button>
-      <a href={`https://t.me/share/url?url=${encodeURIComponent(abs)}&text=${encodeURIComponent(title)}`} target="_blank" rel="noopener noreferrer" className="press flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center">
+      <a href={telegramShareHref(abs, title)} target="_blank" rel="noopener noreferrer" className="press flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center">
         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#229ED9] text-white">
           <Send size={22} />
         </span>

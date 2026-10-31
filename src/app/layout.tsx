@@ -28,6 +28,7 @@ import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
+import { telegramBotUsername } from "@/lib/telegram";
 
 // Brend shrifti (faqat logotip so'z belgisi): Space Grotesk 300–700 (lotin to'plami, subset)
 const spaceGrotesk = localFont({
@@ -142,7 +143,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Telegram Mini App ichida (/tg darvozasi cookie qo'yadi): footer yashirin, qobiq ilova kabi
   const tgApp = (await cookies()).get("tgapp")?.value === "1";
   return (
-    <html lang={DISPLAY_LANG[display]} data-display={display} data-tg-app={tgApp ? "" : undefined} suppressHydrationWarning className={`${spaceGrotesk.variable} ${manrope.variable} ${instrument.variable}`}>
+    <html lang={DISPLAY_LANG[display]} data-display={display} data-tg-app={tgApp ? "" : undefined} data-tg-bot={telegramBotUsername() ?? undefined} suppressHydrationWarning className={`${spaceGrotesk.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
