@@ -7,6 +7,7 @@ import type { QuoteView } from "@/lib/chat/quote";
 import { DM_REACTIONS, type LinkPreviewView, type ReactionSummary } from "@/lib/chat/constants";
 import { cn } from "@/lib/utils";
 import { attachmentExt, formatBytes, formatDuration, isAudioAttachment, isImageAttachment, isVideoAttachment, type Attachment } from "./attachments";
+import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 /** Dumaloq ikonka tugma — chat bo'ylab bir xil (40px, fokus halqasi) */
 export const iconBtn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg disabled:opacity-40";
@@ -333,8 +334,8 @@ export function ReactionChips({ reactions, mine, onToggle }: { reactions: Reacti
             r.mine ? "border-fg bg-surface text-fg" : "border-line bg-surface text-fg-2 hover:border-fg",
           )}
         >
-          <span key={r.count} className="animate-badge-pop">
-            {r.emoji}
+          <span key={r.count} className="animate-badge-pop inline-flex">
+            <EmojiSticker e={r.emoji} size={15} />
           </span>
           {r.count > 1 && <span className="font-semibold tabular-nums">{r.count}</span>}
         </button>
@@ -354,9 +355,9 @@ export function ReactionPicker({ current, onPick }: { current?: string | null; o
           onClick={() => onPick(e)}
           aria-label={e}
           aria-pressed={current === e}
-          className={cn("press flex h-9 w-9 items-center justify-center rounded-full text-[18px] transition hover:bg-fg/8 focus-visible:outline-2 focus-visible:outline-fg", current === e && "bg-fg/8")}
+          className={cn("press flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-fg/8 focus-visible:outline-2 focus-visible:outline-fg", current === e && "bg-fg/8")}
         >
-          {e}
+          <EmojiSticker e={e} size={24} />
         </button>
       ))}
     </div>

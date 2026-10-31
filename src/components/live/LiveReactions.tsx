@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataChannel, useLocalParticipant } from "@livekit/components-react";
 import { Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 /** Efirda uchib chiqadigan reaksiyalar (Zoom/Instagram naqshi) */
 export const LIVE_REACTIONS = ["❤️", "👏", "🔥", "😂", "😮", "👍", "🙌", "🎉"] as const;
@@ -59,8 +60,8 @@ export function ReactionLayer({ items }: { items: Floating[] }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden>
       {items.map((i) => (
-        <span key={i.key} className="absolute bottom-2 animate-live-float text-[28px] leading-none" style={{ left: `${i.x}%`, animationDelay: `${i.delay}ms` }}>
-          {i.emoji}
+        <span key={i.key} className="absolute bottom-2 inline-flex animate-live-float leading-none" style={{ left: `${i.x}%`, animationDelay: `${i.delay}ms` }}>
+          <EmojiSticker e={i.emoji} size={32} />
         </span>
       ))}
     </div>
@@ -82,9 +83,10 @@ export function ReactionPicker({ open, onPick, onClose }: { open: boolean; onPic
               onPick(e);
               onClose();
             }}
-            className="grid h-9 w-9 place-items-center rounded-full text-[19px] transition hover:bg-white/15 active:scale-90"
+            className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-white/15 active:scale-90"
+            aria-label={e}
           >
-            {e}
+            <EmojiSticker e={e} size={24} />
           </button>
         ))}
       </div>

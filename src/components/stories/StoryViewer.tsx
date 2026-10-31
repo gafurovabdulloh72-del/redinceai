@@ -12,6 +12,7 @@ import { useScrollLock } from "@/components/motion/useScrollLock";
 import { STORY_BACKGROUNDS } from "@/lib/social/limits";
 import { cn, timeAgo } from "@/lib/utils";
 import type { AuthorStories, StoryRailItem } from "@/lib/stories/types";
+import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 const IMAGE_MS = 5500;
 
@@ -334,8 +335,8 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                     /* pointerdown — blur'dan oldin ishlaydi (qator yo'qolib ketmasin) */
                     <div className="pop-in absolute inset-x-0 bottom-full mb-3 flex justify-around px-1" role="group" aria-label="Tez reaksiya">
                       {QUICK.map((x) => (
-                        <button key={x} type="button" aria-label={`Reaksiya ${x}`} onPointerDown={(e) => { e.preventDefault(); quickReact(x); }} className="press grid h-12 w-12 place-items-center rounded-full text-[30px] leading-none transition hover:scale-110">
-                          {x}
+                        <button key={x} type="button" aria-label={`Reaksiya ${x}`} onPointerDown={(e) => { e.preventDefault(); quickReact(x); }} className="press grid h-12 w-12 place-items-center rounded-full transition hover:scale-110">
+                          <EmojiSticker e={x} size={36} />
                         </button>
                       ))}
                     </div>

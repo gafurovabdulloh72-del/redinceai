@@ -5,6 +5,7 @@ import { BarChart3, Bookmark, Eye, Heart, Loader2, MessageCircle, Users } from "
 import { Sheet } from "@/components/ui/Sheet";
 import { REACTIONS } from "@/lib/groups/limits";
 import { compactCount } from "@/lib/utils";
+import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 interface Stats {
   views: number;
@@ -94,7 +95,7 @@ export function PostStatsSheet({ open, onClose, postId }: { open: boolean; onClo
               <ul className="mt-2 space-y-1.5">
                 {data.reactions.map((r) => (
                   <li key={r.emoji} className="flex items-center gap-2.5">
-                    <span className="w-6 shrink-0 text-center text-[16px]">{emojiOf(r.emoji)}</span>
+                    <span className="inline-flex w-6 shrink-0 justify-center"><EmojiSticker e={emojiOf(r.emoji)} size={18} /></span>
                     <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-fg/8">
                       <span className="block h-full rounded-full bg-accent" style={{ width: `${total ? Math.max(4, Math.round((r.count / total) * 100)) : 0}%` }} />
                     </span>

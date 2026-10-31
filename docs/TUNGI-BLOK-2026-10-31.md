@@ -149,6 +149,8 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   (44 yorug' + 46 qorong'u sahifa, 768px planshet, mehmon, RU) — HSCROLL yo'q.
 - Admin bosh sahifasi: 14 so'rov parallel, har biri ~55–70 ms (dev); sekinlik faqat dev kompilyatsiyasi/yuklama paytida.
 
+- Reaksiya emojilari «stiker» rasmlarga almashtirildi (Fluent Emoji 3D, MIT): Android/Windows/iPhone'da bir xil ko'rinadi.
+
 ## Keyingi g'oyalar
 - RU: kabinet sahifalarining ichki matni va vakansiyalar bo'limi (katta blok, foydalanuvchi qarori bilan).
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).

@@ -13,6 +13,7 @@ import type { ReactionCounts, UserBrief } from "@/lib/groups/service";
 import { tr } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
 import { cn } from "@/lib/utils";
+import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 type ApiResp<T> = { ok: boolean; data?: T; error?: string };
 
@@ -294,8 +295,8 @@ export function ReactionButton({
         )}
       >
         {my ? (
-          <span key={my} className="animate-heartbeat text-[18px] leading-none" aria-hidden>
-            {REACTION_BY_KEY[my].emoji}
+          <span key={my} className="animate-heartbeat inline-flex leading-none" aria-hidden>
+            <EmojiSticker e={REACTION_BY_KEY[my].emoji} size={20} />
           </span>
         ) : (
           <Heart size={18} />
@@ -306,8 +307,8 @@ export function ReactionButton({
           </span>
         )}
         {others.length > 0 && (
-          <span className="ml-0.5 text-[12px] leading-none opacity-80" aria-label={others.map((k) => REACTION_BY_KEY[k].label).join(", ")}>
-            {others.map((k) => REACTION_BY_KEY[k].emoji).join("")}
+          <span className="ml-0.5 inline-flex leading-none opacity-90" aria-label={others.map((k) => REACTION_BY_KEY[k].label).join(", ")}>
+            <EmojiStack list={others.map((k) => REACTION_BY_KEY[k].emoji)} size={14} />
           </span>
         )}
         <span className="sr-only">{my ? `Sizning reaksiyangiz: ${REACTION_BY_KEY[my].label}` : "Reaksiya"}</span>
@@ -336,11 +337,11 @@ export function ReactionButton({
               onClick={() => void send(r.key)}
               style={{ animationDelay: `${i * 28}ms` }}
               className={cn(
-                "animate-pop flex h-10 w-10 items-center justify-center rounded-full text-[24px] leading-none transition-transform duration-150 hover:-translate-y-1 hover:scale-125 focus-visible:scale-125 focus-visible:outline-none",
+                "animate-pop flex h-10 w-10 items-center justify-center rounded-full leading-none transition-transform duration-150 hover:-translate-y-1 hover:scale-125 focus-visible:scale-125 focus-visible:outline-none",
                 my === r.key && "bg-accent-soft",
               )}
             >
-              <span aria-hidden>{r.emoji}</span>
+              <EmojiSticker e={r.emoji} size={30} />
               <span className="sr-only">{r.label}</span>
             </button>
           ))}
@@ -388,8 +389,8 @@ export function ReactorsButton({ postId, total, counts, className }: { postId: s
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={`${tr(til, FEED.whoReacted)} (${total})`} title={tr(til, FEED.whoReacted)} className={cn("press inline-flex h-9 items-center gap-1 rounded-full px-1.5 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg", className)}>
-        <span className="text-[13px] leading-none" aria-hidden>
-          {top.map((k) => REACTION_BY_KEY[k].emoji).join("")}
+        <span className="inline-flex leading-none" aria-hidden>
+          <EmojiStack list={top.map((k) => REACTION_BY_KEY[k].emoji)} size={16} />
         </span>
         <span key={total} className="animate-swap tabular-nums">
           {total}
@@ -403,7 +404,7 @@ export function ReactorsButton({ postId, total, counts, className }: { postId: s
             </button>
             {kinds.map(([k, n]) => (
               <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={cn("pill h-8 shrink-0 px-3 text-[12.5px] font-semibold", kind === k ? "bg-fg text-surface" : "text-fg-2 hover:text-fg")}>
-                {REACTION_BY_KEY[k].emoji} {n}
+                <EmojiSticker e={REACTION_BY_KEY[k].emoji} size={16} className="mr-1" /> {n}
               </button>
             ))}
           </div>
@@ -438,8 +439,8 @@ export function ReactorsButton({ postId, total, counts, className }: { postId: s
                   )}
                   {u.username && <span className="block truncate text-[12px] text-fg-3">@{u.username}</span>}
                 </span>
-                <span className="text-[18px] leading-none" title={REACTION_BY_KEY[u.reaction].label} aria-label={REACTION_BY_KEY[u.reaction].label}>
-                  {REACTION_BY_KEY[u.reaction].emoji}
+                <span className="inline-flex leading-none" title={REACTION_BY_KEY[u.reaction].label}>
+                  <EmojiSticker e={REACTION_BY_KEY[u.reaction].emoji} size={22} label={REACTION_BY_KEY[u.reaction].label} />
                 </span>
               </li>
             ))}
