@@ -672,6 +672,12 @@ export async function listCoursesOfMentor(mentorId: string) {
 }
 
 /** Sitemap uchun: tasdiqlangan mentorlar sahifalari */
+/** Sitemap: chop etilgan kurslar (yangisi oldin) */
+export async function getSitemapCourses(): Promise<Array<{ slug: string; lastModified: Date }>> {
+  const rows = await db.select({ slug: courses.slug, at: courses.updatedAt, created: courses.createdAt }).from(courses).where(eq(courses.isPublished, true)).orderBy(desc(courses.updatedAt)).limit(5000);
+  return rows.map((r) => ({ slug: r.slug, lastModified: r.at ?? r.created }));
+}
+
 export async function getSitemapMentors(): Promise<Array<{ slug: string; lastModified: Date }>> {
   const rows = await db.select({ slug: mentors.slug, at: mentors.approvedAt, created: mentors.createdAt }).from(mentors).where(and(eq(mentors.isApproved, true), sql`${mentors.slug} is not null`)).limit(2000);
   return rows.map((r) => ({ slug: r.slug as string, lastModified: r.at ?? r.created }));

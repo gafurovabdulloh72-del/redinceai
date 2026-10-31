@@ -35,6 +35,7 @@ va baza migratsiyasi siyosatini tushuntiradi. Asosiy yo'l — **Vercel + Turso**
 | `CLICK_SECRET_KEY` | Click uchun | — | SHOP API imzo kaliti (md5 sign). |
 | `PLATFORM_CARD` | yo'q | `8600 1234 5678 9012` | Qo'lda o'tkazma uchun karta (admin tasdiqlaydi). Bo'sh bo'lsa bu usul chiqmaydi. |
 | `PLATFORM_CARD_NAME` | yo'q | `REDINCE MChJ` | Karta egasi nomi. |
+| `INDEXNOW_KEY` | tavsiya | `openssl rand -hex 16` | IndexNow (Yandex/Bing tez indekslash): kunlik cron o'zgargan sahifalarni darhol bildiradi; kalit fayli `/indexnow-key.txt` avtomatik. Bo'lmasa jim o'tadi (12-bo'lim). |
 | `RESEND_API_KEY` | tavsiya | `re_…` | Parol tiklash, email tasdiqlash, bildirishnoma xatlari. Bo'lmasa xat server konsoliga yoziladi. |
 | `MAIL_FROM` | Resend bilan | `Redince <no-reply@redince.uz>` | Jo'natuvchi (domen Resend'da tasdiqlangan bo'lsin). |
 | `TELEGRAM_BOT_TOKEN` | yo'q | `123456789:AA…` | Telegram bot tokeni (BotFather). Bo'lmasa Telegram integratsiyasi butunlay o'chiq (11-bo'lim). |
@@ -325,5 +326,10 @@ biznes kataloglari) — har bir havola indekslashni tezlashtiradi.
 «Pages» bo'limida kuzating: «Discovered – currently not indexed» — kutilmoqda,
 «Crawled – currently not indexed» — kontent yetarli emas (ko'proq profil/post kerak).
 
-Env (ikkalasi ham ixtiyoriy, bo'lmasa meta teg chizilmaydi):
-`GOOGLE_SITE_VERIFICATION`, `YANDEX_VERIFICATION`.
+**6. IndexNow (Yandex/Bing — darhol bildirish).** Vercel env'ga `INDEXNOW_KEY` qo'ying (masalan `openssl rand -hex 16`),
+redeploy. Kunlik cron (`/api/cron/daily`, (p)-bosqich) so'nggi 26 soatda o'zgargan sahifalarni `api.indexnow.org`ga
+yuboradi — Yandex ularni sitemap'ni kutmasdan oladi. Tekshirish: `https://<domen>/indexnow-key.txt` kalitni qaytarsin;
+Yandex Webmaster → «Индексирование → IndexNow» da so'rovlar ko'rinadi. Google IndexNow'ni qo'llamaydi — unga sitemap + «Request indexing».
+
+Env (hammasi ixtiyoriy, bo'lmasa meta teg chizilmaydi / IndexNow jim o'tadi):
+`GOOGLE_SITE_VERIFICATION`, `YANDEX_VERIFICATION`, `INDEXNOW_KEY`.

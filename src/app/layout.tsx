@@ -104,7 +104,7 @@ const ORG_JSONLD = JSON.stringify([
     "@type": "Organization",
     name: SITE.name,
     url: SITE_URL,
-    logo: `${SITE_URL}/icon.svg`,
+    logo: `${SITE_URL}/icons/icon-512.png`,
   },
   {
     "@context": "https://schema.org",

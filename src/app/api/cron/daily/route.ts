@@ -4,6 +4,8 @@ import { auditLogs, orders, payments, rateLimits, sessions } from "@/lib/db/sche
 import { runDigests } from "@/lib/digest";
 import { runMonthlyTop } from "@/lib/top";
 import { purgeExpiredStories } from "@/lib/stories/service";
+import { pingIndexNow } from "@/lib/seo/indexnow";
+import buildSitemap from "@/app/sitemap";
 import { closeExpiredJobs } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
 import { tashkentNow } from "@/lib/privacy";
@@ -107,6 +109,7 @@ export async function GET(req: Request) {
     digests: null as { due: number; sent: number; skipped: number } | null,
     storiesPurged: 0,
     monthlyTop: null as Record<string, unknown> | null,
+    indexNow: null as { urls: number; sent: number; status: number | null } | null,
     savedSearches: null as { checked: number; notified: number } | null,
     subscriptions: null as ReminderResult | null,
     errors: [] as string[],
@@ -256,6 +259,18 @@ export async function GET(req: Request) {
     counts.errors.push(...d.errors);
   } catch (e) {
     counts.errors.push(`digests: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (p) IndexNow: so'nggi 26 soatda o'zgargan sahifalar (sitemap lastmod bo'yicha) Yandex/Bing'ga darhol bildiriladi
+  try {
+    const entries = await buildSitemap();
+    const since = now - 26 * 3600_000;
+    const fresh = entries.filter((e) => e.lastModified && new Date(e.lastModified).getTime() >= since).map((e) => e.url);
+    const r = await pingIndexNow(fresh);
+    if (!r.skipped) counts.indexNow = { urls: fresh.length, sent: r.sent, status: r.status ?? null };
+    if (r.error) counts.errors.push(`indexnow: ${r.error}`);
+  } catch (e) {
+    counts.errors.push(`indexnow: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (h) Saqlangan qidiruvlar bo'yicha ogohlantirishlar
