@@ -81,7 +81,7 @@ export default async function TopPage() {
         </header>
 
         {latest ? (
-          <section className="card overflow-hidden">
+          <section className="card m-flat overflow-hidden">
             <div className="border-b border-line px-5 py-3.5 text-center">
               <p className="font-display text-[15px] font-bold text-fg">{latest.label}</p>
               <p className="text-[12px] text-fg-3">{tr(til, TOP.published)}: {formatDate(new Date(latest.publishedAt))}</p>
@@ -107,7 +107,7 @@ export default async function TopPage() {
             </p>
           </section>
         ) : (
-          <section className="card px-6 py-12 text-center">
+          <section className="card m-flat px-6 py-12 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-accent-text">
               <Crown size={26} />
             </span>
@@ -141,7 +141,7 @@ export default async function TopPage() {
         {older.length > 0 && (
           <section className="mt-6">
             <h2 className="mb-2 font-display text-[14px] font-bold text-fg">{tr(til, TOP.older)}</h2>
-            <ul className="card divide-y divide-line">
+            <ul className="card m-flat divide-y divide-line">
               {older.map((m) => (
                 <li key={m.month} className="px-4 py-3">
                   <p className="text-[13px] font-semibold text-fg">{m.label}</p>
