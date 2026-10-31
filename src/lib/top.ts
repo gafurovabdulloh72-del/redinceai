@@ -30,9 +30,10 @@ function nextMonthKey(key: string): string {
   const [y, m] = key.split("-").map(Number);
   return monthKeyOf(Date.UTC(y, m, 1));
 }
-export function monthLabel(key: string): string {
+const MONTHS_RU = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+export function monthLabel(key: string, locale: "uz" | "ru" = "uz"): string {
   const [y, m] = key.split("-").map(Number);
-  return `${y}-yil ${MONTHS_UZ[m - 1]}`;
+  return locale === "ru" ? `${MONTHS_RU[m - 1]} ${y}` : `${y}-yil ${MONTHS_UZ[m - 1]}`;
 }
 /** Bugun (Toshkent) oyning oxirgi kunimi */
 export function isLastDayOfMonth(now: number): boolean {

@@ -211,11 +211,14 @@ export function escapeLike(term: string) {
   return term.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
-/** "10-oktabr, 2026" */
-export function formatDate(date: Date | number | string) {
+/** Ruscha oy nomlari (qaratqich kelishigi: «31 октября 2026») */
+export const MONTHS_RU_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"] as const;
+
+/** "10-oktabr, 2026" (ru: "10 октября 2026") */
+export function formatDate(date: Date | number | string, locale: "uz" | "ru" = "uz") {
   const p = tashkentParts(date);
   if (!p) return "—";
-  return `${p.d}-${MONTHS_UZ[p.mo]}, ${p.y}`;
+  return locale === "ru" ? `${p.d} ${MONTHS_RU_GEN[p.mo]} ${p.y}` : `${p.d}-${MONTHS_UZ[p.mo]}, ${p.y}`;
 }
 
 /** "10.10.2026, 13:34" (Toshkent vaqti) */

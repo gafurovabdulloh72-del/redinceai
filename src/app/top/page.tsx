@@ -87,7 +87,7 @@ export default async function TopPage() {
           <section className="card m-flat overflow-hidden">
             <div className="border-b border-line px-5 py-3.5 text-center">
               <p className="font-display text-[15px] font-bold text-fg">{latest.label}</p>
-              <p className="text-[12px] text-fg-3">{tr(til, TOP.published)}: {formatDate(new Date(latest.publishedAt))}</p>
+              <p className="text-[12px] text-fg-3">{tr(til, TOP.published)}: {formatDate(new Date(latest.publishedAt), til)}</p>
             </div>
             <ol className="grid grid-cols-3 items-start gap-2 px-3 pb-8 pt-12 sm:gap-6 sm:px-6">
               {[latest.winners.find((w) => w.rank === 2), latest.winners.find((w) => w.rank === 1), latest.winners.find((w) => w.rank === 3)].map((w, i) => (w ? <Winner key={w.author.id} w={w} big={w.rank === 1} til={til} /> : <li key={i} className={i === 1 ? "order-2" : i === 0 ? "order-1" : "order-3"} />))}
@@ -106,7 +106,7 @@ export default async function TopPage() {
               ))}
             </ul>
             <p className="flex items-center justify-center gap-1.5 border-t border-line bg-accent-soft/50 px-4 py-3 text-center text-[12.5px] font-semibold text-accent-text">
-              <Sparkles size={14} /> {tr(til, TOP.premiumGiven)}{latest.premiumUntil ? ` — ${formatDate(new Date(latest.premiumUntil - 1))} ${tr(til, TOP.until)}` : ""}
+              <Sparkles size={14} /> {tr(til, TOP.premiumGiven)}{latest.premiumUntil ? ` — ${formatDate(new Date(latest.premiumUntil - 1), til)} ${tr(til, TOP.until)}` : ""}
             </p>
           </section>
         ) : (
@@ -121,8 +121,8 @@ export default async function TopPage() {
 
         <div className="mt-4 flex items-center justify-center gap-2 rounded-card border border-line px-4 py-3 text-[13px] text-fg-2">
           <CalendarClock size={16} className="text-fg-3" />
-          {tr(til, TOP.nextLabel)}: <b className="text-fg">{formatDate(new Date(next))}</b>
-          <span className="text-fg-4">· {days === 0 ? tr(til, TOP.today) : TOP.daysLeft[til](days)} ({monthLabel(monthKeyOf(next))})</span>
+          {tr(til, TOP.nextLabel)}: <b className="text-fg">{formatDate(new Date(next), til)}</b>
+          <span className="text-fg-4">· {days === 0 ? tr(til, TOP.today) : TOP.daysLeft[til](days)} ({monthLabel(monthKeyOf(next), til)})</span>
         </div>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
