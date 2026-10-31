@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { BellPlus, BellRing, X } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button, Spinner } from "@/components/ui";
+import { tr } from "@/lib/i18n";
+import { VAK_XABAR } from "@/lib/i18n/dict/vacancies-catalog";
 import { cn } from "@/lib/utils";
 
 type ApiResponse = { ok: true; data: { id: string; name: string } } | { ok: false; error: string; fields?: Record<string, string> };
@@ -13,6 +16,7 @@ type ApiResponse = { ok: true; data: { id: string; name: string } } | { ok: fals
  * kunlik tekshiruvda mos yangi vakansiya chiqsa bildirishnoma keladi. Mehmon — kirish sahifasiga.
  */
 export function VacancyAlertButton({ query, defaultName, loggedIn, className }: { query: string; defaultName: string; loggedIn: boolean; className?: string }) {
+  const til = useLocale();
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -34,14 +38,14 @@ export function VacancyAlertButton({ query, defaultName, loggedIn, className }: 
   if (!loggedIn) {
     return (
       <Link href={`/auth/kirish?next=${encodeURIComponent(`/vakansiyalar${query ? `?${query}` : ""}`)}`} className={cn(base, "border-line-2 text-fg-2 hover:border-fg hover:text-fg", className)}>
-        <BellPlus size={14} aria-hidden /> Xabardor qil
+        <BellPlus size={14} aria-hidden /> {tr(til, VAK_XABAR.notify)}
       </Link>
     );
   }
   if (saved) {
     return (
       <p role="status" className={cn("inline-flex min-h-9 items-center gap-1.5 text-[13px] font-semibold text-success-text", className)}>
-        <BellRing size={14} aria-hidden /> Saqlandi — yangi mos vakansiya chiqsa xabar beramiz
+        <BellRing size={14} aria-hidden /> {tr(til, VAK_XABAR.savedStatus)}
       </p>
     );
   }
@@ -61,7 +65,7 @@ export function VacancyAlertButton({ query, defaultName, loggedIn, className }: 
       setSaved(true);
       setOpen(false);
     } catch {
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, VAK_XABAR.networkError));
     } finally {
       setBusy(false);
     }
@@ -71,19 +75,19 @@ export function VacancyAlertButton({ query, defaultName, loggedIn, className }: 
     <div className={cn("min-w-0", open && "basis-full", className)}>
       {!open ? (
         <button type="button" onClick={() => setOpen(true)} aria-expanded={false} aria-controls={`${id}-form`} className={cn(base, "border-line-2 text-fg-2 hover:border-fg hover:text-fg")}>
-          <BellPlus size={14} aria-hidden /> Xabardor qil
+          <BellPlus size={14} aria-hidden /> {tr(til, VAK_XABAR.notify)}
         </button>
       ) : (
-        <form id={`${id}-form`} onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && setOpen(false)} className="expand-in card flex flex-col gap-2 p-3 sm:flex-row sm:items-center" aria-label="Qidiruvni saqlash">
+        <form id={`${id}-form`} onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && setOpen(false)} className="expand-in card flex flex-col gap-2 p-3 sm:flex-row sm:items-center" aria-label={tr(til, VAK_XABAR.formAria)}>
           <label htmlFor={`${id}-name`} className="sr-only">
-            Qidiruv nomi
+            {tr(til, VAK_XABAR.nameLabel)}
           </label>
-          <input ref={inputRef} id={`${id}-name`} className="field h-10 min-w-0 flex-1 text-[14px]" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Masalan: Masofaviy dizayn" aria-invalid={Boolean(error)} />
+          <input ref={inputRef} id={`${id}-name`} className="field h-10 min-w-0 flex-1 text-[14px]" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={tr(til, VAK_XABAR.namePlaceholder)} aria-invalid={Boolean(error)} />
           <div className="flex items-center gap-1.5">
             <Button type="submit" variant="accent" size="sm" className="!h-10" disabled={busy || name.trim().length < 2}>
-              {busy ? <Spinner /> : "Saqlash"}
+              {busy ? <Spinner /> : tr(til, VAK_XABAR.save)}
             </Button>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Yopish" className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
+            <button type="button" onClick={() => setOpen(false)} aria-label={tr(til, VAK_XABAR.close)} className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
               <X size={16} />
             </button>
           </div>

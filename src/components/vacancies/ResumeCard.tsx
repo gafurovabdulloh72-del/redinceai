@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 import { Avatar } from "@/components/ui";
-import { RESUME_EXPERIENCE, RESUME_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import { VAK, professionLabelTr, resumeExperienceTr, resumeFormatTr, salaryLabelTr, vacancyRegionTr } from "@/lib/i18n/dict/vacancies";
+import { REZ_SAHIFA } from "@/lib/i18n/dict/vacancies-kabinet";
 import type { ResumeCard as ResumeCardData } from "@/lib/vacancies/service";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const MAX_SKILLS = 4;
 
-/** Rezyume kartasi (/rezyumelar): kontaktsiz — aloqa sayt ichidagi chat orqali */
-export function ResumeCard({ r, className }: { r: ResumeCardData; className?: string }) {
+/** Rezyume kartasi (/rezyumelar): kontaktsiz — aloqa sayt ichidagi chat orqali. Server komponent — til cookie'dan */
+export async function ResumeCard({ r, className }: { r: ResumeCardData; className?: string }) {
+  const til = await getLocale();
   return (
     <article className={cn("card card-hover card-link m-plain group relative flex h-full min-w-0 flex-col p-4 max-sm:px-4 max-sm:py-3.5 sm:p-5", className)}>
       <div className="flex items-center gap-3">
@@ -21,15 +26,15 @@ export function ResumeCard({ r, className }: { r: ResumeCardData; className?: st
           </h2>
           <p className="flex min-w-0 items-center gap-1 text-[13px] text-fg-2">
             <span className="truncate">{r.user.name}</span>
-            {r.user.emailVerified && <BadgeCheck size={13} className="shrink-0 text-success-text" aria-label="Email tasdiqlangan" />}
+            {r.user.emailVerified && <BadgeCheck size={13} className="shrink-0 text-success-text" aria-label={tr(til, REZ_SAHIFA.emailVerified)} />}
           </p>
         </div>
       </div>
       <p className="mt-3 text-[12.5px] text-fg-3">
-        {professionLabel(r.profession, true)} · {RESUME_EXPERIENCE[r.experience]} · {r.format === "remote" ? RESUME_FORMAT.remote : `${RESUME_FORMAT[r.format]} · ${vacancyRegionLabel(r.regionSlug)}`}
+        {professionLabelTr(til, r.profession, true)} · {resumeExperienceTr(til, r.experience)} · {r.format === "remote" ? resumeFormatTr(til, "remote") : `${resumeFormatTr(til, r.format)} · ${vacancyRegionTr(til, r.regionSlug)}`}
       </p>
       {r.skills.length > 0 && (
-        <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Ko'nikmalar">
+        <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label={tr(til, VAK.skills)}>
           {r.skills.slice(0, MAX_SKILLS).map((s) => (
             <li key={s} className="rounded-full border border-line px-2.5 py-1 text-[12px] font-medium text-fg-2">
               {s}
@@ -39,8 +44,8 @@ export function ResumeCard({ r, className }: { r: ResumeCardData; className?: st
         </ul>
       )}
       <div className="mt-auto flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-3.5 text-[12.5px] text-fg-3">
-        <span className="font-display text-[15px] font-semibold text-fg">{salaryLabel(r.expectedSalary, null)}</span>
-        <span suppressHydrationWarning>{timeAgo(r.updatedAt)}</span>
+        <span className="font-display text-[15px] font-semibold text-fg">{salaryLabelTr(til, r.expectedSalary, null)}</span>
+        <span suppressHydrationWarning>{timeAgoLabel(til, r.updatedAt)}</span>
       </div>
     </article>
   );

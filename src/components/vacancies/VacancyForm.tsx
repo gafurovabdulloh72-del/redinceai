@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { VAK_FORM as T } from "@/lib/i18n/dict/vacancies-forms";
+import { employmentTr, experienceTr, professionLabelTr, workFormatTr } from "@/lib/i18n/dict/vacancies";
 import { REGIONS } from "@/lib/constants";
 import { EMPLOYMENT, EXPERIENCE, PROFESSIONS, REMOTE_REGION, VACANCY_DESC_MAX, VACANCY_DESC_MIN, VACANCY_REQ_MAX, VACANCY_SKILLS_MAX, VACANCY_TITLE_MAX, VACANCY_TITLE_MIN, WORK_FORMAT, type Employment, type Experience, type WorkFormat } from "@/lib/vacancies/format";
 import { SkillsInput } from "./SkillsInput";
@@ -37,6 +41,7 @@ const fmtMoney = (n: number | null) => (n ? String(n).replace(/\B(?=(\d{3})+(?!\
  */
 export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initial?: VacancyFormInitial }) {
   const router = useRouter();
+  const til = useLocale();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
   const [profession, setProfession] = useState(initial?.profession ?? "");
@@ -88,11 +93,11 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       const j = (await res.json()) as ApiResp;
       if (!res.ok || !j.ok) {
         if (j.fields) setErrors(j.fields);
-        throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlab bo'lmadi");
+        throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, T.saveFailed));
       }
       after(j);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Saqlab bo'lmadi");
+      setError(e instanceof Error ? e.message : tr(til, T.saveFailed));
       setBusy(false);
     }
   }
@@ -113,8 +118,8 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       className="card grid gap-5 p-5 sm:p-6"
     >
       <label className="grid gap-1.5">
-        <span className={LABEL}>Lavozim</span>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={VACANCY_TITLE_MAX} placeholder="Masalan: Video montajchi (Premiere Pro), masofaviy" className="field h-11 w-full text-[14px]" autoFocus={mode === "create" && !initial} />
+        <span className={LABEL}>{tr(til, T.position)}</span>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={VACANCY_TITLE_MAX} placeholder={tr(til, T.positionPh)} className="field h-11 w-full text-[14px]" autoFocus={mode === "create" && !initial} />
         <span className="flex justify-between text-[11.5px] text-fg-4">
           <span className="text-danger-text">{errors.title}</span>
           <span>
@@ -125,17 +130,17 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className={LABEL}>Kompaniya / jamoa (ixtiyoriy)</span>
-          <input value={company} onChange={(e) => setCompany(e.target.value)} maxLength={80} placeholder="Masalan: Brand Studio" className="field h-11 w-full text-[14px]" />
+          <span className={LABEL}>{tr(til, T.company)}</span>
+          <input value={company} onChange={(e) => setCompany(e.target.value)} maxLength={80} placeholder={tr(til, T.companyPh)} className="field h-11 w-full text-[14px]" />
           {errors.company && <span className="text-[11.5px] text-danger-text">{errors.company}</span>}
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Kasb / soha</span>
+          <span className={LABEL}>{tr(til, T.profession)}</span>
           <select value={profession} onChange={(e) => setProfession(e.target.value)} className="field h-11 w-full text-[14px]">
-            <option value="">Tanlang…</option>
+            <option value="">{tr(til, T.choose)}</option>
             {PROFESSIONS.map((p) => (
               <option key={p.slug} value={p.slug}>
-                {p.name}
+                {professionLabelTr(til, p.slug)}
               </option>
             ))}
           </select>
@@ -144,8 +149,8 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       </div>
 
       <div className="grid gap-1.5">
-        <span className={LABEL}>Ish formati</span>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Ish formati">
+        <span className={LABEL}>{tr(til, T.format)}</span>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr(til, T.format)}>
           {(Object.keys(WORK_FORMAT) as WorkFormat[]).map((k) => (
             <button
               key={k}
@@ -155,7 +160,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
               onClick={() => setFormat(k)}
               className={`press inline-flex h-10 items-center rounded-full border px-4 text-[13px] font-semibold transition ${format === k ? "border-transparent bg-ink text-ink-fg" : "border-line-2 text-fg-2 hover:border-fg hover:text-fg"}`}
             >
-              {WORK_FORMAT[k]}
+              {workFormatTr(til, k)}
             </button>
           ))}
         </div>
@@ -163,29 +168,29 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
 
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="grid gap-1.5">
-          <span className={LABEL}>Bandlik</span>
+          <span className={LABEL}>{tr(til, T.employment)}</span>
           <select value={employment} onChange={(e) => setEmployment(e.target.value as Employment)} className="field h-11 w-full text-[14px]">
             {(Object.keys(EMPLOYMENT) as Employment[]).map((k) => (
               <option key={k} value={k}>
-                {EMPLOYMENT[k]}
+                {employmentTr(til, k)}
               </option>
             ))}
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Tajriba</span>
+          <span className={LABEL}>{tr(til, T.experience)}</span>
           <select value={experience} onChange={(e) => setExperience(e.target.value as Experience)} className="field h-11 w-full text-[14px]">
             {(Object.keys(EXPERIENCE) as Experience[]).map((k) => (
               <option key={k} value={k}>
-                {EXPERIENCE[k]}
+                {experienceTr(til, k)}
               </option>
             ))}
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Hudud</span>
+          <span className={LABEL}>{tr(til, T.region)}</span>
           <select value={format === "remote" ? REMOTE_REGION : regionSlug} onChange={(e) => setRegionSlug(e.target.value)} disabled={format === "remote"} className="field h-11 w-full text-[14px] disabled:opacity-60">
-            <option value={REMOTE_REGION}>Istalgan hudud</option>
+            <option value={REMOTE_REGION}>{tr(til, T.anyRegion)}</option>
             {REGIONS.map((r) => (
               <option key={r.slug} value={r.slug}>
                 {r.name}
@@ -196,18 +201,18 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       </div>
 
       <div className="grid gap-1.5">
-        <span className={LABEL}>Maosh (so&apos;m / oy) — ixtiyoriy</span>
+        <span className={LABEL}>{tr(til, T.salary)}</span>
         <div className="grid grid-cols-2 gap-3">
-          <input inputMode="numeric" value={salaryMin} onChange={(e) => setSalaryMin(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder="dan: 3 000 000" className="field h-11 w-full text-[14px]" aria-label="Maosh dan" />
-          <input inputMode="numeric" value={salaryMax} onChange={(e) => setSalaryMax(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder="gacha: 6 000 000" className="field h-11 w-full text-[14px]" aria-label="Maosh gacha" />
+          <input inputMode="numeric" value={salaryMin} onChange={(e) => setSalaryMin(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder={tr(til, T.salaryFromPh)} className="field h-11 w-full text-[14px]" aria-label={tr(til, T.salaryFromAria)} />
+          <input inputMode="numeric" value={salaryMax} onChange={(e) => setSalaryMax(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder={tr(til, T.salaryToPh)} className="field h-11 w-full text-[14px]" aria-label={tr(til, T.salaryToAria)} />
         </div>
         {(errors.salaryMin || errors.salaryMax) && <span className="text-[11.5px] text-danger-text">{errors.salaryMin || errors.salaryMax}</span>}
-        {!salaryMin && !salaryMax && <span className="text-[12px] text-fg-4">Bo&apos;sh — «Kelishiladi». Maosh ko&apos;rsatilgan e&apos;lonlarga ko&apos;proq ariza keladi.</span>}
+        {!salaryMin && !salaryMax && <span className="text-[12px] text-fg-4">{tr(til, T.salaryHint)}</span>}
       </div>
 
       <label className="grid gap-1.5">
-        <span className={LABEL}>Tavsif — vazifalar, shartlar, jamoa</span>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={VACANCY_DESC_MAX} rows={7} placeholder="Nima qilinadi, qanday loyihalar, ish vaqti, qanday jamoa…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
+        <span className={LABEL}>{tr(til, T.description)}</span>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={VACANCY_DESC_MAX} rows={7} placeholder={tr(til, T.descriptionPh)} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
         <span className="flex justify-between text-[11.5px] text-fg-4">
           <span className="text-danger-text">{errors.description}</span>
           <span>
@@ -217,56 +222,56 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       </label>
 
       <label className="grid gap-1.5">
-        <span className={LABEL}>Talablar (ixtiyoriy)</span>
-        <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} maxLength={VACANCY_REQ_MAX} rows={4} placeholder="Har qatorga bitta talab: 2 yil tajriba, Premiere Pro, portfolio…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
+        <span className={LABEL}>{tr(til, T.requirements)}</span>
+        <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} maxLength={VACANCY_REQ_MAX} rows={4} placeholder={tr(til, T.requirementsPh)} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
       </label>
 
       <div className="grid gap-1.5">
         <label htmlFor="v-skills" className={LABEL}>
-          Ko&apos;nikmalar (teglar)
+          {tr(til, T.skills)}
         </label>
         <SkillsInput id="v-skills" value={skills} onChange={setSkills} max={VACANCY_SKILLS_MAX} />
         {errors.skills && <span className="text-[11.5px] text-danger-text">{errors.skills}</span>}
       </div>
 
       <label className="grid gap-1.5">
-        <span className={LABEL}>Tashqi ariza havolasi (ixtiyoriy)</span>
-        <input type="url" value={applyUrl} onChange={(e) => setApplyUrl(e.target.value)} placeholder="https://… (Google Form, hh.uz) — asosiy yo'l sayt ichidagi ariza" dir="ltr" className="field h-11 w-full text-[14px]" />
+        <span className={LABEL}>{tr(til, T.applyUrl)}</span>
+        <input type="url" value={applyUrl} onChange={(e) => setApplyUrl(e.target.value)} placeholder={tr(til, T.applyUrlPh)} dir="ltr" className="field h-11 w-full text-[14px]" />
         {errors.applyUrl && <span className="text-[11.5px] text-danger-text">{errors.applyUrl}</span>}
       </label>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Button type="submit" variant="primary" size="md" disabled={!valid || busy}>
-          {busy ? "Saqlanmoqda…" : mode === "create" ? (initial ? "Nusxani joylash" : "Vakansiyani joylash") : "Saqlash"}
+          {busy ? tr(til, T.saving) : mode === "create" ? (initial ? tr(til, T.postCopy) : tr(til, T.post)) : tr(til, T.save)}
         </Button>
         <Button type="button" variant="outline" size="md" onClick={() => router.back()} disabled={busy}>
-          Bekor
+          {tr(til, T.cancel)}
         </Button>
         {mode === "edit" && initial && (
           <>
             {initial.status === "open" && !initial.expired ? (
               <Button type="button" variant="ghost" size="md" disabled={busy} onClick={() => void send({ status: "closed" }, "PATCH", () => goTo(initial.id))}>
-                Yopish (to&apos;ldi)
+                {tr(til, T.close)}
               </Button>
             ) : (
               <Button type="button" variant="accent" size="md" disabled={busy} onClick={() => void send({ extend: true }, "PATCH", () => goTo(initial.id))}>
-                Qayta ochish — yana 30 kun
+                {tr(til, T.reopen)}
               </Button>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {confirmDelete ? (
-                <span className="expand-in inline-flex flex-wrap items-center gap-2" role="group" aria-label="O'chirishni tasdiqlang">
-                  <span className="text-[12.5px] text-fg-2">Vakansiya va arizalar o&apos;chadi. Aniqmi?</span>
+                <span className="expand-in inline-flex flex-wrap items-center gap-2" role="group" aria-label={tr(til, T.confirmDeleteAria)}>
+                  <span className="text-[12.5px] text-fg-2">{tr(til, T.deleteWarn)}</span>
                   <Button type="button" variant="danger" size="sm" disabled={busy} onClick={() => void send({}, "DELETE", () => { router.push("/kabinet/vakansiyalar"); router.refresh(); })}>
-                    Ha, o&apos;chirish
+                    {tr(til, T.yesDelete)}
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                    Bekor
+                    {tr(til, T.cancel)}
                   </Button>
                 </span>
               ) : (
                 <Button type="button" variant="ghost" size="sm" className="text-danger-text hover:text-danger-text" onClick={() => setConfirmDelete(true)}>
-                  <Trash2 size={14} /> O&apos;chirish
+                  <Trash2 size={14} /> {tr(til, T.delete)}
                 </Button>
               )}
             </div>
@@ -274,7 +279,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
         )}
         {error && <span className="basis-full text-[13px] font-semibold text-danger-text">{error}</span>}
       </div>
-      {mode === "create" && <p className="text-[12.5px] leading-relaxed text-fg-3">30 kun ro&apos;yxatda turadi, bir bosishda uzaytiriladi. Arizalar «Vakansiyalarim» bo&apos;limiga keladi.</p>}
+      {mode === "create" && <p className="text-[12.5px] leading-relaxed text-fg-3">{tr(til, T.createNote)}</p>}
     </form>
   );
 }

@@ -6,6 +6,10 @@ import { ArrowUp, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Switch } from "@/components/specialists/Filters";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { VAK_RESUME as T } from "@/lib/i18n/dict/vacancies-forms";
+import { professionLabelTr, resumeExperienceTr, resumeFormatTr } from "@/lib/i18n/dict/vacancies";
 import { REGIONS } from "@/lib/constants";
 import { PROFESSIONS, REMOTE_REGION, RESUME_EXPERIENCE, RESUME_FORMAT, RESUME_LINKS_MAX, RESUME_SKILLS_MAX, RESUME_SUMMARY_MAX, type Experience } from "@/lib/vacancies/format";
 import { SkillsInput } from "./SkillsInput";
@@ -26,12 +30,14 @@ export interface ResumeFormInitial {
 
 const LABEL = "text-[12px] font-bold uppercase tracking-[0.12em] text-fg-3";
 const fmtMoney = (n: number | null) => (n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "");
-const LINK_PRESETS = ["Portfolio", "LinkedIn", "GitHub", "Behance", "Telegram kanal", "YouTube"];
 
 /** Rezyume formasi — bitta rezyume, ommaviy/yopiq. Kontakt saqlanmaydi: aloqa chat orqali yoki ariza bilan. */
 export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
   const router = useRouter();
+  const til = useLocale();
   const { toast } = useToast();
+  /* Havola nomi uchun tayyor variantlar — brend nomlari o'zgarmaydi, qolganlari tilga mos */
+  const linkPresets = [tr(til, T.presetPortfolio), "LinkedIn", "GitHub", "Behance", tr(til, T.presetTelegram), "YouTube"];
   const [title, setTitle] = useState(initial?.title ?? "");
   const [profession, setProfession] = useState(initial?.profession ?? "");
   const [experience, setExperience] = useState<Experience>(initial?.experience ?? "none");
@@ -52,13 +58,13 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
   // To'liqlik o'lchagichi: ish beruvchi ko'radigan asosiy maydonlar (har biri — ball)
   const checks: Array<[string, boolean]> = [
-    ["Lavozim", title.trim().length >= 3],
-    ["Kasb", profession !== ""],
-    ["O'zingiz haqingizda (80+ belgi)", summary.trim().length >= 80],
-    ["Kamida 3 ta ko'nikma", skills.length >= 3],
-    ["Portfolio yoki profil havolasi", links.some((l) => l.url.trim().startsWith("https://"))],
-    ["Kutilayotgan maosh", expectedSalary.replace(/\D/g, "").length > 0],
-    ["Tajriba darajasi", experience !== "none" || summary.trim().length >= 80],
+    [tr(til, T.checkPosition), title.trim().length >= 3],
+    [tr(til, T.checkProfession), profession !== ""],
+    [tr(til, T.checkAbout), summary.trim().length >= 80],
+    [tr(til, T.checkSkills), skills.length >= 3],
+    [tr(til, T.checkLink), links.some((l) => l.url.trim().startsWith("https://"))],
+    [tr(til, T.checkSalary), expectedSalary.replace(/\D/g, "").length > 0],
+    [tr(til, T.checkLevel), experience !== "none" || summary.trim().length >= 80],
   ];
   const score = Math.round((checks.filter(([, ok]) => ok).length / checks.length) * 100);
 
@@ -75,12 +81,12 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
       const j = (await res.json()) as { ok: boolean; data?: { id: string }; error?: string; fields?: Record<string, string> };
       if (!res.ok || !j.ok) {
         if (j.fields) setErrors(j.fields);
-        throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlab bo'lmadi");
+        throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, T.saveFailed));
       }
-      setDone(isPublic ? "Saqlandi — rezyume katalogda ko'rinadi" : "Saqlandi — rezyume faqat arizalaringizga biriktiriladi");
+      setDone(isPublic ? tr(til, T.savedPublic) : tr(til, T.savedPrivate));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Saqlab bo'lmadi");
+      setError(err instanceof Error ? err.message : tr(til, T.saveFailed));
     } finally {
       setBusy(false);
     }
@@ -92,12 +98,12 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
     try {
       const res = await fetch("/api/rezyume", { method: "DELETE" });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !j.ok) throw new Error(j.error || "O'chirib bo'lmadi");
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, T.deleteFailed));
       router.push("/kabinet");
       router.refresh();
       return;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "O'chirib bo'lmadi");
+      setError(e instanceof Error ? e.message : tr(til, T.deleteFailed));
     } finally {
       setBusy(false);
       setConfirmDelete(false);
@@ -111,11 +117,11 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
     try {
       const res = await fetch("/api/rezyume", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "bump" }) });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !j.ok) throw new Error(j.error || "Bajarilmadi");
-      toast("Rezyume katalogda yuqoriga ko'tarildi", "success");
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, T.failed));
+      toast(tr(til, T.bumped), "success");
       router.refresh();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Bajarilmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, T.failed), "error");
     } finally {
       setBusy(false);
     }
@@ -126,57 +132,57 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
       {/* To'liqlik */}
       <div className="rounded-[16px] border border-line px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[13px] font-semibold text-fg">Rezyume to&apos;liqligi</p>
+          <p className="text-[13px] font-semibold text-fg">{tr(til, T.completeness)}</p>
           <p className={`text-[13px] font-bold tabular-nums ${score >= 80 ? "text-success-text" : score >= 50 ? "text-warning-text" : "text-fg-3"}`}>{score}%</p>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-fg/8" role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} aria-label="Rezyume to'liqligi">
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-fg/8" role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} aria-label={tr(til, T.completeness)}>
           <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${score >= 80 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-accent"}`} style={{ width: `${score}%` }} />
         </div>
-        {score < 100 && <p className="mt-2 text-[12px] text-fg-3">Qo&apos;shing: {checks.filter(([, ok]) => !ok).map(([n]) => n).slice(0, 3).join(" · ")}</p>}
-        {score === 100 && <p className="mt-2 text-[12px] text-success-text">A&apos;lo — bunday rezyumelar 2–3 barobar ko&apos;p javob oladi.</p>}
+        {score < 100 && <p className="mt-2 text-[12px] text-fg-3">{tr(til, T.addPre)}{checks.filter(([, ok]) => !ok).map(([n]) => n).slice(0, 3).join(" · ")}</p>}
+        {score === 100 && <p className="mt-2 text-[12px] text-success-text">{tr(til, T.perfect)}</p>}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5 sm:col-span-2">
-          <span className={LABEL}>Izlayotgan lavozim</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Masalan: Motion dizayner / SMM menejer / Frontend dasturchi" className="field h-11 w-full text-[14px]" />
+          <span className={LABEL}>{tr(til, T.titleLabel)}</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={tr(til, T.titlePh)} className="field h-11 w-full text-[14px]" />
           {errors.title && <span className="text-[11.5px] text-danger-text">{errors.title}</span>}
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Kasb / soha</span>
+          <span className={LABEL}>{tr(til, T.profession)}</span>
           <select value={profession} onChange={(e) => setProfession(e.target.value)} className="field h-11 w-full text-[14px]">
-            <option value="">Tanlang…</option>
+            <option value="">{tr(til, T.choose)}</option>
             {PROFESSIONS.map((p) => (
               <option key={p.slug} value={p.slug}>
-                {p.name}
+                {professionLabelTr(til, p.slug)}
               </option>
             ))}
           </select>
           {errors.profession && <span className="text-[11.5px] text-danger-text">{errors.profession}</span>}
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Tajriba</span>
+          <span className={LABEL}>{tr(til, T.experience)}</span>
           <select value={experience} onChange={(e) => setExperience(e.target.value as Experience)} className="field h-11 w-full text-[14px]">
             {(Object.keys(RESUME_EXPERIENCE) as Experience[]).map((k) => (
               <option key={k} value={k}>
-                {RESUME_EXPERIENCE[k]}
+                {resumeExperienceTr(til, k)}
               </option>
             ))}
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Ish formati</span>
+          <span className={LABEL}>{tr(til, T.format)}</span>
           <select value={format} onChange={(e) => setFormat(e.target.value as ResumeFormInitial["format"])} className="field h-11 w-full text-[14px]">
             {(Object.keys(RESUME_FORMAT) as Array<keyof typeof RESUME_FORMAT>).map((k) => (
               <option key={k} value={k}>
-                {RESUME_FORMAT[k]}
+                {resumeFormatTr(til, k)}
               </option>
             ))}
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className={LABEL}>Hudud</span>
+          <span className={LABEL}>{tr(til, T.region)}</span>
           <select value={format === "remote" ? REMOTE_REGION : regionSlug} onChange={(e) => setRegionSlug(e.target.value)} disabled={format === "remote"} className="field h-11 w-full text-[14px] disabled:opacity-60">
-            <option value={REMOTE_REGION}>Istalgan hudud</option>
+            <option value={REMOTE_REGION}>{tr(til, T.anyRegion)}</option>
             {REGIONS.map((r) => (
               <option key={r.slug} value={r.slug}>
                 {r.name}
@@ -185,14 +191,14 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
           </select>
         </label>
         <label className="grid gap-1.5 sm:col-span-2">
-          <span className={LABEL}>Kutilayotgan maosh (so&apos;m / oy) — ixtiyoriy</span>
-          <input inputMode="numeric" value={expectedSalary} onChange={(e) => setExpectedSalary(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder="Masalan: 5 000 000" className="field h-11 w-full text-[14px] sm:w-64" />
+          <span className={LABEL}>{tr(til, T.expectedSalary)}</span>
+          <input inputMode="numeric" value={expectedSalary} onChange={(e) => setExpectedSalary(fmtMoney(Number(e.target.value.replace(/\D/g, "")) || null))} placeholder={tr(til, T.expectedSalaryPh)} className="field h-11 w-full text-[14px] sm:w-64" />
         </label>
       </div>
 
       <label className="grid gap-1.5">
-        <span className={LABEL}>O&apos;zingiz haqingizda</span>
-        <textarea value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={RESUME_SUMMARY_MAX} rows={6} placeholder="Tajriba, loyihalar, natijalar, qaysi vositalarda ishlaysiz, qachondan boshlay olasiz…" className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
+        <span className={LABEL}>{tr(til, T.about)}</span>
+        <textarea value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={RESUME_SUMMARY_MAX} rows={6} placeholder={tr(til, T.aboutPh)} className="field w-full resize-y py-2.5 text-[14px] leading-relaxed" />
         <span className="text-right text-[11.5px] text-fg-4">
           {summary.length}/{RESUME_SUMMARY_MAX}
         </span>
@@ -200,30 +206,30 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
       <div className="grid gap-1.5">
         <label htmlFor="r-skills" className={LABEL}>
-          Ko&apos;nikmalar
+          {tr(til, T.skills)}
         </label>
         <SkillsInput id="r-skills" value={skills} onChange={setSkills} max={RESUME_SKILLS_MAX} />
       </div>
 
       <div className="grid gap-2">
-        <span className={LABEL}>Havolalar — portfolio, LinkedIn, GitHub…</span>
+        <span className={LABEL}>{tr(til, T.links)}</span>
         {links.map((l, i) => (
           <div key={i} className="grid grid-cols-[minmax(0,140px)_1fr_auto] gap-2">
-            <input list="link-presets" value={l.label} onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} maxLength={30} placeholder="Nomi" className="field h-10 w-full text-[13.5px]" />
+            <input list="link-presets" value={l.label} onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} maxLength={30} placeholder={tr(til, T.linkNamePh)} className="field h-10 w-full text-[13.5px]" />
             <input type="url" value={l.url} onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…" dir="ltr" className="field h-10 w-full text-[13.5px]" />
-            <button type="button" aria-label="Havolani olib tashlash" onClick={() => setLinks(links.filter((_, j) => j !== i))} className="flex h-10 w-10 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
+            <button type="button" aria-label={tr(til, T.removeLink)} onClick={() => setLinks(links.filter((_, j) => j !== i))} className="flex h-10 w-10 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
               <X size={15} />
             </button>
           </div>
         ))}
         <datalist id="link-presets">
-          {LINK_PRESETS.map((p) => (
+          {linkPresets.map((p) => (
             <option key={p} value={p} />
           ))}
         </datalist>
         {links.length < RESUME_LINKS_MAX && (
           <button type="button" onClick={() => setLinks([...links, { label: "", url: "" }])} className="inline-flex h-9 w-fit items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] font-semibold text-fg-2 hover:text-fg">
-            <Plus size={14} /> Havola qo&apos;shish
+            <Plus size={14} /> {tr(til, T.addLink)}
           </button>
         )}
         {errors.links && <span className="text-[11.5px] text-danger-text">{errors.links}</span>}
@@ -231,38 +237,38 @@ export function ResumeForm({ initial }: { initial: ResumeFormInitial | null }) {
 
       <div className="flex items-start justify-between gap-4 rounded-[16px] border border-line px-4 py-3">
         <div>
-          <p className="text-[14px] font-semibold text-fg">Katalogda ko&apos;rinsin</p>
-          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">Ish beruvchilar katalogda topib, chat orqali yozadi. Kontakt hech qayerda ochiq ko&apos;rsatilmaydi.</p>
+          <p className="text-[14px] font-semibold text-fg">{tr(til, T.publicTitle)}</p>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">{tr(til, T.publicDesc)}</p>
         </div>
-        <Switch checked={isPublic} onChange={setIsPublic} label="Katalogda ko'rinsin" />
+        <Switch checked={isPublic} onChange={setIsPublic} label={tr(til, T.publicTitle)} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Button type="submit" variant="primary" size="md" disabled={!valid || busy}>
-          {busy ? "Saqlanmoqda…" : initial ? "Saqlash" : "Rezyumeni yaratish"}
+          {busy ? tr(til, T.saving) : initial ? tr(til, T.save) : tr(til, T.create)}
         </Button>
         {done && <span className="text-[13px] font-semibold text-success-text">{done}</span>}
         {error && <span className="text-[13px] font-semibold text-danger-text">{error}</span>}
         {initial && initial.isPublic && (
-          <Button type="button" variant="outline" size="md" onClick={bump} disabled={busy} title="Katalogda yuqoriga ko'tarish (24 soatda 1 marta)">
-            <ArrowUp size={14} /> Yuqoriga
+          <Button type="button" variant="outline" size="md" onClick={bump} disabled={busy} title={tr(til, T.bumpTitle)}>
+            <ArrowUp size={14} /> {tr(til, T.bump)}
           </Button>
         )}
         {initial && (
           <div className="ml-auto flex items-center gap-2">
             {confirmDelete ? (
-              <span className="expand-in inline-flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlang">
-                <span className="text-[12.5px] text-fg-2">Rezyume o&apos;chadi. Aniqmi?</span>
+              <span className="expand-in inline-flex items-center gap-2" role="group" aria-label={tr(til, T.confirmDeleteAria)}>
+                <span className="text-[12.5px] text-fg-2">{tr(til, T.deleteWarn)}</span>
                 <Button type="button" variant="danger" size="sm" onClick={remove} disabled={busy}>
-                  Ha
+                  {tr(til, T.yes)}
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                  Yo&apos;q
+                  {tr(til, T.no)}
                 </Button>
               </span>
             ) : (
               <Button type="button" variant="ghost" size="sm" className="text-danger-text hover:text-danger-text" onClick={() => setConfirmDelete(true)}>
-                <Trash2 size={14} /> O&apos;chirish
+                <Trash2 size={14} /> {tr(til, T.delete)}
               </Button>
             )}
           </div>

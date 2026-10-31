@@ -8,18 +8,25 @@ import { ResumeCard } from "@/components/vacancies/ResumeCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { getCurrentUser } from "@/lib/auth";
 import { REGIONS } from "@/lib/constants";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { VAK, professionLabelTr, resumeExperienceTr, resumeFormatTr } from "@/lib/i18n/dict/vacancies";
+import { REZ_KATALOG, candidatesCountTr } from "@/lib/i18n/dict/vacancies-kabinet";
 import { PROFESSIONS, REMOTE_REGION, RESUME_EXPERIENCE, RESUME_FORMAT } from "@/lib/vacancies/format";
 import { getResume, listResumes } from "@/lib/vacancies/service";
 import { resumeFilterSchema, type ResumeFilter } from "@/lib/vacancies/validators";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "Rezyumelar — nomzodlar katalogi",
-  other: { "m-title": "Rezyumelar" },
-  description: "Onlayn kasblar bo'yicha nomzodlar: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim. Rezyumeni ko'ring va sayt ichidagi chat orqali yozing.",
-  alternates: { canonical: "/rezyumelar" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: tr(til, REZ_KATALOG.metaTitle),
+    other: { "m-title": tr(til, REZ_KATALOG.mTitle) },
+    description: tr(til, REZ_KATALOG.metaDescription),
+    alternates: { canonical: "/rezyumelar" },
+  };
+}
 
 const BASE = "/rezyumelar";
 type Raw = Record<string, string | string[] | undefined>;
@@ -46,7 +53,7 @@ const chip = (active: boolean) =>
 /** Rezyumelar katalogi — ish beruvchilar uchun; kontaktsiz, aloqa sayt ichidagi chat orqali */
 export default async function ResumesPage({ searchParams }: { searchParams: Promise<Raw> }) {
   const f = parseFilter(flat(await searchParams));
-  const user = await getCurrentUser();
+  const [user, til] = await Promise.all([getCurrentUser(), getLocale()]);
   const [result, mine] = await Promise.all([listResumes(f), user ? getResume(user.id) : Promise.resolve(null)]);
   const query = { q: f.q || undefined, profession: f.profession || undefined, experience: f.experience || undefined, format: f.format || undefined, region: f.region || undefined, page: f.page > 1 ? String(f.page) : undefined };
   const hasFilters = Boolean(f.q || f.profession || f.experience || f.format || f.region);
@@ -57,20 +64,20 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
     <div className="container-x animate-fade-up">
       <PageHeader
         size="lg"
-        eyebrow={`${result.total} ta nomzod`}
+        eyebrow={candidatesCountTr(til, result.total)}
         title={
           <>
-            Nomzodlar <span className="accent-serif text-accent">rezyumelari</span>
+            {tr(til, REZ_KATALOG.titleStart)} <span className="accent-serif text-accent">{tr(til, REZ_KATALOG.titleAccent)}</span>
           </>
         }
-        description="Onlayn kasblar bo'yicha nomzodlar — tajriba, ko'nikma va kutilayotgan maosh bilan. Mos nomzodga chat orqali yozing."
+        description={tr(til, REZ_KATALOG.description)}
         action={
           <>
             <ButtonLink href={user ? "/kabinet/rezyume" : "/auth/royxat?next=/kabinet/rezyume"} variant="accent" size="lg">
-              <FileUser size={18} /> {mine ? "Rezyumemni yangilash" : "Rezyume yaratish"}
+              <FileUser size={18} /> {mine ? tr(til, REZ_KATALOG.updateResume) : tr(til, REZ_KATALOG.createResume)}
             </ButtonLink>
             <ButtonLink href="/vakansiyalar" variant="outline" size="lg">
-              Vakansiyalar
+              {tr(til, VAK.vacancies)}
             </ButtonLink>
           </>
         }
@@ -80,29 +87,29 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         {f.profession && <input type="hidden" name="profession" value={f.profession} />}
         <label className="relative min-w-0 sm:col-span-2 lg:col-span-1">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
-          <input name="q" defaultValue={f.q} maxLength={80} enterKeyHint="search" placeholder="Lavozim, ko'nikma, ism…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
+          <input name="q" defaultValue={f.q} maxLength={80} enterKeyHint="search" placeholder={tr(til, REZ_KATALOG.searchPlaceholder)} aria-label={tr(til, VAK.search)} className="field h-11 w-full pl-10 text-[14px]" />
         </label>
         {/* Telefon: uch tanlov bitta qatorda, o'zgarganda avtomatik yuboriladi (tugma yashirin) */}
         <div className="grid grid-cols-3 gap-2 sm:contents">
-        <AutoSubmitSelect name="experience" defaultValue={f.experience} aria-label="Tajriba" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
-          <option value="">Tajriba</option>
+        <AutoSubmitSelect name="experience" defaultValue={f.experience} aria-label={tr(til, VAK.experience)} className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">{tr(til, VAK.experience)}</option>
           {(Object.keys(RESUME_EXPERIENCE) as Array<keyof typeof RESUME_EXPERIENCE>).map((k) => (
             <option key={k} value={k}>
-              {RESUME_EXPERIENCE[k]}
+              {resumeExperienceTr(til, k)}
             </option>
           ))}
         </AutoSubmitSelect>
-        <AutoSubmitSelect name="format" defaultValue={f.format} aria-label="Ish formati" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
-          <option value="">Format</option>
+        <AutoSubmitSelect name="format" defaultValue={f.format} aria-label={tr(til, VAK.format)} className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">{tr(til, REZ_KATALOG.formatAny)}</option>
           {(Object.keys(RESUME_FORMAT) as Array<keyof typeof RESUME_FORMAT>).map((k) => (
             <option key={k} value={k}>
-              {RESUME_FORMAT[k]}
+              {resumeFormatTr(til, k)}
             </option>
           ))}
         </AutoSubmitSelect>
-        <AutoSubmitSelect name="region" defaultValue={f.region} aria-label="Hudud" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
-          <option value="">Hudud</option>
-          <option value={REMOTE_REGION}>Faqat masofaviy</option>
+        <AutoSubmitSelect name="region" defaultValue={f.region} aria-label={tr(til, VAK.region)} className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">{tr(til, VAK.region)}</option>
+          <option value={REMOTE_REGION}>{tr(til, REZ_KATALOG.remoteOnly)}</option>
           {REGIONS.map((r) => (
             <option key={r.slug} value={r.slug}>
               {r.name}
@@ -111,21 +118,21 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         </AutoSubmitSelect>
         </div>
         <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold max-sm:hidden sm:col-span-2 lg:col-span-1">
-          Qidirish
+          {tr(til, VAK.search)}
         </button>
       </form>
 
-      <nav aria-label="Kasblar" className="-mx-4 mt-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+      <nav aria-label={tr(til, REZ_KATALOG.professionsAria)} className="-mx-4 mt-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
         <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
           <li>
             <Link href={buildHref(BASE, { ...query, profession: undefined, page: undefined })} className={chip(!f.profession)} aria-current={!f.profession ? "page" : undefined}>
-              Barcha kasblar
+              {tr(til, REZ_KATALOG.allProfessions)}
             </Link>
           </li>
           {PROFESSIONS.map((p) => (
             <li key={p.slug}>
               <Link href={buildHref(BASE, { ...query, profession: f.profession === p.slug ? undefined : p.slug, page: undefined })} className={chip(f.profession === p.slug)} aria-current={f.profession === p.slug ? "page" : undefined}>
-                {p.short}
+                {professionLabelTr(til, p.slug, true)}
               </Link>
             </li>
           ))}
@@ -136,17 +143,17 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         {result.items.length === 0 ? (
           <EmptyState
             icon={FileUser}
-            title={hasFilters ? "Bunday nomzod topilmadi" : "Hali ommaviy rezyumelar yo'q"}
-            description={hasFilters ? "Filtrlarni kengaytiring yoki vakansiya joylang — nomzodlar o'zlari ariza yuboradi." : "Birinchi rezyumeni siz qo'ying — ish beruvchilar katalogdan topadi."}
+            title={hasFilters ? tr(til, REZ_KATALOG.emptyFilteredTitle) : tr(til, REZ_KATALOG.emptyNoneTitle)}
+            description={hasFilters ? tr(til, REZ_KATALOG.emptyFilteredDesc) : tr(til, REZ_KATALOG.emptyNoneDesc)}
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 {hasFilters && (
                   <ButtonLink href={BASE} variant="outline" size="md">
-                    Barcha rezyumelar
+                    {tr(til, REZ_KATALOG.allResumes)}
                   </ButtonLink>
                 )}
                 <ButtonLink href={user ? "/kabinet/rezyume" : "/auth/royxat?next=/kabinet/rezyume"} variant="accent" size="md">
-                  Rezyume yaratish
+                  {tr(til, REZ_KATALOG.createResume)}
                 </ButtonLink>
               </div>
             }
@@ -154,8 +161,9 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         ) : (
           <>
             <p className="mb-3 text-[13px] text-fg-3">
-              {result.total} ta nomzod{hasFilters ? " (filtr bo'yicha)" : ""}
-              {result.pages > 1 ? ` · ${result.page}/${result.pages}-sahifa` : ""}
+              {candidatesCountTr(til, result.total)}
+              {hasFilters ? tr(til, REZ_KATALOG.byFilter) : ""}
+              {result.pages > 1 ? REZ_KATALOG.pageOf[til](result.page, result.pages) : ""}
             </p>
             <ul className="stagger grid gap-4 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((r) => (

@@ -11,11 +11,16 @@ import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { ShareButton } from "@/components/specialists/ShareButton";
 import { TelegramShare } from "@/components/ui/TelegramShare";
 import { getCurrentUser } from "@/lib/auth";
-import { EMPLOYMENT, EXPERIENCE, WORK_FORMAT, daysLeftLabel, professionLabel, salaryLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import { daysLeftTr, employmentTr, experienceTr, professionLabelTr, salaryLabelTr, vacancyRegionTr, workFormatTr } from "@/lib/i18n/dict/vacancies";
+import { VAK_DETAL } from "@/lib/i18n/dict/vacancies-catalog";
+import { professionLabel, vacancyRegionLabel } from "@/lib/vacancies/format";
 import { bumpVacancyView, employerVacancies, getResume, getVacancyView, loadVacancy, similarVacancies } from "@/lib/vacancies/service";
 import { isBotUserAgent } from "@/lib/privacy";
 import { SITE_URL } from "@/lib/site-url";
-import { formatDate, timeAgo } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
@@ -50,7 +55,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /** Vakansiya sahifasi: tavsif, talablar, ko'nikmalar; yon panel — ariza (yoki egasi paneli) va statistika */
 export default async function VacancyPage({ params }: { params: Params }) {
-  const [{ id }, user, hdrs] = await Promise.all([params, getCurrentUser(), headers()]);
+  const [{ id }, user, hdrs, til] = await Promise.all([params, getCurrentUser(), headers(), getLocale()]);
   const viewer = user ? { id: user.id, role: user.role } : null;
   const v = await getVacancyView(id, viewer);
   if (!v) notFound();
@@ -69,8 +74,9 @@ export default async function VacancyPage({ params }: { params: Params }) {
     .split(/\n+/)
     .map((s) => s.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean);
+  const salary = salaryLabelTr(til, v.salaryMin, v.salaryMax);
 
-  // SEO: schema.org JobPosting (Google "Ish o'rinlari" bloki) — faqat ochiq vakansiyalar uchun
+  // SEO: schema.org JobPosting (Google "Ish o'rinlari" bloki) — faqat ochiq vakansiyalar uchun (tilga bog'liq emas — uz yorliqlar)
   const jobPosting = closed
     ? null
     : {
@@ -113,12 +119,12 @@ export default async function VacancyPage({ params }: { params: Params }) {
           }).replace(/</g, "\\u003c"),
         }}
       />
-      <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
+      <nav aria-label={tr(til, VAK_DETAL.breadcrumbAria)} className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
-          Vakansiyalar
+          {tr(til, VAK_DETAL.vacancies)}
         </Link>
         <span className="mx-1.5">/</span>
-        <span className="text-fg-2">{professionLabel(v.profession, true)}</span>
+        <span className="text-fg-2">{professionLabelTr(til, v.profession, true)}</span>
       </nav>
 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
@@ -126,20 +132,20 @@ export default async function VacancyPage({ params }: { params: Params }) {
           <header className="card m-flat p-5 sm:p-7">
             {closed && (
               <p role="status" className="mb-4 rounded-[14px] border border-warning/30 bg-warning-soft px-4 py-2.5 text-[13px] font-semibold text-warning-text">
-                {v.status === "closed" ? "Bu vakansiya yopilgan — o'rin to'ldirilgan." : "Bu vakansiyaning muddati o'tgan."} Shunga o&apos;xshash ochiq vakansiyalarni{" "}
+                {v.status === "closed" ? tr(til, VAK_DETAL.closedFilled) : tr(til, VAK_DETAL.closedExpired)} {tr(til, VAK_DETAL.seeSimilarPre)}
                 <Link href={`/vakansiyalar?profession=${v.profession}`} className="underline underline-offset-2">
-                  ko&apos;ring
+                  {tr(til, VAK_DETAL.seeSimilarLink)}
                 </Link>
                 .
               </p>
             )}
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
               <span className={v.format === "remote" ? "rounded-full bg-info-soft px-2.5 py-1 text-info-text" : "rounded-full border border-line px-2.5 py-1 text-fg-2"}>
-                {WORK_FORMAT[v.format]}
-                {v.format !== "remote" && ` · ${vacancyRegionLabel(v.regionSlug, true)}`}
+                {workFormatTr(til, v.format)}
+                {v.format !== "remote" && ` · ${vacancyRegionTr(til, v.regionSlug, true)}`}
               </span>
               <span className="text-fg-3">
-                {professionLabel(v.profession, true)} · {EMPLOYMENT[v.employment]} · {EXPERIENCE[v.experience]}
+                {professionLabelTr(til, v.profession, true)} · {employmentTr(til, v.employment)} · {experienceTr(til, v.experience)}
               </span>
             </div>
             <h1 className="display-xl mt-4 text-[28px] text-fg sm:text-[38px]">{v.title}</h1>
@@ -147,24 +153,24 @@ export default async function VacancyPage({ params }: { params: Params }) {
               <Link href={employerHref} className="inline-flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
                 <Avatar name={v.author.name} src={v.author.avatarUrl} size={20} decorative />
                 {v.company || v.author.name}
-                {v.author.emailVerified && <BadgeCheck size={14} className="text-success-text" aria-label="Email tasdiqlangan" />}
+                {v.author.emailVerified && <BadgeCheck size={14} className="text-success-text" aria-label={tr(til, VAK_DETAL.emailVerified)} />}
               </Link>
               {v.company && <span className="text-fg-3">{v.author.name}</span>}
               <span className="text-fg-3" suppressHydrationWarning>
-                {timeAgo(v.createdAt)}
+                {timeAgoLabel(til, v.createdAt)}
               </span>
             </div>
             <p className="mt-5 flex flex-wrap items-baseline gap-2 font-display text-[26px] font-semibold text-fg">
-              {salaryLabel(v.salaryMin, v.salaryMax)}
-              {(v.salaryMin || v.salaryMax) && <span className="text-[14px] font-medium text-fg-3">so&apos;m / oy</span>}
+              {salary}
+              {(v.salaryMin || v.salaryMax) && <span className="text-[14px] font-medium text-fg-3">{tr(til, VAK_DETAL.perMonthLong)}</span>}
             </p>
           </header>
 
-          <Section title="Vazifalar va shartlar">
+          <Section title={tr(til, VAK_DETAL.tasksTitle)}>
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg-2">{v.description}</p>
           </Section>
           {reqLines.length > 0 && (
-            <Section title="Talablar">
+            <Section title={tr(til, VAK_DETAL.requirementsTitle)}>
               <ul className="grid gap-2 text-[14.5px] leading-relaxed text-fg-2">
                 {reqLines.map((l, i) => (
                   <li key={i} className="flex gap-2.5">
@@ -176,7 +182,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
             </Section>
           )}
           {v.skills.length > 0 && (
-            <Section title="Ko'nikmalar">
+            <Section title={tr(til, VAK_DETAL.skillsTitle)}>
               <ul className="flex flex-wrap gap-2">
                 {v.skills.map((s) => (
                   <li key={s} className="rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[13px] font-medium text-fg-2">
@@ -191,17 +197,18 @@ export default async function VacancyPage({ params }: { params: Params }) {
         <aside id="ariza" className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
           {v.isOwner ? (
             <div className="card m-flat p-5">
-              <p className="text-[15px] font-semibold text-fg">Bu sizning vakansiyangiz</p>
+              <p className="text-[15px] font-semibold text-fg">{tr(til, VAK_DETAL.yourVacancy)}</p>
               <p className="mt-1 text-[13px] text-fg-3">
-                {v.applicationsCount} ta ariza · {v.viewCount} ta ko&apos;rish{v.applyUrl ? ` · ${v.applyClicks} ta tashqi o'tish` : ""}
-                {daysLeft !== null && !closed ? ` · ${daysLeftLabel(daysLeft)}` : ""}
+                {VAK_DETAL.ownerApplications[til](v.applicationsCount)} · {VAK_DETAL.ownerViews[til](v.viewCount)}
+                {v.applyUrl ? ` · ${VAK_DETAL.ownerClicks[til](v.applyClicks)}` : ""}
+                {daysLeft !== null && !closed ? ` · ${daysLeftTr(til, daysLeft)}` : ""}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href={`/kabinet/vakansiyalar?v=${v.id}`} className="btn-ink press inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold">
-                  <Users size={15} /> Nomzodlar
+                  <Users size={15} /> {tr(til, VAK_DETAL.candidates)}
                 </Link>
                 <Link href={`/vakansiyalar/${v.id}/tahrir`} className="press inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg">
-                  <Pencil size={14} /> Tahrirlash
+                  <Pencil size={14} /> {tr(til, VAK_DETAL.edit)}
                 </Link>
               </div>
             </div>
@@ -217,28 +224,28 @@ export default async function VacancyPage({ params }: { params: Params }) {
           )}
           <dl className="grid gap-2 px-1 text-[13px]">
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-fg-3">Arizalar</dt>
+              <dt className="text-fg-3">{tr(til, VAK_DETAL.applications)}</dt>
               <dd className="font-semibold text-fg">{v.applicationsCount}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-fg-3">Joylangan</dt>
-              <dd className="font-semibold text-fg">{formatDate(v.createdAt)}</dd>
+              <dt className="text-fg-3">{tr(til, VAK_DETAL.posted)}</dt>
+              <dd className="font-semibold text-fg">{formatDate(v.createdAt, til)}</dd>
             </div>
             {daysLeft !== null && !closed && (
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-fg-3">Muddati</dt>
-                <dd className={daysLeft <= 3 ? "font-semibold text-warning-text" : "font-semibold text-fg"}>{daysLeftLabel(daysLeft)}</dd>
+                <dt className="text-fg-3">{tr(til, VAK_DETAL.deadline)}</dt>
+                <dd className={daysLeft <= 3 ? "font-semibold text-warning-text" : "font-semibold text-fg"}>{daysLeftTr(til, daysLeft)}</dd>
               </div>
             )}
           </dl>
-          <p className="px-1 text-[12px] leading-relaxed text-fg-4">Oldindan to&apos;lov yoki hujjat so&apos;ralsa — @montajor_man ga yozing. Vakansiyalar uchun to&apos;lov olinmaydi.</p>
+          <p className="px-1 text-[12px] leading-relaxed text-fg-4">{tr(til, VAK_DETAL.prepayNote)}</p>
         </aside>
       </div>
 
       {similar.length > 0 && (
         <section className="mt-10" aria-labelledby="similar-h" data-reveal>
           <h2 id="similar-h" className="font-display text-[20px] font-semibold text-fg">
-            Shunga o&apos;xshash vakansiyalar
+            {tr(til, VAK_DETAL.similar)}
           </h2>
           <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {similar.map((s) => (
@@ -256,7 +263,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
             <Link href={employerHref} className="underline-offset-4 hover:underline">
               {v.company || v.author.name}
             </Link>{" "}
-            — boshqa vakansiyalari
+            {tr(til, VAK_DETAL.otherFromEmployer)}
           </h2>
           <ul className="stagger mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {fromEmployer.map((s) => (
@@ -271,8 +278,10 @@ export default async function VacancyPage({ params }: { params: Params }) {
       {!v.isOwner && !closed && !v.myApplication && (
         <StickyCta targetId="ariza">
           <a href="#ariza" className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
-            <span className="truncate">{salaryLabel(v.salaryMin, v.salaryMax)}</span>
-            <span className="inline-flex items-center gap-1.5">Ariza yuborish <ArrowRight size={16} /></span>
+            <span className="truncate">{salary}</span>
+            <span className="inline-flex items-center gap-1.5">
+              {tr(til, VAK_DETAL.apply)} <ArrowRight size={16} />
+            </span>
           </a>
         </StickyCta>
       )}

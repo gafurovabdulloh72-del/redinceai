@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { VAK_SKILLS as T } from "@/lib/i18n/dict/vacancies-forms";
 
-/** Ko'nikmalar teg-kiritgichi: Enter yoki vergul — qo'shadi; × — olib tashlaydi */
-export function SkillsInput({ value, onChange, max, placeholder = "Masalan: Figma, After Effects, Python…", id }: { value: string[]; onChange: (v: string[]) => void; max: number; placeholder?: string; id?: string }) {
+/** Ko'nikmalar teg-kiritgichi: Enter yoki vergul — qo'shadi; × — olib tashlaydi. `placeholder` berilmasa — tilga mos standart */
+export function SkillsInput({ value, onChange, max, placeholder, id }: { value: string[]; onChange: (v: string[]) => void; max: number; placeholder?: string; id?: string }) {
+  const til = useLocale();
   const [draft, setDraft] = useState("");
+  const ph = placeholder ?? tr(til, T.placeholder);
   function commit() {
     const parts = draft
       .split(/[,;\n]/)
@@ -28,7 +33,7 @@ export function SkillsInput({ value, onChange, max, placeholder = "Masalan: Figm
       {value.map((s, i) => (
         <span key={s} className="inline-flex h-7 items-center gap-1 rounded-full bg-fg/6 pl-2.5 pr-1.5 text-[12.5px] font-semibold text-fg">
           {s}
-          <button type="button" aria-label={`${s} ni olib tashlash`} onClick={() => onChange(value.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 flex h-7 w-7 items-center justify-center rounded-full text-fg-3 hover:bg-fg/10 hover:text-fg">
+          <button type="button" aria-label={T.remove[til](s)} onClick={() => onChange(value.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 flex h-7 w-7 items-center justify-center rounded-full text-fg-3 hover:bg-fg/10 hover:text-fg">
             <X size={11} />
           </button>
         </span>
@@ -45,7 +50,7 @@ export function SkillsInput({ value, onChange, max, placeholder = "Masalan: Figm
             } else if (e.key === "Backspace" && !draft && value.length) onChange(value.slice(0, -1));
           }}
           onBlur={commit}
-          placeholder={value.length ? "" : placeholder}
+          placeholder={value.length ? "" : ph}
           className="min-w-[140px] flex-1 bg-transparent text-[14px] outline-none placeholder:text-fg-4"
         />
       )}

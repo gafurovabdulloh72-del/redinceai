@@ -8,6 +8,10 @@ import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
 import { getCurrentUser } from "@/lib/auth";
+import { tr } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { professionLabelTr, workFormatTr } from "@/lib/i18n/dict/vacancies";
+import { VAK_DETAL, VAK_KASB, VAK_KATALOG } from "@/lib/i18n/dict/vacancies-catalog";
 import { PROFESSIONS, PROFESSION_BY_SLUG, WORK_FORMAT } from "@/lib/vacancies/format";
 import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/service";
 import { SITE_URL } from "@/lib/site-url";
@@ -21,21 +25,24 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { slug } = await params;
+  const [{ slug }, til] = await Promise.all([params, getLocale()]);
   const p = PROFESSION_BY_SLUG[slug];
-  if (!p) return { title: "Kasb topilmadi", robots: { index: false } };
+  if (!p) return { title: tr(til, VAK_KASB.notFoundTitle), robots: { index: false } };
+  const name = professionLabelTr(til, p.slug);
   return {
-    title: `${p.name} — vakansiyalar`,
-    description: `${p.name} bo'yicha ochiq vakansiyalar: masofaviy va ofis ish o'rinlari, maosh va talablar bilan. Ariza berish bepul.`,
+    title: VAK_KASB.metaTitle[til](name),
+    description: VAK_KASB.metaDescription[til](name),
     alternates: { canonical: `/vakansiyalar/kasb/${p.slug}` },
   };
 }
 
 /** Kasb bo'yicha SEO sahifa: /vakansiyalar?profession=<slug> bilan bir xil ro'yxat, lekin alohida sarlavha, canonical va ItemList JSON-LD */
 export default async function ProfessionVacanciesPage({ params, searchParams }: { params: Params; searchParams: Promise<RawSearch> }) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const [{ slug }, sp, til] = await Promise.all([params, searchParams, getLocale()]);
   const p = PROFESSION_BY_SLUG[slug];
   if (!p) notFound();
+  const name = professionLabelTr(til, p.slug);
+  const short = professionLabelTr(til, p.slug, true);
   const base = `/vakansiyalar/kasb/${p.slug}`;
   const f = parseVacancyFilter({ ...flatSearch(sp), profession: p.slug });
   const [result, counts, user] = await Promise.all([listVacancies(f), vacancyCountsByProfession(), getCurrentUser()]);
@@ -46,7 +53,7 @@ export default async function ProfessionVacanciesPage({ params, searchParams }: 
     ? {
         "@context": "https://schema.org",
         "@type": "ItemList",
-        name: `${p.name} — vakansiyalar`,
+        name: VAK_KASB.metaTitle[til](name),
         itemListElement: result.items.map((v, i) => ({ "@type": "ListItem", position: (f.page - 1) * f.limit + i + 1, url: `${SITE_URL}/vakansiyalar/${v.id}`, name: v.title })),
       }
     : null;
@@ -54,55 +61,64 @@ export default async function ProfessionVacanciesPage({ params, searchParams }: 
   return (
     <div className="container-x animate-fade-up">
       {itemList && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList).replace(/</g, "\\u003c") }} />}
-      <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
+      <nav aria-label={tr(til, VAK_DETAL.breadcrumbAria)} className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
-          Vakansiyalar
+          {tr(til, VAK_DETAL.vacancies)}
         </Link>
         <span className="mx-1.5">/</span>
-        <span className="text-fg-2">{p.short}</span>
+        <span className="text-fg-2">{short}</span>
       </nav>
       <PageHeader
         size="lg"
         className="mt-4"
-        eyebrow={`${counts[p.slug] ?? 0} ta ochiq vakansiya`}
+        eyebrow={VAK_KASB.eyebrow[til](counts[p.slug] ?? 0)}
         title={
           <>
-            {p.name} <span className="accent-serif text-accent">vakansiyalari</span>
+            {name} <span className="accent-serif text-accent">{tr(til, VAK_KASB.titleAccent)}</span>
           </>
         }
-        description={`${p.name} bo'yicha masofaviy va ofis ish o'rinlari — maosh va talablar bilan. Ariza berish bepul.`}
+        description={VAK_KASB.description[til](name)}
         action={
           <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="lg">
-            <Plus size={18} /> Vakansiya joylash
+            <Plus size={18} /> {tr(til, VAK_KATALOG.postVacancy)}
           </ButtonLink>
         }
       />
 
-      <nav aria-label="Kasblar" className="-mx-4 mt-6 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+      <nav aria-label={tr(til, VAK_KATALOG.professionsAria)} className="-mx-4 mt-6 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
         <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
           {PROFESSIONS.map((x) => (
             <li key={x.slug}>
               <Link href={`/vakansiyalar/kasb/${x.slug}`} className={filterChip(x.slug === p.slug)} aria-current={x.slug === p.slug ? "page" : undefined}>
-                {x.short} {(counts[x.slug] ?? 0) > 0 && <span className={x.slug === p.slug ? "opacity-70" : "text-fg-4"}>{counts[x.slug]}</span>}
+                {professionLabelTr(til, x.slug, true)} {(counts[x.slug] ?? 0) > 0 && <span className={x.slug === p.slug ? "opacity-70" : "text-fg-4"}>{counts[x.slug]}</span>}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
-      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="Tez filtrlar">
+      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label={tr(til, VAK_KATALOG.quickFiltersAria)}>
         {(Object.keys(WORK_FORMAT) as Array<keyof typeof WORK_FORMAT>).map((k) => (
           <Link key={k} href={buildHref(base, { ...query, format: f.format === k ? undefined : k, page: undefined })} className={filterChip(f.format === k)} aria-pressed={f.format === k}>
-            {WORK_FORMAT[k]}
+            {workFormatTr(til, k)}
           </Link>
         ))}
-        <VacancyAlertButton query={toQueryString({ profession: p.slug, format: f.format || undefined })} defaultName={`${p.short}${f.format ? ` · ${WORK_FORMAT[f.format]}` : ""}`} loggedIn={Boolean(user)} className="ml-auto" />
+        <VacancyAlertButton query={toQueryString({ profession: p.slug, format: f.format || undefined })} defaultName={`${short}${f.format ? ` · ${workFormatTr(til, f.format)}` : ""}`} loggedIn={Boolean(user)} className="ml-auto" />
         {/* Faqat shu kasb bo'yicha RSS — umumiy lentada boshqa yo'nalishlar shovqin bo'ladi */}
-        <FeedLink href={`/vakansiyalar/kasb/${p.slug}/feed.xml`} label="RSS" title={`${p.name} vakansiyalari RSS lentasi`} />
+        <FeedLink href={`/vakansiyalar/kasb/${p.slug}/feed.xml`} label="RSS" title={VAK_KASB.rssTitle[til](name)} />
       </div>
 
       <section className="mt-6" aria-live="polite">
         {result.items.length === 0 ? (
-          <EmptyState icon={Briefcase} title={`${p.short} bo'yicha ochiq vakansiya yo'q`} description="Qidiruvni saqlang — mos vakansiya chiqsa xabar beramiz, yoki boshqa kasbni tanlang." action={<ButtonLink href="/vakansiyalar" variant="outline" size="md">Barcha vakansiyalar</ButtonLink>} />
+          <EmptyState
+            icon={Briefcase}
+            title={VAK_KASB.emptyTitle[til](short)}
+            description={tr(til, VAK_KASB.emptyDesc)}
+            action={
+              <ButtonLink href="/vakansiyalar" variant="outline" size="md">
+                {tr(til, VAK_KATALOG.allVacancies)}
+              </ButtonLink>
+            }
+          />
         ) : (
           <>
             <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
