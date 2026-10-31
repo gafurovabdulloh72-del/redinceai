@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/utils";
 import { REGION_BY_SLUG } from "@/lib/constants";
 import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
 import { SETTINGS_TEXT, appUrl, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
+import type { BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * Botdagi tezkor amallar (Telegram tarafi):
@@ -120,10 +121,10 @@ export async function handleOrderCallback(chatId: string, data: string, answer: 
 }
 
 /** `/buyurtmalarim` — ochiq buyurtmalar (mutaxassis uchun yangi buyurtmalar tugmalar bilan) */
-export async function handleMyOrders(chatId: string): Promise<void> {
+export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendNotLinked(chatId);
+    await sendNotLinked(chatId, lang);
     return;
   }
   // Buyurtmada `specialistId` — specialists qatori; mutaxassis userId'si join bilan olinadi
@@ -152,10 +153,10 @@ export async function handleMyOrders(chatId: string): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 /** `/profil` — hisob kartasi */
-export async function handleProfile(chatId: string): Promise<void> {
+export async function handleProfile(chatId: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendNotLinked(chatId);
+    await sendNotLinked(chatId, lang);
     return;
   }
   const since = new Date(me.createdAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
@@ -196,10 +197,10 @@ export async function handleProfile(chatId: string): Promise<void> {
 }
 
 /** `/xabarlar` — o'qilmagan DM soni */
-export async function handleMessages(chatId: string): Promise<void> {
+export async function handleMessages(chatId: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendNotLinked(chatId);
+    await sendNotLinked(chatId, lang);
     return;
   }
   const { unreadDmCount } = await import("@/lib/chat/dm");
@@ -227,10 +228,10 @@ export async function handleVacancies(chatId: string): Promise<void> {
 }
 
 /** `/sozlamalar` — bildirishnoma guruhlari switch'lari */
-export async function handleSettings(chatId: string): Promise<void> {
+export async function handleSettings(chatId: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendNotLinked(chatId);
+    await sendNotLinked(chatId, lang);
     return;
   }
   await sendTelegram(chatId, SETTINGS_TEXT, { keyboard: settingsKeyboard(me.notifyPrefs ?? {}) });
@@ -259,11 +260,12 @@ export async function handleSettingsCallback(chatId: string, data: string, answe
 }
 
 /** `menu:*` — xush kelibsiz ekranidagi inline tugmalar */
-export async function handleMenuCallback(chatId: string, data: string, answer: Answer): Promise<boolean> {
+export async function handleMenuCallback(chatId: string, data: string, answer: Answer, lang?: "uz" | "ru"): Promise<boolean> {
   if (data === "menu:help") {
     await answer("");
     const { sendHelp } = await import("@/lib/telegram-bot/ui");
-    await sendHelp(chatId, Boolean(await accountOf(chatId)));
+    const me = await accountOf(chatId);
+    await sendHelp(chatId, Boolean(me), me?.role === "admin", lang);
     return true;
   }
   if (data === "menu:mycourses") {
@@ -340,10 +342,10 @@ async function withContactPrices(people: BotPerson[]): Promise<BotPerson[]> {
 }
 
 /** `/kontaktlarim` — ochilgan kontaktlar to'g'ridan-to'g'ri chatda (telefon, Telegram, Instagram, email) */
-export async function handleMyContacts(chatId: string): Promise<void> {
+export async function handleMyContacts(chatId: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendNotLinked(chatId);
+    await sendNotLinked(chatId, lang);
     return;
   }
   const { listUnlockedContacts } = await import("@/lib/contacts/unlock");

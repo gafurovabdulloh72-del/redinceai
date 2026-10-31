@@ -21,6 +21,7 @@ import { handleRegisterCallback, handleRegisterContact, handleRegisterText, star
 import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
+import { botLang, type BotLang } from "@/lib/telegram-bot/lang";
 import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -58,7 +59,7 @@ function secretOk(req: Request): boolean {
 interface TelegramUpdate {
   message?: {
     text?: unknown;
-    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string };
+    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string; language_code?: string };
     chat?: { id?: unknown; type?: unknown };
     caption?: unknown;
     photo?: { file_id?: string; file_size?: number; width?: number; height?: number }[];
@@ -73,7 +74,7 @@ interface TelegramUpdate {
   callback_query?: {
     id?: unknown;
     data?: unknown;
-    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string };
+    from?: { id?: unknown; first_name?: string; last_name?: string; username?: string; language_code?: string };
     message?: { message_id?: unknown; text?: unknown; chat?: { id?: unknown } };
   };
 }
@@ -142,7 +143,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const answer = (text: string) => telegramApi("answerCallbackQuery", { callback_query_id: cbId, text: text.slice(0, 190) });
 
   const from = cb.from ?? {};
-  const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined };
+  const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined, lang: botLang(from.language_code) };
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
   if (chatId && (await handleContactPayCallback(chatId, data, answer))) return;
@@ -152,7 +153,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
   if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId))) return;
-  if (chatId && (await handleMenuCallback(chatId, data, answer))) return;
+  if (chatId && (await handleMenuCallback(chatId, data, answer, who.lang))) return;
   if (chatId && (await handleBroadcastCallback(chatId, data, answer, msgId))) return;
 
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
@@ -186,11 +187,11 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   }
 }
 
-async function handleStart(chatId: string, code: string, firstName?: string): Promise<void> {
+async function handleStart(chatId: string, code: string, firstName?: string, lang: BotLang = "uz"): Promise<void> {
   // Kodsiz /start — xush kelibsiz ekrani (ulangan bo'lsa menyu, bo'lmasa ulash tugmasi)
   if (!code) {
     const me = await accountOf(chatId);
-    await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName);
+    await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName, lang);
     return;
   }
   const userId = verifyTelegramLinkCode(code);
@@ -213,7 +214,7 @@ async function handleStart(chatId: string, code: string, firstName?: string): Pr
   // Ulandi — xush kelibsiz ekrani doimiy menyu bilan; admin bo'lsa buyruqlar menyusiga /elon qo'shiladi
   const me = await accountOf(chatId);
   if (me?.role === "admin") await setAdminCommands(chatId).catch(() => false);
-  await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName);
+  await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName, lang);
 }
 
 async function handleStop(chatId: string): Promise<void> {
@@ -302,7 +303,8 @@ export async function POST(req: Request) {
     const cmd = rawCmd.split("@")[0].toLowerCase(); // "/start@BotNomi" ham qabul qilinadi
     const firstName = typeof msg?.from?.first_name === "string" ? msg.from.first_name : undefined;
     const mf = msg?.from ?? {};
-    const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
+    const lang = botLang(mf.language_code);
+    const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined, lang };
     // Savol-javob oqimi (ro'yxatdan o'tish / elon): oddiy matn oqimga ketadi; har qanday buyruq oqimni to'xtatadi
     if (!cmd.startsWith("/")) {
       if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
@@ -325,22 +327,22 @@ export async function POST(req: Request) {
       // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */
-      } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg)) || (await handleContactBuyStart(chatId, arg))))) await handleStart(chatId, arg, firstName);
+      } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg)) || (await handleContactBuyStart(chatId, arg))))) await handleStart(chatId, arg, firstName, lang);
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
-    else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId);
-    else if (cmd === "/xabarlar") await handleMessages(chatId);
+    else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId, lang);
+    else if (cmd === "/xabarlar") await handleMessages(chatId, lang);
     else if (cmd === "/ilova" || cmd === "/app") await sendApp(chatId);
     else if (cmd === "/qidiruv" || cmd === "/qidir") await handleSearch(chatId, normalized.slice(rawCmd.length));
     else if (cmd === "/kurslar") await handleCourses(chatId);
     else if (cmd === "/efirlar" || cmd === "/efir") await handleLives(chatId);
     else if (cmd === "/top") await handleTop(chatId);
     else if (cmd === "/vakansiyalar") await handleVacancies(chatId);
-    else if (cmd === "/profil") await handleProfile(chatId);
-    else if (cmd === "/sozlamalar") await handleSettings(chatId);
-    else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
+    else if (cmd === "/profil") await handleProfile(chatId, lang);
+    else if (cmd === "/sozlamalar") await handleSettings(chatId, lang);
+    else if (cmd === "/menyu") await handleStart(chatId, "", firstName, lang);
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
     else if (cmd === "/post") await sendPostHelp(chatId);
-    else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId);
+    else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId, lang);
     else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
       if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
@@ -354,7 +356,7 @@ export async function POST(req: Request) {
     else if (cmd === "/stop") await handleStop(chatId);
     else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) {
       const me = await accountOf(chatId);
-      await sendHelp(chatId, Boolean(me), me?.role === "admin");
+      await sendHelp(chatId, Boolean(me), me?.role === "admin", lang);
     }
     else await handleSearch(chatId, text); // oddiy matn — ijodkor qidiruvi
   } catch (e) {
