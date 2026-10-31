@@ -43,6 +43,10 @@ export const FEED = {
   welcomeTitle: { uz: "Ishlaringizni ko'rsating, hamkasblar bilan bog'laning", ru: "Показывайте работы, общайтесь с коллегами" } satisfies Tr,
   welcomeText: { uz: "Postlar, jamoalar, efirlar va vakansiyalar — videograf, montajor, dizayner va onlayn kasb egalari bir joyda.", ru: "Посты, сообщества, эфиры и вакансии — видеографы, монтажёры, дизайнеры и онлайн-профессии в одном месте." } satisfies Tr,
   start: { uz: "Qo'shilish", ru: "Присоединиться" } satisfies Tr,
+  /** Mehmon kartasi: platforma qanday ishlaydi — 3 qadam (kontakt sotuvi modeli) */
+  how1: { uz: "Ijodkorni toping va ishlarini ko'ring", ru: "Найдите специалиста и посмотрите работы" } satisfies Tr,
+  how2: { uz: "Kontaktini bir to'lov bilan oching", ru: "Откройте контакт одним платежом" } satisfies Tr,
+  how3: { uz: "To'g'ridan-to'g'ri kelishing", ru: "Договаривайтесь напрямую" } satisfies Tr,
   login: { uz: "Kirish", ru: "Войти" } satisfies Tr,
   about: { uz: "Platforma haqida", ru: "О платформе" } satisfies Tr,
 

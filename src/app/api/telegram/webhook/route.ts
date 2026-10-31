@@ -19,6 +19,7 @@ import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadca
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
 import { clearBotSession } from "@/lib/telegram-bot/session";
+import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { adminByChat, handleAdminCallback, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -67,6 +68,7 @@ interface TelegramUpdate {
     contact?: { phone_number?: unknown; user_id?: unknown };
   };
   pre_checkout_query?: { id: string; from?: { id?: unknown }; invoice_payload?: unknown; total_amount?: unknown; currency?: unknown };
+  inline_query?: { id?: unknown; from?: { id?: unknown }; query?: unknown; offset?: unknown };
   callback_query?: {
     id?: unknown;
     data?: unknown;
@@ -249,6 +251,12 @@ export async function POST(req: Request) {
     }
     if (update?.pre_checkout_query) {
       await handlePreCheckout(update.pre_checkout_query);
+      return Response.json({ ok: true });
+    }
+    if (update?.inline_query) {
+      // Inline rejim: `@bot so'z` — chegara foydalanuvchi id bo'yicha
+      const iqFrom = update.inline_query.from?.id != null ? String(update.inline_query.from.id) : "";
+      if (!iqFrom || !(await botLimited(iqFrom, "tgBot"))) await handleInlineQuery(update.inline_query);
       return Response.json({ ok: true });
     }
     const msg = update?.message;

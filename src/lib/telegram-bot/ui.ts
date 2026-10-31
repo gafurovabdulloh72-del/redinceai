@@ -178,7 +178,7 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false): 
     "<b>Kasb Egalari boti nima qiladi</b>\n\n" +
     "📦 /buyurtmalarim — ochiq buyurtmalar; yangi buyurtmani «Qabul qilish» / «Rad etish» tugmasi bilan hal qilasiz\n" +
     "💬 /xabarlar — o'qilmagan xabarlar soni va chatga havola\n" +
-    "🔎 istalgan so'z yoki /qidiruv &lt;so'z&gt; — ijodkor qidirish (masalan: <i>montajchi Toshkent</i>)\n" +
+    "🔎 istalgan so'z yoki /qidiruv &lt;so'z&gt; — ijodkor qidirish (masalan: <i>montajchi Toshkent</i>); istalgan chatda <code>@bot so'z</code> — ijodkor kartasini ulashish\n" +
     "🎓 /kurslar — katalog · /kurslarim — yozilgan kurslar, kutilayotgan to'lovlar (chek rasmini shu yerga yuborsangiz bo'ladi)\n" +
     "🔴 /efirlar — jonli va yaqin efirlar · 🏆 /top — oyning TOP ijodkorlari\n" +
     "💼 /vakansiyalar — so'nggi ochiq vakansiyalar\n" +

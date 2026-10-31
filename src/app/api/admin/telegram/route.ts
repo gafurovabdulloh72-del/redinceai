@@ -60,7 +60,7 @@ export const POST = handler(async (req) => {
     url,
     secret_token: telegramWebhookSecret(),
     // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov
-    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
+    allowed_updates: ["message", "callback_query", "pre_checkout_query", "inline_query"],
   });
   if (!res) throw new ApiError(502, "Telegram API'ga ulanib bo'lmadi — birozdan so'ng qayta urinib ko'ring");
   if (!res.ok) throw new ApiError(502, `Telegram rad etdi: ${res.description ?? "noma'lum xato"}`);

@@ -282,17 +282,30 @@ export async function handleMenuCallback(chatId: string, data: string, answer: A
 const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : "yangi");
 
 /** Matn yoki `/qidiruv <so'z>` — ijodkorlar (5 tagacha) */
-export async function handleSearch(chatId: string, qRaw: string): Promise<void> {
-  const q = qRaw.trim().slice(0, 80);
-  const s = siteUrl() ?? "";
-  if (q.length < 2) {
-    await sendTelegram(chatId, "Kimni qidiramiz? Masalan: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.");
-    return;
-  }
+export interface BotPerson {
+  slug: string;
+  name: string;
+  title: string;
+  category: string;
+  rating: number;
+  reviewCount: number;
+  isVerified: boolean;
+  avatarUrl?: string | null;
+}
+
+/** Ijodkor qidiruvi (bot va inline rejim umumiy): ism/sarlavha → bo'lmasa kasb+hudud bo'yicha katalog; bo'sh so'rov — eng yaxshilari */
+export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
   const { exploreSearch } = await import("@/lib/search/service");
-  const { CATEGORIES, CATEGORY_BY_SLUG, REGIONS } = await import("@/lib/constants");
+  const { CATEGORIES, REGIONS } = await import("@/lib/constants");
+  const { listSpecialists } = await import("@/lib/queries");
+  const { specialistFilterSchema } = await import("@/lib/validators");
+  const fromCatalog = async (f: Record<string, unknown>) => {
+    const r = await listSpecialists(specialistFilterSchema.parse({ ...f, limit }));
+    return r.items.slice(0, limit).map((it) => ({ slug: it.slug, name: it.user.name, title: it.title ?? "", category: it.category, rating: it.rating, reviewCount: it.reviewCount, isVerified: Boolean(it.isVerified), avatarUrl: it.user.avatarUrl }));
+  };
+  if (q.length < 2) return fromCatalog({});
   const res = await exploreSearch(q, "people");
-  let people: { slug: string; name: string; title: string; category: string; rating: number; reviewCount: number; isVerified: boolean }[] = res.people.slice(0, 5);
+  let people: BotPerson[] = res.people.slice(0, limit);
   if (!people.length) {
     // Ism/sarlavha topilmadi — kasb va hudud nomi bo'yicha katalog («montajchi Samarqand»)
     const ql = q.toLowerCase();
@@ -303,13 +316,20 @@ export async function handleSearch(chatId: string, qRaw: string): Promise<void> 
       return words.some((w) => names.some((n) => n.startsWith(w.slice(0, 5)) || n.includes(w)));
     });
     const reg = REGIONS.find((r) => ql.includes(r.short.toLowerCase().replace(/\s*(sh\.|vil\.)$/, "")) || ql.includes(r.slug));
-    if (cat || reg) {
-      const { listSpecialists } = await import("@/lib/queries");
-      const { specialistFilterSchema } = await import("@/lib/validators");
-      const r = await listSpecialists(specialistFilterSchema.parse({ category: cat?.slug, region: reg?.slug, limit: 5 }));
-      people = r.items.slice(0, 5).map((it) => ({ slug: it.slug, name: it.user.name, title: it.title ?? "", category: it.category, rating: it.rating, reviewCount: it.reviewCount, isVerified: Boolean(it.isVerified) }));
-    }
+    if (cat || reg) people = await fromCatalog({ category: cat?.slug, region: reg?.slug });
   }
+  return people;
+}
+
+export async function handleSearch(chatId: string, qRaw: string): Promise<void> {
+  const q = qRaw.trim().slice(0, 80);
+  const s = siteUrl() ?? "";
+  if (q.length < 2) {
+    await sendTelegram(chatId, "Kimni qidiramiz? Masalan: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.\n\nIstalgan chatda ham: <code>@bot so'z</code> yozsangiz ijodkor kartasini ulashasiz.");
+    return;
+  }
+  const { CATEGORY_BY_SLUG } = await import("@/lib/constants");
+  const people = await searchPeople(q, 5);
   if (!people.length) {
     await sendTelegram(chatId, `🔎 «${escapeTelegramHtml(q)}» bo'yicha ijodkor topilmadi.`, { button: { text: "Katalogda qidirish", url: `${s}/qidiruv?q=${encodeURIComponent(q)}` } });
     return;

@@ -97,6 +97,15 @@ function WelcomeCard({ til }: { til: Locale }) {
       <span className="eyebrow">{tr(til, FEED.welcomeEyebrow)}</span>
       <h2 className="mt-2 font-display text-[21px] font-semibold leading-tight tracking-tight text-fg sm:text-[24px]">{tr(til, FEED.welcomeTitle)}</h2>
       <p className="mt-2 max-w-prose text-[14px] leading-relaxed text-fg-2">{tr(til, FEED.welcomeText)}</p>
+      {/* Qanday ishlaydi — 3 qadam (kontakt sotuvi modeli): mehmon birinchi qarashda tushunsin */}
+      <ol className="mt-4 grid gap-2 text-[13px] text-fg-2 sm:grid-cols-3">
+        {[FEED.how1, FEED.how2, FEED.how3].map((t, i) => (
+          <li key={i} className="flex items-start gap-2 rounded-[12px] bg-surface-2 px-3 py-2">
+            <span className="mt-px inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">{i + 1}</span>
+            <span className="leading-snug">{tr(til, t)}</span>
+          </li>
+        ))}
+      </ol>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <ButtonLink href="/auth/royxat" variant="accent" size="md">
           {tr(til, FEED.start)} <ArrowRight size={16} />
