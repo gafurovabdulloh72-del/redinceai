@@ -268,11 +268,14 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
    ulanadi — yangi hisob ulansa eskisidan avtomatik uziladi. Uzish: kartadagi «Uzish» tugmasi yoki botda `/stop`.
    Botda: `/start` — menyu, `/buyurtmalarim`, `/xabarlar`, `/kurslar`, `/kurslarim`, `/efirlar`, `/vakansiyalar`,
    `/top`, `/profil`, `/sozlamalar` (bildirishnoma guruhlari switch'lari), `/yordam`; oddiy matn — ijodkor qidiruvi.
+   **Admin uchun** (chat admin hisobiga ulangan bo'lsa): `/elon Sarlavha | Matn` — barcha/mutaxassislar/mijozlarga
+   ommaviy e'lon (sayt + Telegram), yuborishdan oldin auditoriya tugmalari.
 6. **Mini App (ilova)**: `SITE_URL` https bo'lsa «Bot profilini sozlash» menyu tugmasini `Ilova` (web_app → `/tg`)
    qiladi va `/start` menyusida «📱 Ilovani ochish» chiqadi. Ilova Telegram ichida ochiladi, `initData` imzosi
    bot tokeni bilan tekshiriladi va foydalanuvchi hisobiga avtomatik kiradi (hisob bo'lmasa yaratiladi —
    «Telegram bilan kirish» qoidalari). Ilova SDK'siz ishlaydi — Telegram URL hash'ida bergan `tgWebAppData`
-   o'qiladi. **Chap paneldagi «Mini App» ro'yxati va profil «Open App» tugmasi** uchun BotFather: `/mybots` →
+   o'qiladi. Ulashish tugmalari (profil/post/kurs) `t.me/<bot>?startapp=…` havola beradi — qabul qiluvchi
+   Telegram'da bossa ilova to'g'ri shu sahifada, kirgan holda ochiladi. **Chap paneldagi «Mini App» ro'yxati va profil «Open App» tugmasi** uchun BotFather: `/mybots` →
    bot → **Bot Settings → Configure Mini App → Enable Mini App** → URL `https://<sayt>/tg` (bu «asosiy mini
    ilova» — Telegram uni Apps bo'limida ko'rsatadi). Ixtiyoriy: `/newapp` → `t.me/<bot>/app` qisqa havola.
 
