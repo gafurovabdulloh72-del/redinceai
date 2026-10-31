@@ -214,7 +214,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
     );
 
   return (
-    <form onSubmit={submit} className="card scroll-mt-28 p-5 sm:p-6" id="akkaunt" noValidate aria-busy={busy}>
+    <form onSubmit={submit} className="card m-flat scroll-mt-28 p-5 sm:p-6" id="akkaunt" noValidate aria-busy={busy}>
       <div className="flex items-start gap-3">
         <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
           <UserRound size={18} />

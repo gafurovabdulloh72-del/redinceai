@@ -542,7 +542,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       )}
 
       {/* ---------- Holat ---------- */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Hisob holati">
+      <section className="grid grid-cols-2 gap-3 max-sm:gap-2 lg:grid-cols-4" aria-label="Hisob holati">
         <div className="card px-4 py-4">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
             <Clock3 size={14} /> Oxirgi kirish
@@ -606,7 +606,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
 
       {/* ---------- Emailni tasdiqlash ---------- */}
       {(!verified || justVerified) && (
-        <section className="card p-5 sm:p-6" aria-labelledby="sec-verify">
+        <section className="card m-flat p-5 sm:p-6" aria-labelledby="sec-verify">
           <div className="flex items-start gap-3">
             <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
               <MailCheck size={18} />
@@ -696,7 +696,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       )}
 
       {/* ---------- Parolni o'zgartirish ---------- */}
-      <form onSubmit={changePassword} className="card p-5 sm:p-6" noValidate>
+      <form onSubmit={changePassword} className="card m-flat p-5 sm:p-6" noValidate>
         <div className="flex items-start gap-3">
           <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
             <KeyRound size={18} />
@@ -775,7 +775,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       </form>
 
       {/* ---------- Ikki bosqichli himoya (TOTP) ---------- */}
-      <section id="ikki-bosqich" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-2fa">
+      <section id="ikki-bosqich" className="card m-flat scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-2fa">
         <div className="flex items-start gap-3">
           <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
             <ShieldCheck size={18} />
@@ -1046,7 +1046,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       </section>
 
       {/* ---------- Qurilmalar ---------- */}
-      <section id="sessiyalar" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-devices">
+      <section id="sessiyalar" className="card m-flat scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-devices">
         <div className="flex items-start gap-3">
           <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
             <MonitorSmartphone size={18} />
@@ -1159,7 +1159,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
 
       {/* ---------- Kirish tarixi (audit) ---------- */}
       {initial.history && initial.history.length > 0 && (
-        <section className="card p-5 sm:p-6" aria-labelledby="sec-history">
+        <section className="card m-flat p-5 sm:p-6" aria-labelledby="sec-history">
           <details className="group">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
               <span className="btn-ink flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
@@ -1196,7 +1196,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       )}
 
       {/* ---------- Xavfli zona ---------- */}
-      <section className="card p-5 sm:p-6" aria-labelledby="sec-danger">
+      <section className="card m-flat p-5 sm:p-6" aria-labelledby="sec-danger">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-danger-soft text-danger-text">
             <TriangleAlert size={18} />

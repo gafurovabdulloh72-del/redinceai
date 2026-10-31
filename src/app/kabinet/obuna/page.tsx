@@ -224,7 +224,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           </dl>
         </div>
 
-        <div className="card p-5 sm:p-6 lg:col-span-2">
+        <div className="card m-flat p-5 sm:p-6 lg:col-span-2">
           <h2 className="font-display text-[16px] font-semibold text-fg">Obuna nimalar beradi</h2>
           <ul className="mt-3 divide-y divide-line">
             {PERKS.map((p) => (
@@ -269,7 +269,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       </section>
 
       {/* Tarix */}
-      <section aria-labelledby="history-title" className="card mt-8 p-5 sm:p-6">
+      <section aria-labelledby="history-title" className="card m-flat mt-8 p-5 sm:p-6">
         <h2 id="history-title" className="mb-2 font-display text-[17px] font-semibold text-fg">
           To&apos;lovlar tarixi
         </h2>

@@ -110,7 +110,7 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
   }
 
   return (
-    <section id="maxfiylik" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-privacy">
+    <section id="maxfiylik" className="card m-flat scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-privacy">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="sec-privacy" className="font-display text-[19px] font-semibold tracking-tight text-fg">

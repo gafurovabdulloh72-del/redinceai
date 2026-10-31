@@ -43,14 +43,18 @@ export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
   }
 
   return (
-    <section id="bloklanganlar" className="card scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-blocked">
+    <section id="bloklanganlar" className="card m-flat scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-blocked">
       <h2 id="sec-blocked" className="font-display text-[19px] font-semibold tracking-tight text-fg">
         Bloklanganlar {rows.length > 0 && <span className="text-fg-3">· {rows.length}</span>}
       </h2>
       <p className="mt-1 text-[13px] leading-relaxed text-fg-2">Bloklangan odam sizga yoza olmaydi, obuna bo&apos;lmaydi, izoh va reaksiya qo&apos;ya olmaydi.</p>
       {rows.length === 0 ? (
-        <p className="mt-4 flex items-center gap-2 rounded-[14px] bg-fg/4 px-4 py-3 text-[13px] text-fg-3">
-          <ShieldCheck size={15} className="text-success" aria-hidden="true" /> Hali hech kim bloklanmagan. Bloklash — profil yoki chat sarlavhasidagi <Ban size={12} className="inline" aria-label="blok" /> tugmasi.
+        <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-fg/4 px-4 py-3 text-[13px] text-fg-3">
+          <ShieldCheck size={15} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
+          {/* Matn bitta span ichida — ikonka alohida flex ustun bo'lib chiqib ketmasin */}
+          <span>
+            Hali hech kim bloklanmagan. Bloklash — profil yoki chat sarlavhasidagi <Ban size={12} className="inline align-[-2px]" aria-label="blok" /> tugmasi.
+          </span>
         </p>
       ) : (
         <>

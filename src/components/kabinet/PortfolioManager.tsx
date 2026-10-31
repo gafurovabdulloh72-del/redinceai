@@ -316,7 +316,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
   return (
     <div className="space-y-4">
       {/* Yuqori panel */}
-      <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="card m-flat flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="min-w-0">
             <p className="font-display text-[16px] font-semibold text-fg">
