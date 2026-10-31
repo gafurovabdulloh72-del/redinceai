@@ -7,8 +7,8 @@ import { SHELL } from "@/lib/i18n/dict/shell";
 import { cn } from "@/lib/utils";
 
 /**
- * Brend belgisi (2026-10-31): «k» harfi — Space Grotesk 700 glifi (shriftga bog'liq emas, path),
- * siyoh plitka + marjon nuqta (so'z belgisidagi «i» nuqtasining aksi). Favicon (`app/icon.svg`) va
+ * Brend belgisi (2026-10-31): FAQAT «k» harfi — Space Grotesk 700 glifi (shriftga bog'liq emas, path),
+ * siyoh plitkada katta (balandligi plitkaning 62%), nuqtasiz. Favicon (`app/icon.svg`) va
  * ilova ikonkalari aynan shu geometriya — hamma joyda bir xil ko'rinadi.
  */
 export const LOGO_K_PATH = "M70 0V700H196V313H214L378 496H542L313 256L550 0H388L214 197H196V0Z";
@@ -17,8 +17,7 @@ export function LogoMark({ size = 36, className }: { size?: number; className?: 
   return (
     <svg viewBox="0 0 64 64" width={size} height={size} className={className} aria-hidden="true">
       <rect width="64" height="64" rx="18" className="fill-ink" />
-      <path d={LOGO_K_PATH} transform="translate(18.7 47) scale(0.0429 -0.0429)" className="fill-ink-fg" />
-      <circle cx="47" cy="17" r="4.6" fill="#ff5a36" />
+      <path d={LOGO_K_PATH} transform="translate(14.29 52) scale(0.0571 -0.0571)" className="fill-ink-fg" />
     </svg>
   );
 }
