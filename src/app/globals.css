@@ -315,29 +315,29 @@
   --radius-card: var(--r-md);
   --radius-card-lg: var(--r-lg);
 
-  --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
   --animate-pulse-ring: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-spin-slow: spin 18s linear infinite;
   /* Ijtimoiy tarmoq mikro-harakatlari: sahifa kirishi, like "pop", kontent almashinuvi, sheet */
-  --animate-page-in: page-in 0.34s var(--ease-out) both;
-  --animate-fade-in: fade-in 0.28s ease-out both;
-  --animate-pop: pop 0.45s var(--ease-spring) both;
-  --animate-slide-up: slide-up 0.38s var(--ease-out) both;
-  --animate-scale-in: scale-in 0.22s var(--ease-out) both;
+  --animate-page-in: page-in 0.34s var(--ease-out) backwards;
+  --animate-fade-in: fade-in 0.28s ease-out backwards;
+  --animate-pop: pop 0.45s var(--ease-spring) backwards;
+  --animate-slide-up: slide-up 0.38s var(--ease-out) backwards;
+  --animate-scale-in: scale-in 0.22s var(--ease-out) backwards;
   /* Harakat v3: xato silkinishi, like yurak urishi, qo'ng'iroq tebranishi, sanagich pop, sheet/modal, chat xabari, jonli nuqta, typing */
-  --animate-shake: shake 0.5s var(--ease-out) both;
-  --animate-heartbeat: heartbeat 0.6s var(--ease-spring) both;
+  --animate-shake: shake 0.5s var(--ease-out) backwards;
+  --animate-heartbeat: heartbeat 0.6s var(--ease-spring) backwards;
   --animate-double-heart: double-heart 0.9s var(--ease-out) both;
-  --animate-wiggle: wiggle 0.7s ease-in-out both;
-  --animate-badge-pop: badge-pop 0.4s var(--ease-spring) both;
-  --animate-sheet-up: sheet-up 0.42s var(--ease-out) both;
+  --animate-wiggle: wiggle 0.7s ease-in-out backwards;
+  --animate-badge-pop: badge-pop 0.4s var(--ease-spring) backwards;
+  --animate-sheet-up: sheet-up 0.42s var(--ease-out) backwards;
   --animate-sheet-down: sheet-down 0.3s var(--ease-out) both;
-  --animate-modal-in: modal-in 0.28s var(--ease-out) both;
+  --animate-modal-in: modal-in 0.28s var(--ease-out) backwards;
   --animate-modal-out: modal-out 0.2s ease-in both;
-  --animate-msg-in: msg-in 0.24s var(--ease-out) both;
-  --animate-swap: swap 0.22s var(--ease-out) both;
-  --animate-slide-left: slide-in-left 0.36s var(--ease-out) both;
-  --animate-slide-right: slide-in-right 0.36s var(--ease-out) both;
+  --animate-msg-in: msg-in 0.24s var(--ease-out) backwards;
+  --animate-swap: swap 0.22s var(--ease-out) backwards;
+  --animate-slide-left: slide-in-left 0.36s var(--ease-out) backwards;
+  --animate-slide-right: slide-in-right 0.36s var(--ease-out) backwards;
   --animate-ping-soft: ping-soft 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-typing: typing 1.2s ease-in-out infinite;
   /* Chiqish (yopilish) juftlari */
@@ -345,7 +345,7 @@
   --animate-swap-out: swap-out 0.16s ease-in both;
   /* Skeleton → kontent almashinuvi (crossfade) va skeletning o'zi (shimmer emas — tinch pulsatsiya) */
   --animate-skeleton: skeleton-pulse 1.6s ease-in-out infinite;
-  --animate-skeleton-swap: fade-in 0.3s ease-out both;
+  --animate-skeleton-swap: fade-in 0.3s ease-out backwards;
   /* Kirish/ro'yxat «Jonli» animatsiyalari: suzuvchi belgilar, tinch nur sharlari, tugma yaltirashi, tanlov halqasi */
   --animate-float: float-y 6s ease-in-out infinite;
   --animate-float-slow: float-y 9s ease-in-out infinite;
@@ -353,7 +353,7 @@
   --animate-shine: shine-sweep 3.2s ease-in-out infinite;
   --animate-ring-pulse: ring-pulse 1.8s ease-out infinite;
   --animate-check-draw: check-draw 0.4s var(--ease-out) 0.05s both;
-  --animate-tilt-in: tilt-in 0.5s var(--ease-spring) both;
+  --animate-tilt-in: tilt-in 0.5s var(--ease-spring) backwards;
   /* Cheksiz lenta (kasblar chiplari): ro'yxat ikki marta takrorlanadi, -50% ga suriladi */
   --animate-marquee: marquee 90s linear infinite;
   --animate-marquee-rev: marquee 105s linear infinite reverse;
@@ -370,7 +370,7 @@
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes float-y {
     0%, 100% { transform: translateY(0) rotate(var(--float-rot, 0deg)); }
@@ -412,7 +412,7 @@
   }
   @keyframes page-in {
     from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes fade-in {
     from { opacity: 0; }
@@ -422,18 +422,18 @@
     0% { transform: scale(1); }
     35% { transform: scale(1.35); }
     65% { transform: scale(0.92); }
-    100% { transform: scale(1); }
+    100% { transform: none; }
   }
   @keyframes slide-up {
     from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes scale-in {
     from { opacity: 0; transform: scale(0.96); }
-    to { opacity: 1; transform: scale(1); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes shake {
-    0%, 100% { transform: translateX(0); }
+    0%, 100% { transform: none; }
     20% { transform: translateX(-6px); }
     40% { transform: translateX(5px); }
     60% { transform: translateX(-3px); }
@@ -451,10 +451,10 @@
     25% { transform: scale(1.3); }
     45% { transform: scale(0.95); }
     65% { transform: scale(1.15); }
-    100% { transform: scale(1); }
+    100% { transform: none; }
   }
   @keyframes wiggle {
-    0%, 100% { transform: rotate(0); }
+    0%, 100% { transform: none; }
     20% { transform: rotate(-14deg); }
     40% { transform: rotate(12deg); }
     60% { transform: rotate(-8deg); }
@@ -463,11 +463,11 @@
   @keyframes badge-pop {
     0% { transform: scale(0.6); opacity: 0; }
     60% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(1); }
+    100% { transform: none; }
   }
   @keyframes sheet-up {
     from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+    to { transform: none; }
   }
   @keyframes sheet-down {
     from { transform: translateY(0); }
@@ -1510,7 +1510,7 @@ select:focus-visible {
    animate-scale-in utilitlarini beradi; bu yerda faqat tarkibiy qoidalar. Reduced-motion'da o'chadi. */
 @layer utilities {
   .stagger > * {
-    animation: fade-up 0.55s var(--ease-out) both;
+    animation: fade-up 0.55s var(--ease-out) backwards;
   }
   .stagger > :nth-child(1) { animation-delay: 0ms; }
   .stagger > :nth-child(2) { animation-delay: 45ms; }
@@ -1546,7 +1546,7 @@ select:focus-visible {
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     [data-reveal] {
-      animation: reveal-up linear both;
+      animation: reveal-up linear backwards;
       animation-timeline: view();
       animation-range: entry 0% entry 40%;
     }
@@ -1586,13 +1586,13 @@ select:focus-visible {
 }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
-.animate-toast-in { animation: toast-in 0.32s var(--ease-spring) both; }
+.animate-toast-in { animation: toast-in 0.32s var(--ease-spring) backwards; }
 .animate-toast-out { animation: toast-out 0.26s var(--ease-out) both; }
 @media (prefers-reduced-motion: reduce) {
   .nav-progress-loading, .nav-progress-done, .animate-toast-in, .animate-toast-out { animation-duration: 0.01ms !important; }
@@ -1683,28 +1683,29 @@ select:focus-visible {
    - chiqish: usePresence(open) — element yopilayotganda DOM'da qoladi, `closing` bilan *-out klassi beriladi (components/motion/usePresence.ts)
    - .chev — aria-expanded="true" tugma ichida 180° buriladi; .collapse[data-open] — balandlik animatsiyasi JS o'lchovsiz (grid-rows 0fr→1fr) */
 @layer components {
+  /* Kirish animatsiyalari `backwards`: tugagach hech narsa «faol» qolmaydi (stacking-context / fixed konteyneri yo'q) */
   [role="menu"], [role="listbox"] {
-    animation: modal-in 0.22s var(--ease-out) both;
+    animation: modal-in 0.22s var(--ease-out) backwards;
   }
   [role="dialog"], [role="status"] {
-    animation: fade-in 0.22s ease-out both;
+    animation: fade-in 0.22s ease-out backwards;
   }
   details > :not(summary) {
-    animation: swap 0.28s var(--ease-out) both;
+    animation: swap 0.28s var(--ease-out) backwards;
   }
   .field-error {
-    animation: swap 0.2s var(--ease-out) both;
+    animation: swap 0.2s var(--ease-out) backwards;
   }
 }
 @layer utilities {
-  .expand-in { animation: swap 0.24s var(--ease-out) both; }
+  .expand-in { animation: swap 0.24s var(--ease-out) backwards; }
   .expand-out { animation: swap-out 0.16s ease-in both; }
   /* Popover/dropdown: --pop-origin bilan qaysi burchakdan "o'sishi" beriladi (standart: tepadan) */
-  .pop-in { animation: modal-in 0.22s var(--ease-out) both; transform-origin: var(--pop-origin, top center); }
+  .pop-in { animation: modal-in 0.22s var(--ease-out) backwards; transform-origin: var(--pop-origin, top center); }
   .pop-out { animation: modal-out 0.16s ease-in both; transform-origin: var(--pop-origin, top center); }
-  .overlay-in { animation: fade-in 0.22s ease-out both; }
+  .overlay-in { animation: fade-in 0.22s ease-out backwards; }
   .overlay-out { animation: fade-out 0.18s ease-in both; }
-  .sheet-in { animation: sheet-up 0.42s var(--ease-out) both; }
+  .sheet-in { animation: sheet-up 0.42s var(--ease-out) backwards; }
   .sheet-out { animation: sheet-down 0.28s ease-in both; }
   .chev { transition: transform var(--dur-2) var(--ease-out); }
   [aria-expanded="true"] .chev, [aria-expanded="true"] > .chev { transform: rotate(180deg); }

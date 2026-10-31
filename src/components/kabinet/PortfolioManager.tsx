@@ -326,7 +326,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
               {full ? "Limit to'ldi — yangi ish uchun eskisini o'chiring." : visible.length > 1 ? "Sudrab yoki strelkalar bilan tartiblang. Birinchi ish — muqova." : "Rasm, YouTube video yoki havola. Birinchi ish — muqova."}
             </p>
             <div className="mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-fg/8" aria-hidden="true">
-              <div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
+              <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
             </div>
           </div>
         </div>
@@ -1018,7 +1018,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
             {(uploading || (progress > 0 && progress < 100)) && (
               <div className="mt-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Yuklanmoqda">
                 <div className="h-1.5 overflow-hidden rounded-full bg-fg/8">
-                  <div className={cn("h-full rounded-full bg-accent transition-all duration-300", progress >= 100 && "animate-pulse")} style={{ width: `${Math.max(4, progress)}%` }} />
+                  <div className={cn("h-full rounded-full bg-accent transition-[width] duration-300", progress >= 100 && "animate-pulse")} style={{ width: `${Math.max(4, progress)}%` }} />
                 </div>
                 <p className="mt-1 text-[12px] text-fg-3">{progress < 100 ? `Yuklanmoqda… ${progress}%` : "Qayta ishlanmoqda…"}</p>
               </div>

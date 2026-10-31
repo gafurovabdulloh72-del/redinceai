@@ -488,7 +488,7 @@ function ReelSlide({
               <>
                 <div className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+4.25rem)] flex justify-center gap-1 md:top-4">
                   {images.map((_, i) => (
-                    <span key={i} className={cn("h-1.5 rounded-full transition-all", i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/50")} />
+                    <span key={i} className={cn("h-1.5 rounded-full transition-[width,background-color]", i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/50")} />
                   ))}
                 </div>
                 <button type="button" aria-label="Oldingi rasm" onClick={(e) => (e.stopPropagation(), setImgIdx((i) => Math.max(0, i - 1)))} className="absolute inset-y-0 left-0 w-1/4" />

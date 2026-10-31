@@ -62,7 +62,7 @@ export function UserAnalyticsSheet({ user, onClose }: { user: { id: string; name
               {data.series.map((s) => (
                 <div key={s.day} className="group relative flex h-full flex-1 items-end" title={`${s.label}: ${formatMinutes(s.minutes)}`}>
                   <div
-                    className={cn("w-full rounded-[3px] transition-all", s.minutes > 0 ? "bg-accent" : "bg-fg/8")}
+                    className={cn("w-full rounded-[3px] transition-[height,background-color]", s.minutes > 0 ? "bg-accent" : "bg-fg/8")}
                     style={{ height: `${Math.max(s.minutes > 0 ? 6 : 2, Math.round((s.minutes / maxMin) * 100))}%` }}
                   />
                 </div>

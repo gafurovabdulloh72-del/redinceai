@@ -303,7 +303,7 @@ export function ReviewForm({
                 >
                   <Star
                     size={22}
-                    className={cn("transition-all duration-150", active ? "fill-accent-3 text-accent-3 scale-110" : "text-fg-4")}
+                    className={cn("transition-[color,fill,scale] duration-150", active ? "fill-accent-3 text-accent-3 scale-110" : "text-fg-4")}
                   />
                 </button>
               );

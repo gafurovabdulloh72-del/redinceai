@@ -44,7 +44,7 @@ export function BackToTop() {
       data-print-hide
       data-back-to-top=""
       className={cn(
-        "card-elevated fixed right-4 z-40 flex h-11 w-11 items-center justify-center !rounded-full text-fg-2 transition-all duration-300 hover:text-fg sm:right-6 [:root[data-scroll-lock]_&]:pointer-events-none [:root[data-scroll-lock]_&]:opacity-0",
+        "card-elevated fixed right-4 z-40 flex h-11 w-11 items-center justify-center !rounded-full text-fg-2 transition-[translate,opacity,bottom,color] duration-300 hover:text-fg sm:right-6 [:root[data-scroll-lock]_&]:pointer-events-none [:root[data-scroll-lock]_&]:opacity-0",
         aboveCta ? "bottom-[calc(9.75rem+env(safe-area-inset-bottom))] md:bottom-24 lg:bottom-6" : "bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6",
         show ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
       )}

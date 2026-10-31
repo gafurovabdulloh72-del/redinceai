@@ -912,7 +912,7 @@ export function ProfileForm({
               aria-valuemax={100}
               aria-valuenow={progress}
             >
-              <div className={cn("h-full rounded-full transition-all duration-500", progress === 100 ? "bg-success" : "bg-accent")} style={{ width: `${progress}%` }} />
+              <div className={cn("h-full rounded-full transition-[width,background-color] duration-500", progress === 100 ? "bg-success" : "bg-accent")} style={{ width: `${progress}%` }} />
             </div>
           </div>
           <nav ref={sectionNavRef} aria-label="Profil bo'limlari" className="no-scrollbar min-w-0 flex-1 overflow-x-auto">

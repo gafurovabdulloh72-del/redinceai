@@ -400,7 +400,7 @@ function RegionStatsPanel({
                   </span>
                   <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-fg/8">
                     <span
-                      className={cn("block h-full rounded-full transition-all duration-500", on ? "bg-accent" : "bg-fg/30 group-hover:bg-fg/45")}
+                      className={cn("block h-full rounded-full transition-[width,background-color] duration-500", on ? "bg-accent" : "bg-fg/30 group-hover:bg-fg/45")}
                       style={{ width: `${Math.max(4, Math.round((n / max) * 100))}%` }}
                     />
                   </span>

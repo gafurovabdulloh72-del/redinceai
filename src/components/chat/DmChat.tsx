@@ -1636,7 +1636,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                 )}
                 {text.trim() || files.length > 0 || editing ? (
                   <button type="submit" disabled={uploads.length > 0} aria-label={editing ? t("edit") : t("send")} className="btn-accent flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full disabled:opacity-40">
-                    {editing ? <Check size={17} /> : <Send size={17} className={cn("transition-all duration-300 ease-out", flying && "-translate-y-6 translate-x-6 opacity-0")} />}
+                    {editing ? <Check size={17} /> : <Send size={17} className={cn("transition-[translate,opacity] duration-300 ease-out", flying && "-translate-y-6 translate-x-6 opacity-0")} />}
                   </button>
                 ) : (
                   <>

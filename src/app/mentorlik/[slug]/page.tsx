@@ -325,7 +325,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                   <span className="tabular-nums text-fg">{c.progressPct}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-fg/10">
-                  <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${c.progressPct}%` }} />
+                  <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${c.progressPct}%` }} />
                 </div>
               </div>
             )}
