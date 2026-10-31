@@ -52,6 +52,8 @@ export const ADMIN_COMMANDS = [
   { command: "stat", description: "📊 Statistika — bugun / 7 kun / 30 kun" },
   { command: "navbat", description: "📥 Tasdiq navbati (mutaxassis, o'tkazma, shikoyat)" },
   { command: "tolovlar", description: "💳 Kutilayotgan qo'lda o'tkazmalar" },
+  { command: "shikoyatlar", description: "🚩 Ochiq shikoyatlar — yopish / o'chirish / bloklash" },
+  { command: "mentorlar", description: "🎓 Mentor arizalari — tasdiqlash / rad etish" },
   { command: "user", description: "👤 Foydalanuvchi qidirish: /user ism yoki email" },
   { command: "narx", description: "💰 Kontakt narxlari: /narx middle 60000" },
   { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn" },
@@ -223,7 +225,7 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false, l
       "👤 /profil — аккаунт и статус привязки · 🔔 /sozlamalar — какие уведомления присылать\n" +
       (linked ? "" : "📝 /royxat — создать аккаунт (вопрос-ответ, 1 минута); если аккаунт уже есть — кнопка «Да, есть аккаунт»\n") +
       "⛔ /stop — отвязать Telegram\n" +
-      (admin ? "🛠 /admin · 📊 /stat · 📥 /navbat · 💳 /tolovlar · 👤 /user имя · 💰 /narx · 📣 /elon — инструменты администратора\n" : "") +
+      (admin ? "🛠 /admin · 📊 /stat · 📥 /navbat · 💳 /tolovlar · 🚩 /shikoyatlar · 🎓 /mentorlar · 👤 /user имя · 💰 /narx · 📣 /elon — инструменты администратора\n" : "") +
       "\n" +
       (linked ? "Аккаунт привязан ✅" : "Аккаунт ещё не привязан.");
     await sendTelegram(chatId, ru, linked ? { replyKeyboard: menuRows(admin, "ru") } : { keyboard: ACCOUNT_QUESTION_ROWS("ru") });
@@ -245,7 +247,7 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false, l
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
     (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa) · akkauntingiz bo'lsa — «Ha, akkauntim bor» tugmasi bilan ulang\n") +
     "⛔ /stop — Telegramni hisobdan uzish\n" +
-    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 👤 /user ism (blok, kontakt rejimi, maxsus narx) · 💰 /narx — kontakt narxlari · 📣 /elon — ommaviy e'lon\n" : "") +
+    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika va trend · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 🚩 /shikoyatlar — shikoyatlarni chatda hal qilish · 🎓 /mentorlar — mentor arizalari · 👤 /user ism (blok, kontakt rejimi, maxsus narx) · 💰 /narx — kontakt narxlari · 📣 /elon — ommaviy e'lon\n" : "") +
     "\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
   await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows(admin) } : { keyboard: ACCOUNT_QUESTION_ROWS() });

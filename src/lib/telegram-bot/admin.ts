@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, like, or, sql, type AnyColumn } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { contactUnlocks, dmMessages, mentorPayouts, mentors, orders, payments, payouts, posts, reports, specialists, stories, subscriptionInvoices, users } from "@/lib/db/schema";
+import { contactUnlocks, dmMessages, mentorPayouts, mentors, orders, payments, payouts, postComments, posts, reports, reviews, specialists, stories, subscriptionInvoices, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { bumpSessionVersion } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
@@ -14,6 +14,10 @@ import { tashkentDayStart } from "@/lib/jobs/server";
 import { purchaseMeta } from "@/lib/mentorship/purchases";
 import { contactMeta, isContactUnlock } from "@/lib/contacts/unlock";
 import { appUrl, menuRows } from "@/lib/telegram-bot/ui";
+import { listAdminReports, type AdminReportRow } from "@/app/admin/queries";
+import { listPendingMentors, setMentorApproved } from "@/lib/mentorship/service";
+import { deleteComment, deletePost } from "@/lib/groups/service";
+import { recalcRating } from "@/lib/queries";
 
 /**
  * ADMIN BOTI (2026-10-31): administrator Telegramdan platformani kuzatadi va navbatni hal qiladi.
@@ -70,6 +74,13 @@ export function periodRange(period: StatPeriod, now = Date.now()): { from: numbe
 export function yesterdayRange(now = Date.now()): { from: number; to: number } {
   const today = tashkentDayStart(now);
   return { from: today - DAY, to: today };
+}
+
+/** Taqqoslash uchun oldingi davr: bugun → kecha shu vaqtgacha; 7/30 kun → undan oldingi 7/30 kun */
+export function prevRange(period: StatPeriod, now = Date.now()): { from: number; to: number } {
+  const r = periodRange(period, now);
+  if (period === "today") return { from: r.from - DAY, to: now - DAY };
+  return { from: r.from - (r.to - r.from), to: r.from };
 }
 
 export async function collectAdminStats(period: StatPeriod, range: { from: number; to: number } = periodRange(period)): Promise<AdminStats> {
@@ -161,34 +172,125 @@ export async function collectQueueCounts(): Promise<AdminStats["queue"]> {
 
 const fmtDate = (ms: number) => new Date(ms).toLocaleDateString("uz-UZ", { day: "2-digit", month: "2-digit", timeZone: "Asia/Tashkent" });
 
-export function renderStats(s: AdminStats, title?: string): string {
+/* ------------------------------------------------------------------ */
+/* Trend: kunlik seriya, mini-grafik, oldingi davrga nisbatan o'zgarish */
+/* ------------------------------------------------------------------ */
+const TZ_MS = 5 * HOUR;
+export interface DailyPoint {
+  day: string;
+  users: number;
+  orders: number;
+  posts: number;
+  revenue: number;
+}
+
+/** Oxirgi `days` kun (Toshkent kunlari, `now` kuni bilan tugaydi): yangi foydalanuvchi, buyurtma, post, tushum */
+export async function collectDailySeries(days = 7, now = Date.now()): Promise<DailyPoint[]> {
+  const from = tashkentDayStart(now) - (days - 1) * DAY;
+  // Kun indeksi = (ms + 5 soat) / kun — timestamp_ms ustunlari butun son, Date EMAS
+  const dayOf = (col: AnyColumn) => sql<number>`cast((${col} + ${TZ_MS}) / ${DAY} as integer)`;
+  const [u, o, p, inv, cu, pay] = await Promise.all([
+    db.select({ d: dayOf(users.createdAt), v: sql<number>`count(*)` }).from(users).where(sql`${users.createdAt} >= ${from}`).groupBy(dayOf(users.createdAt)),
+    db.select({ d: dayOf(orders.createdAt), v: sql<number>`count(*)` }).from(orders).where(sql`${orders.createdAt} >= ${from}`).groupBy(dayOf(orders.createdAt)),
+    db.select({ d: dayOf(posts.createdAt), v: sql<number>`count(*)` }).from(posts).where(sql`${posts.createdAt} >= ${from}`).groupBy(dayOf(posts.createdAt)),
+    // Obuna + mentorlik hisoblari (kontakt — contact_unlocks jadvalidan, ikki marta sanalmasin)
+    db
+      .select({ d: dayOf(subscriptionInvoices.paidAt), v: sql<number>`coalesce(sum(${subscriptionInvoices.amount}), 0)` })
+      .from(subscriptionInvoices)
+      .where(and(eq(subscriptionInvoices.state, "paid"), sql`${subscriptionInvoices.paidAt} >= ${from}`, sql`coalesce(json_extract(${subscriptionInvoices.meta}, '$.kind'), '') <> 'contact'`))
+      .groupBy(dayOf(subscriptionInvoices.paidAt)),
+    db
+      .select({ d: dayOf(contactUnlocks.paidAt), v: sql<number>`coalesce(sum(${contactUnlocks.amount}), 0)` })
+      .from(contactUnlocks)
+      .where(and(eq(contactUnlocks.status, "paid"), sql`${contactUnlocks.paidAt} >= ${from}`))
+      .groupBy(dayOf(contactUnlocks.paidAt)),
+    db
+      .select({ d: dayOf(payments.createdAt), v: sql<number>`coalesce(sum(${payments.commissionAmount}), 0)` })
+      .from(payments)
+      .where(and(sql`${payments.state} in ('paid','released')`, sql`${payments.createdAt} >= ${from}`))
+      .groupBy(dayOf(payments.createdAt)),
+  ]);
+  const firstIdx = Math.floor((from + TZ_MS) / DAY);
+  const points: DailyPoint[] = [];
+  const byIdx = new Map<number, DailyPoint>();
+  for (let i = 0; i < days; i++) {
+    const pt: DailyPoint = { day: fmtDate(from + i * DAY), users: 0, orders: 0, posts: 0, revenue: 0 };
+    byIdx.set(firstIdx + i, pt);
+    points.push(pt);
+  }
+  const add = (rows: { d: number; v: number }[], key: "users" | "orders" | "posts" | "revenue") => {
+    for (const r of rows) {
+      const pt = byIdx.get(Number(r.d));
+      if (pt) pt[key] += n(r.v);
+    }
+  };
+  add(u, "users");
+  add(o, "orders");
+  add(p, "posts");
+  add(inv, "revenue");
+  add(cu, "revenue");
+  add(pay, "revenue");
+  return points;
+}
+
+const BARS = "▁▂▃▄▅▆▇█";
+/** Unicode ustunli mini-grafik: 0 → eng past, maksimum → eng baland */
+export function sparkline(values: number[]): string {
+  const max = Math.max(0, ...values);
+  if (max <= 0) return BARS[0].repeat(values.length);
+  return values.map((v) => BARS[Math.max(0, Math.min(7, Math.round((v / max) * 7)))]).join("");
+}
+/** Oldingi davrga nisbatan: «▲ 25%», «▼ 10%», «=», «▲ yangi» */
+export function trend(cur: number, prev: number): string {
+  if (prev <= 0) return cur > 0 ? "▲ yangi" : "=";
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  return pct === 0 ? "=" : `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%`;
+}
+const shortSum = (v: number) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")} mln` : v >= 1000 ? `${Math.round(v / 1000)} ming` : String(v));
+const sumOf = (sr: DailyPoint[], key: keyof Omit<DailyPoint, "day">) => sr.reduce((a, x) => a + x[key], 0);
+
+/** `cmp.prev` — oldingi davr (qavsda ▲/▼ foiz), `cmp.series` — kunlik trend (mini-grafik) */
+export function renderStats(s: AdminStats, title?: string, cmp?: { prev?: AdminStats; series?: DailyPoint[] }): string {
   const q = s.queue;
   const queueTotal = q.pendingSpecialists + q.manualPayments + q.manualInvoices + q.reports + q.disputes + q.payouts + q.mentorPayouts + q.mentorApps;
   const head = title ?? `📊 <b>Statistika — ${PERIOD_LABEL[s.period]}</b> (${s.period === "today" ? fmtDate(s.to) : `${fmtDate(s.from)} – ${fmtDate(s.to)}`})`;
-  return [
+  const d = (cur: number, pick: (x: AdminStats) => number) => (cmp?.prev ? ` (${trend(cur, pick(cmp.prev))})` : "");
+  const lines = [
     head,
     "",
-    `👥 <b>Foydalanuvchilar:</b> +${s.users.newTotal} (jami ${s.users.total}) · mutaxassis +${s.users.newSpecialists} · mijoz +${s.users.newClients}`,
+    `👥 <b>Foydalanuvchilar:</b> +${s.users.newTotal}${d(s.users.newTotal, (x) => x.users.newTotal)} (jami ${s.users.total}) · mutaxassis +${s.users.newSpecialists} · mijoz +${s.users.newClients}`,
     `🟢 Faol: ${s.users.active} · Telegram ulangan: ${s.users.telegram}`,
     `🎨 <b>Mutaxassislar:</b> ${s.specialists.listed} katalogda · ${s.specialists.verified} tasdiqlangan · ${s.specialists.pending} tasdiq kutmoqda`,
-    `📦 <b>Buyurtmalar:</b> ${s.orders.created} yangi · ${s.orders.done} bajarildi · eskrou ${formatPrice(s.orders.escrowPaid)}`,
-    `💰 <b>Tushum:</b> ${formatPrice(s.revenue.total)}`,
+    `📦 <b>Buyurtmalar:</b> ${s.orders.created} yangi${d(s.orders.created, (x) => x.orders.created)} · ${s.orders.done} bajarildi · eskrou ${formatPrice(s.orders.escrowPaid)}`,
+    `💰 <b>Tushum:</b> ${formatPrice(s.revenue.total)}${d(s.revenue.total, (x) => x.revenue.total)}`,
     `   obuna ${formatPrice(s.revenue.subscriptions)} · kontakt ${formatPrice(s.revenue.contacts)} (${s.revenue.contactsCount} ta) · mentorlik ${formatPrice(s.revenue.mentorship)} · komissiya ${formatPrice(s.orders.commission)}`,
-    `📝 <b>Kontent:</b> ${s.content.posts} post · ${s.content.stories} story · ${s.content.dms} xabar`,
-    "",
-    `📥 <b>Navbat (${queueTotal}):</b> ${q.pendingSpecialists} tasdiq · ${q.manualPayments + q.manualInvoices} o'tkazma · ${q.reports} shikoyat · ${q.disputes} nizo · ${q.payouts + q.mentorPayouts} payout · ${q.mentorApps} mentor arizasi`,
-  ].join("\n");
+    `📝 <b>Kontent:</b> ${s.content.posts} post${d(s.content.posts, (x) => x.content.posts)} · ${s.content.stories} story · ${s.content.dms} xabar`,
+  ];
+  if (cmp?.prev) lines.push(`<i>Qavsda — oldingi ${s.period === "today" ? "kunning shu vaqtiga" : PERIOD_LABEL[s.period] + "ga"} nisbatan</i>`);
+  const sr = cmp?.series;
+  if (sr?.length) {
+    lines.push(
+      "",
+      `📈 <b>Trend — ${sr.length} kun</b> (${sr[0].day} → ${sr[sr.length - 1].day})`,
+      `👥 ${sparkline(sr.map((x) => x.users))} ${sumOf(sr, "users")} foydalanuvchi`,
+      `📦 ${sparkline(sr.map((x) => x.orders))} ${sumOf(sr, "orders")} buyurtma`,
+      `📝 ${sparkline(sr.map((x) => x.posts))} ${sumOf(sr, "posts")} post`,
+      `💰 ${sparkline(sr.map((x) => x.revenue))} ${shortSum(sumOf(sr, "revenue"))} so'm tushum`,
+    );
+  }
+  lines.push("", `📥 <b>Navbat (${queueTotal}):</b> ${q.pendingSpecialists} tasdiq · ${q.manualPayments + q.manualInvoices} o'tkazma · ${q.reports} shikoyat · ${q.disputes} nizo · ${q.payouts + q.mentorPayouts} payout · ${q.mentorApps} mentor arizasi`);
+  return lines.join("\n");
 }
 
 function statsKeyboard(period: StatPeriod): TelegramButton[][] {
   const periods = (["today", "7d", "30d"] as StatPeriod[]).map((p) => ({ text: p === period ? `• ${PERIOD_LABEL[p]} •` : PERIOD_LABEL[p], data: `adm:stat:${p}` }));
-  return [periods, [{ text: "📥 Navbat", data: "adm:queue" }, { text: "💳 To'lovlar", data: "adm:pay" }], [panelButton()]];
+  return [periods, [{ text: "📥 Navbat", data: "adm:queue" }, { text: "💳 To'lovlar", data: "adm:pay" }], [{ text: "🚩 Shikoyatlar", data: "adm:reports" }, { text: "🎓 Mentorlar", data: "adm:mentors" }], [panelButton()]];
 }
 
 /** /stat — statistika (msgId berilsa o'sha xabar tahrirlanadi) */
 export async function sendAdminStats(chatId: string, period: StatPeriod = "today", msgId: number | null = null): Promise<void> {
-  const s = await collectAdminStats(period);
-  const text = renderStats(s);
+  const [s, prev, series] = await Promise.all([collectAdminStats(period), collectAdminStats(period, prevRange(period)), collectDailySeries(period === "30d" ? 30 : 7)]);
+  const text = renderStats(s, undefined, { prev, series });
   if (msgId) {
     const r = await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text, parse_mode: "HTML", reply_markup: { inline_keyboard: toInline(statsKeyboard(period)) } });
     if (r?.ok) return;
@@ -208,11 +310,12 @@ export async function sendAdminMenu(chatId: string): Promise<void> {
   const total = q.pendingSpecialists + q.manualPayments + q.manualInvoices + q.reports + q.disputes + q.payouts + q.mentorPayouts + q.mentorApps;
   await sendTelegram(
     chatId,
-    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /user ism — foydalanuvchi · /elon — ommaviy e'lon`,
+    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /user ism — foydalanuvchi · /narx — kontakt narxlari · /elon — ommaviy e'lon`,
     {
       keyboard: [
         [{ text: "📊 Statistika", data: "adm:stat:today" }, { text: `📥 Navbat${total ? ` (${total})` : ""}`, data: "adm:queue" }],
-        [{ text: "💳 To'lovlar", data: "adm:pay" }, { text: "📣 E'lon", data: "adm:elon" }],
+        [{ text: `💳 To'lovlar${q.manualPayments + q.manualInvoices ? ` (${q.manualPayments + q.manualInvoices})` : ""}`, data: "adm:pay" }, { text: `🚩 Shikoyatlar${q.reports ? ` (${q.reports})` : ""}`, data: "adm:reports" }],
+        [{ text: `🎓 Mentor arizalari${q.mentorApps ? ` (${q.mentorApps})` : ""}`, data: "adm:mentors" }, { text: "📣 E'lon", data: "adm:elon" }],
         [panelButton()],
       ],
       // Doimiy menyuga «🛠 Admin» qatori qo'shiladi
@@ -237,10 +340,11 @@ export async function sendAdminQueues(chatId: string): Promise<void> {
   ];
   const keyboard: TelegramButton[][] = [];
   if (q.manualPayments + q.manualInvoices > 0) keyboard.push([{ text: `💳 O'tkazmalarni ko'rish (${q.manualPayments + q.manualInvoices})`, data: "adm:pay" }]);
-  if (q.reports > 0) keyboard.push([panelButton("/admin#shikoyatlar", `🚩 Shikoyatlar (${q.reports})`)]);
+  if (q.reports > 0) keyboard.push([{ text: `🚩 Shikoyatlarni ko'rish (${q.reports})`, data: "adm:reports" }]);
   if (q.disputes > 0) keyboard.push([panelButton("/admin#nizolar", `⚖️ Nizolar (${q.disputes})`)]);
   if (q.payouts > 0) keyboard.push([panelButton("/admin#payoutlar", `💸 Payoutlar (${q.payouts})`)]);
-  if (q.mentorPayouts > 0 || q.mentorApps > 0) keyboard.push([panelButton("/admin/mentorlik", `🎓 Mentorlik (${q.mentorPayouts + q.mentorApps})`)]);
+  if (q.mentorApps > 0) keyboard.push([{ text: `🎓 Mentor arizalari (${q.mentorApps})`, data: "adm:mentors" }]);
+  if (q.mentorPayouts > 0) keyboard.push([panelButton("/admin/mentorlik", `💸 Mentor yechish so'rovlari (${q.mentorPayouts})`)]);
   keyboard.push([panelButton()]);
   await sendTelegram(chatId, lines.join("\n"), { keyboard });
   // Mutaxassislar — har biri alohida xabar, «Tasdiqlash» tugmasi bilan
@@ -285,6 +389,92 @@ export async function sendAdminPayments(chatId: string): Promise<void> {
     if (receipt && /^https?:\/\//.test(receipt)) keyboard.push([{ text: "🧾 Chek", url: receipt }]);
     await sendTelegram(chatId, `${icon} <b>${escapeTelegramHtml(title)}</b> — ${formatPrice(i.amount)}\n${escapeTelegramHtml(i.userId ? (bmap.get(i.userId) ?? "Foydalanuvchi") : "—")} · ${fmtDate(i.createdAt.getTime())}${receipt ? " · chek bor" : ""}`, { keyboard });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Shikoyatlar va mentor arizalari — chatning o'zida hal qilinadi      */
+/* ------------------------------------------------------------------ */
+const REPORT_TYPE: Record<AdminReportRow["targetType"], string> = { specialist: "Profil", review: "Sharh", user: "Foydalanuvchi (chat)", post: "Post", comment: "Izoh", message: "Xabar" };
+const targetExists = (r: AdminReportRow) => Boolean(r.target && !r.target.label.startsWith("O'chirilgan"));
+
+function reportText(r: AdminReportRow): string {
+  const lines = [`🚩 <b>${REPORT_TYPE[r.targetType]} shikoyati</b> · ${fmtDate(r.createdAt)}`, `Sabab: ${escapeTelegramHtml(r.reason)}`];
+  if (r.target) lines.push(`Nishon: <b>${escapeTelegramHtml(r.target.label)}</b>${r.target.snippet ? ` — <i>${escapeTelegramHtml(r.target.snippet.slice(0, 140))}</i>` : ""}`);
+  if (r.owner?.isBanned) lines.push("Muallif allaqachon bloklangan 🚫");
+  lines.push(`Shikoyatchi: ${escapeTelegramHtml(r.reporter.name)}`);
+  return lines.join("\n");
+}
+
+function reportKeyboard(r: AdminReportRow): TelegramButton[][] {
+  const first: TelegramButton[] = [{ text: "✅ Yopish", data: `adm:rep:close:${r.id}` }];
+  // Post/izoh/sharh — kontentni o'chirib, shikoyatni yopish (xabar va profil — faqat yopish/bloklash)
+  if ((r.targetType === "post" || r.targetType === "comment" || r.targetType === "review") && targetExists(r)) first.push({ text: "🗑 O'chirish + yopish", data: `adm:rep:del:${r.id}` });
+  const rows: TelegramButton[][] = [first];
+  const second: TelegramButton[] = [];
+  if (r.owner && !r.owner.isBanned) second.push({ text: "🚫 Muallifni bloklash", data: `adm:ban:${r.owner.userId}` });
+  if (r.target?.href) second.push({ text: "👁 Ko'rish", url: `${site()}${r.target.href}` });
+  if (second.length) rows.push(second);
+  return rows;
+}
+
+/** /shikoyatlar — ochiq shikoyatlar, har biri alohida xabar: yopish / o'chirish / bloklash */
+export async function sendAdminReports(chatId: string): Promise<void> {
+  const [rows, total] = await Promise.all([listAdminReports("open", 5), db.select({ c: sql<number>`count(*)` }).from(reports).where(eq(reports.status, "open")).then((r) => n(r[0]?.c))]);
+  if (!rows.length) {
+    await sendTelegram(chatId, "🚩 Ochiq shikoyat yo'q ✅");
+    return;
+  }
+  await sendTelegram(chatId, `🚩 <b>Ochiq shikoyatlar:</b> ${total} ta. Har birini ko'rib chiqing — yoping, kontentni o'chiring yoki muallifni bloklang.`);
+  for (const r of rows) await sendTelegram(chatId, reportText(r), { keyboard: reportKeyboard(r) });
+  if (total > rows.length) await sendTelegram(chatId, `… va yana ${total - rows.length} ta — admin panelda.`, { keyboard: [[panelButton("/admin#shikoyatlar", "Barchasini ko'rish")]] });
+}
+
+/** /mentorlar — tasdiq kutayotgan mentor arizalari: tasdiqlash / rad etish */
+export async function sendAdminMentorApps(chatId: string): Promise<void> {
+  const all = await listPendingMentors();
+  if (!all.length) {
+    await sendTelegram(chatId, "🎓 Kutilayotgan mentor arizasi yo'q ✅");
+    return;
+  }
+  const rows = all.slice(0, 5);
+  await sendTelegram(chatId, `🎓 <b>Mentor arizalari:</b> ${all.length} ta. Tasdiqlangan mentor kurs ochadi va dars beradi.`);
+  for (const m of rows) {
+    const text = [
+      `🎓 <b>${escapeTelegramHtml(m.user.name)}</b> — ${escapeTelegramHtml(m.headline)}`,
+      m.bio ? `<i>${escapeTelegramHtml(m.bio.slice(0, 220))}${m.bio.length > 220 ? "…" : ""}</i>` : "",
+      `${escapeTelegramHtml(m.user.email)}${m.appliedAt ? ` · ${fmtDate(m.appliedAt)}` : ""}`,
+    ].filter(Boolean);
+    await sendTelegram(chatId, text.join("\n"), { keyboard: [[{ text: "✅ Tasdiqlash", data: `adm:ma:ok:${m.id}` }, { text: "❌ Rad etish", data: `adm:ma:no:${m.id}` }], [panelButton("/admin/mentorlik", "👁 Admin panelda")]] });
+  }
+  if (all.length > rows.length) await sendTelegram(chatId, `… va yana ${all.length - rows.length} ta — admin panelda.`, { keyboard: [[panelButton("/admin/mentorlik", "Barchasini ko'rish")]] });
+}
+
+/** Shikoyat nishonini o'chirish (post/izoh/sharh) — admin panel bilan bir xil mantiq */
+async function deleteReportTarget(r: { targetType: AdminReportRow["targetType"]; targetId: string }, adminId: string): Promise<string> {
+  if (r.targetType === "post") {
+    const post = await db.query.posts.findFirst({ where: eq(posts.id, r.targetId) });
+    if (!post) return "Post allaqachon o'chirilgan";
+    await deletePost(post);
+    await audit(adminId, "post_delete", { targetType: "post", targetId: post.id, meta: { authorId: post.authorId, via: "telegram" } });
+    return "Post o'chirildi 🗑";
+  }
+  if (r.targetType === "comment") {
+    const c = await db.query.postComments.findFirst({ where: eq(postComments.id, r.targetId) });
+    const post = c ? await db.query.posts.findFirst({ where: eq(posts.id, c.postId) }) : null;
+    if (!c || !post) return "Izoh allaqachon o'chirilgan";
+    await deleteComment(c, post);
+    await audit(adminId, "comment_delete", { targetType: "comment", targetId: c.id, meta: { authorId: c.authorId, via: "telegram" } });
+    return "Izoh o'chirildi 🗑";
+  }
+  if (r.targetType === "review") {
+    const row = await db.query.reviews.findFirst({ where: eq(reviews.id, r.targetId), columns: { id: true, specialistId: true, authorId: true, rating: true } });
+    if (!row) return "Sharh allaqachon o'chirilgan";
+    await db.delete(reviews).where(eq(reviews.id, row.id));
+    await recalcRating(row.specialistId);
+    await audit(adminId, "review_deleted", { targetType: "review", targetId: row.id, meta: { admin: true, specialistId: row.specialistId, authorId: row.authorId, rating: row.rating, via: "telegram" } });
+    return "Sharh o'chirildi, reyting qayta hisoblandi 🗑";
+  }
+  throw new ApiError(400, "Bu turdagi nishon botdan o'chirilmaydi — admin panelda ko'ring");
 }
 
 /* ------------------------------------------------------------------ */
@@ -354,6 +544,60 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
     if (data === "adm:pay") {
       await answer("");
       await sendAdminPayments(chatId);
+      return true;
+    }
+    if (data === "adm:reports") {
+      await answer("");
+      await sendAdminReports(chatId);
+      return true;
+    }
+    if (data === "adm:mentors") {
+      await answer("");
+      await sendAdminMentorApps(chatId);
+      return true;
+    }
+    if ((m = /^adm:rep:(close|del):([\w-]{1,64})$/.exec(data))) {
+      const r = await db.query.reports.findFirst({ where: eq(reports.id, m[2]), columns: { id: true, status: true, targetType: true, targetId: true } });
+      if (!r) {
+        await answer("Shikoyat topilmadi");
+        return true;
+      }
+      let note = "";
+      if (m[1] === "del") note = await deleteReportTarget(r, admin.id);
+      if (r.status === "open") {
+        // Bir xil nishon bo'yicha barcha ochiq shikoyatlar birga yopiladi (kontent o'chirilganda ham mantiqiy)
+        await db
+          .update(reports)
+          .set({ status: "closed", resolvedBy: admin.id })
+          .where(m[1] === "del" ? and(eq(reports.targetType, r.targetType), eq(reports.targetId, r.targetId), eq(reports.status, "open")) : eq(reports.id, r.id));
+        await audit(admin.id, "admin_report_closed", { targetType: "report", targetId: r.id, meta: { target: `${r.targetType}:${r.targetId}`, via: "telegram", deleted: m[1] === "del" } });
+      }
+      await answer(note || (r.status === "open" ? "Yopildi ✅" : "Allaqachon yopilgan"));
+      if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `✅ <b>${REPORT_TYPE[r.targetType]} shikoyati yopildi</b>${note ? ` · ${escapeTelegramHtml(note)}` : ""} · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
+      return true;
+    }
+    if ((m = /^adm:ma:(ok|no):([\w-]{1,64})$/.exec(data))) {
+      const approve = m[1] === "ok";
+      const mentor = await db.query.mentors.findFirst({ where: eq(mentors.id, m[2]), columns: { id: true, isApproved: true }, with: { user: { columns: { name: true } } } });
+      if (!mentor) {
+        await answer("Ariza topilmadi (rad etilgan bo'lishi mumkin)");
+        return true;
+      }
+      if (mentor.isApproved) {
+        await answer("Allaqachon tasdiqlangan ✓");
+        return true;
+      }
+      const { userId } = await setMentorApproved(mentor.id, approve);
+      await audit(admin.id, approve ? "admin_mentor_approved" : "admin_mentor_rejected", { targetType: "mentor", targetId: mentor.id, meta: { userId, via: "telegram" } });
+      await notify(
+        userId,
+        "account",
+        approve ? "Siz mentor sifatida tasdiqlandingiz 🎓" : "Mentorlik arizangiz qabul qilinmadi",
+        approve ? "Endi kurs ochib, dars berishingiz mumkin — Kabinet → Mentorlik." : "Batafsil ma'lumot uchun qo'llab-quvvatlashga yozing.",
+        approve ? "/kabinet/mentorlik" : "/mentorlik",
+      ).catch(() => undefined);
+      await answer(approve ? "Mentor tasdiqlandi 🎓" : "Ariza rad etildi");
+      if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `${approve ? "✅" : "❌"} <b>${escapeTelegramHtml(mentor.user.name)}</b> — ${approve ? "mentor sifatida tasdiqlandi" : "arizasi rad etildi"} · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
       return true;
     }
     if (data === "adm:menu") {
@@ -458,11 +702,12 @@ export async function sendAdminDailyReport(now = Date.now()): Promise<{ sent: nu
     return { sent: 0, skipped: true };
   }
   const range = yesterdayRange(now);
-  const s = await collectAdminStats("today", range);
-  const text = renderStats(s, `🗓 <b>Kunlik hisobot — ${fmtDate(range.from)}</b>`);
-  // Dushanba — qo'shimcha haftalik hisobot (o'tgan 7 kun)
+  // Kecha vs undan oldingi kun + 7 kunlik trend (kecha bilan tugaydi)
+  const [s, prev, series] = await Promise.all([collectAdminStats("today", range), collectAdminStats("today", { from: range.from - DAY, to: range.to - DAY }), collectDailySeries(7, now - DAY)]);
+  const text = renderStats(s, `🗓 <b>Kunlik hisobot — ${fmtDate(range.from)}</b>`, { prev, series });
+  // Dushanba — qo'shimcha haftalik hisobot (o'tgan 7 kun, undan oldingi 7 kun bilan taqqoslab)
   const monday = new Date(tashkentDayStart(now) + 5 * HOUR).getUTCDay() === 1;
-  const weekly = monday ? renderStats(await collectAdminStats("7d"), "📅 <b>Haftalik hisobot — o'tgan 7 kun</b>") : null;
+  const weekly = monday ? renderStats(await collectAdminStats("7d"), "📅 <b>Haftalik hisobot — o'tgan 7 kun</b>", { prev: await collectAdminStats("7d", prevRange("7d")) }) : null;
   let sent = 0;
   for (const a of admins) {
     if (!a.telegramChatId) continue;

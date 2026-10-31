@@ -97,7 +97,7 @@ export const PATCH = handler(async (req) => {
   if (!isTelegramEnabled()) throw new ApiError(503, "TELEGRAM_BOT_TOKEN sozlanmagan");
   const me = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true, name: true } });
   if (!me?.telegramChatId) throw new ApiError(400, "Sizning hisobingiz Telegramga ulanmagan — Kabinet → Profil → «Telegramga ulash»");
-  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /user · /elon`, {
+  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /user · /narx · /elon`, {
     keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }]],
   });
   if (!sent) throw new ApiError(502, "Telegram xabarni qabul qilmadi — token yoki chat holatini tekshiring");
