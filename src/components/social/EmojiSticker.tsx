@@ -1,6 +1,6 @@
 /**
  * Reaksiya «stikerlari» — tizim emojisi (Android/Windows'da har xil ko'rinadi) o'rniga bir xil 3D rasm.
- * Rasmlar: Microsoft Fluent Emoji 3D (MIT) — `public/reactions/*.png`, 256×256.
+ * Rasmlar: Apple emoji to'plami (iamcal/emoji-data, img-apple-160) — `public/reactions/*.png`, 160×160; iPhone'dagi bilan bir xil.
  * Noma'lum emoji bo'lsa oddiy matn chiziladi (hech narsa yo'qolmaydi).
  */
 const STICKERS: Record<string, string> = {
