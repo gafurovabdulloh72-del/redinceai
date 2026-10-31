@@ -37,12 +37,13 @@ const ROLE_LABEL_RU: Record<string, string> = { client: "Клиент", speciali
 /* ------------------------------------------------------------------ */
 
 /** `/start l_<kod>` — tasdiqlash tugmalarini ko'rsatadi */
-export async function handleLoginStart(chatId: string, arg: string, who: { name?: string; username?: string }): Promise<boolean> {
+export async function handleLoginStart(chatId: string, arg: string, who: { name?: string; username?: string; lang?: BotLang }): Promise<boolean> {
   const m = /^l_(\d{6})$/.exec(arg);
   if (!m) return false;
+  const lang = who.lang;
   const req = await findLoginRequest(m[1]);
   if (!req) {
-    await sendTelegram(chatId, "Kirish so'rovi topilmadi yoki eskirgan (5 daqiqa amal qiladi). Saytda «Telegram bilan kirish»ni qayta bosing.");
+    await sendTelegram(chatId, L(lang, "Kirish so'rovi topilmadi yoki eskirgan (5 daqiqa amal qiladi). Saytda «Telegram bilan kirish»ni qayta bosing.", "Запрос на вход не найден или истёк (действует 5 минут). Нажмите «Войти через Telegram» на сайте ещё раз."));
     return true;
   }
   const linked = await accountOf(chatId);
@@ -52,12 +53,19 @@ export async function handleLoginStart(chatId: string, arg: string, who: { name?
     await startRegistration(chatId, who, { loginCode: m[1] });
     return true;
   }
-  const note = `Hisob: <b>${escapeTelegramHtml(linked.name)}</b>`;
-  await sendTelegram(chatId, `<b>Saytga kirish so'rovi</b>\nKod: <code>${m[1]}</code>\n${note}\n\nAgar bu siz bo'lmasangiz «Yo'q» ni bosing.`, {
+  // Fishingga qarshi: qaysi qurilmadan va qachon so'ralgani + aniq ogohlantirish (kodni boshqa odam bergan bo'lishi mumkin)
+  const when = new Date(req.createdAt).toLocaleTimeString(lang === "ru" ? "ru-RU" : "uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+  const device = req.deviceLabel ? escapeTelegramHtml(req.deviceLabel) : L(lang, "noma'lum qurilma", "неизвестное устройство");
+  const text = L(
+    lang,
+    `<b>Saytga kirish so'rovi</b>\nKod: <code>${m[1]}</code>\nHisob: <b>${escapeTelegramHtml(linked.name)}</b>\nQurilma: ${device} · ${when}\n\n⚠️ Faqat <b>o'zingiz hozir saytda</b> «Telegram bilan kirish»ni bosgan bo'lsangiz tasdiqlang. Kodni kimdir sizga yuborgan bo'lsa — bu firibgarlik: «Yo'q» ni bosing.`,
+    `<b>Запрос на вход на сайт</b>\nКод: <code>${m[1]}</code>\nАккаунт: <b>${escapeTelegramHtml(linked.name)}</b>\nУстройство: ${device} · ${when}\n\n⚠️ Подтверждайте, только если <b>вы сами сейчас</b> нажали «Войти через Telegram» на сайте. Если код вам кто-то прислал — это мошенничество: нажмите «Нет».`,
+  );
+  await sendTelegram(chatId, text, {
     keyboard: [
       [
-        { text: "✅ Ha, kirish", data: `lg:ok:${m[1]}` },
-        { text: "✖️ Yo'q", data: `lg:no:${m[1]}` },
+        { text: L(lang, "✅ Ha, bu men", "✅ Да, это я"), data: `lg:ok:${m[1]}` },
+        { text: L(lang, "✖️ Yo'q", "✖️ Нет"), data: `lg:no:${m[1]}` },
       ],
     ],
   });

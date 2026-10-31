@@ -3,6 +3,7 @@ import { ApiError, handler, ok } from "@/lib/api";
 import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
 import { createSession, getVerifiedSession } from "@/lib/auth";
 import { audit } from "@/lib/security/audit";
+import { describeUserAgent } from "@/lib/security/device";
 import { consumeTelegramLogin, isTelegramLoginEnabled, startTelegramLogin, TG_LOGIN_COOKIE } from "@/lib/auth/telegram-login";
 
 export const runtime = "nodejs";
@@ -16,7 +17,8 @@ export const GET = handler(async () => ok({ enabled: isTelegramLoginEnabled() })
 export const POST = handler(async (req) => {
   if (!isTelegramLoginEnabled()) throw new ApiError(503, "Telegram bilan kirish sozlanmagan");
   await enforceLimit("tgLogin", clientIp(req));
-  const r = await startTelegramLogin();
+  // Qurilma (brauzer · OS) botdagi tasdiq xabarida ko'rsatiladi — begona kodni tasdiqlab yuborishning oldini olish uchun
+  const r = await startTelegramLogin(describeUserAgent(req.headers.get("user-agent")).label);
   const jar = await cookies();
   jar.set(TG_LOGIN_COOKIE, r.secret, { httpOnly: true, sameSite: "lax", secure: IS_PROD, path: "/", maxAge: 360 });
   return ok({ code: r.code, link: r.link, expiresAt: r.expiresAt });

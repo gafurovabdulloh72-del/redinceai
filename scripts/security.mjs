@@ -203,6 +203,9 @@ test("Xavfsizlik sarlavhalari o'rnatilgan", async () => {
   assert.equal(r.headers.get("x-frame-options"), "SAMEORIGIN");
   const fa = /frame-ancestors ([^;]+)/.exec(r.headers.get("content-security-policy") ?? "")?.[1] ?? "";
   assert.ok(fa.includes("'self'") && fa.includes("telegram.org") && !fa.includes("*;") && !/\s\*\s/.test(fa), `CSP frame-ancestors noto'g'ri: ${fa}`);
+  // 2026-10-31: tabnabbing / XS-Leaks — begona oyna window.opener orqali boshqara olmasin
+  assert.equal(r.headers.get("cross-origin-opener-policy"), "same-origin-allow-popups");
+  assert.equal(r.headers.get("x-permitted-cross-domain-policies"), "none");
 });
 
 test("API javoblari keshlanmaydi", async () => {

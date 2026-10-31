@@ -2931,6 +2931,8 @@ export const loginRequests = sqliteTable(
     /** Tasdiqlagan Telegram foydalanuvchisining ismi (yangi hisob yaratilsa ishlatiladi) */
     telegramName: text("telegram_name"),
     telegramUsername: text("telegram_username"),
+    /** So'rov yuborgan brauzer · OS (botdagi tasdiq xabarida — fishingga qarshi: «bu siz emasmi?») */
+    deviceLabel: text("device_label"),
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()

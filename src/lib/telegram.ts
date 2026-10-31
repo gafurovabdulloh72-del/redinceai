@@ -39,9 +39,34 @@ export function escapeTelegramHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Bot API manzili — faqat testlarda soxta server bilan almashtiriladi */
+const TELEGRAM_API = "https://api.telegram.org";
+let apiBaseWarned = false;
+
+/**
+ * Bot API manzili — faqat testlarda soxta server bilan almashtiriladi (TELEGRAM_API_BASE).
+ * Xavfsizlik: har so'rovda URL ichida BOT TOKENI ketadi — noto'g'ri sozlangan env tokenni begona serverga
+ * oqizmasligi uchun faqat rasmiy `https://api.telegram.org` yoki loopback (127.0.0.1/localhost — CI va lokal
+ * soxta server) qabul qilinadi; boshqasi e'tiborsiz qoldirilib, rasmiy manzil ishlatiladi.
+ */
+export function telegramApiBase(raw = process.env.TELEGRAM_API_BASE): string {
+  const v = raw?.trim();
+  if (!v) return TELEGRAM_API;
+  try {
+    const u = new URL(v);
+    const loopback = (u.protocol === "http:" || u.protocol === "https:") && (u.hostname === "127.0.0.1" || u.hostname === "localhost" || u.hostname === "[::1]");
+    const official = u.protocol === "https:" && u.hostname === "api.telegram.org";
+    if ((loopback || official) && !u.username && !u.password) return `${u.origin}${u.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    /* noto'g'ri URL */
+  }
+  if (!apiBaseWarned) {
+    apiBaseWarned = true;
+    console.error("[telegram] TELEGRAM_API_BASE rad etildi (faqat api.telegram.org yoki loopback) — rasmiy manzil ishlatiladi");
+  }
+  return TELEGRAM_API;
+}
 function apiBase(): string {
-  return process.env.TELEGRAM_API_BASE || "https://api.telegram.org";
+  return telegramApiBase();
 }
 
 /** Inline tugma: `url` — havola, `data` — callback_data (webhook callback_query'da qaytadi, ≤64 bayt) */

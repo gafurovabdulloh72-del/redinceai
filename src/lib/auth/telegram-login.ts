@@ -41,7 +41,7 @@ async function sweep(): Promise<void> {
 export type LoginStart = { code: string; secret: string; link: string; expiresAt: number };
 
 /** Yangi kirish so'rovi: kod, sir (cookie'ga) va bot havolasi */
-export async function startTelegramLogin(): Promise<LoginStart> {
+export async function startTelegramLogin(deviceLabel?: string | null): Promise<LoginStart> {
   if (!isTelegramLoginEnabled()) throw new ApiError(503, "Telegram bilan kirish sozlanmagan");
   await sweep().catch(() => undefined);
   const secret = randomBytes(24).toString("base64url");
@@ -57,7 +57,7 @@ export async function startTelegramLogin(): Promise<LoginStart> {
   }
   if (!code) throw new ApiError(503, "Hozir band — bir necha soniyadan keyin urinib ko'ring");
   const expiresAt = new Date(Date.now() + TTL_MS);
-  await db.insert(loginRequests).values({ id: uid(), code, secretHash: sha(secret), expiresAt });
+  await db.insert(loginRequests).values({ id: uid(), code, secretHash: sha(secret), expiresAt, deviceLabel: deviceLabel ? deviceLabel.slice(0, 80) : null });
   const bot = process.env.TELEGRAM_BOT_USERNAME ?? "";
   return { code, secret, link: `https://t.me/${bot.replace(/^@/, "")}?start=l_${code}`, expiresAt: expiresAt.getTime() };
 }
