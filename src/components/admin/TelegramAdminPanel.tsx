@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, RefreshCw, Send } from "lucide-react";
+import { CheckCircle2, CircleAlert, Palette, RefreshCw, Send } from "lucide-react";
 
 interface TgStatus {
   tokenSet: boolean;
@@ -50,6 +50,25 @@ export function TelegramAdminPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Bot profilini bezash: nom, tavsif, buyruqlar menyusi (PUT) */
+  async function setProfile() {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/admin/telegram", { method: "PUT" });
+      const j = (await r.json()) as { ok: boolean; data?: { errors: string[] }; error?: string };
+      if (!r.ok || !j.ok) throw new Error(j.error || "Sozlab bo'lmadi");
+      const errs = j.data?.errors ?? [];
+      if (errs.length) setErr(`Qisman: ${errs.join("; ")}`);
+      else setMsg("Bot profili yangilandi: nom, tavsif, buyruqlar menyusi ✓");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Sozlab bo'lmadi");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function setWebhook() {
     setBusy(true);
@@ -120,6 +139,9 @@ export function TelegramAdminPanel() {
             <button type="button" disabled={busy || !st.tokenValid} onClick={setWebhook} className="btn-ink inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
               <Send size={14} /> {busy ? "O'rnatilmoqda…" : st.webhookOk ? "Webhookni yangilash" : "Webhookni o'rnatish"}
             </button>
+            <button type="button" disabled={busy || !st.tokenValid} onClick={setProfile} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
+              <Palette size={13} /> Bot profilini sozlash
+            </button>
             <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
               <RefreshCw size={13} /> Holatni yangilash
             </button>
@@ -134,6 +156,11 @@ export function TelegramAdminPanel() {
               </span>
             )}
           </div>
+          <p className="mt-3 text-[12px] leading-relaxed text-fg-3">
+            «Bot profilini sozlash» — nom, tavsif va buyruqlar menyusini Bot API orqali qo'yadi. Rasmlar faqat BotFather orqali: avatar —{" "}
+            <a href="/bot/avatar.png" download className="underline">avatar.png</a> (<code className="text-[11px]">/setuserpic</code>), tavsif rasmi —{" "}
+            <a href="/bot/description.png" download className="underline">description.png</a> (Edit Bot → Edit Description Picture).
+          </p>
         </>
       )}
     </div>

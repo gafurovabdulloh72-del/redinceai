@@ -93,7 +93,9 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       </header>
 
       <div className="mb-4 space-y-3">
-        <NotificationPrefs initial={prefs} />
+        <div id="sozlamalar" className="scroll-mt-24">
+          <NotificationPrefs initial={prefs} />
+        </div>
         <PushPanel />
         {/* Filtr chiplari: telefonda gorizontal aylanadi (16px gutter) */}
         <nav aria-label="Saralash" className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">

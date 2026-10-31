@@ -3,10 +3,13 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, specialists, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
-import { escapeTelegramHtml, sendTelegram } from "@/lib/telegram";
+import { escapeTelegramHtml, sendTelegram, telegramApi } from "@/lib/telegram";
 import { decideLoginRequest, findLoginRequest } from "@/lib/auth/telegram-login";
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
+import { REGION_BY_SLUG } from "@/lib/constants";
+import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
+import { MENU_ROWS, SETTINGS_TEXT, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
 
 /**
  * Botdagi tezkor amallar (Telegram tarafi):
@@ -21,9 +24,11 @@ import { formatPrice } from "@/lib/utils";
 type Answer = (text: string) => Promise<unknown>;
 
 /** Chatga ulangan hisob (yo'q bo'lsa null) */
-async function accountOf(chatId: string) {
-  return db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true } });
+export async function accountOf(chatId: string) {
+  return db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true, email: true, username: true, createdAt: true, notifyPrefs: true } });
 }
+
+const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutaxassis", admin: "Administrator" };
 
 /* ------------------------------------------------------------------ */
 /* «Telegram bilan kirish»                                             */
@@ -105,7 +110,7 @@ export async function handleOrderCallback(chatId: string, data: string, answer: 
 export async function handleMyOrders(chatId: string): Promise<void> {
   const me = await accountOf(chatId);
   if (!me) {
-    await sendTelegram(chatId, "Avval hisobni ulang: saytda Kabinet → Profil → «Telegramga ulash».");
+    await sendNotLinked(chatId);
     return;
   }
   // Buyurtmada `specialistId` — specialists qatori; mutaxassis userId'si join bilan olinadi
@@ -128,3 +133,108 @@ export async function handleMyOrders(chatId: string): Promise<void> {
     await sendTelegram(chatId, text, mine && o.status === "new" ? { keyboard: orderButtons(o.id, href) } : { button: { text: "Ochish", url: href } });
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Profil, xabarlar, vakansiyalar, sozlamalar                           */
+/* ------------------------------------------------------------------ */
+
+/** `/profil` — hisob kartasi */
+export async function handleProfile(chatId: string): Promise<void> {
+  const me = await accountOf(chatId);
+  if (!me) {
+    await sendNotLinked(chatId);
+    return;
+  }
+  const since = new Date(me.createdAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
+  const text =
+    `<b>${escapeTelegramHtml(me.name)}</b>\n` +
+    `${escapeTelegramHtml(ROLE_LABEL[me.role] ?? me.role)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}\n` +
+    `${escapeTelegramHtml(me.email)}\n` +
+    `Ro'yxatdan: ${escapeTelegramHtml(since)}\n\n` +
+    "Telegram ulangan ✅ — buyurtma, xabar va kurs bildirishnomalari shu yerga keladi.";
+  const s = siteUrl() ?? "";
+  const sp = me.role === "specialist" ? await db.query.specialists.findFirst({ where: eq(specialists.userId, me.id), columns: { slug: true } }) : null;
+  await sendTelegram(chatId, text, {
+    keyboard: [
+      [
+        { text: "Kabinet", url: `${s}/kabinet` },
+        { text: "Profilni tahrirlash", url: `${s}/kabinet/profil` },
+      ],
+      ...(sp ? [[{ text: "Ommaviy sahifam", url: `${s}/mutaxassislar/${sp.slug}` }]] : []),
+    ],
+  });
+}
+
+/** `/xabarlar` — o'qilmagan DM soni */
+export async function handleMessages(chatId: string): Promise<void> {
+  const me = await accountOf(chatId);
+  if (!me) {
+    await sendNotLinked(chatId);
+    return;
+  }
+  const { unreadDmCount } = await import("@/lib/chat/dm");
+  const n = await unreadDmCount(me.id).catch(() => 0);
+  const text = n > 0 ? `💬 <b>${n} ta o'qilmagan xabar</b> bor.` : "💬 O'qilmagan xabar yo'q.";
+  await sendTelegram(chatId, text, { button: { text: n > 0 ? "Xabarlarni o'qish" : "Chatni ochish", url: `${siteUrl() ?? ""}/kabinet/chat` } });
+}
+
+/** `/vakansiyalar` — so'nggi 5 ta ochiq vakansiya (hamma uchun, ulash shart emas) */
+export async function handleVacancies(chatId: string): Promise<void> {
+  const { listVacancies } = await import("@/lib/vacancies/service");
+  const { professionLabel, salaryLabel } = await import("@/lib/vacancies/format");
+  const { vacancyFilterSchema } = await import("@/lib/vacancies/validators");
+  const { items, total } = await listVacancies(vacancyFilterSchema.parse({ limit: 5 }));
+  const s = siteUrl() ?? "";
+  if (!items.length) {
+    await sendTelegram(chatId, "Hozircha ochiq vakansiya yo'q.", { button: { text: "Vakansiyalar", url: `${s}/vakansiyalar` } });
+    return;
+  }
+  const lines = items.map((v, i) => {
+    const where = v.regionSlug ? (REGION_BY_SLUG[v.regionSlug]?.name ?? v.regionSlug) : "Masofaviy";
+    return `${i + 1}. <a href="${s}/vakansiyalar/${v.id}"><b>${escapeTelegramHtml(v.title)}</b></a>\n   ${escapeTelegramHtml(v.company)} · ${escapeTelegramHtml(professionLabel(v.profession, true))} · ${escapeTelegramHtml(where)}\n   ${escapeTelegramHtml(salaryLabel(v.salaryMin, v.salaryMax))}`;
+  });
+  await sendTelegram(chatId, `💼 <b>So'nggi vakansiyalar</b> (${total} ta ochiq)\n\n${lines.join("\n\n")}`, { button: { text: "Barcha vakansiyalar", url: `${s}/vakansiyalar` } });
+}
+
+/** `/sozlamalar` — bildirishnoma guruhlari switch'lari */
+export async function handleSettings(chatId: string): Promise<void> {
+  const me = await accountOf(chatId);
+  if (!me) {
+    await sendNotLinked(chatId);
+    return;
+  }
+  await sendTelegram(chatId, SETTINGS_TEXT, { keyboard: settingsKeyboard(me.notifyPrefs ?? {}) });
+}
+
+/** `st:<guruh>` — switch'ni almashtirib, klaviaturani joyida yangilaydi */
+export async function handleSettingsCallback(chatId: string, data: string, answer: Answer, messageId: number | null): Promise<boolean> {
+  const m = /^st:([a-z]+)$/.exec(data);
+  if (!m) return false;
+  const key = m[1] as NotifyGroupKey;
+  if (!NOTIFY_GROUP_KEYS.includes(key)) return false;
+  const me = await accountOf(chatId);
+  if (!me) {
+    await answer("Avval hisobni ulang");
+    return true;
+  }
+  const next = { ...(me.notifyPrefs ?? {}) };
+  next[key] = next[key] === false; // o'chirilgan → yoqiladi, aks holda o'chadi
+  await db.update(users).set({ notifyPrefs: next }).where(eq(users.id, me.id));
+  await answer(next[key] ? "Yoqildi" : "O'chirildi");
+  if (messageId) {
+    const { replyMarkup } = await import("@/lib/telegram");
+    await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: replyMarkup({ keyboard: settingsKeyboard(next) }) });
+  }
+  return true;
+}
+
+/** `menu:*` — xush kelibsiz ekranidagi inline tugmalar */
+export async function handleMenuCallback(chatId: string, data: string, answer: Answer): Promise<boolean> {
+  if (data !== "menu:help") return false;
+  await answer("");
+  const { sendHelp } = await import("@/lib/telegram-bot/ui");
+  await sendHelp(chatId, Boolean(await accountOf(chatId)));
+  return true;
+}
+
+export { MENU_ROWS };

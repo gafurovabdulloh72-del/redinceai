@@ -257,9 +257,16 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
    webhook manzili, oxirgi xato) shu kartada ko'rsatadi. Qo'lda muqobil:
    `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" -d url="https://kasbegalari.vercel.app/api/telegram/webhook" -d secret_token="<SECRET>"`.
    Webhook faqat `x-telegram-bot-api-secret-token` to'g'ri so'rovlarni qabul qiladi (aks holda 401).
-4. **Ulash oqimi**: Kabinet → Profil → «Telegram bildirishnomalari» → «Telegramga ulash» → bot ochiladi →
+4. **Bot profili (dizayn)**: Admin panel → «Telegram bot» → **«Bot profilini sozlash»** — nom, qisqa tavsif
+   («About»), bo'sh chatdagi tavsif, buyruqlar menyusi va menyu tugmasi Bot API orqali qo'yiladi (matnlar
+   `src/lib/telegram-bot/ui.ts`). Rasmlar faqat BotFather orqali: `/setuserpic` → `public/bot/avatar.png`
+   (1024×1024), «Edit Bot → Edit Description Picture» → `public/bot/description.png` (640×360). `/start`
+   banneri (`public/bot/welcome.png`) saytdan avtomatik olinadi.
+5. **Ulash oqimi**: Kabinet → Profil → «Telegram bildirishnomalari» → «Telegramga ulash» → bot ochiladi →
    «Start». Ulash kodi 15 daqiqa amal qiladi (imzolangan, bazada saqlanmaydi); bitta chat faqat bitta hisobga
    ulanadi — yangi hisob ulansa eskisidan avtomatik uziladi. Uzish: kartadagi «Uzish» tugmasi yoki botda `/stop`.
+   Botda: `/start` — menyu, `/buyurtmalarim`, `/xabarlar`, `/kurslarim`, `/vakansiyalar`, `/profil`,
+   `/sozlamalar` (bildirishnoma guruhlari switch'lari), `/yordam`.
 
 ## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
 

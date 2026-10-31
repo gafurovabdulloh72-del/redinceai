@@ -54,36 +54,74 @@ export interface TelegramButton {
 /**
  * Bot API sendMessage (HTML, havola preview'siz). Hech qachon throw qilmaydi —
  * tarmoq/API xatosi console.error bilan yutiladi, false qaytadi (bildirishnoma oqimi buzilmasin).
- * `button` — xabar ostida bitta havola tugmasi; `keyboard` — bir nechta qator (url yoki callback tugmalari).
+ * `button` — xabar ostida bitta havola tugmasi; `keyboard` — bir nechta qator (url yoki callback tugmalari);
+ * `replyKeyboard` — doimiy menyu (bot UI: lib/telegram-bot/ui.ts).
  */
-export async function sendTelegram(chatId: string, text: string, opts: { button?: { text: string; url: string }; keyboard?: TelegramButton[][] } = {}): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token || !chatId || !text) return false;
+export interface SendOpts {
+  /** Xabar ostida bitta havola tugmasi */
+  button?: { text: string; url: string };
+  /** Inline tugmalar (qatorlar) */
+  keyboard?: TelegramButton[][];
+  /** Doimiy (reply) klaviatura — matn tugmalari; chat ostida turadi, bosilsa matn sifatida keladi */
+  replyKeyboard?: string[][];
+  /** Doimiy klaviaturani olib tashlash */
+  removeKeyboard?: boolean;
+}
+
+/** `reply_markup` — inline / doimiy klaviatura / olib tashlash (bittasi) */
+export function replyMarkup(opts: SendOpts): Record<string, unknown> | null {
   const keyboard: TelegramButton[][] | null = opts.keyboard ?? (opts.button ? [[{ text: opts.button.text, url: opts.button.url }]] : null);
+  if (keyboard) return { inline_keyboard: keyboard.map((row) => row.map((b) => (b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))) };
+  if (opts.replyKeyboard) return { keyboard: opts.replyKeyboard.map((row) => row.map((text) => ({ text }))), resize_keyboard: true, is_persistent: true };
+  if (opts.removeKeyboard) return { remove_keyboard: true };
+  return null;
+}
+
+async function callSend(method: "sendMessage" | "sendPhoto", body: Record<string, unknown>): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return false;
   try {
-    const res = await fetch(`${apiBase()}/bot${token}/sendMessage`, {
+    const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text.slice(0, MAX_TEXT_LEN),
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-        ...(keyboard
-          ? { reply_markup: { inline_keyboard: keyboard.map((row) => row.map((b) => (b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))) } }
-          : {}),
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
-      console.error("[telegram] sendMessage", res.status, (await res.text().catch(() => "")).slice(0, 300));
+      console.error(`[telegram] ${method}`, res.status, (await res.text().catch(() => "")).slice(0, 300));
       return false;
     }
     return true;
   } catch (e) {
-    console.error("[telegram] sendMessage", e instanceof Error ? e.message : e);
+    console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
     return false;
   }
+}
+
+export async function sendTelegram(chatId: string, text: string, opts: SendOpts = {}): Promise<boolean> {
+  if (!chatId || !text) return false;
+  const markup = replyMarkup(opts);
+  return callSend("sendMessage", {
+    chat_id: chatId,
+    text: text.slice(0, MAX_TEXT_LEN),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...(markup ? { reply_markup: markup } : {}),
+  });
+}
+
+/** Rasm + izoh (HTML, ≤1024 belgi). Rasm yuborilmasa (masalan, lokal manzil) oddiy matn bilan davom etadi */
+export async function sendTelegramPhoto(chatId: string, photoUrl: string, caption: string, opts: SendOpts = {}): Promise<boolean> {
+  if (!chatId) return false;
+  const markup = replyMarkup(opts);
+  const okPhoto = await callSend("sendPhoto", {
+    chat_id: chatId,
+    photo: photoUrl,
+    caption: caption.slice(0, 1024),
+    parse_mode: "HTML",
+    ...(markup ? { reply_markup: markup } : {}),
+  });
+  return okPhoto || sendTelegram(chatId, caption, opts);
 }
 
 /** Jarayon bo'yicha bir marta (dev'da modul qayta yuklanadi — globalThis'da, auth.ts uslubi) */

@@ -11,9 +11,11 @@ import { cancelPayment, markPaid, orderHref } from "@/lib/payments/service";
 import { cancelInvoice, invoiceHref, loadInvoice, markInvoicePaid } from "@/lib/subscriptions/billing";
 import { invoiceNumber } from "@/lib/subscriptions/labels";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
+import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
-import { handleLoginCallback, handleLoginStart, handleMyOrders, handleOrderCallback } from "@/lib/telegram-bot/actions";
+import { accountOf, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSettings, handleSettingsCallback, handleVacancies } from "@/lib/telegram-bot/actions";
+import { MENU_COMMAND, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -22,23 +24,18 @@ import { handleLoginCallback, handleLoginStart, handleMyOrders, handleOrderCallb
  * (aks holda 401). Tekshiruvdan o'tgan so'rovga HAR DOIM 200 qaytadi — ichki xato Telegram'ning retry
  * bo'ronini keltirib chiqarmasin (xato faqat logga yoziladi).
  *
- * Faqat shaxsiy chatdagi matnli xabarlar:
- *   /start <kod> — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
+ * Faqat shaxsiy chatdagi matnli xabarlar (bot UI va matnlar: lib/telegram-bot/ui.ts):
+ *   /start           — xush kelibsiz ekrani (banner + doimiy menyu yoki «Hisobni ulash»)
+ *   /start <kod>     — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
+ *   /start l_<kod>   — «Telegram bilan kirish» tasdig'i
  *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
- *   /kurslarim   — mening kurslarim va kutilayotgan to'lovlar
- *   /stop        — shu chatga ulangan hisobdan uzish
- *   boshqa matn  — qisqa yordam
+ *   /buyurtmalarim · /xabarlar · /kurslarim · /vakansiyalar · /profil · /sozlamalar · /yordam · /stop
+ *   doimiy menyu tugmalari (📦 Buyurtmalarim …) — MENU_COMMAND orqali shu buyruqlarga aylanadi
+ *   boshqa matn      — yordam
  *
  * callback_query (`mp:<ok|no>:<p|s>:<id>`) — qo'lda o'tkazmani ADMIN bir bosishda tasdiqlashi/rad etishi
  * (lib/manual-approval.ts yuborgan tugmalar). Chat admin hisobiga ulanganligi majburiy tekshiriladi.
  */
-
-const HELP_TEXT =
-  "Bu bot — <b>Kasb Egalari</b> bildirishnomalari (buyurtma, to'lov, xabarlar).\n" +
-  "Hisobni ulash: saytda Kabinet → Profil → «Telegramga ulash».\n" +
-  "Kurslar va to'lovlar: /kurslarim\n" +
-  "Buyurtmalarim: /buyurtmalarim\n" +
-  "Uzish: /stop";
 
 function secretOk(req: Request): boolean {
   // Sir env'dan yoki AUTH_SECRET'dan avtomatik (telegramWebhookSecret) — admin paneldagi
@@ -136,6 +133,8 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
+  if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handleMenuCallback(chatId, data, answer))) return;
 
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
   if (!m || !chatId) {
@@ -168,10 +167,18 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   }
 }
 
-async function handleStart(chatId: string, code: string): Promise<void> {
-  const userId = code ? verifyTelegramLinkCode(code) : null;
+async function handleStart(chatId: string, code: string, firstName?: string): Promise<void> {
+  // Kodsiz /start — xush kelibsiz ekrani (ulangan bo'lsa menyu, bo'lmasa ulash tugmasi)
+  if (!code) {
+    const me = await accountOf(chatId);
+    await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName);
+    return;
+  }
+  const userId = verifyTelegramLinkCode(code);
   if (!userId) {
-    await sendTelegram(chatId, "Kod noto'g'ri yoki eskirgan (15 daqiqa amal qiladi). Saytda Kabinet → Profil → «Telegramga ulash» orqali yangi havola oling.");
+    await sendTelegram(chatId, "Kod noto'g'ri yoki eskirgan (15 daqiqa amal qiladi). Saytda Kabinet → Profil → «Telegramga ulash» orqali yangi havola oling.", {
+      button: { text: "🔗 Hisobni ulash", url: `${siteUrl() ?? ""}/kabinet/profil?tab=telegram#telegram` },
+    });
     return;
   }
   // Bitta chat — bitta hisob: shu chatId boshqa foydalanuvchida bo'lsa, avval undan uzamiz
@@ -184,13 +191,15 @@ async function handleStart(chatId: string, code: string): Promise<void> {
     await sendTelegram(chatId, "Hisob topilmadi. Saytdan qayta urinib ko'ring: Kabinet → Profil → «Telegramga ulash».");
     return;
   }
-  await sendTelegram(chatId, "✅ Kasb Egalari hisobingiz ulandi. Endi buyurtma va xabarlar shu yerga keladi.");
+  // Ulandi — xush kelibsiz ekrani doimiy menyu bilan
+  const me = await accountOf(chatId);
+  await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName);
 }
 
 async function handleStop(chatId: string): Promise<void> {
   const res = await db.update(users).set({ telegramChatId: null }).where(eq(users.telegramChatId, chatId));
   if (res.rowsAffected > 0) {
-    await sendTelegram(chatId, "Telegram bildirishnomalari uzildi. Qayta ulash: saytda Kabinet → Profil → «Telegramga ulash».");
+    await sendTelegram(chatId, "Telegram bildirishnomalari uzildi. Qayta ulash: saytda Kabinet → Profil → «Telegramga ulash».", { removeKeyboard: true });
   } else {
     await sendTelegram(chatId, "Bu chat hech qaysi hisobga ulanmagan edi. Ulash: saytda Kabinet → Profil → «Telegramga ulash».");
   }
@@ -243,8 +252,11 @@ export async function POST(req: Request) {
     // Faqat shaxsiy chat: guruhga qo'shilgan botdagi buyruqlar e'tiborga olinmaydi
     if (!chatId || !text || msg?.chat?.type !== "private") return Response.json({ ok: true });
 
-    const [rawCmd = "", arg = ""] = text.split(/\s+/);
+    // Doimiy menyu tugmasi (📦 Buyurtmalarim …) — buyruqqa aylantiriladi
+    const normalized = MENU_COMMAND[text] ?? text;
+    const [rawCmd = "", arg = ""] = normalized.split(/\s+/);
     const cmd = rawCmd.split("@")[0].toLowerCase(); // "/start@BotNomi" ham qabul qilinadi
+    const firstName = typeof msg?.from?.first_name === "string" ? msg.from.first_name : undefined;
     if (cmd === "/start") {
       const mf = msg?.from ?? {};
       const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
@@ -256,11 +268,16 @@ export async function POST(req: Request) {
       // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */
-      } else if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg);
+      } else if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg, firstName);
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
     else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId);
+    else if (cmd === "/xabarlar") await handleMessages(chatId);
+    else if (cmd === "/vakansiyalar") await handleVacancies(chatId);
+    else if (cmd === "/profil") await handleProfile(chatId);
+    else if (cmd === "/sozlamalar") await handleSettings(chatId);
+    else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
     else if (cmd === "/stop") await handleStop(chatId);
-    else await sendTelegram(chatId, HELP_TEXT);
+    else await sendHelp(chatId, Boolean(await accountOf(chatId)));
   } catch (e) {
     // Har doim 200 — Telegram xatoli javobni qayta-qayta yuborib turadi
     console.error("[telegram:webhook]", e);

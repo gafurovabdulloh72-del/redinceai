@@ -2,6 +2,7 @@ import { handler, ok, requireSession, ApiError } from "@/lib/api";
 import { SITE_URL } from "@/lib/site-url";
 import { isTelegramEnabled, telegramApi, telegramBotUsername, telegramWebhookSecret } from "@/lib/telegram";
 import { audit } from "@/lib/security/audit";
+import { setupBotProfile } from "@/lib/telegram-bot/ui";
 
 /**
  * Admin: Telegram bot holati va webhook'ni bir tugmada o'rnatish.
@@ -58,11 +59,20 @@ export const POST = handler(async (req) => {
   const res = await telegramApi("setWebhook", {
     url,
     secret_token: telegramWebhookSecret(),
-    // callback_query — qo'lda o'tkazmani Telegramdan bir bosishda tasdiqlash tugmalari uchun
-    allowed_updates: ["message", "callback_query"],
+    // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov
+    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
   });
   if (!res) throw new ApiError(502, "Telegram API'ga ulanib bo'lmadi — birozdan so'ng qayta urinib ko'ring");
   if (!res.ok) throw new ApiError(502, `Telegram rad etdi: ${res.description ?? "noma'lum xato"}`);
   await audit(session.sub, "admin_settings", { meta: { action: "telegram_webhook_set", url } }, req);
   return ok(await status());
+});
+
+/** Bot profilini bezash: nom, tavsiflar, buyruqlar menyusi, menyu tugmasi (lib/telegram-bot/ui.ts matnlari) */
+export const PUT = handler(async (req) => {
+  const session = await requireSession(["admin"]);
+  if (!isTelegramEnabled()) throw new ApiError(503, "TELEGRAM_BOT_TOKEN sozlanmagan");
+  const res = await setupBotProfile();
+  await audit(session.sub, "admin_settings", { meta: { action: "telegram_profile_set", errors: res.errors.length } }, req);
+  return ok(res);
 });
