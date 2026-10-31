@@ -60,13 +60,13 @@ export default async function MyJobsPage() {
           }
         />
       ) : (
-        <ul className="stagger space-y-3">
+        <ul className="stagger space-y-3 max-sm:space-y-0">
           {jobs.map((j) => {
             const live = isLive(j);
             const expired = j.status === "open" && !live;
             const left = live ? daysLeft(j.expiresAt, now) : null;
             return (
-              <li key={j.id} className="card min-w-0 p-4 sm:p-5">
+              <li key={j.id} className="card m-flat min-w-0 p-4 sm:p-5">
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <Link href={`/ishlar/${j.id}`} className="font-display text-[17px] font-semibold leading-snug text-fg hover:underline">

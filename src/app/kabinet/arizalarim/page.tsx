@@ -75,12 +75,12 @@ export default async function MyApplicationsPage({ searchParams }: { searchParam
           {list.length === 0 ? (
             <EmptyState icon={Send} title="Bu bo'limda ariza yo'q" description="Boshqa bo'limni tanlang." />
           ) : (
-            <ul className="stagger grid gap-3">
+            <ul className="stagger grid gap-3 max-sm:gap-0">
               {list.map((a) => {
                 const closed = a.vacancy.status !== "open" || a.vacancy.expired;
                 const waiting = slaHint(a.status, a.createdAt);
                 return (
-                  <li key={a.id} className={cn("card min-w-0 p-4 sm:p-5", a.status === "rejected" && "opacity-80")}>
+                  <li key={a.id} className={cn("card m-flat min-w-0 p-4 sm:p-5", a.status === "rejected" && "opacity-80")}>
                     <div className="flex min-w-0 flex-wrap items-start gap-3">
                       <div className="min-w-0 flex-1 basis-[240px]">
                         <div className="flex flex-wrap items-center gap-2">

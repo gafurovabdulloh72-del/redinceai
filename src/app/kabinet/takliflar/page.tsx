@@ -130,11 +130,11 @@ export default async function MyProposalsPage({ searchParams }: { searchParams: 
           {list.length === 0 ? (
             <EmptyState icon={Send} title="Bu bo'limda taklif yo'q" description="Boshqa bo'limni tanlang." />
           ) : (
-            <ul className="stagger space-y-3">
+            <ul className="stagger space-y-3 max-sm:space-y-0">
               {list.map((p) => {
                 const active = p.status === "pending" || p.status === "shortlisted";
                 return (
-                  <li key={p.id} className={cn("card min-w-0 p-4 sm:p-5", (p.status === "declined" || p.status === "withdrawn") && "opacity-80")}>
+                  <li key={p.id} className={cn("card m-flat min-w-0 p-4 sm:p-5", (p.status === "declined" || p.status === "withdrawn") && "opacity-80")}>
                     <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <Link href={`/ishlar/${p.job.id}`} className="font-display text-[16.5px] font-semibold leading-snug text-fg hover:underline">
