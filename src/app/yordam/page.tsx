@@ -48,7 +48,7 @@ export default async function HelpCenterPage({ searchParams }: { searchParams: P
           const Icon = CATEGORY_ICON[c.key];
           const list = HELP_ARTICLES.filter((a) => a.category === c.key);
           return (
-            <div key={c.key} id={c.key} className="card flex min-w-0 scroll-mt-28 flex-col p-5 sm:p-6">
+            <div key={c.key} id={c.key} className="card m-flat flex min-w-0 scroll-mt-28 flex-col p-5 sm:p-6">
               <span className="icon-tile" aria-hidden="true">
                 <Icon size={20} />
               </span>

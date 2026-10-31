@@ -199,7 +199,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         </div>
 
         {result.items.length > 0 ? (
-          <ul className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <ul className="mt-4 grid grid-cols-1 gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             {result.items.map((job, i) => (
               <li key={job.id} className="animate-fade-up min-w-0" style={{ animationDelay: `${Math.min(i, 11) * 30}ms`, animationDuration: "0.4s" }}>
                 <JobCard job={job} til={til} />

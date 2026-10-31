@@ -38,7 +38,7 @@ export function JobCard({ job, til = "uz", className, headingLevel = "h2" }: { j
   const remote = !job.regionSlug;
   const isNew = Date.now() - new Date(job.createdAt).getTime() < NEW_HOURS * 3_600_000;
   return (
-    <article className={cn("card card-hover card-link group relative flex h-full min-w-0 flex-col p-4 sm:p-5", className)}>
+    <article className={cn("card card-hover card-link m-plain group relative flex h-full min-w-0 flex-col p-4 max-sm:px-4 max-sm:py-3.5 sm:p-5", className)}>
       <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold">
         {isNew && <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-white">{til === "ru" ? "Новый" : "Yangi"}</span>}
         {cat && <span className="inline-flex items-center rounded-full bg-fg/6 px-2.5 py-1 text-fg-2">{cat.name}</span>}
