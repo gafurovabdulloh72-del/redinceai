@@ -241,6 +241,9 @@ export const SAHIFALASH = {
 /* ------------------------------------------------------------------ */
 export const KARTA = {
   new: { uz: "Yangi", ru: "Новый" } satisfies Tr,
+  /** Kontakt sotuvi (2026-10-31): kartada narx belgisi / «faqat portfolio» */
+  contact: { uz: "Kontakt", ru: "Контакт" } satisfies Tr,
+  portfolioOnly: { uz: "Faqat portfolio", ru: "Только портфолио" } satisfies Tr,
   busy: { uz: "Band", ru: "Занят" } satisfies Tr,
   top: { uz: "Top", ru: "Топ" } satisfies Tr,
   topHint: {

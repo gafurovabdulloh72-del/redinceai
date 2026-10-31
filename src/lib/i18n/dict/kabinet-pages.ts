@@ -80,6 +80,8 @@ export const UMUMIY = {
   newProposal: { uz: "E'lonlaringizga yangi taklif", ru: "Новое предложение по вашим объявлениям" } satisfies Tr,
   unreadDm: { uz: "O'qilmagan xabar", ru: "Непрочитанное сообщение" } satisfies Tr,
   unreadNotif: { uz: "O'qilmagan bildirishnoma", ru: "Непрочитанное уведомление" } satisfies Tr,
+  contactBuyers: { uz: "Kontaktingizni olganlar", ru: "Купили ваш контакт" } satisfies Tr,
+  contactsUnlocked: { uz: "Ochilgan kontaktlar", ru: "Открытые контакты" } satisfies Tr,
 
   /* Profil yaratish */
   createTitle: { uz: "Mutaxassis profilingizni yarating", ru: "Создайте профиль специалиста" } satisfies Tr,

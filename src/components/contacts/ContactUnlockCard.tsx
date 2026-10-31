@@ -36,7 +36,7 @@ const T = {
  * Mutaxassis kontaktini PLATFORMAGA to'lab ochish kartasi (profil, contactMode="paid", hali ochilmagan).
  * Narx serverdan keladi (daraja bo'yicha umumiy yoki maxsus). Mehmon → kirish; kirgan → to'lov oynasi (Payme/Click/o'tkazma).
  */
-export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, className }: { specialistId: string; price: number; loggedIn: boolean; loginHref: string; className?: string }) {
+export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, className, variant = "card" }: { specialistId: string; price: number; loggedIn: boolean; loginHref: string; className?: string; /** card — «Aloqa» bo'limi; button — hero'dagi ixcham tugma (xuddi shu Sheet) */ variant?: "card" | "button" }) {
   const til = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -89,6 +89,60 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
   }
 
   const free = price <= 0;
+  const sheet = (
+    <Sheet open={open} onClose={() => !busy && setOpen(false)} title={tr(til, T.confirm)} size="sm">
+      {!q && !err && (
+        <div className="grid h-32 place-items-center">
+          <Loader2 className="animate-spin text-fg-3" />
+        </div>
+      )}
+      {err && !q && <p className="py-6 text-center text-[14px] text-danger">{err}</p>}
+      {q && (
+        <div className="space-y-4">
+          <p className="text-[15px] font-semibold text-fg">{q.title}</p>
+          <ul className="space-y-1 text-[13px] text-fg-2">
+            <li className="text-[12.5px] font-semibold text-fg-3">{tr(til, T.what)}</li>
+            <li className="flex items-center gap-2"><ShieldCheck size={14} className="text-success" /> {tr(til, T.hidden)}</li>
+          </ul>
+          <div className="flex justify-between border-t border-line pt-2 text-[16px] font-bold text-fg">
+            <span>{tr(til, T.price)}</span>
+            <span className="tabular-nums">{q.amount <= 0 ? tr(til, T.free) : formatPrice(q.amount)}</span>
+          </div>
+          {q.amount > 0 && (
+            <fieldset className="space-y-1.5">
+              <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">{tr(til, T.method)}</legend>
+              {q.providers.length === 0 && <p className="text-[13px] text-danger">{tr(til, T.noMethods)}</p>}
+              {q.providers.map((p) => (
+                <label key={p} className={cn("flex cursor-pointer items-center gap-2.5 rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold", provider === p ? "border-fg bg-fg/[0.03]" : "border-line")}>
+                  <input type="radio" name="kontakt-prov" checked={provider === p} onChange={() => setProvider(p)} /> {PROVIDER_LABEL[p]}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <button type="button" disabled={busy || (q.amount > 0 && !provider)} onClick={() => void pay()} className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold disabled:opacity-50">
+            {busy && <Loader2 size={16} className="animate-spin" />} {q.amount <= 0 ? tr(til, T.free) : `${tr(til, T.pay)} — ${formatPrice(q.amount)}`}
+          </button>
+          <p className="text-center text-[12px] text-fg-3">{tr(til, T.note)}</p>
+        </div>
+      )}
+    </Sheet>
+  );
+  if (variant === "button") {
+    return (
+      <>
+        {loggedIn ? (
+          <button type="button" onClick={() => setOpen(true)} className={cn("btn-accent inline-flex h-13 w-full items-center justify-center gap-2 rounded-full px-4 text-[14px] font-semibold", className)}>
+            <Unlock size={16} /> {free ? tr(til, T.free) : `${tr(til, T.open)} · ${formatPrice(price, { compact: true })}`}
+          </button>
+        ) : (
+          <Link href={loginHref} className={cn("btn-accent inline-flex h-13 w-full items-center justify-center gap-2 rounded-full px-4 text-[14px] font-semibold", className)}>
+            <Lock size={15} /> {free ? tr(til, T.free) : `${tr(til, T.open)} · ${formatPrice(price, { compact: true })}`}
+          </Link>
+        )}
+        {sheet}
+      </>
+    );
+  }
   return (
     <section id="aloqa" className={className} aria-label={tr(til, T.title)}>
       <div className="mb-2 flex items-center justify-between px-4">
@@ -118,42 +172,7 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
         )}
       </div>
 
-      <Sheet open={open} onClose={() => !busy && setOpen(false)} title={tr(til, T.confirm)} size="sm">
-        {!q && !err && (
-          <div className="grid h-32 place-items-center">
-            <Loader2 className="animate-spin text-fg-3" />
-          </div>
-        )}
-        {err && !q && <p className="py-6 text-center text-[14px] text-danger">{err}</p>}
-        {q && (
-          <div className="space-y-4">
-            <p className="text-[15px] font-semibold text-fg">{q.title}</p>
-            <ul className="space-y-1 text-[13px] text-fg-2">
-              <li className="text-[12.5px] font-semibold text-fg-3">{tr(til, T.what)}</li>
-              <li className="flex items-center gap-2"><ShieldCheck size={14} className="text-success" /> {tr(til, T.hidden)}</li>
-            </ul>
-            <div className="flex justify-between border-t border-line pt-2 text-[16px] font-bold text-fg">
-              <span>{tr(til, T.price)}</span>
-              <span className="tabular-nums">{q.amount <= 0 ? tr(til, T.free) : formatPrice(q.amount)}</span>
-            </div>
-            {q.amount > 0 && (
-              <fieldset className="space-y-1.5">
-                <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">{tr(til, T.method)}</legend>
-                {q.providers.length === 0 && <p className="text-[13px] text-danger">{tr(til, T.noMethods)}</p>}
-                {q.providers.map((p) => (
-                  <label key={p} className={cn("flex cursor-pointer items-center gap-2.5 rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold", provider === p ? "border-fg bg-fg/[0.03]" : "border-line")}>
-                    <input type="radio" name="kontakt-prov" checked={provider === p} onChange={() => setProvider(p)} /> {PROVIDER_LABEL[p]}
-                  </label>
-                ))}
-              </fieldset>
-            )}
-            <button type="button" disabled={busy || (q.amount > 0 && !provider)} onClick={() => void pay()} className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold disabled:opacity-50">
-              {busy && <Loader2 size={16} className="animate-spin" />} {q.amount <= 0 ? tr(til, T.free) : `${tr(til, T.pay)} — ${formatPrice(q.amount)}`}
-            </button>
-            <p className="text-center text-[12px] text-fg-3">{tr(til, T.note)}</p>
-          </div>
-        )}
-      </Sheet>
+      {sheet}
     </section>
   );
 }

@@ -11,6 +11,9 @@ import { getLocale } from "@/lib/i18n/server";
 import { KARTA, priceFromLabel, priceRangeLabel, type UsdPrice } from "@/lib/i18n/dict/catalog";
 import { formatPrice, isRecent } from "@/lib/utils";
 import type { SpecialistListItem } from "@/lib/queries";
+import { contactPriceFor } from "@/lib/contacts/unlock";
+import { getSettings } from "@/lib/payments/settings";
+import { Lock } from "lucide-react";
 
 /** Narx BIR qatorda: diapazon juda uzun bo'lsa — "… dan" ko'rinishi */
 function priceLine(til: Locale, from: number, to?: number | null, usd?: UsdPrice) {
@@ -37,6 +40,9 @@ export async function SpecialistCard({
   showCompare?: boolean;
 }) {
   const til = await getLocale();
+  // Kontakt sotuvi: narx daraja/maxsus bo'yicha (getSettings — so'rov ichida keshlangan); hidden — «faqat portfolio»
+  const settings = await getSettings();
+  const contactLine = sp.contactMode === "hidden" ? tr(til, KARTA.portfolioOnly) : `${tr(til, KARTA.contact)} · ${formatPrice(contactPriceFor(sp, settings), { compact: true })}`;
   const cat = CATEGORY_BY_SLUG[sp.category];
   const region = REGION_BY_SLUG[sp.regionSlug];
   const place = region && region.slug !== "toshkent-shahri" && sp.city !== region.short ? `${sp.city} · ${region.short}` : sp.city;
@@ -82,7 +88,9 @@ export async function SpecialistCard({
               <p className="mt-0.5 truncate text-[12px] text-fg-3 sm:text-[12.5px]">
                 {cat?.name ? `${cat.name} · ` : ""}
                 {place}
-                
+              </p>
+              <p className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-fg-2 max-sm:hidden">
+                <Lock size={10} aria-hidden="true" /> {contactLine}
               </p>
             </div>
           </div>

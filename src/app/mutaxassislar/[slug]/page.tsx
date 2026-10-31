@@ -396,7 +396,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       <Settings size={18} /> {tr(til, PROFIL.editProfile)}
     </ButtonLink>
   ) : !PROFILE_HIRING ? (
-    // Yollash bloklari yashirin: faqat ichki chat
+    // Yollash bloklari yashirin: kontaktni ochish (platformaga to'lov) + ichki chat
     <div className="flex w-full flex-col gap-2.5">{chatCta}</div>
   ) : (
     <div className="flex w-full flex-col gap-2.5">
@@ -600,6 +600,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {sp.user.username && <Handle username={sp.user.username} />}
               <span className="min-w-0">{metaParts.join(" · ")}</span>
             </li>
+            {showContactUnlock && (
+              <li className="w-full lg:hidden">
+                <ContactUnlockCard variant="button" specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />
+              </li>
+            )}
             <li id="profil-amallar" className="grid w-full grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && !blockedAny && (
@@ -948,6 +953,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 </>
               ) : null}
 
+              {/* Kontakt sotuvi: alohida to'liq kenglikdagi tugma (amallar qatori tor — matn kesilmasin) */}
+              {showContactUnlock && <ContactUnlockCard variant="button" specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} className="mb-2.5" />}
               {/* Yollash yashirin: kasb/hudud hero'da — karta to'g'ridan-to'g'ri amallardan boshlanadi */}
               <div className={cn("flex items-stretch gap-2", PROFILE_HIRING && "mt-5")}>
                 <div className="min-w-0 flex-1">{cta}</div>

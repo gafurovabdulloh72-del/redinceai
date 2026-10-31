@@ -10,6 +10,7 @@ import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   ArrowRight,
   Bell,
+  Contact,
   Briefcase,
   CalendarClock,
   Check,
@@ -37,7 +38,7 @@ import { Avatar, Badge, ButtonLink, IconTile, VerifiedBadge } from "@/components
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { db } from "@/lib/db";
-import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, vacancies } from "@/lib/db/schema";
+import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, vacancies, contactUnlocks } from "@/lib/db/schema";
 import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, type OrderStatus } from "@/lib/constants";
 import { proposalsSentToday } from "@/lib/jobs/server";
 import { getSettings } from "@/lib/payments/settings";
@@ -272,6 +273,13 @@ export default async function KabinetPage() {
   if (jobStats && jobStats.newProposals > 0) todayRows.push({ key: "props", href: "/kabinet/elonlar", icon: Megaphone, label: tr(til, UMUMIY.newProposal), value: jobStats.newProposals, tone: "warning" });
   if (unreadDm > 0) todayRows.push({ key: "dm", href: "/kabinet/chat", icon: MessageCircle, label: tr(til, UMUMIY.unreadDm), value: unreadDm });
   if (unreadNotif > 0) todayRows.push({ key: "notif", href: "/kabinet/bildirishnomalar?filter=unread", icon: Bell, label: tr(til, UMUMIY.unreadNotif), value: unreadNotif });
+  // Kontakt sotuvi (2026-10-31): mutaxassis — kontaktini olganlar; mijoz — ochgan kontaktlari
+  const [contactBuyersN, contactsUnlockedN] = await Promise.all([
+    sp ? db.select({ n: count() }).from(contactUnlocks).where(and(eq(contactUnlocks.specialistId, sp.id), eq(contactUnlocks.status, "paid"))).then((r) => r[0]?.n ?? 0).catch(() => 0) : Promise.resolve(0),
+    db.select({ n: count() }).from(contactUnlocks).where(and(eq(contactUnlocks.clientId, user.id), eq(contactUnlocks.status, "paid"))).then((r) => r[0]?.n ?? 0).catch(() => 0),
+  ]);
+  if (contactBuyersN > 0) todayRows.push({ key: "cbuy", href: "/kabinet/kontaktlar", icon: Contact, label: tr(til, UMUMIY.contactBuyers), value: contactBuyersN, tone: "success" });
+  if (contactsUnlockedN > 0) todayRows.push({ key: "cunl", href: "/kabinet/kontaktlar", icon: Contact, label: tr(til, UMUMIY.contactsUnlocked), value: contactsUnlockedN });
 
 
   return (

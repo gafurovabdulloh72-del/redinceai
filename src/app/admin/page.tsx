@@ -62,6 +62,7 @@ import { getAdminFinance, listAdminPayments, listAdminPayouts } from "@/lib/paym
 import { getSettings } from "@/lib/payments/settings";
 import { getAdminOverview } from "@/lib/queries";
 import { getSubscriptionRevenueSummary } from "@/lib/subscriptions/queries";
+import { contactUnlockStats, pendingContactInvoices } from "@/lib/contacts/unlock";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
 import { getAdminAnalytics } from "./analytics";
 import { getFraudSignals } from "./fraud";
@@ -122,7 +123,7 @@ export default async function AdminPage() {
   if (user.role !== "admin") redirect("/kabinet");
 
   // Tasdiqlash navbati listPendingSpecialists'dan keladi (eng eskisi birinchi, 200 tagacha, avatar + portfolio soni bilan)
-  const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue] = await Promise.all([
+  const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue, contactStats, contactPending] = await Promise.all([
     getAdminOverview(),
     listPendingSpecialists(200),
     listRecentVerified(30),
@@ -137,6 +138,8 @@ export default async function AdminPage() {
     getFraudSignals(),
     listSettingsHistory(12),
     getSubscriptionRevenueSummary(),
+    contactUnlockStats(),
+    pendingContactInvoices().then((r) => r.length).catch(() => 0),
   ]);
   const bans = await banFlagsFor(pending.map((sp) => sp.userId));
   // Demo (seed) yozuvlari soni — tozalash tugmasi faqat ular borida ko'rinadi
@@ -429,7 +432,7 @@ export default async function AdminPage() {
         <section id="moliya" className={SECTION} aria-labelledby="h-moliya">
           <AdminSectionHeading
             title={<span id="h-moliya">Moliya</span>}
-            description={`Komissiya: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Daromad — faqat yakunlangan to'lovlar komissiyasi va obuna (${formatPrice(settings.subscriptionPrice)} / oy).`}
+            description={`Komissiya: yangi ${settings.commissionPctNew}% · oddiy ${settings.commissionPct}% · top ${settings.commissionPctTop}%. Daromad — yakunlangan to'lovlar komissiyasi, obuna (${formatPrice(settings.subscriptionPrice)} / oy) va kontakt sotuvi.`}
           />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Tile icon={BadgePercent} value={money(finance.revenue)} label="Platforma daromadi" hint={`${finance.releasedCount} ta yakunlangan to'lovdan`} hintTone="success" href="#analitika" />
@@ -440,6 +443,14 @@ export default async function AdminPage() {
               hint={subRevenue.pendingManual > 0 ? `${subRevenue.pendingManual} ta o'tkazma tasdiq kutmoqda` : `Bu oy: ${money(subRevenue.revenueMonth)}`}
               hintTone={subRevenue.pendingManual > 0 ? "warning" : "success"}
               href="/admin/obunalar"
+            />
+            <Tile
+              icon={Contact}
+              value={money(contactStats.revenue)}
+              label="Kontakt sotuvi"
+              hint={contactPending > 0 ? `${contactPending} ta o'tkazma tasdiq kutmoqda` : `${contactStats.count} ta ochilgan · 30 kun: ${contactStats.last30} ta`}
+              hintTone={contactPending > 0 ? "warning" : "success"}
+              href="/admin/kontaktlar"
             />
             <Tile icon={Hourglass} value={money(finance.escrowCommission)} label="Eskroudagi komissiya" hint={finance.paidCount > 0 ? `${finance.paidCount} ta to'lov eskrouda · hali daromad emas` : "Eskrou bo'sh"} hintTone={finance.paidCount > 0 ? "warning" : "neutral"} href="#tolovlar" />
             <Tile icon={ShieldCheck} value={money(finance.escrow)} label="Eskrouda (mutaxassis ulushi)" hint={`${finance.paymentsCount} ta to'lov`} href="#tolovlar" />
