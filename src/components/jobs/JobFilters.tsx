@@ -75,7 +75,7 @@ export function JobFilters({ values, basePath = "/ishlar" }: { values: JobFilter
       role="search"
       aria-label={tr(til, ISHLAR.f.formAria)}
       aria-busy={pending}
-      className="card grid min-w-0 grid-cols-2 gap-2.5 p-3 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 sm:p-4 lg:grid-cols-[minmax(0,1fr)_190px_120px_120px_175px_auto]"
+      className="card grid min-w-0 grid-cols-2 gap-2.5 p-3 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 sm:p-4 lg:grid-cols-[minmax(0,1fr)_190px_120px_120px_175px_auto]"
     >
       {values.category && <input type="hidden" name="category" value={values.category} />}
 
