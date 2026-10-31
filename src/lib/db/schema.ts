@@ -228,6 +228,13 @@ export const specialists = sqliteTable(
     priceUsdFrom: integer("price_usd_from"),
     priceUsdTo: integer("price_usd_to"),
     experience: text("experience", { enum: ["junior", "middle", "senior", "expert"] }).notNull().default("middle"),
+    /**
+     * Kontakt rejimi (2026-10-31): "paid" — mijoz kontaktni platformaga to'lab ochadi (contact_unlocks);
+     * "hidden" — faqat portfolio, kontakt hech kimga sotilmaydi (eski PROFILE_HIRING=false xulqi). Admin belgilaydi.
+     */
+    contactMode: text("contact_mode", { enum: ["paid", "hidden"] }).notNull().default("paid"),
+    /** Maxsus kontakt narxi (so'm) — null bo'lsa tajriba darajasi bo'yicha umumiy narx (platform_settings contactPrice*) */
+    contactPrice: integer("contact_price"),
     /** JSON massiv: ["Premiere Pro", "DaVinci"] */
     skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
     /** JSON massiv: ["uz", "ru", "en"] */
@@ -2947,3 +2954,29 @@ export const botDrafts = sqliteTable("bot_drafts", {
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 });
+
+/**
+ * Kontaktni ochish (2026-10-31): mijoz mutaxassis kontaktlarini (telefon/Telegram/Instagram/email) platformaga
+ * to'lab ochadi. Hisob — subscription_invoices (`meta.kind = "contact"`), Payme/Click/qo'lda o'tkazma o'zgarishsiz.
+ * Bitta mijoz — bitta mutaxassis: noyob; qaytarilganda status "refunded" (qayta xarid yangilaydi).
+ */
+export const contactUnlocks = sqliteTable(
+  "contact_unlocks",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    specialistId: text("specialist_id")
+      .notNull()
+      .references(() => specialists.id, { onDelete: "cascade" }),
+    invoiceId: text("invoice_id"),
+    amount: integer("amount").notNull().default(0),
+    status: text("status", { enum: ["paid", "refunded"] }).notNull().default("paid"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [uniqueIndex("contact_unlocks_pair_uq").on(t.clientId, t.specialistId), index("contact_unlocks_sp_idx").on(t.specialistId), index("contact_unlocks_client_idx").on(t.clientId, t.createdAt)],
+);

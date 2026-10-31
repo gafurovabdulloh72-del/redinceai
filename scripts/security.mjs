@@ -237,3 +237,17 @@ for (const path of ["/api/live/begona-efir/token", "/api/qongiroq/token?id=yoq"]
     assert.ok([401, 503].includes(r.status), `${path} kutilgan 401 (yoki 503 — LiveKit sozlanmagan), keldi ${r.status}`);
   });
 }
+
+/* ------------------------- Kontakt sotuvi (2026-10-31) ------------------------- */
+test("Kontakt: mehmon to'lovni boshlay olmaydi → 401", async () => {
+  const r = await fetch(`${BASE}/api/kontakt`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ specialistId: "x", provider: "manual" }) });
+  assert.equal(r.status, 401);
+});
+test("Kontakt: begona/mavjud bo'lmagan hisob holati → 404", async () => {
+  const r = await req("cl", "/api/kontakt/tolov/sub_begona-hisob");
+  assert.equal(r.status, 404);
+});
+test("Kontakt: admin narx/rejim API'si oddiy foydalanuvchiga yopiq → 403", async () => {
+  const r = await req("cl", "/api/admin/kontaktlar", { method: "PATCH", body: JSON.stringify({ specialistId: "x", contactMode: "hidden" }) });
+  assert.equal(r.status, 403);
+});

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { LayoutGrid, MessageCircle, Bell, Bookmark, CalendarClock, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette, Map, Crown, HelpCircle } from "lucide-react";
+import { LayoutGrid, MessageCircle, Bell, Bookmark, CalendarClock, Clock, History, ListVideo, BookmarkCheck, ClipboardList, CreditCard, ExternalLink, FileChartColumn, GraduationCap, Heart, Images, LayoutDashboard, LockKeyhole, LogOut, Megaphone, Send, ShieldCheck, UserRound, Users, UsersRound, Wallet, type LucideIcon, Briefcase, FileUser, SendHorizontal, MoreHorizontal, ChevronRight, Globe, Palette, Map, Crown, HelpCircle, Contact } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -43,7 +43,8 @@ export type KabinetNavIcon =
   | "later"
   | "collections"
   | "closeFriends"
-  | "scheduled";
+  | "scheduled"
+  | "contacts";
 
 /** Holat nuqtasi (masalan, obuna): faol — yashil, tugayapti — sariq, tugagan — qizil */
 export type KabinetNavDot = "success" | "warning" | "danger";
@@ -116,6 +117,7 @@ const ICONS: Record<KabinetNavIcon, LucideIcon> = {
   collections: ListVideo,
   closeFriends: Users,
   scheduled: CalendarClock,
+  contacts: Contact,
 };
 
 /** Gorizontal qator haqiqatan aylanadimi (scroll-fade faqat shunda) */

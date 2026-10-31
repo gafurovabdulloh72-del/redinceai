@@ -190,6 +190,11 @@ export const PLATFORM_DEFAULTS = {
   subscriptionEnforced: 1, // 1 — obunasizlar katalogdan yashiriladi; 0 — o'chirilgan
   urgentPct: 20, // shoshilinch buyurtma ustamasi (%)
   usdRate: 12_700, // 1 USD = so'm (admin belgilaydi, taxminiy narx ko'rsatish uchun)
+  // Kontaktni ochish narxi (so'm) tajriba darajasi bo'yicha — specialists.contactPrice bo'lsa u ustun
+  contactPriceJunior: 30_000,
+  contactPriceMiddle: 50_000,
+  contactPriceSenior: 80_000,
+  contactPriceExpert: 120_000,
 } as const;
 
 /* ------------------------------------------------------------------ */

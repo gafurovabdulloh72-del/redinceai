@@ -364,6 +364,11 @@ export const platformSettingsSchema = z.object({
   subscriptionEnforced: z.coerce.number().int().min(0).max(1).optional(),
   urgentPct: z.coerce.number().int().min(0).max(100).optional(),
   usdRate: z.coerce.number().int().min(1_000).max(100_000).optional(),
+  // Kontaktni ochish narxlari (so'm) — tajriba darajasi bo'yicha
+  contactPriceJunior: z.coerce.number().int().min(0).max(50_000_000).optional(),
+  contactPriceMiddle: z.coerce.number().int().min(0).max(50_000_000).optional(),
+  contactPriceSenior: z.coerce.number().int().min(0).max(50_000_000).optional(),
+  contactPriceExpert: z.coerce.number().int().min(0).max(50_000_000).optional(),
 });
 
 export const orderSchema = z.object({

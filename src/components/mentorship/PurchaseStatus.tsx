@@ -9,14 +9,15 @@ import { showToast } from "@/components/ui/toast";
 type St = { state: "created" | "pending" | "paid" | "cancelled" | "refunded"; provider: "payme" | "click" | "manual"; amount: number; title: string; type: string; itemId: string; redirectUrl: string | null; manual: { card: string; name: string } | null; sent: boolean };
 
 /** To'lovdan keyingi sahifa: holatni kuzatadi (Payme/Click qaytgach), o'tkazma uchun rekvizit va «To'ladim» */
-export function PurchaseStatus({ id, next }: { id: string; next: string }) {
+/** apiBase — xarid turi: mentorlik (standart) yoki kontakt ochish (`/api/kontakt/tolov`) */
+export function PurchaseStatus({ id, next, apiBase = "/api/mentorlik/tolov" }: { id: string; next: string; apiBase?: string }) {
   const [s, setS] = useState<St | null>(null);
   const [busy, setBusy] = useState(false);
   const timer = useRef<number>(0);
 
   async function load() {
     try {
-      const r = await fetch(`/api/mentorlik/tolov/${id}`, { cache: "no-store" });
+      const r = await fetch(`${apiBase}/${id}`, { cache: "no-store" });
       const j = (await r.json()) as { data?: St };
       if (j.data) setS(j.data);
     } catch {
@@ -28,7 +29,7 @@ export function PurchaseStatus({ id, next }: { id: string; next: string }) {
     timer.current = window.setInterval(() => document.visibilityState === "visible" && void load(), 4000);
     return () => window.clearInterval(timer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, apiBase]);
   useEffect(() => {
     if (s && (s.state === "paid" || s.state === "cancelled" || s.state === "refunded")) window.clearInterval(timer.current);
   }, [s]);
@@ -36,7 +37,7 @@ export function PurchaseStatus({ id, next }: { id: string; next: string }) {
   async function sent() {
     setBusy(true);
     try {
-      const r = await fetch(`/api/mentorlik/tolov/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sent" }) });
+      const r = await fetch(`${apiBase}/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sent" }) });
       if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Xatolik");
       showToast("Rahmat! Administrator o'tkazmani tasdiqlaydi", "success");
       await load();

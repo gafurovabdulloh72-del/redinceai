@@ -12,6 +12,7 @@ import { isProviderConfigured, paymentsEnv } from "@/lib/payments/config";
 import { getSettings, type PlatformSettings } from "@/lib/payments/settings";
 import { audit } from "@/lib/security/audit";
 import { afterPaidInvoice, fulfillPurchase, isPurchase, purchaseHref, purchaseMeta, releaseHolds, revokePurchase } from "@/lib/mentorship/purchases";
+import { afterContactPaidInvoice, contactHref, contactMeta, fulfillContactUnlock, isContactUnlock, revokeContactUnlock } from "@/lib/contacts/unlock";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { addMonths, planDiscountPct, planPrice, subscriptionPeriod, subscriptionState } from "./access";
 import { invoiceNumber, type InvoiceView, type PlanView } from "./labels";
@@ -114,7 +115,7 @@ export function canViewInvoice(i: Pick<SubscriptionInvoice, "userId" | "speciali
  */
 export function buildInvoiceRedirectUrl(invoice: Pick<SubscriptionInvoice, "id" | "amount" | "provider"> & { meta?: SubscriptionInvoice["meta"] }, origin: string): string | null {
   const env = paymentsEnv();
-  const back = `${origin}${invoice.meta && isPurchase({ meta: invoice.meta }) ? purchaseHref(invoice.id) : invoiceHref(invoice.id)}`;
+  const back = `${origin}${invoice.meta && isContactUnlock({ meta: invoice.meta }) ? contactHref(invoice.id) : invoice.meta && isPurchase({ meta: invoice.meta }) ? purchaseHref(invoice.id) : invoiceHref(invoice.id)}`;
   if (invoice.provider === "payme") {
     if (!env.payme.merchantId) return null;
     const params = `m=${env.payme.merchantId};ac.order_id=${invoice.id};a=${invoice.amount * 100};c=${back};l=uz`;
@@ -254,6 +255,11 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
       .where(and(eq(subscriptionInvoices.id, id), inArray(subscriptionInvoices.state, [...INVOICE_OPEN_STATES])))
       .returning();
     if (!row) return null;
+    // Kontaktni ochish: mijozga kontakt ochiladi (platforma tushumi, daromad taqsimoti yo'q)
+    if (isContactUnlock(row)) {
+      await fulfillContactUnlock(tx, row);
+      return { row, sp: null };
+    }
     // Mentorlik xaridi (kurs/chipta/obuna/konsultatsiya): kirish ochiladi, daromad yoziladi — mutaxassis obunasiga tegilmaydi
     if (isPurchase(row)) {
       await fulfillPurchase(tx, row);
@@ -274,6 +280,7 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
     throw new ApiError(409, "Hisob holati o'zgargan — qayta tasdiqlab bo'lmaydi");
   }
   const { row, sp } = result;
+  if (isContactUnlock(row)) await afterContactPaidInvoice(row).catch((e) => console.error("[contact:after]", e));
   if (isPurchase(row)) await afterPaidInvoice(row).catch((e) => console.error("[purchase:after]", e));
   if (sp && row.periodEnd) {
     await notify(
@@ -326,8 +333,12 @@ export async function markInvoiceSent(invoice: SubscriptionInvoice, actorId: str
     type: "subscription_pending",
     id: row.id,
     title: "Obuna o'tkazmasi tasdiqlashni kutmoqda",
-    body: isPurchase(row) ? `Mentorlik xaridi: ${purchaseMeta(row).title} — ${formatPrice(row.amount)} o'tkazilganini bildirdi (${invoiceNumber(row.id)}).` : `${sp?.user.name ?? "Mutaxassis"} — ${row.months} oylik obuna uchun ${formatPrice(row.amount)} o'tkazganini bildirdi (${invoiceNumber(row.id)}).`,
-    href: isPurchase(row) ? "/admin/mentorlik" : "/admin/obunalar?status=pending",
+    body: isContactUnlock(row)
+      ? `${contactMeta(row).title} — ${formatPrice(row.amount)} o'tkazilganini bildirdi (${invoiceNumber(row.id)}).`
+      : isPurchase(row)
+        ? `Mentorlik xaridi: ${purchaseMeta(row).title} — ${formatPrice(row.amount)} o'tkazilganini bildirdi (${invoiceNumber(row.id)}).`
+        : `${sp?.user.name ?? "Mutaxassis"} — ${row.months} oylik obuna uchun ${formatPrice(row.amount)} o'tkazganini bildirdi (${invoiceNumber(row.id)}).`,
+    href: isContactUnlock(row) ? "/admin/kontaktlar" : isPurchase(row) ? "/admin/mentorlik" : "/admin/obunalar?status=pending",
     receiptUrl,
   });
   await audit(actorId, "subscription_created", { targetType: "subscription_invoice", targetId: row.id, meta: { manualSent: true, amount: row.amount, months: row.months, receipt: Boolean(receiptUrl) } }, req);
@@ -377,7 +388,9 @@ export async function refundInvoice(id: string, actorId: string | null, opts: { 
       .where(and(eq(subscriptionInvoices.id, id), eq(subscriptionInvoices.state, "paid")))
       .returning();
     if (!row) return null;
-    if (isPurchase(row)) {
+    if (isContactUnlock(row)) {
+      await revokeContactUnlock(tx, row);
+    } else if (isPurchase(row)) {
       await revokePurchase(tx, row);
       return { row, newUntil: null as Date | null, userId: null as string | null };
     }
@@ -416,7 +429,9 @@ export async function refundInvoice(id: string, actorId: string | null, opts: { 
     throw new ApiError(409, "Hisob holati o'zgargan — sahifani yangilang");
   }
   const { row, newUntil, userId } = result;
-  if (isPurchase(row) && row.userId) {
+  if (isContactUnlock(row) && row.userId) {
+    await notify(row.userId, "payment_refunded", `To'lov qaytarildi: ${formatPrice(row.amount)}`, `${contactMeta(row).title} bo'yicha to'lov qaytarildi, kontakt yopildi.`, contactHref(row.id));
+  } else if (isPurchase(row) && row.userId) {
     await notify(row.userId, "payment_refunded", `To'lov qaytarildi: ${formatPrice(row.amount)}`, `${purchaseMeta(row).title} bo'yicha to'lov qaytarildi, kirish yopildi.`, purchaseHref(row.id));
   }
   if (userId) {

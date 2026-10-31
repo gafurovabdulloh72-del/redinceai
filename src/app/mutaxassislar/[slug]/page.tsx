@@ -29,6 +29,8 @@ import {
 import { Avatar, ButtonLink, Stars, VerifiedBadge } from "@/components/ui";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ContactPanel } from "@/components/specialists/ContactPanel";
+import { ContactUnlockCard } from "@/components/contacts/ContactUnlockCard";
+import { contactPriceFor, hasContactUnlock } from "@/lib/contacts/unlock";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { Highlights } from "@/components/stories/Highlights";
 import { ReviewForm } from "@/components/specialists/ReviewForm";
@@ -205,13 +207,18 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   // hasOrder — maxfiylik darajalari ("orders") uchun: qabul qilingan/jarayonda/bajarilgan buyurtma yetarli.
   // hasDoneOrder — sharh huquqi uchun: faqat YAKUNLANGAN (done) buyurtma (server ham shuni tekshiradi).
-  const [hasOrder, hasDoneOrder] =
-    viewer && !isOwner ? await Promise.all([hasAcceptedOrderWith(viewer.id, raw.id), hasCompletedOrderWith(viewer.id, raw.id)]) : [false, false];
+  const [hasOrder, hasDoneOrder, contactUnlocked] =
+    viewer && !isOwner ? await Promise.all([hasAcceptedOrderWith(viewer.id, raw.id), hasCompletedOrderWith(viewer.id, raw.id), hasContactUnlock(viewer.id, raw.id)]) : [false, false, false];
   const effectiveViewer: Viewer = previewMode
     ? previewMode === "guest"
       ? { userId: null }
       : { userId: viewer!.id, role: "client", hasOrder: previewMode === "order" }
-    : { userId: viewer?.id ?? null, role: viewer?.role ?? null, isOwner, hasOrder };
+    : { userId: viewer?.id ?? null, role: viewer?.role ?? null, isOwner, hasOrder, contactUnlocked };
+  // KONTAKT SOTILADI (2026-10-31): contactMode="paid" — mijoz/boshqa mutaxassis platformaga to'lab kontaktni ochadi;
+  // "hidden" — faqat portfolio (kontakt umuman sotilmaydi). Egasi/admin uchun karta chiqmaydi (ular kontaktni ko'radi).
+  const contactPrice = contactPriceFor(raw, settings);
+  const showContactUnlock = !PROFILE_HIRING && raw.contactMode === "paid" && !isOwner && !isAdmin && !contactUnlocked && !blockedAny;
+  const showUnlockedContacts = !PROFILE_HIRING && !previewMode && contactUnlocked && !isOwner;
 
   const sp = filterSpecialistForViewer(raw, effectiveViewer);
   const vis = resolveVisibility(raw.visibility);
@@ -727,6 +734,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           )}
 
           {/* Aloqa — mobil/planshet (desktopda yon panelda) */}
+          {showContactUnlock && <ContactUnlockCard className="lg:hidden" specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />}
+          {showUnlockedContacts && (
+            <ContactPanel className="lg:hidden" contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }} locked={sp.locked} loginHref={loginHref} orderHref={null} />
+          )}
           {!PROFILE_HIRING ? null : contactsLocked ? (
             <LockedContacts className="lg:hidden" />
           ) : (
@@ -1010,6 +1021,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </div>
             )}
 
+            {showContactUnlock && <ContactUnlockCard specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />}
+            {showUnlockedContacts && (
+              <ContactPanel contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }} locked={sp.locked} loginHref={loginHref} orderHref={null} />
+            )}
             {!PROFILE_HIRING ? null : contactsLocked ? (
               <LockedContacts />
             ) : (

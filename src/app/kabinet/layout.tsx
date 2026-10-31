@@ -168,6 +168,8 @@ export default async function KabinetLayout({ children }: { children: React.Reac
 
   // Mentorlik (barcha rollar: talaba sifatida o'qish, mutaxassis sifatida dars berish)
   items.push({ href: "/kabinet/mentorlik", label: "Mentorlik", icon: "mentorship", group: "Faoliyat" });
+  // Kontaktlar (2026-10-31): mijoz — sotib olgan kontaktlari; mutaxassis — kontaktini kim olgani + «faqat portfolio» rejimi
+  items.push({ href: "/kabinet/kontaktlar", label: "Kontaktlar", icon: "contacts", group: "Faoliyat" });
 
   // Vakansiyalar bo'limi (barcha rollar, to'lovsiz)
   items.push({ href: "/kabinet/vakansiyalar", label: "Vakansiyalar", icon: "vacancies", group: "Vakansiyalar" });

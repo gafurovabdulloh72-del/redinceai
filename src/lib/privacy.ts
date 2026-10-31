@@ -53,6 +53,8 @@ export interface Viewer {
   isOwner?: boolean;
   /** Shu mutaxassis bilan qabul qilingan / jarayondagi / bajarilgan buyurtmasi bor */
   hasOrder?: boolean;
+  /** Kontaktni PLATFORMAGA to'lab ochgan (contact_unlocks, 2026-10-31) — aloqa maydonlari to'liq ko'rinadi */
+  contactUnlocked?: boolean;
 }
 
 export const GUEST_VIEWER: Viewer = { userId: null };
@@ -137,6 +139,8 @@ export function filterSpecialistForViewer<T extends SpecialistLike>(sp: T, viewe
   const gate = <V,>(key: VisibilityFieldKey, value: V, empty: V): V => {
     // Platforma qoidasi (PROFILE_HIRING=false): ijodkorlarning aloqa vositalari egasi va adminlardan boshqa HECH KIMGA ko'rinmaydi
     // (buyurtma qabul qilingan bo'lsa ham) — "yopiq" belgisi ham qo'yilmaydi, iz qolmaydi
+    // Kontaktni ochgan (to'lagan) ko'ruvchi — maxfiylik darajasidan qat'i nazar to'liq ko'radi
+    if (HIDDEN_CONTACT_KEYS.includes(key) && viewer.contactUnlocked) return value;
     if (!PROFILE_HIRING && HIDDEN_CONTACT_KEYS.includes(key) && !viewer.isOwner && viewer.role !== "admin") return empty;
     if (canView(vis[key], viewer)) return value;
     const reason = lockReason(vis[key], viewer);

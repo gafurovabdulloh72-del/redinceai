@@ -51,8 +51,8 @@ export type PurchaseMeta = {
   creditUsed?: number;
 };
 
-/** SQL sharti: mutaxassis obunasi hisoblari (mentorlik xaridlari emas) — obuna hisobotlari/analitika uchun */
-export const notPurchaseSql = sql`coalesce(json_extract(${subscriptionInvoices.meta}, '$.kind'), '') <> 'purchase'`;
+/** SQL sharti: mutaxassis obunasi hisoblari (mentorlik xaridlari va kontakt ochish EMAS) — obuna hisobotlari/analitika uchun */
+export const notPurchaseSql = sql`coalesce(json_extract(${subscriptionInvoices.meta}, '$.kind'), '') not in ('purchase', 'contact')`;
 
 export const isPurchase = (i: Pick<SubscriptionInvoice, "meta">): boolean => (i.meta as { kind?: string } | null)?.kind === "purchase";
 export const purchaseMeta = (i: Pick<SubscriptionInvoice, "meta">) => i.meta as unknown as PurchaseMeta;
