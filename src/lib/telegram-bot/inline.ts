@@ -4,6 +4,7 @@ import { siteUrl } from "@/lib/security/site";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { searchPeople } from "@/lib/telegram-bot/actions";
 import { formatPrice } from "@/lib/utils";
+import { botLang, L } from "@/lib/telegram-bot/lang";
 
 /**
  * INLINE REJIM (2026-10-31): istalgan chatda `@bot montajchi` → ijodkor kartalari (article natijalar) — tanlangani
@@ -11,12 +12,13 @@ import { formatPrice } from "@/lib/utils";
  * BotFather'da /setinline yoqilgan bo'lishi va webhook `allowed_updates`da `inline_query` bo'lishi shart
  * (admin panel → «Webhookni yangilash»).
  */
-export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; offset?: unknown }): Promise<void> {
+export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; offset?: unknown; from?: { language_code?: string } }): Promise<void> {
   const id = iq.id != null ? String(iq.id) : "";
   if (!id) return;
   const q = (typeof iq.query === "string" ? iq.query : "").trim().slice(0, 80);
   const s = siteUrl() ?? "";
-  const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : "yangi");
+  const lang = botLang(iq.from?.language_code);
+  const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : L(lang, "yangi", "новый"));
   let results: unknown[] = [];
   try {
     const people = await searchPeople(q, 10);
@@ -28,14 +30,14 @@ export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; off
         type: "article",
         id: p.slug.slice(0, 64),
         title: `${p.name}${p.isVerified ? " ✅" : ""}`,
-        description: `${p.title || cat} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${p.contactPrice === null ? " · faqat portfolio" : p.contactPrice ? ` · kontakt ${formatPrice(p.contactPrice, { compact: true })}` : ""}`,
+        description: `${p.title || cat} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${p.contactPrice === null ? L(lang, " · faqat portfolio", " · только портфолио") : p.contactPrice ? ` · ${L(lang, "kontakt", "контакт")} ${formatPrice(p.contactPrice, { compact: true })}` : ""}`,
         ...(thumb ? { thumbnail_url: thumb, thumb_url: thumb } : {}),
         input_message_content: {
-          message_text: `<b>${escapeTelegramHtml(p.name)}</b>${p.isVerified ? " ✅" : ""} — ${escapeTelegramHtml(p.title || cat)}\n${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount} sharh)` : ""} · Kasb Egalari\n${url}`,
+          message_text: `<b>${escapeTelegramHtml(p.name)}</b>${p.isVerified ? " ✅" : ""} — ${escapeTelegramHtml(p.title || cat)}\n${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount} ${L(lang, "sharh", "отз.")})` : ""} · Kasb Egalari\n${url}`,
           parse_mode: "HTML",
           disable_web_page_preview: false,
         },
-        reply_markup: { inline_keyboard: [[{ text: "Profilni ochish", url }]] },
+        reply_markup: { inline_keyboard: [[{ text: L(lang, "Profilni ochish", "Открыть профиль"), url }]] },
       };
     });
   } catch (e) {
@@ -46,6 +48,6 @@ export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; off
     results,
     cache_time: 60,
     is_personal: false,
-    ...(results.length === 0 && s.startsWith("https://") ? { button: { text: `«${q || "ijodkor"}» — katalogda qidirish`, web_app: { url: `${s}/tg?to=${encodeURIComponent(`/qidiruv?q=${encodeURIComponent(q)}`)}` } } } : {}),
+    ...(results.length === 0 && s.startsWith("https://") ? { button: { text: L(lang, `«${q || "ijodkor"}» — katalogda qidirish`, `«${q || "специалист"}» — искать в каталоге`), web_app: { url: `${s}/tg?to=${encodeURIComponent(`/qidiruv?q=${encodeURIComponent(q)}`)}` } } } : {}),
   });
 }

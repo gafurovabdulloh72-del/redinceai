@@ -2,6 +2,8 @@ import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { ApiError, handler, ok } from "@/lib/api";
 import { createSession, getVerifiedSession } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE } from "@/lib/i18n";
 import { createTelegramAccount, findTelegramUser } from "@/lib/auth/telegram-login";
 import { verifyWebAppInitData } from "@/lib/auth/telegram-webapp";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
@@ -38,6 +40,14 @@ const registerSchema = z.object({
  *  - `register: {...}` → savollarga javob berilgan: hisob yaratiladi (`createTelegramAccount`) → sessiya → /xush-kelibsiz
  *  - `link: true` + kirgan sessiya → Telegram chati shu hisobga ulanadi («Ha, akkauntim bor» yo'li); sessiya yo'q → 401
  */
+/** Telegram tili ruscha bo'lsa sayt tilini `ru` qilamiz — faqat foydalanuvchi hali til tanlamagan bo'lsa (cookie yo'q) */
+async function applyTelegramLocale(code: string | undefined): Promise<void> {
+  if (!code || !code.toLowerCase().startsWith("ru")) return;
+  const jar = await cookies();
+  if (jar.get(LOCALE_COOKIE)) return;
+  jar.set(LOCALE_COOKIE, "ru", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+}
+
 export const POST = handler(async (req) => {
   if (!isTelegramEnabled()) throw new ApiError(503, "Telegram bot sozlanmagan");
   const body = (await req.json().catch(() => ({}))) as { initData?: unknown; to?: unknown; link?: unknown; register?: unknown };
@@ -47,6 +57,7 @@ export const POST = handler(async (req) => {
   // Chegara imzo tekshiruvidan KEYIN va Telegram user id bo'yicha: bitta mobil operator IP'si ortida minglab foydalanuvchi bo'ladi
   await enforceLimit("tgApp", `tg:${chatId}`);
   const tgName = [v.user.first_name, v.user.last_name].filter(Boolean).join(" ");
+  await applyTelegramLocale(v.user.language_code);
 
   if (body.link === true) {
     const session = await getVerifiedSession();

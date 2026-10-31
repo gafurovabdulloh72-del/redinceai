@@ -70,7 +70,7 @@ interface TelegramUpdate {
     contact?: { phone_number?: unknown; user_id?: unknown };
   };
   pre_checkout_query?: { id: string; from?: { id?: unknown }; invoice_payload?: unknown; total_amount?: unknown; currency?: unknown };
-  inline_query?: { id?: unknown; from?: { id?: unknown }; query?: unknown; offset?: unknown };
+  inline_query?: { id?: unknown; from?: { id?: unknown; language_code?: string }; query?: unknown; offset?: unknown };
   callback_query?: {
     id?: unknown;
     data?: unknown;
@@ -148,7 +148,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
   if (chatId && (await handleContactPayCallback(chatId, data, answer))) return;
   if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
-  if (chatId && (await handlePostCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handlePostCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
@@ -284,7 +284,7 @@ export async function POST(req: Request) {
               ? { fileId: vidDoc.file_id, kind: "video", mime: vidDoc.mime_type ?? "video/mp4", size: vidDoc.file_size ?? 0 }
               : null;
       if (media) {
-        await handleIncomingMedia(chatId, media, typeof msg.caption === "string" ? msg.caption : "");
+        await handleIncomingMedia(chatId, media, typeof msg.caption === "string" ? msg.caption : "", botLang(msg.from?.language_code));
         return Response.json({ ok: true });
       }
       // Ro'yxatdan o'tishda «Raqamni ulashish» — faqat o'z raqami (user_id = from.id)
@@ -309,7 +309,7 @@ export async function POST(req: Request) {
     if (!cmd.startsWith("/")) {
       if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
       if (await handleBroadcastText(chatId, text)) return Response.json({ ok: true });
-      if (await handlePostText(chatId, text)) return Response.json({ ok: true });
+      if (await handlePostText(chatId, text, lang)) return Response.json({ ok: true });
       if (await handleAdminPriceText(chatId, text)) return Response.json({ ok: true });
     } else {
       await clearBotSession(chatId).catch(() => undefined);
@@ -341,7 +341,7 @@ export async function POST(req: Request) {
     else if (cmd === "/sozlamalar") await handleSettings(chatId, lang);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName, lang);
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
-    else if (cmd === "/post") await sendPostHelp(chatId);
+    else if (cmd === "/post") await sendPostHelp(chatId, lang);
     else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId, lang);
     else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx" || cmd === "/shikoyatlar" || cmd === "/mentorlar" || cmd === "/nizolar" || cmd === "/payoutlar") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
