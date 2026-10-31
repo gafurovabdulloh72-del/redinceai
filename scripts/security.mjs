@@ -264,3 +264,8 @@ test("Admin Telegram sinov xabari oddiy foydalanuvchiga yopiq → 403", async ()
   const r = await req("cl", "/api/admin/telegram", { method: "PATCH" });
   assert.equal(r.status, 403);
 });
+
+test("Kontakt Telegram to'lovi: mehmon → 401", async () => {
+  const r = await fetch(`${BASE}/api/kontakt/telegram`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ specialistId: "x" }) });
+  assert.equal(r.status, 401);
+});

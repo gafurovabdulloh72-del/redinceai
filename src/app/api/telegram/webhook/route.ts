@@ -20,6 +20,7 @@ import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdm
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
 import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
+import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -33,7 +34,7 @@ import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPric
  *   /start           — xush kelibsiz ekrani (banner + doimiy menyu yoki «Hisobni ulash»)
  *   /start <kod>     — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
  *   /start l_<kod>   — «Telegram bilan kirish» tasdig'i
- *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
+ *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts); b_x_<id> — kontakt ochish (lib/telegram-bot/contact-pay.ts)
  *   /ilova · /buyurtmalarim · /xabarlar · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
  *   /profil · /sozlamalar · /yordam · /stop · /elon (faqat admin: ommaviy e'lon, auditoriya tugmalari)
  *   /admin · /stat · /navbat · /tolovlar · /user <q> — admin boti (lib/telegram-bot/admin.ts), tugmalar `adm:*`
@@ -144,6 +145,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined };
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
+  if (chatId && (await handleContactPayCallback(chatId, data, answer))) return;
   if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handlePostCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
@@ -323,7 +325,7 @@ export async function POST(req: Request) {
       // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */
-      } else if (!(arg.startsWith("b_") && (await handleBuyStart(chatId, arg)))) await handleStart(chatId, arg, firstName);
+      } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg)) || (await handleContactBuyStart(chatId, arg))))) await handleStart(chatId, arg, firstName);
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
     else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId);
     else if (cmd === "/xabarlar") await handleMessages(chatId);

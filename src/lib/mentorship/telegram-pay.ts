@@ -131,13 +131,14 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
     }
     // «To'ladim» — faqat o'z hisobi, faqat xarid hisobi
     const inv = await loadInvoice(done![1]);
-    if (!inv || inv.userId !== user.id || !isPurchase(inv)) {
+    const { isContactUnlock, contactMeta } = await import("@/lib/contacts/unlock");
+    if (!inv || inv.userId !== user.id || !(isPurchase(inv) || isContactUnlock(inv))) {
       await answer("Hisob topilmadi");
       return true;
     }
     await markInvoiceSent(inv, user.id);
     await answer("Yuborildi ✓");
-    await sendTelegram(chatId, `⏳ O'tkazma tasdiqlashni kutmoqda: <b>${escapeTelegramHtml(purchaseMeta(inv).title)}</b>. Tasdiqlangach xabar beramiz.`);
+    await sendTelegram(chatId, `⏳ O'tkazma tasdiqlashni kutmoqda: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Tasdiqlangach xabar beramiz.`);
   } catch (e) {
     await answer(e instanceof ApiError ? e.message : "Xatolik — saytdan urinib ko'ring");
   }

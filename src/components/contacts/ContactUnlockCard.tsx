@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, LogIn, ShieldCheck, Unlock } from "lucide-react";
+import { Loader2, Lock, LogIn, Send, ShieldCheck, Unlock } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -12,12 +12,14 @@ import { cn, formatPrice } from "@/lib/utils";
 
 const PROVIDER_LABEL = { payme: "Payme", click: "Click", manual: "Karta o'tkazmasi" } as const;
 type Provider = keyof typeof PROVIDER_LABEL;
-type Quote = { specialistId: string; title: string; amount: number; unlocked: boolean; providers: Provider[] };
+type Quote = { specialistId: string; title: string; amount: number; unlocked: boolean; providers: Provider[]; telegram?: boolean };
 
 const T = {
   title: { uz: "Aloqa", ru: "Контакты" },
   hidden: { uz: "Telefon, Telegram, Instagram va email — to'lovdan so'ng ochiladi", ru: "Телефон, Telegram, Instagram и email откроются после оплаты" },
   note: { uz: "To'lov platformaga qilinadi, kontakt shu zahoti profilda ko'rinadi va kabinetingizda saqlanadi.", ru: "Оплата идёт платформе, контакт сразу появится в профиле и сохранится в кабинете." },
+  tg: { uz: "Telegramda to'lash", ru: "Оплатить в Telegram" },
+  tgLink: { uz: "Avval botga ulaning — «Start» bosing, so'ng bu tugmani qayta bosing", ru: "Сначала подключите бота — нажмите «Start», затем нажмите кнопку ещё раз" },
   open: { uz: "Kontaktni ochish", ru: "Открыть контакт" },
   free: { uz: "Bepul ochish", ru: "Открыть бесплатно" },
   login: { uz: "Kirish", ru: "Войти" },
@@ -66,6 +68,22 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
   useEffect(() => {
     if (open) void load();
   }, [open, load]);
+
+  /** Telegram bot orqali to'lash: bot narx + usul tugmalarini beradi, chek rasmini botga yuboradi */
+  async function payViaTelegram() {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/kontakt/telegram", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ specialistId }) });
+      const j = (await r.json()) as { data?: { linked: boolean; url: string }; error?: string };
+      if (!r.ok || !j.data) throw new Error(j.error || tr(til, T.err));
+      if (!j.data.linked) showToast(tr(til, T.tgLink), "info");
+      window.open(j.data.url, "_blank", "noopener");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : tr(til, T.err), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function pay() {
     if (!q) return;
@@ -122,6 +140,11 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
           <button type="button" disabled={busy || (q.amount > 0 && !provider)} onClick={() => void pay()} className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold disabled:opacity-50">
             {busy && <Loader2 size={16} className="animate-spin" />} {q.amount <= 0 ? tr(til, T.free) : `${tr(til, T.pay)} — ${formatPrice(q.amount)}`}
           </button>
+          {q.amount > 0 && q.telegram && (
+            <button type="button" disabled={busy} onClick={() => void payViaTelegram()} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-line-2 text-[14px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
+              <Send size={15} /> {tr(til, T.tg)}
+            </button>
+          )}
           <p className="text-center text-[12px] text-fg-3">{tr(til, T.note)}</p>
         </div>
       )}
