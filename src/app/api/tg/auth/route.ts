@@ -14,13 +14,15 @@ import { enforceLimit } from "@/lib/security/rate-limit";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { setAdminCommands } from "@/lib/telegram-bot/ui";
 import { optionalPhone } from "@/lib/validators";
+import { safeInternalPath } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
 /** Ichki yo'l: faqat "/..." (ochiq yo'naltirish yo'q) */
+/** Faqat shu saytdagi yo'l. Umumiy `safeInternalPath`: boshqaruv belgilari ham rad etiladi — URL parser tab/yangi
+ *  qatorni tashlab yuboradi, `/\t/evil.com` → `//evil.com` (protokolsiz begona manzil) bo'lib qolardi */
 function safePath(p: unknown): string {
-  if (typeof p !== "string" || !p.startsWith("/") || p.startsWith("//") || p.includes("\\")) return "/";
-  return p.slice(0, 300);
+  return (typeof p === "string" ? safeInternalPath(p) : undefined)?.slice(0, 300) ?? "/";
 }
 
 /** Mini App ichidagi ro'yxat savollari (TgRegister) — botdagi savol-javob bilan bir xil maydonlar */
