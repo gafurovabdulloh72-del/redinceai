@@ -58,7 +58,9 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - RUS TILI (kabinet qobig'i): `i18n/dict/kabinet.ts` — kabinet navigatsiyasi (bandlar, guruhlar, «Kashf etish», sozlamalar, rol, nuqta
   yorliqlari), telefon «Menyu» sarlavhasi, Telegram eslatmasi va 34 ta kabinet sahifa sarlavhasi (`generateMetadata` + `KABINET_NAV.titles`).
   QOLGANI: kabinet sahifalarining ichki matni (umumiy, buyurtmalar, bildirishnomalar, chat, profil…) va vakansiyalar bo'limi hali faqat o'zbekcha —
-  alohida katta blok (yuzlab satr), foydalanuvchi qarori bilan.
+  alohida katta blok (yuzlab satr), foydalanuvchi qarori bilan. Qo'shimcha: 8 ta ommaviy sahifaning telefon sarlavhasi (`m-title`)
+  tilga mos (qidiruv, jamoalar, yordam, haqida, TOP, xarita, narxlar, mutaxassislar); `formatDate(date, "ru")` / `monthLabel(key, "ru")`
+  — TOP sahifasida ruscha sana.
 
 ## Tuzatilgan kamchiliklar
 - Buyurtma sehrgari kasb qatorlari ekrandan 48px chiqib ketardi (grid `minmax(0,1fr)`), sehrgar kartasi telefonda yassi.
