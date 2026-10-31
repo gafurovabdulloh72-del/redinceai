@@ -293,3 +293,15 @@ test("Kontakt Telegram to'lovi: mehmon → 401", async () => {
   const r = await fetch(`${BASE}/api/kontakt/telegram`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ specialistId: "x" }) });
   assert.equal(r.status, 401);
 });
+
+test("CSP hisobotlari: report-uri ulangan, qabul qiluvchi chegaralangan (204/400/413/405)", async () => {
+  const csp = (await req("guest", "/")).headers.get("content-security-policy") ?? "";
+  assert.ok(csp.includes("report-uri /api/csp-report"), "CSP'da report-uri yo'q");
+  const post = (body, type = "application/csp-report") =>
+    fetch(`${BASE}/api/csp-report`, { method: "POST", headers: { "content-type": type }, body });
+  const ok = await post(JSON.stringify({ "csp-report": { "violated-directive": "img-src", "blocked-uri": "https://ci.example/x.png", "document-uri": `${BASE}/?token=sir` } }));
+  assert.equal(ok.status, 204, `to'g'ri hisobot qabul qilinmadi: ${ok.status}`);
+  assert.equal((await post("{buzuq")).status, 400);
+  assert.equal((await post("x".repeat(20_000))).status, 413);
+  assert.equal((await fetch(`${BASE}/api/csp-report`)).status, 405);
+});

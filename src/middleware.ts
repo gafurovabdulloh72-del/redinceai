@@ -161,6 +161,10 @@ function buildCsp(nonce: string): string {
     "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
     "base-uri 'self'",
     `form-action 'self' ${PAYMENT_HOSTS}`,
+    // Buzilish hisobotlari (XSS urinishi yoki noto'g'ri sozlangan manba) — /api/csp-report (Vercel loglarida «[csp]»).
+    // Faqat report-uri: `report-to` qo'shilsa Chrome report-uri'ni e'tiborsiz qoldiradi va Reporting API'ga o'tadi —
+    // u to'plab, kechiktirib yuboradi va background-sync ruxsati bloklangan brauzerda umuman yubormaydi (sinovda tasdiqlangan)
+    "report-uri /api/csp-report",
   ].join("; ");
 }
 
