@@ -334,8 +334,12 @@ Hammasi kodda yopildi, `scripts/security.mjs` 45 ta test (oldin 21), bot oqimlar
 | 16 | Hisobga yangi Telegram ulanganda (yoki boshqasi almashtirilganda) egaga xabar yo'q edi — begona Telegram ulansa, barcha bildirishnomalar (to'lov, xabar, kirish tasdiqlari) jimgina unga oqardi | 🟡 | Chat haqiqatan o'zgarganda «Telegram hisobingizga ulandi» — sayt + email (+ yangi Telegram), oldingi uzilgani haqida; bot `/start <kod>` va Mini App `link` yo'llarida. Vaqtinchalik hisob bilan sinaldi, bot testlari 9/9 |
 | 17 | Ma'lumot eksporti (`/api/account/export`): ichki admin izohi (`admin_note` — moderatsiya eslatmasi) va `googleId` foydalanuvchiga chiqib ketardi; eksport faqat sessiya bilan ishlaydi va egaga xabar bermasdi | 🟡 | `adminNote/adminNoteAt/googleId` eksportdan chiqarildi (maxfiy kalitlar avvaldan chiqarilgan). Eksport qilinganda egaga «Ma'lumotlaringiz yuklab olindi» (sayt + Telegram + email) — o'g'irlangan sessiya bilan yuklansa sezib qolinadi. Parol so'rash (re-auth) — keyingi qadam (UI o'zgaradi) |
 
+**Tekshirildi — muammo yo'q:** 34 ta admin API'ning hammasida `requireSession(["admin"])`; profil yangilashda imtiyozli maydon yo'q (zod noma'lum maydonlarni tashlaydi); parol tiklash (xeshlangan bir martalik token, sessiya versiyasi, 2FA chetlab o'tilmaydi); TOTP qayta ishlatishdan himoya; R2 presign imzosida hajm/tur; qo'ng'iroq/efir tokenlari faqat ishtirokchiga; SSE oqimi faqat o'z suhbatlari; CDN keshlanadigan javoblar shaxsiy emas; CORS ochiq emas; xom HTML/`eval` yo'q; dinamik RegExp'lar ekranlangan; loglarda token/URL yo'q; bloklangan foydalanuvchi Telegram/Mini App/Google orqali ham kira olmaydi; bot HTML xabarlarida foydalanuvchi matni ekranlangan; kontakt sotuvi («faqat portfolio», o'z profili, yashirin) to'g'ri cheklangan.
+
 **Qolgan (keyingi blok):**
 - Admin uchun 2FA'ni **majburiy** qilish (hozir ogohlantirish) — avval barcha adminlar yoqqanini tekshirish kerak, aks holda o'zingizni qulflab qo'yasiz.
+- Ma'lumot eksportiga qayta parol so'rash (hozir — egaga xabar).
+- Telegram orqali ochilgan hisoblar (parol tasodifiy, email `tg…@telegram.local`) hisobni o'chirish / email o'zgartirishni tasdiqlay olmaydi — bot orqali tasdiqlash oqimi kerak.
 - 24-band: imzolangan (muddatli) fayl URL'lari — Blob public store'da hozircha ochiq havola.
 - Paket migratsiyalari: drizzle 0.45, zod v4, Next 16 (postcss), @vercel/blob 2.x — har biri alohida blok, breaking o'zgarishlar bor.
 - Sentry yoki boshqa xato monitoringi (28) — sizning qaroringiz bilan (CSP'ga yangi xost kiradi).
