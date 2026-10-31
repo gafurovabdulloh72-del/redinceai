@@ -115,6 +115,11 @@ export async function afterContactPaid(buyerId: string, specialistId: string, am
   const profile = `/mutaxassislar/${sp.slug}`;
   await notify(buyerId, "subscription_paid", amount ? `Kontakt ochildi — ${formatPrice(amount)}` : "Kontakt ochildi", `${sp.user.name} — telefon, Telegram va boshqa aloqa vositalari endi profilda ko'rinadi.`, profile).catch(() => undefined);
   await notify(sp.userId, "account", "Kontaktingizni mijoz oldi", `${buyer?.name ?? "Mijoz"} profilingizdagi aloqa ma'lumotlaringizni ochdi — tez orada bog'lanishi mumkin.`, "/kabinet/kontaktlar", { skipMail: true }).catch(() => undefined);
+  // Adminga daromad xabari (Telegram) — admin botining jonli ogohlantirishi
+  if (amount > 0) {
+    const { notifyAdminsContactSold } = await import("@/lib/telegram-bot/admin");
+    await notifyAdminsContactSold(buyer?.name ?? "Mijoz", sp.user.name, amount).catch(() => undefined);
+  }
   void invoiceId;
 }
 

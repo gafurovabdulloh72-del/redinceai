@@ -79,6 +79,9 @@ export const PUT = handler(async (req) => {
   const slug = await makeSlug(id);
   await db.insert(specialists).values({ id, userId: user.id, slug, ...values });
   const shortCode = await ensureShortCode(id);
+  // Admin botiga «yangi mutaxassis — tasdiqlang» (Telegram tugmasi bilan)
+  const { notifyAdminsNewSpecialist } = await import("@/lib/telegram-bot/admin");
+  await notifyAdminsNewSpecialist(id).catch(() => undefined);
 
   // Mijoz → mutaxassis: rolni yangilaymiz va cookie'ni qayta beramiz (JWT'da eski rol qolmasin)
   if (user.role === "client") {

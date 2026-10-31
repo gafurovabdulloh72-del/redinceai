@@ -218,6 +218,8 @@ export async function createTelegramAccount(chatId: string, s: TelegramSignup): 
       city: region?.capital ?? region?.name ?? "",
       priceFrom: price.from,
     });
+    const { notifyAdminsNewSpecialist } = await import("@/lib/telegram-bot/admin");
+    await notifyAdminsNewSpecialist(spId).catch(() => undefined);
   }
   await joinOfficialChannels(id).catch(() => undefined);
   return { userId: id, role: s.role, name, isNew: true };

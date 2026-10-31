@@ -159,21 +159,38 @@ export async function handleProfile(chatId: string): Promise<void> {
     return;
   }
   const since = new Date(me.createdAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
-  const text =
-    `<b>${escapeTelegramHtml(me.name)}</b>\n` +
-    `${escapeTelegramHtml(ROLE_LABEL[me.role] ?? me.role)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}\n` +
-    `${escapeTelegramHtml(me.email)}\n` +
-    `Ro'yxatdan: ${escapeTelegramHtml(since)}\n\n` +
-    "Telegram ulangan ✅ — buyurtma, xabar va kurs bildirishnomalari shu yerga keladi.";
+  const { follows, posts, contactUnlocks } = await import("@/lib/db/schema");
+  const { count, isNull } = await import("drizzle-orm");
+  const sp = me.role !== "client" ? await db.query.specialists.findFirst({ where: eq(specialists.userId, me.id), columns: { id: true, slug: true, title: true, isVerified: true, viewCount: true, rating: true, reviewCount: true, contactMode: true, subscriptionUntil: true } }) : null;
+  const [followers, postsN, soldN, boughtN, ordersN] = await Promise.all([
+    db.select({ n: count() }).from(follows).where(eq(follows.followingId, me.id)).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0),
+    db.select({ n: count() }).from(posts).where(and(eq(posts.authorId, me.id), isNull(posts.groupId))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0),
+    sp ? db.select({ n: count() }).from(contactUnlocks).where(and(eq(contactUnlocks.specialistId, sp.id), eq(contactUnlocks.status, "paid"))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0) : Promise.resolve(0),
+    db.select({ n: count() }).from(contactUnlocks).where(and(eq(contactUnlocks.clientId, me.id), eq(contactUnlocks.status, "paid"))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0),
+    sp
+      ? db.select({ n: count() }).from(orders).where(and(eq(orders.specialistId, sp.id), inArray(orders.status, ["new", "accepted", "in_progress"]))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0)
+      : db.select({ n: count() }).from(orders).where(and(eq(orders.clientId, me.id), inArray(orders.status, ["new", "accepted", "in_progress"]))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0),
+  ]);
+  const lines = [
+    `<b>${escapeTelegramHtml(me.name)}</b> — ${escapeTelegramHtml(ROLE_LABEL[me.role] ?? me.role)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}`,
+    `${escapeTelegramHtml(me.email)} · ro'yxatdan ${escapeTelegramHtml(since)}`,
+    "",
+  ];
+  if (sp) {
+    lines.push(`🎨 ${escapeTelegramHtml(sp.title)} · ${sp.isVerified ? "tasdiqlangan ✅" : "tasdiq kutmoqda ⏳"}`);
+    lines.push(`👁 ${sp.viewCount} ko'rish · ⭐ ${sp.reviewCount ? `${sp.rating.toFixed(1)} (${sp.reviewCount})` : "sharh yo'q"} · 👥 ${followers} obunachi · 📝 ${postsN} post`);
+    lines.push(`📦 ${ordersN} faol buyurtma · 🔓 kontaktingizni ${soldN} kishi oldi · rejim: ${sp.contactMode === "hidden" ? "faqat portfolio" : "sotiladi"}`);
+    if (sp.subscriptionUntil) lines.push(`💠 Obuna: ${new Date(sp.subscriptionUntil).toLocaleDateString("uz-UZ", { day: "numeric", month: "long" })} gacha`);
+  } else {
+    lines.push(`👥 ${followers} obunachi · 📝 ${postsN} post · 📦 ${ordersN} faol buyurtma · 🔓 ${boughtN} ochilgan kontakt`);
+  }
+  lines.push("", "Telegram ulangan ✅ — buyurtma, xabar va kurs bildirishnomalari shu yerga keladi.");
   const s = siteUrl() ?? "";
-  const sp = me.role === "specialist" ? await db.query.specialists.findFirst({ where: eq(specialists.userId, me.id), columns: { slug: true } }) : null;
-  await sendTelegram(chatId, text, {
+  const kb = (path: string, text: string) => (appUrl(path) ? { text, webApp: appUrl(path)! } : { text, url: `${s}${path}` });
+  await sendTelegram(chatId, lines.join("\n"), {
     keyboard: [
-      [
-        { text: "Kabinet", url: `${s}/kabinet` },
-        { text: "Profilni tahrirlash", url: `${s}/kabinet/profil` },
-      ],
-      ...(sp ? [[{ text: "Ommaviy sahifam", url: `${s}/mutaxassislar/${sp.slug}` }]] : []),
+      [kb("/kabinet", "Kabinet"), kb("/kabinet/profil", "Profilni tahrirlash")],
+      [kb("/kabinet/kontaktlar", sp ? "Kontaktimni olganlar" : "Ochilgan kontaktlar"), ...(sp ? [{ text: "Ommaviy sahifam", url: `${s}/mutaxassislar/${sp.slug}` }] : [kb("/mutaxassislar", "Mutaxassislar")])],
     ],
   });
 }

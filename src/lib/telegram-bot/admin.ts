@@ -440,3 +440,35 @@ export async function sendAdminDailyReport(now = Date.now()): Promise<{ sent: nu
   }
   return { sent, skipped: false };
 }
+
+/* ------------------------------------------------------------------ */
+/* Jonli ogohlantirishlar (adminga)                                    */
+/* ------------------------------------------------------------------ */
+/** Yangi mutaxassis profili (bot/ilova ro'yxati yoki saytda profil to'ldirilganda): saytda bildirishnoma + Telegramda «Tasdiqlash» tugmasi */
+export async function notifyAdminsNewSpecialist(specialistId: string): Promise<void> {
+  try {
+    const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { id: true, slug: true, title: true, isVerified: true }, with: { user: { columns: { name: true, email: true } } } });
+    if (!sp || sp.isVerified) return;
+    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false)), columns: { id: true, telegramChatId: true } });
+    const text = `🎨 <b>Yangi mutaxassis:</b> ${escapeTelegramHtml(sp.user.name)} — ${escapeTelegramHtml(sp.title)}\n${escapeTelegramHtml(sp.user.email)}\nProfilni ko'rib, tasdiqlang.`;
+    await Promise.all(
+      admins.map(async (a) => {
+        await notify(a.id, "account", `Yangi mutaxassis: ${sp.user.name}`, `${sp.title} — tasdiqlash navbatida.`, "/admin#tasdiqlash", { skipMail: true }).catch(() => undefined);
+        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: "✅ Tasdiqlash", data: `adm:ver:${sp.id}` }, { text: "👁 Profil", url: `${site()}/mutaxassislar/${sp.slug}` }]] });
+      }),
+    );
+  } catch (e) {
+    console.error("[admin-bot:newSpecialist]", e);
+  }
+}
+
+/** Kontakt sotildi — adminga daromad xabari (faqat Telegram, saytdagi ro'yxatni to'ldirmaydi) */
+export async function notifyAdminsContactSold(buyerName: string, specialistName: string, amount: number): Promise<void> {
+  try {
+    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)), columns: { telegramChatId: true } });
+    const text = `💰 <b>Kontakt sotildi</b> — ${formatPrice(amount)}\n${escapeTelegramHtml(buyerName)} → ${escapeTelegramHtml(specialistName)}`;
+    await Promise.all(admins.map((a) => (a.telegramChatId ? sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, panelButton("/admin/kontaktlar", "Kontakt sotuvi")]] }) : Promise.resolve(false))));
+  } catch (e) {
+    console.error("[admin-bot:contactSold]", e);
+  }
+}
