@@ -188,18 +188,18 @@ export async function telegramApi<T = unknown>(method: string, body?: Record<str
   }
 }
 
-/** Telegram'dagi faylni (chek rasmi) yuklab olish — ≤5 MB, xato bo'lsa null */
-export async function telegramDownloadFile(fileId: string): Promise<Buffer | null> {
+/** Telegram'dagi faylni yuklab olish — standart ≤5 MB (chek rasmi), post uchun 20 MB (Bot API chegarasi); xato bo'lsa null */
+export async function telegramDownloadFile(fileId: string, maxBytes = 5 * 1024 * 1024): Promise<Buffer | null> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return null;
   const info = await telegramApi<{ file_path?: string; file_size?: number }>("getFile", { file_id: fileId });
   const path = info?.result?.file_path;
-  if (!path || (info?.result?.file_size ?? 0) > 5 * 1024 * 1024) return null;
+  if (!path || (info?.result?.file_size ?? 0) > maxBytes) return null;
   try {
-    const res = await fetch(`${apiBase()}/file/bot${token}/${path}`, { signal: AbortSignal.timeout(15000) });
+    const res = await fetch(`${apiBase()}/file/bot${token}/${path}`, { signal: AbortSignal.timeout(maxBytes > 6 * 1024 * 1024 ? 60000 : 15000) });
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
-    return buf.length > 5 * 1024 * 1024 ? null : buf;
+    return buf.length > maxBytes ? null : buf;
   } catch (e) {
     console.error("[telegram] file", e instanceof Error ? e.message : e);
     return null;

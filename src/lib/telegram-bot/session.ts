@@ -6,7 +6,7 @@ import { botSessions } from "@/lib/db/schema";
 /** Suhbat oqimi 45 daqiqa javobsiz qolsa unutiladi */
 const TTL_MS = 45 * 60 * 1000;
 
-export type BotFlow = "register" | "broadcast";
+export type BotFlow = "register" | "broadcast" | "post";
 export interface BotSession<T extends Record<string, unknown> = Record<string, unknown>> {
   flow: BotFlow;
   step: string;

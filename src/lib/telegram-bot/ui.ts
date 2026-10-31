@@ -28,6 +28,7 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
   { command: "start", description: "Bosh menyu" },
   { command: "royxat", description: "Ro'yxatdan o'tish — hisob ochish (1 daqiqa)" },
   { command: "ilova", description: "Ilovani Telegram ichida ochish" },
+  { command: "post", description: "Rasm/video yuborib lentaga post joylash" },
   { command: "buyurtmalarim", description: "Ochiq buyurtmalar — qabul qilish / rad etish" },
   { command: "xabarlar", description: "O'qilmagan xabarlar" },
   { command: "qidiruv", description: "Ijodkor qidirish: /qidiruv montajchi" },
@@ -182,6 +183,7 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false): 
     "🔴 /efirlar — jonli va yaqin efirlar · 🏆 /top — oyning TOP ijodkorlari\n" +
     "💼 /vakansiyalar — so'nggi ochiq vakansiyalar\n" +
     "📱 /ilova — Telegram ichida ochiladigan ilova\n" +
+    "📸 /post — rasm yoki video yuboring (izoh rasm ostida) — lentangizga post joylayman\n" +
     "👤 /profil — hisob va ulanish holati\n" +
     "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +

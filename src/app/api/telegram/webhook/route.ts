@@ -13,7 +13,8 @@ import { invoiceNumber } from "@/lib/subscriptions/labels";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, verifyTelegramLinkCode } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
-import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
+import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
+import { handleIncomingMedia, handlePostCallback, handlePostText, sendPostHelp, type IncomingMedia } from "@/lib/telegram-bot/media";
 import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadcastText, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
@@ -57,8 +58,10 @@ interface TelegramUpdate {
     text?: unknown;
     from?: { id?: unknown; first_name?: string; last_name?: string; username?: string };
     chat?: { id?: unknown; type?: unknown };
-    photo?: { file_id?: string; file_size?: number }[];
-    document?: { file_id?: string; mime_type?: string };
+    caption?: unknown;
+    photo?: { file_id?: string; file_size?: number; width?: number; height?: number }[];
+    video?: { file_id?: string; mime_type?: string; file_size?: number; width?: number; height?: number; duration?: number };
+    document?: { file_id?: string; mime_type?: string; file_size?: number };
     successful_payment?: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown };
     /** «Raqamni ulashish» (request_contact) — ro'yxatdan o'tishda telefon */
     contact?: { phone_number?: unknown; user_id?: unknown };
@@ -140,6 +143,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
   if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handlePostCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
@@ -254,10 +258,22 @@ export async function POST(req: Request) {
         await handleSuccessfulPayment(chatId, msg.successful_payment);
         return Response.json({ ok: true });
       }
-      // Chek rasmi (siqilgan rasm — eng kattasi, yoki rasm-hujjat)
-      const fileId = msg.photo?.length ? msg.photo[msg.photo.length - 1].file_id : msg.document?.mime_type?.startsWith("image/") ? msg.document.file_id : undefined;
-      if (fileId) {
-        await handleReceiptPhoto(chatId, fileId);
+      // Rasm (eng katta nusxa) / rasm-hujjat / video — chek (ochiq karta xaridi bo'lsa) yoki lentaga post taklifi (lib/telegram-bot/media.ts)
+      const photo = msg.photo?.length ? msg.photo[msg.photo.length - 1] : null;
+      const imgDoc = msg.document?.mime_type?.startsWith("image/") ? msg.document : null;
+      const vid = msg.video?.file_id ? msg.video : null;
+      const vidDoc = !vid && msg.document?.mime_type?.startsWith("video/") ? msg.document : null;
+      const media: IncomingMedia | null = photo?.file_id
+        ? { fileId: photo.file_id, kind: "photo", mime: "image/jpeg", size: photo.file_size ?? 0, width: photo.width, height: photo.height }
+        : imgDoc?.file_id
+          ? { fileId: imgDoc.file_id, kind: "photo", mime: imgDoc.mime_type ?? "image/jpeg", size: imgDoc.file_size ?? 0 }
+          : vid?.file_id
+            ? { fileId: vid.file_id, kind: "video", mime: vid.mime_type ?? "video/mp4", size: vid.file_size ?? 0, duration: vid.duration, width: vid.width, height: vid.height }
+            : vidDoc?.file_id
+              ? { fileId: vidDoc.file_id, kind: "video", mime: vidDoc.mime_type ?? "video/mp4", size: vidDoc.file_size ?? 0 }
+              : null;
+      if (media) {
+        await handleIncomingMedia(chatId, media, typeof msg.caption === "string" ? msg.caption : "");
         return Response.json({ ok: true });
       }
       // Ro'yxatdan o'tishda «Raqamni ulashish» — faqat o'z raqami (user_id = from.id)
@@ -281,6 +297,7 @@ export async function POST(req: Request) {
     if (!cmd.startsWith("/")) {
       if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
       if (await handleBroadcastText(chatId, text)) return Response.json({ ok: true });
+      if (await handlePostText(chatId, text)) return Response.json({ ok: true });
     } else {
       await clearBotSession(chatId).catch(() => undefined);
     }
@@ -311,6 +328,7 @@ export async function POST(req: Request) {
     else if (cmd === "/sozlamalar") await handleSettings(chatId);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
+    else if (cmd === "/post") await sendPostHelp(chatId);
     else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
       if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");

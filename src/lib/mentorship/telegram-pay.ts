@@ -195,7 +195,8 @@ export async function handleReceiptPhoto(chatId: string, fileId: string): Promis
     orderBy: [desc(subscriptionInvoices.createdAt)],
     limit: 5,
   });
-  const inv = open.find((i) => isPurchase(i) && Date.now() - i.createdAt.getTime() < 2 * 60 * 60 * 1000);
+  const { isContactUnlock, contactMeta } = await import("@/lib/contacts/unlock");
+  const inv = open.find((i) => (isPurchase(i) || isContactUnlock(i)) && Date.now() - i.createdAt.getTime() < 2 * 60 * 60 * 1000);
   if (!inv) {
     await sendTelegram(chatId, "Chek qabul qilish uchun avval to'lov boshlang: saytda xaridda «Telegramda to'lash» → «Karta o'tkazmasi».");
     return;
@@ -208,7 +209,7 @@ export async function handleReceiptPhoto(chatId: string, fileId: string): Promis
       return;
     }
     await markInvoiceSent(inv, user.id, undefined, url);
-    await sendTelegram(chatId, `📎 Chek qabul qilindi: <b>${escapeTelegramHtml(purchaseMeta(inv).title)}</b>. Administrator tasdiqlagach kirish avtomatik ochiladi va shu yerga xabar keladi.`);
+    await sendTelegram(chatId, `📎 Chek qabul qilindi: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Administrator tasdiqlagach ${isContactUnlock(inv) ? "kontakt" : "kirish"} avtomatik ochiladi va shu yerga xabar keladi.`);
   } catch (e) {
     await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : "Xatolik. Keyinroq qayta urinib ko'ring.");
   }
