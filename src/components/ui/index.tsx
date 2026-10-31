@@ -354,7 +354,7 @@ export function EmptyState({
   }
   const compact = variant === "compact";
   return (
-    <div data-reveal="scale" className={cn("card-outline flex flex-col items-center justify-center text-center", compact ? "px-5 py-8" : "px-6 py-14", className)}>
+    <div data-reveal="scale" className={cn("card-outline flex flex-col items-center justify-center text-center max-sm:!border-0 max-sm:!bg-transparent", compact ? "px-5 py-8" : "px-6 py-14", className)}>
       {Icon && <IconTile icon={Icon} tone="soft" size={compact ? "md" : "lg"} className={compact ? "mb-3" : "mb-4"} />}
       <h3 className={cn("font-display font-semibold text-fg", compact ? "text-[15px]" : "text-[17px]")}>{title}</h3>
       {description && <p className={cn("mt-1.5 max-w-sm text-fg-3", compact ? "text-[13px]" : "text-sm")}>{description}</p>}
