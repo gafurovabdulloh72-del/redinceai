@@ -116,7 +116,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
       <ProfilePanels
         panels={[
           { key: "akkaunt", label: "Akkaunt", icon: "user", node: <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} /> },
-          ...(telegramEnabled ? [{ key: "telegram", label: "Telegram", icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} /> }] : []),
+          ...(telegramEnabled ? [{ key: "telegram", label: "Telegram", icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} botLink={telegramBotUsername() ? `https://t.me/${telegramBotUsername()}` : null} /> }] : []),
           { key: "mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: "briefcase", node: <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} /> },
           ...(s
             ? [

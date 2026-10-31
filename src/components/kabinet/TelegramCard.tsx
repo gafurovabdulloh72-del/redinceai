@@ -18,7 +18,7 @@ const POLL_MAX = 40;
  * Ulanmagan: «Telegramga ulash» → POST /api/telegram/link → t.me havolasi (popup bloklanmasligi uchun oyna bosish paytida sinxron ochiladi);
  * so'ng GET /api/telegram/link bilan holat 3 s'da bir so'raladi, ulangach sahifa yangilanadi. Ulangan: «Sinov xabari», «Uzish».
  */
-export function TelegramCard({ linked }: { linked: boolean }) {
+export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = useState<"link" | "unlink" | "test" | null>(null);
@@ -148,6 +148,14 @@ export function TelegramCard({ linked }: { linked: boolean }) {
             )}
           </div>
           <p className="mt-0.5 text-[13px] text-fg-3">{linked ? "Buyurtma, to'lov, takliflar va xabarlar botga ham keladi. Uzish — tugma yoki botda /stop." : "Hisobni botga ulang — muhim xabarlar Telegramga darhol keladi."}</p>
+          {linked && (
+            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-fg-3">
+              <li>📦 buyurtmani botda qabul qilish</li>
+              <li>📱 Telegram ichidagi ilova</li>
+              <li>🔎 ijodkor qidiruvi</li>
+              <li>🔔 /sozlamalar</li>
+            </ul>
+          )}
         </div>
       </div>
 
@@ -163,6 +171,11 @@ export function TelegramCard({ linked }: { linked: boolean }) {
             <Button type="button" variant="outline" onClick={sendTest} disabled={busy !== null}>
               {busy === "test" ? <Spinner /> : <SendHorizontal size={14} />} Sinov xabari
             </Button>
+            {botLink && (
+              <Button type="button" variant="ghost" onClick={() => window.open(botLink, "_blank", "noopener")}>
+                <ExternalLink size={14} /> Botni ochish
+              </Button>
+            )}
             <Button type="button" variant="ghost" onClick={unlink} disabled={busy !== null}>
               {busy === "unlink" ? <Spinner /> : <Unlink size={14} />} Uzish
             </Button>
