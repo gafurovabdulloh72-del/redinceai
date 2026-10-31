@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { KONTAKTLAR as K } from "@/lib/i18n/dict/kontaktlar";
 
 /** Mutaxassis kabineti: «Kontaktim sotilsin» / «Faqat portfolio» rejimi (narxni admin belgilaydi) */
 export function ContactModeSwitch({ initial, price }: { initial: "paid" | "hidden"; price: number }) {
+  const til = useLocale();
   const router = useRouter();
   const [mode, setMode] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -20,11 +24,11 @@ export function ContactModeSwitch({ initial, price }: { initial: "paid" | "hidde
     try {
       const r = await fetch("/api/kontakt/rejim", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ contactMode: next }) });
       if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Xatolik");
-      showToast(next === "paid" ? "Kontaktingiz endi to'lov bilan ochiladi" : "Profil «faqat portfolio» rejimida — kontakt sotilmaydi", "success");
+      showToast(next === "paid" ? tr(til, K.savedPaid) : tr(til, K.savedHidden), "success");
       router.refresh();
     } catch (e) {
       setMode(prev);
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, K.err), "error");
     } finally {
       setBusy(false);
     }
@@ -42,9 +46,9 @@ export function ContactModeSwitch({ initial, price }: { initial: "paid" | "hidde
   );
 
   return (
-    <div role="radiogroup" aria-label="Kontakt rejimi" className="space-y-2">
-      <Opt v="paid" title="Kontaktim sotilsin" desc={`Mijoz ishlaringizni ko'radi, telefon/Telegram/Instagram/email'ni platformaga to'lab ochadi (hozirgi narx: ${new Intl.NumberFormat("ru-RU").format(price)} so'm). Sotib olganlar shu sahifada ko'rinadi.`} />
-      <Opt v="hidden" title="Faqat portfolio" desc="Kontakt umuman ko'rsatilmaydi va sotilmaydi — mijoz faqat ishlaringizni ko'radi va sayt chati orqali yozadi." />
+    <div role="radiogroup" aria-label={tr(til, K.modeAria)} className="space-y-2">
+      <Opt v="paid" title={tr(til, K.paidTitle)} desc={K.paidDesc[til](`${new Intl.NumberFormat("ru-RU").format(price)} so'm`)} />
+      <Opt v="hidden" title={tr(til, K.hiddenTitle)} desc={tr(til, K.hiddenDesc)} />
     </div>
   );
 }
