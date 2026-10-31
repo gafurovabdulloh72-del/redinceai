@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, MessageSquare, Palette, RefreshCw, Send } from "lucide-react";
+import { BarChart3, CheckCircle2, CircleAlert, MessageSquare, Palette, RefreshCw, Send } from "lucide-react";
 
 interface TgStatus {
   tokenSet: boolean;
@@ -54,16 +54,16 @@ export function TelegramAdminPanel() {
     void load();
   }, [load]);
 
-  /** Sinov xabari — shu adminning Telegramiga (PATCH) */
-  async function testMessage() {
+  /** Sinov xabari yoki kechagi kunlik hisobot — shu adminning Telegramiga (PATCH {kind}) */
+  async function testMessage(kind: "test" | "daily" = "test") {
     setBusy(true);
     setErr(null);
     setMsg(null);
     try {
-      const r = await fetch("/api/admin/telegram", { method: "PATCH" });
+      const r = await fetch("/api/admin/telegram", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) });
       const j = (await r.json()) as { ok: boolean; error?: string };
       if (!r.ok || !j.ok) throw new Error(j.error || "Yuborilmadi");
-      setMsg("Sinov xabari Telegramingizga ketdi ✓");
+      setMsg(kind === "daily" ? "Kunlik hisobot (kecha + trend) Telegramingizga ketdi ✓" : "Sinov xabari Telegramingizga ketdi ✓");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Xatolik");
     } finally {
@@ -154,7 +154,7 @@ export function TelegramAdminPanel() {
               detail={st.webhookOk ? st.webhookUrl : `Kerakli manzil: ${st.expectedUrl}${st.webhookUrl ? ` · hozirgisi: ${st.webhookUrl}` : ""}`}
             />
             {st.lastError && <Row ok={false} label="Oxirgi webhook xatosi" detail={st.lastError} />}
-            <Row ok={(st.adminChats ?? 0) > 0} label={`Ulangan foydalanuvchilar: ${st.linkedUsers ?? 0} · admin chatlari: ${st.adminChats ?? 0}`} detail={(st.adminChats ?? 0) > 0 ? "Admin boti (/admin, /stat, /navbat, /tolovlar, /user, /elon) va kunlik hisobot shu chatlarga keladi" : "Admin Telegramini ulang (Kabinet → Profil → «Telegramga ulash») — aks holda admin boti va ogohlantirishlar kelmaydi"} />
+            <Row ok={(st.adminChats ?? 0) > 0} label={`Ulangan foydalanuvchilar: ${st.linkedUsers ?? 0} · admin chatlari: ${st.adminChats ?? 0}`} detail={(st.adminChats ?? 0) > 0 ? "Admin boti (/admin · /stat — trend va taqqoslash · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /user · /narx · /elon), jonli ogohlantirishlar (yangi mutaxassis, shikoyat, mentor arizasi, kontakt sotuvi, o'tkazma) va kunlik hisobot shu chatlarga keladi" : "Admin Telegramini ulang (Kabinet → Profil → «Telegramga ulash») — aks holda admin boti va ogohlantirishlar kelmaydi"} />
             {st.inlineEnabled != null && <Row ok={st.inlineEnabled} label={st.inlineEnabled ? "Inline rejim yoqilgan — istalgan chatda @bot so'z" : "Inline rejim yoqilmagan"} detail={st.inlineEnabled ? null : "BotFather → /setinline → botni tanlang → placeholder (masalan «ijodkor qidirish…»). So'ng «Webhookni yangilash»."} />}
           </ul>
           <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
@@ -164,8 +164,11 @@ export function TelegramAdminPanel() {
             <button type="button" disabled={busy || !st.tokenValid} onClick={setProfile} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
               <Palette size={13} /> Bot profilini sozlash
             </button>
-            <button type="button" disabled={busy || !st.tokenValid} onClick={() => void testMessage()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
+            <button type="button" disabled={busy || !st.tokenValid} onClick={() => void testMessage("test")} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
               <MessageSquare size={13} /> Sinov xabari
+            </button>
+            <button type="button" disabled={busy || !st.tokenValid} onClick={() => void testMessage("daily")} title="Kechagi kun hisoboti + 7 kunlik trend — hozir shu chatga" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
+              <BarChart3 size={13} /> Kunlik hisobot
             </button>
             <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
               <RefreshCw size={13} /> Holatni yangilash

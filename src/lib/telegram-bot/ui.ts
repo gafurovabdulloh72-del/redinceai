@@ -265,12 +265,14 @@ export async function sendNotLinked(chatId: string, lang: BotLang = "uz"): Promi
 const GROUP_ICON: Record<NotifyGroupKey, string> = { orders: "📦", jobs: "💼", social: "❤️", chat: "💬", system: "⚙️" };
 
 /** Sozlamalar klaviaturasi: har guruh — bitta qator, bosilsa `st:<guruh>` bilan almashadi */
-export function settingsKeyboard(prefs: Record<string, boolean>): TelegramButton[][] {
-  const rows: TelegramButton[][] = NOTIFY_GROUP_KEYS.map((k) => [{ text: `${prefs[k] === false ? "○" : "●"} ${GROUP_ICON[k]} ${NOTIFY_GROUP_META[k].label}`, data: `st:${k}` }]);
-  rows.push([{ text: "Saytdagi sozlamalar", url: `${site()}/kabinet/bildirishnomalar#sozlamalar` }]);
+export function settingsKeyboard(prefs: Record<string, boolean>, lang: BotLang = "uz"): TelegramButton[][] {
+  const rows: TelegramButton[][] = NOTIFY_GROUP_KEYS.map((k) => [{ text: `${prefs[k] === false ? "○" : "●"} ${GROUP_ICON[k]} ${lang === "ru" ? GROUP_LABEL_RU[k] : NOTIFY_GROUP_META[k].label}`, data: `st:${k}` }]);
+  rows.push([{ text: L(lang, "Saytdagi sozlamalar", "Настройки на сайте"), url: `${site()}/kabinet/bildirishnomalar#sozlamalar` }]);
   return rows;
 }
 export const SETTINGS_TEXT = "<b>Bildirishnomalar</b>\nQaysi turdagi xabarlar Telegramga kelsin — bosib yoqing/o'chiring (● yoqilgan, ○ o'chirilgan).\nHisob xavfsizligi va nizo xabarlari doim keladi.";
+export const SETTINGS_TEXT_RU = "<b>Уведомления</b>\nКакие сообщения присылать в Telegram — нажмите, чтобы включить/выключить (● включено, ○ выключено).\nСообщения о безопасности аккаунта и спорах приходят всегда.";
+const GROUP_LABEL_RU: Record<NotifyGroupKey, string> = { orders: "Заказы", jobs: "Объявления и вакансии", social: "Соцсеть", chat: "Сообщения", system: "Система" };
 
 /* ------------------------------------------------------------------ */
 /* Bot profili (Bot API orqali bir tugmada) — admin paneldan           */

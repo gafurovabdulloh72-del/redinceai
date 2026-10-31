@@ -10,6 +10,7 @@ import path from "node:path";
 import { put } from "@vercel/blob";
 import { escapeTelegramHtml, sendTelegram, telegramApi, telegramDownloadFile, type TelegramButton } from "@/lib/telegram";
 import { isR2Enabled, r2Put } from "@/lib/storage/r2";
+import { L, type BotLang } from "@/lib/telegram-bot/lang";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
 import { formatSom, PURCHASE_LABEL, type PurchaseType } from "@/lib/mentorship/format";
@@ -146,19 +147,19 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
 }
 
 /** `/kurslarim` — yozilgan kurslar va oxirgi xaridlar holati */
-export async function handleMyPurchases(chatId: string): Promise<void> {
+export async function handleMyPurchases(chatId: string, lang?: BotLang): Promise<void> {
   const user = await userByChat(chatId);
   if (!user) {
-    await sendTelegram(chatId, "Avval hisobni ulang: saytda Kabinet → Profil → «Telegramga ulash».");
+    await sendTelegram(chatId, L(lang, "Avval hisobni ulang: saytda Kabinet → Profil → «Telegramga ulash».", "Сначала привяжите аккаунт: на сайте Кабинет → Профиль → «Подключить Telegram»."));
     return;
   }
   const rows = await db.query.enrollments.findMany({ where: eq(enrollments.userId, user.id), with: { course: { columns: { title: true, slug: true } } }, orderBy: [desc(enrollments.createdAt)], limit: 8 });
   const inv = await db.query.subscriptionInvoices.findMany({ where: and(eq(subscriptionInvoices.userId, user.id)), orderBy: [desc(subscriptionInvoices.createdAt)], limit: 15 });
   const pending = inv.filter((i) => isPurchase(i) && (i.state === "created" || i.state === "pending")).slice(0, 4);
   const lines: string[] = [];
-  if (rows.length) lines.push("<b>📚 Kurslarim</b>", ...rows.map((r) => `• ${escapeTelegramHtml(r.course.title)} — ${r.progressPct}%`));
-  if (pending.length) lines.push("", "<b>⏳ Kutilayotgan to'lovlar</b>", ...pending.map((i) => `• ${escapeTelegramHtml(purchaseMeta(i).title)} — ${formatSom(i.amount)}`));
-  await sendTelegram(chatId, lines.length ? lines.join("\n") : "Hozircha kurs yoki xaridlar yo'q. /mentorlik ro'yxatidan tanlang.", { keyboard: [[{ text: "Mentorlik katalogi", url: `${origin()}/mentorlik` }]] });
+  if (rows.length) lines.push(L(lang, "<b>📚 Kurslarim</b>", "<b>📚 Мои курсы</b>"), ...rows.map((r) => `• ${escapeTelegramHtml(r.course.title)} — ${r.progressPct}%`));
+  if (pending.length) lines.push("", L(lang, "<b>⏳ Kutilayotgan to'lovlar</b>", "<b>⏳ Ожидающие оплаты</b>"), ...pending.map((i) => `• ${escapeTelegramHtml(purchaseMeta(i).title)} — ${formatSom(i.amount)}`));
+  await sendTelegram(chatId, lines.length ? lines.join("\n") : L(lang, "Hozircha kurs yoki xaridlar yo'q. /kurslar ro'yxatidan tanlang.", "Курсов и покупок пока нет. Выберите курс командой /kurslar."), { keyboard: [[{ text: L(lang, "Mentorlik katalogi", "Каталог курсов"), url: `${origin()}/mentorlik` }]] });
 }
 
 /* ------------------------------------------------------------------ */

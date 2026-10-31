@@ -152,7 +152,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
-  if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handleMenuCallback(chatId, data, answer, who.lang))) return;
   if (chatId && (await handleBroadcastCallback(chatId, data, answer, msgId))) return;
 
@@ -328,15 +328,15 @@ export async function POST(req: Request) {
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */
       } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg)) || (await handleContactBuyStart(chatId, arg))))) await handleStart(chatId, arg, firstName, lang);
-    } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
+    } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId, lang);
     else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId, lang);
     else if (cmd === "/xabarlar") await handleMessages(chatId, lang);
     else if (cmd === "/ilova" || cmd === "/app") await sendApp(chatId);
-    else if (cmd === "/qidiruv" || cmd === "/qidir") await handleSearch(chatId, normalized.slice(rawCmd.length));
-    else if (cmd === "/kurslar") await handleCourses(chatId);
-    else if (cmd === "/efirlar" || cmd === "/efir") await handleLives(chatId);
-    else if (cmd === "/top") await handleTop(chatId);
-    else if (cmd === "/vakansiyalar") await handleVacancies(chatId);
+    else if (cmd === "/qidiruv" || cmd === "/qidir") await handleSearch(chatId, normalized.slice(rawCmd.length), lang);
+    else if (cmd === "/kurslar") await handleCourses(chatId, lang);
+    else if (cmd === "/efirlar" || cmd === "/efir") await handleLives(chatId, lang);
+    else if (cmd === "/top") await handleTop(chatId, lang);
+    else if (cmd === "/vakansiyalar") await handleVacancies(chatId, lang);
     else if (cmd === "/profil") await handleProfile(chatId, lang);
     else if (cmd === "/sozlamalar") await handleSettings(chatId, lang);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName, lang);
@@ -360,7 +360,7 @@ export async function POST(req: Request) {
       const me = await accountOf(chatId);
       await sendHelp(chatId, Boolean(me), me?.role === "admin", lang);
     }
-    else await handleSearch(chatId, text); // oddiy matn — ijodkor qidiruvi
+    else await handleSearch(chatId, text, lang); // oddiy matn — ijodkor qidiruvi
   } catch (e) {
     // Har doim 200 — Telegram xatoli javobni qayta-qayta yuborib turadi
     console.error("[telegram:webhook]", e);

@@ -692,14 +692,18 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
 /* Kunlik hisobot (cron)                                               */
 /* ------------------------------------------------------------------ */
 /** Har admin Telegramiga kechagi kun hisoboti — bir kunda bir marta (rate_limits CAS) */
-export async function sendAdminDailyReport(now = Date.now()): Promise<{ sent: number; skipped: boolean }> {
-  const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), isNotNull(users.telegramChatId), eq(users.isBanned, false)), columns: { id: true, telegramChatId: true } });
+/** `opts.force` — kunlik dedupe'siz (admin panel «Kunlik hisobot» tugmasi), `opts.onlyChat` — faqat shu chatga */
+export async function sendAdminDailyReport(now = Date.now(), opts: { force?: boolean; onlyChat?: string } = {}): Promise<{ sent: number; skipped: boolean }> {
+  const all = await db.query.users.findMany({ where: and(eq(users.role, "admin"), isNotNull(users.telegramChatId), eq(users.isBanned, false)), columns: { id: true, telegramChatId: true } });
+  const admins = opts.onlyChat ? all.filter((a) => a.telegramChatId === opts.onlyChat) : all;
   if (!admins.length) return { sent: 0, skipped: true };
   const day = new Date(tashkentDayStart(now)).toISOString().slice(0, 10);
-  try {
-    await rateLimit(`adminDaily:${day}`, 1, 36 * HOUR);
-  } catch {
-    return { sent: 0, skipped: true };
+  if (!opts.force) {
+    try {
+      await rateLimit(`adminDaily:${day}`, 1, 36 * HOUR);
+    } catch {
+      return { sent: 0, skipped: true };
+    }
   }
   const range = yesterdayRange(now);
   // Kecha vs undan oldingi kun + 7 kunlik trend (kecha bilan tugaydi)

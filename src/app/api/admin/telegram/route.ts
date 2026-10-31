@@ -3,6 +3,8 @@ import { SITE_URL } from "@/lib/site-url";
 import { isTelegramEnabled, telegramApi, telegramBotUsername, telegramWebhookSecret } from "@/lib/telegram";
 import { audit } from "@/lib/security/audit";
 import { setupBotProfile } from "@/lib/telegram-bot/ui";
+import { sendAdminDailyReport } from "@/lib/telegram-bot/admin";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq, isNotNull, sql } from "drizzle-orm";
@@ -91,12 +93,21 @@ export const PUT = handler(async (req) => {
   return ok(res);
 });
 
-/** Sinov xabari: shu adminning ulangan chatiga «bot ishlayapti» — bildirishnoma yo'li tekshiriladi */
+const patchSchema = z.object({ kind: z.enum(["test", "daily"]).default("test") });
+
+/** Sinov xabari (`kind=test`): shu adminning ulangan chatiga «bot ishlayapti»; `kind=daily` — kechagi kunlik hisobotni hozir shu chatga yuborish (dedupe'siz) */
 export const PATCH = handler(async (req) => {
   const session = await requireSession(["admin"]);
   if (!isTelegramEnabled()) throw new ApiError(503, "TELEGRAM_BOT_TOKEN sozlanmagan");
   const me = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true, name: true } });
   if (!me?.telegramChatId) throw new ApiError(400, "Sizning hisobingiz Telegramga ulanmagan — Kabinet → Profil → «Telegramga ulash»");
+  const { kind } = patchSchema.parse(await req.json().catch(() => ({})));
+  if (kind === "daily") {
+    const r = await sendAdminDailyReport(Date.now(), { force: true, onlyChat: me.telegramChatId });
+    if (!r.sent) throw new ApiError(502, "Telegram xabarni qabul qilmadi — token yoki chat holatini tekshiring");
+    await audit(session.sub, "admin_settings", { meta: { action: "telegram_daily_report_now" } }, req);
+    return ok({ sent: true, kind });
+  }
   const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /user · /narx · /elon`, {
     keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }]],
   });

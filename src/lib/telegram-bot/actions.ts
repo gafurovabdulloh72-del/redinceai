@@ -9,8 +9,8 @@ import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { REGION_BY_SLUG } from "@/lib/constants";
 import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
-import { SETTINGS_TEXT, appUrl, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
-import type { BotLang } from "@/lib/telegram-bot/lang";
+import { SETTINGS_TEXT, SETTINGS_TEXT_RU, appUrl, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
+import { L, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * Botdagi tezkor amallar (Telegram tarafi):
@@ -30,6 +30,7 @@ export async function accountOf(chatId: string) {
 }
 
 const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutaxassis", admin: "Administrator" };
+const ROLE_LABEL_RU: Record<string, string> = { client: "Клиент", specialist: "Специалист", admin: "Администратор" };
 
 /* ------------------------------------------------------------------ */
 /* «Telegram bilan kirish»                                             */
@@ -89,14 +90,15 @@ export async function handleLoginCallback(chatId: string, data: string, answer: 
 /* ------------------------------------------------------------------ */
 
 /** Buyurtma tugmalari: xabar ostida «Qabul qilish» va «Rad etish» */
-export function orderButtons(orderId: string, href: string): { text: string; url?: string; data?: string; webApp?: string }[][] {
+export function orderButtons(orderId: string, href: string, lang?: BotLang): { text: string; url?: string; data?: string; webApp?: string }[][] {
   const app = appUrl(`/buyurtma/${orderId}`);
+  const open = L(lang, "Buyurtmani ochish", "Открыть заказ");
   return [
     [
-      { text: "✅ Qabul qilish", data: `ord:ok:${orderId}` },
-      { text: "✖️ Rad etish", data: `ord:no:${orderId}` },
+      { text: L(lang, "✅ Qabul qilish", "✅ Принять"), data: `ord:ok:${orderId}` },
+      { text: L(lang, "✖️ Rad etish", "✖️ Отклонить"), data: `ord:no:${orderId}` },
     ],
-    [app ? { text: "Buyurtmani ochish", webApp: app } : { text: "Buyurtmani ochish", url: href }],
+    [app ? { text: open, webApp: app } : { text: open, url: href }],
   ];
 }
 
@@ -136,15 +138,16 @@ export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<vo
     .orderBy(desc(orders.createdAt))
     .limit(8);
   if (!rows.length) {
-    await sendTelegram(chatId, "Ochiq buyurtma yo'q.", { button: { text: "Buyurtmalarim", url: `${siteUrl()}/kabinet/buyurtmalar` } });
+    await sendTelegram(chatId, L(lang, "Ochiq buyurtma yo'q.", "Открытых заказов нет."), { button: { text: L(lang, "Buyurtmalarim", "Мои заказы"), url: `${siteUrl()}/kabinet/buyurtmalar` } });
     return;
   }
   const { STATUS_LABEL } = await import("@/lib/telegram-bot/orders");
+  const { orderStatusLabel } = await import("@/lib/i18n/dict/kabinet-pages");
   for (const o of rows) {
     const mine = o.spUserId === me.id;
-    const text = `<b>${escapeTelegramHtml(o.title)}</b>\n${escapeTelegramHtml(STATUS_LABEL[o.status] ?? o.status)}${o.amount ? ` · ${escapeTelegramHtml(formatPrice(o.amount))}` : ""}`;
+    const text = `<b>${escapeTelegramHtml(o.title)}</b>\n${escapeTelegramHtml(orderStatusLabel(lang ?? "uz", o.status, STATUS_LABEL[o.status] ?? o.status))}${o.amount ? ` · ${escapeTelegramHtml(formatPrice(o.amount))}` : ""}`;
     const href = `${siteUrl()}/buyurtma/${o.id}`;
-    await sendTelegram(chatId, text, mine && o.status === "new" ? { keyboard: orderButtons(o.id, href) } : { button: { text: "Ochish", url: href } });
+    await sendTelegram(chatId, text, mine && o.status === "new" ? { keyboard: orderButtons(o.id, href, lang) } : { button: { text: L(lang, "Ochish", "Открыть"), url: href } });
   }
 }
 
@@ -159,7 +162,8 @@ export async function handleProfile(chatId: string, lang?: BotLang): Promise<voi
     await sendNotLinked(chatId, lang);
     return;
   }
-  const since = new Date(me.createdAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
+  const ru = lang === "ru";
+  const since = new Date(me.createdAt).toLocaleDateString(ru ? "ru-RU" : "uz-UZ", { day: "numeric", month: "long", year: "numeric" });
   const { follows, posts, contactUnlocks } = await import("@/lib/db/schema");
   const { count, isNull } = await import("drizzle-orm");
   const sp = me.role !== "client" ? await db.query.specialists.findFirst({ where: eq(specialists.userId, me.id), columns: { id: true, slug: true, title: true, isVerified: true, viewCount: true, rating: true, reviewCount: true, contactMode: true, subscriptionUntil: true } }) : null;
@@ -172,26 +176,36 @@ export async function handleProfile(chatId: string, lang?: BotLang): Promise<voi
       ? db.select({ n: count() }).from(orders).where(and(eq(orders.specialistId, sp.id), inArray(orders.status, ["new", "accepted", "in_progress"]))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0)
       : db.select({ n: count() }).from(orders).where(and(eq(orders.clientId, me.id), inArray(orders.status, ["new", "accepted", "in_progress"]))).then((r) => Number(r[0]?.n ?? 0)).catch(() => 0),
   ]);
+  const roleLabel = (ru ? ROLE_LABEL_RU[me.role] : ROLE_LABEL[me.role]) ?? me.role;
   const lines = [
-    `<b>${escapeTelegramHtml(me.name)}</b> — ${escapeTelegramHtml(ROLE_LABEL[me.role] ?? me.role)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}`,
-    `${escapeTelegramHtml(me.email)} · ro'yxatdan ${escapeTelegramHtml(since)}`,
+    `<b>${escapeTelegramHtml(me.name)}</b> — ${escapeTelegramHtml(roleLabel)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}`,
+    `${escapeTelegramHtml(me.email)} · ${L(lang, "ro'yxatdan", "с")} ${escapeTelegramHtml(since)}`,
     "",
   ];
+  const followersL = L(lang, "obunachi", "подписчиков");
+  const postsL = L(lang, "post", "постов");
+  const ordersL = L(lang, "faol buyurtma", "активных заказов");
   if (sp) {
-    lines.push(`🎨 ${escapeTelegramHtml(sp.title)} · ${sp.isVerified ? "tasdiqlangan ✅" : "tasdiq kutmoqda ⏳"}`);
-    lines.push(`👁 ${sp.viewCount} ko'rish · ⭐ ${sp.reviewCount ? `${sp.rating.toFixed(1)} (${sp.reviewCount})` : "sharh yo'q"} · 👥 ${followers} obunachi · 📝 ${postsN} post`);
-    lines.push(`📦 ${ordersN} faol buyurtma · 🔓 kontaktingizni ${soldN} kishi oldi · rejim: ${sp.contactMode === "hidden" ? "faqat portfolio" : "sotiladi"}`);
-    if (sp.subscriptionUntil) lines.push(`💠 Obuna: ${new Date(sp.subscriptionUntil).toLocaleDateString("uz-UZ", { day: "numeric", month: "long" })} gacha`);
+    lines.push(`🎨 ${escapeTelegramHtml(sp.title)} · ${sp.isVerified ? L(lang, "tasdiqlangan ✅", "подтверждён ✅") : L(lang, "tasdiq kutmoqda ⏳", "ожидает подтверждения ⏳")}`);
+    lines.push(`👁 ${sp.viewCount} ${L(lang, "ko'rish", "просмотров")} · ⭐ ${sp.reviewCount ? `${sp.rating.toFixed(1)} (${sp.reviewCount})` : L(lang, "sharh yo'q", "отзывов нет")} · 👥 ${followers} ${followersL} · 📝 ${postsN} ${postsL}`);
+    lines.push(`📦 ${ordersN} ${ordersL} · 🔓 ${L(lang, `kontaktingizni ${soldN} kishi oldi`, `контакт купили: ${soldN}`)} · ${L(lang, "rejim", "режим")}: ${sp.contactMode === "hidden" ? L(lang, "faqat portfolio", "только портфолио") : L(lang, "sotiladi", "продаётся")}`);
+    if (sp.subscriptionUntil) {
+      const until = new Date(sp.subscriptionUntil).toLocaleDateString(ru ? "ru-RU" : "uz-UZ", { day: "numeric", month: "long" });
+      lines.push(`💠 ${L(lang, `Obuna: ${until} gacha`, `Подписка: до ${until}`)}`);
+    }
   } else {
-    lines.push(`👥 ${followers} obunachi · 📝 ${postsN} post · 📦 ${ordersN} faol buyurtma · 🔓 ${boughtN} ochilgan kontakt`);
+    lines.push(`👥 ${followers} ${followersL} · 📝 ${postsN} ${postsL} · 📦 ${ordersN} ${ordersL} · 🔓 ${boughtN} ${L(lang, "ochilgan kontakt", "открытых контактов")}`);
   }
-  lines.push("", "Telegram ulangan ✅ — buyurtma, xabar va kurs bildirishnomalari shu yerga keladi.");
+  lines.push("", L(lang, "Telegram ulangan ✅ — buyurtma, xabar va kurs bildirishnomalari shu yerga keladi.", "Telegram привязан ✅ — уведомления о заказах, сообщениях и курсах приходят сюда."));
   const s = siteUrl() ?? "";
   const kb = (path: string, text: string) => (appUrl(path) ? { text, webApp: appUrl(path)! } : { text, url: `${s}${path}` });
   await sendTelegram(chatId, lines.join("\n"), {
     keyboard: [
-      [kb("/kabinet", "Kabinet"), kb("/kabinet/profil", "Profilni tahrirlash")],
-      [kb("/kabinet/kontaktlar", sp ? "Kontaktimni olganlar" : "Ochilgan kontaktlar"), ...(sp ? [{ text: "Ommaviy sahifam", url: `${s}/mutaxassislar/${sp.slug}` }] : [kb("/mutaxassislar", "Mutaxassislar")])],
+      [kb("/kabinet", L(lang, "Kabinet", "Кабинет")), kb("/kabinet/profil", L(lang, "Profilni tahrirlash", "Редактировать профиль"))],
+      [
+        kb("/kabinet/kontaktlar", sp ? L(lang, "Kontaktimni olganlar", "Кто купил контакт") : L(lang, "Ochilgan kontaktlar", "Открытые контакты")),
+        ...(sp ? [{ text: L(lang, "Ommaviy sahifam", "Моя страница"), url: `${s}/mutaxassislar/${sp.slug}` }] : [kb("/mutaxassislar", L(lang, "Mutaxassislar", "Специалисты"))]),
+      ],
     ],
   });
 }
@@ -205,26 +219,27 @@ export async function handleMessages(chatId: string, lang?: BotLang): Promise<vo
   }
   const { unreadDmCount } = await import("@/lib/chat/dm");
   const n = await unreadDmCount(me.id).catch(() => 0);
-  const text = n > 0 ? `💬 <b>${n} ta o'qilmagan xabar</b> bor.` : "💬 O'qilmagan xabar yo'q.";
-  await sendTelegram(chatId, text, { button: { text: n > 0 ? "Xabarlarni o'qish" : "Chatni ochish", url: `${siteUrl() ?? ""}/kabinet/chat` } });
+  const text = n > 0 ? L(lang, `💬 <b>${n} ta o'qilmagan xabar</b> bor.`, `💬 <b>Непрочитанных сообщений: ${n}</b>`) : L(lang, "💬 O'qilmagan xabar yo'q.", "💬 Непрочитанных сообщений нет.");
+  await sendTelegram(chatId, text, { button: { text: n > 0 ? L(lang, "Xabarlarni o'qish", "Читать сообщения") : L(lang, "Chatni ochish", "Открыть чат"), url: `${siteUrl() ?? ""}/kabinet/chat` } });
 }
 
 /** `/vakansiyalar` — so'nggi 5 ta ochiq vakansiya (hamma uchun, ulash shart emas) */
-export async function handleVacancies(chatId: string): Promise<void> {
+export async function handleVacancies(chatId: string, lang?: BotLang): Promise<void> {
   const { listVacancies } = await import("@/lib/vacancies/service");
-  const { professionLabel, salaryLabel } = await import("@/lib/vacancies/format");
+  const { professionLabelTr, salaryLabelTr } = await import("@/lib/i18n/dict/vacancies");
   const { vacancyFilterSchema } = await import("@/lib/vacancies/validators");
   const { items, total } = await listVacancies(vacancyFilterSchema.parse({ limit: 5 }));
   const s = siteUrl() ?? "";
+  const til = lang ?? "uz";
   if (!items.length) {
-    await sendTelegram(chatId, "Hozircha ochiq vakansiya yo'q.", { button: { text: "Vakansiyalar", url: `${s}/vakansiyalar` } });
+    await sendTelegram(chatId, L(lang, "Hozircha ochiq vakansiya yo'q.", "Открытых вакансий пока нет."), { button: { text: L(lang, "Vakansiyalar", "Вакансии"), url: `${s}/vakansiyalar` } });
     return;
   }
   const lines = items.map((v, i) => {
-    const where = v.regionSlug ? (REGION_BY_SLUG[v.regionSlug]?.name ?? v.regionSlug) : "Masofaviy";
-    return `${i + 1}. <a href="${s}/vakansiyalar/${v.id}"><b>${escapeTelegramHtml(v.title)}</b></a>\n   ${escapeTelegramHtml(v.company)} · ${escapeTelegramHtml(professionLabel(v.profession, true))} · ${escapeTelegramHtml(where)}\n   ${escapeTelegramHtml(salaryLabel(v.salaryMin, v.salaryMax))}`;
+    const where = v.regionSlug ? (REGION_BY_SLUG[v.regionSlug]?.name ?? v.regionSlug) : L(lang, "Masofaviy", "Удалённо");
+    return `${i + 1}. <a href="${s}/vakansiyalar/${v.id}"><b>${escapeTelegramHtml(v.title)}</b></a>\n   ${escapeTelegramHtml(v.company)} · ${escapeTelegramHtml(professionLabelTr(til, v.profession, true))} · ${escapeTelegramHtml(where)}\n   ${escapeTelegramHtml(salaryLabelTr(til, v.salaryMin, v.salaryMax))}`;
   });
-  await sendTelegram(chatId, `💼 <b>So'nggi vakansiyalar</b> (${total} ta ochiq)\n\n${lines.join("\n\n")}`, { button: { text: "Barcha vakansiyalar", url: `${s}/vakansiyalar` } });
+  await sendTelegram(chatId, `💼 <b>${L(lang, "So'nggi vakansiyalar", "Последние вакансии")}</b> (${L(lang, `${total} ta ochiq`, `открытых: ${total}`)})\n\n${lines.join("\n\n")}`, { button: { text: L(lang, "Barcha vakansiyalar", "Все вакансии"), url: `${s}/vakansiyalar` } });
 }
 
 /** `/sozlamalar` — bildirishnoma guruhlari switch'lari */
@@ -234,27 +249,27 @@ export async function handleSettings(chatId: string, lang?: BotLang): Promise<vo
     await sendNotLinked(chatId, lang);
     return;
   }
-  await sendTelegram(chatId, SETTINGS_TEXT, { keyboard: settingsKeyboard(me.notifyPrefs ?? {}) });
+  await sendTelegram(chatId, L(lang, SETTINGS_TEXT, SETTINGS_TEXT_RU), { keyboard: settingsKeyboard(me.notifyPrefs ?? {}, lang) });
 }
 
 /** `st:<guruh>` — switch'ni almashtirib, klaviaturani joyida yangilaydi */
-export async function handleSettingsCallback(chatId: string, data: string, answer: Answer, messageId: number | null): Promise<boolean> {
+export async function handleSettingsCallback(chatId: string, data: string, answer: Answer, messageId: number | null, lang?: BotLang): Promise<boolean> {
   const m = /^st:([a-z]+)$/.exec(data);
   if (!m) return false;
   const key = m[1] as NotifyGroupKey;
   if (!NOTIFY_GROUP_KEYS.includes(key)) return false;
   const me = await accountOf(chatId);
   if (!me) {
-    await answer("Avval hisobni ulang");
+    await answer(L(lang, "Avval hisobni ulang", "Сначала привяжите аккаунт"));
     return true;
   }
   const next = { ...(me.notifyPrefs ?? {}) };
   next[key] = next[key] === false; // o'chirilgan → yoqiladi, aks holda o'chadi
   await db.update(users).set({ notifyPrefs: next }).where(eq(users.id, me.id));
-  await answer(next[key] ? "Yoqildi" : "O'chirildi");
+  await answer(next[key] ? L(lang, "Yoqildi", "Включено") : L(lang, "O'chirildi", "Выключено"));
   if (messageId) {
     const { replyMarkup } = await import("@/lib/telegram");
-    await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: replyMarkup({ keyboard: settingsKeyboard(next) }) });
+    await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: replyMarkup({ keyboard: settingsKeyboard(next, lang) }) });
   }
   return true;
 }
@@ -271,7 +286,7 @@ export async function handleMenuCallback(chatId: string, data: string, answer: A
   if (data === "menu:mycourses") {
     await answer("");
     const { handleMyPurchases } = await import("@/lib/mentorship/telegram-pay");
-    await handleMyPurchases(chatId);
+    await handleMyPurchases(chatId, lang);
     return true;
   }
   return false;
@@ -281,7 +296,7 @@ export async function handleMenuCallback(chatId: string, data: string, answer: A
 /* Qidiruv, kurslar, efirlar, TOP — ulash shart emas                   */
 /* ------------------------------------------------------------------ */
 
-const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : "yangi");
+const stars = (r: number, lang?: BotLang) => (r > 0 ? `⭐ ${r.toFixed(1)}` : L(lang, "yangi", "новый"));
 
 /** Matn yoki `/qidiruv <so'z>` — ijodkorlar (5 tagacha) */
 export interface BotPerson {
@@ -354,7 +369,8 @@ export async function handleMyContacts(chatId: string, lang?: BotLang): Promise<
   const list = await listUnlockedContacts(me.id);
   if (!list.length) {
     const app = appUrl("/mutaxassislar");
-    await sendTelegram(chatId, "🔓 Hali kontakt ochmagansiz. Ijodkor profilida «Kontaktni ochish» tugmasini bosing — to'lovdan so'ng kontakt shu yerda va kabinetda saqlanadi.", { keyboard: [[app ? { text: "Mutaxassislar", webApp: app } : { text: "Mutaxassislar", url: `${s}/mutaxassislar` }]] });
+    const t = L(lang, "Mutaxassislar", "Специалисты");
+    await sendTelegram(chatId, L(lang, "🔓 Hali kontakt ochmagansiz. Ijodkor profilida «Kontaktni ochish» tugmasini bosing — to'lovdan so'ng kontakt shu yerda va kabinetda saqlanadi.", "🔓 Вы ещё не открывали контакты. В профиле специалиста нажмите «Открыть контакт» — после оплаты контакт сохранится здесь и в кабинете."), { keyboard: [[app ? { text: t, webApp: app } : { text: t, url: `${s}/mutaxassislar` }]] });
     return;
   }
   const h = (v: string) => v.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?(t\.me|telegram\.me|instagram\.com)\//i, "").replace(/\/+$/, "");
@@ -365,87 +381,95 @@ export async function handleMyContacts(chatId: string, lang?: BotLang): Promise<
     if (sp.telegram) lines.push(`✈️ @${escapeTelegramHtml(h(sp.telegram))}`);
     if (sp.instagram) lines.push(`📸 instagram.com/${escapeTelegramHtml(h(sp.instagram))}`);
     if (sp.email) lines.push(`✉️ ${escapeTelegramHtml(sp.email)}`);
-    if (lines.length === 1) lines.push("— aloqa ma'lumotlari hali to'ldirilmagan, sayt chati orqali yozing");
+    if (lines.length === 1) lines.push(L(lang, "— aloqa ma'lumotlari hali to'ldirilmagan, sayt chati orqali yozing", "— контакты ещё не заполнены, напишите через чат на сайте"));
     return lines.join("\n");
   });
   const app = appUrl("/kabinet/kontaktlar");
-  await sendTelegram(chatId, `🔓 <b>Ochilgan kontaktlarim</b> (${list.length})\n\n${blocks.join("\n\n")}`, { keyboard: [[app ? { text: "Kabinetda ko'rish", webApp: app } : { text: "Kabinetda ko'rish", url: `${s}/kabinet/kontaktlar` }]] });
+  const kabinetT = L(lang, "Kabinetda ko'rish", "Открыть в кабинете");
+  await sendTelegram(chatId, `🔓 <b>${L(lang, "Ochilgan kontaktlarim", "Мои открытые контакты")}</b> (${list.length})\n\n${blocks.join("\n\n")}`, { keyboard: [[app ? { text: kabinetT, webApp: app } : { text: kabinetT, url: `${s}/kabinet/kontaktlar` }]] });
 }
 
-export async function handleSearch(chatId: string, qRaw: string): Promise<void> {
+export async function handleSearch(chatId: string, qRaw: string, lang?: BotLang): Promise<void> {
   const q = qRaw.trim().slice(0, 80);
   const s = siteUrl() ?? "";
   if (q.length < 2) {
-    await sendTelegram(chatId, "Kimni qidiramiz? Masalan: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.\n\nIstalgan chatda ham: <code>@bot so'z</code> yozsangiz ijodkor kartasini ulashasiz.");
+    await sendTelegram(
+      chatId,
+      L(
+        lang,
+        "Kimni qidiramiz? Masalan: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.\n\nIstalgan chatda ham: <code>@bot so'z</code> yozsangiz ijodkor kartasini ulashasiz.",
+        "Кого ищем? Например: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.\n\nВ любом чате: напишите <code>@bot слово</code> — и поделитесь карточкой специалиста.",
+      ),
+    );
     return;
   }
   const { CATEGORY_BY_SLUG } = await import("@/lib/constants");
   const people = await searchPeople(q, 5);
   if (!people.length) {
-    await sendTelegram(chatId, `🔎 «${escapeTelegramHtml(q)}» bo'yicha ijodkor topilmadi.`, { button: { text: "Katalogda qidirish", url: `${s}/qidiruv?q=${encodeURIComponent(q)}` } });
+    await sendTelegram(chatId, L(lang, `🔎 «${escapeTelegramHtml(q)}» bo'yicha ijodkor topilmadi.`, `🔎 По запросу «${escapeTelegramHtml(q)}» никого не нашлось.`), { button: { text: L(lang, "Katalogda qidirish", "Искать в каталоге"), url: `${s}/qidiruv?q=${encodeURIComponent(q)}` } });
     return;
   }
   const lines = people.map((p, i) => {
     const cat = CATEGORY_BY_SLUG[p.category]?.name ?? p.category;
-    const contact = p.contactPrice === undefined ? "" : p.contactPrice === null ? " · 🔒 faqat portfolio" : ` · 🔓 kontakt ${formatPrice(p.contactPrice, { compact: true })}`;
-    return `${i + 1}. <a href="${s}/mutaxassislar/${p.slug}"><b>${escapeTelegramHtml(p.name)}</b></a>${p.isVerified ? " ✅" : ""}\n   ${escapeTelegramHtml(p.title || cat)} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${contact}`;
+    const contact = p.contactPrice === undefined ? "" : p.contactPrice === null ? L(lang, " · 🔒 faqat portfolio", " · 🔒 только портфолио") : ` · 🔓 ${L(lang, "kontakt", "контакт")} ${formatPrice(p.contactPrice, { compact: true })}`;
+    return `${i + 1}. <a href="${s}/mutaxassislar/${p.slug}"><b>${escapeTelegramHtml(p.name)}</b></a>${p.isVerified ? " ✅" : ""}\n   ${escapeTelegramHtml(p.title || cat)} · ${stars(p.rating, lang)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${contact}`;
   });
   const app = appUrl(`/qidiruv?q=${encodeURIComponent(q)}`);
-  await sendTelegram(chatId, `🔎 <b>«${escapeTelegramHtml(q)}»</b> bo'yicha ijodkorlar\n\n${lines.join("\n\n")}`, {
-    keyboard: [[app ? { text: "Hammasini ilovada ko'rish", webApp: app } : { text: "Hammasini ko'rish", url: `${s}/qidiruv?q=${encodeURIComponent(q)}` }]],
+  await sendTelegram(chatId, `${L(lang, `🔎 <b>«${escapeTelegramHtml(q)}»</b> bo'yicha ijodkorlar`, `🔎 Специалисты по запросу <b>«${escapeTelegramHtml(q)}»</b>`)}\n\n${lines.join("\n\n")}`, {
+    keyboard: [[app ? { text: L(lang, "Hammasini ilovada ko'rish", "Все — в приложении"), webApp: app } : { text: L(lang, "Hammasini ko'rish", "Показать все"), url: `${s}/qidiruv?q=${encodeURIComponent(q)}` }]],
   });
 }
 
 /** `/kurslar` — mashhur 5 kurs */
-export async function handleCourses(chatId: string): Promise<void> {
+export async function handleCourses(chatId: string, lang?: BotLang): Promise<void> {
   const { listCourses } = await import("@/lib/mentorship/service");
   const s = siteUrl() ?? "";
   const { items } = await listCourses({ sort: "popular", limit: 5 });
   if (!items.length) {
-    await sendTelegram(chatId, "Hozircha kurslar yo'q.", { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+    await sendTelegram(chatId, L(lang, "Hozircha kurslar yo'q.", "Курсов пока нет."), { button: { text: L(lang, "Mentorlik", "Наставничество"), url: `${s}/mentorlik` } });
     return;
   }
   const lines = items.map((c, i) => {
-    const price = c.priceFrom > 0 ? formatPrice(c.priceFrom) : "Bepul";
-    return `${i + 1}. <a href="${s}/mentorlik/${c.slug}"><b>${escapeTelegramHtml(c.title)}</b></a>\n   ${c.lessonsCount} dars · ${c.studentsCount} talaba · ${stars(c.rating)} · ${escapeTelegramHtml(price)}`;
+    const price = c.priceFrom > 0 ? formatPrice(c.priceFrom) : L(lang, "Bepul", "Бесплатно");
+    return `${i + 1}. <a href="${s}/mentorlik/${c.slug}"><b>${escapeTelegramHtml(c.title)}</b></a>\n   ${c.lessonsCount} ${L(lang, "dars", "уроков")} · ${c.studentsCount} ${L(lang, "talaba", "учеников")} · ${stars(c.rating, lang)} · ${escapeTelegramHtml(price)}`;
   });
-  await sendTelegram(chatId, `🎓 <b>Mashhur kurslar</b>\n\n${lines.join("\n\n")}`, {
+  await sendTelegram(chatId, `🎓 <b>${L(lang, "Mashhur kurslar", "Популярные курсы")}</b>\n\n${lines.join("\n\n")}`, {
     keyboard: [
-      [{ text: "Barcha kurslar", url: `${s}/mentorlik` }],
-      [{ text: "📚 Mening kurslarim", data: "menu:mycourses" }],
+      [{ text: L(lang, "Barcha kurslar", "Все курсы"), url: `${s}/mentorlik` }],
+      [{ text: L(lang, "📚 Mening kurslarim", "📚 Мои курсы"), data: "menu:mycourses" }],
     ],
   });
 }
 
 /** `/efirlar` — jonli va bu haftadagi ustoz efirlari */
-export async function handleLives(chatId: string): Promise<void> {
+export async function handleLives(chatId: string, lang?: BotLang): Promise<void> {
   const { liveAndUpcoming } = await import("@/lib/mentorship/growth");
   const s = siteUrl() ?? "";
   const items = await liveAndUpcoming(6);
   if (!items.length) {
-    await sendTelegram(chatId, "Hozir jonli efir yo'q va bu haftaga rejalashtirilgani ham yo'q.", { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+    await sendTelegram(chatId, L(lang, "Hozir jonli efir yo'q va bu haftaga rejalashtirilgani ham yo'q.", "Сейчас нет прямых эфиров, и на эту неделю ничего не запланировано."), { button: { text: L(lang, "Mentorlik", "Наставничество"), url: `${s}/mentorlik` } });
     return;
   }
-  const fmt = (ms: number) => new Date(ms).toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fmt = (ms: number) => new Date(ms).toLocaleString(lang === "ru" ? "ru-RU" : "uz-UZ", { timeZone: "Asia/Tashkent", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const lines = items.map((it) => {
     const href = it.mentorSlug ? `${s}/mentorlik/ustoz/${it.mentorSlug}?tab=efirlar` : `${s}/mentorlik`;
-    return `${it.live ? "🔴 <b>JONLI</b>" : `🗓 ${escapeTelegramHtml(fmt(it.startsAt))}`} — <a href="${href}"><b>${escapeTelegramHtml(it.title)}</b></a>\n   ${escapeTelegramHtml(it.mentorName)}${it.price > 0 ? ` · ${escapeTelegramHtml(formatPrice(it.price))}` : ""}`;
+    return `${it.live ? `🔴 <b>${L(lang, "JONLI", "В ЭФИРЕ")}</b>` : `🗓 ${escapeTelegramHtml(fmt(it.startsAt))}`} — <a href="${href}"><b>${escapeTelegramHtml(it.title)}</b></a>\n   ${escapeTelegramHtml(it.mentorName)}${it.price > 0 ? ` · ${escapeTelegramHtml(formatPrice(it.price))}` : ""}`;
   });
-  await sendTelegram(chatId, `🎥 <b>Efirlar</b>\n\n${lines.join("\n\n")}`, { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+  await sendTelegram(chatId, `🎥 <b>${L(lang, "Efirlar", "Эфиры")}</b>\n\n${lines.join("\n\n")}`, { button: { text: L(lang, "Mentorlik", "Наставничество"), url: `${s}/mentorlik` } });
 }
 
 /** `/top` — joriy oy TOP-5 */
-export async function handleTop(chatId: string): Promise<void> {
+export async function handleTop(chatId: string, lang?: BotLang): Promise<void> {
   const { currentMonthTop } = await import("@/lib/top");
   const s = siteUrl() ?? "";
   const rows = await currentMonthTop(5);
   if (!rows.length) {
-    await sendTelegram(chatId, "Bu oy reytingi hali shakllanmadi.", { button: { text: "TOP reyting", url: `${s}/top` } });
+    await sendTelegram(chatId, L(lang, "Bu oy reytingi hali shakllanmadi.", "Рейтинг этого месяца ещё не сформирован."), { button: { text: L(lang, "TOP reyting", "ТОП-рейтинг"), url: `${s}/top` } });
     return;
   }
   const medal = ["🥇", "🥈", "🥉", "4.", "5."];
-  const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${r.score} ball\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
-  await sendTelegram(chatId, `🏆 <b>Oyning TOP ijodkorlari</b> (jonli hisob)\n\n${lines.join("\n\n")}`, { button: { text: "To'liq reyting", url: `${s}/top` } });
+  const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${r.score} ${L(lang, "ball", "баллов")}\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
+  await sendTelegram(chatId, `🏆 <b>${L(lang, "Oyning TOP ijodkorlari", "ТОП авторов месяца")}</b> (${L(lang, "jonli hisob", "живой счёт")})\n\n${lines.join("\n\n")}`, { button: { text: L(lang, "To'liq reyting", "Полный рейтинг"), url: `${s}/top` } });
 }
 
 /* ------------------------------------------------------------------ */
