@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import { BadgeCheck, ExternalLink, Plus, Radio, RadioTower, Search, UsersRound } from "lucide-react";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
@@ -14,11 +17,15 @@ import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Jamoalar — kanallar va guruhlar",
-  description: "Ijodkorlar hamjamiyati: rasmiy kanal, yo'nalish va hudud bo'yicha kanallar va guruhlar, lenta, chat, jonli efirlar.",
-  alternates: { canonical: "/jamoalar" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Jamoalar — kanallar va guruhlar",
+    description: "Ijodkorlar hamjamiyati: rasmiy kanal, yo'nalish va hudud bo'yicha kanallar va guruhlar, lenta, chat, jonli efirlar.",
+    alternates: { canonical: "/jamoalar" },
+    other: { "m-title": tr(til, { uz: "Jamoalar", ru: "Сообщества" }) },
+  };
+}
 
 type Raw = Record<string, string | string[] | undefined>;
 

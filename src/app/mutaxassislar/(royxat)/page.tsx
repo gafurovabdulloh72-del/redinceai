@@ -36,8 +36,10 @@ const FILTER_KEYS = ["q", "category", "region", "priceMin", "priceMax", "experie
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSearchParams> }): Promise<Metadata> {
   const flat = flatten(await searchParams);
   const filtered = FILTER_KEYS.some((k) => k in flat);
+  const til = await getLocale();
   return {
     title: "Mutaxassislar",
+    other: { "m-title": tr(til, { uz: "Mutaxassislar", ru: "Специалисты" }) },
     description: "O'zbekistonning barcha hududlaridagi videograf, montajor, dizayner va boshqa ijodkorlar — filtrlang, solishtiring va buyurtma bering.",
     alternates: { canonical: BASE },
     ...(filtered ? { robots: { index: false, follow: true } } : {}),

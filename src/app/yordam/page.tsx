@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, LifeBuoy, Phone, Send, ShieldCheck, Users, type LucideIcon, UsersRound, Briefcase } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
@@ -6,11 +9,15 @@ import { SITE } from "@/lib/constants";
 import { HELP_ARTICLES, HELP_CATEGORIES, articleText, type HelpCategoryKey } from "./articles";
 import { HelpSearch, type HelpIndexItem } from "./HelpSearch";
 
-export const metadata: Metadata = {
-  title: "Yordam markazi",
-  description: "Kasb Egalari bo'yicha savollarga javoblar: buyurtma berish, eskrou orqali xavfsiz to'lov, nizo, mutaxassis obunasi, komissiya, pul chiqarish va xavfsizlik.",
-  alternates: { canonical: "/yordam" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Yordam markazi",
+    description: "Kasb Egalari bo'yicha savollarga javoblar: buyurtma berish, eskrou orqali xavfsiz to'lov, nizo, mutaxassis obunasi, komissiya, pul chiqarish va xavfsizlik.",
+    alternates: { canonical: "/yordam" },
+    other: { "m-title": tr(til, SHELL.footer.help) },
+  };
+}
 
 const CATEGORY_ICON: Record<HelpCategoryKey, LucideIcon> = {
   mijozlar: Users,

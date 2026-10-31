@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -26,12 +29,16 @@ import {
 import { ButtonLink, IconTile, PageHeader } from "@/components/ui";
 import { SITE } from "@/lib/constants";
 
-export const metadata: Metadata = {
-  title: "Biz haqimizda",
-  alternates: { canonical: "/haqida" },
-  description:
-    "Kasb Egalari — ijodkorlar va barcha onlayn kasb egalari uchun platforma: buyurtmalar, jamoalar va kanallar, jonli efirlar, vakansiyalar. Loyiha, ishonch kafolatlari va asoschi haqida.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Biz haqimizda",
+    alternates: { canonical: "/haqida" },
+    description:
+      "Kasb Egalari — ijodkorlar va barcha onlayn kasb egalari uchun platforma: buyurtmalar, jamoalar va kanallar, jonli efirlar, vakansiyalar. Loyiha, ishonch kafolatlari va asoschi haqida.",
+    other: { "m-title": tr(til, SHELL.footer.about) },
+  };
+}
 
 /** Platformaning asosiy bo'limlari — foydalanuvchi bir qarashda nimalar borligini ko'radi */
 const FEATURES: Array<{ icon: LucideIcon; t: string; d: string; href: string; cta: string }> = [

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import { ArrowUpRight, Compass } from "lucide-react";
 import { Avatar, EmptyState, PageHeader, Stars, VerifiedBadge } from "@/components/ui";
@@ -18,12 +19,15 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Qidiruv — videolar, ishlar, postlar, ijodkorlar",
-  description: "Ommaviy qidiruv: ish nomi, post matni yoki ijodkor ismi bo'yicha. Barcha ochiq kontent bir joyda.",
-  alternates: { canonical: "/qidiruv" },
-  other: { "m-title": "Qidiruv" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Qidiruv — videolar, ishlar, postlar, ijodkorlar",
+    description: "Ommaviy qidiruv: ish nomi, post matni yoki ijodkor ismi bo'yicha. Barcha ochiq kontent bir joyda.",
+    alternates: { canonical: "/qidiruv" },
+    other: { "m-title": tr(til, SHELL.nav.search) },
+  };
+}
 
 function href(q: string, type: ExploreType) {
   const sp = new URLSearchParams();

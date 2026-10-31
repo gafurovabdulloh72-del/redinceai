@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import { MapExplorer } from "@/components/map/MapExplorer";
 import { PageHeader } from "@/components/ui";
 import { CATEGORY_BY_SLUG, GENDERS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
@@ -10,11 +11,15 @@ import { XARITA } from "@/lib/i18n/dict/search";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Xarita",
-  description:
-    "O'zbekistonning 14 ta hududi bo'ylab videograf, montajor, dizayner va boshqa ijodkorlarni interaktiv xaritadan toping. Hududni bosing — mutaxassislar ro'yxati chiqadi.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Xarita",
+    description:
+      "O'zbekistonning 14 ta hududi bo'ylab videograf, montajor, dizayner va boshqa ijodkorlarni interaktiv xaritadan toping. Hududni bosing — mutaxassislar ro'yxati chiqadi.",
+    other: { "m-title": tr(til, SHELL.nav.map) },
+  };
+}
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 

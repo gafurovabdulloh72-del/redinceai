@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import { ArrowRight, Check, Gift } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
@@ -16,10 +17,11 @@ import { cn, formatPrice } from "@/lib/utils";
 export const revalidate = 600;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const s = await getSettings();
+  const [s, til] = await Promise.all([getSettings(), getLocale()]);
   const price = formatPrice(s.subscriptionPrice);
   return {
     title: "Narxlar",
+    other: { "m-title": tr(til, SHELL.nav.prices) },
     description: `${SITE.name} narxlari: mijozlar uchun bepul — buyurtma, e'lon va eskrou himoyasi. Mutaxassislar uchun obuna ${price} / oy${s.subscriptionTrialDays > 0 ? `, birinchi ${s.subscriptionTrialDays} kun bepul` : ""}. Uzoq muddatga chegirmalar va eskrou komissiyasi.`,
     alternates: { canonical: "/narxlar" },
     openGraph: {

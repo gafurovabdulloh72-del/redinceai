@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
 import { CalendarClock, Crown, Eye, Heart, MessageCircle, Play, Sparkles, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/ui";
@@ -11,13 +12,15 @@ import { TOP } from "@/lib/i18n/dict/social";
 import { getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  // Telefon yuqori paneli uzun SEO sarlavhani emas, shu qisqa nomni ko'rsatadi
-  other: { "m-title": "TOP reyting" },
-  title: "Oyning TOP ijodkorlari",
-  description: "Kasb Egalari: har oyning oxirgi kunida e'lon qilinadigan eng yaxshi ijodkorlar reytingi. G'oliblarga premium imtiyoz beriladi.",
-  alternates: { canonical: "/top" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: "Oyning TOP ijodkorlari",
+    description: "Kasb Egalari: har oyning oxirgi kunida e'lon qilinadigan eng yaxshi ijodkorlar reytingi. G'oliblarga premium imtiyoz beriladi.",
+    alternates: { canonical: "/top" },
+    other: { "m-title": tr(til, SHELL.nav.top) },
+  };
+}
 
 const MEDAL = [
   { ring: "linear-gradient(135deg,#ffe08a,#f2a31b)", chip: "linear-gradient(135deg,#ffe08a,#f2a31b)", label: "1" },
