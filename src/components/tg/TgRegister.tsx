@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowRight, Check, Loader2, Phone, UserRound } from "lucide-react";
 import { Button } from "@/components/ui";
 import { CraftStep, RoleStep, StepBar } from "@/components/auth/RegisterSteps";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { CATEGORY_BY_SLUG } from "@/lib/categories";
 import { EXPERIENCE_LEVELS, REGION_BY_SLUG } from "@/lib/constants";
 import { normalizeUzPhone } from "@/lib/utils";
@@ -26,6 +27,10 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
   const [phone, setPhone] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Til — TgAppGate Telegram tiliga qarab LocaleProvider bilan o'raydi (ru → ruscha; RoleStep/CraftStep ham shu kontekstdan oladi)
+  const til = useLocale();
+  const t = (uz: string, ru: string) => (til === "ru" ? ru : uz);
+  const EXP_RU: Record<string, string> = { junior: "Начинающий (до 1 года)", middle: "Средний (1–3 года)", senior: "Опытный (3–6 лет)", expert: "Эксперт (6+ лет)" };
 
   const order: Step[] = role === "specialist" ? ["role", "name", "craft", "phone", "confirm"] : ["role", "name", "phone", "confirm"];
   const idx = order.indexOf(step);
@@ -45,11 +50,11 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
         body: JSON.stringify({ initData, to, register: { role, name: name.trim(), phone: phone.trim() ? (normalizeUzPhone(phone) ?? phone.trim()) : "", ...(role === "specialist" ? { category, experience, region } : {}) } }),
       });
       const j = (await r.json()) as { ok: boolean; data?: { next?: string }; error?: string; fields?: Record<string, string> };
-      if (!r.ok || !j.ok) throw new Error(j.fields ? Object.values(j.fields)[0] : j.error || "Hisob ochilmadi");
+      if (!r.ok || !j.ok) throw new Error(j.fields ? Object.values(j.fields)[0] : j.error || t("Hisob ochilmadi", "Не удалось создать аккаунт"));
       document.cookie = "tgapp=1; path=/; max-age=43200; samesite=lax";
       window.location.replace(j.data?.next || "/xush-kelibsiz");
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Hisob ochilmadi");
+      setErr(e instanceof Error ? e.message : t("Hisob ochilmadi", "Не удалось создать аккаунт"));
       setBusy(false);
     }
   }
@@ -60,7 +65,7 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
 
       {step === "role" && (
         <>
-          <h2 className="mb-3 text-center font-display text-[18px] font-semibold text-fg">Siz kimsiz?</h2>
+          <h2 className="mb-3 text-center font-display text-[18px] font-semibold text-fg">{t("Siz kimsiz?", "Кто вы?")}</h2>
           <RoleStep
             role={role}
             onPick={(r) => {
@@ -76,8 +81,8 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
           onSubmit={(e) => {
             e.preventDefault();
             const n = name.replace(/\s+/g, " ").trim();
-            if (n.length < 2 || n.length > 60) return setErr("Ism 2–60 belgi bo'lsin");
-            if (/https?:\/\/|@|\d{5,}/.test(n)) return setErr("Ismda havola va raqam bo'lmasin");
+            if (n.length < 2 || n.length > 60) return setErr(t("Ism 2–60 belgi bo'lsin", "Имя — от 2 до 60 символов"));
+            if (/https?:\/\/|@|\d{5,}/.test(n)) return setErr(t("Ismda havola va raqam bo'lmasin", "В имени не должно быть ссылок и номеров"));
             setName(n);
             go(role === "specialist" ? "craft" : "phone");
           }}
@@ -85,17 +90,17 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
         >
           <div>
             <label htmlFor="tg-name" className="field-label">
-              Ism-familiyangiz
+              {t("Ism-familiyangiz", "Имя и фамилия")}
             </label>
             <div className="relative">
               <UserRound size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
               <input id="tg-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Dilnoza Karimova" maxLength={60} className="field w-full pl-10 text-[15px]" />
             </div>
-            <p className="mt-1.5 text-[12px] text-fg-3">Telegram'dagi nomingiz qo'yildi — xohlasangiz o'zgartiring.</p>
+            <p className="mt-1.5 text-[12px] text-fg-3">{t("Telegram'dagi nomingiz qo'yildi — xohlasangiz o'zgartiring.", "Подставили ваше имя из Telegram — при желании измените.")}</p>
           </div>
           {err && <p role="alert" className="text-[13px] font-semibold text-danger-text">{err}</p>}
           <Button type="submit" variant="accent" size="lg" className="w-full">
-            Davom etish <ArrowRight size={18} />
+            {t("Davom etish", "Продолжить")} <ArrowRight size={18} />
           </Button>
         </form>
       )}
@@ -110,8 +115,8 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
           onRegion={setRegion}
           error={err}
           onNext={() => {
-            if (!category) return setErr("Kasbingizni tanlang");
-            if (!region) return setErr("Hududni tanlang");
+            if (!category) return setErr(t("Kasbingizni tanlang", "Выберите профессию"));
+            if (!region) return setErr(t("Hududni tanlang", "Выберите регион"));
             go("phone");
           }}
         />
@@ -121,52 +126,60 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (phone.trim() && !normalizeUzPhone(phone)) return setErr("Raqam ko'rinishi: +998 90 123 45 67");
+            if (phone.trim() && !normalizeUzPhone(phone)) return setErr(t("Raqam ko'rinishi: +998 90 123 45 67", "Формат номера: +998 90 123 45 67"));
             go("confirm");
           }}
           className="space-y-4"
         >
           <div>
             <label htmlFor="tg-phone" className="field-label">
-              Telefon raqamingiz <span className="font-normal text-fg-3">(ixtiyoriy)</span>
+              {t("Telefon raqamingiz", "Номер телефона")} <span className="font-normal text-fg-3">({t("ixtiyoriy", "необязательно")})</span>
             </label>
             <div className="relative">
               <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
               <input id="tg-phone" autoFocus type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" className="field w-full pl-10 text-[15px]" dir="ltr" />
             </div>
-            <p className="mt-1.5 text-[12px] text-fg-3">Raqam hech kimga ko'rsatilmaydi — faqat platforma bilan aloqa uchun.</p>
+            <p className="mt-1.5 text-[12px] text-fg-3">{t("Raqam hech kimga ko'rsatilmaydi — faqat platforma bilan aloqa uchun.", "Номер никому не показывается — только для связи с платформой.")}</p>
           </div>
           {err && <p role="alert" className="text-[13px] font-semibold text-danger-text">{err}</p>}
           <Button type="submit" variant="accent" size="lg" className="w-full">
-            Davom etish <ArrowRight size={18} />
+            {t("Davom etish", "Продолжить")} <ArrowRight size={18} />
           </Button>
           <button type="button" onClick={() => { setPhone(""); go("confirm"); }} className="block w-full text-center text-[13.5px] font-semibold text-fg-3 hover:text-fg">
-            O&apos;tkazib yuborish
+            {t("O'tkazib yuborish", "Пропустить")}
           </button>
         </form>
       )}
 
       {step === "confirm" && (
         <div className="space-y-4">
-          <h2 className="font-display text-[18px] font-semibold text-fg">Tekshiring</h2>
+          <h2 className="font-display text-[18px] font-semibold text-fg">{t("Tekshiring", "Проверьте")}</h2>
           <dl className="card divide-y divide-line text-[14px]">
-            <Row k="Ism" v={name} />
-            <Row k="Rol" v={role === "specialist" ? "Mutaxassis" : "Mijoz"} />
+            <Row k={t("Ism", "Имя")} v={name} />
+            <Row k={t("Rol", "Роль")} v={role === "specialist" ? t("Mutaxassis", "Специалист") : t("Mijoz", "Клиент")} />
             {role === "specialist" && (
               <>
-                <Row k="Kasb" v={CATEGORY_BY_SLUG[category ?? ""]?.name ?? "—"} />
-                <Row k="Tajriba" v={EXPERIENCE_LEVELS.find((l) => l.value === experience)?.label ?? "—"} />
-                <Row k="Hudud" v={REGION_BY_SLUG[region]?.name ?? "—"} />
+                <Row k={t("Kasb", "Профессия")} v={CATEGORY_BY_SLUG[category ?? ""]?.name ?? "—"} />
+                <Row k={t("Tajriba", "Опыт")} v={til === "ru" ? (EXP_RU[experience] ?? "—") : (EXPERIENCE_LEVELS.find((l) => l.value === experience)?.label ?? "—")} />
+                <Row k={t("Hudud", "Регион")} v={REGION_BY_SLUG[region]?.name ?? "—"} />
               </>
             )}
-            <Row k="Telefon" v={phone.trim() || "—"} />
+            <Row k={t("Telefon", "Телефон")} v={phone.trim() || "—"} />
           </dl>
           {err && <p role="alert" className="text-[13px] font-semibold text-danger-text">{err}</p>}
           <Button type="button" variant="accent" size="lg" disabled={busy} onClick={() => void submit()} className="w-full">
-            {busy ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />} Hisob ochish
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />} {t("Hisob ochish", "Создать аккаунт")}
           </Button>
           <p className="text-center text-[11.5px] leading-snug text-fg-4">
-            «Hisob ochish» bosilganda <a href="/oferta" className="underline">oferta</a> va <a href="/maxfiylik" className="underline">maxfiylik siyosati</a>ga rozilik bildirasiz.
+            {til === "ru" ? (
+              <>
+                Нажимая «Создать аккаунт», вы соглашаетесь с <a href="/oferta" className="underline">офертой</a> и <a href="/maxfiylik" className="underline">политикой конфиденциальности</a>.
+              </>
+            ) : (
+              <>
+                «Hisob ochish» bosilganda <a href="/oferta" className="underline">oferta</a> va <a href="/maxfiylik" className="underline">maxfiylik siyosati</a>ga rozilik bildirasiz.
+              </>
+            )}
           </p>
         </div>
       )}

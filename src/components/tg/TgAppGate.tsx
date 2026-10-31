@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
 import { TgRegister } from "@/components/tg/TgRegister";
+import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { decodeStartParam } from "@/lib/tg-start-param";
 
 /**
@@ -16,7 +17,18 @@ import { decodeStartParam } from "@/lib/tg-start-param";
  * Telegram'ga `web_app_ready`/`web_app_expand` hodisalari SDK usulida (TelegramWebviewProxy / external.notify / postMessage) yuboriladi.
  */
 type Phase = "auth" | "outside" | "error" | "ask" | "login" | "register";
+type Lang = "uz" | "ru";
 const INIT_KEY = "ke_tg_init";
+
+/** initData ichidagi `user.language_code` — Telegram tili ruscha bo'lsa darvoza va ro'yxat ustasi ruscha (server /api/tg/auth ham `til` cookie qo'yadi) */
+function langOf(initData: string): Lang {
+  try {
+    const u = JSON.parse(new URLSearchParams(initData).get("user") ?? "{}") as { language_code?: string };
+    return (u.language_code ?? "").toLowerCase().startsWith("ru") ? "ru" : "uz";
+  } catch {
+    return "uz";
+  }
+}
 
 function postEvent(eventType: string, eventData: Record<string, unknown> = {}) {
   const w = window as unknown as { TelegramWebviewProxy?: { postEvent: (t: string, d: string) => void }; external?: { notify?: (s: string) => void } };
@@ -68,6 +80,8 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
   const [err, setErr] = useState<string | null>(null);
   const [tgName, setTgName] = useState("");
   const [initData, setInitData] = useState("");
+  const [lang, setLang] = useState<Lang>("uz");
+  const t = (uz: string, ru: string) => (lang === "ru" ? ru : uz);
   const [target, setTarget] = useState(to);
   const started = useRef(false);
   const botLink = bot ? `https://t.me/${bot}` : null;
@@ -87,6 +101,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
     const dest = launch.startPath ?? to;
     setTarget(dest);
     setInitData(launch.initData);
+    setLang(langOf(launch.initData));
     const bg = launch.dark ? "#0a0a0b" : "#ffffff";
     postEvent("web_app_ready");
     postEvent("web_app_expand");
@@ -103,7 +118,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
           window.location.replace(`/auth/kirish?next=${encodeURIComponent(`/tg?link=1&to=${encodeURIComponent(dest)}`)}`);
           return;
         }
-        if (!r.ok || !j.ok) throw new Error(j.error || "Kirib bo'lmadi");
+        if (!r.ok || !j.ok) throw new Error(j.error || (langOf(launch.initData) === "ru" ? "Не удалось войти" : "Kirib bo'lmadi"));
         if (j.data?.status === "register") {
           setTgName(j.data.name ?? "");
           setPhase("ask");
@@ -113,7 +128,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
         window.location.replace(j.data?.next || "/");
       } catch (e) {
         if (!cancelled) {
-          setErr(e instanceof Error ? e.message : "Kirib bo'lmadi");
+          setErr(e instanceof Error ? e.message : langOf(launch.initData) === "ru" ? "Не удалось войти" : "Kirib bo'lmadi");
           setPhase("error");
         }
       }
@@ -135,54 +150,56 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
       {phase === "auth" ? (
         <>
           <span aria-hidden className="mt-8 h-7 w-7 animate-spin rounded-full border-[3px] border-line border-t-fg" />
-          <p className="mt-4 text-[14px] text-fg-3">{link ? "Telegram hisobga ulanmoqda…" : "Hisobingizga kirilmoqda…"}</p>
+          <p className="mt-4 text-[14px] text-fg-3">{link ? t("Telegram hisobga ulanmoqda…", "Привязываем Telegram к аккаунту…") : t("Hisobingizga kirilmoqda…", "Входим в ваш аккаунт…")}</p>
         </>
       ) : phase === "ask" ? (
         <>
-          <p className="mt-7 text-[16px] font-semibold text-fg">{tgName ? `Salom, ${tgName}!` : "Salom!"}</p>
-          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">Kasb Egalari&apos;da akkauntingiz bormi?</p>
+          <p className="mt-7 text-[16px] font-semibold text-fg">{tgName ? t(`Salom, ${tgName}!`, `Привет, ${tgName}!`) : t("Salom!", "Привет!")}</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">{t("Kasb Egalari'da akkauntingiz bormi?", "У вас есть аккаунт в Kasb Egalari?")}</p>
           <button type="button" onClick={() => setPhase("register")} className="btn-accent mt-6 inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold">
-            Yo&apos;q, ro&apos;yxatdan o&apos;taman
+            {t("Yo'q, ro'yxatdan o'taman", "Нет, зарегистрируюсь")}
           </button>
           <button type="button" onClick={() => setPhase("login")} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full border border-line-2 text-[15px] font-semibold text-fg">
-            Ha, akkauntim bor
+            {t("Ha, akkauntim bor", "Да, у меня есть аккаунт")}
           </button>
         </>
       ) : phase === "login" ? (
         <>
-          <p className="mt-7 text-[16px] font-semibold text-fg">Akkauntni ulash</p>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">Saytdagi hisobingiz bilan kiring — Telegram shu hisobga avtomatik ulanadi.</p>
+          <p className="mt-7 text-[16px] font-semibold text-fg">{t("Akkauntni ulash", "Привязать аккаунт")}</p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">{t("Saytdagi hisobingiz bilan kiring — Telegram shu hisobga avtomatik ulanadi.", "Войдите под аккаунтом сайта — Telegram привяжется к нему автоматически.")}</p>
           {googleEnabled && (
             <a href={googleHref} className="btn-ink mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold">
-              <GoogleG /> Google bilan kirish
+              <GoogleG /> {t("Google bilan kirish", "Войти через Google")}
             </a>
           )}
           <a href={loginHref} className={`${googleEnabled ? "mt-3 border border-line-2 text-fg" : "btn-accent mt-6"} inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold`}>
-            Email va parol bilan kirish
+            {t("Email va parol bilan kirish", "Войти по email и паролю")}
           </a>
           <button type="button" onClick={() => setPhase("ask")} className="mt-4 text-[13px] font-semibold text-fg-3 underline-offset-4 hover:underline">
-            Orqaga
+            {t("Orqaga", "Назад")}
           </button>
         </>
       ) : phase === "register" ? (
-        <TgRegister tgName={tgName} initData={initData} to={target} onBack={() => setPhase("ask")} />
+        <LocaleProvider locale={lang}>
+          <TgRegister tgName={tgName} initData={initData} to={target} onBack={() => setPhase("ask")} />
+        </LocaleProvider>
       ) : phase === "outside" ? (
         <>
-          <p className="mt-7 text-[15px] leading-relaxed text-fg-2">Bu ilova Telegram ichida ochiladi. Botga kirib, «Ilova» tugmasini bosing.</p>
+          <p className="mt-7 text-[15px] leading-relaxed text-fg-2">{t("Bu ilova Telegram ichida ochiladi. Botga kirib, «Ilova» tugmasini bosing.", "Это приложение открывается внутри Telegram. Откройте бота и нажмите кнопку «Приложение».")}</p>
           {botLink && (
             <a href={botLink} className="btn-ink mt-5 inline-flex h-11 items-center rounded-full px-6 text-[14px] font-semibold">
-              Botni ochish
+              {t("Botni ochish", "Открыть бота")}
             </a>
           )}
           <a href="/" className="mt-3 text-[13px] font-semibold text-fg-3 underline-offset-4 hover:underline">
-            Saytga o&apos;tish
+            {t("Saytga o'tish", "Перейти на сайт")}
           </a>
         </>
       ) : (
         <>
           <p className="mt-7 text-[15px] leading-relaxed text-danger-text">{err}</p>
           <button type="button" onClick={() => window.location.reload()} className="btn-ink mt-5 inline-flex h-11 items-center rounded-full px-6 text-[14px] font-semibold">
-            Qayta urinish
+            {t("Qayta urinish", "Попробовать снова")}
           </button>
         </>
       )}
