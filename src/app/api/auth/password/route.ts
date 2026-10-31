@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { bumpSessionVersion, createSession, getSession } from "@/lib/auth";
+import { notify } from "@/lib/notifications";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { changePasswordSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
@@ -34,5 +35,13 @@ export const POST = handler(async (req) => {
   const current = await getSession();
   await createSession({ id: user.id, role: user.role, name: user.name, sessionVersion: sv }, { remember: current?.remember ?? true });
   await audit(user.id, "password_changed", { targetType: "user", targetId: user.id }, req);
+  // Egaga (sayt + Telegram + email): hisob egallab olinib parol almashtirilsa, egasi darhol bilsin (3-audit)
+  await notify(
+    user.id,
+    "account",
+    "Parolingiz o'zgartirildi",
+    "Boshqa qurilmalardagi sessiyalar yopildi. Bu siz bo'lmasangiz — darhol «Parolni tiklash» orqali yangi parol o'rnating va qo'llab-quvvatlashga yozing.",
+    "/kabinet/xavfsizlik",
+  ).catch(() => undefined);
   return ok({ changed: true });
 });

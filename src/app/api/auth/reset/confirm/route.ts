@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { bumpSessionVersion, createSession } from "@/lib/auth";
+import { notify } from "@/lib/notifications";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { resetConfirmSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
@@ -26,6 +27,13 @@ export const POST = handler(async (req) => {
   await db.update(users).set({ passwordHash: await hashPassword(input.newPassword), passwordChangedAt: new Date(), lastLoginAt: new Date() }).where(eq(users.id, user.id));
   const sv = await bumpSessionVersion(user.id);
   await audit(user.id, "password_reset", { targetType: "user", targetId: user.id }, req);
+  await notify(
+    user.id,
+    "account",
+    "Parol tiklandi",
+    "Emaildagi havola orqali yangi parol o'rnatildi, boshqa qurilmalardagi sessiyalar yopildi. Bu siz bo'lmasangiz — darhol qo'llab-quvvatlashga yozing.",
+    "/kabinet/xavfsizlik",
+  ).catch(() => undefined);
   // 2FA yoqilgan bo'lsa email orqali tiklash ikkinchi omilni chetlab o'tmasin — kirish sahifasida kod bilan kiradi
   if (user.totpEnabled) return ok({ reset: true, name: user.name, role: user.role, requiresLogin: true });
   await createSession({ id: user.id, role: user.role, name: user.name, sessionVersion: sv }, { remember: false });
