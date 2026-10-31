@@ -7,6 +7,7 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { contactUnlockStats, pendingContactInvoices, recentContactUnlocks } from "@/lib/contacts/unlock";
 import { getSettings } from "@/lib/payments/settings";
 import { formatPrice } from "@/lib/utils";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Kontakt sotuvi (admin)", robots: { index: false, follow: false } };
@@ -16,6 +17,7 @@ export default async function AdminKontaktlarPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/kontaktlar"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
   const [settings, stats, pending, recent] = await Promise.all([getSettings(), contactUnlockStats(), pendingContactInvoices(), recentContactUnlocks()]);
   return (
     <div className="container-x">

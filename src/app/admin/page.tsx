@@ -58,6 +58,7 @@ import { Avatar, Badge, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, REGIONS, type OrderStatus } from "@/lib/constants";
 import { listOpenDisputes } from "@/lib/payments/disputes";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 import { getAdminFinance, listAdminPayments, listAdminPayouts } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
 import { getAdminOverview } from "@/lib/queries";
@@ -121,6 +122,7 @@ export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
 
   // Tasdiqlash navbati listPendingSpecialists'dan keladi (eng eskisi birinchi, 200 tagacha, avatar + portfolio soni bilan)
   const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue, contactStats, contactPending] = await Promise.all([
@@ -323,7 +325,7 @@ export default async function AdminPage() {
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warning-text" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-fg">Admin hisobida ikki bosqichli himoya (2FA) yoqilmagan</p>
-              <p className="mt-0.5 leading-relaxed text-fg-3">Admin parolini bilgan odam butun platformani boshqara oladi. Autentifikator ilovasi bilan 2FA&apos;ni yoqing — bir daqiqa.</p>
+              <p className="mt-0.5 leading-relaxed text-fg-3">Admin parolini bilgan odam butun platformani boshqara oladi. Autentifikator ilovasi bilan 2FA&apos;ni yoqing — bir daqiqa. Barcha adminlar yoqqach, Vercel&apos;da <code className="font-mono text-[12px]">ADMIN_REQUIRE_2FA=1</code> qo&apos;ying — 2FA&apos;siz admin panel va admin bot yopiladi.</p>
             </div>
             <a href="/kabinet/xavfsizlik" className="btn-ink inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold">2FA&apos;ni yoqish</a>
           </div>

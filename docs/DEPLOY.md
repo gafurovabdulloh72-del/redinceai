@@ -47,6 +47,7 @@ va baza migratsiyasi siyosatini tushuntiradi. Asosiy yo'l — **Vercel + Turso**
 | `BLOB_READ_WRITE_TOKEN` | Vercel'da ha | — | Vercel Blob (rasm yuklash). Vercel → Storage → Blob yaratilganda o'zi qo'shiladi. |
 | `UPLOAD_DIR` | Railway'da | `/data/uploads` | Blob bo'lmasa yuklamalar papkasi (Railway Volume). |
 | `SEED_ON_START` | yo'q | `0` | `0` — deploy'da seed o'tkazib yuboriladi (baza bo'sh bo'lsa ham). |
+| `ADMIN_REQUIRE_2FA` | tavsiya | `1` | Admin uchun 2FA majburiy: yoqilsa 2FA'siz admin admin panel, admin API va Telegram admin botiga kira olmaydi (2FA sahifasiga yo'naltiriladi). **Avval barcha adminlar Kabinet → Xavfsizlik'da 2FA'ni yoqsin**, keyin qo'ying. |
 
 Platforma sozlamalari (komissiya darajalari, minimal summa, **obuna narxi / sinov / imtiyozli muddat / talab**,
 shoshilinch ustama, USD kursi) env'da emas — **Admin → Sozlamalar**da o'zgartiriladi va audit jurnaliga

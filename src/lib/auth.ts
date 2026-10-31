@@ -80,6 +80,8 @@ function computeSecret(): Uint8Array {
 }
 
 export interface SessionPayload {
+  /** Bazadan (getVerifiedSession): 2FA yoqilganmi — JWT'ga yozilmaydi */
+  totp?: boolean;
   sub: string;
   role: User["role"];
   name: string;
@@ -402,14 +404,14 @@ export const getVerifiedSession = cache(async (): Promise<SessionPayload | null>
   if (!session) return null;
   const row = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
-    columns: { id: true, role: true, name: true, sessionVersion: true, isBanned: true },
+    columns: { id: true, role: true, name: true, sessionVersion: true, isBanned: true, totpEnabled: true },
   });
   // Bloklangan foydalanuvchi hamma joyda chiqib ketadi (cookie tozalanadi)
   if (!row || row.isBanned || row.sessionVersion !== session.sv || (await isRevoked(session))) {
     await onStaleSession();
     return null;
   }
-  return { ...session, role: row.role, name: row.name };
+  return { ...session, role: row.role, name: row.name, totp: row.totpEnabled };
 });
 
 /**

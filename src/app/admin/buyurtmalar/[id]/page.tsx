@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { auditLogs, messages, orderEvents, orders, payments, users } from "@/lib/db/schema";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { labelFor } from "../../queries";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Buyurtma — admin", robots: { index: false, follow: false } };
@@ -42,6 +43,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath(`/admin/buyurtmalar/${id}`));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
 
   const order = await db.query.orders.findFirst({
     where: eq(orders.id, id),

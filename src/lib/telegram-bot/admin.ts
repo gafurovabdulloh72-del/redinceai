@@ -21,6 +21,7 @@ import { recalcRating } from "@/lib/queries";
 import { listOpenDisputes } from "@/lib/payments/disputes";
 import { getSpecialistBalance, listAdminPayouts, specialistOwnerId } from "@/lib/payments/queries";
 import { PAYOUT_STATE_LABEL } from "@/lib/constants";
+import { adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 /**
  * ADMIN BOTI (2026-10-31): administrator Telegramdan platformani kuzatadi va navbatni hal qiladi.
@@ -43,7 +44,9 @@ const n = (v: unknown) => Number(v ?? 0);
 
 /** Chatga ulangan ADMIN (bo'lmasa null) */
 export async function adminByChat(chatId: string): Promise<{ id: string; name: string } | null> {
-  const u = await db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true } });
+  const u = await db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true, totpEnabled: true } });
+  // ADMIN_REQUIRE_2FA=1 — 2FA'siz admin bot orqali ham admin amallarini bajara olmaydi (security/admin-2fa.ts)
+  if (u && adminTwoFactorRequired() && !u.totpEnabled) return null;
   return u && u.role === "admin" && !u.isBanned ? { id: u.id, name: u.name } : null;
 }
 

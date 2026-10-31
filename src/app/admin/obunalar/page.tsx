@@ -11,6 +11,7 @@ import { INVOICE_PROVIDER_LABEL, INVOICE_STATE_LABEL, INVOICE_STATE_TONE, SUB_ST
 import { getAdminSubscriptionData } from "@/lib/subscriptions/queries";
 import { adminSubscriptionsQuerySchema, type AdminSubFilter } from "@/lib/subscriptions/schemas";
 import { cn, formatDate, formatDateTime, formatPrice } from "@/lib/utils";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Obunalar", robots: { index: false, follow: false } };
@@ -55,6 +56,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/obunalar"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
 
   const raw = await searchParams;
   const parsed = adminSubscriptionsQuerySchema.safeParse({ status: first(raw.status), q: first(raw.q), page: first(raw.page), invoices: first(raw.invoices) });

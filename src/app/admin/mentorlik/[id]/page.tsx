@@ -6,6 +6,7 @@ import { RemoveMentorButton } from "@/components/admin/RemoveMentorButton";
 import { MentorStudio } from "@/components/mentorship/MentorStudio";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorProfileForEditor, listCoursesOfMentor } from "@/lib/mentorship/service";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Mentorni sozlash", robots: { index: false, follow: false } };
@@ -15,6 +16,7 @@ export default async function AdminMentorEditPage({ params }: { params: Promise<
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/mentorlik"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
   const { id } = await params;
   const profile = await getMentorProfileForEditor(id, { id: user.id, admin: true });
   if (!profile) notFound();

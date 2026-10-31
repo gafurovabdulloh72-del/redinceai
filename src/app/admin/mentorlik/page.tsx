@@ -11,6 +11,7 @@ import { listOpenPayouts, purchaseMeta } from "@/lib/mentorship/purchases";
 import { db } from "@/lib/db";
 import { subscriptionInvoices, users } from "@/lib/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Mentorlik (admin)", robots: { index: false, follow: false } };
@@ -19,6 +20,7 @@ export default async function AdminMentorlikPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/mentorlik"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
   const [mentors, openPayouts, pendingInv] = await Promise.all([
     adminListMentors(),
     listOpenPayouts(),

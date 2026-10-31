@@ -86,6 +86,17 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
         <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">Maxfiylik, bloklanganlar, parol, ikki bosqichli himoya va faol qurilmalar.</p>
       </header>
 
+      {/* ADMIN_REQUIRE_2FA=1 bilan admin panelidan yo'naltirilgan admin — nima uchun shu yerda ekanini tushuntiramiz */}
+      {sp.admin2fa === "1" && user.role === "admin" && !user.totpEnabled && (
+        <div role="alert" className="mb-4 flex items-start gap-3 rounded-[var(--radius-lg)] border border-accent/40 bg-accent/5 p-4 text-[14px] leading-relaxed text-fg">
+          <LockKeyhole size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <span>
+            <b>Admin panel uchun ikki bosqichli himoya majburiy.</b> Pastdagi «Ikki bosqichli himoya» bo&apos;limida autentifikator ilovasini ulang —
+            shundan keyin admin panel va Telegram admin boti ochiladi.
+          </span>
+        </div>
+      )}
+
       <div className="stagger mb-4 grid gap-4 lg:grid-cols-2">
         <div className="animate-fade-up">
           <PrivacyPanel initial={{ dmPolicy: codes?.dmPolicy ?? "all", commentPolicy: codes?.commentPolicy ?? "all", showOnline: codes?.showOnline ?? true }} paused={codes?.isPaused ?? false} canPause={Boolean(user.specialist)} />

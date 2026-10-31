@@ -7,6 +7,7 @@ import { Avatar, Badge, ButtonLink, EmptyState } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 import { auditFilterFromQuery, countAuditLogs, labelFor, queryAuditLogs } from "../queries";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Audit jurnali", robots: { index: false, follow: false } };
@@ -43,6 +44,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/audit"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
 
   const sp = await searchParams;
   const filter = auditFilterFromQuery({ action: first(sp.action), actor: first(sp.actor), from: first(sp.from), to: first(sp.to), q: first(sp.q) });

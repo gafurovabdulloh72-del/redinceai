@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { getVerifiedSession, type SessionPayload } from "./auth";
 import { checkSameOrigin } from "./security/origin";
 import { flattenErrors } from "./validators";
+import { ADMIN_2FA_MESSAGE, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export class ApiError extends Error {
   constructor(
@@ -105,6 +106,8 @@ export async function requireSession(roles?: SessionPayload["role"][]) {
   const session = await getVerifiedSession();
   if (!session) throw new ApiError(401, "Avval tizimga kiring");
   if (roles && !roles.includes(session.role)) throw new ApiError(403, "Ruxsat yo'q");
+  // ADMIN_REQUIRE_2FA=1: admin huquqi bilan ochiladigan route'lar 2FA'siz adminga yopiq (security/admin-2fa.ts)
+  if (session.role === "admin" && roles?.includes("admin") && adminTwoFactorRequired() && !session.totp) throw new ApiError(403, ADMIN_2FA_MESSAGE);
   return session;
 }
 

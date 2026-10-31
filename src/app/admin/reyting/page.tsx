@@ -10,6 +10,7 @@ import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import type { TopCreator } from "@/lib/reels";
 import { allTimeTop, currentMonthTop, monthKeyOf, monthLabel, publishAtOf, publishedMonths, TOP_AWARD_COUNT } from "@/lib/top";
 import { compactCount, formatDateTime } from "@/lib/utils";
+import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Reyting (admin)", robots: { index: false, follow: false } };
@@ -54,6 +55,7 @@ export default async function AdminRatingPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/admin/reyting"));
   if (user.role !== "admin") redirect("/kabinet");
+  if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
   const now = Date.now();
   const month = monthKeyOf(now);
   const [monthTop, allTop, history] = await Promise.all([currentMonthTop(30, now), allTimeTop(30, now), publishedMonths(12)]);
