@@ -6,7 +6,7 @@ import { EXPERIENCE_LEVELS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { normalizeUzPhone, formatUzPhone } from "@/lib/utils";
 import { audit } from "@/lib/security/audit";
 import { clearBotSession, getBotSession, setBotSession } from "@/lib/telegram-bot/session";
-import { appUrl, menuRows, sendWelcome } from "@/lib/telegram-bot/ui";
+import { appUrl, menuRows, sendLinkOptions, sendWelcome } from "@/lib/telegram-bot/ui";
 
 /**
  * BOTDA RO'YXATDAN O'TISH (2026-10-31): hisobsiz Telegram foydalanuvchisi savol-javob bilan hisob ochadi —
@@ -154,6 +154,13 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
   if (data === "rg:start") {
     await answer("");
     await startRegistration(chatId, who);
+    return true;
+  }
+  if (data === "rg:have") {
+    await answer("");
+    const found = await findTelegramUser(chatId).catch(() => null);
+    if (found) await sendTelegram(chatId, `Siz allaqachon <b>${escapeTelegramHtml(found.name)}</b> hisobi bilan ulangansiz ✅`, { replyKeyboard: menuRows() });
+    else await sendLinkOptions(chatId);
     return true;
   }
   const d = await load(chatId);

@@ -130,6 +130,8 @@ export const RATE_LIMITS = {
   tgBot: { limit: 120, windowMs: HOUR },
   /** Telegram bot: `/start l_<kod>` — kodni terishga qarshi, chatId bo'yicha (5-band) */
   tgStart: { limit: 10, windowMs: HOUR },
+  /** Mini App kirishi (/api/tg/auth) — kalit: tasdiqlangan Telegram user id (IP emas: mobil NAT ortida minglab odam) */
+  tgApp: { limit: 60, windowMs: HOUR },
   /** Qo'ng'iroq tokeni va taklif amallari — userId */
   call: { limit: 120, windowMs: HOUR },
   /** Story yaratish/o'chirish/ko'rish belgisi — userId */

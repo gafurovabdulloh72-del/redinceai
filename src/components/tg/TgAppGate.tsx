@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
+import { TgRegister } from "@/components/tg/TgRegister";
 import { decodeStartParam } from "@/lib/tg-start-param";
 
 /**
@@ -9,11 +10,12 @@ import { decodeStartParam } from "@/lib/tg-start-param";
  * Telegram ilovani ochganda ishga tushirish ma'lumotlarini URL hash'ida beradi
  * (`#tgWebAppData=<initData>&tgWebAppVersion=…&tgWebAppPlatform=…`), SDK ham aynan shuni o'qiydi.
  * Biz hash'dan `tgWebAppData`ni olamiz → POST /api/tg/auth → sessiya → yo'naltirish.
- * Hisob YO'Q bo'lsa (2026-10-31): avtomatik hisob ochilmaydi — «Botda ro'yxatdan o'tish» (savol-javob, `/start reg`)
- * yoki «Hisobim bor — kirish» (sayt login sahifasi → `/tg?link=1` → chat hisobga ulanadi).
+ * Hisob YO'Q bo'lsa (2026-10-31): avtomatik hisob ochilmaydi — «Kasb Egalari'da akkauntingiz bormi?»
+ *   Yo'q → savollar ketma-ket shu yerda (`TgRegister`) → hisob + sessiya;
+ *   Ha  → akkauntni ulash: Google yoki email bilan saytga kirish → `/tg?link=1` → chat hisobga ulanadi.
  * Telegram'ga `web_app_ready`/`web_app_expand` hodisalari SDK usulida (TelegramWebviewProxy / external.notify / postMessage) yuboriladi.
  */
-type Phase = "auth" | "outside" | "error" | "register";
+type Phase = "auth" | "outside" | "error" | "ask" | "login" | "register";
 const INIT_KEY = "ke_tg_init";
 
 function postEvent(eventType: string, eventData: Record<string, unknown> = {}) {
@@ -61,12 +63,18 @@ function readInitData(): { initData: string; dark: boolean; startPath: string | 
   return { initData, dark, startPath };
 }
 
-export function TgAppGate({ to, bot, link = false }: { to: string; bot: string | null; link?: boolean }) {
+export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to: string; bot: string | null; link?: boolean; googleEnabled?: boolean }) {
   const [phase, setPhase] = useState<Phase>("auth");
   const [err, setErr] = useState<string | null>(null);
   const [tgName, setTgName] = useState("");
+  const [initData, setInitData] = useState("");
+  const [target, setTarget] = useState(to);
   const started = useRef(false);
   const botLink = bot ? `https://t.me/${bot}` : null;
+  // Saytga kirgach qaytish manzili: shu Mini App, ulash rejimida
+  const returnPath = `/tg?link=1&to=${encodeURIComponent(target)}`;
+  const loginHref = `/auth/kirish?next=${encodeURIComponent(returnPath)}`;
+  const googleHref = `/api/auth/google?next=${encodeURIComponent(returnPath)}`;
 
   useEffect(() => {
     if (started.current) return;
@@ -76,6 +84,9 @@ export function TgAppGate({ to, bot, link = false }: { to: string; bot: string |
       setPhase("outside");
       return;
     }
+    const dest = launch.startPath ?? to;
+    setTarget(dest);
+    setInitData(launch.initData);
     const bg = launch.dark ? "#0a0a0b" : "#ffffff";
     postEvent("web_app_ready");
     postEvent("web_app_expand");
@@ -84,13 +95,18 @@ export function TgAppGate({ to, bot, link = false }: { to: string; bot: string |
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: launch.startPath ?? to, ...(link ? { link: true } : {}) }) });
+        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: dest, ...(link ? { link: true } : {}) }) });
         const j = (await r.json()) as { ok: boolean; data?: { status?: string; next?: string; name?: string }; error?: string };
         if (cancelled) return;
+        // Ulash rejimi, lekin saytga hali kirilmagan — login sahifasiga (Google yoki email), keyin shu yerga qaytadi
+        if (link && r.status === 401) {
+          window.location.replace(`/auth/kirish?next=${encodeURIComponent(`/tg?link=1&to=${encodeURIComponent(dest)}`)}`);
+          return;
+        }
         if (!r.ok || !j.ok) throw new Error(j.error || "Kirib bo'lmadi");
         if (j.data?.status === "register") {
           setTgName(j.data.name ?? "");
-          setPhase("register");
+          setPhase("ask");
           return;
         }
         document.cookie = "tgapp=1; path=/; max-age=43200; samesite=lax";
@@ -107,39 +123,49 @@ export function TgAppGate({ to, bot, link = false }: { to: string; bot: string |
     };
   }, [to, link]);
 
-  /** Botdagi ro'yxatdan o'tish: Telegram ichida bot chati ochiladi (`/start reg`), ilova yopiladi */
-  function openBotRegister() {
-    if (!bot) return;
-    postEvent("web_app_open_tg_link", { path_full: `/${bot}?start=reg` });
-    window.setTimeout(() => postEvent("web_app_close"), 400);
-    // Telegram tashqarisida yoki hodisa yetib bormasa — oddiy havola
-    window.setTimeout(() => {
-      window.location.href = `https://t.me/${bot}?start=reg`;
-    }, 900);
-  }
-  const loginHref = `/auth/kirish?next=${encodeURIComponent(`/tg?link=1&to=${encodeURIComponent(to)}`)}`;
-
+  const wide = phase === "register";
   return (
-    <div className="flex w-full max-w-sm flex-col items-center text-center">
-      <LogoMark size={72} />
-      <Wordmark className="mt-4 text-[26px]" />
+    <div className={wide ? "w-full max-w-md" : "flex w-full max-w-sm flex-col items-center text-center"}>
+      {!wide && (
+        <>
+          <LogoMark size={72} />
+          <Wordmark className="mt-4 text-[26px]" />
+        </>
+      )}
       {phase === "auth" ? (
         <>
           <span aria-hidden className="mt-8 h-7 w-7 animate-spin rounded-full border-[3px] border-line border-t-fg" />
           <p className="mt-4 text-[14px] text-fg-3">{link ? "Telegram hisobga ulanmoqda…" : "Hisobingizga kirilmoqda…"}</p>
         </>
-      ) : phase === "register" ? (
+      ) : phase === "ask" ? (
         <>
           <p className="mt-7 text-[16px] font-semibold text-fg">{tgName ? `Salom, ${tgName}!` : "Salom!"}</p>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">Bu Telegram hali hisobga ulanmagan. Yangi hisobni botning o&apos;zida bir daqiqada ochasiz — yoki saytdagi hisobingiz bilan kiring.</p>
-          <button type="button" onClick={openBotRegister} className="btn-accent mt-6 inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold">
-            📝 Botda ro&apos;yxatdan o&apos;tish
+          <p className="mt-2 text-[15px] leading-relaxed text-fg-2">Kasb Egalari&apos;da akkauntingiz bormi?</p>
+          <button type="button" onClick={() => setPhase("register")} className="btn-accent mt-6 inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold">
+            Yo&apos;q, ro&apos;yxatdan o&apos;taman
           </button>
-          <a href={loginHref} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full border border-line-2 text-[15px] font-semibold text-fg">
-            Hisobim bor — kirish
-          </a>
-          <p className="mt-4 text-[12px] leading-snug text-fg-4">Ro&apos;yxatdan o&apos;tgach botdagi «📱 Ilovani ochish» tugmasini bosing — hisobingizga avtomatik kirasiz.</p>
+          <button type="button" onClick={() => setPhase("login")} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full border border-line-2 text-[15px] font-semibold text-fg">
+            Ha, akkauntim bor
+          </button>
         </>
+      ) : phase === "login" ? (
+        <>
+          <p className="mt-7 text-[16px] font-semibold text-fg">Akkauntni ulash</p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">Saytdagi hisobingiz bilan kiring — Telegram shu hisobga avtomatik ulanadi.</p>
+          {googleEnabled && (
+            <a href={googleHref} className="btn-ink mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold">
+              <GoogleG /> Google bilan kirish
+            </a>
+          )}
+          <a href={loginHref} className={`${googleEnabled ? "mt-3 border border-line-2 text-fg" : "btn-accent mt-6"} inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold`}>
+            Email va parol bilan kirish
+          </a>
+          <button type="button" onClick={() => setPhase("ask")} className="mt-4 text-[13px] font-semibold text-fg-3 underline-offset-4 hover:underline">
+            Orqaga
+          </button>
+        </>
+      ) : phase === "register" ? (
+        <TgRegister tgName={tgName} initData={initData} to={target} onBack={() => setPhase("ask")} />
       ) : phase === "outside" ? (
         <>
           <p className="mt-7 text-[15px] leading-relaxed text-fg-2">Bu ilova Telegram ichida ochiladi. Botga kirib, «Ilova» tugmasini bosing.</p>
@@ -161,5 +187,16 @@ export function TgAppGate({ to, bot, link = false }: { to: string; bot: string |
         </>
       )}
     </div>
+  );
+}
+
+function GoogleG() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C40.9 35.4 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
   );
 }

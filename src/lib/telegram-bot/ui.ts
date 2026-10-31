@@ -2,7 +2,7 @@ import "server-only";
 import { NOTIFY_GROUP_KEYS, NOTIFY_GROUP_META, type NotifyGroupKey } from "@/lib/notifications";
 import { escapeTelegramHtml, sendTelegram, sendTelegramPhoto, telegramApi, telegramBotUsername, type ReplyButton, type TelegramButton } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
-import { appUrl } from "@/lib/telegram-bot/app-url";
+import { appLinkUrl, appUrl } from "@/lib/telegram-bot/app-url";
 
 export { appUrl };
 
@@ -97,7 +97,29 @@ export interface BotAccount {
   role: "client" | "specialist" | "admin";
 }
 
-/** Xush kelibsiz ekrani: banner + qisqa matn. Ulangan — doimiy menyu; ulanmagan — «Hisobni ulash» tugmasi */
+/** «Akkauntingiz bormi?» — Yo'q → botda savol-javob (rg:start); Ha → ulash (rg:have) */
+export const ACCOUNT_QUESTION_ROWS = (): TelegramButton[][] => [
+  [{ text: "❌ Yo'q — ro'yxatdan o'taman", data: "rg:start" }],
+  [{ text: "✅ Ha, akkauntim bor — ulash", data: "rg:have" }],
+];
+
+/** «Ha, akkauntim bor»: ilovada Google/email bilan kirish → Telegram avtomatik ulanadi; zaxira — saytdagi ulash */
+export async function sendLinkOptions(chatId: string): Promise<void> {
+  const app = appLinkUrl("/kabinet");
+  await sendTelegram(
+    chatId,
+    "🔗 <b>Akkauntni ulash</b>\nIlovada saytdagi hisobingiz bilan kiring — <b>Google</b> yoki <b>email va parol</b> — Telegram shu hisobga avtomatik ulanadi.\n\nYoki saytda: <b>Kabinet → Profil → «Telegramga ulash»</b>.",
+    {
+      keyboard: [
+        ...(app ? [[{ text: "🔑 Kirish va ulash", webApp: app }]] : []),
+        [{ text: "🌐 Saytda ulash", url: `${site()}/auth/kirish?next=${encodeURIComponent("/kabinet/profil?tab=telegram#telegram")}` }],
+        [{ text: "⬅️ Akkauntim yo'q — ro'yxatdan o'taman", data: "rg:start" }],
+      ],
+    },
+  );
+}
+
+/** Xush kelibsiz ekrani: banner + qisqa matn. Ulangan — doimiy menyu; ulanmagan — «akkauntingiz bormi?» savoli */
 export async function sendWelcome(chatId: string, me: BotAccount | null, firstName?: string): Promise<void> {
   const hi = firstName ? `Salom, <b>${escapeTelegramHtml(firstName)}</b>!` : "Salom!";
   if (me) {
@@ -114,15 +136,11 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
   }
   const caption =
     `${hi} Bu — <b>Kasb Egalari</b> boti: videograf, montajchi, dizayner va boshqa ijodkorlar platformasi.\n\n` +
-    "Hisobingiz yo'qmi? <b>«Ro'yxatdan o'tish»</b> — bir daqiqa, bir nechta savol.\n" +
-    "Saytda hisobingiz bo'lsa — <b>«Hisobni ulash»</b> (Kabinet → Profil → «Telegramga ulash»).\n\n" +
-    "Ulangach buyurtmalar, xabarlar va kurslar bo'yicha bildirishnomalar shu yerga keladi, buyurtmani botning o'zida qabul qilasiz.";
-  const app = appUrl();
+    "Ulangach buyurtmalar, xabarlar va kurslar bo'yicha bildirishnomalar shu yerga keladi, buyurtmani botning o'zida qabul qilasiz.\n\n" +
+    "<b>Kasb Egalari'da akkauntingiz bormi?</b>";
   await sendTelegramPhoto(chatId, BANNER(), caption, {
     keyboard: [
-      [{ text: "📝 Ro'yxatdan o'tish", data: "rg:start" }],
-      ...(app ? [[{ text: "📱 Ilovani ochish", webApp: app }]] : []),
-      [{ text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` }],
+      ...ACCOUNT_QUESTION_ROWS(),
       [
         { text: "🌐 Saytni ochish", url: `${site()}/` },
         { text: "❓ Yordam", data: "menu:help" },
@@ -155,19 +173,17 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false): 
     "👤 /profil — hisob va ulanish holati\n" +
     "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
-    (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa)\n") +
+    (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa) · akkauntingiz bo'lsa — «Ha, akkauntim bor» tugmasi bilan ulang\n") +
     "⛔ /stop — Telegramni hisobdan uzish\n" +
     (admin ? "📣 /elon Sarlavha | Matn — barcha foydalanuvchilarga e'lon (faqat admin)\n" : "") +
     "\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
-  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows() } : { keyboard: [[{ text: "📝 Ro'yxatdan o'tish", data: "rg:start" }], [{ text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` }]] });
+  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows() } : { keyboard: ACCOUNT_QUESTION_ROWS() });
 }
 
 /** Ulanmagan chat uchun standart javob (amal tugmasi bilan) */
 export async function sendNotLinked(chatId: string): Promise<void> {
-  await sendTelegram(chatId, "Bu amal uchun hisob kerak. Hisobingiz yo'q bo'lsa — <b>«Ro'yxatdan o'tish»</b>; saytda bor bo'lsa — <b>Kabinet → Profil → «Telegramga ulash»</b>.", {
-    keyboard: [[{ text: "📝 Ro'yxatdan o'tish", data: "rg:start" }], [{ text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` }]],
-  });
+  await sendTelegram(chatId, "Bu amal uchun hisob kerak. <b>Kasb Egalari'da akkauntingiz bormi?</b>", { keyboard: ACCOUNT_QUESTION_ROWS() });
 }
 
 /* ------------------------------------------------------------------ */
