@@ -14,6 +14,7 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 - `npx tsc --noEmit` — har push oldidan MAJBURIY
 - `npm run build` — prod build tekshiruvi
 - `node scripts/smoke.mjs` — smoke testlar (dev server ishlab turishi kerak)
+- `node --test scripts/bot.mjs` — TELEGRAM BOT regressiya testlari (soxta Bot API `node scripts/fake-telegram-api.mjs 8099` + server `TELEGRAM_API_BASE=http://127.0.0.1:8099`; webhook siri, /start uz/ru, botda ro'yxat, admin ulash → /stat/navbat/shikoyatlar, inline, post taklifi; lokalda test hisobini o'chiradi va admin chatini qaytaradi). CI'da ham ishlaydi (ci.yml: soxta token + API). Yangi bot oqimi qo'shsangiz shu yerga test qo'shing
 - `node --test scripts/security.mjs` — XAVFSIZLIK testlari: mehmon 401, admin 403, CSRF, IDOR, XSS/SSRF regressiyalari, xavfsizlik sarlavhalari (dev server + /tmp/*.jar kerak). Yangi API qo'shsangiz shu yerga «begona foydalanuvchi 403 oladi» testi qo'shing
 - `npx tsx scripts/db-sync.ts` — sxema o'zgarishini lokal bazaga qo'llash (drizzle sxemasidan avtomatik; FAQAT qo'shimcha o'zgarish: yangi ustun/jadval; mavjud ustun nomi/turi o'zgartirilmasin — jadval qayta quriladi, prod'da bloklanadi)
 - Seed: `src/lib/db/seed.ts` (demo ma'lumotlar), xarita mesh: `node scripts/gen-map-mesh.mjs`

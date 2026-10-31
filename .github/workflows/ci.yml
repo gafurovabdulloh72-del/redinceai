@@ -31,6 +31,13 @@ jobs:
       # haqiqiy foydalanuvchi sifatida tekshirish uchun). Faqat CI'ning ci.db fayliga tegishli.
       DEMO_PASSWORD: ci-demo-Password-2026
       NEXT_TELEMETRY_DISABLED: "1"
+      # Telegram bot — SOXTA Bot API (scripts/fake-telegram-api.mjs) bilan: haqiqiy Telegram'ga hech narsa ketmaydi.
+      # Token soxta; TELEGRAM_API_BASE productionda HECH QACHON qo'yilmaydi (docs/DEPLOY.md).
+      TELEGRAM_BOT_TOKEN: "111111:ci-fake-telegram-token"
+      TELEGRAM_BOT_USERNAME: KasbEgalariCiBot
+      TELEGRAM_API_BASE: http://127.0.0.1:8099
+      TELEGRAM_WEBHOOK_SECRET: ci-webhook-secret-4b2e9d1c7a6f3e8b
+      FAKE_TG_LOG: /tmp/fake-bot.log
     steps:
       - name: Kodni olish
         uses: actions/checkout@v4
@@ -80,6 +87,12 @@ jobs:
       - name: Production build
         run: npx next build
 
+      - name: Soxta Telegram Bot API (bot testlari uchun)
+        run: |
+          node scripts/fake-telegram-api.mjs 8099 > fake-telegram.log 2>&1 &
+          sleep 1
+          curl -fsS http://127.0.0.1:8099/bot111/getMe >/dev/null && echo "soxta Bot API tayyor"
+
       - name: Serverni ishga tushirish
         run: |
           npx next start -p 3000 > next-start.log 2>&1 &
@@ -98,6 +111,14 @@ jobs:
       - name: Xavfsizlik testlari
         run: node --test scripts/security.mjs
 
+      # Telegram bot regressiyasi (webhook → soxta Bot API jurnali): /start, ro'yxat, admin boti, inline, post taklifi
+      - name: Bot testlari
+        env:
+          BASE_URL: http://localhost:3000
+        run: node --test scripts/bot.mjs
+
       - name: Server logi (xato bo'lsa)
         if: failure()
-        run: tail -n 200 next-start.log || true
+        run: |
+          tail -n 200 next-start.log || true
+          echo "--- soxta Bot API jurnali (oxirgi 40)"; tail -n 40 /tmp/fake-bot.log || true

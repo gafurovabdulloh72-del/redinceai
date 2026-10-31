@@ -17,7 +17,10 @@
     "db:seed:ifempty": "tsx src/lib/db/seed.ts --if-empty",
     "vercel-build": "node scripts/db-prepare.mjs && next build",
     "db:prepare": "node scripts/db-prepare.mjs",
-    "test:smoke": "node --test scripts/smoke.mjs"
+    "test:smoke": "node --test scripts/smoke.mjs",
+    "test:security": "node --test scripts/security.mjs",
+    "test:bot": "node --test scripts/bot.mjs",
+    "fake-telegram": "node scripts/fake-telegram-api.mjs 8099"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
