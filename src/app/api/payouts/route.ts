@@ -6,7 +6,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { payoutRequestSchema } from "@/lib/validators";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
-import { notifyAdmins } from "@/lib/notifications";
+import { notify, notifyAdmins } from "@/lib/notifications";
 import { encryptSecret } from "@/lib/payments/crypto";
 import { findOpenPayout, getSpecialistBalance, listPayoutsForSpecialist } from "@/lib/payments/queries";
 import { getSettings } from "@/lib/payments/settings";
@@ -77,6 +77,14 @@ export const POST = handler(async (req) => {
 
   await audit(session.sub, "payout_requested", { targetType: "payout", targetId: id, meta: { amount: input.amount, method: input.method } }, req);
   await notifyAdmins("payout_requested", `Yangi pul chiqarish so'rovi: ${formatPrice(input.amount)}`, `${session.name} — ${details}`, "/admin#payoutlar");
+  // Hisob egasiga ham (sayt + Telegram + email): hisob o'g'irlanib so'rov begona kartaga yuborilsa, egasi to'lovdan OLDIN bilsin
+  await notify(
+    session.sub,
+    "payout",
+    "Pul chiqarish so'rovi yuborildi",
+    `${formatPrice(input.amount)} → ${details}. Bu siz bo'lmasangiz — darhol parolni almashtiring va qo'llab-quvvatlashga yozing (so'rov hali to'lanmagan).`,
+    "/kabinet/tolovlar",
+  ).catch(() => undefined);
 
   return ok({ id, amount: input.amount, state: "requested", method: input.method, details, balance: fresh }, { status: 201 });
 });

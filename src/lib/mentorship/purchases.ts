@@ -397,9 +397,16 @@ export async function requestPayout(mentorId: string, mentorUserId: string, card
     await tx.insert(mentorPayouts).values({ id: payoutId, mentorId, amount, card });
     return amount;
   });
-  const { notifyAdmins } = await import("@/lib/notifications");
+  const { notify, notifyAdmins } = await import("@/lib/notifications");
   await notifyAdmins("refund_needed", `Mentor yechish so'rovi: ${formatPrice(taken)}`, "Mentorlik → Yechish so'rovlari bo'limida kartaga o'tkazing.", "/admin/mentorlik", { dedupeMs: 60_000 }).catch(() => undefined);
-  void mentorUserId;
+  // Mentorning o'ziga (sayt + Telegram + email): hisob o'g'irlanib pul begona kartaga so'ralsa, egasi to'lovdan OLDIN bilsin
+  await notify(
+    mentorUserId,
+    "payout",
+    "Yechish so'rovi yuborildi",
+    `${formatPrice(taken)} → •••• ${card.slice(-4)}. Bu siz bo'lmasangiz — darhol parolni almashtiring va qo'llab-quvvatlashga yozing (pul hali o'tkazilmagan).`,
+    "/kabinet/mentorlik/daromad",
+  ).catch(() => undefined);
   return { payoutId, amount: taken };
 }
 
