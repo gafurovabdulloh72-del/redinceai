@@ -10,7 +10,7 @@ const MAX_SKILLS = 4;
 /** Rezyume kartasi (/rezyumelar): kontaktsiz — aloqa sayt ichidagi chat orqali */
 export function ResumeCard({ r, className }: { r: ResumeCardData; className?: string }) {
   return (
-    <article className={cn("card card-hover card-link group relative flex h-full min-w-0 flex-col p-4 sm:p-5", className)}>
+    <article className={cn("card card-hover card-link m-plain group relative flex h-full min-w-0 flex-col p-4 max-sm:px-4 max-sm:py-3.5 sm:p-5", className)}>
       <div className="flex items-center gap-3">
         <Avatar name={r.user.name} src={r.user.avatarUrl} size={44} decorative />
         <div className="min-w-0">

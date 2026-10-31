@@ -31,6 +31,11 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   yuklashdan oldin rasm 1280px/0.78 sifatda siqiladi. Hook `components/motion/useDataSaver.ts`. Instagram «Use less
   mobile data» muqobili.
 
+- Telefon «karta ichida karta yo'q» qoidasi kengaytirildi: Kabinet umumiy, Kabinet → Mentorlik (6 sahifa, takror sarlavha yashirin),
+  ijodkor profili (Instagram to'ri 2px, haqida/yo'l/sertifikat/jamoalar/sharhlar tekis), ustoz sahifasi (muqova ustida doira portret),
+  rezyume/vakansiya tafsiloti, e'lonlar va rezyumelar katalogi (qator ko'rinishi `m-plain` + hairline, filtr ramkasiz,
+  rezyume filtrida 3 tanlov bir qatorda `AutoSubmitSelect`), Yordam markazi.
+
 ## Kabinet telefonda
 - Profil sahifasi tablar (`ProfilePanels`): Akkaunt · Telegram · Mutaxassis profili · Maxfiylik · Ish vaqti — faqat
   tanlangani chiziladi (16 000px → 1 700px); `?tab=` va `#hash` havolalari ishlaydi; sm+ da avvalgidek.

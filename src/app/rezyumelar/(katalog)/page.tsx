@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AutoSubmitSelect } from "@/components/ui/AutoSubmitSelect";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileUser, Search } from "lucide-react";
@@ -75,38 +76,41 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
         }
       />
 
-      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_repeat(3,minmax(0,170px))_auto]">
+      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 max-sm:mt-4 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 sm:grid-cols-2 lg:grid-cols-[1fr_repeat(3,minmax(0,170px))_auto]">
         {f.profession && <input type="hidden" name="profession" value={f.profession} />}
         <label className="relative min-w-0 sm:col-span-2 lg:col-span-1">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-3" aria-hidden />
-          <input name="q" defaultValue={f.q} maxLength={80} placeholder="Lavozim, ko'nikma, ism…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
+          <input name="q" defaultValue={f.q} maxLength={80} enterKeyHint="search" placeholder="Lavozim, ko'nikma, ism…" aria-label="Qidirish" className="field h-11 w-full pl-10 text-[14px]" />
         </label>
-        <select name="experience" defaultValue={f.experience} aria-label="Tajriba" className="field h-11 text-[14px]">
-          <option value="">Har qanday tajriba</option>
+        {/* Telefon: uch tanlov bitta qatorda, o'zgarganda avtomatik yuboriladi (tugma yashirin) */}
+        <div className="grid grid-cols-3 gap-2 sm:contents">
+        <AutoSubmitSelect name="experience" defaultValue={f.experience} aria-label="Tajriba" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">Tajriba</option>
           {(Object.keys(RESUME_EXPERIENCE) as Array<keyof typeof RESUME_EXPERIENCE>).map((k) => (
             <option key={k} value={k}>
               {RESUME_EXPERIENCE[k]}
             </option>
           ))}
-        </select>
-        <select name="format" defaultValue={f.format} aria-label="Ish formati" className="field h-11 text-[14px]">
-          <option value="">Har qanday format</option>
+        </AutoSubmitSelect>
+        <AutoSubmitSelect name="format" defaultValue={f.format} aria-label="Ish formati" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">Format</option>
           {(Object.keys(RESUME_FORMAT) as Array<keyof typeof RESUME_FORMAT>).map((k) => (
             <option key={k} value={k}>
               {RESUME_FORMAT[k]}
             </option>
           ))}
-        </select>
-        <select name="region" defaultValue={f.region} aria-label="Hudud" className="field h-11 text-[14px]">
-          <option value="">Butun O&apos;zbekiston</option>
+        </AutoSubmitSelect>
+        <AutoSubmitSelect name="region" defaultValue={f.region} aria-label="Hudud" className="field h-11 min-w-0 text-[14px] max-sm:pl-2.5 max-sm:text-[13px]">
+          <option value="">Hudud</option>
           <option value={REMOTE_REGION}>Faqat masofaviy</option>
           {REGIONS.map((r) => (
             <option key={r.slug} value={r.slug}>
               {r.name}
             </option>
           ))}
-        </select>
-        <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold sm:col-span-2 lg:col-span-1">
+        </AutoSubmitSelect>
+        </div>
+        <button type="submit" className="btn-ink inline-flex h-11 items-center justify-center rounded-full px-5 text-[14px] font-semibold max-sm:hidden sm:col-span-2 lg:col-span-1">
           Qidirish
         </button>
       </form>
@@ -153,7 +157,7 @@ export default async function ResumesPage({ searchParams }: { searchParams: Prom
               {result.total} ta nomzod{hasFilters ? " (filtr bo'yicha)" : ""}
               {result.pages > 1 ? ` · ${result.page}/${result.pages}-sahifa` : ""}
             </p>
-            <ul className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="stagger grid gap-4 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 lg:grid-cols-3">
               {result.items.map((r) => (
                 <li key={r.id} className="min-w-0">
                   <ResumeCard r={r} />
