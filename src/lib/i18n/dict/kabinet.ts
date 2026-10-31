@@ -56,6 +56,20 @@ export const KABINET_NAV = {
   sectionsAria: { uz: "Kabinet bo'limlari", ru: "Разделы кабинета" },
   dotEmail: { uz: "email tasdiqlanmagan", ru: "email не подтверждён" },
   dotProfile: { uz: (pct: number) => `profil ${pct}% to'ldirilgan`, ru: (pct: number) => `профиль заполнен на ${pct}%` },
+  /** Telefon «Menyu» sahifasi nomi */
+  menuTitle: { uz: "Menyu", ru: "Меню" },
+  /** Telegram eslatmasi (TelegramNudge) */
+  tg: {
+    short: { uz: "Telegram'ni ulang — xabarlar darhol keladi", ru: "Подключите Telegram — сообщения придут мгновенно" },
+    clientTitle: { uz: "Muhim xabarni o'tkazib yubormang.", ru: "Не пропустите важное сообщение." },
+    specialistTitle: { uz: "Yangi buyurtmani o'tkazib yubormang.", ru: "Не пропустите новый заказ." },
+    clientText: { uz: "Buyurtma holati va javoblar Telegramga darhol keladi.", ru: "Статус заказа и ответы сразу приходят в Telegram." },
+    specialistText: { uz: "Mijoz buyurtma yuborganida bot darhol yozadi.", ru: "Когда клиент отправит заказ, бот сразу напишет." },
+    later: { uz: "Keyinroq", ru: "Позже" },
+    connect: { uz: "Ulash", ru: "Подключить" },
+    close: { uz: "Eslatmani yopish", ru: "Закрыть напоминание" },
+    never: { uz: "Boshqa ko'rsatilmasin", ru: "Больше не показывать" },
+  },
   role: {
     client: { uz: "Mijoz", ru: "Клиент" },
     specialist: { uz: "Mutaxassis", ru: "Специалист" },

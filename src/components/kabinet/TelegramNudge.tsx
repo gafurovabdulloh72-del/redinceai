@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Send, X } from "lucide-react";
+import { tr } from "@/lib/i18n";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 
 /** Yopilganini eslab qolish kaliti (shu brauzerda qayta chiqmaydi) */
 const DISMISS_KEY = "tg-nudge-yopildi";
@@ -17,6 +20,7 @@ const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
  * `forClient` — mijozga mos matn (mutaxassisnikida "yangi buyurtma" urg'usi).
  */
 export function TelegramNudge({ forClient = false }: { forClient?: boolean }) {
+  const til = useLocale();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     try {
@@ -42,17 +46,17 @@ export function TelegramNudge({ forClient = false }: { forClient?: boolean }) {
       </span>
       <p className="min-w-0 flex-1 text-[13px] leading-snug text-fg">
         {/* Telefonda qisqa (bitta qator), keng ekranda to'liq matn */}
-        <strong className="font-semibold sm:hidden">Telegram&apos;ni ulang — xabarlar darhol keladi</strong>
-        <strong className="hidden font-semibold sm:inline">{forClient ? "Muhim xabarni o'tkazib yubormang." : "Yangi buyurtmani o'tkazib yubormang."}</strong>{" "}
-        <span className="hidden text-fg-2 sm:inline">{forClient ? "Buyurtma holati va javoblar Telegramga darhol keladi." : "Mijoz buyurtma yuborganida bot darhol yozadi."}</span>
+        <strong className="font-semibold sm:hidden">{tr(til, KABINET_NAV.tg.short)}</strong>
+        <strong className="hidden font-semibold sm:inline">{tr(til, forClient ? KABINET_NAV.tg.clientTitle : KABINET_NAV.tg.specialistTitle)}</strong>{" "}
+        <span className="hidden text-fg-2 sm:inline">{tr(til, forClient ? KABINET_NAV.tg.clientText : KABINET_NAV.tg.specialistText)}</span>
       </p>
       <button type="button" onClick={() => hide(SNOOZE_KEY, String(Date.now() + SNOOZE_MS))} className="hidden h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg sm:inline-flex">
-        Keyinroq
+        {tr(til, KABINET_NAV.tg.later)}
       </button>
       <Link href="/kabinet/profil#telegram" className="btn-ink inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold">
-        Ulash
+        {tr(til, KABINET_NAV.tg.connect)}
       </Link>
-      <button type="button" aria-label="Eslatmani yopish" title="Boshqa ko'rsatilmasin" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg" onClick={() => hide(DISMISS_KEY, "1")}>
+      <button type="button" aria-label={tr(til, KABINET_NAV.tg.close)} title={tr(til, KABINET_NAV.tg.never)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg" onClick={() => hide(DISMISS_KEY, "1")}>
         <X size={15} />
       </button>
     </div>
