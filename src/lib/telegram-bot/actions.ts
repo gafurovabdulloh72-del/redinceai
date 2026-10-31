@@ -291,6 +291,8 @@ export interface BotPerson {
   reviewCount: number;
   isVerified: boolean;
   avatarUrl?: string | null;
+  /** Kontakt sotuvi: narx (so'm) yoki null — «faqat portfolio» */
+  contactPrice?: number | null;
 }
 
 /** Ijodkor qidiruvi (bot va inline rejim umumiy): ism/sarlavha → bo'lmasa kasb+hudud bo'yicha katalog; bo'sh so'rov — eng yaxshilari */
@@ -318,7 +320,54 @@ export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
     const reg = REGIONS.find((r) => ql.includes(r.short.toLowerCase().replace(/\s*(sh\.|vil\.)$/, "")) || ql.includes(r.slug));
     if (cat || reg) people = await fromCatalog({ category: cat?.slug, region: reg?.slug });
   }
-  return people;
+  return withContactPrices(people);
+}
+
+/** Har ijodkorga kontakt narxi (daraja/maxsus) yoki null («faqat portfolio») — bot va inline natijalarida ko'rsatiladi */
+async function withContactPrices(people: BotPerson[]): Promise<BotPerson[]> {
+  if (!people.length) return people;
+  const { contactPriceFor } = await import("@/lib/contacts/unlock");
+  const { getSettings } = await import("@/lib/payments/settings");
+  const [rows, settings] = await Promise.all([
+    db.query.specialists.findMany({ where: inArray(specialists.slug, people.map((p) => p.slug)), columns: { slug: true, contactMode: true, experience: true, contactPrice: true } }),
+    getSettings(),
+  ]);
+  const map = new Map(rows.map((r) => [r.slug, r]));
+  return people.map((p) => {
+    const r = map.get(p.slug);
+    return { ...p, contactPrice: r ? (r.contactMode === "hidden" ? null : contactPriceFor(r, settings)) : undefined };
+  });
+}
+
+/** `/kontaktlarim` — ochilgan kontaktlar to'g'ridan-to'g'ri chatda (telefon, Telegram, Instagram, email) */
+export async function handleMyContacts(chatId: string): Promise<void> {
+  const me = await accountOf(chatId);
+  if (!me) {
+    await sendNotLinked(chatId);
+    return;
+  }
+  const { listUnlockedContacts } = await import("@/lib/contacts/unlock");
+  const { formatUzPhone } = await import("@/lib/utils");
+  const s = siteUrl() ?? "";
+  const list = await listUnlockedContacts(me.id);
+  if (!list.length) {
+    const app = appUrl("/mutaxassislar");
+    await sendTelegram(chatId, "🔓 Hali kontakt ochmagansiz. Ijodkor profilida «Kontaktni ochish» tugmasini bosing — to'lovdan so'ng kontakt shu yerda va kabinetda saqlanadi.", { keyboard: [[app ? { text: "Mutaxassislar", webApp: app } : { text: "Mutaxassislar", url: `${s}/mutaxassislar` }]] });
+    return;
+  }
+  const h = (v: string) => v.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?(t\.me|telegram\.me|instagram\.com)\//i, "").replace(/\/+$/, "");
+  const blocks = list.slice(0, 10).map((u) => {
+    const sp = u.specialist;
+    const lines = [`<b>${escapeTelegramHtml(sp.name)}</b> — ${escapeTelegramHtml(sp.title)}`];
+    if (sp.phone) lines.push(`📞 ${escapeTelegramHtml(formatUzPhone(sp.phone))}`);
+    if (sp.telegram) lines.push(`✈️ @${escapeTelegramHtml(h(sp.telegram))}`);
+    if (sp.instagram) lines.push(`📸 instagram.com/${escapeTelegramHtml(h(sp.instagram))}`);
+    if (sp.email) lines.push(`✉️ ${escapeTelegramHtml(sp.email)}`);
+    if (lines.length === 1) lines.push("— aloqa ma'lumotlari hali to'ldirilmagan, sayt chati orqali yozing");
+    return lines.join("\n");
+  });
+  const app = appUrl("/kabinet/kontaktlar");
+  await sendTelegram(chatId, `🔓 <b>Ochilgan kontaktlarim</b> (${list.length})\n\n${blocks.join("\n\n")}`, { keyboard: [[app ? { text: "Kabinetda ko'rish", webApp: app } : { text: "Kabinetda ko'rish", url: `${s}/kabinet/kontaktlar` }]] });
 }
 
 export async function handleSearch(chatId: string, qRaw: string): Promise<void> {
@@ -336,7 +385,8 @@ export async function handleSearch(chatId: string, qRaw: string): Promise<void> 
   }
   const lines = people.map((p, i) => {
     const cat = CATEGORY_BY_SLUG[p.category]?.name ?? p.category;
-    return `${i + 1}. <a href="${s}/mutaxassislar/${p.slug}"><b>${escapeTelegramHtml(p.name)}</b></a>${p.isVerified ? " ✅" : ""}\n   ${escapeTelegramHtml(p.title || cat)} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}`;
+    const contact = p.contactPrice === undefined ? "" : p.contactPrice === null ? " · 🔒 faqat portfolio" : ` · 🔓 kontakt ${formatPrice(p.contactPrice, { compact: true })}`;
+    return `${i + 1}. <a href="${s}/mutaxassislar/${p.slug}"><b>${escapeTelegramHtml(p.name)}</b></a>${p.isVerified ? " ✅" : ""}\n   ${escapeTelegramHtml(p.title || cat)} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${contact}`;
   });
   const app = appUrl(`/qidiruv?q=${encodeURIComponent(q)}`);
   await sendTelegram(chatId, `🔎 <b>«${escapeTelegramHtml(q)}»</b> bo'yicha ijodkorlar\n\n${lines.join("\n\n")}`, {

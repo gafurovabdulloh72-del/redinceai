@@ -320,6 +320,8 @@ export async function handleAdminUserSearch(chatId: string, q: string): Promise<
     ].filter(Boolean);
     const keyboard: TelegramButton[][] = [];
     if (u.role !== "admin") keyboard.push([u.isBanned ? { text: "✅ Blokdan chiqarish", data: `adm:unban:${u.id}` } : { text: "🚫 Bloklash", data: `adm:ban:${u.id}` }]);
+    // Kontakt sotuvi: rejim va maxsus narx — mutaxassis profili bo'lsa
+    if (u.specialist?.slug) keyboard.push([{ text: "🔓 Sotilsin", data: `adm:cm:${u.id}:paid` }, { text: "🔒 Faqat portfolio", data: `adm:cm:${u.id}:hidden` }, { text: "💰 Maxsus narx", data: `adm:cp:${u.id}` }]);
     const row: TelegramButton[] = [panelButton(`/admin#foydalanuvchilar`, "Admin panel")];
     if (u.specialist?.slug) row.push({ text: "Ommaviy profil", url: `${site()}/mutaxassislar/${u.specialist.slug}` });
     keyboard.push(row);
@@ -380,6 +382,32 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
       await notify(sp.userId, "account", "Profilingiz tasdiqlandi ✅", "Administrator profilingizni ko'rib chiqdi va tasdiqladi — endi katalogda «tasdiqlangan» belgisi bilan chiqasiz.", `/mutaxassislar/${sp.slug}`).catch(() => undefined);
       await answer("Tasdiqlandi ✅");
       if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `✅ <b>${escapeTelegramHtml(sp.user.name)}</b> tasdiqlandi · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
+      return true;
+    }
+    if ((m = /^adm:cm:([\w-]{1,64}):(paid|hidden)$/.exec(data))) {
+      const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, m[1]), columns: { id: true, contactMode: true } });
+      if (!sp) {
+        await answer("Mutaxassis profili yo'q");
+        return true;
+      }
+      const mode = m[2] as "paid" | "hidden";
+      if (sp.contactMode !== mode) {
+        await db.update(specialists).set({ contactMode: mode, updatedAt: new Date() }).where(eq(specialists.id, sp.id));
+        await audit(admin.id, "admin_contact_settings", { targetType: "specialist", targetId: sp.id, meta: { contactMode: mode, via: "telegram" } });
+      }
+      await answer(mode === "paid" ? "Kontakt sotiladi 🔓" : "Faqat portfolio 🔒");
+      return true;
+    }
+    if ((m = /^adm:cp:([\w-]{1,64})$/.exec(data))) {
+      const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, m[1]), columns: { id: true, contactPrice: true, experience: true }, with: { user: { columns: { name: true } } } });
+      if (!sp) {
+        await answer("Mutaxassis profili yo'q");
+        return true;
+      }
+      const { setBotSession } = await import("@/lib/telegram-bot/session");
+      await setBotSession(chatId, "adminprice", "amount", { specialistId: sp.id, name: sp.user.name });
+      await answer("");
+      await sendTelegram(chatId, `💰 <b>${escapeTelegramHtml(sp.user.name)}</b> uchun maxsus kontakt narxini yozing (so'm, masalan <code>75000</code>). Umumiy narxga qaytarish — <code>0</code> yoki <code>yoq</code>. Hozir: ${sp.contactPrice == null ? "umumiy (daraja bo'yicha)" : formatPrice(sp.contactPrice)}.`);
       return true;
     }
     if ((m = /^adm:(ban|unban):([\w-]{1,64})$/.exec(data))) {
@@ -475,4 +503,64 @@ export async function notifyAdminsContactSold(buyerName: string, specialistName:
   } catch (e) {
     console.error("[admin-bot:contactSold]", e);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* /narx — kontakt narxlari (umumiy) va maxsus narx matni               */
+/* ------------------------------------------------------------------ */
+const LEVELS: Record<string, "contactPriceJunior" | "contactPriceMiddle" | "contactPriceSenior" | "contactPriceExpert"> = { junior: "contactPriceJunior", middle: "contactPriceMiddle", senior: "contactPriceSenior", expert: "contactPriceExpert", boshlangich: "contactPriceJunior", orta: "contactPriceMiddle", tajribali: "contactPriceSenior", ekspert: "contactPriceExpert" };
+
+/** `/narx` — joriy kontakt narxlari; `/narx <daraja> <summa>` — o'zgartirish (junior|middle|senior|expert) */
+export async function handleAdminPrices(chatId: string, args: string): Promise<void> {
+  const { getSettings, saveSettings } = await import("@/lib/payments/settings");
+  const admin = await adminByChat(chatId);
+  if (!admin) return;
+  const parts = args.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const current = await getSettings();
+  const show = async (prefix = "") =>
+    sendTelegram(
+      chatId,
+      `${prefix}💰 <b>Kontakt narxlari (daraja bo'yicha)</b>\n` +
+        `• junior — ${formatPrice(current.contactPriceJunior)}\n• middle — ${formatPrice(current.contactPriceMiddle)}\n• senior — ${formatPrice(current.contactPriceSenior)}\n• expert — ${formatPrice(current.contactPriceExpert)}\n\n` +
+        "O'zgartirish: <code>/narx middle 60000</code>. Maxsus narx — /user ism → «💰 Maxsus narx».",
+      { keyboard: [[panelButton("/admin/kontaktlar", "Kontakt sotuvi (admin panel)")]] },
+    );
+  if (parts.length < 2) {
+    await show();
+    return;
+  }
+  const key = LEVELS[parts[0].replace(/['ʼ’]/g, "")];
+  const amount = Number(parts[1].replace(/\D/g, ""));
+  if (!key || !Number.isFinite(amount) || amount < 0 || amount > 50_000_000) {
+    await sendTelegram(chatId, "Format: <code>/narx junior|middle|senior|expert 50000</code> (0 — bepul).");
+    return;
+  }
+  const saved = await saveSettings({ [key]: Math.round(amount) });
+  Object.assign(current, saved);
+  await audit(admin.id, "admin_contact_settings", { targetType: "platform_settings", meta: { [key]: Math.round(amount), via: "telegram" } });
+  await show("✅ Saqlandi.\n\n");
+}
+
+/** Maxsus narx oqimi: admin «💰 Maxsus narx» bosgach yozgan summa (bot_sessions flow="adminprice") */
+export async function handleAdminPriceText(chatId: string, text: string): Promise<boolean> {
+  const { getBotSession, clearBotSession } = await import("@/lib/telegram-bot/session");
+  const s = await getBotSession<{ specialistId: string; name: string }>(chatId);
+  if (!s || s.flow !== "adminprice") return false;
+  const admin = await adminByChat(chatId);
+  if (!admin) {
+    await clearBotSession(chatId);
+    return false;
+  }
+  const t = text.trim().toLowerCase();
+  const reset = t === "0" || t === "yoq" || t === "yo'q" || t === "umumiy";
+  const amount = reset ? null : Number(t.replace(/\D/g, ""));
+  if (!reset && (!Number.isFinite(amount) || (amount as number) < 1000 || (amount as number) > 50_000_000)) {
+    await sendTelegram(chatId, "Summa 1 000 – 50 000 000 so'm oralig'ida bo'lsin (yoki <code>0</code> — umumiy narx). Qaytadan yozing:");
+    return true;
+  }
+  await db.update(specialists).set({ contactPrice: amount, updatedAt: new Date() }).where(eq(specialists.id, s.data.specialistId));
+  await audit(admin.id, "admin_contact_settings", { targetType: "specialist", targetId: s.data.specialistId, meta: { contactPrice: amount, via: "telegram" } });
+  await clearBotSession(chatId);
+  await sendTelegram(chatId, amount == null ? `✅ ${escapeTelegramHtml(s.data.name)} — maxsus narx olib tashlandi, umumiy narx amal qiladi.` : `✅ ${escapeTelegramHtml(s.data.name)} — kontakt narxi ${formatPrice(amount)}.`);
+  return true;
 }

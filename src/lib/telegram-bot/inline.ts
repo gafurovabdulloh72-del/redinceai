@@ -3,6 +3,7 @@ import { escapeTelegramHtml, telegramApi } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { searchPeople } from "@/lib/telegram-bot/actions";
+import { formatPrice } from "@/lib/utils";
 
 /**
  * INLINE REJIM (2026-10-31): istalgan chatda `@bot montajchi` → ijodkor kartalari (article natijalar) — tanlangani
@@ -27,7 +28,7 @@ export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; off
         type: "article",
         id: p.slug.slice(0, 64),
         title: `${p.name}${p.isVerified ? " ✅" : ""}`,
-        description: `${p.title || cat} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}`,
+        description: `${p.title || cat} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}${p.contactPrice === null ? " · faqat portfolio" : p.contactPrice ? ` · kontakt ${formatPrice(p.contactPrice, { compact: true })}` : ""}`,
         ...(thumb ? { thumbnail_url: thumb, thumb_url: thumb } : {}),
         input_message_content: {
           message_text: `<b>${escapeTelegramHtml(p.name)}</b>${p.isVerified ? " ✅" : ""} — ${escapeTelegramHtml(p.title || cat)}\n${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount} sharh)` : ""} · Kasb Egalari\n${url}`,

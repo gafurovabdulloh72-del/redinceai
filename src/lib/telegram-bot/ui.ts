@@ -29,6 +29,7 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
   { command: "royxat", description: "Ro'yxatdan o'tish — hisob ochish (1 daqiqa)" },
   { command: "ilova", description: "Ilovani Telegram ichida ochish" },
   { command: "post", description: "Rasm/video yuborib lentaga post joylash" },
+  { command: "kontaktlarim", description: "Ochilgan kontaktlar (telefon, Telegram)" },
   { command: "buyurtmalarim", description: "Ochiq buyurtmalar — qabul qilish / rad etish" },
   { command: "xabarlar", description: "O'qilmagan xabarlar" },
   { command: "qidiruv", description: "Ijodkor qidirish: /qidiruv montajchi" },
@@ -51,6 +52,7 @@ export const ADMIN_COMMANDS = [
   { command: "navbat", description: "📥 Tasdiq navbati (mutaxassis, o'tkazma, shikoyat)" },
   { command: "tolovlar", description: "💳 Kutilayotgan qo'lda o'tkazmalar" },
   { command: "user", description: "👤 Foydalanuvchi qidirish: /user ism yoki email" },
+  { command: "narx", description: "💰 Kontakt narxlari: /narx middle 60000" },
   { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn" },
   ...BOT_COMMANDS.slice(1),
 ];
@@ -184,12 +186,13 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false): 
     "💼 /vakansiyalar — so'nggi ochiq vakansiyalar\n" +
     "📱 /ilova — Telegram ichida ochiladigan ilova\n" +
     "📸 /post — rasm yoki video yuboring (izoh rasm ostida) — lentangizga post joylayman\n" +
+    "🔓 /kontaktlarim — ochgan kontaktlaringiz (telefon, Telegram, Instagram) shu yerda\n" +
     "👤 /profil — hisob va ulanish holati\n" +
     "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
     (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa) · akkauntingiz bo'lsa — «Ha, akkauntim bor» tugmasi bilan ulang\n") +
     "⛔ /stop — Telegramni hisobdan uzish\n" +
-    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 👤 /user ism · 📣 /elon — ommaviy e'lon\n" : "") +
+    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 👤 /user ism (blok, kontakt rejimi, maxsus narx) · 💰 /narx — kontakt narxlari · 📣 /elon — ommaviy e'lon\n" : "") +
     "\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
   await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows(admin) } : { keyboard: ACCOUNT_QUESTION_ROWS() });

@@ -15,12 +15,12 @@ import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
 import { handleIncomingMedia, handlePostCallback, handlePostText, sendPostHelp, type IncomingMedia } from "@/lib/telegram-bot/media";
-import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadcastText, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadcastText, handleCourses, handleMyContacts, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
 import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
-import { adminByChat, handleAdminCallback, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
+import { adminByChat, handleAdminCallback, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -306,6 +306,7 @@ export async function POST(req: Request) {
       if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
       if (await handleBroadcastText(chatId, text)) return Response.json({ ok: true });
       if (await handlePostText(chatId, text)) return Response.json({ ok: true });
+      if (await handleAdminPriceText(chatId, text)) return Response.json({ ok: true });
     } else {
       await clearBotSession(chatId).catch(() => undefined);
     }
@@ -337,13 +338,15 @@ export async function POST(req: Request) {
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
     else if (cmd === "/post") await sendPostHelp(chatId);
-    else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user") {
+    else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId);
+    else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
       if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
       else if (cmd === "/admin") await sendAdminMenu(chatId);
       else if (cmd === "/stat") await sendAdminStats(chatId, arg === "7" || arg === "7d" ? "7d" : arg === "30" || arg === "30d" ? "30d" : "today");
       else if (cmd === "/navbat") await sendAdminQueues(chatId);
       else if (cmd === "/tolovlar") await sendAdminPayments(chatId);
+      else if (cmd === "/narx") await handleAdminPrices(chatId, normalized.slice(rawCmd.length));
       else await handleAdminUserSearch(chatId, normalized.slice(rawCmd.length));
     }
     else if (cmd === "/stop") await handleStop(chatId);

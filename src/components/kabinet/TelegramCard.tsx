@@ -158,6 +158,9 @@ export function TelegramCard({ linked, botLink }: { linked: boolean; botLink?: s
               <li>{tr(til, T.featOrders)}</li>
               <li>{tr(til, T.featApp)}</li>
               <li>{tr(til, T.featSearch)}</li>
+              <li>{tr(til, T.featPost)}</li>
+              <li>{tr(til, T.featContacts)}</li>
+              <li>{tr(til, T.featInline)}</li>
               <li>{tr(til, T.featSettings)}</li>
             </ul>
           )}
