@@ -140,5 +140,13 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Ertalab foydalanuvchi qiladigan ishlar o'zgarmadi: Vercel'da `VAPID_PRIVATE_KEY` → Secret, push sinovi, Google OAuth kalitlari,
   Yandex sitemap/hudud, domen + Resend, Payme/Click kalitlari, Google «Request indexing» qayta urinish.
 
+## Tong yakuni 2 (01:05 UTC / 06:05 Toshkent)
+- Tun davomida jami 81 commit (so'nggi 3 soatda 43 ta, 109 fayl, +1584/−390). Hammasi push qilingan, CI yashil, smoke 23/23, xavfsizlik 32/32.
+- So'nggi 3 soat: «Ma'lumot tejash», telefon «tekis» o'tishi (kabinet, profil, ustoz, kataloglar, TOP, Yordam), qidiruv to'ri fallback,
+  dars sahifasi tartibi, SEO `loading.tsx`, RU kabinet qobig'i (navigatsiya, 34 sahifa sarlavhasi, Telegram eslatmasi), regressiya crawl
+  (44 yorug' + 46 qorong'u sahifa, 768px planshet, mehmon, RU) — HSCROLL yo'q.
+- Admin bosh sahifasi: 14 so'rov parallel, har biri ~55–70 ms (dev); sekinlik faqat dev kompilyatsiyasi/yuklama paytida.
+
 ## Keyingi g'oyalar
+- RU: kabinet sahifalarining ichki matni va vakansiyalar bo'limi (katta blok, foydalanuvchi qarori bilan).
 - Kabinet mentorlik sahifalari telefonda tablar (ProfilePanels naqshi bilan).
