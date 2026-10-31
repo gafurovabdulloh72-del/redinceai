@@ -10,6 +10,9 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Sheet } from "@/components/ui/Sheet";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
+import { tr } from "@/lib/i18n";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 
 export type KabinetNavIcon =
   | "overview"
@@ -131,6 +134,7 @@ function useOverflowing(ref: RefObject<HTMLElement | null>) {
 }
 
 export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; user: KabinetNavUser; /** Telefon menyusida profil kartasi ostida ko'rinadigan progress kartasi (server komponent) */ meter?: React.ReactNode }) {
+  const til = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
@@ -217,7 +221,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
       </Link>
       {meter && <div className="px-4 pb-1">{meter}</div>}
 
-      <h2 className="m-label">Asosiy</h2>
+      <h2 className="m-label">{tr(til, KABINET_NAV.primary)}</h2>
       <div className="m-rows border-y border-line">{primary.map((item) => menuRow(item))}</div>
 
       {groups.map((g) => (
@@ -227,31 +231,31 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
         </section>
       ))}
 
-      <h2 className="m-label">Kashf etish</h2>
+      <h2 className="m-label">{tr(til, KABINET_NAV.discover)}</h2>
       <div className="m-rows border-y border-line">
-        {extRow("/xarita", Map, "Xarita")}
-        {extRow("/top", Crown, "TOP reyting")}
-        {extRow("/narxlar", CreditCard, "Narxlar")}
-        {extRow("/yordam", HelpCircle, "Yordam")}
+        {extRow("/xarita", Map, tr(til, KABINET_NAV.map))}
+        {extRow("/top", Crown, tr(til, KABINET_NAV.top))}
+        {extRow("/narxlar", CreditCard, tr(til, KABINET_NAV.prices))}
+        {extRow("/yordam", HelpCircle, tr(til, KABINET_NAV.help))}
       </div>
 
-      <h2 className="m-label">Sozlamalar</h2>
+      <h2 className="m-label">{tr(til, KABINET_NAV.settings)}</h2>
       <div className="m-rows border-y border-line">
         <div className="m-row">
           <Globe size={21} strokeWidth={1.7} className="shrink-0 text-fg-3" />
-          <span className="flex-1 text-[16px] text-fg">Til</span>
+          <span className="flex-1 text-[16px] text-fg">{tr(til, KABINET_NAV.language)}</span>
           <LocaleSwitch />
         </div>
         <div className="m-row">
           <Palette size={21} strokeWidth={1.7} className="shrink-0 text-fg-3" />
-          <span className="flex-1 text-[16px] text-fg">Ko&apos;rinish</span>
+          <span className="flex-1 text-[16px] text-fg">{tr(til, KABINET_NAV.appearance)}</span>
           <ThemeToggle />
         </div>
       </div>
 
       <div className="mt-6 border-y border-line">
         <button type="button" onClick={() => void logout()} disabled={leaving} className="press m-row w-full justify-center text-[16px] font-semibold text-danger-text transition active:bg-fg/6 disabled:opacity-60">
-          {leaving ? <Spinner /> : <LogOut size={19} />} Chiqish
+          {leaving ? <Spinner /> : <LogOut size={19} />} {tr(til, KABINET_NAV.logout)}
         </button>
       </div>
     </div>
@@ -316,7 +320,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
       {/* max-h + ichki skroll: 20 ta band past ekranda (768px) kesilib, «Chiqish» yetib bo'lmay qolmasin */}
       <div className="hidden lg:sticky lg:top-28 lg:block">
         <div className="no-scrollbar max-h-[calc(100vh-8rem)] overflow-y-auto">
-          <nav aria-label="Kabinet bo'limlari" className="py-1">
+          <nav aria-label={tr(til, KABINET_NAV.sectionsAria)} className="py-1">
             <div className="space-y-0.5">{primary.map((item) => renderRow(item))}</div>
             {groups.map((g) => (
               <div key={g.name} className="mt-4">
@@ -334,7 +338,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
             disabled={leaving}
             className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] font-medium text-danger-text transition hover:bg-danger-soft disabled:opacity-60"
           >
-            {leaving ? <Spinner /> : <LogOut size={18} />} Chiqish
+            {leaving ? <Spinner /> : <LogOut size={18} />} {tr(til, KABINET_NAV.logout)}
           </button>
         </div>
       </div>
@@ -354,7 +358,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
             type="button"
             onClick={logout}
             disabled={leaving}
-            aria-label="Chiqish"
+            aria-label={tr(til, KABINET_NAV.logout)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger-text transition hover:bg-danger-soft active:scale-95 disabled:opacity-60"
           >
             {leaving ? <Spinner /> : <LogOut size={17} />}
@@ -363,7 +367,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
 
         {/* Faqat kundalik 4 pill (+ joriy guruhli sahifa) — qolgani «Ko'proq» varaqda. Hick qonuni: kam tanlov = tez qaror */}
         <div ref={rowRef} className={cn("no-scrollbar -mx-4 mt-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6", rowOver && "scroll-fade")}>
-          <nav aria-label="Kabinet bo'limlari" className="flex w-max items-center gap-2">
+          <nav aria-label={tr(til, KABINET_NAV.sectionsAria)} className="flex w-max items-center gap-2">
             {[...primary, ...(activeGrouped ? [activeGrouped] : [])].map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(item);
@@ -395,7 +399,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
               className="relative inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-[13.5px] font-semibold text-fg-2 transition hover:border-line-2 hover:text-fg active:scale-[0.97]"
             >
               <MoreHorizontal size={16} className="text-fg-3" />
-              Ko'proq
+              {tr(til, KABINET_NAV.more)}
               {moreBadge && <span aria-hidden className="absolute right-2.5 top-2 h-2 w-2 rounded-full bg-accent-strong" />}
             </button>
           </nav>

@@ -12,6 +12,8 @@ import { unreadDmCount } from "@/lib/chat/dm";
 import { BANNER_DAYS } from "@/components/subscription/SubscriptionBanner";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { ownCompleteness } from "@/lib/profile/own-completeness";
 import { ProfileMeter } from "@/components/feed/ProfileMeter";
 import { db } from "@/lib/db";
@@ -27,11 +29,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const ROLE_LABEL = {
-  client: "Mijoz",
-  specialist: "Mutaxassis",
-  admin: "Administrator",
-} as const;
 
 /** Shu kundan kam qolsa — "tugayapti" (sariq): SubscriptionBanner bilan bir xil chegara */
 const EXPIRING_DAYS = BANNER_DAYS;
@@ -133,7 +130,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   // Profil to'ldirilganlik nuqtasi: mutaxassis profili yetarlicha to'ldirilmagan bo'lsa (sarlavha/bio/narx/ko'nikma/rasm/aloqa — 6 ta mezon)
   const sp = user.specialist;
   const profileScore = sp ? [sp.title.trim().length >= 5, sp.bio.trim().length >= 80, sp.priceFrom > 0, sp.skills.length >= 3, Boolean(sp.coverUrl || user.avatarUrl), Boolean(sp.telegram || sp.instagram)].filter(Boolean).length : 6;
-  const profileDot = sp && profileScore < 4 ? { dot: "warning" as const, dotLabel: `profil ${Math.round((profileScore / 6) * 100)}% to'ldirilgan` } : {};
+  const profileDot = sp && profileScore < 4 ? { dot: "warning" as const, dotLabel: KABINET_NAV.dotProfile[til](Math.round((profileScore / 6) * 100)) } : {};
 
   /*
    * Menyu guruhlangan (chunking — Hick/Miller qonunlari): kundalik 4 band tepada guruhsiz,
@@ -192,9 +189,17 @@ export default async function KabinetLayout({ children }: { children: React.Reac
   if (user.role === "client") items.push({ href: "/kabinet/profil", label: "Profil", icon: "profile", group: "Hisob" });
   items.push({ href: "/kabinet/tolovlar", label: "To'lovlar", icon: "payments", group: "Hisob" });
   // Xavfsizlik nuqtasi: email tasdiqlanmagan (parol tiklash ishlamaydi)
-  items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security", group: "Hisob", ...(!user.emailVerified ? { dot: "warning" as const, dotLabel: "email tasdiqlanmagan" } : {}) });
+  items.push({ href: "/kabinet/xavfsizlik", label: "Xavfsizlik", icon: "security", group: "Hisob", ...(!user.emailVerified ? { dot: "warning" as const, dotLabel: tr(til, KABINET_NAV.dotEmail) } : {}) });
   if (user.role === "admin") {
     items.push({ href: "/admin", label: "Admin panel", icon: "admin", group: "Hisob" });
+  }
+
+  // Til: band va guruh nomlari lug'atdan (ru/uz) — manba ro'yxat o'zbekcha kalitlar bilan yoziladi
+  for (const it of items) {
+    const key = it.icon === "public" ? "public" : it.href;
+    const e = KABINET_NAV.items[key];
+    if (e) it.label = tr(til, e);
+    if (it.group && KABINET_NAV.groups[it.group]) it.group = tr(til, KABINET_NAV.groups[it.group]);
   }
 
   return (
@@ -202,7 +207,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
      * 390px'da gorizontal siljish bo'lmasligi uchun: grid bolalari min-w-0, rasmlar max-w-full (KabinetShell).
      * Chat sahifasida kabinet yon menyusi desktopda yashiriladi (KabinetShell) — suhbatga butun kenglik.
      */
-    <KabinetShell aside={<KabinetNav items={items} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: ROLE_LABEL[user.role], email: user.email }} meter={own ? <ProfileMeter data={own} til={til} /> : null} />}>
+    <KabinetShell aside={<KabinetNav items={items} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: tr(til, KABINET_NAV.role[user.role] ?? KABINET_NAV.role.client), email: user.email }} meter={own ? <ProfileMeter data={own} til={til} /> : null} />}>
       {/* Bloklamaydigan bannerlar: shartlar (G1) va ixcham obuna pill'i (G6/#74) — chop etishda ko'rinmaydi.
           To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
       <div className="print:hidden">
