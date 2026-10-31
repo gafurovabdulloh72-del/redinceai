@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { ListVideo } from "lucide-react";
 import { CollectionsManager } from "@/components/social/CollectionsManager";
@@ -6,7 +9,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listCollections } from "@/lib/social/library";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "To'plamlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["To'plamlar"])  };
+}
 
 /** To'plamlar (pleylist): post to'plamlari — ommaviylari profilda ham ko'rinadi */
 export default async function CollectionsPage() {

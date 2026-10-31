@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, FileUser, Send } from "lucide-react";
@@ -12,7 +15,10 @@ import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { cn, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Arizalarim" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Arizalarim"])  };
+}
 
 /** Nomzod kabineti: yuborilgan arizalar (holat bo'limlari, «ko'rildi» vaqti, javobsizlik ishorasi), mos vakansiyalar, saqlanganlar */
 export default async function MyApplicationsPage({ searchParams }: { searchParams: Promise<{ holat?: string | string[] }> }) {

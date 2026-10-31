@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { Bookmark, Search } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
@@ -7,7 +10,10 @@ import { MAX_SAVED_SEARCHES, listSavedSearches } from "@/lib/saved-searches";
 import { SavedSearchList } from "./SavedSearchList";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Saqlangan qidiruvlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Saqlangan qidiruvlar"])  };
+}
 
 /** Saqlangan qidiruvlar (F53): ochish, nomini o'zgartirish, bildirishnomani yoqish/o'chirish, o'chirish */
 export default async function SavedSearchesPage() {

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -9,7 +12,10 @@ import { db } from "@/lib/db";
 import { portfolioItems, specialists } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Portfolio" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Portfolio"])  };
+}
 
 const MAX_ITEMS = 30;
 

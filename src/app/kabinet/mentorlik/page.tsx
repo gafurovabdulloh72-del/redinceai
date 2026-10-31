@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight, Radio } from "lucide-react";
@@ -11,7 +14,10 @@ import { LearningStreakCard } from "@/components/mentorship/LearningStreak";
 import { learningStreak } from "@/lib/mentorship/streak";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Mentorlik", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Mentorlik"]), robots: { index: false, follow: false }  };
+}
 
 /**
  * Mentorlik kabineti — «Umumiy» (2026-10-24 qayta tuzildi).

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { Heart, Map } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
@@ -10,7 +13,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listFavoriteSpecialists } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Sevimlilar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Sevimlilar"])  };
+}
 
 /** Saqlangan mutaxassislar — kartadagi yurak qayta bosilsa o'rnida «Qaytarish» chiqadi (FavoriteSlot) */
 export default async function FavoritesPage() {

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { and, inArray, sql } from "drizzle-orm";
 import { ClipboardList, ShieldCheck } from "lucide-react";
@@ -33,7 +36,10 @@ async function chatStats(orderIds: string[], userId: string): Promise<Map<string
 }
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Buyurtmalar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Buyurtmalar"])  };
+}
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ tab?: string; id?: string; chat?: string }> }) {
   const sp = await searchParams;

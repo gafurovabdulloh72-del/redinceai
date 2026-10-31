@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Bookmark, GraduationCap } from "lucide-react";
@@ -11,7 +14,10 @@ import { listSavedCourses } from "@/lib/mentorship/service";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Saqlanganlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Saqlanganlar"])  };
+}
 
 /** Saqlangan postlar (bookmark) — faqat egasiga ko'rinadi; lenta kartalari bilan bir xil (reaksiya, izoh, ulashish) */
 export default async function SavedPostsPage({ searchParams }: { searchParams: Promise<{ tur?: string }> }) {

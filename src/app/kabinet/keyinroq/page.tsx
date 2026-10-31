@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { Clock } from "lucide-react";
 import { HomeFeed } from "@/components/feed/HomeFeed";
@@ -6,7 +9,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listWatchLater } from "@/lib/social/library";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Keyinroq ko'rish" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Keyinroq ko'rish"])  };
+}
 
 /** «Keyinroq ko'rish» navbati — post menyusidagi «Keyinroq ko'rish» orqali to'ldiriladi */
 export default async function WatchLaterPage() {

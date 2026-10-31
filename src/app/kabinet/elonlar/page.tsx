@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, BriefcaseBusiness, Plus } from "lucide-react";
@@ -11,7 +14,10 @@ import { listClientJobs } from "@/lib/jobs/queries";
 import { formatNumber, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "E'lonlarim" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["E'lonlarim"])  };
+}
 
 /** Mijozning e'lonlari: holat, takliflar (yangilari alohida), ko'rishlar, muddat; tahrirlash / yopish / qayta ochish */
 export default async function MyJobsPage() {

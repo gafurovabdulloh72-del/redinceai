@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser } from "@/lib/mentorship/service";
@@ -11,7 +14,10 @@ import { formatSom } from "@/lib/mentorship/format";
 import { cn, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Tahlil", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Tahlil"]), robots: { index: false, follow: false }  };
+}
 
 const som = (n: number) => (n ? formatSom(n) : "0 so'm");
 

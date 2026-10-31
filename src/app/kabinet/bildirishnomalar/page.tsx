@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
@@ -15,7 +18,10 @@ import { NOTIFY_GROUPS, NOTIFY_GROUP_KEYS, NOTIFY_GROUP_META, notifyGroupOf, typ
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Bildirishnomalar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Bildirishnomalar"])  };
+}
 
 const PER_PAGE = 20;
 const BASE = "/kabinet/bildirishnomalar";

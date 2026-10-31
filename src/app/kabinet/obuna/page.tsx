@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2, CircleSlash, FileText, Hourglass, Receipt, Users, XCircle, type LucideIcon } from "lucide-react";
@@ -15,7 +18,10 @@ import { getSubscriptionOverview, type SubscriptionStateView } from "@/lib/subsc
 import { cn, formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Obuna", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Obuna"]), robots: { index: false, follow: false }  };
+}
 
 const RING_TONE: Record<SubscriptionStateView["status"], RingTone> = { active: "success", trial: "info", grace: "warning", expired: "danger", off: "neutral", exempt: "success" };
 

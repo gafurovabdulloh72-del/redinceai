@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { CalendarClock } from "lucide-react";
 import { ScheduledList } from "@/components/social/PostExtras";
@@ -6,7 +9,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listScheduled } from "@/lib/social/instagram";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Rejalashtirilgan postlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Rejalashtirilgan postlar"])  };
+}
 
 /** Rejalashtirilgan postlar: vaqti kelganda avtomatik joylanadi (cron + lenta ochilganda) */
 export default async function ScheduledPage() {

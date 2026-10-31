@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { History } from "lucide-react";
 import { HomeFeed } from "@/components/feed/HomeFeed";
@@ -7,7 +10,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listHistory } from "@/lib/social/library";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Ko'rish tarixi" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Ko'rish tarixi"])  };
+}
 
 /** Ko'rish tarixi: oxirgi ko'rilgan videolar, har biri to'xtagan joyidan davom etadi */
 export default async function HistoryPage() {

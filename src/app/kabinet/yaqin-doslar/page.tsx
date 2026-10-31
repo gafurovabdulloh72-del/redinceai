@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 import { CloseFriendsPanel } from "@/components/social/CloseFriendsPanel";
@@ -6,7 +9,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listCloseFriends } from "@/lib/social/instagram";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Yaqin do'stlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Yaqin do'stlar"])  };
+}
 
 /** Yaqin do'stlar: «close» auditoriyali post va story faqat shu ro'yxatdagilarga ko'rinadi */
 export default async function CloseFriendsPage() {

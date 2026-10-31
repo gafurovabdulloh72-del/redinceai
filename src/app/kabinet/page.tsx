@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
@@ -42,7 +45,10 @@ import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/a
 import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Umumiy" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Umumiy"])  };
+}
 
 /** Buyurtmalar sahifasi (OrdersList) bilan bir xil: yangi — coral, qabul qilindi — binafsha */
 const STATUS_TONE: Record<OrderStatus, "accent" | "purple" | "warning" | "success" | "neutral"> = {

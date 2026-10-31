@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { UsersRound } from "lucide-react";
 import { FollowTabs } from "@/components/groups/FollowersDialog";
@@ -6,7 +9,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Obunalar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Obunalar"])  };
+}
 
 /** Kabinet: menga obuna bo'lganlar va men obuna bo'lganlar (mijoz ham, ijodkor ham) */
 export default async function FollowsPage() {

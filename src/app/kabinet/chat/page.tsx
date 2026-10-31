@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { getCurrentUser } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/server";
 import { DmChat } from "@/components/chat/DmChat";
 
-export const metadata: Metadata = { title: "Chat", other: { "m-title": "Xabarlar" } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Chat"]), other: { "m-title": tr(til, KABINET_NAV.titles["Xabarlar"]) }  };
+}
 
 const TITLE = { uz: "Xabarlar", ru: "Сообщения" } as const;
 

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Download, FileChartColumn } from "lucide-react";
@@ -10,7 +13,10 @@ import { cn, formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { currentMonth, loadMonthlyReport, parseMonth, recentMonths, shiftMonth } from "./report";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Oylik hisobot", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Oylik hisobot"]), robots: { index: false, follow: false }  };
+}
 
 /**
  * Chop etishda sayt qobig'i (navbar, footer, tab-bar), kabinet navigatsiyasi va boshqaruv tugmalari yashiriladi —

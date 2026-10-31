@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { PartyPopper } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
@@ -14,7 +17,10 @@ import { resolveVisibility } from "@/lib/privacy";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Profil" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Profil"])  };
+}
 
 export default async function ProfilPage({ searchParams }: { searchParams: Promise<{ welcome?: string; category?: string; experience?: string; region?: string }> }) {
   const sp = await searchParams;

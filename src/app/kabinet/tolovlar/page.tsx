@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, BadgePercent, Clock3, Handshake, Hourglass, Landmark, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
@@ -15,7 +18,10 @@ import { commissionPctFor, getSettings, type CommissionTier } from "@/lib/paymen
 import { cn, formatDateTime, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "To'lovlar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["To'lovlar"])  };
+}
 
 const TIER_LABEL: Record<CommissionTier, string> = { new: "Yangi", standard: "Oddiy", top: "Top mutaxassis" };
 

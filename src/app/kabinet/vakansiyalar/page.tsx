@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, ChevronDown, Plus } from "lucide-react";
@@ -11,7 +14,10 @@ import { listApplicants, myVacancies } from "@/lib/vacancies/service";
 import { cn, timeAgo } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Vakansiyalarim" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Vakansiyalarim"])  };
+}
 
 /**
  * Ish beruvchi kabineti: vakansiyalar, holat, arizalar (?v=<id> — nomzodlar ochiq).

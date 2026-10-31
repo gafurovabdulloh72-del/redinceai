@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -14,7 +17,10 @@ import { INVOICE_PROVIDER_LABEL, INVOICE_STATE_LABEL, INVOICE_STATE_TONE, invoic
 import { formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Obuna cheki", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Obuna cheki"]), robots: { index: false, follow: false }  };
+}
 
 /** Chop etishda sayt qobig'i va kabinet navigatsiyasi yashiriladi — faqat chek (/chek bilan bir xil yondashuv) */
 const PRINT_CSS = `

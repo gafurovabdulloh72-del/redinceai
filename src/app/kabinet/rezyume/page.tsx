@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
@@ -7,7 +10,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getResume } from "@/lib/vacancies/service";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Rezyumem" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Rezyumem"])  };
+}
 
 /** Rezyume tahriri — bitta rezyume; ommaviy bo'lsa /rezyumelar katalogida */
 export default async function MyResumePage() {

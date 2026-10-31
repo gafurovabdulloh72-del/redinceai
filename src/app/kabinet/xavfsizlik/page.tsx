@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { headers } from "next/headers";
@@ -13,7 +16,10 @@ import { auditLogs, users } from "@/lib/db/schema";
 import { listUserSessions } from "@/lib/security/sessions";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Xavfsizlik" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Xavfsizlik"])  };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 

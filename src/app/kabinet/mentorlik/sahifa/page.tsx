@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -8,7 +11,10 @@ import { MentorNav } from "@/components/mentorship/MentorNav";
 import { MentorPageForm } from "@/components/mentorship/MentorStudio";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Mentorlik sahifam", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Mentorlik sahifam"]), robots: { index: false, follow: false }  };
+}
 
 /** Mentorning ommaviy sahifasi ma'lumotlari — oldin «Umumiy» sahifa ichida edi, endi alohida */
 export default async function MentorPagePage() {

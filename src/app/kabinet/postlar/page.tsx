@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { redirect } from "next/navigation";
 import { ExternalLink, LayoutGrid } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
@@ -7,7 +10,10 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { listProfilePosts, profilePostCounts } from "@/lib/profile/posts";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Postlarim" };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Postlarim"])  };
+}
 
 /** Ijodkor kabineti: shaxsiy profil lentasi — post joylash (matn, rasm, video), tahrirlash, o'chirish */
 export default async function MyPostsPage() {

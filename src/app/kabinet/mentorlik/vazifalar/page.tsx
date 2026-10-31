@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -8,7 +11,10 @@ import { listSubmissionsForMentor } from "@/lib/mentorship/learning";
 import { SubmissionsReview } from "@/components/mentorship/SubmissionsReview";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Talabalar vazifalari", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, KABINET_NAV.titles["Talabalar vazifalari"]), robots: { index: false, follow: false }  };
+}
 
 export default async function SubmissionsPage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const user = await getCurrentUser();
