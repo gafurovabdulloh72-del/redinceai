@@ -317,3 +317,22 @@ test("SSRF: havola prevyusi ichki manzillarni o'qimaydi (metadata, loopback, IPv
     }
   }
 });
+
+test("Kontakt sotuvi: mehmon va kontaktni ochmagan mijoz telefon/Telegram/Instagram/email'ni API'da ko'rmaydi", async () => {
+  const list = await (await fetch(`${BASE}/api/specialists?limit=5`)).json();
+  const items = list.data?.items ?? list.data ?? [];
+  assert.ok(Array.isArray(items) && items.length > 0, "katalog bo'sh — test ma'nosiz");
+  for (const it of items.slice(0, 3)) {
+    const slug = it.slug;
+    for (const who of ["guest", "cl"]) {
+      if (who === "cl" && !COOKIES.cl) continue;
+      const r = await req(who, `/api/specialists/${encodeURIComponent(slug)}`);
+      if (r.status !== 200) continue;
+      const d = (await r.json()).data ?? {};
+      // Eslatma: bu API kontaktni hatto sotib olganlarga ham bermaydi (ular profil sahifasida ko'radi) — shuning uchun hammaga null
+      for (const [k, v] of [["telegram", d.telegram], ["instagram", d.instagram], ["phone", d.user?.phone], ["email", d.user?.email]]) {
+        assert.ok(v == null || v === "", `${who}: ${slug} ${k} sizdi`);
+      }
+    }
+  }
+});
