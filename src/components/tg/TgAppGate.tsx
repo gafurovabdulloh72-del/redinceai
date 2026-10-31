@@ -5,6 +5,7 @@ import { LogoMark, Wordmark } from "@/components/layout/Logo";
 import { TgRegister } from "@/components/tg/TgRegister";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { decodeStartParam } from "@/lib/tg-start-param";
+import { inIframe, markTgAppCookie, tgPostEvent as postEvent } from "@/lib/telegram-webapp-client";
 
 /**
  * Mini App darvozasi — Telegram SDK'SIZ (tashqi skript CSP/tarmoqqa bog'liq bo'lmasin):
@@ -27,17 +28,6 @@ function langOf(initData: string): Lang {
     return (u.language_code ?? "").toLowerCase().startsWith("ru") ? "ru" : "uz";
   } catch {
     return "uz";
-  }
-}
-
-function postEvent(eventType: string, eventData: Record<string, unknown> = {}) {
-  const w = window as unknown as { TelegramWebviewProxy?: { postEvent: (t: string, d: string) => void }; external?: { notify?: (s: string) => void } };
-  try {
-    if (w.TelegramWebviewProxy?.postEvent) w.TelegramWebviewProxy.postEvent(eventType, JSON.stringify(eventData));
-    else if (typeof w.external?.notify === "function") w.external.notify(JSON.stringify({ eventType, eventData }));
-    else if (window.parent !== window) window.parent.postMessage(JSON.stringify({ eventType, eventData }), "https://web.telegram.org");
-  } catch {
-    /* Telegram tashqarisida — ahamiyatsiz */
   }
 }
 
@@ -81,6 +71,8 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
   const [tgName, setTgName] = useState("");
   const [initData, setInitData] = useState("");
   const [lang, setLang] = useState<Lang>("uz");
+  // Telegram Web (iframe): Google OAuth ramka ichida ochilmaydi — faqat email/parol bilan ulash
+  const [framed, setFramed] = useState(false);
   const t = (uz: string, ru: string) => (lang === "ru" ? ru : uz);
   const [target, setTarget] = useState(to);
   const started = useRef(false);
@@ -102,6 +94,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
     setTarget(dest);
     setInitData(launch.initData);
     setLang(langOf(launch.initData));
+    setFramed(inIframe());
     const bg = launch.dark ? "#0a0a0b" : "#ffffff";
     postEvent("web_app_ready");
     postEvent("web_app_expand");
@@ -110,7 +103,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: dest, ...(link ? { link: true } : {}) }) });
+        const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: dest, embedded: inIframe(), ...(link ? { link: true } : {}) }) });
         const j = (await r.json()) as { ok: boolean; data?: { status?: string; next?: string; name?: string }; error?: string };
         if (cancelled) return;
         // Ulash rejimi, lekin saytga hali kirilmagan — login sahifasiga (Google yoki email), keyin shu yerga qaytadi
@@ -124,7 +117,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
           setPhase("ask");
           return;
         }
-        document.cookie = "tgapp=1; path=/; max-age=43200; samesite=lax";
+        markTgAppCookie();
         window.location.replace(j.data?.next || "/");
       } catch (e) {
         if (!cancelled) {
@@ -167,12 +160,12 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
         <>
           <p className="mt-7 text-[16px] font-semibold text-fg">{t("Akkauntni ulash", "Привязать аккаунт")}</p>
           <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">{t("Saytdagi hisobingiz bilan kiring — Telegram shu hisobga avtomatik ulanadi.", "Войдите под аккаунтом сайта — Telegram привяжется к нему автоматически.")}</p>
-          {googleEnabled && (
+          {googleEnabled && !framed && (
             <a href={googleHref} className="btn-ink mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold">
               <GoogleG /> {t("Google bilan kirish", "Войти через Google")}
             </a>
           )}
-          <a href={loginHref} className={`${googleEnabled ? "mt-3 border border-line-2 text-fg" : "btn-accent mt-6"} inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold`}>
+          <a href={loginHref} className={`${googleEnabled && !framed ? "mt-3 border border-line-2 text-fg" : "btn-accent mt-6"} inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold`}>
             {t("Email va parol bilan kirish", "Войти по email и паролю")}
           </a>
           <button type="button" onClick={() => setPhase("ask")} className="mt-4 text-[13px] font-semibold text-fg-3 underline-offset-4 hover:underline">

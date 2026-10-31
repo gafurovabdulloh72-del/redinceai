@@ -9,7 +9,8 @@ import { audit } from "@/lib/security/audit";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/security/password";
 import { RATE_LIMITS, clearLimit, clientIp, rateLimit } from "@/lib/security/rate-limit";
 
-const schema = loginSchema.extend({ remember: z.boolean().optional().default(true) });
+// embedded — sahifa iframe ichida (Telegram Web Mini App): sessiya cookie'si SameSite=None; Secure; Partitioned bo'ladi
+const schema = loginSchema.extend({ remember: z.boolean().optional().default(true), embedded: z.boolean().optional().default(false) });
 
 /**
  * Kirish. Xato xabari umumiy ("Email yoki parol noto'g'ri") — email mavjudligi oshkor qilinmaydi,
@@ -48,7 +49,7 @@ export const POST = handler(async (req) => {
   // 2FA yoqilgan: sessiya o'rniga 5 daqiqalik chipta — ikkinchi bosqich POST /api/auth/2fa/verify
   // (urinishlar hisoblagichi kod tasdiqlangandan keyin tozalanadi)
   if (user.totpEnabled) {
-    const ticket = await createTwoFactorTicket(user, input.remember);
+    const ticket = await createTwoFactorTicket(user, input.remember, input.embedded);
     await audit(user.id, "login_2fa_required", { targetType: "user", targetId: user.id }, req);
     return ok({ twoFactor: true as const, ticket });
   }
@@ -60,6 +61,6 @@ export const POST = handler(async (req) => {
     db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id)),
     audit(user.id, "login_success", { targetType: "user", targetId: user.id, meta: { remember: input.remember } }, req),
   ]);
-  await createSession(user, { remember: input.remember });
+  await createSession(user, { remember: input.remember, embedded: input.embedded });
   return ok({ id: user.id, name: user.name, role: user.role });
 });

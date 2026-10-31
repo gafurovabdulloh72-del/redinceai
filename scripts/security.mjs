@@ -260,6 +260,27 @@ test("Mini App: initData'siz kirish → 401 (hisob yaratilmaydi)", async () => {
   const r = await fetch(`${BASE}/api/tg/auth`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ initData: "user=%7B%7D&hash=00", to: "/" }) });
   assert.ok([401, 503].includes(r.status), `kutilgan 401/503, keldi ${r.status}`);
 });
+test("Sessiya cookie: oddiy kirish SameSite=Lax; iframe (Telegram Web) kirishi SameSite=None; Secure; Partitioned", async () => {
+  const login = (embedded) => fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify({ email: "mijoz@redince.uz", password: DEMO_PASSWORD, embedded }), redirect: "manual" });
+  const pick = (r) => (typeof r.headers.getSetCookie === "function" ? r.headers.getSetCookie() : [r.headers.get("set-cookie") ?? ""]).find((c) => c.startsWith("redince_session=")) ?? "";
+  const plain = pick(await login(false));
+  if (!plain) return; // demo hisob yo'q muhit — tekshirib bo'lmaydi
+  assert.match(plain, /SameSite=lax/i, `oddiy sessiya Lax bo'lishi kerak: ${plain.replace(/=[^;]+/, "=…")}`);
+  assert.doesNotMatch(plain, /Partitioned/i);
+  const framed = pick(await login(true));
+  assert.match(framed, /SameSite=none/i);
+  assert.match(framed, /Secure/i);
+  assert.match(framed, /Partitioned/i);
+  assert.match(framed, /HttpOnly/i);
+});
+
+test("Telegram ulash kodi: mehmon → 401 (link/unlink)", async () => {
+  for (const path of ["/api/telegram/link", "/api/telegram/unlink"]) {
+    const r = await fetch(`${BASE}${path}`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: "{}" });
+    assert.equal(r.status, 401, `${path} mehmonga ochiq: ${r.status}`);
+  }
+});
+
 test("Admin Telegram sinov xabari oddiy foydalanuvchiga yopiq → 403", async () => {
   const r = await req("cl", "/api/admin/telegram", { method: "PATCH" });
   assert.equal(r.status, 403);

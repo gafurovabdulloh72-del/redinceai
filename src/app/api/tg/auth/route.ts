@@ -41,23 +41,26 @@ const registerSchema = z.object({
  *  - `link: true` + kirgan sessiya → Telegram chati shu hisobga ulanadi («Ha, akkauntim bor» yo'li); sessiya yo'q → 401
  */
 /** Telegram tili ruscha bo'lsa sayt tilini `ru` qilamiz — faqat foydalanuvchi hali til tanlamagan bo'lsa (cookie yo'q) */
-async function applyTelegramLocale(code: string | undefined): Promise<void> {
+async function applyTelegramLocale(code: string | undefined, embedded: boolean): Promise<void> {
   if (!code || !code.toLowerCase().startsWith("ru")) return;
   const jar = await cookies();
   if (jar.get(LOCALE_COOKIE)) return;
-  jar.set(LOCALE_COOKIE, "ru", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  // Telegram Web iframe'ida Lax cookie saqlanmaydi — bo'lakli (Partitioned) variant
+  jar.set(LOCALE_COOKIE, "ru", { path: "/", maxAge: 60 * 60 * 24 * 365, ...(embedded ? { sameSite: "none" as const, secure: true, partitioned: true } : { sameSite: "lax" as const }) });
 }
 
 export const POST = handler(async (req) => {
   if (!isTelegramEnabled()) throw new ApiError(503, "Telegram bot sozlanmagan");
-  const body = (await req.json().catch(() => ({}))) as { initData?: unknown; to?: unknown; link?: unknown; register?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { initData?: unknown; to?: unknown; link?: unknown; register?: unknown; embedded?: unknown };
+  // Telegram Web (web.telegram.org) Mini App'ni iframe ichida ochadi — u yerda faqat bo'lakli cookie ishlaydi (auth.ts sessionCookieAttrs)
+  const embedded = body.embedded === true;
   const v = verifyWebAppInitData(typeof body.initData === "string" ? body.initData : "");
   if (!v) throw new ApiError(401, "Telegram ma'lumoti tasdiqlanmadi — ilovani botdan qayta oching");
   const chatId = String(v.user.id);
   // Chegara imzo tekshiruvidan KEYIN va Telegram user id bo'yicha: bitta mobil operator IP'si ortida minglab foydalanuvchi bo'ladi
   await enforceLimit("tgApp", `tg:${chatId}`);
   const tgName = [v.user.first_name, v.user.last_name].filter(Boolean).join(" ");
-  await applyTelegramLocale(v.user.language_code);
+  await applyTelegramLocale(v.user.language_code, embedded);
 
   if (body.link === true) {
     const session = await getVerifiedSession();
@@ -89,14 +92,14 @@ export const POST = handler(async (req) => {
       phone: d.phone || null,
       specialist: d.role === "specialist" && d.category && d.region ? { category: d.category, experience: d.experience ?? "middle", regionSlug: d.region } : null,
     });
-    await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true });
+    await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true, embedded });
     await audit(r.userId, r.isNew ? "register" : "login_success", { targetType: "user", targetId: r.userId, meta: { provider: "telegram_webapp", role: d.role } }, req).catch(() => undefined);
     return ok({ status: "ok", isNew: r.isNew, next: r.isNew ? "/xush-kelibsiz" : safePath(body.to) });
   }
 
   const r = await findTelegramUser(chatId);
   if (!r) return ok({ status: "register", bot: telegramBotUsername(), name: tgName });
-  await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true });
+  await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true, embedded });
   await audit(r.userId, "login_success", { targetType: "user", targetId: r.userId, meta: { provider: "telegram_webapp" } }, req).catch(() => undefined);
   return ok({ status: "ok", isNew: false, next: safePath(body.to) });
 });

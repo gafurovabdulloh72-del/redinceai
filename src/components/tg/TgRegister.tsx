@@ -8,6 +8,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { CATEGORY_BY_SLUG } from "@/lib/categories";
 import { EXPERIENCE_LEVELS, REGION_BY_SLUG } from "@/lib/constants";
 import { normalizeUzPhone } from "@/lib/utils";
+import { inIframe, markTgAppCookie } from "@/lib/telegram-webapp-client";
 
 type Role = "client" | "specialist";
 type Step = "role" | "name" | "craft" | "phone" | "confirm";
@@ -47,11 +48,11 @@ export function TgRegister({ tgName, initData, to, onBack }: { tgName: string; i
       const r = await fetch("/api/tg/auth", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ initData, to, register: { role, name: name.trim(), phone: phone.trim() ? (normalizeUzPhone(phone) ?? phone.trim()) : "", ...(role === "specialist" ? { category, experience, region } : {}) } }),
+        body: JSON.stringify({ initData, to, embedded: inIframe(), register: { role, name: name.trim(), phone: phone.trim() ? (normalizeUzPhone(phone) ?? phone.trim()) : "", ...(role === "specialist" ? { category, experience, region } : {}) } }),
       });
       const j = (await r.json()) as { ok: boolean; data?: { next?: string }; error?: string; fields?: Record<string, string> };
       if (!r.ok || !j.ok) throw new Error(j.fields ? Object.values(j.fields)[0] : j.error || t("Hisob ochilmadi", "Не удалось создать аккаунт"));
-      document.cookie = "tgapp=1; path=/; max-age=43200; samesite=lax";
+      markTgAppCookie();
       window.location.replace(j.data?.next || "/xush-kelibsiz");
     } catch (e) {
       setErr(e instanceof Error ? e.message : t("Hisob ochilmadi", "Не удалось создать аккаунт"));

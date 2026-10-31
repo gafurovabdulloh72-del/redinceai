@@ -92,11 +92,26 @@ export interface SessionPayload {
   exp?: number;
   /** JWT id = sessions.id (eski tokenlarda yo'q — ular uchun denylist fallback) */
   jti?: string;
+  /** Telegram Web (iframe) ichida ochilgan sessiya — cookie `SameSite=None; Secure; Partitioned` (qayta chiqarishda saqlanadi) */
+  embedded?: boolean;
 }
 
 export interface CreateSessionOptions {
   /** Berilmasa: joriy cookie'dagi tanlov, u ham bo'lmasa true */
   remember?: boolean;
+  /**
+   * Uchinchi tomon konteksti (Telegram Web — web.telegram.org ichidagi iframe): `SameSite=Lax` cookie u yerda
+   * saqlanmaydi va yuborilmaydi, shuning uchun `SameSite=None; Secure; Partitioned` (CHIPS — faqat telegram.org
+   * ostidagi bo'lakda). Berilmasa: joriy sessiyadagi holat (rol/parol o'zgarganda qayta chiqarish ham iframe'da ishlasin).
+   */
+  embedded?: boolean;
+}
+
+/** Sessiya cookie atributlari: oddiy (Lax) yoki iframe uchun bo'lakli (None + Secure + Partitioned) */
+export function sessionCookieAttrs(embedded = false) {
+  return embedded
+    ? ({ httpOnly: true, sameSite: "none", secure: true, partitioned: true, path: "/" } as const)
+    : ({ httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" } as const);
 }
 
 /**
@@ -112,6 +127,7 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
   const current = await getSession();
   const sameUser = current?.sub === user.id ? current : null;
   const remember = opts.remember ?? sameUser?.remember ?? true;
+  const embedded = opts.embedded ?? sameUser?.embedded ?? false;
 
   // Har bir kirish — sessions jadvalida alohida qator (qurilmalar ro'yxati, bittasini bekor qilish)
   const jti = randomBytes(18).toString("base64url");
@@ -119,7 +135,7 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
   // Shu brauzerdagi oldingi cookie (shu yoki boshqa foydalanuvchi) ustidan yoziladi — uning qatori yopiladi
   await recordSession(user.id, jti, expiresAt, current?.jti ? { jti: current.jti, userId: current.sub } : undefined);
 
-  const token = await new SignJWT({ role: user.role, name: user.name, sv, rm: remember })
+  const token = await new SignJWT({ role: user.role, name: user.name, sv, rm: remember, ...(embedded ? { emb: true } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
     .setJti(jti)
@@ -129,10 +145,7 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
 
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
+    ...sessionCookieAttrs(embedded),
     ...(remember ? { maxAge: REMEMBER_DAYS * 24 * 60 * 60 } : {}),
   });
 }
@@ -177,7 +190,10 @@ export async function revokeAllSessions(userId: string): Promise<void> {
 
 export async function clearSession() {
   const store = await cookies();
-  store.delete(SESSION_COOKIE);
+  // Iframe sessiyasi bo'lakli cookie'da — uni faqat xuddi shu atributlar bilan o'chirish mumkin (oddiy o'chirish rad etiladi)
+  const current = await getSession();
+  if (current?.embedded) store.set(SESSION_COOKIE, "", { ...sessionCookieAttrs(true), maxAge: 0 });
+  else store.delete(SESSION_COOKIE);
 }
 
 /**
@@ -206,6 +222,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       name: String(payload.name ?? ""),
       sv,
       remember: payload.rm !== false,
+      embedded: payload.emb === true ? true : undefined,
       iat: typeof payload.iat === "number" ? payload.iat : undefined,
       exp: typeof payload.exp === "number" ? payload.exp : undefined,
       jti: typeof payload.jti === "string" && payload.jti ? payload.jti : undefined,
@@ -279,6 +296,8 @@ export interface TwoFactorTicket {
   sub: string;
   sv: number;
   remember: boolean;
+  /** Parol bosqichi Telegram Web iframe'ida bo'lgan — sessiya ham bo'lakli cookie bilan beriladi */
+  embedded: boolean;
   /** Chipta id — rate limit va bir martalik ishlatish kaliti */
   jti: string;
 }
@@ -289,8 +308,8 @@ function ticketKey(): Uint8Array {
 }
 
 /** Parol to'g'ri, 2FA yoqilgan — sessiya o'rniga 5 daqiqalik imzolangan chipta */
-export async function createTwoFactorTicket(user: Pick<User, "id" | "sessionVersion">, remember: boolean): Promise<string> {
-  return new SignJWT({ sv: user.sessionVersion, rm: remember, typ: "2fa" })
+export async function createTwoFactorTicket(user: Pick<User, "id" | "sessionVersion">, remember: boolean, embedded = false): Promise<string> {
+  return new SignJWT({ sv: user.sessionVersion, rm: remember, typ: "2fa", ...(embedded ? { emb: true } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
     .setJti(randomBytes(12).toString("base64url"))
@@ -303,7 +322,7 @@ export async function verifyTwoFactorTicket(ticket: string): Promise<TwoFactorTi
   try {
     const { payload } = await jwtVerify(ticket, ticketKey(), { algorithms: ["HS256"] });
     if (!payload.sub || payload.typ !== "2fa" || typeof payload.jti !== "string") return null;
-    return { sub: payload.sub, sv: typeof payload.sv === "number" ? payload.sv : 0, remember: payload.rm !== false, jti: payload.jti };
+    return { sub: payload.sub, sv: typeof payload.sv === "number" ? payload.sv : 0, remember: payload.rm !== false, embedded: payload.emb === true, jti: payload.jti };
   } catch {
     return null;
   }

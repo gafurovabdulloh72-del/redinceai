@@ -13,6 +13,7 @@ import { tr, type Locale } from "@/lib/i18n";
 import { AUTH } from "@/lib/i18n/dict/auth";
 import { passwordStrength } from "@/lib/security/password-strength";
 import { cn, formatPrice, safeInternalPath } from "@/lib/utils";
+import { inIframe } from "@/lib/telegram-webapp-client";
 
 type Mode = "login" | "register";
 type Role = "client" | "specialist";
@@ -163,7 +164,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
 
     const payload = isRegister
       ? { name: name.trim(), email: email.trim(), password, phone: "", role, gender: null, acceptTerms }
-      : { email: email.trim(), password, remember };
+      : { email: email.trim(), password, remember, embedded: inIframe() }; // iframe (Telegram Web) — bo'lakli sessiya cookie'si
 
     try {
       const res = await fetch(isRegister ? "/api/auth/register" : "/api/auth/login", {

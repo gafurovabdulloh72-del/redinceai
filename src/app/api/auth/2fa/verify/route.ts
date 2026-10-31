@@ -58,7 +58,7 @@ export const POST = handler(async (req) => {
     db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id)),
     audit(user.id, "login_success", { targetType: "user", targetId: user.id, meta: { remember: ticket.remember, twoFactor: kind } }, req),
   ]);
-  await createSession(user, { remember: ticket.remember });
+  await createSession(user, { remember: ticket.remember, embedded: ticket.embedded });
   const recoveryLeft = kind === "recovery" ? Math.max(0, user.recoveryCodes.length - 1) : null;
   return ok({ id: user.id, name: user.name, role: user.role, recoveryLeft });
 });

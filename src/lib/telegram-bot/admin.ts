@@ -484,7 +484,9 @@ export async function sendAdminPayouts(chatId: string): Promise<void> {
   }
   await sendTelegram(chatId, `💸 <b>Pul chiqarish so'rovlari:</b> ${rows.length} ta. Rekvizitni admin panelda ko'rib, kartaga o'tkazing — so'ng «To'landi» bosing.`);
   for (const p of rows) {
-    const masked = p.details.replace(/\d(?=\d{4})/g, "•");
+    // Karta raqami niqoblanadi (faqat birinchi 4 va oxirgi 4 raqam) — to'liq rekvizit faqat admin panelda
+    const digits = p.details.replace(/\D/g, "");
+    const masked = digits.length >= 12 ? `${digits.slice(0, 4)} •••• •••• ${digits.slice(-4)}` : p.details.replace(/\d(?=\d{3})/g, "•");
     const text = [
       `💸 <b>${escapeTelegramHtml(p.specialist.user.name)}</b> — ${formatPrice(p.amount)} (${PAYOUT_STATE_LABEL[p.state]})`,
       `${escapeTelegramHtml(p.method)} · ${escapeTelegramHtml(masked)} · ${fmtDate(p.createdAt.getTime())}`,

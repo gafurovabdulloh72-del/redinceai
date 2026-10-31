@@ -56,7 +56,16 @@ function save(key: string, value: string | null) {
   }
 }
 function systemDark(): boolean {
+  // Telegram Mini App ichida «avto» = Telegram ilovasining temasi (TgAppBridge `html[data-tg-scheme]` qo'yadi) —
+  // tizim temasi Telegram temasidan farq qilishi mumkin (masalan Telegram qorong'u, telefon yorug')
+  const tg = document.documentElement.dataset.tgScheme;
+  if (tg === "dark" || tg === "light") return tg === "dark";
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/** Avto rejimda temani qayta hisoblash (Telegram temasi o'zgarganda TgAppBridge chaqiradi) */
+export function syncAutoTheme() {
+  if (read().mode === "auto") applyTheme("auto");
 }
 
 /** Tanlangan rejim fonini brauzer manzil paneliga ham beradi (<meta name="theme-color">) */

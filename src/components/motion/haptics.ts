@@ -6,6 +6,8 @@
  *   haptic("success") — ikki qisqa impuls
  *   haptic("error")   — uch impuls
  */
+import { isTgApp, tgPostEvent } from "@/lib/telegram-webapp-client";
+
 export type HapticKind = "light" | "medium" | "success" | "error";
 
 const PATTERNS: Record<HapticKind, number | number[]> = {
@@ -15,9 +17,21 @@ const PATTERNS: Record<HapticKind, number | number[]> = {
   error: [14, 50, 14, 50, 14],
 };
 
+/** Telegram Mini App ichida — Telegram'ning o'z haptikasi (iOS'da navigator.vibrate yo'q) */
+const TG_HAPTIC: Record<HapticKind, Record<string, string>> = {
+  light: { type: "impact", impact_style: "light" },
+  medium: { type: "impact", impact_style: "medium" },
+  success: { type: "notification", notification_type: "success" },
+  error: { type: "notification", notification_type: "error" },
+};
+
 export function haptic(kind: HapticKind = "light"): void {
+  if (typeof window === "undefined" || prefersReducedMotion()) return;
+  if (isTgApp()) {
+    tgPostEvent("web_app_trigger_haptic_feedback", TG_HAPTIC[kind]);
+    return;
+  }
   if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
-  if (prefersReducedMotion()) return;
   try {
     navigator.vibrate(PATTERNS[kind]);
   } catch {
