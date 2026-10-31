@@ -14,6 +14,7 @@ import { usePresence } from "@/components/motion/usePresence";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import { AttachmentList, QuoteBlock, ReactionChips, ReactionPicker, ReplyBar, TypingDots, jumpToMessage, typingLabel } from "@/components/chat/MessageParts";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
+import { useChatStream } from "@/components/chat/useChatStream";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import type { QuoteView } from "@/lib/chat/quote";
@@ -287,7 +288,12 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     }
   }, [base, topic]);
 
-  // Polling: visible bo'lmaganda to'xtaydi, qaytganda darhol; xatoda oraliq 2× (30 s gacha)
+  // Real-time (SSE): jamoa chatida o'zgarish → darhol fetchNew; polling faqat zaxira (30 s)
+  const streamConnected = useChatStream({ group: slug, onGroup: () => void fetchNew() });
+  const streamRef = useRef(false);
+  streamRef.current = streamConnected;
+
+  // Polling: visible bo'lmaganda to'xtaydi, qaytganda darhol; xatoda oraliq 2× (30 s gacha); SSE ulangan bo'lsa 30 s
   useEffect(() => {
     let stopped = false;
     let timer = 0;
@@ -295,7 +301,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     const schedule = () => {
       if (stopped) return;
       window.clearTimeout(timer);
-      timer = window.setTimeout(tick, Math.min(POLL_MS * 2 ** failures, POLL_MAX_MS));
+      timer = window.setTimeout(tick, streamRef.current ? POLL_MAX_MS : Math.min(POLL_MS * 2 ** failures, POLL_MAX_MS));
     };
     const tick = async () => {
       if (stopped) return;

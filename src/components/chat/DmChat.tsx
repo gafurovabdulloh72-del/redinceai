@@ -23,6 +23,7 @@ import { AttachmentList, DayPill, LinkCard, Linkified, QuoteBlock, ReactionChips
 import { DialogHead, ForwardDialog, InfoDialog, Layer, MenuDivider, MenuItem, PeerAvatar, PrefItems, type ConvPrefsView } from "./DmPanels";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { VideoNoteRecorder, videoNoteSupported } from "./VideoNoteRecorder";
+import { useChatStream } from "./useChatStream";
 
 /**
  * Ichki chat (DM) — kabinetdagi "Chat" bo'limi.
@@ -396,7 +397,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   useEffect(() => {
     void loadList();
     const t2 = window.setInterval(() => {
-      if (!document.hidden) void loadList();
+      if (!document.hidden && !streamRef.current) void loadList();
     }, 20000);
     const onVis = () => {
       if (!document.hidden) void loadList();
@@ -480,6 +481,17 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     [applyRows],
   );
 
+  // Real-time (SSE): faol suhbatda o'zgarish → darhol qayta yuklash; boshqa suhbatda → ro'yxat (unread/preview)
+  const streamConnected = useChatStream({
+    conv: active,
+    onDm: (conv) => {
+      if (conv === activeRef.current) void loadThread(conv, true);
+      void loadList();
+    },
+  });
+  const streamRef = useRef(false);
+  streamRef.current = streamConnected;
+
   // Suhbat almashganda: holatni tozalash, qoralamani tiklash, polling (ko'rinish + sekinlashish bilan)
   useEffect(() => {
     if (!active) return;
@@ -513,7 +525,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     let timer: number | null = null;
     let idle = 0;
     let stopped = false;
-    const delay = () => (idle < 12 ? 4000 : idle < 60 ? 8000 : 15000);
+    // SSE ulangan bo'lsa polling faqat zaxira (30 s); aks holda avvalgi sekinlashuvchi oraliq
+    const delay = () => (streamRef.current ? 30000 : idle < 12 ? 4000 : idle < 60 ? 8000 : 15000);
     const schedule = () => {
       if (stopped) return;
       timer = window.setTimeout(tick, delay());

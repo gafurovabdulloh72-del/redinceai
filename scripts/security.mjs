@@ -69,6 +69,7 @@ async function req(who, path, init = {}) {
 
 const GUEST_FORBIDDEN = [
   ["GET", "/api/chat"],
+  ["GET", "/api/chat/stream"],
   ["GET", "/api/posts/saved"],
   ["GET", "/api/blocks"],
   ["GET", "/api/account/privacy"],
