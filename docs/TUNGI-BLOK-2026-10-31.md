@@ -55,6 +55,11 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
 - Qidiruv to'ri: yuklanmagan (buzilgan havola) yoki muqovasiz havola-ish bo'sh kulrang katak o'rniga sarlavhali matn plitka
   (`MediaTile` → `SafeImage` fallback). Xavfsizlik: holat plitkalari telefonda 2 ustun, bloklanganlar eslatmasi to'g'ri o'raladi.
 
+- RUS TILI (kabinet qobig'i): `i18n/dict/kabinet.ts` — kabinet navigatsiyasi (bandlar, guruhlar, «Kashf etish», sozlamalar, rol, nuqta
+  yorliqlari), telefon «Menyu» sarlavhasi, Telegram eslatmasi va 34 ta kabinet sahifa sarlavhasi (`generateMetadata` + `KABINET_NAV.titles`).
+  QOLGANI: kabinet sahifalarining ichki matni (umumiy, buyurtmalar, bildirishnomalar, chat, profil…) va vakansiyalar bo'limi hali faqat o'zbekcha —
+  alohida katta blok (yuzlab satr), foydalanuvchi qarori bilan.
+
 ## Tuzatilgan kamchiliklar
 - Buyurtma sehrgari kasb qatorlari ekrandan 48px chiqib ketardi (grid `minmax(0,1fr)`), sehrgar kartasi telefonda yassi.
 - Story qatorida «Story qo'shi…» kesilgan yorliq; «+» 28px; rezyume ko'nikma o'chirish tugmasi 20→28px.
