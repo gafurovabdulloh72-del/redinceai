@@ -432,11 +432,15 @@ export async function sendAdminDailyReport(now = Date.now()): Promise<{ sent: nu
   const range = yesterdayRange(now);
   const s = await collectAdminStats("today", range);
   const text = renderStats(s, `🗓 <b>Kunlik hisobot — ${fmtDate(range.from)}</b>`);
+  // Dushanba — qo'shimcha haftalik hisobot (o'tgan 7 kun)
+  const monday = new Date(tashkentDayStart(now) + 5 * HOUR).getUTCDay() === 1;
+  const weekly = monday ? renderStats(await collectAdminStats("7d"), "📅 <b>Haftalik hisobot — o'tgan 7 kun</b>") : null;
   let sent = 0;
   for (const a of admins) {
     if (!a.telegramChatId) continue;
     const ok = await sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: "📊 Bugun", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }], [panelButton()]] });
     if (ok) sent++;
+    if (weekly) await sendTelegram(a.telegramChatId, weekly, { keyboard: [[{ text: "30 kun", data: "adm:stat:30d" }, panelButton("/admin#analitika", "📈 Analitika")]] });
   }
   return { sent, skipped: false };
 }

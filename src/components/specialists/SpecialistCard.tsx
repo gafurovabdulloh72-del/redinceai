@@ -89,7 +89,7 @@ export async function SpecialistCard({
                 {cat?.name ? `${cat.name} · ` : ""}
                 {place}
                 {/* Telefon qatori: kontakt narxi meta qatorining oxirida (sm+ da alohida chip) */}
-                <span className="sm:hidden"> · 🔒 {sp.contactMode === "hidden" ? tr(til, KARTA.portfolioOnly) : formatPrice(contactPriceFor(sp, settings), { compact: true })}</span>
+                <span className="sm:hidden whitespace-nowrap"> · 🔒 {sp.contactMode === "hidden" ? tr(til, KARTA.portfolioOnly) : formatPrice(contactPriceFor(sp, settings), { compact: true }).replace(/\s*so'm$/, "")}</span>
               </p>
               <p className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-fg-2 max-sm:hidden">
                 <Lock size={10} aria-hidden="true" /> {contactLine}
