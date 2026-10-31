@@ -270,8 +270,10 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
 6. **Mini App (ilova)**: `SITE_URL` https bo'lsa «Bot profilini sozlash» menyu tugmasini `Ilova` (web_app → `/tg`)
    qiladi va `/start` menyusida «📱 Ilovani ochish» chiqadi. Ilova Telegram ichida ochiladi, `initData` imzosi
    bot tokeni bilan tekshiriladi va foydalanuvchi hisobiga avtomatik kiradi (hisob bo'lmasa yaratiladi —
-   «Telegram bilan kirish» qoidalari). BotFather'da qo'shimcha sozlash shart emas; xohlasangiz
-   `/newapp` bilan `t.me/<bot>/app` qisqa havolasini ham yaratish mumkin (Web App URL: `https://<sayt>/tg`).
+   «Telegram bilan kirish» qoidalari). Ilova SDK'siz ishlaydi — Telegram URL hash'ida bergan `tgWebAppData`
+   o'qiladi. **Chap paneldagi «Mini App» ro'yxati va profil «Open App» tugmasi** uchun BotFather: `/mybots` →
+   bot → **Bot Settings → Configure Mini App → Enable Mini App** → URL `https://<sayt>/tg` (bu «asosiy mini
+   ilova» — Telegram uni Apps bo'limida ko'rsatadi). Ixtiyoriy: `/newapp` → `t.me/<bot>/app` qisqa havola.
 
 ## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
 

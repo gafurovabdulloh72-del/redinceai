@@ -143,7 +143,7 @@ function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     // 'wasm-unsafe-eval' — virtual fon (MediaPipe selfie segmentation) wasm modulini ishga tushirish uchun
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' ${MEDIAPIPE_HOSTS} https://telegram.org${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' ${MEDIAPIPE_HOSTS}${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
