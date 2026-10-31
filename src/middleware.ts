@@ -143,7 +143,7 @@ function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
     // 'wasm-unsafe-eval' — virtual fon (MediaPipe selfie segmentation) wasm modulini ishga tushirish uchun
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' ${MEDIAPIPE_HOSTS}${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' ${MEDIAPIPE_HOSTS} https://telegram.org${IS_PROD ? "" : " 'unsafe-eval' 'unsafe-inline'"}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
@@ -157,7 +157,8 @@ function buildCsp(nonce: string): string {
     `connect-src 'self' ${PAYMENT_HOSTS} ${MEDIAPIPE_HOSTS} https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com${R2_ENDPOINT_ORIGIN}${R2_PUBLIC_ORIGIN}${LIVEKIT_CONNECT}${IS_PROD ? "" : " ws: wss:"}`,
     "font-src 'self' data:",
     "object-src 'none'",
-    "frame-ancestors 'none'",
+    // Telegram Mini App (/tg): Telegram Web (web.telegram.org) ilovani iframe'da ochadi — faqat shu hostlar
+    "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
     "base-uri 'self'",
     `form-action 'self' ${PAYMENT_HOSTS}`,
   ].join("; ");

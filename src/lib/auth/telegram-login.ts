@@ -116,28 +116,43 @@ export async function consumeTelegramLogin(secret: string, opts: { confirm?: boo
     .returning({ id: loginRequests.id });
   if (!claimed.length) return { status: "expired" };
 
-  const chatId = row.telegramChatId;
+  const r = await findOrCreateTelegramUser(row.telegramChatId, { name: row.telegramName, username: row.telegramUsername });
+  return { status: "ok", ...r };
+}
+
+export interface TelegramUserResult {
+  userId: string;
+  role: string;
+  name: string;
+  isNew: boolean;
+}
+
+/**
+ * Telegram chatId bo'yicha hisobni topadi yoki yaratadi («Telegram bilan kirish» va Mini App umumiy).
+ * Yangi hisob emaili `tg<chatId>@telegram.local` (kabinetdan o'zgartiriladi); shu email bilan avval
+ * yaratilib keyin uzilgan hisob bo'lsa — qayta bog'lanadi (dublikat yaratilmaydi). Bloklangan — 403.
+ */
+export async function findOrCreateTelegramUser(chatId: string, who: { name?: string | null; username?: string | null }): Promise<TelegramUserResult> {
   const existing = await db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, role: true, name: true, isBanned: true } });
   if (existing) {
     if (existing.isBanned) throw new ApiError(403, "Hisob bloklangan");
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, existing.id));
-    return { status: "ok", userId: existing.id, role: existing.role, name: existing.name, isNew: false };
+    return { userId: existing.id, role: existing.role, name: existing.name, isNew: false };
   }
 
   // Yangi hisob: Telegram email bermaydi — vaqtinchalik manzil qo'yamiz (kabinetdan o'zgartiriladi)
-  const name = (row.telegramName || row.telegramUsername || "Telegram foydalanuvchisi").slice(0, 80);
+  const name = (who.name || who.username || "Telegram foydalanuvchisi").slice(0, 80);
   const placeholder = `tg${chatId}@telegram.local`;
-  // Avvalroq shu Telegram bilan yaratilgan, keyin uzilgan hisob bo'lsa — qaytadan bog'laymiz
   const old = await db.query.users.findFirst({ where: eq(users.email, placeholder), columns: { id: true, role: true, name: true, isBanned: true } });
   if (old) {
     if (old.isBanned) throw new ApiError(403, "Hisob bloklangan");
     await db.update(users).set({ telegramChatId: chatId, lastLoginAt: new Date() }).where(eq(users.id, old.id));
-    return { status: "ok", userId: old.id, role: old.role, name: old.name, isNew: false };
+    return { userId: old.id, role: old.role, name: old.name, isNew: false };
   }
   const id = uid();
   await db.insert(users).values({
     id,
-    username: await generateUsername(row.telegramUsername || name),
+    username: await generateUsername(who.username || name),
     name,
     email: placeholder,
     emailVerified: false,
@@ -150,5 +165,5 @@ export async function consumeTelegramLogin(secret: string, opts: { confirm?: boo
     termsAcceptedAt: new Date(),
   });
   await joinOfficialChannels(id).catch(() => undefined);
-  return { status: "ok", userId: id, role: "client", name, isNew: true };
+  return { userId: id, role: "client", name, isNew: true };
 }

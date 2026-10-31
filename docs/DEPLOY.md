@@ -265,8 +265,13 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
 5. **Ulash oqimi**: Kabinet → Profil → «Telegram bildirishnomalari» → «Telegramga ulash» → bot ochiladi →
    «Start». Ulash kodi 15 daqiqa amal qiladi (imzolangan, bazada saqlanmaydi); bitta chat faqat bitta hisobga
    ulanadi — yangi hisob ulansa eskisidan avtomatik uziladi. Uzish: kartadagi «Uzish» tugmasi yoki botda `/stop`.
-   Botda: `/start` — menyu, `/buyurtmalarim`, `/xabarlar`, `/kurslarim`, `/vakansiyalar`, `/profil`,
-   `/sozlamalar` (bildirishnoma guruhlari switch'lari), `/yordam`.
+   Botda: `/start` — menyu, `/buyurtmalarim`, `/xabarlar`, `/kurslar`, `/kurslarim`, `/efirlar`, `/vakansiyalar`,
+   `/top`, `/profil`, `/sozlamalar` (bildirishnoma guruhlari switch'lari), `/yordam`; oddiy matn — ijodkor qidiruvi.
+6. **Mini App (ilova)**: `SITE_URL` https bo'lsa «Bot profilini sozlash» menyu tugmasini `Ilova` (web_app → `/tg`)
+   qiladi va `/start` menyusida «📱 Ilovani ochish» chiqadi. Ilova Telegram ichida ochiladi, `initData` imzosi
+   bot tokeni bilan tekshiriladi va foydalanuvchi hisobiga avtomatik kiradi (hisob bo'lmasa yaratiladi —
+   «Telegram bilan kirish» qoidalari). BotFather'da qo'shimcha sozlash shart emas; xohlasangiz
+   `/newapp` bilan `t.me/<bot>/app` qisqa havolasini ham yaratish mumkin (Web App URL: `https://<sayt>/tg`).
 
 ## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
 

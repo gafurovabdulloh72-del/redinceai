@@ -2052,3 +2052,8 @@ html:has([data-reels-screen]) .shell-capsule {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff !important; }
 }
+
+/* Telegram Mini App ichida (layout.tsx `html[data-tg-app]`, /tg darvozasi): sayt footeri yo'q — ilova hissi */
+html[data-tg-app] footer {
+  display: none;
+}

@@ -49,7 +49,11 @@ export interface TelegramButton {
   text: string;
   url?: string;
   data?: string;
+  /** Mini App havolasi (faqat https) — Telegram ichida ochiladi */
+  webApp?: string;
 }
+/** Doimiy klaviatura tugmasi: matn yoki Mini App ochadigan tugma */
+export type ReplyButton = string | { text: string; webApp: string };
 
 /**
  * Bot API sendMessage (HTML, havola preview'siz). Hech qachon throw qilmaydi —
@@ -63,7 +67,7 @@ export interface SendOpts {
   /** Inline tugmalar (qatorlar) */
   keyboard?: TelegramButton[][];
   /** Doimiy (reply) klaviatura — matn tugmalari; chat ostida turadi, bosilsa matn sifatida keladi */
-  replyKeyboard?: string[][];
+  replyKeyboard?: ReplyButton[][];
   /** Doimiy klaviaturani olib tashlash */
   removeKeyboard?: boolean;
 }
@@ -71,8 +75,12 @@ export interface SendOpts {
 /** `reply_markup` — inline / doimiy klaviatura / olib tashlash (bittasi) */
 export function replyMarkup(opts: SendOpts): Record<string, unknown> | null {
   const keyboard: TelegramButton[][] | null = opts.keyboard ?? (opts.button ? [[{ text: opts.button.text, url: opts.button.url }]] : null);
-  if (keyboard) return { inline_keyboard: keyboard.map((row) => row.map((b) => (b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))) };
-  if (opts.replyKeyboard) return { keyboard: opts.replyKeyboard.map((row) => row.map((text) => ({ text }))), resize_keyboard: true, is_persistent: true };
+  if (keyboard)
+    return {
+      inline_keyboard: keyboard.map((row) => row.map((b) => (b.webApp ? { text: b.text, web_app: { url: b.webApp } } : b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))),
+    };
+  if (opts.replyKeyboard)
+    return { keyboard: opts.replyKeyboard.map((row) => row.map((b) => (typeof b === "string" ? { text: b } : { text: b.text, web_app: { url: b.webApp } }))), resize_keyboard: true, is_persistent: true };
   if (opts.removeKeyboard) return { remove_keyboard: true };
   return null;
 }

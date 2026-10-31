@@ -9,7 +9,7 @@ import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { REGION_BY_SLUG } from "@/lib/constants";
 import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
-import { MENU_ROWS, SETTINGS_TEXT, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
+import { SETTINGS_TEXT, appUrl, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
 
 /**
  * Botdagi tezkor amallar (Telegram tarafi):
@@ -230,11 +230,118 @@ export async function handleSettingsCallback(chatId: string, data: string, answe
 
 /** `menu:*` — xush kelibsiz ekranidagi inline tugmalar */
 export async function handleMenuCallback(chatId: string, data: string, answer: Answer): Promise<boolean> {
-  if (data !== "menu:help") return false;
-  await answer("");
-  const { sendHelp } = await import("@/lib/telegram-bot/ui");
-  await sendHelp(chatId, Boolean(await accountOf(chatId)));
-  return true;
+  if (data === "menu:help") {
+    await answer("");
+    const { sendHelp } = await import("@/lib/telegram-bot/ui");
+    await sendHelp(chatId, Boolean(await accountOf(chatId)));
+    return true;
+  }
+  if (data === "menu:mycourses") {
+    await answer("");
+    const { handleMyPurchases } = await import("@/lib/mentorship/telegram-pay");
+    await handleMyPurchases(chatId);
+    return true;
+  }
+  return false;
 }
 
-export { MENU_ROWS };
+/* ------------------------------------------------------------------ */
+/* Qidiruv, kurslar, efirlar, TOP — ulash shart emas                   */
+/* ------------------------------------------------------------------ */
+
+const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : "yangi");
+
+/** Matn yoki `/qidiruv <so'z>` — ijodkorlar (5 tagacha) */
+export async function handleSearch(chatId: string, qRaw: string): Promise<void> {
+  const q = qRaw.trim().slice(0, 80);
+  const s = siteUrl() ?? "";
+  if (q.length < 2) {
+    await sendTelegram(chatId, "Kimni qidiramiz? Masalan: <i>montajchi</i>, <i>videograf Samarqand</i>, <i>logo dizayner</i>.");
+    return;
+  }
+  const { exploreSearch } = await import("@/lib/search/service");
+  const { CATEGORIES, CATEGORY_BY_SLUG, REGIONS } = await import("@/lib/constants");
+  const res = await exploreSearch(q, "people");
+  let people: { slug: string; name: string; title: string; category: string; rating: number; reviewCount: number; isVerified: boolean }[] = res.people.slice(0, 5);
+  if (!people.length) {
+    // Ism/sarlavha topilmadi — kasb va hudud nomi bo'yicha katalog («montajchi Samarqand»)
+    const ql = q.toLowerCase();
+    // Kasb: so'rovdagi so'z kasb nomi/ko'pligi/slug'ining boshi bilan mos kelsa («montaj» → Montajchi)
+    const words = ql.split(/\s+/).filter((w) => w.length >= 4);
+    const cat = CATEGORIES.find((c) => {
+      const names = [c.name, c.plural, c.slug].map((x) => x.toLowerCase());
+      return words.some((w) => names.some((n) => n.startsWith(w.slice(0, 5)) || n.includes(w)));
+    });
+    const reg = REGIONS.find((r) => ql.includes(r.short.toLowerCase().replace(/\s*(sh\.|vil\.)$/, "")) || ql.includes(r.slug));
+    if (cat || reg) {
+      const { listSpecialists } = await import("@/lib/queries");
+      const { specialistFilterSchema } = await import("@/lib/validators");
+      const r = await listSpecialists(specialistFilterSchema.parse({ category: cat?.slug, region: reg?.slug, limit: 5 }));
+      people = r.items.slice(0, 5).map((it) => ({ slug: it.slug, name: it.user.name, title: it.title ?? "", category: it.category, rating: it.rating, reviewCount: it.reviewCount, isVerified: Boolean(it.isVerified) }));
+    }
+  }
+  if (!people.length) {
+    await sendTelegram(chatId, `🔎 «${escapeTelegramHtml(q)}» bo'yicha ijodkor topilmadi.`, { button: { text: "Katalogda qidirish", url: `${s}/qidiruv?q=${encodeURIComponent(q)}` } });
+    return;
+  }
+  const lines = people.map((p, i) => {
+    const cat = CATEGORY_BY_SLUG[p.category]?.name ?? p.category;
+    return `${i + 1}. <a href="${s}/mutaxassislar/${p.slug}"><b>${escapeTelegramHtml(p.name)}</b></a>${p.isVerified ? " ✅" : ""}\n   ${escapeTelegramHtml(p.title || cat)} · ${stars(p.rating)}${p.reviewCount ? ` (${p.reviewCount})` : ""}`;
+  });
+  const app = appUrl(`/qidiruv?q=${encodeURIComponent(q)}`);
+  await sendTelegram(chatId, `🔎 <b>«${escapeTelegramHtml(q)}»</b> bo'yicha ijodkorlar\n\n${lines.join("\n\n")}`, {
+    keyboard: [[app ? { text: "Hammasini ilovada ko'rish", webApp: app } : { text: "Hammasini ko'rish", url: `${s}/qidiruv?q=${encodeURIComponent(q)}` }]],
+  });
+}
+
+/** `/kurslar` — mashhur 5 kurs */
+export async function handleCourses(chatId: string): Promise<void> {
+  const { listCourses } = await import("@/lib/mentorship/service");
+  const s = siteUrl() ?? "";
+  const { items } = await listCourses({ sort: "popular", limit: 5 });
+  if (!items.length) {
+    await sendTelegram(chatId, "Hozircha kurslar yo'q.", { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+    return;
+  }
+  const lines = items.map((c, i) => {
+    const price = c.priceFrom > 0 ? formatPrice(c.priceFrom) : "Bepul";
+    return `${i + 1}. <a href="${s}/mentorlik/${c.slug}"><b>${escapeTelegramHtml(c.title)}</b></a>\n   ${c.lessonsCount} dars · ${c.studentsCount} talaba · ${stars(c.rating)} · ${escapeTelegramHtml(price)}`;
+  });
+  await sendTelegram(chatId, `🎓 <b>Mashhur kurslar</b>\n\n${lines.join("\n\n")}`, {
+    keyboard: [
+      [{ text: "Barcha kurslar", url: `${s}/mentorlik` }],
+      [{ text: "📚 Mening kurslarim", data: "menu:mycourses" }],
+    ],
+  });
+}
+
+/** `/efirlar` — jonli va bu haftadagi ustoz efirlari */
+export async function handleLives(chatId: string): Promise<void> {
+  const { liveAndUpcoming } = await import("@/lib/mentorship/growth");
+  const s = siteUrl() ?? "";
+  const items = await liveAndUpcoming(6);
+  if (!items.length) {
+    await sendTelegram(chatId, "Hozir jonli efir yo'q va bu haftaga rejalashtirilgani ham yo'q.", { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+    return;
+  }
+  const fmt = (ms: number) => new Date(ms).toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const lines = items.map((it) => {
+    const href = it.mentorSlug ? `${s}/mentorlik/ustoz/${it.mentorSlug}?tab=efirlar` : `${s}/mentorlik`;
+    return `${it.live ? "🔴 <b>JONLI</b>" : `🗓 ${escapeTelegramHtml(fmt(it.startsAt))}`} — <a href="${href}"><b>${escapeTelegramHtml(it.title)}</b></a>\n   ${escapeTelegramHtml(it.mentorName)}${it.price > 0 ? ` · ${escapeTelegramHtml(formatPrice(it.price))}` : ""}`;
+  });
+  await sendTelegram(chatId, `🎥 <b>Efirlar</b>\n\n${lines.join("\n\n")}`, { button: { text: "Mentorlik", url: `${s}/mentorlik` } });
+}
+
+/** `/top` — joriy oy TOP-5 */
+export async function handleTop(chatId: string): Promise<void> {
+  const { currentMonthTop } = await import("@/lib/top");
+  const s = siteUrl() ?? "";
+  const rows = await currentMonthTop(5);
+  if (!rows.length) {
+    await sendTelegram(chatId, "Bu oy reytingi hali shakllanmadi.", { button: { text: "TOP reyting", url: `${s}/top` } });
+    return;
+  }
+  const medal = ["🥇", "🥈", "🥉", "4.", "5."];
+  const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${r.score} ball\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
+  await sendTelegram(chatId, `🏆 <b>Oyning TOP ijodkorlari</b> (jonli hisob)\n\n${lines.join("\n\n")}`, { button: { text: "To'liq reyting", url: `${s}/top` } });
+}

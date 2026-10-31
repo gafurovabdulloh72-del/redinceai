@@ -77,6 +77,11 @@ const GUEST_FORBIDDEN = [
   ["GET", "/api/mentorlik/kurslar/saqlangan"],
 ];
 
+test("Mini App: soxta initData → 401 (imzo tekshiruvi)", async () => {
+  const r = await req("guest", "/api/tg/auth", { method: "POST", body: JSON.stringify({ initData: "query_id=x&user=%7B%22id%22%3A1%7D&auth_date=1&hash=" + "0".repeat(64) }) });
+  assert.ok([401, 503].includes(r.status), `kutilgan 401 (bot sozlanmagan bo'lsa 503), keldi ${r.status}`);
+});
+
 test("mehmon: POST /api/push → 401 (GET ataylab ommaviy — VAPID ochiq kaliti)", async () => {
   const r = await req("guest", "/api/push", { method: "POST", body: JSON.stringify({ endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "x".repeat(30), auth: "y".repeat(16) } }) });
   assert.equal(r.status, 401, `kutilgan 401, keldi ${r.status}`);
@@ -193,8 +198,10 @@ test("Efir kodi: 6 belgi validatsiyadan o'tadi (xato egalik bo'yicha bo'ladi)", 
 test("Xavfsizlik sarlavhalari o'rnatilgan", async () => {
   const r = await req("guest", "/");
   assert.equal(r.headers.get("x-content-type-options"), "nosniff");
-  assert.equal(r.headers.get("x-frame-options"), "DENY");
-  assert.ok((r.headers.get("content-security-policy") ?? "").includes("frame-ancestors"), "CSP frame-ancestors yo'q");
+  // Telegram Mini App (2026-10-31): ramka faqat o'zimiz va Telegram Web uchun — DENY emas, SAMEORIGIN + CSP frame-ancestors
+  assert.equal(r.headers.get("x-frame-options"), "SAMEORIGIN");
+  const fa = /frame-ancestors ([^;]+)/.exec(r.headers.get("content-security-policy") ?? "")?.[1] ?? "";
+  assert.ok(fa.includes("'self'") && fa.includes("telegram.org") && !fa.includes("*;") && !/\s\*\s/.test(fa), `CSP frame-ancestors noto'g'ri: ${fa}`);
 });
 
 test("API javoblari keshlanmaydi", async () => {

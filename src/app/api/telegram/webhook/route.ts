@@ -14,8 +14,8 @@ import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, v
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
-import { accountOf, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSettings, handleSettingsCallback, handleVacancies } from "@/lib/telegram-bot/actions";
-import { MENU_COMMAND, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
+import { accountOf, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { MENU_COMMAND, sendApp, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -29,9 +29,10 @@ import { MENU_COMMAND, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
  *   /start <kod>     — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
  *   /start l_<kod>   — «Telegram bilan kirish» tasdig'i
  *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
- *   /buyurtmalarim · /xabarlar · /kurslarim · /vakansiyalar · /profil · /sozlamalar · /yordam · /stop
+ *   /ilova · /buyurtmalarim · /xabarlar · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
+ *   /profil · /sozlamalar · /yordam · /stop
  *   doimiy menyu tugmalari (📦 Buyurtmalarim …) — MENU_COMMAND orqali shu buyruqlarga aylanadi
- *   boshqa matn      — yordam
+ *   boshqa matn      — ijodkor qidiruvi (exploreSearch)
  *
  * callback_query (`mp:<ok|no>:<p|s>:<id>`) — qo'lda o'tkazmani ADMIN bir bosishda tasdiqlashi/rad etishi
  * (lib/manual-approval.ts yuborgan tugmalar). Chat admin hisobiga ulanganligi majburiy tekshiriladi.
@@ -272,12 +273,18 @@ export async function POST(req: Request) {
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId);
     else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId);
     else if (cmd === "/xabarlar") await handleMessages(chatId);
+    else if (cmd === "/ilova" || cmd === "/app") await sendApp(chatId);
+    else if (cmd === "/qidiruv" || cmd === "/qidir") await handleSearch(chatId, normalized.slice(rawCmd.length));
+    else if (cmd === "/kurslar") await handleCourses(chatId);
+    else if (cmd === "/efirlar" || cmd === "/efir") await handleLives(chatId);
+    else if (cmd === "/top") await handleTop(chatId);
     else if (cmd === "/vakansiyalar") await handleVacancies(chatId);
     else if (cmd === "/profil") await handleProfile(chatId);
     else if (cmd === "/sozlamalar") await handleSettings(chatId);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
     else if (cmd === "/stop") await handleStop(chatId);
-    else await sendHelp(chatId, Boolean(await accountOf(chatId)));
+    else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) await sendHelp(chatId, Boolean(await accountOf(chatId)));
+    else await handleSearch(chatId, text); // oddiy matn — ijodkor qidiruvi
   } catch (e) {
     // Har doim 200 — Telegram xatoli javobni qayta-qayta yuborib turadi
     console.error("[telegram:webhook]", e);

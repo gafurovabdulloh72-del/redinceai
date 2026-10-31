@@ -48,7 +48,9 @@ function r2RemotePatterns(): { protocol: "https"; hostname: string }[] {
 
 const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // Ramka himoyasi CSP frame-ancestors bilan (middleware.ts): o'zimiz + Telegram Web (Mini App). X-Frame-Options
+  // SAMEORIGIN zamonaviy brauzerlarda CSP mavjud bo'lsa e'tiborga olinmaydi, eskilari uchun ehtiyot qatlam.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // camera/microphone/display-capture=(self): video qo'ng'iroq (LiveKit) + ekran ulashish + ovozli xabar — faqat o'z sahifalarimizda, iframe/uchinchi tomonga yo'q
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(self)" },

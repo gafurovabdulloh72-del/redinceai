@@ -5,7 +5,7 @@ import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { NavigationProgress } from "@/components/motion/NavigationProgress";
 import { CommandPalette } from "@/components/search/CommandPalette";
 import localFont from "next/font/local";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -138,8 +138,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const display = await getDisplayLocale();
   const locale = await getLocale();
   const currentUser = await getCurrentUser();
+  // Telegram Mini App ichida (/tg darvozasi cookie qo'yadi): footer yashirin, qobiq ilova kabi
+  const tgApp = (await cookies()).get("tgapp")?.value === "1";
   return (
-    <html lang={DISPLAY_LANG[display]} data-display={display} suppressHydrationWarning className={`${spaceGrotesk.variable} ${manrope.variable} ${instrument.variable}`}>
+    <html lang={DISPLAY_LANG[display]} data-display={display} data-tg-app={tgApp ? "" : undefined} suppressHydrationWarning className={`${spaceGrotesk.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

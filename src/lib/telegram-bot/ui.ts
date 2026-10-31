@@ -1,6 +1,6 @@
 import "server-only";
 import { NOTIFY_GROUP_KEYS, NOTIFY_GROUP_META, type NotifyGroupKey } from "@/lib/notifications";
-import { escapeTelegramHtml, sendTelegram, sendTelegramPhoto, telegramApi, telegramBotUsername, type TelegramButton } from "@/lib/telegram";
+import { escapeTelegramHtml, sendTelegram, sendTelegramPhoto, telegramApi, telegramBotUsername, type ReplyButton, type TelegramButton } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
 
 /**
@@ -23,10 +23,15 @@ export const BOT_DESC =
 /** Buyruqlar menyusi (Telegram «/» tugmasi) — tartib: eng ko'p ishlatiladigani yuqorida */
 export const BOT_COMMANDS: { command: string; description: string }[] = [
   { command: "start", description: "Bosh menyu" },
+  { command: "ilova", description: "Ilovani Telegram ichida ochish" },
   { command: "buyurtmalarim", description: "Ochiq buyurtmalar — qabul qilish / rad etish" },
   { command: "xabarlar", description: "O'qilmagan xabarlar" },
+  { command: "qidiruv", description: "Ijodkor qidirish: /qidiruv montajchi" },
+  { command: "kurslar", description: "Kurslar katalogi" },
   { command: "kurslarim", description: "Mening kurslarim va to'lovlar" },
+  { command: "efirlar", description: "Jonli va yaqin efirlar" },
   { command: "vakansiyalar", description: "So'nggi vakansiyalar" },
+  { command: "top", description: "Oyning TOP ijodkorlari" },
   { command: "profil", description: "Hisobim va ulanish holati" },
   { command: "sozlamalar", description: "Qaysi bildirishnomalar kelsin" },
   { command: "yordam", description: "Bot nima qila oladi" },
@@ -35,22 +40,19 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
 
 /** Doimiy menyu tugmalari (chat ostida) — matn tugma sifatida keladi, `MENU_COMMAND` buyruqqa aylantiradi */
 export const MENU = {
+  app: "📱 Ilovani ochish",
   orders: "📦 Buyurtmalarim",
   chat: "💬 Xabarlar",
-  courses: "🎓 Kurslarim",
+  courses: "🎓 Kurslar",
   jobs: "💼 Vakansiyalar",
   profile: "👤 Profil",
   help: "❓ Yordam",
 } as const;
-export const MENU_ROWS: string[][] = [
-  [MENU.orders, MENU.chat],
-  [MENU.courses, MENU.jobs],
-  [MENU.profile, MENU.help],
-];
 export const MENU_COMMAND: Record<string, string> = {
+  [MENU.app]: "/ilova",
   [MENU.orders]: "/buyurtmalarim",
   [MENU.chat]: "/xabarlar",
-  [MENU.courses]: "/kurslarim",
+  [MENU.courses]: "/kurslar",
   [MENU.jobs]: "/vakansiyalar",
   [MENU.profile]: "/profil",
   [MENU.help]: "/yordam",
@@ -58,6 +60,25 @@ export const MENU_COMMAND: Record<string, string> = {
 
 const site = () => siteUrl() ?? "";
 const BANNER = () => `${site()}/bot/welcome.png`;
+/** Mini App manzili — Telegram faqat https qabul qiladi (dev'da null → tugma chiqmaydi) */
+export function appUrl(to?: string): string | null {
+  const s = site();
+  if (!s.startsWith("https://")) return null;
+  return `${s}/tg${to ? `?to=${encodeURIComponent(to)}` : ""}`;
+}
+
+/** Doimiy menyu: yuqorida Mini App tugmasi (https bo'lsa), keyin bo'limlar */
+export function menuRows(): ReplyButton[][] {
+  const app = appUrl();
+  return [
+    ...(app ? [[{ text: MENU.app, webApp: app }]] : []),
+    [MENU.orders, MENU.chat],
+    [MENU.courses, MENU.jobs],
+    [MENU.profile, MENU.help],
+  ];
+}
+/** Eski nom — bir xil ma'no */
+export const MENU_ROWS = menuRows();
 
 export interface BotAccount {
   id: string;
@@ -74,17 +95,20 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
       "Bu yerda:\n" +
       "📦 buyurtmani bir bosishda qabul qilasiz\n" +
       "💬 xabar va to'lov bildirishnomalarini olasiz\n" +
-      "🎓 kurslaringizni va to'lovlarni ko'rasiz\n\n" +
+      "🎓 kurslaringizni va to'lovlarni ko'rasiz\n" +
+      "🔎 istalgan so'z yozsangiz — ijodkor qidiraman\n\n" +
       "Pastdagi menyudan foydalaning 👇";
-    await sendTelegramPhoto(chatId, BANNER(), caption, { replyKeyboard: MENU_ROWS });
+    await sendTelegramPhoto(chatId, BANNER(), caption, { replyKeyboard: menuRows() });
     return;
   }
   const caption =
     `${hi} Bu — <b>Kasb Egalari</b> boti.\n\n` +
     "Hisobingizni ulasangiz buyurtmalar, xabarlar va kurslar bo'yicha bildirishnomalar shu yerga keladi, buyurtmani botning o'zida qabul qilasiz.\n\n" +
     "Ulash: saytda <b>Kabinet → Profil → «Telegramga ulash»</b> — bot o'zi ochiladi.";
+  const app = appUrl();
   await sendTelegramPhoto(chatId, BANNER(), caption, {
     keyboard: [
+      ...(app ? [[{ text: "📱 Ilovani ochish — shu yerdan kirish", webApp: app }]] : []),
       [{ text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` }],
       [
         { text: "🌐 Saytni ochish", url: `${site()}/` },
@@ -94,20 +118,33 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
   });
 }
 
+/** `/ilova` — Mini App tugmasi */
+export async function sendApp(chatId: string): Promise<void> {
+  const app = appUrl();
+  if (!app) {
+    await sendTelegram(chatId, "Ilova faqat https manzilda ishlaydi — saytni oching.", { button: { text: "🌐 Sayt", url: `${site()}/` } });
+    return;
+  }
+  await sendTelegram(chatId, "📱 <b>Kasb Egalari ilovasi</b> — Telegram ichida ochiladi, hisobingizga avtomatik kirasiz.", { keyboard: [[{ text: "Ilovani ochish", webApp: app }]] });
+}
+
 /** Yordam — bot nima qila oladi (ulangan/ulanmagan holatga qarab) */
 export async function sendHelp(chatId: string, linked: boolean): Promise<void> {
   const text =
     "<b>Kasb Egalari boti nima qiladi</b>\n\n" +
     "📦 /buyurtmalarim — ochiq buyurtmalar; yangi buyurtmani «Qabul qilish» / «Rad etish» tugmasi bilan hal qilasiz\n" +
     "💬 /xabarlar — o'qilmagan xabarlar soni va chatga havola\n" +
-    "🎓 /kurslarim — yozilgan kurslar, kutilayotgan to'lovlar (chek rasmini shu yerga yuborsangiz bo'ladi)\n" +
+    "🔎 istalgan so'z yoki /qidiruv &lt;so'z&gt; — ijodkor qidirish (masalan: <i>montajchi Toshkent</i>)\n" +
+    "🎓 /kurslar — katalog · /kurslarim — yozilgan kurslar, kutilayotgan to'lovlar (chek rasmini shu yerga yuborsangiz bo'ladi)\n" +
+    "🔴 /efirlar — jonli va yaqin efirlar · 🏆 /top — oyning TOP ijodkorlari\n" +
     "💼 /vakansiyalar — so'nggi ochiq vakansiyalar\n" +
+    "📱 /ilova — Telegram ichida ochiladigan ilova\n" +
     "👤 /profil — hisob va ulanish holati\n" +
     "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
     "⛔ /stop — Telegramni hisobdan uzish\n\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
-  await sendTelegram(chatId, text, linked ? { replyKeyboard: MENU_ROWS } : { button: { text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` } });
+  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows() } : { button: { text: "🔗 Hisobni ulash", url: `${site()}/kabinet/profil?tab=telegram#telegram` } });
 }
 
 /** Ulanmagan chat uchun standart javob (amal tugmasi bilan) */
@@ -157,7 +194,8 @@ export async function setupBotProfile(): Promise<BotProfileResult> {
     call("setMyShortDescription", { short_description: BOT_SHORT_DESC }),
     call("setMyDescription", { description: BOT_DESC }),
     call("setMyCommands", { commands: BOT_COMMANDS, scope: { type: "all_private_chats" } }),
-    call("setChatMenuButton", { menu_button: { type: "commands" } }),
+    // Menyu tugmasi: https bo'lsa Mini App («Ilova»), aks holda buyruqlar ro'yxati
+    call("setChatMenuButton", { menu_button: appUrl() ? { type: "web_app", text: "Ilova", web_app: { url: appUrl() } } : { type: "commands" } }),
   ]);
   return { name, shortDescription, description, commands, menuButton, errors };
 }
