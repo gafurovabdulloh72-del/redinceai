@@ -14,8 +14,10 @@ import { escapeTelegramHtml, sendTelegram, telegramApi, telegramWebhookSecret, v
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
-import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadcastText, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
+import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
+import { clearBotSession } from "@/lib/telegram-bot/session";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -56,6 +58,8 @@ interface TelegramUpdate {
     photo?: { file_id?: string; file_size?: number }[];
     document?: { file_id?: string; mime_type?: string };
     successful_payment?: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown };
+    /** «Raqamni ulashish» (request_contact) — ro'yxatdan o'tishda telefon */
+    contact?: { phone_number?: unknown; user_id?: unknown };
   };
   pre_checkout_query?: { id: string; from?: { id?: unknown }; invoice_payload?: unknown; total_amount?: unknown; currency?: unknown };
   callback_query?: {
@@ -104,7 +108,8 @@ async function actOnInvoice(admin: { id: string; name: string }, confirm: boolea
   if (confirm) {
     await markInvoicePaid(inv.id, { actorId: admin.id, providerTxnId: inv.providerTxnId ?? `manual-${inv.id}`, note: "Telegram orqali tasdiqlandi" });
     await audit(admin.id, "admin_subscription", { targetType: "subscription_invoice", targetId: inv.id, meta: { action: "confirm", via: "telegram", amount: inv.amount, months: inv.months } });
-    return `✅ Tasdiqlandi — ${inv.months} oylik obuna faollashtirildi`;
+    const kind = (inv.meta as { kind?: string } | null)?.kind;
+    return kind === "contact" ? "✅ Tasdiqlandi — kontakt mijozga ochildi" : kind === "purchase" ? "✅ Tasdiqlandi — xarid faollashtirildi" : `✅ Tasdiqlandi — ${inv.months} oylik obuna faollashtirildi`;
   }
   await cancelInvoice(inv.id, { reason: 4 });
   await audit(admin.id, "admin_subscription", { targetType: "subscription_invoice", targetId: inv.id, meta: { action: "cancel", via: "telegram" } });
@@ -117,7 +122,7 @@ async function actOnInvoice(admin: { id: string; name: string }, confirm: boolea
       invoiceHref(inv.id),
     );
   }
-  return "❌ Rad etildi — mutaxassisga xabar yuborildi";
+  return "❌ Rad etildi — foydalanuvchiga xabar yuborildi";
 }
 
 /** Inline tugma bosildi: faqat admin hisobiga ulangan chat; natija xabar ostiga yozilib, tugmalar olib tashlanadi */
@@ -132,6 +137,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined };
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
+  if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
   if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId))) return;
@@ -251,6 +257,11 @@ export async function POST(req: Request) {
         await handleReceiptPhoto(chatId, fileId);
         return Response.json({ ok: true });
       }
+      // Ro'yxatdan o'tishda «Raqamni ulashish» — faqat o'z raqami (user_id = from.id)
+      if (msg.contact) {
+        await handleRegisterContact(chatId, msg.contact, msg.from?.id != null ? String(msg.from.id) : "");
+        return Response.json({ ok: true });
+      }
     }
     const text = typeof msg?.text === "string" ? msg.text.trim() : "";
     // Faqat shaxsiy chat: guruhga qo'shilgan botdagi buyruqlar e'tiborga olinmaydi
@@ -261,9 +272,20 @@ export async function POST(req: Request) {
     const [rawCmd = "", arg = ""] = normalized.split(/\s+/);
     const cmd = rawCmd.split("@")[0].toLowerCase(); // "/start@BotNomi" ham qabul qilinadi
     const firstName = typeof msg?.from?.first_name === "string" ? msg.from.first_name : undefined;
+    const mf = msg?.from ?? {};
+    const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
+    // Savol-javob oqimi (ro'yxatdan o'tish / elon): oddiy matn oqimga ketadi; har qanday buyruq oqimni to'xtatadi
+    if (!cmd.startsWith("/")) {
+      if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
+      if (await handleBroadcastText(chatId, text)) return Response.json({ ok: true });
+    } else {
+      await clearBotSession(chatId).catch(() => undefined);
+    }
+    if (cmd === "/royxat" || cmd === "/register" || (cmd === "/start" && arg === "reg")) {
+      await startRegistration(chatId, who);
+      return Response.json({ ok: true });
+    }
     if (cmd === "/start") {
-      const mf = msg?.from ?? {};
-      const who = { name: [mf.first_name, mf.last_name].filter(Boolean).join(" ") || undefined, username: typeof mf.username === "string" ? mf.username : undefined };
       // `l_<kod>` — kirish kodini TERIB topishga qarshi alohida (qattiqroq) chegara
       if (arg.startsWith("l_") && (await botLimited(chatId, "tgStart"))) {
         await sendTelegram(chatId, "Juda ko'p urinish. Bir soatdan keyin qayta urinib ko'ring.");

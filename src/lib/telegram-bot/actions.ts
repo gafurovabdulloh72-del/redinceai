@@ -44,7 +44,13 @@ export async function handleLoginStart(chatId: string, arg: string, who: { name?
     return true;
   }
   const linked = await accountOf(chatId);
-  const note = linked ? `Hisob: <b>${escapeTelegramHtml(linked.name)}</b>` : "Bu Telegram hali hisobga ulanmagan — tasdiqlasangiz yangi hisob yaratiladi.";
+  if (!linked) {
+    // Hisobsiz Telegram — avtomatik hisob OCHILMAYDI: savol-javob bilan ro'yxatdan o'tadi, so'ng kirish tasdiqlanadi
+    const { startRegistration } = await import("@/lib/telegram-bot/register");
+    await startRegistration(chatId, who, { loginCode: m[1] });
+    return true;
+  }
+  const note = `Hisob: <b>${escapeTelegramHtml(linked.name)}</b>`;
   await sendTelegram(chatId, `<b>Saytga kirish so'rovi</b>\nKod: <code>${m[1]}</code>\n${note}\n\nAgar bu siz bo'lmasangiz «Yo'q» ni bosing.`, {
     keyboard: [
       [
@@ -61,6 +67,12 @@ export async function handleLoginStart(chatId: string, arg: string, who: { name?
 export async function handleLoginCallback(chatId: string, data: string, answer: Answer, who: { name?: string; username?: string }): Promise<boolean> {
   const m = /^lg:(ok|no):(\d{6})$/.exec(data);
   if (!m) return false;
+  if (m[1] === "ok" && !(await accountOf(chatId))) {
+    await answer("");
+    const { startRegistration } = await import("@/lib/telegram-bot/register");
+    await startRegistration(chatId, who, { loginCode: m[2] });
+    return true;
+  }
   const okNow = await decideLoginRequest(m[2], chatId, m[1] === "ok", who);
   if (!okNow) {
     await answer("So'rov eskirgan — saytda qayta bosing");
@@ -351,11 +363,12 @@ export async function handleTop(chatId: string): Promise<void> {
 /* Admin: ommaviy e'lon botdan (`/elon`)                               */
 /* ------------------------------------------------------------------ */
 
-const DRAFT_TTL_MS = 60 * 60 * 1000;
 
 /**
- * `/elon Sarlavha | Matn` yoki ko'p qatorli (`/elon` + Enter, 1-qator sarlavha, qolgani matn) — faqat ADMIN chat.
- * Qoralama `bot_drafts`ga yoziladi va auditoriya tugmalari chiqadi (`bc:<all|specialists|clients|no>`).
+ * `/elon` — ommaviy e'lon, FAQAT admin chat. Ikki yo'l:
+ *  - bir xabarda: `/elon Sarlavha | Matn` (yoki `/elon` + Enter, 1-qator sarlavha, qolgani matn);
+ *  - suhbat: `/elon` → bot sarlavhani so'raydi → matnni so'raydi (bot_sessions, flow="broadcast").
+ * Oxirida oldindan ko'rish + auditoriya tugmalari (`bc:<all|specialists|clients|no>`). Xato bo'lsa adminga aytiladi.
  */
 export async function handleBroadcastStart(chatId: string, text: string): Promise<void> {
   const me = await accountOf(chatId);
@@ -374,18 +387,65 @@ export async function handleBroadcastStart(chatId: string, text: string): Promis
     const i = raw.indexOf("\n");
     title = raw.slice(0, i).trim();
     body = raw.slice(i + 1).trim();
+  } else if (raw) {
+    // Faqat sarlavha yozilgan — matnni so'raymiz
+    title = raw;
   }
-  if (!raw || title.length < 4 || body.length < 10) {
-    await sendTelegram(
-      chatId,
-      "📣 <b>Ommaviy e'lon</b>\nBarcha foydalanuvchilarga (sayt + Telegram) bir vaqtda yuboriladi.\n\nFormat:\n<code>/elon Sarlavha | Matn</code>\nyoki\n<code>/elon</code> dan keyin yangi qatorda sarlavha, keyingi qatorlarda matn.\n\nSarlavha 4–120 belgi, matn 10–600 belgi. Yuborishdan oldin auditoriya so'raladi.",
-    );
-    return;
+  try {
+    const { setBotSession } = await import("@/lib/telegram-bot/session");
+    if (title.length >= 4 && body.length >= 10) {
+      await showBroadcastPreview(chatId, title.slice(0, 120), body.slice(0, 600));
+      return;
+    }
+    if (title.length >= 4) {
+      await setBotSession(chatId, "broadcast", "body", { title: title.slice(0, 120) });
+      await sendTelegram(chatId, `📣 Sarlavha: <b>${escapeTelegramHtml(title.slice(0, 120))}</b>\n\nEndi e'lon <b>matnini</b> yozing (10–600 belgi). Bekor qilish — /start`);
+      return;
+    }
+    await setBotSession(chatId, "broadcast", "title", {});
+    await sendTelegram(chatId, "📣 <b>Ommaviy e'lon</b> — barcha foydalanuvchilarga (sayt + Telegram) bir vaqtda ketadi.\n\n1️⃣ E'lon <b>sarlavhasini</b> yozing (4–120 belgi).\n\n<i>Tezkor usul: <code>/elon Sarlavha | Matn</code>. Bekor qilish — /start</i>");
+  } catch (e) {
+    console.error("[telegram:elon]", e);
+    await sendTelegram(chatId, `⚠️ Xatolik: ${escapeTelegramHtml(e instanceof Error ? e.message : "noma'lum")}. Admin paneldagi «Ommaviy xabar» bo'limidan yuborib ko'ring.`);
   }
-  title = title.slice(0, 120);
-  body = body.slice(0, 600);
-  const { botDrafts } = await import("@/lib/db/schema");
-  await db.insert(botDrafts).values({ chatId, title, body, createdAt: new Date() }).onConflictDoUpdate({ target: botDrafts.chatId, set: { title, body, createdAt: new Date() } });
+}
+
+/** Suhbat rejimida matnli javob (sarlavha → matn) — faqat faol broadcast oqimida; `true` — qabul qilindi */
+export async function handleBroadcastText(chatId: string, text: string): Promise<boolean> {
+  const { getBotSession, setBotSession, clearBotSession } = await import("@/lib/telegram-bot/session");
+  const s = await getBotSession<{ title?: string; body?: string }>(chatId);
+  if (!s || s.flow !== "broadcast") return false;
+  const me = await accountOf(chatId);
+  if (!me || me.role !== "admin" || me.isBanned) {
+    await clearBotSession(chatId);
+    return false;
+  }
+  const t = text.trim();
+  if (s.step === "title") {
+    if (t.length < 4 || t.length > 120) {
+      await sendTelegram(chatId, "Sarlavha 4–120 belgi bo'lsin. Qaytadan yozing:");
+      return true;
+    }
+    await setBotSession(chatId, "broadcast", "body", { title: t });
+    await sendTelegram(chatId, `Sarlavha: <b>${escapeTelegramHtml(t)}</b> ✓\n\n2️⃣ Endi e'lon <b>matnini</b> yozing (10–600 belgi).`);
+    return true;
+  }
+  if (s.step === "body") {
+    if (t.length < 10 || t.length > 600) {
+      await sendTelegram(chatId, "Matn 10–600 belgi bo'lsin. Qaytadan yozing:");
+      return true;
+    }
+    await showBroadcastPreview(chatId, s.data.title ?? "E'lon", t);
+    return true;
+  }
+  await sendTelegram(chatId, "Yuqoridagi xabarda auditoriya tugmasini bosing 👆 (bekor qilish — /start)");
+  return true;
+}
+
+/** Oldindan ko'rish + auditoriya tugmalari; qoralama sessiyada (`bc:` bosilganda o'qiladi) */
+async function showBroadcastPreview(chatId: string, title: string, body: string): Promise<void> {
+  const { setBotSession } = await import("@/lib/telegram-bot/session");
+  await setBotSession(chatId, "broadcast", "confirm", { title, body });
   const { audienceRows, channelStat } = await import("@/lib/broadcast");
   const all = await audienceRows("all");
   const st = channelStat(all);
@@ -412,8 +472,9 @@ export async function handleBroadcastCallback(chatId: string, data: string, answ
     await answer("Faqat administrator uchun");
     return true;
   }
-  const { botDrafts } = await import("@/lib/db/schema");
-  const draft = await db.query.botDrafts.findFirst({ where: eq(botDrafts.chatId, chatId) });
+  const { getBotSession, clearBotSession } = await import("@/lib/telegram-bot/session");
+  const s = await getBotSession<{ title?: string; body?: string }>(chatId);
+  const draft = s?.flow === "broadcast" && s.step === "confirm" && s.data.title && s.data.body ? { title: s.data.title, body: s.data.body } : null;
   const finish = async (result: string) => {
     await answer(result.slice(0, 190));
     if (messageId) {
@@ -421,16 +482,17 @@ export async function handleBroadcastCallback(chatId: string, data: string, answ
     }
   };
   if (m[1] === "no") {
-    await db.delete(botDrafts).where(eq(botDrafts.chatId, chatId));
+    await clearBotSession(chatId);
     await finish("Bekor qilindi");
     return true;
   }
-  if (!draft || Date.now() - draft.createdAt.getTime() > DRAFT_TTL_MS) {
+  if (!draft) {
     await finish("Qoralama topilmadi yoki eskirgan — /elon bilan qaytadan yozing");
     return true;
   }
-  // CAS: qoralama o'chirilgach yuboriladi — ikki marta bosilsa ikkinchi marta ketmaydi
-  const del = await db.delete(botDrafts).where(eq(botDrafts.chatId, chatId)).returning({ chatId: botDrafts.chatId });
+  // CAS: sessiya o'chirilgach yuboriladi — ikki marta bosilsa ikkinchi marta ketmaydi
+  const { botSessions } = await import("@/lib/db/schema");
+  const del = await db.delete(botSessions).where(eq(botSessions.chatId, chatId)).returning({ chatId: botSessions.chatId });
   if (!del.length) {
     await answer("Allaqachon yuborilmoqda");
     return true;

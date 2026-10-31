@@ -29,6 +29,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   admin_broadcast: "Admin: ommaviy xabar yuborildi",
   contact_unlock_started: "Kontakt ochish to'lovi boshlandi",
   contact_mode_changed: "Kontakt rejimi o'zgartirildi (mutaxassis)",
+  telegram_linked: "Telegram ulandi (Mini App)",
   admin_contact_settings: "Admin: kontakt rejimi/narxi o'zgartirildi",
   admin_payout: "Admin: pul chiqarish qarori",
   admin_payment: "Admin: to'lov amali",

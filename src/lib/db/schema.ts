@@ -2946,6 +2946,20 @@ export type Enrollment = typeof enrollments.$inferSelect;
 export type CourseReview = typeof courseReviews.$inferSelect;
 
 /** Telegram botdagi admin e'loni qoralamasi (`/elon` → tasdiqlash tugmalari): chat → sarlavha/matn, 1 soat */
+/**
+ * Bot suhbat holati (2026-10-31): savol-javob oqimlari — ro'yxatdan o'tish (`register`) va /elon (`broadcast`).
+ * Bitta chat — bitta faol oqim; 45 daqiqadan keyin eskiradi (`lib/telegram-bot/session.ts`).
+ */
+export const botSessions = sqliteTable("bot_sessions", {
+  chatId: text("chat_id").primaryKey(),
+  flow: text("flow").notNull(),
+  step: text("step").notNull(),
+  data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const botDrafts = sqliteTable("bot_drafts", {
   chatId: text("chat_id").primaryKey(),
   title: text("title").notNull(),

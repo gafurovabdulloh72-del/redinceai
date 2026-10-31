@@ -332,7 +332,7 @@ export async function markInvoiceSent(invoice: SubscriptionInvoice, actorId: str
     kind: "sub",
     type: "subscription_pending",
     id: row.id,
-    title: "Obuna o'tkazmasi tasdiqlashni kutmoqda",
+    title: isContactUnlock(row) ? "Kontakt o'tkazmasi tasdiqlashni kutmoqda" : isPurchase(row) ? "Mentorlik o'tkazmasi tasdiqlashni kutmoqda" : "Obuna o'tkazmasi tasdiqlashni kutmoqda",
     body: isContactUnlock(row)
       ? `${contactMeta(row).title} — ${formatPrice(row.amount)} o'tkazilganini bildirdi (${invoiceNumber(row.id)}).`
       : isPurchase(row)
