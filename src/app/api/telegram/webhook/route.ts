@@ -145,8 +145,8 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const from = cb.from ?? {};
   const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined, lang: botLang(from.language_code) };
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
-  if (chatId && (await handlePayCallback(chatId, data, answer))) return;
-  if (chatId && (await handleContactPayCallback(chatId, data, answer))) return;
+  if (chatId && (await handlePayCallback(chatId, data, answer, who.lang))) return;
+  if (chatId && (await handleContactPayCallback(chatId, data, answer, who.lang))) return;
   if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handlePostCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
@@ -327,7 +327,7 @@ export async function POST(req: Request) {
       // l_<kod> — «Telegram bilan kirish»; b_<tur>_<id> — mentorlik xaridi
       if (await handleLoginStart(chatId, arg, who)) {
         /* kirish so'rovi */
-      } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg)) || (await handleContactBuyStart(chatId, arg))))) await handleStart(chatId, arg, firstName, lang);
+      } else if (!(arg.startsWith("b_") && ((await handleBuyStart(chatId, arg, lang)) || (await handleContactBuyStart(chatId, arg, lang))))) await handleStart(chatId, arg, firstName, lang);
     } else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId, lang);
     else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId, lang);
     else if (cmd === "/xabarlar") await handleMessages(chatId, lang);

@@ -27,6 +27,7 @@ import { isPurchase, priceFor, purchaseHref, purchaseMeta, quoteItem, startPurch
 
 const TYPE_CODE: Record<PurchaseType, string> = { course: "c", ticket: "t", sub: "s", consult: "k" };
 const CODE_TYPE: Record<string, PurchaseType> = { c: "course", t: "ticket", s: "sub", k: "consult" };
+const PURCHASE_LABEL_RU: Record<PurchaseType, string> = { course: "Курс", ticket: "Билет на эфир", sub: "Месячная подписка", consult: "Консультация" };
 const METHOD: Record<string, "payme" | "click" | "manual"> = { p: "payme", c: "click", m: "manual" };
 
 /** Saytdagi tugma uchun deep-link payload (`b_c_<id>`) — 64 belgidan oshmaydi (UUID bilan ~47) */
@@ -44,12 +45,12 @@ async function userByChat(chatId: string) {
 }
 
 /** `/start b_c_<id>` — xarid xulosasi va to'lov usullari */
-export async function handleBuyStart(chatId: string, payload: string): Promise<boolean> {
+export async function handleBuyStart(chatId: string, payload: string, lang?: BotLang): Promise<boolean> {
   const m = /^b_([ctsk])_([\w-]{1,48})(?:\.([A-Z0-9]{3,12}))?$/.exec(payload);
   if (!m) return false;
   const user = await userByChat(chatId);
   if (!user || user.isBanned) {
-    await sendTelegram(chatId, "To'lovni davom ettirish uchun avval hisobni ulang: saytda Kabinet → Profil → «Telegramga ulash», so'ng tugmani qayta bosing.");
+    await sendTelegram(chatId, L(lang, "To'lovni davom ettirish uchun avval hisobni ulang: saytda Kabinet → Profil → «Telegramga ulash», so'ng tugmani qayta bosing.", "Чтобы продолжить оплату, сначала привяжите аккаунт: на сайте Кабинет → Профиль → «Подключить Telegram», затем нажмите кнопку снова."));
     return true;
   }
   const type = CODE_TYPE[m[1]];
@@ -60,34 +61,34 @@ export async function handleBuyStart(chatId: string, payload: string): Promise<b
     const suffix = promo ? `.${promo}` : "";
     const keyboard: TelegramButton[][] = [];
     if (price.amount <= 0) {
-      keyboard.push([{ text: "🎁 Bepul boshlash", data: `bp:f:${m[1]}:${m[2]}${suffix}` }]);
+      keyboard.push([{ text: L(lang, "🎁 Bepul boshlash", "🎁 Начать бесплатно"), data: `bp:f:${m[1]}:${m[2]}${suffix}` }]);
     } else {
       const row: TelegramButton[] = [];
       if (await isProviderConfigured("payme")) row.push({ text: "Payme", data: `bp:p:${m[1]}:${m[2]}${suffix}` });
       if (await isProviderConfigured("click")) row.push({ text: "Click", data: `bp:c:${m[1]}:${m[2]}${suffix}` });
       if (row.length) keyboard.push(row);
-      if (nativeEnabled()) keyboard.push([{ text: "💬 Telegram ichida to'lash", data: `bp:t:${m[1]}:${m[2]}${suffix}` }]);
-      if (await isProviderConfigured("manual")) keyboard.push([{ text: "💳 Karta o'tkazmasi", data: `bp:m:${m[1]}:${m[2]}${suffix}` }]);
+      if (nativeEnabled()) keyboard.push([{ text: L(lang, "💬 Telegram ichida to'lash", "💬 Оплатить в Telegram"), data: `bp:t:${m[1]}:${m[2]}${suffix}` }]);
+      if (await isProviderConfigured("manual")) keyboard.push([{ text: L(lang, "💳 Karta o'tkazmasi", "💳 Перевод на карту"), data: `bp:m:${m[1]}:${m[2]}${suffix}` }]);
       if (!keyboard.length) {
-        await sendTelegram(chatId, "To'lov usullari hozircha ulanmagan — administrator bilan bog'laning.");
+        await sendTelegram(chatId, L(lang, "To'lov usullari hozircha ulanmagan — administrator bilan bog'laning.", "Способы оплаты пока не подключены — обратитесь к администратору."));
         return true;
       }
     }
-    await sendTelegram(chatId, `🛒 <b>${escapeTelegramHtml(q.title)}</b>\n${PURCHASE_LABEL[type]} · <b>${price.amount <= 0 ? "Bepul" : formatSom(price.amount)}</b>${price.promo ? ` (promokod −${price.promo.percent}%)` : ""}\n\nTo'lov usulini tanlang:`, { keyboard });
+    await sendTelegram(chatId, `🛒 <b>${escapeTelegramHtml(q.title)}</b>\n${L(lang, PURCHASE_LABEL[type], PURCHASE_LABEL_RU[type])} · <b>${price.amount <= 0 ? L(lang, "Bepul", "Бесплатно") : formatSom(price.amount)}</b>${price.promo ? ` (${L(lang, "promokod", "промокод")} −${price.promo.percent}%)` : ""}\n\n${L(lang, "To'lov usulini tanlang:", "Выберите способ оплаты:")}`, { keyboard });
   } catch (e) {
-    await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : "Xatolik. Keyinroq qayta urinib ko'ring.");
+    await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : L(lang, "Xatolik. Keyinroq qayta urinib ko'ring.", "Ошибка. Попробуйте позже."));
   }
   return true;
 }
 
 /** `bp:<usul>:<tur>:<id>` va `bd:<hisob>` callback'lari. false — bu callback bizniki emas */
-export async function handlePayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>): Promise<boolean> {
+export async function handlePayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>, lang?: BotLang): Promise<boolean> {
   const buy = /^bp:([pcmft]):([ctsk]):([\w-]{1,48})(?:\.([A-Z0-9]{3,12}))?$/.exec(data);
   const done = /^bd:([\w-]{1,64})$/.exec(data);
   if (!buy && !done) return false;
   const user = await userByChat(chatId);
   if (!user || user.isBanned) {
-    await answer("Avval hisobni ulang");
+    await answer(L(lang, "Avval hisobni ulang", "Сначала привяжите аккаунт"));
     return true;
   }
   try {
@@ -97,12 +98,12 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
       if (buy[1] === "t" && !nativeEnabled()) throw new ApiError(400, "Telegram to'lovi ulanmagan");
       const r = await startPurchase({ id: user.id }, { type, id: buy[3], provider: method, promo: buy[4] });
       if (r.free) {
-        await answer("Tayyor ✓");
-        await sendTelegram(chatId, "🎉 Kirish ochildi! Saytda Kabinet → Mentorlik bo'limiga qarang.");
+        await answer(L(lang, "Tayyor ✓", "Готово ✓"));
+        await sendTelegram(chatId, L(lang, "🎉 Kirish ochildi! Saytda Kabinet → Mentorlik bo'limiga qarang.", "🎉 Доступ открыт! На сайте: Кабинет → Наставничество."));
         return true;
       }
       const inv = r.invoice;
-      await answer("Hisob tayyor");
+      await answer(L(lang, "Hisob tayyor", "Счёт готов"));
       if (buy[1] === "t") {
         await telegramApi("sendInvoice", {
           chat_id: chatId,
@@ -111,37 +112,41 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
           payload: inv.id,
           provider_token: process.env.TELEGRAM_PAYMENT_PROVIDER_TOKEN,
           currency: "UZS",
-          prices: [{ label: "Jami", amount: inv.amount * 100 }],
+          prices: [{ label: L(lang, "Jami", "Итого"), amount: inv.amount * 100 }],
         });
         return true;
       }
-      const back = { text: "Holatni ko'rish", url: `${origin()}${purchaseHref(inv.id)}` };
+      const back = { text: L(lang, "Holatni ko'rish", "Статус оплаты"), url: `${origin()}${purchaseHref(inv.id)}` };
       if (method === "manual") {
         const req = await manualRequisites();
         await sendTelegram(
           chatId,
-          `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatSom(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini (skrinshot) shu yerga yuboring</b> — administrator ko'rib tasdiqlaydi va kirish avtomatik ochiladi.`,
-          { keyboard: [[{ text: "Chek yubora olmayman — «To'ladim»", data: `bd:${inv.id}` }], [back]] },
+          L(
+            lang,
+            `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatSom(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini (skrinshot) shu yerga yuboring</b> — administrator ko'rib tasdiqlaydi va kirish avtomatik ochiladi.`,
+            `💳 <b>Перевод на карту</b>\nСумма: <b>${formatSom(inv.amount)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека (скриншот)</b> — администратор проверит и подтвердит, доступ откроется автоматически.`,
+          ),
+          { keyboard: [[{ text: L(lang, "Chek yubora olmayman — «To'ladim»", "Не могу отправить чек — «Я оплатил»"), data: `bd:${inv.id}` }], [back]] },
         );
         return true;
       }
       const url = buildInvoiceRedirectUrl(inv, origin());
-      if (!url) throw new ApiError(400, "To'lov havolasini tuzib bo'lmadi");
-      await sendTelegram(chatId, `${method === "payme" ? "Payme" : "Click"} orqali <b>${formatSom(inv.amount)}</b> to'lang. To'langach kirish avtomatik ochiladi va shu yerga xabar keladi.`, { keyboard: [[{ text: "To'lash", url }], [back]] });
+      if (!url) throw new ApiError(400, L(lang, "To'lov havolasini tuzib bo'lmadi", "Не удалось создать ссылку на оплату"));
+      await sendTelegram(chatId, L(lang, `${method === "payme" ? "Payme" : "Click"} orqali <b>${formatSom(inv.amount)}</b> to'lang. To'langach kirish avtomatik ochiladi va shu yerga xabar keladi.`, `Оплатите <b>${formatSom(inv.amount)}</b> через ${method === "payme" ? "Payme" : "Click"}. После оплаты доступ откроется автоматически, сюда придёт сообщение.`), { keyboard: [[{ text: L(lang, "To'lash", "Оплатить"), url }], [back]] });
       return true;
     }
     // «To'ladim» — faqat o'z hisobi, faqat xarid hisobi
     const inv = await loadInvoice(done![1]);
     const { isContactUnlock, contactMeta } = await import("@/lib/contacts/unlock");
     if (!inv || inv.userId !== user.id || !(isPurchase(inv) || isContactUnlock(inv))) {
-      await answer("Hisob topilmadi");
+      await answer(L(lang, "Hisob topilmadi", "Счёт не найден"));
       return true;
     }
     await markInvoiceSent(inv, user.id);
-    await answer("Yuborildi ✓");
-    await sendTelegram(chatId, `⏳ O'tkazma tasdiqlashni kutmoqda: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Tasdiqlangach xabar beramiz.`);
+    await answer(L(lang, "Yuborildi ✓", "Отправлено ✓"));
+    await sendTelegram(chatId, L(lang, `⏳ O'tkazma tasdiqlashni kutmoqda: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Tasdiqlangach xabar beramiz.`, `⏳ Перевод ожидает подтверждения: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Сообщим, как только подтвердят.`));
   } catch (e) {
-    await answer(e instanceof ApiError ? e.message : "Xatolik — saytdan urinib ko'ring");
+    await answer(e instanceof ApiError ? e.message : L(lang, "Xatolik — saytdan urinib ko'ring", "Ошибка — попробуйте на сайте"));
   }
   return true;
 }
@@ -189,7 +194,7 @@ async function storeReceipt(bytes: Buffer): Promise<string | null> {
 }
 
 /** Chatga rasm keldi: foydalanuvchining oxirgi ochiq KARTA xaridiga chek sifatida biriktiriladi → admin tasdiqlaydi */
-export async function handleReceiptPhoto(chatId: string, fileId: string): Promise<void> {
+export async function handleReceiptPhoto(chatId: string, fileId: string, lang?: BotLang): Promise<void> {
   const user = await userByChat(chatId);
   if (!user || user.isBanned) return;
   const open = await db.query.subscriptionInvoices.findMany({
@@ -200,20 +205,21 @@ export async function handleReceiptPhoto(chatId: string, fileId: string): Promis
   const { isContactUnlock, contactMeta } = await import("@/lib/contacts/unlock");
   const inv = open.find((i) => (isPurchase(i) || isContactUnlock(i)) && Date.now() - i.createdAt.getTime() < 2 * 60 * 60 * 1000);
   if (!inv) {
-    await sendTelegram(chatId, "Chek qabul qilish uchun avval to'lov boshlang: saytda xaridda «Telegramda to'lash» → «Karta o'tkazmasi».");
+    await sendTelegram(chatId, L(lang, "Chek qabul qilish uchun avval to'lov boshlang: saytda xaridda «Telegramda to'lash» → «Karta o'tkazmasi».", "Чтобы отправить чек, сначала начните оплату: на сайте «Оплатить в Telegram» → «Перевод на карту»."));
     return;
   }
   try {
     const bytes = await telegramDownloadFile(fileId);
     const url = bytes ? await storeReceipt(bytes) : null;
     if (!url) {
-      await sendTelegram(chatId, "Rasmni o'qib bo'lmadi. JPG/PNG skrinshot yuboring (5 MB gacha).");
+      await sendTelegram(chatId, L(lang, "Rasmni o'qib bo'lmadi. JPG/PNG skrinshot yuboring (5 MB gacha).", "Не удалось прочитать изображение. Отправьте скриншот JPG/PNG (до 5 МБ)."));
       return;
     }
     await markInvoiceSent(inv, user.id, undefined, url);
-    await sendTelegram(chatId, `📎 Chek qabul qilindi: <b>${escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title)}</b>. Administrator tasdiqlagach ${isContactUnlock(inv) ? "kontakt" : "kirish"} avtomatik ochiladi va shu yerga xabar keladi.`);
+    const title = escapeTelegramHtml(isContactUnlock(inv) ? contactMeta(inv).title : purchaseMeta(inv).title);
+    await sendTelegram(chatId, L(lang, `📎 Chek qabul qilindi: <b>${title}</b>. Administrator tasdiqlagach ${isContactUnlock(inv) ? "kontakt" : "kirish"} avtomatik ochiladi va shu yerga xabar keladi.`, `📎 Чек получен: <b>${title}</b>. После подтверждения администратором ${isContactUnlock(inv) ? "контакт" : "доступ"} откроется автоматически, сюда придёт сообщение.`));
   } catch (e) {
-    await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : "Xatolik. Keyinroq qayta urinib ko'ring.");
+    await sendTelegram(chatId, e instanceof ApiError ? `⚠️ ${escapeTelegramHtml(e.message)}` : L(lang, "Xatolik. Keyinroq qayta urinib ko'ring.", "Ошибка. Попробуйте позже."));
   }
 }
 
@@ -231,5 +237,5 @@ export async function handleSuccessfulPayment(chatId: string, p: { invoice_paylo
   const inv = id ? await loadInvoice(id) : null;
   if (!inv || !isPurchase(inv)) return;
   await markInvoicePaid(inv.id, { providerTxnId: `tg-${String(p.telegram_payment_charge_id ?? p.provider_payment_charge_id ?? inv.id)}`, note: "Telegram to'lovi" });
-  await sendTelegram(chatId, "✅ To'lov qabul qilindi — rahmat!");
+  await sendTelegram(chatId, "✅ To'lov qabul qilindi — rahmat! / Оплата получена — спасибо!");
 }

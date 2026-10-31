@@ -73,7 +73,7 @@ export async function handleIncomingMedia(chatId: string, media: IncomingMedia, 
   }
   if (media.kind === "photo" && (await pendingReceiptInvoice(user.id))) {
     const { handleReceiptPhoto } = await import("@/lib/mentorship/telegram-pay");
-    await handleReceiptPhoto(chatId, media.fileId);
+    await handleReceiptPhoto(chatId, media.fileId, lang);
     return;
   }
   if (user.role === "client") {
