@@ -64,6 +64,7 @@ function addDays(date: string, days: number): string {
  *  (i) obuna eslatmalari (3 kun / 1 kun qolganda, tugaganda, yashirilganda) + 12 soatdan eski pending obuna hisoblari bekor
  *  (j) eskirgan sessiyalar tozalanadi
  *  (k) muddati 3 kun ichida tugaydigan ochiq vakansiyalar — egasiga bir martalik eslatma (expireRemindedAt)
+ *  (q) admin kunlik hisoboti Telegramga (lib/telegram-bot/admin.ts sendAdminDailyReport — kechagi kun, bir marta)
  *  (m) kunlik/haftalik jamlama (users.digest_freq): obunachi, reaksiya, izoh, ko'rish, o'qilmagan xabarlar — bo'sh bo'lsa yuborilmaydi (lib/digest.ts)
  * Har bir qadam alohida try/catch ichida — biri yiqilsa, qolganlari ishlayveradi; sonlari JSON javobda va audit meta'da.
  * `?dry=1` — hech narsa o'zgartirmasdan (d)–(f) va (i) bo'yicha nechta yozuv tegishini qaytaradi.
@@ -88,6 +89,7 @@ export async function GET(req: Request) {
   const nowDate = new Date(now);
   const dry = new URL(req.url).searchParams.get("dry") === "1";
   const counts = {
+    adminReport: null as { sent: number; skipped: boolean } | null,
     expiredPayments: 0,
     autoReleased: 0,
     autoReleaseScheduled: 0,
@@ -271,6 +273,14 @@ export async function GET(req: Request) {
     if (r.error) counts.errors.push(`indexnow: ${r.error}`);
   } catch (e) {
     counts.errors.push(`indexnow: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (q) Admin kunlik hisoboti Telegramga: kechagi kun statistikasi + navbat (bir kunda bir marta)
+  try {
+    const { sendAdminDailyReport } = await import("@/lib/telegram-bot/admin");
+    counts.adminReport = await sendAdminDailyReport(now);
+  } catch (e) {
+    counts.errors.push(`adminReport: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (h) Saqlangan qidiruvlar bo'yicha ogohlantirishlar

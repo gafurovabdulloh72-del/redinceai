@@ -18,6 +18,7 @@ import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadca
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
 import { clearBotSession } from "@/lib/telegram-bot/session";
+import { adminByChat, handleAdminCallback, handleAdminUserSearch, sendAdminMenu, sendAdminPayments, sendAdminQueues, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -33,6 +34,7 @@ import { clearBotSession } from "@/lib/telegram-bot/session";
  *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts)
  *   /ilova · /buyurtmalarim · /xabarlar · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
  *   /profil · /sozlamalar · /yordam · /stop · /elon (faqat admin: ommaviy e'lon, auditoriya tugmalari)
+ *   /admin · /stat · /navbat · /tolovlar · /user <q> — admin boti (lib/telegram-bot/admin.ts), tugmalar `adm:*`
  *   doimiy menyu tugmalari (📦 Buyurtmalarim …) — MENU_COMMAND orqali shu buyruqlarga aylanadi
  *   boshqa matn      — ijodkor qidiruvi (exploreSearch)
  *
@@ -137,6 +139,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined };
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer))) return;
+  if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
@@ -308,6 +311,15 @@ export async function POST(req: Request) {
     else if (cmd === "/sozlamalar") await handleSettings(chatId);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName);
     else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
+    else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user") {
+      // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
+      if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
+      else if (cmd === "/admin") await sendAdminMenu(chatId);
+      else if (cmd === "/stat") await sendAdminStats(chatId, arg === "7" || arg === "7d" ? "7d" : arg === "30" || arg === "30d" ? "30d" : "today");
+      else if (cmd === "/navbat") await sendAdminQueues(chatId);
+      else if (cmd === "/tolovlar") await sendAdminPayments(chatId);
+      else await handleAdminUserSearch(chatId, normalized.slice(rawCmd.length));
+    }
     else if (cmd === "/stop") await handleStop(chatId);
     else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) {
       const me = await accountOf(chatId);

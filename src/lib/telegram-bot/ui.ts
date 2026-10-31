@@ -43,7 +43,16 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
 ];
 
 /** Admin chat uchun buyruqlar: umumiy ro'yxat + /elon (Telegram «chat» scope — faqat shu chatda ko'rinadi) */
-export const ADMIN_COMMANDS = [...BOT_COMMANDS.slice(0, 1), { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn (admin)" }, ...BOT_COMMANDS.slice(1)];
+export const ADMIN_COMMANDS = [
+  ...BOT_COMMANDS.slice(0, 1),
+  { command: "admin", description: "🛠 Admin menyu: statistika, navbat, to'lovlar" },
+  { command: "stat", description: "📊 Statistika — bugun / 7 kun / 30 kun" },
+  { command: "navbat", description: "📥 Tasdiq navbati (mutaxassis, o'tkazma, shikoyat)" },
+  { command: "tolovlar", description: "💳 Kutilayotgan qo'lda o'tkazmalar" },
+  { command: "user", description: "👤 Foydalanuvchi qidirish: /user ism yoki email" },
+  { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn" },
+  ...BOT_COMMANDS.slice(1),
+];
 
 /** Admin chatiga /elon bilan buyruqlar menyusini qo'yish (ulanganda va «Bot profilini sozlash»da) */
 export async function setAdminCommands(chatId: string): Promise<boolean> {
@@ -58,6 +67,7 @@ export async function clearChatCommands(chatId: string): Promise<void> {
 /** Doimiy menyu tugmalari (chat ostida) — matn tugma sifatida keladi, `MENU_COMMAND` buyruqqa aylantiradi */
 export const MENU = {
   app: "📱 Ilovani ochish",
+  admin: "🛠 Admin",
   orders: "📦 Buyurtmalarim",
   chat: "💬 Xabarlar",
   courses: "🎓 Kurslar",
@@ -67,6 +77,7 @@ export const MENU = {
 } as const;
 export const MENU_COMMAND: Record<string, string> = {
   [MENU.app]: "/ilova",
+  [MENU.admin]: "/admin",
   [MENU.orders]: "/buyurtmalarim",
   [MENU.chat]: "/xabarlar",
   [MENU.courses]: "/kurslar",
@@ -78,11 +89,12 @@ export const MENU_COMMAND: Record<string, string> = {
 const site = () => siteUrl() ?? "";
 const BANNER = () => `${site()}/bot/welcome.png`;
 
-/** Doimiy menyu: yuqorida Mini App tugmasi (https bo'lsa), keyin bo'limlar */
-export function menuRows(): ReplyButton[][] {
+/** Doimiy menyu: yuqorida Mini App tugmasi (https bo'lsa), keyin bo'limlar; admin uchun «🛠 Admin» qatori */
+export function menuRows(admin = false): ReplyButton[][] {
   const app = appUrl();
   return [
     ...(app ? [[{ text: MENU.app, webApp: app }]] : []),
+    ...(admin ? [[MENU.admin]] : []),
     [MENU.orders, MENU.chat],
     [MENU.courses, MENU.jobs],
     [MENU.profile, MENU.help],
@@ -131,7 +143,7 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
       "🎓 kurslaringizni va to'lovlarni ko'rasiz\n" +
       "🔎 istalgan so'z yozsangiz — ijodkor qidiraman\n\n" +
       "Pastdagi menyudan foydalaning 👇";
-    await sendTelegramPhoto(chatId, BANNER(), caption, { replyKeyboard: menuRows() });
+    await sendTelegramPhoto(chatId, BANNER(), caption, { replyKeyboard: menuRows(me.role === "admin") });
     return;
   }
   const caption =
@@ -175,10 +187,10 @@ export async function sendHelp(chatId: string, linked: boolean, admin = false): 
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
     (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa) · akkauntingiz bo'lsa — «Ha, akkauntim bor» tugmasi bilan ulang\n") +
     "⛔ /stop — Telegramni hisobdan uzish\n" +
-    (admin ? "📣 /elon Sarlavha | Matn — barcha foydalanuvchilarga e'lon (faqat admin)\n" : "") +
+    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 👤 /user ism · 📣 /elon — ommaviy e'lon\n" : "") +
     "\n" +
     (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
-  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows() } : { keyboard: ACCOUNT_QUESTION_ROWS() });
+  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows(admin) } : { keyboard: ACCOUNT_QUESTION_ROWS() });
 }
 
 /** Ulanmagan chat uchun standart javob (amal tugmasi bilan) */
