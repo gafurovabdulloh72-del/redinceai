@@ -15,7 +15,7 @@ import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleReceiptPhoto, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
 import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleCourses, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
-import { MENU_COMMAND, sendApp, sendHelp, sendWelcome } from "@/lib/telegram-bot/ui";
+import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 
 /**
  * Telegram Bot API webhook (setWebhook bilan o'rnatiladi — docs/DEPLOY.md §11).
@@ -193,13 +193,15 @@ async function handleStart(chatId: string, code: string, firstName?: string): Pr
     await sendTelegram(chatId, "Hisob topilmadi. Saytdan qayta urinib ko'ring: Kabinet → Profil → «Telegramga ulash».");
     return;
   }
-  // Ulandi — xush kelibsiz ekrani doimiy menyu bilan
+  // Ulandi — xush kelibsiz ekrani doimiy menyu bilan; admin bo'lsa buyruqlar menyusiga /elon qo'shiladi
   const me = await accountOf(chatId);
+  if (me?.role === "admin") await setAdminCommands(chatId).catch(() => false);
   await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName);
 }
 
 async function handleStop(chatId: string): Promise<void> {
   const res = await db.update(users).set({ telegramChatId: null }).where(eq(users.telegramChatId, chatId));
+  await clearChatCommands(chatId).catch(() => undefined);
   if (res.rowsAffected > 0) {
     await sendTelegram(chatId, "Telegram bildirishnomalari uzildi. Qayta ulash: saytda Kabinet → Profil → «Telegramga ulash».", { removeKeyboard: true });
   } else {

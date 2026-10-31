@@ -41,6 +41,19 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
   { command: "stop", description: "Telegramni hisobdan uzish" },
 ];
 
+/** Admin chat uchun buyruqlar: umumiy ro'yxat + /elon (Telegram «chat» scope — faqat shu chatda ko'rinadi) */
+export const ADMIN_COMMANDS = [...BOT_COMMANDS.slice(0, 1), { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn (admin)" }, ...BOT_COMMANDS.slice(1)];
+
+/** Admin chatiga /elon bilan buyruqlar menyusini qo'yish (ulanganda va «Bot profilini sozlash»da) */
+export async function setAdminCommands(chatId: string): Promise<boolean> {
+  const r = await telegramApi("setMyCommands", { commands: ADMIN_COMMANDS, scope: { type: "chat", chat_id: Number(chatId) || chatId } });
+  return Boolean(r?.ok);
+}
+/** Chat uzilganda admin menyusini olib tashlash */
+export async function clearChatCommands(chatId: string): Promise<void> {
+  await telegramApi("deleteMyCommands", { scope: { type: "chat", chat_id: Number(chatId) || chatId } });
+}
+
 /** Doimiy menyu tugmalari (chat ostida) — matn tugma sifatida keladi, `MENU_COMMAND` buyruqqa aylantiradi */
 export const MENU = {
   app: "📱 Ilovani ochish",
@@ -177,6 +190,8 @@ export interface BotProfileResult {
   description: boolean;
   commands: boolean;
   menuButton: boolean;
+  /** /elon menyusi qo'yilgan admin chatlari soni */
+  adminChats: number;
   errors: string[];
 }
 
@@ -196,7 +211,18 @@ export async function setupBotProfile(): Promise<BotProfileResult> {
     // Menyu tugmasi: https bo'lsa Mini App («Ilova»), aks holda buyruqlar ro'yxati
     call("setChatMenuButton", { menu_button: appUrl() ? { type: "web_app", text: "Ilova", web_app: { url: appUrl() } } : { type: "commands" } }),
   ]);
-  return { name, shortDescription, description, commands, menuButton, errors };
+  // Adminlar (Telegram ulangan) — chat scope bilan /elon ham menyuda
+  let adminChats = 0;
+  try {
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+    const { and, eq, isNotNull } = await import("drizzle-orm");
+    const admins = await db.select({ chat: users.telegramChatId }).from(users).where(and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)));
+    for (const a of admins) if (a.chat && (await setAdminCommands(a.chat))) adminChats++;
+  } catch (e) {
+    errors.push(`adminCommands: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  return { name, shortDescription, description, commands, menuButton, adminChats, errors };
 }
 
 /** Bot havolasi (deep-link'siz) — profil kartasi uchun */

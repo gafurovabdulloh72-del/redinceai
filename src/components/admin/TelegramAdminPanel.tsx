@@ -58,11 +58,11 @@ export function TelegramAdminPanel() {
     setMsg(null);
     try {
       const r = await fetch("/api/admin/telegram", { method: "PUT" });
-      const j = (await r.json()) as { ok: boolean; data?: { errors: string[] }; error?: string };
+      const j = (await r.json()) as { ok: boolean; data?: { errors: string[]; adminChats?: number }; error?: string };
       if (!r.ok || !j.ok) throw new Error(j.error || "Sozlab bo'lmadi");
       const errs = j.data?.errors ?? [];
       if (errs.length) setErr(`Qisman: ${errs.join("; ")}`);
-      else setMsg("Bot profili yangilandi: nom, tavsif, buyruqlar menyusi ✓");
+      else setMsg(`Bot profili yangilandi: nom, tavsif, buyruqlar menyusi ✓ (admin chatlari: ${j.data?.adminChats ?? 0} — /elon menyuda)`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Sozlab bo'lmadi");
     } finally {
