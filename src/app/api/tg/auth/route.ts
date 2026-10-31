@@ -9,6 +9,7 @@ import { verifyWebAppInitData } from "@/lib/auth/telegram-webapp";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
@@ -67,11 +68,22 @@ export const POST = handler(async (req) => {
   if (body.link === true) {
     const session = await getVerifiedSession();
     if (!session) throw new ApiError(401, "Avval saytdagi hisobingizga kiring");
+    const prevChat = (await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true } }))?.telegramChatId ?? null;
     // Bitta chat — bitta hisob: boshqa hisobdan uzib, shu hisobga ulaymiz
     await db.update(users).set({ telegramChatId: null }).where(and(eq(users.telegramChatId, chatId), ne(users.id, session.sub)));
     await db.update(users).set({ telegramChatId: chatId, lastLoginAt: new Date() }).where(eq(users.id, session.sub));
     if (session.role === "admin") await setAdminCommands(chatId).catch(() => false);
     await audit(session.sub, "telegram_linked", { targetType: "user", targetId: session.sub, meta: { via: "webapp" } }, req).catch(() => undefined);
+    // Yangi Telegram ulandi — egaga sayt + email orqali ham xabar (bot orqali ulash bilan bir xil, 3-audit)
+    if (prevChat !== chatId) {
+      await notify(
+        session.sub,
+        "account",
+        "Telegram hisobingizga ulandi",
+        `${tgName ? `«${tgName}» ` : ""}Telegram hisobi ulandi — endi bildirishnomalar shu Telegramga keladi.${prevChat ? " Oldingi Telegram uzildi." : ""} Bu siz bo'lmasangiz — Kabinet → Profil'da uzing va parolni almashtiring.`,
+        "/kabinet/profil?tab=telegram#telegram",
+      ).catch(() => undefined);
+    }
     return ok({ status: "ok", isNew: false, next: safePath(body.to) });
   }
 

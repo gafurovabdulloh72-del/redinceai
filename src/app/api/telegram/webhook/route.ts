@@ -205,6 +205,7 @@ async function handleStart(chatId: string, code: string, firstName?: string, lan
     });
     return;
   }
+  const prevChat = (await db.query.users.findFirst({ where: eq(users.id, userId), columns: { telegramChatId: true } }))?.telegramChatId ?? null;
   // Bitta chat — bitta hisob: shu chatId boshqa foydalanuvchida bo'lsa, avval undan uzamiz
   await db
     .update(users)
@@ -214,6 +215,17 @@ async function handleStart(chatId: string, code: string, firstName?: string, lan
   if (!row) {
     await sendTelegram(chatId, "Hisob topilmadi. Saytdan qayta urinib ko'ring: Kabinet → Profil → «Telegramga ulash».");
     return;
+  }
+  // Yangi Telegram ulandi (yoki boshqasi almashtirildi) — egaga sayt + email orqali ham xabar (3-audit): begona Telegram
+  // ulangan bo'lsa, barcha bildirishnomalar (to'lov, xabarlar, kirish kodlari) unga oqib ketadi
+  if (prevChat !== chatId) {
+    await notify(
+      userId,
+      "account",
+      "Telegram hisobingizga ulandi",
+      `${firstName ? `«${firstName}» ` : ""}Telegram hisobi ulandi — endi bildirishnomalar shu Telegramga keladi.${prevChat ? " Oldingi Telegram uzildi." : ""} Bu siz bo'lmasangiz — Kabinet → Profil'da uzing va parolni almashtiring.`,
+      "/kabinet/profil?tab=telegram#telegram",
+    ).catch(() => undefined);
   }
   // Ulandi — xush kelibsiz ekrani doimiy menyu bilan; admin bo'lsa buyruqlar menyusiga /elon qo'shiladi
   const me = await accountOf(chatId);
