@@ -279,6 +279,18 @@ bo'lmasa integratsiya jimgina o'chiq: kabinetda karta chiqmaydi, hech qayerda xa
    bot → **Bot Settings → Configure Mini App → Enable Mini App** → URL `https://<sayt>/tg` (bu «asosiy mini
    ilova» — Telegram uni Apps bo'limida ko'rsatadi). Ixtiyoriy: `/newapp` → `t.me/<bot>/app` qisqa havola.
 
+7. **Admin boti va qo'shimchalar (2026-10-31)**: admin hisobi Telegramga ulangan bo'lsa (Kabinet → Profil → «Telegramga ulash») botda
+   `/admin` (menyu), `/stat` (bugun/7/30 kun), `/navbat` (tasdiq navbati — mutaxassisni bir bosishda tasdiqlash), `/tolovlar`,
+   `/user <ism|email>` (bloklash/blokdan chiqarish), `/elon` (ommaviy e'lon) ishlaydi; har kuni ertalab kunlik hisobot keladi;
+   yangi mutaxassis va kontakt sotuvi haqida jonli ogohlantirish keladi. Admin panel → Telegram bot → «Sinov xabari» tugmasi
+   bildirishnoma yo'lini tekshiradi. **Har deploydan keyin** «Bot profilini sozlash» (buyruqlar menyusi: /post, /royxat, admin buyruqlari)
+   va «Webhookni yangilash» (allowed_updates: inline_query) bosilsin.
+8. **Inline rejim** (`@bot montajchi` — istalgan chatda ijodkor kartasini ulashish): BotFather → `/setinline` → bot → placeholder
+   («ijodkor qidirish…»). Admin panelda «Inline rejim yoqilgan» qatori ko'rinadi.
+9. **Bot orqali post**: mutaxassis botga rasm/video (20 MB gacha, izoh rasm ostida) yuboradi → «Lentaga post qilamizmi?» →
+   fayl R2/Blob'ga saqlanadi, profil posti yaratiladi. Ro'yxatdan o'tish: `/royxat` yoki Mini App'dagi «Yo'q, ro'yxatdan o'taman»
+   (savollar ketma-ket) — Telegram'dan kirganga avtomatik hisob OCHILMAYDI.
+
 ## Muhim: sxema sinxronizatsiyasi (2026-10-14 hodisasi)
 
 `drizzle-kit push --force` ISHLATMANG. drizzle-kit 0.31 SQLite/Turso'da `DEFAULT 0` yoki `DEFAULT false` bilan

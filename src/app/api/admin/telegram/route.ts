@@ -3,6 +3,10 @@ import { SITE_URL } from "@/lib/site-url";
 import { isTelegramEnabled, telegramApi, telegramBotUsername, telegramWebhookSecret } from "@/lib/telegram";
 import { audit } from "@/lib/security/audit";
 import { setupBotProfile } from "@/lib/telegram-bot/ui";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq, isNotNull, sql } from "drizzle-orm";
+import { sendTelegram } from "@/lib/telegram";
 
 /**
  * Admin: Telegram bot holati va webhook'ni bir tugmada o'rnatish.
@@ -13,6 +17,8 @@ import { setupBotProfile } from "@/lib/telegram-bot/ui";
 interface TgMe {
   username?: string;
   first_name?: string;
+  /** BotFather /setinline yoqilganmi — inline rejim (`@bot so'z`) shunga bog'liq */
+  supports_inline_queries?: boolean;
 }
 interface TgWebhookInfo {
   url?: string;
@@ -28,9 +34,17 @@ function expectedWebhookUrl(): string {
 async function status() {
   const tokenSet = isTelegramEnabled();
   const [me, info] = tokenSet ? await Promise.all([telegramApi<TgMe>("getMe"), telegramApi<TgWebhookInfo>("getWebhookInfo")]) : [null, null];
+  // Ulangan hisoblar: umumiy va adminlar (admin boti kimga yozishini ko'rsatish uchun)
+  const [linked] = await db
+    .select({ total: sql<number>`count(*)`, admins: sql<number>`sum(case when ${users.role} = 'admin' then 1 else 0 end)` })
+    .from(users)
+    .where(isNotNull(users.telegramChatId));
   return {
     tokenSet,
     tokenValid: Boolean(me?.ok),
+    inlineEnabled: me?.ok ? Boolean(me.result?.supports_inline_queries) : null,
+    linkedUsers: Number(linked?.total ?? 0),
+    adminChats: Number(linked?.admins ?? 0),
     botUsername: me?.ok ? (me.result?.username ?? null) : null,
     usernameEnv: telegramBotUsername(),
     expectedUrl: expectedWebhookUrl(),
@@ -75,4 +89,18 @@ export const PUT = handler(async (req) => {
   const res = await setupBotProfile();
   await audit(session.sub, "admin_settings", { meta: { action: "telegram_profile_set", errors: res.errors.length } }, req);
   return ok(res);
+});
+
+/** Sinov xabari: shu adminning ulangan chatiga «bot ishlayapti» — bildirishnoma yo'li tekshiriladi */
+export const PATCH = handler(async (req) => {
+  const session = await requireSession(["admin"]);
+  if (!isTelegramEnabled()) throw new ApiError(503, "TELEGRAM_BOT_TOKEN sozlanmagan");
+  const me = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true, name: true } });
+  if (!me?.telegramChatId) throw new ApiError(400, "Sizning hisobingiz Telegramga ulanmagan — Kabinet → Profil → «Telegramga ulash»");
+  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /user · /elon`, {
+    keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }]],
+  });
+  if (!sent) throw new ApiError(502, "Telegram xabarni qabul qilmadi — token yoki chat holatini tekshiring");
+  await audit(session.sub, "admin_settings", { meta: { action: "telegram_test_message" } }, req);
+  return ok({ sent: true });
 });

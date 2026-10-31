@@ -251,3 +251,16 @@ test("Kontakt: admin narx/rejim API'si oddiy foydalanuvchiga yopiq → 403", asy
   const r = await req("cl", "/api/admin/kontaktlar", { method: "PATCH", body: JSON.stringify({ specialistId: "x", contactMode: "hidden" }) });
   assert.equal(r.status, 403);
 });
+
+test("Kontakt rejimi: mijoz o'z rejimini o'zgartira olmaydi (profil yo'q) → 403/404", async () => {
+  const r = await req("cl", "/api/kontakt/rejim", { method: "PATCH", body: JSON.stringify({ contactMode: "hidden" }) });
+  assert.ok([403, 404].includes(r.status), `kutilgan 403/404, keldi ${r.status}`);
+});
+test("Mini App: initData'siz kirish → 401 (hisob yaratilmaydi)", async () => {
+  const r = await fetch(`${BASE}/api/tg/auth`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ initData: "user=%7B%7D&hash=00", to: "/" }) });
+  assert.ok([401, 503].includes(r.status), `kutilgan 401/503, keldi ${r.status}`);
+});
+test("Admin Telegram sinov xabari oddiy foydalanuvchiga yopiq → 403", async () => {
+  const r = await req("cl", "/api/admin/telegram", { method: "PATCH" });
+  assert.equal(r.status, 403);
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CircleAlert, Palette, RefreshCw, Send } from "lucide-react";
+import { CheckCircle2, CircleAlert, MessageSquare, Palette, RefreshCw, Send } from "lucide-react";
 
 interface TgStatus {
   tokenSet: boolean;
@@ -14,6 +14,9 @@ interface TgStatus {
   pendingUpdates: number | null;
   lastError: string | null;
   secretSource: "env" | "auto";
+  inlineEnabled?: boolean | null;
+  linkedUsers?: number;
+  adminChats?: number;
 }
 
 function Row({ ok, label, detail }: { ok: boolean; label: string; detail?: string | null }) {
@@ -50,6 +53,23 @@ export function TelegramAdminPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Sinov xabari — shu adminning Telegramiga (PATCH) */
+  async function testMessage() {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/admin/telegram", { method: "PATCH" });
+      const j = (await r.json()) as { ok: boolean; error?: string };
+      if (!r.ok || !j.ok) throw new Error(j.error || "Yuborilmadi");
+      setMsg("Sinov xabari Telegramingizga ketdi ✓");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Xatolik");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   /** Bot profilini bezash: nom, tavsif, buyruqlar menyusi (PUT) */
   async function setProfile() {
@@ -134,6 +154,8 @@ export function TelegramAdminPanel() {
               detail={st.webhookOk ? st.webhookUrl : `Kerakli manzil: ${st.expectedUrl}${st.webhookUrl ? ` · hozirgisi: ${st.webhookUrl}` : ""}`}
             />
             {st.lastError && <Row ok={false} label="Oxirgi webhook xatosi" detail={st.lastError} />}
+            <Row ok={(st.adminChats ?? 0) > 0} label={`Ulangan foydalanuvchilar: ${st.linkedUsers ?? 0} · admin chatlari: ${st.adminChats ?? 0}`} detail={(st.adminChats ?? 0) > 0 ? "Admin boti (/admin, /stat, /navbat, /tolovlar, /user, /elon) va kunlik hisobot shu chatlarga keladi" : "Admin Telegramini ulang (Kabinet → Profil → «Telegramga ulash») — aks holda admin boti va ogohlantirishlar kelmaydi"} />
+            {st.inlineEnabled != null && <Row ok={st.inlineEnabled} label={st.inlineEnabled ? "Inline rejim yoqilgan — istalgan chatda @bot so'z" : "Inline rejim yoqilmagan"} detail={st.inlineEnabled ? null : "BotFather → /setinline → botni tanlang → placeholder (masalan «ijodkor qidirish…»). So'ng «Webhookni yangilash»."} />}
           </ul>
           <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <button type="button" disabled={busy || !st.tokenValid} onClick={setWebhook} className="btn-ink inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
@@ -141,6 +163,9 @@ export function TelegramAdminPanel() {
             </button>
             <button type="button" disabled={busy || !st.tokenValid} onClick={setProfile} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
               <Palette size={13} /> Bot profilini sozlash
+            </button>
+            <button type="button" disabled={busy || !st.tokenValid} onClick={() => void testMessage()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg disabled:opacity-50">
+              <MessageSquare size={13} /> Sinov xabari
             </button>
             <button type="button" disabled={busy} onClick={() => void load()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
               <RefreshCw size={13} /> Holatni yangilash
