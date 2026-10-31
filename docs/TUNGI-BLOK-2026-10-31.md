@@ -51,6 +51,10 @@ sahifalari «bitta ekran» qoidasi (scroll 0) uchalasida ham o'tdi.
   story-doira qatori; kartalarda «Mashhur» (≥10 talaba) / «Yangi» (≤14 kun) belgilari.
 - Ustoz sahifasi telefonda: hero 16:10, kichik avatar, tablar gorizontal aylanadi.
 
+- Dars sahifasida tezlik + vaqt belgilari sarlavhadan KEYIN (telefonda video → dars nomi → tezlik, Udemy tartibi).
+- Qidiruv to'ri: yuklanmagan (buzilgan havola) yoki muqovasiz havola-ish bo'sh kulrang katak o'rniga sarlavhali matn plitka
+  (`MediaTile` → `SafeImage` fallback). Xavfsizlik: holat plitkalari telefonda 2 ustun, bloklanganlar eslatmasi to'g'ri o'raladi.
+
 ## Tuzatilgan kamchiliklar
 - Buyurtma sehrgari kasb qatorlari ekrandan 48px chiqib ketardi (grid `minmax(0,1fr)`), sehrgar kartasi telefonda yassi.
 - Story qatorida «Story qo'shi…» kesilgan yorliq; «+» 28px; rezyume ko'nikma o'chirish tugmasi 20→28px.
