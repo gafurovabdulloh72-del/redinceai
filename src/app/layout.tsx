@@ -28,10 +28,11 @@ import { SHELL } from "@/lib/i18n/dict/shell";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
 
-const unbounded = localFont({
-  src: "../fonts/Unbounded.woff2",
-  variable: "--font-unbounded",
-  weight: "200 900",
+// Brend shrifti (faqat logotip so'z belgisi): Space Grotesk 300–700 (lotin to'plami, subset)
+const spaceGrotesk = localFont({
+  src: "../fonts/SpaceGrotesk.woff2",
+  variable: "--font-space",
+  weight: "300 700",
   display: "swap",
 });
 const manrope = localFont({
@@ -138,7 +139,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const currentUser = await getCurrentUser();
   return (
-    <html lang={DISPLAY_LANG[display]} data-display={display} suppressHydrationWarning className={`${unbounded.variable} ${manrope.variable} ${instrument.variable}`}>
+    <html lang={DISPLAY_LANG[display]} data-display={display} suppressHydrationWarning className={`${spaceGrotesk.variable} ${manrope.variable} ${instrument.variable}`}>
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

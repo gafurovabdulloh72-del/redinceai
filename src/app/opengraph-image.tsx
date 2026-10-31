@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
+import { OgMark, OgWordmark, brandFonts } from "@/lib/og/brand";
 
 export const alt = `${SITE.name} — ${SITE.tagline}`;
 export const size = { width: 1200, height: 630 };
@@ -8,12 +9,13 @@ export const contentType = "image/png";
 
 /**
  * OG rasm: qorong'u "siyoh" fon, Kasb Egalari, tagline, coral urg'u.
- * Shriftlar: satori woff2'ni o'qimaydi — tizim sans ishlatiladi (dizayn og'irlik va bo'shliq bilan ushlab turiladi).
+ * Shriftlar: matn — tizim sans (satori woff2'ni o'qimaydi); logotip so'z belgisi — Space Grotesk Bold TTF (`lib/og/brand`).
  */
 /** Ko'rsatiladigan domen — SITE_URL'dan (keyin .uz domen olinsa o'zi yangilanadi) */
 const HOST = SITE_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const brand = await brandFonts();
   return new ImageResponse(
     (
       <div
@@ -46,29 +48,8 @@ export default function OpenGraphImage() {
 
         {/* Logo qatori */}
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 20,
-              background: "#ffffff",
-              color: "#121213",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            }}
-          >
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#121213" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 4h7a4 4 0 0 1 0 8H5z" />
-              <path d="M5 12h6l5 8" />
-              <path d="M5 4v16" />
-            </svg>
-            <div style={{ position: "absolute", right: 10, top: 10, width: 10, height: 10, borderRadius: 9999, background: "#ff5a36" }} />
-          </div>
-          <div style={{ display: "flex", fontSize: 40, fontWeight: 700, letterSpacing: -1.5 }}>
-            Kasb Egalari<span style={{ color: "#ff5a36" }}>.</span>
-          </div>
+          <OgMark size={64} />
+          <OgWordmark fontSize={40} />
         </div>
 
         {/* Sarlavha */}
@@ -102,6 +83,6 @@ export default function OpenGraphImage() {
         </div>
       </div>
     ),
-    { ...size },
+    { ...size, ...brand },
   );
 }

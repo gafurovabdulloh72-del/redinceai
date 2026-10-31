@@ -4,7 +4,7 @@
    KASB EGALARI — dizayn tizimi v5 "Jonli" (docs/DIZAYN-V5.md)
    Kontent — qahramon, qobiq sokin: iliq oq / chuqur qora, yumshoq diffuz soya + hairline, radius 12/16/24,
    bitta urg'u rangi (coral) = "sizga yangi narsa bor": asosiy tugma, o'qilmagan belgi, hikoya halqasi, faol tab. Ikki rejim.
-   - Tipografika: Manrope (UI va sarlavha, 700/800), Unbounded FAQAT logotip uchun (font-brand), Instrument Serif (ixtiyoriy)
+   - Tipografika: Manrope (UI va sarlavha, 700/800), Space Grotesk FAQAT logotip uchun (font-brand), Instrument Serif (ixtiyoriy)
    - Yuzalar: --surface / -2 / -3 qatlamlar + --line hairline; .card / .card-elevated / .card-floating / .card-outline
    - Radius: --r-sm 10 (input, plitka) / --r-md 14 (karta) / --r-lg 20 (katta blok)
    - Ikonkalar: 16 (menyu bandi, inline) / 18 (tugma ichida) / 20 (plitka, tab) / 24 (faqat yon panel va katta plitka)
@@ -247,9 +247,9 @@
 /* ---------- Tailwind tokenlar ---------- */
 @theme inline {
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* v5: sarlavhalar ham Manrope (o'qilishi yaxshi, zamonaviy); Unbounded faqat logotip: font-brand */
+  /* v5: sarlavhalar ham Manrope (o'qilishi yaxshi, zamonaviy); Space Grotesk faqat logotip: font-brand */
   --font-display: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-brand: var(--font-unbounded), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-space), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), "Times New Roman", Georgia, serif;
   /* v6: yengil tipografiya — qalinlik 700 dan oshmaydi */
   --font-weight-medium: 500;

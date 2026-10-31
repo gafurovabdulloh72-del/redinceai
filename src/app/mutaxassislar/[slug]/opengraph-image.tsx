@@ -4,6 +4,7 @@ import { GUEST_VIEWER, filterSpecialistForViewer } from "@/lib/privacy";
 import { getSpecialistBySlug } from "@/lib/queries";
 import { hashHue, initials } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site-url";
+import { OgMark, OgWordmark, brandFonts } from "@/lib/og/brand";
 
 export const alt = `${SITE.name} — mutaxassis profili`;
 export const size = { width: 1200, height: 630 };
@@ -75,6 +76,7 @@ export default async function SpecialistOgImage({ params }: { params: { slug: st
     </div>
   );
 
+  const brand = await brandFonts();
   return new ImageResponse(
     (
       <div
@@ -98,17 +100,8 @@ export default async function SpecialistOgImage({ params }: { params: { slug: st
         {/* Yuqori qator: logotip + yo'nalish */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 18, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#121213" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 4h7a4 4 0 0 1 0 8H5z" />
-                <path d="M5 12h6l5 8" />
-                <path d="M5 4v16" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>
-              {SITE.name}
-              <span style={{ color: "#ff5a36" }}>.</span>
-            </div>
+            <OgMark size={56} />
+            <OgWordmark fontSize={34} />
           </div>
           {cat && chip(cat.name, { bg: "#ffffff", color: "#121213", border: "1px solid #ffffff" })}
         </div>
@@ -158,6 +151,6 @@ export default async function SpecialistOgImage({ params }: { params: { slug: st
         </div>
       </div>
     ),
-    size,
+    { ...size, ...brand },
   );
 }
