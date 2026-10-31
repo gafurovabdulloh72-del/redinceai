@@ -119,7 +119,8 @@ export interface ManualCard {
   source: "settings" | "env" | "none";
 }
 
-export const getManualCard = cache(async (): Promise<ManualCard> => {
+/** Keshsiz o'qish — saqlashdan oldin/keyin solishtirish uchun (getManualCard so'rov ichida keshlanadi) */
+export async function readManualCard(): Promise<ManualCard> {
   const envCard = process.env.PLATFORM_CARD?.trim() || "";
   const envName = process.env.PLATFORM_CARD_NAME?.trim() || "Kasb Egalari";
   try {
@@ -131,7 +132,9 @@ export const getManualCard = cache(async (): Promise<ManualCard> => {
     console.error("[settings] platforma kartasi o'qilmadi", e);
   }
   return envCard ? { card: envCard, name: envName, source: "env" } : { card: "", name: envName, source: "none" };
-});
+}
+
+export const getManualCard = cache(readManualCard);
 
 /** Admin: qo'lda o'tkazma kartasini saqlash (bo'sh card — o'chirish, env zaxiraga qaytadi) */
 export async function saveManualCard(card: string, name: string): Promise<void> {

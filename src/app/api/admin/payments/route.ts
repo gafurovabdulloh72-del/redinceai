@@ -2,7 +2,8 @@ import { z } from "zod";
 import { handler, ok, parseBody, requireSession, ApiError } from "@/lib/api";
 import { paymentsEnv } from "@/lib/payments/config";
 import { checkCard, CARD_BRAND_LABEL, formatCard } from "@/lib/payments/card";
-import { getManualCard, saveManualCard } from "@/lib/payments/settings";
+import { getManualCard, readManualCard, saveManualCard } from "@/lib/payments/settings";
+import { notifyAdmins } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 
 /**
@@ -67,8 +68,21 @@ export const PATCH = handler(async (req) => {
     const check = checkCard(input.card);
     if (!check.ok) throw new ApiError(422, check.error ?? "Karta raqami noto'g'ri", { card: check.error ?? "Noto'g'ri" });
   }
+  const before = await readManualCard();
   await saveManualCard(digitsOnly ? formatCard(digitsOnly) : "", input.name);
-  await audit(session.sub, "admin_settings", { targetType: "platform", targetId: "manual-card", meta: { set: Boolean(digitsOnly) } }, req);
-  const manual = await getManualCard();
+  await audit(session.sub, "admin_settings", { targetType: "platform", targetId: "manual-card", meta: { set: Boolean(digitsOnly), last4: digitsOnly.slice(-4) || null } }, req);
+  // Firibgarlik yo'li (3-audit): admin paroli o'g'irlansa, karta almashtirilib barcha qo'lda to'lovlar begona kartaga
+  // burilishi mumkin — shuning uchun HAR o'zgarish barcha adminlarga (sayt + Telegram + email) darhol bildiriladi
+  const beforeDigits = before.card.replace(/\D/g, "");
+  if (beforeDigits !== digitsOnly || before.name !== input.name) {
+    const masked = (d: string) => (d ? `•••• ${d.slice(-4)}` : "o'chirilgan");
+    await notifyAdmins(
+      "account",
+      "To'lov kartasi o'zgartirildi",
+      `${session.name ?? "Administrator"}: ${masked(beforeDigits)} → ${masked(digitsOnly)}${digitsOnly ? ` (${input.name})` : ""}. Bu siz bo'lmasangiz — darhol kartani tekshiring va admin parolini almashtiring.`,
+      "/admin#tolov-sozlamalari",
+    ).catch(() => undefined);
+  }
+  const manual = await readManualCard();
   return ok({ card: manual.card, name: manual.name, source: manual.source });
 });
