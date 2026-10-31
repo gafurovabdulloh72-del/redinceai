@@ -60,7 +60,7 @@ export const KABINET_NAV = {
   menuTitle: { uz: "Menyu", ru: "Меню" },
   /** Telegram eslatmasi (TelegramNudge) */
   tg: {
-    short: { uz: "Telegram'ni ulang — xabarlar darhol keladi", ru: "Подключите Telegram — сообщения придут мгновенно" },
+    short: { uz: "Telegram'ni ulang — xabarlar darhol keladi", ru: "Подключите Telegram — уведомления сразу" },
     clientTitle: { uz: "Muhim xabarni o'tkazib yubormang.", ru: "Не пропустите важное сообщение." },
     specialistTitle: { uz: "Yangi buyurtmani o'tkazib yubormang.", ru: "Не пропустите новый заказ." },
     clientText: { uz: "Buyurtma holati va javoblar Telegramga darhol keladi.", ru: "Статус заказа и ответы сразу приходят в Telegram." },
