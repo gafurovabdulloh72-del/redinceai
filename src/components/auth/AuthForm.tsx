@@ -120,6 +120,21 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
   const [useRecovery, setUseRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
 
+  // Google / Telegram orqali kirish: 2FA yoqilgan bo'lsa server chiptani URL fragmentida beradi (#t2=…) —
+  // fragment serverga, logga va Referer'ga ketmaydi. O'qiladi va manzildan darhol olib tashlanadi.
+  useEffect(() => {
+    const pick = () => {
+      const m = /(?:^#|&)t2=([A-Za-z0-9._-]{20,2000})/.exec(window.location.hash);
+      if (!m) return;
+      setTicket(m[1]);
+      setError(null);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    };
+    pick();
+    window.addEventListener("hashchange", pick);
+    return () => window.removeEventListener("hashchange", pick);
+  }, []);
+
   // Xato chiqqanda birinchi xato maydonga fokus (A89)
   useEffect(() => {
     const first = FIELD_ORDER.find((k) => fields[k]);
@@ -253,8 +268,9 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
       const left = json.data.recoveryLeft;
       // Zaxira kodlari kam qoldi — xavfsizlik sahifasida yangilash taklif qilinadi
       const dest = left != null && left <= 3 ? "/kabinet/xavfsizlik?zaxira=kam#ikki-bosqich" : target || "/kabinet";
-      router.push(dest);
-      router.refresh();
+      // To'liq sahifa o'tishi: yangi sessiya cookie bilan server qayta chizadi. router.push mehmon holatida oldindan
+      // yuklangan (prefetch) «kirishga yo'naltirish» javobini qayta ishlatib, shu sahifada «Tekshirilmoqda…» bilan qotib qolardi
+      window.location.assign(dest);
     } catch {
       setError(tr(til, AUTH.errors.network));
       setLoading(false);

@@ -1,7 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { ApiError, handler, ok } from "@/lib/api";
-import { createSession, getVerifiedSession } from "@/lib/auth";
+import { createSession, createTwoFactorTicket, getVerifiedSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 import { createTelegramAccount, findTelegramUser } from "@/lib/auth/telegram-login";
@@ -113,6 +113,16 @@ export const POST = handler(async (req) => {
 
   const r = await findTelegramUser(chatId);
   if (!r) return ok({ status: "register", bot: telegramBotUsername(), name: tgName });
+  // Shu foydalanuvchining amaldagi sessiyasi bo'lsa — qayta kirish shart emas (har ochilishda yangi sessiya yaratilmaydi,
+  // 2FA'li foydalanuvchidan har safar kod so'ralmaydi)
+  const current = await getVerifiedSession();
+  if (current?.sub === r.userId) return ok({ status: "ok", isNew: false, next: safePath(body.to) });
+  // 2FA yoqilgan hisob: Telegram (initData) faqat birinchi bosqich — TOTP so'raladi (3-audit)
+  const tf = await db.query.users.findFirst({ where: eq(users.id, r.userId), columns: { totpEnabled: true, sessionVersion: true } });
+  if (tf?.totpEnabled) {
+    const ticket = await createTwoFactorTicket({ id: r.userId, sessionVersion: tf.sessionVersion }, true, embedded);
+    return ok({ status: "2fa", ticket, next: safePath(body.to) });
+  }
   await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true, embedded });
   await audit(r.userId, "login_success", { targetType: "user", targetId: r.userId, meta: { provider: "telegram_webapp" } }, req).catch(() => undefined);
   return ok({ status: "ok", isNew: false, next: safePath(body.to) });

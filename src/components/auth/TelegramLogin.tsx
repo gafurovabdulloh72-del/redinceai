@@ -7,7 +7,7 @@ import { showToast } from "@/components/ui/toast";
 
 type Start = { code: string; link: string; expiresAt: number };
 type Tg = { name: string; username: string | null };
-type Poll = { status: "pending" | "denied" | "expired" | "confirm" | "ok"; next?: string; telegram?: Tg };
+type Poll = { status: "pending" | "denied" | "expired" | "confirm" | "ok" | "2fa"; next?: string; telegram?: Tg; ticket?: string };
 
 /**
  * «Telegram bilan kirish» (bot orqali): tugma bosilganda 6 xonali kod olinadi va bot ochiladi,
@@ -72,6 +72,13 @@ export function TelegramLogin({ next }: { next?: string }) {
         showToast("Xush kelibsiz!", "success");
         router.replace(j.data?.next === "/kabinet" && next ? next : (j.data?.next ?? "/kabinet"));
         router.refresh();
+        return;
+      }
+      // 2FA yoqilgan hisob: Telegram — birinchi bosqich; kirish sahifasidagi kod bosqichiga o'tamiz (chipta URL fragmentida)
+      if (st === "2fa" && j.data?.ticket) {
+        stop();
+        setTg(null);
+        window.location.assign(`/auth/kirish${next ? `?next=${encodeURIComponent(next)}` : ""}#t2=${j.data.ticket}`);
         return;
       }
       // Bot tasdiqladi: so'rashni to'xtatamiz va qaysi Telegram hisobi ekanini ko'rsatamiz

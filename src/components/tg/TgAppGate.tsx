@@ -104,7 +104,7 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
     void (async () => {
       try {
         const r = await fetch("/api/tg/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: launch.initData, to: dest, embedded: inIframe(), ...(link ? { link: true } : {}) }) });
-        const j = (await r.json()) as { ok: boolean; data?: { status?: string; next?: string; name?: string }; error?: string };
+        const j = (await r.json()) as { ok: boolean; data?: { status?: string; next?: string; name?: string; ticket?: string }; error?: string };
         if (cancelled) return;
         // Ulash rejimi, lekin saytga hali kirilmagan — login sahifasiga (Google yoki email), keyin shu yerga qaytadi
         if (link && r.status === 401) {
@@ -112,6 +112,12 @@ export function TgAppGate({ to, bot, link = false, googleEnabled = false }: { to
           return;
         }
         if (!r.ok || !j.ok) throw new Error(j.error || (langOf(launch.initData) === "ru" ? "Не удалось войти" : "Kirib bo'lmadi"));
+        // 2FA yoqilgan hisob: kirish sahifasidagi kod bosqichiga (chipta URL fragmentida, iframe rejimi chiptada saqlangan)
+        if (j.data?.status === "2fa" && j.data.ticket) {
+          markTgAppCookie();
+          window.location.replace(`/auth/kirish?next=${encodeURIComponent(j.data.next || dest)}#t2=${j.data.ticket}`);
+          return;
+        }
         if (j.data?.status === "register") {
           setTgName(j.data.name ?? "");
           setPhase("ask");

@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { createSession } from "@/lib/auth";
+import { createSession, createTwoFactorTicket } from "@/lib/auth";
 import { fetchGoogleProfile, isGoogleConfigured } from "@/lib/auth/google";
 import { generateUsername } from "@/lib/chat/username";
 import { hashPassword } from "@/lib/security/password";
@@ -91,6 +91,19 @@ export async function GET(req: NextRequest) {
   }
 
   if (user.isBanned) return fail(req, "banned");
+
+  // 2FA yoqilgan hisob: Google faqat BIRINCHI bosqich — TOTP baribir so'raladi (3-audit: aks holda Google orqali
+  // 2FA chetlab o'tilardi). Chipta URL fragmentida (#t2=) — serverga, logga va Referer'ga ketmaydi; 5 daqiqa, bir martalik.
+  if (!isNew) {
+    const tf = await db.query.users.findFirst({ where: eq(users.id, user.id), columns: { totpEnabled: true, sessionVersion: true } });
+    if (tf?.totpEnabled) {
+      const ticket = await createTwoFactorTicket({ id: user.id, sessionVersion: tf.sessionVersion }, true);
+      const nextQ = saved.n ? `?next=${encodeURIComponent(saved.n)}` : "";
+      const res2 = NextResponse.redirect(new URL(`/auth/kirish${nextQ}#t2=${ticket}`, req.nextUrl.origin));
+      res2.cookies.delete(STATE_COOKIE);
+      return res2;
+    }
+  }
 
   if (!isNew) await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id)).catch(() => undefined);
   await createSession({ id: user.id, role: user.role, name: user.name }, { remember: true });
