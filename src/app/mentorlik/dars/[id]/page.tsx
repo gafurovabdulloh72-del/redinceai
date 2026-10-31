@@ -59,7 +59,6 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         {/* Chap ustun: pleyer + sarlavha + tablar */}
         <div className="min-w-0">
           <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} next={lesson.next} />
-          <LessonControls chapters={lesson.chapters} hasVideo={Boolean(lesson.videoUrl)} />
 
           <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -79,6 +78,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
               </div>
             )}
           </div>
+          {/* Tezlik + vaqt belgilari sarlavhadan KEYIN — telefonda avval dars nomi ko'rinadi (Udemy tartibi) */}
+          <LessonControls chapters={lesson.chapters} hasVideo={Boolean(lesson.videoUrl)} />
 
           {!lesson.enrolled && !lesson.isOwner && user?.role !== "admin" && (
             <p className="mt-3 rounded-[14px] border border-line bg-fg/[0.03] p-3.5 text-[13.5px] text-fg-2">
