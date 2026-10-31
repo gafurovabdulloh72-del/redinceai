@@ -377,6 +377,9 @@ export async function markRead(conv: Conversation, meId: string) {
     .update(conversations)
     .set(conv.aId === meId ? { aReadAt: now } : { bReadAt: now })
     .where(eq(conversations.id, conv.id));
+  // Eski chat bildirishnomalari (yangilari endi saytga yozilmaydi) — suhbat ochilganda o'qilgan bo'ladi
+  const { markChatNotificationsRead } = await import("@/lib/notifications");
+  await markChatNotificationsRead(meId, `/kabinet/chat?s=${conv.id}`);
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
 import { brandedMail, sendMail } from "@/lib/security/mailer";
@@ -298,9 +298,31 @@ function inBackground(task: () => Promise<void>): void {
  * buyurtma/to'lov oqimini bildirishnoma xatosi buzmasin. Muhim turlar uchun email fon rejimida
  * (javobni kutmasdan) yuboriladi.
  */
+/**
+ * Chat xabarlari (DM va buyurtma chati) SAYT bildirishnomalari ro'yxatiga YOZILMAYDI (2026-10-31, foydalanuvchi qarori):
+ * o'qilmagan xabarlar soni «Xabarlar» bandida ko'rinadi, qo'ng'iroqcha faqat boshqa hodisalar uchun.
+ * Telegram/push/email kanallari bu turlar uchun avvalgidek ishlaydi (qurilmaga keladi).
+ */
+const SITE_SKIP_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>(["chat", "message_new"]);
+
+/** Suhbat o'qilganda eski (shu o'zgarishgacha yozilgan) chat bildirishnomalarini o'qilgan deb belgilash */
+export async function markChatNotificationsRead(userId: string, hrefPrefix: string): Promise<void> {
+  try {
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt), inArray(notifications.type, ["chat", "message_new"]), like(notifications.href, `${hrefPrefix}%`)));
+  } catch (e) {
+    console.error("[notify] markChatRead", e);
+  }
+}
+
 export async function notify(userId: string, type: NotificationType, title: string, body?: string | null, href?: string | null, opts: NotifyOptions = {}): Promise<void> {
   // Kabinet sozlamalari (users.notifyPrefs): guruh o'chirilgan bo'lsa — na saytda, na emailda, na Telegramda (xavfsizlik turlari bundan mustasno)
   if (!(await isNotifyAllowed(userId, type))) return;
+  if (SITE_SKIP_TYPES.has(type)) {
+    /* chat — faqat tashqi kanallar */
+  } else
   try {
     await db.insert(notifications).values({
       id: uid(),

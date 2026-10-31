@@ -51,6 +51,13 @@ if (process.env.SEED_ON_START !== "0") {
 // Chat taxalluslari: eski foydalanuvchilarga bir martalik to'ldirish (yangi ustun — additive)
 execSync("npx tsx scripts/backfill-usernames.ts", { stdio: "inherit", env: process.env });
 
+// Chat bildirishnomalari saytga yozilmaydi (2026-10-31): eski o'qilmaganlar bir marta yopiladi (idempotent)
+try {
+  execSync("npx tsx scripts/migrate-chat-notifications.ts", { stdio: "inherit", env: process.env });
+} catch (e) {
+  console.warn("⚠ migrate-chat-notifications.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
+}
+
 // Minimal narx (200 000 so'm): past/bo'sh narxlar bozor tahlili asosida alohida belgilanadi (idempotent; xatosi deployni to'xtatmaydi)
 try {
   execSync("npx tsx scripts/reprice.ts", { stdio: "inherit", env: process.env });
