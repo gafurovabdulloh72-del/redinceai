@@ -2,6 +2,7 @@ import { Eye, Heart, Images, MessageCircle, Pin, Play, Quote } from "lucide-reac
 import type { Locale } from "@/lib/i18n";
 import { POST_OYNA } from "@/lib/i18n/dict/profile";
 import { cn, compactCount } from "@/lib/utils";
+import { SafeImage } from "@/components/specialists/SafeImage";
 
 /** Kvadrat plitka (Instagram katagi): rasm / video / faqat matn; burchakda video, "bir nechta" va qadalgan belgilari, hover'da like/izoh sonlari */
 export interface MediaTileData {
@@ -28,13 +29,10 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
     // img-zoom — hover'da rasm/video yumshoq kattalashadi (token; reduced-motion'da o'chadi)
     <div className={cn("group/tile img-zoom relative aspect-square w-full overflow-hidden bg-surface-3", rounded && "sm:rounded-[var(--r-md)]", className)}>
       {d.textOnly ? (
-        <div className="flex h-full w-full flex-col justify-between bg-ink p-3 text-left text-ink-fg sm:p-4">
-          <Quote size={16} className="shrink-0 text-accent" aria-hidden />
-          <p className="line-clamp-5 text-[13px] leading-snug sm:text-[14px]">{d.caption}</p>
-        </div>
+        <TextTile caption={d.caption} />
       ) : d.thumbUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={d.thumbUrl} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover text-transparent" />
+        /* Rasm yuklanmasa (buzilgan havola) bo'sh kulrang katak emas — sarlavhali matn plitka */
+        <SafeImage src={d.thumbUrl} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover text-transparent" fallback={<TextTile caption={d.caption} />} />
       ) : playable ? (
         <video src={d.videoUrl ? `${d.videoUrl}#t=0.5` : undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" aria-hidden />
       ) : (
@@ -68,6 +66,15 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function TextTile({ caption }: { caption: string }) {
+  return (
+    <div className="flex h-full w-full flex-col justify-between bg-ink p-3 text-left text-ink-fg sm:p-4">
+      <Quote size={16} className="shrink-0 text-accent" aria-hidden />
+      <p className="line-clamp-5 text-[13px] leading-snug sm:text-[14px]">{caption}</p>
     </div>
   );
 }

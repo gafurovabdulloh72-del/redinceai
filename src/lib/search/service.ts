@@ -231,7 +231,8 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
     thumbUrl: w.type === "image" ? w.url : w.thumbnailUrl,
     videoUrl: w.type === "video" ? w.url : null,
     isVideo: w.type === "video",
-    textOnly: false,
+    // Muqovasiz havola-ish (YouTube/Instagram) bo'sh kulrang plitka bo'lib qolmasin — sarlavha bilan matnli plitka
+    textOnly: w.type !== "video" && w.type !== "image" && !w.thumbnailUrl,
     count: 1,
     caption: [w.title, w.description].filter(Boolean).join(" — ").slice(0, 160),
     author: { name: w.name, avatarUrl: w.avatarUrl, slug: w.slug },
