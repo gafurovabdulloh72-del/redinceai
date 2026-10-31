@@ -426,7 +426,7 @@ export function OrdersList({
   return (
     <div className="space-y-4">
       {/* Tablar + filtrlar */}
-      <div className="card p-3 sm:p-4">
+      <div className="card p-3 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 sm:p-4">
         {tabs.length > 1 && (
           <div className="no-scrollbar -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
             <div className="segment">
@@ -833,7 +833,7 @@ function OrderCard({
     <article
       id={`order-${o.id}`}
       ref={refCb}
-      className={cn("card flex min-w-0 scroll-mt-32 flex-col p-4 transition sm:p-5", closed && "opacity-90", highlighted && "ring-2 ring-accent ring-offset-2 ring-offset-bg")}
+      className={cn("card m-flat flex min-w-0 scroll-mt-32 flex-col p-4 transition sm:p-5", closed && "opacity-90", highlighted && "ring-2 ring-accent ring-offset-2 ring-offset-bg")}
       aria-busy={busy}
     >
       {/* Yuqori qator: holat + vaqt */}
