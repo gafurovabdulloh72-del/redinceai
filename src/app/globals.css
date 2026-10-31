@@ -2054,6 +2054,7 @@ html:has([data-reels-screen]) .shell-capsule {
 }
 
 /* Telegram Mini App ichida (layout.tsx `html[data-tg-app]`, /tg darvozasi): sayt footeri yo'q — ilova hissi */
-html[data-tg-app] footer {
+html[data-tg-app] footer,
+html[data-tg-app] [data-install-prompt] {
   display: none;
 }

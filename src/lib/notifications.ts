@@ -7,6 +7,7 @@ import { brandedMail, sendMail } from "@/lib/security/mailer";
 import { tryConsume } from "@/lib/security/rate-limit";
 import { siteUrl } from "@/lib/security/site";
 import { escapeTelegramHtml, isTelegramEnabled, sendTelegram } from "@/lib/telegram";
+import { appUrl } from "@/lib/telegram-bot/app-url";
 import { uid } from "@/lib/utils";
 
 /**
@@ -230,7 +231,19 @@ async function telegramNotification(userId: string, type: NotificationType, titl
   }
   // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan (TG_BUTTON_LABEL; order_* — umumiy)
   const buttonText = href?.startsWith("https://") ? (type === "live_event" ? "Efirga qo'shilish" : "Havolani ochish") : (TG_BUTTON_LABEL[type] ?? (type.startsWith("order_") ? "Buyurtmani ochish" : "Saytda ochish"));
-  await sendTelegram(u.telegramChatId, text, link ? { button: { text: buttonText, url: link } } : {});
+  await sendTelegram(u.telegramChatId, text, link ? { keyboard: [[telegramOpenButton(buttonText, href ?? null, link)]] } : {});
+}
+
+/**
+ * Bildirishnoma tugmasi: ichki havola bo'lsa Mini App (Telegram ichida, avtomatik kirish — `lib/telegram-bot/ui.ts appUrl`),
+ * tashqi https yoki Mini App mavjud bo'lmasa (dev, http) — oddiy URL.
+ */
+export function telegramOpenButton(text: string, href: string | null, link: string): { text: string; url?: string; webApp?: string } {
+  if (href && href.startsWith("/") && !href.startsWith("//")) {
+    const app = appUrl(href);
+    if (app) return { text, webApp: app };
+  }
+  return { text, url: link };
 }
 
 /**

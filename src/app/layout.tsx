@@ -19,6 +19,7 @@ import { AppearanceSync } from "@/components/layout/Appearance";
 import { THEME_INIT_SCRIPT, ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { CallCenter } from "@/components/call/CallCenter";
+import { TgAppBridge } from "@/components/tg/TgAppBridge";
 import { getCurrentUser } from "@/lib/auth";
 import { getDisplayLocale, getLocale } from "@/lib/i18n/server";
 import { DISPLAY_LANG, tr } from "@/lib/i18n";
@@ -188,6 +189,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <ServiceWorkerRegister />
               {/* Global qo'ng'iroq markazi (Telegram uslubi): kiruvchi/chiquvchi ekran + jiringlash — faqat kirgan foydalanuvchiga */}
               <CallCenter enabled={!!currentUser} />
+              {/* Telegram Mini App ichida: orqaga tugmasi, tema ranglari, surib yopishni o'chirish */}
+              {tgApp && <TgAppBridge />}
             </ConfirmProvider>
           </ToastProvider>
          </DisplayLocaleProvider>

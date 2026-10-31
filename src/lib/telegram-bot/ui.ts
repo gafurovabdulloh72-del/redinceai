@@ -2,6 +2,9 @@ import "server-only";
 import { NOTIFY_GROUP_KEYS, NOTIFY_GROUP_META, type NotifyGroupKey } from "@/lib/notifications";
 import { escapeTelegramHtml, sendTelegram, sendTelegramPhoto, telegramApi, telegramBotUsername, type ReplyButton, type TelegramButton } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
+import { appUrl } from "@/lib/telegram-bot/app-url";
+
+export { appUrl };
 
 /**
  * Bot DIZAYNI (2026-10-31): profil matnlari, buyruqlar ro'yxati, doimiy menyu, xush kelibsiz ekrani.
@@ -60,12 +63,6 @@ export const MENU_COMMAND: Record<string, string> = {
 
 const site = () => siteUrl() ?? "";
 const BANNER = () => `${site()}/bot/welcome.png`;
-/** Mini App manzili — Telegram faqat https qabul qiladi (dev'da null → tugma chiqmaydi) */
-export function appUrl(to?: string): string | null {
-  const s = site();
-  if (!s.startsWith("https://")) return null;
-  return `${s}/tg${to ? `?to=${encodeURIComponent(to)}` : ""}`;
-}
 
 /** Doimiy menyu: yuqorida Mini App tugmasi (https bo'lsa), keyin bo'limlar */
 export function menuRows(): ReplyButton[][] {

@@ -76,13 +76,14 @@ export async function handleLoginCallback(chatId: string, data: string, answer: 
 /* ------------------------------------------------------------------ */
 
 /** Buyurtma tugmalari: xabar ostida «Qabul qilish» va «Rad etish» */
-export function orderButtons(orderId: string, href: string): { text: string; url?: string; data?: string }[][] {
+export function orderButtons(orderId: string, href: string): { text: string; url?: string; data?: string; webApp?: string }[][] {
+  const app = appUrl(`/buyurtma/${orderId}`);
   return [
     [
       { text: "✅ Qabul qilish", data: `ord:ok:${orderId}` },
       { text: "✖️ Rad etish", data: `ord:no:${orderId}` },
     ],
-    [{ text: "Buyurtmani ochish", url: href }],
+    [app ? { text: "Buyurtmani ochish", webApp: app } : { text: "Buyurtmani ochish", url: href }],
   ];
 }
 
