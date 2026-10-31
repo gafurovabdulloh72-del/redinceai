@@ -92,7 +92,9 @@ export const POST = handler(async (req) => {
   const id = uid();
   await db.insert(reports).values({ id, reporterId: session.sub, targetType: input.targetType, targetId: input.targetId, reason });
   await audit(session.sub, "report_created", { targetType: input.targetType, targetId: input.targetId, meta: { reason: input.reason } }, req);
-  // Admin shikoyatlar navbatiga olib boradi (nishon havolasi navbatning o'zida bor)
-  await notifyAdmins("report", `Yangi shikoyat: ${label}`, reason.slice(0, 200), "/admin#shikoyatlar");
+  // Saytda — navbat havolasi; Telegramda — tugmalar bilan alohida xabar (admin boti), shuning uchun bu yerda tashqi kanal o'chiq
+  await notifyAdmins("report", `Yangi shikoyat: ${label}`, reason.slice(0, 200), "/admin#shikoyatlar", { skipMail: true });
+  const { notifyAdminsNewReport } = await import("@/lib/telegram-bot/admin");
+  await notifyAdminsNewReport(id).catch(() => undefined);
   return ok({ id }, { status: 201 });
 });

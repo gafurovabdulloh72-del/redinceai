@@ -739,6 +739,37 @@ export async function notifyAdminsNewSpecialist(specialistId: string): Promise<v
   }
 }
 
+/** Yangi shikoyat — adminga Telegramda TUGMALAR bilan (yopish / o'chirish / bloklash); saytdagi bildirishnomani route'ning o'zi yozadi */
+export async function notifyAdminsNewReport(reportId: string): Promise<void> {
+  try {
+    const r = (await listAdminReports("open", 30)).find((x) => x.id === reportId);
+    if (!r) return;
+    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)), columns: { telegramChatId: true } });
+    const text = `🚩 <b>Yangi shikoyat</b>\n${reportText(r)}`;
+    await Promise.all(admins.map((a) => (a.telegramChatId ? sendTelegram(a.telegramChatId, text, { keyboard: reportKeyboard(r) }) : Promise.resolve(false))));
+  } catch (e) {
+    console.error("[admin-bot:newReport]", e);
+  }
+}
+
+/** Yangi mentor arizasi — saytda bildirishnoma + Telegramda «Tasdiqlash / Rad etish» tugmalari */
+export async function notifyAdminsMentorApplied(mentorId: string): Promise<void> {
+  try {
+    const m = await db.query.mentors.findFirst({ where: eq(mentors.id, mentorId), columns: { id: true, headline: true, bio: true, isApproved: true }, with: { user: { columns: { name: true, email: true } } } });
+    if (!m || m.isApproved) return;
+    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false)), columns: { id: true, telegramChatId: true } });
+    const text = [`🎓 <b>Yangi mentor arizasi:</b> ${escapeTelegramHtml(m.user.name)} — ${escapeTelegramHtml(m.headline)}`, m.bio ? `<i>${escapeTelegramHtml(m.bio.slice(0, 220))}${m.bio.length > 220 ? "…" : ""}</i>` : "", escapeTelegramHtml(m.user.email)].filter(Boolean).join("\n");
+    await Promise.all(
+      admins.map(async (a) => {
+        await notify(a.id, "account", `Mentor arizasi: ${m.user.name}`, `${m.headline} — tasdiqlash navbatida.`, "/admin/mentorlik", { skipMail: true }).catch(() => undefined);
+        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: "✅ Tasdiqlash", data: `adm:ma:ok:${m.id}` }, { text: "❌ Rad etish", data: `adm:ma:no:${m.id}` }], [panelButton("/admin/mentorlik", "👁 Admin panelda")]] });
+      }),
+    );
+  } catch (e) {
+    console.error("[admin-bot:mentorApplied]", e);
+  }
+}
+
 /** Kontakt sotildi — adminga daromad xabari (faqat Telegram, saytdagi ro'yxatni to'ldirmaydi) */
 export async function notifyAdminsContactSold(buyerName: string, specialistName: string, amount: number): Promise<void> {
   try {

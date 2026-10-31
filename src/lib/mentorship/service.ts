@@ -58,6 +58,9 @@ export async function applyAsMentor(userId: string, input: MentorApplyInput) {
   }
   const id = uid();
   await db.insert(mentors).values({ id, userId, headline: input.headline, bio: input.bio, expertise: input.expertise, appliedAt: new Date() });
+  // Adminga: saytda bildirishnoma + Telegramda tasdiqlash/rad etish tugmalari (dinamik import — aylanma bog'liqlik)
+  const { notifyAdminsMentorApplied } = await import("@/lib/telegram-bot/admin");
+  await notifyAdminsMentorApplied(id).catch(() => undefined);
   return { id, pending: true };
 }
 

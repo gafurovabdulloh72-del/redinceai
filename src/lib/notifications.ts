@@ -358,7 +358,7 @@ export async function notify(userId: string, type: NotificationType, title: stri
  * `dedupeMs` berilsa, shu muddat ichida bir xil (tur + sarlavha + matn) xabar bo'lsa qayta yozilmaydi —
  * provayder takroriy chaqiruvlari (masalan Payme CancelTransaction) adminni xabar bilan to'ldirmasin.
  */
-export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null, opts: { dedupeMs?: number } = {}): Promise<void> {
+export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null, opts: { dedupeMs?: number; skipMail?: boolean } = {}): Promise<void> {
   try {
     if (opts.dedupeMs) {
       const dup = await db.query.notifications.findFirst({
@@ -368,7 +368,7 @@ export async function notifyAdmins(type: NotificationType, title: string, body?:
       if (dup) return;
     }
     const admins = await db.query.users.findMany({ where: eq(users.role, "admin"), columns: { id: true } });
-    await Promise.all(admins.map((a) => notify(a.id, type, title, body, href)));
+    await Promise.all(admins.map((a) => notify(a.id, type, title, body, href, opts.skipMail ? { skipMail: true } : {})));
   } catch (e) {
     console.error("[notifyAdmins]", type, e);
   }
