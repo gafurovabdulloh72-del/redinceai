@@ -65,7 +65,7 @@ interface TelegramUpdate {
     photo?: { file_id?: string; file_size?: number; width?: number; height?: number }[];
     video?: { file_id?: string; mime_type?: string; file_size?: number; width?: number; height?: number; duration?: number };
     document?: { file_id?: string; mime_type?: string; file_size?: number };
-    successful_payment?: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown };
+    successful_payment?: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown; total_amount?: unknown; currency?: unknown };
     /** «Raqamni ulashish» (request_contact) — ro'yxatdan o'tishda telefon */
     contact?: { phone_number?: unknown; user_id?: unknown };
   };

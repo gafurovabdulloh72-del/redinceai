@@ -232,10 +232,27 @@ export async function handlePreCheckout(q: { id: string; from?: { id?: unknown }
 }
 
 /** successful_payment: pul Telegram provayderida o'tdi → hisob to'landi (idempotent) */
-export async function handleSuccessfulPayment(chatId: string, p: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown }): Promise<void> {
+export async function handleSuccessfulPayment(
+  chatId: string,
+  p: { invoice_payload?: unknown; telegram_payment_charge_id?: unknown; provider_payment_charge_id?: unknown; total_amount?: unknown; currency?: unknown },
+): Promise<void> {
   const id = typeof p.invoice_payload === "string" ? p.invoice_payload : "";
   const inv = id ? await loadInvoice(id) : null;
   if (!inv || !isPurchase(inv)) return;
+  // Himoya qatlami (3-audit): pre_checkout tekshirgan bo'lsa ham summa/valyuta yana solishtiriladi — mos kelmasa
+  // kirish OCHILMAYDI, admin qo'lda ko'rib chiqadi (pul yechilgan bo'lishi mumkin — qaytarish yoki tasdiqlash)
+  if (p.currency !== "UZS" || p.total_amount !== inv.amount * 100) {
+    console.error("[tg-pay] summa mos emas", { invoice: inv.id, total: p.total_amount, currency: p.currency, expected: inv.amount * 100 });
+    const { notifyAdmins } = await import("@/lib/notifications");
+    await notifyAdmins(
+      "payment_pending",
+      "Telegram to'lovi: summa hisobga mos emas",
+      `${inv.id}: kutilgan ${formatSom(inv.amount)}, kelgan ${String(p.total_amount)} ${String(p.currency)} (tiyin). Kirish ochilmadi — tekshiring.`,
+      "/admin/mentorlik",
+    ).catch(() => undefined);
+    await sendTelegram(chatId, "⚠️ To'lov summasi hisobga mos kelmadi — administrator tekshiradi. / Сумма оплаты не совпала со счётом — администратор проверит.");
+    return;
+  }
   await markInvoicePaid(inv.id, { providerTxnId: `tg-${String(p.telegram_payment_charge_id ?? p.provider_payment_charge_id ?? inv.id)}`, note: "Telegram to'lovi" });
   await sendTelegram(chatId, "✅ To'lov qabul qilindi — rahmat! / Оплата получена — спасибо!");
 }
