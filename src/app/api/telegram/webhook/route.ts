@@ -75,7 +75,7 @@ interface TelegramUpdate {
     id?: unknown;
     data?: unknown;
     from?: { id?: unknown; first_name?: string; last_name?: string; username?: string; language_code?: string };
-    message?: { message_id?: unknown; text?: unknown; chat?: { id?: unknown } };
+    message?: { message_id?: unknown; text?: unknown; chat?: { id?: unknown; type?: string } };
   };
 }
 
@@ -138,7 +138,11 @@ async function actOnInvoice(admin: { id: string; name: string }, confirm: boolea
 async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>): Promise<void> {
   const cbId = cb.id != null ? String(cb.id) : "";
   const data = typeof cb.data === "string" ? cb.data : "";
-  const chatId = cb.message?.chat?.id != null ? String(cb.message.chat.id) : "";
+  // Faqat shaxsiy chat va tugmani bosgan odam = chat egasi (shaxsiy chatda chat.id === from.id). Guruhga tushib qolgan
+  // tugmali xabarni (masalan, admin xabari) boshqa a'zo bosa olmasin — himoya qatlami (3-audit, 2026-10-31)
+  const rawChat = cb.message?.chat;
+  const ownChat = rawChat?.id != null && rawChat.type === "private" && cb.from?.id != null && String(cb.from.id) === String(rawChat.id);
+  const chatId = ownChat ? String(rawChat.id) : "";
   const msgId = typeof cb.message?.message_id === "number" ? cb.message.message_id : null;
   const answer = (text: string) => telegramApi("answerCallbackQuery", { callback_query_id: cbId, text: text.slice(0, 190) });
 

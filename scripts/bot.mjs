@@ -187,6 +187,16 @@ test("oddiy foydalanuvchiga admin buyruqlari yopiq", async () => {
   assert.match(texts(evs.filter((e) => e.method === "answerCallbackQuery")), /administrator/i);
 });
 
+test("tugma faqat o'z shaxsiy chatida ishlaydi: guruh xabari yoki begona bosuvchi e'tiborsiz", async () => {
+  // Guruhdagi xabar tugmasi (chat.type=group) — hech qanday javob/harakat yo'q
+  const grp = -Number(`100${RUN}`);
+  const g = await hook({ callback_query: { id: String(upd), from: from(CHAT_UZ), data: "rg:start", message: { message_id: 4243, chat: { id: grp, type: "group" }, text: "..." } } });
+  assert.equal(sentTo(g, grp).length + sentTo(g, CHAT_UZ).length, 0, `guruh tugmasi ishladi: ${texts(g)}`);
+  // Shaxsiy chat, lekin bosgan odam boshqa (from.id ≠ chat.id) — e'tiborsiz
+  const other = await hook({ callback_query: { id: String(upd), from: from(CHAT_UZ + 1), data: "rg:start", message: { message_id: 4244, chat: { id: CHAT_UZ, type: "private" }, text: "..." } } });
+  assert.equal(sentTo(other, CHAT_UZ).length, 0, `begona bosuvchi tugmasi ishladi: ${texts(other)}`);
+});
+
 test("bot orqali post: rasm → tanlov tugmalari → bekor", async () => {
   const evs = sentTo(await hook({ message: { message_id: upd, from: from(CHAT_UZ), chat: { id: CHAT_UZ, type: "private" }, date: 1, caption: "Sinov izohi", photo: [{ file_id: "ph_s", file_size: 500, width: 90, height: 90 }, { file_id: "ph_big", file_size: 90000, width: 1280, height: 960 }] } }), CHAT_UZ);
   const b = buttons(evs);
