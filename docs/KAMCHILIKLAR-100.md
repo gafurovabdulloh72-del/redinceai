@@ -32,9 +32,9 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 23. Kurs sertifikatida QR tekshiruv havolasi bor-u, sertifikat dizayni bitta — mentor logosi qo'shilmaydi.
 24. Kursni ulushlab to'lash (bo'lib to'lash) yo'q.
 25. Dars izohlari (savol-javob) mentor javob berganda talabaga push boradi, lekin dars sahifasida «yangi javob» belgisi yo'q.
-26. Kurs qoralama/chop etish oqimida oldindan ko'rish («talaba ko'zi bilan») tugmasi yo'q.
+26. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): CourseEditor'da ommaviy kurs sahifasiga «ko'rish» havolasi (yangi oynada) mavjud.
 27. Mentor daromad grafigi yo'q — faqat ro'yxat (oylik diagramma kerak).
-28. 1:1 konsultatsiya slotlari vaqt zonasi haqida ogohlantirmaydi (hammasi Toshkent deb olinadi).
+28. ✅ YOPILDI (2026-11-01): slot formasi ostida «Toshkent vaqti (UTC+5)» izohi; talaba kirish matnida ham «Toshkent vaqti».
 29. Kurs tugatganlarga «keyingi kurs» tavsiyasi avtomatik chiqmaydi (yo'l xaritasi bor, bitirganda taklif yo'q).
 30. ✅ YOPILDI (2026-11-01): kurs namunasi ostida «Ulashish» tugmasi — /mentorlik/dars/<id> havolasi nusxalanadi (namuna hammaga ochiq).
 
@@ -64,12 +64,12 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 6. To'lovlar va pul — 51–60
 51. ✱ Payme/Click prod kalitlari hali ulanmagan — real to'lov faqat qo'lda o'tkazma orqali.
-52. To'lov chekini PDF yuklab olish yo'q (sahifa bor, print xolos).
+52. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): PrintButton «Chop etish / PDF» — fayl nomi bilan PDF saqlashga ochadi.
 53. Promokod faqat mentorlik uchun — obuna va kontakt ochishga ishlamaydi.
 54. ✅ YOPILDI (2026-11-01): kabinet bosh sahifasida «To'lov kutilmoqda» banneri (oxirgi 7 kundagi ochiq hisob, turiga qarab to'lov sahifasiga olib boradi).
 55. Qaytarish (refund) so'rovini foydalanuvchi o'zi ocholmaydi — faqat admin orqali.
 56. ✅ YOPILDI (2026-11-01): daromad qatorlarida «... da ochiladi» sanasi (mentor_earnings.availableAt).
-57. Valyuta faqat so'm/$ — kurs sahifasida $ ko'rsatish rejimi yo'q.
+57. ✅ YOPILDI (2026-11-01): kurs narxi ostida taxminiy $ ekvivalenti (settings.usdRate).
 58. ✅ YOPILDI (2026-11-01): /narxlar'da «Boshqa komissiya va narxlar» jadvali (mentorlik 15% + 7 kun hold, kontakt narx oralig'i, bepul bo'limlar) — eskrou jadvali avvaldan bor edi.
 59. ✅ YOPILDI (2026-11-01): kontakt to'lov Sheet'ida «Nega kontakt pullik?» havolasi (/narxlar).
 60. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /kabinet/hisobot'da har oy uchun CSV tugmasi (/kabinet/hisobot/csv) mavjud.
@@ -96,7 +96,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 77. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): lib/chat/time.ts MONTHS.ru bilan lokallashtiradi — skrinshotda UZ rejim ko'ringan.
 78. Telegram bot RU qamrovi yaxshi, lekin /konkurs va /savollar bot javoblari faqat uz.
 79. Oferta/maxfiylik sahifalari faqat o'zbekcha.
-80. Ba'zi tugmalarda matn uslubi aralash («Bekor» vs «Bekor qilish») — matn qo'llanmasi (glossary) yo'q.
+80. ✅ YOPILDI (2026-11-01): docs/MATN-QOLLANMA.md — tugma/atama/uslub jadvali; yangi matnlar shu bo'yicha yoziladi.
 
 ## 9. Tezlik va texnik qarz — 81–90
 81. ✱ Rasm optimizatsiyasi o'chirilgan oqimlar bor (xom <img> ko'p joyda) — next/image yoki CDN resize kerak.

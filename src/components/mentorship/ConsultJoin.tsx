@@ -26,7 +26,7 @@ export function ConsultJoin({ id, startsAt, durationMin, title }: { id: string; 
         </button>
       ) : (
         <p className="rounded-[12px] bg-surface-2 px-4 py-3 text-[14px] text-fg-2">
-          {state === "over" ? "Konsultatsiya vaqti tugagan." : state === "early" ? `Tugma ${formatDateTime(opensAt)} dan ochiladi (boshlanishiga 10 daqiqa qolganda).` : "…"}
+          {state === "over" ? "Konsultatsiya vaqti tugagan." : state === "early" ? `Tugma ${formatDateTime(opensAt)} dan ochiladi (boshlanishiga 10 daqiqa qolganda, Toshkent vaqti).` : "…"}
         </p>
       )}
       {open && (

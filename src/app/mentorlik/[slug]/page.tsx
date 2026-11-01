@@ -14,6 +14,8 @@ import { ShareButton } from "@/components/specialists/ShareButton";
 import { StickyCta } from "@/components/ui/StickyCta";
 import { getCurrentUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site-url";
+import { getSettings } from "@/lib/payments/settings";
+import { formatUsd } from "@/lib/utils";
 import { recordCourseView } from "@/lib/mentorship/growth";
 import { getCourseBySlug, similarCourses } from "@/lib/mentorship/service";
 import { categoryLabel, formatSom, levelLabel, formatDuration, languageLabel } from "@/lib/mentorship/format";
@@ -57,6 +59,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         },
       ]
     : [];
+  // Kamchilik #57: narx yonida taxminiy $ ekvivalenti
+  const usdRate = (await getSettings().catch(() => null))?.usdRate ?? 0;
   const ld = {
     "@context": "https://schema.org",
     "@graph": [
@@ -333,6 +337,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         <aside id="kursga-yozilish" className="min-w-0 max-sm:order-first lg:sticky lg:top-24 lg:self-start">
           <div className="card-elevated p-5 m-flat max-sm:px-0 max-sm:pb-4 max-sm:pt-0">
             <p className="text-[26px] font-bold leading-none text-fg">{formatSom(c.priceFrom)}</p>
+            {c.priceFrom > 0 && usdRate > 0 && <p className="mt-1 text-[12.5px] text-fg-3">{formatUsd(c.priceFrom, usdRate)}</p>}
             {c.enrolled && c.progressPct > 0 && (
               <div className="mt-3">
                 <div className="mb-1 flex justify-between text-[12px] font-semibold text-fg-3">

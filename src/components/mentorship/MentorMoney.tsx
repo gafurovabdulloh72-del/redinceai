@@ -140,7 +140,7 @@ export function MentorMoney({ d }: { d: MoneyData }) {
 
       <Box title="1:1 konsultatsiya vaqtlari" hint="Talaba vaqtni tanlab to'laydi, belgilangan soatda video qo'ng'iroq ochiladi.">
         <div className="grid gap-2 sm:grid-cols-[1fr_110px_1fr_auto]">
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="field h-10 text-[14px]" aria-label="Boshlanish vaqti" />
+          <span className="grid gap-1"><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="field h-10 text-[14px]" aria-label="Boshlanish vaqti" /><span className="text-[11.5px] text-fg-4">Toshkent vaqti (UTC+5) — talabaga ham shu vaqt ko'rsatiladi</span></span>
           <select value={dur} onChange={(e) => setDur(e.target.value)} className="field h-10 text-[14px]" aria-label="Davomiylik">
             {[15, 30, 45, 60, 90].map((m) => (
               <option key={m} value={m}>{m} daq</option>
