@@ -83,6 +83,16 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       </div>
       <p className="mt-2 hidden text-[11.5px] text-fg-4 sm:block">{tr(til, QIDIRUV.keyHint)}</p>
 
+      {/* Fuzzy: yozuv xatosi tuzatilgan bo'lsa — qaysi so'rov bo'yicha ko'rsatilayotganini aytamiz */}
+      {r.corrected && (
+        <p className="mt-4 text-[13.5px] text-fg-2">
+          {til === "ru" ? "Показаны результаты по запросу" : "Natijalar quyidagi so'rov bo'yicha ko'rsatildi:"}{" "}
+          <Link href={href(r.corrected, type)} className="font-bold text-accent hover:underline">
+            {r.corrected}
+          </Link>
+        </p>
+      )}
+
       {/* Ijodkorlar */}
       {r.people.length > 0 && (
         <section className="mt-8" aria-labelledby="people-h">

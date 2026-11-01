@@ -12,6 +12,7 @@ import { HELP_ARTICLES } from "@/app/yordam/articles";
 import { professionLabel, salaryLabel } from "@/lib/vacancies/format";
 import { MENTOR_CATEGORIES } from "@/lib/mentorship/format";
 import { formatPrice } from "@/lib/utils";
+import { correctQuery } from "@/lib/search/fuzzy";
 
 /**
  * Global qidiruv (⌘K): mutaxassislar, vakansiyalar, jamoalar, ishlar, yordam maqolalari, sahifalar.
@@ -148,6 +149,8 @@ export interface ExploreResult {
   people: PersonHit[];
   media: MediaHit[];
   sections: SearchSection[];
+  /** Yozuv xatosi tuzatilgan bo'lsa — natijalar shu so'rov bo'yicha («Shuni qidirdingizmi?») */
+  corrected?: string | null;
 }
 
 /** Post media JSON'ida video bormi (type "video/…" yoki .mp4/.webm/.mov) */
@@ -163,7 +166,7 @@ const POST_VIDEO = or(
  * Faqat ko'rinadigan ijodkorlar (bloklanmagan, yashirilmagan, obunasi faol) va ochiq jamoalar/profil postlari.
  * So'rov bo'sh bo'lsa — eng yangi media (Explore lentasi).
  */
-export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Promise<ExploreResult> {
+export async function exploreSearch(qRaw: string, type: ExploreType = "all", { noFuzzy = false }: { noFuzzy?: boolean } = {}): Promise<ExploreResult> {
   const q = qRaw.trim();
   const needle = q ? `%${norm(q).replace(/[%_]/g, "")}%` : null;
   const settings = await getSettings();
@@ -264,5 +267,14 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all"): Pr
   media.sort((a, b) => b.createdAt - a.createdAt);
   const wantedSections = type === "groups" ? ["groups"] : type === "vacancies" ? ["vacancies", "jobs"] : type === "all" ? ["groups", "vacancies", "jobs", "help"] : [];
   const sections = needle && wantedSections.length ? (await globalSearch(q)).filter((s) => wantedSections.includes(s.key)) : [];
-  return { q, type, people, media: media.slice(0, 48), sections };
+  const result: ExploreResult = { q, type, people, media: media.slice(0, 48), sections };
+  // Fuzzy (kamchilik #41): natija bo'sh bo'lsa yozuv xatosini lug'at bo'yicha tuzatib qayta qidiramiz
+  if (!noFuzzy && q && !people.length && !result.media.length && !sections.some((s) => s.items.length)) {
+    const fixed = correctQuery(q);
+    if (fixed && norm(fixed) !== norm(q)) {
+      const retry = await exploreSearch(fixed, type, { noFuzzy: true });
+      if (retry.people.length || retry.media.length || retry.sections.some((s) => s.items.length)) return { ...retry, q, corrected: fixed };
+    }
+  }
+  return result;
 }

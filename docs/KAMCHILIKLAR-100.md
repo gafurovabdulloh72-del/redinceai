@@ -51,9 +51,9 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 40. Profil QR-kartochka (vizitka) generatori yo'q — oflayn tadbirlar uchun foydali.
 
 ## 5. Qidiruv va SEO — 41–50
-41. ✱ Qidiruvda xato yozilgan so'zlar tuzatilmaydi («montaj» ↔ «mantaj») — fuzzy yo'q.
+41. ✱ ✅ YOPILDI (2026-11-01): `lib/search/fuzzy.ts` — platforma lug'ati (kasblar/hududlar) bo'yicha Levenshtein tuzatish; natija bo'sh bo'lsa exploreSearch avtomatik tuzatib qayta qidiradi va «Natijalar ... bo'yicha ko'rsatildi» deb aytadi.
 42. ⌘K global qidiruv telefonda yo'q (faqat /qidiruv sahifasi).
-43. Qidiruv tarixi/so'nggi so'rovlar saqlanmaydi.
+43. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /qidiruv sahifasida `RecentSearches` komponenti mavjud.
 44. ✅ YOPILDI (2026-11-01): savol sahifasida `QAPage` JSON-LD (acceptedAnswer + suggestedAnswer, `\u003c` ekranlash).
 45. Konkurs sahifalarida OG rasm generatsiyasi yo'q (ulashganda oddiy logo chiqadi).
 46. ✅ YOPILDI (2026-11-01): sitemap'ga /savollar(+har savol) va /konkurs(+har konkurs) qo'shildi (`getSitemapQuestions`/`getSitemapChallenges`).
