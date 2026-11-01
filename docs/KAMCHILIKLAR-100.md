@@ -45,8 +45,8 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 34. Katalogda «onlayn» filtri bor-u, «bugun javob bergan» kabi ishonch signali yo'q.
 35. Sharhlarga ijodkor javobi bor, lekin sharhni foydali deb belgilash yo'q.
 36. Profil highlights (saralangan storylar) muqovasini o'zgartirib bo'lmaydi — birinchi kadr olinadi.
-37. Ish (portfolio) sahifasida «buyurtma berish» yo'li kontakt sotuvi rejimida tushunarsiz — CTA «kontaktni ochish»ga olib bormaydi.
-38. Taqqoslash (/taqqoslash) PROFILE_HIRING=false rejimida ham narxsiz ustunlar bilan chiqadi — chalkash.
+37. ✅ YOPILDI (2026-11-01): ish oynasida «Ish yoqdimi? Kontaktni ochish» CTA — modalni yopib profil'dagi #kontakt kartasiga olib boradi.
+38. ✅ YOPILDI (2026-11-01): PROFILE_HIRING=false'da Narx/Paketlar qatorlari va kurs izohi yashiriladi.
 39. Username o'zgartirilganda eski @username havolalari 404 (redirect tarixi saqlanmaydi).
 40. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): ShareButton'da QR ko'rinishi + SVG yuklab olish (/u/[code]/qr) mavjud.
 
@@ -57,7 +57,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 44. ✅ YOPILDI (2026-11-01): savol sahifasida `QAPage` JSON-LD (acceptedAnswer + suggestedAnswer, `\u003c` ekranlash).
 45. Konkurs sahifalarida OG rasm generatsiyasi yo'q (ulashganda oddiy logo chiqadi).
 46. ✅ YOPILDI (2026-11-01): sitemap'ga /savollar(+har savol) va /konkurs(+har konkurs) qo'shildi (`getSitemapQuestions`/`getSitemapChallenges`).
-47. Kurs video darslariga VideoObject JSON-LD yo'q.
+47. ✅ YOPILDI (2026-11-01): kurs sahifasida bepul namuna video uchun VideoObject JSON-LD (@graph ichida).
 48. Blog/maqolalar bo'limi umuman yo'q — SEO uchun eng katta o'sish nuqtasi.
 49. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): not-found.tsx'da GET qidiruv formasi (/mutaxassislar?q=) mavjud.
 50. RU sahifalar uchun hreflang teglari yo'q.
@@ -93,7 +93,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 74. Email xabarnomalar faqat o'zbekcha.
 75. Sana formatlari ba'zi joylarda uz lokalda ruscha interfeysda ham chiqadi.
 76. Xatolik matnlari (zod) global uz — RU foydalanuvchiga ham o'zbekcha 422 keladi.
-77. «18-oktabr» kabi qisqa sanalar RU rejimida tarjima qilinmaydi (chat ro'yxati).
+77. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): lib/chat/time.ts MONTHS.ru bilan lokallashtiradi — skrinshotda UZ rejim ko'ringan.
 78. Telegram bot RU qamrovi yaxshi, lekin /konkurs va /savollar bot javoblari faqat uz.
 79. Oferta/maxfiylik sahifalari faqat o'zbekcha.
 80. Ba'zi tugmalarda matn uslubi aralash («Bekor» vs «Bekor qilish») — matn qo'llanmasi (glossary) yo'q.

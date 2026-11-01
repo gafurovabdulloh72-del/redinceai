@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ArrowRight, Award, GitCompareArrows, Search } from "lucide-react";
 import { Avatar, ButtonLink, EmptyState, PageHeader, Stars, VerifiedBadge } from "@/components/ui";
 import { getSession } from "@/lib/auth";
-import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, PACKAGE_TIERS, RATING_CRITERIA, REGION_BY_SLUG, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
+import { CATEGORY_BY_SLUG, EXPERIENCE_LEVELS, PACKAGE_TIERS, PROFILE_HIRING, RATING_CRITERIA, REGION_BY_SLUG, TOP_RATED_RULE, WORK_TYPE_BY_SLUG } from "@/lib/constants";
 import { getSettings } from "@/lib/payments/settings";
 import { getCompareSpecialists, responseTimeLabel, type CompareSpecialist } from "@/lib/queries";
 import { cn, formatPrice, formatPriceRange, formatUsd } from "@/lib/utils";
@@ -77,8 +77,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const maxRating = items.length > 1 && rated.length > 1 ? Math.max(...rated.map((s) => s.rating)) : null;
   const ids3 = items.map((s) => s.id);
 
-  const rows: Array<{ label: string; cell: (s: CompareSpecialist) => ReactNode }> = [
+  // Kamchilik #38: PROFILE_HIRING=false (kontakt sotuvi rejimi) — narx/paket ustunlari chalg'itadi, yashiramiz
+  const rows: Array<{ label: string; cell: (s: CompareSpecialist) => ReactNode; hidden?: boolean }> = [
     {
+      hidden: !PROFILE_HIRING,
       label: "Narx",
       cell: (s) => (
         <>
@@ -89,6 +91,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       ),
     },
     {
+      hidden: !PROFILE_HIRING,
       label: "Paketlar",
       cell: (s) =>
         s.packages.length ? (
@@ -237,7 +240,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.filter((r) => !r.hidden).map((r) => (
               <tr key={r.label}>
                 <th scope="row" className="sticky left-0 z-10 border-b border-line bg-surface p-3 align-top text-[12.5px] font-semibold text-fg-2 sm:p-4">
                   {r.label}
@@ -267,7 +270,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-[12px] text-fg-3">Narxlar taxminiy · 1 $ ≈ {formatPrice(settings.usdRate)}</p>
+      {PROFILE_HIRING && <p className="mt-3 text-[12px] text-fg-3">Narxlar taxminiy · 1 $ ≈ {formatPrice(settings.usdRate)}</p>}
     </div>
   );
 }

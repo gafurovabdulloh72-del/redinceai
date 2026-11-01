@@ -43,9 +43,24 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
    * ko'rinishi mumkin; `BreadcrumbList` — «Mentorlik › Kurs» yo'li.
    * `<` ekranlanadi (XSS): sarlavha/tavsif foydalanuvchi matni.
    */
+  // Kamchilik #47: bepul namuna dars uchun VideoObject (faqat ommaviy video)
+  const videoLd = c.previewVideo
+    ? [
+        {
+          "@type": "VideoObject",
+          name: `${c.title} — ${c.previewVideo.title}`,
+          description: c.summary || c.title,
+          thumbnailUrl: c.coverUrl ? [c.coverUrl.startsWith("http") ? c.coverUrl : `${SITE_URL}${c.coverUrl}`] : undefined,
+          contentUrl: `${SITE_URL}${c.previewVideo.url}`,
+          uploadDate: new Date(c.createdAt).toISOString(),
+          ...(c.previewVideo.durationMin ? { duration: `PT${c.previewVideo.durationMin}M` } : {}),
+        },
+      ]
+    : [];
   const ld = {
     "@context": "https://schema.org",
     "@graph": [
+      ...videoLd,
       {
         "@type": "Course",
         name: c.title,

@@ -134,7 +134,7 @@ export function PostModal({
         {shown.kind === "post" ? (
           <PostBody key={key} post={shown.post} til={til} loggedIn={loggedIn} viewerId={viewerId} isAdmin={isAdmin} shareBase={shareBase} canPin={canPin} onClose={onClose} onDeleted={onDeleted} onLiked={onLiked} onPinned={onPinned} onPoster={onPoster} />
         ) : (
-          <WorkBody key={key} work={shown.work} author={author} til={til} />
+          <WorkBody key={key} work={shown.work} author={author} til={til} onClose={onClose} />
         )}
       </div>
     </div>,
@@ -458,7 +458,12 @@ function PostBody({
 /* ------------------------------------------------------------------ */
 /* Portfolio ishi                                                      */
 /* ------------------------------------------------------------------ */
-function WorkBody({ work, author, til }: { work: WorkLite; author: ModalAuthor; til: Locale }) {
+function WorkBody({ work, author, til, onClose }: { work: WorkLite; author: ModalAuthor; til: Locale; onClose?: () => void }) {
+  // Kamchilik #37: ish yoqdimi — kontakt ochish yo'li (profil sahifasida #kontakt kartasi bo'lsa)
+  const [hasContact, setHasContact] = useState(false);
+  useEffect(() => {
+    setHasContact(Boolean(document.getElementById("kontakt")));
+  }, []);
   const media = work.type === "link" ? (work.thumbnailUrl ? [{ url: work.thumbnailUrl, type: "image/*" }] : []) : [{ url: work.url, type: work.type === "video" ? "video/mp4" : "image/*" }];
   const playable = work.type !== "video" || PLAYABLE.test(work.url);
   return (
@@ -497,6 +502,18 @@ function WorkBody({ work, author, til }: { work: WorkLite; author: ModalAuthor; 
             <a href={work.url} target="_blank" rel="noopener noreferrer" className="press mt-4 inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg transition hover:border-fg">
               {tr(til, POST_OYNA.openSource)} <ExternalLink size={14} />
             </a>
+          )}
+          {hasContact && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose?.();
+                window.setTimeout(() => document.getElementById("kontakt")?.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
+              }}
+              className="btn-accent mt-4 inline-flex h-11 w-full items-center justify-center gap-2 text-[14px] font-semibold"
+            >
+              {til === "ru" ? "Понравилась работа? Открыть контакт" : "Ish yoqdimi? Kontaktni ochish"}
+            </button>
           )}
         </div>
       </div>

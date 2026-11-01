@@ -1055,7 +1055,11 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               </div>
             )}
 
-            {showContactUnlock && <ContactUnlockCard specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />}
+            {showContactUnlock && (
+              <div id="kontakt" className="scroll-mt-24">
+                <ContactUnlockCard specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />
+              </div>
+            )}
             {showUnlockedContacts && (
               <ContactPanel contacts={{ telegram: sp.telegram, instagram: sp.instagram, youtube: sp.youtube, website: sp.website, phone: sp.user.phone, email: sp.user.email }} locked={sp.locked} loginHref={loginHref} orderHref={null} />
             )}
