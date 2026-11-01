@@ -1335,6 +1335,16 @@ export async function deleteGroupMessage(group: Group, viewer: NonNullable<Viewe
     await tx.update(groupMessages).set({ deletedAt: now, body: "", attachments: [] }).where(eq(groupMessages.id, msg.id));
     if (group.pinnedMessageId === msg.id) await tx.update(groups).set({ pinnedMessageId: null }).where(eq(groups.id, group.id));
   });
+  // Kamchilik #15: moderator boshqa a'zoning xabarini o'chirsa — muallifga sabab bilan bildirishnoma
+  if (msg.senderId !== viewer.id) {
+    await notify(
+      msg.senderId,
+      "group_joined",
+      `«${group.name}» guruhida xabaringiz o'chirildi`,
+      "Moderator xabaringizni guruh qoidalariga mos kelmagani uchun olib tashladi. Savol bo'lsa guruh egasiga yozing.",
+      `/jamoalar/${group.slug}?tab=chat`,
+    ).catch(() => undefined);
+  }
 }
 
 /** Tahrir: faqat muallif, 3 soat ichida, matnli xabar. O'chirish esa doim mumkin. */

@@ -18,6 +18,8 @@ export const users = sqliteTable(
     gender: text("gender", { enum: ["male", "female"] }),
     /** Chat uchun yagona taxallus (@username) — ro'yxatdan o'tishda avtomatik, sozlamalardan o'zgartiriladi */
     username: text("username"),
+    /** Oldingi taxallus (kamchilik #39) — eski /yozish/@username havolalari yangi profilga yo'naltiriladi */
+    prevUsername: text("prev_username"),
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
     /** Google OAuth identifikatori (sub) — «Google bilan kirish» orqali bog'langan hisob */
     googleId: text("google_id"),

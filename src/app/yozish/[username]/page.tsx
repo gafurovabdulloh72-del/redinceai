@@ -20,7 +20,9 @@ export default async function WritePage({ params }: { params: Promise<{ username
   const me = await getCurrentUser();
   if (!me) redirect(await loginRedirectPath(`/yozish/${username}`));
 
-  const other = await db.query.users.findFirst({ where: eq(users.username, username), columns: { id: true, isBanned: true, dmPolicy: true } });
+  let other = await db.query.users.findFirst({ where: eq(users.username, username), columns: { id: true, isBanned: true, dmPolicy: true } });
+  // Kamchilik #39: taxallus o'zgargan bo'lsa eski manzil ham ishlaydi (boshqa hisob egallamagan bo'lsa)
+  if (!other) other = await db.query.users.findFirst({ where: eq(users.prevUsername, username), columns: { id: true, isBanned: true, dmPolicy: true } });
   if (!other || other.isBanned) redirect("/kabinet/chat");
   if (other.id === me.id) redirect("/kabinet/chat");
   // Blok yoki «kim yozishi mumkin» siyosati ruxsat bermasa — suhbat YARATILMAYDI (aks holda bo'sh suhbat

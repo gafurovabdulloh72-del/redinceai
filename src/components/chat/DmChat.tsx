@@ -67,6 +67,7 @@ interface GroupRow {
   folderId: string | null;
   canManage?: boolean;
   archived?: boolean;
+  lastPostId?: string | null;
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
@@ -1305,7 +1306,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                     setActiveGroup(g);
                     setGroupRows((l) => l.map((x) => (x.id === g.id ? { ...x, unread: 0 } : x)));
                   } else {
-                    router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : `/jamoalar/${g.slug}`);
+                    router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : g.lastPostId ? `/jamoalar/${g.slug}?post=${g.lastPostId}` : `/jamoalar/${g.slug}`);
                   }
                 };
                 const gKey = `g:${g.id}`;

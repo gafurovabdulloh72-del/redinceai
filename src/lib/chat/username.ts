@@ -61,6 +61,8 @@ export async function setUsername(userId: string, raw: string): Promise<{ ok: tr
   if (!v.ok) return v;
   const holder = await db.query.users.findFirst({ where: and(eq(users.username, v.value), ne(users.id, userId)), columns: { id: true } });
   if (holder) return { ok: false, error: "Bu taxallus band — boshqasini tanlang" };
-  await db.update(users).set({ username: v.value }).where(eq(users.id, userId));
+  // Kamchilik #39: eski taxallus prev_username'da qoladi — eski havolalar yangi profilga yo'naltiriladi
+  const me = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { username: true } });
+  await db.update(users).set({ username: v.value, ...(me?.username && me.username !== v.value ? { prevUsername: me.username } : {}) }).where(eq(users.id, userId));
   return { ok: true, value: v.value };
 }

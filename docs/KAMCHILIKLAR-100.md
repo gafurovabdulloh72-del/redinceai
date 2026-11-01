@@ -4,7 +4,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 1. Chat (yangi Telegram inbox) — 1–10
 1. ✱ ✅ YOPILDI (2026-11-01): desktopda (lg+) guruh/kanal qatori bosilganda GroupChat o'ng panelda ochiladi (`DmChat` `activeGroup` + `GroupChat embedded` prop); telefonda avvalgidek sahifaga o'tadi.
-2. Kanal qatori kanal sahifasiga olib boradi, lekin «oxirgi postni o'qish» holatiga avtomatik tushmaydi.
+2. ✅ YOPILDI (2026-11-01): kanal qatori telefon/planshetda `?post=<oxirgi post>` bilan ochiladi (desktopda panel ichida).
 3. Guruh qatorlarida «yozmoqda…» ko'rsatkichi yo'q (DM'da bor, guruh typing API mavjud — ulash qoldi).
 4. ✅ YOPILDI (2026-11-01): guruh/kanal qatorida ham svayp amallar — qadash · ovozsiz · arxiv (DM mexanizmi umumlashtirildi).
 5. ✅ YOPILDI (2026-11-01): guruh qatori «⋯» menyusida «Ovozsiz» (PATCH /api/chat/guruh muted).
@@ -19,7 +19,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 12. Guruh chatida xabarni yo'naltirish (forward) yo'q.
 13. ✅ YOPILDI (2026-11-01): A'zolar bo'limida boshqaruvchiga «Admin nimalarni qila oladi?» yig'ilgan tushuntirma kartasi.
 14. ✅ YOPILDI (2026-11-01): InviteLink'da QR tugmasi — mavjud kutubxonasiz QR generatori (lib/profile/qr) bilan ko'rsatiladi.
-15. Guruh qoidalarini buzgan xabarni admin o'chirsa — muallifga sabab yuborilmaydi.
+15. ✅ YOPILDI (2026-11-01): moderator o'chirsa muallifga bildirishnoma («xabaringiz qoidalarga mos kelmagani uchun olib tashlandi»).
 16. ✅ YOPILDI (2026-11-01): GroupView.pendingPosition — «So'rov yuborildi · navbatda N-chisiz».
 17. Guruh statistikasi faqat 7 kunlik — oy/grafik yo'q.
 18. Kanal postlariga reaksiya bor, lekin kanal egasi «kim ko'rdi» sonini post kesimida tahlil qila olmaydi (post-stats bor, kanal kesimida jamlama yo'q).
@@ -47,7 +47,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 36. Profil highlights (saralangan storylar) muqovasini o'zgartirib bo'lmaydi — birinchi kadr olinadi.
 37. ✅ YOPILDI (2026-11-01): ish oynasida «Ish yoqdimi? Kontaktni ochish» CTA — modalni yopib profil'dagi #kontakt kartasiga olib boradi.
 38. ✅ YOPILDI (2026-11-01): PROFILE_HIRING=false'da Narx/Paketlar qatorlari va kurs izohi yashiriladi.
-39. Username o'zgartirilganda eski @username havolalari 404 (redirect tarixi saqlanmaydi).
+39. ✅ YOPILDI (2026-11-01): `users.prev_username` — setUsername eski taxallusni saqlaydi, /yozish/<eski> yangi profilga olib boradi.
 40. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): ShareButton'da QR ko'rinishi + SVG yuklab olish (/u/[code]/qr) mavjud.
 
 ## 5. Qidiruv va SEO — 41–50
@@ -55,7 +55,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 42. ⌘K global qidiruv telefonda yo'q (faqat /qidiruv sahifasi).
 43. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /qidiruv sahifasida `RecentSearches` komponenti mavjud.
 44. ✅ YOPILDI (2026-11-01): savol sahifasida `QAPage` JSON-LD (acceptedAnswer + suggestedAnswer, `\u003c` ekranlash).
-45. Konkurs sahifalarida OG rasm generatsiyasi yo'q (ulashganda oddiy logo chiqadi).
+45. ✅ YOPILDI (2026-11-01): /konkurs/[id]/opengraph-image — brend palitrasida nom/holat/ishlar soni/muddat (sinovda 200, PNG).
 46. ✅ YOPILDI (2026-11-01): sitemap'ga /savollar(+har savol) va /konkurs(+har konkurs) qo'shildi (`getSitemapQuestions`/`getSitemapChallenges`).
 47. ✅ YOPILDI (2026-11-01): kurs sahifasida bepul namuna video uchun VideoObject JSON-LD (@graph ichida).
 48. Blog/maqolalar bo'limi umuman yo'q — SEO uchun eng katta o'sish nuqtasi.

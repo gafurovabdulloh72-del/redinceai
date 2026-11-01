@@ -23,6 +23,8 @@ export interface GroupInboxRow {
   isOfficial: boolean;
   membersCount: number;
   last: { body: string; at: number; by: string | null; hasFiles: boolean } | null;
+  /** Kanal uchun: oxirgi post id (qator bosilganda to'g'ridan o'sha post ochiladi, kamchilik #2) */
+  lastPostId?: string | null;
   unread: number;
   muted: boolean;
   pinned: boolean;
@@ -104,19 +106,21 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
   // Oxirgi post (kanallar)
   const lastPosts = channelIds.length
     ? await db
-        .select({ groupId: posts.groupId, body: posts.body, at: posts.createdAt, by: users.name, files: sql<number>`json_array_length(${posts.media})` })
+        .select({ groupId: posts.groupId, postId: posts.id, body: posts.body, at: posts.createdAt, by: users.name, files: sql<number>`json_array_length(${posts.media})` })
         .from(posts)
         .innerJoin(users, eq(users.id, posts.authorId))
         .where(and(inArray(posts.groupId, channelIds), sql`${posts.id} in (select id from posts p2 where p2.group_id = ${posts.groupId} order by p2.created_at desc limit 1)`))
         .limit(channelIds.length * 2)
     : [];
   const lastBy = new Map<string, { body: string; at: number; by: string | null; hasFiles: boolean }>();
+  const lastPostBy = new Map<string, string>();
   for (const m of [...lastMsgs, ...lastPosts]) {
     if (!m.groupId) continue;
     const prev = lastBy.get(m.groupId);
     const at = m.at.getTime();
     if (!prev || at > prev.at) lastBy.set(m.groupId, { body: m.body, at, by: m.by, hasFiles: Number(m.files ?? 0) > 0 });
   }
+  for (const m of lastPosts) if (m.groupId) lastPostBy.set(m.groupId, m.postId);
 
   // O'qilmaganlar — lastReadAt'dan keyingilar (guruh: xabarlar, kanal: postlar), guruhlangan sanash
   const unread = new Map<string, number>();
@@ -148,6 +152,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     isOfficial: Boolean(r.isOfficial),
     membersCount: r.membersCount,
     last: lastBy.get(r.id) ?? null,
+    lastPostId: lastPostBy.get(r.id) ?? null,
     unread: Math.min(unread.get(r.id) ?? 0, 999),
     muted: Boolean(r.muted),
     pinned: Boolean(r.pinnedAt),
