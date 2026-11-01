@@ -81,7 +81,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 64. Rasmlar lightbox'ida «saqlash» tugmasi yo'q.
 65. Shakllarda klaviatura «Enter → keyingi maydon» xatti-harakati hamma joyda emas.
 66. Offline holat sahifasi yo'q — internet uzilsa oq ekran/xato.
-67. Skelet yuklagichlar hamma ro'yxatlarda emas (savollar, konkurs — spinner ham yo'q, kontent sakraydi).
+67. ✅ YOPILDI (2026-11-01): /savollar va /konkurs ro'yxatlari (katalog) guruhiga ko'chirilib skelet loading.tsx qo'shildi (tafsilot sahifalari yumshoq 404 qoidasiga tegilmadi).
 68. Haptik faqat ba'zi amallarda — like/pin/yuborishda bir xil emas.
 69. Telefonda «tepaga qaytish» tugmasi uzun ro'yxatlarda yo'q (faol tabni qayta bosish ishlaydi, lekin buni hech kim bilmaydi — hint yo'q).
 70. Katta rasmlarga blur-up placeholder yo'q — sekin internetda oq bo'shliqlar.
