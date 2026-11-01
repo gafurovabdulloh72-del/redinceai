@@ -66,13 +66,13 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 51. ✱ Payme/Click prod kalitlari hali ulanmagan — real to'lov faqat qo'lda o'tkazma orqali.
 52. To'lov chekini PDF yuklab olish yo'q (sahifa bor, print xolos).
 53. Promokod faqat mentorlik uchun — obuna va kontakt ochishga ishlamaydi.
-54. Hisob-faktura muddati tugashi haqida eslatma bor, lekin «to'lov kutilmoqda» banneri kabinet bosh sahifasida chiqmaydi.
+54. ✅ YOPILDI (2026-11-01): kabinet bosh sahifasida «To'lov kutilmoqda» banneri (oxirgi 7 kundagi ochiq hisob, turiga qarab to'lov sahifasiga olib boradi).
 55. Qaytarish (refund) so'rovini foydalanuvchi o'zi ocholmaydi — faqat admin orqali.
-56. Mentor balansida kutilayotgan (7 kun hold) summalar taqvimda qachon ochilishi ko'rsatilmaydi.
+56. ✅ YOPILDI (2026-11-01): daromad qatorlarida «... da ochiladi» sanasi (mentor_earnings.availableAt).
 57. Valyuta faqat so'm/$ — kurs sahifasida $ ko'rsatish rejimi yo'q.
-58. To'lov usullari sahifasida komissiya/foizlar jadvali yo'q (ishonch uchun kerak).
-59. Kontakt ochish narxi profilda ko'rinadi, lekin «nega pullik» tushuntiruv sahifasiga havola yo'q.
-60. Hisobot (kabinet → hisobot) CSV eksporti faqat adminda — mutaxassisga ham kerak.
+58. ✅ YOPILDI (2026-11-01): /narxlar'da «Boshqa komissiya va narxlar» jadvali (mentorlik 15% + 7 kun hold, kontakt narx oralig'i, bepul bo'limlar) — eskrou jadvali avvaldan bor edi.
+59. ✅ YOPILDI (2026-11-01): kontakt to'lov Sheet'ida «Nega kontakt pullik?» havolasi (/narxlar).
+60. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /kabinet/hisobot'da har oy uchun CSV tugmasi (/kabinet/hisobot/csv) mavjud.
 
 ## 7. Telefon UX va ilova hissi — 61–70
 61. ✱ ✅ YOPILDI (2026-11-01): `InstallPrompt` /xush-kelibsiz onboarding sahifasiga ham qo'shildi (kabinetdagi banner saqlangan).

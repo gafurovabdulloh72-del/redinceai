@@ -146,6 +146,12 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
             </button>
           )}
           <p className="text-center text-[12px] text-fg-3">{tr(til, T.note)}</p>
+          {/* Kamchilik #59: narx siyosati tushuntiruvi */}
+          <p className="text-center text-[12px]">
+            <a href="/narxlar" target="_blank" rel="noreferrer" className="font-semibold text-fg-3 underline underline-offset-2 hover:text-fg">
+              {til === "ru" ? "Почему контакт платный?" : "Nega kontakt pullik?"}
+            </a>
+          </p>
         </div>
       )}
     </Sheet>

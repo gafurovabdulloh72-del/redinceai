@@ -52,7 +52,7 @@ export default async function MentorMoneyPage() {
           d={{
             mentorId: m.id,
             balance,
-            earnings: earnings.map((e) => ({ id: e.id, kind: e.kind, title: e.title, gross: e.gross, net: e.net, status: e.status, createdAt: e.createdAt.getTime() })),
+            earnings: earnings.map((e) => ({ id: e.id, kind: e.kind, title: e.title, gross: e.gross, net: e.net, status: e.status, createdAt: e.createdAt.getTime(), availableAt: e.availableAt?.getTime() ?? null })),
             payouts: payouts.map((p) => ({ id: p.id, amount: p.amount, status: p.status, createdAt: p.createdAt.getTime(), note: p.note })),
             promos: promos.map((p) => ({ id: p.id, code: p.code, percent: p.percent, uses: p.uses, maxUses: p.maxUses, expiresAt: p.expiresAt?.getTime() ?? null, isActive: p.isActive, courseTitle: p.courseId ? (cmap.get(p.courseId) ?? null) : null })),
             courses: cs,

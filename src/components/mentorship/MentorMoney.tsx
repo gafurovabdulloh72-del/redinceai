@@ -12,7 +12,7 @@ import { cn, formatDateTime } from "@/lib/utils";
 export type MoneyData = {
   mentorId: string;
   balance: { pending: number; available: number; paidOut: number; gross: number; sales: number };
-  earnings: { id: string; kind: PurchaseType; title: string; gross: number; net: number; status: string; createdAt: number }[];
+  earnings: { id: string; kind: PurchaseType; title: string; gross: number; net: number; status: string; createdAt: number; availableAt?: number | null }[];
   payouts: { id: string; amount: number; status: string; createdAt: number; note: string | null }[];
   promos: { id: string; code: string; percent: number; uses: number; maxUses: number | null; expiresAt: number | null; isActive: boolean; courseTitle: string | null }[];
   courses: { id: string; title: string }[];
@@ -183,7 +183,7 @@ export function MentorMoney({ d }: { d: MoneyData }) {
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-3">
                   <span className="rounded-md bg-fg/6 px-1.5 py-px text-[11px] font-bold text-fg-2">{PURCHASE_LABEL[e.kind]}</span>
-                  <span>{formatDateTime(e.createdAt)} · {STATUS[e.status]}</span>
+                  <span>{formatDateTime(e.createdAt)} · {STATUS[e.status]}{e.status === "pending" && e.availableAt ? ` · ${formatDateTime(e.availableAt)} da ochiladi` : ""}</span>
                 </div>
               </li>
             ))}

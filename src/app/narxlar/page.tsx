@@ -197,6 +197,31 @@ export default async function PricingPage() {
         </div>
       </section>
 
+      {/* ---------- Boshqa to'lovlar jadvali (kamchilik #58) ---------- */}
+      <section aria-labelledby="fees-title" className="mx-auto mt-10 max-w-5xl">
+        <h2 id="fees-title" className="font-display text-[20px] font-semibold text-fg">
+          {til === "ru" ? "Прочие комиссии и цены" : "Boshqa komissiya va narxlar"}
+        </h2>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[480px] border-collapse text-[13.5px]">
+            <tbody className="divide-y divide-line">
+              <tr>
+                <td className="py-2.5 pr-4 font-semibold text-fg">{til === "ru" ? "Курсы и консультации (менторство)" : "Kurs va konsultatsiyalar (mentorlik)"}</td>
+                <td className="py-2.5 text-fg-2">{til === "ru" ? "Комиссия платформы" : "Platforma komissiyasi"} — 15% · {til === "ru" ? "выплата через 7 дней" : "daromad 7 kundan keyin yechiladi"}</td>
+              </tr>
+              <tr>
+                <td className="py-2.5 pr-4 font-semibold text-fg">{til === "ru" ? "Открытие контакта специалиста" : "Mutaxassis kontaktini ochish"}</td>
+                <td className="py-2.5 text-fg-2">{formatPrice(s.contactPriceJunior)} — {formatPrice(s.contactPriceExpert)} ({til === "ru" ? "по уровню специалиста, разово" : "darajaga qarab, bir martalik"})</td>
+              </tr>
+              <tr>
+                <td className="py-2.5 pr-4 font-semibold text-fg">{til === "ru" ? "Вакансии, резюме, сообщества" : "Vakansiyalar, rezyumelar, jamoalar"}</td>
+                <td className="py-2.5 text-fg-2">{til === "ru" ? "Бесплатно" : "Bepul"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* ---------- Savollar ---------- */}
       <section aria-labelledby="faq-title" className="mx-auto mt-14 max-w-3xl">
         <span className="eyebrow">{tr(til, NARX.faqEyebrow)}</span>

@@ -6,7 +6,7 @@ import { OBUNA_HOLATI, UMUMIY, greetingLabel, orderStatusLabel } from "@/lib/i18
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   ArrowRight,
   Bell,
@@ -38,7 +38,7 @@ import { Avatar, Badge, ButtonLink, IconTile, VerifiedBadge } from "@/components
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { db } from "@/lib/db";
-import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, vacancies, contactUnlocks } from "@/lib/db/schema";
+import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, subscriptionInvoices, vacancies, contactUnlocks } from "@/lib/db/schema";
 import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, type OrderStatus } from "@/lib/constants";
 import { proposalsSentToday } from "@/lib/jobs/server";
 import { getSettings } from "@/lib/payments/settings";
@@ -173,6 +173,22 @@ export default async function KabinetPage() {
     db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, user.id), eq(groupMembers.status, "active"))).then((r) => r.map((x) => x.id)).catch(() => [] as string[]),
   ]);
 
+  /* ---------- To'lov kutilmoqda banneri (kamchilik #54): oxirgi 7 kunda ochilgan, hali to'lanmagan hisob ---------- */
+  const pendingInvoice = await db.query.subscriptionInvoices
+    .findFirst({
+      where: and(eq(subscriptionInvoices.userId, user.id), inArray(subscriptionInvoices.state, ["created", "pending"]), gte(subscriptionInvoices.createdAt, new Date(Date.now() - 7 * 86_400_000))),
+      orderBy: [desc(subscriptionInvoices.createdAt)],
+      columns: { id: true, amount: true, meta: true },
+    })
+    .catch(() => null);
+  const invoiceHref = pendingInvoice
+    ? ((pendingInvoice.meta as Record<string, unknown>)?.kind === "purchase"
+        ? `/mentorlik/tolov/${pendingInvoice.id}`
+        : (pendingInvoice.meta as Record<string, unknown>)?.kind === "contact"
+          ? `/kontakt/tolov/${pendingInvoice.id}`
+          : "/kabinet/obuna")
+    : null;
+
   /* ---------- «Bugun»: yaqin efirlar, muddati yaqin buyurtmalar, yangi arizalar ---------- */
   const [events, dueOrders, newApplications, settings, proposalStats, jobStats] = await Promise.all([
     myGroupIds.length
@@ -286,6 +302,16 @@ export default async function KabinetPage() {
     <div className="animate-fade-up">
       {/* ---------- To'liq obuna banneri (G6/#74): faqat shu umumiy sahifada ---------- */}
       {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} />}
+
+      {/* ---------- To'lov kutilmoqda (kamchilik #54) ---------- */}
+      {pendingInvoice && invoiceHref && (
+        <Link href={invoiceHref} className="mb-5 flex min-h-12 items-center gap-3 rounded-[16px] border border-warning/40 bg-warning-soft px-4 py-2.5 transition hover:border-warning">
+          <span className="text-[13.5px] leading-snug text-fg">
+            <strong className="font-bold">{til === "ru" ? "Ожидается оплата" : "To'lov kutilmoqda"}:</strong>{" "}
+            <span className="text-fg-2">{formatPrice(pendingInvoice.amount)} — {til === "ru" ? "продолжить оплату" : "to'lovni davom ettirish"} →</span>
+          </span>
+        </Link>
+      )}
 
       {/* ---------- Sarlavha ---------- */}
       <header className="mb-5 sm:mb-6">
