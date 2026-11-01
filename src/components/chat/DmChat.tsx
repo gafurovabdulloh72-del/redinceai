@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent,
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, Megaphone, MessageCircle, MessagesSquare, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, Users, X, Zap } from "lucide-react";
+import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, Megaphone, MessageCircle, MessagesSquare, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, Settings, ShieldCheck, Timer, Trash2, User, Users, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
@@ -65,6 +65,7 @@ interface GroupRow {
   muted: boolean;
   pinned: boolean;
   folderId: string | null;
+  canManage?: boolean;
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
@@ -1956,6 +1957,11 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             {activeGroup.membersCount} {t("membersShort")}
           </span>
         </span>
+        {activeGroup.canManage && (
+          <Link href={`/jamoalar/${activeGroup.slug}/sozlash`} aria-label="Sozlash" className={iconBtn}>
+            <Settings size={15} />
+          </Link>
+        )}
         <Link
           href={`/jamoalar/${activeGroup.slug}`}
           className="shrink-0 rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-fg-2 transition hover:bg-fg/5 hover:text-fg"
@@ -1966,7 +1972,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
           <X size={16} />
         </button>
       </div>
-      <EmbeddedGroupChat key={activeGroup.id} slug={activeGroup.slug} membersCount={activeGroup.membersCount} kind={activeGroup.kind} embedded />
+      <EmbeddedGroupChat key={activeGroup.id} slug={activeGroup.slug} membersCount={activeGroup.membersCount} kind={activeGroup.kind} canManage={Boolean(activeGroup.canManage)} embedded />
     </div>
   );
 

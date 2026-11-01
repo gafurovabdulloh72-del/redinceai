@@ -27,6 +27,8 @@ export interface GroupInboxRow {
   muted: boolean;
   pinned: boolean;
   folderId: string | null;
+  /** Ko'ruvchi bu jamoani boshqaradimi (egasi/admin) — panelda Sozlash tugmasi uchun */
+  canManage: boolean;
 }
 
 /**
@@ -72,6 +74,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
       lastActivityAt: groups.lastActivityAt,
       createdAt: groups.createdAt,
       lastReadAt: groupMembers.lastReadAt,
+      role: groupMembers.role,
       muted: groupMembers.muted,
       folderId: groupMembers.folderId,
       pinnedAt: groupMembers.pinnedAt,
@@ -146,6 +149,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     muted: Boolean(r.muted),
     pinned: Boolean(r.pinnedAt),
     folderId: r.folderId,
+    canManage: r.role === "owner" || r.role === "admin",
   }));
   // Xotira chegarasi: juda ko'p foydalanuvchi yig'ilib qolmasin
   if (inboxCache.size > 1000) inboxCache.clear();
