@@ -18,10 +18,10 @@ const money = z.preprocess(
 const jobFields = z.object({
   title: z.string().trim().min(JOB_TITLE_MIN, `Sarlavha kamida ${JOB_TITLE_MIN} ta belgi`).max(JOB_TITLE_MAX),
   description: z.string().trim().min(JOB_DESC_MIN, `Tavsif kamida ${JOB_DESC_MIN} ta belgi — vazifani batafsilroq yozing`).max(JOB_DESC_MAX),
-  category: z.enum(categorySlugs, { errorMap: () => ({ message: "Yo'nalishni tanlang" }) }),
+  category: z.enum(categorySlugs, { error: "Yo'nalishni tanlang" }),
   /** Hudud slug'i; "" / "remote" / null — masofaviy (istalgan hudud) */
   regionSlug: z
-    .union([z.enum(regionSlugs), z.literal(REMOTE_REGION), z.literal(""), z.null()], { errorMap: () => ({ message: "Hududni tanlang" }) })
+    .union([z.enum(regionSlugs), z.literal(REMOTE_REGION), z.literal(""), z.null()], { error: "Hududni tanlang" })
     .optional()
     .transform((v) => (v && v !== REMOTE_REGION ? v : null)),
   budgetType: z.enum(["fixed", "hourly"]).default("fixed"),
@@ -94,9 +94,9 @@ export const proposalInputSchema = z.object({
   jobId: z.string().trim().min(1).max(80),
   amount: z.preprocess(
     (v) => (typeof v === "string" ? v.replace(/\s/g, "") : v),
-    z.coerce.number({ invalid_type_error: "Summani kiriting" }).int("Butun son kiriting").min(1_000, "Kamida 1 000 so'm").max(1_000_000_000, "Summa juda katta"),
+    z.coerce.number({ error: "Summani kiriting" }).int("Butun son kiriting").min(1_000, "Kamida 1 000 so'm").max(1_000_000_000, "Summa juda katta"),
   ),
-  deliveryDays: z.coerce.number({ invalid_type_error: "Muddatni kiriting" }).int("Butun son kiriting").min(1, "Kamida 1 kun").max(365, "Ko'pi bilan 365 kun"),
+  deliveryDays: z.coerce.number({ error: "Muddatni kiriting" }).int("Butun son kiriting").min(1, "Kamida 1 kun").max(365, "Ko'pi bilan 365 kun"),
   coverLetter: z.string().trim().min(COVER_MIN, `Xat kamida ${COVER_MIN} ta belgi — nega aynan siz mos ekaningizni yozing`).max(COVER_MAX, `Ko'pi bilan ${COVER_MAX} ta belgi`),
 });
 export type ProposalInput = z.infer<typeof proposalInputSchema>;

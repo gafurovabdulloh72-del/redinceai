@@ -27,7 +27,7 @@ const money = z
   .transform((v) => (v && v > 0 ? v : null));
 
 const regionField = z
-  .union([z.enum(regionSlugs), z.literal(REMOTE_REGION), z.literal(""), z.null()], { errorMap: () => ({ message: "Hududni tanlang" }) })
+  .union([z.enum(regionSlugs), z.literal(REMOTE_REGION), z.literal(""), z.null()], { error: "Hududni tanlang" })
   .optional()
   .transform((v) => (v && v !== REMOTE_REGION ? v : null));
 
@@ -51,7 +51,7 @@ const httpsUrl = z.string().trim().max(300).regex(/^https:\/\/\S+$/, "Havola htt
 const vacancyFields = z.object({
   title: z.string().trim().min(VACANCY_TITLE_MIN, `Sarlavha kamida ${VACANCY_TITLE_MIN} ta belgi`).max(VACANCY_TITLE_MAX),
   company: z.string().trim().max(80, "Kompaniya nomi 80 belgidan oshmasin").optional().default(""),
-  profession: z.enum(PROFESSION_SLUGS, { errorMap: () => ({ message: "Kasbni tanlang" }) }),
+  profession: z.enum(PROFESSION_SLUGS, { error: "Kasbni tanlang" }),
   description: z.string().trim().min(VACANCY_DESC_MIN, `Tavsif kamida ${VACANCY_DESC_MIN} ta belgi — vazifa va shartlarni yozing`).max(VACANCY_DESC_MAX),
   requirements: z.string().trim().max(VACANCY_REQ_MAX).optional().default(""),
   format: z.enum(["remote", "hybrid", "office"]).default("remote"),
@@ -79,7 +79,7 @@ export const vacancyPatchSchema = vacancyFields.partial().extend({ status: z.enu
 
 export const resumeInputSchema = z.object({
   title: z.string().trim().min(3, "Lavozim kamida 3 ta belgi").max(100),
-  profession: z.enum(PROFESSION_SLUGS, { errorMap: () => ({ message: "Kasbni tanlang" }) }),
+  profession: z.enum(PROFESSION_SLUGS, { error: "Kasbni tanlang" }),
   summary: z.string().trim().max(RESUME_SUMMARY_MAX).optional().default(""),
   skills: skillsField(RESUME_SKILLS_MAX),
   experience: z.enum(["none", "junior", "middle", "senior"]).default("none"),

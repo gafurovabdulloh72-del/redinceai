@@ -6,7 +6,7 @@ Prod: https://kasbegalari.vercel.app (Vercel + Turso). Barcha UI matnlari va kod
 ## Stek
 - Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4 (token tizimi `src/app/globals.css`da)
 - Drizzle ORM + @libsql/client — dev: `file:./data/redince.db`, prod: Turso (`TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`)
-- Auth: jose JWT cookie (+ 2FA TOTP, sessiyalar jadvali), «Google bilan kirish» (OAuth2, `lib/auth/google.ts` + `/api/auth/google[/callback]`, `users.google_id`, yangi foydalanuvchi → `/xush-kelibsiz` onboarding), zod validatsiya, lucide-react ikonkalar, @vercel/blob yuklamalar
+- Auth: jose JWT cookie (+ 2FA TOTP, sessiyalar jadvali), «Google bilan kirish» (OAuth2, `lib/auth/google.ts` + `/api/auth/google[/callback]`, `users.google_id`, yangi foydalanuvchi → `/xush-kelibsiz` onboarding), zod v4 validatsiya (global o'zbekcha xato xaritasi `validators.ts` `z.config({customError})`; sxema xabari `{ error: "…" }` bilan — eski `errorMap`/`invalid_type_error` yozilmasin), lucide-react ikonkalar, @vercel/blob yuklamalar
 - To'lovlar: Payme/Click webhook protokollari + qo'lda o'tkazma; escrow + payout CAS (`src/lib/payments/`)
 
 ## Buyruqlar

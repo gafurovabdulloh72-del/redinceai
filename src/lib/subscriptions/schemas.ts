@@ -6,14 +6,14 @@ const PLAN_MONTHS = SUBSCRIPTION_PLANS.map((p) => p.months) as number[];
 
 export const subscriptionCheckoutSchema = z.object({
   months: z.coerce
-    .number({ invalid_type_error: "Rejani tanlang" })
+    .number({ error: "Rejani tanlang" })
     .int("Rejani tanlang")
     .refine((m) => PLAN_MONTHS.includes(m), "1, 3, 6 yoki 12 oy tanlang"),
-  provider: z.enum(["payme", "click", "manual"], { errorMap: () => ({ message: "To'lov usulini tanlang" }) }),
+  provider: z.enum(["payme", "click", "manual"], { error: "To'lov usulini tanlang" }),
 });
 
 export const invoiceActionSchema = z.object({
-  action: z.enum(["sent", "cancel"], { errorMap: () => ({ message: "Amal noto'g'ri" }) }),
+  action: z.enum(["sent", "cancel"], { error: "Amal noto'g'ri" }),
   /** «To'ladim»da ixtiyoriy chek skrinshoti (/api/upload natijasi) — admin tasdiqlashni tezlashtiradi */
   receiptUrl: z.string().trim().max(500).optional().or(z.literal("")),
 });
@@ -24,7 +24,7 @@ const invoiceId = z.string().trim().min(5).max(80).startsWith("sub_", "Hisob raq
 export const adminSubscriptionActionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("extend"),
-    days: z.coerce.number({ invalid_type_error: "Kunlar sonini kiriting" }).int("Butun son kiriting").min(1, "Kamida 1 kun").max(730, "Ko'pi bilan 730 kun"),
+    days: z.coerce.number({ error: "Kunlar sonini kiriting" }).int("Butun son kiriting").min(1, "Kamida 1 kun").max(730, "Ko'pi bilan 730 kun"),
     note,
   }),
   z.object({ action: z.literal("confirm"), invoiceId, note }),

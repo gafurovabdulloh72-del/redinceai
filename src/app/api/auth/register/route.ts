@@ -21,7 +21,7 @@ import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
  * E15: band email tasdiqlanmaydi — neytral xabar + limit 5 / soat / ip (enumeratsiyaga qarshi).
  */
 const schema = registerSchema.extend({
-  acceptTerms: z.literal(true, { errorMap: () => ({ message: "Oferta va maxfiylik siyosatiga rozilik bering" }) }),
+  acceptTerms: z.literal(true, { error: "Oferta va maxfiylik siyosatiga rozilik bering" }),
 });
 
 export const POST = handler(async (req) => {
