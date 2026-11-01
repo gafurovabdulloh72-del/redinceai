@@ -281,12 +281,11 @@ Holat: **✔ tuzatildi** (kod o'zgardi) · **✓ allaqachon to'g'ri** (tekshiril
 
 ## Paket zaifliklari — qolgan 6 ta `high` (2026-10-25)
 
-`npm audit --omit=dev`: critical 0 · high 6 · moderate 1. CI critical'da yiqiladi, high'da ogohlantiradi.
+`npm audit --omit=dev`: critical 0 · high 5 · moderate 1 (2026-11-01: `drizzle-orm` 0.45.4 ga yangilandi — SQL injection bandi yopildi; tsc toza, build/smoke/security/bot testlari o'tdi). CI critical'da yiqiladi, high'da ogohlantiradi.
 Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja:
 
 | Paket | Zaiflik | Nega hozir xavf emas | Reja |
 |---|---|---|---|
-| `drizzle-orm` <0.45.2 | SQL injection — identifikator (jadval/ustun nomi) ekranlanmasligi | Jadval/ustun nomlari faqat sxemadan keladi, foydalanuvchi matnidan HECH QAYERDA yasalmaydi; qiymatlar doim parametr | 0.45.x ga yangilash — breaking: relational query API o'zgargan, alohida blok |
 | `zod` <4.6.6 | Katta kolleksiyani tekshirishda xotira tugashi | Barcha `z.array()` larimizda `.max()` bor, `handler()` body hajmini cheklaydi | zod v4 migratsiyasi (`.default()`/`.optional()` semantikasi o'zgargan) — alohida blok |
 | `postcss` <=8.5.22 | CSS stringify'da XSS; attacker kiritgan CSS'ni o'qish | Faqat **build vaqtida** ishlaydi, foydalanuvchi CSS yozmaydi | Next 16 bilan keladi (Next 15 pin qilib turadi) |
 | `@vercel/blob` | `@vercel/oidc` orqali tranzitiv | OIDC oqimi ishlatilmaydi (token env'dan) | `@vercel/blob` yangilanishini kuzatish |
@@ -305,7 +304,7 @@ Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja
 6. O'z domeni + HSTS preload (20), Sentry (28).
 
 **Keyingi blok uchun (⏳):** 24 (imzolangan fayl URL'lari), 14 (breakout e2e testi staging'da),
-18 (yopiq profil — mahsulot qarori), paket migratsiyalari (drizzle 0.45, zod v4).
+18 (yopiq profil — mahsulot qarori), paket migratsiyalari (zod v4; drizzle 0.45 ✔ 2026-11-01).
 
 ---
 
@@ -344,5 +343,5 @@ Hammasi kodda yopildi, `scripts/security.mjs` 48 ta test (oldin 21), bot oqimlar
 **Qolgan (keyingi blok):**
 - `ADMIN_REQUIRE_2FA=1` ni prod'da yoqish (18-band) — avval barcha adminlar 2FA'ni yoqsin.
 - 24-band: imzolangan (muddatli) fayl URL'lari — Blob public store'da hozircha ochiq havola.
-- Paket migratsiyalari: drizzle 0.45, zod v4, Next 16 (postcss), @vercel/blob 2.x — har biri alohida blok, breaking o'zgarishlar bor.
+- Paket migratsiyalari: zod v4, Next 16 (postcss), @vercel/blob 2.x — har biri alohida blok, breaking o'zgarishlar bor (drizzle 0.45 ✔).
 - Sentry yoki boshqa xato monitoringi (28) — sizning qaroringiz bilan (CSP'ga yangi xost kiradi).
