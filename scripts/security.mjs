@@ -357,3 +357,12 @@ test("Eksport qayta tasdiqlash: GET 405, parolsiz/noto'g'ri parol rad, mehmon 40
     assert.equal(bad.status, 422, `noto'g'ri parol bilan eksport: ${bad.status}`);
   }
 });
+
+test("Darslar tartibi: mehmon 401, begona foydalanuvchi 403", async () => {
+  const g = await fetch(`${BASE}/api/mentorlik/darslar/tartib`, { method: "PUT", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ courseId: "yoq-kurs", ids: ["a1b2c3"] }) });
+  assert.equal(g.status, 401);
+  if (COOKIES.cl) {
+    const r = await req("cl", "/api/mentorlik/darslar/tartib", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ courseId: "yoq-kurs", ids: ["a1b2c3"] }) });
+    assert.ok([403, 404].includes(r.status), `begona: ${r.status}`);
+  }
+});

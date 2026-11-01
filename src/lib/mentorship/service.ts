@@ -396,6 +396,22 @@ export async function deleteLesson(userId: string, lessonId: string, isAdmin = f
   });
 }
 
+/** Darslar tartibini surish (2026-11-01): ids — kursning BARCHA darslari yangi tartibda; pozitsiyalar 1..n qayta yoziladi */
+export async function reorderLessons(userId: string, courseId: string, ids: string[], isAdmin = false) {
+  await ownedCourse(userId, courseId, isAdmin);
+  const rows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), columns: { id: true } });
+  const current = new Set(rows.map((r) => r.id));
+  if (ids.length !== current.size || ids.some((id) => !current.has(id)) || new Set(ids).size !== ids.length) {
+    throw new ApiError(409, "Darslar ro'yxati eskirgan — sahifani yangilab qayta urinib ko'ring");
+  }
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < ids.length; i++) {
+      await tx.update(lessons).set({ position: i + 1 }).where(and(eq(lessons.id, ids[i]), eq(lessons.courseId, courseId)));
+    }
+    await tx.update(courses).set({ updatedAt: new Date() }).where(eq(courses.id, courseId));
+  });
+}
+
 /* --------------------------- Talaba amallari --------------------------- */
 
 export async function enroll(userId: string, courseId: string, isAdmin = false) {

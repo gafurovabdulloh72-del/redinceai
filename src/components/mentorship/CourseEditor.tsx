@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Eye, Pencil, GripVertical, ImagePlus, Loader2, Plus, Trash2, Upload, Video } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Eye, Pencil, ImagePlus, Loader2, Plus, Trash2, Upload, Video } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -102,6 +102,30 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
     }
   };
 
+  /** Darsni bir pog'ona yuqoriga/pastga surish — optimistik; server rad etsa eski tartib qaytadi */
+  const moveLesson = async (id: string, dir: -1 | 1) => {
+    const i = lessons.findIndex((l) => l.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= lessons.length) return;
+    const prev = lessons;
+    const next = [...lessons];
+    [next[i], next[j]] = [next[j], next[i]];
+    const renumbered = next.map((l, k) => ({ ...l, position: k + 1 }));
+    setLessons(renumbered);
+    try {
+      const res = await fetch("/api/mentorlik/darslar/tartib", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: course.id, ids: renumbered.map((l) => l.id) }),
+      });
+      const j2 = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !j2.ok) throw new Error(j2.error || "Xatolik");
+    } catch (e) {
+      setLessons(prev);
+      toast(e instanceof Error ? e.message : "Tartibni saqlab bo'lmadi", "error");
+    }
+  };
+
   const removeLesson = async (id: string) => {
     if (!(await confirm({ title: "Darsni o'chirish?", text: "Bu amalni qaytarib bo'lmaydi.", confirmLabel: "O'chirish", danger: true }))) return;
     try {
@@ -196,7 +220,14 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
               </li>
             ) : (
             <li key={l.id} className="card flex items-center gap-3 p-3 max-sm:gap-2">
-              <GripVertical size={16} className="shrink-0 text-fg-4 max-sm:hidden" />
+              <span className="flex shrink-0 flex-col">
+                <button onClick={() => void moveLesson(l.id, -1)} disabled={l.position <= 1} aria-label="Yuqoriga surish" className="press flex h-6 w-7 items-center justify-center rounded-[8px] text-fg-3 transition hover:bg-fg/6 hover:text-fg disabled:opacity-30">
+                  <ArrowUp size={14} />
+                </button>
+                <button onClick={() => void moveLesson(l.id, 1)} disabled={l.position >= lessons.length} aria-label="Pastga surish" className="press flex h-6 w-7 items-center justify-center rounded-[8px] text-fg-3 transition hover:bg-fg/6 hover:text-fg disabled:opacity-30">
+                  <ArrowDown size={14} />
+                </button>
+              </span>
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-fg/6 text-[12px] font-bold tabular-nums text-fg-2">{l.position}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] font-medium text-fg">{l.title}</span>

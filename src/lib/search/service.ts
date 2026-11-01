@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, gt, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groups, jobs, portfolioItems, posts, specialists, users, vacancies } from "@/lib/db/schema";
+import { courses } from "@/lib/db/schema";
 import { briefUsers } from "@/lib/groups/service";
 import { getSettings } from "@/lib/payments/settings";
 import { listableCondition } from "@/lib/subscriptions/access";
@@ -9,6 +10,8 @@ import { isVideoAttachment } from "@/components/chat/attachments";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { HELP_ARTICLES } from "@/app/yordam/articles";
 import { professionLabel, salaryLabel } from "@/lib/vacancies/format";
+import { MENTOR_CATEGORIES } from "@/lib/mentorship/format";
+import { formatPrice } from "@/lib/utils";
 
 /**
  * Global qidiruv (⌘K): mutaxassislar, vakansiyalar, jamoalar, ishlar, yordam maqolalari, sahifalar.
@@ -20,7 +23,7 @@ export interface SearchItem {
   href: string;
 }
 export interface SearchSection {
-  key: "pages" | "specialists" | "vacancies" | "groups" | "jobs" | "help";
+  key: "pages" | "specialists" | "vacancies" | "groups" | "jobs" | "courses" | "help";
   label: string;
   items: SearchItem[];
 }
@@ -51,7 +54,7 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
   const now = new Date();
   // Obunasi tugagan profillar katalog kabi paletda ham chiqmasin (listableCondition)
   const settings = await getSettings();
-  const [spec, vac, grp, job] = await Promise.all([
+  const [spec, vac, grp, job, crs] = await Promise.all([
     db
       .select({ slug: specialists.slug, title: specialists.title, name: users.name, category: specialists.category })
       .from(specialists)
@@ -77,6 +80,13 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
       .where(and(eq(jobs.status, "open"), or(like(sql`lower(${jobs.title})`, needle), like(sql`lower(${jobs.description})`, needle))))
       .orderBy(desc(jobs.createdAt))
       .limit(5),
+    // Mentorlik kurslari (2026-11-01, KEYINGI-REJA): faqat chop etilganlar
+    db
+      .select({ slug: courses.slug, title: courses.title, category: courses.category, price: courses.priceFrom })
+      .from(courses)
+      .where(and(eq(courses.isPublished, true), or(like(sql`lower(${courses.title})`, needle), like(sql`lower(${courses.summary})`, needle))))
+      .orderBy(desc(courses.createdAt))
+      .limit(5),
   ]);
   const help = HELP_ARTICLES.filter((a) => norm(a.title).includes(nq) || norm(a.summary).includes(nq) || a.keywords.some((k) => norm(k).includes(nq))).slice(0, 4);
   const pages = PAGES.filter((p) => norm(p.title).includes(nq) || norm(p.sub ?? "").includes(nq)).slice(0, 4);
@@ -87,6 +97,15 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
     { key: "vacancies", label: "Vakansiyalar", items: vac.map((v) => ({ title: v.title, sub: `${v.company || professionLabel(v.profession, true)} · ${salaryLabel(v.min, v.max)}`, href: `/vakansiyalar/${v.id}` })) },
     { key: "groups", label: "Jamoalar", items: grp.map((g) => ({ title: g.name, sub: `${g.isOfficial ? "Rasmiy kanal" : g.kind === "channel" ? "Kanal" : "Guruh"} · ${g.members} a'zo`, href: `/jamoalar/${g.slug}` })) },
     { key: "jobs", label: "Ishlar", items: job.map((j) => ({ title: j.title, sub: CATEGORY_BY_SLUG[j.category]?.name ?? j.category, href: `/ishlar/${j.id}` })) },
+    {
+      key: "courses",
+      label: "Kurslar",
+      items: crs.map((c) => ({
+        title: c.title,
+        sub: `${MENTOR_CATEGORIES.find((m) => m.key === c.category)?.label ?? c.category} · ${c.price > 0 ? formatPrice(c.price) : "Bepul"}`,
+        href: `/mentorlik/${c.slug}`,
+      })),
+    },
     { key: "help", label: "Yordam", items: help.map((a) => ({ title: a.title, sub: a.summary.slice(0, 80), href: `/yordam/${a.slug}` })) },
   ];
   return sections.filter((s) => s.items.length > 0);

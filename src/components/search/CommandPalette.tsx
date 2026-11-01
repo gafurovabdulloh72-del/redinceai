@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Briefcase, CircleHelp, Clapperboard, CornerDownLeft, FileText, Search, UsersRound, X } from "lucide-react";
+import { ArrowRight, Briefcase, CircleHelp, Clapperboard, CornerDownLeft, FileText, Search, UsersRound, X, GraduationCap} from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePresence } from "@/components/motion/usePresence";
 import { tr } from "@/lib/i18n";
@@ -21,7 +21,7 @@ interface Section {
   items: Item[];
 }
 
-const ICON: Record<string, typeof Search> = { pages: FileText, specialists: Clapperboard, vacancies: Briefcase, groups: UsersRound, jobs: Briefcase, help: CircleHelp };
+const ICON: Record<string, typeof Search> = { pages: FileText, specialists: Clapperboard, vacancies: Briefcase, groups: UsersRound, jobs: Briefcase, help: CircleHelp, courses: GraduationCap };
 const RECENT_KEY = "qidiruv-tarixi";
 
 /**
