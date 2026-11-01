@@ -115,6 +115,8 @@ const T = {
   pickConv: { uz: "Suhbatni tanlang", ru: "Выберите чат" },
   openPage: { uz: "Sahifa", ru: "Страница" },
   membersShort: { uz: "a'zo", ru: "участников" },
+  markRead: { uz: "O'qildi deb belgilash", ru: "Отметить прочитанным" },
+  renameFolder: { uz: "Nomini o'zgartirish", ru: "Переименовать" },
   firstMsg: { uz: "Birinchi xabarni yozing.", ru: "Напишите первое сообщение." },
   you: { uz: "Siz", ru: "Вы" },
   voice: { uz: "Ovozli xabar", ru: "Голосовое" },
@@ -366,6 +368,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [activeGroup, setActiveGroup] = useState<GroupRow | null>(null);
   const [folderMgr, setFolderMgr] = useState(false);
   const [newFolder, setNewFolder] = useState("");
+  // Papka nomini o'zgartirish: qaysi papka tahrirda va joriy qiymat
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [ttl, setTtl] = useState(0);
   const [ttlMenu, setTtlMenu] = useState(false);
   const [pinned, setPinned] = useState<QuoteView | null>(null);
@@ -858,6 +862,20 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   };
 
   /** Papkani o'chirish (suhbatlar «Hammasi»ga qaytadi) */
+  /** Papka nomini o'zgartirish (Telegram kabi) — PATCH /api/chat/papkalar/[id] */
+  const saveFolderName = async (id: string, nameRaw: string) => {
+    const name = nameRaw.trim();
+    setRenaming(null);
+    if (!name) return;
+    const prev = folders;
+    setFolders((l) => l.map((f) => (f.id === id ? { ...f, name } : f)));
+    const res = await fetch(`/api/chat/papkalar/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).catch(() => null);
+    if (!res?.ok) {
+      setFolders(prev);
+      toast("Saqlanmadi", "error");
+    }
+  };
+
   const removeFolder = async (id: string) => {
     setFolders((l) => l.filter((f) => f.id !== id));
     if (folder === id) setFolder(null);
@@ -1040,9 +1058,22 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   }, [convs, groupRows]);
 
   /** Guruh/kanal qatorining pin/papka sozlamasi — optimistik */
-  const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null }) => {
-    setGroupRows((l) => l.map((g) => (g.id === id ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}) } : g)));
+  const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean }) => {
+    setGroupRows((l) =>
+      l.map((g) =>
+        g.id === id
+          ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}), ...(patch.muted !== undefined ? { muted: patch.muted } : {}) }
+          : g,
+      ),
+    );
     const res = await fetch(`/api/chat/guruh/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
+    if (!res?.ok) toast("Saqlanmadi", "error");
+  };
+
+  /** «O'qildi deb belgilash» — qatordagi o'qilmaganlar nolga tushadi (serverda lastReadAt = hozir) */
+  const markGroupReadRow = async (id: string) => {
+    setGroupRows((l) => l.map((g) => (g.id === id ? { ...g, unread: 0 } : g)));
+    const res = await fetch(`/api/chat/guruh/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ read: true }) }).catch(() => null);
     if (!res?.ok) toast("Saqlanmadi", "error");
   };
 
@@ -1332,6 +1363,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                       </button>
                       <Layer open={groupMenu?.id === g.id} onClose={() => setGroupMenu(null)} label={`${g.name} — ${t("menu")}`} anchorClass={groupMenu?.up ? "right-0 bottom-full mb-0.5" : "right-0 top-full mt-0.5"}>
                         <MenuItem icon={g.pinned ? PinOff : Pin} label={t(g.pinned ? "unpin" : "pin")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { pinned: !g.pinned }))} />
+                        <MenuItem icon={g.muted ? Bell : BellOff} label={t(g.muted ? "swUnmute" : "swMute")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { muted: !g.muted }))} />
+                        {g.unread > 0 && <MenuItem icon={CheckCheck} label={t("markRead")} onClick={() => (setGroupMenu(null), void markGroupReadRow(g.id))} />}
                         {folders.length > 0 && <MenuDivider />}
                         {folders.map((f) => (
                           <MenuItem key={f.id} icon={Folder} label={f.name} active={g.folderId === f.id} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { folderId: g.folderId === f.id ? null : f.id }))} />
@@ -1342,8 +1375,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                 );
               }
               const c = row.dm;
+              // overflow-hidden faqat faol svayp paytida — doimiy bo'lsa «⋯» menyusi kesilib qoladi (3-rasm bug)
               return (
-              <li key={c.id} className="group/row relative overflow-hidden" {...rowSwipeHandlers(c.id)}>
+              <li key={c.id} className={cn("group/row relative", rowSwipe?.id === c.id && "overflow-hidden")} {...rowSwipeHandlers(c.id)}>
                 {/* Surilganda ochiladigan amallar (orqada turadi) */}
                 {isPhone && rowSwipe?.id === c.id && (
                   <div className="absolute inset-y-0 right-0 flex" style={{ width: SWIPE_W }} aria-hidden={!rowSwipe.open}>
@@ -2000,26 +2034,57 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             <p className="px-3 pb-3 text-[12.5px] text-fg-3">Hali papka yo&apos;q. Papka yaratib, suhbatlarni ajratib qo&apos;yishingiz mumkin.</p>
           ) : (
             <ul className="max-h-[40vh] overflow-y-auto pb-2">
-              {folders.map((f) => (
-                <li key={f.id} className="flex items-center gap-1 px-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (active) void updatePrefs(active, { folderId: prefs.folderId === f.id ? null : f.id });
-                      setFolderMgr(false);
-                    }}
-                    disabled={!active}
-                    className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-2 text-left text-[13.5px] transition hover:bg-fg/5 disabled:opacity-50", prefs.folderId === f.id && "bg-fg/5 font-semibold")}
-                  >
-                    <Folder size={15} className="shrink-0 text-fg-3" />
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                    <span className="shrink-0 text-[12px] text-fg-4">{f.count}</span>
-                  </button>
-                  <button type="button" onClick={() => void removeFolder(f.id)} aria-label={`${f.name} — o'chirish`} className={cn(iconBtn, "h-8 w-8 hover:text-danger-text")}>
-                    <Trash2 size={14} />
-                  </button>
-                </li>
-              ))}
+              {folders.map((f) =>
+                renaming?.id === f.id ? (
+                  <li key={f.id} className="flex items-center gap-1 px-1">
+                    <form
+                      className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void saveFolderName(f.id, renaming.name);
+                      }}
+                    >
+                      <Folder size={15} className="shrink-0 text-fg-3" />
+                      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                      <input
+                        autoFocus
+                        value={renaming.name}
+                        maxLength={24}
+                        aria-label={t("renameFolder")}
+                        onChange={(e) => setRenaming({ id: f.id, name: e.target.value })}
+                        onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
+                        onBlur={() => void saveFolderName(f.id, renaming.name)}
+                        className="field h-8 min-w-0 flex-1 text-[13px]"
+                      />
+                      <button type="submit" aria-label="Saqlash" className={cn(iconBtn, "h-8 w-8")}>
+                        <Check size={14} />
+                      </button>
+                    </form>
+                  </li>
+                ) : (
+                  <li key={f.id} className="flex items-center gap-1 px-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (active) void updatePrefs(active, { folderId: prefs.folderId === f.id ? null : f.id });
+                        setFolderMgr(false);
+                      }}
+                      disabled={!active}
+                      className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-2 text-left text-[13.5px] transition hover:bg-fg/5 disabled:opacity-50", prefs.folderId === f.id && "bg-fg/5 font-semibold")}
+                    >
+                      <Folder size={15} className="shrink-0 text-fg-3" />
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <span className="shrink-0 text-[12px] text-fg-4">{f.count}</span>
+                    </button>
+                    <button type="button" onClick={() => setRenaming({ id: f.id, name: f.name })} aria-label={`${f.name} — ${t("renameFolder")}`} className={cn(iconBtn, "h-8 w-8")}>
+                      <Pencil size={13} />
+                    </button>
+                    <button type="button" onClick={() => void removeFolder(f.id)} aria-label={`${f.name} — o'chirish`} className={cn(iconBtn, "h-8 w-8 hover:text-danger-text")}>
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ),
+              )}
             </ul>
           )}
           {!active && folders.length > 0 && <p className="px-3 pb-3 text-[12px] text-fg-4">Suhbatni papkaga joylash uchun avval suhbatni oching.</p>}

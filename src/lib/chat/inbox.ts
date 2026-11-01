@@ -155,10 +155,11 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
 }
 
 /** Guruh/kanal qatorining chat sozlamasi: qadash yoki papkaga ko'chirish (faqat o'z a'zoligim) */
-export async function setGroupChatPref(meId: string, groupId: string, patch: { pinned?: boolean; folderId?: string | null }): Promise<boolean> {
+export async function setGroupChatPref(meId: string, groupId: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean }): Promise<boolean> {
   const set: Record<string, unknown> = {};
   if (patch.pinned !== undefined) set.pinnedAt = patch.pinned ? new Date() : null;
   if (patch.folderId !== undefined) set.folderId = patch.folderId;
+  if (patch.muted !== undefined) set.muted = patch.muted;
   if (!Object.keys(set).length) return true;
   const res = await db
     .update(groupMembers)

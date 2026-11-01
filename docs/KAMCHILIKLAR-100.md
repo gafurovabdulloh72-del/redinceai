@@ -7,12 +7,12 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 2. Kanal qatori kanal sahifasiga olib boradi, lekin «oxirgi postni o'qish» holatiga avtomatik tushmaydi.
 3. Guruh qatorlarida «yozmoqda…» ko'rsatkichi yo'q (DM'da bor, guruh typing API mavjud — ulash qoldi).
 4. Guruh qatorini telefonda surib (swipe) pin/mute qilib bo'lmaydi — faqat DM'da ishlaydi.
-5. Guruh uchun mute tugmasi chat ro'yxatidagi «⋯» menyusida yo'q (faqat guruh sahifasida).
-6. Papkani qayta nomlash yo'q — faqat yaratish/o'chirish (dm_folders PATCH kerak).
+5. ✅ YOPILDI (2026-11-01): guruh qatori «⋯» menyusida «Ovozsiz» (PATCH /api/chat/guruh muted).
+6. ✅ YOPILDI (2026-11-01): papka boshqaruvida qalam tugmasi — nomni joyida tahrirlash (PATCH /api/chat/papkalar/[id] allaqachon bor edi, UI qo'shildi).
 7. Papkalar tartibini surib o'zgartirib bo'lmaydi (position ustuni bor, UI yo'q).
 8. Arxiv guruh/kanallarga ishlamaydi — faqat DM arxivlanadi.
 9. Chat ro'yxatida qidiruv faqat nom/oxirgi xabar bo'yicha — xabarlar ichidan global qidiruv yo'q (Telegram'da bor).
-10. Rasmiy kanal o'qilmagani katta songa to'planadi (90 a'zoga har post) — «hammasi o'qildi» tugmasi yo'q.
+10. ✅ YOPILDI (2026-11-01): guruh/kanal qatori «⋯» menyusida «O'qildi deb belgilash» (lastReadAt = hozir).
 
 ## 2. Jamoalar va guruh chati — 11–20
 11. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): GroupChat composer'ida VoiceRecorder ulangan (`sendVoice`).

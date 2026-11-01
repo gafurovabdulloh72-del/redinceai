@@ -32,6 +32,8 @@ export const groupPatchSchema = groupInputSchema.partial().extend({
   rules: z.string().trim().max(GROUP_RULES_MAX, `Qoidalar ko'pi bilan ${GROUP_RULES_MAX} belgi`).optional(),
   welcomeText: z.string().trim().max(GROUP_WELCOME_MAX, `Matn ko'pi bilan ${GROUP_WELCOME_MAX} belgi`).optional(),
   coverPosition: z.coerce.number().int().min(0).max(100).nullable().optional(),
+  /** Muhokamani o'chirish/yoqish (faqat boshqaruvchi) */
+  chatDisabled: z.boolean().optional(),
 });
 
 /** Xabar tahriri / qadash */

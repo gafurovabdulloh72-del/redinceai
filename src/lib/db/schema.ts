@@ -1158,6 +1158,8 @@ export const groups = sqliteTable(
     prevSlug: text("prev_slug"),
     /** Chatda qadalgan xabar (group_messages.id) */
     pinnedMessageId: text("pinned_message_id"),
+    /** Muhokama (chat) o'chirilgan — Telegram'dagi kabi egasi/admin yoqib-o'chira oladi; o'chiq bo'lsa oddiy a'zo yoza olmaydi */
+    chatDisabled: integer("chat_disabled", { mode: "boolean" }).notNull().default(false),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

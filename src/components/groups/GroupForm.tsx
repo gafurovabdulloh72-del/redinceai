@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, ImagePlus, Lock, Radio, Trash2, UsersRound, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, Lock, MessageCircle, Radio, Trash2, UsersRound, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Switch } from "@/components/specialists/Filters";
 import { SafeImage } from "@/components/specialists/SafeImage";
@@ -21,6 +21,7 @@ export interface GroupFormInitial {
   coverUrl: string | null;
   coverPosition: number | null;
   isPrivate: boolean;
+  chatDisabled?: boolean;
   kind: "group" | "channel";
   isOfficial: boolean;
   rules: string | null;
@@ -62,6 +63,8 @@ export function GroupForm({
   const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? "");
   const [coverPos, setCoverPos] = useState<number>(initial?.coverPosition ?? 50);
   const [isPrivate, setIsPrivate] = useState(initial?.isPrivate ?? false);
+  // Muhokama (chat) yoqilgan/o'chirilgan — Telegram'dagi kabi (faqat tahrirda ko'rinadi)
+  const [chatDisabled, setChatDisabled] = useState(initial?.chatDisabled ?? false);
   const [kind, setKind] = useState<"group" | "channel">(initial?.kind ?? "group");
   const [isOfficial, setIsOfficial] = useState(initial?.isOfficial ?? false);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -108,6 +111,7 @@ export function GroupForm({
         coverUrl,
         coverPosition: coverUrl ? coverPos : null,
         isPrivate: isOfficial ? false : isPrivate,
+        ...(mode === "edit" ? { chatDisabled } : {}),
         kind,
         ...(slugChanged ? { slug: slug.trim() } : {}),
         ...(isSiteAdmin ? { isOfficial: kind === "channel" && isOfficial } : {}),
@@ -341,6 +345,17 @@ export function GroupForm({
           </div>
           <Switch checked={isPrivate && !isOfficial} onChange={(v) => !isOfficial && setIsPrivate(v)} label="Yopiq jamoa" />
         </div>
+        {mode === "edit" && (
+          <div className="flex items-center justify-between gap-4 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[14px] font-semibold text-fg">
+                <MessageCircle size={14} className="text-fg-3" /> Muhokama (chat)
+              </p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-3">O&apos;chirilsa oddiy a&apos;zolar chatga yoza olmaydi — faqat boshqaruvchilar (Telegram&apos;dagi kabi).</p>
+            </div>
+            <Switch checked={!chatDisabled} onChange={(v) => setChatDisabled(!v)} label="Muhokama yoqilgan" />
+          </div>
+        )}
         {isSiteAdmin && (
           <div className={cn("flex items-center justify-between gap-4 py-3", kind !== "channel" && "opacity-60")}>
             <div className="min-w-0">

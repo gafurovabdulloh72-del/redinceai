@@ -57,6 +57,7 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
             category: view.category,
             region: view.region,
             coverUrl: view.coverUrl,
+            chatDisabled: view.chatDisabled,
             coverPosition: view.coverPosition,
             isPrivate: view.isPrivate,
             kind: view.kind,

@@ -77,6 +77,8 @@ export interface GroupView {
   welcomeText: string | null;
   /** Muqova vertikal joylashuvi (0–100), null = markaz */
   coverPosition: number | null;
+  /** Muhokama (chat) o'chirilganmi — Telegram kabi egasi/admin boshqaradi */
+  chatDisabled: boolean;
   /** Chatda qadalgan xabar id'si */
   pinnedMessageId: string | null;
 }
@@ -267,6 +269,7 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
     rules: group.rules?.trim() ? group.rules : null,
     welcomeText: canManage ? (group.welcomeText ?? null) : null,
     coverPosition: group.coverPosition ?? null,
+    chatDisabled: Boolean(group.chatDisabled),
     pinnedMessageId: group.pinnedMessageId ?? null,
   };
 }
@@ -485,7 +488,7 @@ function hasUnreadFor(g: Group, m: GroupMember | null): boolean {
   return g.lastActivityAt.getTime() > m.lastReadAt.getTime() + 1000;
 }
 
-export type GroupListItem = Omit<GroupView, "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "invite" | "muted" | "mutedUntil" | "eventReminders" | "rules" | "welcomeText" | "pinnedMessageId"> & { hasUnread: boolean };
+export type GroupListItem = Omit<GroupView, "chatDisabled" | "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "invite" | "muted" | "mutedUntil" | "eventReminders" | "rules" | "welcomeText" | "pinnedMessageId"> & { hasUnread: boolean };
 
 export async function loadGroupBySlug(slug: string): Promise<Group | null> {
   return (await db.query.groups.findFirst({ where: eq(groups.slug, slug) })) ?? null;
@@ -606,7 +609,7 @@ export async function joinOfficialChannels(userId: string): Promise<void> {
   await Promise.all(official.map((g) => recountMembers(g.id)));
 }
 
-export async function updateGroup(group: Group, patch: Partial<GroupInput> & { slug?: string; rules?: string; welcomeText?: string; coverPosition?: number | null }): Promise<Group> {
+export async function updateGroup(group: Group, patch: Partial<GroupInput> & { slug?: string; rules?: string; welcomeText?: string; coverPosition?: number | null; chatDisabled?: boolean }): Promise<Group> {
   const set: Partial<typeof groups.$inferInsert> = {};
   if (patch.name !== undefined) set.name = patch.name;
   if (patch.description !== undefined) set.description = patch.description;
@@ -618,6 +621,7 @@ export async function updateGroup(group: Group, patch: Partial<GroupInput> & { s
   if (patch.rules !== undefined) set.rules = patch.rules.trim() || null;
   if (patch.welcomeText !== undefined) set.welcomeText = patch.welcomeText.trim() || null;
   if (patch.coverPosition !== undefined) set.coverPosition = patch.coverPosition === null ? null : Math.min(100, Math.max(0, Math.round(patch.coverPosition)));
+  if (patch.chatDisabled !== undefined) set.chatDisabled = patch.chatDisabled;
   if (set.isPrivate && group.isOfficial) throw new ApiError(422, "Rasmiy kanal yopiq bo'la olmaydi", { isPrivate: "Rasmiy kanal hammaga ochiq" });
   if (set.kind === "group" && group.isOfficial) throw new ApiError(422, "Rasmiy kanal guruhga aylantirilmaydi", { kind: "Avval rasmiy belgisini oling" });
   // Slug: egasi o'zgartiradi; eskisi prev_slug'da qoladi (yo'naltirish), boshqa jamoaniki bo'lsa — 409

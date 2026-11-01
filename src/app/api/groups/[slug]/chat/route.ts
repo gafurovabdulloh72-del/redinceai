@@ -46,7 +46,11 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const input = await parseBody(req, groupMessageSchema);
   if (!input.body && input.attachments.length === 0) throw new ApiError(422, "Xabar matni yoki fayl kerak", { body: "Bo'sh xabar" });
   const group = await groupOr404(slug);
-  await assertActiveMember(group, { id: session.sub, role: session.role });
+  const membership = await assertActiveMember(group, { id: session.sub, role: session.role });
+  // Muhokama o'chirilgan (Telegram kabi): faqat egasi/admin yozadi
+  if (group.chatDisabled && !(session.role === "admin" || membership?.role === "owner" || membership?.role === "admin")) {
+    throw new ApiError(403, "Muhokama o'chirilgan — faqat boshqaruvchilar yoza oladi");
+  }
   await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
   await enforceLimit("messages", session.sub);
   const topicId = await assertTopicWritable(group, { id: session.sub, role: session.role }, input.topicId);

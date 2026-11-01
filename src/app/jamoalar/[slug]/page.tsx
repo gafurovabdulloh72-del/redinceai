@@ -112,7 +112,8 @@ export default async function GroupPage({ params, searchParams }: { params: Para
   const hasEvents = ev.upcoming.length + ev.past.length > 0;
 
   const tabHref = (key: Tab) => (key === "lenta" ? `/jamoalar/${view.slug}` : `/jamoalar/${view.slug}?tab=${key}`);
-  const tabs = TABS.filter((t) => (t.key === "efirlar" ? hasEvents || tab === "efirlar" : true));
+  // Muhokama o'chirilgan bo'lsa Chat tabi faqat boshqaruvchiga ko'rinadi (Telegram kabi)
+  const tabs = TABS.filter((t) => (t.key === "efirlar" ? hasEvents || tab === "efirlar" : t.key === "chat" ? !view.chatDisabled || view.canManage : true));
   const metaParts = [cat ? { icon: <CategoryIcon icon={cat.icon} size={13} />, text: cat.plural } : null, region ? { icon: null, text: region.short } : null].filter(Boolean) as Array<{ icon: React.ReactNode; text: string }>;
 
   return (
@@ -209,7 +210,21 @@ export default async function GroupPage({ params, searchParams }: { params: Para
             ) : (
               <LockedNotice view={view} loggedIn={loggedIn} what="Lenta" />
             ))}
-          {tab === "chat" && (isMember ? <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} /> : <LockedNotice view={view} loggedIn={loggedIn} what="Chat" />)}
+          {tab === "chat" &&
+            (view.chatDisabled && !view.canManage ? (
+              <div className="card p-8 text-center text-[14px] text-fg-3">Muhokama o&apos;chirilgan.</div>
+            ) : isMember ? (
+              <>
+                {view.chatDisabled && view.canManage && (
+                  <p className="mb-3 rounded-[12px] bg-warning-soft px-4 py-2.5 text-[13px] font-semibold text-warning-text">
+                    Muhokama o&apos;chirilgan — faqat boshqaruvchilar yoza oladi. Yoqish: Sozlash → Muhokama (chat).
+                  </p>
+                )}
+                <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} />
+              </>
+            ) : (
+              <LockedNotice view={view} loggedIn={loggedIn} what="Chat" />
+            ))}
           {tab === "azolar" &&
             (members ? (
               <GroupMembers slug={view.slug} canManage={view.canManage} isOwner={view.membership === "owner" || user?.role === "admin"} viewerId={user?.id ?? null} initialActive={members[0]} initialPending={members[1]} />
