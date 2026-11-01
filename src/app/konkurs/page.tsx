@@ -4,6 +4,9 @@ import { CalendarClock, Crown, Trophy, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { listChallenges, type ChallengeCard } from "@/lib/challenges/service";
 import { formatDate } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
+import { tr, type Locale } from "@/lib/i18n";
+import { KONKURS } from "@/lib/i18n/dict/community";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +18,16 @@ export const metadata: Metadata = {
 };
 
 /** Tugashigacha qolgan vaqt — qisqa yorliq («3 kun qoldi» / «Bugun tugaydi») */
-function leftLabel(endsAt: number): string {
+function leftLabel(endsAt: number, til: Locale): string {
   const ms = endsAt - Date.now();
-  if (ms <= 0) return "Yakunlangan";
+  if (ms <= 0) return tr(til, KONKURS.finished);
   const days = Math.floor(ms / 86_400_000);
-  if (days >= 1) return `${days} kun qoldi`;
+  if (days >= 1) return KONKURS.daysLeft[til](days);
   const hours = Math.max(1, Math.floor(ms / 3_600_000));
-  return hours >= 24 ? "1 kun qoldi" : `${hours} soat qoldi`;
+  return hours >= 24 ? KONKURS.daysLeft[til](1) : KONKURS.hoursLeft[til](hours);
 }
 
-function Card({ c }: { c: ChallengeCard }) {
+function Card({ c, til }: { c: ChallengeCard; til: Locale }) {
   return (
     <li className="m-plain card overflow-hidden p-0 transition hover:border-fg/25">
       <Link href={`/konkurs/${c.id}`} className="flex gap-4 p-4 max-sm:px-0">
@@ -41,16 +44,16 @@ function Card({ c }: { c: ChallengeCard }) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="truncate text-[15px] font-bold text-fg">{c.title}</span>
-            {c.state === "open" && <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-success-text">Ochiq</span>}
-            {c.state === "soon" && <span className="rounded-full bg-fg/6 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-fg-3">Tez kunda</span>}
+            {c.state === "open" && <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-success-text">{tr(til, KONKURS.open)}</span>}
+            {c.state === "soon" && <span className="rounded-full bg-fg/6 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-fg-3">{tr(til, KONKURS.soon)}</span>}
           </span>
           {c.description && <span className="mt-1 line-clamp-2 block text-[13px] leading-snug text-fg-2">{c.description}</span>}
           <span className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12.5px] text-fg-3">
             <span className="inline-flex items-center gap-1">
-              <Users size={13} /> {c.entriesCount} ta ish
+              <Users size={13} /> {KONKURS.entries[til](c.entriesCount)}
             </span>
             <span className="inline-flex items-center gap-1">
-              <CalendarClock size={13} /> {c.state === "done" ? formatDate(new Date(c.endsAt)) : leftLabel(c.endsAt)}
+              <CalendarClock size={13} /> {c.state === "done" ? formatDate(new Date(c.endsAt)) : leftLabel(c.endsAt, til)}
             </span>
             {c.winner && (
               <span className="inline-flex items-center gap-1.5 font-semibold text-fg">
@@ -67,35 +70,35 @@ function Card({ c }: { c: ChallengeCard }) {
 }
 
 export default async function ChallengesPage() {
-  const all = await listChallenges();
+  const [til, all] = await Promise.all([getLocale(), listChallenges()]);
   const live = all.filter((c) => c.state !== "done");
   const past = all.filter((c) => c.state === "done");
   return (
     <div className="container-x animate-fade-up py-6">
       <header className="mb-5 max-sm:hidden">
-        <h1 className="display-xl text-fg">Ijod konkurslari</h1>
-        <p className="mt-1.5 max-w-xl text-[14px] text-fg-2">Eng yaxshi ishingizni qo&apos;shing, hamjamiyat ovoz beradi — g&apos;olib bosh sahifada e&apos;lon qilinadi.</p>
+        <h1 className="display-xl text-fg">{tr(til, KONKURS.title)}</h1>
+        <p className="mt-1.5 max-w-xl text-[14px] text-fg-2">{tr(til, KONKURS.subtitle)}</p>
       </header>
       {all.length === 0 ? (
         <div className="card p-10 text-center text-[14px] text-fg-3 max-sm:!border-0 max-sm:!bg-transparent max-sm:!shadow-none">
           <Trophy size={34} strokeWidth={1.5} className="mx-auto mb-3 text-fg-3" />
-          Hozircha konkurs yo&apos;q — tez orada e&apos;lon qilamiz.
+          {tr(til, KONKURS.empty)}
         </div>
       ) : (
         <>
           {live.length > 0 && (
             <ul className="grid gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
               {live.map((c) => (
-                <Card key={c.id} c={c} />
+                <Card key={c.id} c={c} til={til} />
               ))}
             </ul>
           )}
           {past.length > 0 && (
             <section className="mt-8">
-              <h2 className="m-label mb-2.5 text-[13px] font-bold text-fg-3">O&apos;tgan konkurslar</h2>
+              <h2 className="m-label mb-2.5 text-[13px] font-bold text-fg-3">{tr(til, KONKURS.past)}</h2>
               <ul className="grid gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
                 {past.map((c) => (
-                  <Card key={c.id} c={c} />
+                  <Card key={c.id} c={c} til={til} />
                 ))}
               </ul>
             </section>

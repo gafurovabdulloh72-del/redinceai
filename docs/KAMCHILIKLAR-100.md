@@ -87,7 +87,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 70. Katta rasmlarga blur-up placeholder yo'q — sekin internetda oq bo'shliqlar.
 
 ## 8. Til (RU) va matnlar — 71–80
-71. ✱ Konkurs, Savol-javob, Konkurs bot buyruqlari — faqat o'zbekcha (RU lug'at yozilmagan).
+71. ✱ ✅ YOPILDI (2026-11-01): `i18n/dict/community.ts` (KONKURS/SAVOL) — /konkurs(+[id]), ChallengeView, /savollar(+yangi, [id]), AskForm, QuestionThread to'liq uz/ru. Bot /konkurs — faqat admin buyrug'i, uz qoldi.
 72. Mentorlik ichki sahifalari (kurs tavsifi interfeysi, pleyer yorliqlari) ruschasiz.
 73. Kabinet ichki matnlari (formalar, tooltiplar) hali ruschasiz (faqat nav/titles tarjima qilingan).
 74. Email xabarnomalar faqat o'zbekcha.

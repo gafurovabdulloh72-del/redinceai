@@ -7,6 +7,9 @@ import { QuestionThread } from "@/components/qa/QuestionThread";
 import { getVerifiedSession } from "@/lib/auth";
 import { getQuestion } from "@/lib/qa/service";
 import { timeAgo } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { SAVOL } from "@/lib/i18n/dict/community";
 
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
@@ -20,7 +23,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function QuestionPage({ params }: { params: Params }) {
   const { id } = await params;
-  const session = await getVerifiedSession();
+  const [til, session] = await Promise.all([getLocale(), getVerifiedSession()]);
   const q = await getQuestion(id, session?.sub ?? null, { countView: true });
   if (!q) notFound();
   // QAPage JSON-LD — Google'da savol-javob rich natijasi uchun (acceptedAnswer = «Eng foydali»)
@@ -50,7 +53,7 @@ export default async function QuestionPage({ params }: { params: Params }) {
     <div className="container-x animate-fade-up py-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "<") }} />
       <Link href="/savollar" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
-        <ArrowLeft size={15} /> Maslahat
+        <ArrowLeft size={15} /> {tr(til, SAVOL.title)}
       </Link>
       <header className="mb-5">
         <h1 className="text-[22px] font-bold leading-snug text-fg max-sm:text-[18px]">{q.title}</h1>

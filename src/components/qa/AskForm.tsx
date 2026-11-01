@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { CATEGORY_GROUPS } from "@/lib/categories";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SAVOL } from "@/lib/i18n/dict/community";
 
 /** Savol berish formasi (/savollar/yangi) — sarlavha + tafsilot + yo'nalish */
 export function AskForm() {
   const router = useRouter();
+  const til = useLocale();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -29,10 +33,10 @@ export function AskForm() {
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setErr(j?.error ?? "Savol yuborilmadi — qayta urinib ko'ring");
+        setErr(j?.error ?? tr(til, SAVOL.submitFail));
         return;
       }
-      toast("Savolingiz joylandi", "success");
+      toast(tr(til, SAVOL.submitted), "success");
       router.push(`/savollar/${j.data.id}`);
     } finally {
       setBusy(false);
@@ -42,12 +46,12 @@ export function AskForm() {
   return (
     <form onSubmit={submit} className="grid gap-4">
       <label className="grid gap-1.5">
-        <span className="text-[13px] font-semibold text-fg-2">Savol (qisqa va aniq)</span>
+        <span className="text-[13px] font-semibold text-fg-2">{tr(til, SAVOL.qLabel)}</span>
         <input
           className="field"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Masalan: Mijoz narxni tushirishni so'rayapti — qanday javob beraman?"
+          placeholder={tr(til, SAVOL.qPh)}
           maxLength={150}
           required
           minLength={10}
@@ -55,22 +59,22 @@ export function AskForm() {
       </label>
       <label className="grid gap-1.5">
         <span className="text-[13px] font-semibold text-fg-2">
-          Tafsilot <span className="font-normal text-fg-3">(ixtiyoriy)</span>
+          {tr(til, SAVOL.detail)} <span className="font-normal text-fg-3">{tr(til, SAVOL.optional)}</span>
         </span>
         <textarea
           className="field min-h-32 resize-y"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Vaziyatni batafsil yozsangiz, javoblar aniqroq bo'ladi."
+          placeholder={tr(til, SAVOL.detailPh)}
           maxLength={4000}
         />
       </label>
       <label className="grid gap-1.5">
         <span className="text-[13px] font-semibold text-fg-2">
-          Yo'nalish <span className="font-normal text-fg-3">(ixtiyoriy)</span>
+          {tr(til, SAVOL.catLabel)} <span className="font-normal text-fg-3">{tr(til, SAVOL.optional)}</span>
         </span>
         <select className="field" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">Umumiy</option>
+          <option value="">{tr(til, SAVOL.catAll)}</option>
           {CATEGORY_GROUPS.map((g) => (
             <option key={g.slug} value={g.slug}>
               {g.name}
@@ -81,9 +85,9 @@ export function AskForm() {
       {err && <p className="text-[13px] font-semibold text-danger">{err}</p>}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={busy || title.trim().length < 10}>
-          {busy ? "Yuborilmoqda…" : "Savolni joylash"}
+          {busy ? tr(til, SAVOL.sending) : tr(til, SAVOL.submit)}
         </Button>
-        <span className="text-[12.5px] text-fg-3">Javob kelganda bildirishnoma olasiz.</span>
+        <span className="text-[12.5px] text-fg-3">{tr(til, SAVOL.notifyHint)}</span>
       </div>
     </form>
   );

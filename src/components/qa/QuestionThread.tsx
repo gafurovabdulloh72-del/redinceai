@@ -8,6 +8,9 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import type { AnswerView, QuestionDetail } from "@/lib/qa/service";
 import { timeAgo } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SAVOL } from "@/lib/i18n/dict/community";
 
 /**
  * Savol sahifasining jonli qismi: javoblar ro'yxati («Eng foydali» yuqorida),
@@ -16,6 +19,7 @@ import { timeAgo } from "@/lib/utils";
  */
 export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; viewer: { id: string; isAdmin: boolean } | null }) {
   const router = useRouter();
+  const til = useLocale();
   const confirm = useConfirm();
   const { toast } = useToast();
   const [q, setQ] = useState(initial);
@@ -40,7 +44,7 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
     }));
     const r = await fetch(`/api/javoblar/${a.id}/ovoz`, { method: "POST" });
     if (!r.ok) {
-      toast((await r.json().catch(() => ({})))?.error ?? "Belgilab bo'lmadi", "error");
+      toast((await r.json().catch(() => ({})))?.error ?? tr(til, SAVOL.actionFail), "error");
       await refresh();
     }
   }
@@ -52,16 +56,16 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
       body: JSON.stringify({ answerId: a.id }),
     });
     if (r.ok) {
-      toast(a.isAccepted ? "Belgi olib tashlandi" : "Eng foydali javob belgilandi ⭐", "success");
+      toast(a.isAccepted ? tr(til, SAVOL.acceptOff) : tr(til, SAVOL.acceptOn), "success");
       await refresh();
-    } else toast((await r.json().catch(() => ({})))?.error ?? "Belgilab bo'lmadi", "error");
+    } else toast((await r.json().catch(() => ({})))?.error ?? tr(til, SAVOL.actionFail), "error");
   }
 
   async function removeAnswer(a: AnswerView) {
-    if (!(await confirm({ title: "Javob o'chirilsinmi?", danger: true }))) return;
+    if (!(await confirm({ title: tr(til, SAVOL.deleteConfirm), danger: true }))) return;
     const r = await fetch(`/api/javoblar/${a.id}`, { method: "DELETE" });
     if (r.ok) {
-      toast("Javob o'chirildi", "success");
+      toast(tr(til, SAVOL.deleted), "success");
       await refresh();
     }
   }
@@ -82,11 +86,11 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
         body: JSON.stringify({ body: draft }),
       });
       if (!r.ok) {
-        setErr((await r.json().catch(() => ({})))?.error ?? "Javob yuborilmadi");
+        setErr((await r.json().catch(() => ({})))?.error ?? tr(til, SAVOL.sendFail));
         return;
       }
       setDraft("");
-      toast("Javobingiz joylandi", "success");
+      toast(tr(til, SAVOL.sent), "success");
       await refresh();
     } finally {
       setBusy(false);
@@ -98,7 +102,7 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
   return (
     <div className="grid gap-4">
       <h2 className="text-[15px] font-bold text-fg">
-        {q.answersCount > 0 ? `${q.answersCount} ta javob` : "Hali javob yo'q"}
+        {q.answersCount > 0 ? SAVOL.answersCount[til](q.answersCount) : tr(til, SAVOL.noAnswers)}
       </h2>
       {q.answers.length > 0 && (
         <ul className="grid gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
@@ -117,12 +121,12 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
                     )}
                   </p>
                   <p className="truncate text-[12px] text-fg-3">
-                    {a.author.title ?? "Foydalanuvchi"} · {timeAgo(a.createdAt)}
+                    {a.author.title ?? tr(til, SAVOL.userFallback)} · {timeAgo(a.createdAt)}
                   </p>
                 </div>
                 {a.isAccepted && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-bold text-success-text">
-                    <Award size={12} /> Eng foydali
+                    <Award size={12} /> {tr(til, SAVOL.best)}
                   </span>
                 )}
               </div>
@@ -137,7 +141,7 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
                     a.votedByMe ? "border-fg bg-fg text-bg" : "border-line text-fg-2 hover:border-fg/40"
                   }`}
                 >
-                  <ThumbsUp size={13} /> Foydali{a.upvotesCount > 0 ? ` · ${a.upvotesCount}` : ""}
+                  <ThumbsUp size={13} /> {tr(til, SAVOL.helpful)}{a.upvotesCount > 0 ? ` · ${a.upvotesCount}` : ""}
                 </button>
                 {q.mine && (
                   <button
@@ -147,11 +151,11 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
                       a.isAccepted ? "border-success-text/50 text-success-text" : "border-line text-fg-2 hover:border-fg/40"
                     }`}
                   >
-                    <Award size={13} /> {a.isAccepted ? "Belgini olish" : "Eng foydali"}
+                    <Award size={13} /> {a.isAccepted ? tr(til, SAVOL.unmark) : tr(til, SAVOL.best)}
                   </button>
                 )}
                 {(a.mine || viewer?.isAdmin) && (
-                  <button type="button" onClick={() => removeAnswer(a)} className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:text-fg" aria-label="Javobni o'chirish">
+                  <button type="button" onClick={() => removeAnswer(a)} className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full text-fg-3 transition hover:text-fg" aria-label={tr(til, SAVOL.deleteAria)}>
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -164,12 +168,12 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
       {canAnswer && (
         <form onSubmit={submitAnswer} className="card grid gap-3 p-4 max-sm:!border-0 max-sm:!bg-transparent max-sm:!p-0 max-sm:!shadow-none">
           <label className="grid gap-1.5">
-            <span className="text-[13px] font-semibold text-fg-2">Javobingiz</span>
+            <span className="text-[13px] font-semibold text-fg-2">{tr(til, SAVOL.yourAnswer)}</span>
             <textarea
               className="field min-h-28 resize-y"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Tajribangizdan kelib chiqib aniq maslahat yozing."
+              placeholder={tr(til, SAVOL.answerPh)}
               maxLength={4000}
               required
               minLength={10}
@@ -178,17 +182,17 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
           {err && <p className="text-[13px] font-semibold text-danger">{err}</p>}
           <div>
             <Button type="submit" disabled={busy || draft.trim().length < 10}>
-              {busy ? "Yuborilmoqda…" : "Javob yuborish"}
+              {busy ? tr(til, SAVOL.sending) : tr(til, SAVOL.sendAnswer)}
             </Button>
           </div>
         </form>
       )}
-      {viewer && q.myAnswerId && <p className="text-[13px] text-fg-3">Siz bu savolga javob yozgansiz — rahmat! Boshqa savollarga ham qarab ko'ring.</p>}
+      {viewer && q.myAnswerId && <p className="text-[13px] text-fg-3">{tr(til, SAVOL.alreadyAnswered)}</p>}
       {!viewer && (
         <p className="text-[13.5px] text-fg-2">
-          Javob yozish uchun{" "}
+          {tr(til, SAVOL.loginToAnswer)}{" "}
           <a href={`/auth/kirish?next=/savollar/${q.id}`} className="font-bold text-fg underline">
-            kiring
+            {tr(til, SAVOL.loginLink)}
           </a>
           .
         </p>

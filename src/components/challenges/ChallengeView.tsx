@@ -10,6 +10,9 @@ import { useToast } from "@/components/ui/toast";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import type { ChallengeDetail, ChallengeEntryView } from "@/lib/challenges/service";
 import { cn, compactCount } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { KONKURS } from "@/lib/i18n/dict/community";
 
 /**
  * Konkurs sahifasining interaktiv qismi: ishlar to'ri (ovoz berish — optimistik, 1 ovoz,
@@ -22,6 +25,7 @@ type Api<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; authed: boolean }) {
   const router = useRouter();
+  const til = useLocale();
   const { toast } = useToast();
   const [entries, setEntries] = useState<ChallengeEntryView[]>(initial.entries);
   const [myVote, setMyVote] = useState<string | null>(initial.myVoteEntryId);
@@ -62,7 +66,7 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
     } catch (e) {
       setMyVote(prevVote);
       setEntries(initial.entries);
-      toast(e instanceof Error ? e.message : "Ovoz saqlanmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, KONKURS.voteFail), "error");
       router.refresh();
     } finally {
       setVoteBusy(null);
@@ -78,10 +82,10 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
       if (!j.ok) throw new Error(j.error);
       setJoined(true);
       setPickOpen(false);
-      toast("Ishingiz konkursga qo'shildi 🎉", "success");
+      toast(tr(til, KONKURS.joinedToast), "success");
       router.refresh();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Qo'shib bo'lmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, KONKURS.joinFail), "error");
     } finally {
       setJoinBusy(null);
     }
@@ -93,19 +97,19 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
         <div className="mb-5 flex flex-wrap items-center gap-3">
           {joined ? (
             <span className="inline-flex h-10 items-center gap-2 rounded-[12px] bg-success-soft px-4 text-[13.5px] font-semibold text-success-text">
-              <Trophy size={15} /> Siz ishtirok etyapsiz — omad!
+              <Trophy size={15} /> {tr(til, KONKURS.joinedBadge)}
             </span>
           ) : (
             <button onClick={() => (authed ? setPickOpen(true) : router.push(login))} className="btn-accent inline-flex h-10 items-center gap-2 rounded-[12px] px-5 text-[14px] font-semibold">
-              <ImagePlus size={16} /> Ishtirok etish
+              <ImagePlus size={16} /> {tr(til, KONKURS.joinBtn)}
             </button>
           )}
-          <span className="text-[13px] text-fg-3">Ovoz berish: yoqqan ishdagi yurakni bosing (1 ta ovoz, almashtirish mumkin)</span>
+          <span className="text-[13px] text-fg-3">{tr(til, KONKURS.voteHint)}</span>
         </div>
       )}
 
       {entries.length === 0 ? (
-        <div className="card p-8 text-center text-[14px] text-fg-3">Hali ish qo&apos;shilmagan — birinchi bo&apos;ling!</div>
+        <div className="card p-8 text-center text-[14px] text-fg-3">{tr(til, KONKURS.noEntries)}</div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 max-sm:gap-2">
           {entries.map((e) => (
@@ -123,7 +127,7 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
                 )}
                 {e.isWinner && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11.5px] font-bold text-white">
-                    <Crown size={12} /> G&apos;olib
+                    <Crown size={12} /> {tr(til, KONKURS.winner)}
                   </span>
                 )}
               </Link>
@@ -133,7 +137,7 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
                 <button
                   onClick={() => void vote(e)}
                   disabled={!open || e.mine || voteBusy === e.id}
-                  aria-label={myVote === e.id ? "Ovozni bekor qilish" : "Ovoz berish"}
+                  aria-label={myVote === e.id ? tr(til, KONKURS.unvoteAria) : tr(til, KONKURS.voteAria)}
                   aria-pressed={myVote === e.id}
                   className={cn(
                     "press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-bold tabular-nums transition",
@@ -150,16 +154,16 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
         </ul>
       )}
 
-      <Sheet open={pickOpen} onClose={() => setPickOpen(false)} title="Qaysi ishingiz bilan ishtirok etasiz?" label="Konkursga post tanlash">
+      <Sheet open={pickOpen} onClose={() => setPickOpen(false)} title={tr(til, KONKURS.pickTitle)} label={tr(til, KONKURS.pickLabel)}>
         {posts === null ? (
           <div className="flex items-center justify-center py-10 text-fg-3">
             <Loader2 size={20} className="animate-spin" />
           </div>
         ) : posts.length === 0 ? (
           <div className="px-1 py-6 text-center text-[13.5px] leading-relaxed text-fg-3">
-            Yaroqli post topilmadi. Konkursga qo&apos;shish uchun avval profilingizga rasm yoki videoli OMMAVIY post joylang —{" "}
+            {tr(til, KONKURS.noEligible)}{" "}
             <Link href="/kabinet/postlar" className="font-semibold text-accent underline-offset-2 hover:underline">
-              post joylash
+              {tr(til, KONKURS.postLink)}
             </Link>
             .
           </div>
