@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GraduationCap, RadioTower, Search, Flame } from "lucide-react";
+import { GraduationCap, RadioTower, Search } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { FeedLink } from "@/components/ui/FeedLink";
-import { CATEGORY_ICON, CourseCard, CourseMiniCard } from "@/components/mentorship/CourseCard";
+import { CATEGORY_ICON, CourseCard } from "@/components/mentorship/CourseCard";
 import { COURSE_SORTS, CourseFilters, type FilterState } from "@/components/mentorship/CourseFilters";
 import { getCurrentUser } from "@/lib/auth";
 import { listCourses, listMentors, getMentorForUser } from "@/lib/mentorship/service";
@@ -21,9 +21,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * Mentorlik katalogi (v6, 2026-10-24 qayta tuzildi).
- * Ierarxiya: sarlavha → jonli efir (bo'lsa) → USTOZLAR (asosiy urg'u, ular kanal egasi) → kurslar.
- * Filtrlar bitta qatorda (`CourseFilters`) — oldingi 12 ta chip ikki qatorda edi.
+ * Mentorlik katalogi (2026-11-01 soddalashtirildi).
+ * Ierarxiya: sarlavha+qidiruv → jonli efir (bo'lsa) → yo'nalish chiplari → KURSLAR (yagona ro'yxat) → ustozlar.
+ * «Mashhur kurslar» karuseli OLIB TASHLANGAN — asosiy ro'yxat bilan bir xil kurslarni takrorlab,
+ * sahifani chalkash qilardi; saralash filtrdagi «Mashhur» bilan o'sha natijani beradi.
  */
 export default async function MentorlikPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -35,13 +36,11 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
   const state: FilterState = { category, level, price, sort, q };
   const browsing = Boolean(q || category || level || price || sort !== "new");
 
-  const [user, { items: courses }, mentors, lives, popular] = await Promise.all([
+  const [user, { items: courses }, mentors, lives] = await Promise.all([
     getCurrentUser(),
     listCourses({ category, level, q, price, sort, limit: 24 }),
     listMentors(12),
     liveAndUpcoming(6),
-    // Udemy «Mashhur» qatori — faqat filtr qo'yilmaganda ko'rinadi
-    browsing ? Promise.resolve({ items: [] as Awaited<ReturnType<typeof listCourses>>["items"] }) : listCourses({ sort: "popular", limit: 8 }),
   ]);
   const myMentor = user ? await getMentorForUser(user.id) : null;
 
@@ -119,24 +118,30 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
         </nav>
       )}
 
-      {/* Mashhur kurslar — muqovali karusel (telefonda gorizontal aylanadi) */}
-      {popular.items.length > 1 && (
-        <section className="mt-5">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-fg"><Flame size={14} className="text-accent" aria-hidden /> Mashhur kurslar</h2>
-            <Link href="/mentorlik?sort=popular" className="text-[12.5px] font-semibold text-fg-3 hover:text-fg">Hammasi</Link>
+      {/* Kurslar — sahifaning yagona asosiy ro'yxati (oldin «Mashhur» karuseli bir xil kurslarni takrorlab turardi) */}
+      <section className="mt-6">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-[15px] font-bold text-fg">{q ? `«${q}» bo'yicha` : category ? categoryLabel(category) : "Kurslar"}</h2>
+        </div>
+        <CourseFilters state={state} total={courses.length} />
+        {courses.length === 0 ? (
+          <div className="card mt-3 grid place-items-center gap-1.5 p-10 text-center">
+            <GraduationCap size={26} className="text-fg-4" />
+            <p className="text-[14px] font-semibold text-fg">{browsing ? "Bu shartlarga mos kurs yo'q" : "Hozircha kurs yo'q"}</p>
+            <p className="text-[13px] text-fg-3">{browsing ? "Filtrlarni tozalab ko'ring." : "Birinchi bo'lib kurs oching — «Ustoz bo'lish»."}</p>
           </div>
-          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-            {popular.items.map((c) => (
-              <li key={c.id} className="shrink-0 snap-start">
-                <CourseMiniCard c={c} />
+        ) : (
+          <ul className="mt-3 grid grid-cols-2 gap-3 max-sm:mt-2 max-sm:grid-cols-1 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            {courses.map((c) => (
+              <li key={c.id}>
+                <CourseCard c={c} />
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
 
-      {/* Ustozlar — telefonda story-doira qatori (Instagram), sm+ da kartalar */}
+      {/* Ustozlar — kurslardan keyin (asosiy kontent — kurslar); telefonda story-doira qatori, sm+ da kartalar */}
       {mentors.length > 0 && !browsing && (
         <section className="mt-5">
           <h2 className="mb-2 text-[15px] font-bold text-fg">Ustozlar</h2>
@@ -184,28 +189,6 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
         </section>
       )}
 
-      {/* Kurslar */}
-      <section className="mt-6">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[15px] font-bold text-fg">{q ? `«${q}» bo'yicha` : category ? categoryLabel(category) : "Bo'limlar"}</h2>
-        </div>
-        <CourseFilters state={state} total={courses.length} />
-        {courses.length === 0 ? (
-          <div className="card mt-3 grid place-items-center gap-1.5 p-10 text-center">
-            <GraduationCap size={26} className="text-fg-4" />
-            <p className="text-[14px] font-semibold text-fg">{browsing ? "Bu shartlarga mos kurs yo'q" : "Hozircha kurs yo'q"}</p>
-            <p className="text-[13px] text-fg-3">{browsing ? "Filtrlarni tozalab ko'ring." : "Birinchi bo'lib bo'lim oching — «Ustoz bo'lish»."}</p>
-          </div>
-        ) : (
-          <ul className="mt-3 grid grid-cols-2 gap-3 max-sm:mt-2 max-sm:grid-cols-1 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-            {courses.map((c) => (
-              <li key={c.id}>
-                <CourseCard c={c} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }

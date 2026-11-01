@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { BarChart3, ClipboardList, GraduationCap, LayoutGrid, Route, Wallet } from "lucide-react";
+import { ClipboardList, GraduationCap, LayoutGrid, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Mentor kabinetining yagona navigatsiyasi — oldin har sahifada boshqacha havolalar bor edi,
- * endi hamma joyda bir xil tab qatori (v6: ramkasiz, faol band ostida 2px chiziq).
+ * Mentor kabinetining yagona navigatsiyasi (2026-11-01 soddalashtirildi: 6 tab → 4).
+ * «Tahlil» endi Daromad ichidan ochiladi, «Yo'l xaritasi» — Umumiy sahifadagi havoladan;
+ * o'sha sahifalar o'z ota tabini faol ko'rsatadi (statistika → Daromad, yol-xaritasi → Umumiy).
  * Telefonda gorizontal aylanadi.
  */
 const TABS = [
@@ -12,8 +13,6 @@ const TABS = [
   { key: "sahifa", href: "/kabinet/mentorlik/sahifa", label: "Sahifam", icon: GraduationCap },
   { key: "daromad", href: "/kabinet/mentorlik/daromad", label: "Daromad", icon: Wallet },
   { key: "vazifalar", href: "/kabinet/mentorlik/vazifalar", label: "Vazifalar", icon: ClipboardList },
-  { key: "statistika", href: "/kabinet/mentorlik/statistika", label: "Tahlil", icon: BarChart3 },
-  { key: "yol-xaritasi", href: "/kabinet/mentorlik/yol-xaritasi", label: "Yo'l xaritasi", icon: Route },
 ] as const;
 
 export type MentorTab = (typeof TABS)[number]["key"];

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
@@ -36,9 +38,15 @@ export default async function MentorMoneyPage() {
     <div>
       <MentorNav active="daromad" />
       <div className="space-y-5">
-        <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Daromad va sozlamalar</h1>
-          <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Balans va yechish, promokod, obuna narxi va 1:1 vaqtlar</p>
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Daromad va sozlamalar</h1>
+            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Balans va yechish, promokod, obuna narxi va 1:1 vaqtlar</p>
+          </div>
+          {/* Tahlil endi shu tab ichidan ochiladi (nav 4 tabga qisqartirilgan) */}
+          <Link href="/kabinet/mentorlik/statistika" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
+            <BarChart3 size={14} /> Batafsil tahlil
+          </Link>
         </header>
         <MentorMoney
           d={{

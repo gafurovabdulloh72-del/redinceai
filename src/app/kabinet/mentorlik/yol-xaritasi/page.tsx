@@ -25,7 +25,8 @@ export default async function RoadmapPage() {
   const [rms, cs] = await Promise.all([db.query.roadmaps.findMany({ where: eq(roadmaps.mentorId, m.id) }), db.query.courses.findMany({ where: eq(courses.mentorId, m.id), columns: { id: true, title: true } })]);
   return (
     <div>
-      <MentorNav active="yol-xaritasi" />
+      {/* Yo'l xaritasi — Umumiy tabining ichki sahifasi (MentorNav 4 tabga qisqartirilgan) */}
+      <MentorNav active="umumiy" />
       <div className="space-y-5">
         <header>
           <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Yo&apos;l xaritalari</h1>

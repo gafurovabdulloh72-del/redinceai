@@ -180,6 +180,34 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             <ul className="space-y-2 text-[13.5px] text-fg-2">{includes}</ul>
           </section>
 
+          {/* Darslar — ENG MUHIM blok, shuning uchun tavsifdan keyin darhol (2026-11-01: oldin 4 ta bo'limdan keyin, pastda yashiringan edi) */}
+          <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">
+            Darslar · {c.lessonsCount} ta{sections.length > 1 ? ` · ${sections.length} bo'lim` : ""}
+          </h2>
+          {sections.length > 1 ? (
+            /* Bo'limlar: har biri yig'iladigan, sarlavhada dars soni va davomiylik; birinchisi ochiq */
+            <div className="card divide-y divide-line overflow-hidden m-flat">
+              {sections.map((sec, si) => (
+                <details key={`${sec.name}-${si}`} open={si === 0 || sec.items.some((l) => !l.completed && !l.locked && c.enrolled)} className="group">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-fg/4 [&::-webkit-details-marker]:hidden">
+                    <ChevronRight size={16} className="shrink-0 text-fg-4 transition group-open:rotate-90" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-bold text-fg">{sec.name || `${si + 1}-bo'lim`}</span>
+                      <span className="text-[12px] text-fg-4">
+                        {sec.items.length} dars{sec.min > 0 ? ` · ${formatDuration(sec.min)}` : ""}
+                        {sec.done > 0 ? ` · ${sec.done}/${sec.items.length} bajarildi` : ""}
+                      </span>
+                    </span>
+                  </summary>
+                  <ul className="divide-y divide-line border-t border-line bg-fg/[0.015]">{sec.items.map(lessonRow)}</ul>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <ul className="card divide-y divide-line overflow-hidden m-flat">{c.lessons.map(lessonRow)}</ul>
+          )}
+          {c.lessons.length === 0 && <p className="card px-4 py-6 text-center text-[13px] text-fg-3 m-flat">Darslar tez orada qo&apos;shiladi.</p>}
+
           {/* Nimalarni o'rganasiz — ✓ ro'yxat (Udemy) */}
           {c.outcomes.length > 0 && (
             <section className="card mt-5 p-4 m-flat sm:p-5" aria-labelledby="kurs-natija">
@@ -228,34 +256,6 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
               <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-fg-3">{c.mentorBio || c.mentor.headline}</p>
             </div>
           </Link>
-
-          {/* Darslar */}
-          <h2 className="mb-2 mt-6 text-[15px] font-bold text-fg">
-            Dastur · {c.lessonsCount} dars{sections.length > 1 ? ` · ${sections.length} bo'lim` : ""}
-          </h2>
-          {sections.length > 1 ? (
-            /* Udemy kabi bo'limlar: har biri yig'iladigan, sarlavhada dars soni va davomiylik; birinchisi ochiq */
-            <div className="card divide-y divide-line overflow-hidden m-flat">
-              {sections.map((sec, si) => (
-                <details key={`${sec.name}-${si}`} open={si === 0 || sec.items.some((l) => !l.completed && !l.locked && c.enrolled)} className="group">
-                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-fg/4 [&::-webkit-details-marker]:hidden">
-                    <ChevronRight size={16} className="shrink-0 text-fg-4 transition group-open:rotate-90" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-bold text-fg">{sec.name || `${si + 1}-bo'lim`}</span>
-                      <span className="text-[12px] text-fg-4">
-                        {sec.items.length} dars{sec.min > 0 ? ` · ${formatDuration(sec.min)}` : ""}
-                        {sec.done > 0 ? ` · ${sec.done}/${sec.items.length} bajarildi` : ""}
-                      </span>
-                    </span>
-                  </summary>
-                  <ul className="divide-y divide-line border-t border-line bg-fg/[0.015]">{sec.items.map(lessonRow)}</ul>
-                </details>
-              ))}
-            </div>
-          ) : (
-            <ul className="card divide-y divide-line overflow-hidden m-flat">{c.lessons.map(lessonRow)}</ul>
-          )}
-          {c.lessons.length === 0 && <p className="card px-4 py-6 text-center text-[13px] text-fg-3 m-flat">Darslar tez orada qo&apos;shiladi.</p>}
 
           {/* Sharhlar */}
           <h2 id="sharh" className="mb-2 mt-6 scroll-mt-24 text-[15px] font-bold text-fg">Sharhlar · {c.reviewsCount}</h2>

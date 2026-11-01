@@ -30,7 +30,8 @@ export default async function MentorAnalyticsPage() {
   const a = await mentorAnalytics(m.id, m.channelId);
   return (
     <div>
-      <MentorNav active="statistika" />
+      {/* Tahlil — Daromad tabining ichki sahifasi (MentorNav 4 tabga qisqartirilgan) */}
+      <MentorNav active="daromad" />
       <div className="space-y-5">
         <header>
           <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Tahlil</h1>
