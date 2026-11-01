@@ -377,3 +377,15 @@ test("Konkurs: mehmon ishtirok/ovoz 401, admin yaratish — mehmon 401 / mijoz 4
     assert.equal(r.status, 403, `mijoz admin konkurs: ${r.status}`);
   }
 });
+
+test("Maslahat (Q&A): mehmon savol/javob/foydali/qabul 401, begona o'chirish 403-404", async () => {
+  const h = { "content-type": "application/json", origin: BASE };
+  assert.equal((await fetch(`${BASE}/api/savollar`, { method: "POST", headers: h, body: JSON.stringify({ title: "Mehmon savol yozyapti" }) })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/savollar/yoq/javob`, { method: "POST", headers: h, body: JSON.stringify({ body: "Mehmon javob yozyapti" }) })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/javoblar/yoq/ovoz`, { method: "POST", headers: h })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/savollar/yoq/qabul`, { method: "POST", headers: h, body: JSON.stringify({ answerId: "a1b2c3" }) })).status, 401);
+  if (COOKIES.cl) {
+    const r = await req("cl", "/api/savollar/yoq-savol", { method: "DELETE" });
+    assert.ok([403, 404].includes(r.status), `begona o'chirish: ${r.status}`);
+  }
+});

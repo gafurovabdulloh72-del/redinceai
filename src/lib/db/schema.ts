@@ -3066,3 +3066,66 @@ export const challengeVotes = sqliteTable(
   },
   (t) => [uniqueIndex("challenge_votes_user_uq").on(t.challengeId, t.userId), index("challenge_votes_entry_idx").on(t.entryId)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Savol-javob / Maslahat (2026-11-01, KEYINGI-REJA 4)                 */
+/* ------------------------------------------------------------------ */
+export const questions = sqliteTable(
+  "questions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    /** Kasb guruhi slug'i (CATEGORY_GROUPS) yoki null — umumiy */
+    category: text("category"),
+    acceptedAnswerId: text("accepted_answer_id"),
+    answersCount: integer("answers_count").notNull().default(0),
+    viewsCount: integer("views_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("questions_created_idx").on(t.createdAt), index("questions_cat_idx").on(t.category)],
+);
+export type Question = typeof questions.$inferSelect;
+
+export const questionAnswers = sqliteTable(
+  "question_answers",
+  {
+    id: text("id").primaryKey(),
+    questionId: text("question_id")
+      .notNull()
+      .references(() => questions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    upvotesCount: integer("upvotes_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  // Bir savolga bir odam — bitta javob (tahrir o'rniga yangi yozilmasin)
+  (t) => [uniqueIndex("question_answers_user_uq").on(t.questionId, t.userId), index("question_answers_q_idx").on(t.questionId, t.upvotesCount)],
+);
+export type QuestionAnswer = typeof questionAnswers.$inferSelect;
+
+export const answerVotes = sqliteTable(
+  "answer_votes",
+  {
+    id: text("id").primaryKey(),
+    answerId: text("answer_id")
+      .notNull()
+      .references(() => questionAnswers.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("answer_votes_user_uq").on(t.answerId, t.userId)],
+);
