@@ -78,6 +78,8 @@ export interface SecurityInitial {
   lowRecovery?: boolean;
   /** Kirish tarixi (oxirgi 12 ta): kirish, muvaffaqiyatsiz urinish, chiqish, parol o'zgarishi */
   history?: LoginEvent[];
+  /** Hisobga Telegram ulangan — parolni bilmaganlar (bot orqali ochilgan hisob) havolani Telegramga oladi */
+  telegramLinked?: boolean;
 }
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -99,6 +101,8 @@ function groupSecret(secret: string) {
 export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
   const router = useRouter();
   const [current, setCurrent] = useState("");
+  const [tgLinkBusy, setTgLinkBusy] = useState(false);
+  const [tgLinkSent, setTgLinkSent] = useState(false);
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -163,6 +167,24 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     const t = window.setTimeout(() => setRevoked(false), 6000);
     return () => window.clearTimeout(t);
   }, [revoked]);
+
+
+  /** Telegram orqali ochilgan hisob parolni bilmaydi — yangi parol havolasi hisobga ulangan Telegramga yuboriladi */
+  async function sendTgPasswordLink() {
+    if (tgLinkBusy || tgLinkSent) return;
+    setTgLinkBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/parol/telegram", { method: "POST" });
+      const json = (await res.json().catch(() => null)) as ApiResponse<{ sent: boolean }> | null;
+      if (json?.ok) setTgLinkSent(true);
+      else setError((json && !json.ok && json.error) || "Yuborib bo'lmadi — keyinroq urinib ko'ring");
+    } catch {
+      setError("Tarmoq xatosi — qayta urinib ko'ring");
+    } finally {
+      setTgLinkBusy(false);
+    }
+  }
 
   const changePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -772,6 +794,21 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             {busy ? <Spinner /> : "Parolni yangilash"}
           </Button>
         </div>
+
+        {initial.telegramLinked && (
+          <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-fg-3">
+            Joriy parolni bilmaysizmi? Telegram orqali ochilgan hisobda parol avtomatik yaratilgan —{" "}
+            <button
+              type="button"
+              onClick={() => void sendTgPasswordLink()}
+              disabled={tgLinkBusy || tgLinkSent}
+              className="font-semibold text-accent underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-70"
+            >
+              {tgLinkBusy ? "Yuborilmoqda…" : tgLinkSent ? "Yuborildi — Telegramingizni tekshiring ✓" : "yangi parol havolasini Telegramga yuborish"}
+            </button>
+            . Havola 1 soat amal qiladi; parol o'rnatilgach email o'zgartirish va hisobni o'chirish ham ochiladi.
+          </p>
+        )}
       </form>
 
       {/* ---------- Ikki bosqichli himoya (TOTP) ---------- */}

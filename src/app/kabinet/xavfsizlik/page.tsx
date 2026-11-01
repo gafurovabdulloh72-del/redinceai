@@ -71,6 +71,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
     recoveryLeft: user.totpEnabled ? (codes?.recoveryCodes.length ?? 0) : 0,
     sessions: sessionList,
     lowRecovery: sp.zaxira === "kam",
+    telegramLinked: Boolean(user.telegramChatId),
     history,
   };
 

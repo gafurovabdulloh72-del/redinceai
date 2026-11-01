@@ -336,3 +336,14 @@ test("Kontakt sotuvi: mehmon va kontaktni ochmagan mijoz telefon/Telegram/Instag
     }
   }
 });
+
+test("Parol havolasi Telegramga: mehmon → 401; javobda token yo'q", async () => {
+  const r = await fetch(`${BASE}/api/auth/parol/telegram`, { method: "POST", headers: { origin: BASE } });
+  assert.equal(r.status, 401);
+  if (COOKIES.cl) {
+    const c = await req("cl", "/api/auth/parol/telegram", { method: "POST" });
+    // Telegram ulangan bo'lsa 200, bo'lmasa 400 — ikkala holatda ham javobda token chiqmaydi
+    assert.ok([200, 400, 503].includes(c.status), `kutilmagan holat: ${c.status}`);
+    assert.ok(!(await c.text()).includes("parol-tiklash"), "javobda tiklash havolasi sizdi");
+  }
+});
