@@ -95,7 +95,7 @@ type ApiResp = {
  * (yangi + tahrirlangan/o'chirilgan). Tab ko'rinmasa so'rov yo'q, qaytganda darhol yangilanadi; xatoda oraliq 2× oshadi.
  * Foydalanuvchi pastda tursa yangi xabarda avtomatik tushadi; yuqoriga chiqib o'qiyotgan bo'lsa — «↓ N yangi» tugmasi.
  */
-export function GroupChat({ slug, membersCount, kind = "group", canManage = false }: { slug: string; membersCount: number; kind?: "group" | "channel"; canManage?: boolean }) {
+export function GroupChat({ slug, membersCount, kind = "group", canManage = false, embedded = false }: { slug: string; membersCount: number; kind?: "group" | "channel"; canManage?: boolean; embedded?: boolean }) {
   const base = `/api/groups/${encodeURIComponent(slug)}/chat`;
   const topicsBase = `/api/groups/${encodeURIComponent(slug)}/mavzular`;
   const til = useLocale();
@@ -576,7 +576,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   // Telefon: Telegram kabi TO'LIQ EKRAN (DmChat naqshi — portal + data-chat-open; `fixed` sahifa ichida emas, body'da)
   const phone = useIsPhone();
   const [full, setFull] = useState(true);
-  const fullscreen = phone && full;
+  // embedded — DmChat o'ng panelida (Telegram inbox): karta emas, ota konteynerni to'ldiradi, telefon to'liq ekran rejimi ishlamaydi
+  const fullscreen = phone && full && !embedded;
   const vv = useVisualViewport(fullscreen);
   useEffect(() => {
     const el = document.documentElement;
@@ -587,8 +588,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
 
   const root = (
     <div
-      className={cn(fullscreen ? "fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "card flex flex-col overflow-hidden")}
-      style={fullscreen ? (vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined) : { height: "min(70vh, 640px)" }}
+      className={cn(fullscreen ? "fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : embedded ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "card flex flex-col overflow-hidden")}
+      style={fullscreen ? (vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined) : embedded ? undefined : { height: "min(70vh, 640px)" }}
     >
       {/* Sarlavha: nom · a'zolar · qidiruv (to'liq ekranda — orqaga tugmasi, kattaroq) */}
       <div className={cn("flex items-center justify-between gap-2 border-b border-line px-3 text-[12.5px] text-fg-3 sm:px-4", fullscreen ? "min-h-14 py-2" : "py-2")}>

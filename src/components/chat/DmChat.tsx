@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, Megaphone, MessageCircle, MessagesSquare, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, Users, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
@@ -67,6 +68,15 @@ interface GroupRow {
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
+/** Guruh chati — faqat desktopda o'ng panelda ochilganda yuklanadi (DmChat bundle'ini shishirmaslik uchun) */
+const EmbeddedGroupChat = dynamic(() => import("@/components/groups/GroupChat").then((m) => m.GroupChat), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center text-fg-3">
+      <Loader2 size={20} className="animate-spin" />
+    </div>
+  ),
+});
 /** Yo'qolish muddati variantlari va yorliqlari (lib/chat/dm.ts DM_TTL_OPTIONS bilan bir xil) */
 const TTL_CHOICES: Array<{ sec: number; label: string }> = [
   { sec: 0, label: "O'chiq" },
@@ -103,6 +113,8 @@ const T = {
   browse: { uz: "Mutaxassislar", ru: "Специалисты" },
   notFound: { uz: "Topilmadi", ru: "Не найдено" },
   pickConv: { uz: "Suhbatni tanlang", ru: "Выберите чат" },
+  openPage: { uz: "Sahifa", ru: "Страница" },
+  membersShort: { uz: "a'zo", ru: "участников" },
   firstMsg: { uz: "Birinchi xabarni yozing.", ru: "Напишите первое сообщение." },
   you: { uz: "Siz", ru: "Вы" },
   voice: { uz: "Ovozli xabar", ru: "Голосовое" },
@@ -350,6 +362,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [groupRows, setGroupRows] = useState<GroupRow[]>([]);
   const [chatType, setChatType] = useState<ChatType>("all");
   const [groupMenu, setGroupMenu] = useState<{ id: string; up: boolean } | null>(null);
+  // Telegram kabi: desktopda guruh/kanal chati o'ng panelda ochiladi (telefonda sahifaga o'tiladi)
+  const [activeGroup, setActiveGroup] = useState<GroupRow | null>(null);
   const [folderMgr, setFolderMgr] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [ttl, setTtl] = useState(0);
@@ -1251,10 +1265,27 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             {merged.map((row) => {
               if (row.kind === "grp") {
                 const g = row.grp;
-                const open = () => router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : `/jamoalar/${g.slug}`);
+                const open = () => {
+                  // Desktopda (lg+) Telegram kabi o'ng panelda ochiladi; telefonda/planshetda sahifaga o'tiladi
+                  if (window.matchMedia("(min-width: 1024px)").matches) {
+                    setActive(null);
+                    setActiveGroup(g);
+                    setGroupRows((l) => l.map((x) => (x.id === g.id ? { ...x, unread: 0 } : x)));
+                  } else {
+                    router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : `/jamoalar/${g.slug}`);
+                  }
+                };
                 return (
                   <li key={`g-${g.id}`} className="group/row relative">
-                    <button type="button" onClick={open} className="press flex w-full items-center gap-3 border-l-2 border-transparent px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3">
+                    <button
+                      type="button"
+                      onClick={open}
+                      aria-current={activeGroup?.id === g.id ? "true" : undefined}
+                      className={cn(
+                        "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3",
+                        activeGroup?.id === g.id ? "border-fg bg-surface-2" : "border-transparent",
+                      )}
+                    >
                       <span className={cn("relative shrink-0 overflow-hidden !rounded-full", g.coverUrl ? "grid place-items-center" : "glass-ic glass-ic-ink", isPhone ? "h-[52px] w-[52px]" : "h-10 w-10")}>
                         {g.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -1348,6 +1379,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                   data-conv={c.id}
                   onClick={() => {
                     if (rowSwipe?.id === c.id && rowSwipe.open) return setRowSwipe(null);
+                    setActiveGroup(null);
                     setActive(c.id);
                   }}
                   aria-current={active === c.id ? "true" : undefined}
@@ -1867,6 +1899,43 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     </div>
   );
 
+  /* ---------------- Guruh/kanal paneli (Telegram: o'ng panelda ochiladi, faqat lg+) ---------------- */
+  const groupPanel = activeGroup && (
+    <div className="card-elevated relative hidden min-h-0 flex-col overflow-hidden lg:flex">
+      <div className="flex items-center gap-2.5 border-b border-line px-3 py-2">
+        <span className={cn("relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden !rounded-full", !activeGroup.coverUrl && "glass-ic glass-ic-ink")}>
+          {activeGroup.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={activeGroup.coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : activeGroup.kind === "channel" ? (
+            <Megaphone size={15} aria-hidden />
+          ) : (
+            <Users size={15} aria-hidden />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1 text-[14px] font-semibold text-fg">
+            <span className="truncate">{activeGroup.name}</span>
+            {activeGroup.isOfficial && <ShieldCheck size={13} className="shrink-0 text-accent" aria-label="Rasmiy" />}
+          </span>
+          <span className="block text-[12px] text-fg-3">
+            {activeGroup.membersCount} {t("membersShort")}
+          </span>
+        </span>
+        <Link
+          href={`/jamoalar/${activeGroup.slug}`}
+          className="shrink-0 rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-fg-2 transition hover:bg-fg/5 hover:text-fg"
+        >
+          {t("openPage")}
+        </Link>
+        <button type="button" onClick={() => setActiveGroup(null)} aria-label={t("back")} className={iconBtn}>
+          <X size={16} />
+        </button>
+      </div>
+      <EmbeddedGroupChat key={activeGroup.id} slug={activeGroup.slug} membersCount={activeGroup.membersCount} kind={activeGroup.kind} embedded />
+    </div>
+  );
+
   const root = (
     <div
       className={cn(
@@ -1880,7 +1949,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
       style={active && isPhone && vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined}
     >
       {listPanel}
-      {thread}
+      {activeGroup ? groupPanel : thread}
       {/* Yo'naltirish dialogi */}
       <ForwardDialog
         open={Boolean(forwardOf)}

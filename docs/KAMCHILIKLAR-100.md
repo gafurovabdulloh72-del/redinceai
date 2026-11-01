@@ -3,7 +3,7 @@
 Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan yoki kod/UX tahlilidan kelib chiqqan kamchilik. «Kamchilik» = foydalanuvchi sezadigan muammo, yetishmayotgan funksiya yoki texnik qarz. ✱ belgisi — eng muhim 20 tasi.
 
 ## 1. Chat (yangi Telegram inbox) — 1–10
-1. ✱ Guruh/kanal qatori bosilganda sahifaga o'tiladi — Telegram'dagidek o'ng panelda ochilmaydi (desktopda chat panel ichida GroupChat embed qilinsa to'liq messenjer bo'ladi).
+1. ✱ ✅ YOPILDI (2026-11-01): desktopda (lg+) guruh/kanal qatori bosilganda GroupChat o'ng panelda ochiladi (`DmChat` `activeGroup` + `GroupChat embedded` prop); telefonda avvalgidek sahifaga o'tadi.
 2. Kanal qatori kanal sahifasiga olib boradi, lekin «oxirgi postni o'qish» holatiga avtomatik tushmaydi.
 3. Guruh qatorlarida «yozmoqda…» ko'rsatkichi yo'q (DM'da bor, guruh typing API mavjud — ulash qoldi).
 4. Guruh qatorini telefonda surib (swipe) pin/mute qilib bo'lmaydi — faqat DM'da ishlaydi.
@@ -111,11 +111,11 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 90. DB indekslar bor, lekin sekin so'rovlar jurnali/tahlili yo'q (Turso analytics ulanmagan).
 
 ## 10. Xavfsizlik, admin va bot — 91–100
-91. ✱ Session'larni qurilma bo'yicha yakka tugatish bor, «hammasidan chiqish» tugmasi yo'q.
+91. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): `DELETE /api/auth/sessions` + SecurityPanel «Barcha qurilmalardan chiqish» tugmasi mavjud (sessionVersion bump + joriy qurilmaga yangi cookie).
 92. Admin amallari auditi bor, lekin admin panelda audit jurnalini ko'rish UI yo'q.
 93. Spam-filtr faqat matnga — rasm-spam (bir xil rasmni ko'p joylash) ushlanmaydi.
 94. Foydalanuvchi ma'lumot eksporti JSON — o'qiladigan HTML/PDF varianti yo'q.
-95. 2FA zaxira kodlari yo'q — telefon yo'qolsa hisob qulflanadi.
+95. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): 2FA zaxira kodlari mavjud (`/api/auth/2fa/recovery`, `users.recoveryCodes` xeshlangan, login'da qabul qilinadi, SecurityPanel'da qolgan soni + yangilash).
 96. Rate-limit javoblarida Retry-After bor, lekin UI «qachon qayta urinish» taymerini hamma joyda ko'rsatmaydi.
 97. Bot: guruh ichida ishlamaydi (faqat private) — jamoa guruhiga ulab e'lon qilish imkoni yo'q.
 98. Bot to'lov cheki rasmini admin rad etsa — foydalanuvchiga sabab yozish maydoni yo'q (standart matn).
