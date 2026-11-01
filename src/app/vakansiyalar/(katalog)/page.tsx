@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { Briefcase, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { AutoSubmitSelect } from "@/components/ui/AutoSubmitSelect";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
-import { FeedLink } from "@/components/ui/FeedLink";
 import { VacancyAlertButton } from "@/components/vacancies/VacancyAlertButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
 import { Pagination, buildHref } from "@/components/specialists/Pagination";
@@ -70,7 +69,6 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
             <ButtonLink href="/vakansiyalar/yangi" variant="accent" size="lg">
               <Plus size={18} /> {postLabel}
             </ButtonLink>
-            <FeedLink href="/vakansiyalar/feed.xml" title={tr(til, VAK_KATALOG.rssTitle)} className="max-sm:hidden" />
             <ButtonLink href="/rezyumelar" variant="outline" size="lg">
               {tr(til, VAK_KATALOG.resumes)}
             </ButtonLink>

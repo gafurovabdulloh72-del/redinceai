@@ -127,7 +127,8 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
       {/* Hero — overflow-hidden faqat muqovada (bildirishnoma menyusi karta chetidan chiqa olsin) */}
       <section className="card mt-4 m-flat max-sm:mt-0" style={{ ["--cover-y" as string]: `${view.coverPosition ?? 50}%` }}>
-        <div className="relative aspect-[3/1] max-h-[240px] w-full overflow-hidden rounded-t-[inherit] bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]">
+        {/* Muqova: haqiqiy rasm bo'lmasa telefonda chizilmaydi — bo'sh kulrang blok joy band qilmasin (SpecialistCard qoidasi) */}
+        <div className={cn("relative aspect-[3/1] max-h-[240px] w-full overflow-hidden rounded-t-[inherit] bg-surface-2 [&_img]:[object-position:center_var(--cover-y)]", !view.coverUrl && !view.isOfficial && "max-sm:hidden")}>
           {view.isOfficial && !view.coverUrl ? <OfficialCover name={view.name} /> : <CoverImage src={view.coverUrl} category={view.category ?? undefined} seed={view.slug} priority />}
         </div>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
@@ -232,11 +233,13 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 const DEFAULT_RULES = "- Hurmat — tanqid ishga, odamga emas.\n- Spam va takroriy reklama yo'q; e'lonlar — egasi ruxsati bilan.\n- Mijoz kontaktlari va shaxsiy ma'lumotlar tarqatilmaydi.\n- Buzilsa — post o'chiriladi, takrorlansa a'zolikdan chiqariladi.";
 
 function AboutCard({ view, stats, similar, full = false }: { view: GroupView; stats: GroupStats | null; similar: GroupListItem[]; full?: boolean }) {
+  // Soddalashtirish (2026-11-01): yon panel (full=false) hero'dagi tavsifni TAKRORLAMAYDI va
+  // statistika/o'xshashlarni ko'rsatmaydi — ular «Haqida» tabida (full=true) qoladi.
   return (
     <div className="grid gap-4">
       <section className="card p-5">
         <h2 className="text-[15px] font-bold text-fg">Haqida</h2>
-        <p className={cn("mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg-2", !full && "line-clamp-6")}>{view.description || "Tavsif hali yozilmagan."}</p>
+        {full && <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg-2">{view.description || "Tavsif hali yozilmagan."}</p>}
         <dl className="mt-4 grid gap-2 text-[13px]">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-fg-3">Egasi</dt>
@@ -259,7 +262,7 @@ function AboutCard({ view, stats, similar, full = false }: { view: GroupView; st
           </div>
         </dl>
       </section>
-      {stats && (
+      {stats && full && (
         <section className="card p-5" aria-label="So'nggi 7 kun">
           <h2 className="text-[15px] font-bold text-fg">
             So&apos;nggi 7 kun
@@ -285,7 +288,7 @@ function AboutCard({ view, stats, similar, full = false }: { view: GroupView; st
         <h2 className="text-[15px] font-bold text-fg">Qoidalar</h2>
         <RulesText text={view.rules ?? DEFAULT_RULES} className="mt-2 grid gap-2 text-[13px] leading-relaxed text-fg-2" />
       </section>
-      {similar.length > 0 && (
+      {similar.length > 0 && full && (
         <section aria-labelledby="similar-h">
           <h2 id="similar-h" className="mb-3 text-[15px] font-bold text-fg">
             O&apos;xshash jamoalar
