@@ -2996,3 +2996,73 @@ export const contactUnlocks = sqliteTable(
   },
   (t) => [uniqueIndex("contact_unlocks_pair_uq").on(t.clientId, t.specialistId), index("contact_unlocks_sp_idx").on(t.specialistId), index("contact_unlocks_client_idx").on(t.clientId, t.createdAt)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Konkurslar (2026-11-01, KEYINGI-REJA 6): haftalik ijod challenge     */
+/* ------------------------------------------------------------------ */
+export const challenges = sqliteTable(
+  "challenges",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    coverUrl: text("cover_url"),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }).notNull(),
+    /** Yakunda ovozlar bo'yicha tanlangan g'olib ishtirok; null — hali ochiq yoki ishtirok bo'lmagan */
+    winnerEntryId: text("winner_entry_id"),
+    entriesCount: integer("entries_count").notNull().default(0),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("challenges_ends_idx").on(t.endsAt)],
+);
+export type Challenge = typeof challenges.$inferSelect;
+
+export const challengeEntries = sqliteTable(
+  "challenge_entries",
+  {
+    id: text("id").primaryKey(),
+    challengeId: text("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    votesCount: integer("votes_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    uniqueIndex("challenge_entries_user_uq").on(t.challengeId, t.userId),
+    uniqueIndex("challenge_entries_post_uq").on(t.challengeId, t.postId),
+    index("challenge_entries_ch_idx").on(t.challengeId, t.votesCount),
+  ],
+);
+export type ChallengeEntry = typeof challengeEntries.$inferSelect;
+
+export const challengeVotes = sqliteTable(
+  "challenge_votes",
+  {
+    id: text("id").primaryKey(),
+    challengeId: text("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => challengeEntries.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("challenge_votes_user_uq").on(t.challengeId, t.userId), index("challenge_votes_entry_idx").on(t.entryId)],
+);

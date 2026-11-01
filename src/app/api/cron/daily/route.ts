@@ -106,6 +106,7 @@ export async function GET(req: Request) {
     historyPurged: 0,
     pushPurged: 0,
     dmsExpired: 0,
+    challengesClosed: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -244,6 +245,13 @@ export async function GET(req: Request) {
     counts.storiesPurged = await purgeExpiredStories();
   } catch (e) {
     counts.errors.push(`stories: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  // (r) Konkurslar: muddati tugaganlarga g'olib (ovozlar bo'yicha) + bildirishnoma
+  try {
+    const { closeDueChallenges } = await import("@/lib/challenges/service");
+    counts.challengesClosed = await closeDueChallenges(nowDate);
+  } catch (e) {
+    counts.errors.push(`konkurs: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (o) Oylik TOP: oyning oxirgi kunida g'oliblar e'lon qilinadi va premium beriladi (lib/top.ts; boshqa kunlarda bo'sh)

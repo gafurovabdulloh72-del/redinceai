@@ -366,3 +366,14 @@ test("Darslar tartibi: mehmon 401, begona foydalanuvchi 403", async () => {
     assert.ok([403, 404].includes(r.status), `begona: ${r.status}`);
   }
 });
+
+test("Konkurs: mehmon ishtirok/ovoz 401, admin yaratish — mehmon 401 / mijoz 403", async () => {
+  const h = { "content-type": "application/json", origin: BASE };
+  assert.equal((await fetch(`${BASE}/api/konkurs/yoq-konkurs/qatnashish`, { method: "POST", headers: h, body: JSON.stringify({ postId: "x" }) })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/konkurs/yoq-konkurs/ovoz`, { method: "POST", headers: h, body: JSON.stringify({ entryId: "x" }) })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/admin/konkurs`, { method: "POST", headers: h, body: JSON.stringify({ title: "Sinov" }) })).status, 401);
+  if (COOKIES.cl) {
+    const r = await req("cl", "/api/admin/konkurs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Sinov" }) });
+    assert.equal(r.status, 403, `mijoz admin konkurs: ${r.status}`);
+  }
+});

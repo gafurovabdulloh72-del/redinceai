@@ -316,7 +316,7 @@ export async function sendAdminMenu(chatId: string): Promise<void> {
   const total = q.pendingSpecialists + q.manualPayments + q.manualInvoices + q.reports + q.disputes + q.payouts + q.mentorPayouts + q.mentorApps;
   await sendTelegram(
     chatId,
-    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /nizolar — nizolar · /payoutlar — pul chiqarish · /user ism — foydalanuvchi · /narx — kontakt narxlari · /elon — ommaviy e'lon`,
+    `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /nizolar — nizolar · /payoutlar — pul chiqarish · /user ism — foydalanuvchi · /narx — kontakt narxlari · /konkurs — ijod konkursi · /elon — ommaviy e'lon`,
     {
       keyboard: [
         [{ text: "📊 Statistika", data: "adm:stat:today" }, { text: `📥 Navbat${total ? ` (${total})` : ""}`, data: "adm:queue" }],
@@ -945,4 +945,40 @@ export async function handleAdminPriceText(chatId: string, text: string): Promis
   await clearBotSession(chatId);
   await sendTelegram(chatId, amount == null ? `✅ ${escapeTelegramHtml(s.data.name)} — maxsus narx olib tashlandi, umumiy narx amal qiladi.` : `✅ ${escapeTelegramHtml(s.data.name)} — kontakt narxi ${formatPrice(amount)}.`);
   return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Konkurslar                                                          */
+/* ------------------------------------------------------------------ */
+/**
+ * /konkurs — argumentsiz joriy konkurslar ro'yxati; `/konkurs Sarlavha | Tavsif | kunlar`
+ * yangi konkurs ochadi (tavsif va kunlar ixtiyoriy, standart 7 kun).
+ */
+export async function handleAdminChallenge(chatId: string, argText: string): Promise<void> {
+  const admin = await adminByChat(chatId);
+  if (!admin) return;
+  const { createChallenge, listChallenges } = await import("@/lib/challenges/service");
+  const arg = argText.trim();
+  if (!arg) {
+    const list = await listChallenges();
+    const lines = ["🏆 <b>Konkurslar</b>", ""];
+    if (!list.length) lines.push("Hozircha konkurs yo'q.");
+    for (const c of list.slice(0, 8)) {
+      const state = c.state === "open" ? "🟢 ochiq" : c.state === "soon" ? "🕐 tez kunda" : "✔️ yakunlangan";
+      lines.push(`• <b>${escapeTelegramHtml(c.title)}</b> — ${state}, ${c.entriesCount} ta ish${c.winner ? ` · 🏆 ${escapeTelegramHtml(c.winner.name)}` : ""}`);
+    }
+    lines.push("", "Yangi konkurs: <code>/konkurs Sarlavha | Tavsif | kunlar</code> (tavsif va kunlar ixtiyoriy, standart 7 kun)");
+    await sendTelegram(chatId, lines.join("\n"), { keyboard: [[{ text: "🏆 Konkurslar sahifasi", url: `${site()}/konkurs` }]] });
+    return;
+  }
+  const [title = "", description = "", daysRaw = ""] = arg.split("|").map((s) => s.trim());
+  const days = daysRaw ? Number(daysRaw.replace(/\D/g, "")) : undefined;
+  try {
+    const c = await createChallenge(admin.id, { title, description, days });
+    await audit(admin.id, "admin_challenge_create", { targetType: "challenge", targetId: c.id, meta: { title: c.title, via: "telegram" } });
+    await sendTelegram(chatId, `✅ Konkurs ochildi: <b>${escapeTelegramHtml(c.title)}</b>\nMuddat: ${fmtDate(c.endsAt.getTime())} gacha.`, { keyboard: [[{ text: "🏆 Ko'rish", url: `${site()}/konkurs/${c.id}` }]] });
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : "Konkurs ochilmadi";
+    await sendTelegram(chatId, `⚠️ ${escapeTelegramHtml(msg)}\n\nFormat: <code>/konkurs Sarlavha | Tavsif | kunlar</code>`);
+  }
 }

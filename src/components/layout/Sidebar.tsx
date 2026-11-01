@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, GraduationCap, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon, Crown } from "lucide-react";
+import { Bell, Bookmark, Briefcase, BriefcaseBusiness, Clapperboard, Compass, CreditCard, GraduationCap, HelpCircle, Home, Info, LayoutDashboard, LogOut, Map, Menu, MessageCircle, PlusSquare, Search, UserRound, Users, UsersRound, type LucideIcon, Crown, Trophy} from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { usePresence } from "@/components/motion/usePresence";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -202,6 +202,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
                 <MoreItem href="/top" icon={Crown} label={tr(til, SHELL.nav.top)} />
+                <MoreItem href="/konkurs" icon={Trophy} label={tr(til, SHELL.nav.contest)} />
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />
