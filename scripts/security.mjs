@@ -347,3 +347,13 @@ test("Parol havolasi Telegramga: mehmon → 401; javobda token yo'q", async () =
     assert.ok(!(await c.text()).includes("parol-tiklash"), "javobda tiklash havolasi sizdi");
   }
 });
+
+test("Eksport qayta tasdiqlash: GET 405, parolsiz/noto'g'ri parol rad, mehmon 401", async () => {
+  assert.equal((await fetch(`${BASE}/api/account/export`)).status, 405);
+  const guest = await fetch(`${BASE}/api/account/export`, { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ password: "x" }) });
+  assert.equal(guest.status, 401);
+  if (COOKIES.cl) {
+    const bad = await req("cl", "/api/account/export", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: "mutlaqo-xato-parol" }) });
+    assert.equal(bad.status, 422, `noto'g'ri parol bilan eksport: ${bad.status}`);
+  }
+});

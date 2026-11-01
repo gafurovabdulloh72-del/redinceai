@@ -312,7 +312,7 @@ Hech biri hozirgi kodda ishlatiladigan yo'lda emas; har biri uchun sabab va reja
 # 3-audit: Telegram, sessiya va monitoring (2026-10-31)
 
 Mini App (Telegram Web iframe), bot orqali kirish va kunlik bot oqimlari qo'shilgach qayta ko'rib chiqildi.
-Hammasi kodda yopildi, `scripts/security.mjs` 47 ta test (oldin 21), bot oqimlari — `scripts/bot.mjs` (CI'da soxta Bot API bilan).
+Hammasi kodda yopildi, `scripts/security.mjs` 48 ta test (oldin 21), bot oqimlari — `scripts/bot.mjs` (CI'da soxta Bot API bilan).
 
 | # | Kamchilik | Xavf | Yechim |
 |---|---|---|---|
@@ -337,12 +337,12 @@ Hammasi kodda yopildi, `scripts/security.mjs` 47 ta test (oldin 21), bot oqimlar
 | 19 | Kontakt sotuvi chetlab o'tilishi mumkinmi (sahifa HTML/RSC payload, `/api/specialists/[slug]`, vCard, OG rasm, JSON-LD)? | — | **Tekshirildi — sizish yo'q.** Kontaktli, sotiladigan mutaxassislar uchun mehmon va ochmagan mijoz so'rovlarida haqiqiy telefon/Telegram/Instagram/email qiymatlari qidirildi — hech qayerda yo'q (JSON-LD'da kontakt maydoni yo'q). CI regressiya testi qo'shildi (API DTO'da kontakt null) |
 | 20 | **2FA chetlab o'tilardi**: TOTP yoqilgan hisobga «Google bilan kirish», «Telegram bilan kirish» va Mini App orqali ikkinchi bosqichsiz kirish mumkin edi (kod faqat parol bilan kirishda so'ralardi) — admin hisoblari ham | 🔴 | Uchala yo'lda ham 2FA yoqilgan bo'lsa sessiya o'rniga 2FA chiptasi (5 daqiqa, bir martalik; Mini App'da iframe rejimi chiptada saqlanadi) → `/auth/kirish#t2=<chipta>` — fragment serverga, logga va Referer'ga ketmaydi; `AuthForm` uni o'qib manzildan o'chiradi va kod bosqichini ochadi. Mini App: amaldagi sessiya shu foydalanuvchiniki bo'lsa qayta kirish/yangi sessiya yo'q (har ochilishda kod so'ralmaydi, sessiyalar jadvali shishmaydi). Kod tasdig'idan keyin to'liq sahifa o'tishi. Sinov: vaqtinchalik hisob — Mini App → `2fa`, sessiya cookie yo'q; kod bilan tasdiq → sessiya; sessiya bor → `ok`, yangi sessiya yo'q; sayt Telegram kirishi → `2fa`; brauzerda `#t2=` → kod bosqichi → `/kabinet` |
 | 21 | Telegram/bot orqali ochilgan hisob (parol tasodifiy, email `tg…@telegram.local` — xat bormaydi) parol talab qiladigan amallardan butunlay qulflangan edi: email o'zgartirish, hisobni o'chirish, email orqali parol tiklash ishlamasdi | 🟠 | `POST /api/auth/parol/telegram` — kirgan foydalanuvchi so'rasa, parol o'rnatish havolasi hisobga ulangan TELEGRAMGA yuboriladi (javobda token yo'q — o'g'irlangan sessiya egasi havolani ko'ra olmaydi; «siz so'ramagan bo'lsangiz — bosmang» ogohlantirishi bilan). Token mavjud tiklash oqimi: 1 soat, bir martalik, o'rnatilganda boshqa sessiyalar yopiladi. UI: Kabinet → Xavfsizlik → parol kartasi ostidagi havola (Telegram ulanganlarga). E2E sinov: ro'yxat → ulash → havola → yangi parol → eski rad / yangi o'tadi / token takror ishlamaydi |
+| 22 | Ma'lumot eksporti faqat sessiya cookie bilan yuklab olinardi — o'g'irlangan sessiya barcha shaxsiy ma'lumotni bir faylda olardi (17-bandda egaga xabar qo'shilgan edi, endi oldini olish ham bor) | 🟠 | Eksport endi `POST` + joriy parol (422 noto'g'ri bo'lsa); GET → 405. UI: «JSON yuklab olish» → parol so'raladigan tasdiqlash kartasi. Telegram-hisob parolni 21-band oqimida o'rnatadi. Egaga «yuklab olindi» xabari saqlanadi |
 
 **Tekshirildi — muammo yo'q:** 34 ta admin API'ning hammasida `requireSession(["admin"])`; profil yangilashda imtiyozli maydon yo'q (zod noma'lum maydonlarni tashlaydi); parol tiklash (xeshlangan bir martalik token, sessiya versiyasi, 2FA chetlab o'tilmaydi); TOTP qayta ishlatishdan himoya; R2 presign imzosida hajm/tur; qo'ng'iroq/efir tokenlari faqat ishtirokchiga; SSE oqimi faqat o'z suhbatlari; CDN keshlanadigan javoblar shaxsiy emas; CORS ochiq emas; xom HTML/`eval` yo'q; dinamik RegExp'lar ekranlangan; loglarda token/URL yo'q; bloklangan foydalanuvchi Telegram/Mini App/Google orqali ham kira olmaydi; bot HTML xabarlarida foydalanuvchi matni ekranlangan; kontakt sotuvi («faqat portfolio», o'z profili, yashirin) to'g'ri cheklangan.
 
 **Qolgan (keyingi blok):**
 - `ADMIN_REQUIRE_2FA=1` ni prod'da yoqish (18-band) — avval barcha adminlar 2FA'ni yoqsin.
-- Ma'lumot eksportiga qayta parol so'rash (hozir — egaga xabar).
 - 24-band: imzolangan (muddatli) fayl URL'lari — Blob public store'da hozircha ochiq havola.
 - Paket migratsiyalari: drizzle 0.45, zod v4, Next 16 (postcss), @vercel/blob 2.x — har biri alohida blok, breaking o'zgarishlar bor.
 - Sentry yoki boshqa xato monitoringi (28) — sizning qaroringiz bilan (CSP'ga yangi xost kiradi).

@@ -101,6 +101,8 @@ function groupSecret(secret: string) {
 export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
   const router = useRouter();
   const [current, setCurrent] = useState("");
+  const [confirmExport, setConfirmExport] = useState(false);
+  const [exportPassword, setExportPassword] = useState("");
   const [tgLinkBusy, setTgLinkBusy] = useState(false);
   const [tgLinkSent, setTgLinkSent] = useState(false);
   const [next, setNext] = useState("");
@@ -318,10 +320,14 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
 
   const exportData = async () => {
     if (exporting) return;
+    if (!exportPassword) {
+      setExportError("Tasdiqlash uchun joriy parolni kiriting");
+      return;
+    }
     setExportError(null);
     setExporting(true);
     try {
-      const res = await fetch("/api/account/export");
+      const res = await fetch("/api/account/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: exportPassword }) });
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
         setExportError(errorText(res, json, "Eksport qilib bo'lmadi"));
@@ -338,6 +344,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
       setExported(true);
+      setConfirmExport(false);
+      setExportPassword("");
     } catch {
       setExportError("Tarmoq xatosi. Qayta urinib ko'ring.");
     } finally {
@@ -1264,10 +1272,57 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
               )}
             </div>
           </div>
-          <Button type="button" variant="outline" onClick={exportData} disabled={exporting} className="sm:min-w-[200px]">
-            {exporting ? <Spinner /> : <Download size={15} />} JSON yuklab olish
-          </Button>
+          {!confirmExport && (
+            <Button type="button" variant="outline" onClick={() => setConfirmExport(true)} className="sm:min-w-[200px]">
+              <Download size={15} /> JSON yuklab olish
+            </Button>
+          )}
         </div>
+
+        {confirmExport && !exported && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void exportData();
+            }}
+            noValidate
+            className="mt-4 rounded-[18px] border border-line bg-surface p-4 sm:p-5"
+          >
+            <p className="text-[13px] font-medium text-fg">Eksportda barcha shaxsiy ma&apos;lumotlaringiz bor — tasdiqlash uchun joriy parolni kiriting.</p>
+            <div className="mt-3 sm:max-w-sm">
+              <PasswordField
+                id="sec-export-password"
+                name="export-password"
+                label="Parol"
+                value={exportPassword}
+                onChange={(v) => {
+                  setExportPassword(v);
+                  setExportError(null);
+                }}
+                autoComplete="current-password"
+                placeholder="Joriy parolingiz"
+                error={exportError || undefined}
+              />
+            </div>
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setConfirmExport(false);
+                  setExportPassword("");
+                  setExportError(null);
+                }}
+                disabled={exporting}
+              >
+                Bekor qilish
+              </Button>
+              <Button type="submit" variant="outline" disabled={exporting} className="sm:min-w-[200px]">
+                {exporting ? <Spinner /> : <Download size={15} />} Yuklab olish
+              </Button>
+            </div>
+          </form>
+        )}
 
         {/* O'chirish */}
         <div className="mt-5 border-t border-line pt-5">

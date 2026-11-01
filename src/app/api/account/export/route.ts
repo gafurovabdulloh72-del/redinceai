@@ -1,7 +1,9 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, favorites, follows, groupMembers, groups, notifications, orders, payments, payouts, portfolioItems, postComments, postSaves, posts, reviews, savedSearches, sessions, specialists, userBlocks, users } from "@/lib/db/schema";
-import { ApiError, handler, requireSession } from "@/lib/api";
+import { z } from "zod";
+import { ApiError, handler, parseBody, requireSession } from "@/lib/api";
+import { verifyPassword } from "@/lib/security/password";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -14,9 +16,18 @@ import { enforceLimit } from "@/lib/security/rate-limit";
  * ijtimoiy tarmoq: postlar (media havolalari bilan), yozgan izohlar, obunalar (ikki tomon), bloklaganlar, saqlangan postlar, jamoalar a'zoligi.
  * Rate limit: 5 / soat.
  */
-export const GET = handler(async (req) => {
+const exportSchema = z.object({ password: z.string().min(1, "Parolni kiriting").max(200) });
+
+export const POST = handler(async (req) => {
   const session = await requireSession();
   await enforceLimit("accountExport", session.sub);
+  // Qayta tasdiqlash (3-audit, 2026-11-01): eksport — barcha shaxsiy ma'lumot bir faylda. O'g'irlangan sessiya
+  // cookie'si bilan yuklab bo'lmasin: joriy parol so'raladi (Telegram-hisob parolni Xavfsizlik kartasida o'rnatadi)
+  const input = await parseBody(req, exportSchema);
+  const cred = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { passwordHash: true } });
+  if (!cred || !(await verifyPassword(input.password, cred.passwordHash))) {
+    throw new ApiError(422, "Parol noto'g'ri", { password: "Parol noto'g'ri" });
+  }
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.sub),
