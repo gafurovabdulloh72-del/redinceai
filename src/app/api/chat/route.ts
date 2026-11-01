@@ -5,17 +5,22 @@ import { conversations, users } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
 import { DM_BODY_MAX, getOrCreateConversation, listConversations, listFolders, sendDm, touchLastSeen } from "@/lib/chat/dm";
+import { listGroupInbox } from "@/lib/chat/inbox";
 import { normalizeUsername } from "@/lib/chat/username";
 import { assertCanDm } from "@/lib/privacy/blocks";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
-/** GET ?papka=<id|arxiv> — mening suhbatlarim (qarshi tomon, oxirgi xabar, o'qilmaganlar) + papkalar */
+/**
+ * GET ?papka=<id|arxiv> — mening suhbatlarim (qarshi tomon, oxirgi xabar, o'qilmaganlar) + papkalar.
+ * Telegram inbox (2026-11-01): `groups` — men a'zo bo'lgan guruh/kanallar ham shu javobda,
+ * mijoz ularni DM qatorlari bilan bitta ro'yxatga qo'shadi.
+ */
 export const GET = handler(async (req) => {
   const session = await requireSession();
   await touchLastSeen(session.sub);
   const folder = new URL(req.url).searchParams.get("papka");
-  const [items, folders] = await Promise.all([listConversations(session.sub, 60, folder), listFolders(session.sub)]);
-  return ok({ items, folders });
+  const [items, folders, groups] = await Promise.all([listConversations(session.sub, 60, folder), listFolders(session.sub), listGroupInbox(session.sub)]);
+  return ok({ items, folders, groups });
 });
 
 /** Tana ixtiyoriy: bo'sh bo'lsa faqat suhbat ochiladi (xabarsiz); bor bo'lsa birinchi xabar ham yuboriladi */

@@ -1197,6 +1197,9 @@ export const groupMembers = sqliteTable(
     eventReminders: integer("event_reminders", { mode: "boolean" }),
     /** Yopiq jamoaga so'rov yuborishdagi qisqa izoh — boshqaruvchi ko'radi */
     joinNote: text("join_note"),
+    /** Chat inbox (Telegram uslubi, 2026-11-01): guruh/kanal qaysi papkada (dm_folders.id) va qadalganmi */
+    folderId: text("folder_id"),
+    pinnedAt: integer("pinned_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

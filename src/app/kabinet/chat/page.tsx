@@ -7,10 +7,10 @@ import { DmChat } from "@/components/chat/DmChat";
 
 export async function generateMetadata(): Promise<Metadata> {
   const til = await getLocale();
-  return { title: tr(til, KABINET_NAV.titles["Chat"]), other: { "m-title": tr(til, KABINET_NAV.titles["Xabarlar"]) }  };
+  return { title: tr(til, KABINET_NAV.titles["Chat"]), other: { "m-title": tr(til, KABINET_NAV.titles["Chat"]) }  };
 }
 
-const TITLE = { uz: "Xabarlar", ru: "Сообщения" } as const;
+const TITLE = { uz: "Chat", ru: "Чат" } as const;
 
 /**
  * Ichki chat: suhbatlar ro'yxati + yozishmalar. ?s=<id> — ochib qo'yiladigan suhbat (bildirishnoma havolasidan),

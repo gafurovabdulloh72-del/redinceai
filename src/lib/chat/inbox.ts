@@ -1,0 +1,133 @@
+import "server-only";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { groupMembers, groupMessages, groups, posts, users } from "@/lib/db/schema";
+
+/**
+ * YAGONA CHAT INBOX (Telegram uslubi, 2026-11-01): «Chat» bo'limida shaxsiy suhbatlar bilan
+ * bir qatorda men a'zo bo'lgan GURUHLAR va KANALLAR ham turadi. Bu fayl guruh/kanal qatorlarini
+ * beradi (DM qatorlari — dm.ts `listConversations`); mijoz ikkalasini bitta ro'yxatga qo'shib,
+ * qadalganlar tepada, qolganlar oxirgi faollik bo'yicha saralaydi.
+ * Oxirgi xabar: guruh uchun — chatdagi oxirgi xabar, kanal uchun — oxirgi post.
+ * O'qilmaganlar: `group_members.lastReadAt` dan keyingi xabarlar (guruh) / postlar (kanal) soni.
+ * Papka/pin: `group_members.folderId/pinnedAt` — DM papkalari (dm_folders) bilan umumiy papkalar.
+ */
+
+export interface GroupInboxRow {
+  kind: "group" | "channel";
+  /** groups.id — pin/papka PATCH shu bo'yicha */
+  id: string;
+  slug: string;
+  name: string;
+  coverUrl: string | null;
+  isOfficial: boolean;
+  membersCount: number;
+  last: { body: string; at: number; by: string | null; hasFiles: boolean } | null;
+  unread: number;
+  muted: boolean;
+  pinned: boolean;
+  folderId: string | null;
+}
+
+export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
+  const rows = await db
+    .select({
+      id: groups.id,
+      slug: groups.slug,
+      name: groups.name,
+      kind: groups.kind,
+      coverUrl: groups.coverUrl,
+      isOfficial: groups.isOfficial,
+      membersCount: groups.membersCount,
+      lastActivityAt: groups.lastActivityAt,
+      createdAt: groups.createdAt,
+      lastReadAt: groupMembers.lastReadAt,
+      muted: groupMembers.muted,
+      folderId: groupMembers.folderId,
+      pinnedAt: groupMembers.pinnedAt,
+    })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+    .where(and(eq(groupMembers.userId, meId), eq(groupMembers.status, "active")))
+    .orderBy(desc(sql`coalesce(${groups.lastActivityAt}, ${groups.createdAt})`))
+    .limit(80);
+  if (!rows.length) return [];
+
+  const groupIds = rows.filter((r) => r.kind === "group").map((r) => r.id);
+  const channelIds = rows.filter((r) => r.kind === "channel").map((r) => r.id);
+
+  // Oxirgi xabar (guruhlar) — har guruh uchun eng so'nggi o'chirilmagan xabar, bitta so'rovda
+  const lastMsgs = groupIds.length
+    ? await db
+        .select({ groupId: groupMessages.groupId, body: groupMessages.body, at: groupMessages.createdAt, by: users.name, files: sql<number>`json_array_length(${groupMessages.attachments})` })
+        .from(groupMessages)
+        .innerJoin(users, eq(users.id, groupMessages.senderId))
+        .where(and(inArray(groupMessages.groupId, groupIds), isNull(groupMessages.deletedAt), sql`${groupMessages.id} in (select id from group_messages m2 where m2.group_id = ${groupMessages.groupId} and m2.deleted_at is null order by m2.created_at desc limit 1)`))
+        .limit(groupIds.length * 2)
+    : [];
+  // Oxirgi post (kanallar)
+  const lastPosts = channelIds.length
+    ? await db
+        .select({ groupId: posts.groupId, body: posts.body, at: posts.createdAt, by: users.name, files: sql<number>`json_array_length(${posts.media})` })
+        .from(posts)
+        .innerJoin(users, eq(users.id, posts.authorId))
+        .where(and(inArray(posts.groupId, channelIds), sql`${posts.id} in (select id from posts p2 where p2.group_id = ${posts.groupId} order by p2.created_at desc limit 1)`))
+        .limit(channelIds.length * 2)
+    : [];
+  const lastBy = new Map<string, { body: string; at: number; by: string | null; hasFiles: boolean }>();
+  for (const m of [...lastMsgs, ...lastPosts]) {
+    if (!m.groupId) continue;
+    const prev = lastBy.get(m.groupId);
+    const at = m.at.getTime();
+    if (!prev || at > prev.at) lastBy.set(m.groupId, { body: m.body, at, by: m.by, hasFiles: Number(m.files ?? 0) > 0 });
+  }
+
+  // O'qilmaganlar — lastReadAt'dan keyingilar (guruh: xabarlar, kanal: postlar), guruhlangan sanash
+  const unread = new Map<string, number>();
+  if (groupIds.length) {
+    const r = await db
+      .select({ gid: groupMessages.groupId, n: sql<number>`count(*)` })
+      .from(groupMessages)
+      .innerJoin(groupMembers, and(eq(groupMembers.groupId, groupMessages.groupId), eq(groupMembers.userId, meId)))
+      .where(and(inArray(groupMessages.groupId, groupIds), isNull(groupMessages.deletedAt), sql`${groupMessages.senderId} != ${meId}`, gt(groupMessages.createdAt, sql`coalesce(${groupMembers.lastReadAt}, 0)`)))
+      .groupBy(groupMessages.groupId);
+    for (const x of r) unread.set(x.gid, Number(x.n));
+  }
+  if (channelIds.length) {
+    const r = await db
+      .select({ gid: posts.groupId, n: sql<number>`count(*)` })
+      .from(posts)
+      .innerJoin(groupMembers, and(eq(groupMembers.groupId, posts.groupId), eq(groupMembers.userId, meId)))
+      .where(and(inArray(posts.groupId, channelIds), sql`${posts.authorId} != ${meId}`, gt(posts.createdAt, sql`coalesce(${groupMembers.lastReadAt}, 0)`)))
+      .groupBy(posts.groupId);
+    for (const x of r) if (x.gid) unread.set(x.gid, Number(x.n));
+  }
+
+  return rows.map((r) => ({
+    kind: r.kind === "channel" ? "channel" : "group",
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    coverUrl: r.coverUrl,
+    isOfficial: Boolean(r.isOfficial),
+    membersCount: r.membersCount,
+    last: lastBy.get(r.id) ?? null,
+    unread: Math.min(unread.get(r.id) ?? 0, 999),
+    muted: Boolean(r.muted),
+    pinned: Boolean(r.pinnedAt),
+    folderId: r.folderId,
+  }));
+}
+
+/** Guruh/kanal qatorining chat sozlamasi: qadash yoki papkaga ko'chirish (faqat o'z a'zoligim) */
+export async function setGroupChatPref(meId: string, groupId: string, patch: { pinned?: boolean; folderId?: string | null }): Promise<boolean> {
+  const set: Record<string, unknown> = {};
+  if (patch.pinned !== undefined) set.pinnedAt = patch.pinned ? new Date() : null;
+  if (patch.folderId !== undefined) set.folderId = patch.folderId;
+  if (!Object.keys(set).length) return true;
+  const res = await db
+    .update(groupMembers)
+    .set(set)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, meId), eq(groupMembers.status, "active")));
+  return (res.rowsAffected ?? 0) > 0;
+}

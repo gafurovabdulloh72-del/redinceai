@@ -89,8 +89,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/", label: SHELL.nav.home, icon: Home, exact: true },
     { href: "/qidiruv", label: SHELL.nav.search, icon: Search },
     { href: "/lenta", label: SHELL.nav.lenta, icon: Clapperboard },
-    { href: "/jamoalar", label: SHELL.nav.groups, icon: UsersRound, dot: groupsUnread > 0 },
-    { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread, authOnly: true },
+    // Telegram inbox (2026-11-01): «Hamjamiyat» alohida band emas — guruh/kanallar Chat ichida; katalog «Yana»da va Chat qidiruv tugmasida
+    { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread + groupsUnread, authOnly: true },
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
   // Ikkilamchi bandlar; TOP reyting «Yana» menyusida (panel tinch qolsin).
@@ -202,6 +202,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
                 <MoreItem href="/top" icon={Crown} label={tr(til, SHELL.nav.top)} />
+                <MoreItem href="/jamoalar" icon={UsersRound} label={tr(til, SHELL.nav.groups)} />
                 <MoreItem href="/konkurs" icon={Trophy} label={tr(til, SHELL.nav.contest)} />
                 <MoreItem href="/savollar" icon={MessagesSquare} label={tr(til, SHELL.nav.qa)} />
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />

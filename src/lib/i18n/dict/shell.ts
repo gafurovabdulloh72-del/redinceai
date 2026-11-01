@@ -99,7 +99,7 @@ export const SHELL = {
     loginShort: { uz: "Kirish", ru: "Вход" },
     start: { uz: "Boshlash", ru: "Начать" },
     search: { uz: "Qidiruv", ru: "Поиск" },
-    messages: { uz: "Xabarlar", ru: "Сообщения" },
+    messages: { uz: "Chat", ru: "Чат" },
     create: { uz: "Yaratish", ru: "Создать" },
     more: { uz: "Yana", ru: "Ещё" },
     profile: { uz: "Profil", ru: "Профиль" },

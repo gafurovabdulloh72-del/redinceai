@@ -389,3 +389,12 @@ test("Maslahat (Q&A): mehmon savol/javob/foydali/qabul 401, begona o'chirish 403
     assert.ok([403, 404].includes(r.status), `begona o'chirish: ${r.status}`);
   }
 });
+
+test("Chat inbox (Telegram): mehmon guruh-pref 401, begona guruh 404", async () => {
+  const h = { "content-type": "application/json", origin: BASE };
+  assert.equal((await fetch(`${BASE}/api/chat/guruh/x`, { method: "PATCH", headers: h, body: JSON.stringify({ pinned: true }) })).status, 401);
+  if (COOKIES.cl) {
+    const r = await req("cl", "/api/chat/guruh/yoq-guruh-404", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ pinned: true }) });
+    assert.equal(r.status, 404, `yo'q guruh: ${r.status}`);
+  }
+});

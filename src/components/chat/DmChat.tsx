@@ -5,7 +5,7 @@ import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
+import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
@@ -50,6 +50,23 @@ interface ConvRow {
   prefs: ConvPrefsView;
   peerTyping?: boolean;
 }
+/** Telegram inbox (2026-11-01): men a'zo bo'lgan guruh/kanal qatori (lib/chat/inbox.ts GroupInboxRow) */
+interface GroupRow {
+  kind: "group" | "channel";
+  id: string;
+  slug: string;
+  name: string;
+  coverUrl: string | null;
+  isOfficial: boolean;
+  membersCount: number;
+  last: { body: string; at: number; by: string | null; hasFiles: boolean } | null;
+  unread: number;
+  muted: boolean;
+  pinned: boolean;
+  folderId: string | null;
+}
+/** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
+type ChatType = "all" | "dm" | "group" | "channel";
 /** Yo'qolish muddati variantlari va yorliqlari (lib/chat/dm.ts DM_TTL_OPTIONS bilan bir xil) */
 const TTL_CHOICES: Array<{ sec: number; label: string }> = [
   { sec: 0, label: "O'chiq" },
@@ -138,6 +155,13 @@ const T = {
   copied: { uz: "Nusxalandi", ru: "Скопировано" },
   forwardedOk: { uz: "Yo'naltirildi", ru: "Переслано" },
   open: { uz: "Ochish", ru: "Открыть" },
+  tabAll: { uz: "Umumiy", ru: "Все" },
+  tabDms: { uz: "Yozishmalar", ru: "Личные" },
+  tabGroups: { uz: "Guruhlar", ru: "Группы" },
+  tabChannels: { uz: "Kanallar", ru: "Каналы" },
+  groupRow: { uz: "Guruh chati", ru: "Групповой чат" },
+  channelRow: { uz: "Kanal", ru: "Канал" },
+  catalog: { uz: "Jamoalar katalogi", ru: "Каталог сообществ" },
   dropHere: { uz: "Faylni shu yerga tashlang", ru: "Перетащите файл сюда" },
   toLatest: { uz: "Pastga", ru: "Вниз" },
   closedDm: { uz: "Bu foydalanuvchi shaxsiy xabarlarni yopib qo'ygan", ru: "Пользователь закрыл личные сообщения" },
@@ -320,6 +344,10 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   // Papkalar (Telegram naqshi) va o'z-o'zidan yo'qoladigan xabarlar
   const [folders, setFolders] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [folder, setFolder] = useState<string | null>(null);
+  // Telegram inbox: guruh/kanal qatorlari + tur filtri (Umumiy · Yozishmalar · Guruhlar · Kanallar)
+  const [groupRows, setGroupRows] = useState<GroupRow[]>([]);
+  const [chatType, setChatType] = useState<ChatType>("all");
+  const [groupMenu, setGroupMenu] = useState<{ id: string; up: boolean } | null>(null);
   const [folderMgr, setFolderMgr] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [ttl, setTtl] = useState(0);
@@ -391,6 +419,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     if (json?.ok) {
       setConvs(json.data.items);
       setFolders(json.data.folders ?? []);
+      setGroupRows(json.data.groups ?? []);
     }
   }, []);
 
@@ -947,12 +976,43 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     const needle = q.trim().toLowerCase();
     return (convs ?? []).filter(
       (c) =>
+        (chatType === "all" || chatType === "dm") &&
         c.prefs.archived === showArchived &&
         (!folder || c.prefs.folderId === folder) &&
         (!needle || c.peer.name.toLowerCase().includes(needle) || (c.peer.username ?? "").includes(needle) || (c.last?.body ?? "").toLowerCase().includes(needle)),
     );
-  }, [convs, q, showArchived, folder]);
+  }, [convs, q, showArchived, folder, chatType]);
   const archivedCount = useMemo(() => (convs ?? []).filter((c) => c.prefs.archived).length, [convs]);
+
+  // Guruh/kanal qatorlari (arxiv rejimida ko'rinmaydi — arxiv faqat DM uchun)
+  const groupFiltered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (showArchived) return [];
+    return groupRows.filter(
+      (g) =>
+        (chatType === "all" || chatType === g.kind) &&
+        (!folder || g.folderId === folder) &&
+        (!needle || g.name.toLowerCase().includes(needle) || (g.last?.body ?? "").toLowerCase().includes(needle)),
+    );
+  }, [groupRows, q, showArchived, folder, chatType]);
+
+  /** Yagona ro'yxat (Telegram): qadalganlar tepada, qolganlari oxirgi faollik bo'yicha */
+  type MergedRow = { kind: "dm"; at: number; pinned: boolean; dm: ConvRow } | { kind: "grp"; at: number; pinned: boolean; grp: GroupRow };
+  const merged = useMemo<MergedRow[]>(() => {
+    const rows: MergedRow[] = [
+      ...filtered.map((c) => ({ kind: "dm" as const, at: c.last?.at ?? 0, pinned: c.prefs.pinned, dm: c })),
+      ...groupFiltered.map((g) => ({ kind: "grp" as const, at: g.last?.at ?? 0, pinned: g.pinned, grp: g })),
+    ];
+    rows.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.at - a.at);
+    return rows;
+  }, [filtered, groupFiltered]);
+
+  /** Guruh/kanal qatorining pin/papka sozlamasi — optimistik */
+  const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null }) => {
+    setGroupRows((l) => l.map((g) => (g.id === id ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}) } : g)));
+    const res = await fetch(`/api/chat/guruh/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
+    if (!res?.ok) toast("Saqlanmadi", "error");
+  };
 
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -1053,21 +1113,49 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         <button type="button" onClick={() => setFolderMgr(true)} aria-label="Papkalar" title="Papkalar" className={cn(iconBtn, "h-9 w-9 shrink-0")}>
           <Folder size={16} />
         </button>
+        {/* Jamoalar katalogi — yangi guruh/kanal topish (Telegram'dagi qidiruv roli) */}
+        <Link href="/jamoalar" aria-label={t("catalog")} title={t("catalog")} className={cn(iconBtn, "h-9 w-9 shrink-0")}>
+          <Compass size={16} />
+        </Link>
       </div>
-      {/* Papka tanlovi (telefonda gorizontal aylanadi) */}
-      {folders.length > 0 && (
-        <nav aria-label="Papkalar" className="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-line px-2.5 pb-2 max-lg:border-0 max-lg:px-0">
-          <button type="button" onClick={() => setFolder(null)} aria-pressed={!folder} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", !folder ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
-            Hammasi
+      {/* Telegram «papkalari»: tur filtrlari + o'z papkalari — bitta aylanadigan qator */}
+      <nav aria-label="Papkalar" className="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-line px-2.5 pb-2 max-lg:border-0 max-lg:px-0">
+        {(
+          [
+            { k: "all", label: t("tabAll") },
+            { k: "dm", label: t("tabDms") },
+            { k: "group", label: t("tabGroups") },
+            { k: "channel", label: t("tabChannels") },
+          ] as const
+        ).map((o) => (
+          <button
+            key={o.k}
+            type="button"
+            onClick={() => {
+              setChatType(o.k);
+              setFolder(null);
+            }}
+            aria-pressed={chatType === o.k && !folder}
+            className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", chatType === o.k && !folder ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
+          >
+            {o.label}
           </button>
-          {folders.map((f) => (
-            <button key={f.id} type="button" onClick={() => setFolder(folder === f.id ? null : f.id)} aria-pressed={folder === f.id} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", folder === f.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
-              {f.name}
-              {f.count > 0 && <span className="ml-1 opacity-60">{f.count}</span>}
-            </button>
-          ))}
-        </nav>
-      )}
+        ))}
+        {folders.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => {
+              setChatType("all");
+              setFolder(folder === f.id ? null : f.id);
+            }}
+            aria-pressed={folder === f.id}
+            className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", folder === f.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
+          >
+            {f.name}
+          </button>
+        ))}
+      </nav>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!convs ? (
           <ul className="stagger divide-y divide-line" aria-busy="true" aria-label="Yuklanmoqda">
@@ -1081,7 +1169,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
               </li>
             ))}
           </ul>
-        ) : filtered.length === 0 ? (
+        ) : merged.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2.5 px-6 py-12 text-center">
             <span className="icon-tile-soft !rounded-full">
               <MessageCircle size={20} />
@@ -1098,7 +1186,70 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
           </div>
         ) : (
           <ul className="divide-y divide-line max-lg:divide-y-0">
-            {filtered.map((c) => (
+            {merged.map((row) => {
+              if (row.kind === "grp") {
+                const g = row.grp;
+                const open = () => router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : `/jamoalar/${g.slug}`);
+                return (
+                  <li key={`g-${g.id}`} className="group/row relative">
+                    <button type="button" onClick={open} className="press flex w-full items-center gap-3 border-l-2 border-transparent px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3">
+                      <span className={cn("relative grid shrink-0 place-items-center overflow-hidden rounded-full text-ink-fg", g.isOfficial ? "bg-ink" : "bg-fg/70", isPhone ? "h-[52px] w-[52px]" : "h-10 w-10")}>
+                        {g.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
+                        ) : g.kind === "channel" ? (
+                          <Zap size={isPhone ? 20 : 16} aria-hidden />
+                        ) : (
+                          <User size={isPhone ? 20 : 16} aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className={cn("flex min-w-0 items-center gap-1 truncate text-[13.5px] text-fg max-lg:text-[16px]", g.unread > 0 ? "font-bold" : "font-semibold")}>
+                            <span className="truncate">{g.name}</span>
+                            {g.isOfficial && <ShieldCheck size={12} className="shrink-0 text-accent" aria-label="Rasmiy" />}
+                            {g.muted && <BellOff size={11} className="shrink-0 text-fg-4" aria-label={t("muted")} />}
+                            {g.pinned && <Pin size={11} className="shrink-0 text-fg-4" aria-label={t("pin")} />}
+                          </span>
+                          {g.last && <time className={cn("shrink-0 text-[11px] max-lg:text-[12px]", g.unread > 0 && !g.muted ? "font-semibold text-accent" : "text-fg-4")} dateTime={new Date(g.last.at).toISOString()}>{listStamp(g.last.at, locale, now)}</time>}
+                        </span>
+                        <span className="mt-0.5 flex items-center justify-between gap-2">
+                          <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px] max-lg:text-[14.5px]", g.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
+                            {g.last?.hasFiles && <Paperclip size={11} className="shrink-0" aria-hidden="true" />}
+                            <span className="truncate">{g.last ? `${g.last.by ? `${g.last.by}: ` : ""}${g.last.body || t("file")}` : t(g.kind === "channel" ? "channelRow" : "groupRow")}</span>
+                          </span>
+                          {g.unread > 0 && (
+                            <span className={cn("flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold", g.muted ? "bg-fg/15 text-fg" : "bg-accent text-white")} aria-label={`${g.unread} yangi`}>
+                              {g.unread > 99 ? "99+" : g.unread}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    </button>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={(e) => setGroupMenu(groupMenu?.id === g.id ? null : { id: g.id, up: menuUp(e.currentTarget, listRef.current) })}
+                        aria-haspopup="menu"
+                        aria-expanded={groupMenu?.id === g.id}
+                        aria-label={`${g.name} — ${t("menu")}`}
+                        className={cn(iconBtn, "h-8 w-8 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60", groupMenu?.id === g.id && "opacity-100")}
+                      >
+                        <MoreHorizontal size={15} />
+                      </button>
+                      <Layer open={groupMenu?.id === g.id} onClose={() => setGroupMenu(null)} label={`${g.name} — ${t("menu")}`} anchorClass={groupMenu?.up ? "right-0 bottom-full mb-0.5" : "right-0 top-full mt-0.5"}>
+                        <MenuItem icon={g.pinned ? PinOff : Pin} label={t(g.pinned ? "unpin" : "pin")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { pinned: !g.pinned }))} />
+                        {folders.length > 0 && <MenuDivider />}
+                        {folders.map((f) => (
+                          <MenuItem key={f.id} icon={Folder} label={f.name} active={g.folderId === f.id} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { folderId: g.folderId === f.id ? null : f.id }))} />
+                        ))}
+                      </Layer>
+                    </div>
+                  </li>
+                );
+              }
+              const c = row.dm;
+              return (
               <li key={c.id} className="group/row relative overflow-hidden" {...rowSwipeHandlers(c.id)}>
                 {/* Surilganda ochiladigan amallar (orqada turadi) */}
                 {isPhone && rowSwipe?.id === c.id && (
@@ -1194,7 +1345,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                 </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
