@@ -15,7 +15,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 10. Rasmiy kanal o'qilmagani katta songa to'planadi (90 a'zoga har post) — «hammasi o'qildi» tugmasi yo'q.
 
 ## 2. Jamoalar va guruh chati — 11–20
-11. ✱ Guruh chatida ovozli xabar yo'q (DM'da bor — VoiceRecorder'ni ulash qoldi).
+11. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): GroupChat composer'ida VoiceRecorder ulangan (`sendVoice`).
 12. Guruh chatida xabarni yo'naltirish (forward) yo'q.
 13. Guruh a'zosini «admin qilish» UI bor-u, admin huquqlari ro'yxati (kim nimani qila oladi) hech qayerda tushuntirilmagan.
 14. Taklif havolasini QR ko'rinishda ulashib bo'lmaydi.
@@ -54,12 +54,12 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 41. ✱ Qidiruvda xato yozilgan so'zlar tuzatilmaydi («montaj» ↔ «mantaj») — fuzzy yo'q.
 42. ⌘K global qidiruv telefonda yo'q (faqat /qidiruv sahifasi).
 43. Qidiruv tarixi/so'nggi so'rovlar saqlanmaydi.
-44. Savol-javob (/savollar) sahifalari uchun JSON-LD (QAPage) yo'q — Google rich natija chiqmaydi.
+44. ✅ YOPILDI (2026-11-01): savol sahifasida `QAPage` JSON-LD (acceptedAnswer + suggestedAnswer, `\u003c` ekranlash).
 45. Konkurs sahifalarida OG rasm generatsiyasi yo'q (ulashganda oddiy logo chiqadi).
-46. Sitemap'da /savollar va /konkurs yo'q.
+46. ✅ YOPILDI (2026-11-01): sitemap'ga /savollar(+har savol) va /konkurs(+har konkurs) qo'shildi (`getSitemapQuestions`/`getSitemapChallenges`).
 47. Kurs video darslariga VideoObject JSON-LD yo'q.
 48. Blog/maqolalar bo'limi umuman yo'q — SEO uchun eng katta o'sish nuqtasi.
-49. Ichki 404 sahifasida qidiruv maydoni yo'q — boshi berk.
+49. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): not-found.tsx'da GET qidiruv formasi (/mutaxassislar?q=) mavjud.
 50. RU sahifalar uchun hreflang teglari yo'q.
 
 ## 6. To'lovlar va pul — 51–60
@@ -75,7 +75,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 60. Hisobot (kabinet → hisobot) CSV eksporti faqat adminda — mutaxassisga ham kerak.
 
 ## 7. Telefon UX va ilova hissi — 61–70
-61. ✱ PWA push bor, lekin o'rnatish taklifi (A2HS) faqat bannerda — onboarding qadamida yo'q.
+61. ✱ ✅ YOPILDI (2026-11-01): `InstallPrompt` /xush-kelibsiz onboarding sahifasiga ham qo'shildi (kabinetdagi banner saqlangan).
 62. Pastki tab'da uzun bosish (long-press) tezkor amallar menyusi yo'q (masalan Yaratish → Post/Story).
 63. Reels'da «ulashish» Instagram'dagidek pastki varaq emas — ba'zi joylarda eski dialog.
 64. Rasmlar lightbox'ida «saqlash» tugmasi yo'q.
@@ -100,7 +100,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 9. Tezlik va texnik qarz — 81–90
 81. ✱ Rasm optimizatsiyasi o'chirilgan oqimlar bor (xom <img> ko'p joyda) — next/image yoki CDN resize kerak.
-82. ✱ Guruh inbox so'rovi har ro'yxat yangilanishida 4-5 so'rov — keshlash (60s) yo'q.
+82. ✱ ✅ YOPILDI (2026-11-01): `listGroupInbox` 60s kesh + bitta arzon faollik tekshiruvi (yangi xabar kelganda o'z-o'zidan eskiradi); `bustGroupInbox` markGroupRead/pref o'zgarishida.
 83. Lenta cheksiz scroll o'rniga «Yana ko'rsatish» ba'zi ro'yxatlarda — bir xillik yo'q.
 84. Bundle: lucide ikonkalar sahifa-sahifa import qilinadi, lekin DmChat 1800+ qator — bo'laklash (code-split) kerak.
 85. SSE chat oqimi serverless'da 60s cheklovda — Redis pub/sub'siz miqyoslanmaydi (100+ faol foydalanuvchida DB tick qimmat).

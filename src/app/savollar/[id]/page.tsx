@@ -23,8 +23,32 @@ export default async function QuestionPage({ params }: { params: Params }) {
   const session = await getVerifiedSession();
   const q = await getQuestion(id, session?.sub ?? null, { countView: true });
   if (!q) notFound();
+  // QAPage JSON-LD — Google'da savol-javob rich natijasi uchun (acceptedAnswer = «Eng foydali»)
+  const toLd = (a: (typeof q.answers)[number]) => ({
+    "@type": "Answer",
+    text: a.body.slice(0, 2000),
+    upvoteCount: a.upvotesCount,
+    dateCreated: new Date(a.createdAt).toISOString(),
+    author: { "@type": "Person", name: a.author.name },
+  });
+  const accepted = q.answers.find((a) => a.isAccepted);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "QAPage",
+    mainEntity: {
+      "@type": "Question",
+      name: q.title,
+      text: q.body || q.title,
+      answerCount: q.answersCount,
+      dateCreated: new Date(q.createdAt).toISOString(),
+      author: { "@type": "Person", name: q.author.name },
+      ...(accepted ? { acceptedAnswer: toLd(accepted) } : {}),
+      suggestedAnswer: q.answers.filter((a) => !a.isAccepted).slice(0, 10).map(toLd),
+    },
+  };
   return (
     <div className="container-x animate-fade-up py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "<") }} />
       <Link href="/savollar" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
         <ArrowLeft size={15} /> Maslahat
       </Link>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, Compass, ImagePlus, Sparkles, UserRound, UsersRound, Briefcase } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 export const metadata: Metadata = {
   // Telefon yuqori paneli uzun SEO sarlavhani emas, shu qisqa nomni ko'rsatadi
@@ -36,6 +37,8 @@ export default async function WelcomePage() {
 
   return (
     <div className="container-x animate-fade-up max-w-2xl py-6 sm:py-10">
+      {/* Onboarding qadami: PWA o'rnatish taklifi (brauzer ruxsat berganda) */}
+      <InstallPrompt />
       <span className="eyebrow mb-3 inline-flex items-center gap-1.5">
         <Sparkles size={13} className="text-accent" /> Kasb Egalari
       </span>

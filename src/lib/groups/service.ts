@@ -1,4 +1,5 @@
 import "server-only";
+import { bustGroupInbox } from "@/lib/chat/inbox";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mentorSubs, mentors } from "@/lib/db/schema";
@@ -1376,6 +1377,8 @@ export async function typingMembers(groupId: string, exceptUserId: string, limit
 
 export async function markGroupRead(groupId: string, userId: string): Promise<void> {
   await db.update(groupMembers).set({ lastReadAt: new Date() }).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+  // Chat inbox keshi eskirdi — o'qilmaganlar soni darhol yangilansin
+  bustGroupInbox(userId);
 }
 
 /* ------------------------------------------------------------------ */

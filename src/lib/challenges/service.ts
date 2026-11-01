@@ -253,3 +253,9 @@ export async function eligiblePosts(userId: string, challengeId: string) {
     return { id: p.id, body: p.body.slice(0, 120), thumbUrl: t.thumbUrl, isVideo: t.isVideo, createdAt: p.createdAt.getTime() };
   });
 }
+
+/** Sitemap uchun: konkurslar (id + boshlanish sanasi) */
+export async function getSitemapChallenges(): Promise<Array<{ id: string; updatedAt: Date }>> {
+  const rows = await db.select({ id: challenges.id, createdAt: challenges.createdAt }).from(challenges).orderBy(desc(challenges.createdAt)).limit(200);
+  return rows.map((r) => ({ id: r.id, updatedAt: r.createdAt }));
+}

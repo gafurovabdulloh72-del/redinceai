@@ -5,6 +5,8 @@ import { getSitemapJobs } from "@/lib/jobs";
 import { getSitemapGroups } from "@/lib/groups/service";
 import { getSitemapCourses, getSitemapMentors } from "@/lib/mentorship/service";
 import { getSitemapResumes, getSitemapVacancies } from "@/lib/vacancies/service";
+import { getSitemapQuestions } from "@/lib/qa/service";
+import { getSitemapChallenges } from "@/lib/challenges/service";
 import { PROFESSIONS } from "@/lib/vacancies/format";
 import { SITE_URL } from "@/lib/site-url";
 import { HELP_ARTICLES } from "@/app/yordam/articles";
@@ -27,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Ochiq e'lonlar (muddati o'tmagan, bloklangan mijozlarniki emas)
   const jobs = await getSitemapJobs().catch(() => []);
   // Hamjamiyat va vakansiyalar: ochiq jamoalar, ochiq vakansiyalar, ommaviy rezyumelar (yopiq/muddati o'tgan/bloklanganlar noindex)
-  const [groupsList, vacancyList, resumeList, mentorList, courseList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => []), getSitemapMentors().catch(() => []), getSitemapCourses().catch(() => [])]);
+  const [groupsList, vacancyList, resumeList, mentorList, courseList, questionList, challengeList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => []), getSitemapMentors().catch(() => []), getSitemapCourses().catch(() => []), getSitemapQuestions().catch(() => []), getSitemapChallenges().catch(() => [])]);
   // Katalog/xarita/bosh sahifa — eng so'nggi profil yangilanishi (hech biri bo'lmasa — hozir)
   const latestProfile = specialists.reduce<Date | null>((m, s) => (!m || s.updatedAt > m ? s.updatedAt : m), null) ?? now;
 
@@ -75,5 +77,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...vacancyList.map((v) => ({ url: `${base}/vakansiyalar/${v.id}`, lastModified: v.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...PROFESSIONS.map((p) => ({ url: `${base}/vakansiyalar/kasb/${p.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.5 })),
     ...resumeList.map((r) => ({ url: `${base}/rezyumelar/${r.id}`, lastModified: r.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
+    // Maslahat (savol-javob) va konkurslar — hamjamiyat kontenti ham indekslansin
+    { url: `${base}/savollar`, lastModified: questionList[0]?.updatedAt ?? now, changeFrequency: "daily" as const, priority: 0.6 },
+    ...questionList.map((q) => ({ url: `${base}/savollar/${q.id}`, lastModified: q.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
+    { url: `${base}/konkurs`, lastModified: challengeList[0]?.updatedAt ?? now, changeFrequency: "weekly" as const, priority: 0.5 },
+    ...challengeList.map((c) => ({ url: `${base}/konkurs/${c.id}`, lastModified: c.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
   ];
 }

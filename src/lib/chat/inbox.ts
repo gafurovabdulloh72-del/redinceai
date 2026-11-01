@@ -29,7 +29,37 @@ export interface GroupInboxRow {
   folderId: string | null;
 }
 
+/**
+ * Kesh (60 s): /api/chat har 20 soniyada so'raladi va har safar 4-5 ta so'rov ketardi.
+ * Kesh urilganda faqat bitta arzon tekshiruv (a'zoliklarim bo'yicha eng so'nggi faollik) bajariladi —
+ * yangi xabar/post kelgan zahoti (lastActivityAt oshadi) kesh o'z-o'zidan eskiradi, shuning uchun
+ * yangi xabarlar kechikmaydi. O'zim o'qisam/pin qilsam `bustGroupInbox` darhol tozalaydi.
+ * Serverless'da instansiya ichidagi Map — eng yomoni bir instansiyada 60 s eski mute holati.
+ */
+const inboxCache = new Map<string, { at: number; activityKey: number; rows: GroupInboxRow[] }>();
+const INBOX_TTL_MS = 60_000;
+
+/** Foydalanuvchining guruh-inbox keshini bekor qilish (o'qildi/pin/papka/a'zolik o'zgarganda) */
+export function bustGroupInbox(userId: string) {
+  inboxCache.delete(userId);
+}
+
+/** A'zoliklarim bo'yicha eng so'nggi guruh faolligi (ms) — kesh yangiligini tekshirish uchun bitta so'rov */
+async function latestActivity(meId: string): Promise<number> {
+  const [r] = await db
+    .select({ x: sql<number | null>`max(coalesce(${groups.lastActivityAt}, ${groups.createdAt}))` })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+    .where(and(eq(groupMembers.userId, meId), eq(groupMembers.status, "active")));
+  return Number(r?.x ?? 0);
+}
+
 export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
+  const cached = inboxCache.get(meId);
+  if (cached && Date.now() - cached.at < INBOX_TTL_MS) {
+    const latest = await latestActivity(meId);
+    if (latest <= cached.activityKey) return cached.rows;
+  }
   const rows = await db
     .select({
       id: groups.id,
@@ -103,7 +133,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     for (const x of r) if (x.gid) unread.set(x.gid, Number(x.n));
   }
 
-  return rows.map((r) => ({
+  const out: GroupInboxRow[] = rows.map((r) => ({
     kind: r.kind === "channel" ? "channel" : "group",
     id: r.id,
     slug: r.slug,
@@ -117,6 +147,11 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     pinned: Boolean(r.pinnedAt),
     folderId: r.folderId,
   }));
+  // Xotira chegarasi: juda ko'p foydalanuvchi yig'ilib qolmasin
+  if (inboxCache.size > 1000) inboxCache.clear();
+  const activityKey = rows.reduce((m, r) => Math.max(m, (r.lastActivityAt ?? r.createdAt).getTime()), 0);
+  inboxCache.set(meId, { at: Date.now(), activityKey, rows: out });
+  return out;
 }
 
 /** Guruh/kanal qatorining chat sozlamasi: qadash yoki papkaga ko'chirish (faqat o'z a'zoligim) */
@@ -129,5 +164,6 @@ export async function setGroupChatPref(meId: string, groupId: string, patch: { p
     .update(groupMembers)
     .set(set)
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, meId), eq(groupMembers.status, "active")));
+  bustGroupInbox(meId);
   return (res.rowsAffected ?? 0) > 0;
 }

@@ -295,3 +295,9 @@ export async function deleteAnswer(userId: string, isAdmin: boolean, answerId: s
     await tx.update(questions).set({ acceptedAnswerId: null }).where(and(eq(questions.id, a.questionId), eq(questions.acceptedAnswerId, answerId)));
   });
 }
+
+/** Sitemap uchun: barcha savollar (id + sana), eng yangisi birinchi */
+export async function getSitemapQuestions(): Promise<Array<{ id: string; updatedAt: Date }>> {
+  const rows = await db.select({ id: questions.id, createdAt: questions.createdAt }).from(questions).orderBy(desc(questions.createdAt)).limit(1000);
+  return rows.map((r) => ({ id: r.id, updatedAt: r.createdAt }));
+}
