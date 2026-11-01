@@ -14,6 +14,11 @@ import {
   Briefcase,
   ChevronRight,
   Clock3,
+  Crown,
+  GraduationCap,
+  MessagesSquare,
+  Trophy,
+  Users,
   Eye,
   EyeOff,
   Lock,
@@ -87,6 +92,7 @@ import {
   recordProfileView,
   responseTimeLabel,
 } from "@/lib/queries";
+import { creatorBadges, type CreatorBadge } from "@/lib/badges";
 import { activityBucket, cn, formatDate, formatNumber, formatPrice, formatUsd } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -147,6 +153,16 @@ function CatChip({ href, children }: { href: string | null; children: React.Reac
   ) : (
     <span className={cls}>{children}</span>
   );
+}
+
+/** Yutuq belgisi ikonkasi (lib/badges.ts kalitlari bo'yicha) */
+function BadgeIcon({ k }: { k: CreatorBadge["key"] }) {
+  const cls = "text-accent";
+  if (k === "monthly_top") return <Crown size={13} className={cls} aria-hidden />;
+  if (k === "contest_winner") return <Trophy size={13} className={cls} aria-hidden />;
+  if (k === "mentor") return <GraduationCap size={13} className={cls} aria-hidden />;
+  if (k === "followers") return <Users size={13} className={cls} aria-hidden />;
+  return <MessagesSquare size={13} className={cls} aria-hidden />;
 }
 
 function NameWithBadge({ name, verified, verifiedTitle }: { name: string; verified: boolean; verifiedTitle: string }) {
@@ -225,11 +241,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   // Profil lentasi (Instagram uslubi): shaxsiy postlar, sonlar va ?post=<id> bilan ochiladigan post
   const feedViewer = viewer ? { id: viewer.id, role: viewer.role } : null;
-  const [profilePosts, postCounts, openPost, highlights] = await Promise.all([
+  const [profilePosts, postCounts, openPost, highlights, badges] = await Promise.all([
     listProfilePosts(raw.userId, feedViewer, { limit: 18 }),
     profilePostCounts(raw.userId),
     typeof postParam === "string" && postParam ? getProfilePostView(postParam, feedViewer, raw.userId) : Promise.resolve(null),
     listHighlights(raw.userId).catch(() => []),
+    creatorBadges(raw.userId, til).catch(() => []),
   ]);
   // Highlights'ga story qo'shish uchun arxiv — faqat egasiga
   const archive = viewer?.id === raw.userId ? await storyArchive(raw.userId, 40).catch(() => []) : [];
@@ -542,6 +559,16 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                   </span>
                 )}
               </p>
+              {/* BELGILAR (2026-11-01): yutuq belgilari — lib/badges.ts dan hisoblanadi */}
+              {badges.length > 0 && (
+                <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Yutuq belgilari">
+                  {badges.map((b) => (
+                    <li key={b.key} title={b.hint} className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-fg-2">
+                      <BadgeIcon k={b.key} /> {b.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-3">
                 <span className="inline-flex items-center gap-1">
                   <MapPin size={13} className="text-accent" />
