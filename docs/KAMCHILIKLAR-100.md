@@ -28,7 +28,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 3. Mentorlik — 21–30
 21. ✱ Video pleyerda sifat tanlash yo'q (bitta oqim; HLS/transcoding yo'q — katta videolar sekin ochiladi).
-22. ✱ Dars videosini yuklab olishdan himoya yo'q (to'g'ridan URL; imzolangan vaqtli havola kerak).
+22. ✱ ✅ YOPILDI (2026-11-01): xom saqlash URL mijozga chiqmaydi — `/api/mentorlik/video/[lessonId]` proxy (sessiya + yozilganlik tekshiruvi, keshsiz 302; bepul namuna mehmonga ochiq).
 23. Kurs sertifikatida QR tekshiruv havolasi bor-u, sertifikat dizayni bitta — mentor logosi qo'shilmaydi.
 24. Kursni ulushlab to'lash (bo'lib to'lash) yo'q.
 25. Dars izohlari (savol-javob) mentor javob berganda talabaga push boradi, lekin dars sahifasida «yangi javob» belgisi yo'q.

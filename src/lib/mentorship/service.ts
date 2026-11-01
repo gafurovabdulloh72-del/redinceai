@@ -208,7 +208,7 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     assignmentCount: lessonRows.filter((l) => l.assignment && l.assignment.trim()).length,
     previewVideo: (() => {
       const pv = lessonRows.find((l) => l.isPreview && l.videoUrl);
-      return pv && pv.videoUrl ? { lessonId: pv.id, title: pv.title, url: pv.videoUrl, durationMin: pv.durationMin } : null;
+      return pv && pv.videoUrl ? { lessonId: pv.id, title: pv.title, url: `/api/mentorlik/video/${pv.id}`, durationMin: pv.durationMin } : null;
     })(),
     mentorBio: c.mentor.bio,
     refPercent: c.mentor.refPercent,
@@ -273,7 +273,8 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
     id: l.id,
     title: l.title,
     body: l.body,
-    videoUrl: l.videoUrl,
+    // Xom saqlash URL'i mijozga chiqmaydi — himoyalangan proxy (kirish tekshiruvi + 302)
+    videoUrl: l.videoUrl ? `/api/mentorlik/video/${l.id}` : null,
     durationMin: l.durationMin,
     position: l.position,
     isPreview: l.isPreview,
