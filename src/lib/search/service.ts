@@ -233,7 +233,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
       kind: "post",
       id: p.id,
       href: gslug ? `/jamoalar/${gslug}?post=${p.id}` : a?.slug ? `/mutaxassislar/${a.slug}?tab=postlar&post=${p.id}` : "/jamoalar",
-      thumbUrl: first && !video ? first.url : null,
+      thumbUrl: first ? (video ? (first.poster ?? null) : first.url) : null,
       videoUrl: first && video ? first.url : null,
       isVideo: video,
       textOnly: p.media.length === 0,

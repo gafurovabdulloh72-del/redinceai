@@ -331,11 +331,14 @@ export function Composer({
         // Video: muqovani (birinchi kadr) avtomatik olib yuklaymiz — plitka/oldindan ko'rinishda qora kvadrat chiqmasin
         if (isVideoAttachment(att)) {
           localVideo.current.set(att.url, URL.createObjectURL(f));
-          try {
-            const pf = await captureVideoPoster(f);
-            if (pf) att.poster = (await uploadAttachment(pf)).url;
-          } catch {
-            /* muqova ixtiyoriy */
+          // uploadAttachment endi muqovani o'zi oladi (kamchilik #31); eski brauzerda qolsa shu yerda urinamiz
+          if (!att.poster) {
+            try {
+              const pf = await captureVideoPoster(f);
+              if (pf) att.poster = (await uploadAttachment(pf)).url;
+            } catch {
+              /* muqova ixtiyoriy */
+            }
           }
         }
         added.push(att);

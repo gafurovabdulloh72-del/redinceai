@@ -39,7 +39,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 30. Bepul namuna darsni ulashish uchun alohida havola yo'q (marketing uchun kerak).
 
 ## 4. Profil va ijodkorlar katalogi — 31–40
-31. ✱ Portfolio video muqovasini tanlamasa — qora plitka; avtomatik kadr olish yo'q.
+31. ✱ ✅ YOPILDI (2026-11-01): `uploadAttachment` har qanday video yuklashda muqova kadrini avtomatik oladi va yuklaydi (`captureVideoPoster` — avval faqat GroupFeed'da edi); qidiruv plitkalari video posterini ishlatadi (profil to'ri va reels allaqachon ishlatardi).
 32. Profil ko'rishlar statistikasi egasiga kunlik grafik bilan ko'rsatilmaydi (bitta son xolos).
 33. Ijodkor o'z profilini PDF/portfolio fayl sifatida eksport qila olmaydi.
 34. Katalogda «onlayn» filtri bor-u, «bugun javob bergan» kabi ishonch signali yo'q.

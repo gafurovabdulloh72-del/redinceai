@@ -365,7 +365,16 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
     // Past o'lchamli video ekranda (ayniqsa to'liq ekran/katta displeyda) xira ko'rinadi — yuklashdan oldin ogohlantiramiz (yuklash to'xtatilmaydi)
     void warnLowResolution(file);
     const url = await uploadVideo(file, p);
-    return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type };
+    // Avto muqova (kamchilik #31): videoning 1-soniyasidan kadr olinadi va rasm sifatida yuklanadi —
+    // lenta/profil to'rida qora plitka o'rniga haqiqiy kadr ko'rinadi. Xatolikda jim o'tiladi (muqovasiz video ham ishlaydi).
+    let poster: string | undefined;
+    try {
+      const frame = await captureVideoPoster(file);
+      if (frame) poster = await uploadViaApi(frame, "attachment", {});
+    } catch {
+      /* muqova ixtiyoriy */
+    }
+    return { url, name: file.name.slice(0, 120) || "video", size: file.size, type: mimeFromUrl(url) ?? file.type, ...(poster ? { poster } : {}) };
   }
   // Telefon kamerasi 4–12 MB rasm beradi — yuklashdan OLDIN brauzerda siqamiz (Instagram/Telegram kabi): trafik va vaqt tejaladi,
   // «5 MB dan katta» xatosi kamayadi. GIF tegilmaydi (animatsiya yo'qoladi), siqilgan nusxa kattaroq chiqsa asl fayl ketadi.
