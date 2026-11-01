@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BarChart3, ChevronLeft, ChevronRight, ExternalLink, Heart, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Download, ExternalLink, Heart, MoreHorizontal, Volume2, VolumeX, X, type LucideIcon } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
 import { haptic } from "@/components/motion/haptics";
 import { useIsPhone } from "@/components/motion/useMediaQuery";
@@ -391,6 +391,18 @@ export function Lightbox({ items, index, onClose, onIndex }: { items: Attachment
       <button ref={closeBtn} type="button" onClick={onClose} aria-label={tr(til, FEED.close)} className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20">
         <X size={18} />
       </button>
+      {/* Rasmni saqlash (kamchilik #64): yangi oynada asl fayl — brauzer «Saqlash» beradi */}
+      <a
+        href={m.url}
+        download={m.name || "rasm.jpg"}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        aria-label={til === "ru" ? "Сохранить изображение" : "Rasmni saqlash"}
+        className="absolute right-[60px] top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+      >
+        <Download size={17} />
+      </a>
       <ZoomableImage key={m.url} src={m.url} alt={m.name} closing={closing} onZoomChange={(z) => (zoomed.current = z)} />
       {items.length > 1 && (
         <>

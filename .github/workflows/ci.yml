@@ -38,6 +38,8 @@ jobs:
       TELEGRAM_API_BASE: http://127.0.0.1:8099
       TELEGRAM_WEBHOOK_SECRET: ci-webhook-secret-4b2e9d1c7a6f3e8b
       FAKE_TG_LOG: /tmp/fake-bot.log
+      # Konkurs E2E cron qadamini chaqiradi (faqat CI bazasi)
+      CRON_SECRET: ci-cron-secret-9a7b3c1d5e2f4a6b
     steps:
       - name: Kodni olish
         uses: actions/checkout@v4
@@ -116,6 +118,15 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
         run: node --test scripts/bot.mjs
+
+      # Konkurs / Maslahat / Chat-inbox E2E oqimlari (kamchilik #86 — /tmp'dan repoga ko'chirilgan)
+      - name: E2E oqim testlari
+        env:
+          BASE_URL: http://localhost:3000
+        run: |
+          node scripts/e2e/konkurs.mjs
+          node scripts/e2e/savollar.mjs
+          node scripts/e2e/inbox.mjs
 
       - name: Server logi (xato bo'lsa)
         if: failure()

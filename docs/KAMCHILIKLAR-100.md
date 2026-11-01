@@ -78,12 +78,12 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 61. ✱ ✅ YOPILDI (2026-11-01): `InstallPrompt` /xush-kelibsiz onboarding sahifasiga ham qo'shildi (kabinetdagi banner saqlangan).
 62. Pastki tab'da uzun bosish (long-press) tezkor amallar menyusi yo'q (masalan Yaratish → Post/Story).
 63. Reels'da «ulashish» Instagram'dagidek pastki varaq emas — ba'zi joylarda eski dialog.
-64. Rasmlar lightbox'ida «saqlash» tugmasi yo'q.
+64. ✅ YOPILDI (2026-11-01): Lightbox'da yuklab olish tugmasi (Download, yopish yonida).
 65. Shakllarda klaviatura «Enter → keyingi maydon» xatti-harakati hamma joyda emas.
-66. Offline holat sahifasi yo'q — internet uzilsa oq ekran/xato.
+66. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /offline sahifasi + sw.js network-first fallback (PRECACHE'da).
 67. ✅ YOPILDI (2026-11-01): /savollar va /konkurs ro'yxatlari (katalog) guruhiga ko'chirilib skelet loading.tsx qo'shildi (tafsilot sahifalari yumshoq 404 qoidasiga tegilmadi).
 68. Haptik faqat ba'zi amallarda — like/pin/yuborishda bir xil emas.
-69. Telefonda «tepaga qaytish» tugmasi uzun ro'yxatlarda yo'q (faol tabni qayta bosish ishlaydi, lekin buni hech kim bilmaydi — hint yo'q).
+69. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): components/layout/BackToTop.tsx layout.tsx'da global ulangan.
 70. Katta rasmlarga blur-up placeholder yo'q — sekin internetda oq bo'shliqlar.
 
 ## 8. Til (RU) va matnlar — 71–80
@@ -104,9 +104,9 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 83. Lenta cheksiz scroll o'rniga «Yana ko'rsatish» ba'zi ro'yxatlarda — bir xillik yo'q.
 84. Bundle: lucide ikonkalar sahifa-sahifa import qilinadi, lekin DmChat 1800+ qator — bo'laklash (code-split) kerak.
 85. SSE chat oqimi serverless'da 60s cheklovda — Redis pub/sub'siz miqyoslanmaydi (100+ faol foydalanuvchida DB tick qimmat).
-86. E2E testlar /tmp'da — repoga scripts/ ichiga ko'chirilmagani uchun CI'da yurmaydi (konkurs/qa/inbox).
+86. ✅ YOPILDI (2026-11-01): scripts/e2e/{_lib,konkurs,savollar,inbox}.mjs — demo-login bilan (jar'siz ham), CI'da «E2E oqim testlari» qadami (CRON_SECRET ham qo'shildi).
 87. Lighthouse o'lchovi muntazam emas — perf regressiyani hech narsa ushlamaydi.
-88. Dev/prod .next almashinuvi qo'lda — bitta buyruqli skript (restart-dev.sh) repoda emas, scratchpad'da.
+88. ✅ YOPILDI (2026-11-01): scripts/restart-dev.sh repoda (yetim jarayonlarni to'xtatadi, .next tozalaydi, dev'ni fonda ishga tushiradi).
 89. Xatolar kuzatuvi (Sentry kabi) yo'q — prod xatolar faqat Vercel logida.
 90. DB indekslar bor, lekin sekin so'rovlar jurnali/tahlili yo'q (Turso analytics ulanmagan).
 
