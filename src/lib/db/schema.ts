@@ -1201,6 +1201,8 @@ export const groupMembers = sqliteTable(
     joinNote: text("join_note"),
     /** Chat inbox (Telegram uslubi, 2026-11-01): guruh/kanal qaysi papkada (dm_folders.id) va qadalganmi */
     folderId: text("folder_id"),
+    /** Chat ro'yxatida arxivlangan (kamchilik #8) — a'zolik saqlanadi, qator Arxivda turadi */
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
     pinnedAt: integer("pinned_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()

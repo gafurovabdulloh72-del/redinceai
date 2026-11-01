@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Link2, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, Link2, QrCode, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { INVITE_EXPIRY_OPTIONS, INVITE_USES_OPTIONS } from "@/lib/groups/limits";
+import { qrSvg } from "@/lib/profile/qr";
 import { formatDateTime } from "@/lib/utils";
 
 type Info = { expiresAt: number | null; maxUses: number | null; uses: number } | null;
@@ -19,6 +20,12 @@ export function InviteLink({ slug, initialCode, initialInfo = null, options = fa
   const [info, setInfo] = useState<Info>(initialInfo);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // QR ko'rinishi (kamchilik #14): havolani telefon kamerasi bilan skanerlab kirish
+  const [qrOpen, setQrOpen] = useState(false);
+  const qrMarkup = useMemo(() => {
+    if (!qrOpen || !code || typeof window === "undefined") return null;
+    return qrSvg(`${window.location.origin}/jamoalar/${slug}?invite=${code}`, { size: 200, title: "Taklif havolasi QR" });
+  }, [qrOpen, code, slug]);
 
   async function post(body: Record<string, unknown>, copy: boolean) {
     setBusy(true);
@@ -61,7 +68,15 @@ export function InviteLink({ slug, initialCode, initialInfo = null, options = fa
             <RefreshCw size={15} />
           </button>
         )}
+        {code && (
+          <button type="button" onClick={() => setQrOpen((v) => !v)} aria-pressed={qrOpen} aria-label="QR ko'rsatish" title="QR — telefon kamerasi bilan skanerlanadi" className="flex h-11 w-11 items-center justify-center rounded-full border border-line-2 text-fg-3 transition hover:text-fg">
+            <QrCode size={15} />
+          </button>
+        )}
       </span>
+      {qrOpen && qrMarkup && (
+        <div className="w-fit overflow-hidden rounded-[var(--r-md)] border border-line bg-white p-2" dangerouslySetInnerHTML={{ __html: qrMarkup }} />
+      )}
       {options && code && (
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-[12px] font-semibold text-fg-3">

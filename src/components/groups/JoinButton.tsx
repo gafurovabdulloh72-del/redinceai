@@ -18,6 +18,7 @@ export function JoinButton({
   isPrivate,
   loggedIn,
   official = false,
+  queuePosition = null,
 }: {
   slug: string;
   membership: MembershipState;
@@ -25,6 +26,8 @@ export function JoinButton({
   loggedIn: boolean;
   /** Rasmiy kanal: a'zolikdan chiqib bo'lmaydi — tugma o'rniga belgi */
   official?: boolean;
+  /** Kutayotgan so'rovning navbatdagi o'rni (kamchilik #16) */
+  queuePosition?: number | null;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -74,7 +77,7 @@ export function JoinButton({
       <span key={state ?? "none"} className="animate-swap">
         {state === "pending" ? (
           <Button type="button" variant="outline" size="md" onClick={() => setPanel(panel === "leave" ? null : "leave")} disabled={busy} title="So'rovni qaytarib olish" aria-expanded={panel === "leave"}>
-            <Clock3 size={15} /> So&apos;rov yuborildi
+            <Clock3 size={15} /> So&apos;rov yuborildi{queuePosition ? ` · navbatda ${queuePosition}-chisiz` : ""}
           </Button>
         ) : state ? (
           <Button type="button" variant="outline" size="md" onClick={() => setPanel(panel === "leave" ? null : "leave")} disabled={busy} aria-expanded={panel === "leave"}>

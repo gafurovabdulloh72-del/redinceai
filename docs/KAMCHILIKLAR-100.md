@@ -6,25 +6,25 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 1. ✱ ✅ YOPILDI (2026-11-01): desktopda (lg+) guruh/kanal qatori bosilganda GroupChat o'ng panelda ochiladi (`DmChat` `activeGroup` + `GroupChat embedded` prop); telefonda avvalgidek sahifaga o'tadi.
 2. Kanal qatori kanal sahifasiga olib boradi, lekin «oxirgi postni o'qish» holatiga avtomatik tushmaydi.
 3. Guruh qatorlarida «yozmoqda…» ko'rsatkichi yo'q (DM'da bor, guruh typing API mavjud — ulash qoldi).
-4. Guruh qatorini telefonda surib (swipe) pin/mute qilib bo'lmaydi — faqat DM'da ishlaydi.
+4. ✅ YOPILDI (2026-11-01): guruh/kanal qatorida ham svayp amallar — qadash · ovozsiz · arxiv (DM mexanizmi umumlashtirildi).
 5. ✅ YOPILDI (2026-11-01): guruh qatori «⋯» menyusida «Ovozsiz» (PATCH /api/chat/guruh muted).
 6. ✅ YOPILDI (2026-11-01): papka boshqaruvida qalam tugmasi — nomni joyida tahrirlash (PATCH /api/chat/papkalar/[id] allaqachon bor edi, UI qo'shildi).
 7. Papkalar tartibini surib o'zgartirib bo'lmaydi (position ustuni bor, UI yo'q).
-8. Arxiv guruh/kanallarga ishlamaydi — faqat DM arxivlanadi.
+8. ✅ YOPILDI (2026-11-01): `group_members.archived_at` — «⋯» menyu va svaypdan arxivga olinadi, Arxiv ko'rinishida chiqadi (a'zolik saqlanadi).
 9. Chat ro'yxatida qidiruv faqat nom/oxirgi xabar bo'yicha — xabarlar ichidan global qidiruv yo'q (Telegram'da bor).
 10. ✅ YOPILDI (2026-11-01): guruh/kanal qatori «⋯» menyusida «O'qildi deb belgilash» (lastReadAt = hozir).
 
 ## 2. Jamoalar va guruh chati — 11–20
 11. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): GroupChat composer'ida VoiceRecorder ulangan (`sendVoice`).
 12. Guruh chatida xabarni yo'naltirish (forward) yo'q.
-13. Guruh a'zosini «admin qilish» UI bor-u, admin huquqlari ro'yxati (kim nimani qila oladi) hech qayerda tushuntirilmagan.
-14. Taklif havolasini QR ko'rinishda ulashib bo'lmaydi.
+13. ✅ YOPILDI (2026-11-01): A'zolar bo'limida boshqaruvchiga «Admin nimalarni qila oladi?» yig'ilgan tushuntirma kartasi.
+14. ✅ YOPILDI (2026-11-01): InviteLink'da QR tugmasi — mavjud kutubxonasiz QR generatori (lib/profile/qr) bilan ko'rsatiladi.
 15. Guruh qoidalarini buzgan xabarni admin o'chirsa — muallifga sabab yuborilmaydi.
-16. Yopiq guruhga so'rov yuborganlar kutish holatini ko'rmaydi («so'rov yuborilgan» belgisi bor, «navbatda nechanchisiz» yo'q).
+16. ✅ YOPILDI (2026-11-01): GroupView.pendingPosition — «So'rov yuborildi · navbatda N-chisiz».
 17. Guruh statistikasi faqat 7 kunlik — oy/grafik yo'q.
 18. Kanal postlariga reaksiya bor, lekin kanal egasi «kim ko'rdi» sonini post kesimida tahlil qila olmaydi (post-stats bor, kanal kesimida jamlama yo'q).
 19. Guruhda so'rovnoma (poll) faqat efirda bor — oddiy chatda yo'q.
-20. Guruh eventlari (efir e'loni) kalendarga qo'shish .ics faqat ba'zi joylarda — guruh sahifasida tugma yo'q.
+20. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): guruh sahifasida EventsCard/EventsList ichida CalendarLinks (.ics) mavjud.
 
 ## 3. Mentorlik — 21–30
 21. ✱ Video pleyerda sifat tanlash yo'q (bitta oqim; HLS/transcoding yo'q — katta videolar sekin ochiladi).
@@ -48,7 +48,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 37. Ish (portfolio) sahifasida «buyurtma berish» yo'li kontakt sotuvi rejimida tushunarsiz — CTA «kontaktni ochish»ga olib bormaydi.
 38. Taqqoslash (/taqqoslash) PROFILE_HIRING=false rejimida ham narxsiz ustunlar bilan chiqadi — chalkash.
 39. Username o'zgartirilganda eski @username havolalari 404 (redirect tarixi saqlanmaydi).
-40. Profil QR-kartochka (vizitka) generatori yo'q — oflayn tadbirlar uchun foydali.
+40. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): ShareButton'da QR ko'rinishi + SVG yuklab olish (/u/[code]/qr) mavjud.
 
 ## 5. Qidiruv va SEO — 41–50
 41. ✱ ✅ YOPILDI (2026-11-01): `lib/search/fuzzy.ts` — platforma lug'ati (kasblar/hududlar) bo'yicha Levenshtein tuzatish; natija bo'sh bo'lsa exploreSearch avtomatik tuzatib qayta qidiradi va «Natijalar ... bo'yicha ko'rsatildi» deb aytadi.

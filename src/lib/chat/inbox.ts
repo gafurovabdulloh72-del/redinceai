@@ -29,6 +29,8 @@ export interface GroupInboxRow {
   folderId: string | null;
   /** Ko'ruvchi bu jamoani boshqaradimi (egasi/admin) — panelda Sozlash tugmasi uchun */
   canManage: boolean;
+  /** Chat ro'yxatida arxivlangan (faqat o'z a'zoligim sozlamasi) */
+  archived: boolean;
 }
 
 /**
@@ -75,6 +77,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
       createdAt: groups.createdAt,
       lastReadAt: groupMembers.lastReadAt,
       role: groupMembers.role,
+      archivedAt: groupMembers.archivedAt,
       muted: groupMembers.muted,
       folderId: groupMembers.folderId,
       pinnedAt: groupMembers.pinnedAt,
@@ -150,6 +153,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     pinned: Boolean(r.pinnedAt),
     folderId: r.folderId,
     canManage: r.role === "owner" || r.role === "admin",
+    archived: Boolean(r.archivedAt),
   }));
   // Xotira chegarasi: juda ko'p foydalanuvchi yig'ilib qolmasin
   if (inboxCache.size > 1000) inboxCache.clear();
@@ -159,9 +163,10 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
 }
 
 /** Guruh/kanal qatorining chat sozlamasi: qadash yoki papkaga ko'chirish (faqat o'z a'zoligim) */
-export async function setGroupChatPref(meId: string, groupId: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean }): Promise<boolean> {
+export async function setGroupChatPref(meId: string, groupId: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean; archived?: boolean }): Promise<boolean> {
   const set: Record<string, unknown> = {};
   if (patch.pinned !== undefined) set.pinnedAt = patch.pinned ? new Date() : null;
+  if (patch.archived !== undefined) set.archivedAt = patch.archived ? new Date() : null;
   if (patch.folderId !== undefined) set.folderId = patch.folderId;
   if (patch.muted !== undefined) set.muted = patch.muted;
   if (!Object.keys(set).length) return true;

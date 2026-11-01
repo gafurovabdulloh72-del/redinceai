@@ -69,7 +69,7 @@ function LockedNotice({ view, loggedIn, what }: { view: GroupView; loggedIn: boo
       </span>
       <p className="text-[15px] font-semibold text-fg">{what} faqat a&apos;zolarga</p>
       <p className="max-w-md text-[13px] leading-relaxed text-fg-3">{view.membership === "pending" ? "So'rovingiz yuborilgan — egasi tasdiqlashi bilan ochiladi." : view.isPrivate ? "Yopiq jamoa — so'rov yuboring." : "Qo'shiling — bepul, bir bosishda."}</p>
-      <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />
+      <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} queuePosition={view.pendingPosition} />
     </div>
   );
 }
@@ -179,7 +179,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
                 {view.pendingCount > 0 && <span className="ml-0.5 rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-white">{view.pendingCount}</span>}
               </Link>
             )}
-            {view.membership !== "owner" && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} />}
+            {view.membership !== "owner" && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={loggedIn} official={view.isOfficial} queuePosition={view.pendingPosition} />}
           </div>
         </div>
       </section>

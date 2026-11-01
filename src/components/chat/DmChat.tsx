@@ -66,6 +66,7 @@ interface GroupRow {
   pinned: boolean;
   folderId: string | null;
   canManage?: boolean;
+  archived?: boolean;
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
@@ -1022,9 +1023,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   // Guruh/kanal qatorlari (arxiv rejimida ko'rinmaydi — arxiv faqat DM uchun)
   const groupFiltered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (showArchived) return [];
     return groupRows.filter(
       (g) =>
+        Boolean(g.archived) === showArchived &&
         (chatType === "all" || chatType === g.kind) &&
         (!folder || g.folderId === folder) &&
         (!needle || g.name.toLowerCase().includes(needle) || (g.last?.body ?? "").toLowerCase().includes(needle)),
@@ -1059,11 +1060,11 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   }, [convs, groupRows]);
 
   /** Guruh/kanal qatorining pin/papka sozlamasi — optimistik */
-  const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean }) => {
+  const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null; muted?: boolean; archived?: boolean }) => {
     setGroupRows((l) =>
       l.map((g) =>
         g.id === id
-          ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}), ...(patch.muted !== undefined ? { muted: patch.muted } : {}) }
+          ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}), ...(patch.muted !== undefined ? { muted: patch.muted } : {}), ...(patch.archived !== undefined ? { archived: patch.archived } : {}) }
           : g,
       ),
     );
@@ -1307,11 +1308,45 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                     router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : `/jamoalar/${g.slug}`);
                   }
                 };
+                const gKey = `g:${g.id}`;
                 return (
-                  <li key={`g-${g.id}`} className="group/row relative">
+                  <li key={`g-${g.id}`} className={cn("group/row relative", rowSwipe?.id === gKey && "overflow-hidden")} {...rowSwipeHandlers(gKey)}>
+                    {/* Telefonda surib ochiladigan amallar (kamchilik #4): qadash · ovozsiz · o'qildi */}
+                    {isPhone && rowSwipe?.id === gKey && (
+                      <div className="absolute inset-y-0 right-0 flex" style={{ width: SWIPE_W }} aria-hidden={!rowSwipe.open}>
+                        {(
+                          [
+                            { k: "pin", icon: g.pinned ? PinOff : Pin, label: t(g.pinned ? "unpin" : "pin"), cls: "bg-fg/80 text-bg", act: () => void updateGroupPref(g.id, { pinned: !g.pinned }) },
+                            { k: "mute", icon: g.muted ? Bell : BellOff, label: t(g.muted ? "swUnmute" : "swMute"), cls: "bg-warning text-white", act: () => void updateGroupPref(g.id, { muted: !g.muted }) },
+                            { k: "archived", icon: g.archived ? ArchiveRestore : Archive, label: t(g.archived ? "swUnarchive" : "swArchive"), cls: "bg-accent text-white", act: () => void updateGroupPref(g.id, { archived: !g.archived }) },
+                          ] as const
+                        ).map((a) => (
+                          <button
+                            key={a.k}
+                            type="button"
+                            tabIndex={rowSwipe.open ? 0 : -1}
+                            onClick={() => {
+                              setRowSwipe(null);
+                              a.act();
+                            }}
+                            className={cn("flex w-[50px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold", a.cls)}
+                          >
+                            <a.icon size={18} />
+                            <span className="truncate px-0.5">{a.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div
+                      className={cn("relative bg-bg", rowSwipe?.id === gKey && !rowTouch.current && "transition-transform duration-200")}
+                      style={rowSwipe?.id === gKey ? { transform: `translateX(${rowSwipe.dx}px)` } : undefined}
+                    >
                     <button
                       type="button"
-                      onClick={open}
+                      onClick={() => {
+                        if (rowSwipe?.id === gKey && rowSwipe.open) return setRowSwipe(null);
+                        open();
+                      }}
                       aria-current={activeGroup?.id === g.id ? "true" : undefined}
                       className={cn(
                         "press flex w-full items-center gap-3 border-l-2 px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3",
@@ -1366,11 +1401,13 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                         <MenuItem icon={g.pinned ? PinOff : Pin} label={t(g.pinned ? "unpin" : "pin")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { pinned: !g.pinned }))} />
                         <MenuItem icon={g.muted ? Bell : BellOff} label={t(g.muted ? "swUnmute" : "swMute")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { muted: !g.muted }))} />
                         {g.unread > 0 && <MenuItem icon={CheckCheck} label={t("markRead")} onClick={() => (setGroupMenu(null), void markGroupReadRow(g.id))} />}
+                        <MenuItem icon={g.archived ? ArchiveRestore : Archive} label={t(g.archived ? "swUnarchive" : "swArchive")} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { archived: !g.archived }))} />
                         {folders.length > 0 && <MenuDivider />}
                         {folders.map((f) => (
                           <MenuItem key={f.id} icon={Folder} label={f.name} active={g.folderId === f.id} onClick={() => (setGroupMenu(null), void updateGroupPref(g.id, { folderId: g.folderId === f.id ? null : f.id }))} />
                         ))}
                       </Layer>
+                    </div>
                     </div>
                   </li>
                 );

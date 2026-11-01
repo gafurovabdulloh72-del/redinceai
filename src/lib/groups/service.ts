@@ -58,6 +58,8 @@ export interface GroupView {
   membership: MembershipState;
   /** Ko'ruvchi boshqara oladimi (egasi/admin yoki sayt admini) */
   canManage: boolean;
+  /** So'rov kutayotgan ko'ruvchining navbatdagi o'rni (1 dan), aks holda null */
+  pendingPosition: number | null;
   /** Ko'ruvchi lentani/chatni ko'ra oladimi (ochiq jamoa — hamma; yopiq — faqat faol a'zo/moderator) */
   canView: boolean;
   /** Post yoza oladimi: guruhda — faol a'zo; kanalda — faqat egasi/adminlar (sayt admini ham) */
@@ -240,6 +242,15 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
         .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "pending")))
     : [];
   const mutedUntil = m?.mutedUntil && m.mutedUntil.getTime() > Date.now() ? m.mutedUntil.getTime() : null;
+  // Kutayotgan so'rov egasiga navbatdagi o'rni (kamchilik #16): mendan oldin yuborilganlar + 1
+  let pendingPosition: number | null = null;
+  if (m?.status === "pending") {
+    const [ahead] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "pending"), sql`${groupMembers.createdAt} <= ${m.createdAt.getTime()}`));
+    pendingPosition = Math.max(1, Number(ahead?.n ?? 1));
+  }
   return {
     id: group.id,
     slug: group.slug,
@@ -259,6 +270,7 @@ async function toGroupView(group: Group, viewer: Viewer): Promise<GroupView> {
     owner: owner.get(group.ownerId) ?? { id: group.ownerId, ...UNKNOWN },
     membership: membershipState(m),
     canManage,
+    pendingPosition,
     canView: canViewWith(group, m, viewer),
     canPost: canPostWith(group, m, viewer),
     inviteCode: canManage ? (group.inviteCode ?? null) : null,
@@ -488,7 +500,7 @@ function hasUnreadFor(g: Group, m: GroupMember | null): boolean {
   return g.lastActivityAt.getTime() > m.lastReadAt.getTime() + 1000;
 }
 
-export type GroupListItem = Omit<GroupView, "chatDisabled" | "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "invite" | "muted" | "mutedUntil" | "eventReminders" | "rules" | "welcomeText" | "pinnedMessageId"> & { hasUnread: boolean };
+export type GroupListItem = Omit<GroupView, "chatDisabled" | "pendingPosition" | "pendingCount" | "canManage" | "canView" | "canPost" | "inviteCode" | "invite" | "muted" | "mutedUntil" | "eventReminders" | "rules" | "welcomeText" | "pinnedMessageId"> & { hasUnread: boolean };
 
 export async function loadGroupBySlug(slug: string): Promise<Group | null> {
   return (await db.query.groups.findFirst({ where: eq(groups.slug, slug) })) ?? null;

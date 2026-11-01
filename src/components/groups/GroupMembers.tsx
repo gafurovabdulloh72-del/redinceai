@@ -165,6 +165,18 @@ export function GroupMembers({
             </div>
           </div>
         )}
+        {canManage && (
+          /* Kamchilik #13: admin nima qila olishini tushuntirish — yig'ilgan karta */
+          <details className="mt-3 rounded-[12px] border border-line px-3.5 py-2.5 text-[13px] text-fg-2">
+            <summary className="cursor-pointer select-none font-semibold text-fg">Admin nimalarni qila oladi?</summary>
+            <ul className="mt-2 grid list-disc gap-1 pl-5 text-[12.5px] leading-relaxed text-fg-3">
+              <li>So&apos;rovlarni tasdiqlaydi/rad etadi, a&apos;zoni chiqaradi (adminlarni faqat egasi chiqaradi)</li>
+              <li>Chat xabarini qadaydi/o&apos;chiradi, mavzularni boshqaradi, kanalda post yozadi</li>
+              <li>Efir boshlaydi va boshqaradi, sozlamalarni (nom, rasm, qoidalar, muhokama) o&apos;zgartiradi</li>
+              <li>Admin qilish/olish va jamoani o&apos;chirish — faqat egasida qoladi</li>
+            </ul>
+          </details>
+        )}
         <ul className="stagger mt-2 divide-y divide-line" key={filter + needle}>
           {shown.map((m) => {
             const self = m.user.id === viewerId;
