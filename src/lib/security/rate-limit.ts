@@ -145,7 +145,9 @@ export type RateLimitName = keyof typeof RATE_LIMITS;
 
 function tooMany(resetAt: number): ApiError {
   const retry = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
-  return new ApiError(429, RATE_LIMIT_MESSAGE, undefined, { "Retry-After": String(retry) });
+  // Kamchilik #96: foydalanuvchi qancha kutishini xabarning o'zida ko'rsin (UI alohida taymer chizmasa ham)
+  const human = retry >= 120 ? `${Math.ceil(retry / 60)} daqiqadan` : `${retry} soniyadan`;
+  return new ApiError(429, `Juda ko'p urinish. ${human} keyin qayta urinib ko'ring`, undefined, { "Retry-After": String(retry) });
 }
 
 /** Vaqti o'tgan yozuvlarni vaqti-vaqti bilan tozalash (har ~50 chaqiriqda bir) */

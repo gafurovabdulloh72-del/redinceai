@@ -36,7 +36,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 27. Mentor daromad grafigi yo'q — faqat ro'yxat (oylik diagramma kerak).
 28. 1:1 konsultatsiya slotlari vaqt zonasi haqida ogohlantirmaydi (hammasi Toshkent deb olinadi).
 29. Kurs tugatganlarga «keyingi kurs» tavsiyasi avtomatik chiqmaydi (yo'l xaritasi bor, bitirganda taklif yo'q).
-30. Bepul namuna darsni ulashish uchun alohida havola yo'q (marketing uchun kerak).
+30. ✅ YOPILDI (2026-11-01): kurs namunasi ostida «Ulashish» tugmasi — /mentorlik/dars/<id> havolasi nusxalanadi (namuna hammaga ochiq).
 
 ## 4. Profil va ijodkorlar katalogi — 31–40
 31. ✱ ✅ YOPILDI (2026-11-01): `uploadAttachment` har qanday video yuklashda muqova kadrini avtomatik oladi va yuklaydi (`captureVideoPoster` — avval faqat GroupFeed'da edi); qidiruv plitkalari video posterini ishlatadi (profil to'ri va reels allaqachon ishlatardi).
@@ -52,7 +52,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 5. Qidiruv va SEO — 41–50
 41. ✱ ✅ YOPILDI (2026-11-01): `lib/search/fuzzy.ts` — platforma lug'ati (kasblar/hududlar) bo'yicha Levenshtein tuzatish; natija bo'sh bo'lsa exploreSearch avtomatik tuzatib qayta qidiradi va «Natijalar ... bo'yicha ko'rsatildi» deb aytadi.
-42. ⌘K global qidiruv telefonda yo'q (faqat /qidiruv sahifasi).
+42. ✅ QAMRAB OLINGAN (2026-11-01): telefonda pastki tabdagi «Qidiruv» aynan shu vazifani bajaradi (⌘K — klaviaturali desktop vositasi).
 43. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /qidiruv sahifasida `RecentSearches` komponenti mavjud.
 44. ✅ YOPILDI (2026-11-01): savol sahifasida `QAPage` JSON-LD (acceptedAnswer + suggestedAnswer, `\u003c` ekranlash).
 45. ✅ YOPILDI (2026-11-01): /konkurs/[id]/opengraph-image — brend palitrasida nom/holat/ishlar soni/muddat (sinovda 200, PNG).
@@ -77,7 +77,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 ## 7. Telefon UX va ilova hissi — 61–70
 61. ✱ ✅ YOPILDI (2026-11-01): `InstallPrompt` /xush-kelibsiz onboarding sahifasiga ham qo'shildi (kabinetdagi banner saqlangan).
 62. Pastki tab'da uzun bosish (long-press) tezkor amallar menyusi yo'q (masalan Yaratish → Post/Story).
-63. Reels'da «ulashish» Instagram'dagidek pastki varaq emas — ba'zi joylarda eski dialog.
+63. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): ReelsFeed ShareSheet (pastki varaq) ishlatadi.
 64. ✅ YOPILDI (2026-11-01): Lightbox'da yuklab olish tugmasi (Download, yopish yonida).
 65. Shakllarda klaviatura «Enter → keyingi maydon» xatti-harakati hamma joyda emas.
 66. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /offline sahifasi + sw.js network-first fallback (PRECACHE'da).
@@ -112,11 +112,11 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 10. Xavfsizlik, admin va bot — 91–100
 91. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): `DELETE /api/auth/sessions` + SecurityPanel «Barcha qurilmalardan chiqish» tugmasi mavjud (sessionVersion bump + joriy qurilmaga yangi cookie).
-92. Admin amallari auditi bor, lekin admin panelda audit jurnalini ko'rish UI yo'q.
+92. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /admin/audit sahifasi (filtr, sahifalash, CSV) mavjud.
 93. Spam-filtr faqat matnga — rasm-spam (bir xil rasmni ko'p joylash) ushlanmaydi.
 94. Foydalanuvchi ma'lumot eksporti JSON — o'qiladigan HTML/PDF varianti yo'q.
 95. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): 2FA zaxira kodlari mavjud (`/api/auth/2fa/recovery`, `users.recoveryCodes` xeshlangan, login'da qabul qilinadi, SecurityPanel'da qolgan soni + yangilash).
-96. Rate-limit javoblarida Retry-After bor, lekin UI «qachon qayta urinish» taymerini hamma joyda ko'rsatmaydi.
+96. ✅ YOPILDI (2026-11-01): 429 xabarining o'zida kutish vaqti («N soniyadan/daqiqadan keyin…») — barcha UI'larda avtomatik ko'rinadi.
 97. Bot: guruh ichida ishlamaydi (faqat private) — jamoa guruhiga ulab e'lon qilish imkoni yo'q.
 98. Bot to'lov cheki rasmini admin rad etsa — foydalanuvchiga sabab yozish maydoni yo'q (standart matn).
 99. Admin panelda «foydalanuvchi sifatida ko'rish» (impersonate, faqat o'qish) yo'q — supportda qiyin.

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, GraduationCap, Play } from "lucide-react";
+import { ArrowUpRight, Check, GraduationCap, Link2, Play } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { formatDuration } from "@/lib/mentorship/format";
 
@@ -15,6 +16,8 @@ export type PreviewVideo = { lessonId: string; title: string; url: string; durat
  */
 export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string | null; title: string; preview: PreviewVideo | null }) {
   const [playing, setPlaying] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   if (playing && preview) {
     return (
@@ -27,9 +30,30 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
           <span className="min-w-0 truncate text-fg-2">
             <span className="font-semibold text-fg">Bepul namuna:</span> {preview.title}
           </span>
-          <Link href={`/mentorlik/dars/${preview.lessonId}`} className="inline-flex shrink-0 items-center gap-1 font-semibold text-fg underline-offset-2 hover:underline">
-            Darsga o&apos;tish <ArrowUpRight size={13} />
-          </Link>
+          <span className="flex shrink-0 items-center gap-2.5">
+            {/* Kamchilik #30: bepul namunani alohida havola bilan ulashish (marketing) */}
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}/mentorlik/dars/${preview.lessonId}`;
+                navigator.clipboard
+                  .writeText(url)
+                  .then(() => {
+                    setCopied(true);
+                    toast("Namuna havolasi nusxalandi — kursga yozilmaganlarga ham ochiladi", "success");
+                    window.setTimeout(() => setCopied(false), 1800);
+                  })
+                  .catch(() => toast(url, "info"));
+              }}
+              className="inline-flex items-center gap-1 font-semibold text-fg-3 transition hover:text-fg"
+              title="Namuna havolasini nusxalash"
+            >
+              {copied ? <Check size={13} className="text-success-text" /> : <Link2 size={13} />} Ulashish
+            </button>
+            <Link href={`/mentorlik/dars/${preview.lessonId}`} className="inline-flex items-center gap-1 font-semibold text-fg underline-offset-2 hover:underline">
+              Darsga o&apos;tish <ArrowUpRight size={13} />
+            </Link>
+          </span>
         </div>
       </div>
     );
