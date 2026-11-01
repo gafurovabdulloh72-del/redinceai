@@ -2059,3 +2059,99 @@ html[data-tg-app] footer,
 html[data-tg-app] [data-install-prompt] {
   display: none;
 }
+
+/* LIQUID GLASS IKONKALAR (2026-11-01, Apple uslubi) — chat papka ustuni, ikonka tugmalar, guruh/kanal plitkalari.
+   Yorug'da: oq shisha + ichki yorug' chiziq; qorong'uda: tutun shisha. Spring harakat: hover ko'tariladi, bosilganda siqiladi. */
+.glass-ic {
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.42));
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -6px 12px rgba(26, 26, 28, 0.04),
+    0 1px 2px rgba(26, 26, 28, 0.08),
+    0 6px 16px rgba(26, 26, 28, 0.07);
+  transition:
+    transform 0.4s var(--ease-spring),
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    color 0.2s ease;
+  will-change: transform;
+}
+[data-theme="dark"] .glass-ic {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(0, 0, 0, 0.3);
+}
+button:hover > .glass-ic,
+a:hover > .glass-ic,
+.glass-ic:hover {
+  transform: translateY(-1px) scale(1.06);
+}
+button:active > .glass-ic,
+a:active > .glass-ic,
+.glass-ic:active {
+  transform: scale(0.9);
+  transition-duration: 0.15s;
+}
+/* Faol holat: marjon (accent) rangli shisha — Apple'dagi tanlangan ilova plitkasi kabi */
+.glass-ic-on {
+  background: linear-gradient(150deg, rgba(255, 90, 54, 0.26), rgba(255, 90, 54, 0.12));
+  border-color: rgba(255, 90, 54, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(255, 90, 54, 0.22),
+    0 8px 20px rgba(255, 90, 54, 0.14);
+}
+[data-theme="dark"] .glass-ic-on {
+  background: linear-gradient(150deg, rgba(255, 107, 71, 0.32), rgba(255, 107, 71, 0.12));
+  border-color: rgba(255, 107, 71, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 8px rgba(255, 107, 71, 0.3);
+}
+/* To'q fonli shisha plitka (guruh/kanal avatari o'rnida) */
+.glass-ic-ink {
+  background: linear-gradient(150deg, rgba(26, 26, 28, 0.92), rgba(26, 26, 28, 0.72));
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 2px 6px rgba(26, 26, 28, 0.25);
+  color: #fff;
+}
+/* Telefon tablari uchun shisha kapsula (iOS segmented) */
+.glass-pill {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.55));
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(26, 26, 28, 0.12),
+    0 4px 10px rgba(26, 26, 28, 0.08);
+}
+[data-theme="dark"] .glass-pill {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07));
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-ic,
+  .glass-ic:hover,
+  .glass-ic:active {
+    transition: none;
+    transform: none;
+  }
+}
+html[data-motion="reduce"] .glass-ic {
+  transition: none;
+}

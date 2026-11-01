@@ -5,7 +5,7 @@ import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, MessageCircle, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, X, Zap } from "lucide-react";
+import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, BellOff, Check, CheckCheck, Compass, Copy, CornerUpLeft, Flag, Folder, FolderPlus, Forward, Info, Loader2, Megaphone, MessageCircle, MessagesSquare, Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Send, ShieldCheck, Timer, Trash2, User, Users, X, Zap } from "lucide-react";
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
@@ -155,10 +155,12 @@ const T = {
   copied: { uz: "Nusxalandi", ru: "Скопировано" },
   forwardedOk: { uz: "Yo'naltirildi", ru: "Переслано" },
   open: { uz: "Ochish", ru: "Открыть" },
-  tabAll: { uz: "Umumiy", ru: "Все" },
-  tabDms: { uz: "Yozishmalar", ru: "Личные" },
+  tabAll: { uz: "Barcha chatlar", ru: "Все чаты" },
+  tabAllShort: { uz: "Barchasi", ru: "Все" },
+  tabDms: { uz: "Shaxsiy", ru: "Личные" },
   tabGroups: { uz: "Guruhlar", ru: "Группы" },
   tabChannels: { uz: "Kanallar", ru: "Каналы" },
+  newFolder: { uz: "Yangi papka", ru: "Новая папка" },
   groupRow: { uz: "Guruh chati", ru: "Групповой чат" },
   channelRow: { uz: "Kanal", ru: "Канал" },
   catalog: { uz: "Jamoalar katalogi", ru: "Каталог сообществ" },
@@ -1007,6 +1009,22 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     return rows;
   }, [filtered, groupFiltered]);
 
+  /** Telegram'dagidek har papka yonidagi son: o'qilmagan (ovozsizlardan tashqari) CHATLAR soni */
+  const tabCounts = useMemo(() => {
+    const dmRows = (convs ?? []).filter((c) => !c.prefs.archived);
+    const un = (p: { unread: number; muted: boolean }) => p.unread > 0 && !p.muted;
+    const byFolder = new Map<string, number>();
+    for (const c of dmRows) if (un({ unread: c.unread, muted: c.prefs.muted }) && c.prefs.folderId) byFolder.set(c.prefs.folderId, (byFolder.get(c.prefs.folderId) ?? 0) + 1);
+    for (const g of groupRows) if (un(g) && g.folderId) byFolder.set(g.folderId, (byFolder.get(g.folderId) ?? 0) + 1);
+    return {
+      all: dmRows.filter((c) => un({ unread: c.unread, muted: c.prefs.muted })).length + groupRows.filter(un).length,
+      dm: dmRows.filter((c) => un({ unread: c.unread, muted: c.prefs.muted })).length,
+      group: groupRows.filter((g) => g.kind === "group" && un(g)).length,
+      channel: groupRows.filter((g) => g.kind === "channel" && un(g)).length,
+      byFolder,
+    };
+  }, [convs, groupRows]);
+
   /** Guruh/kanal qatorining pin/papka sozlamasi — optimistik */
   const updateGroupPref = async (id: string, patch: { pinned?: boolean; folderId?: string | null }) => {
     setGroupRows((l) => l.map((g) => (g.id === id ? { ...g, ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}), ...(patch.folderId !== undefined ? { folderId: patch.folderId } : {}) } : g)));
@@ -1098,8 +1116,67 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   };
 
   /* ---------------- Ro'yxat paneli ---------------- */
+  /** Telegram papka tablari: 4 asosiy tur + foydalanuvchi papkalari (desktop — chap ustun, telefon — matnli tablar) */
+  const typeTabs = [
+    { k: "all" as ChatType, icon: MessagesSquare, label: t("tabAll"), short: t("tabAllShort"), n: tabCounts.all },
+    { k: "dm" as ChatType, icon: User, label: t("tabDms"), short: t("tabDms"), n: tabCounts.dm },
+    { k: "group" as ChatType, icon: Users, label: t("tabGroups"), short: t("tabGroups"), n: tabCounts.group },
+    { k: "channel" as ChatType, icon: Megaphone, label: t("tabChannels"), short: t("tabChannels"), n: tabCounts.channel },
+  ];
+  const pickType = (k: ChatType) => {
+    setChatType(k);
+    setFolder(null);
+  };
+  const pickFolder = (id: string) => {
+    setChatType("all");
+    setFolder(folder === id ? null : id);
+  };
+
   const listPanel = (
-    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden max-lg:!rounded-none max-lg:!border-0 max-lg:!bg-transparent max-lg:!shadow-none", active && "hidden lg:flex")}>
+    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden lg:flex-row max-lg:!rounded-none max-lg:!border-0 max-lg:!bg-transparent max-lg:!shadow-none", active && "hidden lg:flex")}>
+      {/* Telegram Desktop papka ustuni (lg+): hamma papka bitta ustunda, ikonka + nom + o'qilmaganlar soni */}
+      <aside aria-label="Papkalar" className="hidden w-[76px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-line bg-fg/[0.02] py-2 lg:flex">
+        {typeTabs.map((o) => {
+          const on = chatType === o.k && !folder;
+          return (
+            <button key={o.k} type="button" onClick={() => pickType(o.k)} aria-pressed={on} title={o.label} className={cn("relative mx-1.5 flex flex-col items-center gap-1.5 rounded-[12px] px-1 py-2 text-center transition-colors duration-150", on ? "text-accent-text" : "text-fg-3 hover:text-fg")}>
+              <span className={cn("glass-ic relative h-10 w-10", on && "glass-ic-on")}>
+                <o.icon size={19} strokeWidth={on ? 2.2 : 1.8} />
+                {o.n > 0 && (
+                  <span key={o.n} className={cn("absolute -right-1.5 -top-1.5 flex h-4 min-w-4 animate-badge-pop items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white", on ? "bg-accent" : "bg-fg/45")}>
+                    {o.n > 99 ? "99+" : o.n}
+                  </span>
+                )}
+              </span>
+              <span className="line-clamp-2 w-full break-words text-[10.5px] font-semibold leading-[1.15]">{o.label}</span>
+            </button>
+          );
+        })}
+        {folders.map((f) => {
+          const on = folder === f.id;
+          const n = tabCounts.byFolder.get(f.id) ?? 0;
+          return (
+            <button key={f.id} type="button" onClick={() => pickFolder(f.id)} aria-pressed={on} title={f.name} className={cn("relative mx-1.5 flex flex-col items-center gap-1.5 rounded-[12px] px-1 py-2 text-center transition-colors duration-150", on ? "text-accent-text" : "text-fg-3 hover:text-fg")}>
+              <span className={cn("glass-ic relative h-10 w-10", on && "glass-ic-on")}>
+                <Folder size={19} strokeWidth={on ? 2.2 : 1.8} />
+                {n > 0 && (
+                  <span className={cn("absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white", on ? "bg-accent" : "bg-fg/45")}>
+                    {n > 99 ? "99+" : n}
+                  </span>
+                )}
+              </span>
+              <span className="line-clamp-2 w-full break-words text-[10.5px] font-semibold leading-[1.15]">{f.name}</span>
+            </button>
+          );
+        })}
+        <button type="button" onClick={() => setFolderMgr(true)} title={t("newFolder")} aria-label={t("newFolder")} className="mx-1.5 mt-auto flex flex-col items-center gap-1 rounded-[12px] px-1 py-2 text-fg-4 transition-colors duration-150 hover:text-fg">
+          <span className="glass-ic h-10 w-10">
+            <FolderPlus size={18} strokeWidth={1.8} />
+          </span>
+        </button>
+      </aside>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-line p-2.5 max-lg:border-0 max-lg:px-0 max-lg:pt-0">
         <label className="relative block min-w-0 flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-4 max-lg:left-3.5 max-lg:size-4" aria-hidden="true" />
@@ -1110,51 +1187,35 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             {t("archived")} {archivedCount}
           </button>
         )}
-        <button type="button" onClick={() => setFolderMgr(true)} aria-label="Papkalar" title="Papkalar" className={cn(iconBtn, "h-9 w-9 shrink-0")}>
+        <button type="button" onClick={() => setFolderMgr(true)} aria-label="Papkalar" title="Papkalar" className="glass-ic h-9 w-9 shrink-0 !rounded-[12px] text-fg-2 hover:text-fg">
           <Folder size={16} />
         </button>
         {/* Jamoalar katalogi — yangi guruh/kanal topish (Telegram'dagi qidiruv roli) */}
-        <Link href="/jamoalar" aria-label={t("catalog")} title={t("catalog")} className={cn(iconBtn, "h-9 w-9 shrink-0")}>
+        <Link href="/jamoalar" aria-label={t("catalog")} title={t("catalog")} className="glass-ic h-9 w-9 shrink-0 !rounded-[12px] text-fg-2 hover:text-fg">
           <Compass size={16} />
         </Link>
       </div>
-      {/* Telegram «papkalari»: tur filtrlari + o'z papkalari — bitta aylanadigan qator */}
-      <nav aria-label="Papkalar" className="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-line px-2.5 pb-2 max-lg:border-0 max-lg:px-0">
-        {(
-          [
-            { k: "all", label: t("tabAll") },
-            { k: "dm", label: t("tabDms") },
-            { k: "group", label: t("tabGroups") },
-            { k: "channel", label: t("tabChannels") },
-          ] as const
-        ).map((o) => (
-          <button
-            key={o.k}
-            type="button"
-            onClick={() => {
-              setChatType(o.k);
-              setFolder(null);
-            }}
-            aria-pressed={chatType === o.k && !folder}
-            className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", chatType === o.k && !folder ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
-          >
-            {o.label}
-          </button>
-        ))}
-        {folders.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => {
-              setChatType("all");
-              setFolder(folder === f.id ? null : f.id);
-            }}
-            aria-pressed={folder === f.id}
-            className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", folder === f.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
-          >
-            {f.name}
-          </button>
-        ))}
+      {/* Telefon: iOS shisha segment — 4 asosiy tab surishsiz sig'adi; o'z papkalari davomida (faol tab — glass kapsula) */}
+      <nav aria-label="Papkalar" className="no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-line px-1 pb-2 pt-0.5 lg:hidden">
+        {typeTabs.map((o) => {
+          const on = chatType === o.k && !folder;
+          return (
+            <button key={o.k} type="button" onClick={() => pickType(o.k)} aria-pressed={on} className={cn("press relative shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold transition-[color,transform] duration-200", on ? "glass-pill text-fg" : "text-fg-3 active:scale-95")}>
+              {o.short}
+              {o.n > 0 && <span className={cn("ml-1.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 align-[2px] text-[10.5px] font-bold leading-none text-white", on ? "bg-accent" : "bg-fg/35")}>{o.n > 99 ? "99+" : o.n}</span>}
+            </button>
+          );
+        })}
+        {folders.map((f) => {
+          const on = folder === f.id;
+          const n = tabCounts.byFolder.get(f.id) ?? 0;
+          return (
+            <button key={f.id} type="button" onClick={() => pickFolder(f.id)} aria-pressed={on} className={cn("press relative shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold transition-[color,transform] duration-200", on ? "glass-pill text-fg" : "text-fg-3 active:scale-95")}>
+              {f.name}
+              {n > 0 && <span className={cn("ml-1.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 align-[2px] text-[10.5px] font-bold leading-none text-white", on ? "bg-accent" : "bg-fg/35")}>{n > 99 ? "99+" : n}</span>}
+            </button>
+          );
+        })}
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!convs ? (
@@ -1185,7 +1246,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             )}
           </div>
         ) : (
-          <ul className="divide-y divide-line max-lg:divide-y-0">
+          /* Papka almashganda ro'yxat yumshoq almashinadi (key → qayta kirish animatsiyasi) */
+          <ul key={`${chatType}:${folder ?? ""}:${showArchived ? 1 : 0}`} className="animate-fade-in divide-y divide-line max-lg:divide-y-0">
             {merged.map((row) => {
               if (row.kind === "grp") {
                 const g = row.grp;
@@ -1193,14 +1255,14 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                 return (
                   <li key={`g-${g.id}`} className="group/row relative">
                     <button type="button" onClick={open} className="press flex w-full items-center gap-3 border-l-2 border-transparent px-3 py-2.5 pr-10 text-left transition hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:outline-none max-lg:gap-3.5 max-lg:rounded-[var(--r-md)] max-lg:border-l-0 max-lg:px-2 max-lg:py-3">
-                      <span className={cn("relative grid shrink-0 place-items-center overflow-hidden rounded-full text-ink-fg", g.isOfficial ? "bg-ink" : "bg-fg/70", isPhone ? "h-[52px] w-[52px]" : "h-10 w-10")}>
+                      <span className={cn("relative shrink-0 overflow-hidden !rounded-full", g.coverUrl ? "grid place-items-center" : "glass-ic glass-ic-ink", isPhone ? "h-[52px] w-[52px]" : "h-10 w-10")}>
                         {g.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
                         ) : g.kind === "channel" ? (
-                          <Zap size={isPhone ? 20 : 16} aria-hidden />
+                          <Megaphone size={isPhone ? 20 : 16} aria-hidden />
                         ) : (
-                          <User size={isPhone ? 20 : 16} aria-hidden />
+                          <Users size={isPhone ? 20 : 16} aria-hidden />
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -1349,6 +1411,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             })}
           </ul>
         )}
+      </div>
       </div>
     </div>
   );
