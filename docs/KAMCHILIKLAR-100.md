@@ -58,7 +58,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 45. ✅ YOPILDI (2026-11-01): /konkurs/[id]/opengraph-image — brend palitrasida nom/holat/ishlar soni/muddat (sinovda 200, PNG).
 46. ✅ YOPILDI (2026-11-01): sitemap'ga /savollar(+har savol) va /konkurs(+har konkurs) qo'shildi (`getSitemapQuestions`/`getSitemapChallenges`).
 47. ✅ YOPILDI (2026-11-01): kurs sahifasida bepul namuna video uchun VideoObject JSON-LD (@graph ichida).
-48. Blog/maqolalar bo'limi umuman yo'q — SEO uchun eng katta o'sish nuqtasi.
+48. ✅ YOPILDI (2026-11-02): Blog bo'limi — `articles` jadvali, `lib/blog.ts`, ommaviy `/blog` (+`[slug]`, Article+BreadcrumbList JSON-LD, admin qoralamani ko'radi), admin muharriri `/admin/blog` (markdown-lite, muqova yuklash), RSS `/blog/feed.xml`, sitemap + footer havolasi.
 49. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): not-found.tsx'da GET qidiruv formasi (/mutaxassislar?q=) mavjud.
 50. RU sahifalar uchun hreflang teglari yo'q.
 

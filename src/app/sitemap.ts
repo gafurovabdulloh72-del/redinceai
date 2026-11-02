@@ -6,6 +6,7 @@ import { getSitemapGroups } from "@/lib/groups/service";
 import { getSitemapCourses, getSitemapMentors } from "@/lib/mentorship/service";
 import { getSitemapResumes, getSitemapVacancies } from "@/lib/vacancies/service";
 import { getSitemapQuestions } from "@/lib/qa/service";
+import { getSitemapArticles } from "@/lib/blog";
 import { getSitemapChallenges } from "@/lib/challenges/service";
 import { PROFESSIONS } from "@/lib/vacancies/format";
 import { SITE_URL } from "@/lib/site-url";
@@ -29,7 +30,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Ochiq e'lonlar (muddati o'tmagan, bloklangan mijozlarniki emas)
   const jobs = await getSitemapJobs().catch(() => []);
   // Hamjamiyat va vakansiyalar: ochiq jamoalar, ochiq vakansiyalar, ommaviy rezyumelar (yopiq/muddati o'tgan/bloklanganlar noindex)
-  const [groupsList, vacancyList, resumeList, mentorList, courseList, questionList, challengeList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => []), getSitemapMentors().catch(() => []), getSitemapCourses().catch(() => []), getSitemapQuestions().catch(() => []), getSitemapChallenges().catch(() => [])]);
+  const [groupsList, vacancyList, resumeList, mentorList, courseList, questionList, challengeList] = await Promise.all([getSitemapGroups().catch(() => []), getSitemapVacancies().catch(() => []), getSitemapResumes().catch(() => []), getSitemapMentors().catch(() => []), getSitemapCourses().catch(() => []), getSitemapQuestions().catch(() => []), getSitemapChallenges().catch(() => []), ]);
+  const articleList = await getSitemapArticles().catch(() => []);
   // Katalog/xarita/bosh sahifa — eng so'nggi profil yangilanishi (hech biri bo'lmasa — hozir)
   const latestProfile = specialists.reduce<Date | null>((m, s) => (!m || s.updatedAt > m ? s.updatedAt : m), null) ?? now;
 
@@ -81,6 +83,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/savollar`, lastModified: questionList[0]?.updatedAt ?? now, changeFrequency: "daily" as const, priority: 0.6 },
     ...questionList.map((q) => ({ url: `${base}/savollar/${q.id}`, lastModified: q.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
     { url: `${base}/konkurs`, lastModified: challengeList[0]?.updatedAt ?? now, changeFrequency: "weekly" as const, priority: 0.5 },
+    // Blog (kamchilik #48)
+    { url: `${base}/blog`, lastModified: articleList[0]?.publishedAt ?? now, changeFrequency: "weekly" as const, priority: 0.7 },
+    ...articleList.map((a) => ({ url: `${base}/blog/${a.slug}`, lastModified: a.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...challengeList.map((c) => ({ url: `${base}/konkurs/${c.id}`, lastModified: c.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
   ];
 }

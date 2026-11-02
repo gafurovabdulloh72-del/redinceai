@@ -3138,3 +3138,33 @@ export const answerVotes = sqliteTable(
   },
   (t) => [uniqueIndex("answer_votes_user_uq").on(t.answerId, t.userId)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Blog (kamchilik #48): SEO maqolalari — faqat adminlar yozadi        */
+/* ------------------------------------------------------------------ */
+export const articles = sqliteTable(
+  "articles",
+  {
+    id: text("id").primaryKey(),
+    /** Manzil: /blog/<slug> — kichik lotin, raqam, defis */
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    /** Qisqa tavsif — ro'yxat kartasi va meta description */
+    excerpt: text("excerpt").notNull().default(""),
+    /** Markdown-lite matn: ## sarlavha, - ro'yxat, **qalin**, bo'sh qator = yangi xatboshi */
+    body: text("body").notNull(),
+    coverUrl: text("cover_url"),
+    authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+    /** Qoralama (false) sitemap/ro'yxat/sahifada ko'rinmaydi — faqat admin */
+    isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("articles_slug_uq").on(t.slug), index("articles_pub_idx").on(t.isPublished, t.publishedAt)],
+);
+export type Article = typeof articles.$inferSelect;

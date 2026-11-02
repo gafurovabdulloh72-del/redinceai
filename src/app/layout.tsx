@@ -93,6 +93,7 @@ export const metadata: Metadata = {
       "application/rss+xml": [
         { url: "/vakansiyalar/feed.xml", title: "Kasb Egalari — vakansiyalar" },
         { url: "/mentorlik/feed.xml", title: "Kasb Egalari — mentorlik kurslari" },
+        { url: "/blog/feed.xml", title: "Kasb Egalari — blog" },
       ],
     },
   },

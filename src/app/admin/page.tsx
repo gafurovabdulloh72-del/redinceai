@@ -44,7 +44,7 @@ import {
   Users,
   UsersRound,
   Wallet,
-  type LucideIcon, Contact } from "lucide-react";
+  type LucideIcon, Contact, Newspaper } from "lucide-react";
 import { AdminAnalytics } from "@/components/admin/AdminAnalytics";
 import { AdminDisputes, type AdminDisputeRow } from "@/components/admin/AdminDisputes";
 import { AdminFraudSignals } from "@/components/admin/AdminFraudSignals";
@@ -310,6 +310,7 @@ export default async function AdminPage() {
               { href: "/admin/kontaktlar", label: "Kontaktlar", icon: Contact, badge: 0 },
               { href: "/admin/reyting", label: "TOP reyting", icon: Crown, badge: 0 },
               { href: "/admin/audit", label: "Audit", icon: ScrollText, badge: 0 },
+              { href: "/admin/blog", label: "Blog", icon: Newspaper, badge: 0 },
               { href: "/kabinet", label: "Kabinet", icon: ArrowRight, badge: 0 },
             ].map((l) => (
               <Link key={l.href} href={l.href} className="inline-flex items-center gap-1.5 text-fg-2 transition hover:text-fg">
