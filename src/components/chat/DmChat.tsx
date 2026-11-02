@@ -69,6 +69,8 @@ interface GroupRow {
   canManage?: boolean;
   archived?: boolean;
   lastPostId?: string | null;
+  /** Hozir yozayotgan a'zo nomi (kamchilik #3) */
+  typing?: string | null;
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
@@ -1376,9 +1378,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                           {g.last && <time className={cn("shrink-0 text-[11px] max-lg:text-[12px]", g.unread > 0 && !g.muted ? "font-semibold text-accent" : "text-fg-4")} dateTime={new Date(g.last.at).toISOString()}>{listStamp(g.last.at, locale, now)}</time>}
                         </span>
                         <span className="mt-0.5 flex items-center justify-between gap-2">
-                          <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px] max-lg:text-[14.5px]", g.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
-                            {g.last?.hasFiles && <Paperclip size={11} className="shrink-0" aria-hidden="true" />}
-                            <span className="truncate">{g.last ? `${g.last.by ? `${g.last.by}: ` : ""}${g.last.body || t("file")}` : t(g.kind === "channel" ? "channelRow" : "groupRow")}</span>
+                          <span className={cn("flex min-w-0 items-center gap-1 truncate text-[12.5px] max-lg:text-[14.5px]", g.typing ? "italic text-fg-2" : g.unread > 0 ? "font-semibold text-fg" : "text-fg-3")}>
+                            {g.last?.hasFiles && !g.typing && <Paperclip size={11} className="shrink-0" aria-hidden="true" />}
+                            <span className="truncate">{g.typing ? `${g.typing} ${t("typing")}` : g.last ? `${g.last.by ? `${g.last.by}: ` : ""}${g.last.body || t("file")}` : t(g.kind === "channel" ? "channelRow" : "groupRow")}</span>
                           </span>
                           {g.unread > 0 && (
                             <span className={cn("flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-bold", g.muted ? "bg-fg/15 text-fg" : "bg-accent text-white")} aria-label={`${g.unread} yangi`}>

@@ -90,6 +90,8 @@ export const UMUMIY = {
 
   /* Plitkalar */
   views: { uz: "Profil ko'rishlar", ru: "Просмотры профиля" } satisfies Tr,
+  viewsChart: { uz: "Ko'rishlar — so'nggi 14 kun", ru: "Просмотры — последние 14 дней" } satisfies Tr,
+  viewsChartHint: { uz: "Kunlik noyob ko'ruvchilar", ru: "Уникальные посетители в день" } satisfies Tr,
   notYet: { uz: "Hali yo'q", ru: "Пока нет" } satisfies Tr,
   rating: { uz: "Reyting", ru: "Рейтинг" } satisfies Tr,
   ratingReviews: { uz: (n: number) => `Reyting · ${n} ta sharh`, ru: (n: number) => `Рейтинг · ${n} ${ruPlural(n, ["отзыв", "отзыва", "отзывов"])}` },

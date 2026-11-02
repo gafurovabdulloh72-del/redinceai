@@ -127,6 +127,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
 
   // Xavfli zona
   const [exporting, setExporting] = useState(false);
+  /** Kamchilik #94: JSON (texnik) yoki HTML (o'qiladigan hujjat) */
+  const [exportFormat, setExportFormat] = useState<"json" | "html">("json");
   const [exportError, setExportError] = useState<string | null>(null);
   const [exported, setExported] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -327,14 +329,14 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     setExportError(null);
     setExporting(true);
     try {
-      const res = await fetch("/api/account/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: exportPassword }) });
+      const res = await fetch("/api/account/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: exportPassword, format: exportFormat }) });
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
         setExportError(errorText(res, json, "Eksport qilib bo'lmadi"));
         return;
       }
       const blob = await res.blob();
-      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "kasb-egalari-export.json";
+      const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? `kasb-egalari-export.${exportFormat}`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1261,20 +1263,20 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             <div className="mt-0.5 text-[13px] text-fg-3" aria-live="polite">
               {exported ? (
                 <span className="inline-flex items-center gap-1.5 font-semibold text-success">
-                  <CheckCircle2 size={15} /> JSON fayl yuklab olindi
+                  <CheckCircle2 size={15} /> Fayl yuklab olindi
                 </span>
               ) : exportError ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                   <AlertCircle size={15} /> {exportError}
                 </span>
               ) : (
-                "Hisob, profil, buyurtmalar, to'lovlar, sharhlar va bildirishnomalar — bitta JSON fayl."
+                "Hisob, profil, buyurtmalar, to'lovlar, sharhlar va bildirishnomalar — bitta fayl (JSON yoki o'qiladigan HTML)."
               )}
             </div>
           </div>
           {!confirmExport && (
             <Button type="button" variant="outline" onClick={() => setConfirmExport(true)} className="sm:min-w-[200px]">
-              <Download size={15} /> JSON yuklab olish
+              <Download size={15} /> Yuklab olish
             </Button>
           )}
         </div>
@@ -1289,6 +1291,26 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             className="mt-4 rounded-[18px] border border-line bg-surface p-4 sm:p-5"
           >
             <p className="text-[13px] font-medium text-fg">Eksportda barcha shaxsiy ma&apos;lumotlaringiz bor — tasdiqlash uchun joriy parolni kiriting.</p>
+            {/* Format tanlovi (kamchilik #94): HTML — o'qiladigan hujjat, brauzerda ochilib chop etilsa PDF bo'ladi */}
+            <div className="mt-3 flex gap-2" role="radiogroup" aria-label="Fayl formati">
+              {(
+                [
+                  { v: "json", label: "JSON (texnik)" },
+                  { v: "html", label: "HTML (o'qiladigan)" },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.v}
+                  type="button"
+                  role="radio"
+                  aria-checked={exportFormat === f.v}
+                  onClick={() => setExportFormat(f.v)}
+                  className={cn("rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition", exportFormat === f.v ? "border-fg bg-fg text-bg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <div className="mt-3 sm:max-w-sm">
               <PasswordField
                 id="sec-export-password"

@@ -335,6 +335,28 @@ export async function countRecentProfileViews(specialistId: string, days = 7): P
   return row?.n ?? 0;
 }
 
+/**
+ * Kunlik noyob ko'rishlar (kamchilik #32): egasining kabinetidagi mini-grafik uchun.
+ * Oxirgi `days` kun (Toshkent kunlari), bo'sh kunlar 0 bilan to'ldiriladi. Ma'lumot 30 kun saqlanadi.
+ */
+export async function dailyProfileViews(specialistId: string, days = 14): Promise<Array<{ day: string; n: number }>> {
+  const since = new Date(Date.now() - (days - 1) * 86_400_000 + 5 * 3_600_000);
+  const sinceDay = `${since.getUTCFullYear()}-${String(since.getUTCMonth() + 1).padStart(2, "0")}-${String(since.getUTCDate()).padStart(2, "0")}`;
+  const rows = await db
+    .select({ day: profileViews.day, n: count() })
+    .from(profileViews)
+    .where(and(eq(profileViews.specialistId, specialistId), gte(profileViews.day, sinceDay)))
+    .groupBy(profileViews.day);
+  const byDay = new Map(rows.map((r) => [r.day, Number(r.n)]));
+  const out: Array<{ day: string; n: number }> = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86_400_000 + 5 * 3_600_000);
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+    out.push({ day: key, n: byDay.get(key) ?? 0 });
+  }
+  return out;
+}
+
 /** 30 kundan eski ko'rish qatorlarini tozalash (cron) */
 export async function purgeOldProfileViews(days = 30): Promise<number> {
   const cutoff = new Date(Date.now() - days * 86_400_000);

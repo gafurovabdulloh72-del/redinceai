@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auditLogs, favorites, follows, groupMembers, groups, notifications, orders, payments, payouts, portfolioItems, postComments, postSaves, posts, reviews, savedSearches, sessions, specialists, userBlocks, users } from "@/lib/db/schema";
 import { z } from "zod";
 import { ApiError, handler, parseBody, requireSession } from "@/lib/api";
+import { renderExportHtml } from "@/lib/account/export-html";
 import { verifyPassword } from "@/lib/security/password";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
@@ -16,7 +17,11 @@ import { enforceLimit } from "@/lib/security/rate-limit";
  * ijtimoiy tarmoq: postlar (media havolalari bilan), yozgan izohlar, obunalar (ikki tomon), bloklaganlar, saqlangan postlar, jamoalar a'zoligi.
  * Rate limit: 5 / soat.
  */
-const exportSchema = z.object({ password: z.string().min(1, "Parolni kiriting").max(200) });
+const exportSchema = z.object({
+  password: z.string().min(1, "Parolni kiriting").max(200),
+  /** Kamchilik #94: json (texnik nusxa) yoki html (o'qiladigan hujjat, chop etilsa PDF) */
+  format: z.enum(["json", "html"]).optional().default("json"),
+});
 
 export const POST = handler(async (req) => {
   const session = await requireSession();
@@ -142,6 +147,16 @@ export const POST = handler(async (req) => {
     "/kabinet/xavfsizlik",
   ).catch(() => undefined);
   const stamp = new Date().toISOString().slice(0, 10);
+  // O'qiladigan HTML varianti (kamchilik #94) — bir xil ma'lumot, odam o'qiydigan hujjat
+  if (input.format === "html") {
+    return new Response(renderExportHtml(data), {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Disposition": `attachment; filename="kasb-egalari-export-${stamp}.html"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",

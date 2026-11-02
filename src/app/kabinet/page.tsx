@@ -43,7 +43,7 @@ import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, type OrderStatus } from "@/li
 import { proposalsSentToday } from "@/lib/jobs/server";
 import { getSettings } from "@/lib/payments/settings";
 import { isOnVacation, tashkentNow } from "@/lib/privacy";
-import { getOrdersForUser } from "@/lib/queries";
+import { dailyProfileViews, getOrdersForUser } from "@/lib/queries";
 import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
 import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor } from "@/lib/utils";
 
@@ -163,7 +163,7 @@ export default async function KabinetPage() {
   const today = tashkentNow().date;
   const dueLimit = tashkentNow(Date.now() + DUE_SOON_DAYS * 86_400_000).date;
 
-  const [{ asClient, asSpecialist }, portfolioCount, favCount, unreadNotif, unreadDm, followersCount, myGroupIds] = await Promise.all([
+  const [{ asClient, asSpecialist }, portfolioCount, favCount, unreadNotif, unreadDm, followersCount, myGroupIds, viewSeries] = await Promise.all([
     getOrdersForUser(user.id, sp?.id),
     sp ? db.select({ n: count() }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id)).then((r) => r[0]?.n ?? 0) : Promise.resolve(0),
     db.select({ n: count() }).from(favorites).where(eq(favorites.userId, user.id)).then((r) => r[0]?.n ?? 0),
@@ -171,6 +171,8 @@ export default async function KabinetPage() {
     unreadDmCount(user.id).catch(() => 0),
     db.select({ n: count() }).from(follows).where(eq(follows.followingId, user.id)).then((r) => r[0]?.n ?? 0).catch(() => 0),
     db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, user.id), eq(groupMembers.status, "active"))).then((r) => r.map((x) => x.id)).catch(() => [] as string[]),
+    // Kunlik ko'rishlar grafigi (kamchilik #32) — faqat mutaxassis profiliga
+    sp ? dailyProfileViews(sp.id, 14).catch(() => []) : Promise.resolve([] as Array<{ day: string; n: number }>),
   ]);
 
   /* ---------- To'lov kutilmoqda banneri (kamchilik #54): oxirgi 7 kunda ochilgan, hali to'lanmagan hisob ---------- */
@@ -387,6 +389,37 @@ export default async function KabinetPage() {
           </>
         )}
       </div>
+
+      {/* ---------- Ko'rishlar kunlik grafigi (kamchilik #32) — egasiga, faqat ma'lumot bo'lsa ---------- */}
+      {sp && viewSeries.some((d) => d.n > 0) && (
+        <section className="card mt-5 p-5" aria-label={tr(til, UMUMIY.viewsChart)}>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="font-display text-[15px] font-semibold text-fg">{tr(til, UMUMIY.viewsChart)}</h2>
+            <p className="text-[12px] text-fg-3">{tr(til, UMUMIY.viewsChartHint)}</p>
+          </div>
+          {(() => {
+            const max = Math.max(...viewSeries.map((d) => d.n), 1);
+            return (
+              <div className="flex h-[88px] items-end gap-1.5">
+                {viewSeries.map((d) => {
+                  const dd = d.day.slice(8, 10);
+                  const mm = d.day.slice(5, 7);
+                  return (
+                    <div key={d.day} className="group/bar flex min-w-0 flex-1 flex-col items-center gap-1" title={`${dd}.${mm} — ${d.n}`}>
+                      <span
+                        className={cn("w-full rounded-t-[4px] transition-colors", d.n > 0 ? "bg-accent/80 group-hover/bar:bg-accent" : "bg-fg/8")}
+                        style={{ height: `${Math.max(Math.round((d.n / max) * 64), 3)}px` }}
+                        aria-hidden
+                      />
+                      <span className="text-[9.5px] tabular-nums text-fg-4 max-sm:hidden">{dd}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </section>
+      )}
 
       {/* ---------- Profil to'liqligi (mutaxassis, 100% bo'lmaguncha) ---------- */}
       {showOnboarding && sp && (

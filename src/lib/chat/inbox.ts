@@ -33,6 +33,26 @@ export interface GroupInboxRow {
   canManage: boolean;
   /** Chat ro'yxatida arxivlangan (faqat o'z a'zoligim sozlamasi) */
   archived: boolean;
+  /** Hozir yozayotgan a'zo nomi (kamchilik #3) — keshdan tashqari, har so'rovda yangi hisoblanadi */
+  typing?: string | null;
+}
+
+/**
+ * Guruhlarimda hozir yozayotganlar (kamchilik #3): group_members.typingAt oxirgi 6 soniyada
+ * yangilangan a'zolar (o'zimdan boshqa). Inbox keshi 60 s bo'lgani uchun bu ALOHIDA, arzon
+ * so'rov — /api/chat har chaqirilganda yangi bajariladi va qatorlarga qo'shiladi.
+ */
+export async function groupTypingNames(meId: string): Promise<Map<string, string>> {
+  const since = new Date(Date.now() - 6000);
+  const rows = await db
+    .select({ groupId: groupMembers.groupId, name: users.name })
+    .from(groupMembers)
+    .innerJoin(users, eq(users.id, groupMembers.userId))
+    .where(and(gt(groupMembers.typingAt, since), sql`${groupMembers.userId} != ${meId}`, eq(groupMembers.status, "active"), sql`${groupMembers.groupId} in (select group_id from group_members gm2 where gm2.user_id = ${meId} and gm2.status = 'active')`))
+    .limit(30);
+  const out = new Map<string, string>();
+  for (const r of rows) if (!out.has(r.groupId)) out.set(r.groupId, r.name);
+  return out;
 }
 
 /**

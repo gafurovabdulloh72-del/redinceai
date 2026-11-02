@@ -5,7 +5,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 ## 1. Chat (yangi Telegram inbox) — 1–10
 1. ✱ ✅ YOPILDI (2026-11-01): desktopda (lg+) guruh/kanal qatori bosilganda GroupChat o'ng panelda ochiladi (`DmChat` `activeGroup` + `GroupChat embedded` prop); telefonda avvalgidek sahifaga o'tadi.
 2. ✅ YOPILDI (2026-11-01): kanal qatori telefon/planshetda `?post=<oxirgi post>` bilan ochiladi (desktopda panel ichida).
-3. Guruh qatorlarida «yozmoqda…» ko'rsatkichi yo'q (DM'da bor, guruh typing API mavjud — ulash qoldi).
+3. ✅ YOPILDI (2026-11-02): guruh qatorida «yozmoqda…» — `groupTypingNames` (inbox.ts, keshdan tashqari yangi so'rov), `/api/chat` `groups[].typing`, DmChat qatorida kursiv ko'rsatiladi.
 4. ✅ YOPILDI (2026-11-01): guruh/kanal qatorida ham svayp amallar — qadash · ovozsiz · arxiv (DM mexanizmi umumlashtirildi).
 5. ✅ YOPILDI (2026-11-01): guruh qatori «⋯» menyusida «Ovozsiz» (PATCH /api/chat/guruh muted).
 6. ✅ YOPILDI (2026-11-01): papka boshqaruvida qalam tugmasi — nomni joyida tahrirlash (PATCH /api/chat/papkalar/[id] allaqachon bor edi, UI qo'shildi).
@@ -40,10 +40,10 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 
 ## 4. Profil va ijodkorlar katalogi — 31–40
 31. ✱ ✅ YOPILDI (2026-11-01): `uploadAttachment` har qanday video yuklashda muqova kadrini avtomatik oladi va yuklaydi (`captureVideoPoster` — avval faqat GroupFeed'da edi); qidiruv plitkalari video posterini ishlatadi (profil to'ri va reels allaqachon ishlatardi).
-32. Profil ko'rishlar statistikasi egasiga kunlik grafik bilan ko'rsatilmaydi (bitta son xolos).
+32. ✅ YOPILDI (2026-11-02): kabinet bosh sahifasida «Ko'rishlar — so'nggi 14 kun» ustunli mini-grafik (`dailyProfileViews` queries.ts, bo'sh kunlar 0, faqat ma'lumot bo'lsa chiziladi).
 33. Ijodkor o'z profilini PDF/portfolio fayl sifatida eksport qila olmaydi.
 34. Katalogda «onlayn» filtri bor-u, «bugun javob bergan» kabi ishonch signali yo'q.
-35. Sharhlarga ijodkor javobi bor, lekin sharhni foydali deb belgilash yo'q.
+35. ✅ ALLAQACHON BOR (tekshirildi 2026-11-02): «Foydali» ovozi — `review_votes` + `POST /api/reviews/[id]/helpful` + ReviewList tugmasi.
 36. Profil highlights (saralangan storylar) muqovasini o'zgartirib bo'lmaydi — birinchi kadr olinadi.
 37. ✅ YOPILDI (2026-11-01): ish oynasida «Ish yoqdimi? Kontaktni ochish» CTA — modalni yopib profil'dagi #kontakt kartasiga olib boradi.
 38. ✅ YOPILDI (2026-11-01): PROFILE_HIRING=false'da Narx/Paketlar qatorlari va kurs izohi yashiriladi.
@@ -114,7 +114,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 91. ✱ ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): `DELETE /api/auth/sessions` + SecurityPanel «Barcha qurilmalardan chiqish» tugmasi mavjud (sessionVersion bump + joriy qurilmaga yangi cookie).
 92. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): /admin/audit sahifasi (filtr, sahifalash, CSV) mavjud.
 93. Spam-filtr faqat matnga — rasm-spam (bir xil rasmni ko'p joylash) ushlanmaydi.
-94. Foydalanuvchi ma'lumot eksporti JSON — o'qiladigan HTML/PDF varianti yo'q.
+94. ✅ YOPILDI (2026-11-02): eksportning o'qiladigan HTML varianti — `lib/account/export-html.ts` (hammasi ekranlangan, oflayn ochiladi, chop etilsa PDF), `/api/account/export {format:"html"}`, SecurityPanel'da JSON/HTML tanlovi.
 95. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): 2FA zaxira kodlari mavjud (`/api/auth/2fa/recovery`, `users.recoveryCodes` xeshlangan, login'da qabul qilinadi, SecurityPanel'da qolgan soni + yangilash).
 96. ✅ YOPILDI (2026-11-01): 429 xabarining o'zida kutish vaqti («N soniyadan/daqiqadan keyin…») — barcha UI'larda avtomatik ko'rinadi.
 97. Bot: guruh ichida ishlamaydi (faqat private) — jamoa guruhiga ulab e'lon qilish imkoni yo'q.
