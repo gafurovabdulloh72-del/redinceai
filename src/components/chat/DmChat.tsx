@@ -2036,7 +2036,8 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const root = (
     <div
       className={cn(
-        "grid grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[300px_minmax(0,1fr)]",
+        // Ro'yxat ustuni Telegram'dagidek keng (ichida 76px tur-ustuni ham bor) — ismlar kesilib qolmasin
+        "grid grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]",
         // Telefon: suhbat ochiq — to'liq ekran (yuqori/pastki panel yashirin, yozish maydoni pastda); ro'yxat — tab'lar orasida butun balandlik
         active
           ? "max-lg:fixed max-lg:inset-0 max-lg:z-[60] max-lg:h-dvh max-lg:gap-0 max-lg:bg-bg max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pt-[env(safe-area-inset-top)]"
