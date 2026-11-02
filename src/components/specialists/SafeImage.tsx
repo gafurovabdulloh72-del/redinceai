@@ -32,12 +32,15 @@ export function SafeImage({
   const [broken, setBroken] = useState(false);
   // Optimizator (/_next/image) xato bersa (masalan, host oq ro'yxatda emas) — asl manzilga qaytib bir urinib ko'ramiz
   const [deopt, setDeopt] = useState(false);
+  // Blur-up placeholder (kamchilik #70): yuklangunicha yumshoq fon, yuklangach ravon paydo bo'ladi
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setBroken(false);
     setDeopt(false);
     const el = ref.current;
     if (el && el.complete && el.naturalWidth === 0) setBroken(true);
+    if (el && el.complete && el.naturalWidth > 0) setLoaded(true);
   }, [props.src]);
 
   if (broken || !props.src) return <>{fallback}</>;
@@ -56,6 +59,9 @@ export function SafeImage({
       fetchPriority={fetchPriority ?? (priority ? "high" : undefined)}
       decoding="async"
       onError={() => (optimized ? setDeopt(true) : setBroken(true))}
+      onLoad={() => setLoaded(true)}
+      // Yuklanish paytida sekin internetda oq bo'shliq o'rniga yumshoq fon (kamchilik #70)
+      data-img-loading={loaded ? undefined : ""}
       {...props}
     />
   );

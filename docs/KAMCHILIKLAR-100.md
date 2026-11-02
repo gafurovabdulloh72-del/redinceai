@@ -31,7 +31,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 22. ✱ ✅ YOPILDI (2026-11-01): xom saqlash URL mijozga chiqmaydi — `/api/mentorlik/video/[lessonId]` proxy (sessiya + yozilganlik tekshiruvi, keshsiz 302; bepul namuna mehmonga ochiq).
 23. Kurs sertifikatida QR tekshiruv havolasi bor-u, sertifikat dizayni bitta — mentor logosi qo'shilmaydi.
 24. Kursni ulushlab to'lash (bo'lib to'lash) yo'q.
-25. Dars izohlari (savol-javob) mentor javob berganda talabaga push boradi, lekin dars sahifasida «yangi javob» belgisi yo'q.
+25. ✅ YOPILDI (2026-11-02): «Savol-javob» tabida «yangi javob» nuqtasi — `latestReplyToMe` (learning.ts) + `LessonTab.fresh` (localStorage `kasb_qa_seen_<id>` bilan solishtiradi, tab ochilganda o'chadi).
 26. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): CourseEditor'da ommaviy kurs sahifasiga «ko'rish» havolasi (yangi oynada) mavjud.
 27. Mentor daromad grafigi yo'q — faqat ro'yxat (oylik diagramma kerak).
 28. ✅ YOPILDI (2026-11-01): slot formasi ostida «Toshkent vaqti (UTC+5)» izohi; talaba kirish matnida ham «Toshkent vaqti».
@@ -42,7 +42,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 31. ✱ ✅ YOPILDI (2026-11-01): `uploadAttachment` har qanday video yuklashda muqova kadrini avtomatik oladi va yuklaydi (`captureVideoPoster` — avval faqat GroupFeed'da edi); qidiruv plitkalari video posterini ishlatadi (profil to'ri va reels allaqachon ishlatardi).
 32. ✅ YOPILDI (2026-11-02): kabinet bosh sahifasida «Ko'rishlar — so'nggi 14 kun» ustunli mini-grafik (`dailyProfileViews` queries.ts, bo'sh kunlar 0, faqat ma'lumot bo'lsa chiziladi).
 33. Ijodkor o'z profilini PDF/portfolio fayl sifatida eksport qila olmaydi.
-34. Katalogda «onlayn» filtri bor-u, «bugun javob bergan» kabi ishonch signali yo'q.
+34. ✅ YOPILDI (2026-11-02): karta metasida «Bugun faol» yashil belgisi — `toListItem.activeToday` (lastSeenAt < 24 soat, `showOnline=false` bo'lsa chiqmaydi, aniq vaqt oqmaydi).
 35. ✅ ALLAQACHON BOR (tekshirildi 2026-11-02): «Foydali» ovozi — `review_votes` + `POST /api/reviews/[id]/helpful` + ReviewList tugmasi.
 36. Profil highlights (saralangan storylar) muqovasini o'zgartirib bo'lmaydi — birinchi kadr olinadi.
 37. ✅ YOPILDI (2026-11-01): ish oynasida «Ish yoqdimi? Kontaktni ochish» CTA — modalni yopib profil'dagi #kontakt kartasiga olib boradi.
@@ -84,7 +84,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 67. ✅ YOPILDI (2026-11-01): /savollar va /konkurs ro'yxatlari (katalog) guruhiga ko'chirilib skelet loading.tsx qo'shildi (tafsilot sahifalari yumshoq 404 qoidasiga tegilmadi).
 68. Haptik faqat ba'zi amallarda — like/pin/yuborishda bir xil emas.
 69. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): components/layout/BackToTop.tsx layout.tsx'da global ulangan.
-70. Katta rasmlarga blur-up placeholder yo'q — sekin internetda oq bo'shliqlar.
+70. ✅ YOPILDI (2026-11-02): SafeImage yuklangunicha `data-img-loading` + globals.css pulsli fon (`img-placeholder-pulse`, reduced-motion'da o'chadi).
 
 ## 8. Til (RU) va matnlar — 71–80
 71. ✱ ✅ YOPILDI (2026-11-01): `i18n/dict/community.ts` (KONKURS/SAVOL) — /konkurs(+[id]), ChallengeView, /savollar(+yangi, [id]), AskForm, QuestionThread to'liq uz/ru. Bot /konkurs — faqat admin buyrug'i, uz qoldi.

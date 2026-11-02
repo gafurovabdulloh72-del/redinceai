@@ -10,6 +10,7 @@ import { AssignmentBlock, Materials, QuizBlock } from "@/components/mentorship/L
 import { LessonQA } from "@/components/mentorship/LessonQA";
 import { LessonNotes } from "@/components/mentorship/LessonNotes";
 import { getCurrentUser } from "@/lib/auth";
+import { latestReplyToMe } from "@/lib/mentorship/learning";
 import { getLessonForViewer, type LessonView } from "@/lib/mentorship/service";
 import { formatDuration } from "@/lib/mentorship/format";
 
@@ -45,7 +46,15 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       dot: lesson.enrolled && !lesson.isOwner && !lesson.submission,
       content: <AssignmentBlock lessonId={lesson.id} prompt={lesson.assignment} submission={lesson.submission} canSubmit={lesson.enrolled && !lesson.isOwner} />,
     });
-  if (canSeeQA && user) tabs.push({ key: "savol", label: "Savol-javob", content: <LessonQA lessonId={lesson.id} isMentor={lesson.isOwner || user.role === "admin"} /> });
+  // «Yangi javob» nuqtasi (kamchilik #25): savolimga oxirgi javob vaqti — mijoz localStorage bilan solishtiradi
+  const qaReplyAt = canSeeQA && user && !lesson.isOwner ? await latestReplyToMe(lesson.id, user.id).catch(() => null) : null;
+  if (canSeeQA && user)
+    tabs.push({
+      key: "savol",
+      label: "Savol-javob",
+      fresh: qaReplyAt ? { storageKey: `kasb_qa_seen_${lesson.id}`, ts: qaReplyAt } : undefined,
+      content: <LessonQA lessonId={lesson.id} isMentor={lesson.isOwner || user.role === "admin"} />,
+    });
   // Udemy «Notes»: shaxsiy eslatmalar, video vaqt belgisi bilan — faqat kursga kirganlarga
   if (canSeeQA && user) tabs.push({ key: "eslatma", label: "Eslatmalar", content: <LessonNotes lessonId={lesson.id} hasVideo={Boolean(lesson.videoUrl)} /> });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export interface LessonTab {
@@ -10,6 +10,11 @@ export interface LessonTab {
   count?: number;
   /** Diqqat talab qiladi (test topshirilmagan) */
   dot?: boolean;
+  /**
+   * «Yangi javob» nuqtasi (kamchilik #25): server oxirgi javob vaqtini beradi, mijoz localStorage'dagi
+   * «oxirgi ko'rgan» vaqt bilan solishtiradi; tab ochilganda belgilanadi va nuqta o'chadi.
+   */
+  fresh?: { storageKey: string; ts: number | null };
   content: ReactNode;
 }
 
@@ -20,6 +25,31 @@ export interface LessonTab {
  */
 export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
   const [active, setActive] = useState(tabs[0]?.key ?? "");
+  // fresh nuqtalari: SSR'da localStorage yo'q — effect'da hisoblanadi (hydration mos keladi)
+  const [freshKeys, setFreshKeys] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const out: Record<string, boolean> = {};
+    for (const t of tabs) {
+      if (!t.fresh?.ts) continue;
+      try {
+        const seen = Number(localStorage.getItem(t.fresh.storageKey) ?? 0);
+        if (t.fresh.ts > seen) out[t.key] = true;
+      } catch {
+        /* localStorage yopiq — nuqtasiz */
+      }
+    }
+    setFreshKeys(out);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const markSeen = (t: LessonTab) => {
+    if (!t.fresh) return;
+    try {
+      localStorage.setItem(t.fresh.storageKey, String(Date.now()));
+    } catch {
+      /* jim */
+    }
+    setFreshKeys((m) => ({ ...m, [t.key]: false }));
+  };
   const current = tabs.find((t) => t.key === active) ?? tabs[0];
   if (!tabs.length) return null;
   if (tabs.length === 1) return <div className="mt-4">{tabs[0].content}</div>;
@@ -36,7 +66,10 @@ export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
                 type="button"
                 role="tab"
                 aria-selected={on}
-                onClick={() => setActive(t.key)}
+                onClick={() => {
+                  setActive(t.key);
+                  markSeen(t);
+                }}
                 className={cn(
                   "relative inline-flex h-10 items-center gap-1.5 px-3 text-[13.5px] font-semibold transition",
                   on ? "text-fg after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:bg-fg" : "text-fg-3 hover:text-fg",
@@ -44,7 +77,7 @@ export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
               >
                 {t.label}
                 {t.count ? <span className="text-[12px] font-normal text-fg-4">{t.count}</span> : null}
-                {t.dot && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label="diqqat" />}
+                {(t.dot || freshKeys[t.key]) && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label={freshKeys[t.key] ? "yangi javob" : "diqqat"} />}
               </button>
             );
           })}

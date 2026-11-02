@@ -120,7 +120,7 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
       orderBy,
       limit: filter.limit,
       offset,
-      with: { user: { columns: { name: true, avatarUrl: true } } },
+      with: { user: { columns: { name: true, avatarUrl: true, lastSeenAt: true, showOnline: true } } },
     }),
     db.select({ total: count() }).from(specialists).where(where),
   ]);

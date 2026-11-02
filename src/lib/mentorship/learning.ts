@@ -154,6 +154,24 @@ export async function listLessonComments(lessonId: string, viewerId: string, adm
   return rows.map((r) => ({ id: r.id, parentId: r.parentId, body: r.body, createdAt: r.createdAt.getTime(), helpful: r.isHelpful, name: um.get(r.userId)?.name ?? "Foydalanuvchi", avatarUrl: um.get(r.userId)?.avatarUrl ?? null, isMentor: r.userId === c.mentor.userId, mine: r.userId === viewerId }));
 }
 
+/**
+ * Mening savolimga oxirgi javob vaqti (kamchilik #25): dars sahifasidagi «Savol-javob» tabida
+ * «yangi javob» nuqtasi uchun. Mijoz buni localStorage'dagi «oxirgi ko'rgan» bilan solishtiradi.
+ */
+export async function latestReplyToMe(lessonId: string, userId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ ts: sql<number | null>`max(${lessonComments.createdAt})` })
+    .from(lessonComments)
+    .where(
+      and(
+        eq(lessonComments.lessonId, lessonId),
+        sql`${lessonComments.userId} != ${userId}`,
+        sql`${lessonComments.parentId} in (select id from lesson_comments lc2 where lc2.lesson_id = ${lessonId} and lc2.user_id = ${userId} and lc2.parent_id is null)`,
+      ),
+    );
+  return row?.ts ? Number(row.ts) : null;
+}
+
 export async function addLessonComment(lessonId: string, userId: string, admin: boolean, input: { body: string; parentId?: string | null }) {
   const { l, c, access } = await lessonWithAccess(lessonId, userId, admin);
   if (!access) throw new ApiError(403, "Savol berish uchun kursga yoziling");

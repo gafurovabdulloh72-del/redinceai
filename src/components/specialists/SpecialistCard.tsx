@@ -88,6 +88,14 @@ export async function SpecialistCard({
               <p className="mt-0.5 truncate text-[12px] text-fg-3 sm:text-[12.5px]">
                 {cat?.name ? `${cat.name} · ` : ""}
                 {place}
+                {/* Ishonch belgisi (kamchilik #34): oxirgi 24 soatda kirgan — tezroq javob beradi degani */}
+                {sp.activeToday && (
+                  <span className="whitespace-nowrap font-medium text-success-text">
+                    {" · "}
+                    <span className="mb-[1px] mr-0.5 inline-block h-1.5 w-1.5 rounded-full bg-success align-middle" aria-hidden />
+                    {tr(til, KARTA.activeToday)}
+                  </span>
+                )}
                 {/* Telefon qatori: kontakt narxi meta qatorining oxirida (sm+ da alohida chip) */}
                 <span className="sm:hidden whitespace-nowrap"> · 🔒 {sp.contactMode === "hidden" ? tr(til, KARTA.portfolioOnly) : formatPrice(contactPriceFor(sp, settings), { compact: true }).replace(/\s*so'm$/, "")}</span>
               </p>

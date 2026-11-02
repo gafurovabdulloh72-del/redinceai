@@ -2155,3 +2155,18 @@ a:active > .glass-ic,
 html[data-motion="reduce"] .glass-ic {
   transition: none;
 }
+
+/* Rasm yuklanish placeholder'i (kamchilik #70): SafeImage yuklangunicha yumshoq pulsli fon —
+   sekin internetda oq bo'shliq ko'rinmaydi. Yuklangach atribut olib tashlanadi. */
+img[data-img-loading] {
+  background-color: var(--surface-2);
+  animation: img-placeholder-pulse 1.6s ease-in-out infinite;
+}
+@keyframes img-placeholder-pulse {
+  0%, 100% { background-color: var(--surface-2); }
+  50% { background-color: color-mix(in oklab, var(--surface-2) 60%, var(--line)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  img[data-img-loading] { animation: none; }
+}
+html[data-motion="reduce"] img[data-img-loading] { animation: none; }

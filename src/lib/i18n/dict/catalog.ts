@@ -245,6 +245,7 @@ export const KARTA = {
   contact: { uz: "Kontakt", ru: "Контакт" } satisfies Tr,
   portfolioOnly: { uz: "Faqat portfolio", ru: "Только портфолио" } satisfies Tr,
   busy: { uz: "Band", ru: "Занят" } satisfies Tr,
+  activeToday: { uz: "Bugun faol", ru: "Активен сегодня" } satisfies Tr,
   top: { uz: "Top", ru: "Топ" } satisfies Tr,
   topHint: {
     uz: (rating: number, reviews: number) => `Top mutaxassis: reyting ${rating}+ va kamida ${reviews} ta sharh`,

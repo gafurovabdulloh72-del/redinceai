@@ -210,7 +210,7 @@ export function toListItem<
     subscriptionUntil?: unknown;
     packages?: ReadonlyArray<Pick<ServicePackage, "price">> | null;
     certificates?: unknown;
-    user: { name: string; avatarUrl: string | null };
+    user: { name: string; avatarUrl: string | null; lastSeenAt?: Date | null; showOnline?: boolean };
   },
 >(sp: T, viewer: Viewer = GUEST_VIEWER) {
   const {
@@ -225,8 +225,10 @@ export function toListItem<
     subscriptionUntil: _su,
     packages: _p,
     certificates: _c,
+    user: _usr,
     ...rest
   } = sp;
+  void _usr;
   void _v;
   void _t;
   void _i;
@@ -240,7 +242,11 @@ export function toListItem<
   void _c;
   // equipment / completedCount / topRated / workTypes / rates (F51, F12, F69, F52, F70) — maxfiy emas, `rest` orqali o'tadi.
   // priceFrom bo'sh bo'lsa — eng arzon paket narxi ("… dan", F31)
-  return { ...rest, priceFrom: effectivePriceFrom(sp), city: viewerCity(sp, viewer), user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
+  // «Bugun faol» ishonch belgisi (kamchilik #34): oxirgi 24 soatda kirgan bo'lsa — aniq vaqt oqmaydi,
+  // faqat boolean; foydalanuvchi «onlaynligimni ko'rsatma» desa (showOnline=false) chiqmaydi
+  const seen = sp.user.lastSeenAt ? (sp.user.lastSeenAt instanceof Date ? sp.user.lastSeenAt.getTime() : Number(sp.user.lastSeenAt)) : 0;
+  const activeToday = sp.user.showOnline !== false && seen > Date.now() - 86_400_000;
+  return { ...rest, priceFrom: effectivePriceFrom(sp), city: viewerCity(sp, viewer), activeToday, user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
 }
 
 /**
