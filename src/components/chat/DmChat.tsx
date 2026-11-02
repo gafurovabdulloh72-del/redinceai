@@ -74,8 +74,8 @@ interface GroupRow {
 }
 /** Chat turlari filtri (Telegram «papkalari»ning birinchi qatori) */
 type ChatType = "all" | "dm" | "group" | "channel";
-/** Guruh chati — faqat desktopda o'ng panelda ochilganda yuklanadi (DmChat bundle'ini shishirmaslik uchun) */
-const EmbeddedGroupChat = dynamic(() => import("@/components/groups/GroupChat").then((m) => m.GroupChat), {
+/** Guruh/kanal paneli (Telegram uslubi, 2026-11-02): kanal — postlar lentasi + muhokama tabi, guruh — chat; faqat ochilganda yuklanadi */
+const GroupPanelBody = dynamic(() => import("@/components/chat/GroupPanelBody").then((m) => m.GroupPanelBody), {
   ssr: false,
   loading: () => (
     <div className="flex flex-1 items-center justify-center text-fg-3">
@@ -240,7 +240,24 @@ async function errorOf(res: Response, fallback: string): Promise<Error> {
   return new Error(res.status === 429 ? withRetryAfter(msg, res.headers.get("Retry-After")) : msg);
 }
 
-export function DmChat({ initialId, viewerRole, notice }: { initialId?: string | null; viewerRole?: string | null; notice?: string | null }) {
+export function DmChat({
+  initialId,
+  viewerRole,
+  notice,
+  initialGroup,
+  initialGroupTab,
+  initialPost,
+  initialInvite,
+}: {
+  initialId?: string | null;
+  viewerRole?: string | null;
+  notice?: string | null;
+  /** /jamoalar/[slug] redirect'i: ochib qo'yiladigan guruh/kanal slug'i (Telegram uslubi) */
+  initialGroup?: string | null;
+  initialGroupTab?: "posts" | "chat" | null;
+  initialPost?: string | null;
+  initialInvite?: string | null;
+}) {
   const locale = useLocale();
   const t = useCallback(<K extends keyof typeof T>(k: K): string => T[k][locale], [locale]);
   const router = useRouter();
@@ -372,6 +389,17 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   const [groupMenu, setGroupMenu] = useState<{ id: string; up: boolean } | null>(null);
   // Telegram kabi: desktopda guruh/kanal chati o'ng panelda ochiladi (telefonda sahifaga o'tiladi)
   const [activeGroup, setActiveGroup] = useState<GroupRow | null>(null);
+  // Guruh/kanal paneli ochiq — telefon qobig'i yashirinadi (DM `active` bilan bir xil naqsh)
+  useEffect(() => {
+    if (!activeGroup) return;
+    const el = document.documentElement;
+    el.setAttribute("data-chat-open", "1");
+    return () => {
+      if (!document.documentElement.hasAttribute("data-chat-open")) return;
+      // DM ham ochiq bo'lsa, uning effekti o'zi boshqaradi
+      document.documentElement.removeAttribute("data-chat-open");
+    };
+  }, [activeGroup]);
   const [folderMgr, setFolderMgr] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   // Papka nomini o'zgartirish: qaysi papka tahrirda va joriy qiymat
@@ -1099,6 +1127,29 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     if (!res?.ok) toast("Saqlanmadi", "error");
   };
 
+  // /jamoalar/[slug] redirect'i (Telegram uslubi): ?guruh=<slug> — ro'yxat yuklangach shu guruh/kanal panelda ochiladi.
+  // A'zo bo'lmasa — ommaviy ma'lumotdan vaqtinchalik qator (panel «Qo'shilish» taklifini ko'rsatadi).
+  const bootedGroup = useRef(false);
+  useEffect(() => {
+    if (!initialGroup || bootedGroup.current || convs === null) return;
+    bootedGroup.current = true;
+    const row = groupRows.find((g) => g.slug === initialGroup);
+    if (row) {
+      setActive(null);
+      setActiveGroup(row);
+      if (row.unread > 0) void markGroupReadRow(row.id);
+      return;
+    }
+    void (async () => {
+      const j = (await fetch(`/api/groups/${encodeURIComponent(initialGroup)}`).then((r) => r.json()).catch(() => null)) as { ok?: boolean; data?: { id: string; slug: string; name: string; kind: string; coverUrl: string | null; isOfficial?: boolean; membersCount: number; canManage?: boolean } } | null;
+      const v = j?.ok ? j.data : null;
+      if (!v) return;
+      setActive(null);
+      setActiveGroup({ kind: v.kind === "channel" ? "channel" : "group", id: v.id, slug: v.slug, name: v.name, coverUrl: v.coverUrl, isOfficial: Boolean(v.isOfficial), membersCount: v.membersCount, last: null, unread: 0, muted: false, pinned: false, folderId: null, canManage: Boolean(v.canManage) });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convs, groupRows, initialGroup]);
+
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && filtered.length) {
@@ -1200,7 +1251,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
   };
 
   const listPanel = (
-    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden lg:flex-row max-lg:!rounded-none max-lg:!border-0 max-lg:!bg-transparent max-lg:!shadow-none", active && "hidden lg:flex")}>
+    <div ref={listRef} className={cn("card-elevated flex min-h-0 flex-col overflow-hidden lg:flex-row max-lg:!rounded-none max-lg:!border-0 max-lg:!bg-transparent max-lg:!shadow-none", (active || activeGroup) && "hidden lg:flex")}>
       {/* Telegram Desktop papka ustuni (lg+): hamma papka bitta ustunda, ikonka + nom + o'qilmaganlar soni */}
       <aside aria-label="Papkalar" className="hidden w-[76px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-line bg-fg/[0.02] py-2 lg:flex">
         {typeTabs.map((o) => {
@@ -1319,14 +1370,10 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
               if (row.kind === "grp") {
                 const g = row.grp;
                 const open = () => {
-                  // Desktopda (lg+) Telegram kabi o'ng panelda ochiladi; telefonda/planshetda sahifaga o'tiladi
-                  if (window.matchMedia("(min-width: 1024px)").matches) {
-                    setActive(null);
-                    setActiveGroup(g);
-                    setGroupRows((l) => l.map((x) => (x.id === g.id ? { ...x, unread: 0 } : x)));
-                  } else {
-                    router.push(g.kind === "group" ? `/jamoalar/${g.slug}?tab=chat` : g.lastPostId ? `/jamoalar/${g.slug}?post=${g.lastPostId}` : `/jamoalar/${g.slug}`);
-                  }
+                  // Telegram uslubi (2026-11-02): har qanday ekranda panelning o'zida ochiladi (telefonda to'liq ekran)
+                  setActive(null);
+                  setActiveGroup(g);
+                  if (g.unread > 0) void markGroupReadRow(g.id);
                 };
                 const gKey = `g:${g.id}`;
                 return (
@@ -1991,9 +2038,9 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     </div>
   );
 
-  /* ---------------- Guruh/kanal paneli (Telegram: o'ng panelda ochiladi, faqat lg+) ---------------- */
+  /* ---------------- Guruh/kanal paneli (Telegram uslubi: har qanday ekranda shu yerda ochiladi) ---------------- */
   const groupPanel = activeGroup && (
-    <div className="card-elevated relative hidden min-h-0 flex-col overflow-hidden lg:flex">
+    <div className="card-elevated relative flex min-h-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:shadow-none">
       <div className="flex items-center gap-2.5 border-b border-line px-3 py-2">
         <span className={cn("relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden !rounded-full", !activeGroup.coverUrl && "glass-ic glass-ic-ink")}>
           {activeGroup.coverUrl ? (
@@ -2019,17 +2066,20 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
             <Settings size={15} />
           </Link>
         )}
-        <Link
-          href={`/jamoalar/${activeGroup.slug}`}
-          className="shrink-0 rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-fg-2 transition hover:bg-fg/5 hover:text-fg"
-        >
-          {t("openPage")}
-        </Link>
         <button type="button" onClick={() => setActiveGroup(null)} aria-label={t("back")} className={iconBtn}>
           <X size={16} />
         </button>
       </div>
-      <EmbeddedGroupChat key={activeGroup.id} slug={activeGroup.slug} membersCount={activeGroup.membersCount} kind={activeGroup.kind} canManage={Boolean(activeGroup.canManage)} embedded />
+      {/* Telegram uslubi: kanal — postlar lentasi (+Muhokama tabi), guruh — chat; a'zo bo'lmaganga qo'shilish paneli */}
+      <GroupPanelBody
+        key={activeGroup.id}
+        slug={activeGroup.slug}
+        kind={activeGroup.kind}
+        initialTab={initialGroup === activeGroup.slug && initialGroupTab === "chat" ? "chat" : "posts"}
+        highlightId={initialGroup === activeGroup.slug ? (initialPost ?? null) : null}
+        invite={initialGroup === activeGroup.slug ? (initialInvite ?? null) : null}
+        onJoined={() => void loadList()}
+      />
     </div>
   );
 
@@ -2039,12 +2089,12 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         // Ro'yxat ustuni Telegram'dagidek keng (ichida 76px tur-ustuni ham bor) — ismlar kesilib qolmasin
         "grid grid-cols-1 gap-3 lg:h-[calc(100dvh-130px)] lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]",
         // Telefon: suhbat ochiq — to'liq ekran (yuqori/pastki panel yashirin, yozish maydoni pastda); ro'yxat — tab'lar orasida butun balandlik
-        active
+        active || activeGroup
           ? "max-lg:fixed max-lg:inset-0 max-lg:z-[60] max-lg:h-dvh max-lg:gap-0 max-lg:bg-bg max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pt-[env(safe-area-inset-top)]"
           : "max-lg:h-[calc(100dvh-8.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-lg:min-h-[320px]",
       )}
       // Klaviatura ochiq (iOS): balandlik = ko'rinadigan maydon, pastki safe-area klaviatura ostida qolgani uchun 0
-      style={active && isPhone && vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined}
+      style={(active || activeGroup) && isPhone && vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined}
     >
       {listPanel}
       {activeGroup ? groupPanel : thread}
@@ -2195,5 +2245,5 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
       )}
     </div>
   );
-  return active && isPhone ? createPortal(root, document.body) : root;
+  return (active || activeGroup) && isPhone ? createPortal(root, document.body) : root;
 }

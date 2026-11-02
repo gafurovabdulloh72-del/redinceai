@@ -34,7 +34,7 @@ import { tr, type Locale } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
 import { cn, formatDateTime } from "@/lib/utils";
 
-type Page = { items: PostView[]; nextCursor: number | null };
+export type Page = { items: PostView[]; nextCursor: number | null };
 type ApiResp<T> = { ok: boolean; data?: T; error?: string; fields?: Record<string, string> };
 
 /** Lenta manbai (jamoa/kanal chipi) */

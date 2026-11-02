@@ -75,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/mentorlik`, lastModified: courseList[0]?.lastModified ?? now, changeFrequency: "daily" as const, priority: 0.7 },
     ...courseList.map((c) => ({ url: `${base}/mentorlik/${c.slug}`, lastModified: c.lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
     ...mentorList.map((m) => ({ url: `${base}/mentorlik/ustoz/${m.slug}`, lastModified: m.lastModified, changeFrequency: "weekly" as const, priority: 0.6 })),
-    ...groupsList.map((g) => ({ url: `${base}/jamoalar/${g.slug}`, lastModified: g.lastModified, changeFrequency: "daily" as const, priority: 0.5 })),
+    // Telegram uslubi (2026-11-02): /jamoalar/[slug] endi chatga redirect — sitemap'ga kiritilmaydi
     ...vacancyList.map((v) => ({ url: `${base}/vakansiyalar/${v.id}`, lastModified: v.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...PROFESSIONS.map((p) => ({ url: `${base}/vakansiyalar/kasb/${p.slug}`, lastModified: now, changeFrequency: "daily" as const, priority: 0.5 })),
     ...resumeList.map((r) => ({ url: `${base}/rezyumelar/${r.id}`, lastModified: r.updatedAt, changeFrequency: "weekly" as const, priority: 0.4 })),
