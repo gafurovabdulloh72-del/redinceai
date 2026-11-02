@@ -5,7 +5,7 @@ import { and, like, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users as usersTable } from "@/lib/db/schema";
 import { AdminSectionHeading, QueueChip } from "@/components/admin/AdminSectionHeading";
-import { AdminSectionNav } from "@/components/admin/AdminSectionNav";
+import { AdminTabs } from "@/components/admin/AdminTabs";
 import { AdminModeration } from "@/components/admin/AdminModeration";
 import { AdminMentors } from "@/components/admin/AdminMentors";
 import { AdminEvents } from "@/components/admin/AdminEvents";
@@ -250,49 +250,17 @@ export default async function AdminPage() {
   const lastOrderAt = orders[0]?.createdAt;
   const openPayouts = payoutRows.filter((p) => p.state === "requested" || p.state === "approved").length;
 
-  // Chiplar sahifadagi tartib bilan bir xil: amal navbatlari birinchi
-  const sections = [
-    { href: "#tasdiqlash", label: "Tasdiqlash", icon: UserCheck, count: pendingRows.length },
-    { href: "#nizolar", label: "Nizolar", icon: Scale, count: disputeRows.length },
-    { href: "#payoutlar", label: "Payoutlar", icon: Banknote, count: openPayouts },
-    { href: "#shikoyatlar", label: "Shikoyatlar", icon: Flag, count: openReports },
-    { href: "#moderatsiya", label: "Moderatsiya", icon: UsersRound },
-    { href: "#tolovlar", label: "To'lovlar", icon: Receipt, count: finance.manualPending },
-    { href: "#moliya", label: "Moliya", icon: Wallet },
-    { href: "#analitika", label: "Analitika", icon: ChartColumn },
-    { href: "#shubhali", label: "Shubhali faollik", icon: ShieldAlert, count: fraud.total },
-    { href: "#sharhlar", label: "Sharhlar", icon: MessageSquareText },
-    { href: "#efirlar", label: "Efirlar", icon: CalendarDays },
-    { href: "#tizim", label: "Tizim", icon: HeartPulse },
-    { href: "#sozlamalar", label: "Sozlamalar", icon: SlidersHorizontal },
-  ];
-
-  /** O'ng paneldagi bo'limlar — sahifadagi section'lar bilan BIR XIL tartibda; navbat badge'lari bilan */
-  const navItems = [
-    { id: "tasdiqlash", label: "Tasdiqlash", badge: pendingRows.length },
-    { id: "nizolar", label: "Nizolar", badge: disputeRows.length },
-    { id: "payoutlar", label: "Payoutlar", badge: openPayouts },
-    { id: "shikoyatlar", label: "Shikoyatlar", badge: openReports },
-    { id: "moderatsiya", label: "Moderatsiya" },
-    { id: "mentorlar", label: "Mentorlik" },
-    { id: "tolovlar", label: "To'lovlar", badge: finance.manualPending },
-    { id: "moliya", label: "Moliya" },
-    { id: "analitika", label: "Analitika" },
-    { id: "shubhali", label: "Shubhali faollik" },
-    { id: "sharhlar", label: "Sharhlar" },
-    { id: "efirlar", label: "Efirlar" },
-    { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
-    { id: "xabar", label: "Ommaviy xabar" },
-    { id: "telegram-bot", label: "Telegram bot" },
-    { id: "r2-saqlash", label: "Fayl saqlash" },
-    { id: "faollik", label: "So'nggi faollik" },
-    { id: "tizim", label: "Tizim holati" },
-    { id: "tolov-sozlamalari", label: "To'lov tizimlari" },
-    { id: "sozlamalar", label: "Sozlamalar" },
+  // Admin redizayn (2026-11-02): 20 bo'lim 5 ta tab'ga guruhlangan — AdminTabs ko'rsatish qatlami
+  const adminTabs = [
+    { key: "navbat", label: "Navbat", count: pendingRows.length + disputeRows.length + openPayouts + openReports, ids: ["tasdiqlash", "nizolar", "payoutlar", "shikoyatlar", "mentorlar"] },
+    { key: "moliya", label: "Moliya", count: finance.manualPending + fraud.total, ids: ["tolovlar", "moliya", "analitika", "shubhali", "tolov-sozlamalari"] },
+    { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "xabar"] },
+    { key: "odamlar", label: "Odamlar", ids: ["foydalanuvchilar", "faollik"] },
+    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "sozlamalar"] },
   ];
 
   return (
-    <div className="container-x animate-fade-up xl:grid xl:grid-cols-[minmax(0,1fr)_190px] xl:gap-10">
+    <div className="container-x animate-fade-up">
       <div className="min-w-0">
         {/* ---------- Sarlavha: boshqaruv vositasi uchun tinch o'lchamlar (h1 26/30px) ---------- */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -332,19 +300,6 @@ export default async function AdminPage() {
           </div>
         )}
 
-        {/* Bo'limlarga tez o'tish — keng ekranda o'ngdagi doimiy navigatsiya bor, chiplar takror bo'lmasin */}
-        <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 xl:hidden">
-          <ul className="flex w-max gap-1.5">
-            {sections.map((s) => (
-              <li key={s.href}>
-                <Link href={s.href} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                  <s.icon size={14} className="text-fg-3" /> {s.label}
-                  {s.count ? <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-text">{s.count}</span> : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
 
         {/* ---------- Statistika: 4 ta plitka, hammasi havola ---------- */}
         <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -365,6 +320,8 @@ export default async function AdminPage() {
           />
         </div>
 
+        <AdminTabs tabs={adminTabs}>
+          <div>
         {/* ---------- Tasdiqlash navbati ---------- */}
         <section id="tasdiqlash" className={SECTION} aria-labelledby="h-tasdiqlash">
           <AdminSectionHeading
@@ -417,18 +374,13 @@ export default async function AdminPage() {
           <AdminReports rows={reports} />
         </section>
 
-        {/* ---------- Moderatsiya: jamoalar va vakansiyalar ---------- */}
-        <section id="moderatsiya" className={SECTION} aria-labelledby="h-moderatsiya">
-          <AdminSectionHeading title={<span id="h-moderatsiya">Jamoalar va vakansiyalar</span>} description="Egasini almashtirish, yopiq/ochiq, o'chirish; vakansiyani yopish yoki qayta ochish. Oldindan to'lov so'ragan e'lonlar avtomatik belgilanadi." />
-          <AdminModeration />
-        </section>
-
         {/* ---------- Mentorlik arizalari ---------- */}
         <section id="mentorlar" className={SECTION} aria-labelledby="h-mentorlar">
           <AdminSectionHeading title={<span id="h-mentorlar">Mentorlik arizalari</span>} description="Ustoz bo'lish arizalari — tasdiqlangach kurs ocha oladi." />
           <AdminMentors />
         </section>
-
+          </div>
+          <div>
         {/* ---------- To'lovlar ---------- */}
         <section id="tolovlar" className={SECTION} aria-labelledby="h-tolovlar">
           <AdminSectionHeading
@@ -488,6 +440,19 @@ export default async function AdminPage() {
           <AdminFraudSignals data={fraud} />
         </section>
 
+        {/* ---------- To'lov tizimlari ---------- */}
+        <section id="tolov-sozlamalari" className={SECTION} aria-labelledby="h-tolov-tizimlari">
+          <AdminSectionHeading title={<span id="h-tolov-tizimlari">To&apos;lov tizimlari</span>} description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi." />
+          <PaymentProvidersPanel />
+        </section>
+          </div>
+          <div>
+        {/* ---------- Moderatsiya: jamoalar va vakansiyalar ---------- */}
+        <section id="moderatsiya" className={SECTION} aria-labelledby="h-moderatsiya">
+          <AdminSectionHeading title={<span id="h-moderatsiya">Jamoalar va vakansiyalar</span>} description="Egasini almashtirish, yopiq/ochiq, o'chirish; vakansiyani yopish yoki qayta ochish. Oldindan to'lov so'ragan e'lonlar avtomatik belgilanadi." />
+          <AdminModeration />
+        </section>
+
         {/* ---------- Sharhlar ---------- */}
         <section id="sharhlar" className={SECTION} aria-labelledby="h-sharhlar">
           <AdminSectionHeading title={<span id="h-sharhlar">Sharhlar</span>} description={`So'nggi ${REVIEWS_CAP} ta. O'chirilgan sharh — reyting qayta hisoblanadi, shu sharh bo'yicha shikoyatlar yopiladi.`} />
@@ -502,28 +467,17 @@ export default async function AdminPage() {
           <AdminEvents />
         </section>
 
-        {/* ---------- Foydalanuvchilar ---------- */}
-        <section id="foydalanuvchilar" className={SECTION} aria-labelledby="h-foydalanuvchilar">
-          <AdminSectionHeading title={<span id="h-foydalanuvchilar">Foydalanuvchilar</span>} description="Qidiruv, katalogda ko'rsatish, imtiyoz va bloklash — bloklangan foydalanuvchi kira olmaydi." />
-          <UsersPanel />
-        </section>
-
         {/* ---------- Ommaviy xabar ---------- */}
         <section id="xabar" className={SECTION} aria-labelledby="h-xabar">
           <AdminSectionHeading title={<span id="h-xabar">Ommaviy xabar</span>} description="Tanlangan auditoriyaning sayt bildirishnomasiga va Telegramiga (ulanganlarga); xohlasangiz emailga ham." />
           <AdminBroadcast />
         </section>
-
-        {/* ---------- Telegram bot ---------- */}
-        <section id="telegram-bot" className={SECTION} aria-labelledby="h-telegram">
-          <AdminSectionHeading title={<span id="h-telegram">Telegram bot</span>} description="Token Vercel'da bo'lsa webhook shu yerdan bir tugmada o'rnatiladi." />
-          <TelegramAdminPanel />
-        </section>
-
-        {/* ---------- Fayl saqlash ---------- */}
-        <section id="r2-saqlash" className={SECTION} aria-labelledby="h-saqlash">
-          <AdminSectionHeading title={<span id="h-saqlash">Fayl saqlash</span>} description="Faol saqlash usuli va real yuklash testi. Vercel Blob — eng oson; Cloudflare R2 — eng arzon." />
-          <R2AdminPanel />
+          </div>
+          <div>
+        {/* ---------- Foydalanuvchilar ---------- */}
+        <section id="foydalanuvchilar" className={SECTION} aria-labelledby="h-foydalanuvchilar">
+          <AdminSectionHeading title={<span id="h-foydalanuvchilar">Foydalanuvchilar</span>} description="Qidiruv, katalogda ko'rsatish, imtiyoz va bloklash — bloklangan foydalanuvchi kira olmaydi." />
+          <UsersPanel />
         </section>
 
         {/* ---------- So'nggi faollik ---------- */}
@@ -600,17 +554,24 @@ export default async function AdminPage() {
             </div>
           </div>
         </section>
+          </div>
+          <div>
+        {/* ---------- Telegram bot ---------- */}
+        <section id="telegram-bot" className={SECTION} aria-labelledby="h-telegram">
+          <AdminSectionHeading title={<span id="h-telegram">Telegram bot</span>} description="Token Vercel'da bo'lsa webhook shu yerdan bir tugmada o'rnatiladi." />
+          <TelegramAdminPanel />
+        </section>
+
+        {/* ---------- Fayl saqlash ---------- */}
+        <section id="r2-saqlash" className={SECTION} aria-labelledby="h-saqlash">
+          <AdminSectionHeading title={<span id="h-saqlash">Fayl saqlash</span>} description="Faol saqlash usuli va real yuklash testi. Vercel Blob — eng oson; Cloudflare R2 — eng arzon." />
+          <R2AdminPanel />
+        </section>
 
         {/* ---------- Tizim holati ---------- */}
         <section id="tizim" className={SECTION} aria-labelledby="h-tizim">
           <AdminSectionHeading title={<span id="h-tizim">Tizim holati</span>} description="Baza kechikishi, saqlash usuli, kunlik cron, rate-limit bosimi va kanallar — bir qarashda." />
           <AdminHealthCard />
-        </section>
-
-        {/* ---------- To'lov tizimlari ---------- */}
-        <section id="tolov-sozlamalari" className={SECTION} aria-labelledby="h-tolov-tizimlari">
-          <AdminSectionHeading title={<span id="h-tolov-tizimlari">To&apos;lov tizimlari</span>} description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi." />
-          <PaymentProvidersPanel />
         </section>
 
         {/* ---------- Sozlamalar ---------- */}
@@ -621,12 +582,10 @@ export default async function AdminPage() {
             <SpamFilterPanel />
           </div>
         </section>
+          </div>
+        </AdminTabs>
       </div>
 
-      {/* O'ng tomonda doimiy bo'limlar paneli (scrollspy) — uzun sahifada tez o'tish uchun */}
-      <aside className="hidden xl:block">
-        <AdminSectionNav items={navItems} />
-      </aside>
     </div>
   );
 }

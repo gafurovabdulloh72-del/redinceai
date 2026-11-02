@@ -24,6 +24,8 @@
 
 /* ---------- Rejimga bog'liq tokenlar ---------- */
 :root {
+  /* Telegram uslubidagi kanal/chat pufakchasi (ChannelPosts) */
+  --bubble: #ffffff;
   --bg: #ffffff;
   --bg-2: #f7f7f6;
   --surface: #ffffff;
@@ -148,6 +150,7 @@
 }
 
 [data-theme="dark"] {
+  --bubble: #1f1f23;
   --bg: #0a0a0b;
   --bg-2: #101012;
   --surface: #0a0a0b;
@@ -2176,3 +2179,15 @@ img[data-img-loading] {
   img[data-img-loading] { animation: none; }
 }
 html[data-motion="reduce"] img[data-img-loading] { animation: none; }
+
+/* Telegram uslubidagi kanal foni va pufakchasi (ChannelPosts, 2026-11-02):
+   fon — yumshoq nuqtali to'r (Telegram «pattern»iga ishora, juda nozik), pufakcha — alohida --bubble tokeni
+   (yorug'da oq, qorong'uda fondan ochroq #1f1f23 — aks holda qora ustida qora blob bo'lib ko'rinadi). */
+.tg-chat-bg {
+  background-color: var(--surface-2);
+  background-image: radial-gradient(color-mix(in oklab, var(--fg) 6%, transparent) 1px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+.tg-bubble {
+  background: var(--bubble);
+}

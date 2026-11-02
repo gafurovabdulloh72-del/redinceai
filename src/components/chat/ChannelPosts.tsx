@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, ImagePlus, Loader2, MessageCircle, Send, X } from "lucide-react";
+import { ChevronRight, Eye, ImagePlus, Loader2, MessageCircle, Send, SmilePlus, X } from "lucide-react";
 import { CommentsSheet } from "@/components/reels/CommentsSheet";
 import { EmojiSticker } from "@/components/social/EmojiSticker";
 import { SafeImage } from "@/components/specialists/SafeImage";
@@ -27,7 +27,8 @@ const T = {
   empty: { uz: "Kanal e'lonlari shu yerda chiqadi", ru: "Посты канала появятся здесь" },
   composer: { uz: "Kanal e'loni…", ru: "Пост канала…" },
   edited: { uz: "tahrirlangan", ru: "изменено" },
-  comments: { uz: "izoh", ru: "комм." },
+  comments: { uz: "ta izoh", ru: "комм." },
+  leaveComment: { uz: "Izoh qoldirish", ru: "Оставить комментарий" },
   sendErr: { uz: "Yuborilmadi", ru: "Не отправлено" },
 } as const;
 
@@ -53,6 +54,8 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [commentsOf, setCommentsOf] = useState<string | null>(null);
+  /** Qaysi post uchun reaksiya tanlagich ochiq (SmilePlus) */
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
 
@@ -159,7 +162,7 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
   let lastDay = "";
   return (
     <>
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-surface-2 px-3 py-4 sm:px-5">
+      <div ref={scrollRef} className="tg-chat-bg min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5" onClick={() => pickerFor && setPickerFor(null)}>
         <div className="mx-auto flex max-w-[560px] flex-col gap-2.5">
           {cursor && (
             <button type="button" onClick={() => void loadOlder()} className="mx-auto mb-1 inline-flex items-center gap-1.5 rounded-full bg-bg px-3.5 py-1.5 text-[12px] font-semibold text-fg-3 shadow-sm transition hover:text-fg">
@@ -171,12 +174,14 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
             const dk = dayKey(p.createdAt);
             const sep = dk !== lastDay;
             lastDay = dk;
-            const reacted = (Object.entries(p.reactions) as Array<[ReactionKind, number]>).filter(([, n]) => n > 0);
+            let reacted = (Object.entries(p.reactions) as Array<[ReactionKind, number]>).filter(([, n]) => n > 0);
+            // Eski postlarda taqsimot bo'sh, faqat umumiy son bor — ❤ sifatida ko'rsatamiz
+            if (reacted.length === 0 && p.likesCount > 0) reacted = [["heart", p.likesCount]];
             return (
               <div key={p.id} data-post={p.id} className="flex flex-col">
-                {sep && <span className="mx-auto my-2 rounded-full bg-fg/8 px-3 py-0.5 text-[11.5px] font-semibold text-fg-3">{dayLabel(p.createdAt, til)}</span>}
+                {sep && <span className="tg-bubble mx-auto my-2.5 rounded-full px-3 py-1 text-[11.5px] font-semibold text-fg-3 shadow-sm">{dayLabel(p.createdAt, til)}</span>}
                 {/* Pufakcha — Telegram kanal xabari */}
-                <div className={cn("relative w-fit max-w-full overflow-hidden rounded-[16px] rounded-bl-[6px] bg-bg shadow-sm", highlightId === p.id && "ring-2 ring-accent/60")}>
+                <div className={cn("tg-bubble relative w-fit min-w-[220px] max-w-[460px] overflow-hidden rounded-[16px] rounded-bl-[6px] shadow-sm", highlightId === p.id && "ring-2 ring-accent/60")}>
                   {p.media.length > 0 && (
                     <div className={cn("grid gap-0.5", p.media.length > 1 && "grid-cols-2")}>
                       {p.media.slice(0, 4).map((m, i) =>
@@ -188,9 +193,9 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
                       )}
                     </div>
                   )}
-                  {p.body && <p className="whitespace-pre-line px-3.5 pb-1.5 pt-2.5 text-[14.5px] leading-[1.5] text-fg">{p.body}</p>}
-                  {/* Pastki qator: reaksiyalar · ko'rishlar · vaqt (Telegram'dagidek pufakcha ichida) */}
-                  <div className="flex flex-wrap items-end gap-1.5 px-3 pb-2 pt-1">
+                  {p.body && <p className="whitespace-pre-line px-3.5 pb-1 pt-2.5 text-[15px] leading-[1.45] text-fg">{p.body}</p>}
+                  {/* Reaksiyalar qatori + ko'rishlar/vaqt (Telegram'dagidek pufakcha ichida) */}
+                  <div className="relative flex flex-wrap items-center gap-1.5 px-3 pb-2.5 pt-1.5">
                     {reacted.map(([k, n]) => {
                       const def = REACTIONS.find((r) => r.key === k);
                       if (!def) return null;
@@ -200,18 +205,28 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
                           type="button"
                           disabled={!canInteract}
                           onClick={() => void react(p, k)}
-                          className={cn("inline-flex h-[26px] items-center gap-1 rounded-full px-2 text-[12.5px] font-bold transition", p.myReaction === k ? "bg-accent text-white" : "bg-fg/8 text-fg-2 hover:bg-fg/12", !canInteract && "pointer-events-none")}
+                          className={cn("inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[12.5px] font-bold tabular-nums transition", p.myReaction === k ? "bg-accent-soft text-accent-text ring-1 ring-accent/50" : "bg-fg/7 text-fg-2 hover:bg-fg/12", !canInteract && "pointer-events-none")}
                         >
-                          <EmojiSticker e={def.emoji} size={14} /> {compactCount(n)}
+                          <EmojiSticker e={def.emoji} size={15} /> {compactCount(n)}
                         </button>
                       );
                     })}
-                    {reacted.length === 0 && canInteract && (
-                      <button type="button" onClick={() => void react(p, "heart")} aria-label="Yoqdi" className="inline-flex h-[26px] items-center gap-1 rounded-full bg-fg/8 px-2 text-[12.5px] font-bold text-fg-3 transition hover:bg-fg/12">
-                        <EmojiSticker e="❤️" size={14} />
+                    {canInteract && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setPickerFor(pickerFor === p.id ? null : p.id); }} aria-label="Reaksiya qo'shish" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/8 hover:text-fg">
+                        <SmilePlus size={15} />
                       </button>
                     )}
-                    <span className="ml-auto inline-flex items-center gap-2.5 pl-3 text-[11.5px] text-fg-4">
+                    {/* Reaksiya tanlagich — 6 ta emoji (Telegram uslubi) */}
+                    {pickerFor === p.id && (
+                      <div className="tg-bubble absolute bottom-full left-2 z-10 mb-1 flex gap-0.5 rounded-full border border-line p-1 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                        {REACTIONS.map((r) => (
+                          <button key={r.key} type="button" onClick={() => { setPickerFor(null); void react(p, r.key); }} aria-label={r.label} className={cn("flex h-8 w-8 items-center justify-center rounded-full transition hover:scale-110 hover:bg-fg/8", p.myReaction === r.key && "bg-accent-soft")}>
+                            <EmojiSticker e={r.emoji} size={20} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <span className="ml-auto inline-flex items-center gap-2 pl-3 text-[11.5px] text-fg-4">
                       {p.viewsCount > 0 && (
                         <span className="inline-flex items-center gap-1">
                           <Eye size={12} /> {compactCount(p.viewsCount)}
@@ -221,11 +236,13 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
                       <time dateTime={new Date(p.createdAt).toISOString()}>{timeOf(p.createdAt)}</time>
                     </span>
                   </div>
+                  {/* Izohlar — pufakcha ichidagi pastki qator (Telegram «Leave a comment») */}
+                  <button type="button" onClick={() => setCommentsOf(p.id)} className="flex w-full items-center gap-2 border-t border-line/70 px-3.5 py-2 text-[13px] font-semibold text-accent-text transition hover:bg-fg/4">
+                    <MessageCircle size={14} />
+                    <span className="flex-1 text-left">{p.commentsCount > 0 ? `${compactCount(p.commentsCount)} ${T.comments[til]}` : T.leaveComment[til]}</span>
+                    <ChevronRight size={14} className="text-fg-4" />
+                  </button>
                 </div>
-                {/* Izohlar chipi (Telegram «Leave a comment» qatori) */}
-                <button type="button" onClick={() => setCommentsOf(p.id)} className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold text-fg-3 transition hover:text-fg">
-                  <MessageCircle size={13} /> {p.commentsCount > 0 ? `${compactCount(p.commentsCount)} ${T.comments[til]}` : T.comments[til]}
-                </button>
               </div>
             );
           })}
