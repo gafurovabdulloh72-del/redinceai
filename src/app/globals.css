@@ -2191,3 +2191,29 @@ html[data-motion="reduce"] img[data-img-loading] { animation: none; }
 .tg-bubble {
   background: var(--bubble);
 }
+
+/* GURUH CHATI = TELEGRAM (2026-11-02): o'z xabari — tekis marjon pufakcha (v6: gradient yo'q). --ink/--ink-fg shu
+   element ichida qayta belgilanadi — MessageParts'dagi `mine` sinflari (bg-ink-fg/10, text-ink-fg…) ikkala temada ishlaydi.
+   «Dum» — guruhdagi oxirgi xabar burchagidan chiqib turadigan kichik uchburchak (Telegram'dagi kabi). */
+.tg-bubble-out {
+  --ink: #d6401c;
+  --ink-fg: #ffffff;
+  background: #d9461f;
+}
+.tg-tail-in::before,
+.tg-tail-out::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 14px;
+  background: inherit;
+}
+.tg-tail-in::before {
+  left: -6px;
+  clip-path: path("M10 0 C10 7 8 11 0 14 L10 14 Z");
+}
+.tg-tail-out::before {
+  right: -6px;
+  clip-path: path("M0 0 C0 7 2 11 10 14 L0 14 Z");
+}

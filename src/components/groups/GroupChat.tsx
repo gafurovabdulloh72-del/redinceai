@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useIsPhone } from "@/components/motion/useMediaQuery";
 import { useVisualViewport } from "@/components/motion/useVisualViewport";
 import { haptic } from "@/components/motion/haptics";
-import { ArrowDown, ArrowLeft, Check, Copy, CornerUpLeft, Maximize2, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, Check, CheckCheck, Copy, CornerUpLeft, Maximize2, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, Search, Send, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -578,6 +578,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
   const [full, setFull] = useState(true);
   // embedded — DmChat o'ng panelida (Telegram inbox): karta emas, ota konteynerni to'ldiradi, telefon to'liq ekran rejimi ishlamaydi
   const fullscreen = phone && full && !embedded;
+  // Ko'rilgan xabargacha bo'lgan o'z xabarlarim — ✓✓ (Telegram)
+  const seenIdx = msgs && seen ? msgs.findIndex((x) => x.id === seen.messageId) : -1;
   const vv = useVisualViewport(fullscreen);
   useEffect(() => {
     const el = document.documentElement;
@@ -599,7 +601,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
               <ArrowLeft size={20} />
             </button>
           )}
-          <span className={cn("truncate font-semibold", fullscreen ? "text-[15px] text-fg" : "text-fg-2")}>
+          <span className={cn("truncate font-semibold", fullscreen ? "text-[15px] text-fg" : "text-fg-2", embedded && !fullscreen && "sr-only")}>
             {chatLabel} · {compactCount(membersCount)}
           </span>
         </span>
@@ -700,9 +702,9 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
       {/* Qadalgan xabar */}
       {pinnedPresence.mounted && pinned && (
         <button type="button" onClick={() => jump(pinned.id)} className={cn("flex w-full items-center gap-2.5 border-b border-line px-3 py-2 text-left transition hover:bg-fg/4 sm:px-4", pinnedPresence.closing ? "expand-out" : "expand-in")} title="Qadalgan xabarga o'tish">
-          <Pin size={14} className="shrink-0 text-accent" />
+          <span aria-hidden className="h-8 w-[3px] shrink-0 rounded-full bg-accent" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-bold uppercase tracking-wide text-fg-3">Qadalgan · {pinned.mine ? "Siz" : pinned.sender.name}</span>
+            <span className="block text-[12px] font-semibold text-accent-text">Qadalgan xabar · {pinned.mine ? "Siz" : pinned.sender.name}</span>
             <span className="block truncate text-[13px] text-fg">{pinned.body || (pinned.attachments.length ? "Fayl" : "…")}</span>
           </span>
           {canManage && (
@@ -730,7 +732,7 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
       )}
 
       <div className="relative min-h-0 flex-1">
-        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" aria-label={`${chatLabel} xabarlari`} className="h-full overflow-y-auto px-3 py-3 sm:px-4">
+        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" aria-label={`${chatLabel} xabarlari`} className="tg-chat-bg h-full overflow-y-auto px-2.5 py-3 sm:px-4">
           {!msgs ? (
             <div className="space-y-2.5" aria-busy="true">
               <span className="block h-10 w-2/3 rounded-2xl skeleton" />
@@ -743,13 +745,17 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
               const prev = i > 0 ? msgs[i - 1] : null;
               const newDay = !prev || dayKey(prev.at) !== dayKey(m.at);
               const sameSender = Boolean(prev && !newDay && prev.sender.id === m.sender.id);
+              const next = i < msgs.length - 1 ? msgs[i + 1] : null;
+              // Telegram: avatar va «dum» faqat ketma-ket xabarlar guruhining OXIRGISIDA
+              const lastOfRun = !next || next.sender.id !== m.sender.id || dayKey(next.at) !== dayKey(m.at);
+              const seenUpTo = m.mine && seenIdx >= 0 && i <= seenIdx;
               const isPinned = pinned?.id === m.id;
               const menuOpen = menuFor === m.id;
               return (
-                <div key={m.id} className={cn(fresh.current.has(m.id) && "animate-msg-in", sameSender ? "mt-1" : "mt-3")}>
+                <div key={m.id} className={cn(fresh.current.has(m.id) && "animate-msg-in", sameSender ? "mt-0.5" : "mt-2.5")}>
                   {newDay && (
                     <p className="my-3 text-center">
-                      <span className="inline-block rounded-full bg-fg/6 px-2.5 py-0.5 text-[11px] font-semibold text-fg-3">{dayLabel(m.at, til)}</span>
+                      <span className="tg-bubble inline-block rounded-full px-3 py-1 text-[12px] font-semibold text-fg-2 shadow-[0_1px_1.5px_rgba(0,0,0,0.12)]">{dayLabel(m.at, til)}</span>
                     </p>
                   )}
                   <div
@@ -762,9 +768,17 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                         <CornerUpLeft size={15} />
                       </span>
                     )}
-                    {!m.mine && <span className="w-7 shrink-0">{!sameSender && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={28} decorative />}</span>}
-                    <div className={cn("flex min-w-0 max-w-[80%] flex-col", m.mine ? "items-end" : "items-start")}>
-                    <div id={`msg-${m.id}`} className={cn("max-w-full rounded-2xl px-3.5 py-2 transition-shadow", m.mine ? "rounded-br-md bg-ink text-ink-fg" : "rounded-bl-md bg-surface-2 text-fg", m.deleted && "opacity-70")}>
+                    {!m.mine && <span className="w-8 shrink-0">{lastOfRun && <Avatar name={m.sender.name} src={m.sender.avatarUrl} size={32} decorative />}</span>}
+                    <div className={cn("flex min-w-0 max-w-[min(82%,520px)] flex-col", m.mine ? "items-end" : "items-start")}>
+                    <div
+                      id={`msg-${m.id}`}
+                      className={cn(
+                        "relative max-w-full rounded-[16px] px-2.5 pb-1.5 pt-1.5 shadow-[0_1px_1.5px_rgba(0,0,0,0.13)] transition-shadow",
+                        m.mine ? "tg-bubble-out text-ink-fg" : "tg-bubble text-fg",
+                        lastOfRun && (m.mine ? "tg-tail-out rounded-br-[4px]" : "tg-tail-in rounded-bl-[4px]"),
+                        m.deleted && "opacity-70",
+                      )}
+                    >
                       {!m.mine && !sameSender && <SenderName u={m.sender} />}
                       {m.replyTo && !m.deleted && <QuoteBlock q={m.replyTo} mine={m.mine} />}
                       {m.deleted ? (
@@ -775,20 +789,34 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
                         <>
                           <AttachmentList attachments={m.attachments} mine={m.mine} />
                           {m.body && (
-                            <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">
+                            <p className="whitespace-pre-wrap break-words px-1 text-[14.5px] leading-[1.4]">
                               <RichText text={m.body} />
+                              {/* Vaqt uchun joy: oxirgi qator vaqt bilan ustma-ust tushmasin */}
+                              <span aria-hidden className={cn("inline-block align-bottom", m.edited ? "w-[118px]" : m.mine ? "w-[62px]" : "w-[42px]")} />
                             </p>
                           )}
                         </>
                       )}
-                      <p className={cn("mt-0.5 flex items-center justify-end gap-1.5 text-[11px]", m.mine ? "text-ink-fg/55" : "text-fg-4")}>
+                      <span
+                        className={cn(
+                          "flex items-center justify-end gap-1 text-[11px] tabular-nums",
+                          m.body && !m.deleted ? "absolute bottom-1 right-2.5" : "mt-0.5 px-1",
+                          m.mine ? "text-ink-fg/70" : "text-fg-4",
+                        )}
+                      >
                         {isPinned && <Pin size={10} aria-label="Qadalgan" />}
-                        {m.edited && <span title={m.editedAt ? `Tahrirlangan: ${timeOf(m.editedAt)}` : undefined}>tahrirlangan{m.editedAt ? ` ${timeOf(m.editedAt)}` : ""} ·</span>}
+                        {m.edited && <span title={m.editedAt ? `Tahrirlangan: ${timeOf(m.editedAt)}` : undefined}>tahrirlangan</span>}
                         <span>{timeOf(m.at)}</span>
-                        {m.mine && seen?.messageId === m.id && seen.count > 0 && <span>· {seen.count} kishi ko&apos;rdi</span>}
-                      </p>
+                        {m.mine &&
+                          (seenUpTo ? (
+                            <CheckCheck size={14} strokeWidth={2.2} aria-label={seen && seen.messageId === m.id ? `${seen.count} kishi ko'rdi` : "Ko'rildi"} />
+                          ) : (
+                            <Check size={14} strokeWidth={2.2} aria-label="Yuborildi" />
+                          ))}
+                      </span>
                     </div>
                     {!m.deleted && <ReactionChips reactions={m.reactions ?? []} mine={m.mine} onToggle={(e) => void react(m, e)} />}
+                    {m.mine && seen?.messageId === m.id && seen.count > 0 && <span className="mt-0.5 px-1 text-[11px] text-fg-4">{seen.count} kishi ko&apos;rdi</span>}
                     </div>
 
                     {/* Amallar: bitta «⋯» menyu (javob, nusxa, tahrir, qadash, o'chirish) + boshqalarniki uchun shikoyat */}
