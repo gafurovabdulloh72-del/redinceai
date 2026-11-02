@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Eye, ImagePlus, Loader2, MessageCircle, Send, SmilePlus, X } from "lucide-react";
+import { ChevronRight, Eye, ImagePlus, Loader2, MessageCircle, Pin, Send, SmilePlus, X } from "lucide-react";
 import { CommentsSheet } from "@/components/reels/CommentsSheet";
+import { Avatar } from "@/components/ui";
 import { EmojiSticker } from "@/components/social/EmojiSticker";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { useToast } from "@/components/ui/toast";
@@ -29,6 +30,7 @@ const T = {
   edited: { uz: "tahrirlangan", ru: "изменено" },
   comments: { uz: "ta izoh", ru: "комм." },
   leaveComment: { uz: "Izoh qoldirish", ru: "Оставить комментарий" },
+  pinned: { uz: "Qadalgan xabar", ru: "Закреплённое сообщение" },
   sendErr: { uz: "Yuborilmadi", ru: "Не отправлено" },
 } as const;
 
@@ -45,7 +47,26 @@ function dayLabel(ms: number, til: "uz" | "ru") {
   return `${d.getUTCDate()}-${MONTHS[til][d.getUTCMonth()]}${y}`;
 }
 
-export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, highlightId = null }: { slug: string; canPost: boolean; canInteract: boolean; loggedIn: boolean; initial: Page; highlightId?: string | null }) {
+export function ChannelPosts({
+  slug,
+  canPost,
+  canInteract,
+  loggedIn,
+  initial,
+  highlightId = null,
+  channelName,
+  channelAvatar,
+}: {
+  slug: string;
+  canPost: boolean;
+  canInteract: boolean;
+  loggedIn: boolean;
+  initial: Page;
+  highlightId?: string | null;
+  /** Pufakcha yonidagi avatar va imzo uchun (Telegram'dagidek) */
+  channelName?: string;
+  channelAvatar?: string | null;
+}) {
   const til = useLocale();
   const { toast } = useToast();
   // Telegram tartibi: qat'iy xronologik (API qadalganni birinchi beradi — bu yerda sof vaqt bo'yicha)
@@ -159,9 +180,28 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
     }
   }
 
+  // Qadalgan post — Telegram'dagidek tepada yupqa panel, bosilsa postga scroll
+  const pinned = items.find((p) => p.isPinned) ?? null;
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const jumpTo = (id: string) => {
+    scrollRef.current?.querySelector(`[data-post="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(id);
+    window.setTimeout(() => setFlashId((v) => (v === id ? null : v)), 1600);
+  };
+
   let lastDay = "";
   return (
     <>
+      {pinned && (
+        <button type="button" onClick={() => jumpTo(pinned.id)} className="flex w-full shrink-0 items-center gap-2.5 border-b border-line bg-bg px-3.5 py-2 text-left transition hover:bg-fg/4">
+          <span className="h-8 w-0.5 shrink-0 rounded-full bg-accent" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-semibold text-accent-text">{T.pinned[til]}</span>
+            <span className="block truncate text-[12.5px] text-fg-2">{pinned.body || "📷"}</span>
+          </span>
+          <Pin size={14} className="shrink-0 text-fg-4" aria-hidden />
+        </button>
+      )}
       <div ref={scrollRef} className="tg-chat-bg min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5" onClick={() => pickerFor && setPickerFor(null)}>
         <div className="mx-auto flex max-w-[560px] flex-col gap-2.5">
           {cursor && (
@@ -180,8 +220,13 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
             return (
               <div key={p.id} data-post={p.id} className="flex flex-col">
                 {sep && <span className="tg-bubble mx-auto my-2.5 rounded-full px-3 py-1 text-[11.5px] font-semibold text-fg-3 shadow-sm">{dayLabel(p.createdAt, til)}</span>}
-                {/* Pufakcha — Telegram kanal xabari */}
-                <div className={cn("tg-bubble relative w-fit min-w-[220px] max-w-[460px] overflow-hidden rounded-[16px] rounded-bl-[6px] shadow-sm", highlightId === p.id && "ring-2 ring-accent/60")}>
+                {/* Telegram'dagidek: chapda kanal avatari (pastga tekis) + pufakcha */}
+                <div className="flex items-end gap-2">
+                  <span className="mb-0.5 shrink-0">
+                    <Avatar name={channelName ?? p.author.name} src={channelAvatar ?? p.author.avatarUrl} size={32} decorative />
+                  </span>
+                  {/* Pufakcha — Telegram kanal xabari */}
+                  <div className={cn("tg-bubble relative w-fit min-w-[220px] max-w-[440px] overflow-hidden rounded-[16px] rounded-bl-[6px] shadow-sm transition-shadow", (highlightId === p.id || flashId === p.id) && "ring-2 ring-accent/60")}>
                   {p.media.length > 0 && (
                     <div className={cn("grid gap-0.5", p.media.length > 1 && "grid-cols-2")}>
                       {p.media.slice(0, 4).map((m, i) =>
@@ -193,7 +238,9 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
                       )}
                     </div>
                   )}
-                  {p.body && <p className="whitespace-pre-line px-3.5 pb-1 pt-2.5 text-[15px] leading-[1.45] text-fg">{p.body}</p>}
+                  {/* Muallif imzosi (Telegram'dagi rangli nom) — media'dan keyin, matndan oldin */}
+                  <p className="px-3.5 pb-0 pt-2 text-[13px] font-bold text-accent-text">{channelName ?? p.author.name}</p>
+                  {p.body && <p className="whitespace-pre-line px-3.5 pb-1 pt-0.5 text-[15px] leading-[1.45] text-fg">{p.body}</p>}
                   {/* Reaksiyalar qatori + ko'rishlar/vaqt (Telegram'dagidek pufakcha ichida) */}
                   <div className="relative flex flex-wrap items-center gap-1.5 px-3 pb-2.5 pt-1.5">
                     {reacted.map(([k, n]) => {
@@ -237,11 +284,12 @@ export function ChannelPosts({ slug, canPost, canInteract, loggedIn, initial, hi
                     </span>
                   </div>
                   {/* Izohlar — pufakcha ichidagi pastki qator (Telegram «Leave a comment») */}
-                  <button type="button" onClick={() => setCommentsOf(p.id)} className="flex w-full items-center gap-2 border-t border-line/70 px-3.5 py-2 text-[13px] font-semibold text-accent-text transition hover:bg-fg/4">
+                  <button type="button" onClick={() => setCommentsOf(p.id)} className="flex w-full items-center gap-2 border-t border-line/70 bg-fg/[0.03] px-3.5 py-2 text-[13px] font-semibold text-accent-text transition hover:bg-fg/6">
                     <MessageCircle size={14} />
                     <span className="flex-1 text-left">{p.commentsCount > 0 ? `${compactCount(p.commentsCount)} ${T.comments[til]}` : T.leaveComment[til]}</span>
                     <ChevronRight size={14} className="text-fg-4" />
                   </button>
+                  </div>
                 </div>
               </div>
             );

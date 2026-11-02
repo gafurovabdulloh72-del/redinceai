@@ -163,7 +163,7 @@ export function GroupPanelBody({
   // Kanal — Telegram pufakchalari (ChannelPosts); guruh preview — oddiy lenta
   const feedBlock = feed ? (
     view.kind === "channel" ? (
-      <ChannelPosts key={view.id} slug={view.slug} canPost={view.canPost} canInteract={isMember} loggedIn initial={feed} highlightId={highlightId} />
+      <ChannelPosts key={view.id} slug={view.slug} canPost={view.canPost} canInteract={isMember} loggedIn initial={feed} highlightId={highlightId} channelName={view.name} channelAvatar={view.coverUrl} />
     ) : (
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
         <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn initial={feed} highlightId={highlightId} />
