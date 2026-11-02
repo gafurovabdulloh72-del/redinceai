@@ -372,6 +372,31 @@ export async function mentorBalance(mentorId: string) {
   };
 }
 
+/**
+ * Oylik sof daromad (kamchilik #27): daromad sahifasidagi ustunli grafik uchun.
+ * Oxirgi `months` oy (Toshkent oylari), refunded hisobga olinmaydi; bo'sh oylar 0.
+ */
+export async function monthlyEarnings(mentorId: string, months = 6): Promise<Array<{ month: string; net: number }>> {
+  const since = Date.now() - months * 31 * 86_400_000;
+  const rows = await db
+    .select({
+      month: sql<string>`strftime('%Y-%m', datetime(${mentorEarnings.createdAt} / 1000 + 5 * 3600, 'unixepoch'))`,
+      net: sql<number>`coalesce(sum(${mentorEarnings.net}), 0)`,
+    })
+    .from(mentorEarnings)
+    .where(and(eq(mentorEarnings.mentorId, mentorId), sql`${mentorEarnings.status} != 'refunded'`, sql`${mentorEarnings.createdAt} > ${since}`))
+    .groupBy(sql`1`);
+  const by = new Map(rows.map((r) => [r.month, Number(r.net)]));
+  const out: Array<{ month: string; net: number }> = [];
+  const now = new Date(Date.now() + 5 * 3_600_000);
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    out.push({ month: key, net: by.get(key) ?? 0 });
+  }
+  return out;
+}
+
 export async function listEarnings(mentorId: string, limit = 40) {
   return db.query.mentorEarnings.findMany({ where: eq(mentorEarnings.mentorId, mentorId), orderBy: [desc(mentorEarnings.createdAt)], limit });
 }

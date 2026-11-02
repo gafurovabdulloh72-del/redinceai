@@ -584,6 +584,23 @@ export async function renameFolder(meId: string, id: string, name: string): Prom
   if (!r.length) throw new ApiError(404, "Papka topilmadi");
 }
 
+/**
+ * Papkani yuqoriga/pastga surish (kamchilik #7): qo'shni bilan position almashtiriladi.
+ * Pozitsiyalar avval 1..n ga normallashtiriladi (eski yozuvlarda teng bo'lishi mumkin).
+ */
+export async function moveFolder(meId: string, id: string, dir: "up" | "down"): Promise<void> {
+  const rows = await db.query.dmFolders.findMany({ where: eq(dmFolders.userId, meId), orderBy: [asc(dmFolders.position), asc(dmFolders.createdAt)] });
+  const idx = rows.findIndex((r) => r.id === id);
+  if (idx < 0) throw new ApiError(404, "Papka topilmadi");
+  const j = dir === "up" ? idx - 1 : idx + 1;
+  if (j < 0 || j >= rows.length) return;
+  const order = rows.map((r) => r.id);
+  [order[idx], order[j]] = [order[j], order[idx]];
+  for (let i = 0; i < order.length; i++) {
+    await db.update(dmFolders).set({ position: i + 1 }).where(and(eq(dmFolders.id, order[i]), eq(dmFolders.userId, meId)));
+  }
+}
+
 /** Papkani o'chirish: ichidagi suhbatlar «Hammasi»ga qaytadi (suhbatlar o'chmaydi) */
 export async function deleteFolder(meId: string, id: string): Promise<void> {
   const r = await db.delete(dmFolders).where(and(eq(dmFolders.id, id), eq(dmFolders.userId, meId))).returning({ id: dmFolders.id });

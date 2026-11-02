@@ -9,7 +9,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 4. ✅ YOPILDI (2026-11-01): guruh/kanal qatorida ham svayp amallar — qadash · ovozsiz · arxiv (DM mexanizmi umumlashtirildi).
 5. ✅ YOPILDI (2026-11-01): guruh qatori «⋯» menyusida «Ovozsiz» (PATCH /api/chat/guruh muted).
 6. ✅ YOPILDI (2026-11-01): papka boshqaruvida qalam tugmasi — nomni joyida tahrirlash (PATCH /api/chat/papkalar/[id] allaqachon bor edi, UI qo'shildi).
-7. Papkalar tartibini surib o'zgartirib bo'lmaydi (position ustuni bor, UI yo'q).
+7. ✅ YOPILDI (2026-11-02): papka boshqaruvida ↑/↓ tugmalari — `moveFolder` (dm.ts, pozitsiyalar 1..n normallashtirilib qo'shni bilan almashtiriladi), `PATCH /api/chat/papkalar/[id] {move}`, DmChat optimistik surish.
 8. ✅ YOPILDI (2026-11-01): `group_members.archived_at` — «⋯» menyu va svaypdan arxivga olinadi, Arxiv ko'rinishida chiqadi (a'zolik saqlanadi).
 9. Chat ro'yxatida qidiruv faqat nom/oxirgi xabar bo'yicha — xabarlar ichidan global qidiruv yo'q (Telegram'da bor).
 10. ✅ YOPILDI (2026-11-01): guruh/kanal qatori «⋯» menyusida «O'qildi deb belgilash» (lastReadAt = hozir).
@@ -33,7 +33,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 24. Kursni ulushlab to'lash (bo'lib to'lash) yo'q.
 25. ✅ YOPILDI (2026-11-02): «Savol-javob» tabida «yangi javob» nuqtasi — `latestReplyToMe` (learning.ts) + `LessonTab.fresh` (localStorage `kasb_qa_seen_<id>` bilan solishtiradi, tab ochilganda o'chadi).
 26. ✅ ALLAQACHON BOR (tekshirildi 2026-11-01): CourseEditor'da ommaviy kurs sahifasiga «ko'rish» havolasi (yangi oynada) mavjud.
-27. Mentor daromad grafigi yo'q — faqat ro'yxat (oylik diagramma kerak).
+27. ✅ YOPILDI (2026-11-02): daromad sahifasida «Oylik daromad — so'nggi 6 oy» ustunli grafik (`monthlyEarnings` purchases.ts — Toshkent oylari, refunded chiqariladi, bo'sh oylar 0).
 28. ✅ YOPILDI (2026-11-01): slot formasi ostida «Toshkent vaqti (UTC+5)» izohi; talaba kirish matnida ham «Toshkent vaqti».
 29. Kurs tugatganlarga «keyingi kurs» tavsiyasi avtomatik chiqmaydi (yo'l xaritasi bor, bitirganda taklif yo'q).
 30. ✅ YOPILDI (2026-11-01): kurs namunasi ostida «Ulashish» tugmasi — /mentorlik/dars/<id> havolasi nusxalanadi (namuna hammaga ochiq).

@@ -11,7 +11,8 @@ import { db } from "@/lib/db";
 import { courses } from "@/lib/db/schema";
 import { getMentorForUser } from "@/lib/mentorship/service";
 import { MentorNav } from "@/components/mentorship/MentorNav";
-import { listEarnings, listPayouts, listPromos, listSlots, mentorBalance } from "@/lib/mentorship/purchases";
+import { listEarnings, listPayouts, listPromos, listSlots, mentorBalance, monthlyEarnings } from "@/lib/mentorship/purchases";
+import { formatPrice } from "@/lib/utils";
 import { MentorMoney } from "@/components/mentorship/MentorMoney";
 
 export const dynamic = "force-dynamic";
@@ -25,13 +26,14 @@ export default async function MentorMoneyPage() {
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik/daromad"));
   const m = await getMentorForUser(user.id);
   if (!m?.isApproved) redirect("/kabinet/mentorlik");
-  const [balance, earnings, payouts, promos, slots, cs] = await Promise.all([
+  const [balance, earnings, payouts, promos, slots, cs, monthly] = await Promise.all([
     mentorBalance(m.id),
     listEarnings(m.id),
     listPayouts(m.id),
     listPromos(m.id),
     listSlots(m.id, true),
     db.query.courses.findMany({ where: and(eq(courses.mentorId, m.id)), columns: { id: true, title: true } }),
+    monthlyEarnings(m.id, 6).catch(() => []),
   ]);
   const cmap = new Map(cs.map((c) => [c.id, c.title]));
   return (
@@ -48,6 +50,29 @@ export default async function MentorMoneyPage() {
             <BarChart3 size={14} /> Batafsil tahlil
           </Link>
         </header>
+        {/* Oylik daromad grafigi (kamchilik #27) — faqat daromad bo'lsa chiziladi */}
+        {monthly.some((x) => x.net > 0) && (
+          <section className="card p-5" aria-label="Oylik daromad">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h2 className="font-display text-[15px] font-semibold text-fg">Oylik daromad — so&apos;nggi 6 oy</h2>
+              <p className="text-[12px] text-fg-3">Sof (komissiyadan keyin), qaytarilganlarsiz</p>
+            </div>
+            {(() => {
+              const max = Math.max(...monthly.map((x) => x.net), 1);
+              return (
+                <div className="flex h-[110px] items-end gap-2">
+                  {monthly.map((x) => (
+                    <div key={x.month} className="group/bar flex min-w-0 flex-1 flex-col items-center gap-1" title={`${x.month} — ${formatPrice(x.net)}`}>
+                      <span className="text-[10px] tabular-nums text-fg-3 opacity-0 transition-opacity group-hover/bar:opacity-100">{formatPrice(x.net, { compact: true })}</span>
+                      <span className={x.net > 0 ? "w-full rounded-t-[4px] bg-accent/80 transition-colors group-hover/bar:bg-accent" : "w-full rounded-t-[4px] bg-fg/8"} style={{ height: `${Math.max(Math.round((x.net / max) * 72), 3)}px` }} aria-hidden />
+                      <span className="text-[10.5px] tabular-nums text-fg-4">{x.month.slice(5, 7)}.{x.month.slice(2, 4)}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </section>
+        )}
         <MentorMoney
           d={{
             mentorId: m.id,

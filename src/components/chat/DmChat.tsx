@@ -882,6 +882,22 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
     }
   };
 
+  /** Papkani tartibda surish (kamchilik #7): lokal almashtirish + serverda position yangilanadi */
+  const moveFolderRow = async (id: string, dir: "up" | "down") => {
+    const prev = folders;
+    const idx = folders.findIndex((f) => f.id === id);
+    const j = dir === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || j < 0 || j >= folders.length) return;
+    const next = [...folders];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setFolders(next);
+    const res = await fetch(`/api/chat/papkalar/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ move: dir }) }).catch(() => null);
+    if (!res?.ok) {
+      setFolders(prev);
+      toast("Saqlanmadi", "error");
+    }
+  };
+
   const removeFolder = async (id: string) => {
     setFolders((l) => l.filter((f) => f.id !== id));
     if (folder === id) setFolder(null);
@@ -2122,6 +2138,25 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                       <Folder size={15} className="shrink-0 text-fg-3" />
                       <span className="min-w-0 flex-1 truncate">{f.name}</span>
                       <span className="shrink-0 text-[12px] text-fg-4">{f.count}</span>
+                    </button>
+                    {/* Tartibda surish (kamchilik #7): optimistik almashtirish + PATCH {move} */}
+                    <button
+                      type="button"
+                      disabled={folders[0]?.id === f.id}
+                      onClick={() => void moveFolderRow(f.id, "up")}
+                      aria-label={`${f.name} — yuqoriga`}
+                      className={cn(iconBtn, "h-8 w-7 disabled:opacity-30")}
+                    >
+                      <ArrowLeft size={13} className="rotate-90" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={folders[folders.length - 1]?.id === f.id}
+                      onClick={() => void moveFolderRow(f.id, "down")}
+                      aria-label={`${f.name} — pastga`}
+                      className={cn(iconBtn, "h-8 w-7 disabled:opacity-30")}
+                    >
+                      <ArrowDown size={13} />
                     </button>
                     <button type="button" onClick={() => setRenaming({ id: f.id, name: f.name })} aria-label={`${f.name} — ${t("renameFolder")}`} className={cn(iconBtn, "h-8 w-8")}>
                       <Pencil size={13} />
