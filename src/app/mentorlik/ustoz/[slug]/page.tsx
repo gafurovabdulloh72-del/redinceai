@@ -2,7 +2,7 @@ import { LiveBar } from "@/components/live/LiveBar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, GraduationCap, RadioTower, Settings2, Star, Users } from "lucide-react";
+import { BookOpen, GraduationCap, MessagesSquare, RadioTower, Settings2, Star, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { ShareButton } from "@/components/specialists/ShareButton";
@@ -29,9 +29,11 @@ import { cn, compactCount, formatDateTime } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
+// Soddalashtirilgan (2026-11-02): ko'rinadigan tablar — Postlar · Kurslar · Efirlar (+ «1:1» faqat bo'sh vaqt bo'lsa).
+// «Muhokama» endi hero'dagi tugma (Chat bo'limida ochiladi); eski ?tab=muhokama havolasi baribir ishlaydi.
 const TABS = [
-  { key: "lenta", label: "Lenta" },
-  { key: "bolimlar", label: "Bo'limlar" },
+  { key: "lenta", label: "Postlar" },
+  { key: "bolimlar", label: "Kurslar" },
   { key: "efirlar", label: "Efirlar" },
   { key: "muhokama", label: "Muhokama" },
   { key: "konsultatsiya", label: "1:1" },
@@ -78,12 +80,21 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   const subRow = user && profile.subPrice > 0 ? await _db.query.mentorSubs.findFirst({ where: _and(_eq(mentorSubs.userId, user.id), _eq(mentorSubs.mentorId, profile.id)) }) : null;
   const subActive = Boolean(subRow && subRow.until.getTime() > Date.now());
   const [roadmaps, showcase] = tab === "bolimlar" ? await Promise.all([listRoadmaps(profile.id, user?.id ?? null), listShowcase(profile.id)]) : [[], []];
-  const [slots, myBooked] = tab === "konsultatsiya" ? await Promise.all([listSlots(profile.id, false), user ? myConsults(user.id, null) : Promise.resolve([])]) : [[], []];
+  // Bo'sh vaqtlar har doim o'qiladi — «1:1» tabi faqat ular bo'lsa ko'rinadi
+  const [slots, myBooked] = await Promise.all([listSlots(profile.id, false), user && tab === "konsultatsiya" ? myConsults(user.id, null) : Promise.resolve([])]);
+  const visibleTabs = TABS.filter((t) => {
+    if (t.key === "muhokama") return false;
+    if (t.key === "konsultatsiya") return slots.length > 0 || tab === "konsultatsiya";
+    if (t.key === "bolimlar") return courses.length > 0 || canStudio || tab === "bolimlar";
+    return true;
+  });
 
   const tabHref = (k: Tab) => (k === "lenta" ? `/mentorlik/ustoz/${profile.slug}` : `/mentorlik/ustoz/${profile.slug}?tab=${k}`);
+  // Sarlavha ostidagi qator: rol yorlig'i va asosiy sarlavha (umumiy «Mentor» so'zi takrorlanmaydi)
+  const subtitle = [profile.roleLabel, profile.headline].filter((x, i, a) => x && x.trim() && x.trim().toLowerCase() !== "mentor" && a.indexOf(x) === i).join(" · ");
   const stats = [
     { icon: Users, v: compactCount(view?.membersCount ?? 0), l: "obunachi" },
-    { icon: BookOpen, v: String(courses.length), l: "bo'lim" },
+    { icon: BookOpen, v: String(courses.length), l: "kurs" },
     { icon: GraduationCap, v: compactCount(profile.studentsCount), l: "talaba" },
     ...(profile.rating > 0 ? [{ icon: Star, v: String(profile.rating), l: "reyting" }] : []),
   ];
@@ -105,14 +116,13 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         <span className="text-fg-2">{profile.name}</span>
       </nav>
 
-      {/* Hero: portret + qora karta */}
+      {/* Muqova (bo'lsa) — telefonda portret doirasi muqova ustida */}
       {profile.coverUrl && (
         <div className="mt-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={profile.coverUrl} alt="" className="aspect-[3/1] w-full rounded-[20px] object-cover sm:rounded-[28px]" />
-          {/* Telefon: portret muqova ustida doira + ism — alohida portret kartasi o'rniga (uchta katta blok ikki ekranni egallamasin) */}
-          <div className="-mt-9 flex items-end gap-3 px-3 sm:hidden">
-            <span className="grid h-[76px] w-[76px] shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 ring-4 ring-bg">
+          <div className="-mt-9 px-3 sm:hidden">
+            <span className="grid h-[76px] w-[76px] place-items-center overflow-hidden rounded-full bg-surface-2 ring-4 ring-bg">
               {profile.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profile.photoUrl} alt={profile.name} className="h-full w-full object-cover object-top" />
@@ -120,34 +130,27 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                 <Avatar name={profile.name} src={profile.avatarUrl} size={76} decorative />
               )}
             </span>
-            <div className="min-w-0 pb-1">
-              <p className="truncate font-display text-[17px] font-extrabold leading-tight text-fg">{profile.name}</p>
-              <p className="truncate text-[13px] text-fg-3">{profile.roleLabel || "Ustoz"}</p>
-            </div>
           </div>
         </div>
       )}
-      <section className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,330px)_minmax(0,1fr)]">
-        <div className={`relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface-2 sm:aspect-[4/5] sm:rounded-[28px]${profile.coverUrl ? " max-sm:hidden" : ""}`}>
-          {profile.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.photoUrl} alt={profile.name} className="absolute inset-0 h-full w-full object-cover object-top" />
-          ) : (
-            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-fg/[0.04] to-fg/[0.12] max-sm:pb-10">
-              <span className="sm:hidden"><Avatar name={profile.name} src={profile.avatarUrl} size={84} decorative /></span>
-              <span className="max-sm:hidden"><Avatar name={profile.name} src={profile.avatarUrl} size={120} decorative /></span>
-            </div>
-          )}
-          <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-[18px] bg-[#1b1b1d]/95 px-4 py-3 text-white ring-1 ring-white/15 backdrop-blur">
-            <p className="truncate font-display text-[17px] font-extrabold leading-tight">{profile.name}</p>
-            <p className="mt-0.5 truncate text-[13px] text-white/70">{profile.roleLabel || "Ustoz"}</p>
-          </div>
-        </div>
 
-        <div className="relative flex flex-col justify-between overflow-hidden rounded-[20px] bg-[#1b1b1d] p-5 text-white sm:rounded-[28px] sm:p-8">
-          <div className="relative">
+      {/* Hero (soddalashtirilgan, 2026-11-02): bitta qora karta — portret + ism + tavsif + ko'rsatkichlar + amallar */}
+      <section className="mt-3 overflow-hidden rounded-[20px] bg-[#1b1b1d] text-white sm:rounded-[28px]">
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:gap-7 sm:p-7">
+          <div className={cn("relative aspect-[16/11] w-full shrink-0 overflow-hidden rounded-[16px] bg-white/5 sm:aspect-[4/5] sm:w-[210px]", profile.coverUrl && "max-sm:hidden")}>
+            {profile.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.photoUrl} alt={profile.name} className="absolute inset-0 h-full w-full object-cover object-top" />
+            ) : (
+              <div className="absolute inset-0 grid place-items-center">
+                <Avatar name={profile.name} src={profile.avatarUrl} size={96} decorative />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
             {profile.expertise.length > 0 && (
-              <p className="mb-3 flex flex-wrap gap-1.5">
+              <p className="mb-2.5 flex flex-wrap gap-1.5">
                 {profile.expertise.map((e) => (
                   <span key={e} className="rounded-full bg-white/12 px-2.5 py-1 text-[11.5px] font-semibold text-white/85">
                     {categoryLabel(e)}
@@ -155,9 +158,10 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                 ))}
               </p>
             )}
-            <h1 className="max-w-2xl font-display text-[23px] font-extrabold leading-[1.1] tracking-tight sm:text-[38px]">{profile.headline}</h1>
+            <h1 className="font-display text-[26px] font-extrabold leading-[1.1] tracking-tight sm:text-[34px]">{profile.name}</h1>
+            {subtitle && <p className="mt-1.5 text-[15px] font-medium text-white/70">{subtitle}</p>}
             {badges.length > 0 && (
-              <p className="mt-4 flex flex-wrap gap-1.5">
+              <p className="mt-3 flex flex-wrap gap-1.5">
                 {badges.map((b) => (
                   <span key={b.key} title={b.hint} className="inline-flex items-center gap-1 rounded-full bg-white/14 px-2.5 py-1 text-[12px] font-semibold text-white">
                     ✓ {b.label}
@@ -165,10 +169,9 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                 ))}
               </p>
             )}
-            {profile.bio && <p className="mt-4 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-white/72 sm:text-[16px]">{profile.bio}</p>}
-          </div>
-          <div className="relative mt-6 space-y-4">
-            <dl className="flex flex-wrap gap-x-6 gap-y-2">
+            {profile.bio && <p className="mt-3.5 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-white/72">{profile.bio}</p>}
+
+            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
               {stats.map((s) => (
                 <div key={s.l} className="flex items-center gap-2">
                   <s.icon size={15} className="text-white/55" aria-hidden />
@@ -178,26 +181,38 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               ))}
             </dl>
             {liveNow && (
-              <Link href={`/mentorlik/ustoz/${profile.slug}?efir=1`} className="inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
+              <Link href={`/mentorlik/ustoz/${profile.slug}?efir=1`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
                 <span className="h-2 w-2 animate-ping-soft rounded-full bg-white" /> Hozir jonli efirda — qo&apos;shilish
               </Link>
             )}
-            <div className="flex flex-wrap items-center gap-2" data-theme="dark">
-              {profile.subPrice > 0 && !canStudio &&
+            <div className="mt-5 flex flex-wrap items-center gap-2" data-theme="dark">
+              {profile.subPrice > 0 &&
+                !canStudio &&
                 (subActive ? (
-                  <span className="inline-flex h-11 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">✓ Obunachisiz · {formatDateTime(subRow!.until.getTime())} gacha</span>
+                  <span className="inline-flex h-10 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">✓ Obunachisiz · {formatDateTime(subRow!.until.getTime())} gacha</span>
                 ) : (
-                  <BuyButton type="sub" id={profile.id} loggedIn={Boolean(user)} className="inline-flex h-11 items-center rounded-full bg-white px-5 text-[14px] font-bold text-black">
+                  <BuyButton type="sub" id={profile.id} loggedIn={Boolean(user)} className="inline-flex h-10 items-center rounded-full bg-white px-5 text-[14px] font-bold text-black">
                     Obuna — {formatSom(profile.subPrice)}/oy
                   </BuyButton>
                 ))}
               {view && (view.membership === "member" || view.membership === "pending" || view.membership === null) && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={Boolean(user)} official={view.isOfficial} />}
-              <ShareButton title={profile.name} size="md" variant="outline" iconOnly />
-              {canStudio && (
-                <Link href={user?.role === "admin" && !isOwner ? `/admin/mentorlik/${profile.id}` : "/kabinet/mentorlik"} className="inline-flex h-11 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[14px] font-semibold text-white transition hover:bg-white/10">
-                  <Settings2 size={16} /> Sozlash
+              {/* Muhokama — alohida tab emas: Chat bo'limida ochiladi */}
+              {view && isMember && !view.chatDisabled && (
+                <Link href={`/jamoalar/${view.slug}?tab=chat`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
+                  <MessagesSquare size={15} /> Muhokama
                 </Link>
               )}
+              {view?.canManage && !liveNow && (
+                <Link href={tabHref("efirlar")} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
+                  <RadioTower size={15} /> Efir boshlash
+                </Link>
+              )}
+              {canStudio && (
+                <Link href={user?.role === "admin" && !isOwner ? `/admin/mentorlik/${profile.id}` : "/kabinet/mentorlik"} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
+                  <Settings2 size={15} /> Sozlash
+                </Link>
+              )}
+              <ShareButton title={profile.name} size="md" variant="outline" iconOnly />
             </div>
           </div>
         </div>
@@ -207,16 +222,16 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       {profile.highlights.length > 0 && (
         <section className={cn("mt-3 grid gap-3", profile.highlights.length === 1 ? "" : profile.highlights.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
           {profile.highlights.map((h, i) => (
-            <article key={i} className="card rounded-[24px] p-5 sm:p-6">
-              <h2 className="font-display text-[17px] font-extrabold text-fg">{h.title}</h2>
-              {h.text && <p className="mt-2 text-[14.5px] leading-relaxed text-fg-2">{h.text}</p>}
+            <article key={i} className="card rounded-[18px] p-4 sm:p-5">
+              <h2 className="text-[13px] font-semibold text-fg-3">{h.title}</h2>
+              {h.text && <p className="mt-1 text-[15px] font-semibold leading-snug text-fg">{h.text}</p>}
             </article>
           ))}
         </section>
       )}
 
       <nav className="no-scrollbar -mx-4 mt-7 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" aria-label="Ustoz bo'limlari">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <Link key={t.key} href={tabHref(t.key)} aria-current={t.key === tab ? "page" : undefined} className={cn("relative inline-flex h-11 shrink-0 items-center px-4 text-[14px] font-semibold transition-colors", t.key === tab ? "text-fg" : "text-fg-3 hover:text-fg")}>
             {t.label}
             {t.key === "bolimlar" && courses.length > 0 && <span className="ml-1.5 text-[12px] font-medium text-fg-4">{courses.length}</span>}
@@ -228,7 +243,6 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       <div key={tab} className="mx-auto mt-6 max-w-[720px] animate-fade-in">
         {tab === "lenta" && view && (
           <>
-            <LiveBar slug={view.slug} canHost={view.canManage} loggedIn={Boolean(user)} />
             {ev.upcoming.length > 0 && <EventsCard events={ev.upcoming.slice(0, 3)} />}
             {feed ? (
               <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} allowSubOnly={view.canManage && profile.subPrice > 0} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />
@@ -261,7 +275,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         )}
         {tab === "bolimlar" &&
           (courses.length === 0 ? (
-            <p className="card p-8 text-center text-[14px] text-fg-3">Hozircha ochiq bo&apos;lim yo&apos;q.</p>
+            <p className="card p-8 text-center text-[14px] text-fg-3">Hozircha ochiq kurs yo&apos;q.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3">
               {courses.map((c) => (
