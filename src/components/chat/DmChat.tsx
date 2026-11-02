@@ -1453,7 +1453,7 @@ export function DmChat({
                         </span>
                       </span>
                     </button>
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                    <div className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
                       <button
                         type="button"
                         onClick={(e) => setGroupMenu(groupMenu?.id === g.id ? null : { id: g.id, up: menuUp(e.currentTarget, listRef.current) })}
@@ -1554,7 +1554,7 @@ export function DmChat({
                     </span>
                   </span>
                 </button>
-                <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                <div className="absolute right-1 top-1/2 z-20 -translate-y-1/2">
                   <button
                     type="button"
                     onClick={(e) => setRowMenu(rowMenu?.id === c.id ? null : { id: c.id, up: menuUp(e.currentTarget, listRef.current) })}

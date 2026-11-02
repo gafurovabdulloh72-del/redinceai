@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Lock, MessagesSquare, Newspaper, UserPlus } from "lucide-react";
+import { ChannelPosts } from "@/components/chat/ChannelPosts";
 import { GroupChat } from "@/components/groups/GroupChat";
 import { GroupFeed, type Page } from "@/components/groups/GroupFeed";
 import { Avatar } from "@/components/ui";
@@ -154,14 +155,22 @@ export function GroupPanelBody({
     );
   }
 
-  const feedBlock = feed ? (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
-      <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn initial={feed} highlightId={highlightId} composerPlaceholder={view.kind === "channel" ? T.channelPlaceholder[til] : undefined} />
-    </div>
-  ) : (
+  const loading = (
     <div className="flex flex-1 items-center justify-center text-fg-3">
       <Loader2 size={18} className="animate-spin" />
     </div>
+  );
+  // Kanal — Telegram pufakchalari (ChannelPosts); guruh preview — oddiy lenta
+  const feedBlock = feed ? (
+    view.kind === "channel" ? (
+      <ChannelPosts key={view.id} slug={view.slug} canPost={view.canPost} canInteract={isMember} loggedIn initial={feed} highlightId={highlightId} />
+    ) : (
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+        <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} loggedIn initial={feed} highlightId={highlightId} />
+      </div>
+    )
+  ) : (
+    loading
   );
 
   const showDiscussion = !view.chatDisabled && isMember;

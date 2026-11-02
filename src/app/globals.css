@@ -1816,6 +1816,12 @@ html[data-chat-open] .m-topbar,
 html[data-chat-open] .m-tabbar {
   display: none;
 }
+/* To'liq ekranli chat (<lg) ustida o'ng tepa til/tema kapsulasi panel tugmalarini bosib qo'ymasin */
+@media (max-width: 1023px) {
+  html[data-chat-open] .shell-capsule {
+    display: none;
+  }
+}
 /* «Yuqoriga» tugmasi to'liq ekranli suhbat va Reels ustida ko'rinmasin */
 html[data-chat-open] [data-back-to-top],
 html:has([data-reels-screen]) [data-back-to-top] {
