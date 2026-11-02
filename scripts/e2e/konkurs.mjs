@@ -7,6 +7,7 @@ const req = makeReq(C);
 const CRON = process.env.CRON_SECRET;
 
 let chId = null;
+let seededPostId = null;
 try {
   // 1. Admin konkurs ochadi
   const create = await req("ad", "/api/admin/konkurs", { method: "POST", body: JSON.stringify({ title: "E2E sinov konkursi", description: "Sinov", days: 7 }) });
@@ -21,9 +22,21 @@ try {
   ok((await fetch(BASE + `/konkurs/${chId}`)).status === 200, "/konkurs/<id> sahifasi 200");
   ok((await fetch(BASE + "/konkurs/yoq-id-123456")).status === 404, "yo'q konkurs 404");
 
-  // 2. Mutaxassis — yaroqli postlar va ishtirok
-  const el = await req("sp", `/api/konkurs/${chId}/qatnashish`);
-  const posts = (await el.json()).data?.items ?? [];
+  // 2. Mutaxassis — yaroqli postlar va ishtirok.
+  // CI bazasida demo mutaxassisning media'li ommaviy profil posti bo'lmasligi mumkin —
+  // test o'zi bitta post qo'shib oladi (oxirida tozalanadi), aks holda test muhitga bog'liq bo'lib qoladi.
+  let el = await req("sp", `/api/konkurs/${chId}/qatnashish`);
+  let posts = (await el.json()).data?.items ?? [];
+  if (el.status === 200 && posts.length === 0) {
+    const spRow = await db.execute({ sql: "SELECT id FROM users WHERE email = ?", args: ["mutaxassis@redince.uz"] });
+    seededPostId = `e2e-konkurs-${Date.now()}`;
+    await db.execute({
+      sql: "INSERT INTO posts (id, group_id, author_id, body, media, audience, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, 'public', ?, ?)",
+      args: [seededPostId, spRow.rows[0].id, "E2E konkurs sinov posti", JSON.stringify([{ url: "/uploads/e2e-konkurs.jpg", name: "e2e.jpg", type: "image/jpeg", size: 1000 }]), Date.now(), Date.now()],
+    });
+    el = await req("sp", `/api/konkurs/${chId}/qatnashish`);
+    posts = (await el.json()).data?.items ?? [];
+  }
   ok(el.status === 200 && posts.length > 0, "yaroqli postlar bor", String(posts.length));
   const join = await req("sp", `/api/konkurs/${chId}/qatnashish`, { method: "POST", body: JSON.stringify({ postId: posts[0].id }) });
   ok(join.status === 201, "ishtirok qabul qilindi", String(join.status));
@@ -68,5 +81,6 @@ try {
     await db.execute({ sql: "DELETE FROM challenges WHERE id = ?", args: [chId] });
     console.log("🧹 tozalandi");
   }
+  if (seededPostId) await db.execute({ sql: "DELETE FROM posts WHERE id = ?", args: [seededPostId] });
 }
 finish();
