@@ -63,7 +63,7 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
     <div className="card overflow-hidden">
       <div className="relative aspect-video bg-surface-2">
         {coverUrl ? (
-          <SafeImage src={coverUrl} alt={title} width={900} height={506} className="h-full w-full object-cover" />
+          <SafeImage optimize={720} src={coverUrl} alt={title} width={900} height={506} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-fg/5">
             <GraduationCap size={40} className="text-fg-4" />

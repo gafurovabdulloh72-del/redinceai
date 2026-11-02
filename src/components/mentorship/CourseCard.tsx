@@ -55,7 +55,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
     <Link href={`/mentorlik/${c.slug}`} className="card card-hover m-plain group flex h-full flex-col overflow-hidden max-sm:flex-row max-sm:items-center max-sm:gap-3 max-sm:px-4 max-sm:py-3">
       <div className="relative aspect-[16/9] overflow-hidden max-sm:aspect-square max-sm:w-[76px] max-sm:shrink-0 max-sm:self-start max-sm:overflow-hidden max-sm:rounded-[12px]">
         {c.coverUrl ? (
-          <SafeImage src={c.coverUrl} alt={c.title} width={480} height={270} className="img-zoom h-full w-full object-cover" />
+          <SafeImage optimize={480} src={c.coverUrl} alt={c.title} width={480} height={270} className="img-zoom h-full w-full object-cover" />
         ) : (
           <span className="grid h-full w-full place-items-center bg-fg/[0.04] text-fg-4" aria-hidden>
             <Icon size={26} />
@@ -110,7 +110,7 @@ export function CourseMiniCard({ c }: { c: CourseCardItem }) {
     <Link href={`/mentorlik/${c.slug}`} className="card card-hover group flex h-full w-[220px] flex-col overflow-hidden">
       <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
         {c.coverUrl ? (
-          <SafeImage src={c.coverUrl} alt="" width={440} height={248} className="img-zoom h-full w-full object-cover" />
+          <SafeImage optimize={480} src={c.coverUrl} alt="" width={440} height={248} className="img-zoom h-full w-full object-cover" />
         ) : (
           <div className="grid h-full w-full place-items-center bg-fg/[0.04]">
             <Icon size={26} className="text-fg-4" aria-hidden />

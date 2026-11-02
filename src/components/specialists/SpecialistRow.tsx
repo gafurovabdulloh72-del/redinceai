@@ -34,7 +34,7 @@ export async function SpecialistRow({ sp, showCompare = false }: { sp: Specialis
     <article className="card card-hover card-link group img-zoom flex items-center gap-1.5 p-3 sm:gap-2.5 sm:p-3.5">
       <Link href={`/mutaxassislar/${sp.slug}`} className="flex min-w-0 flex-1 items-center gap-3 after:absolute after:inset-0 sm:gap-4">
         <span className="relative hidden h-[66px] w-[88px] shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-3 sm:block">
-          <SafeImage src={sp.coverUrl ?? undefined} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
+          <SafeImage optimize={120} src={sp.coverUrl ?? undefined} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
         </span>
         <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={44} decorative className="sm:hidden" />
 

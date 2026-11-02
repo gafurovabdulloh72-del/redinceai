@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from "react";
+import { optimizedImg } from "@/lib/img";
 
 /**
  * Yuklanmagan rasm o'rniga `fallback` ko'rsatadi (yoki hech narsa).
@@ -17,18 +18,35 @@ export function SafeImage({
   priority = false,
   loading,
   fetchPriority,
+  optimize,
   ...props
-}: ImgHTMLAttributes<HTMLImageElement> & { alt: string; fallback?: ReactNode; overlayClassName?: string; priority?: boolean }) {
+}: ImgHTMLAttributes<HTMLImageElement> & {
+  alt: string;
+  fallback?: ReactNode;
+  overlayClassName?: string;
+  priority?: boolean;
+  /** Kamchilik #81: rasm ekranda egallaydigan taxminiy kenglik (px) — /_next/image orqali resize+WebP (1x/2x srcSet) */
+  optimize?: number;
+}) {
   const ref = useRef<HTMLImageElement>(null);
   const [broken, setBroken] = useState(false);
+  // Optimizator (/_next/image) xato bersa (masalan, host oq ro'yxatda emas) — asl manzilga qaytib bir urinib ko'ramiz
+  const [deopt, setDeopt] = useState(false);
 
   useEffect(() => {
     setBroken(false);
+    setDeopt(false);
     const el = ref.current;
     if (el && el.complete && el.naturalWidth === 0) setBroken(true);
   }, [props.src]);
 
   if (broken || !props.src) return <>{fallback}</>;
+  // optimize berilgan va chaqiruvchi o'z srcSet'ini bermagan bo'lsa — optimizator manzillari
+  const optimized = Boolean(optimize) && !deopt && typeof props.src === "string" && !props.srcSet;
+  if (optimized && optimize) {
+    const opt = optimizedImg(props.src as string, optimize);
+    props = { ...props, src: opt.src, srcSet: opt.srcSet };
+  }
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -37,7 +55,7 @@ export function SafeImage({
       loading={loading ?? (priority ? "eager" : "lazy")}
       fetchPriority={fetchPriority ?? (priority ? "high" : undefined)}
       decoding="async"
-      onError={() => setBroken(true)}
+      onError={() => (optimized ? setDeopt(true) : setBroken(true))}
       {...props}
     />
   );

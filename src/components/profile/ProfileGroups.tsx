@@ -17,7 +17,7 @@ export function ProfileGroups({ groups, til, className }: { groups: PublicGroupL
           <li key={g.slug}>
             <Link href={`/jamoalar/${g.slug}`} className="hover-lift press flex items-center gap-3 rounded-[var(--r-md)] border border-line p-2.5">
               <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-sm)] bg-surface-3 text-fg-3">
-                <SafeImage src={g.coverUrl ?? undefined} alt="" className="absolute inset-0 h-full w-full object-cover" fallback={g.kind === "channel" ? <Radio size={18} aria-hidden /> : <UsersRound size={18} aria-hidden />} />
+                <SafeImage optimize={200} src={g.coverUrl ?? undefined} alt="" className="absolute inset-0 h-full w-full object-cover" fallback={g.kind === "channel" ? <Radio size={18} aria-hidden /> : <UsersRound size={18} aria-hidden />} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 text-[14px] font-semibold text-fg">

@@ -99,7 +99,7 @@ Platformaning hozirgi holatini halol baholash. Har band — aniq, tekshirilgan y
 80. ✅ YOPILDI (2026-11-01): docs/MATN-QOLLANMA.md — tugma/atama/uslub jadvali; yangi matnlar shu bo'yicha yoziladi.
 
 ## 9. Tezlik va texnik qarz — 81–90
-81. ✱ Rasm optimizatsiyasi o'chirilgan oqimlar bor (xom <img> ko'p joyda) — next/image yoki CDN resize kerak.
+81. ✱ ✅ YOPILDI (2026-11-02): `lib/img.ts optimizedImg()` — xom <img> saqlangan holda Next optimizatori (/_next/image: resize + WebP, 1x/2x srcSet). AvatarImage va SafeImage(`optimize` prop) orqali: avatarlar, katalog/kurs/guruh kartalari, lenta rasmlari, chat muqovalari. Optimizator xatosida asl manzilga avto-qaytish. Sinov: 139KB JPEG → 3.8KB(128w)/10.8KB(384w) WebP; sahifalarda buzilgan rasm 0.
 82. ✱ ✅ YOPILDI (2026-11-01): `listGroupInbox` 60s kesh + bitta arzon faollik tekshiruvi (yangi xabar kelganda o'z-o'zidan eskiradi); `bustGroupInbox` markGroupRead/pref o'zgarishida.
 83. Lenta cheksiz scroll o'rniga «Yana ko'rsatish» ba'zi ro'yxatlarda — bir xillik yo'q.
 84. Bundle: lucide ikonkalar sahifa-sahifa import qilinadi, lekin DmChat 1800+ qator — bo'laklash (code-split) kerak.

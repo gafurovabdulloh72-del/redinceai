@@ -60,7 +60,7 @@ export async function SpecialistCard({
         {/* Barcha kartalar bir xil balandlikda: rasm bo'lmasa tekis yuza + yo'nalish ikonkasi (katalog to'ri tekis turadi) */}
         <div className="relative aspect-[16/10] overflow-hidden bg-surface-2 max-sm:hidden">
           {sp.coverUrl ? (
-            <SafeImage src={sp.coverUrl} alt="" priority={priority} className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
+            <SafeImage optimize={480} src={sp.coverUrl} alt="" priority={priority} className="absolute inset-0 h-full w-full object-cover" fallback={<CoverPattern category={sp.category} seed={sp.slug} />} />
           ) : (
             <CoverPattern category={sp.category} seed={sp.slug} />
           )}

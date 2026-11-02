@@ -32,7 +32,7 @@ export function MediaTile({ d, className, rounded = true, til = "uz" }: { d: Med
         <TextTile caption={d.caption} />
       ) : d.thumbUrl ? (
         /* Rasm yuklanmasa (buzilgan havola) bo'sh kulrang katak emas — sarlavhali matn plitka */
-        <SafeImage src={d.thumbUrl} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover text-transparent" fallback={<TextTile caption={d.caption} />} />
+        <SafeImage optimize={400} src={d.thumbUrl} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover text-transparent" fallback={<TextTile caption={d.caption} />} />
       ) : playable ? (
         <video src={d.videoUrl ? `${d.videoUrl}#t=0.5` : undefined} muted playsInline preload="metadata" className="h-full w-full object-cover" aria-hidden />
       ) : (

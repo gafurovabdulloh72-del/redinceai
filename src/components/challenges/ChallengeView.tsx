@@ -116,7 +116,7 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
             <li key={e.id} className={cn("card overflow-hidden", e.isWinner && "ring-2 ring-accent")}>
               <Link href={e.author.slug ? `/mutaxassislar/${e.author.slug}?tab=postlar&post=${e.post.id}` : "#"} className="group/tile img-zoom relative block aspect-square w-full overflow-hidden bg-surface-3">
                 {e.post.thumbUrl ? (
-                  <SafeImage src={e.post.thumbUrl} alt={e.post.body.slice(0, 60) || "Konkurs ishi"} className="absolute inset-0 h-full w-full object-cover" />
+                  <SafeImage optimize={400} src={e.post.thumbUrl} alt={e.post.body.slice(0, 60) || "Konkurs ishi"} className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
                   <span className="flex h-full items-center justify-center p-3 text-center text-[12.5px] text-fg-3">{e.post.body.slice(0, 80) || "Post"}</span>
                 )}
@@ -173,7 +173,7 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
               <li key={p.id}>
                 <button onClick={() => void join(p.id)} disabled={joinBusy !== null} className="group relative block aspect-square w-full overflow-hidden rounded-[10px] bg-surface-3 ring-accent transition focus-visible:ring-2 disabled:opacity-60">
                   {p.thumbUrl ? (
-                    <SafeImage src={p.thumbUrl} alt={p.body.slice(0, 40) || "Post"} className="absolute inset-0 h-full w-full object-cover" />
+                    <SafeImage optimize={400} src={p.thumbUrl} alt={p.body.slice(0, 40) || "Post"} className="absolute inset-0 h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full items-center justify-center p-2 text-center text-[11.5px] text-fg-3">{p.body.slice(0, 50)}</span>
                   )}

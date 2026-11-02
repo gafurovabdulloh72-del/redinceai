@@ -210,7 +210,7 @@ export function PollBlock({ postId, poll: initial, canInteract, requireLogin }: 
 /* Rasm: so'nib kirish + lightbox                                       */
 /* ------------------------------------------------------------------ */
 /** Rasm yuklanganda so'nib kiradi; SSR'dan keyin allaqachon yuklangan bo'lsa darhol ko'rinadi */
-export function FadeImage({ src, alt, className, width, height }: { src: string; alt: string; className?: string; width: number; height: number }) {
+export function FadeImage({ src, alt, className, width, height, optimize }: { src: string; alt: string; className?: string; width: number; height: number; /** Kamchilik #81: ekran kengligi (px) — /_next/image resize */ optimize?: number }) {
   const wrap = useRef<HTMLSpanElement>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -219,7 +219,7 @@ export function FadeImage({ src, alt, className, width, height }: { src: string;
   }, [src]);
   return (
     <span ref={wrap} className="block h-full w-full" data-loaded={loaded}>
-      <SafeImage src={src} alt={alt} width={width} height={height} onLoad={() => setLoaded(true)} className={cn("transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0", className)} />
+      <SafeImage src={src} alt={alt} width={width} height={height} optimize={optimize} onLoad={() => setLoaded(true)} className={cn("transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0", className)} />
     </span>
   );
 }
@@ -635,7 +635,7 @@ export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachm
               aria-label={FEED.openImage[til](images.indexOf(a) + 1, images.length)}
               className={cn("img-zoom block w-full overflow-hidden bg-surface-2 text-left focus-visible:outline-2 focus-visible:outline-accent", !single && "aspect-[4/3]", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")}
             >
-              <FadeImage src={a.url} alt={a.name || alt} width={960} height={720} className={cn("w-full object-cover", single ? "h-auto max-h-[560px]" : "h-full")} />
+              <FadeImage src={a.url} alt={a.name || alt} width={960} height={720} optimize={single ? 640 : 480} className={cn("w-full object-cover", single ? "h-auto max-h-[560px]" : "h-full")} />
             </button>
           ),
         )}

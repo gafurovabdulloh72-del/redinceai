@@ -16,6 +16,7 @@ import { haptic } from "@/components/motion/haptics";
 import { DM_BODY_MAX, DM_DELETED_TEXT, DM_EDIT_WINDOW_MS, DM_SEARCH_MIN, type ReactionSummary } from "@/lib/chat/constants";
 import type { QuoteView } from "@/lib/chat/quote";
 import { clock, dayKey, dayLabel, fullStamp, listStamp, relativeTime } from "@/lib/chat/time";
+import { optimizedImg } from "@/lib/img";
 import { cn } from "@/lib/utils";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, uploadAttachment, withRetryAfter, type Attachment } from "./attachments";
 import { CallBubble } from "@/components/call/CallBubble";
@@ -1357,7 +1358,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
                       <span className={cn("relative shrink-0 overflow-hidden !rounded-full", g.coverUrl ? "grid place-items-center" : "glass-ic glass-ic-ink", isPhone ? "h-[52px] w-[52px]" : "h-10 w-10")}>
                         {g.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
+                          <img src={optimizedImg(g.coverUrl, 52).src} srcSet={optimizedImg(g.coverUrl, 52).srcSet} alt="" className="h-full w-full object-cover" />
                         ) : g.kind === "channel" ? (
                           <Megaphone size={isPhone ? 20 : 16} aria-hidden />
                         ) : (
@@ -1979,7 +1980,7 @@ export function DmChat({ initialId, viewerRole, notice }: { initialId?: string |
         <span className={cn("relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden !rounded-full", !activeGroup.coverUrl && "glass-ic glass-ic-ink")}>
           {activeGroup.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={activeGroup.coverUrl} alt="" className="h-full w-full object-cover" />
+            <img src={optimizedImg(activeGroup.coverUrl, 36).src} srcSet={optimizedImg(activeGroup.coverUrl, 36).srcSet} alt="" className="h-full w-full object-cover" />
           ) : activeGroup.kind === "channel" ? (
             <Megaphone size={15} aria-hidden />
           ) : (

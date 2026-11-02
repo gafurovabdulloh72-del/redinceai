@@ -75,8 +75,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "i.ytimg.com" },
+      // Yuklamalar (prod) — Vercel Blob public store (kamchilik #81: lib/img.ts REMOTE_OK bilan sinxron)
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
       ...r2RemotePatterns(),
     ],
+    // Yuklama fayl nomlari noyob (o'zgarmaydi) — optimizator keshi uzoq tursin (Vercel transform xarajati kamayadi)
+    minimumCacheTTL: 2_678_400,
   },
   async headers() {
     return [
