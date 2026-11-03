@@ -7,6 +7,9 @@ import { Avatar, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import type { BlockedUserRow } from "@/lib/privacy/blocks";
 import { formatDate } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { BLOK } from "@/lib/i18n/dict/kabinet-forms";
 
 type ApiResp = { ok: boolean; error?: string };
 
@@ -16,6 +19,7 @@ const SEARCH_FROM = 5;
 /** Kabinet → Xavfsizlik → Bloklanganlar: ro'yxat (qidiruv bilan) + blokdan chiqarish */
 export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
   const { toast } = useToast();
+  const til = useLocale();
   const [rows, setRows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -32,11 +36,11 @@ export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
     try {
       const res = await fetch(`/api/blocks/${encodeURIComponent(u.id)}`, { method: "DELETE" });
       const j = (await res.json()) as ApiResp;
-      if (!res.ok || !j.ok) throw new Error(j.error || "Bo'lmadi");
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, BLOK.failed));
       setRows((r) => r.filter((x) => x.id !== u.id));
-      toast(`${u.name} blokdan chiqarildi`);
+      toast(BLOK.unblocked[til](u.name));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Bo'lmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, BLOK.failed), "error");
     } finally {
       setBusy(null);
     }
@@ -45,15 +49,15 @@ export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
   return (
     <section id="bloklanganlar" className="card m-flat scroll-mt-28 p-5 sm:p-6" aria-labelledby="sec-blocked">
       <h2 id="sec-blocked" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-        Bloklanganlar {rows.length > 0 && <span className="text-fg-3">· {rows.length}</span>}
+        {tr(til, BLOK.title)} {rows.length > 0 && <span className="text-fg-3">· {rows.length}</span>}
       </h2>
-      <p className="mt-1 text-[13px] leading-relaxed text-fg-2">Bloklangan odam sizga yoza olmaydi, obuna bo&apos;lmaydi, izoh va reaksiya qo&apos;ya olmaydi.</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-fg-2">{tr(til, BLOK.desc)}</p>
       {rows.length === 0 ? (
         <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-fg/4 px-4 py-3 text-[13px] text-fg-3">
           <ShieldCheck size={15} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
           {/* Matn bitta span ichida — ikonka alohida flex ustun bo'lib chiqib ketmasin */}
           <span>
-            Hali hech kim bloklanmagan. Bloklash — profil yoki chat sarlavhasidagi <Ban size={12} className="inline align-[-2px]" aria-label="blok" /> tugmasi.
+            {tr(til, BLOK.emptyStart)} <Ban size={12} className="inline align-[-2px]" aria-label={tr(til, BLOK.blockAria)} /> {tr(til, BLOK.emptyEnd)}
           </span>
         </p>
       ) : (
@@ -61,12 +65,12 @@ export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
           {rows.length > SEARCH_FROM && (
             <div className="relative mt-4">
               <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
-              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} className="field !h-10 pl-9" placeholder="Ism yoki @taxallus bo'yicha qidirish" aria-label="Bloklanganlar orasida qidirish" />
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} className="field !h-10 pl-9" placeholder={tr(til, BLOK.searchPh)} aria-label={tr(til, BLOK.searchAria)} />
             </div>
           )}
           {shown.length === 0 ? (
             <p className="mt-3 px-1 text-[13px] text-fg-3" role="status">
-              «{q.trim()}» bo&apos;yicha hech kim topilmadi.
+              {BLOK.notFound[til](q.trim())}
             </p>
           ) : (
             <ul className="list-inset mt-4" aria-live="polite">
@@ -86,8 +90,8 @@ export function BlockedList({ initial }: { initial: BlockedUserRow[] }) {
                       {formatDate(u.blockedAt)}
                     </span>
                   </span>
-                  <Button size="sm" variant="outline" className="!h-9 shrink-0" onClick={() => void unblock(u)} disabled={busy === u.id} aria-label={`${u.name} — blokdan chiqarish`}>
-                    Blokdan chiqarish
+                  <Button size="sm" variant="outline" className="!h-9 shrink-0" onClick={() => void unblock(u)} disabled={busy === u.id} aria-label={BLOK.unblockAria[til](u.name)}>
+                    {tr(til, BLOK.unblock)}
                   </Button>
                 </li>
               ))}

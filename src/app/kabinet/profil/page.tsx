@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { PROFIL_SAHIFA as PS } from "@/lib/i18n/dict/kabinet-forms";
 import { redirect } from "next/navigation";
 import { PartyPopper } from "lucide-react";
 import { AccountForm } from "@/components/kabinet/AccountForm";
@@ -26,6 +27,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/profil"));
+  const til = await getLocale();
 
   const s = user.specialist;
   const visibility = s ? resolveVisibility(s.visibility) : null;
@@ -88,13 +90,13 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
               <PartyPopper size={18} />
             </span>
             <div>
-              <p className="font-display text-[18px] font-semibold leading-tight text-fg">Xush kelibsiz, {firstName}!</p>
+              <p className="font-display text-[18px] font-semibold leading-tight text-fg">{PS.welcome[til](firstName)}</p>
               <p className="mt-1 text-[14px] leading-snug text-fg-2">
                 {user.role === "specialist" && !s
-                  ? "Quyida mutaxassis profilingizni to'ldiring — shunda mijozlar sizni xaritadan topadi."
+                  ? tr(til, PS.welcomeSpecialist)
                   : user.role === "client"
-                    ? "Akkaunt ma'lumotlarini tekshiring. Mutaxassis topish uchun xaritaga o'ting yoki o'zingiz profil oching."
-                    : "Akkaunt ma'lumotlaringizni tekshirib chiqing."}
+                    ? tr(til, PS.welcomeClient)
+                    : tr(til, PS.welcomeOther)}
               </p>
             </div>
           </div>
@@ -103,26 +105,26 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
 
       {/* Sarlavha */}
       <div className="mb-5 sm:mb-6">
-        <span className="eyebrow">Kabinet</span>
+        <span className="eyebrow">{tr(til, PS.eyebrow)}</span>
         <h1 className="display-xl mt-4 text-fg">
-          Profil va <span className="accent-serif">maxfiylik</span>
+          {tr(til, PS.titleStart)} <span className="accent-serif">{tr(til, PS.titleAccent)}</span>
         </h1>
         <p className="mt-2 max-w-xl text-[14px] text-fg-2">
-          {s ? "Akkaunt, mutaxassis profili, ko'rinish va ish vaqti." : user.role === "specialist" ? "Avval akkaunt, keyin mutaxassis profilini to'ldiring." : "Akkaunt ma'lumotlari. Xohlasangiz, mutaxassis profilini ham ochasiz."}
+          {s ? tr(til, PS.descEdit) : user.role === "specialist" ? tr(til, PS.descSpecialist) : tr(til, PS.descClient)}
         </p>
       </div>
 
       {/* Bo'limlar: telefonda tablar (faqat tanlangani chiziladi), sm+ da chiplar + hammasi ustma-ust */}
       <ProfilePanels
         panels={[
-          { key: "akkaunt", label: "Akkaunt", icon: "user", node: <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} /> },
-          ...(telegramEnabled ? [{ key: "telegram", label: "Telegram", icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} botLink={telegramBotUsername() ? `https://t.me/${telegramBotUsername()}` : null} /> }] : []),
-          { key: "mutaxassis", label: s ? "Mutaxassis profili" : "Mutaxassis bo'lish", icon: "briefcase", node: <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} /> },
+          { key: "akkaunt", label: tr(til, PS.tabAccount), icon: "user", node: <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} /> },
+          ...(telegramEnabled ? [{ key: "telegram", label: tr(til, PS.tabTelegram), icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} botLink={telegramBotUsername() ? `https://t.me/${telegramBotUsername()}` : null} /> }] : []),
+          { key: "mutaxassis", label: tr(til, s ? PS.tabSpecialist : PS.tabBecome), icon: "briefcase", node: <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} /> },
           ...(s
             ? [
                 {
                   key: "maxfiylik",
-                  label: "Maxfiylik",
+                  label: tr(til, PS.tabPrivacy),
                   icon: "shield" as const,
                   node: (
                     <PrivacySettings
@@ -142,7 +144,7 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
                     />
                   ),
                 },
-                { key: "ish-vaqti", label: "Ish vaqti", icon: "clock" as const, node: <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} blockedDates={s.blockedDates ?? []} /> },
+                { key: "ish-vaqti", label: tr(til, PS.tabSchedule), icon: "clock" as const, node: <ScheduleEditor initial={s.schedule ?? null} vacationUntil={s.vacationUntil ?? null} blockedDates={s.blockedDates ?? []} /> },
               ]
             : []),
         ]}

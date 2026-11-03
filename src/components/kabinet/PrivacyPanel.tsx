@@ -4,6 +4,9 @@ import { useRef, useState } from "react";
 import { Eye, EyeOff, MessageCircle, MessagesSquare, PauseCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Tr } from "@/lib/i18n";
+import { MAXFIYLIK as M } from "@/lib/i18n/dict/kabinet-forms";
 
 export interface PrivacySettings {
   dmPolicy: "all" | "following" | "none";
@@ -12,15 +15,15 @@ export interface PrivacySettings {
 }
 type ApiResp = { ok: boolean; data?: PrivacySettings; error?: string; fields?: Record<string, string> };
 
-const DM_OPTIONS: Array<{ value: PrivacySettings["dmPolicy"]; label: string; hint: string }> = [
-  { value: "all", label: "Hamma", hint: "Istalgan foydalanuvchi sizga yoza oladi" },
-  { value: "following", label: "Obunalarim", hint: "Faqat siz obuna bo'lgan odamlar yangi suhbat ocha oladi" },
-  { value: "none", label: "Hech kim", hint: "Yangi suhbatlar yopiq — mavjud suhbatlar davom etadi" },
+const DM_OPTIONS: Array<{ value: PrivacySettings["dmPolicy"]; label: Tr; hint: Tr }> = [
+  { value: "all", label: M.dmAll, hint: M.dmAllHint },
+  { value: "following", label: M.dmFollowing, hint: M.dmFollowingHint },
+  { value: "none", label: M.dmNone, hint: M.dmNoneHint },
 ];
-const COMMENT_OPTIONS: Array<{ value: PrivacySettings["commentPolicy"]; label: string; hint: string }> = [
-  { value: "all", label: "Hamma", hint: "Kirgan har bir foydalanuvchi postlaringizga izoh yoza oladi" },
-  { value: "followers", label: "Obunachilarim", hint: "Faqat sizga obuna bo'lganlar" },
-  { value: "none", label: "Hech kim", hint: "Izohlar yopiq (reaksiyalar qoladi)" },
+const COMMENT_OPTIONS: Array<{ value: PrivacySettings["commentPolicy"]; label: Tr; hint: Tr }> = [
+  { value: "all", label: M.cAll, hint: M.cAllHint },
+  { value: "followers", label: M.cFollowers, hint: M.cFollowersHint },
+  { value: "none", label: M.cNone, hint: M.cNoneHint },
 ];
 
 /** Yorliq + izoh + o'ngda switch — AccountForm'dagi «Email bildirishnomalar» qatori bilan bir xil naqsh */
@@ -47,6 +50,7 @@ function SwitchRow({ id, icon: Icon, title, hint, checked, onChange, disabled }:
  */
 export function PrivacyPanel({ initial, paused: initialPaused = false, canPause = false }: { initial: PrivacySettings; paused?: boolean; canPause?: boolean }) {
   const { toast } = useToast();
+  const til = useLocale();
   const [v, setV] = useState<PrivacySettings>(initial);
   const [paused, setPaused] = useState(initialPaused);
   const [saving, setSaving] = useState(false);
@@ -60,11 +64,11 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
     try {
       const res = await fetch("/api/account/privacy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
       const j = (await res.json()) as ApiResp;
-      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Saqlanmadi");
-      if (my === seq.current) toast("Maxfiylik saqlandi");
+      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, M.notSaved));
+      if (my === seq.current) toast(tr(til, M.saved));
     } catch (e) {
       setV(prev);
-      toast(e instanceof Error ? e.message : "Saqlanmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, M.notSaved), "error");
     } finally {
       if (my === seq.current) setSaving(false);
     }
@@ -78,17 +82,17 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
     try {
       const res = await fetch("/api/account/pause", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused: next }) });
       const j = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !j.ok) throw new Error(j.error || "Saqlanmadi");
-      toast(next ? "Hisob pauzaga qo'yildi — profil katalogda ko'rinmaydi" : "Hisob qayta faollashtirildi");
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, M.notSaved));
+      toast(tr(til, next ? M.pausedOn : M.pausedOff));
     } catch (e) {
       setPaused(prev);
-      toast(e instanceof Error ? e.message : "Saqlanmadi", "error");
+      toast(e instanceof Error ? e.message : tr(til, M.notSaved), "error");
     } finally {
       if (my === seq.current) setSaving(false);
     }
   }
 
-  function Segment<T extends string>({ name, value, options, onPick, icon: Icon, title }: { name: string; value: T; options: Array<{ value: T; label: string; hint: string }>; onPick: (v: T) => void; icon: typeof MessageCircle; title: string }) {
+  function Segment<T extends string>({ name, value, options, onPick, icon: Icon, title }: { name: string; value: T; options: Array<{ value: T; label: Tr; hint: Tr }>; onPick: (v: T) => void; icon: typeof MessageCircle; title: string }) {
     const cur = options.find((o) => o.value === value);
     return (
       <div>
@@ -98,12 +102,12 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
         <div className="segment mt-2 flex w-full" role="radiogroup" aria-label={title}>
           {options.map((o) => (
             <button key={o.value} type="button" role="radio" aria-checked={value === o.value} data-active={value === o.value} name={name} onClick={() => onPick(o.value)} className="segment-item min-h-9 flex-1 text-[12.5px]">
-              {o.label}
+              {tr(til, o.label)}
             </button>
           ))}
         </div>
         <p className="mt-1.5 text-[12px] leading-snug text-fg-3" aria-live="polite">
-          {cur?.hint}
+          {cur && tr(til, cur.hint)}
         </p>
       </div>
     );
@@ -114,23 +118,23 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 id="sec-privacy" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-            Maxfiylik
+            {tr(til, M.title)}
           </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-fg-2">Kim yozadi, kim izoh qoldiradi, onlayn holat.</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-fg-2">{tr(til, M.desc)}</p>
         </div>
         <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold", saving ? "bg-fg/6 text-fg-3" : "text-fg-4")} aria-live="polite">
-          {saving ? "Saqlanmoqda…" : "Saqlangan"}
+          {tr(til, saving ? M.saving : M.savedState)}
         </span>
       </div>
       <div className="mt-5 grid gap-5">
-        <Segment name="dm" title="Kim menga yozishi mumkin" icon={MessageCircle} value={v.dmPolicy} options={DM_OPTIONS} onPick={(dmPolicy) => void save({ ...v, dmPolicy })} />
-        <Segment name="comment" title="Kim postlarimga izoh yozadi" icon={MessagesSquare} value={v.commentPolicy} options={COMMENT_OPTIONS} onPick={(commentPolicy) => void save({ ...v, commentPolicy })} />
+        <Segment name="dm" title={tr(til, M.dmTitle)} icon={MessageCircle} value={v.dmPolicy} options={DM_OPTIONS} onPick={(dmPolicy) => void save({ ...v, dmPolicy })} />
+        <Segment name="comment" title={tr(til, M.commentTitle)} icon={MessagesSquare} value={v.commentPolicy} options={COMMENT_OPTIONS} onPick={(commentPolicy) => void save({ ...v, commentPolicy })} />
         <div className="divide-y divide-line border-t border-line">
           <SwitchRow
             id="pp-online"
             icon={v.showOnline ? Eye : EyeOff}
-            title="Onlayn holatimni ko'rsatish"
-            hint={v.showOnline ? "Yashil nuqta va «oxirgi faollik» suhbatdoshlarga ko'rinadi" : "Hech kim onlaynligingizni va oxirgi faolligingizni ko'rmaydi"}
+            title={tr(til, M.online)}
+            hint={tr(til, v.showOnline ? M.onlineOn : M.onlineOff)}
             checked={v.showOnline}
             onChange={() => void save({ ...v, showOnline: !v.showOnline })}
           />
@@ -138,8 +142,8 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
             <SwitchRow
               id="pp-pause"
               icon={PauseCircle}
-              title="Hisobni pauza qilish"
-              hint={paused ? "Profil katalog, xarita va qidiruvda ko'rinmaydi. Havola, mavjud buyurtmalar va chat ishlaydi" : "Ta'til yoki bandlikda profilni vaqtincha katalogdan yashiring — hech narsa o'chmaydi"}
+              title={tr(til, M.pause)}
+              hint={tr(til, paused ? M.pauseOn : M.pauseOff)}
               checked={paused}
               onChange={() => void savePause(!paused)}
             />
@@ -147,7 +151,7 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
         </div>
       </div>
       <p className="mt-4 flex items-start gap-2 text-[12px] leading-relaxed text-fg-3">
-        <ShieldCheck size={13} className="mt-0.5 shrink-0 text-success" aria-hidden="true" /> Kontaktlaringiz (telefon, Telegram, email) bu sozlamalardan qat&apos;i nazar faqat buyurtma qabul qilingach ko&apos;rinadi. Bloklanganlar hech qachon yoza olmaydi.
+        <ShieldCheck size={13} className="mt-0.5 shrink-0 text-success" aria-hidden="true" /> {tr(til, M.footer)}
       </p>
     </section>
   );

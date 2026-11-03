@@ -7,10 +7,13 @@ import { AlertCircle, AtSign, BellRing, Camera, Check, CheckCircle2, Copy, KeyRo
 import { Avatar, Badge, Button, Spinner } from "@/components/ui";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
-import { LEVEL_HINT, VisibilityChip } from "@/components/kabinet/VisibilityChip";
+import { levelHint, VisibilityChip } from "@/components/kabinet/VisibilityChip";
 import { GENDERS } from "@/lib/constants";
 import type { ResolvedVisibility } from "@/lib/privacy";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { AKKAUNT as A, FORMA, genderOptionLabel } from "@/lib/i18n/dict/kabinet-forms";
 
 export type Gender = "male" | "female" | null;
 
@@ -55,6 +58,7 @@ type UsernameCheck = { status: "idle" | "checking" | "ok" | "taken" | "invalid";
 
 export function AccountForm({ initial, visibility = null }: { initial: AccountInitial; visibility?: ResolvedVisibility | null }) {
   const router = useRouter();
+  const til = useLocale();
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
@@ -142,7 +146,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
       }
       setAvatarUrl(json.data.url);
     } catch {
-      setError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");
+      setError(tr(til, FORMA.imageUploadFailed));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -156,11 +160,11 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
     setErrors({});
     // Emailni o'zgartirish — joriy parol bilan (server ham tekshiradi)
     if (emailDiff && !currentPassword) {
-      setErrors({ currentPassword: "Emailni o'zgartirish uchun joriy parolni kiriting" });
+      setErrors({ currentPassword: tr(til, A.currentPasswordRequired) });
       return;
     }
     if (uCheck.status === "taken" || uCheck.status === "invalid") {
-      setErrors({ username: uCheck.reason ?? "Taxallusni tekshiring" });
+      setErrors({ username: uCheck.reason ?? tr(til, A.usernameCheck) });
       return;
     }
     setBusy(true);
@@ -189,7 +193,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
       setSaved(true);
       router.refresh();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkError));
     } finally {
       setBusy(false);
     }
@@ -199,18 +203,18 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
   const usernameHint =
     uCheck.status === "checking" ? (
       <span className="inline-flex items-center gap-1.5 text-fg-3">
-        <Spinner className="!h-3 !w-3" /> Tekshirilmoqda…
+        <Spinner className="!h-3 !w-3" /> {tr(til, A.usernameChecking)}
       </span>
     ) : uCheck.status === "ok" ? (
       <span className="inline-flex items-center gap-1 font-semibold text-success-text">
-        <Check size={13} /> Bo&apos;sh — olishingiz mumkin
+        <Check size={13} /> {tr(til, A.usernameFree)}
       </span>
     ) : uCheck.status === "taken" || uCheck.status === "invalid" ? (
       <span className="inline-flex items-center gap-1 font-medium text-danger-text">
         <X size={13} /> {uCheck.reason}
       </span>
     ) : (
-      "3–20 belgi: kichik lotin harflari, raqam va chiziqcha. Bu — chat havolangiz manzili."
+      tr(til, A.usernameHint)
     );
 
   return (
@@ -220,8 +224,8 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
           <UserRound size={18} />
         </span>
         <div>
-          <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Akkaunt</h2>
-          <p className="mt-0.5 text-[13px] text-fg-3">Ism, email, telefon, jins va avatar.</p>
+          <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">{tr(til, A.title)}</h2>
+          <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, A.subtitle)}</p>
         </div>
       </div>
 
@@ -238,28 +242,28 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              <Camera size={14} /> {avatarUrl ? "Rasmni almashtirish" : "Rasm yuklash"}
+              <Camera size={14} /> {tr(til, avatarUrl ? A.replacePhoto : A.uploadPhoto)}
             </Button>
             {avatarUrl && (
               <Button type="button" variant="ghost" size="sm" onClick={() => setAvatarUrl("")} disabled={uploading} className="text-danger-text hover:bg-danger-soft hover:text-danger-text">
-                <Trash2 size={14} /> O&apos;chirish
+                <Trash2 size={14} /> {tr(til, FORMA.delete)}
               </Button>
             )}
             {avatarRemoved && (
               <Button type="button" variant="ghost" size="sm" onClick={() => setAvatarUrl(initial.avatarUrl)} disabled={uploading}>
-                <Undo2 size={14} /> Qaytarish
+                <Undo2 size={14} /> {tr(til, FORMA.undo)}
               </Button>
             )}
           </div>
           <p className="mt-2 text-[12px] text-fg-4" aria-live="polite">
-            {avatarRemoved ? "Rasm «Saqlash» bosilgach o'chiriladi." : "JPG, PNG, WEBP yoki GIF · 5 MB gacha. Yuklashdan oldin surish va kattalashtirish mumkin."}
+            {tr(til, avatarRemoved ? A.photoRemovedHint : A.photoHint)}
           </p>
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
             className="sr-only"
-            aria-label="Avatar rasmini yuklash"
+            aria-label={tr(til, A.uploadAvatarAria)}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) setCropFile(f);
@@ -273,7 +277,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
           file={cropFile}
           aspect={1}
           outWidth={512}
-          title="Avatarni moslang"
+          title={tr(til, A.cropAvatar)}
           onCancel={() => setCropFile(null)}
           onDone={(f) => {
             setCropFile(null);
@@ -286,7 +290,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="acc-name" className="field-label">
-            Ism-familiya
+            {tr(til, A.name)}
           </label>
           <input
             id="acc-name"
@@ -295,7 +299,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
             autoComplete="name"
-            placeholder="Masalan: Jasur Karimov"
+            placeholder={tr(til, A.namePh)}
             aria-invalid={Boolean(errors.name)}
             aria-describedby={errors.name ? "acc-name-error" : undefined}
           />
@@ -308,7 +312,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <label htmlFor="acc-phone" className="field-label !mb-0">
-              Telefon <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+              {tr(til, A.phone)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
             </label>
             {visibility && <VisibilityChip level={visibility.phone} />}
           </div>
@@ -331,7 +335,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             </p>
           ) : (
             <p id="acc-phone-hint" className="mt-1 text-[12px] text-fg-4">
-              {visibility ? LEVEL_HINT[visibility.phone] : "Standart: faqat ro'yxatdan o'tganlarga ko'rinadi."}
+              {visibility ? levelHint(til, visibility.phone) : tr(til, A.phoneDefaultHint)}
             </p>
           )}
         </div>
@@ -339,7 +343,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         {/* Chat taxallusi va shaxsiy chat havolasi */}
         <div>
           <label htmlFor="acc-username" className="field-label">
-            Chat taxallusi
+            {tr(til, A.username)}
           </label>
           <div className="relative">
             <AtSign size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" aria-hidden="true" />
@@ -351,7 +355,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
               maxLength={21}
               autoComplete="off"
               spellCheck={false}
-              placeholder="masalan: jasur-karimov"
+              placeholder={tr(til, A.usernamePh)}
               aria-invalid={Boolean(errors.username) || uCheck.status === "taken" || uCheck.status === "invalid"}
               aria-describedby="acc-username-hint"
             />
@@ -384,7 +388,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
                 }}
                 className="press inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
               >
-                <Copy size={13} /> {copied ? "Nusxalandi ✓" : "Nusxalash"}
+                <Copy size={13} /> {tr(til, copied ? A.copiedCheck : FORMA.copy)}
               </button>
             </div>
           )}
@@ -394,7 +398,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="field-label !mb-0" id="acc-gender-label">
-              Jins <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+              {tr(til, A.gender)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
             </span>
             {visibility && <VisibilityChip level={visibility.gender} />}
           </div>
@@ -413,28 +417,28 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
                   className="segment-item inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 sm:flex-none"
                 >
                   {Icon && <Icon size={13} />}
-                  {g.label}
+                  {genderOptionLabel(til, g.value, g.label)}
                 </button>
               );
             })}
           </div>
-          {errors.gender ? <p className="field-error">{errors.gender}</p> : <p className="mt-1.5 text-[12px] text-fg-4">Mijozlar ro&apos;yxatda jins bo&apos;yicha saralashi mumkin.</p>}
+          {errors.gender ? <p className="field-error">{errors.gender}</p> : <p className="mt-1.5 text-[12px] text-fg-4">{tr(til, A.genderHint)}</p>}
         </div>
 
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <label htmlFor="acc-email" className="field-label !mb-0">
-              Email
+              {tr(til, A.email)}
             </label>
             {emailChanged || initial.emailVerified === false ? (
-              <Link href="/kabinet/xavfsizlik" className="inline-flex min-h-8 items-center" title="Xavfsizlik bo'limida tasdiqlang">
+              <Link href="/kabinet/xavfsizlik" className="inline-flex min-h-8 items-center" title={tr(til, A.verifyInSecurity)}>
                 <Badge tone="warning">
-                  <AlertCircle size={12} /> Tasdiqlanmagan
+                  <AlertCircle size={12} /> {tr(til, A.unverified)}
                 </Badge>
               </Link>
             ) : initial.emailVerified ? (
               <Badge tone="success">
-                <ShieldCheck size={12} /> Tasdiqlangan
+                <ShieldCheck size={12} /> {tr(til, A.verified)}
               </Badge>
             ) : null}
           </div>
@@ -462,7 +466,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
             </p>
           ) : (
             <p id="acc-email-hint" className="mt-1 text-[12px] text-fg-4">
-              {emailDiff ? "Yangi email qayta tasdiqlanadi, eski manzilga ogohlantirish yuboriladi." : "Email kirish uchun ishlatiladi."}
+              {tr(til, emailDiff ? A.emailChangedHint : A.emailHint)}
             </p>
           )}
         </div>
@@ -470,7 +474,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         {emailDiff && (
           <div className="expand-in sm:col-start-2">
             <label htmlFor="acc-current-password" className="field-label">
-              Joriy parol
+              {tr(til, A.currentPassword)}
             </label>
             <div className="relative">
               <KeyRound size={15} className="pointer-events-none absolute inset-y-0 left-4 my-auto text-fg-4" aria-hidden="true" />
@@ -491,7 +495,7 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
                 {errors.currentPassword}
               </p>
             ) : (
-              <p className="mt-1 text-[12px] text-fg-4">Emailni o&apos;zgartirish uchun parolingizni kiriting.</p>
+              <p className="mt-1 text-[12px] text-fg-4">{tr(til, A.currentPasswordHint)}</p>
             )}
           </div>
         )}
@@ -501,9 +505,9 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         <div role="status" className="card-outline mt-6 flex items-start gap-3 !rounded-[14px] px-4 py-3">
           <MailWarning size={18} className="mt-0.5 shrink-0 text-fg-2" aria-hidden="true" />
           <p className="min-w-0 text-[13px] leading-relaxed text-fg-2">
-            Email yangilandi. Yangi manzilni tasdiqlang —{" "}
+            {tr(til, A.emailUpdated)}{" "}
             <Link href="/kabinet/xavfsizlik" className="font-semibold text-fg underline underline-offset-2">
-              Xavfsizlik bo&apos;limida kod oling
+              {tr(til, A.getCodeInSecurity)}
             </Link>
             .
           </p>
@@ -516,12 +520,12 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
           <BellRing size={18} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
           <div className="min-w-0">
             <p id="acc-notify-label" className="text-[14px] font-semibold text-fg">
-              Email bildirishnomalar
+              {tr(til, A.notifyEmail)}
             </p>
             <p id="acc-notify-hint" className="text-[12px] text-fg-3">
-              {notifyEmail ? "Muhim hodisalar emailga ham keladi." : "Faqat saytdagi qo'ng'iroqda. Xavfsizlik xatlari baribir yuboriladi."}{" "}
+              {tr(til, notifyEmail ? A.notifyOn : A.notifyOff)}{" "}
               <Link href="/kabinet/bildirishnomalar" className="font-semibold text-fg-2 underline underline-offset-2 hover:text-fg">
-                Turlar bo&apos;yicha sozlash
+                {tr(til, A.notifyByType)}
               </Link>
             </p>
           </div>
@@ -539,16 +543,16 @@ export function AccountForm({ initial, visibility = null }: { initial: AccountIn
         <div className="text-[13px]" aria-live="polite">
           {saved ? (
             <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
-              <CheckCircle2 size={15} /> Saqlandi
+              <CheckCircle2 size={15} /> {tr(til, FORMA.saved)}
             </span>
           ) : dirty ? (
-            <span className="text-fg-3">O&apos;zgarishlar hali saqlanmagan</span>
+            <span className="text-fg-3">{tr(til, FORMA.unsaved)}</span>
           ) : (
-            <span className="text-fg-4">Hammasi saqlangan</span>
+            <span className="text-fg-4">{tr(til, FORMA.allSaved)}</span>
           )}
         </div>
         <Button type="submit" disabled={busy || uploading || !dirty || uCheck.status === "checking"} className="sm:min-w-[160px]">
-          {busy ? <Spinner /> : "Saqlash"}
+          {busy ? <Spinner /> : tr(til, FORMA.save)}
         </Button>
       </div>
     </form>

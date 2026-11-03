@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, X, ZoomIn } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { FORMA, KESGICH } from "@/lib/i18n/dict/kabinet-forms";
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3;
@@ -33,6 +36,7 @@ export function ImageCropper({
   onDone: (file: File) => void;
   onCancel: () => void;
 }) {
+  const til = useLocale();
   const boxRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -208,7 +212,7 @@ export function ImageCropper({
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="font-display text-[16px] font-semibold text-fg">{title}</p>
-          <button type="button" onClick={requestClose} aria-label="Yopish" className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+          <button type="button" onClick={requestClose} aria-label={tr(til, FORMA.close)} className="flex h-9 w-9 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
             <X size={16} />
           </button>
         </div>
@@ -234,19 +238,19 @@ export function ImageCropper({
 
         <div className="mt-3 flex items-center gap-3">
           <ZoomIn size={15} className="shrink-0 text-fg-3" aria-hidden="true" />
-          <input type="range" min={ZOOM_MIN} max={ZOOM_MAX} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} aria-label="Kattalashtirish" aria-valuetext={`${Math.round(zoom * 100)}%`} className="h-10 w-full accent-[var(--accent)]" />
+          <input type="range" min={ZOOM_MIN} max={ZOOM_MAX} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} aria-label={tr(til, KESGICH.zoom)} aria-valuetext={`${Math.round(zoom * 100)}%`} className="h-10 w-full accent-[var(--accent)]" />
           <span className="w-11 shrink-0 text-right text-[12px] tabular-nums text-fg-3" aria-hidden="true">
             {Math.round(zoom * 100)}%
           </span>
         </div>
-        <p className="text-[12px] text-fg-4">Surib joylashtiring; slayder, g&apos;ildirak yoki ikki barmoq bilan kattalashtiring.</p>
+        <p className="text-[12px] text-fg-4">{tr(til, KESGICH.hint)}</p>
 
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
           <Button type="button" variant="outline" size="md" onClick={requestClose} disabled={busy}>
-            Bekor
+            {tr(til, FORMA.cancelShort)}
           </Button>
           <Button type="button" variant="accent" size="md" onClick={save} disabled={busy || !nat}>
-            {busy ? <Spinner /> : <Check size={15} />} Saqlash
+            {busy ? <Spinner /> : <Check size={15} />} {tr(til, FORMA.save)}
           </Button>
         </div>
       </div>

@@ -3,6 +3,9 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { HeartOff, Undo2 } from "lucide-react";
 import { Spinner } from "@/components/ui";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { FORMA, SEVIMLI_SLOT } from "@/lib/i18n/dict/kabinet-forms";
 import { getFavoritesServerSnapshot, getFavoritesSnapshot, subscribeFavorites, toggleFavorite } from "@/components/specialists/favorites-store";
 
 /**
@@ -10,6 +13,7 @@ import { getFavoritesServerSnapshot, getFavoritesSnapshot, subscribeFavorites, t
  * «Olib tashlandi · Qaytarish» ko'rinadi (sahifani yangilash shart emas). Karta (server komponent) children orqali keladi.
  */
 export function FavoriteSlot({ specialistId, name, children }: { specialistId: string; name: string; children: ReactNode }) {
+  const til = useLocale();
   const snap = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getFavoritesServerSnapshot);
   const [busy, setBusy] = useState(false);
   const removed = snap.status === "ready" && !snap.ids.has(specialistId);
@@ -32,7 +36,7 @@ export function FavoriteSlot({ specialistId, name, children }: { specialistId: s
         <HeartOff size={18} />
       </span>
       <p className="text-[14px] font-semibold text-fg">
-        {name} <span className="font-normal text-fg-3">sevimlilardan olib tashlandi</span>
+        {name} <span className="font-normal text-fg-3">{tr(til, SEVIMLI_SLOT.removed)}</span>
       </p>
       <button
         type="button"
@@ -40,7 +44,7 @@ export function FavoriteSlot({ specialistId, name, children }: { specialistId: s
         disabled={busy}
         className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4 active:scale-[0.97] disabled:opacity-60"
       >
-        {busy ? <Spinner /> : <Undo2 size={14} />} Qaytarish
+        {busy ? <Spinner /> : <Undo2 size={14} />} {tr(til, FORMA.undo)}
       </button>
     </div>
   );

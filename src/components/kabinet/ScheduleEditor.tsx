@@ -7,16 +7,19 @@ import { Button, Spinner } from "@/components/ui";
 import { useUnsavedGuard } from "@/components/kabinet/useUnsavedGuard";
 import { WEEKDAYS, type WeekdayKey } from "@/lib/constants";
 import type { Schedule } from "@/lib/db/schema";
-import { emptySchedule, isOnVacation, presetSchedule, scheduleStatus, scheduleStatusLabel, scheduleSummary, tashkentNow, toMinutes } from "@/lib/privacy";
+import { emptySchedule, isOnVacation, presetSchedule, scheduleStatus, tashkentNow, toMinutes } from "@/lib/privacy";
 import { cn, formatDate } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Locale, type Tr } from "@/lib/i18n";
+import { FORMA, JADVAL as J, OY_NOMI, calendarDayLabel, scheduleStatusLabelTr, scheduleSummaryTr, weekdayLabel, weekdayShort } from "@/lib/i18n/dict/kabinet-forms";
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
-const PRESETS = [
-  { key: "weekdays", label: "Hafta ichi 9–18" },
-  { key: "everyday", label: "Har kuni 10–20" },
-  { key: "weekend", label: "Faqat dam olish kunlari" },
-] as const;
+const PRESETS: ReadonlyArray<{ key: "weekdays" | "everyday" | "weekend"; label: Tr }> = [
+  { key: "weekdays", label: J.presetWeekdays },
+  { key: "everyday", label: J.presetEveryday },
+  { key: "weekend", label: J.presetWeekend },
+];
 
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className="switch" />;
@@ -24,7 +27,6 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 /* ---------- Band kunlar kalendari (F41) ---------- */
 const BLOCK_WINDOW_DAYS = 90;
-const MONTH_NAMES = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const isoOf = (d: Date) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 function addDaysIso(iso: string, days: number) {
@@ -36,7 +38,8 @@ function addDaysIso(iso: string, days: number) {
  * Oy to'ri: bugundan keyingi 90 kun ichidagi kunlarni bosib band/bo'sh qilish. Oy almashtirish — strelkalar.
  * Har bir kun — 40px+ tugma (aria-pressed), o'tgan va oynadan tashqari kunlar o'chirilgan.
  */
-function BlockedDatesCalendar({ today, value, onChange }: { today: string; value: string[]; onChange: (next: string[]) => void }) {
+function BlockedDatesCalendar({ til, today, value, onChange }: { til: Locale; today: string; value: string[]; onChange: (next: string[]) => void }) {
+  const MONTH_NAMES = OY_NOMI[til];
   const last = addDaysIso(today, BLOCK_WINDOW_DAYS - 1);
   const [ty, tm] = today.split("-").map(Number);
   const [ly, lm] = last.split("-").map(Number);
@@ -58,7 +61,7 @@ function BlockedDatesCalendar({ today, value, onChange }: { today: string; value
           type="button"
           onClick={() => setOffset((o) => Math.max(0, o - 1))}
           disabled={offset === 0}
-          aria-label="Oldingi oy"
+          aria-label={tr(til, J.prevMonth)}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-30"
         >
           <ChevronLeft size={16} />
@@ -70,17 +73,17 @@ function BlockedDatesCalendar({ today, value, onChange }: { today: string; value
           type="button"
           onClick={() => setOffset((o) => Math.min(totalMonths - 1, o + 1))}
           disabled={offset >= totalMonths - 1}
-          aria-label="Keyingi oy"
+          aria-label={tr(til, J.nextMonth)}
           className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-30"
         >
           <ChevronRight size={16} />
         </button>
       </div>
       {/* role="grid" emas: ichida gridcell'siz oddiy tugmalar bor — group + aria-label yetarli */}
-      <div className="grid grid-cols-7 gap-1 text-center" role="group" aria-label={`${MONTH_NAMES[m - 1]} ${y} — band kunlar`}>
+      <div className="grid grid-cols-7 gap-1 text-center" role="group" aria-label={J.busyDaysAria[til](`${MONTH_NAMES[m - 1]} ${y}`)}>
         {WEEKDAYS.map((d) => (
           <span key={d.key} className="pb-1 text-[11px] font-bold uppercase tracking-wide text-fg-4" aria-hidden="true">
-            {d.short}
+            {weekdayShort(til, d.key, d.short)}
           </span>
         ))}
         {cells.map((iso, i) => {
@@ -94,7 +97,7 @@ function BlockedDatesCalendar({ today, value, onChange }: { today: string; value
               type="button"
               disabled={outside}
               aria-pressed={on}
-              aria-label={`${day}-${MONTH_NAMES[m - 1].toLowerCase()}${on ? " — band" : ""}`}
+              aria-label={`${calendarDayLabel(til, day, m - 1)}${on ? tr(til, J.busySuffix) : ""}`}
               onClick={() => toggle(iso)}
               className={cn(
                 "flex h-10 items-center justify-center rounded-[10px] text-[13px] font-semibold tabular-nums transition active:scale-95",
@@ -127,6 +130,7 @@ export function ScheduleEditor({
   blockedDates?: string[];
 }) {
   const router = useRouter();
+  const til = useLocale();
   const [enabled, setEnabled] = useState(Boolean(initial));
   const [schedule, setSchedule] = useState<Schedule>(() => normalize(initial) ?? presetSchedule("weekdays"));
   const [vacation, setVacation] = useState(initialVacation ?? "");
@@ -167,7 +171,7 @@ export function ScheduleEditor({
   const status = now != null ? scheduleStatus(effective, now) : null;
   const todayKey = now != null ? tashkentNow(now).dayKey : null;
   const onVacation = now != null && isOnVacation(vacation || null, now);
-  const summary = scheduleSummary(effective);
+  const summary = scheduleSummaryTr(til, effective);
 
   const setDay = (key: WeekdayKey, patch: Partial<Schedule["days"][WeekdayKey]>) =>
     setSchedule((s) => ({ ...s, days: { ...s.days, [key]: { ...s.days[key], ...patch } } }));
@@ -177,11 +181,11 @@ export function ScheduleEditor({
     if (effective) {
       for (const d of WEEKDAYS) {
         const day = effective.days[d.key];
-        if (day.enabled && toMinutes(day.from) >= toMinutes(day.to)) out[d.key] = "Tugash vaqti boshlanishdan keyin bo'lsin";
+        if (day.enabled && toMinutes(day.from) >= toMinutes(day.to)) out[d.key] = tr(til, J.errEnd);
       }
-      if (!WEEKDAYS.some((d) => effective.days[d.key].enabled)) out._days = "Kamida bitta ish kunini yoqing yoki jadvalni o'chiring";
+      if (!WEEKDAYS.some((d) => effective.days[d.key].enabled)) out._days = tr(til, J.errDays);
     }
-    if (vacation && now != null && vacation < tashkentNow(now).date) out.vacationUntil = "Sana o'tib ketgan";
+    if (vacation && now != null && vacation < tashkentNow(now).date) out.vacationUntil = tr(til, J.errPast);
     return out;
   };
 
@@ -192,7 +196,7 @@ export function ScheduleEditor({
     const local = validate();
     setErrors(local);
     if (Object.keys(local).length) {
-      setError("Ba'zi maydonlarni tekshiring");
+      setError(tr(til, FORMA.checkFields));
       return;
     }
     setBusy(true);
@@ -216,7 +220,7 @@ export function ScheduleEditor({
       setSaved(true);
       router.refresh();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkError));
     } finally {
       setBusy(false);
     }
@@ -232,8 +236,8 @@ export function ScheduleEditor({
             <Clock3 size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Ish vaqti</h2>
-            <p className="mt-0.5 text-[13px] text-fg-3">Mijozlar sizga qachon bog'lanish mumkinligini ko'radi. Toshkent vaqti (UTC+5).</p>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">{tr(til, J.title)}</h2>
+            <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, J.desc)}</p>
           </div>
         </div>
         {status && (
@@ -245,7 +249,7 @@ export function ScheduleEditor({
             aria-live="polite"
           >
             <span className={cn("h-2 w-2 rounded-full", onVacation ? "bg-accent" : status.state === "open" ? "bg-success" : "bg-fg-4")} />
-            {onVacation ? "Ta'tilda" : scheduleStatusLabel(status)}
+            {onVacation ? tr(til, J.onVacation) : scheduleStatusLabelTr(til, status)}
           </span>
         )}
       </div>
@@ -253,17 +257,17 @@ export function ScheduleEditor({
       {/* Yoqish / o'chirish */}
       <div className="mt-6 flex items-center justify-between gap-4 rounded-[18px] bg-surface-2 px-4 py-3">
         <div>
-          <p className="text-[14px] font-semibold text-fg">Ish vaqtini ko'rsatish</p>
-          <p className="mt-0.5 text-[12px] text-fg-3">{enabled ? summary || "Kunlarni belgilang" : "Profilda ish vaqti bo'limi ko'rinmaydi"}</p>
+          <p className="text-[14px] font-semibold text-fg">{tr(til, J.showSchedule)}</p>
+          <p className="mt-0.5 text-[12px] text-fg-3">{enabled ? summary || tr(til, J.markDays) : tr(til, J.hiddenHint)}</p>
         </div>
-        <Switch checked={enabled} onChange={setEnabled} label="Ish vaqtini ko'rsatish" />
+        <Switch checked={enabled} onChange={setEnabled} label={tr(til, J.showSchedule)} />
       </div>
 
       {enabled && (
         <>
           {/* Andozalar */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[12px] font-semibold text-fg-3">Tez to'ldirish:</span>
+            <span className="mr-1 text-[12px] font-semibold text-fg-3">{tr(til, J.quickFill)}</span>
             {PRESETS.map((p) => (
               <button
                 key={p.key}
@@ -271,7 +275,7 @@ export function ScheduleEditor({
                 onClick={() => setSchedule((s) => ({ ...presetSchedule(p.key), note: s.note }))}
                 className="inline-flex min-h-8 items-center rounded-full border border-line px-3 text-[12px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg active:scale-95"
               >
-                {p.label}
+                {tr(til, p.label)}
               </button>
             ))}
             <button
@@ -279,7 +283,7 @@ export function ScheduleEditor({
               onClick={() => setSchedule((s) => ({ ...emptySchedule(), note: s.note }))}
               className="inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg"
             >
-              <X size={12} /> Tozalash
+              <X size={12} /> {tr(til, J.clear)}
             </button>
           </div>
 
@@ -289,17 +293,18 @@ export function ScheduleEditor({
               const day = schedule.days[d.key];
               const isToday = d.key === todayKey;
               const err = errors[d.key];
+              const dayLabel = weekdayLabel(til, d.key, d.label);
               return (
                 <li key={d.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-                  <Switch checked={day.enabled} onChange={(on) => setDay(d.key, { enabled: on })} label={`${d.label} — ish kuni`} />
+                  <Switch checked={day.enabled} onChange={(on) => setDay(d.key, { enabled: on })} label={J.workdayAria[til](dayLabel)} />
                   <span className={cn("w-24 text-[14px] font-semibold sm:w-32", day.enabled ? "text-fg" : "text-fg-3")}>
-                    {d.label}
-                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold uppercase text-accent-text">bugun</span>}
+                    {dayLabel}
+                    {isToday && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold uppercase text-accent-text">{tr(til, J.today)}</span>}
                   </span>
                   {day.enabled ? (
                     <div className="flex basis-full items-center gap-2 sm:ml-auto sm:basis-auto">
                       <label className="sr-only" htmlFor={`sch-${d.key}-from`}>
-                        {d.label} boshlanishi
+                        {J.startAria[til](dayLabel)}
                       </label>
                       <input
                         id={`sch-${d.key}-from`}
@@ -312,7 +317,7 @@ export function ScheduleEditor({
                       />
                       <span className="text-fg-4">–</span>
                       <label className="sr-only" htmlFor={`sch-${d.key}-to`}>
-                        {d.label} tugashi
+                        {J.endAria[til](dayLabel)}
                       </label>
                       <input
                         id={`sch-${d.key}-to`}
@@ -326,15 +331,15 @@ export function ScheduleEditor({
                       <button
                         type="button"
                         onClick={() => copyHoursToAll(d.key)}
-                        title="Shu soatlarni barcha ish kunlariga nusxalash"
-                        aria-label={`${d.label} soatlarini barcha ish kunlariga nusxalash`}
+                        title={tr(til, J.copyTitle)}
+                        aria-label={J.copyAria[til](dayLabel)}
                         className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-4 transition hover:bg-fg/6 hover:text-fg"
                       >
                         <Copy size={14} />
                       </button>
                     </div>
                   ) : (
-                    <span className="ml-auto text-[12px] text-fg-4">Dam olish kuni</span>
+                    <span className="ml-auto text-[12px] text-fg-4">{tr(til, J.dayOff)}</span>
                   )}
                   {err && <p className="field-error basis-full !mt-0">{err}</p>}
                 </li>
@@ -346,7 +351,7 @@ export function ScheduleEditor({
           {/* Izoh */}
           <div className="mt-5">
             <label htmlFor="sch-note" className="field-label">
-              Izoh <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+              {tr(til, J.note)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
             </label>
             <input
               id="sch-note"
@@ -354,7 +359,7 @@ export function ScheduleEditor({
               value={schedule.note ?? ""}
               onChange={(e) => setSchedule((s) => ({ ...s, note: e.target.value.slice(0, 200) }))}
               maxLength={200}
-              placeholder="Masalan: To'y mavsumida dam olish kunlari ham ishlayman"
+              placeholder={tr(til, J.notePh)}
             />
             <div className="mt-1 flex justify-end text-[12px] tabular-nums text-fg-4">{(schedule.note ?? "").length}/200</div>
           </div>
@@ -370,10 +375,10 @@ export function ScheduleEditor({
             </span>
             <div>
               <label htmlFor="sch-vacation" className="text-[14px] font-semibold text-fg">
-                Ta'tilda shu sanagacha
+                {tr(til, J.vacationUntil)}
               </label>
               <p className="mt-0.5 text-[12px] text-fg-3">
-                {onVacation && vacation ? `Profilda «Ta'tilda — ${formatDate(`${vacation}T00:00:00+05:00`)} gacha» banneri ko'rinadi.` : "Belgilansa, profilda ta'til banneri chiqadi; buyurtmalar navbatga qo'yiladi."}
+                {onVacation && vacation ? J.vacationBanner[til](formatDate(`${vacation}T00:00:00+05:00`)) : tr(til, J.vacationHint)}
               </p>
             </div>
           </div>
@@ -388,8 +393,8 @@ export function ScheduleEditor({
               aria-invalid={Boolean(errors.vacationUntil)}
             />
             {vacation && (
-              <button type="button" onClick={() => setVacation("")} className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg" aria-label="Ta'tilni bekor qilish">
-                <CalendarOff size={13} /> Bekor
+              <button type="button" onClick={() => setVacation("")} className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg" aria-label={tr(til, J.cancelVacationAria)}>
+                <CalendarOff size={13} /> {tr(til, J.cancelShort)}
               </button>
             )}
           </div>
@@ -405,17 +410,17 @@ export function ScheduleEditor({
               <CalendarX size={16} />
             </span>
             <div>
-              <p className="text-[14px] font-semibold text-fg">Band kunlar</p>
-              <p className="mt-0.5 text-[12px] text-fg-3">Kelgusi {BLOCK_WINDOW_DAYS} kun ichida band bo'lgan kunlarni bosing — profilda «Band kunlar» ro'yxatida ko'rinadi (ish vaqti ko'rinishiga bog'liq).</p>
+              <p className="text-[14px] font-semibold text-fg">{tr(til, J.busyDays)}</p>
+              <p className="mt-0.5 text-[12px] text-fg-3">{J.busyDesc[til](BLOCK_WINDOW_DAYS)}</p>
             </div>
           </div>
           {blocked.length > 0 && (
             <button type="button" onClick={() => setBlocked([])} className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-[12px] font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-              <X size={13} /> Tozalash ({blocked.length})
+              <X size={13} /> {J.clearCount[til](blocked.length)}
             </button>
           )}
         </div>
-        {todayDate ? <BlockedDatesCalendar today={todayDate} value={blocked} onChange={setBlocked} /> : <div className="h-[330px] skeleton" aria-hidden="true" />}
+        {todayDate ? <BlockedDatesCalendar til={til} today={todayDate} value={blocked} onChange={setBlocked} /> : <div className="h-[330px] skeleton" aria-hidden="true" />}
         {errors.blockedDates && <p className="field-error">{errors.blockedDates}</p>}
       </div>
 
@@ -429,16 +434,16 @@ export function ScheduleEditor({
         <div className="text-[13px]" aria-live="polite">
           {saved ? (
             <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
-              <CheckCircle2 size={15} /> Saqlandi
+              <CheckCircle2 size={15} /> {tr(til, FORMA.saved)}
             </span>
           ) : dirty ? (
-            <span className="text-fg-3">O'zgarishlar hali saqlanmagan</span>
+            <span className="text-fg-3">{tr(til, FORMA.unsaved)}</span>
           ) : (
-            <span className="text-fg-4">Hammasi saqlangan</span>
+            <span className="text-fg-4">{tr(til, FORMA.allSaved)}</span>
           )}
         </div>
         <Button type="submit" disabled={busy || !dirty} className="sm:min-w-[160px]">
-          {busy ? <Spinner /> : "Saqlash"}
+          {busy ? <Spinner /> : tr(til, FORMA.save)}
         </Button>
       </div>
     </form>

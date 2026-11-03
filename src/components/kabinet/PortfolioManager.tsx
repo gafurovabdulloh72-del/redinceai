@@ -6,6 +6,9 @@ import { AlertCircle, ArrowDown, ArrowUp, ArrowUpRight, Camera, CheckCircle2, Ch
 import { Button, ButtonLink, Spinner } from "@/components/ui";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { cn, hashHue, youtubeId } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr, type Locale, type Tr } from "@/lib/i18n";
+import { FORMA, PORTF as P } from "@/lib/i18n/dict/kabinet-forms";
 
 /* ------------------------------------------------------------------ */
 /* Turlar                                                              */
@@ -29,10 +32,10 @@ export interface PortfolioItemDTO {
 
 const MAX_TAGS = 5;
 
-const TYPE_META: Record<PortfolioType, { label: string; icon: LucideIcon; hint: string; placeholder: string }> = {
-  image: { label: "Rasm", icon: ImageIcon, hint: "Rasmni yuklang yoki tayyor havolani qo'ying.", placeholder: "https://…/rasm.jpg" },
-  video: { label: "Video", icon: Play, hint: "YouTube yoki Vimeo havolasi — profilda shu yerning o'zida o'ynaydi (YouTube muqovasi avtomatik).", placeholder: "https://youtube.com/watch?v=… yoki https://vimeo.com/…" },
-  link: { label: "Havola", icon: Link2, hint: "Behance, Dribbble, Instagram yoki sayt havolasi.", placeholder: "https://behance.net/…" },
+const TYPE_META: Record<PortfolioType, { label: Tr; icon: LucideIcon; hint: Tr; placeholder: Tr }> = {
+  image: { label: P.typeImage, icon: ImageIcon, hint: P.typeImageHint, placeholder: { uz: "https://…/rasm.jpg", ru: "https://…/rasm.jpg" } },
+  video: { label: P.typeVideo, icon: Play, hint: P.typeVideoHint, placeholder: P.typeVideoPh },
+  link: { label: P.typeLink, icon: Link2, hint: P.typeLinkHint, placeholder: { uz: "https://behance.net/…", ru: "https://behance.net/…" } },
 };
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
@@ -47,8 +50,8 @@ function thumbFor(item: { type: PortfolioType; url: string; thumbnailUrl: string
   return null;
 }
 
-function hostOf(url: string) {
-  if (url.startsWith("/")) return "Yuklangan rasm";
+function hostOf(til: Locale, url: string) {
+  if (url.startsWith("/")) return tr(til, P.uploadedImage);
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
@@ -93,6 +96,7 @@ function EmptyIllustration({ className }: { className?: string }) {
 /* ------------------------------------------------------------------ */
 export function PortfolioManager({ items, max = 30, publicHref }: { items: PortfolioItemDTO[]; max?: number; publicHref: string }) {
   const router = useRouter();
+  const til = useLocale();
   const [open, setOpen] = useState(items.length === 0);
   const [removed, setRemoved] = useState<string[]>([]);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -147,9 +151,9 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         setOrder(items.map((i) => i.id));
         return;
       }
-      setSuccess("Tartib saqlandi");
+      setSuccess(tr(til, P.orderSaved));
     } catch {
-      setError("Tarmoq xatosi. Tartib saqlanmadi.");
+      setError(tr(til, P.orderNotSaved));
       setOrder(items.map((i) => i.id));
     } finally {
       setSavingOrder(false);
@@ -277,12 +281,12 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         setError(json.error);
         return;
       }
-      setSuccess(`${json.data.deleted} ta ish o'chirildi`);
+      setSuccess(P.deletedN[til](json.data.deleted));
       exitSelect();
       router.refresh();
     } catch {
       setRemoved((r) => r.filter((x) => !ids.includes(x)));
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkRetry));
     } finally {
       setBulkBusy(false);
     }
@@ -303,11 +307,11 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         setError(json.error);
         return;
       }
-      setSuccess("Ish o'chirildi");
+      setSuccess(tr(til, P.deletedOne));
       router.refresh();
     } catch {
       setRemoved((r) => r.filter((x) => x !== id));
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkRetry));
     } finally {
       setDeletingId(null);
     }
@@ -320,10 +324,10 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         <div className="flex min-w-0 items-center gap-3">
           <div className="min-w-0">
             <p className="font-display text-[16px] font-semibold text-fg">
-              {visible.length} / {max} ta ish
+              {P.count[til](visible.length, max)}
             </p>
             <p className="text-[12px] text-fg-3">
-              {full ? "Limit to'ldi — yangi ish uchun eskisini o'chiring." : visible.length > 1 ? "Sudrab yoki strelkalar bilan tartiblang. Birinchi ish — muqova." : "Rasm, YouTube video yoki havola. Birinchi ish — muqova."}
+              {full ? tr(til, P.full) : visible.length > 1 ? tr(til, P.reorderHint) : tr(til, P.addHint)}
             </p>
             <div className="mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-fg/8" aria-hidden="true">
               <div className="h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${Math.min(100, (visible.length / max) * 100)}%` }} />
@@ -333,20 +337,20 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         <div className="flex flex-wrap gap-2">
           {visible.length > 1 && (
             <Button size="md" variant={selectMode ? "primary" : "outline"} onClick={() => (selectMode ? exitSelect() : setSelectMode(true))} aria-pressed={selectMode}>
-              {selectMode ? <X size={14} /> : <CheckSquare size={14} />} {selectMode ? "Bekor" : "Tanlash"}
+              {selectMode ? <X size={14} /> : <CheckSquare size={14} />} {tr(til, selectMode ? FORMA.cancelShort : P.select)}
             </Button>
           )}
           <ButtonLink href={publicHref} variant="outline" size="md">
-            Ommaviy <ArrowUpRight size={14} />
+            {tr(til, P.public)} <ArrowUpRight size={14} />
           </ButtonLink>
           <Button size="md" variant={open ? "outline" : "accent"} onClick={() => setOpen((v) => !v)} disabled={full && !open}>
             {open ? (
               <>
-                <X size={14} /> Yopish
+                <X size={14} /> {tr(til, FORMA.close)}
               </>
             ) : (
               <>
-                <Plus size={14} /> Ish qo'shish
+                <Plus size={14} /> {tr(til, P.addWork)}
               </>
             )}
           </Button>
@@ -370,31 +374,31 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
 
       {/* Tanlash rejimi paneli: tanlanganlar soni + ommaviy o'chirish (inline tasdiq) */}
       {selectMode && (
-        <div className="expand-in card flex flex-wrap items-center justify-between gap-3 p-3 sm:px-4" role="region" aria-label="Tanlangan ishlar">
+        <div className="expand-in card flex flex-wrap items-center justify-between gap-3 p-3 sm:px-4" role="region" aria-label={tr(til, P.selectedRegion)}>
           <div className="flex items-center gap-2 text-[13px]">
-            <span className="font-semibold text-fg tabular-nums">{selected.size} ta tanlandi</span>
+            <span className="font-semibold text-fg tabular-nums">{P.selectedCount[til](selected.size)}</span>
             <button type="button" onClick={() => setSelected(new Set(visible.map((i) => i.id)))} className="press rounded-full px-2.5 py-1 font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg">
-              Hammasi
+              {tr(til, P.all)}
             </button>
             {selected.size > 0 && (
               <button type="button" onClick={() => setSelected(new Set())} className="press rounded-full px-2.5 py-1 font-semibold text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-                Tozalash
+                {tr(til, P.clear)}
               </button>
             )}
           </div>
           {confirmBulk ? (
-            <div className="expand-in flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlash">
-              <span className="text-[12.5px] font-medium text-fg-2">{selected.size} ta ish o&apos;chirilsinmi?</span>
+            <div className="expand-in flex items-center gap-2" role="group" aria-label={tr(til, P.confirmDeleteAria)}>
+              <span className="text-[12.5px] font-medium text-fg-2">{P.deleteNQ[til](selected.size)}</span>
               <Button size="sm" variant="danger" className="!h-10" onClick={removeSelected} disabled={bulkBusy}>
-                {bulkBusy ? <Spinner /> : "Ha, o'chirish"}
+                {bulkBusy ? <Spinner /> : tr(til, FORMA.yes)}
               </Button>
               <Button size="sm" variant="outline" className="!h-10" onClick={() => setConfirmBulk(false)} disabled={bulkBusy} autoFocus>
-                Yo&apos;q
+                {tr(til, FORMA.no)}
               </Button>
             </div>
           ) : (
             <Button size="sm" variant="outline" className="!h-10" onClick={() => setConfirmBulk(true)} disabled={selected.size === 0}>
-              <Trash2 size={14} /> Tanlanganlarni o&apos;chirish
+              <Trash2 size={14} /> {tr(til, P.deleteSelected)}
             </Button>
           )}
         </div>
@@ -405,7 +409,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         <AddForm
           onAdded={async () => {
             await flushOrder();
-            setSuccess("Ish qo'shildi");
+            setSuccess(tr(til, P.added));
             setError(null);
             router.refresh();
           }}
@@ -418,10 +422,10 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
         !open && (
           <div className="card-outline flex flex-col items-center justify-center px-6 py-12 text-center">
             <EmptyIllustration className="mb-4 h-auto w-[180px]" />
-            <h3 className="font-display text-[17px] font-semibold text-fg">Portfolio hali bo'sh</h3>
-            <p className="mt-1.5 max-w-sm text-sm text-fg-3">Birinchi ishingizni qo'shing — mijozlar portfolioga qarab tanlaydi.</p>
+            <h3 className="font-display text-[17px] font-semibold text-fg">{tr(til, P.emptyTitle)}</h3>
+            <p className="mt-1.5 max-w-sm text-sm text-fg-3">{tr(til, P.emptyDesc)}</p>
             <Button size="md" className="mt-5" onClick={() => setOpen(true)}>
-              <Plus size={15} /> Ish qo'shish
+              <Plus size={15} /> {tr(til, P.addWork)}
             </Button>
           </div>
         )
@@ -458,7 +462,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                     type="button"
                     role="checkbox"
                     aria-checked={selected.has(item.id)}
-                    aria-label={`${item.title} — tanlash`}
+                    aria-label={P.selectAria[til](item.title)}
                     onClick={() => toggleSelect(item.id)}
                     className="absolute inset-0 z-10 flex items-start justify-end p-2.5 text-left"
                   >
@@ -471,13 +475,13 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                   {src ? <SafeImage src={src} alt={item.title} loading="lazy" fallback={fallback} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" /> : fallback}
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
                   {idx === 0 && (
-                    <span className="absolute bottom-2.5 left-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-accent-strong px-2.5 text-[11px] font-bold text-white shadow-[var(--shadow-1)]" title="Birinchi ish muqovada ko'rinadi">
-                      <Star size={11} className="fill-current" aria-hidden="true" /> Muqova
+                    <span className="absolute bottom-2.5 left-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-accent-strong px-2.5 text-[11px] font-bold text-white shadow-[var(--shadow-1)]" title={tr(til, P.coverTitle)}>
+                      <Star size={11} className="fill-current" aria-hidden="true" /> {tr(til, P.cover)}
                     </span>
                   )}
                   {item.type === "image" && item.beforeUrl && (
                     <span className="absolute bottom-2.5 right-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
-                      <ChevronsLeftRight size={11} aria-hidden="true" /> Oldin / keyin
+                      <ChevronsLeftRight size={11} aria-hidden="true" /> {tr(til, P.beforeAfter)}
                     </span>
                   )}
                   <span className="absolute left-2.5 top-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-surface px-2.5 text-[11px] font-semibold text-fg shadow-[var(--shadow-1)]">
@@ -485,16 +489,16 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                     <span className="text-fg-4" aria-hidden="true">
                       ·
                     </span>
-                    <Icon size={11} className="text-fg-3" /> {TYPE_META[item.type].label}
+                    <Icon size={11} className="text-fg-3" /> {tr(til, TYPE_META[item.type].label)}
                   </span>
                   {/* Tartib: oldinga / orqaga (44px nishonlar, chekkada o'chiq) */}
                   {visible.length > 1 && !selectMode && (
-                    <div className="absolute right-2.5 top-2.5 inline-flex h-11 overflow-hidden rounded-full bg-surface shadow-[var(--shadow-1)]" role="group" aria-label={`${item.title} — tartib`}>
+                    <div className="absolute right-2.5 top-2.5 inline-flex h-11 overflow-hidden rounded-full bg-surface shadow-[var(--shadow-1)]" role="group" aria-label={P.orderAria[til](item.title)}>
                       <button
                         type="button"
                         onKeyDown={(e) => onHandleKey(e, item.id)}
-                        aria-label={`${item.title} — sudrab tartiblash (klaviatura: ↑ ↓ Home End)`}
-                        title="Sudrab tartiblang · ↑/↓"
+                        aria-label={P.dragAria[til](item.title)}
+                        title={tr(til, P.dragTitle)}
                         className="flex h-11 w-9 cursor-grab items-center justify-center text-fg-3 transition hover:bg-fg/8 hover:text-fg active:cursor-grabbing"
                       >
                         <GripVertical size={15} />
@@ -502,7 +506,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                       <span className="my-3 w-px bg-line" aria-hidden="true" />
                       {idx > 0 && (
                         <>
-                          <button type="button" onClick={() => moveTo(item.id, 0)} aria-label={`${item.title} — muqova qilish (birinchi o'ringa)`} title="Muqova qilish" className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95">
+                          <button type="button" onClick={() => moveTo(item.id, 0)} aria-label={P.makeCoverAria[til](item.title)} title={tr(til, P.makeCover)} className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95">
                             <Star size={15} />
                           </button>
                           <span className="my-3 w-px bg-line" aria-hidden="true" />
@@ -512,8 +516,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                         type="button"
                         onClick={() => move(item.id, -1)}
                         disabled={idx === 0 || Boolean(deletingId)}
-                        aria-label={`${item.title} — oldinga ko'chirish`}
-                        title="Oldinga"
+                        aria-label={P.moveUpAria[til](item.title)}
+                        title={tr(til, P.moveUp)}
                         className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
                       >
                         <ArrowUp size={15} />
@@ -523,8 +527,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                         type="button"
                         onClick={() => move(item.id, 1)}
                         disabled={idx === visible.length - 1 || Boolean(deletingId)}
-                        aria-label={`${item.title} — orqaga ko'chirish`}
-                        title="Orqaga"
+                        aria-label={P.moveDownAria[til](item.title)}
+                        title={tr(til, P.moveDown)}
                         className="flex h-11 w-11 items-center justify-center text-fg transition hover:bg-fg/8 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
                       >
                         <ArrowDown size={15} />
@@ -541,7 +545,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                       setEdited((m) => ({ ...m, [item.id]: next }));
                       setEditingId(null);
                       setError(null);
-                      setSuccess("O'zgarishlar saqlandi");
+                      setSuccess(tr(til, P.changesSaved));
                       router.refresh();
                     }}
                   />
@@ -550,9 +554,9 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                   <p className="truncate text-[14px] font-semibold text-fg" title={item.title}>
                     {item.title}
                   </p>
-                  <p className="mt-0.5 truncate text-[12px] text-fg-3">{item.description || hostOf(item.url)}</p>
+                  <p className="mt-0.5 truncate text-[12px] text-fg-3">{item.description || hostOf(til, item.url)}</p>
                   {item.tags.length > 0 && (
-                    <ul className="mt-2 flex flex-wrap gap-1" aria-label="Teglar">
+                    <ul className="mt-2 flex flex-wrap gap-1" aria-label={tr(til, P.tagsAria)}>
                       {item.tags.map((t) => (
                         <li key={t} className="rounded-full bg-fg/6 px-2 py-0.5 text-[11px] font-medium text-fg-2">
                           #{t}
@@ -563,13 +567,13 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
 
                   {/* Amallar: "Ochish" 44px pill + o'chirish (inline tasdiq, window.confirm emas) */}
                   {confirming ? (
-                    <div className="expand-in mt-3 flex items-center gap-2" role="group" aria-label="O'chirishni tasdiqlash">
-                      <span className="min-w-0 flex-1 text-[12px] font-medium text-fg-2">O'chirilsinmi?</span>
+                    <div className="expand-in mt-3 flex items-center gap-2" role="group" aria-label={tr(til, P.confirmDeleteAria)}>
+                      <span className="min-w-0 flex-1 text-[12px] font-medium text-fg-2">{tr(til, P.deleteQ)}</span>
                       <Button size="sm" variant="danger" className="!h-10" onClick={() => remove(item.id)}>
-                        Ha, o'chirish
+                        {tr(til, FORMA.yes)}
                       </Button>
                       <Button size="sm" variant="outline" className="!h-10" onClick={() => setConfirmId(null)} autoFocus>
-                        Yo'q
+                        {tr(til, FORMA.no)}
                       </Button>
                     </div>
                   ) : (
@@ -580,8 +584,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                         rel="noreferrer noopener"
                         className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-line-2 text-[13px] font-semibold text-fg transition hover:border-fg hover:bg-fg/4 active:scale-[0.97]"
                       >
-                        Ochish <ArrowUpRight size={14} />
-                        <span className="sr-only">(yangi oynada)</span>
+                        {tr(til, P.open)} <ArrowUpRight size={14} />
+                        <span className="sr-only">{tr(til, P.newWindow)}</span>
                       </a>
                       <button
                         type="button"
@@ -590,8 +594,8 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                           setEditingId(item.id);
                         }}
                         disabled={Boolean(deletingId)}
-                        aria-label={`${item.title} — tahrirlash`}
-                        title="Tahrirlash"
+                        aria-label={P.editAria[til](item.title)}
+                        title={tr(til, P.edit)}
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:bg-fg/4 hover:text-fg active:scale-95 disabled:opacity-50"
                       >
                         <Pencil size={15} />
@@ -600,7 +604,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
                         type="button"
                         onClick={() => setConfirmId(item.id)}
                         disabled={Boolean(deletingId)}
-                        aria-label={`${item.title} — o'chirish`}
+                        aria-label={P.deleteAria[til](item.title)}
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition hover:border-danger hover:bg-danger-soft hover:text-danger-text active:scale-95 disabled:opacity-50"
                       >
                         {deletingId === item.id ? <Spinner /> : <Trash2 size={15} />}
@@ -625,6 +629,7 @@ type Editable = Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl" 
 
 /** Teglar kiritish (F61): Enter/vergul bilan qo'shish, chipni bosib olib tashlash, 5 tagacha */
 function TagInput({ id, value, onChange, error }: { id: string; value: string[]; onChange: (next: string[]) => void; error?: string }) {
+  const til = useLocale();
   const [text, setText] = useState("");
   const add = (raw: string) => {
     const v = raw.trim().replace(/^#/, "").replace(/,+$/, "").trim().slice(0, 30);
@@ -635,7 +640,7 @@ function TagInput({ id, value, onChange, error }: { id: string; value: string[];
   return (
     <div>
       <label htmlFor={id} className="field-label">
-        Teglar <span className="font-normal text-fg-4">({value.length}/{MAX_TAGS}, ixtiyoriy)</span>
+        {tr(til, P.tags)} <span className="font-normal text-fg-4">{P.tagsCount[til](value.length, MAX_TAGS)}</span>
       </label>
       <div className="field flex flex-wrap items-center gap-1.5 !py-1.5" onClick={() => document.getElementById(id)?.focus()}>
         {value.map((t) => (
@@ -647,7 +652,7 @@ function TagInput({ id, value, onChange, error }: { id: string; value: string[];
               onChange(value.filter((x) => x !== t));
             }}
             className="inline-flex min-h-8 items-center gap-1 rounded-full bg-fg/8 px-2.5 text-[12px] font-semibold text-fg transition hover:bg-fg/12"
-            aria-label={`${t} tegini olib tashlash`}
+            aria-label={P.removeTagAria[til](t)}
           >
             #{t} <X size={11} />
           </button>
@@ -667,18 +672,19 @@ function TagInput({ id, value, onChange, error }: { id: string; value: string[];
             onBlur={() => text.trim() && add(text)}
             disabled={value.length >= MAX_TAGS}
             maxLength={30}
-            placeholder={value.length ? "Yana…" : "Masalan: to'y — Enter"}
+            placeholder={tr(til, value.length ? FORMA.more : P.tagPh)}
             className="min-w-0 flex-1 bg-transparent py-1 text-[14px] text-fg outline-none placeholder:text-fg-4"
           />
         </span>
       </div>
-      {error ? <p className="field-error">{error}</p> : <p className="mt-1 text-[12px] text-fg-4">Profil galereyasida teglar bo'yicha filtr chiqadi.</p>}
+      {error ? <p className="field-error">{error}</p> : <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.tagHint)}</p>}
     </div>
   );
 }
 
 /** "Oldin" rasmi (F63): havola yoki yuklash */
 function BeforeImageField({ id, value, onChange, error }: { id: string; value: string; onChange: (v: string) => void; error?: string }) {
+  const til = useLocale();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -692,7 +698,7 @@ function BeforeImageField({ id, value, onChange, error }: { id: string; value: s
       if (!json.ok) setUploadError(json.error);
       else onChange(json.data.url);
     } catch {
-      setUploadError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");
+      setUploadError(tr(til, FORMA.imageUploadFailed));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -701,32 +707,33 @@ function BeforeImageField({ id, value, onChange, error }: { id: string; value: s
   return (
     <div>
       <label htmlFor={id} className="field-label">
-        «Oldin» rasmi <span className="font-normal text-fg-4">(asosiy rasm — «keyin»)</span>
+        {tr(til, P.beforeLabel)} <span className="font-normal text-fg-4">{tr(til, P.beforeLabelHint)}</span>
       </label>
       {/* Har doim ustma-ust: tahrirlash kartasi tor (3 ustunli to'r), havola kesilib qolmasin */}
       <div className="flex flex-col items-start gap-2">
         <input id={id} className="field w-full" type="url" inputMode="url" value={value} onChange={(e) => onChange(e.target.value)} maxLength={300} placeholder="https://…/oldin.jpg" aria-invalid={Boolean(error)} />
         <Button type="button" variant="outline" size="md" onClick={() => fileRef.current?.click()} disabled={uploading} className="shrink-0">
-          {uploading ? <Spinner /> : <Camera size={15} />} {uploading ? `${progress}%` : "Yuklash"}
+          {uploading ? <Spinner /> : <Camera size={15} />} {uploading ? `${progress}%` : tr(til, FORMA.upload)}
         </Button>
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
           className="sr-only"
-          aria-label="«Oldin» rasmini yuklash"
+          aria-label={tr(til, P.beforeUploadAria)}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void upload(f);
           }}
         />
       </div>
-      {error || uploadError ? <p className="field-error">{error ?? uploadError}</p> : <p className="mt-1 text-[12px] text-fg-4">Profilda sudraladigan «oldin / keyin» slayderi chiqadi (rang korreksiya, retush, render).</p>}
+      {error || uploadError ? <p className="field-error">{error ?? uploadError}</p> : <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.beforeHint)}</p>}
     </div>
   );
 }
 
 function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved: (next: Editable) => void; onCancel: () => void }) {
+  const til = useLocale();
   const [title, setTitle] = useState(item.title);
   const [description, setDescription] = useState(item.description ?? "");
   // Rasm turida muqova — rasmning o'zi; YouTube muqovasi avtomatik bo'lsa maydon bo'sh ko'rsatiladi
@@ -769,7 +776,7 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
       }
       onSaved({ title: json.data.title, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl, tags: json.data.tags, beforeUrl: json.data.beforeUrl });
     } catch {
-      setError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkRetry));
     } finally {
       setBusy(false);
     }
@@ -783,19 +790,19 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
       }}
       className="flex flex-1 flex-col gap-3 p-3 animate-fade-up"
       style={{ animationDuration: "0.2s" }}
-      aria-label={`${item.title} — tahrirlash`}
+      aria-label={P.editAria[til](item.title)}
       noValidate
     >
       <div>
         <label htmlFor={`${uid}-title`} className="field-label">
-          Sarlavha
+          {tr(til, P.title)}
         </label>
         <input ref={titleRef} id={`${uid}-title`} className="field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} aria-invalid={Boolean(errors.title)} />
         {errors.title && <p className="field-error">{errors.title}</p>}
       </div>
       <div>
         <label htmlFor={`${uid}-desc`} className="field-label">
-          Tavsif <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+          {tr(til, P.description)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
         </label>
         <textarea id={`${uid}-desc`} className="field min-h-[72px] resize-y" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 500))} maxLength={500} aria-invalid={Boolean(errors.description)} />
         <div className="mt-1 flex items-start justify-between gap-3">
@@ -806,10 +813,10 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
       {item.type !== "image" && (
         <div>
           <label htmlFor={`${uid}-thumb`} className="field-label">
-            Muqova rasmi <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+            {tr(til, P.thumb)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
           </label>
           <input id={`${uid}-thumb`} className="field" type="url" inputMode="url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} maxLength={300} placeholder="https://…/muqova.jpg" aria-invalid={Boolean(errors.thumbnailUrl)} />
-          {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : item.type === "video" && <p className="mt-1 text-[12px] text-fg-4">Bo'sh qoldirilsa — YouTube muqovasi.</p>}
+          {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : item.type === "video" && <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.thumbAutoHint)}</p>}
         </div>
       )}
       <TagInput id={`${uid}-tags`} value={tags} onChange={setTags} error={errors.tags} />
@@ -821,10 +828,10 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
       )}
       <div className="mt-auto flex items-center gap-2">
         <Button type="submit" size="sm" variant="accent" className="!h-10 flex-1" disabled={busy}>
-          {busy ? <Spinner /> : "Saqlash"}
+          {busy ? <Spinner /> : tr(til, FORMA.save)}
         </Button>
         <Button type="button" size="sm" variant="outline" className="!h-10" onClick={onCancel} disabled={busy}>
-          Bekor qilish
+          {tr(til, FORMA.cancel)}
         </Button>
       </div>
     </form>
@@ -856,6 +863,7 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
 }
 
 function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => void }) {
+  const til = useLocale();
   const [type, setType] = useState<PortfolioType>("image");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -891,7 +899,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
       setUrl(json.data.url);
       if (!title.trim()) setTitle(file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").slice(0, 100));
     } catch {
-      setError("Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.");
+      setError(tr(til, FORMA.imageUploadFailed));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -939,7 +947,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
       setProgress(0);
       onAdded();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkError));
     } finally {
       setBusy(false);
     }
@@ -949,11 +957,11 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
     <form onSubmit={submit} className="card expand-in p-5 sm:p-6" noValidate>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-[17px] font-semibold text-fg">Yangi ish</h2>
-          <p className="text-[12px] text-fg-3">{meta.hint}</p>
+          <h2 className="font-display text-[17px] font-semibold text-fg">{tr(til, P.newWork)}</h2>
+          <p className="text-[12px] text-fg-3">{tr(til, meta.hint)}</p>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} aria-label="Yopish" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 hover:text-fg active:scale-95">
+          <button type="button" onClick={onClose} aria-label={tr(til, FORMA.close)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-2 transition hover:bg-fg/6 hover:text-fg active:scale-95">
             <X size={17} />
           </button>
         )}
@@ -963,13 +971,13 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
         <div className="space-y-4">
           {/* Tur */}
           <div>
-            <span className="field-label">Tur</span>
-            <div className="segment" role="radiogroup" aria-label="Ish turi">
+            <span className="field-label">{tr(til, P.type)}</span>
+            <div className="segment" role="radiogroup" aria-label={tr(til, P.typeAria)}>
               {(Object.keys(TYPE_META) as PortfolioType[]).map((t) => {
                 const I = TYPE_META[t].icon;
                 return (
                   <button key={t} type="button" role="radio" aria-checked={type === t} className="segment-item inline-flex min-h-[38px] items-center gap-1.5" data-active={type === t} onClick={() => setType(t)}>
-                    <I size={13} /> {TYPE_META[t].label}
+                    <I size={13} /> {tr(til, TYPE_META[t].label)}
                   </button>
                 );
               })}
@@ -979,33 +987,33 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
           {/* Sarlavha */}
           <div>
             <label htmlFor="pm-title" className="field-label">
-              Sarlavha
+              {tr(til, P.title)}
             </label>
-            <input ref={titleRef} id="pm-title" className="field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Masalan: To'y filmi — Samarqand" aria-invalid={Boolean(errors.title)} />
+            <input ref={titleRef} id="pm-title" className="field" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={tr(til, P.titlePh)} aria-invalid={Boolean(errors.title)} />
             {errors.title && <p className="field-error">{errors.title}</p>}
           </div>
 
           {/* Havola */}
           <div>
             <label htmlFor="pm-url" className="field-label">
-              {type === "image" ? "Rasm" : type === "video" ? "Video havolasi" : "Havola"}
+              {tr(til, type === "image" ? P.typeImage : type === "video" ? P.videoLink : P.typeLink)}
             </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Link2 size={15} className="pointer-events-none absolute inset-y-0 left-4 my-auto text-fg-4" />
-                <input ref={urlRef} id="pm-url" className="field pl-10" type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} maxLength={500} placeholder={meta.placeholder} aria-invalid={Boolean(errors.url)} />
+                <input ref={urlRef} id="pm-url" className="field pl-10" type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} maxLength={500} placeholder={tr(til, meta.placeholder)} aria-invalid={Boolean(errors.url)} />
               </div>
               {type === "image" && (
                 <>
                   <Button type="button" variant="outline" size="md" onClick={() => fileRef.current?.click()} disabled={uploading} className="shrink-0">
-                    {uploading ? <Spinner /> : <Camera size={15} />} {uploading ? `${progress}%` : "Yuklash"}
+                    {uploading ? <Spinner /> : <Camera size={15} />} {uploading ? `${progress}%` : tr(til, FORMA.upload)}
                   </Button>
                   <input
                     ref={fileRef}
                     type="file"
                     accept="image/*"
                     className="sr-only"
-                    aria-label="Portfolio rasmini yuklash"
+                    aria-label={tr(til, P.uploadImageAria)}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) void upload(f);
@@ -1016,24 +1024,24 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
             </div>
             {/* Yuklash jarayoni */}
             {(uploading || (progress > 0 && progress < 100)) && (
-              <div className="mt-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Yuklanmoqda">
+              <div className="mt-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label={tr(til, P.uploadingAria)}>
                 <div className="h-1.5 overflow-hidden rounded-full bg-fg/8">
                   <div className={cn("h-full rounded-full bg-accent transition-[width] duration-300", progress >= 100 && "animate-pulse")} style={{ width: `${Math.max(4, progress)}%` }} />
                 </div>
-                <p className="mt-1 text-[12px] text-fg-3">{progress < 100 ? `Yuklanmoqda… ${progress}%` : "Qayta ishlanmoqda…"}</p>
+                <p className="mt-1 text-[12px] text-fg-3">{progress < 100 ? P.uploadingPct[til](progress) : tr(til, P.processing)}</p>
               </div>
             )}
-            {errors.url ? <p className="field-error">{errors.url}</p> : type === "image" && !uploading && <p className="mt-1 text-[12px] text-fg-4">JPG, PNG, WEBP · 5 MB gacha.</p>}
+            {errors.url ? <p className="field-error">{errors.url}</p> : type === "image" && !uploading && <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.imageHint)}</p>}
           </div>
 
           {/* Muqova (video/havola uchun) */}
           {type !== "image" && (
             <div>
               <label htmlFor="pm-thumb" className="field-label">
-                Muqova rasmi <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+                {tr(til, P.thumb)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
               </label>
               <input id="pm-thumb" className="field" type="url" inputMode="url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} maxLength={300} placeholder="https://…/muqova.jpg" aria-invalid={Boolean(errors.thumbnailUrl)} />
-              {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : type === "video" && <p className="mt-1 text-[12px] text-fg-4">YouTube uchun bo'sh qoldiring — avtomatik olinadi.</p>}
+              {errors.thumbnailUrl ? <p className="field-error">{errors.thumbnailUrl}</p> : type === "video" && <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.thumbYoutubeHint)}</p>}
             </div>
           )}
 
@@ -1042,8 +1050,8 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
             <div className="space-y-3">
               <div className="flex min-h-11 items-center justify-between gap-3 rounded-[var(--r-sm)] border border-line px-3.5 py-2">
                 <span id="pm-pair-label" className="text-[13.5px] font-medium text-fg">
-                  Oldin / keyin juftligi
-                  <span className="block text-[12px] font-normal text-fg-3">Asosiy rasm — «keyin», qo'shimcha — «oldin»</span>
+                  {tr(til, P.pair)}
+                  <span className="block text-[12px] font-normal text-fg-3">{tr(til, P.pairHint)}</span>
                 </span>
                 <button type="button" role="switch" aria-checked={pair} aria-labelledby="pm-pair-label" onClick={() => setPair((v) => !v)} className="switch" />
               </div>
@@ -1056,9 +1064,9 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
           {/* Tavsif */}
           <div>
             <label htmlFor="pm-desc" className="field-label">
-              Tavsif <span className="font-normal text-fg-4">(ixtiyoriy)</span>
+              {tr(til, P.description)} <span className="font-normal text-fg-4">{tr(til, FORMA.optional)}</span>
             </label>
-            <textarea id="pm-desc" className="field min-h-[88px] resize-y" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 500))} maxLength={500} placeholder="Loyiha haqida qisqacha: mijoz, vazifa, natija" aria-invalid={Boolean(errors.description)} />
+            <textarea id="pm-desc" className="field min-h-[88px] resize-y" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 500))} maxLength={500} placeholder={tr(til, P.descPh)} aria-invalid={Boolean(errors.description)} />
             <div className="mt-1 flex items-start justify-between gap-3">
               {errors.description ? <p className="field-error !mt-0">{errors.description}</p> : <span />}
               <span className="shrink-0 text-[12px] tabular-nums text-fg-4">{description.length}/500</span>
@@ -1068,13 +1076,13 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
 
         {/* Ko'rinish */}
         <div>
-          <span className="field-label">Ko'rinish</span>
+          <span className="field-label">{tr(til, P.preview)}</span>
           <div className="card-outline relative aspect-[4/3] overflow-hidden">
             {preview ? (
               <SafeImage
                 key={preview}
                 src={preview}
-                alt="Ko'rinish"
+                alt={tr(til, P.preview)}
                 className="h-full w-full object-cover"
                 fallback={
                   <div className="flex h-full w-full items-center justify-center grain" style={{ background: fallbackBg(title || url || "x") }}>
@@ -1085,7 +1093,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[12px] text-fg-3">
                 <meta.icon size={22} className="text-fg-4" />
-                {type === "link" ? "Havola kartasi" : "Rasm ko'rinadi"}
+                {tr(til, type === "link" ? P.linkCard : P.imageShown)}
               </div>
             )}
             {title && (
@@ -1109,7 +1117,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
             <Spinner />
           ) : (
             <>
-              <Plus size={15} /> Qo'shish
+              <Plus size={15} /> {tr(til, P.add)}
             </>
           )}
         </Button>

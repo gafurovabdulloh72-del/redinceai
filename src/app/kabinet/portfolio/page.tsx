@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { PORTFOLIO_SAHIFA as PF } from "@/lib/i18n/dict/kabinet-forms";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -22,6 +23,7 @@ const MAX_ITEMS = 30;
 export default async function PortfolioPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/portfolio"));
+  const til = await getLocale();
 
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.userId, user.id),
@@ -43,11 +45,11 @@ export default async function PortfolioPage() {
   return (
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
-        <span className="eyebrow">Kabinet</span>
+        <span className="eyebrow">{tr(til, PF.eyebrow)}</span>
         <h1 className="display-xl mt-4 text-fg">
-          Portfolio <span className="accent-serif">ishlari</span>
+          {tr(til, PF.titleStart)} <span className="accent-serif">{tr(til, PF.titleAccent)}</span>
         </h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{sp ? `${MAX_ITEMS} tagacha rasm, video yoki havola — mijozlar shunga qarab tanlaydi.` : "Avval mutaxassis profilini yarating."}</p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{sp ? PF.desc[til](MAX_ITEMS) : tr(til, PF.descNoProfile)}</p>
       </header>
 
       {sp ? (
@@ -55,11 +57,11 @@ export default async function PortfolioPage() {
       ) : (
         <EmptyState
           icon={Sparkles}
-          title="Avval mutaxassis profilini to'ldiring"
-          description="Yo'nalish, hudud va narxlarni kiriting — shundan so'ng portfolio bo'limi ochiladi."
+          title={tr(til, PF.emptyTitle)}
+          description={tr(til, PF.emptyDesc)}
           action={
             <ButtonLink href="/kabinet/profil#mutaxassis" size="md">
-              Profilni to'ldirish <ArrowRight size={16} />
+              {tr(til, PF.fillProfile)} <ArrowRight size={16} />
             </ButtonLink>
           }
         />

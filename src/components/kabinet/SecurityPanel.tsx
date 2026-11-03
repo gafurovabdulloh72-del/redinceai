@@ -31,7 +31,11 @@ import { PasswordField } from "@/components/auth/PasswordField";
 import { Badge, Button, Spinner } from "@/components/ui";
 import { passwordStrength } from "@/lib/security/password-strength";
 import type { SessionListItem } from "@/lib/security/sessions";
-import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import { FORMA, XAVF as X, loginEventLabel } from "@/lib/i18n/dict/kabinet-forms";
 
 /** «Faol sessiyalar»: joriy qurilmadan tashqari dastlab ko'rinadigan sessiyalar soni */
 const SESSIONS_PREVIEW = 4;
@@ -84,14 +88,9 @@ export interface SecurityInitial {
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string> };
 
-const TIPS = [
-  { icon: KeyRound, title: "Parolni boshqa saytlarda takrorlamang", text: "Bitta sayt sizsa, hammasi xavf ostida qoladi. Parol menejeridan foydalaning." },
-  { icon: ShieldAlert, title: "Shubhali havolalarga parol kiritmang", text: "Kasb Egalari parolni faqat rasmiy sayt manzilida so'raydi. Telegram/SMS orqali hech qachon so'ramaymiz." },
-  { icon: MonitorSmartphone, title: "Umumiy qurilmada «Meni eslab qolish»ni o'chiring", text: "Shunda brauzer yopilishi bilan sessiya tugaydi." },
-  { icon: Smartphone, title: "Begona faollik sezsangiz", text: "Parolni darhol o'zgartiring — barcha boshqa qurilmalar avtomatik chiqib ketadi." },
-  { icon: ShieldCheck, title: "Ikki bosqichli himoyani yoqing", text: "Parol sizib chiqsa ham, telefoningizdagi kodsiz hisobga kirib bo'lmaydi." },
-  { icon: LifeBuoy, title: "Zaxira kodlarini oflayn saqlang", text: "Telefon yo'qolsa, faqat ular orqali kirasiz. Ularni hech kimga yubormang." },
-];
+/** Maslahat ikonkalari — matnlar XAVF.tips (lug'at) bilan bir xil tartibda */
+const TIP_ICONS = [KeyRound, ShieldAlert, MonitorSmartphone, Smartphone, ShieldCheck, LifeBuoy];
+const TIPS = X.tips.map((t, i) => ({ icon: TIP_ICONS[i], ...t }));
 
 /** "ABCD EFGH IJKL …" — sirni qo'lda terish oson bo'lsin */
 function groupSecret(secret: string) {
@@ -100,6 +99,7 @@ function groupSecret(secret: string) {
 
 export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
   const router = useRouter();
+  const til = useLocale();
   const [current, setCurrent] = useState("");
   const [confirmExport, setConfirmExport] = useState(false);
   const [exportPassword, setExportPassword] = useState("");
@@ -182,9 +182,9 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       const res = await fetch("/api/auth/parol/telegram", { method: "POST" });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ sent: boolean }> | null;
       if (json?.ok) setTgLinkSent(true);
-      else setError((json && !json.ok && json.error) || "Yuborib bo'lmadi — keyinroq urinib ko'ring");
+      else setError((json && !json.ok && json.error) || tr(til, X.tgSendFailed));
     } catch {
-      setError("Tarmoq xatosi — qayta urinib ko'ring");
+      setError(tr(til, X.networkDash));
     } finally {
       setTgLinkBusy(false);
     }
@@ -195,11 +195,11 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     if (busy) return;
     setError(null);
     const errs: Record<string, string> = {};
-    if (!current) errs.currentPassword = "Joriy parolni kiriting";
+    if (!current) errs.currentPassword = tr(til, X.currentRequired);
     const s = passwordStrength(next);
-    if (!s.valid) errs.newPassword = next.length < 8 ? "Parol kamida 8 ta belgi" : "Parolda harf ham, raqam ham bo'lsin";
-    else if (next === current) errs.newPassword = "Yangi parol eskisidan farq qilsin";
-    if (confirm !== next) errs.confirm = "Parollar mos kelmadi";
+    if (!s.valid) errs.newPassword = tr(til, next.length < 8 ? X.pwMin : X.pwMix);
+    else if (next === current) errs.newPassword = tr(til, X.pwSame);
+    if (confirm !== next) errs.confirm = tr(til, X.pwMismatch);
     if (Object.keys(errs).length) {
       setFields(errs);
       return;
@@ -216,8 +216,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       if (!json || !json.ok) {
         if (res.status === 429) {
           const retry = Number(res.headers.get("Retry-After") || 0);
-          setError(retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : (json?.error ?? "Juda ko'p urinish"));
-        } else setError(json?.error ?? "Serverda kutilmagan xatolik");
+          setError(retry > 0 ? X.tooMany[til](Math.ceil(retry / 60)) : (json?.error ?? tr(til, X.tooManyShort)));
+        } else setError(json?.error ?? tr(til, X.serverError));
         if (json && !json.ok && json.fields) setFields(json.fields);
         return;
       }
@@ -227,7 +227,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       setSaved(true);
       router.refresh();
     } catch {
-      setError("Tarmoq xatosi. Internetni tekshirib, qayta urinib ko'ring.");
+      setError(tr(til, FORMA.networkError));
     } finally {
       setBusy(false);
     }
@@ -241,7 +241,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       const res = await fetch("/api/auth/sessions", { method: "DELETE" });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ revoked: boolean }> | null;
       if (!json || !json.ok) {
-        setRevokeError(json?.error ?? "Serverda kutilmagan xatolik");
+        setRevokeError(json?.error ?? tr(til, X.serverError));
         return;
       }
       setConfirmAll(false);
@@ -249,7 +249,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       await reloadSessions();
       router.refresh();
     } catch {
-      setRevokeError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setRevokeError(tr(til, FORMA.networkRetry));
     } finally {
       setRevoking(false);
     }
@@ -261,10 +261,10 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     return () => window.clearTimeout(t);
   }, [exported]);
 
-  const errorText = (res: Response, json: ApiResponse<unknown> | null, fallback = "Serverda kutilmagan xatolik") => {
+  const errorText = (res: Response, json: ApiResponse<unknown> | null, fallback = tr(til, X.serverError)) => {
     if (res.status === 429) {
       const retry = Number(res.headers.get("Retry-After") || 0);
-      return retry > 0 ? `Juda ko'p urinish. ${Math.ceil(retry / 60)} daqiqadan keyin qayta urinib ko'ring.` : (json && !json.ok && json.error) || "Juda ko'p urinish";
+      return retry > 0 ? X.tooMany[til](Math.ceil(retry / 60)) : (json && !json.ok && json.error) || tr(til, X.tooManyShort);
     }
     return (json && !json.ok && json.error) || fallback;
   };
@@ -287,7 +287,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       setCode("");
       setCodeSent({ sent: json.data.sent, expiresAt: json.data.expiresAt });
     } catch {
-      setVerifyError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setVerifyError(tr(til, FORMA.networkRetry));
     } finally {
       setVerifyBusy(null);
     }
@@ -297,7 +297,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     e.preventDefault();
     if (verifyBusy) return;
     if (!/^\d{6}$/.test(code)) {
-      setVerifyError("6 xonali kodni kiriting");
+      setVerifyError(tr(til, X.code6));
       return;
     }
     setVerifyError(null);
@@ -314,7 +314,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       setCodeSent(null);
       router.refresh();
     } catch {
-      setVerifyError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setVerifyError(tr(til, FORMA.networkRetry));
     } finally {
       setVerifyBusy(null);
     }
@@ -323,7 +323,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
   const exportData = async () => {
     if (exporting) return;
     if (!exportPassword) {
-      setExportError("Tasdiqlash uchun joriy parolni kiriting");
+      setExportError(tr(til, X.exportPwRequired));
       return;
     }
     setExportError(null);
@@ -332,7 +332,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       const res = await fetch("/api/account/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: exportPassword, format: exportFormat }) });
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
-        setExportError(errorText(res, json, "Eksport qilib bo'lmadi"));
+        setExportError(errorText(res, json, tr(til, X.exportFailed)));
         return;
       }
       const blob = await res.blob();
@@ -349,7 +349,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       setConfirmExport(false);
       setExportPassword("");
     } catch {
-      setExportError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setExportError(tr(til, FORMA.networkRetry));
     } finally {
       setExporting(false);
     }
@@ -359,7 +359,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     e.preventDefault();
     if (deleting) return;
     if (!deletePassword) {
-      setDeleteError("Tasdiqlash uchun parolni kiriting");
+      setDeleteError(tr(til, X.deletePwRequired));
       return;
     }
     setDeleteError(null);
@@ -368,7 +368,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       const res = await fetch("/api/account/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: deletePassword }) });
       const json = (await res.json().catch(() => null)) as ApiResponse<{ deleted: boolean }> | null;
       if (!json || !json.ok) {
-        setDeleteError(errorText(res, json, "O'chirib bo'lmadi"));
+        setDeleteError(errorText(res, json, tr(til, X.deleteFailed)));
         return;
       }
       setDeleted(true);
@@ -377,7 +377,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         router.refresh();
       }, 1800);
     } catch {
-      setDeleteError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setDeleteError(tr(til, FORMA.networkRetry));
     } finally {
       setDeleting(false);
     }
@@ -413,7 +413,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       }
       setSessions((list) => list.filter((x) => x.id !== item.id));
     } catch {
-      setSessionError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setSessionError(tr(til, FORMA.networkRetry));
     } finally {
       setSessionBusy(null);
     }
@@ -447,7 +447,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       }
       return json.data;
     } catch {
-      setTfaError("Tarmoq xatosi. Qayta urinib ko'ring.");
+      setTfaError(tr(til, FORMA.networkRetry));
       return null;
     } finally {
       setTfaBusy(false);
@@ -467,7 +467,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     e.preventDefault();
     if (tfaBusy) return;
     if (!/^\d{6}$/.test(tfaCode)) {
-      setTfaFields({ code: "Ilovadagi 6 xonali kodni kiriting" });
+      setTfaFields({ code: tr(til, X.appCode6) });
       return;
     }
     const data = await tfaRequest<{ recoveryCodes: string[] }>("/api/auth/2fa/enable", { code: tfaCode });
@@ -487,7 +487,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     e.preventDefault();
     if (tfaBusy) return;
     if (!/^\d{6}$/.test(tfaCode)) {
-      setTfaFields({ code: "Ilovadagi 6 xonali kodni kiriting" });
+      setTfaFields({ code: tr(til, X.appCode6) });
       return;
     }
     const data = await tfaRequest<{ recoveryCodes: string[] }>("/api/auth/2fa/recovery", { code: tfaCode });
@@ -504,8 +504,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     e.preventDefault();
     if (tfaBusy) return;
     const errs: Record<string, string> = {};
-    if (!tfaPassword) errs.password = "Parolni kiriting";
-    if (tfaCode.replace(/\s/g, "").length < 6) errs.code = "Ilovadagi kod yoki zaxira kodini kiriting";
+    if (!tfaPassword) errs.password = tr(til, X.pwRequired);
+    if (tfaCode.replace(/\s/g, "").length < 6) errs.code = tr(til, X.codeOrRecovery);
     if (Object.keys(errs).length) {
       setTfaFields(errs);
       return;
@@ -516,7 +516,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
     setRecoveryLeft(0);
     setRecoveryCodes(null);
     resetTfa("idle");
-    setTfaNotice("Ikki bosqichli himoya o'chirildi.");
+    setTfaNotice(tr(til, X.tfaDisabled));
     router.refresh();
   };
 
@@ -526,21 +526,21 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       setCopied(what);
       window.setTimeout(() => setCopied((c) => (c === what ? null : c)), 2500);
     } catch {
-      setTfaError("Nusxalab bo'lmadi — qo'lda belgilab nusxalang.");
+      setTfaError(tr(til, X.copyFailed));
     }
   };
 
   const downloadCodes = () => {
     if (!recoveryCodes) return;
     const text = [
-      "Kasb Egalari — ikki bosqichli himoya zaxira kodlari",
-      `Hisob: ${initial.email}`,
-      `Yaratilgan: ${formatDateTime(Date.now())}`,
+      tr(til, X.codesFileTitle),
+      X.codesFileAccount[til](initial.email),
+      X.codesFileCreated[til](formatDateTime(Date.now())),
       "",
       ...recoveryCodes,
       "",
-      "Har bir kod faqat bir marta ishlaydi. Telefoningiz yo'qolsa, kirishda «Tiklash kodi bilan kirish» ni tanlang.",
-      "Kodlarni hech kimga yubormang va xavfsiz joyda saqlang.",
+      tr(til, X.codesFileNote1),
+      tr(til, X.codesFileNote2),
     ].join("\n");
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
@@ -563,75 +563,75 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="flex min-w-0 items-start gap-3">
             <ShieldAlert size={20} className="mt-0.5 shrink-0 text-danger-text" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-[14px] font-semibold text-danger-text">Admin hisobida ikki bosqichli himoya o&apos;chiq</p>
-              <p className="mt-0.5 text-[13px] leading-snug text-fg-2">Admin to&apos;lovlar, pul chiqarish va foydalanuvchilarni boshqaradi. Parol sizib chiqsa — butun platforma xavf ostida. Himoyani hozir yoqing.</p>
+              <p className="text-[14px] font-semibold text-danger-text">{tr(til, X.adminAlertTitle)}</p>
+              <p className="mt-0.5 text-[13px] leading-snug text-fg-2">{tr(til, X.adminAlertText)}</p>
             </div>
           </div>
           <a href="#ikki-bosqich" className="btn-ink inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold">
-            <ShieldCheck size={15} /> Himoyani yoqish
+            <ShieldCheck size={15} /> {tr(til, X.enableProtection)}
           </a>
         </div>
       )}
 
       {/* ---------- Holat ---------- */}
-      <section className="grid grid-cols-2 gap-3 max-sm:gap-2 lg:grid-cols-4" aria-label="Hisob holati">
+      <section className="grid grid-cols-2 gap-3 max-sm:gap-2 lg:grid-cols-4" aria-label={tr(til, X.statusAria)}>
         <div className="card px-4 py-4">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
-            <Clock3 size={14} /> Oxirgi kirish
+            <Clock3 size={14} /> {tr(til, X.lastLogin)}
           </div>
           <div className="mt-2 font-display text-[17px] font-semibold leading-tight text-fg">
             {initial.lastLoginAt ? (
               <time dateTime={new Date(initial.lastLoginAt).toISOString()} suppressHydrationWarning>
-                {timeAgo(initial.lastLoginAt)}
+                {timeAgoLabel(til, initial.lastLoginAt)}
               </time>
             ) : (
-              "Hozir"
+              tr(til, X.now)
             )}
           </div>
-          <div className="mt-1 text-[12px] text-fg-4">{initial.lastLoginAt ? formatDateTime(initial.lastLoginAt) : "Birinchi sessiya"}</div>
+          <div className="mt-1 text-[12px] text-fg-4">{initial.lastLoginAt ? formatDateTime(initial.lastLoginAt) : tr(til, X.firstSession)}</div>
         </div>
         <div className="card px-4 py-4">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
-            <KeyRound size={14} /> Parol
+            <KeyRound size={14} /> {tr(til, X.password)}
           </div>
           <div className="mt-2 font-display text-[17px] font-semibold leading-tight text-fg">
             {initial.passwordChangedAt ? (
               <>
                 <time dateTime={new Date(initial.passwordChangedAt).toISOString()} suppressHydrationWarning>
-                  {timeAgo(initial.passwordChangedAt)}
+                  {timeAgoLabel(til, initial.passwordChangedAt)}
                 </time>{" "}
-                yangilangan
+                {tr(til, X.updatedSuffix)}
               </>
             ) : (
-              "Hech o'zgarmagan"
+              tr(til, X.neverChanged)
             )}
           </div>
-          <div className="mt-1 text-[12px] text-fg-4">{pwOld ? "6 oydan oshdi — yangilash tavsiya etiladi" : "Yaqinda o'rnatilgan"}</div>
+          <div className="mt-1 text-[12px] text-fg-4">{tr(til, pwOld ? X.pwOld : X.pwRecent)}</div>
         </div>
         <div className="card px-4 py-4">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
-            <Mail size={14} /> Email
+            <Mail size={14} /> {tr(til, X.email)}
           </div>
           <div className="mt-2 truncate text-[14px] font-semibold text-fg">{initial.email}</div>
           <div className="mt-2">
             {verified ? (
               <Badge tone="success">
-                <ShieldCheck size={12} /> Tasdiqlangan
+                <ShieldCheck size={12} /> {tr(til, X.verified)}
               </Badge>
             ) : (
               <Badge tone="warning">
-                <AlertCircle size={12} /> Tasdiqlanmagan
+                <AlertCircle size={12} /> {tr(til, X.unverified)}
               </Badge>
             )}
           </div>
         </div>
         <div className="card px-4 py-4">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-fg-3">
-            <Phone size={14} /> Telefon
+            <Phone size={14} /> {tr(til, X.phone)}
           </div>
-          <div className="mt-2 truncate text-[14px] font-semibold text-fg">{initial.phone || "Kiritilmagan"}</div>
+          <div className="mt-2 truncate text-[14px] font-semibold text-fg">{initial.phone || tr(til, X.notEntered)}</div>
           <div className="mt-2">
-            {initial.phone ? <Badge tone="neutral">Kiritilgan</Badge> : <Badge tone="neutral">Profilda qo'shing</Badge>}
+            {initial.phone ? <Badge tone="neutral">{tr(til, X.entered)}</Badge> : <Badge tone="neutral">{tr(til, X.addInProfile)}</Badge>}
           </div>
         </div>
       </section>
@@ -645,34 +645,35 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             </span>
             <div className="min-w-0 flex-1">
               <h2 id="sec-verify" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-                Emailni tasdiqlash
+                {tr(til, X.verifyTitle)}
               </h2>
               <p className="mt-0.5 text-[13px] text-fg-3">
-                Tasdiqlangan email — parolni tiklash va muhim bildirishnomalar uchun. 6 xonali kod <span className="font-semibold text-fg-2">{initial.email}</span> manziliga yuboriladi.
+                {tr(til, X.verifyDescStart)} <span className="font-semibold text-fg-2">{initial.email}</span>{til === "ru" ? "" : " "}{tr(til, X.verifyDescEnd)}
               </p>
             </div>
           </div>
 
           {justVerified ? (
             <div role="status" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success-text">
-              <CheckCircle2 size={16} className="mt-px shrink-0" /> Email tasdiqlandi. Rahmat!
+              <CheckCircle2 size={16} className="mt-px shrink-0" /> {tr(til, X.verifiedThanks)}
             </div>
           ) : codeSent ? (
             <form onSubmit={confirmCode} noValidate className="mt-5 border-t border-line pt-5">
               <p className="text-[13px] text-fg-2">
-                {codeSent.sent ? "Kod yuborildi — pochtangizni tekshiring (spam papkasini ham)." : "Pochta xizmati sozlanmagan: kod server konsolida (dev rejimi)."}{" "}
+                {tr(til, codeSent.sent ? X.codeSent : X.codeDev)}{" "}
                 <span className="text-fg-4">
-                  Kod{" "}
+                  {tr(til, X.codeValidStart)}{" "}
                   <time dateTime={new Date(codeSent.expiresAt).toISOString()} suppressHydrationWarning>
                     {formatDateTime(codeSent.expiresAt)}
-                  </time>{" "}
-                  gacha amal qiladi.
+                  </time>
+                  {til === "ru" ? "" : " "}
+                  {tr(til, X.codeValidEnd)}
                 </span>
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="sm:w-56">
                   <label htmlFor="sec-code" className="field-label">
-                    Tasdiqlash kodi
+                    {tr(til, X.verifyCode)}
                   </label>
                   <input
                     id="sec-code"
@@ -695,10 +696,10 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button type="submit" variant="accent" disabled={verifyBusy !== null} className="sm:min-w-[150px]">
-                    {verifyBusy === "confirm" ? <Spinner /> : "Tasdiqlash"}
+                    {verifyBusy === "confirm" ? <Spinner /> : tr(til, X.confirm)}
                   </Button>
                   <Button type="button" variant="ghost" onClick={sendCode} disabled={verifyBusy !== null}>
-                    {verifyBusy === "send" ? <Spinner /> : "Qayta yuborish"}
+                    {verifyBusy === "send" ? <Spinner /> : tr(til, X.resend)}
                   </Button>
                 </div>
               </div>
@@ -716,11 +717,11 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                     <AlertCircle size={15} /> {verifyError}
                   </span>
                 ) : (
-                  <span className="text-fg-4">Kod 15 daqiqa amal qiladi, bir marta ishlatiladi.</span>
+                  <span className="text-fg-4">{tr(til, X.codeTtl)}</span>
                 )}
               </div>
               <Button type="button" variant="primary" onClick={sendCode} disabled={verifyBusy !== null} className="sm:min-w-[180px]">
-                {verifyBusy === "send" ? <Spinner /> : <Mail size={15} />} Kod yuborish
+                {verifyBusy === "send" ? <Spinner /> : <Mail size={15} />} {tr(til, X.sendCode)}
               </Button>
             </div>
           )}
@@ -734,8 +735,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             <KeyRound size={18} />
           </span>
           <div>
-            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">Parolni o'zgartirish</h2>
-            <p className="mt-0.5 text-[13px] text-fg-3">Yangi parol saqlangach, boshqa barcha qurilmalardagi sessiyalar yopiladi. Siz shu qurilmada qolasiz.</p>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight text-fg">{tr(til, X.changePw)}</h2>
+            <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, X.changePwDesc)}</p>
           </div>
         </div>
 
@@ -744,42 +745,42 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             <PasswordField
               id="sec-current"
               name="current-password"
-              label="Joriy parol"
+              label={tr(til, X.currentPw)}
               value={current}
               onChange={(v) => {
                 setCurrent(v);
                 setFields((f) => ({ ...f, currentPassword: "" }));
               }}
               autoComplete="current-password"
-              placeholder="Hozirgi parolingiz"
+              placeholder={tr(til, X.currentPwPh)}
               error={fields.currentPassword || undefined}
             />
           </div>
           <PasswordField
             id="sec-new"
             name="new-password"
-            label="Yangi parol"
+            label={tr(til, X.newPw)}
             value={next}
             onChange={(v) => {
               setNext(v);
               setFields((f) => ({ ...f, newPassword: "" }));
             }}
             autoComplete="new-password"
-            placeholder="Kamida 8 ta belgi, harf va raqam"
+            placeholder={tr(til, X.newPwPh)}
             error={fields.newPassword || undefined}
             meter
           />
           <PasswordField
             id="sec-confirm"
             name="confirm-password"
-            label="Yangi parolni takrorlang"
+            label={tr(til, X.repeatPw)}
             value={confirm}
             onChange={(v) => {
               setConfirm(v);
               setFields((f) => ({ ...f, confirm: "" }));
             }}
             autoComplete="new-password"
-            placeholder="Yana bir marta"
+            placeholder={tr(til, X.repeatPwPh)}
             error={fields.confirm || undefined}
           />
         </div>
@@ -794,29 +795,29 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="text-[13px]" aria-live="polite">
             {saved ? (
               <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
-                <CheckCircle2 size={15} /> Parol yangilandi — boshqa qurilmalar chiqib ketdi
+                <CheckCircle2 size={15} /> {tr(til, X.pwUpdated)}
               </span>
             ) : (
-              <span className="text-fg-4">Parol hech qachon ochiq saqlanmaydi (bcrypt, 12 raund)</span>
+              <span className="text-fg-4">{tr(til, X.pwStored)}</span>
             )}
           </div>
           <Button type="submit" variant="accent" disabled={busy} className="sm:min-w-[180px]">
-            {busy ? <Spinner /> : "Parolni yangilash"}
+            {busy ? <Spinner /> : tr(til, X.updatePw)}
           </Button>
         </div>
 
         {initial.telegramLinked && (
           <p className="mt-4 border-t border-line pt-4 text-[13px] leading-relaxed text-fg-3">
-            Joriy parolni bilmaysizmi? Telegram orqali ochilgan hisobda parol avtomatik yaratilgan —{" "}
+            {tr(til, X.tgPwStart)}{" "}
             <button
               type="button"
               onClick={() => void sendTgPasswordLink()}
               disabled={tgLinkBusy || tgLinkSent}
               className="font-semibold text-accent underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-70"
             >
-              {tgLinkBusy ? "Yuborilmoqda…" : tgLinkSent ? "Yuborildi — Telegramingizni tekshiring ✓" : "yangi parol havolasini Telegramga yuborish"}
+              {tr(til, tgLinkBusy ? X.tgSending : tgLinkSent ? X.tgSent : X.tgSendLink)}
             </button>
-            . Havola 1 soat amal qiladi; parol o'rnatilgach email o'zgartirish va hisobni o'chirish ham ochiladi.
+            {tr(til, X.tgPwEnd)}
           </p>
         )}
       </form>
@@ -830,47 +831,47 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id="sec-2fa" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-                Ikki bosqichli himoya
+                {tr(til, X.tfaTitle)}
               </h2>
               {tfaEnabled ? (
                 <Badge tone="success">
-                  <ShieldCheck size={12} /> Yoqilgan
+                  <ShieldCheck size={12} /> {tr(til, X.enabled)}
                 </Badge>
               ) : (
-                <Badge tone="neutral">O&apos;chirilgan</Badge>
+                <Badge tone="neutral">{tr(til, X.disabled)}</Badge>
               )}
             </div>
             <p className="mt-0.5 text-[13px] text-fg-3">
-              Kirishda paroldan tashqari telefoningizdagi autentifikator ilovasi (Google Authenticator, Microsoft Authenticator, 1Password…) ko&apos;rsatgan 6 xonali kod so&apos;raladi.
+              {tr(til, X.tfaDesc)}
             </p>
           </div>
         </div>
 
         {initial.lowRecovery && tfaEnabled && tfaStep === "idle" && (
           <div role="status" className="mt-5 flex items-start gap-2.5 rounded-[16px] bg-warning-soft px-4 py-3 text-[13px] font-medium text-warning-text">
-            <LifeBuoy size={16} className="mt-px shrink-0" /> Siz zaxira kodi bilan kirdingiz — {recoveryLeft} ta kod qoldi. Yangi kodlar oling va xavfsiz saqlang.
+            <LifeBuoy size={16} className="mt-px shrink-0" /> {X.lowRecovery[til](recoveryLeft)}
           </div>
         )}
 
         {tfaStep === "codes" && recoveryCodes ? (
           <div className="mt-5 border-t border-line pt-5">
             <div role="status" className="flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success-text">
-              <CheckCircle2 size={16} className="mt-px shrink-0" /> Zaxira kodlari tayyor. Ular faqat hozir ko&apos;rsatiladi — nusxalang yoki yuklab oling.
+              <CheckCircle2 size={16} className="mt-px shrink-0" /> {tr(til, X.codesReady)}
             </div>
-            <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Zaxira kodlari">
+            <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label={tr(til, X.codesAria)}>
               {recoveryCodes.map((c) => (
                 <li key={c} className="rounded-[12px] border border-line bg-surface-2 px-2 py-2.5 text-center font-mono text-[14px] font-semibold tracking-wide text-fg">
                   {c}
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-[12px] leading-snug text-fg-3">Har bir kod bir marta ishlaydi. Telefoningiz yo&apos;qolsa, kirishda «Tiklash kodi bilan kirish»ni tanlang.</p>
+            <p className="mt-3 text-[12px] leading-snug text-fg-3">{tr(til, X.codesNote)}</p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
               <Button type="button" variant="outline" onClick={() => copyText(recoveryCodes.join("\n"), "codes")}>
-                {copied === "codes" ? <CheckCircle2 size={15} /> : <Copy size={15} />} {copied === "codes" ? "Nusxalandi" : "Nusxalash"}
+                {copied === "codes" ? <CheckCircle2 size={15} /> : <Copy size={15} />} {tr(til, copied === "codes" ? FORMA.copied : FORMA.copy)}
               </Button>
               <Button type="button" variant="outline" onClick={downloadCodes}>
-                <Download size={15} /> .txt yuklab olish
+                <Download size={15} /> {tr(til, X.downloadTxt)}
               </Button>
               <Button
                 type="button"
@@ -881,7 +882,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   resetTfa("idle");
                 }}
               >
-                Saqladim
+                {tr(til, X.savedCodes)}
               </Button>
             </div>
           </div>
@@ -891,25 +892,25 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
               <li className="flex gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fg/6 text-[13px] font-semibold text-fg-2">1</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-fg">Autentifikator ilovasini oching</p>
-                  <p className="mt-0.5 text-[13px] text-fg-3">Telefoningizda bo&apos;lmasa — Google Authenticator yoki Microsoft Authenticator&apos;ni o&apos;rnating.</p>
+                  <p className="text-[14px] font-semibold text-fg">{tr(til, X.step1)}</p>
+                  <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, X.step1Hint)}</p>
                 </div>
               </li>
               <li className="flex gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fg/6 text-[13px] font-semibold text-fg-2">2</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-fg">Kasb Egalari hisobini qo&apos;shing</p>
-                  <p className="mt-0.5 text-[13px] text-fg-3">Shu telefonda bo&apos;lsangiz — pastdagi havolani bosing. Aks holda ilovada «Kalitni kiritish»ni tanlab, quyidagi sirni yozing (turi: vaqtga asoslangan).</p>
+                  <p className="text-[14px] font-semibold text-fg">{tr(til, X.step2)}</p>
+                  <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, X.step2Hint)}</p>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                    <code className="min-w-0 flex-1 select-all break-all rounded-[12px] border border-line bg-surface-2 px-3 py-2.5 font-mono text-[15px] font-semibold tracking-[0.08em] text-fg" aria-label="Sir kalit">
+                    <code className="min-w-0 flex-1 select-all break-all rounded-[12px] border border-line bg-surface-2 px-3 py-2.5 font-mono text-[15px] font-semibold tracking-[0.08em] text-fg" aria-label={tr(til, X.secretAria)}>
                       {groupSecret(tfaSetup.secret)}
                     </code>
                     <Button type="button" variant="outline" onClick={() => copyText(tfaSetup.secret, "secret")} className="shrink-0">
-                      {copied === "secret" ? <CheckCircle2 size={15} /> : <Copy size={15} />} {copied === "secret" ? "Nusxalandi" : "Nusxalash"}
+                      {copied === "secret" ? <CheckCircle2 size={15} /> : <Copy size={15} />} {tr(til, copied === "secret" ? FORMA.copied : FORMA.copy)}
                     </Button>
                   </div>
                   <a href={tfaSetup.uri} className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-accent-text underline underline-offset-2 hover:brightness-110">
-                    <ExternalLink size={14} /> Autentifikator ilovasida ochish
+                    <ExternalLink size={14} /> {tr(til, X.openInApp)}
                   </a>
                 </div>
               </li>
@@ -917,7 +918,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fg/6 text-[13px] font-semibold text-fg-2">3</span>
                 <div className="min-w-0 flex-1">
                   <label htmlFor="sec-2fa-code" className="text-[14px] font-semibold text-fg">
-                    Ilova ko&apos;rsatgan kodni kiriting
+                    {tr(til, X.step3)}
                   </label>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
                     <input
@@ -939,7 +940,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                       aria-describedby={tfaFields.code ? "sec-2fa-code-error" : undefined}
                     />
                     <Button type="submit" variant="accent" disabled={tfaBusy} className="sm:min-w-[190px]">
-                      {tfaBusy ? <Spinner /> : <ShieldCheck size={15} />} Tasdiqlash va yoqish
+                      {tfaBusy ? <Spinner /> : <ShieldCheck size={15} />} {tr(til, X.confirmEnable)}
                     </Button>
                     <Button
                       type="button"
@@ -950,7 +951,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                         resetTfa("idle");
                       }}
                     >
-                      Bekor qilish
+                      {tr(til, FORMA.cancel)}
                     </Button>
                   </div>
                   {tfaFields.code && (
@@ -964,24 +965,24 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </form>
         ) : tfaStep === "disable" ? (
           <form onSubmit={disableTfa} noValidate className="mt-5 rounded-[18px] border border-danger/30 bg-danger-soft/40 p-4 sm:p-5">
-            <p className="text-[13px] font-medium text-fg">Himoyani o&apos;chirish uchun parol va ilovadagi kodni (yoki zaxira kodini) kiriting.</p>
+            <p className="text-[13px] font-medium text-fg">{tr(til, X.disableHint)}</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <PasswordField
                 id="sec-2fa-password"
                 name="current-password"
-                label="Parol"
+                label={tr(til, X.password)}
                 value={tfaPassword}
                 onChange={(v) => {
                   setTfaPassword(v);
                   setTfaFields((f) => ({ ...f, password: "" }));
                 }}
                 autoComplete="current-password"
-                placeholder="Joriy parolingiz"
+                placeholder={tr(til, X.currentPwPh)}
                 error={tfaFields.password || undefined}
               />
               <div>
                 <label htmlFor="sec-2fa-off-code" className="field-label">
-                  Kod
+                  {tr(til, X.code)}
                 </label>
                 <input
                   id="sec-2fa-off-code"
@@ -989,7 +990,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   type="text"
                   autoComplete="one-time-code"
                   maxLength={20}
-                  placeholder="123456 yoki abcd-efgh"
+                  placeholder={tr(til, X.codePh)}
                   value={tfaCode}
                   onChange={(e) => {
                     setTfaCode(e.target.value);
@@ -1008,19 +1009,19 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={() => resetTfa("idle")} disabled={tfaBusy}>
-                Bekor qilish
+                {tr(til, FORMA.cancel)}
               </Button>
               <Button type="submit" variant="danger" disabled={tfaBusy} className="sm:min-w-[200px]">
-                {tfaBusy ? <Spinner /> : <ShieldOff size={15} />} Himoyani o&apos;chirish
+                {tfaBusy ? <Spinner /> : <ShieldOff size={15} />} {tr(til, X.disableProtection)}
               </Button>
             </div>
           </form>
         ) : tfaStep === "regen" ? (
           <form onSubmit={regenerateCodes} noValidate className="mt-5 border-t border-line pt-5">
             <label htmlFor="sec-2fa-regen" className="text-[14px] font-semibold text-fg">
-              Yangi zaxira kodlari — eskilari bekor bo&apos;ladi
+              {tr(til, X.regenTitle)}
             </label>
-            <p className="mt-0.5 text-[13px] text-fg-3">Tasdiqlash uchun ilovadagi joriy kodni kiriting.</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, X.regenHint)}</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
               <input
                 id="sec-2fa-regen"
@@ -1041,10 +1042,10 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 aria-describedby={tfaFields.code ? "sec-2fa-regen-error" : undefined}
               />
               <Button type="submit" variant="primary" disabled={tfaBusy} className="sm:min-w-[180px]">
-                {tfaBusy ? <Spinner /> : <RefreshCw size={15} />} Yangi kodlar olish
+                {tfaBusy ? <Spinner /> : <RefreshCw size={15} />} {tr(til, X.getNewCodes)}
               </Button>
               <Button type="button" variant="ghost" onClick={() => resetTfa("idle")} disabled={tfaBusy}>
-                Bekor qilish
+                {tr(til, FORMA.cancel)}
               </Button>
             </div>
             {tfaFields.code && (
@@ -1062,24 +1063,24 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 </span>
               ) : tfaEnabled ? (
                 <span className={cn("inline-flex items-center gap-1.5", recoveryLeft <= 3 ? "font-semibold text-warning-text" : "text-fg-3")}>
-                  <LifeBuoy size={15} /> Zaxira kodlari: {recoveryLeft} ta qoldi
+                  <LifeBuoy size={15} /> {X.codesLeft[til](recoveryLeft)}
                 </span>
               ) : (
-                <span className="text-fg-4">Sozlash 1 daqiqa oladi. QR kod shart emas — sirni ilovaga kiritasiz.</span>
+                <span className="text-fg-4">{tr(til, X.setupHint)}</span>
               )}
             </div>
             {tfaEnabled ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button type="button" variant="outline" onClick={() => resetTfa("regen")}>
-                  <RefreshCw size={15} /> Zaxira kodlarini yangilash
+                  <RefreshCw size={15} /> {tr(til, X.refreshCodes)}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => resetTfa("disable")} className="!text-danger-text hover:!bg-danger-soft">
-                  <ShieldOff size={15} /> O&apos;chirish
+                  <ShieldOff size={15} /> {tr(til, X.turnOff)}
                 </Button>
               </div>
             ) : (
               <Button type="button" variant="primary" onClick={startSetup} disabled={tfaBusy} className="sm:min-w-[200px]">
-                {tfaBusy ? <Spinner /> : <ShieldCheck size={15} />} Himoyani yoqish
+                {tfaBusy ? <Spinner /> : <ShieldCheck size={15} />} {tr(til, X.enableProtection)}
               </Button>
             )}
           </div>
@@ -1100,16 +1101,16 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="sec-devices" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-              Faol sessiyalar
+              {tr(til, X.sessionsTitle)}
             </h2>
             <p className="mt-0.5 text-[13px] text-fg-3">
-              Joriy sessiya: {initial.remember ? "«Meni eslab qolish» yoqilgan — 30 kun" : "brauzer yopilguncha"}. Tanimagan qurilmani ko&apos;rsangiz — «Chiqish»ni bosing va parolni o&apos;zgartiring.
+              {tr(til, X.sessionsDescStart)} {tr(til, initial.remember ? X.remember30 : X.untilClose)}{tr(til, X.sessionsDescEnd)}
             </p>
           </div>
         </div>
 
-        <ul id="sessions-list" className="mt-5 divide-y divide-line border-t border-line" aria-label="Faol sessiyalar ro'yxati">
-          {sessions.length === 0 && <li className="py-4 text-[13px] text-fg-4">Faol sessiyalar topilmadi.</li>}
+        <ul id="sessions-list" className="mt-5 divide-y divide-line border-t border-line" aria-label={tr(til, X.sessionsListAria)}>
+          {sessions.length === 0 && <li className="py-4 text-[13px] text-fg-4">{tr(til, X.noSessions)}</li>}
           {shownSessions.map((item) => {
             const Icon = item.mobile ? Smartphone : Monitor;
             return (
@@ -1120,22 +1121,22 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="truncate text-[14px] font-semibold text-fg">{item.label}</span>
-                    {item.current && <Badge tone="success">Shu qurilma</Badge>}
+                    {item.current && <Badge tone="success">{tr(til, X.thisDevice)}</Badge>}
                   </div>
                   <p className="mt-0.5 text-[12px] leading-snug text-fg-3">
                     {item.current ? (
-                      "Hozir faol"
+                      tr(til, X.activeNow)
                     ) : (
                       <>
-                        Oxirgi faollik:{" "}
+                        {tr(til, X.lastActivity)}{" "}
                         <time dateTime={new Date(item.lastSeenAt).toISOString()} suppressHydrationWarning>
-                          {timeAgo(item.lastSeenAt)}
+                          {timeAgoLabel(til, item.lastSeenAt)}
                         </time>
                       </>
                     )}
                     <span className="text-fg-4">
                       {" "}
-                      · Kirgan:{" "}
+                      {tr(til, X.signedIn)}{" "}
                       <time dateTime={new Date(item.createdAt).toISOString()} suppressHydrationWarning>
                         {formatDateTime(item.createdAt)}
                       </time>
@@ -1143,8 +1144,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   </p>
                 </div>
                 {!item.current && item.id && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => revokeOne(item)} disabled={sessionBusy !== null} className="!h-10 shrink-0" aria-label={`${item.label} sessiyasidan chiqish`}>
-                    {sessionBusy === item.id ? <Spinner /> : <LogOut size={14} />} Chiqish
+                  <Button type="button" variant="outline" size="sm" onClick={() => revokeOne(item)} disabled={sessionBusy !== null} className="!h-10 shrink-0" aria-label={X.logoutSessionAria[til](item.label)}>
+                    {sessionBusy === item.id ? <Spinner /> : <LogOut size={14} />} {tr(til, X.logout)}
                   </Button>
                 )}
               </li>
@@ -1160,7 +1161,7 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             className="mt-1 inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-fg-2 transition hover:bg-fg/6 hover:text-fg"
           >
             <ChevronDown size={15} aria-hidden="true" className={cn("transition-transform", showAllSessions && "rotate-180")} />
-            {showAllSessions ? "Kamroq ko'rsatish" : `Yana ${hiddenSessions} ta sessiya`}
+            {showAllSessions ? tr(til, X.showLess) : X.moreSessions[til](hiddenSessions)}
           </button>
         )}
         {sessionError && (
@@ -1173,31 +1174,31 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           <div className="text-[13px]" aria-live="polite">
             {revoked ? (
               <span className="inline-flex items-center gap-1.5 font-semibold text-success-text">
-                <CheckCircle2 size={15} /> Boshqa qurilmalar chiqarildi. Siz shu yerda qolasiz.
+                <CheckCircle2 size={15} /> {tr(til, X.othersRevoked)}
               </span>
             ) : revokeError ? (
               <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                 <AlertCircle size={15} /> {revokeError}
               </span>
             ) : confirmAll ? (
-              <span className="font-medium text-fg">Ishonchingiz komilmi? Boshqa qurilmalarda qayta kirish kerak bo'ladi.</span>
+              <span className="font-medium text-fg">{tr(til, X.confirmAll)}</span>
             ) : (
-              <span className="text-fg-4">Joriy qurilma ta'sirlanmaydi.</span>
+              <span className="text-fg-4">{tr(til, X.currentUnaffected)}</span>
             )}
           </div>
           <div className={cn("flex gap-2", confirmAll ? "flex-col-reverse sm:flex-row" : undefined)}>
             {confirmAll ? (
               <>
                 <Button type="button" variant="ghost" onClick={() => setConfirmAll(false)} disabled={revoking}>
-                  Bekor qilish
+                  {tr(til, FORMA.cancel)}
                 </Button>
                 <Button type="button" variant="danger" onClick={logoutAll} disabled={revoking} className="sm:min-w-[200px]">
-                  {revoking ? <Spinner /> : <LogOut size={15} />} Ha, hammasidan chiqish
+                  {revoking ? <Spinner /> : <LogOut size={15} />} {tr(til, X.yesLogoutAll)}
                 </Button>
               </>
             ) : (
               <Button type="button" variant="outline" onClick={() => setConfirmAll(true)} className="sm:min-w-[260px]">
-                <LogOut size={15} /> Barcha qurilmalardan chiqish
+                <LogOut size={15} /> {tr(til, X.logoutAll)}
               </Button>
             )}
           </div>
@@ -1214,9 +1215,9 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span id="sec-history" className="block font-display text-[19px] font-semibold tracking-tight text-fg">
-                  Kirish tarixi
+                  {tr(til, X.historyTitle)}
                 </span>
-                <span className="block text-[13px] text-fg-3">Oxirgi {initial.history.length} ta hodisa · IP qisman yashirilgan</span>
+                <span className="block text-[13px] text-fg-3">{X.historyDesc[til](initial.history.length)}</span>
               </span>
               <ChevronDown size={16} className="shrink-0 text-fg-3 transition-transform group-open:rotate-180" aria-hidden="true" />
             </summary>
@@ -1227,8 +1228,8 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                   <li key={h.id} className="flex items-center gap-3 py-2.5 text-[13px]">
                     <span className={cn("h-2 w-2 shrink-0 rounded-full", m.bad ? "bg-danger" : "bg-success")} aria-hidden="true" />
                     <span className={cn("min-w-0 flex-1 truncate font-medium", m.bad ? "text-danger-text" : "text-fg")}>
-                      {m.label}
-                      {h.twoFactor && <span className="font-normal text-fg-3"> · 2FA ({h.twoFactor === "recovery" ? "zaxira kodi" : "ilova"})</span>}
+                      {loginEventLabel(til, h.action, m.label)}
+                      {h.twoFactor && <span className="font-normal text-fg-3"> · 2FA ({tr(til, h.twoFactor === "recovery" ? X.tfaRecovery : X.tfaApp)})</span>}
                     </span>
                     {h.ip && <span className="hidden shrink-0 font-mono text-[12px] text-fg-4 sm:inline">{h.ip}</span>}
                     <time dateTime={new Date(h.at).toISOString()} className="shrink-0 text-[12px] text-fg-3 tabular-nums" suppressHydrationWarning>
@@ -1250,33 +1251,33 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="sec-danger" className="font-display text-[19px] font-semibold tracking-tight text-fg">
-              Xavfli zona
+              {tr(til, X.dangerTitle)}
             </h2>
-            <p className="mt-0.5 text-[13px] text-fg-3">Ma'lumotlaringiz sizniki: istalgan payt nusxasini yuklab oling yoki hisobni butunlay o'chiring.</p>
+            <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, X.dangerDesc)}</p>
           </div>
         </div>
 
         {/* Eksport */}
         <div className="mt-5 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="text-[14px] font-semibold text-fg">Ma'lumotlarimni yuklab olish</div>
+            <div className="text-[14px] font-semibold text-fg">{tr(til, X.exportTitle)}</div>
             <div className="mt-0.5 text-[13px] text-fg-3" aria-live="polite">
               {exported ? (
                 <span className="inline-flex items-center gap-1.5 font-semibold text-success">
-                  <CheckCircle2 size={15} /> Fayl yuklab olindi
+                  <CheckCircle2 size={15} /> {tr(til, X.exported)}
                 </span>
               ) : exportError ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
                   <AlertCircle size={15} /> {exportError}
                 </span>
               ) : (
-                "Hisob, profil, buyurtmalar, to'lovlar, sharhlar va bildirishnomalar — bitta fayl (JSON yoki o'qiladigan HTML)."
+                tr(til, X.exportDesc)
               )}
             </div>
           </div>
           {!confirmExport && (
             <Button type="button" variant="outline" onClick={() => setConfirmExport(true)} className="sm:min-w-[200px]">
-              <Download size={15} /> Yuklab olish
+              <Download size={15} /> {tr(til, X.download)}
             </Button>
           )}
         </div>
@@ -1290,13 +1291,13 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
             noValidate
             className="mt-4 rounded-[18px] border border-line bg-surface p-4 sm:p-5"
           >
-            <p className="text-[13px] font-medium text-fg">Eksportda barcha shaxsiy ma&apos;lumotlaringiz bor — tasdiqlash uchun joriy parolni kiriting.</p>
+            <p className="text-[13px] font-medium text-fg">{tr(til, X.exportConfirm)}</p>
             {/* Format tanlovi (kamchilik #94): HTML — o'qiladigan hujjat, brauzerda ochilib chop etilsa PDF bo'ladi */}
-            <div className="mt-3 flex gap-2" role="radiogroup" aria-label="Fayl formati">
+            <div className="mt-3 flex gap-2" role="radiogroup" aria-label={tr(til, X.formatAria)}>
               {(
                 [
-                  { v: "json", label: "JSON (texnik)" },
-                  { v: "html", label: "HTML (o'qiladigan)" },
+                  { v: "json", label: tr(til, X.formatJson) },
+                  { v: "html", label: tr(til, X.formatHtml) },
                 ] as const
               ).map((f) => (
                 <button
@@ -1315,14 +1316,14 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
               <PasswordField
                 id="sec-export-password"
                 name="export-password"
-                label="Parol"
+                label={tr(til, X.password)}
                 value={exportPassword}
                 onChange={(v) => {
                   setExportPassword(v);
                   setExportError(null);
                 }}
                 autoComplete="current-password"
-                placeholder="Joriy parolingiz"
+                placeholder={tr(til, X.currentPwPh)}
                 error={exportError || undefined}
               />
             </div>
@@ -1337,10 +1338,10 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                 }}
                 disabled={exporting}
               >
-                Bekor qilish
+                {tr(til, FORMA.cancel)}
               </Button>
               <Button type="submit" variant="outline" disabled={exporting} className="sm:min-w-[200px]">
-                {exporting ? <Spinner /> : <Download size={15} />} Yuklab olish
+                {exporting ? <Spinner /> : <Download size={15} />} {tr(til, X.download)}
               </Button>
             </div>
           </form>
@@ -1350,38 +1351,38 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
         <div className="mt-5 border-t border-line pt-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="text-[14px] font-semibold text-fg">Akkauntni o'chirish</div>
+              <div className="text-[14px] font-semibold text-fg">{tr(til, X.deleteTitle)}</div>
               <div className="mt-0.5 text-[13px] text-fg-3">
-                Ism, email, telefon va profil o'chiriladi (qaytarib bo'lmaydi). Buyurtma va to'lov tarixi anonim holda saqlanadi. Eskroudagi to'lov yoki kutilayotgan pul chiqarish bo'lsa — avval yakunlang.
+                {tr(til, X.deleteDesc)}
               </div>
             </div>
             {!confirmDelete && !deleted && (
               <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)} className="sm:min-w-[200px]">
-                <Trash2 size={15} /> Akkauntni o'chirish
+                <Trash2 size={15} /> {tr(til, X.deleteBtn)}
               </Button>
             )}
           </div>
 
           {deleted ? (
             <div role="status" className="mt-4 flex items-start gap-2.5 rounded-[16px] bg-success-soft px-4 py-3 text-[13px] font-semibold text-success-text">
-              <CheckCircle2 size={16} className="mt-px shrink-0" /> Akkaunt o'chirildi. Bosh sahifaga qaytmoqdamiz…
+              <CheckCircle2 size={16} className="mt-px shrink-0" /> {tr(til, X.deleted)}
             </div>
           ) : (
             confirmDelete && (
               <form onSubmit={deleteAccount} noValidate className="mt-4 rounded-[18px] border border-danger/30 bg-danger-soft/40 p-4 sm:p-5">
-                <p className="text-[13px] font-medium text-fg">Ishonchingiz komilmi? Tasdiqlash uchun joriy parolingizni kiriting.</p>
+                <p className="text-[13px] font-medium text-fg">{tr(til, X.deleteConfirm)}</p>
                 <div className="mt-3 sm:max-w-sm">
                   <PasswordField
                     id="sec-delete-password"
                     name="delete-password"
-                    label="Parol"
+                    label={tr(til, X.password)}
                     value={deletePassword}
                     onChange={(v) => {
                       setDeletePassword(v);
                       setDeleteError(null);
                     }}
                     autoComplete="current-password"
-                    placeholder="Joriy parolingiz"
+                    placeholder={tr(til, X.currentPwPh)}
                     error={deleteError || undefined}
                   />
                 </div>
@@ -1396,10 +1397,10 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
                     }}
                     disabled={deleting}
                   >
-                    Bekor qilish
+                    {tr(til, FORMA.cancel)}
                   </Button>
                   <Button type="submit" variant="danger" disabled={deleting} className="sm:min-w-[200px]">
-                    {deleting ? <Spinner /> : <Trash2 size={15} />} Ha, o'chirish
+                    {deleting ? <Spinner /> : <Trash2 size={15} />} {tr(til, FORMA.yes)}
                   </Button>
                 </div>
               </form>
@@ -1412,17 +1413,17 @@ export function SecurityPanel({ initial }: { initial: SecurityInitial }) {
       <details className="card-outline group p-4 sm:p-5">
         <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
           <span id="sec-tips" className="eyebrow">
-            Maslahatlar
+            {tr(til, X.tipsTitle)}
           </span>
           <ChevronDown size={16} className="shrink-0 text-fg-3 transition-transform group-open:rotate-180" aria-hidden="true" />
         </summary>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {TIPS.map((t) => (
-            <li key={t.title} className="flex items-start gap-3">
+            <li key={t.title.uz} className="flex items-start gap-3">
               <t.icon size={16} className="mt-0.5 shrink-0 text-fg-3" aria-hidden="true" />
               <span>
-                <span className="block text-[13.5px] font-semibold text-fg">{t.title}</span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-fg-3">{t.text}</span>
+                <span className="block text-[13.5px] font-semibold text-fg">{tr(til, t.title)}</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-fg-3">{tr(til, t.text)}</span>
               </span>
             </li>
           ))}

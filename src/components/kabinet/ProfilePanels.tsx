@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Briefcase, Clock3, Send, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useIsPhone } from "@/components/motion/useMediaQuery";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { PROFIL_SAHIFA } from "@/lib/i18n/dict/kabinet-forms";
 
 const ICONS: Record<string, LucideIcon> = { user: UserRound, send: Send, briefcase: Briefcase, shield: ShieldCheck, clock: Clock3 };
 
@@ -20,6 +23,7 @@ export interface ProfilePanel {
  * sm+ da — avvalgidek chiplar + barcha bo'limlar ustma-ust. Tanlov `?tab=` va `#hash` dan o'qiladi (tashqi havolalar ishlaydi).
  */
 export function ProfilePanels({ panels }: { panels: ProfilePanel[] }) {
+  const til = useLocale();
   const phone = useIsPhone();
   const router = useRouter();
   const sp = useSearchParams();
@@ -44,7 +48,7 @@ export function ProfilePanels({ panels }: { panels: ProfilePanel[] }) {
 
   return (
     <>
-      <nav aria-label="Bo'limlar" className="no-scrollbar -mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <nav aria-label={tr(til, PROFIL_SAHIFA.sectionsAria)} className="no-scrollbar -mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <ul className="flex w-max gap-1.5" role={phone ? "tablist" : undefined}>
           {panels.map((p) => {
             const Icon = ICONS[p.icon];

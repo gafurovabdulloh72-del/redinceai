@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { XAVFSIZLIK_SAHIFA as XS } from "@/lib/i18n/dict/kabinet-forms";
 import { redirect } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { headers } from "next/headers";
@@ -38,6 +39,7 @@ function maskIp(ip: string | null): string | null {
 export default async function SecurityPage({ searchParams }: { searchParams: SearchParams }) {
   const [user, session, sp] = await Promise.all([getCurrentUser(), getSession(), searchParams]);
   if (!user) redirect(await loginRedirectPath("/kabinet/xavfsizlik"));
+  const til = await getLocale();
   const [codes, sessionList, blockedRows, historyRows] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, user.id), columns: { recoveryCodes: true, dmPolicy: true, commentPolicy: true, showOnline: true, isPaused: true } }),
     listUserSessions(user.id, session, (await headers()).get("user-agent")),
@@ -79,12 +81,12 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
         <span className="eyebrow">
-          <LockKeyhole size={13} /> Kabinet
+          <LockKeyhole size={13} /> {tr(til, XS.eyebrow)}
         </span>
         <h1 className="display-xl mt-4 text-fg">
-          Hisob <span className="accent-serif">xavfsizligi</span>
+          {tr(til, XS.titleStart)} <span className="accent-serif">{tr(til, XS.titleAccent)}</span>
         </h1>
-        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">Maxfiylik, bloklanganlar, parol, ikki bosqichli himoya va faol qurilmalar.</p>
+        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-fg-2">{tr(til, XS.desc)}</p>
       </header>
 
       {/* ADMIN_REQUIRE_2FA=1 bilan admin panelidan yo'naltirilgan admin — nima uchun shu yerda ekanini tushuntiramiz */}
@@ -92,8 +94,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
         <div role="alert" className="mb-4 flex items-start gap-3 rounded-[var(--radius-lg)] border border-accent/40 bg-accent/5 p-4 text-[14px] leading-relaxed text-fg">
           <LockKeyhole size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
           <span>
-            <b>Admin panel uchun ikki bosqichli himoya majburiy.</b> Pastdagi «Ikki bosqichli himoya» bo&apos;limida autentifikator ilovasini ulang —
-            shundan keyin admin panel va Telegram admin boti ochiladi.
+            <b>{tr(til, XS.admin2faTitle)}</b> {tr(til, XS.admin2faText)}
           </span>
         </div>
       )}
