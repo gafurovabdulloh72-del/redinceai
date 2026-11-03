@@ -65,6 +65,16 @@ try {
   console.warn("⚠ reprice.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
 }
 
+// Kontaktlarni shifrlash (4-audit, 2026-11-03): users.phone, specialists.telegram/instagram ochiq matn bo'lsa — AES-GCM
+// shifrmatnga (idempotent; SEAL_CONTACTS=0 o'tkazib yuboradi; kalit DATA_ENCRYPTION_KEY yoki AUTH_SECRET)
+if (process.env.SEAL_CONTACTS !== "0") {
+  try {
+    execSync("npx tsx scripts/seal-contacts.ts", { stdio: "inherit", env: process.env });
+  } catch (e) {
+    console.warn("⚠ seal-contacts.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
+  }
+}
+
 // Tariflar (2026-11-03): Pro narxi 49 000 so'm. Eski standart 50 000 saqlangan bo'lsa (admin o'zgartirmagan) — 49 000 ga
 // o'tkaziladi. Boshqa qiymatga (admin qo'lda belgilagan) tegilmaydi. Max narxi yo'q bo'lsa standart 79 000 kod'dan olinadi.
 try {

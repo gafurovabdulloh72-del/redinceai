@@ -1,5 +1,16 @@
 import { sql, relations } from "drizzle-orm";
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { customType, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { openField, sealField } from "@/lib/security/field-crypto";
+
+/**
+ * Bazada shifrlangan matn ustuni (4-audit): yozishda AES-256-GCM bilan muhrlanadi, o'qishda ochiladi.
+ * Faqat shaxsiy kontaktlar uchun (telefon, Telegram, Instagram) — `LIKE`/`=` qidiruv ishlamaydi, xom SQL shifrmatnni ko'radi.
+ */
+const sealedText = customType<{ data: string; driverData: string }>({
+  dataType: () => "text",
+  toDriver: (v) => sealField(v) ?? "",
+  fromDriver: (v) => openField(v) ?? "",
+});
 
 /* ------------------------------------------------------------------ */
 /* Foydalanuvchilar                                                    */
@@ -12,7 +23,8 @@ export const users = sqliteTable(
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["client", "specialist", "admin"] }).notNull().default("client"),
-    phone: text("phone"),
+    /** Shifrlangan (field-crypto) */
+    phone: sealedText("phone"),
     avatarUrl: text("avatar_url"),
     /** Jins (ixtiyoriy) — ro'yxatda saralash uchun */
     gender: text("gender", { enum: ["male", "female"] }),
@@ -243,8 +255,9 @@ export const specialists = sqliteTable(
     languages: text("languages", { mode: "json" }).$type<string[]>().notNull().default(["uz"]),
     /** Jihozlar, JSON massiv: ["Sony FX3", "DJI Mavic 3"] */
     equipment: text("equipment", { mode: "json" }).$type<string[]>().notNull().default([]),
-    telegram: text("telegram"),
-    instagram: text("instagram"),
+    /** Shifrlangan (field-crypto) — kontakt sotuvi maydonlari */
+    telegram: sealedText("telegram"),
+    instagram: sealedText("instagram"),
     youtube: text("youtube"),
     website: text("website"),
     coverUrl: text("cover_url"),

@@ -74,6 +74,8 @@ export interface AdminSubscriberRow {
   title: string;
   isBanned: boolean;
   status: SubscriptionStatus;
+  /** Tarif: faol to'langan obuna bo'lsa pro|max, aks holda null */
+  tier: "pro" | "max" | null;
   until: number;
   graceUntil: number;
   daysLeft: number;
@@ -159,6 +161,8 @@ export async function getAdminSubscriptionData(filter: { status?: AdminSubFilter
         title: specialists.title,
         createdAt: specialists.createdAt,
         subscriptionUntil: specialists.subscriptionUntil,
+        subscriptionTier: specialists.subscriptionTier,
+        isPrivileged: specialists.isPrivileged,
         name: users.name,
         email: users.email,
         avatarUrl: users.avatarUrl,
@@ -209,6 +213,7 @@ export async function getAdminSubscriptionData(filter: { status?: AdminSubFilter
       title: r.title,
       isBanned: r.isBanned,
       status: st.status,
+      tier: st.status === "active" || st.status === "exempt" ? (r.subscriptionTier === "max" || r.isPrivileged ? "max" : "pro") : null,
       until: st.until.getTime(),
       graceUntil: st.graceUntil.getTime(),
       daysLeft: st.daysLeft,

@@ -11,7 +11,8 @@ import { ProgressRing, type RingTone } from "@/components/subscription/ProgressR
 import { SubscriptionCheckout } from "@/components/subscription/SubscriptionCheckout";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getSettings } from "@/lib/payments/settings";
-import { proPerks } from "@/lib/subscriptions/pro";
+import { proPerks, tierOf } from "@/lib/subscriptions/pro";
+import { TierBadge } from "@/components/subscription/TierBadge";
 import { plansFor } from "@/lib/subscriptions/billing";
 import { PlanCompare } from "@/components/subscription/PlanCompare";
 import { subscriptionPeriod } from "@/lib/subscriptions/access";
@@ -200,6 +201,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
               <Badge tone={SUB_STATUS_TONE[st.status]}>
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> {SUB_STATUS_LABEL[st.status]}
               </Badge>
+              {(st.status === "active" || st.status === "exempt") && <TierBadge tier={tierOf(specialist)} className="ml-2 align-[2px]" />}
               <h2 id="sub-status" className="mt-3 font-display text-[26px] font-semibold leading-tight text-fg sm:text-[28px]">
                 {head.title}
               </h2>

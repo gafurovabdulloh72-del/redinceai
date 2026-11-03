@@ -398,3 +398,51 @@ test("Chat inbox (Telegram): mehmon guruh-pref 401, begona guruh 404", async () 
     assert.equal(r.status, 404, `yo'q guruh: ${r.status}`);
   }
 });
+
+/* ------------------------- 4-AUDIT (2026-11-03): himoyalangan video oqimi ------------------------- */
+
+/** Katalogdan mehmonga ochiq (bepul namuna) videoli dars topiladi — kurs sahifasidagi dars havolalari bo'yicha; bo'lmasa test o'tkazib yuboriladi */
+async function findPreviewLesson() {
+  const list = await (await req("guest", "/api/mentorlik/kurslar?limit=20")).json().catch(() => null);
+  for (const c of list?.data?.items ?? []) {
+    const html = await (await req("guest", `/mentorlik/${c.slug}`)).text().catch(() => "");
+    for (const id of new Set([...html.matchAll(/\/mentorlik\/dars\/([\w-]+)/g)].map((m) => m[1]))) {
+      if ((await req("guest", `/api/mentorlik/video/${id}`)).status === 302) return id;
+    }
+  }
+  return null;
+}
+
+test("Dars videosi: xom saqlash manzili sizmaydi — faqat tokenli /stream, token boshqa sessiya/muddat/o'zgartirishda 403", async (t) => {
+  const id = await findPreviewLesson();
+  if (!id) return t.skip("bepul namuna dars topilmadi");
+  const r = await req("guest", `/api/mentorlik/video/${id}`);
+  assert.equal(r.status, 302, `kutilgan 302, keldi ${r.status}`);
+  const loc = r.headers.get("location") ?? "";
+  assert.ok(loc.includes(`/api/mentorlik/video/${id}/stream?t=`), `Location tokenli stream bo'lishi kerak: ${loc}`);
+  assert.ok(!/\/uploads\/|blob\.vercel-storage|r2\.|\.mp4|\.webm/.test(loc), `Location xom manzilni oshkor qiladi: ${loc}`);
+  assert.equal(r.headers.get("cache-control"), "private, no-store");
+  const path = loc.replace(BASE, "");
+  // Mehmon tokeni mehmonga ishlaydi (Range bilan 206 yoki 200), yuklab olishga yo'l qo'ymaydigan sarlavhalar bilan
+  const ok = await req("guest", path, { headers: { Range: "bytes=0-9" } });
+  assert.ok([200, 206].includes(ok.status), `token bilan kutilgan 200/206, keldi ${ok.status}`);
+  assert.equal(ok.headers.get("cache-control"), "private, no-store");
+  assert.ok(/^(video|audio)\//.test(ok.headers.get("content-type") ?? ""), "video/audio MIME");
+  // Boshqa sessiya (mijoz) mehmon tokenini ishlata olmaydi
+  const other = await req("cl", path);
+  assert.equal(other.status, 403, `begona sessiya tokeni: kutilgan 403, keldi ${other.status}`);
+  // Imzosi buzilgan / tokensiz
+  assert.equal((await req("guest", path + "x")).status, 403, "buzilgan token 403");
+  assert.equal((await req("guest", path.split("?")[0])).status, 403, "tokensiz 403");
+  // Muddati o'tgan token (payload'dagi exp qo'lda kamaytirilsa imzo buziladi — baribir 403)
+  const [payload, mac] = path.split("t=")[1].split(".");
+  const old = Buffer.from(Buffer.from(payload, "base64url").toString().replace(/\.(\d+)$/, ".1"), "utf8").toString("base64url");
+  assert.equal((await req("guest", `${path.split("?")[0]}?t=${old}.${mac}`)).status, 403, "muddati o'tgan token 403");
+});
+
+test("Efir yozuvi: yo'q efir 404, tokensiz /video/stream 403 (xom R2 manzili API'da yo'q)", async () => {
+  assert.equal((await req("guest", "/api/live/yoq-efir-404/video")).status, 404);
+  assert.equal((await req("cl", "/api/live/yoq-efir-404/video")).status, 404);
+  assert.equal((await req("guest", "/api/live/yoq-efir-404/video/stream")).status, 403);
+  assert.equal((await req("cl", "/api/live/yoq-efir-404/video/stream?t=abc.def")).status, 403);
+});

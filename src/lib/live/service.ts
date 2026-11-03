@@ -257,9 +257,9 @@ export async function listRecordings(groupId: string, manage: boolean, viewer: V
   const visible = rows.filter((r) => (manage ? true : r.recordingStatus === "ready" && !r.recordingHidden));
   return Promise.all(
     visible.map(async (r) => {
-      // Narxli efir yozuvi: chipta/obuna bo'lmasa video manzili berilmaydi
+      // Narxli efir yozuvi: chipta/obuna bo'lmasa video manzili berilmadi. Manzil — xom R2 emas, tokenli route (4-audit)
       const locked = r.priceSom > 0 && !manage && !(await canWatchPaid(viewer?.id ?? null, r, viewer?.role === "admin"));
-      return { id: r.id, title: r.title, startedAt: r.startedAt.getTime(), seconds: r.recordingSeconds ?? Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 1000)), url: locked ? null : r.recordingUrl, coverUrl: r.coverUrl, status: r.recordingStatus, hidden: r.recordingHidden, price: r.priceSom, locked };
+      return { id: r.id, title: r.title, startedAt: r.startedAt.getTime(), seconds: r.recordingSeconds ?? Math.max(1, Math.round(((r.endedAt?.getTime() ?? r.startedAt.getTime()) - r.startedAt.getTime()) / 1000)), url: locked ? null : `/api/live/${r.id}/video`, coverUrl: r.coverUrl, status: r.recordingStatus, hidden: r.recordingHidden, price: r.priceSom, locked };
     }),
   );
 }

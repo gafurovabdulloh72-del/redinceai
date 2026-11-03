@@ -344,3 +344,19 @@ Hammasi kodda yopildi, `scripts/security.mjs` 48 ta test (oldin 21), bot oqimlar
 - 24-band: imzolangan (muddatli) fayl URL'lari — Blob public store'da hozircha ochiq havola.
 - Paket migratsiyalari: Next 16 (postcss), @vercel/blob 2.x (o'z ichidagi eski zod ham shu bilan ketadi) — har biri alohida blok (drizzle 0.45 ✔, zod v4 ✔).
 - Sentry yoki boshqa xato monitoringi (28) — sizning qaroringiz bilan (CSP'ga yangi xost kiradi).
+
+---
+
+# 4-audit: video havolalar va kontakt shifrlash (2026-11-03)
+
+Foydalanuvchi so'rovi: «video havolalar, profil ma'lumotlarini shifrlagin — hammasi xavfsiz bo'lsin, buzib kirilmasin».
+
+| # | Topilma | Xavf | Holat |
+|---|---------|------|-------|
+| 1 | Dars videosi `/api/mentorlik/video/[id]` ruxsat tekshirgach XOM saqlash manziliga (`/uploads`, Blob, R2) 302 qilardi — Network panelidan nusxalab ulashish mumkin, pullik kurs oqib ketadi | 🔴 | **✔ tuzatildi** — `lib/security/media-token.ts` (HMAC-SHA256, 15 daqiqa, `kind.id.subject.exp`, sessiyaga bog'langan, kalit AUTH_SECRET'dan HKDF `redince-media`) + `lib/media-stream.ts` (server orqali oqim: lokal fayl Range bilan 206, tashqi https — `fetch` + Range uzatish, faqat video/audio MIME; `Cache-Control: private, no-store`, `nosniff`, CSP sandbox). Route → `…/video/[id]/stream?t=` |
+| 2 | Efir yozuvi `listRecordings` xom R2 `recordingUrl` qaytarardi (pullik efir yozuvi) | 🔴 | **✔ tuzatildi** — `/api/live/[id]/video` (yopiq jamoa → faqat a'zo; `priceSom>0` → `canWatchPaid`; yashirilgan/tayyor bo'lmagan → faqat boshqaruvchi) + `/video/stream` (token). `RecordingView.url` endi route |
+| 3 | Kontaktlar (`users.phone`, `specialists.telegram/instagram`) bazada ochiq matn — baza fayli/zaxira/Turso dump qo'lga tushsa shaxsiy ma'lumot oqadi | 🟠 | **✔ tuzatildi** — `lib/security/field-crypto.ts` (AES-256-GCM, `fe1:` prefiksi, kalit `DATA_ENCRYPTION_KEY` yoki AUTH_SECRET'dan HKDF `redince-field`) + sxemada `sealedText` custom type: Drizzle yozganda muhrlaydi, o'qiganda ochadi — kod o'zgarmaydi. Migratsiya `scripts/seal-contacts.ts` (db-prepare har deployda, idempotent; `--unseal`). Cheklov: `LIKE` qidiruv shifrlangan telefonni topmaydi; xom SQL shifrmatnni ko'radi |
+| 4 | `RATE_LIMITS.proposals` eski 15/kun — Max tarif (50/kun) bloklanardi | 🟡 | **✔** `MAX_PROPOSAL_DAILY_LIMIT * 2` |
+
+Testlar: `scripts/security.mjs` — «Dars videosi» (302 → tokenli stream, Location'da xom manzil yo'q, token boshqa sessiyada/buzilgan/muddati o'tgan → 403, tokensiz → 403) va «Efir yozuvi» (404/403).
+Operatsion: `AUTH_SECRET` (yoki `DATA_ENCRYPTION_KEY`) o'zgartirilsa shifrlangan kontaktlar ochilmaydi — avval eski kalit bilan `--unseal`, keyin yangi kalit bilan qayta `seal`. VPS'ga ko'chishda env aynan ko'chiriladi.

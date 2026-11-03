@@ -9,6 +9,7 @@ import { ScrollRow } from "@/components/ui/ScrollRow";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { INVOICE_PROVIDER_LABEL, INVOICE_STATE_LABEL, INVOICE_STATE_TONE, SUB_STATUS_LABEL, SUB_STATUS_TONE, monthsLabel } from "@/lib/subscriptions/labels";
 import { getAdminSubscriptionData } from "@/lib/subscriptions/queries";
+import { TierBadge } from "@/components/subscription/TierBadge";
 import { adminSubscriptionsQuerySchema, type AdminSubFilter } from "@/lib/subscriptions/schemas";
 import { cn, formatDate, formatDateTime, formatPrice } from "@/lib/utils";
 import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
@@ -179,6 +180,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
                   </div>
                   <div className="flex flex-wrap items-center gap-2 md:block">
                     <Badge tone={SUB_STATUS_TONE[r.status]}>{SUB_STATUS_LABEL[r.status]}</Badge>
+                    {r.tier && <TierBadge tier={r.tier} />}
                     <span className="text-[12px] text-fg-3 md:hidden">
                       {formatDate(r.status === "grace" ? r.graceUntil : r.until)} gacha
                     </span>

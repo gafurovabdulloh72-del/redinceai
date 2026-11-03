@@ -3,7 +3,7 @@ import { eq, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
-import { PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
+import { MAX_PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
 
 export { clientIp } from "./request";
 
@@ -59,10 +59,11 @@ export const RATE_LIMITS = {
   /** E'lonni tahrirlash / yopish / qayta ochish — userId (60 / soat) */
   jobEdit: { limit: 60, windowMs: HOUR },
   /**
-   * Taklif yuborish urinishlari — mutaxassis userId (PROPOSAL_DAILY_LIMIT × 3 / kun). Asl kunlik limit —
-   * server hisobi (proposalsSentToday ≤ PROPOSAL_DAILY_LIMIT); bu faqat xato urinishlar spamini to'xtatadi.
+   * Taklif yuborish urinishlari — mutaxassis userId (eng yuqori tarif limiti × 2 / kun). Asl kunlik limit —
+   * tarif bo'yicha server hisobi (proposalsSentToday ≤ TIER_LIMITS[tier].proposals); bu faqat xato urinishlar
+   * spamini to'xtatadi. DIQQAT: Max tarif (50/kun) uchun bu chegara undan katta bo'lishi SHART.
    */
-  proposals: { limit: PROPOSAL_DAILY_LIMIT * 3, windowMs: DAY },
+  proposals: { limit: MAX_PROPOSAL_DAILY_LIMIT * 2, windowMs: DAY },
   /** Taklifni saralash / rad etish / qabul qilish / qaytarib olish — userId (120 / soat) */
   proposalAct: { limit: 120, windowMs: HOUR },
   /** Buyurtma chati xabarlari — userId (60 / 10 daqiqa) */
