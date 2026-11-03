@@ -115,6 +115,12 @@ docker compose up -d app
 Skript barcha jadval, qator, indeks va triggerlarni ko'chiradi va oxirida `integrity: ok` yozadi
 (`scripts/turso-to-sqlite.mjs`). Turso qiymatlari — Vercel → Settings → Environment Variables.
 
+> ⚠️ **Shifrlangan kontaktlar (4-audit).** `users.phone`, `specialists.telegram/instagram` bazada AES bilan shifrlangan;
+> kalit `DATA_ENCRYPTION_KEY` (bo'lsa) yoki `AUTH_SECRET`dan olinadi. Ko'chishda Vercel'dagi **aynan o'sha** `AUTH_SECRET`
+> (va bo'lsa `DATA_ENCRYPTION_KEY`) ni serverdagi `.env`ga yozing — aks holda kontaktlar bo'sh ko'rinadi. Agar Vercel'da
+> `AUTH_SECRET` 32 belgidan qisqa yoki umuman yo'q bo'lsa, kalit Turso tokenidan chiqarilgan: ko'chishdan OLDIN Vercel'da
+> (eski kalit bilan) `npx tsx scripts/seal-contacts.ts --unseal`, yangi serverda kuchli `AUTH_SECRET` bilan db-prepare o'zi qayta shifrlaydi.
+
 **Kunlik zaxira nusxa (R2'siz ham) — crontab -e:**
 ```bash
 30 2 * * * cd /opt/kasbegalari && docker compose exec -T app node scripts/backup-db.mjs >> /var/log/kasb-backup.log 2>&1
