@@ -10,7 +10,7 @@ import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
-import { isPremium } from "@/lib/social/quota";
+import { premiumTier } from "@/lib/social/quota";
 import { MAX_VIDEO_BYTES_FALLBACK, videoLimitFor, uploadName } from "@/components/chat/attachments";
 
 /** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
@@ -69,7 +69,7 @@ export const POST = handler(async (req) => {
     return ok({ url: `/uploads/${name}` }, { status: 201 });
   }
 
-  const maxBytes = videoLimitFor(await isPremium(session.sub));
+  const maxBytes = videoLimitFor(await premiumTier(session.sub));
   const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
   if (!body) throw new ApiError(400, "JSON noto'g'ri");
 

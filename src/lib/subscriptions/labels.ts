@@ -78,4 +78,6 @@ export interface InvoiceView {
   createdAt: number;
   /** Provayderga / adminga yetib borgan (Payme/Click tranzaksiyasi yoki «To'ladim») — bekor bo'lsa ham tarixda ko'rsatiladi */
   attempted: boolean;
+  /** Tarif: pro | max (eski hisoblar — pro) */
+  tier?: "pro" | "max";
 }

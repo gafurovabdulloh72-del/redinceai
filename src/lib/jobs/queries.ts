@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { jobs, proposals, specialists } from "@/lib/db/schema";
 import { getSettings } from "@/lib/payments/settings";
 import { canReceiveOrders, subscriptionState } from "@/lib/subscriptions/access";
-import { PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
+import { proposalLimitFor, tierOf } from "@/lib/subscriptions/pro";
 import { toListItem, type Viewer } from "@/lib/privacy";
 import { clientNotBanned, matchText, openAndLive, proposalsSentToday } from "./server";
 import { firstName, REMOTE_REGION } from "./format";
@@ -306,7 +306,7 @@ export type SpecialistProposal = Awaited<ReturnType<typeof listSpecialistProposa
 export async function specialistForUser(userId: string) {
   const sp = await db.query.specialists.findFirst({
     where: eq(specialists.userId, userId),
-    columns: { id: true, userId: true, slug: true, createdAt: true, subscriptionUntil: true, completedCount: true, topRated: true },
+    columns: { id: true, userId: true, slug: true, createdAt: true, subscriptionUntil: true, awardPremiumUntil: true, isPrivileged: true, subscriptionTier: true, completedCount: true, topRated: true },
   });
   return sp ?? null;
 }
@@ -335,8 +335,8 @@ export async function getProposerContext(userId: string, now = Date.now()) {
     subscription: { status: state.status, daysLeft: state.daysLeft },
     canPropose: canReceiveOrders(sp, settings, new Date(now)),
     sentToday,
-    limit: PROPOSAL_DAILY_LIMIT,
-    remaining: Math.max(0, PROPOSAL_DAILY_LIMIT - sentToday),
+    limit: proposalLimitFor(tierOf(sp, now)),
+    remaining: Math.max(0, proposalLimitFor(tierOf(sp, now)) - sentToday),
   };
 }
 export type ProposerContext = NonNullable<Awaited<ReturnType<typeof getProposerContext>>>;

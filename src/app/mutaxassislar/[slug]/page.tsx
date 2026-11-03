@@ -75,6 +75,8 @@ import { getLocale } from "@/lib/i18n/server";
 import { KARTA, experienceLabel, genderPersonLabel, localizePrice, priceFromLabel, priceRangeLabel, workTypeLabel } from "@/lib/i18n/dict/catalog";
 import { FAOLLIK, PROFIL, PROFIL_X, TIL_NOMI } from "@/lib/i18n/dict/profile";
 import { getSettings } from "@/lib/payments/settings";
+import { tierOf, type Tier } from "@/lib/subscriptions/pro";
+import { TierBadge } from "@/components/subscription/TierBadge";
 import { GUEST_VIEWER, effectivePriceFrom, filterSpecialistForViewer, isBotUserAgent, isOnVacation, lockReason, resolveVisibility, type Viewer } from "@/lib/privacy";
 import { forwardedHost, forwardedProto, trustedSiteOrigin } from "@/lib/security/request";
 import { subscriptionState } from "@/lib/subscriptions/access";
@@ -165,7 +167,7 @@ function BadgeIcon({ k }: { k: CreatorBadge["key"] }) {
   return <MessagesSquare size={13} className={cls} aria-hidden />;
 }
 
-function NameWithBadge({ name, verified, verifiedTitle }: { name: string; verified: boolean; verifiedTitle: string }) {
+function NameWithBadge({ name, verified, verifiedTitle, tier }: { name: string; verified: boolean; verifiedTitle: string; tier: Tier }) {
   const words = name.trim().split(/\s+/);
   const last = words.pop() ?? "";
   return (
@@ -178,6 +180,7 @@ function NameWithBadge({ name, verified, verifiedTitle }: { name: string; verifi
             <VerifiedBadge size={24} />
           </span>
         )}
+        {tier !== "free" && <TierBadge tier={tier} size="lg" />}
       </span>
     </>
   );
@@ -543,7 +546,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
             <Avatar name={sp.user.name} src={sp.user.avatarUrl} size={96} className="!ring-4 !ring-surface text-[32px]" />
             <div className="min-w-0 flex-1 sm:pt-14">
               <h1 className="break-words font-display text-[26px] font-semibold leading-[1.1] tracking-tight text-fg sm:text-[32px]">
-                <NameWithBadge name={sp.user.name} verified={sp.isVerified} verifiedTitle={tr(til, PROFIL.verifiedPerson)} />
+                <NameWithBadge name={sp.user.name} verified={sp.isVerified} verifiedTitle={tr(til, PROFIL.verifiedPerson)} tier={tierOf(raw)} />
               </h1>
               <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[16px] text-fg-2 sm:text-[17px]">
                 <span>{sp.title}{cat ? <span className="text-fg-3"> · {cat.name}</span> : null}</span>

@@ -39,11 +39,13 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { unreadDmCount } from "@/lib/chat/dm";
 import { db } from "@/lib/db";
 import { applications, favorites, follows, groupMembers, groups, jobs, notifications, orders, portfolioItems, posts, proposals, subscriptionInvoices, vacancies, contactUnlocks } from "@/lib/db/schema";
-import { ORDER_STATUS_LABEL, PROPOSAL_DAILY_LIMIT, type OrderStatus } from "@/lib/constants";
+import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/constants";
 import { proposalsSentToday } from "@/lib/jobs/server";
 import { getSettings } from "@/lib/payments/settings";
 import { isOnVacation, tashkentNow } from "@/lib/privacy";
-import { dailyProfileViews, getOrdersForUser } from "@/lib/queries";
+import { dailyProfileViews, getOrdersForUser, proStats } from "@/lib/queries";
+import { proposalLimitFor, tierOf, VIEWERS_LIST } from "@/lib/subscriptions/pro";
+import { TierBadge } from "@/components/subscription/TierBadge";
 import { subscriptionState, type SubscriptionState } from "@/lib/subscriptions/access";
 import { cn, formatDate, formatDateTime, formatNumber, formatPrice, greetingFor } from "@/lib/utils";
 
@@ -174,6 +176,11 @@ export default async function KabinetPage() {
     // Kunlik ko'rishlar grafigi (kamchilik #32) — faqat mutaxassis profiliga
     sp ? dailyProfileViews(sp.id, 14).catch(() => []) : Promise.resolve([] as Array<{ day: string; n: number }>),
   ]);
+
+  /* ---------- PRO statistikasi: faqat Pro mutaxassisga (oddiyga — taklif kartasi) ---------- */
+  const tier = sp ? tierOf(sp) : "free";
+  const isPro = tier !== "free";
+  const pstats = sp && isPro ? await proStats(sp.id, user.id, VIEWERS_LIST[tier]).catch(() => null) : null;
 
   /* ---------- To'lov kutilmoqda banneri (kamchilik #54): oxirgi 7 kunda ochilgan, hali to'lanmagan hisob ---------- */
   const pendingInvoice = await db.query.subscriptionInvoices
@@ -421,6 +428,89 @@ export default async function KabinetPage() {
         </section>
       )}
 
+      {/* ---------- PRO statistikasi (Pro tarif) / oddiy mutaxassisga taklif kartasi ---------- */}
+      {sp && pstats && (
+        <section className="card mt-5 p-5" aria-labelledby="pro-stats-title">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 id="pro-stats-title" className="font-display text-[15px] font-semibold text-fg">
+              {til === "ru" ? "Статистика профиля" : "Profil statistikasi"}
+            </h2>
+            <TierBadge tier={tier} />
+            <span className="ml-auto text-[12px] text-fg-3">{til === "ru" ? "за 30 дней" : "30 kun"}</span>
+          </div>
+          <dl className="grid grid-cols-3 gap-3">
+            {[
+              { v: pstats.viewers30, l: til === "ru" ? "уникальных зрителей" : "noyob ko'ruvchi" },
+              { v: pstats.registered30, l: til === "ru" ? "из них с аккаунтом" : "shundan ro'yxatdagi" },
+              { v: pstats.contactsSold, l: til === "ru" ? "контактов продано" : "kontakt sotilgan" },
+            ].map((x) => (
+              <div key={x.l} className="rounded-[12px] bg-surface-2 px-3 py-2.5">
+                <dd className="font-display text-[22px] font-semibold leading-none tabular-nums text-fg">{x.v}</dd>
+                <dt className="mt-1 text-[11.5px] leading-tight text-fg-3">{x.l}</dt>
+              </div>
+            ))}
+          </dl>
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-[12.5px] font-semibold text-fg-2">{til === "ru" ? "Кто смотрел профиль" : "Profilingizni kim ko'rdi"}</h3>
+              {pstats.recentViewers.length === 0 ? (
+                <p className="text-[12.5px] text-fg-3">{til === "ru" ? "Пока нет зрителей с аккаунтом." : "Hozircha ro'yxatdan o'tgan ko'ruvchi yo'q."}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {pstats.recentViewers.map((v) => (
+                    <li key={v.id} className="flex items-center gap-2.5">
+                      <Avatar name={v.name} src={v.avatarUrl} size={28} decorative />
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{v.name}</span>
+                      <span className="shrink-0 text-[11.5px] text-fg-3">
+                        {v.role === "client" ? (til === "ru" ? "клиент" : "mijoz") : v.role === "specialist" ? (til === "ru" ? "специалист" : "mutaxassis") : ""} · {v.day.slice(8, 10)}.{v.day.slice(5, 7)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3 className="mb-2 text-[12.5px] font-semibold text-fg-2">{til === "ru" ? "Самые просматриваемые посты" : "Eng ko'p ko'rilgan postlar"}</h3>
+              {pstats.topPosts.length === 0 ? (
+                <p className="text-[12.5px] text-fg-3">{til === "ru" ? "Пока нет просмотров постов." : "Hozircha post ko'rishlari yo'q."}</p>
+              ) : (
+                <ol className="space-y-2">
+                  {pstats.topPosts.map((p, i) => (
+                    <li key={p.id}>
+                      <Link href={`/mutaxassislar/${sp.slug}?post=${p.id}`} className="flex items-center gap-2.5 rounded-[10px] px-1 py-0.5 transition hover:bg-fg/5">
+                        <span className="w-4 shrink-0 text-center text-[12px] font-bold text-fg-4">{i + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-fg">{p.body || (til === "ru" ? "Медиа-пост" : "Media post")}</span>
+                        <span className="shrink-0 text-[11.5px] tabular-nums text-fg-3">
+                          👁 {p.views} · ❤ {p.likes}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+      {sp && !isPro && (
+        <section className="card mt-5 flex flex-col gap-3 p-5 sm:flex-row sm:items-center" aria-labelledby="pro-teaser-title">
+          <div className="min-w-0 flex-1">
+            <h2 id="pro-teaser-title" className="flex items-center gap-2 font-display text-[15px] font-semibold text-fg">
+              <span className="rounded-[5px] bg-ink px-1.5 py-px text-[10px] font-bold tracking-wide text-ink-fg">PRO</span>
+              {til === "ru" ? "Больше клиентов с Pro" : "Pro bilan ko'proq mijoz"}
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-fg-2">
+              {til === "ru"
+                ? "Выше в каталоге, новые заказы сразу в Telegram, кто смотрел профиль, больше постов, сторис и предложений."
+                : "Katalogda yuqorida, yangi e'lonlar darhol Telegramga, profilni kim ko'rgani, ko'proq post, story va taklif."}
+            </p>
+          </div>
+          <ButtonLink href="/kabinet/obuna#rejalar" variant="accent" size="sm" className="shrink-0">
+            {til === "ru" ? "Подключить Pro" : "Pro'ga o'tish"}
+          </ButtonLink>
+        </section>
+      )}
+
       {/* ---------- Profil to'liqligi (mutaxassis, 100% bo'lmaguncha) ---------- */}
       {showOnboarding && sp && (
         <section className="card mt-5 p-5" aria-labelledby="onb-title">
@@ -557,7 +647,7 @@ export default async function KabinetPage() {
             )}
             {sp && proposalStats && (
               <li>
-                <Row href="/kabinet/takliflar" icon={Send} label={tr(til, UMUMIY.proposals)} value={UMUMIY.proposalsValue[til](Math.min(proposalStats.today, PROPOSAL_DAILY_LIMIT), PROPOSAL_DAILY_LIMIT, (proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0))} />
+                <Row href="/kabinet/takliflar" icon={Send} label={tr(til, UMUMIY.proposals)} value={UMUMIY.proposalsValue[til](Math.min(proposalStats.today, proposalLimitFor(tier)), proposalLimitFor(tier), (proposalStats.by.pending ?? 0) + (proposalStats.by.shortlisted ?? 0))} />
               </li>
             )}
             {jobStats && (

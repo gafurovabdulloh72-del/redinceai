@@ -1,8 +1,13 @@
 /**
- * Ijtimoiy limitlar (klientga xavfsiz). Oddiy foydalanuvchi: profil posti — 7 kunda 2 ta, story — 7 kunda 4 ta.
- * Premium (obunasi to'langan va faol mutaxassis, imtiyozli shaxs, admin) — cheksiz. Hisob: sirpanuvchi oyna (rolling window).
+ * Ijtimoiy limitlar (klientga xavfsiz). Har tarifda chegarasi bor (2026-11-03): profil posti 7 kunda
+ * Standart 2 · Pro 7 · Max 20, story 7 kunda 4 · 14 · 40 (lib/subscriptions/pro.ts `TIER_LIMITS`).
+ * Hisob: sirpanuvchi oyna (rolling window). Quyidagi POST_/STORY_WEEKLY_LIMIT — Standart qiymatlari.
  */
 export const POST_WEEKLY_LIMIT = 2;
+export const POST_WEEKLY_LIMIT_PRO = 7;
+export const POST_WEEKLY_LIMIT_MAX = 20;
+export const STORY_WEEKLY_LIMIT_PRO = 14;
+export const STORY_WEEKLY_LIMIT_MAX = 40;
 export const POST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const STORY_WEEKLY_LIMIT = 4;
 export const STORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,9 +25,10 @@ export const STORY_BACKGROUNDS: Record<string, string> = {
 };
 export const MUSIC_TITLE_MAX = 80;
 
-/** Kvota holati (UI): limit null — cheksiz (premium) */
+/** Kvota holati (UI): limit null — cheksiz (hozir ishlatilmaydi — har tarifda chegara bor) */
 export interface QuotaInfo {
   premium: boolean;
+  tier?: "free" | "pro" | "max";
   posts: { used: number; limit: number | null; resetAt: number | null };
   stories: { used: number; limit: number | null; resetAt: number | null };
 }

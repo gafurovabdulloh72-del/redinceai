@@ -358,6 +358,7 @@ export const platformSettingsSchema = z.object({
   minOrderAmount: z.coerce.number().int().min(0).max(100_000_000),
   // Obuna va boshqa sozlamalar — berilmasa tegilmaydi
   subscriptionPrice: z.coerce.number().int().min(0).max(10_000_000).optional(),
+  subscriptionPriceMax: z.coerce.number().int().min(0).max(10_000_000).optional(),
   subscriptionTrialDays: z.coerce.number().int().min(0).max(365).optional(),
   subscriptionGraceDays: z.coerce.number().int().min(0).max(60).optional(),
   subscriptionEnforced: z.coerce.number().int().min(0).max(1).optional(),

@@ -8,6 +8,7 @@
  */
 import { DEFAULT_VISIBILITY, PROFILE_HIRING, REGION_BY_SLUG, VISIBILITY_FIELDS, WEEKDAYS, type VisibilityFieldKey, type VisibilityLevelValue, type WeekdayKey } from "./constants";
 import type { Schedule, ServicePackage, Visibility } from "./db/schema";
+import { tierOf } from "./subscriptions/pro";
 
 /* ------------------------------------------------------------------ */
 /* Ko'rinish darajalari                                                */
@@ -207,7 +208,10 @@ export function toListItem<
     schedule?: unknown;
     userId?: unknown;
     blockedDates?: unknown;
-    subscriptionUntil?: unknown;
+    subscriptionUntil?: Date | number | null;
+    awardPremiumUntil?: Date | number | null;
+    isPrivileged?: boolean | null;
+    subscriptionTier?: string | null;
     packages?: ReadonlyArray<Pick<ServicePackage, "price">> | null;
     certificates?: unknown;
     user: { name: string; avatarUrl: string | null; lastSeenAt?: Date | null; showOnline?: boolean };
@@ -223,6 +227,9 @@ export function toListItem<
     userId: _u,
     blockedDates: _b,
     subscriptionUntil: _su,
+    awardPremiumUntil: _ap,
+    isPrivileged: _ip,
+    subscriptionTier: _st,
     packages: _p,
     certificates: _c,
     user: _usr,
@@ -238,6 +245,9 @@ export function toListItem<
   void _u;
   void _b;
   void _su;
+  void _ap;
+  void _ip;
+  void _st;
   void _p;
   void _c;
   // equipment / completedCount / topRated / workTypes / rates (F51, F12, F69, F52, F70) — maxfiy emas, `rest` orqali o'tadi.
@@ -246,7 +256,10 @@ export function toListItem<
   // faqat boolean; foydalanuvchi «onlaynligimni ko'rsatma» desa (showOnline=false) chiqmaydi
   const seen = sp.user.lastSeenAt ? (sp.user.lastSeenAt instanceof Date ? sp.user.lastSeenAt.getTime() : Number(sp.user.lastSeenAt)) : 0;
   const activeToday = sp.user.showOnline !== false && seen > Date.now() - 86_400_000;
-  return { ...rest, priceFrom: effectivePriceFrom(sp), city: viewerCity(sp, viewer), activeToday, user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
+  // Pro belgisi (lib/subscriptions/pro.ts) — faqat boolean, obuna muddati oqmaydi
+  const tier = tierOf(sp);
+  const isPro = tier !== "free";
+  return { ...rest, priceFrom: effectivePriceFrom(sp), city: viewerCity(sp, viewer), activeToday, isPro, tier, user: { name: sp.user.name, avatarUrl: sp.user.avatarUrl } };
 }
 
 /**

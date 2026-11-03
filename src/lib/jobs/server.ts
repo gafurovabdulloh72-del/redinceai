@@ -1,10 +1,10 @@
 import "server-only";
-import { eq, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { jobs, proposals, users } from "@/lib/db/schema";
+import { jobs, proposals, specialists, users } from "@/lib/db/schema";
 import { notify, type NotificationType } from "@/lib/notifications";
 import { RATE_LIMITS, rateLimit } from "@/lib/security/rate-limit";
-import { PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
+import { MAX_PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
 import { tashkentNow } from "@/lib/privacy";
 import { escapeLike, translit } from "@/lib/utils";
 
@@ -19,6 +19,37 @@ export function notifyJob(userId: string, type: JobNotificationType, title: stri
 }
 
 export const jobHref = (id: string) => `/ishlar/${id}`;
+
+/**
+ * PRO TARIF: yangi e'lon joylanganda kasbi (va hududi — e'lon masofaviy bo'lsa istalgan hudud) mos
+ * Pro mutaxassislarga DARHOL bildirishnoma (sayt + Telegram + push — `notify()` fan-out, foydalanuvchi
+ * sozlamalari hurmat qilinadi). Oddiy mutaxassislar e'lonni «Ishlar» bo'limida ko'radi.
+ * Pro qoidasi lib/subscriptions/pro.ts bilan bir xil. Ko'pi bilan 200 kishi.
+ */
+export async function alertProSpecialistsAboutJob(job: { id: string; clientId: string; title: string; category: string; regionSlug: string | null; budgetMax: number | null }): Promise<number> {
+  const now = Date.now();
+  const rows = await db
+    .select({ userId: specialists.userId })
+    .from(specialists)
+    .innerJoin(users, eq(users.id, specialists.userId))
+    .where(
+      and(
+        eq(specialists.category, job.category),
+        job.regionSlug ? eq(specialists.regionSlug, job.regionSlug) : undefined,
+        ne(specialists.userId, job.clientId),
+        eq(users.isBanned, false),
+        sql`(${specialists.isPrivileged} = 1 or coalesce(${specialists.subscriptionUntil}, 0) > ${now} or coalesce(${specialists.awardPremiumUntil}, 0) > ${now})`,
+      ),
+    )
+    // Max tarif birinchi navbatda xabar oladi (Max — «birinchi bo'lib»)
+    .orderBy(sql`case when ${specialists.isPrivileged} = 1 or ${specialists.subscriptionTier} = 'max' then 0 else 1 end`)
+    .limit(200);
+  const budget = job.budgetMax ? ` · ${job.budgetMax.toLocaleString("ru-RU").replace(/,/g, " ")} so'mgacha` : "";
+  for (const r of rows) {
+    await notify(r.userId, "job_new", `Yangi e'lon: ${job.title}`.slice(0, 160), `Kasbingizga mos buyurtma${budget}. Birinchilardan bo'lib taklif yuboring.`, jobHref(job.id)).catch(() => {});
+  }
+  return rows.length;
+}
 
 /* ------------------------------------------------------------------ */
 /* Rate limitlar                                                       */
@@ -36,7 +67,7 @@ const DAY = 24 * HOUR;
 const LOCAL_LIMITS = {
   jobs: { limit: 10, windowMs: DAY },
   jobEdit: { limit: 60, windowMs: HOUR },
-  proposals: { limit: PROPOSAL_DAILY_LIMIT * 3, windowMs: DAY },
+  proposals: { limit: MAX_PROPOSAL_DAILY_LIMIT * 2, windowMs: DAY },
   proposalAct: { limit: 120, windowMs: HOUR },
 } as const;
 type JobLimitName = keyof typeof LOCAL_LIMITS;

@@ -7,6 +7,7 @@ import { Button, Spinner } from "@/components/ui";
 import { PROVIDER_ICON } from "@/components/payments/PayButton";
 import { ReceiptUpload } from "@/components/payments/ReceiptUpload";
 import { PAYMENT_PROVIDERS, type PaymentProvider } from "@/lib/constants";
+import { TIER_LIMITS } from "@/lib/subscriptions/pro";
 import { invoiceNumber, type InvoiceView, type PlanView } from "@/lib/subscriptions/labels";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
 
@@ -40,7 +41,9 @@ function bestMonths(plans: PlanView[]): number | null {
  * openManual — avval yaratilgan, hali «To'ladim» bosilmagan o'tkazma hisobi (sahifa yangilansa ham davom etadi).
  */
 export function SubscriptionCheckout({
-  plans,
+  plans: proPlans,
+  maxPlans = [],
+  initialTier = "pro",
   providers,
   manual,
   untilByMonths,
@@ -49,6 +52,9 @@ export function SubscriptionCheckout({
   ctaLabel,
 }: {
   plans: PlanView[];
+  /** Max tarif rejalari (bo'sh bo'lsa — tarif tanlovi ko'rsatilmaydi) */
+  maxPlans?: PlanView[];
+  initialTier?: "pro" | "max";
   providers: PaymentProvider[];
   manual: { card: string; name: string } | null;
   /** To'lansa obuna qaysi sanagacha bo'ladi (ms) — oylar bo'yicha */
@@ -58,14 +64,16 @@ export function SubscriptionCheckout({
   ctaLabel: string;
 }) {
   const router = useRouter();
+  const [tier, setTier] = useState<"pro" | "max">(maxPlans.length ? initialTier : "pro");
+  const plans = tier === "max" && maxPlans.length ? maxPlans : proPlans;
   const best = bestMonths(plans);
   const [months, setMonths] = useState<number>(openManual?.months ?? plans[0]?.months ?? 1);
   const [provider, setProvider] = useState<PaymentProvider>(openManual ? "manual" : (providers[0] ?? "payme"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [manualInvoice, setManualInvoice] = useState<{ id: string; amount: number; months: number } | null>(
-    openManual ? { id: openManual.id, amount: openManual.amount, months: openManual.months } : null,
+  const [manualInvoice, setManualInvoice] = useState<{ id: string; amount: number; months: number; tier: "pro" | "max" } | null>(
+    openManual ? { id: openManual.id, amount: openManual.amount, months: openManual.months, tier: openManual.tier ?? "pro" } : null,
   );
   const [copied, setCopied] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState("");
@@ -79,7 +87,7 @@ export function SubscriptionCheckout({
   const plan = plans.find((p) => p.months === months) ?? plans[0];
   const until = untilByMonths[months];
   // Tanlov o'zgarsa — ochilgan o'tkazma rekvizitlari boshqa summaga tegishli, yopiladi
-  const showManual = provider === "manual" && manualInvoice && manualInvoice.months === months;
+  const showManual = provider === "manual" && manualInvoice && manualInvoice.months === months && manualInvoice.tier === tier;
 
   const checkout = async () => {
     if (busy || !plan) return;
@@ -90,7 +98,7 @@ export function SubscriptionCheckout({
       const res = await fetch("/api/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ months, provider }),
+        body: JSON.stringify({ months, provider, tier }),
       });
       const json = (await res.json().catch(() => null)) as ApiResponse<CheckoutData> | null;
       if (!json || !json.ok) {
@@ -104,7 +112,7 @@ export function SubscriptionCheckout({
           router.refresh();
           return;
         }
-        setManualInvoice({ id: d.invoiceId, amount: d.amount, months: d.months });
+        setManualInvoice({ id: d.invoiceId, amount: d.amount, months: d.months, tier });
         return;
       }
       if (d.redirectUrl) {
@@ -155,6 +163,38 @@ export function SubscriptionCheckout({
 
   return (
     <div className="space-y-4">
+      {/* Tarif: Pro · Max */}
+      {maxPlans.length > 0 && (
+        <div role="radiogroup" aria-label="Tarif" className="grid grid-cols-2 gap-2.5">
+          {(
+            [
+              { k: "pro", name: "Pro", hint: `Katalogda yuqorida, darhol xabar, kuniga ${TIER_LIMITS.pro.proposals} taklif`, price: proPlans[0]?.monthly ?? 0 },
+              { k: "max", name: "Max", hint: `Eng tepada, e'lon birinchi sizga, kuniga ${TIER_LIMITS.max.proposals} taklif`, price: maxPlans[0]?.monthly ?? 0 },
+            ] as const
+          ).map((t) => {
+            const on = tier === t.k;
+            return (
+              <button
+                key={t.k}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setTier(t.k)}
+                className={cn(
+                  "flex flex-col items-start rounded-[14px] border p-3.5 text-left transition-[border-color,background-color]",
+                  on ? (t.k === "max" ? "border-accent bg-accent/[0.06]" : "border-fg bg-fg/[0.03]") : "border-line hover:border-fg/40",
+                )}
+              >
+                <span className="flex w-full items-center gap-2">
+                  <span className={cn("rounded-[5px] px-1.5 py-px text-[10px] font-bold tracking-wide", t.k === "max" ? "bg-[#ff5a36] text-white" : "bg-ink text-ink-fg")}>{t.name.toUpperCase()}</span>
+                  <span className="ml-auto text-[13px] font-semibold tabular-nums text-fg">{formatPrice(t.price)} / oy</span>
+                </span>
+                <span className="mt-1.5 text-[12px] leading-snug text-fg-3">{t.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* Rejalar */}
       <div role="radiogroup" aria-label="Obuna muddati" className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {plans.map((p) => {

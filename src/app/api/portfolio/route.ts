@@ -6,6 +6,8 @@ import { z } from "zod";
 import { portfolioItemSchema } from "@/lib/validators";
 import { uid, youtubeId } from "@/lib/utils";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { premiumTier } from "@/lib/social/quota";
+import { TIER_LIMITS } from "@/lib/subscriptions/pro";
 import { MAX_PORTFOLIO_ITEMS as MAX_ITEMS, enforceEditLimit, renumberPortfolio, reorderPortfolio, reorderSchema } from "./_shared";
 
 export const POST = handler(async (req) => {
@@ -19,7 +21,13 @@ export const POST = handler(async (req) => {
 
   // Soni — limit uchun; tartib raqami — maksimal+1 (o'chirishdan keyin soni bilan to'qnashmasin)
   const [{ n, top }] = await db.select({ n: count(), top: max(portfolioItems.sortOrder) }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id));
-  if (n >= MAX_ITEMS) throw new ApiError(400, `Portfolioda ko'pi bilan ${MAX_ITEMS} ta ish bo'lishi mumkin`);
+  // Tarif chegarasi: Standart 12 · Pro 30 · Max 60 (mavjud ishlar o'chirilmaydi — faqat yangisi qo'shilmaydi)
+  const tier = await premiumTier(session.sub);
+  const cap = Math.min(MAX_ITEMS, TIER_LIMITS[tier].portfolio);
+  if (n >= cap) {
+    const next = tier === "free" ? ` Pro tarifda ${TIER_LIMITS.pro.portfolio} ta, Max'da ${TIER_LIMITS.max.portfolio} ta.` : tier === "pro" ? ` Max tarifda ${TIER_LIMITS.max.portfolio} ta.` : "";
+    throw new ApiError(403, `Portfolioda ko'pi bilan ${cap} ta ish bo'lishi mumkin.${next}`, { upgrade: "/narxlar" });
+  }
 
   // YouTube video uchun thumbnail avtomatik
   let thumbnailUrl = input.thumbnailUrl || null;

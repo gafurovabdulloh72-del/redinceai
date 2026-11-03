@@ -196,19 +196,26 @@ export function QuotaLine({ q, kind }: { q: QuotaInfo | null; kind: "posts" | "s
   if (!q) return null;
   const part = q[kind];
   const noun = kind === "posts" ? "post" : "story";
-  // Premium / imtiyozli / admin — limit yo'q, hech narsa ko'rsatilmaydi (faqat oddiy foydalanuvchiga limit chizig'i)
-  if (q.premium || part.limit === null) return null;
+  // Har tarifda chegara bor (Standart · Pro · Max) — limit chizig'i hammaga ko'rsatiladi
+  if (part.limit === null) return null;
   const left = Math.max(0, part.limit - part.used);
+  const upgrade = q.tier === "max" ? null : q.tier === "pro" ? "Max tarifda ko'proq" : "Pro va Max tariflarda ko'proq";
   return (
     <div className="w-full" role="status">
-      <div className="flex items-center justify-center gap-1.5" aria-hidden>
-        {Array.from({ length: part.limit }, (_, i) => (
-          <span key={i} className={cn("h-1.5 flex-1 max-w-10 rounded-full transition-colors", i < part.used ? (left === 0 ? "bg-danger" : "bg-accent") : "bg-fg/12")} />
-        ))}
-      </div>
+      {part.limit <= 14 ? (
+        <div className="flex items-center justify-center gap-1.5" aria-hidden>
+          {Array.from({ length: part.limit }, (_, i) => (
+            <span key={i} className={cn("h-1.5 flex-1 max-w-10 rounded-full transition-colors", i < part.used ? (left === 0 ? "bg-danger" : "bg-accent") : "bg-fg/12")} />
+          ))}
+        </div>
+      ) : (
+        <div className="mx-auto h-1.5 max-w-xs overflow-hidden rounded-full bg-fg/12" aria-hidden>
+          <span className={cn("block h-full rounded-full transition-[width]", left === 0 ? "bg-danger" : "bg-accent")} style={{ width: `${Math.min(100, (part.used / part.limit) * 100)}%` }} />
+        </div>
+      )}
       <p className={cn("mt-1.5 text-center text-[12.5px]", left === 0 ? "font-semibold text-danger-text" : "text-fg-3")}>
         {left === 0 ? `Bu hafta ${part.limit} ta ${noun} limiti tugadi` : `Haftalik limit: ${part.limit} ta ${noun} · yana ${left} ta qoldi`}
-        {left === 0 && <span className="block font-normal text-fg-3">Premium obunada cheklov yo&apos;q</span>}
+        {left === 0 && upgrade && <span className="block font-normal text-fg-3">{upgrade} — /narxlar</span>}
       </p>
     </div>
   );
@@ -250,7 +257,7 @@ export function StoryComposer({ open, onClose, onCreated }: { open: boolean; onC
   const [posting, setPosting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const q = useQuota(open);
-  const blocked = Boolean(q && !q.premium && q.stories.limit !== null && q.stories.used >= q.stories.limit);
+  const blocked = Boolean(q && q.stories.limit !== null && q.stories.used >= q.stories.limit);
 
   useEffect(() => {
     if (!open) {

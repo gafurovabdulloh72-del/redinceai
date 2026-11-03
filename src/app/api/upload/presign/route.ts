@@ -4,7 +4,7 @@ import { uid } from "@/lib/utils";
 import { isR2Enabled, r2PresignPut, r2PublicUrl } from "@/lib/storage/r2";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
-import { isPremium } from "@/lib/social/quota";
+import { premiumTier } from "@/lib/social/quota";
 import { MAX_VIDEO_BYTES, videoLimitFor } from "@/components/chat/attachments";
 
 /** Video kengaytmasi → MIME (faqat shu uchtasi qabul qilinadi — /api/upload/video bilan bir xil) */
@@ -33,8 +33,8 @@ export const POST = handler(async (req) => {
 
   await enforceLimit("upload", session.sub);
   const input = await parseBody(req, schema);
-  const max = videoLimitFor(await isPremium(session.sub));
-  if (input.size > max) throw new ApiError(413, `Fayl ${Math.round(max / (1024 * 1024))} MB dan katta${max < MAX_VIDEO_BYTES ? " — Premium yoki imtiyozli akkauntda 600 MB gacha" : ""}`);
+  const max = videoLimitFor(await premiumTier(session.sub));
+  if (input.size > max) throw new ApiError(413, `Fayl ${Math.round(max / (1024 * 1024))} MB dan katta${max < MAX_VIDEO_BYTES ? " — Pro tarifda 600 MB gacha" : ""}`);
   const contentType = VIDEO_MIME[input.ext];
   if (!contentType) throw new ApiError(400, "Video turi noto'g'ri");
 

@@ -6,7 +6,8 @@ import { ApiError } from "@/lib/api";
 import { rateLimit } from "@/lib/security/rate-limit";
 
 /** Portfolio limiti — POST, sahifa va reorder bir xil qiymatni ishlatadi */
-export const MAX_PORTFOLIO_ITEMS = 30;
+/** Umumiy texnik yuqori chegara (Max tarif) — tarif chegarasi `TIER_LIMITS[tier].portfolio` (POST'da tekshiriladi) */
+export const MAX_PORTFOLIO_ITEMS = 60;
 
 /**
  * Mutaxassis ishlarini 0..n-1 qilib qayta raqamlaydi (sortOrder, keyin createdAt bo'yicha).

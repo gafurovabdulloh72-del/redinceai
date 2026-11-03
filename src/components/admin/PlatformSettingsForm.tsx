@@ -16,6 +16,8 @@ export interface PlatformSettingsValue {
   commissionPctTop?: number;
   /** Mutaxassis obunasi: oylik narx (so'm), bepul sinov va imtiyozli muddat (kun), talab yoqilgan (1) / o'chiq (0) */
   subscriptionPrice?: number;
+  /** Max tarif oylik narxi */
+  subscriptionPriceMax?: number;
   subscriptionTrialDays?: number;
   subscriptionGraceDays?: number;
   subscriptionEnforced?: number;
@@ -32,7 +34,7 @@ export interface SettingsHistoryItem {
   changes: Array<{ key: string; from: number | null; to: number | null }>;
 }
 
-const DEFAULTS = { subscriptionPrice: 50_000, subscriptionTrialDays: 30, subscriptionGraceDays: 3, subscriptionEnforced: 1, urgentPct: 20, usdRate: 12_700 } as const;
+const DEFAULTS = { subscriptionPrice: 49_000, subscriptionPriceMax: 79_000, subscriptionTrialDays: 30, subscriptionGraceDays: 3, subscriptionEnforced: 1, urgentPct: 20, usdRate: 12_700 } as const;
 
 /** Tarixda kalit nomi va qiymat formati */
 const KEY_META: Record<string, { label: string; fmt: (v: number) => string }> = {
@@ -41,7 +43,8 @@ const KEY_META: Record<string, { label: string; fmt: (v: number) => string }> = 
   commissionPctTop: { label: "Komissiya: top mutaxassis", fmt: (v) => `${v}%` },
   minOrderAmount: { label: "Minimal buyurtma", fmt: (v) => formatPrice(v) },
   minPayout: { label: "Minimal payout", fmt: (v) => formatPrice(v) },
-  subscriptionPrice: { label: "Obuna narxi (oyiga)", fmt: (v) => formatPrice(v) },
+  subscriptionPrice: { label: "Pro narxi (oyiga)", fmt: (v) => formatPrice(v) },
+  subscriptionPriceMax: { label: "Max narxi (oyiga)", fmt: (v) => formatPrice(v) },
   subscriptionTrialDays: { label: "Bepul sinov muddati", fmt: (v) => `${v} kun` },
   subscriptionGraceDays: { label: "Imtiyozli muddat", fmt: (v) => `${v} kun` },
   subscriptionEnforced: { label: "Obuna talabi", fmt: (v) => (v === 1 ? "Yoqilgan" : "O'chirilgan") },
@@ -63,6 +66,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
   const [minOrder, setMinOrder] = useState(formatNumber(initial.minOrderAmount));
   const init = {
     subscriptionPrice: initial.subscriptionPrice ?? DEFAULTS.subscriptionPrice,
+    subscriptionPriceMax: initial.subscriptionPriceMax ?? DEFAULTS.subscriptionPriceMax,
     subscriptionTrialDays: initial.subscriptionTrialDays ?? DEFAULTS.subscriptionTrialDays,
     subscriptionGraceDays: initial.subscriptionGraceDays ?? DEFAULTS.subscriptionGraceDays,
     subscriptionEnforced: initial.subscriptionEnforced ?? DEFAULTS.subscriptionEnforced,
@@ -70,6 +74,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
     usdRate: initial.usdRate ?? DEFAULTS.usdRate,
   };
   const [subPrice, setSubPrice] = useState(formatNumber(init.subscriptionPrice));
+  const [subPriceMax, setSubPriceMax] = useState(formatNumber(init.subscriptionPriceMax));
   const [trialDays, setTrialDays] = useState(String(init.subscriptionTrialDays));
   const [graceDays, setGraceDays] = useState(String(init.subscriptionGraceDays));
   const [enforced, setEnforced] = useState(init.subscriptionEnforced === 1);
@@ -86,6 +91,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
   const minPayoutNum = Number(digits(minPayout)) || 0;
   const minOrderNum = Number(digits(minOrder)) || 0;
   const subPriceNum = Number(digits(subPrice)) || 0;
+  const subPriceMaxNum = Number(digits(subPriceMax)) || 0;
   const trialNum = Number(digits(trialDays)) || 0;
   const graceNum = Number(digits(graceDays)) || 0;
   const urgentNum = Number(digits(urgent)) || 0;
@@ -97,6 +103,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
     minPayoutNum !== initial.minPayout ||
     minOrderNum !== initial.minOrderAmount ||
     subPriceNum !== init.subscriptionPrice ||
+    subPriceMaxNum !== init.subscriptionPriceMax ||
     trialNum !== init.subscriptionTrialDays ||
     graceNum !== init.subscriptionGraceDays ||
     (enforced ? 1 : 0) !== init.subscriptionEnforced ||
@@ -120,6 +127,8 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
     if (pctTopNum > pctNum) errs.commissionPctTop = "Top daraja oddiy foizdan katta bo'lmasin";
     if (minOrderNum < 1000) errs.minOrderAmount = "Kamida 1 000 so'm";
     if (minPayoutNum < 1000) errs.minPayout = "Kamida 1 000 so'm";
+    if (subPriceMaxNum > 10_000_000) errs.subscriptionPriceMax = "Ko'pi bilan 10 mln so'm";
+    else if (subPriceMaxNum > 0 && subPriceMaxNum < 1000) errs.subscriptionPriceMax = "Kamida 1 000 so'm";
     if (subPriceNum > 10_000_000) errs.subscriptionPrice = "Ko'pi bilan 10 mln so'm";
     else if (subPriceNum > 0 && subPriceNum < 1000) errs.subscriptionPrice = "Kamida 1 000 so'm (yoki 0 — bepul)";
     if (trialNum > 365) errs.subscriptionTrialDays = "Ko'pi bilan 365 kun";
@@ -144,6 +153,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
           minPayout: minPayoutNum,
           minOrderAmount: minOrderNum,
           subscriptionPrice: subPriceNum,
+          subscriptionPriceMax: subPriceMaxNum,
           subscriptionTrialDays: trialNum,
           subscriptionGraceDays: graceNum,
           subscriptionEnforced: enforced ? 1 : 0,
@@ -250,13 +260,23 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div>
           <label htmlFor="set-sub-price" className="field-label">
-            Oylik narx
+            Pro — oylik narx
           </label>
           <div className="relative">
             <input id="set-sub-price" className="field !pr-14 tabular-nums" inputMode="numeric" value={subPrice} onChange={(e) => setSubPrice(digits(e.target.value) ? formatNumber(Number(digits(e.target.value).slice(0, 8))) : "")} aria-invalid={Boolean(fields.subscriptionPrice)} aria-describedby="set-sub-price-hint" />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">so&apos;m</span>
           </div>
           {fields.subscriptionPrice ? <p className="field-error">{fields.subscriptionPrice}</p> : <p id="set-sub-price-hint" className="mt-1 text-[11px] text-fg-4">3/6/12 oylik rejalarga chegirma qo&apos;llanadi</p>}
+        </div>
+        <div>
+          <label htmlFor="set-sub-price-max" className="field-label">
+            Max — oylik narx
+          </label>
+          <div className="relative">
+            <input id="set-sub-price-max" className="field !pr-14 tabular-nums" inputMode="numeric" value={subPriceMax} onChange={(e) => setSubPriceMax(digits(e.target.value) ? formatNumber(Number(digits(e.target.value).slice(0, 8))) : "")} aria-invalid={Boolean(fields.subscriptionPriceMax)} />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">so&apos;m</span>
+          </div>
+          {fields.subscriptionPriceMax ? <p className="field-error">{fields.subscriptionPriceMax}</p> : <p className="mt-1 text-[11px] text-fg-4">Max tarif (eng yuqori o&apos;rin, eng ko&apos;p limitlar)</p>}
         </div>
         <div>
           <label htmlFor="set-trial" className="field-label">

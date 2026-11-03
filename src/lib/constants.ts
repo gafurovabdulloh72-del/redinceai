@@ -184,7 +184,8 @@ export const PLATFORM_DEFAULTS = {
   minPayout: 100_000, // minimal pul chiqarish (so'm)
   minOrderAmount: 50_000,
   // Mutaxassis oylik obunasi (mijozlar uchun bepul) — subscriptions/access.ts
-  subscriptionPrice: 50_000, // 1 oy narxi (so'm)
+  subscriptionPrice: 49_000, // Pro: 1 oy narxi (so'm)
+  subscriptionPriceMax: 79_000, // Max: 1 oy narxi (so'm)
   subscriptionTrialDays: 30, // yangi mutaxassis uchun bepul sinov
   subscriptionGraceDays: 3, // muddat tugagach imtiyozli kunlar
   subscriptionEnforced: 1, // 1 — obunasizlar katalogdan yashiriladi; 0 — o'chirilgan
@@ -273,6 +274,13 @@ export const PROPOSAL_STATUS_LABEL: Record<ProposalStatusValue, string> = {
 };
 
 /** Bitta mutaxassis kuniga yuborishi mumkin bo'lgan takliflar soni */
-export const PROPOSAL_DAILY_LIMIT = 10;
+export const PROPOSAL_DAILY_LIMIT = 5;
+/** Pro (to'langan obuna) mutaxassis uchun kunlik taklif limiti */
+export const PRO_PROPOSAL_DAILY_LIMIT = 20;
+/** Max tarif uchun kunlik taklif limiti */
+export const MAX_PROPOSAL_DAILY_LIMIT = 50;
+/** Obuna tariflari: pro | max (Standart — obunasiz) */
+export const SUBSCRIPTION_TIERS = ["pro", "max"] as const;
+export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 /** E'lon shuncha kundan keyin avtomatik yopiladi (jobs.expiresAt) */
 export const JOB_TTL_DAYS = 30;

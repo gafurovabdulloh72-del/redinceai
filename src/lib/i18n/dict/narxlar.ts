@@ -11,8 +11,8 @@ export const NARX = {
   titleAccent: { uz: "shaffof", ru: "прозрачные" } satisfies Tr,
   titleEnd: { uz: "narxlar", ru: "цены" } satisfies Tr,
   intro: {
-    uz: (site: string) => `Mijozlar ${site}'dan bepul foydalanadi. Mutaxassislar oylik obuna to'laydi — profil katalog va xaritada ko'rinadi, buyurtmalar cheklanmaydi.`,
-    ru: (site: string) => `Для клиентов ${site} бесплатен. Специалисты оплачивают месячную подписку — профиль виден в каталоге и на карте, заказы не ограничены.`,
+    uz: (site: string) => `Mijozlar ${site}'dan bepul foydalanadi. Mutaxassislar uchun uch tarif: Standart (bepul), Pro va Max — qancha ko'p mijoz kerak bo'lsa, shuncha yuqori tarif.`,
+    ru: (site: string) => `Для клиентов ${site} бесплатен. Для специалистов три тарифа: Стандарт (бесплатно), Pro и Max — чем больше клиентов нужно, тем выше тариф.`,
   },
   plansAria: { uz: "Tariflar", ru: "Тарифы" } satisfies Tr,
 
@@ -44,22 +44,7 @@ export const NARX = {
   perMonth: { uz: "/ oy", ru: "/ мес" } satisfies Tr,
   trialNote: { uz: (d: number) => `Birinchi ${d} kun bepul — karta talab qilinmaydi`, ru: (d: number) => `Первые ${d} дн. бесплатно — карта не требуется` },
   noTrialNote: { uz: "Uzoq muddatga to'lasangiz — chegirma", ru: "При оплате на длительный срок — скидка" } satisfies Tr,
-  specialistBullets: {
-    uz: (proposalLimit: number) => [
-      "Katalog, xarita, qidiruv va yo'nalish sahifalarida ko'rinish",
-      "Cheklanmagan buyurtmalar, aloqa ma'lumotlari mijozlarga ochiq",
-      `E'lonlarga taklif yuborish — kuniga ${proposalLimit} tagacha`,
-      "Portfolio, xizmat paketlari, sharhlar va qisqa havola",
-      "Eskrou to'lovlar va balansdan pul chiqarish",
-    ],
-    ru: (proposalLimit: number) => [
-      "Видимость в каталоге, на карте, в поиске и на страницах направлений",
-      "Неограниченные заказы, контакты открыты клиентам",
-      `Предложения к заказам — до ${proposalLimit} в день`,
-      "Портфолио, пакеты услуг, отзывы и короткая ссылка",
-      "Платежи через эскроу и вывод средств с баланса",
-    ],
-  },
+  compareTitle: { uz: "Tariflarni batafsil taqqoslash", ru: "Подробное сравнение тарифов" } satisfies Tr,
   startAsSpecialist: { uz: "Mutaxassis sifatida boshlash", ru: "Начать как специалист" } satisfies Tr,
 
   /* --------- Rejalar jadvali --------- */
@@ -111,9 +96,9 @@ export const NARX = {
     expireQ: { uz: "Obuna tugasa nima bo'ladi?", ru: "Что будет, когда подписка закончится?" } satisfies Tr,
     expireA: {
       uz: (grace: number) =>
-        `${grace > 0 ? `Avval ${grace} kunlik muhlat beriladi — bu vaqtda profil odatdagidek ishlaydi. ` : ""}Keyin profil katalog, xarita, qidiruv va yo'nalish sahifalaridan yashiriladi, aloqa ma'lumotlari yopiladi, yangi buyurtma va takliflar to'xtaydi. Mavjud buyurtmalar va eskroudagi to'lovlar odatdagidek davom etadi. To'lashingiz bilan profil darhol qaytadi.`,
+        `${grace > 0 ? `Avval ${grace} kunlik muhlat beriladi — bu vaqtda profil odatdagidek ishlaydi. ` : ""}Keyin profil katalog, xarita, qidiruv va yo'nalish sahifalaridan yashiriladi, kontaktingiz sotuvdan olinadi, yangi buyurtma va takliflar to'xtaydi. Mavjud buyurtmalar va eskroudagi to'lovlar odatdagidek davom etadi. To'lashingiz bilan profil darhol qaytadi.`,
       ru: (grace: number) =>
-        `${grace > 0 ? `Сначала даётся льготный период ${grace} дн. — в это время профиль работает как обычно. ` : ""}Затем профиль скрывается из каталога, карты, поиска и страниц направлений, контакты закрываются, новые заказы и предложения останавливаются. Текущие заказы и платежи в эскроу продолжаются как обычно. После оплаты профиль сразу возвращается.`,
+        `${grace > 0 ? `Сначала даётся льготный период ${grace} дн. — в это время профиль работает как обычно. ` : ""}Затем профиль скрывается из каталога, карты, поиска и страниц направлений, продажа контакта приостанавливается, новые заказы и предложения останавливаются. Текущие заказы и платежи в эскроу продолжаются как обычно. После оплаты профиль сразу возвращается.`,
     },
     payQ: { uz: "Qanday to'lash mumkin?", ru: "Как можно оплатить?" } satisfies Tr,
     payA: {

@@ -20,7 +20,7 @@ export const POST = handler(async (req) => {
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, session.sub), columns: { id: true, userId: true } });
   if (!sp) throw new ApiError(404, "Avval mutaxassis profilini to'ldiring");
 
-  const { invoice, reused } = await createInvoice(sp, input.months, input.provider, { actorId: session.sub, req });
+  const { invoice, reused } = await createInvoice(sp, input.months, input.provider, { actorId: session.sub, req }, input.tier);
   const redirectUrl = buildInvoiceRedirectUrl(invoice, siteOrigin(req.headers, req.url));
   if (invoice.provider !== "manual" && !redirectUrl) throw new ApiError(400, "To'lov havolasini tuzib bo'lmadi. Boshqa usulni tanlang");
   return ok(

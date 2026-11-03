@@ -25,8 +25,8 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const MAX_VIDEO_BYTES_FREE = 200 * 1024 * 1024;
 /** Premium / imtiyozli / TOP g'olibi / admin */
 export const MAX_VIDEO_BYTES = 600 * 1024 * 1024;
-/** Foydalanuvchi turiga qarab video chegarasi */
-export const videoLimitFor = (premium: boolean) => (premium ? MAX_VIDEO_BYTES : MAX_VIDEO_BYTES_FREE);
+/** Foydalanuvchi tarifiga qarab video chegarasi (Pro va Max — bir xil; boolean — eski chaqiruvlar) */
+export const videoLimitFor = (t: boolean | "free" | "pro" | "max") => (t === true || t === "pro" || t === "max" ? MAX_VIDEO_BYTES : MAX_VIDEO_BYTES_FREE);
 let limitCache: Promise<number> | null = null;
 /** Klient: serverdan o'z chegaramni olaman (sessiya davomida keshlanadi; xato bo'lsa — oddiy chegara) */
 export function myVideoLimit(): Promise<number> {
@@ -36,7 +36,7 @@ export function myVideoLimit(): Promise<number> {
     .catch(() => MAX_VIDEO_BYTES_FREE);
   return limitCache;
 }
-const limitText = (max: number) => (max > MAX_VIDEO_BYTES_FREE ? "" : ` Premium yoki imtiyozli akkauntda ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB gacha.`);
+const limitText = (max: number) => (max > MAX_VIDEO_BYTES_FREE ? "" : ` Pro tarifda ${Math.round(MAX_VIDEO_BYTES / (1024 * 1024))} MB gacha.`);
 export const MAX_VIDEO_BYTES_FALLBACK = 50 * 1024 * 1024;
 const mbOf = (n: number) => (n >= 1024 ** 3 ? `${Math.round((n / 1024 ** 3) * 10) / 10} GB` : `${Math.round(n / (1024 * 1024))} MB`);
 export const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";

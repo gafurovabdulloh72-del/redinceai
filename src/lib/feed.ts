@@ -251,7 +251,8 @@ export async function suggestedCreators(viewer: Viewer, limit = 5): Promise<Sugg
     .from(specialists)
     .innerJoin(users, eq(users.id, specialists.userId))
     .where(and(eq(users.isBanned, false), eq(specialists.isHidden, false), listableCondition(settings), viewer ? sql`${specialists.userId} != ${viewer.id}` : undefined))
-    .orderBy(desc(specialists.isFeatured), desc(specialists.rating), desc(specialists.reviewCount))
+    // Max tarif ijodkorlari tavsiyalarda birinchi (Pro tarif tizimi)
+    .orderBy(desc(specialists.isFeatured), desc(sql`case when ${specialists.isPrivileged} = 1 or (coalesce(${specialists.subscriptionUntil}, 0) > ${Date.now()} and ${specialists.subscriptionTier} = 'max') then 1 else 0 end`), desc(specialists.rating), desc(specialists.reviewCount))
     .limit(limit + 6);
   const ids = rows.map((r) => r.userId);
   if (!ids.length) return [];

@@ -286,6 +286,8 @@ export const specialists = sqliteTable(
     isPrivileged: integer("is_privileged", { mode: "boolean" }).notNull().default(false),
     /** Oylik TOP mukofoti: shu vaqtgacha premium imtiyoz (limitlar yo'q); admin/obunadan mustaqil */
     awardPremiumUntil: integer("award_premium_until", { mode: "timestamp_ms" }),
+    /** To'langan obuna tarifi (Pro tarif tizimi, 2026-11-03): pro | max — subscriptionUntil bilan birga amal qiladi */
+    subscriptionTier: text("subscription_tier", { enum: ["pro", "max"] }).notNull().default("pro"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

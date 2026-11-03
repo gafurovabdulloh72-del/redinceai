@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 import { cache } from "react";
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
-import { favorites, orderEvents, orders, portfolioItems, profileViews, reviewVotes, reviews, specialists, users } from "./db/schema";
+import { contactUnlocks, favorites, orderEvents, orders, portfolioItems, posts, profileViews, reviewVotes, reviews, specialists, users } from "./db/schema";
 import type { SpecialistFilter } from "./validators";
 import { CATEGORIES, DEFAULT_VISIBILITY, REGIONS } from "./constants";
 import { getSettings, isTopRated } from "./payments/settings";
@@ -94,6 +94,11 @@ function visibilityOf(field: "gender" | "city") {
  * Ro'yxat: natija elementlari xavfsiz DTO (telefon/email/aloqa vositalari/ish vaqti yo'q).
  * `viewer` berilsa, "faqat ro'yxatdan o'tganlarga" darajadagi shahar kirgan foydalanuvchiga ko'rinadi.
  */
+/** Tarif darajasi SQL'da (Max 2 · Pro 1 · Standart 0): `lib/subscriptions/pro.ts tierOf` bilan bir xil qoida */
+export function proRankSql(now = Date.now()) {
+  return sql<number>`(case when ${specialists.isPrivileged} = 1 or (coalesce(${specialists.subscriptionUntil}, 0) > ${now} and ${specialists.subscriptionTier} = 'max') then 2 when coalesce(${specialists.subscriptionUntil}, 0) > ${now} or coalesce(${specialists.awardPremiumUntil}, 0) > ${now} then 1 else 0 end)`;
+}
+
 export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer = GUEST_VIEWER) {
   const where = and(...(await specialistFilterConds(filter, viewer)));
 
@@ -108,7 +113,8 @@ export async function listSpecialists(filter: SpecialistFilter, viewer: Viewer =
       case "popular":
         return [desc(specialists.viewCount), desc(specialists.rating)];
       default:
-        return [desc(specialists.isFeatured), desc(specialists.rating), desc(specialists.reviewCount)];
+        // Pro (to'langan obuna / TOP sovg'asi / imtiyozli) profillar oddiylaridan oldin — Pro tarifining asosiy foydasi
+        return [desc(specialists.isFeatured), desc(proRankSql()), desc(specialists.rating), desc(specialists.reviewCount)];
     }
   })();
 
@@ -823,4 +829,71 @@ export async function getAdminOverview() {
     }),
   ]);
   return { stats, pending, latestUsers, latestOrders };
+}
+
+/* ------------------------------------------------------------------ */
+/* PRO statistikasi (Pro tarif): kim ko'rdi, top postlar, sotilgan kontaktlar */
+/* ------------------------------------------------------------------ */
+export interface ProStats {
+  viewers30: number;
+  registered30: number;
+  recentViewers: Array<{ id: string; name: string; avatarUrl: string | null; role: string; day: string }>;
+  topPosts: Array<{ id: string; body: string; views: number; likes: number }>;
+  contactsSold: number;
+}
+
+/**
+ * Pro mutaxassis uchun 30 kunlik statistika (profile_views 30 kun saqlanadi).
+ * «Kim ko'rdi» — faqat ro'yxatdan o'tgan ko'ruvchilar; «onlaynligimni ko'rsatma» (showOnline=false)
+ * yoqqan va bloklangan foydalanuvchilar ro'yxatga chiqmaydi (maxfiylik), lekin umumiy songa kiradi.
+ */
+export async function proStats(specialistId: string, userId: string, viewersLimit = 8): Promise<ProStats> {
+  const since = tashkentNow(Date.now() - 29 * 86_400_000).date;
+  const where = and(eq(profileViews.specialistId, specialistId), gte(profileViews.day, since));
+  const [[agg], recent, top, [sold]] = await Promise.all([
+    db
+      .select({
+        all: sql<number>`count(distinct ${profileViews.viewerKey})`,
+        reg: sql<number>`count(distinct case when ${profileViews.viewerKey} like 'u:%' then ${profileViews.viewerKey} end)`,
+      })
+      .from(profileViews)
+      .where(where),
+    db
+      .select({ key: profileViews.viewerKey, day: sql<string>`max(${profileViews.day})` })
+      .from(profileViews)
+      .where(and(where, sql`${profileViews.viewerKey} like 'u:%'`, ne(profileViews.viewerKey, `u:${userId}`)))
+      .groupBy(profileViews.viewerKey)
+      .orderBy(sql`max(${profileViews.createdAt}) desc`)
+      .limit(viewersLimit * 3),
+    db
+      .select({ id: posts.id, body: posts.body, views: posts.viewsCount, likes: posts.likesCount })
+      .from(posts)
+      .where(and(eq(posts.authorId, userId), isNull(posts.groupId), gte(posts.createdAt, new Date(Date.now() - 90 * 86_400_000))))
+      .orderBy(desc(posts.viewsCount))
+      .limit(3),
+    db
+      .select({ n: count() })
+      .from(contactUnlocks)
+      .where(and(eq(contactUnlocks.specialistId, specialistId), eq(contactUnlocks.status, "paid"))),
+  ]);
+  const ids = recent.map((r) => r.key.slice(2));
+  const people = ids.length
+    ? await db
+        .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl, role: users.role, showOnline: users.showOnline, isBanned: users.isBanned })
+        .from(users)
+        .where(inArray(users.id, ids))
+    : [];
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const recentViewers = recent
+    .map((r) => ({ p: byId.get(r.key.slice(2)), day: r.day }))
+    .filter((x): x is { p: (typeof people)[number]; day: string } => Boolean(x.p && x.p.showOnline !== false && !x.p.isBanned))
+    .slice(0, viewersLimit)
+    .map(({ p, day }) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl, role: p.role, day }));
+  return {
+    viewers30: Number(agg?.all ?? 0),
+    registered30: Number(agg?.reg ?? 0),
+    recentViewers,
+    topPosts: top.filter((t) => t.views > 0).map((t) => ({ id: t.id, body: (t.body ?? "").slice(0, 90), views: t.views, likes: t.likes })),
+    contactsSold: Number(sold?.n ?? 0),
+  };
 }

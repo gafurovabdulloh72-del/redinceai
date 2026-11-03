@@ -104,9 +104,14 @@ export function planDiscountPct(months: number): number {
   return SUBSCRIPTION_PLANS.find((p) => p.months === months)?.discountPct ?? 0;
 }
 
+/** Tarifning 1 oylik narxi: Max — subscriptionPriceMax (bo'lmasa Pro narxi) */
+export function tierUnitPrice(s: Pick<PlatformSettings, "subscriptionPrice"> & Partial<Pick<PlatformSettings, "subscriptionPriceMax">>, tier: "pro" | "max" = "pro"): number {
+  return tier === "max" ? (s.subscriptionPriceMax ?? s.subscriptionPrice) : s.subscriptionPrice;
+}
+
 /** Reja narxi (so'm): subscriptionPrice × oylar − chegirma, 1 000 so'mgacha yaxlitlangan */
-export function planPrice(months: number, s: Pick<PlatformSettings, "subscriptionPrice">): number {
-  const base = s.subscriptionPrice * months;
+export function planPrice(months: number, s: Pick<PlatformSettings, "subscriptionPrice"> & Partial<Pick<PlatformSettings, "subscriptionPriceMax">>, tier: "pro" | "max" = "pro"): number {
+  const base = tierUnitPrice(s, tier) * months;
   return Math.round((base * (100 - planDiscountPct(months))) / 100 / 1000) * 1000;
 }
 

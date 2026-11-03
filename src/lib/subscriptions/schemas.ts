@@ -10,6 +10,8 @@ export const subscriptionCheckoutSchema = z.object({
     .int("Rejani tanlang")
     .refine((m) => PLAN_MONTHS.includes(m), "1, 3, 6 yoki 12 oy tanlang"),
   provider: z.enum(["payme", "click", "manual"], { error: "To'lov usulini tanlang" }),
+  /** Tarif: pro (standart) yoki max */
+  tier: z.enum(["pro", "max"]).optional().default("pro"),
 });
 
 export const invoiceActionSchema = z.object({

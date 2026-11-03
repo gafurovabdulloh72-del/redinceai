@@ -3,7 +3,7 @@
  * Raqamlar constants.ts'dagi standart qiymatlardan olinadi; admin sozlamani o'zgartirsa, aniq qiymat
  * Narxlar sahifasida va kabinetda ko'rinadi — maqolalarda "standart" deb ataladi.
  */
-import { JOB_TTL_DAYS, PLATFORM_DEFAULTS, PROPOSAL_DAILY_LIMIT, SUBSCRIPTION_PLANS, TOP_RATED_RULE } from "@/lib/constants";
+import { JOB_TTL_DAYS, MAX_PROPOSAL_DAILY_LIMIT, PLATFORM_DEFAULTS, PRO_PROPOSAL_DAILY_LIMIT, PROPOSAL_DAILY_LIMIT, SUBSCRIPTION_PLANS, TOP_RATED_RULE } from "@/lib/constants";
 import { formatNumber } from "@/lib/utils";
 
 /** payments/service.ts AUTO_RELEASE_DAYS bilan bir xil (u server moduli — bu yerga import qilinmaydi) */
@@ -261,10 +261,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: "takliflar-limiti",
     category: "mutaxassislar",
     title: "Takliflar va kunlik limit",
-    summary: `Mijozlar e'lonlariga kuniga ${PROPOSAL_DAILY_LIMIT} tagacha taklif yuborish mumkin — sifatli, aniq takliflar ko'proq qabul qilinadi.`,
+    summary: `Mijozlar e'lonlariga kuniga ${PROPOSAL_DAILY_LIMIT} tagacha (Pro — ${PRO_PROPOSAL_DAILY_LIMIT}, Max — ${MAX_PROPOSAL_DAILY_LIMIT}) taklif yuborish mumkin — sifatli, aniq takliflar ko'proq qabul qilinadi.`,
     keywords: ["taklif", "proposal", "otklik", "e'lon", "ishlar", "limit"],
     body: [
-      { type: "p", text: `«Ishlar» bo'limida mijozlar e'lonlari turadi. Har bir e'longa bitta taklif yuborasiz: xat, narx va muddat. Kuniga ko'pi bilan ${PROPOSAL_DAILY_LIMIT} ta taklif (Toshkent vaqti bo'yicha yarim tunda yangilanadi); qaytarib olingan takliflar ham hisobga kiradi.` },
+      { type: "p", text: `«Ishlar» bo'limida mijozlar e'lonlari turadi. Har bir e'longa bitta taklif yuborasiz: xat, narx va muddat. Kuniga ko'pi bilan ${PROPOSAL_DAILY_LIMIT} ta taklif (Pro tarifda ${PRO_PROPOSAL_DAILY_LIMIT}, Max'da ${MAX_PROPOSAL_DAILY_LIMIT} ta; Toshkent vaqti bo'yicha yarim tunda yangilanadi); qaytarib olingan takliflar ham hisobga kiradi.` },
       {
         type: "list",
         items: [

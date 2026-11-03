@@ -3,6 +3,7 @@ import { Award, Star } from "lucide-react";
 import { Avatar, VerifiedBadge } from "@/components/ui";
 import { CoverPattern } from "@/components/ui/CoverPattern";
 import { SafeImage } from "./SafeImage";
+import { TierBadge } from "@/components/subscription/TierBadge";
 import { FavoriteButton } from "./FavoriteButton";
 import { CompareButton } from "./CompareButton";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, TOP_RATED_RULE } from "@/lib/constants";
@@ -83,6 +84,7 @@ export async function SpecialistCard({
                     <span className="sr-only">{tr(til, KARTA.top)}</span>
                   </span>
                 )}
+                {sp.tier !== "free" && <TierBadge tier={sp.tier} til={til} />}
                 {isNew && <span className="ml-1.5 align-[1px] text-[11px] font-semibold text-accent-text">{tr(til, KARTA.new)}</span>}
               </h2>
               <p className="mt-0.5 truncate text-[12px] text-fg-3 sm:text-[12.5px]">

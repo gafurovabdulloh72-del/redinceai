@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { jobs, orders, proposals, specialists, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import type { SessionPayload } from "@/lib/auth";
-import { JOB_TTL_DAYS, PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
+import { JOB_TTL_DAYS, MAX_PROPOSAL_DAILY_LIMIT, PRO_PROPOSAL_DAILY_LIMIT } from "@/lib/constants";
+import { proposalLimitFor, tierOf } from "@/lib/subscriptions/pro";
 import { notify } from "@/lib/notifications";
 import { orderHref, recordOrderEvent } from "@/lib/payments/service";
 import { commissionPctFor, getSettings } from "@/lib/payments/settings";
@@ -12,7 +13,8 @@ import { canReceiveOrders } from "@/lib/subscriptions/access";
 import { tashkentNow } from "@/lib/privacy";
 import { audit } from "@/lib/security/audit";
 import { formatPrice, uid } from "@/lib/utils";
-import { jobHref, notifyJob, proposalsSentToday, syncProposalsCount } from "./server";
+import { after } from "next/server";
+import { alertProSpecialistsAboutJob, jobHref, notifyJob, proposalsSentToday, syncProposalsCount } from "./server";
 import { findExpiredOpenJobs, getJobRow, specialistForUser } from "./queries";
 import type { JobInput, ProposalInput } from "./validators";
 
@@ -45,6 +47,12 @@ export async function createJob(session: SessionPayload, input: JobInput): Promi
     createdAt: now,
     updatedAt: now,
   });
+  // Pro mutaxassislarga darhol xabar — javobdan keyin (e'lon joylash sekinlashmasin)
+  after(() =>
+    alertProSpecialistsAboutJob({ id, clientId: session.sub, title: input.title, category: input.category, regionSlug: input.regionSlug ?? null, budgetMax: input.budgetMax ?? null }).catch((e) =>
+      console.error("[jobs] pro alert", e),
+    ),
+  );
   return { id };
 }
 
@@ -130,8 +138,17 @@ export async function createProposal(session: SessionPayload, input: ProposalInp
   if (existing && existing.status !== "withdrawn") throw new ApiError(409, "Bu e'longa allaqachon taklif yuborgansiz");
 
   const sent = await proposalsSentToday(sp.id, now);
-  if (sent >= PROPOSAL_DAILY_LIMIT) {
-    throw new ApiError(429, `Bugungi limit tugadi: kuniga ${PROPOSAL_DAILY_LIMIT} ta taklif. Ertaga yana yuborishingiz mumkin`);
+  // Pro mutaxassisga kuniga PRO_PROPOSAL_DAILY_LIMIT, oddiyga PROPOSAL_DAILY_LIMIT
+  const tier = tierOf(sp, now);
+  const pro = tier !== "free";
+  const dailyLimit = proposalLimitFor(tier);
+  if (sent >= dailyLimit) {
+    throw new ApiError(
+      429,
+      pro
+        ? `Bugungi limit tugadi: kuniga ${dailyLimit} ta taklif. Ertaga yana yuborishingiz mumkin`
+        : `Bugungi limit tugadi: kuniga ${dailyLimit} ta taklif. Pro obunada — kuniga ${PRO_PROPOSAL_DAILY_LIMIT} ta, Max'da — ${MAX_PROPOSAL_DAILY_LIMIT} ta`,
+    );
   }
 
   const at = new Date(now);
@@ -172,7 +189,7 @@ export async function createProposal(session: SessionPayload, input: ProposalInp
     `${session.name} — ${formatPrice(input.amount)}, ${input.deliveryDays} kunda. Takliflarni solishtirib, mosini tanlang.`,
     jobHref(job.id),
   );
-  return { id, remaining: Math.max(0, PROPOSAL_DAILY_LIMIT - sent - 1) };
+  return { id, remaining: Math.max(0, dailyLimit - sent - 1) };
 }
 
 /** Taklif + e'lon (egalikni tekshirish uchun) */

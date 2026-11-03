@@ -11,6 +11,9 @@ import { ProgressRing, type RingTone } from "@/components/subscription/ProgressR
 import { SubscriptionCheckout } from "@/components/subscription/SubscriptionCheckout";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getSettings } from "@/lib/payments/settings";
+import { proPerks } from "@/lib/subscriptions/pro";
+import { plansFor } from "@/lib/subscriptions/billing";
+import { PlanCompare } from "@/components/subscription/PlanCompare";
 import { subscriptionPeriod } from "@/lib/subscriptions/access";
 import { canViewInvoice, loadInvoice, receiptHref, toInvoiceView } from "@/lib/subscriptions/billing";
 import { INVOICE_PROVIDER_LABEL, INVOICE_STATE_LABEL, INVOICE_STATE_TONE, SUB_STATUS_LABEL, SUB_STATUS_TONE, monthsLabel, type InvoiceView } from "@/lib/subscriptions/labels";
@@ -25,12 +28,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const RING_TONE: Record<SubscriptionStateView["status"], RingTone> = { active: "success", trial: "info", grace: "warning", expired: "danger", off: "neutral", exempt: "success" };
 
-const PERKS: Array<{ t: string; d: string }> = [
-  { t: "Katalog va xaritada ko'rinish", d: "Mijozlar sizni ro'yxat, xarita va qidiruvda topadi." },
-  { t: "Buyurtma va takliflar", d: "To'g'ridan-to'g'ri buyurtmalar va e'lonlarga taklif ochiq." },
-  { t: "Aloqa ma'lumotlari", d: "Telefon va tarmoqlaringiz maxfiylik sozlamalari bo'yicha ko'rinadi." },
-  { t: "Eskrou himoyasi", d: "Komissiya faqat platformadagi to'lovlardan." },
-];
 
 function headlineFor(st: SubscriptionStateView): { title: string; detail: string } {
   switch (st.status) {
@@ -131,9 +128,10 @@ function InvoiceHistory({ invoices }: { invoices: InvoiceView[] }) {
   );
 }
 
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ invoice?: string | string[] }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ invoice?: string | string[]; tarif?: string | string[] }> }) {
   const sp = await searchParams;
   const invoiceParam = Array.isArray(sp.invoice) ? sp.invoice[0] : sp.invoice;
+  const tarifParam = Array.isArray(sp.tarif) ? sp.tarif[0] : sp.tarif;
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath(`/kabinet/obuna${invoiceParam ? `?invoice=${encodeURIComponent(invoiceParam)}` : ""}`));
 
@@ -231,9 +229,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </div>
 
         <div className="card m-flat p-5 sm:p-6 lg:col-span-2">
-          <h2 className="font-display text-[16px] font-semibold text-fg">Obuna nimalar beradi</h2>
+          <h2 className="font-display text-[16px] font-semibold text-fg">Pro nimalar beradi</h2>
           <ul className="mt-3 divide-y divide-line">
-            {PERKS.map((p) => (
+            {proPerks("uz").map((p) => (
               <li key={p.t} className="py-2.5 first:pt-0 last:pb-0">
                 <p className="text-[13px] font-semibold text-fg">{p.t}</p>
                 <p className="text-[12px] leading-snug text-fg-3">{p.d}</p>
@@ -265,6 +263,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         )}
         <SubscriptionCheckout
           plans={overview.plans}
+          maxPlans={plansFor(settings, "max")}
+          initialTier={tarifParam === "max" || (st.status === "active" && specialist.subscriptionTier === "max") ? "max" : "pro"}
           providers={overview.providers}
           manual={overview.manual}
           untilByMonths={untilByMonths}
@@ -273,6 +273,17 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           ctaLabel={renew}
         />
       </section>
+
+      {/* Oddiy va Pro taqqoslash */}
+      <details className="group mt-8">
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-display text-[17px] font-semibold text-fg max-sm:px-4 [&::-webkit-details-marker]:hidden">
+          Standart, Pro va Max — batafsil taqqoslash
+          <span className="text-[13px] text-fg-4 transition-transform group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
+        <div className="expand-in mt-3">
+          <PlanCompare til="uz" trialDays={settings.subscriptionTrialDays} proPrice={`${formatPrice(settings.subscriptionPrice)} / oy`} maxPrice={`${formatPrice(settings.subscriptionPriceMax)} / oy`} />
+        </div>
+      </details>
 
       {/* Tarix */}
       <section aria-labelledby="history-title" className="card m-flat mt-8 p-5 sm:p-6">

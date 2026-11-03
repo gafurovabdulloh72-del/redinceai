@@ -65,6 +65,14 @@ try {
   console.warn("⚠ reprice.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
 }
 
+// Tariflar (2026-11-03): Pro narxi 49 000 so'm. Eski standart 50 000 saqlangan bo'lsa (admin o'zgartirmagan) — 49 000 ga
+// o'tkaziladi. Boshqa qiymatga (admin qo'lda belgilagan) tegilmaydi. Max narxi yo'q bo'lsa standart 79 000 kod'dan olinadi.
+try {
+  await client.execute("update platform_settings set value = 49000 where key = 'subscriptionPrice' and value = 50000");
+} catch (e) {
+  console.warn("⚠ Pro narxini yangilab bo'lmadi:", e instanceof Error ? e.message : e);
+}
+
 // Admin hisobini tiklash: ADMIN_PASSWORD (kuchli) berilgan bo'lsa admin paroli har deployda shunga moslanadi.
 // Seed productionda ADMIN_PASSWORD'siz admin'ni tasodifiy parol bilan yaratadi — keyin env berib qayta deploy qilish kifoya.
 const adminPassword = process.env.ADMIN_PASSWORD;

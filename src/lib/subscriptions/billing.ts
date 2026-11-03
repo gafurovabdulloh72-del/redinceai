@@ -14,7 +14,7 @@ import { audit } from "@/lib/security/audit";
 import { afterPaidInvoice, fulfillPurchase, isPurchase, purchaseHref, purchaseMeta, releaseHolds, revokePurchase } from "@/lib/mentorship/purchases";
 import { afterContactPaidInvoice, contactHref, contactMeta, fulfillContactUnlock, isContactUnlock, revokeContactUnlock } from "@/lib/contacts/unlock";
 import { formatDate, formatPrice } from "@/lib/utils";
-import { addMonths, planDiscountPct, planPrice, subscriptionPeriod, subscriptionState } from "./access";
+import { addMonths, planDiscountPct, planPrice, subscriptionPeriod, subscriptionState, tierUnitPrice } from "./access";
 import { invoiceNumber, type InvoiceView, type PlanView } from "./labels";
 
 /**
@@ -53,10 +53,10 @@ export function isPlanMonths(m: number): boolean {
 }
 
 /** Rejalar ro'yxati (joriy narx bilan) */
-export function plansFor(s: Pick<PlatformSettings, "subscriptionPrice">): PlanView[] {
+export function plansFor(s: Pick<PlatformSettings, "subscriptionPrice"> & Partial<Pick<PlatformSettings, "subscriptionPriceMax">>, tier: "pro" | "max" = "pro"): PlanView[] {
   return SUBSCRIPTION_PLANS.map((p) => {
-    const price = planPrice(p.months, s);
-    const full = s.subscriptionPrice * p.months;
+    const price = planPrice(p.months, s, tier);
+    const full = tierUnitPrice(s, tier) * p.months;
     return { months: p.months, discountPct: p.discountPct, price, monthly: Math.round(price / p.months / 100) * 100, savings: Math.max(0, full - price) };
   });
 }
@@ -74,6 +74,7 @@ export function toInvoiceView(i: SubscriptionInvoice): InvoiceView {
     paidAt: i.paidAt?.getTime() ?? null,
     createdAt: i.createdAt.getTime(),
     attempted: i.providerTxnId != null,
+    tier: (i.meta as { tier?: string } | null)?.tier === "max" ? "max" : "pro",
   };
 }
 
@@ -161,11 +162,13 @@ export async function createInvoice(
   months: number,
   provider: PaymentProvider,
   opts: { actorId: string; req?: Request } = { actorId: specialist.userId },
+  tier: "pro" | "max" = "pro",
 ): Promise<{ invoice: SubscriptionInvoice; reused: boolean }> {
   if (!isPlanMonths(months)) throw new ApiError(422, "Bunday obuna rejasi yo'q", { months: "1, 3, 6 yoki 12 oy tanlang" });
   if (!isProviderConfigured(provider)) throw new ApiError(400, "Bu to'lov usuli hozircha ulanmagan");
   const settings = await getSettings();
-  const amount = planPrice(months, settings);
+  const amount = planPrice(months, settings, tier);
+  const unitPrice = tierUnitPrice(settings, tier);
   if (amount <= 0) throw new ApiError(400, "Obuna narxi hali belgilanmagan — administrator bilan bog'laning");
 
   const now = new Date();
@@ -174,6 +177,8 @@ export async function createInvoice(
     orderBy: [desc(subscriptionInvoices.createdAt)],
   });
   for (const inv of open) {
+    // Boshqa tarif (pro ↔ max) hisobi qayta ishlatilmaydi
+    if (((inv.meta as { tier?: string } | null)?.tier ?? "pro") !== tier) continue;
     if (inv.state === "pending") {
       // O'tkazma: «To'ladim» bosilgan — admin tasdig'ini kutadi, ikkinchi hisob ochilmaydi. Payme/Click: jarayondagi tranzaksiya.
       if (inv.provider === "manual" || isProviderInFlight(inv, now.getTime())) return { invoice: inv, reused: true };
@@ -183,7 +188,7 @@ export async function createInvoice(
     if (inv.amount !== amount) {
       const [row] = await db
         .update(subscriptionInvoices)
-        .set({ amount, meta: { ...inv.meta, unitPrice: settings.subscriptionPrice, discountPct: planDiscountPct(months) }, updatedAt: now })
+        .set({ amount, meta: { ...inv.meta, unitPrice, tier, discountPct: planDiscountPct(months) }, updatedAt: now })
         .where(and(eq(subscriptionInvoices.id, inv.id), eq(subscriptionInvoices.state, "created")))
         .returning();
       if (row) return { invoice: row, reused: true };
@@ -208,10 +213,10 @@ export async function createInvoice(
       amount,
       provider,
       state: "created",
-      meta: { unitPrice: settings.subscriptionPrice, discountPct: planDiscountPct(months) },
+      meta: { unitPrice, tier, discountPct: planDiscountPct(months) },
     })
     .returning();
-  await audit(opts.actorId, "subscription_created", { targetType: "subscription_invoice", targetId: invoice.id, meta: { specialistId: specialist.id, months, amount, provider } }, opts.req);
+  await audit(opts.actorId, "subscription_created", { targetType: "subscription_invoice", targetId: invoice.id, meta: { specialistId: specialist.id, months, amount, provider, tier } }, opts.req);
   return { invoice, reused: false };
 }
 
@@ -269,7 +274,9 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
     const sp = await tx.query.specialists.findFirst({ where: eq(specialists.id, row.specialistId), columns: { id: true, userId: true, createdAt: true, subscriptionUntil: true } });
     if (!sp) return { row, sp: null };
     const { periodStart, periodEnd } = subscriptionPeriod(sp, row.months, settings, now);
-    await tx.update(specialists).set({ subscriptionUntil: periodEnd, updatedAt: now }).where(eq(specialists.id, sp.id));
+    // Tarif hisob meta'sidan (pro | max); eski hisoblar — pro
+    const tier = (row.meta as { tier?: string } | null)?.tier === "max" ? "max" : "pro";
+    await tx.update(specialists).set({ subscriptionUntil: periodEnd, subscriptionTier: tier, updatedAt: now }).where(eq(specialists.id, sp.id));
     const [withPeriod] = await tx.update(subscriptionInvoices).set({ periodStart, periodEnd }).where(eq(subscriptionInvoices.id, row.id)).returning();
     return { row: withPeriod ?? row, sp };
   });
@@ -287,7 +294,7 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
       sp.userId,
       "subscription_paid",
       `Obuna to'landi: ${formatPrice(row.amount)}`,
-      `${row.months} oylik obuna faollashtirildi — ${formatDate(row.periodEnd)} gacha. Profilingiz katalog va xaritada ko'rinadi, yangi buyurtma va takliflar ochiq.`,
+      `${(row.meta as { tier?: string } | null)?.tier === "max" ? "Max" : "Pro"} — ${row.months} oylik obuna faollashtirildi, ${formatDate(row.periodEnd)} gacha. Profilingiz katalog va xaritada ko'rinadi, yangi buyurtma va takliflar ochiq.`,
       invoiceHref(row.id),
     );
   }

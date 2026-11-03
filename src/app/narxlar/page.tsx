@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
-import { ArrowRight, Check, Gift } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { UsdHint } from "@/components/subscription/UsdHint";
-import { PROPOSAL_DAILY_LIMIT, SITE } from "@/lib/constants";
+import { SITE } from "@/lib/constants";
+import { PlanCompare } from "@/components/subscription/PlanCompare";
+import { PlanCards } from "@/components/subscription/PlanCards";
 import { tr } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { localizePrice } from "@/lib/i18n/dict/catalog";
@@ -34,21 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function Bullet({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5 text-[14px] leading-snug text-fg-2">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-text" aria-hidden="true">
-        <Check size={12} strokeWidth={3} />
-      </span>
-      <span>{children}</span>
-    </li>
-  );
-}
-
 export default async function PricingPage() {
   const til = await getLocale();
   const s = await getSettings();
   const plans = plansFor(s);
+  const maxPlans = plansFor(s, "max");
   const price = formatPrice(s.subscriptionPrice);
   const priceUi = localizePrice(til, price);
   const trial = s.subscriptionTrialDays;
@@ -90,45 +82,44 @@ export default async function PricingPage() {
         <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{NARX.intro[til](SITE.name)}</p>
       </header>
 
-      {/* ---------- Ikki ustun ---------- */}
-      <section aria-label={tr(til, NARX.plansAria)} className="mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-2 md:gap-5">
-        <div className="card flex flex-col p-6 sm:p-8">
-          <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.clients)}</h2>
-          <p className="mt-6 font-display text-[44px] font-semibold leading-none tracking-tight text-fg">{tr(til, NARX.free)}</p>
-          <p className="mt-2 text-[14px] text-fg-3">{tr(til, NARX.freeNote)}</p>
-          <ul className="mt-6 space-y-3">
-            {NARX.clientBullets[til].map((b) => (
-              <Bullet key={b}>{b}</Bullet>
-            ))}
-          </ul>
-          <ButtonLink href="/mutaxassislar" variant="outline" size="lg" className="mt-8 w-full">
-            {tr(til, NARX.findSpecialist)} <ArrowRight size={16} />
-          </ButtonLink>
-        </div>
-
-        <div className="card relative flex flex-col border-fg p-6 sm:p-8">
-          {trial > 0 && (
-            <span className="absolute -top-3 right-6 inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-fg">
-              <Gift size={12} aria-hidden="true" /> {NARX.trialBadge[til](trial)}
-            </span>
-          )}
-          <h2 className="font-display text-[20px] font-semibold text-fg">{tr(til, NARX.specialists)}</h2>
-          <p className="mt-6 flex flex-wrap items-baseline gap-x-2 font-display font-semibold tracking-tight text-fg">
-            <span className="whitespace-nowrap text-[38px] leading-none tabular-nums sm:text-[44px]">{priceUi}</span>
-            <span className="text-[16px] font-medium text-fg-3">{tr(til, NARX.perMonth)}</span>
-            <UsdHint amount={s.subscriptionPrice} usdRate={s.usdRate} til={til} />
-          </p>
-          <p className="mt-2 text-[14px] text-fg-3">{trial > 0 ? NARX.trialNote[til](trial) : tr(til, NARX.noTrialNote)}</p>
-          <ul className="mt-6 space-y-3">
-            {NARX.specialistBullets[til](PROPOSAL_DAILY_LIMIT).map((b) => (
-              <Bullet key={b}>{b}</Bullet>
-            ))}
-          </ul>
-          <ButtonLink href="/auth/royxat?role=specialist" variant="accent" size="lg" className="mt-8 w-full">
-            {tr(til, NARX.startAsSpecialist)} <ArrowRight size={16} />
-          </ButtonLink>
-        </div>
+      {/* ---------- Tarif kartalari (Oddiy · Pro · Pro yillik) ---------- */}
+      <section aria-label={tr(til, NARX.plansAria)} className="mx-auto mt-10 max-w-6xl">
+        <PlanCards til={til} proPrice={s.subscriptionPrice} maxPrice={s.subscriptionPriceMax} trialDays={trial} />
+        <p className="mt-3 text-center text-[12.5px] text-fg-3">
+          <UsdHint amount={s.subscriptionPrice} usdRate={s.usdRate} til={til} />
+        </p>
       </section>
+
+      {/* ---------- Mijozlar uchun — ixcham qator ---------- */}
+      <section aria-label={tr(til, NARX.clients)} className="card mx-auto mt-6 flex max-w-6xl flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-[17px] font-semibold text-fg">
+            {tr(til, NARX.clients)} — <span className="text-accent-text">{tr(til, NARX.free)}</span>
+          </h2>
+          <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
+            {NARX.clientBullets[til].slice(0, 4).map((b) => (
+              <li key={b} className="flex items-center gap-1.5 text-[13px] text-fg-2">
+                <Check size={13} className="shrink-0 text-success-text" aria-hidden />
+                {b}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <ButtonLink href="/mutaxassislar" variant="outline" size="md" className="shrink-0">
+          {tr(til, NARX.findSpecialist)} <ArrowRight size={15} />
+        </ButtonLink>
+      </section>
+
+      {/* ---------- Batafsil taqqoslash (yig'ilgan) ---------- */}
+      <details className="group mx-auto mt-10 max-w-6xl">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-2 text-[14px] font-semibold text-fg-2 hover:text-fg [&::-webkit-details-marker]:hidden">
+          {tr(til, NARX.compareTitle)}
+          <span className="text-fg-4 transition-transform group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
+        <div className="expand-in mt-5 max-sm:-mx-4">
+          <PlanCompare til={til} trialDays={trial} proPrice={`${priceUi} ${tr(til, NARX.perMonth)}`} maxPrice={`${localizePrice(til, formatPrice(s.subscriptionPriceMax))} ${tr(til, NARX.perMonth)}`} />
+        </div>
+      </details>
 
       {/* ---------- Rejalar jadvali ---------- */}
       <section aria-labelledby="plans-title" className="mx-auto mt-14 max-w-5xl">
@@ -146,11 +137,11 @@ export default async function PricingPage() {
                 <th scope="col" className="px-4 py-3 sm:px-6">
                   {tr(til, NARX.colDuration)}
                 </th>
-                <th scope="col" className="px-2 py-3 sm:px-6">
-                  {tr(til, NARX.colMonthly)}
+                <th scope="col" className="px-2 py-3 text-right sm:px-6">
+                  Pro · {tr(til, NARX.colTotal)}
                 </th>
                 <th scope="col" className="px-4 py-3 text-right sm:px-6">
-                  {tr(til, NARX.colTotal)}
+                  Max · {tr(til, NARX.colTotal)}
                 </th>
               </tr>
             </thead>
@@ -163,10 +154,20 @@ export default async function PricingPage() {
                       {p.discountPct > 0 && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-text">−{p.discountPct}%</span>}
                     </span>
                   </th>
-                  <td className="whitespace-nowrap px-2 py-3.5 text-fg-2 tabular-nums sm:px-6">{localizePrice(til, formatPrice(p.monthly))}</td>
-                  <td className="px-4 py-3.5 text-right sm:px-6">
+                  <td className="px-2 py-3.5 text-right sm:px-6">
                     <span className="block whitespace-nowrap font-semibold text-fg tabular-nums">{localizePrice(til, formatPrice(p.price))}</span>
                     {p.savings > 0 && <span className="block whitespace-nowrap text-[12px] text-success-text">{NARX.savings[til](formatPrice(p.savings))}</span>}
+                  </td>
+                  <td className="px-4 py-3.5 text-right sm:px-6">
+                    {(() => {
+                      const m = maxPlans.find((x) => x.months === p.months);
+                      return m ? (
+                        <>
+                          <span className="block whitespace-nowrap font-semibold text-fg tabular-nums">{localizePrice(til, formatPrice(m.price))}</span>
+                          {m.savings > 0 && <span className="block whitespace-nowrap text-[12px] text-success-text">{NARX.savings[til](formatPrice(m.savings))}</span>}
+                        </>
+                      ) : null;
+                    })()}
                   </td>
                 </tr>
               ))}
