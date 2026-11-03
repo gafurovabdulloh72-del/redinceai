@@ -18,8 +18,8 @@ import {
   useTracks,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { ConnectionQuality, ConnectionState, DisconnectReason, Room, RoomOptions, Track, VideoPresets, type Participant } from "livekit-client";
-import { Circle, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Pencil, Send, Sparkles, SwitchCamera, SlidersHorizontal, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { ConnectionQuality, ConnectionState, DisconnectReason, RemoteTrackPublication, Room, RoomOptions, Track, VideoPresets, VideoQuality, type Participant } from "livekit-client";
+import { Circle, Gauge, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Pencil, Send, Sparkles, SwitchCamera, SlidersHorizontal, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { LiveQA } from "./LiveQA";
@@ -58,10 +58,30 @@ type Devices = { video: boolean; audio: boolean; videoId?: string; audioId?: str
  * Sifat: kuchli kompyuterda 1080p/30 (4.5 Mbit/s) + simulcast (720p/360p); telefon va kuchsiz qurilmada 720p/30 (2.2 Mbit/s) + 360p —
  * kodlash CPU'ni bo'g'ib uzilishga olib kelmasin. Ekran ulashish 5 Mbit/s. Ovoz DTX. Tomoshabinda adaptiveStream — ko'rinmagan/kichik katak trafik yemaydi.
  */
-function roomOptions(): RoomOptions {
+/**
+ * Tomoshabin sifat tanlovi (2026-11-03): «auto» — LiveKit adaptiveStream (katak o'lchamiga qarab o'zi tanlaydi);
+ * qo'lda (high/medium/low) — adaptiveStream O'CHIRILADI (yoqilganda setVideoQuality ishlamaydi) va har bir masofaviy
+ * video publikatsiyaga simulcast qatlami qo'lda beriladi. Tanlov localStorage'da; auto ↔ qo'lda almashganda xona qayta ulanadi.
+ */
+export type QualityPref = "auto" | "high" | "medium" | "low";
+const QUALITY_KEY = "kasb_live_quality";
+const QUALITY_LABEL: Record<QualityPref, string> = { auto: "Avto", high: "Yuqori", medium: "O'rta", low: "Past" };
+// Simulcast qatlamlari: boshlovchi kuchli kompyuterda 1080/720/360, telefonda 720/360 — shuning uchun aniq piksel emas, daraja ko'rsatiladi
+const QUALITY_HINT: Record<QualityPref, string> = { auto: "internetga qarab", high: "eng yuqori qatlam", medium: "o'rtacha", low: "eng past · tejamkor" };
+const QUALITY_LK: Record<Exclude<QualityPref, "auto">, VideoQuality> = { high: VideoQuality.HIGH, medium: VideoQuality.MEDIUM, low: VideoQuality.LOW };
+function readQualityPref(): QualityPref {
+  try {
+    const v = localStorage.getItem(QUALITY_KEY);
+    return v === "high" || v === "medium" || v === "low" ? v : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+function roomOptions(pref: QualityPref = "auto"): RoomOptions {
   const strong = typeof navigator !== "undefined" && !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) && (navigator.hardwareConcurrency ?? 4) >= 8;
   return {
-    adaptiveStream: true,
+    adaptiveStream: pref === "auto",
     dynacast: true,
     videoCaptureDefaults: { resolution: (strong ? VideoPresets.h1080 : VideoPresets.h720).resolution, facingMode: "user" },
     audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -92,7 +112,20 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
   const [bye, setBye] = useState("");
   const [note, setNote] = useState("");
   const [dev, setDev] = useState<Devices | null>(null);
-  const options = useMemo(roomOptions, []);
+  const [qualityPref, setQualityPrefState] = useState<QualityPref>("auto");
+  useEffect(() => setQualityPrefState(readQualityPref()), []);
+  const options = useMemo(() => roomOptions(qualityPref), [qualityPref]);
+  // auto ↔ qo'lda almashganda LiveKitRoom qayta o'rnatiladi (key) — bu uzilish «chiqish» emas
+  const switching = useRef(false);
+  const setQualityPref = useCallback((q: QualityPref) => {
+    try {
+      localStorage.setItem(QUALITY_KEY, q);
+    } catch {}
+    setQualityPrefState((prev) => {
+      if ((prev === "auto") !== (q === "auto")) switching.current = true;
+      return q;
+    });
+  }, []);
   // Xabarlar efir oynasi ichida (umumiy toast boshqaruv tugmalarini to'sib qo'yardi)
   const flash = useCallback((t: string) => {
     setNote(t);
@@ -155,6 +188,10 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
    */
   function onDisconnected(reason?: DisconnectReason) {
     if (closed.current) return;
+    if (switching.current) {
+      switching.current = false;
+      return;
+    }
     if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED) {
       if (conn?.host && reason === DisconnectReason.ROOM_DELETED) return void leave(false);
       setMoving(true);
@@ -192,8 +229,8 @@ export function LiveRoomOverlay({ streamId, onClose }: { streamId: string; onClo
       ) : conn.host && !dev ? (
         <PreJoin title={conn.title} onCancel={() => void leave(true)} onReady={setDev} />
       ) : (
-        <LiveKitRoom key={conn.token.slice(-28)} serverUrl={conn.url} token={conn.token} connect options={options} video={conn.host && dev?.video ? { deviceId: dev.videoId } : false} audio={conn.host && dev?.audio ? { deviceId: dev.audioId } : false} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
-          <Stage conn={conn} streamId={streamId} flash={flash} peak={peak} onLeave={() => void leave(false)} onEnd={() => void leave(true)} />
+        <LiveKitRoom key={`${conn.token.slice(-28)}:${qualityPref === "auto" ? "a" : "m"}`} serverUrl={conn.url} token={conn.token} connect options={options} video={conn.host && dev?.video ? { deviceId: dev.videoId } : false} audio={conn.host && dev?.audio ? { deviceId: dev.audioId } : false} onDisconnected={onDisconnected} onMediaDeviceFailure={() => flash("Kamera yoki mikrofonga ruxsat berilmadi — brauzer sozlamalaridan ruxsat bering")} className="absolute inset-0">
+          <Stage conn={conn} streamId={streamId} flash={flash} peak={peak} qualityPref={qualityPref} setQualityPref={setQualityPref} onLeave={() => void leave(false)} onEnd={() => void leave(true)} />
           <RoomAudioRenderer />
           {note && (
             <p role="status" className="pointer-events-none absolute inset-x-4 top-14 z-20 mx-auto w-fit max-w-[90%] rounded-xl bg-white px-4 py-2.5 text-center text-[13.5px] font-semibold text-black shadow-lg">
@@ -244,7 +281,7 @@ function Tile({ tref, small, onPin, pinned }: { tref: TrackReferenceOrPlaceholde
   );
 }
 
-function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; streamId: string; flash: (t: string) => void; peak: React.MutableRefObject<number>; onLeave: () => void; onEnd: () => void }) {
+function Stage({ conn, streamId, flash, peak, qualityPref, setQualityPref, onLeave, onEnd }: { conn: Conn; streamId: string; flash: (t: string) => void; peak: React.MutableRefObject<number>; qualityPref: QualityPref; setQualityPref: (q: QualityPref) => void; onLeave: () => void; onEnd: () => void }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } = useLocalParticipant();
   const perms = useLocalParticipantPermissions();
   const canPublish = Boolean(perms?.canPublish);
@@ -271,6 +308,15 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
   const [breakoutOpen, setBreakoutOpen] = useState(conn.breakoutOpen);
   const [board, setBoard] = useState(false);
   const [bgMenu, setBgMenu] = useState(false);
+  const [qMenu, setQMenu] = useState(false);
+  // Qo'lda sifat: har bir masofaviy video publikatsiyaga simulcast qatlami (yangi trek kelganda ham)
+  useEffect(() => {
+    if (qualityPref === "auto") return;
+    for (const t of tracks) {
+      const pub = t.publication;
+      if (pub instanceof RemoteTrackPublication && pub.kind === Track.Kind.Video) pub.setVideoQuality(QUALITY_LK[qualityPref]);
+    }
+  }, [qualityPref, tracks]);
   const listRef = useRef<HTMLUListElement>(null);
   const wasStage = useRef(canPublish);
   const canShare = typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
@@ -597,6 +643,21 @@ function Stage({ conn, streamId, flash, peak, onLeave, onEnd }: { conn: Conn; st
             <Hand size={20} />
           </Btn>
         )}
+        <div className="relative">
+          {qMenu && (
+            <QualityMenu
+              pref={qualityPref}
+              onPick={(q) => {
+                setQualityPref(q);
+                flash(q === "auto" ? "Sifat: avtomatik" : `Sifat: ${QUALITY_LABEL[q]} (${QUALITY_HINT[q]})`);
+              }}
+              onClose={() => setQMenu(false)}
+            />
+          )}
+          <Btn label="Sifat" on={qualityPref !== "auto"} onClick={() => setQMenu((o) => !o)}>
+            <Gauge size={20} />
+          </Btn>
+        </div>
         <ReactionButton react={react} />
         {captionsSupported() && <CaptionButton on={caps.on} onToggle={() => caps.setOn(!caps.on)} />}
         <Btn label="Doska" on={board} accent={board} onClick={() => setBoard(!board)}>
@@ -707,6 +768,32 @@ function BgMenu({ mode, busy, onPick, onClose }: { mode: BgMode; busy: boolean; 
         >
           {busy && mode !== k ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} className={mode === k ? "text-accent" : "text-white/50"} />}
           {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Tomoshabin sifat menyusi: Avto · Yuqori · O'rta · Past (qo'lda rejimda trafik/batareya tejaladi) */
+function QualityMenu({ pref, onPick, onClose }: { pref: QualityPref; onPick: (q: QualityPref) => void; onClose: () => void }) {
+  const items: QualityPref[] = ["auto", "high", "medium", "low"];
+  return (
+    <div className="absolute bottom-full left-1/2 mb-2 w-[196px] -translate-x-1/2 rounded-xl bg-[#1f1f23] p-1 shadow-[0_8px_30px_rgba(0,0,0,0.6)]" role="menu" aria-label="Video sifati">
+      {items.map((k) => (
+        <button
+          key={k}
+          type="button"
+          role="menuitemradio"
+          aria-checked={pref === k}
+          onClick={() => {
+            onPick(k);
+            onClose();
+          }}
+          className={cn("flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left transition", pref === k ? "bg-white/15" : "hover:bg-white/10")}
+        >
+          <Gauge size={13} className={pref === k ? "text-accent" : "text-white/50"} />
+          <span className="flex-1 text-[13px] font-semibold">{QUALITY_LABEL[k]}</span>
+          <span className="text-[11px] text-white/50">{QUALITY_HINT[k]}</span>
         </button>
       ))}
     </div>
