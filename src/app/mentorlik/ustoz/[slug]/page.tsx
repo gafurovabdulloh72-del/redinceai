@@ -14,7 +14,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, type PostView } from "@/lib/groups/service";
 import { getLocale } from "@/lib/i18n/server";
 import { tr, type Tr } from "@/lib/i18n";
-import { MS, categoryLabelTr, formatSomTr, lessonsTr, levelLabelTr, minutesTr } from "@/lib/i18n/dict/mentorship";
+import { MS, categoryLabelTr, formatSomTr, lessonsTr, levelLabelTr, mentorBadgeLabelTr, minutesTr } from "@/lib/i18n/dict/mentorship";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
 import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
@@ -166,7 +166,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               <p className="mt-3 flex flex-wrap gap-1.5">
                 {badges.map((b) => (
                   <span key={b.key} title={b.hint} className="inline-flex items-center gap-1 rounded-full bg-white/14 px-2.5 py-1 text-[12px] font-semibold text-white">
-                    ✓ {b.label}
+                    ✓ {mentorBadgeLabelTr(til, b.label)}
                   </span>
                 ))}
               </p>

@@ -106,6 +106,12 @@ export function badgeLabelTr(til: Locale, uz: string): string {
   return til === "ru" ? (BADGE_RU[uz] ?? uz) : uz;
 }
 
+/** Ustoz belgilari (growth.ts mentorBadges — uz manba o'zgarmaydi) */
+const MENTOR_BADGE_RU: Record<string, string> = { "Ko'p o'rgatgan": "Опытный наставник", "Yuqori baho": "Высокая оценка", "Tez javob beradi": "Быстро отвечает", "Faol efirchi": "Активно ведёт эфиры" };
+export function mentorBadgeLabelTr(til: Locale, uz: string): string {
+  return til === "ru" ? (MENTOR_BADGE_RU[uz] ?? uz) : uz;
+}
+
 /** Hafta kunlari qisqartmasi (LearningStreak) */
 export const WEEK_DAYS: Record<Locale, string[]> = {
   uz: ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"],

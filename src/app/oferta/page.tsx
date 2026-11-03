@@ -9,6 +9,7 @@ import { AUTO_RELEASE_DAYS } from "@/lib/payments/service";
 import { getSettings } from "@/lib/payments/settings";
 import { planPrice } from "@/lib/subscriptions/access";
 import { formatPrice } from "@/lib/utils";
+import { localizePrice } from "@/lib/i18n/dict/catalog";
 
 export async function generateMetadata(): Promise<Metadata> {
   const til = await getLocale();
@@ -26,7 +27,7 @@ export default async function OfertaPage() {
   const til = await getLocale();
   const t = (e: { uz: string; ru: string }) => tr(til, e);
   const s = await getSettings();
-  const price = formatPrice(s.subscriptionPrice);
+  const price = localizePrice(til, formatPrice(s.subscriptionPrice));
   const trial = s.subscriptionTrialDays;
   const grace = s.subscriptionGraceDays;
 
@@ -131,14 +132,14 @@ export default async function OfertaPage() {
               <strong>Pro</strong>
               {OFERTA.tariffPro[til](price)}
               <strong>Max</strong>
-              {OFERTA.tariffMax[til](formatPrice(s.subscriptionPriceMax))}
+              {OFERTA.tariffMax[til](localizePrice(til, formatPrice(s.subscriptionPriceMax)))}
               {t(OFERTA.tariffLimits)}
               <a href="/narxlar">{t(OFERTA.tariffPricesLink)}</a>
               {t(OFERTA.tariffDiscount)}
               {SUBSCRIPTION_PLANS.map((p, i) => (
                 <span key={p.months}>
                   {i > 0 ? ", " : ""}
-                  {OFERTA.planMonths[til](p.months, formatPrice(planPrice(p.months, s)))}
+                  {OFERTA.planMonths[til](p.months, localizePrice(til, formatPrice(planPrice(p.months, s))))}
                   {p.discountPct ? ` (−${p.discountPct}%)` : ""}
                 </span>
               ))}
@@ -166,13 +167,13 @@ export default async function OfertaPage() {
       body: (
         <>
           <ol>
-            <li>{OFERTA.eskrouS1[til](formatPrice(s.minOrderAmount))}</li>
+            <li>{OFERTA.eskrouS1[til](localizePrice(til, formatPrice(s.minOrderAmount)))}</li>
             <li>{t(OFERTA.eskrouS2)}</li>
             <li>{t(OFERTA.eskrouS3)}</li>
             <li>{OFERTA.eskrouS4[til](AUTO_RELEASE_DAYS)}</li>
           </ol>
           <p>{OFERTA.commission[til](s.commissionPctNew, s.commissionPct, s.commissionPctTop, s.urgentPct)}</p>
-          <p>{OFERTA.payout[til](formatPrice(s.minPayout))}</p>
+          <p>{OFERTA.payout[til](localizePrice(til, formatPrice(s.minPayout)))}</p>
         </>
       ),
     },
@@ -275,7 +276,7 @@ export default async function OfertaPage() {
       effectiveDate={legalDate(TERMS_VERSION, til)}
       related={{ href: "/maxfiylik", label: t(LEGAL_SHELL.privacyLabel) }}
       labels={{ version: t(LEGAL_SHELL.version), effective: t(LEGAL_SHELL.effective), toc: t(LEGAL_SHELL.toc) }}
-      intro={<p>{OFERTA.intro[til](SITE.name, price, formatPrice(s.subscriptionPriceMax))}</p>}
+      intro={<p>{OFERTA.intro[til](SITE.name, price, localizePrice(til, formatPrice(s.subscriptionPriceMax)))}</p>}
       sections={sections}
     />
   );
