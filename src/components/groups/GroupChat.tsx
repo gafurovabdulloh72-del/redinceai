@@ -588,12 +588,40 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
     return () => el.removeAttribute("data-chat-open");
   }, [fullscreen]);
 
+  // Panel ichida (chat paneli o'z sarlavhasini chizadi): tugmalar mavzular qatorida
+  const compactHead = embedded && !fullscreen;
+  const headerActions = (
+          <span className="flex shrink-0 items-center gap-1">
+            {phone && !fullscreen && (
+              <button type="button" onClick={() => setFull(true)} aria-label="To'liq ekran" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
+                <Maximize2 size={15} />
+              </button>
+            )}
+            <CallButton kind="group" id={slug} title={chatLabel} className="h-8 w-8" />
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                setQ("");
+                setResults(null);
+              }}
+              aria-pressed={searchOpen}
+              aria-label={searchOpen ? "Qidiruvni yopish" : "Xabarlardan qidirish"}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+            >
+              {searchOpen ? <X size={15} /> : <Search size={15} />}
+            </button>
+          </span>
+  );
+
   const root = (
     <div
       className={cn(fullscreen ? "fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : embedded ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "card flex flex-col overflow-hidden")}
       style={fullscreen ? (vv ? { height: vv.height, top: vv.offsetTop, paddingBottom: 0 } : undefined) : embedded ? undefined : { height: "min(70vh, 640px)" }}
     >
-      {/* Sarlavha: nom · a'zolar · qidiruv (to'liq ekranda — orqaga tugmasi, kattaroq) */}
+      {/* Sarlavha: nom · a'zolar · qidiruv (to'liq ekranda — orqaga tugmasi, kattaroq).
+          Panel ichida (compactHead) alohida qator yo'q — tugmalar mavzular qatoriga ko'chadi */}
+      {!compactHead && (
       <div className={cn("flex items-center justify-between gap-2 border-b border-line px-3 text-[12.5px] text-fg-3 sm:px-4", fullscreen ? "min-h-14 py-2" : "py-2")}>
         <span className="flex min-w-0 items-center gap-1">
           {fullscreen && (
@@ -605,28 +633,9 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
             {chatLabel} · {compactCount(membersCount)}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-1">
-          {phone && !fullscreen && (
-            <button type="button" onClick={() => setFull(true)} aria-label="To'liq ekran" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg">
-              <Maximize2 size={15} />
-            </button>
-          )}
-          <CallButton kind="group" id={slug} title={chatLabel} className="h-8 w-8" />
-          <button
-            type="button"
-            onClick={() => {
-              setSearchOpen((v) => !v);
-              setQ("");
-              setResults(null);
-            }}
-            aria-pressed={searchOpen}
-            aria-label={searchOpen ? "Qidiruvni yopish" : "Xabarlardan qidirish"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
-          >
-            {searchOpen ? <X size={15} /> : <Search size={15} />}
-          </button>
-        </span>
+        {!compactHead && headerActions}
       </div>
+      )}
 
       {searchOpen && (
         <div className="expand-in relative border-b border-line px-3 py-2 sm:px-4">
@@ -653,12 +662,14 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
       )}
 
       {/* Mavzular (Telegram forum naqshi): «Umumiy» + mavzular; boshqaruvchi yangi mavzu qo'shadi */}
-      {(topics.length > 0 || canManage) && (
+      {(topics.length > 0 || canManage || compactHead) && (
         <div className="border-b border-line px-3 py-2 sm:px-4">
-          <nav aria-label="Mavzular" className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
-            <button type="button" onClick={() => setTopic(null)} aria-pressed={!topic} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", !topic ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
+          <div className="flex items-center gap-2">
+          {compactHead && <span className="sr-only">{chatLabel} · {compactCount(membersCount)}</span>}
+          <nav aria-label="Mavzular" className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            {(topics.length > 0 || canManage) && <button type="button" onClick={() => setTopic(null)} aria-pressed={!topic} className={cn("h-8 shrink-0 rounded-full border px-3 text-[12px] font-semibold transition", !topic ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
               Umumiy
-            </button>
+            </button>}
             {topics.map((tp) => (
               <span key={tp.id} className="relative shrink-0">
                 <button type="button" onClick={() => setTopic(tp.id)} aria-pressed={topic === tp.id} className={cn("h-8 rounded-full border px-3 text-[12px] font-semibold transition", topic === tp.id ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg")}>
@@ -679,6 +690,8 @@ export function GroupChat({ slug, membersCount, kind = "group", canManage = fals
               </button>
             )}
           </nav>
+          {compactHead && headerActions}
+          </div>
           {canManage && topicForm && (
             <form
               onSubmit={(e) => {
