@@ -34,9 +34,15 @@ Umumiy oylik xarajat: VPS (€4–8 yoki mahalliy ~200–400 ming so'm) + domen 
 
 **A) Hetzner (arzon, zo'r temir):** https://console.hetzner.com → hisob oching (pasport tasdiqlashi so'ralishi mumkin) → "Add Server": joylashuv **Falkenstein/Nuremberg**, obraz **Ubuntu 24.04**, tur **CX22** (2 vCPU / 4 GB / 40 GB, ~€3.8/oy). SSH kalitingizni qo'shing. 💳 **TO'LOV SHU YERDA**.
 
-**B) Mahalliy (ahost.uz VPS, ~200–400 ming so'm/oy):** 2 vCPU / 4 GB / 40 GB SSD, Ubuntu 24.04. Afzalligi: O'zbekiston qonuni fuqarolarning shaxsiy ma'lumotlarini mahalliy serverda saqlashni talab qiladi — rasmiy faoliyat uchun bu variant huquqiy jihatdan to'g'ri. 💳 **TO'LOV SHU YERDA**.
+**B) Mahalliy — TANLANGAN (ahost.uz VPS):** shared/cPanel hosting EMAS, aynan **VPS** (KVM, root SSH, statik IPv4). 2 vCPU / 4 GB / 40 GB SSD, Ubuntu 24.04. Afzalligi: O'zbekiston qonuni fuqarolarning shaxsiy ma'lumotlarini mahalliy serverda saqlashni talab qiladi — rasmiy faoliyat uchun bu variant huquqiy jihatdan to'g'ri. 💳 **TO'LOV SHU YERDA**.
 
 Natija: server **IP manzili** va **root SSH** kirishi.
+
+> **Ahost bilan (2026-11-03 qarori):** server Toshkentda bo'lgani uchun baza ham serverda (SQLite fayl,
+> Turso'dan `scripts/turso-to-sqlite.mjs` bilan ko'chiriladi) va fayllar serverda (`/data/uploads`) —
+> R2/Cloudflare ixtiyoriy. Cloudflare proksisini yoqmasangiz ham bo'ladi: DNS'ni to'g'ridan-to'g'ri
+> ahost.uz kabinetida `A @ → SERVER_IP` qilib qo'yish kifoya (Caddy SSL'ni o'zi oladi). Proksi yoqilsa
+> trafik chet el orqali o'tadi va `.env`da `TRUST_CLOUDFLARE=1` kerak.
 
 ### 1.5 Telegram bot (bepul, 2 daqiqa)
 
@@ -52,6 +58,13 @@ ssh root@SERVER_IP
 
 # 2. Docker o'rnatish (rasmiy skript)
 curl -fsSL https://get.docker.com | sh
+
+# 2b. RAM 4 GB dan kam bo'lsa — swap (Next.js build ~3 GB xotira oladi)
+fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+# 2c. Faqat kerakli portlar ochiq bo'lsin
+ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
 
 # 3. Kodni olish
 git clone https://github.com/gafurovabdulloh72-del/redinceai.git /opt/kasbegalari
@@ -89,10 +102,26 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 docker compose --profile backup up -d
 ```
 
-**Ma'lumotlarni ko'chirish (Vercel/Turso'dan):** `turso db shell <baza-nomi> .dump > dump.sql`,
-so'ng serverda `docker compose down`, bo'sh `data/redince.db` o'rniga:
-`sqlite3 data/redince.db < dump.sql` (sqlite3: `apt install sqlite3`), `SEED_ON_START=0` qiling va qayta `up -d`.
-Bo'sh boshlasangiz — hech narsa kerak emas, seed o'zi demo ma'lumot yaratadi.
+**Ma'lumotlarni ko'chirish (Vercel/Turso'dan) — CLI'siz, bitta buyruq:**
+```bash
+# .env'da SEED_ON_START=0 qiling (demo ma'lumot yaratilmasin)
+docker compose stop app
+mv data/redince.db data/redince.db.bak 2>/dev/null || true      # bo'sh/demo bazani chetga
+docker compose run --rm \
+  -e SRC_URL="libsql://<baza>.turso.io" -e SRC_TOKEN="<TURSO_AUTH_TOKEN>" \
+  -e DEST=/data/redince.db app node scripts/turso-to-sqlite.mjs
+docker compose up -d app
+```
+Skript barcha jadval, qator, indeks va triggerlarni ko'chiradi va oxirida `integrity: ok` yozadi
+(`scripts/turso-to-sqlite.mjs`). Turso qiymatlari — Vercel → Settings → Environment Variables.
+
+**Kunlik zaxira nusxa (R2'siz ham) — crontab -e:**
+```bash
+30 2 * * * cd /opt/kasbegalari && docker compose exec -T app node scripts/backup-db.mjs >> /var/log/kasb-backup.log 2>&1
+```
+`data/backups/` da oxirgi 14 kunlik nusxa turadi (`scripts/backup-db.mjs`). Tiklash:
+`docker compose stop app && cp data/backups/redince-YYYY-MM-DD.db data/redince.db && docker compose up -d app`.
+Haftada bir marta nusxani serverdan tashqariga ham oling (masalan `scp root@IP:/opt/kasbegalari/data/backups/*.db .`).
 
 **Yangilash (yangi kod chiqqanda):**
 ```bash

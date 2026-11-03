@@ -1,4 +1,4 @@
-# Avto-deploy: main'ga push (yoki qo'lda "Run workflow") → SSH orqali VPS'da git pull + docker compose up -d --build.
+# Avto-deploy: asosiy branch'ga (claude/quirky-volta-tzlqwh yoki main) push (yoki qo'lda "Run workflow") → SSH orqali VPS'da git pull + docker compose up -d --build.
 # Kerakli secrets (GitHub repo → Settings → Secrets and variables → Actions):
 #   VPS_HOST     — server IP yoki domen
 #   VPS_USER     — SSH foydalanuvchi (odatda root)
@@ -9,7 +9,7 @@ name: Deploy VPS
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/quirky-volta-tzlqwh]
   workflow_dispatch:
 
 # Bir vaqtda bitta deploy — navbatdagisi kutadi, bekor qilinmaydi
