@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Clock3, Database, HardDrive, Mail, RefreshCw, Send, Users } from "lucide-react";
+import { Activity, Clock3, Database, HardDrive, Mail, Radio, RefreshCw, Send, Users } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 
 /** Admin: tizim holati — DB kechikishi, saqlash, cron, rate-limit, Telegram/email, faol sessiyalar (GET /api/admin/health) */
@@ -15,7 +15,19 @@ interface Health {
   email: { configured: boolean };
   sessions: { active: number };
   users: { total: number };
+  livekit: { configured: boolean; usage: LiveKitUsage | null };
 }
+interface LiveKitUsage {
+  month: string;
+  minutes: { viewers: number; hosts: number; calls: number; consults: number; total: number };
+  streams: number;
+  calls: number;
+  estGb: number;
+  limitGb: number;
+  pct: number;
+  prevMonthMinutes: number;
+}
+const fmtMin = (m: number) => (m >= 60 ? `${Math.round(m / 6) / 10} soat` : `${m} daq`);
 const BACKEND: Record<Health["storage"]["backend"], string> = { r2: "Cloudflare R2", blob: "Vercel Blob", disk: "Server diski", none: "Sozlanmagan" };
 
 function Metric({ icon: Icon, label, value, hint, tone = "neutral" }: { icon: typeof Database; label: string; value: string; hint?: string; tone?: "neutral" | "ok" | "warn" | "bad" }) {
@@ -26,7 +38,7 @@ function Metric({ icon: Icon, label, value, hint, tone = "neutral" }: { icon: ty
       </p>
       <p className={cn("mt-1 flex items-center gap-1.5 text-[15px] font-semibold tabular-nums", tone === "ok" ? "text-success-text" : tone === "warn" ? "text-warning-text" : tone === "bad" ? "text-danger-text" : "text-fg")}>
         <span aria-hidden="true" className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tone === "ok" ? "bg-success" : tone === "warn" ? "bg-warning" : tone === "bad" ? "bg-danger" : "bg-line-2")} />
-        {value}
+        <span className="min-w-0 truncate" title={value}>{value}</span>
       </p>
       {hint && <p className="mt-0.5 truncate text-[11.5px] text-fg-4">{hint}</p>}
     </div>
@@ -93,6 +105,41 @@ export function AdminHealthCard() {
           <Metric icon={Mail} label="Email (Resend)" value={h.email.configured ? "Sozlangan" : "Sozlanmagan"} tone={h.email.configured ? "ok" : "neutral"} />
           <Metric icon={Users} label="Faol sessiyalar" value={String(h.sessions.active)} hint={`${h.users.total} ta foydalanuvchi`} />
           <Metric icon={Activity} label="Health endpoint" value="/api/health" hint="Railway/Vercel tekshiruvi" tone="neutral" />
+        </div>
+      )}
+      {h?.livekit && (
+        <div className="mt-3 rounded-[var(--r-sm)] border border-line px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-fg-3">
+              <Radio size={13} className="shrink-0 text-fg-4" aria-hidden="true" /> LiveKit sarfi — {h.livekit.usage?.month ?? "joriy oy"} (efir · qo'ng'iroq · 1:1)
+            </p>
+            <span className={cn("text-[11.5px] font-semibold", h.livekit.configured ? "text-success-text" : "text-warning-text")}>{h.livekit.configured ? "Ulangan" : "LIVEKIT_URL / API_KEY yo'q — efir ishlamaydi"}</span>
+          </div>
+          {h.livekit.usage ? (
+            (() => {
+              const u = h.livekit.usage;
+              const tone = u.pct >= 100 ? "bad" : u.pct >= 70 ? "warn" : "ok";
+              return (
+                <>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className={cn("text-[18px] font-semibold tabular-nums", tone === "bad" ? "text-danger-text" : tone === "warn" ? "text-warning-text" : "text-fg")}>
+                      ≈ {u.estGb} GB <span className="text-[12px] font-medium text-fg-3">/ {u.limitGb} GB limit ({u.pct}%)</span>
+                    </span>
+                    <span className="text-[12px] text-fg-3">{u.minutes.total.toLocaleString("ru-RU")} ishtirokchi-daqiqa · {u.streams} efir · {u.calls} qo'ng'iroq</span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.min(100, u.pct)} aria-valuemin={0} aria-valuemax={100} aria-label="LiveKit oylik limit">
+                    <div className={cn("h-full rounded-full", tone === "bad" ? "bg-danger" : tone === "warn" ? "bg-warning" : "bg-success")} style={{ width: `${Math.min(100, u.pct)}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-[11.5px] text-fg-4">
+                    Tomoshabin {fmtMin(u.minutes.viewers)} · boshlovchi {fmtMin(u.minutes.hosts)} · qo'ng'iroq {fmtMin(u.minutes.calls)} · 1:1 {fmtMin(u.minutes.consults)} · o'tgan oy {fmtMin(u.prevMonthMinutes)}. Baho: 1 daqiqa ≈ 9 MB (720p); aniq sarf — LiveKit Cloud panelida. Limit: env <code className="font-mono">LIVEKIT_MONTHLY_GB</code>.
+                    {u.pct >= 70 && <strong className={cn("ml-1", tone === "bad" ? "text-danger-text" : "text-warning-text")}>{u.pct >= 100 ? "Limit tugagan bo'lishi mumkin — pullik rejaga o'ting." : "Limitga yaqinlashdi — pullik rejani rejalashtiring."}</strong>}
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            <p className="mt-1.5 text-[12px] text-fg-3">Sarf hisoblanmadi.</p>
+          )}
         </div>
       )}
     </div>
