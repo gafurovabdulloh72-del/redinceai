@@ -6,6 +6,9 @@ import { CheckCircle2, FileText, Loader2, Paperclip, XCircle } from "lucide-reac
 import { showToast } from "@/components/ui/toast";
 import { uploadAttachment } from "@/components/chat/attachments";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS } from "@/lib/i18n/dict/mentorship";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -38,6 +41,7 @@ export function Materials({ items }: { items: Array<{ name: string; url: string;
 type QuizRes = { scorePct: number; passed: boolean; passPct: number; wrong: number[] };
 export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: { passPct: number; questions: Array<{ q: string; options: string[] }> }; passed: boolean }) {
   const router = useRouter();
+  const til = useLocale();
   const [ans, setAns] = useState<(number | null)[]>(() => quiz.questions.map(() => null));
   const [res, setRes] = useState<QuizRes | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,11 +53,11 @@ export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: 
       const r = await post<QuizRes>(`/api/mentorlik/darslar/${lessonId}/test`, { answers: ans });
       setRes(r);
       if (r.passed) {
-        showToast(`Test topshirildi: ${r.scorePct}% 🎉`, "success");
+        showToast(MS.quizPassed[til](r.scorePct), "success");
         router.refresh();
       }
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -62,9 +66,9 @@ export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: 
   return (
     <section className="rounded-[16px] border border-line p-4 sm:p-5">
       <div className="flex items-center gap-2">
-        <h2 className="text-[15px] font-bold text-fg">Dars testi</h2>
-        <span className="text-[12px] text-fg-3">o&apos;tish: {quiz.passPct}%</span>
-        {passed && <span className="ml-auto inline-flex items-center gap-1 text-[13px] font-semibold text-success-text"><CheckCircle2 size={15} /> O&apos;tilgan</span>}
+        <h2 className="text-[15px] font-bold text-fg">{tr(til, MS.quizTitle)}</h2>
+        <span className="text-[12px] text-fg-3">{tr(til, MS.passPct)} {quiz.passPct}%</span>
+        {passed && <span className="ml-auto inline-flex items-center gap-1 text-[13px] font-semibold text-success-text"><CheckCircle2 size={15} /> {tr(til, MS.passed)}</span>}
       </div>
       {!passed && (
         <>
@@ -84,11 +88,11 @@ export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: 
           </ol>
           {res && !res.passed && (
             <p role="alert" className="mt-3 flex items-center gap-1.5 text-[13.5px] font-semibold text-danger">
-              <XCircle size={15} /> {res.scorePct}% — yetarli emas ({res.passPct}% kerak). Qizil savollarni qayta ko&apos;rib chiqing.
+              <XCircle size={15} /> {MS.quizFail[til](res.scorePct, res.passPct)}
             </p>
           )}
           <button type="button" disabled={!ready || busy} onClick={() => void submit()} className="btn-accent mt-4 inline-flex h-11 items-center gap-2 px-6 text-[14px] font-semibold disabled:opacity-50">
-            {busy && <Loader2 size={15} className="animate-spin" />} Tekshirish
+            {busy && <Loader2 size={15} className="animate-spin" />} {tr(til, MS.check)}
           </button>
         </>
       )}
@@ -99,8 +103,9 @@ export function QuizBlock({ lessonId, quiz, passed }: { lessonId: string; quiz: 
 type Sub = { status: string; grade: number | null; feedback: string; body: string; fileUrl: string | null } | null;
 export function AssignmentBlock({ lessonId, prompt, submission, canSubmit }: { lessonId: string; prompt: string; submission: Sub; canSubmit: boolean }) {
   const router = useRouter();
+  const til = useLocale();
   const [body, setBody] = useState(submission?.body ?? "");
-  const [file, setFile] = useState<{ url: string; name: string } | null>(submission?.fileUrl ? { url: submission.fileUrl, name: "Biriktirilgan fayl" } : null);
+  const [file, setFile] = useState<{ url: string; name: string } | null>(submission?.fileUrl ? { url: submission.fileUrl, name: tr(til, MS.attachedFile) } : null);
   const [up, setUp] = useState(false);
   const [busy, setBusy] = useState(false);
   const locked = submission?.status === "reviewed";
@@ -112,7 +117,7 @@ export function AssignmentBlock({ lessonId, prompt, submission, canSubmit }: { l
       const a = await uploadAttachment(f, { docs: true });
       setFile({ url: a.url, name: a.name });
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Yuklanmadi", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.uploadFailed), "error");
     } finally {
       setUp(false);
     }
@@ -121,10 +126,10 @@ export function AssignmentBlock({ lessonId, prompt, submission, canSubmit }: { l
     setBusy(true);
     try {
       await post(`/api/mentorlik/darslar/${lessonId}/vazifa`, { body, fileUrl: file?.url ?? null });
-      showToast("Vazifa topshirildi", "success");
+      showToast(tr(til, MS.assignmentSent), "success");
       router.refresh();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -132,24 +137,24 @@ export function AssignmentBlock({ lessonId, prompt, submission, canSubmit }: { l
 
   return (
     <section className="rounded-[16px] border border-line p-4 sm:p-5">
-      <h2 className="text-[15px] font-bold text-fg">Uy vazifasi</h2>
+      <h2 className="text-[15px] font-bold text-fg">{tr(til, MS.homework)}</h2>
       <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-fg-2">{prompt}</p>
       {submission && (
         <p className={cn("mt-3 rounded-lg px-3 py-2 text-[13.5px] font-semibold", submission.status === "reviewed" ? "bg-success-soft text-success-text" : submission.status === "needs_work" ? "bg-danger-soft text-danger-text" : "bg-fg/[0.05] text-fg-2")}>
-          {submission.status === "reviewed" ? `Baholandi${submission.grade != null ? `: ${submission.grade}/100` : ""}` : submission.status === "needs_work" ? "Qayta ishlash kerak" : "Ustoz ko'rib chiqmoqda…"}
+          {submission.status === "reviewed" ? `${tr(til, MS.graded)}${submission.grade != null ? `: ${submission.grade}/100` : ""}` : submission.status === "needs_work" ? tr(til, MS.needsWork) : tr(til, MS.reviewing)}
           {submission.feedback && <span className="mt-1 block whitespace-pre-line font-normal">{submission.feedback}</span>}
         </p>
       )}
       {canSubmit && !locked && (
         <div className="mt-3 space-y-2">
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={2000} placeholder="Javobingiz, havola yoki izoh…" className="field w-full resize-y py-2.5 text-[14px]" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={2000} placeholder={tr(til, MS.answerPh)} className="field w-full resize-y py-2.5 text-[14px]" />
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 text-[13px] font-semibold text-fg-2 hover:border-fg">
-              {up ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} {file ? file.name.slice(0, 28) : "Fayl biriktirish"}
+              {up ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />} {file ? file.name.slice(0, 28) : tr(til, MS.attachFile)}
               <input type="file" className="sr-only" accept="image/*,.pdf,.doc,.docx,.zip,video/mp4,video/webm,video/quicktime" onChange={(e) => { void upload(e.target.files?.[0] ?? null); e.target.value = ""; }} />
             </label>
             <button type="button" disabled={busy || up || (!body.trim() && !file)} onClick={() => void submit()} className="btn-accent inline-flex h-10 items-center gap-2 px-5 text-[14px] font-semibold disabled:opacity-50">
-              {busy && <Loader2 size={14} className="animate-spin" />} {submission ? "Qayta yuborish" : "Topshirish"}
+              {busy && <Loader2 size={14} className="animate-spin" />} {submission ? tr(til, MS.resend) : tr(til, MS.submit)}
             </button>
           </div>
         </div>

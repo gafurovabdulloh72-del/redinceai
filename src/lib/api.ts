@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { getVerifiedSession, type SessionPayload } from "./auth";
 import { checkSameOrigin } from "./security/origin";
 import { flattenErrors } from "./validators";
+import { LOCALE_COOKIE, pickLocale, type Locale } from "./i18n";
 import { ADMIN_2FA_MESSAGE, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export class ApiError extends Error {
@@ -111,21 +112,36 @@ export async function requireSession(roles?: SessionPayload["role"][]) {
   return session;
 }
 
+/** So'rov cookie'sidan til (`til=ru`) — 422 xabarlarini tilga moslash uchun; bo'lmasa uz (next/headers'siz — route'dan tashqarida ham ishlaydi) */
+export function requestLocale(req: Request): Locale {
+  const cookie = req.headers.get("cookie") ?? "";
+  const m = cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]*)`));
+  const v = m ? decodeURIComponent(m[1]) : "";
+  // Ko'rinish tili (uz | uz_cyrl | ru | en) → lug'at tili: ru/en → ru, qolgani uz
+  return v === "en" ? "ru" : pickLocale(v);
+}
+
+const INVALID_BODY: Record<Locale, string> = { uz: "Ma'lumotlarni tekshiring", ru: "Проверьте данные" };
+const INVALID_QUERY: Record<Locale, string> = { uz: "So'rov parametrlari noto'g'ri", ru: "Неверные параметры запроса" };
+const INVALID_JSON: Record<Locale, string> = { uz: "JSON noto'g'ri", ru: "Неверный JSON" };
+
 export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S): Promise<z.output<S>> {
+  const til = requestLocale(req);
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    throw new ApiError(400, "JSON noto'g'ri");
+    throw new ApiError(400, INVALID_JSON[til]);
   }
   const result = schema.safeParse(raw);
-  if (!result.success) throw new ApiError(422, "Ma'lumotlarni tekshiring", flattenErrors(result.error));
+  if (!result.success) throw new ApiError(422, INVALID_BODY[til], flattenErrors(result.error, til));
   return result.data;
 }
 
-export function parseQuery<S extends z.ZodTypeAny>(url: string, schema: S): z.output<S> {
+export function parseQuery<S extends z.ZodTypeAny>(url: string, schema: S, req?: Request): z.output<S> {
+  const til = req ? requestLocale(req) : "uz";
   const params = Object.fromEntries(new URL(url).searchParams.entries());
   const result = schema.safeParse(params);
-  if (!result.success) throw new ApiError(422, "So'rov parametrlari noto'g'ri", flattenErrors(result.error));
+  if (!result.success) throw new ApiError(422, INVALID_QUERY[til], flattenErrors(result.error, til));
   return result.data;
 }

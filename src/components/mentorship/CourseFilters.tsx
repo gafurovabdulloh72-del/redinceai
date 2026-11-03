@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { COURSE_LEVELS, MENTOR_CATEGORIES } from "@/lib/mentorship/format";
+import { tr, type Locale } from "@/lib/i18n";
+import { MS, categoryLabelTr, coursesTr, levelLabelTr, sortLabelTr } from "@/lib/i18n/dict/mentorship";
 
 export interface FilterState {
   category?: string;
@@ -54,7 +56,7 @@ const pill = (href: string, label: string, active: boolean, key: string) => (
  * Yo'nalish — `<details>` menyusi (klient JS'siz), qolgani ixcham pill.
  * Faol filtr bo'lsa «Tozalash» ko'rinadi.
  */
-export function CourseFilters({ state, total }: { state: FilterState; total: number }) {
+export function CourseFilters({ state, total, til = "uz" }: { state: FilterState; total: number; til?: Locale }) {
   const { category, level, price, sort } = state;
   const activeCat = MENTOR_CATEGORIES.find((c) => c.key === category);
   const dirty = Boolean(category || level || price || sort !== "new");
@@ -69,12 +71,12 @@ export function CourseFilters({ state, total }: { state: FilterState; total: num
             activeCat ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg",
           )}
         >
-          {activeCat?.label ?? "Yo'nalish"}
+          {activeCat ? categoryLabelTr(til, activeCat.key) : tr(til, MS.direction)}
           <span aria-hidden className="text-[10px] opacity-70 transition group-open:rotate-180">▾</span>
         </summary>
         <div className="pop-in absolute left-0 top-full z-20 mt-1 w-[200px] rounded-[14px] bg-surface p-1 shadow-[var(--shadow-3)]">
           <Link href={filterHref(state, "kasb", undefined)} scroll={false} className={cn("block rounded-[10px] px-2.5 py-2 text-[13px] transition hover:bg-fg/5", !category && "font-bold")}>
-            Barchasi
+            {tr(til, MS.all)}
           </Link>
           {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => (
             <Link
@@ -83,15 +85,15 @@ export function CourseFilters({ state, total }: { state: FilterState; total: num
               scroll={false}
               className={cn("block rounded-[10px] px-2.5 py-2 text-[13px] transition hover:bg-fg/5", category === c.key && "font-bold")}
             >
-              {c.label}
+              {categoryLabelTr(til, c.key)}
             </Link>
           ))}
         </div>
       </details>
 
       <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
-      {pill(filterHref(state, "narx", price === "free" ? undefined : "bepul"), "Bepul", price === "free", "free")}
-      {COURSE_LEVELS.map((l) => pill(filterHref(state, "daraja", level === l.key ? undefined : l.key), l.label, level === l.key, `lv-${l.key}`))}
+      {pill(filterHref(state, "narx", price === "free" ? undefined : "bepul"), tr(til, MS.free), price === "free", "free")}
+      {COURSE_LEVELS.map((l) => pill(filterHref(state, "daraja", level === l.key ? undefined : l.key), levelLabelTr(til, l.key), level === l.key, `lv-${l.key}`))}
 
       <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
       <details className="group relative shrink-0">
@@ -101,22 +103,22 @@ export function CourseFilters({ state, total }: { state: FilterState; total: num
             sort !== "new" ? "border-fg bg-fg text-ink-fg" : "border-line text-fg-2 hover:border-fg hover:text-fg",
           )}
         >
-          {COURSE_SORTS.find(([k]) => k === sort)?.[1] ?? "Yangilari"}
+          {sortLabelTr(til, sort, COURSE_SORTS.find(([k]) => k === sort)?.[1] ?? "Yangilari")}
           <span aria-hidden className="text-[10px] opacity-70 transition group-open:rotate-180">▾</span>
         </summary>
         <div className="pop-in absolute right-0 top-full z-20 mt-1 w-[170px] rounded-[14px] bg-surface p-1 shadow-[var(--shadow-3)]">
           {COURSE_SORTS.map(([k, label]) => (
             <Link key={k} href={filterHref(state, "tartib", k)} scroll={false} className={cn("block rounded-[10px] px-2.5 py-2 text-[13px] transition hover:bg-fg/5", sort === k && "font-bold")}>
-              {label}
+              {sortLabelTr(til, k, label)}
             </Link>
           ))}
         </div>
       </details>
 
-      <span className="ml-auto shrink-0 pl-2 text-[12.5px] text-fg-4">{total} kurs</span>
+      <span className="ml-auto shrink-0 pl-2 text-[12.5px] text-fg-4">{coursesTr(til, total)}</span>
       {dirty && (
         <Link href="/mentorlik" scroll={false} className="shrink-0 text-[12.5px] font-semibold text-fg-3 transition hover:text-fg">
-          Tozalash
+          {tr(til, MS.clear)}
         </Link>
       )}
     </div>

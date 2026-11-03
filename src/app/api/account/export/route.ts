@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, favorites, follows, groupMembers, groups, notifications, orders, payments, payouts, portfolioItems, postComments, postSaves, posts, reviews, savedSearches, sessions, specialists, userBlocks, users } from "@/lib/db/schema";
 import { z } from "zod";
-import { ApiError, handler, parseBody, requireSession } from "@/lib/api";
+import { ApiError, handler, parseBody, requestLocale, requireSession } from "@/lib/api";
 import { renderExportHtml } from "@/lib/account/export-html";
 import { verifyPassword } from "@/lib/security/password";
 import { notify } from "@/lib/notifications";
@@ -149,7 +149,7 @@ export const POST = handler(async (req) => {
   const stamp = new Date().toISOString().slice(0, 10);
   // O'qiladigan HTML varianti (kamchilik #94) — bir xil ma'lumot, odam o'qiydigan hujjat
   if (input.format === "html") {
-    return new Response(renderExportHtml(data), {
+    return new Response(renderExportHtml(data, requestLocale(req)), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `attachment; filename="kasb-egalari-export-${stamp}.html"`,

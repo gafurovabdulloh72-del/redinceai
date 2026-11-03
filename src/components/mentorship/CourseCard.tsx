@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Camera, Clapperboard, Clock, GraduationCap, Megaphone, PenTool, Sparkles, Star, Users, Video, type LucideIcon } from "lucide-react";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { Avatar } from "@/components/ui";
-import { categoryLabel, formatDuration, formatSom, levelLabel } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
+import type { Locale } from "@/lib/i18n";
+import { badgeLabelTr, categoryLabelTr, formatDurationTr, formatSomTr, lessonsTr, levelLabelTr } from "@/lib/i18n/dict/mentorship";
 
 export interface CourseCardItem {
   id: string;
@@ -48,7 +49,7 @@ export const CATEGORY_ICON: Record<string, LucideIcon> = {
  * Kurs kartasi (v6 «Sokin»): hairline karta, soyasiz. Muqova yo'q bo'lsa —
  * tekis yuza + yo'nalish ikonkasi (SpecialistCard CoverPattern naqshi), bo'sh kulrang maydon emas.
  */
-export function CourseCard({ c }: { c: CourseCardItem }) {
+export function CourseCard({ c, til = "uz" }: { c: CourseCardItem; til?: Locale }) {
   const badge = courseBadge(c);
   const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
   return (
@@ -61,14 +62,14 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
             <Icon size={26} />
           </span>
         )}
-        <span className="absolute left-2 top-2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white max-sm:hidden">{levelLabel(c.level)}</span>
-        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide max-sm:hidden", BADGE_CLS[badge.tone])}>{badge.label}</span>}
+        <span className="absolute left-2 top-2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white max-sm:hidden">{levelLabelTr(til, c.level)}</span>
+        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide max-sm:hidden", BADGE_CLS[badge.tone])}>{badgeLabelTr(til, badge.label)}</span>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col p-3.5 max-sm:p-0">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">{categoryLabel(c.category)}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-fg-4">{categoryLabelTr(til, c.category)}</span>
         <h3 className="mt-1 line-clamp-2 min-h-[2.6em] text-[15px] font-bold leading-snug text-fg max-sm:mt-0.5 max-sm:min-h-0">
           {c.title}
-          {badge && <span className={cn("ml-1.5 inline-block align-middle rounded px-1 py-px text-[10px] font-bold uppercase tracking-wide sm:hidden", BADGE_CLS[badge.tone])}>{badge.label}</span>}
+          {badge && <span className={cn("ml-1.5 inline-block align-middle rounded px-1 py-px text-[10px] font-bold uppercase tracking-wide sm:hidden", BADGE_CLS[badge.tone])}>{badgeLabelTr(til, badge.label)}</span>}
         </h3>
         {c.summary && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-fg-3 max-sm:hidden">{c.summary}</p>}
         <div className="mt-3 flex items-center gap-2 max-sm:mt-1">
@@ -80,7 +81,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
             <span className="inline-flex items-center gap-1">
               <GraduationCap size={12} /> {c.lessonsCount}
             </span>
-            {c.totalMin ? <span className="inline-flex items-center gap-1"><Clock size={12} /> {formatDuration(c.totalMin)}</span> : null}
+            {c.totalMin ? <span className="inline-flex items-center gap-1"><Clock size={12} /> {formatDurationTr(til, c.totalMin)}</span> : null}
             {c.studentsCount > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Users size={12} /> {c.studentsCount}
@@ -92,7 +93,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
               </span>
             )}
           </span>
-          <span className={cn("shrink-0 font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSom(c.priceFrom)}</span>
+          <span className={cn("shrink-0 font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSomTr(til, c.priceFrom)}</span>
         </div>
       </div>
     </Link>
@@ -103,7 +104,7 @@ export function CourseCard({ c }: { c: CourseCardItem }) {
  * Mini karta — gorizontal karusel uchun (Udemy «Mashhur» qatori): 16:9 muqova, 2 qatorli sarlavha, ustoz, reyting/narx.
  * Telefonda ham karta ko'rinishida (m-plain emas — qator bo'ylab aylanadi).
  */
-export function CourseMiniCard({ c }: { c: CourseCardItem }) {
+export function CourseMiniCard({ c, til = "uz" }: { c: CourseCardItem; til?: Locale }) {
   const Icon = CATEGORY_ICON[c.category] ?? GraduationCap;
   const badge = courseBadge(c);
   return (
@@ -116,8 +117,8 @@ export function CourseMiniCard({ c }: { c: CourseCardItem }) {
             <Icon size={26} className="text-fg-4" aria-hidden />
           </div>
         )}
-        {c.priceFrom === 0 && <span className="absolute left-2 top-2 rounded-md bg-success px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white">Bepul</span>}
-        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide", BADGE_CLS[badge.tone])}>{badge.label}</span>}
+        {c.priceFrom === 0 && <span className="absolute left-2 top-2 rounded-md bg-success px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-white">{til === "ru" ? "Бесплатно" : "Bepul"}</span>}
+        {badge && <span className={cn("absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide", BADGE_CLS[badge.tone])}>{badgeLabelTr(til, badge.label)}</span>}
       </div>
       <div className="flex min-w-0 flex-1 flex-col p-3">
         <h3 className="line-clamp-2 min-h-[2.5em] text-[13.5px] font-bold leading-snug text-fg">{c.title}</h3>
@@ -129,9 +130,9 @@ export function CourseMiniCard({ c }: { c: CourseCardItem }) {
                 <Star size={11} className="fill-accent text-accent" /> {c.rating}
               </span>
             )}
-            <span>{c.totalMin ? formatDuration(c.totalMin) : `${c.lessonsCount} dars`}</span>
+            <span>{c.totalMin ? formatDurationTr(til, c.totalMin) : lessonsTr(til, c.lessonsCount)}</span>
           </span>
-          <span className={cn("font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSom(c.priceFrom)}</span>
+          <span className={cn("font-bold", c.priceFrom ? "text-fg" : "text-success-text")}>{formatSomTr(til, c.priceFrom)}</span>
         </div>
       </div>
     </Link>

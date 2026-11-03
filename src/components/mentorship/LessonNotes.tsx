@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Clock, Loader2, Plus, Trash2 } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS } from "@/lib/i18n/dict/mentorship";
 import { LESSON_SEEK_EVENT, LESSON_VIDEO_ATTR } from "./LessonPlayer";
 
 type Note = { id: string; atSec: number; body: string; createdAt: number };
@@ -20,6 +23,7 @@ function currentSec(): number {
  * pleyer shu joyga o'tadi. Faqat o'ziga ko'rinadi (ustoz ham ko'rmaydi).
  */
 export function LessonNotes({ lessonId, hasVideo }: { lessonId: string; hasVideo: boolean }) {
+  const til = useLocale();
   const [items, setItems] = useState<Note[] | null>(null);
   const [text, setText] = useState("");
   const [at, setAt] = useState<number | null>(null); // yozish boshlanganda qotirilgan vaqt
@@ -48,12 +52,12 @@ export function LessonNotes({ lessonId, hasVideo }: { lessonId: string; hasVideo
     try {
       const atSec = at ?? (hasVideo ? currentSec() : 0);
       const r = await fetch(`/api/mentorlik/darslar/${lessonId}/eslatmalar`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body, atSec }) });
-      if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Saqlanmadi");
+      if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || tr(til, MS.notSaved));
       setText("");
       setAt(null);
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -71,7 +75,7 @@ export function LessonNotes({ lessonId, hasVideo }: { lessonId: string; hasVideo
 
   return (
     <section>
-      <h2 className="sr-only">Eslatmalar</h2>
+      <h2 className="sr-only">{tr(til, MS.notes)}</h2>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -85,7 +89,7 @@ export function LessonNotes({ lessonId, hasVideo }: { lessonId: string; hasVideo
               <Clock size={12} /> {fmt(at ?? 0)}
             </span>
           )}
-          <span className="text-[12.5px] text-fg-3">{hasVideo ? "Yozish boshlanganda videodagi vaqt saqlanadi" : "Shaxsiy qayd — faqat sizga ko'rinadi"}</span>
+          <span className="text-[12.5px] text-fg-3">{hasVideo ? tr(til, MS.noteTimeHint) : tr(til, MS.notePrivate)}</span>
         </div>
         <textarea
           value={text}
@@ -93,31 +97,31 @@ export function LessonNotes({ lessonId, hasVideo }: { lessonId: string; hasVideo
           onFocus={() => at === null && startAtNow()}
           maxLength={2000}
           rows={2}
-          placeholder="Eslatma yozing…"
-          aria-label="Eslatma"
+          placeholder={tr(til, MS.notePh)}
+          aria-label={tr(til, MS.note)}
           className="field mt-2 min-h-[64px] w-full resize-y text-[14px]"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <span className="text-[11.5px] tabular-nums text-fg-4">{text.length}/2000</span>
           <button type="submit" disabled={busy || !text.trim()} className="btn-ink inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
-            <Plus size={14} /> Saqlash
+            <Plus size={14} /> {tr(til, MS.save)}
           </button>
         </div>
       </form>
 
       <ul className="mt-4 divide-y divide-line">
-        {items.length === 0 && <li className="py-4 text-[13.5px] text-fg-3">Hali eslatma yo&apos;q. Videoni ko&apos;rayotib muhim joylarni yozib boring — vaqt belgisi bilan saqlanadi.</li>}
+        {items.length === 0 && <li className="py-4 text-[13.5px] text-fg-3">{tr(til, MS.noNotes)}</li>}
         {items.map((n) => (
           <li key={n.id} className="group flex gap-3 py-3">
             {hasVideo ? (
-              <button type="button" onClick={() => seek(n.atSec)} aria-label={`${fmt(n.atSec)} ga o'tish`} className="h-7 shrink-0 rounded-md bg-fg px-2 text-[12px] font-bold tabular-nums text-bg transition hover:bg-fg/85">
+              <button type="button" onClick={() => seek(n.atSec)} aria-label={MS.seekTo[til](fmt(n.atSec))} className="h-7 shrink-0 rounded-md bg-fg px-2 text-[12px] font-bold tabular-nums text-bg transition hover:bg-fg/85">
                 {fmt(n.atSec)}
               </button>
             ) : (
               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-fg/30" aria-hidden />
             )}
             <p className={cn("min-w-0 flex-1 whitespace-pre-line text-[14px] leading-relaxed text-fg-2")}>{n.body}</p>
-            <button type="button" onClick={() => void remove(n.id)} aria-label="Eslatmani o'chirish" className="h-7 w-7 shrink-0 rounded-full text-fg-4 transition hover:bg-fg/6 hover:text-danger">
+            <button type="button" onClick={() => void remove(n.id)} aria-label={tr(til, MS.deleteNote)} className="h-7 w-7 shrink-0 rounded-full text-fg-4 transition hover:bg-fg/6 hover:text-danger">
               <Trash2 size={14} className="mx-auto" />
             </button>
           </li>

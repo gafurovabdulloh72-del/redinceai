@@ -2,6 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS } from "@/lib/i18n/dict/mentorship";
 
 export interface LessonTab {
   key: string;
@@ -24,6 +27,7 @@ export interface LessonTab {
  * Faqat mavjud bo'lgan tablar uzatiladi; bitta tab qolsa qator chizilmaydi.
  */
 export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
+  const til = useLocale();
   const [active, setActive] = useState(tabs[0]?.key ?? "");
   // fresh nuqtalari: SSR'da localStorage yo'q — effect'da hisoblanadi (hydration mos keladi)
   const [freshKeys, setFreshKeys] = useState<Record<string, boolean>>({});
@@ -57,7 +61,7 @@ export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
   return (
     <div className="mt-4">
       <div className="no-scrollbar -mx-4 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
-        <div className="flex w-max gap-1" role="tablist" aria-label="Dars bo'limlari">
+        <div className="flex w-max gap-1" role="tablist" aria-label={tr(til, MS.lessonTabs)}>
           {tabs.map((t) => {
             const on = t.key === current?.key;
             return (
@@ -77,7 +81,7 @@ export function LessonTabs({ tabs }: { tabs: LessonTab[] }) {
               >
                 {t.label}
                 {t.count ? <span className="text-[12px] font-normal text-fg-4">{t.count}</span> : null}
-                {(t.dot || freshKeys[t.key]) && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label={freshKeys[t.key] ? "yangi javob" : "diqqat"} />}
+                {(t.dot || freshKeys[t.key]) && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label={freshKeys[t.key] ? tr(til, MS.newReply) : tr(til, MS.attention)} />}
               </button>
             );
           })}

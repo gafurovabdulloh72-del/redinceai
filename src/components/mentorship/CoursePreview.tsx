@@ -5,7 +5,9 @@ import Link from "next/link";
 import { ArrowUpRight, Check, GraduationCap, Link2, Play } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { SafeImage } from "@/components/specialists/SafeImage";
-import { formatDuration } from "@/lib/mentorship/format";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS, formatDurationTr } from "@/lib/i18n/dict/mentorship";
 
 export type PreviewVideo = { lessonId: string; title: string; url: string; durationMin: number };
 
@@ -18,6 +20,7 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
   const [playing, setPlaying] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const til = useLocale();
 
   if (playing && preview) {
     return (
@@ -28,7 +31,7 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
         </div>
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
           <span className="min-w-0 truncate text-fg-2">
-            <span className="font-semibold text-fg">Bepul namuna:</span> {preview.title}
+            <span className="font-semibold text-fg">{tr(til, MS.freeSample)}</span> {preview.title}
           </span>
           <span className="flex shrink-0 items-center gap-2.5">
             {/* Kamchilik #30: bepul namunani alohida havola bilan ulashish (marketing) */}
@@ -40,18 +43,18 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
                   .writeText(url)
                   .then(() => {
                     setCopied(true);
-                    toast("Namuna havolasi nusxalandi — kursga yozilmaganlarga ham ochiladi", "success");
+                    toast(tr(til, MS.sampleCopied), "success");
                     window.setTimeout(() => setCopied(false), 1800);
                   })
                   .catch(() => toast(url, "info"));
               }}
               className="inline-flex items-center gap-1 font-semibold text-fg-3 transition hover:text-fg"
-              title="Namuna havolasini nusxalash"
+              title={tr(til, MS.copySample)}
             >
-              {copied ? <Check size={13} className="text-success-text" /> : <Link2 size={13} />} Ulashish
+              {copied ? <Check size={13} className="text-success-text" /> : <Link2 size={13} />} {tr(til, MS.share)}
             </button>
             <Link href={`/mentorlik/dars/${preview.lessonId}`} className="inline-flex items-center gap-1 font-semibold text-fg underline-offset-2 hover:underline">
-              Darsga o&apos;tish <ArrowUpRight size={13} />
+              {tr(til, MS.goToLesson)} <ArrowUpRight size={13} />
             </Link>
           </span>
         </div>
@@ -70,12 +73,12 @@ export function CoursePreview({ coverUrl, title, preview }: { coverUrl: string |
           </div>
         )}
         {preview && (
-          <button type="button" onClick={() => setPlaying(true)} aria-label={`Kursni ko'rib chiqish — ${preview.title}`} className="group absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/30 text-white transition hover:bg-black/40">
+          <button type="button" onClick={() => setPlaying(true)} aria-label={`${tr(til, MS.previewCourse)} — ${preview.title}`} className="group absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/30 text-white transition hover:bg-black/40">
             <span className="grid h-16 w-16 place-items-center rounded-full bg-white text-black shadow-lg transition group-hover:scale-105 group-active:scale-95">
               <Play size={26} className="ml-1 fill-current" />
             </span>
             <span className="rounded-full bg-black/55 px-3 py-1 text-[13px] font-semibold backdrop-blur-sm">
-              Kursni ko&apos;rib chiqish{preview.durationMin > 0 ? ` · ${formatDuration(preview.durationMin)}` : ""}
+              {tr(til, MS.previewCourse)}{preview.durationMin > 0 ? ` · ${formatDurationTr(til, preview.durationMin)}` : ""}
             </span>
           </button>
         )}

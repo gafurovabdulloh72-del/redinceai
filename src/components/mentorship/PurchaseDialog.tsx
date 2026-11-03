@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { Loader2, Send, Tag } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
-import { formatSom } from "@/lib/mentorship/format";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS, formatSomTr } from "@/lib/i18n/dict/mentorship";
 import type { PurchaseType } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
 
 const REF_KEY = "kasb_ref";
 const PROVIDER_LABEL = { payme: "Payme", click: "Click", manual: "Karta o'tkazmasi" } as const;
+const PROVIDER_LABEL_RU: Record<Provider, string> = { payme: "Payme", click: "Click", manual: "Перевод на карту" };
 type Provider = keyof typeof PROVIDER_LABEL;
 
 type Quote = {
@@ -41,6 +44,7 @@ export function RefCapture() {
 /** Xarid oynasi: narx, promokod, do'st chegirmasi, kredit, to'lov usuli → Payme/Click yoki o'tkazma */
 export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { open: boolean; onClose: () => void; type: PurchaseType; id: string; loggedIn?: boolean }) {
   const router = useRouter();
+  const til = useLocale();
   const [promo, setPromo] = useState("");
   const [appliedPromo, setAppliedPromo] = useState("");
   const [useCredit, setUseCredit] = useState(false);
@@ -62,14 +66,14 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
           setErr(j.fields.promo);
           return;
         }
-        throw new Error(j.error || "Narxni hisoblab bo'lmadi");
+        throw new Error(j.error || tr(til, MS.quoteFailed));
       }
       setQ(j.data);
       setProvider((p) => p ?? j.data!.providers[0] ?? null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Xatolik");
+      setErr(e instanceof Error ? e.message : tr(til, MS.error));
     }
-  }, [type, id, appliedPromo, ref, useCredit]);
+  }, [type, id, appliedPromo, ref, useCredit, til]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,11 +91,11 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
     try {
       const r = await fetch("/api/mentorlik/tolov/telegram", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id, promo: appliedPromo || undefined }) });
       const j = (await r.json()) as { data?: { linked: boolean; url: string }; error?: string };
-      if (!r.ok || !j.data) throw new Error(j.error || "Telegram ochilmadi");
-      if (!j.data.linked) showToast("Avval botga ulaning — «Start» bosing, so'ng bu tugmani qayta bosing", "info");
+      if (!r.ok || !j.data) throw new Error(j.error || tr(til, MS.tgFailed));
+      if (!j.data.linked) showToast(tr(til, MS.tgLinkFirst), "info");
       window.open(j.data.url, "_blank", "noopener");
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -103,9 +107,9 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
     try {
       const r = await fetch("/api/mentorlik/tolov", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id, provider: provider ?? "manual", promo: appliedPromo || undefined, ref, useCredit }) });
       const j = (await r.json()) as { data?: { free: boolean; redirectUrl?: string | null; statusPath?: string }; error?: string };
-      if (!r.ok || !j.data) throw new Error(j.error || "To'lov boshlanmadi");
+      if (!r.ok || !j.data) throw new Error(j.error || tr(til, MS.payFailed));
       if (j.data.free) {
-        showToast("Tayyor — kirish ochildi 🎉", "success");
+        showToast(tr(til, MS.accessOpened), "success");
         onClose();
         router.refresh();
         return;
@@ -113,14 +117,14 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
       if (j.data.redirectUrl) window.location.href = j.data.redirectUrl;
       else if (j.data.statusPath) router.push(j.data.statusPath);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
       setBusy(false);
     }
   }
 
   const free = q ? q.amount <= 0 : false;
   return (
-    <Sheet open={open} onClose={onClose} title="Xaridni tasdiqlash" size="sm">
+    <Sheet open={open} onClose={onClose} title={tr(til, MS.confirmPurchase)} size="sm">
       {!q && !err && (
         <div className="grid h-32 place-items-center">
           <Loader2 className="animate-spin text-fg-3" />
@@ -131,13 +135,13 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
         <div className="space-y-4">
           <p className="text-[15px] font-semibold text-fg">{q.title}</p>
           <dl className="space-y-1.5 text-[14px]">
-            <Row k="Narx" v={formatSom(q.base)} />
-            {q.promo && <Row k={`Promokod ${q.promo.code} (−${q.promo.percent}%)`} v={`−${formatSom(q.promo.discount)}`} good />}
-            {q.ref && <Row k={`Do'st chegirmasi (−${q.ref.percent}%)`} v={`−${formatSom(q.ref.discount)}`} good />}
-            {q.creditUsed > 0 && <Row k="Kredit" v={`−${formatSom(q.creditUsed)}`} good />}
+            <Row k={tr(til, MS.price)} v={formatSomTr(til, q.base)} />
+            {q.promo && <Row k={MS.promoRow[til](q.promo.code, q.promo.percent)} v={`−${formatSomTr(til, q.promo.discount)}`} good />}
+            {q.ref && <Row k={MS.refRow[til](q.ref.percent)} v={`−${formatSomTr(til, q.ref.discount)}`} good />}
+            {q.creditUsed > 0 && <Row k={tr(til, MS.credit)} v={`−${formatSomTr(til, q.creditUsed)}`} good />}
             <div className="flex justify-between border-t border-line pt-2 text-[16px] font-bold text-fg">
-              <dt>Jami</dt>
-              <dd>{free ? "Bepul" : formatSom(q.amount)}</dd>
+              <dt>{tr(til, MS.total)}</dt>
+              <dd>{free ? tr(til, MS.free) : formatSomTr(til, q.amount)}</dd>
             </div>
           </dl>
 
@@ -151,10 +155,10 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
             >
               <div className="relative min-w-0 flex-1">
                 <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-3" />
-                <input value={promo} onChange={(e) => setPromo(e.target.value)} placeholder="Promokod" aria-label="Promokod" className="field h-10 w-full pl-8 text-[14px] uppercase" maxLength={24} />
+                <input value={promo} onChange={(e) => setPromo(e.target.value)} placeholder={tr(til, MS.promo)} aria-label={tr(til, MS.promo)} className="field h-10 w-full pl-8 text-[14px] uppercase" maxLength={24} />
               </div>
               <button type="submit" className="h-10 rounded-lg border border-line-2 px-3 text-[13px] font-semibold text-fg-2 hover:text-fg">
-                Qo&apos;llash
+                {tr(til, MS.apply)}
               </button>
             </form>
           )}
@@ -162,28 +166,28 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
 
           {q.creditBalance > 0 && (
             <label className="flex cursor-pointer items-center gap-2 text-[13.5px] text-fg-2">
-              <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} /> Kreditdan foydalanish (balans: {formatSom(q.creditBalance)})
+              <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} /> {MS.useCredit[til](formatSomTr(til, q.creditBalance))}
             </label>
           )}
 
           {!free && (
             <fieldset className="space-y-1.5">
-              <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">To&apos;lov usuli</legend>
-              {q.providers.length === 0 && <p className="text-[13px] text-danger">To&apos;lov usullari hali ulanmagan — administrator bilan bog&apos;laning.</p>}
+              <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">{tr(til, MS.payMethod)}</legend>
+              {q.providers.length === 0 && <p className="text-[13px] text-danger">{tr(til, MS.noProviders)}</p>}
               {q.providers.map((p) => (
                 <label key={p} className={cn("flex cursor-pointer items-center gap-2.5 rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold", provider === p ? "border-fg bg-fg/[0.03]" : "border-line")}>
-                  <input type="radio" name="prov" checked={provider === p} onChange={() => setProvider(p)} /> {PROVIDER_LABEL[p]}
+                  <input type="radio" name="prov" checked={provider === p} onChange={() => setProvider(p)} /> {til === "ru" ? PROVIDER_LABEL_RU[p] : PROVIDER_LABEL[p]}
                 </label>
               ))}
             </fieldset>
           )}
 
           <button type="button" disabled={busy || (!free && !provider)} onClick={() => void pay()} className="btn-accent inline-flex h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold disabled:opacity-50">
-            {busy && <Loader2 size={16} className="animate-spin" />} {free ? "Bepul boshlash" : `To'lash — ${formatSom(q.amount)}`}
+            {busy && <Loader2 size={16} className="animate-spin" />} {free ? tr(til, MS.startFree) : MS.pay[til](formatSomTr(til, q.amount))}
           </button>
           {!free && q.telegram && (
             <button type="button" disabled={busy} onClick={() => void payViaTelegram()} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-line-2 text-[14px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
-              <Send size={15} /> Telegramda to&apos;lash
+              <Send size={15} /> {tr(til, MS.payTelegram)}
             </button>
           )}
         </div>

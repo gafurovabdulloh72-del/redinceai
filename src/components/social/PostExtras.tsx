@@ -5,7 +5,8 @@ import { CalendarClock, Loader2, MapPin, Search, Users, UsersRound, X } from "lu
 import { Avatar } from "@/components/ui";
 import { Sheet } from "@/components/ui/Sheet";
 import { showToast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
+import { cn, intlLocale } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export interface TaggedUser {
   id: string;
@@ -142,6 +143,7 @@ export function SchedulePicker({ value, onChange }: { value: string; onChange: (
 
 /** Rejalashtirilgan postlar ro'yxati (kabinet) */
 export function ScheduledList({ initial }: { initial: Array<{ id: string; body: string; runAt: number; status: string; error: string | null }> }) {
+  const til = useLocale();
   const [rows, setRows] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   async function cancel(id: string) {
@@ -165,7 +167,7 @@ export function ScheduledList({ initial }: { initial: Array<{ id: string; body: 
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-[14px] text-fg">{r.body || "(rasm/video)"}</p>
             <p className="mt-0.5 text-[12.5px] text-fg-3">
-              {new Date(r.runAt).toLocaleString("uz-UZ", { dateStyle: "medium", timeStyle: "short" })}
+              {new Date(r.runAt).toLocaleString(intlLocale(til), { dateStyle: "medium", timeStyle: "short" })}
               {r.status === "failed" && <span className="text-danger-text"> · xato: {r.error}</span>}
               {r.status === "done" && <span className="text-success-text"> · joylandi</span>}
             </p>

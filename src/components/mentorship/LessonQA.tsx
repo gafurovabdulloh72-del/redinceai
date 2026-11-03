@@ -5,11 +5,15 @@ import { Check, CornerDownRight, Loader2, Trash2 } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
 import { Avatar } from "@/components/ui";
 import { cn, formatDateTime } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS } from "@/lib/i18n/dict/mentorship";
 
 type C = { id: string; parentId: string | null; body: string; createdAt: number; helpful: boolean; name: string; avatarUrl: string | null; isMentor: boolean; mine: boolean };
 
 /** Dars ostidagi savol-javob: talaba savol beradi, ustoz/talabalar javob beradi, ustoz «foydali» deb belgilaydi */
 export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: boolean }) {
+  const til = useLocale();
   const [items, setItems] = useState<C[] | null>(null);
   const [text, setText] = useState("");
   const [reply, setReply] = useState<string | null>(null);
@@ -33,14 +37,14 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
     setBusy(true);
     try {
       const r = await fetch(`/api/mentorlik/darslar/${lessonId}/izohlar`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body, parentId }) });
-      if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || "Yuborilmadi");
+      if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || tr(til, MS.notSent));
       if (parentId) {
         setRtext("");
         setReply(null);
       } else setText("");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -60,15 +64,15 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
       <div className="min-w-0 flex-1">
         <p className="text-[13px]">
           <span className="font-semibold text-fg">{c.name}</span>
-          {c.isMentor && <span className="ml-1.5 rounded bg-fg px-1.5 py-0.5 text-[10.5px] font-bold text-bg">USTOZ</span>}
-          {c.helpful && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-bold text-success-text"><Check size={12} /> foydali</span>}
+          {c.isMentor && <span className="ml-1.5 rounded bg-fg px-1.5 py-0.5 text-[10.5px] font-bold text-bg">{tr(til, MS.mentorTag)}</span>}
+          {c.helpful && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-bold text-success-text"><Check size={12} /> {tr(til, MS.helpful)}</span>}
           <span className="ml-2 text-[11.5px] text-fg-4">{formatDateTime(c.createdAt)}</span>
         </p>
         <p className="mt-0.5 whitespace-pre-line text-[14px] leading-relaxed text-fg-2">{c.body}</p>
         <div className="mt-1 flex gap-3 text-[12px] font-semibold text-fg-3">
-          {!child && <button type="button" onClick={() => setReply(reply === c.id ? null : c.id)} className="hover:text-fg">Javob yozish</button>}
-          {isMentor && !child && <button type="button" onClick={() => void act(c.id, "PATCH", { helpful: !c.helpful })} className="hover:text-fg">{c.helpful ? "Belgini olib tashlash" : "Foydali deb belgilash"}</button>}
-          {(c.mine || isMentor) && <button type="button" aria-label="O'chirish" onClick={() => void act(c.id, "DELETE")} className="hover:text-danger"><Trash2 size={13} /></button>}
+          {!child && <button type="button" onClick={() => setReply(reply === c.id ? null : c.id)} className="hover:text-fg">{tr(til, MS.reply)}</button>}
+          {isMentor && !child && <button type="button" onClick={() => void act(c.id, "PATCH", { helpful: !c.helpful })} className="hover:text-fg">{c.helpful ? tr(til, MS.unmarkHelpful) : tr(til, MS.markHelpful)}</button>}
+          {(c.mine || isMentor) && <button type="button" aria-label={tr(til, MS.delete)} onClick={() => void act(c.id, "DELETE")} className="hover:text-danger"><Trash2 size={13} /></button>}
         </div>
       </div>
     </div>
@@ -76,13 +80,13 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
 
   return (
     <section>
-      <h2 className="sr-only">Savol va javoblar</h2>
+      <h2 className="sr-only">{tr(til, MS.qaTitle)}</h2>
       <form onSubmit={(e) => { e.preventDefault(); if (text.trim().length >= 2) void send(text.trim(), null); }} className="mt-3 flex gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200} placeholder="Savolingizni yozing…" aria-label="Savol" className="field h-11 min-w-0 flex-1 text-[14px]" />
-        <button type="submit" disabled={busy || text.trim().length < 2} className="btn-accent h-11 px-5 text-[14px] font-semibold disabled:opacity-50">Yuborish</button>
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200} placeholder={tr(til, MS.questionPh)} aria-label={tr(til, MS.question)} className="field h-11 min-w-0 flex-1 text-[14px]" />
+        <button type="submit" disabled={busy || text.trim().length < 2} className="btn-accent h-11 px-5 text-[14px] font-semibold disabled:opacity-50">{tr(til, MS.send)}</button>
       </form>
       <ul className="mt-5 space-y-5">
-        {top.length === 0 && <li className="text-[13.5px] text-fg-3">Hali savol yo&apos;q — birinchi bo&apos;ling.</li>}
+        {top.length === 0 && <li className="text-[13.5px] text-fg-3">{tr(til, MS.noQuestions)}</li>}
         {top.map((c) => (
           <li key={c.id} className="space-y-3">
             <Row c={c} />
@@ -92,8 +96,8 @@ export function LessonQA({ lessonId, isMentor }: { lessonId: string; isMentor: b
             {reply === c.id && (
               <form onSubmit={(e) => { e.preventDefault(); if (rtext.trim().length >= 2) void send(rtext.trim(), c.id); }} className="ml-9 flex gap-2">
                 <CornerDownRight size={16} className="mt-3 shrink-0 text-fg-4" />
-                <input autoFocus value={rtext} onChange={(e) => setRtext(e.target.value)} maxLength={1200} placeholder="Javobingiz…" aria-label="Javob" className="field h-10 min-w-0 flex-1 text-[14px]" />
-                <button type="submit" disabled={busy || rtext.trim().length < 2} className="h-10 rounded-full bg-fg px-4 text-[13px] font-semibold text-bg disabled:opacity-50">Javob</button>
+                <input autoFocus value={rtext} onChange={(e) => setRtext(e.target.value)} maxLength={1200} placeholder={tr(til, MS.replyPh)} aria-label={tr(til, MS.answer)} className="field h-10 min-w-0 flex-1 text-[14px]" />
+                <button type="submit" disabled={busy || rtext.trim().length < 2} className="h-10 rounded-full bg-fg px-4 text-[13px] font-semibold text-bg disabled:opacity-50">{tr(til, MS.answer)}</button>
               </form>
             )}
           </li>

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { BarChart3, Bookmark, Eye, Heart, Loader2, MessageCircle, Users } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { REACTIONS } from "@/lib/groups/limits";
-import { compactCount } from "@/lib/utils";
+import { compactCount, intlLocale } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
 
 interface Stats {
@@ -27,6 +28,7 @@ const emojiOf = (key: string) => REACTIONS.find((r) => r.key === key)?.emoji ?? 
  * Faqat muallif · jamoa boshqaruvchisi · admin ochadi (server ham shuni tekshiradi).
  */
 export function PostStatsSheet({ open, onClose, postId }: { open: boolean; onClose: () => void; postId: string }) {
+  const til = useLocale();
   const [data, setData] = useState<Stats | null>(null);
   const [error, setError] = useState("");
 
@@ -86,7 +88,7 @@ export function PostStatsSheet({ open, onClose, postId }: { open: boolean; onClo
                 </>
               )}
             </p>
-            <p className="mt-1 text-[12px] text-fg-4">Joylangan: {new Date(data.createdAt).toLocaleString("uz-UZ", { dateStyle: "medium", timeStyle: "short" })}</p>
+            <p className="mt-1 text-[12px] text-fg-4">Joylangan: {new Date(data.createdAt).toLocaleString(intlLocale(til), { dateStyle: "medium", timeStyle: "short" })}</p>
           </div>
 
           {data.reactions.length > 0 && (

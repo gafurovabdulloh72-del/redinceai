@@ -6,7 +6,8 @@ import { mentorSubs, mentors } from "@/lib/db/schema";
 import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postTags, postViews, posts, specialists, users, videoProgress, watchLater, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
-import { translit, uid } from "@/lib/utils";
+import { intlLocale, translit, uid } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
 import type { GroupInput } from "./validators";
 import { REACTION_BY_KEY, REACTION_KINDS, type ReactionKind } from "./limits";
 import { notifyMentions } from "./mentions";
@@ -878,7 +879,7 @@ export async function createPost(
   if (group.kind === "channel" || event.at) {
     const snippet = opts.subscribersOnly ? "Yangi yopiq post — obunachilar uchun" : body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? "Yangi media" : "");
     if (event.at) {
-      await notifyMembers(group, authorId, "live_event", `Jonli efir: ${group.name}`, `${formatEventDate(event.at)} — ${snippet || "efir/yig'ilish e'lon qilindi"}`, href);
+      await notifyMembers(group, authorId, "live_event", `Jonli efir: ${group.name}`, `${await formatEventDate(event.at)} — ${snippet || "efir/yig'ilish e'lon qilindi"}`, href);
     } else {
       await notifyMembers(group, authorId, "channel_post", group.name, snippet, href);
     }
@@ -886,8 +887,9 @@ export async function createPost(
   return { ...row, likesCount: 0, commentsCount: 0, isPinned: false, eventAt: row.eventAt ?? null, eventUrl: row.eventUrl ?? null } as Post;
 }
 
-function formatEventDate(ms: number): string {
-  return new Date(ms).toLocaleString("uz-UZ", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+async function formatEventDate(ms: number): Promise<string> {
+  const til = await getLocale().catch(() => "uz" as const);
+  return new Date(ms).toLocaleString(intlLocale(til), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
 }
 
 /** A'zolarga (muallifdan tashqari) 25 talik guruhlarda bildirishnoma — minglab a'zoda navbatga o'tkaziladi (reja 2-bosqich) */

@@ -7,7 +7,7 @@ import { normalizeUzPhone } from "./utils";
 /* Zod xabarlarini o'zbekchaga o'girish (maxsus message berilmagan hollar) */
 /* ------------------------------------------------------------------ */
 /** Zod v4: bitta global xarita — maxsus message berilmagan barcha xatolar o'zbekcha chiqadi */
-const uzErrorMap: z.core.$ZodErrorMap = (issue) => {
+export const uzErrorMap: z.core.$ZodErrorMap = (issue) => {
   switch (issue.code) {
     case "invalid_type":
       if (issue.input === undefined || issue.input === null) return "Majburiy maydon";
@@ -43,6 +43,57 @@ const uzErrorMap: z.core.$ZodErrorMap = (issue) => {
   return "Qiymat noto'g'ri";
 };
 z.config({ customError: uzErrorMap });
+
+/** Ruscha xarita — uzErrorMap bilan BIR XIL tuzilma; api.ts 422 javobida `til=ru` bo'lsa standart xabarlarni shu bilan almashtiradi */
+export const ruErrorMap: z.core.$ZodErrorMap = (issue) => {
+  switch (issue.code) {
+    case "invalid_type":
+      if (issue.input === undefined || issue.input === null) return "Обязательное поле";
+      if (issue.expected === "int") return "Введите целое число";
+      if (issue.expected === "number") return "Введите число";
+      if (issue.expected === "boolean") return "Должно быть «да» или «нет»";
+      return "Неверный тип значения";
+    case "invalid_value":
+      return "Выберите одно из значений списка";
+    case "too_small": {
+      const n = Number(issue.minimum);
+      if (issue.origin === "string") return n <= 1 ? "Заполните поле" : `Не менее ${n} символов`;
+      if (issue.origin === "number" || issue.origin === "int") return `Значение не меньше ${n}`;
+      if (issue.origin === "array") return n <= 1 ? "Выберите хотя бы один" : `Выберите не менее ${n}`;
+      break;
+    }
+    case "too_big": {
+      const n = Number(issue.maximum);
+      if (issue.origin === "string") return `Не более ${n} символов`;
+      if (issue.origin === "number" || issue.origin === "int") return `Значение не больше ${n}`;
+      if (issue.origin === "array") return `Можно выбрать не более ${n}`;
+      break;
+    }
+    case "invalid_format":
+      if (issue.format === "email") return "Неверный email";
+      if (issue.format === "url") return "Неверная ссылка";
+      return "Неверный формат";
+    case "invalid_union":
+      return "Неверное значение";
+    default:
+      break;
+  }
+  return "Неверное значение";
+};
+
+/**
+ * Issue xabarini tilga moslash: xabar uz standart xarita bilan bir xil bo'lsa (sxemada maxsus `{ error }` berilmagan) —
+ * ru xaritadan qayta hisoblanadi; maxsus xabar o'zgarmaydi.
+ */
+export function localizeIssueMessage(issue: z.core.$ZodIssue, locale: "uz" | "ru"): string {
+  if (locale !== "ru") return issue.message;
+  const raw = issue as unknown as z.core.$ZodRawIssue;
+  const std = uzErrorMap(raw);
+  const stdMsg = typeof std === "string" ? std : std?.message;
+  if (stdMsg !== issue.message) return issue.message;
+  const ru = ruErrorMap(raw);
+  return (typeof ru === "string" ? ru : ru?.message) ?? issue.message;
+}
 
 const regionSlugs = REGIONS.map((r) => r.slug) as [string, ...string[]];
 const categorySlugs = CATEGORIES.map((c) => c.slug) as [string, ...string[]];
@@ -468,11 +519,11 @@ export type SpecialistProfileInput = z.infer<typeof specialistProfileSchema>;
 export type OrderInput = z.infer<typeof orderSchema>;
 
 /** Zod xatolarini oddiy {field: message} ko'rinishiga keltirish */
-export function flattenErrors(err: z.ZodError) {
+export function flattenErrors(err: z.ZodError, locale: "uz" | "ru" = "uz") {
   const out: Record<string, string> = {};
   for (const issue of err.issues) {
     const key = issue.path.join(".") || "_";
-    if (!out[key]) out[key] = issue.message;
+    if (!out[key]) out[key] = localizeIssueMessage(issue, locale);
   }
   return out;
 }

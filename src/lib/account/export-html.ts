@@ -13,10 +13,12 @@ const esc = (v: unknown): string =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+/** Sana-vaqt tili (sahifa tili bo'yicha): `renderExportHtml` boshida o'rnatiladi (render sinxron — bir vaqtda bitta) */
+let DATE_LOCALE: "uz-UZ" | "ru-RU" = "uz-UZ";
 const dt = (v: unknown): string => {
   const d = v instanceof Date ? v : typeof v === "number" || typeof v === "string" ? new Date(v) : null;
   if (!d || Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(DATE_LOCALE, { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
 
 const som = (n: unknown): string => (typeof n === "number" ? `${new Intl.NumberFormat("uz-UZ").format(n)} so'm` : "—");
@@ -43,7 +45,8 @@ function section(title: string, body: string, count?: number): string {
 }
 
 /** Route'dagi `data` obyekti shu funksiyaga beriladi — maydonlar himoya bilan o'qiladi */
-export function renderExportHtml(data: Row): string {
+export function renderExportHtml(data: Row, locale: "uz" | "ru" = "uz"): string {
+  DATE_LOCALE = locale === "ru" ? "ru-RU" : "uz-UZ";
   const user = (data.user ?? {}) as Row;
   const sp = (data.specialist ?? null) as Row | null;
   const ordersData = (data.orders ?? {}) as { asClient?: Row[]; asSpecialist?: Row[] };

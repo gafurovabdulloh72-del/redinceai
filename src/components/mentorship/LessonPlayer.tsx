@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { PlayCircle, SkipForward, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/components/motion/haptics";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS, secondsTr } from "@/lib/i18n/dict/mentorship";
 
 /** Eslatmalar (LessonNotes) pleyerni shu hodisa bilan kerakli soniyaga o'tkazadi: `detail: { sec }` */
 export const LESSON_SEEK_EVENT = "ke:lesson-seek";
@@ -20,6 +23,7 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "
 export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: string; videoUrl: string | null; chapters?: Array<{ t: number; title: string }>; next?: { id: string; title: string } | null }) {
   const ref = useRef<HTMLVideoElement>(null);
   const router = useRouter();
+  const til = useLocale();
   const [left, setLeft] = useState<number | null>(null); // avto-o'tish sanog'i (null — ko'rinmaydi)
   const [autoNext, setAutoNext] = useState(true);
   const posKey = `kasb_pos_${lessonId}`;
@@ -123,22 +127,22 @@ export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: st
           /* Video tugadi — keyingi dars kartasi (sanoq halqasi + bekor qilish). Parda bg-black/.. — bg-ink qorong'uda krem bo'ladi */
           <div className={cn("absolute inset-0 grid place-items-center bg-black/70 p-3 text-white sm:p-4", !prefersReducedMotion() && "pop-in")} role="status" aria-live="polite">
             <div className="w-full max-w-[320px] text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11.5px]">Keyingi dars</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:text-[11.5px]">{tr(til, MS.nextLesson)}</p>
               <p className="mt-0.5 line-clamp-1 text-[14px] font-bold leading-snug sm:mt-1 sm:line-clamp-2 sm:text-[15px]">{next.title}</p>
-              <button type="button" onClick={() => setLeft(0)} aria-label={`Keyingi darsga o'tish — ${left} soniya`} className="relative mx-auto mt-2 grid h-12 w-12 place-items-center rounded-full bg-white/10 transition hover:bg-white/20 sm:mt-4 sm:h-16 sm:w-16">
+              <button type="button" onClick={() => setLeft(0)} aria-label={MS.nextIn[til](secondsTr(til, left))} className="relative mx-auto mt-2 grid h-12 w-12 place-items-center rounded-full bg-white/10 transition hover:bg-white/20 sm:mt-4 sm:h-16 sm:w-16">
                 <svg viewBox="0 0 64 64" className="absolute inset-0 -rotate-90" aria-hidden>
                   <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
                   <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={2 * Math.PI * 29} strokeDashoffset={(2 * Math.PI * 29 * (AUTONEXT_SEC - left)) / AUTONEXT_SEC} className="transition-[stroke-dashoffset] duration-1000 ease-linear" />
                 </svg>
                 <SkipForward size={20} className="fill-current" />
               </button>
-              <p className="mt-1.5 text-[12px] tabular-nums text-white/70 sm:mt-2 sm:text-[12.5px]">{left} soniyadan keyin</p>
+              <p className="mt-1.5 text-[12px] tabular-nums text-white/70 sm:mt-2 sm:text-[12.5px]">{MS.afterSeconds[til](secondsTr(til, left))}</p>
               <div className="mt-2 flex items-center justify-center gap-2 text-[12.5px] sm:mt-3">
                 <button type="button" onClick={() => cancelAuto(false)} className="inline-flex h-8 items-center gap-1 rounded-full border border-white/25 px-3 font-semibold transition hover:bg-white/10 sm:h-9 sm:px-3.5">
-                  <X size={14} /> Bekor qilish
+                  <X size={14} /> {tr(til, MS.cancel)}
                 </button>
                 <button type="button" onClick={() => cancelAuto(true)} className="h-8 rounded-full px-2.5 text-white/60 transition hover:text-white sm:h-9 sm:px-3">
-                  Avto-o&apos;tishni o&apos;chirish
+                  {tr(til, MS.autoNextOff)}
                 </button>
               </div>
             </div>
@@ -154,6 +158,7 @@ export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: st
  * Video elementni `data-lesson-video` orqali topadi; joriy vaqtni `timeupdate` dan o'qiydi.
  */
 export function LessonControls({ chapters, hasVideo }: { chapters: Array<{ t: number; title: string }>; hasVideo: boolean }) {
+  const til = useLocale();
   const [speed, setSpeed] = useState(1);
   const [now, setNow] = useState(0);
   const video = () => document.querySelector<HTMLVideoElement>(`[${LESSON_VIDEO_ATTR}]`);
@@ -189,7 +194,7 @@ export function LessonControls({ chapters, hasVideo }: { chapters: Array<{ t: nu
   return (
     <div>
       <div className="mt-2 flex items-center gap-2 text-[12.5px] text-fg-3">
-        <span className="font-semibold">Tezlik:</span>
+        <span className="font-semibold">{tr(til, MS.speed)}</span>
         {SPEEDS.map((s) => (
           <button key={s} type="button" onClick={() => pick(s)} aria-pressed={speed === s} className={cn("rounded-md px-2 py-1 font-semibold tabular-nums transition", speed === s ? "bg-fg text-bg" : "bg-fg/6 text-fg-2 hover:bg-fg/10")}>
             {s}×

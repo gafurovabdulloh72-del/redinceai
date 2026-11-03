@@ -1,22 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalDocument, uzDate, type LegalSection } from "@/components/auth/LegalDocument";
+import { LegalDocument, type LegalSection } from "@/components/auth/LegalDocument";
 import { SITE, SUBSCRIPTION_PLANS, TERMS_VERSION } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { LEGAL_SHELL, OFERTA, legalDate } from "@/lib/i18n/dict/legal";
+import { getLocale } from "@/lib/i18n/server";
 import { AUTO_RELEASE_DAYS } from "@/lib/payments/service";
 import { getSettings } from "@/lib/payments/settings";
 import { planPrice } from "@/lib/subscriptions/access";
 import { formatPrice } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Ommaviy oferta",
-  description: "Kasb Egalari platformasidan foydalanish shartlari: platformaning roli, mutaxassislar obunasi, eskrou to'lovlar va komissiya, qaytarish va nizolar, taqiqlangan harakatlar, javobgarlik.",
-  alternates: { canonical: "/oferta" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: tr(til, OFERTA.metaTitle),
+    description: tr(til, OFERTA.metaDescription),
+    alternates: { canonical: "/oferta" },
+  };
+}
 
 /** Narxlar admin sozlamalaridan olinadi — soatiga bir marta yangilanadi */
 export const revalidate = 3600;
 
 export default async function OfertaPage() {
+  const til = await getLocale();
+  const t = (e: { uz: string; ru: string }) => tr(til, e);
   const s = await getSettings();
   const price = formatPrice(s.subscriptionPrice);
   const trial = s.subscriptionTrialDays;
@@ -25,105 +33,112 @@ export default async function OfertaPage() {
   const sections: LegalSection[] = [
     {
       id: "umumiy",
-      title: "Umumiy qoidalar",
+      title: t(OFERTA.umumiyTitle),
       body: (
         <>
+          <p>{OFERTA.umumiyP1[til](SITE.name)}</p>
+          <p>{t(OFERTA.umumiyP2)}</p>
           <p>
-            Ushbu hujjat {SITE.name} platformasi (keyingi o&apos;rinlarda — «Platforma») tomonidan istalgan shaxsga qaratilgan ommaviy oferta hisoblanadi va O&apos;zbekiston Respublikasi Fuqarolik
-            kodeksining ommaviy oferta to&apos;g&apos;risidagi qoidalariga muvofiq tuzilgan.
-          </p>
-          <p>
-            Platformada ro&apos;yxatdan o&apos;tish, «Oferta va Maxfiylik siyosatiga roziman» belgisini qo&apos;yish yoki Platforma xizmatlaridan amalda foydalanish ofertaning to&apos;liq va so&apos;zsiz
-            qabul qilinishi (aksept) hisoblanadi. Agar shartlarga rozi bo&apos;lmasangiz, Platformadan foydalanmang.
-          </p>
-          <p>
-            Shaxsga doir ma&apos;lumotlarni qayta ishlash tartibi alohida hujjatda — <Link href="/maxfiylik" className="font-semibold text-accent-text underline underline-offset-2">Maxfiylik siyosati</Link>da
-            bayon etilgan va ushbu ofertaning ajralmas qismi hisoblanadi.
+            {t(OFERTA.umumiyP3a)}
+            <Link href="/maxfiylik" className="font-semibold text-accent-text underline underline-offset-2">
+              {t(OFERTA.umumiyP3link)}
+            </Link>
+            {t(OFERTA.umumiyP3b)}
           </p>
         </>
       ),
     },
     {
       id: "atamalar",
-      title: "Atamalar",
+      title: t(OFERTA.atamalarTitle),
       body: (
         <ul>
           <li>
-            <strong>Foydalanuvchi</strong> — Platformada hisob ochgan har qanday jismoniy yoki yuridik shaxs.
+            <strong>{t(OFERTA.termUser)}</strong>
+            {t(OFERTA.termUserDesc)}
           </li>
           <li>
-            <strong>Mijoz</strong> — xizmat buyurtma qiluvchi Foydalanuvchi.
+            <strong>{t(OFERTA.termClient)}</strong>
+            {t(OFERTA.termClientDesc)}
           </li>
           <li>
-            <strong>Mutaxassis</strong> — videograf, montajor, dizayner va boshqa ijodiy xizmatlarni taklif qiluvchi, ommaviy profil ochgan Foydalanuvchi.
+            <strong>{t(OFERTA.termSpecialist)}</strong>
+            {t(OFERTA.termSpecialistDesc)}
           </li>
           <li>
-            <strong>Buyurtma</strong> — Mijoz va Mutaxassis o&apos;rtasida Platforma orqali rasmiylashtirilgan ish (narx, muddat, natija).
+            <strong>{t(OFERTA.termOrder)}</strong>
+            {t(OFERTA.termOrderDesc)}
           </li>
           <li>
-            <strong>E&apos;lon</strong> — Mijoz joylagan ish tavsifi; <strong>Taklif</strong> — Mutaxassisning e&apos;longa yuborgan narx va muddat taklifi.
+            <strong>{t(OFERTA.termJob)}</strong>
+            {t(OFERTA.termJobDesc)}
+            <strong>{t(OFERTA.termProposal)}</strong>
+            {t(OFERTA.termProposalDesc)}
           </li>
           <li>
-            <strong>Eskrou</strong> — Mijoz to&apos;lagan pulni ish qabul qilinguncha Platforma hisobida saqlab turish tartibi.
+            <strong>{t(OFERTA.termEscrow)}</strong>
+            {t(OFERTA.termEscrowDesc)}
           </li>
           <li>
-            <strong>Obuna</strong> — Mutaxassisning profilini katalogda ko&apos;rsatish va yangi buyurtmalar olish huquqi uchun oylik to&apos;lov.
+            <strong>{t(OFERTA.termSubscription)}</strong>
+            {t(OFERTA.termSubscriptionDesc)}
           </li>
         </ul>
       ),
     },
     {
       id: "platforma-roli",
-      title: "Platformaning roli",
+      title: t(OFERTA.roliTitle),
       body: (
         <>
-          <p>
-            Platforma — Mijoz va Mutaxassisni bir-biri bilan tanishtiruvchi axborot vositachisi: katalog, xarita, qidiruv, e&apos;lonlar, buyurtma va xabar almashish vositalari hamda eskrou to&apos;lov
-            imkoniyatini taqdim etadi.
-          </p>
+          <p>{t(OFERTA.roliP1)}</p>
           <ul>
-            <li>Platforma Mijoz va Mutaxassis o&apos;rtasidagi kelishuvning tarafi emas va xizmat sifati, muddati yoki natijasini kafolatlamaydi.</li>
-            <li>Mutaxassis profilidagi ma&apos;lumotlar (portfolio, narx, tajriba) uchun profil egasi javob beradi. «Tasdiqlangan» belgisi faqat Platforma tekshiruvidan o&apos;tganini bildiradi.</li>
-            <li>
-              Tomonlar tanishgach Platformadan tashqarida (masalan, Telegram yoki telefon orqali) muloqot qilishlari va kelishishlari mumkin. Bunday kelishuvlar va to&apos;lovlar Platforma eskrou
-              himoyasidan tashqarida bo&apos;ladi.
-            </li>
+            <li>{t(OFERTA.roliL1)}</li>
+            <li>{t(OFERTA.roliL2)}</li>
+            <li>{t(OFERTA.roliL3)}</li>
           </ul>
         </>
       ),
     },
     {
       id: "hisob",
-      title: "Ro'yxatdan o'tish va hisob xavfsizligi",
+      title: t(OFERTA.hisobTitle),
       body: (
         <>
           <ul>
-            <li>Platformadan 16 yoshdan oshgan shaxslar foydalanishi mumkin; to&apos;lov va pul chiqarish uchun 18 yosh to&apos;lgan bo&apos;lishi lozim.</li>
-            <li>Ro&apos;yxatdan o&apos;tishda haqiqiy ism, ishlaydigan email va (ixtiyoriy) telefon raqam kiritiladi. Bir shaxs bitta hisobdan foydalanadi.</li>
-            <li>Parol va kirish kodlarini sir saqlash Foydalanuvchining zimmasida. Ikki bosqichli himoyani (autentifikator ilovasi) yoqish tavsiya etiladi, administratorlar uchun esa qat&apos;iy talab etiladi.</li>
-            <li>Hisobga begona kirish sezilsa, darhol parolni o&apos;zgartirib, «Kabinet → Xavfsizlik» bo&apos;limida boshqa sessiyalarni yoping.</li>
+            <li>{t(OFERTA.hisobL1)}</li>
+            <li>{t(OFERTA.hisobL2)}</li>
+            <li>{t(OFERTA.hisobL3)}</li>
+            <li>{t(OFERTA.hisobL4)}</li>
           </ul>
         </>
       ),
     },
     {
       id: "obuna",
-      title: "Mutaxassislar uchun obuna",
+      title: t(OFERTA.obunaTitle),
       body: (
         <>
           <p>
-            Mijoz va Mutaxassis Platformada bir-birini topgach, ko&apos;pincha ishni boshqa kanallarda davom ettiradi. Shu sababli Platformaning asosiy daromadi komissiya emas, balki Mutaxassislarning
-            oylik obunasi hisoblanadi. <strong>Mijozlar uchun Platforma bepul.</strong>
+            {t(OFERTA.obunaP1)}
+            <strong>{t(OFERTA.obunaP1strong)}</strong>
           </p>
           <ul>
             <li>
-              Tariflar: <strong>Standart</strong> — bepul (sinov davrida profil ko&apos;rinadi), <strong>Pro</strong> — oyiga {price}, <strong>Max</strong> — oyiga {formatPrice(s.subscriptionPriceMax)}.
-              Har tarifning chegaralari (kunlik takliflar, haftalik post/story, portfolio ishlari) va imkoniyatlari{" "}
-              <a href="/narxlar">Narxlar</a> sahifasida ko&apos;rsatiladi. Pro tarifi uchun uzoq muddatga to&apos;lansa chegirma beriladi (Max&apos;ga ham shu foizlar qo&apos;llanadi):{" "}
+              {t(OFERTA.tariffs)}
+              <strong>{t(OFERTA.tariffStandard)}</strong>
+              {t(OFERTA.tariffStandardDesc)}
+              <strong>Pro</strong>
+              {OFERTA.tariffPro[til](price)}
+              <strong>Max</strong>
+              {OFERTA.tariffMax[til](formatPrice(s.subscriptionPriceMax))}
+              {t(OFERTA.tariffLimits)}
+              <a href="/narxlar">{t(OFERTA.tariffPricesLink)}</a>
+              {t(OFERTA.tariffDiscount)}
               {SUBSCRIPTION_PLANS.map((p, i) => (
                 <span key={p.months}>
                   {i > 0 ? ", " : ""}
-                  {p.months} oy — {formatPrice(planPrice(p.months, s))}
+                  {OFERTA.planMonths[til](p.months, formatPrice(planPrice(p.months, s)))}
                   {p.discountPct ? ` (−${p.discountPct}%)` : ""}
                 </span>
               ))}
@@ -131,147 +146,120 @@ export default async function OfertaPage() {
             </li>
             {trial > 0 && (
               <li>
-                Yangi Mutaxassis uchun ro&apos;yxatdan o&apos;tgan kundan boshlab <strong>{trial} kunlik bepul sinov muddati</strong> amal qiladi.
+                {t(OFERTA.trialBefore)}
+                <strong>{OFERTA.trialStrong[til](trial)}</strong>
+                {t(OFERTA.trialAfter)}
               </li>
             )}
-            <li>
-              Obuna (yoki sinov) muddati tugagach {grace > 0 ? `${grace} kunlik imtiyozli davr beriladi — bu vaqtda profil odatdagidek ishlaydi.` : "imtiyozli davr berilmaydi."}
-            </li>
-            <li>
-              Imtiyozli davr ham tugagach, obuna to&apos;lanmaguncha: profil katalog, xarita, qidiruv takliflari va hudud sahifalaridan yashiriladi; to&apos;g&apos;ridan-to&apos;g&apos;ri havola orqali
-              ochilganda kontaktlar ko&apos;rsatilmaydi; yangi buyurtma qabul qilish va e&apos;lonlarga taklif yuborish to&apos;xtatiladi. Boshlangan buyurtmalar va eskroudagi to&apos;lovlar odatdagidek
-              yakunlanadi.
-            </li>
-            <li>To&apos;lov Payme, Click yoki bank o&apos;tkazmasi (administrator tasdiqlaydi) orqali amalga oshiriladi. Avtomatik yechib olish yo&apos;q — har bir davr alohida to&apos;lanadi.</li>
-            <li>Yangi to&apos;lov joriy muddat tugagan kundan (yoki muddat o&apos;tib ketgan bo&apos;lsa — to&apos;lov kunidan) boshlab davrni uzaytiradi. Muddat tugashidan 3 kun va 1 kun oldin eslatma yuboriladi.</li>
-            <li>
-              Boshlangan davr uchun to&apos;lov qaytarilmaydi, Platforma aybi bilan xizmat ko&apos;rsatilmagan holatlar bundan mustasno. Narx o&apos;zgarsa, kamida 14 kun oldin e&apos;lon qilinadi va
-              allaqachon to&apos;langan davrga ta&apos;sir qilmaydi.
-            </li>
+            <li>{OFERTA.grace[til](grace)}</li>
+            <li>{t(OFERTA.afterGrace)}</li>
+            <li>{t(OFERTA.payMethods)}</li>
+            <li>{t(OFERTA.renewal)}</li>
+            <li>{t(OFERTA.noRefund)}</li>
           </ul>
         </>
       ),
     },
     {
       id: "eskrou",
-      title: "Eskrou to'lovlar va komissiya",
+      title: t(OFERTA.eskrouTitle),
       body: (
         <>
           <ol>
-            <li>Mutaxassis buyurtma narxini belgilaydi (eng kam summa — {formatPrice(s.minOrderAmount)}), Mijoz uni Payme, Click yoki bank o&apos;tkazmasi orqali to&apos;laydi.</li>
-            <li>To&apos;langan pul eskrouda saqlanadi — Mutaxassis ishni bajarayotgan paytda u hech kimga o&apos;tkazilmaydi.</li>
-            <li>Mutaxassis ishni topshiradi, Mijoz natijani tekshirib «Qabul qilish»ni bosadi va pul Mutaxassis balansiga o&apos;tadi.</li>
-            <li>
-              Ish topshirilgandan keyin {AUTO_RELEASE_DAYS} kun ichida Mijoz na qabul qilsa, na nizo ochsa — pul avtomatik ravishda Mutaxassisga o&apos;tkaziladi.
-            </li>
+            <li>{OFERTA.eskrouS1[til](formatPrice(s.minOrderAmount))}</li>
+            <li>{t(OFERTA.eskrouS2)}</li>
+            <li>{t(OFERTA.eskrouS3)}</li>
+            <li>{OFERTA.eskrouS4[til](AUTO_RELEASE_DAYS)}</li>
           </ol>
-          <p>
-            Eskrou orqali o&apos;tgan har bir buyurtmadan Platforma komissiyasi Mutaxassisga o&apos;tkaziladigan summadan ushlab qolinadi: yangi Mutaxassislar uchun {s.commissionPctNew}%, standart
-            darajada {s.commissionPct}%, «Top mutaxassis»lar uchun {s.commissionPctTop}%. Shoshilinch buyurtma uchun Mijoz {s.urgentPct}% gacha ustama to&apos;lashi mumkin.
-          </p>
-          <p>Balansdan pul chiqarish — kamida {formatPrice(s.minPayout)}; so&apos;rov administrator tomonidan ko&apos;rib chiqiladi. To&apos;lov tizimlari komissiyasi (agar bo&apos;lsa) ularning tariflari bo&apos;yicha.</p>
+          <p>{OFERTA.commission[til](s.commissionPctNew, s.commissionPct, s.commissionPctTop, s.urgentPct)}</p>
+          <p>{OFERTA.payout[til](formatPrice(s.minPayout))}</p>
         </>
       ),
     },
     {
       id: "qaytarish",
-      title: "Bekor qilish, qaytarish va nizolar",
+      title: t(OFERTA.qaytarishTitle),
       body: (
         <>
           <ul>
-            <li>Ish boshlanishidan oldin buyurtma bekor qilinsa, eskroudagi summa Mijozga to&apos;liq qaytariladi.</li>
-            <li>Ish jarayonida kelishmovchilik chiqsa, istalgan tomon buyurtma sahifasida nizo ochishi mumkin. Nizo davomida pul eskrouda muzlatiladi.</li>
-            <li>
-              Administrator buyurtma tarixi, chatdagi yozishmalar va topshirilgan fayllarni ko&apos;rib chiqib qaror qabul qiladi: pulni to&apos;liq Mutaxassisga o&apos;tkazish, to&apos;liq Mijozga qaytarish
-              yoki qisman bo&apos;lish. Shu sababli kelishuvlarni buyurtma chatida yozib qoldirish tavsiya etiladi.
-            </li>
-            <li>Qaytarilgan pul to&apos;lov qilingan usul orqali, to&apos;lov tizimi muddatlarida qaytariladi.</li>
-            <li>Platformadan tashqarida amalga oshirilgan to&apos;lovlar bo&apos;yicha Platforma nizolarni ko&apos;rib chiqmaydi va pulni qaytarmaydi.</li>
+            <li>{t(OFERTA.qaytarishL1)}</li>
+            <li>{t(OFERTA.qaytarishL2)}</li>
+            <li>{t(OFERTA.qaytarishL3)}</li>
+            <li>{t(OFERTA.qaytarishL4)}</li>
+            <li>{t(OFERTA.qaytarishL5)}</li>
           </ul>
         </>
       ),
     },
     {
       id: "taqiqlar",
-      title: "Taqiqlangan harakatlar",
+      title: t(OFERTA.taqiqlarTitle),
       body: (
         <ul>
-          <li>Soxta profil, boshqa shaxs nomidan ish yuritish yoki bloklangandan keyin yangi hisob ochish.</li>
-          <li>Boshqalarning ishini o&apos;z portfoliosi sifatida joylash, mualliflik huquqini buzish.</li>
-          <li>Soxta sharh yozish yoki sharhni pul evaziga o&apos;zgartirishni talab qilish.</li>
-          <li>Firibgarlik, oldindan pul olib ishni bajarmaslik, boshqa foydalanuvchilarni Platformadagi to&apos;lov o&apos;rniga «xavfsizroq» deb aldash.</li>
-          <li>Haqoratli, kamsituvchi, zo&apos;ravonlikka chaqiruvchi, odobsiz yoki qonunga zid kontent.</li>
-          <li>Spam, ommaviy xabar yuborish, boshqalarning shaxsiy ma&apos;lumotlarini ruxsatsiz yig&apos;ish.</li>
-          <li>Platforma xavfsizligini buzishga, limitlarni chetlab o&apos;tishga yoki ma&apos;lumotlarni avtomatik yig&apos;ishga (scraping) urinish.</li>
+          <li>{t(OFERTA.taqiqL1)}</li>
+          <li>{t(OFERTA.taqiqL2)}</li>
+          <li>{t(OFERTA.taqiqL3)}</li>
+          <li>{t(OFERTA.taqiqL4)}</li>
+          <li>{t(OFERTA.taqiqL5)}</li>
+          <li>{t(OFERTA.taqiqL6)}</li>
+          <li>{t(OFERTA.taqiqL7)}</li>
         </ul>
       ),
     },
     {
       id: "kontent",
-      title: "Kontent va intellektual mulk",
+      title: t(OFERTA.kontentTitle),
       body: (
         <>
-          <p>
-            Foydalanuvchi joylagan matn, rasm va videolarga bo&apos;lgan huquqlar uning o&apos;zida qoladi. Kontentni joylash orqali Foydalanuvchi Platformaga uni xizmat ko&apos;rsatish maqsadida (profilda
-            ko&apos;rsatish, qidiruv, ijtimoiy tarmoqlardagi ulashish ko&apos;rinishi) bepul, noeksklyuziv tarzda foydalanish huquqini beradi.
-          </p>
-          <p>Buyurtma natijasiga bo&apos;lgan huquqlar to&apos;liq to&apos;lov amalga oshgach, agar tomonlar boshqacha kelishmagan bo&apos;lsa, Mijozga o&apos;tadi.</p>
+          <p>{t(OFERTA.kontentP1)}</p>
+          <p>{t(OFERTA.kontentP2)}</p>
         </>
       ),
     },
     {
       id: "javobgarlik",
-      title: "Javobgarlikni cheklash",
+      title: t(OFERTA.javobgarlikTitle),
       body: (
         <ul>
-          <li>Platforma «boricha» (as is) taqdim etiladi; texnik nosozliklar, rejalashtirilgan ishlar va uchinchi tomon xizmatlari (to&apos;lov tizimlari, hosting) uzilishlari bo&apos;lishi mumkin.</li>
-          <li>Platforma Foydalanuvchilar o&apos;rtasidagi bevosita kelishuvlar, Platformadan tashqaridagi to&apos;lovlar va ular natijasida yetgan zarar uchun javob bermaydi.</li>
-          <li>Har qanday holatda Platformaning javobgarligi Foydalanuvchi oxirgi 3 oyda Platformaga to&apos;lagan obuna va komissiya summasidan oshmaydi.</li>
-          <li>Fors-major holatlarida (tabiiy ofat, davlat organlari qarorlari, keng ko&apos;lamli tarmoq uzilishlari) tomonlar majburiyatlarni bajarmaganlik uchun javobgar emas.</li>
+          <li>{t(OFERTA.javobL1)}</li>
+          <li>{t(OFERTA.javobL2)}</li>
+          <li>{t(OFERTA.javobL3)}</li>
+          <li>{t(OFERTA.javobL4)}</li>
         </ul>
       ),
     },
     {
       id: "bloklash",
-      title: "Hisobni bloklash va o'chirish",
+      title: t(OFERTA.bloklashTitle),
       body: (
         <>
-          <p>
-            Ushbu shartlar buzilganda Platforma ogohlantirishsiz profilni yashirish, hisobni vaqtincha yoki butunlay bloklash huquqiga ega. Qoidabuzarlik tufayli bloklanganda to&apos;langan obunaning
-            qolgan qismi qaytarilmaydi.
-          </p>
-          <p>
-            Foydalanuvchi istalgan vaqtda «Kabinet → Xavfsizlik» bo&apos;limida hisobini o&apos;chirishi mumkin. Eskroudagi to&apos;lovlar yoki kutilayotgan pul chiqarish so&apos;rovi yakunlanmaguncha
-            o&apos;chirish amalga oshmaydi.
-          </p>
+          <p>{t(OFERTA.bloklashP1)}</p>
+          <p>{t(OFERTA.bloklashP2)}</p>
         </>
       ),
     },
     {
       id: "ozgarishlar",
-      title: "Shartlarni o'zgartirish",
+      title: t(OFERTA.ozgarishlarTitle),
       body: (
         <p>
-          Platforma ushbu shartlarni o&apos;zgartirishi mumkin. Yangi versiya shu sahifada sana va versiya raqami bilan e&apos;lon qilinadi, Kabinetda esa yangilangan shartlarni qabul qilish taklif
-          etiladi. Yangi versiya kuchga kirgandan keyin Platformadan foydalanishni davom ettirish uni qabul qilish hisoblanadi. Joriy versiya: <strong>{TERMS_VERSION}</strong>.
+          {t(OFERTA.ozgarishlarP1)}
+          <strong>{TERMS_VERSION}</strong>.
         </p>
       ),
     },
     {
       id: "aloqa",
-      title: "Nizolarni hal qilish va aloqa",
+      title: t(OFERTA.aloqaTitle),
       body: (
         <>
+          <p>{t(OFERTA.aloqaP1)}</p>
           <p>
-            Ushbu oferta O&apos;zbekiston Respublikasi qonunchiligiga muvofiq tartibga solinadi. Kelishmovchiliklar avvalo muzokaralar yo&apos;li bilan, kelishuvga erishilmasa — qonunchilikda belgilangan
-            tartibda sudda hal qilinadi.
-          </p>
-          <p>
-            Savollar va murojaatlar uchun: Telegram{" "}
+            {t(OFERTA.aloqaP2a)}
             <a href="https://t.me/kasb_egalari" target="_blank" rel="noreferrer noopener" className="font-semibold text-accent-text underline underline-offset-2">
               @kasb_egalari
             </a>
-            . Hisob va buyurtmalarga oid murojaatlarni Kabinet orqali yuborish tavsiya etiladi.
+            {t(OFERTA.aloqaP2b)}
           </p>
         </>
       ),
@@ -280,17 +268,14 @@ export default async function OfertaPage() {
 
   return (
     <LegalDocument
-      eyebrow="Huquqiy hujjat"
-      title="Ommaviy"
-      accent="oferta"
+      eyebrow={t(LEGAL_SHELL.eyebrow)}
+      title={t(OFERTA.title)}
+      accent={t(OFERTA.accent)}
       version={TERMS_VERSION}
-      effectiveDate={uzDate(TERMS_VERSION)}
-      related={{ href: "/maxfiylik", label: "Maxfiylik siyosati" }}
-      intro={
-        <p>
-          {SITE.name}&apos;dan foydalanish shartlari: platforma nima qiladi va nima qilmaydi, mutaxassislar tariflari (Pro {price}/oy, Max {formatPrice(s.subscriptionPriceMax)}/oy), eskrou to&apos;lovlar, komissiya, qaytarish va nizolar tartibi.
-        </p>
-      }
+      effectiveDate={legalDate(TERMS_VERSION, til)}
+      related={{ href: "/maxfiylik", label: t(LEGAL_SHELL.privacyLabel) }}
+      labels={{ version: t(LEGAL_SHELL.version), effective: t(LEGAL_SHELL.effective), toc: t(LEGAL_SHELL.toc) }}
+      intro={<p>{OFERTA.intro[til](SITE.name, price, formatPrice(s.subscriptionPriceMax))}</p>}
       sections={sections}
     />
   );

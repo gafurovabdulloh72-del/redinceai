@@ -1,221 +1,241 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalDocument, uzDate, type LegalSection } from "@/components/auth/LegalDocument";
+import { LegalDocument, type LegalSection } from "@/components/auth/LegalDocument";
 import { SITE, TERMS_VERSION, VISIBILITY_FIELDS, VISIBILITY_LEVELS } from "@/lib/constants";
+import { tr } from "@/lib/i18n";
+import { LEGAL_SHELL, MAXFIYLIK, VISIBILITY_FIELD_TR, VISIBILITY_LEVEL_TR, legalDate } from "@/lib/i18n/dict/legal";
+import { getLocale } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Maxfiylik siyosati",
-  description: "Kasb Egalari qanday shaxsiy ma'lumotlarni yig'adi, kim ko'radi (har bir maydon bo'yicha ko'rinish), qancha saqlaydi va ma'lumotlarni qanday yuklab olish yoki o'chirish mumkin.",
-  alternates: { canonical: "/maxfiylik" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: tr(til, MAXFIYLIK.metaTitle),
+    description: tr(til, MAXFIYLIK.metaDescription),
+    alternates: { canonical: "/maxfiylik" },
+  };
+}
 
-const LEVEL_LABEL: Record<string, string> = Object.fromEntries(VISIBILITY_LEVELS.map((l) => [l.value, l.label]));
 const LINK = "font-semibold text-accent-text underline underline-offset-2";
 
-export default function MaxfiylikPage() {
+export default async function MaxfiylikPage() {
+  const til = await getLocale();
+  const t = (e: { uz: string; ru: string }) => tr(til, e);
+  const levelLabel = (value: string, fallback: string) => (VISIBILITY_LEVEL_TR[value] ? t(VISIBILITY_LEVEL_TR[value].label) : fallback);
+  const levelDesc = (value: string, fallback: string) => (VISIBILITY_LEVEL_TR[value] ? t(VISIBILITY_LEVEL_TR[value].description) : fallback);
+  const fieldLabel = (key: string, fallback: string) => (VISIBILITY_FIELD_TR[key] ? t(VISIBILITY_FIELD_TR[key]) : fallback);
+
   const sections: LegalSection[] = [
     {
       id: "umumiy",
-      title: "Umumiy qoidalar",
+      title: t(MAXFIYLIK.umumiyTitle),
       body: (
         <>
           <p>
-            Ushbu siyosat {SITE.name} platformasi foydalanuvchilarining shaxsga doir ma&apos;lumotlari qanday yig&apos;ilishi, ishlatilishi, saqlanishi va himoya qilinishini tushuntiradi. Siyosat
-            O&apos;zbekiston Respublikasining «Shaxsga doir ma&apos;lumotlar to&apos;g&apos;risida»gi Qonuni talablariga muvofiq tuzilgan va{" "}
+            {MAXFIYLIK.umumiyP1a[til](SITE.name)}
             <Link href="/oferta" className={LINK}>
-              Ommaviy oferta
+              {t(MAXFIYLIK.umumiyP1link)}
             </Link>
-            ning ajralmas qismi hisoblanadi.
+            {t(MAXFIYLIK.umumiyP1b)}
           </p>
-          <p>Biz faqat xizmat ko&apos;rsatish uchun zarur ma&apos;lumotlarni yig&apos;amiz va ularni hech qachon sotmaymiz.</p>
+          <p>{t(MAXFIYLIK.umumiyP2)}</p>
         </>
       ),
     },
     {
       id: "malumotlar",
-      title: "Qanday ma'lumotlar yig'iladi",
+      title: t(MAXFIYLIK.malumotlarTitle),
       body: (
         <ul>
           <li>
-            <strong>Hisob:</strong> ism, email, parol (faqat bcrypt hash ko&apos;rinishida), ixtiyoriy telefon raqam, jins va avatar.
+            <strong>{t(MAXFIYLIK.dAccount)}</strong>
+            {t(MAXFIYLIK.dAccountDesc)}
           </li>
           <li>
-            <strong>Mutaxassis profili:</strong> yo&apos;nalish, hudud va shahar, bio, ko&apos;nikmalar, uskunalar, narxlar va paketlar, portfolio, sertifikatlar, ish vaqti, ijtimoiy tarmoq havolalari.
+            <strong>{t(MAXFIYLIK.dProfile)}</strong>
+            {t(MAXFIYLIK.dProfileDesc)}
           </li>
           <li>
-            <strong>Faoliyat:</strong> buyurtmalar, e&apos;lonlar va takliflar, buyurtma chatidagi xabarlar va fayllar, sharhlar, sevimlilar, saqlangan qidiruvlar, bildirishnomalar.
+            <strong>{t(MAXFIYLIK.dActivity)}</strong>
+            {t(MAXFIYLIK.dActivityDesc)}
           </li>
           <li>
-            <strong>To&apos;lovlar:</strong> summa, holat, to&apos;lov tizimidagi tranzaksiya raqami. Karta raqami va CVV Platformaga kelmaydi — ularni Payme yoki Click o&apos;zi qayta ishlaydi. Pul
-            chiqarish rekvizitlari shifrlangan (AES-256-GCM) holda saqlanadi, ro&apos;yxatlarda faqat maskalangan ko&apos;rinishi chiqadi.
+            <strong>{t(MAXFIYLIK.dPayments)}</strong>
+            {t(MAXFIYLIK.dPaymentsDesc)}
           </li>
           <li>
-            <strong>Texnik ma&apos;lumotlar:</strong> IP manzil (suiiste&apos;mollarga qarshi limitlar va xavfsizlik jurnali uchun), brauzer va qurilma turi. Faol sessiyalar ro&apos;yxatida IP manzil
-            ochiq saqlanmaydi — faqat uning sha256 hashi.
+            <strong>{t(MAXFIYLIK.dTech)}</strong>
+            {t(MAXFIYLIK.dTechDesc)}
           </li>
         </ul>
       ),
     },
     {
       id: "cookie",
-      title: "Cookie va brauzer xotirasi",
+      title: t(MAXFIYLIK.cookieTitle),
       body: (
         <ul>
           <li>
-            <strong>redince_session</strong> — kirish holatini saqlovchi himoyalangan (HttpOnly) cookie. «Meni eslab qolish» bilan 30 kun, aks holda brauzer yopilguncha amal qiladi.
+            <strong>redince_session</strong>
+            {t(MAXFIYLIK.cookieL1)}
           </li>
-          <li>Tanlangan tema (yorug&apos;/qorong&apos;i) brauzeringizning lokal xotirasida saqlanadi.</li>
-          <li>Reklama va kuzatuv (tracking) cookie&apos;lari hamda uchinchi tomon reklama tarmoqlari ishlatilmaydi.</li>
+          <li>{t(MAXFIYLIK.cookieL2)}</li>
+          <li>{t(MAXFIYLIK.cookieL3)}</li>
         </ul>
       ),
     },
     {
       id: "maqsadlar",
-      title: "Ma'lumotlardan foydalanish maqsadlari",
+      title: t(MAXFIYLIK.maqsadlarTitle),
       body: (
         <ul>
-          <li>Hisob yaratish, kirish va hisobni himoya qilish (jumladan, ikki bosqichli himoya va qurilmalar ro&apos;yxati).</li>
-          <li>Mutaxassislarni katalog, xarita va qidiruvda ko&apos;rsatish, buyurtma va to&apos;lovlarni amalga oshirish.</li>
-          <li>Muhim hodisalar haqida bildirishnoma va email yuborish (buyurtma, to&apos;lov, xabar, obuna muddati).</li>
-          <li>Firibgarlik, spam va suiiste&apos;mollarning oldini olish, nizolarni ko&apos;rib chiqish.</li>
-          <li>Qonunchilik talablarini bajarish.</li>
+          <li>{t(MAXFIYLIK.maqsadL1)}</li>
+          <li>{t(MAXFIYLIK.maqsadL2)}</li>
+          <li>{t(MAXFIYLIK.maqsadL3)}</li>
+          <li>{t(MAXFIYLIK.maqsadL4)}</li>
+          <li>{t(MAXFIYLIK.maqsadL5)}</li>
         </ul>
       ),
     },
     {
       id: "korinish",
-      title: "Kim nimani ko'radi",
+      title: t(MAXFIYLIK.korinishTitle),
       body: (
         <>
           <p>
-            Mutaxassis har bir kontakt maydonining kimga ko&apos;rinishini o&apos;zi tanlaydi («Kabinet → Profil → Maxfiylik»). Darajalar:{" "}
-            {VISIBILITY_LEVELS.map((l, i) => (
-              <span key={l.value}>
-                {i > 0 ? "; " : ""}
-                <strong>{l.label}</strong> — {l.description.charAt(0).toLowerCase() + l.description.slice(1)}
-              </span>
-            ))}
-            . Administratorlar nizo va shikoyatlarni ko&apos;rib chiqish uchun barcha maydonlarni ko&apos;ra oladi.
+            {t(MAXFIYLIK.korinishP1a)}
+            {VISIBILITY_LEVELS.map((l, i) => {
+              const d = levelDesc(l.value, l.description);
+              return (
+                <span key={l.value}>
+                  {i > 0 ? "; " : ""}
+                  <strong>{levelLabel(l.value, l.label)}</strong> — {d.charAt(0).toLowerCase() + d.slice(1)}
+                </span>
+              );
+            })}
+            {t(MAXFIYLIK.korinishP1b)}
           </p>
           <div className="overflow-x-auto rounded-[16px] border border-line">
             <table className="w-full min-w-[320px] text-left text-[14px]">
-              <caption className="sr-only">Maydonlarning standart ko&apos;rinishi</caption>
+              <caption className="sr-only">{t(MAXFIYLIK.tableCaption)}</caption>
               <thead className="bg-surface-2 text-[12px] uppercase tracking-wide text-fg-3">
                 <tr>
                   <th scope="col" className="px-4 py-2.5 font-semibold">
-                    Maydon
+                    {t(MAXFIYLIK.thField)}
                   </th>
                   <th scope="col" className="px-4 py-2.5 font-semibold">
-                    Standart ko&apos;rinish
+                    {t(MAXFIYLIK.thDefault)}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {VISIBILITY_FIELDS.map((f) => (
                   <tr key={f.key}>
-                    <td className="px-4 py-2.5 text-fg">{f.label}</td>
-                    <td className="px-4 py-2.5 text-fg-2">{LEVEL_LABEL[f.default] ?? f.default}</td>
+                    <td className="px-4 py-2.5 text-fg">{fieldLabel(f.key, f.label)}</td>
+                    <td className="px-4 py-2.5 text-fg-2">{levelLabel(f.default, f.default)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p>
-            Ism, yo&apos;nalish, hudud, portfolio, narxlar va sharhlar ommaviy profilning bir qismi. Mutaxassis obunasi faol bo&apos;lmasa, profil katalogdan yashiriladi va kontaktlar ko&apos;rsatilmaydi.
-            Mijozning ism va kontaktlari faqat u buyurtma bergan Mutaxassisga ko&apos;rinadi.
-          </p>
+          <p>{t(MAXFIYLIK.korinishP2)}</p>
         </>
       ),
     },
     {
       id: "uchinchi-shaxslar",
-      title: "Uchinchi shaxslarga berish",
+      title: t(MAXFIYLIK.uchinchiTitle),
       body: (
         <>
-          <p>Ma&apos;lumotlar faqat xizmat ko&apos;rsatish uchun zarur hajmda quyidagilarga uzatiladi:</p>
+          <p>{t(MAXFIYLIK.uchinchiP1)}</p>
           <ul>
-            <li>to&apos;lov tizimlari (Payme, Click) — to&apos;lov summasi va buyurtma raqami;</li>
-            <li>email yuborish xizmati — email manzil va xat matni;</li>
-            <li>hosting va ma&apos;lumotlar bazasi provayderlari — xizmat ishlashi uchun;</li>
-            <li>vakolatli davlat organlari — faqat qonunda belgilangan asos va tartibda.</li>
+            <li>{t(MAXFIYLIK.uchinchiL1)}</li>
+            <li>{t(MAXFIYLIK.uchinchiL2)}</li>
+            <li>{t(MAXFIYLIK.uchinchiL3)}</li>
+            <li>{t(MAXFIYLIK.uchinchiL4)}</li>
           </ul>
-          <p>Ma&apos;lumotlar reklama maqsadida sotilmaydi va uzatilmaydi.</p>
+          <p>{t(MAXFIYLIK.uchinchiP2)}</p>
         </>
       ),
     },
     {
       id: "saqlash",
-      title: "Saqlash muddatlari",
+      title: t(MAXFIYLIK.saqlashTitle),
       body: (
         <ul>
-          <li>Hisob va profil ma&apos;lumotlari — hisob o&apos;chirilguncha.</li>
-          <li>Buyurtma va to&apos;lov tarixi — hisob o&apos;chirilgandan keyin ham anonim ko&apos;rinishda (ism va kontaktlarsiz) buxgalteriya va nizolar uchun saqlanadi.</li>
-          <li>Xavfsizlik jurnali (kirishlar, muhim amallar) — 180 kun.</li>
-          <li>Sessiyalar — muddati tugagach yoki yopilgach ko&apos;pi bilan 30 kun.</li>
-          <li>Email tasdiqlash kodlari — 15 daqiqa, parol tiklash havolalari — 1 soat (bir martalik).</li>
-          <li>Limit hisoblagichlari — tegishli vaqt oynasi tugaguncha.</li>
+          <li>{t(MAXFIYLIK.saqlashL1)}</li>
+          <li>{t(MAXFIYLIK.saqlashL2)}</li>
+          <li>{t(MAXFIYLIK.saqlashL3)}</li>
+          <li>{t(MAXFIYLIK.saqlashL4)}</li>
+          <li>{t(MAXFIYLIK.saqlashL5)}</li>
+          <li>{t(MAXFIYLIK.saqlashL6)}</li>
         </ul>
       ),
     },
     {
       id: "xavfsizlik",
-      title: "Ma'lumotlar xavfsizligi",
+      title: t(MAXFIYLIK.xavfsizlikTitle),
       body: (
         <ul>
-          <li>Parollar bcrypt bilan hashlanadi; ikki bosqichli himoya siri va pul chiqarish rekvizitlari AES-256-GCM bilan shifrlanadi; zaxira kodlari faqat hash ko&apos;rinishida saqlanadi.</li>
-          <li>Barcha ulanishlar HTTPS orqali; sessiya cookie&apos;si JavaScript&apos;dan yashirin (HttpOnly) va saytlararo so&apos;rovlardan himoyalangan.</li>
-          <li>Kirish urinishlari va boshqa sezgir amallar soni cheklangan; muhim amallar xavfsizlik jurnaliga yoziladi.</li>
-          <li>Har bir qurilma sessiyasini «Kabinet → Xavfsizlik» bo&apos;limida ko&apos;rish va alohida yopish mumkin.</li>
+          <li>{t(MAXFIYLIK.xavfL1)}</li>
+          <li>{t(MAXFIYLIK.xavfL2)}</li>
+          <li>{t(MAXFIYLIK.xavfL3)}</li>
+          <li>{t(MAXFIYLIK.xavfL4)}</li>
         </ul>
       ),
     },
     {
       id: "huquqlar",
-      title: "Sizning huquqlaringiz",
+      title: t(MAXFIYLIK.huquqlarTitle),
       body: (
         <ul>
           <li>
-            <strong>Ko&apos;rish va eksport:</strong> «Kabinet → Xavfsizlik → Ma&apos;lumotlarimni yuklab olish» — barcha ma&apos;lumotlaringiz bitta JSON faylda.
+            <strong>{t(MAXFIYLIK.rView)}</strong>
+            {t(MAXFIYLIK.rViewDesc)}
           </li>
           <li>
-            <strong>Tuzatish:</strong> ism, kontaktlar va profilni «Kabinet → Profil»da istalgan payt o&apos;zgartirasiz.
+            <strong>{t(MAXFIYLIK.rFix)}</strong>
+            {t(MAXFIYLIK.rFixDesc)}
           </li>
           <li>
-            <strong>Ko&apos;rinishni boshqarish:</strong> har bir kontakt maydoni uchun daraja tanlanadi.
+            <strong>{t(MAXFIYLIK.rVisibility)}</strong>
+            {t(MAXFIYLIK.rVisibilityDesc)}
           </li>
           <li>
-            <strong>Email bildirishnomalardan voz kechish:</strong> «Kabinet → Profil → Email bildirishnomalar» tugmasi. Xavfsizlikka oid xatlar (parol tiklash, tasdiqlash kodi) baribir yuboriladi.
+            <strong>{t(MAXFIYLIK.rEmail)}</strong>
+            {t(MAXFIYLIK.rEmailDesc)}
           </li>
           <li>
-            <strong>O&apos;chirish:</strong> «Kabinet → Xavfsizlik → Akkauntni o&apos;chirish» — ism, email, telefon, profil va portfolio o&apos;chiriladi, buyurtma tarixi anonimlashtiriladi.
+            <strong>{t(MAXFIYLIK.rDelete)}</strong>
+            {t(MAXFIYLIK.rDeleteDesc)}
           </li>
         </ul>
       ),
     },
     {
       id: "bolalar",
-      title: "Voyaga yetmaganlar",
-      body: <p>Platforma 16 yoshga to&apos;lmagan shaxslarga mo&apos;ljallanmagan. Bunday foydalanuvchi ma&apos;lumotlari aniqlansa, hisob o&apos;chiriladi.</p>,
+      title: t(MAXFIYLIK.bolalarTitle),
+      body: <p>{t(MAXFIYLIK.bolalarP1)}</p>,
     },
     {
       id: "ozgarishlar",
-      title: "Siyosatni o'zgartirish",
+      title: t(MAXFIYLIK.ozgarishlarTitle),
       body: (
         <p>
-          Siyosat yangilansa, shu sahifada yangi versiya va sana e&apos;lon qilinadi, Kabinetda esa yangilangan hujjatni qabul qilish taklif etiladi. Joriy versiya: <strong>{TERMS_VERSION}</strong>.
+          {t(MAXFIYLIK.ozgarishlarP1)}
+          <strong>{TERMS_VERSION}</strong>.
         </p>
       ),
     },
     {
       id: "aloqa",
-      title: "Aloqa",
+      title: t(MAXFIYLIK.aloqaTitle),
       body: (
         <p>
-          Shaxsiy ma&apos;lumotlarga oid savol va so&apos;rovlar uchun: Telegram{" "}
+          {t(MAXFIYLIK.aloqaP1a)}
           <a href="https://t.me/kasb_egalari" target="_blank" rel="noreferrer noopener" className={LINK}>
             @kasb_egalari
           </a>
-          . So&apos;rovlarga 30 kun ichida javob beramiz.
+          {t(MAXFIYLIK.aloqaP1b)}
         </p>
       ),
     },
@@ -223,13 +243,14 @@ export default function MaxfiylikPage() {
 
   return (
     <LegalDocument
-      eyebrow="Huquqiy hujjat"
-      title="Maxfiylik"
-      accent="siyosati"
+      eyebrow={t(LEGAL_SHELL.eyebrow)}
+      title={t(MAXFIYLIK.title)}
+      accent={t(MAXFIYLIK.accent)}
       version={TERMS_VERSION}
-      effectiveDate={uzDate(TERMS_VERSION)}
-      related={{ href: "/oferta", label: "Ommaviy oferta" }}
-      intro={<p>Qanday ma&apos;lumotlar yig&apos;iladi, kim nimani ko&apos;radi, qancha saqlanadi va ularni qanday yuklab olish yoki o&apos;chirish mumkin — qisqa va aniq.</p>}
+      effectiveDate={legalDate(TERMS_VERSION, til)}
+      related={{ href: "/oferta", label: t(LEGAL_SHELL.offerLabel) }}
+      labels={{ version: t(LEGAL_SHELL.version), effective: t(LEGAL_SHELL.effective), toc: t(LEGAL_SHELL.toc) }}
+      intro={<p>{t(MAXFIYLIK.intro)}</p>}
       sections={sections}
     />
   );

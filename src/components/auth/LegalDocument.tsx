@@ -21,13 +21,16 @@ interface LegalDocumentProps {
   sections: LegalSection[];
   /** Boshqa hujjatga havola (oferta ↔ maxfiylik) */
   related: { href: string; label: string };
+  /** Qobiq yorliqlari (tilga mos); berilmasa — o'zbekcha */
+  labels?: { version: string; effective: string; toc: string };
 }
 
 /**
  * Huquqiy hujjat sahifasi (oferta, maxfiylik siyosati): sarlavha, versiya va sana, langarli mundarija
  * (desktopda yopishqoq), raqamlangan bo'limlar. Server komponenti — JavaScript'siz ishlaydi.
  */
-export function LegalDocument({ eyebrow, title, accent, intro, version, effectiveDate, sections, related }: LegalDocumentProps) {
+export function LegalDocument({ eyebrow, title, accent, intro, version, effectiveDate, sections, related, labels }: LegalDocumentProps) {
+  const L = labels ?? { version: "Versiya", effective: "Kuchga kirgan sana:", toc: "Mundarija" };
   return (
     <div className="container-x min-w-0">
       <header className="max-w-3xl">
@@ -39,19 +42,19 @@ export function LegalDocument({ eyebrow, title, accent, intro, version, effectiv
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px] text-fg-3">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 font-medium">
-            <Hash size={13} aria-hidden="true" /> Versiya {version}
+            <Hash size={13} aria-hidden="true" /> {L.version} {version}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 font-medium">
-            <CalendarDays size={13} aria-hidden="true" /> Kuchga kirgan sana: <time dateTime={version}>{effectiveDate}</time>
+            <CalendarDays size={13} aria-hidden="true" /> {L.effective} <time dateTime={version}>{effectiveDate}</time>
           </span>
         </div>
         <div className="mt-5 text-[15px] leading-relaxed text-fg-2">{intro}</div>
       </header>
 
       <div className="mt-8 grid min-w-0 grid-cols-1 gap-5 lg:mt-10 lg:grid-cols-12 lg:gap-8">
-        <nav aria-label="Mundarija" className="min-w-0 lg:col-span-4 xl:col-span-3">
+        <nav aria-label={L.toc} className="min-w-0 lg:col-span-4 xl:col-span-3">
           <div className="card p-4 sm:p-5 lg:sticky lg:top-28">
-            <p className="eyebrow">Mundarija</p>
+            <p className="eyebrow">{L.toc}</p>
             <ol className="mt-3 space-y-0.5">
               {sections.map((s, i) => (
                 <li key={s.id}>

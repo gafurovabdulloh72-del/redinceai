@@ -221,11 +221,17 @@ export function formatDate(date: Date | number | string, locale: "uz" | "ru" = "
   return locale === "ru" ? `${p.d} ${MONTHS_RU_GEN[p.mo]} ${p.y}` : `${p.d}-${MONTHS_UZ[p.mo]}, ${p.y}`;
 }
 
-/** "10.10.2026, 13:34" (Toshkent vaqti) */
-export function formatDateTime(date: Date | number | string) {
+/** "10.10.2026, 13:34" (Toshkent vaqti). `locale` — raqamli format ikkala tilda bir xil; "ru" da ham shu ko'rinish */
+export function formatDateTime(date: Date | number | string, locale: "uz" | "ru" = "uz") {
   const p = tashkentParts(date);
   if (!p) return "—";
+  void locale;
   return `${pad(p.d)}.${pad(p.mo + 1)}.${p.y}, ${pad(p.h)}:${pad(p.mi)}`;
+}
+
+/** Intl uchun til tegi: uz → "uz-UZ", ru → "ru-RU" */
+export function intlLocale(locale: "uz" | "ru" | undefined): "uz-UZ" | "ru-RU" {
+  return locale === "ru" ? "ru-RU" : "uz-UZ";
 }
 
 /** YouTube havolasidan video ID ajratib olish */

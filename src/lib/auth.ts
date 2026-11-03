@@ -10,7 +10,8 @@ import { db } from "./db";
 import { rateLimits, sessions, users, type User } from "./db/schema";
 import { clientIpFromHeaders, hashIp } from "./security/request";
 import { recordActivity } from "./analytics/activity";
-import { safeInternalPath } from "./utils";
+import { intlLocale, safeInternalPath } from "./utils";
+import { getLocale } from "./i18n/server";
 
 export { hashPassword, verifyPassword } from "./security/password";
 
@@ -161,7 +162,7 @@ export async function createSession(user: Pick<User, "id" | "role" | "name"> & {
  * Yangi qurilma tekshiruvi javobdan keyin (after) — kirish sekinlashmasin. Shu foydalanuvchining oldingi
  * sessiyalari ichida bir xil «brauzer · OS» bo'lsa yoki bu birinchi sessiya bo'lsa — jim.
  */
-function alertNewDevice(userId: string, jti: string, userAgent: string | null): void {
+function alertNewDevice(userId: string, jti: string, userAgent: string | null, til: "uz" | "ru" = "uz"): void {
   const run = async () => {
     const { describeUserAgent } = await import("./security/device");
     const label = describeUserAgent(userAgent).label;
@@ -174,7 +175,7 @@ function alertNewDevice(userId: string, jti: string, userAgent: string | null): 
     if (!prev.length) return; // ro'yxatdan o'tish / birinchi kirish
     if (prev.some((p) => describeUserAgent(p.userAgent).label === label)) return;
     const { notify } = await import("./notifications");
-    const when = new Date().toLocaleString("uz-UZ", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+    const when = new Date().toLocaleString(intlLocale(til), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
     await notify(userId, "account", "Yangi qurilmadan kirish", `${label} · ${when}. Bu siz bo'lmasangiz — darhol parolni almashtiring va «Barcha qurilmalardan chiqish»ni bosing.`, "/kabinet/xavfsizlik");
   };
   const safe = () => run().catch((e) => console.error("[auth:newDevice]", e));
@@ -198,7 +199,7 @@ async function recordSession(userId: string, jti: string, expiresAt: Date, previ
   await db.insert(sessions).values({ id: jti, userId, userAgent, ipHash, expiresAt });
   // Yangi qurilmadan kirish — foydalanuvchiga ogohlantirish (hisob o'g'irlanganini erta bilsin). Shu brauzerdagi
   // sessiya almashinuvi (parol/rol o'zgarishi, Mini App qayta ochilishi — `previous` shu foydalanuvchiniki) va birinchi kirish emas.
-  if (previous?.userId !== userId) alertNewDevice(userId, jti, userAgent);
+  if (previous?.userId !== userId) alertNewDevice(userId, jti, userAgent, await getLocale().catch(() => "uz" as const));
   if (previous) {
     await db
       .update(sessions)

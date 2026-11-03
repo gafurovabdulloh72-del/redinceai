@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MS } from "@/lib/i18n/dict/mentorship";
 
 /** Darsni «tugatildi» deb belgilash tugmasi; progressni yangilaydi, keyingi darsga o'tish taklif qiladi */
 export function LessonComplete({ lessonId, completed, nextId, blockedReason = null }: { lessonId: string; completed: boolean; nextId: string | null; blockedReason?: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
+  const til = useLocale();
   const [done, setDone] = useState(completed);
   const [busy, setBusy] = useState(false);
 
@@ -28,18 +32,18 @@ export function LessonComplete({ lessonId, completed, nextId, blockedReason = nu
         body: JSON.stringify({ done: next }),
       });
       const j = (await res.json()) as { ok: boolean; error?: string; data?: { progressPct: number; certificateCode?: string | null; certificateNew?: boolean; streak?: number } };
-      if (!res.ok || !j.ok) throw new Error(j.error || "Xatolik");
+      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, MS.error));
       setDone(next);
       if (j.data?.certificateNew && j.data.certificateCode) {
-        toast("Tabriklaymiz! Kurs tugadi — sertifikat tayyor 🎓", "success");
+        toast(tr(til, MS.certReady), "success");
         router.push(`/sertifikat/${j.data.certificateCode}`);
         return;
       }
       router.refresh();
-      if (next && (j.data?.streak ?? 0) >= 2) toast(`🔥 ${j.data?.streak} kunlik seriya — shu zaylda davom eting!`, "success");
-      else if (next && nextId) toast("Dars belgilandi — keyingisiga o'ting", "success");
+      if (next && (j.data?.streak ?? 0) >= 2) toast(MS.streakToast[til](j.data?.streak ?? 0), "success");
+      else if (next && nextId) toast(tr(til, MS.markedNext), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Xatolik", "error");
+      toast(e instanceof Error ? e.message : tr(til, MS.error), "error");
     } finally {
       setBusy(false);
     }
@@ -55,7 +59,7 @@ export function LessonComplete({ lessonId, completed, nextId, blockedReason = nu
       )}
     >
       {busy ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
-      {done ? "Tugatildi" : "Tugatdim"}
+      {done ? tr(til, MS.completed) : tr(til, MS.markDone)}
     </button>
   );
 }

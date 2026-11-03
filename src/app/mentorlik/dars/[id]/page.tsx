@@ -12,10 +12,15 @@ import { LessonNotes } from "@/components/mentorship/LessonNotes";
 import { getCurrentUser } from "@/lib/auth";
 import { latestReplyToMe } from "@/lib/mentorship/learning";
 import { getLessonForViewer, type LessonView } from "@/lib/mentorship/service";
-import { formatDuration } from "@/lib/mentorship/format";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { MS, formatDurationTr } from "@/lib/i18n/dict/mentorship";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Dars", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return { title: tr(til, MS.lesson), robots: { index: false, follow: false } };
+}
 
 /**
  * Dars sahifasi (2026-10-24 qayta tuzildi).
@@ -25,7 +30,7 @@ export const metadata: Metadata = { title: "Dars", robots: { index: false, follo
  */
 export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const [user, til] = await Promise.all([getCurrentUser(), getLocale()]);
   let lesson: LessonView | null = null;
   try {
     lesson = await getLessonForViewer(id, user?.id ?? null, user?.role === "admin");
@@ -36,13 +41,13 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
   const canSeeQA = Boolean(user) && (lesson.enrolled || lesson.isOwner || user?.role === "admin");
   const tabs: LessonTab[] = [];
-  if (lesson.body) tabs.push({ key: "dars", label: "Dars", content: <div className="whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{lesson.body}</div> });
-  if (lesson.materials.length) tabs.push({ key: "material", label: "Materiallar", count: lesson.materials.length, content: <Materials items={lesson.materials} /> });
-  if (lesson.quiz) tabs.push({ key: "test", label: "Test", dot: !lesson.quizPassed, content: <QuizBlock lessonId={lesson.id} quiz={lesson.quiz} passed={lesson.quizPassed} /> });
+  if (lesson.body) tabs.push({ key: "dars", label: tr(til, MS.lesson), content: <div className="whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{lesson.body}</div> });
+  if (lesson.materials.length) tabs.push({ key: "material", label: tr(til, MS.materials), count: lesson.materials.length, content: <Materials items={lesson.materials} /> });
+  if (lesson.quiz) tabs.push({ key: "test", label: tr(til, MS.test), dot: !lesson.quizPassed, content: <QuizBlock lessonId={lesson.id} quiz={lesson.quiz} passed={lesson.quizPassed} /> });
   if (lesson.assignment)
     tabs.push({
       key: "vazifa",
-      label: "Vazifa",
+      label: tr(til, MS.assignment),
       dot: lesson.enrolled && !lesson.isOwner && !lesson.submission,
       content: <AssignmentBlock lessonId={lesson.id} prompt={lesson.assignment} submission={lesson.submission} canSubmit={lesson.enrolled && !lesson.isOwner} />,
     });
@@ -51,12 +56,12 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   if (canSeeQA && user)
     tabs.push({
       key: "savol",
-      label: "Savol-javob",
+      label: tr(til, MS.qa),
       fresh: qaReplyAt ? { storageKey: `kasb_qa_seen_${lesson.id}`, ts: qaReplyAt } : undefined,
       content: <LessonQA lessonId={lesson.id} isMentor={lesson.isOwner || user.role === "admin"} />,
     });
   // Udemy «Notes»: shaxsiy eslatmalar, video vaqt belgisi bilan — faqat kursga kirganlarga
-  if (canSeeQA && user) tabs.push({ key: "eslatma", label: "Eslatmalar", content: <LessonNotes lessonId={lesson.id} hasVideo={Boolean(lesson.videoUrl)} /> });
+  if (canSeeQA && user) tabs.push({ key: "eslatma", label: tr(til, MS.notes), content: <LessonNotes lessonId={lesson.id} hasVideo={Boolean(lesson.videoUrl)} /> });
 
   return (
     <div className="container-x py-4 sm:py-6">
@@ -72,15 +77,15 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
           <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-fg-4">
-                {lesson.position}-dars · {lesson.course.lessonsCount} tadan{lesson.durationMin > 0 ? ` · ${formatDuration(lesson.durationMin)}` : ""}
+                {MS.lessonOf[til](lesson.position, lesson.course.lessonsCount)}{lesson.durationMin > 0 ? ` · ${formatDurationTr(til, lesson.durationMin)}` : ""}
               </p>
               <h1 className="mt-0.5 text-[21px] font-bold leading-tight text-fg sm:text-[23px]">{lesson.title}</h1>
             </div>
             {lesson.enrolled && (
               <div className="flex shrink-0 items-center gap-2">
-                <LessonComplete lessonId={lesson.id} completed={lesson.completed} nextId={lesson.next?.id ?? null} blockedReason={lesson.quiz && !lesson.quizPassed ? "Avval dars testidan o'ting" : null} />
+                <LessonComplete lessonId={lesson.id} completed={lesson.completed} nextId={lesson.next?.id ?? null} blockedReason={lesson.quiz && !lesson.quizPassed ? tr(til, MS.passQuizFirst) : null} />
                 {lesson.next && (
-                  <Link href={`/mentorlik/dars/${lesson.next.id}`} aria-label="Keyingi dars" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg">
+                  <Link href={`/mentorlik/dars/${lesson.next.id}`} aria-label={tr(til, MS.nextLesson)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-fg-2 transition hover:border-fg hover:text-fg">
                     <ChevronRight size={18} />
                   </Link>
                 )}
@@ -92,9 +97,9 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
           {!lesson.enrolled && !lesson.isOwner && user?.role !== "admin" && (
             <p className="mt-3 rounded-[14px] border border-line bg-fg/[0.03] p-3.5 text-[13.5px] text-fg-2">
-              Bu — bepul namuna. To&apos;liq kursga{" "}
+              {tr(til, MS.previewNote)}{" "}
               <Link href={`/mentorlik/${lesson.course.slug}`} className="font-bold underline underline-offset-2">
-                yoziling
+                {tr(til, MS.previewLink)}
               </Link>
               .
             </p>
@@ -104,10 +109,10 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
             /* Kurs tugadi: sertifikat + sharh so'rovi (Udemy «Leave a rating» odati) */
             <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
               <Link href={`/sertifikat/${lesson.certificateCode}`} className="flex items-center gap-2.5 rounded-[14px] border border-line p-3.5 text-[14px] font-bold text-fg transition hover:border-fg">
-                <Award size={17} className="shrink-0 text-fg-3" /> Kurs tugatildi — sertifikatni oching
+                <Award size={17} className="shrink-0 text-fg-3" /> {tr(til, MS.courseDoneCert)}
               </Link>
               <Link href={`/mentorlik/${lesson.course.slug}#sharh`} className="flex items-center justify-center gap-2 rounded-[14px] border border-line px-4 py-3.5 text-[14px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                <Star size={16} className="shrink-0" /> Kursga baho bering
+                <Star size={16} className="shrink-0" /> {tr(til, MS.rateCourseBtn)}
               </Link>
             </div>
           )}
@@ -117,7 +122,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
         {/* O'ng ustun: kurs darslari (lg+ da yopishqoq) */}
         <div className="lg:sticky lg:top-20">
-          <LessonSidebar courseTitle={lesson.course.title} courseSlug={lesson.course.slug} lessons={lesson.siblings} currentId={lesson.id} progressPct={lesson.progressPct} />
+          <LessonSidebar courseTitle={lesson.course.title} courseSlug={lesson.course.slug} lessons={lesson.siblings} currentId={lesson.id} progressPct={lesson.progressPct} til={til} />
         </div>
       </div>
     </div>

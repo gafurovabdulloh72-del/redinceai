@@ -12,7 +12,9 @@ import { GroupChat } from "@/components/groups/GroupChat";
 import { EventsCard, EventsList } from "@/components/groups/Events";
 import { getCurrentUser } from "@/lib/auth";
 import { getGroupView, listEvents, listPosts, loadGroupBySlug, markGroupRead, type PostView } from "@/lib/groups/service";
-import { categoryLabel, formatSom, levelLabel } from "@/lib/mentorship/format";
+import { getLocale } from "@/lib/i18n/server";
+import { tr, type Tr } from "@/lib/i18n";
+import { MS, categoryLabelTr, formatSomTr, lessonsTr, levelLabelTr, minutesTr } from "@/lib/i18n/dict/mentorship";
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
 import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
@@ -31,22 +33,22 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string }>;
 // Soddalashtirilgan (2026-11-02): ko'rinadigan tablar — Postlar · Kurslar · Efirlar (+ «1:1» faqat bo'sh vaqt bo'lsa).
 // «Muhokama» endi hero'dagi tugma (Chat bo'limida ochiladi); eski ?tab=muhokama havolasi baribir ishlaydi.
-const TABS = [
-  { key: "lenta", label: "Postlar" },
-  { key: "bolimlar", label: "Kurslar" },
-  { key: "efirlar", label: "Efirlar" },
-  { key: "muhokama", label: "Muhokama" },
-  { key: "konsultatsiya", label: "1:1" },
-] as const;
+const TABS: ReadonlyArray<{ key: "lenta" | "bolimlar" | "efirlar" | "muhokama" | "konsultatsiya"; label: Tr }> = [
+  { key: "lenta", label: MS.tabPosts },
+  { key: "bolimlar", label: MS.tabCourses },
+  { key: "efirlar", label: MS.tabLives },
+  { key: "muhokama", label: MS.tabChat },
+  { key: "konsultatsiya", label: { uz: "1:1", ru: "1:1" } },
+];
 type Tab = (typeof TABS)[number]["key"];
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const data = await getMentorPageBySlug(slug, null);
-  if (!data) return { title: "Ustoz topilmadi" };
+  const [data, til] = await Promise.all([getMentorPageBySlug(slug, null), getLocale()]);
+  if (!data) return { title: tr(til, MS.mentorNotFound) };
   const { profile } = data;
   return {
-    title: `${profile.name} — ustoz`,
+    title: MS.mentorMeta[til](profile.name),
     description: (profile.bio || profile.headline).slice(0, 160),
     alternates: { canonical: `/mentorlik/ustoz/${profile.slug}` },
     openGraph: profile.photoUrl ? { images: [profile.photoUrl] } : undefined,
@@ -58,7 +60,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  * Obuna — kanalga qo'shilish; ustoz (yoki admin) lentaning o'zida post va efir qo'yadi.
  */
 export default async function MentorChannelPage({ params, searchParams }: { params: Params; searchParams: Promise<Record<string, string | undefined>> }) {
-  const [{ slug }, sp, user] = await Promise.all([params, searchParams, getCurrentUser()]);
+  const [{ slug }, sp, user, til] = await Promise.all([params, searchParams, getCurrentUser(), getLocale()]);
   const viewer = user ? { id: user.id, role: user.role } : null;
   const data = await getMentorPageBySlug(slug, user ? { id: user.id, admin: user.role === "admin" } : null);
   if (!data) notFound();
@@ -93,10 +95,10 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   // Sarlavha ostidagi qator: rol yorlig'i va asosiy sarlavha (umumiy «Mentor» so'zi takrorlanmaydi)
   const subtitle = [profile.roleLabel, profile.headline].filter((x, i, a) => x && x.trim() && x.trim().toLowerCase() !== "mentor" && a.indexOf(x) === i).join(" · ");
   const stats = [
-    { icon: Users, v: compactCount(view?.membersCount ?? 0), l: "obunachi" },
-    { icon: BookOpen, v: String(courses.length), l: "kurs" },
-    { icon: GraduationCap, v: compactCount(profile.studentsCount), l: "talaba" },
-    ...(profile.rating > 0 ? [{ icon: Star, v: String(profile.rating), l: "reyting" }] : []),
+    { icon: Users, v: compactCount(view?.membersCount ?? 0), l: tr(til, MS.followersL) },
+    { icon: BookOpen, v: String(courses.length), l: tr(til, MS.coursesL) },
+    { icon: GraduationCap, v: compactCount(profile.studentsCount), l: tr(til, MS.studentsL) },
+    ...(profile.rating > 0 ? [{ icon: Star, v: String(profile.rating), l: tr(til, MS.ratingL) }] : []),
   ];
 
   return (
@@ -108,9 +110,9 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           __html: JSON.stringify({ "@context": "https://schema.org", "@type": "Person", name: profile.name, jobTitle: profile.roleLabel || profile.headline, description: profile.bio || profile.headline, image: profile.photoUrl || undefined, url: `/mentorlik/ustoz/${profile.slug}` }).replace(/</g, "\\u003c"),
         }}
       />
-      <nav aria-label="Yo'l" className="text-[13px] text-fg-3">
+      <nav aria-label={tr(til, MS.breadcrumb)} className="text-[13px] text-fg-3">
         <Link href="/mentorlik" className="transition hover:text-fg">
-          Mentorlik
+          {tr(til, MS.mentorship)}
         </Link>
         <span className="mx-1.5">/</span>
         <span className="text-fg-2">{profile.name}</span>
@@ -153,7 +155,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               <p className="mb-2.5 flex flex-wrap gap-1.5">
                 {profile.expertise.map((e) => (
                   <span key={e} className="rounded-full bg-white/12 px-2.5 py-1 text-[11.5px] font-semibold text-white/85">
-                    {categoryLabel(e)}
+                    {categoryLabelTr(til, e)}
                   </span>
                 ))}
               </p>
@@ -182,34 +184,34 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             </dl>
             {liveNow && (
               <Link href={`/mentorlik/ustoz/${profile.slug}?efir=1`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
-                <span className="h-2 w-2 animate-ping-soft rounded-full bg-white" /> Hozir jonli efirda — qo&apos;shilish
+                <span className="h-2 w-2 animate-ping-soft rounded-full bg-white" /> {tr(til, MS.liveJoin)}
               </Link>
             )}
             <div className="mt-5 flex flex-wrap items-center gap-2" data-theme="dark">
               {profile.subPrice > 0 &&
                 !canStudio &&
                 (subActive ? (
-                  <span className="inline-flex h-10 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">✓ Obunachisiz · {formatDateTime(subRow!.until.getTime())} gacha</span>
+                  <span className="inline-flex h-10 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">{MS.subscribedUntil[til](formatDateTime(subRow!.until.getTime()))}</span>
                 ) : (
                   <BuyButton type="sub" id={profile.id} loggedIn={Boolean(user)} className="inline-flex h-10 items-center rounded-full bg-white px-5 text-[14px] font-bold text-black">
-                    Obuna — {formatSom(profile.subPrice)}/oy
+                    {MS.subscribe[til](formatSomTr(til, profile.subPrice))}
                   </BuyButton>
                 ))}
               {view && (view.membership === "member" || view.membership === "pending" || view.membership === null) && <JoinButton slug={view.slug} membership={view.membership} isPrivate={view.isPrivate} loggedIn={Boolean(user)} official={view.isOfficial} />}
               {/* Muhokama — alohida tab emas: Chat bo'limida ochiladi */}
               {view && isMember && !view.chatDisabled && (
                 <Link href={`/jamoalar/${view.slug}?tab=chat`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
-                  <MessagesSquare size={15} /> Muhokama
+                  <MessagesSquare size={15} /> {tr(til, MS.tabChat)}
                 </Link>
               )}
               {view?.canManage && !liveNow && (
                 <Link href={tabHref("efirlar")} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
-                  <RadioTower size={15} /> Efir boshlash
+                  <RadioTower size={15} /> {tr(til, MS.startLive)}
                 </Link>
               )}
               {canStudio && (
                 <Link href={user?.role === "admin" && !isOwner ? `/admin/mentorlik/${profile.id}` : "/kabinet/mentorlik"} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/25 px-4 text-[13.5px] font-semibold text-white transition hover:bg-white/10">
-                  <Settings2 size={15} /> Sozlash
+                  <Settings2 size={15} /> {tr(til, MS.settings)}
                 </Link>
               )}
               <ShareButton title={profile.name} size="md" variant="outline" iconOnly />
@@ -230,10 +232,10 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         </section>
       )}
 
-      <nav className="no-scrollbar -mx-4 mt-7 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" aria-label="Ustoz bo'limlari">
+      <nav className="no-scrollbar -mx-4 mt-7 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" aria-label={tr(til, MS.mentorTabsAria)}>
         {visibleTabs.map((t) => (
           <Link key={t.key} href={tabHref(t.key)} aria-current={t.key === tab ? "page" : undefined} className={cn("relative inline-flex h-11 shrink-0 items-center px-4 text-[14px] font-semibold transition-colors", t.key === tab ? "text-fg" : "text-fg-3 hover:text-fg")}>
-            {t.label}
+            {tr(til, t.label)}
             {t.key === "bolimlar" && courses.length > 0 && <span className="ml-1.5 text-[12px] font-medium text-fg-4">{courses.length}</span>}
             {t.key === tab && <span aria-hidden className="absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-fg" />}
           </Link>
@@ -249,7 +251,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             ) : null}
           </>
         )}
-        {tab === "lenta" && !view && <p className="card p-8 text-center text-[14px] text-fg-3">Kanal hali tayyor emas.</p>}
+        {tab === "lenta" && !view && <p className="card p-8 text-center text-[14px] text-fg-3">{tr(til, MS.channelNotReady)}</p>}
         {tab === "bolimlar" && roadmaps.length > 0 && (
           <div className="mb-5 space-y-3">
             {roadmaps.map((r) => (
@@ -263,7 +265,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                         <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold", st.progressPct === 100 ? "bg-success text-white" : "bg-fg text-bg")}>{st.progressPct === 100 ? "✓" : i + 1}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px] font-semibold text-fg">{st.title}</span>
-                          <span className="text-[12px] text-fg-3">{st.lessonsCount} dars · {formatSom(st.priceFrom)}{st.progressPct != null && st.progressPct < 100 ? ` · ${st.progressPct}% tugatilgan` : ""}</span>
+                          <span className="text-[12px] text-fg-3">{lessonsTr(til, st.lessonsCount)} · {formatSomTr(til, st.priceFrom)}{st.progressPct != null && st.progressPct < 100 ? ` · ${MS.pctDone[til](st.progressPct)}` : ""}</span>
                         </span>
                       </Link>
                     </li>
@@ -275,7 +277,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
         )}
         {tab === "bolimlar" &&
           (courses.length === 0 ? (
-            <p className="card p-8 text-center text-[14px] text-fg-3">Hozircha ochiq kurs yo&apos;q.</p>
+            <p className="card p-8 text-center text-[14px] text-fg-3">{tr(til, MS.noOpenCourses)}</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3">
               {courses.map((c) => (
@@ -285,10 +287,10 @@ export default async function MentorChannelPage({ params, searchParams }: { para
                       {c.coverUrl ? <SafeImage src={c.coverUrl} alt={c.title} width={480} height={270} className="img-zoom h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center bg-fg/5"><GraduationCap size={28} className="text-fg-4" /></div>}
                     </div>
                     <div className="flex flex-1 flex-col p-3.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-accent-text">{categoryLabel(c.category)} · {levelLabel(c.level)}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-accent-text">{categoryLabelTr(til, c.category)} · {levelLabelTr(til, c.level)}</span>
                       <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-fg">{c.title}</h3>
                       <p className="mt-auto pt-3 text-[12.5px] text-fg-3">
-                        {c.lessonsCount} dars · {formatSom(c.priceFrom)}
+                        {lessonsTr(til, c.lessonsCount)} · {formatSomTr(til, c.priceFrom)}
                       </p>
                     </div>
                   </Link>
@@ -298,7 +300,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           ))}
         {tab === "bolimlar" && showcase.length > 0 && (
           <section className="card mt-5 p-4 sm:p-5">
-            <h2 className="text-[15px] font-bold text-fg">Talabalar ishi</h2>
+            <h2 className="text-[15px] font-bold text-fg">{tr(til, MS.studentsWork)}</h2>
             <ul className="mt-3 grid gap-3 sm:grid-cols-2">
               {showcase.map((w) => (
                 <li key={w.id} className="rounded-[14px] border border-line p-3">
@@ -318,33 +320,33 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           <div className="space-y-4">
             {myBooked.length > 0 && (
               <section className="card p-4 sm:p-5">
-                <h2 className="text-[15px] font-bold text-fg">Mening konsultatsiyalarim</h2>
+                <h2 className="text-[15px] font-bold text-fg">{tr(til, MS.myConsults)}</h2>
                 <ul className="mt-3 divide-y divide-line">
                   {myBooked.map((b) => (
                     <li key={b.id} className="flex flex-wrap items-center gap-3 py-2.5 text-[14px]">
                       <span className="font-semibold text-fg">{formatDateTime(b.startsAt.getTime())}</span>
-                      <span className="text-fg-3">{b.durationMin} daq · {b.mentor.user.name}{b.bookedBy !== user?.id ? ` ↔ ${b.buyerName}` : ""}</span>
-                      <Link href={`/mentorlik/konsultatsiya/${b.id}`} className="ml-auto text-[13px] font-semibold text-accent-text">Ochish</Link>
+                      <span className="text-fg-3">{minutesTr(til, b.durationMin)} · {b.mentor.user.name}{b.bookedBy !== user?.id ? ` ↔ ${b.buyerName}` : ""}</span>
+                      <Link href={`/mentorlik/konsultatsiya/${b.id}`} className="ml-auto text-[13px] font-semibold text-accent-text">{tr(til, MS.open)}</Link>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
             <section className="card p-4 sm:p-5">
-              <h2 className="text-[15px] font-bold text-fg">1:1 konsultatsiya</h2>
-              <p className="mt-0.5 text-[13px] text-fg-3">Vaqtni tanlang, to&apos;lang — belgilangan soatda video qo&apos;ng&apos;iroq shu yerda ochiladi.</p>
+              <h2 className="text-[15px] font-bold text-fg">{tr(til, MS.consultTitle)}</h2>
+              <p className="mt-0.5 text-[13px] text-fg-3">{tr(til, MS.consultLead)}</p>
               {slots.length === 0 ? (
-                <p className="mt-4 text-[14px] text-fg-3">Hozircha bo&apos;sh vaqt yo&apos;q.{canStudio ? " Vaqtlarni «Daromad va sozlamalar» sahifasida qo'shing." : ""}</p>
+                <p className="mt-4 text-[14px] text-fg-3">{tr(til, MS.noSlots)}{canStudio ? tr(til, MS.addSlotsHint) : ""}</p>
               ) : (
                 <ul className="mt-3 divide-y divide-line">
                   {slots.map((sl) => (
                     <li key={sl.id} className="flex flex-wrap items-center gap-3 py-3 text-[14px]">
                       <span className="font-semibold text-fg">{formatDateTime(sl.startsAt.getTime())}</span>
-                      <span className="text-fg-3">{sl.durationMin} daq</span>
-                      <span className="ml-auto font-semibold tabular-nums text-fg">{formatSom(sl.priceSom)}</span>
+                      <span className="text-fg-3">{minutesTr(til, sl.durationMin)}</span>
+                      <span className="ml-auto font-semibold tabular-nums text-fg">{formatSomTr(til, sl.priceSom)}</span>
                       {!canStudio && (
                         <BuyButton type="consult" id={sl.id} loggedIn={Boolean(user)} className="btn-accent inline-flex h-9 items-center px-4 text-[13px] font-semibold">
-                          Band qilish
+                          {tr(til, MS.book)}
                         </BuyButton>
                       )}
                     </li>
@@ -362,13 +364,13 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             {past.length > 0 && (
               <section className="card mt-4 p-4 sm:p-5">
                 <h2 className="flex items-center gap-2 text-[15px] font-bold text-fg">
-                  <RadioTower size={16} className="text-fg-3" /> O&apos;tgan jonli efirlar
+                  <RadioTower size={16} className="text-fg-3" /> {tr(til, MS.pastLives)}
                 </h2>
                 <ul className="mt-3 divide-y divide-line">
                   {past.map((l) => (
                     <li key={l.id} className="flex items-center gap-3 py-2.5">
                       <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{l.title}</p>
-                      <span className="shrink-0 text-[12px] text-fg-3">{formatDateTime(l.startedAt)} · {l.minutes} daq{l.peak > 0 ? ` · ${l.peak} tomoshabin` : ""}</span>
+                      <span className="shrink-0 text-[12px] text-fg-3">{formatDateTime(l.startedAt)} · {minutesTr(til, l.minutes)}{l.peak > 0 ? ` · ${MS.viewers[til](l.peak)}` : ""}</span>
                       {view?.canManage && <DeleteLiveButton id={l.id} title={l.title} />}
                     </li>
                   ))}
@@ -381,7 +383,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           (view && isMember ? (
             <GroupChat slug={view.slug} membersCount={view.membersCount} kind={view.kind} canManage={view.canManage} />
           ) : (
-            <p className="card p-8 text-center text-[14px] text-fg-3">Muhokamada qatnashish uchun ustoz kanaliga obuna bo&apos;ling.</p>
+            <p className="card p-8 text-center text-[14px] text-fg-3">{tr(til, MS.joinToChat)}</p>
           ))}
       </div>
     </div>

@@ -2,6 +2,8 @@ import { handler, ok, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { csvResponse } from "@/lib/security/csv";
 import { attendance, touchAttendance } from "@/lib/live/zoom";
+import { getLocale } from "@/lib/i18n/server";
+import { intlLocale } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
@@ -12,7 +14,8 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
   const { id } = await ctx.params;
   const rows = await attendance(id, { id: session.sub, role: session.role });
   if (new URL(req.url).searchParams.get("csv") !== "1") return ok({ items: rows });
-  const fmt = (ms: number) => new Date(ms).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" });
+  const til = await getLocale();
+  const fmt = (ms: number) => new Date(ms).toLocaleString(intlLocale(til), { dateStyle: "short", timeStyle: "short" });
   return csvResponse(
     `davomat-${id}`,
     ["Ism", "Taxallus", "Kirishlar", "Birinchi kirish", "Oxirgi faollik", "Daqiqa"],

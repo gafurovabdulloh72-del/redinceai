@@ -8,16 +8,22 @@ import { getCurrentUser } from "@/lib/auth";
 import { listCourses, listMentors, getMentorForUser } from "@/lib/mentorship/service";
 import { liveAndUpcoming } from "@/lib/mentorship/growth";
 import { formatDateTime } from "@/lib/utils";
-import { COURSE_LEVELS, MENTOR_CATEGORIES, categoryLabel, formatSom } from "@/lib/mentorship/format";
+import { COURSE_LEVELS, MENTOR_CATEGORIES } from "@/lib/mentorship/format";
 import { cn } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
+import { tr } from "@/lib/i18n";
+import { MS, categoryLabelTr, formatSomTr } from "@/lib/i18n/dict/mentorship";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "Mentorlik — ustozlardan o'rganing",
-  description: "Tajribali videograf, montajchi va dizaynerlardan onlayn kurslar. Haqiqiy ustozlar dars beradi.",
-  alternates: { canonical: "/mentorlik" },
-  other: { "m-title": "Mentorlik" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const til = await getLocale();
+  return {
+    title: tr(til, MS.catalogTitle),
+    description: tr(til, MS.catalogDesc),
+    alternates: { canonical: "/mentorlik" },
+    other: { "m-title": tr(til, MS.catalogH1) },
+  };
+}
 
 /**
  * Mentorlik katalogi (2026-11-01 soddalashtirildi).
@@ -35,11 +41,12 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
   const state: FilterState = { category, level, price, sort, q };
   const browsing = Boolean(q || category || level || price || sort !== "new");
 
-  const [user, { items: courses }, mentors, lives] = await Promise.all([
+  const [user, { items: courses }, mentors, lives, til] = await Promise.all([
     getCurrentUser(),
     listCourses({ category, level, q, price, sort, limit: 24 }),
     listMentors(12),
     liveAndUpcoming(6),
+    getLocale(),
   ]);
   const myMentor = user ? await getMentorForUser(user.id) : null;
 
@@ -49,17 +56,17 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
       <header className="flex flex-wrap items-center justify-between gap-3">
         {/* Telefonda yuqori panel sahifa nomini ko'rsatadi — bu yerda takrorlanmaydi */}
         <div className="min-w-0 max-sm:hidden">
-          <h1 className="display-xl text-fg">Mentorlik</h1>
-          <p className="mt-1 text-[14px] text-fg-3">Tajribali ustozlardan amaliy bilim — kurslar, jonli efirlar va 1:1 darslar.</p>
+          <h1 className="display-xl text-fg">{tr(til, MS.catalogH1)}</h1>
+          <p className="mt-1 text-[14px] text-fg-3">{tr(til, MS.catalogLead)}</p>
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <form action="/mentorlik" className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
             {category && <input type="hidden" name="kasb" value={category} />}
             <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-4" />
-            <input name="q" defaultValue={q} placeholder="Kurs qidirish…" aria-label="Kurs qidirish" className="field h-10 w-full !rounded-full pl-9 text-[13.5px]" />
+            <input name="q" defaultValue={q} placeholder={tr(til, MS.searchPh)} aria-label={tr(til, MS.searchAria)} className="field h-10 w-full !rounded-full pl-9 text-[13.5px]" />
           </form>
           <Link href="/kabinet/mentorlik" className="btn-ink inline-flex h-10 shrink-0 items-center rounded-full px-4 text-[13.5px] font-semibold">
-            {myMentor?.isApproved ? "Mening sahifam" : "Ustoz bo'lish"}
+            {myMentor?.isApproved ? tr(til, MS.myPage) : tr(til, MS.becomeMentor)}
           </Link>
         </div>
       </header>
@@ -68,7 +75,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
       {lives.length > 0 && !browsing && (
         <section className="mt-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-[15px] font-bold text-fg">
-            <RadioTower size={14} className="text-fg-3" /> Efirlar
+            <RadioTower size={14} className="text-fg-3" /> {tr(til, MS.lives)}
           </h2>
           <ul className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
             {lives.map((l) => (
@@ -82,14 +89,14 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
                     <span className="min-w-0 flex-1 truncate text-[12px] text-fg-2">{l.mentorName}</span>
                     {l.live && (
                       <span className="inline-flex items-center gap-1 rounded bg-danger px-1.5 py-0.5 text-[11px] font-bold uppercase text-white">
-                        <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-white" /> Jonli
+                        <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-white" /> {tr(til, MS.liveChip)}
                       </span>
                     )}
                   </span>
                   <span className="line-clamp-2 text-[14px] font-bold leading-snug text-fg">{l.title}</span>
                   <span className="mt-auto text-[11.5px] text-fg-4">
-                    {l.live ? "Hozir efirda" : formatDateTime(l.startsAt)}
-                    {l.price > 0 ? ` · ${formatSom(l.price)}` : ""}
+                    {l.live ? tr(til, MS.liveNow) : formatDateTime(l.startsAt)}
+                    {l.price > 0 ? ` · ${formatSomTr(til, l.price)}` : ""}
                   </span>
                 </Link>
               </li>
@@ -100,14 +107,14 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
 
       {/* Yo'nalishlar — ikonkali chiplar (Udemy kategoriya qatori), faqat filtr yo'q bo'lganda */}
       {!browsing && (
-        <nav className="mt-4" aria-label="Yo'nalishlar">
+        <nav className="mt-4" aria-label={tr(til, MS.directions)}>
           <ul className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
             {MENTOR_CATEGORIES.filter((c) => c.key !== "boshqa").map((c) => {
               const Icon = CATEGORY_ICON[c.key] ?? GraduationCap;
               return (
                 <li key={c.key} className="shrink-0">
                   <Link href={`/mentorlik?kasb=${c.key}`} className="chip inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-fg-2 transition hover:text-fg">
-                    <Icon size={14} className="text-fg-3" aria-hidden /> {c.label}
+                    <Icon size={14} className="text-fg-3" aria-hidden /> {categoryLabelTr(til, c.key)}
                   </Link>
                 </li>
               );
@@ -119,20 +126,20 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
       {/* Kurslar — sahifaning yagona asosiy ro'yxati (oldin «Mashhur» karuseli bir xil kurslarni takrorlab turardi) */}
       <section className="mt-6">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[15px] font-bold text-fg">{q ? `«${q}» bo'yicha` : category ? categoryLabel(category) : "Kurslar"}</h2>
+          <h2 className="text-[15px] font-bold text-fg">{q ? MS.byQuery[til](q) : category ? categoryLabelTr(til, category) : tr(til, MS.courses)}</h2>
         </div>
-        <CourseFilters state={state} total={courses.length} />
+        <CourseFilters state={state} total={courses.length} til={til} />
         {courses.length === 0 ? (
           <div className="card mt-3 grid place-items-center gap-1.5 p-10 text-center">
             <GraduationCap size={26} className="text-fg-4" />
-            <p className="text-[14px] font-semibold text-fg">{browsing ? "Bu shartlarga mos kurs yo'q" : "Hozircha kurs yo'q"}</p>
-            <p className="text-[13px] text-fg-3">{browsing ? "Filtrlarni tozalab ko'ring." : "Birinchi bo'lib kurs oching — «Ustoz bo'lish»."}</p>
+            <p className="text-[14px] font-semibold text-fg">{browsing ? tr(til, MS.noMatch) : tr(til, MS.noCourses)}</p>
+            <p className="text-[13px] text-fg-3">{browsing ? tr(til, MS.clearFilters) : tr(til, MS.beFirst)}</p>
           </div>
         ) : (
           <ul className="mt-3 grid grid-cols-2 gap-3 max-sm:mt-2 max-sm:grid-cols-1 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {courses.map((c) => (
               <li key={c.id}>
-                <CourseCard c={c} />
+                <CourseCard c={c} til={til} />
               </li>
             ))}
           </ul>
@@ -142,7 +149,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
       {/* Ustozlar — kurslardan keyin (asosiy kontent — kurslar); telefonda story-doira qatori, sm+ da kartalar */}
       {mentors.length > 0 && !browsing && (
         <section className="mt-5">
-          <h2 className="mb-2 text-[15px] font-bold text-fg">Ustozlar</h2>
+          <h2 className="mb-2 text-[15px] font-bold text-fg">{tr(til, MS.mentors)}</h2>
           <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:hidden">
             {mentors.map((m) => (
               <li key={m.id} className="w-[72px] shrink-0">
@@ -178,7 +185,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-bold text-fg">{m.name}</span>
-                    <span className="mt-0.5 block truncate text-[12px] text-fg-3">{m.roleLabel || m.headline || "Ustoz"}</span>
+                    <span className="mt-0.5 block truncate text-[12px] text-fg-3">{m.roleLabel || m.headline || tr(til, MS.mentor)}</span>
                   </span>
                 </Link>
               </li>
