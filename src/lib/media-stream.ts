@@ -19,6 +19,7 @@ const PRIVATE_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Content-Security-Policy": "default-src 'none'; sandbox",
   "Accept-Ranges": "bytes",
+  "X-Robots-Tag": "noindex, nofollow",
 } as const;
 
 function parseRange(h: string | null, size: number): { start: number; end: number } | null {
