@@ -360,3 +360,13 @@ Foydalanuvchi so'rovi: «video havolalar, profil ma'lumotlarini shifrlagin — h
 
 Testlar: `scripts/security.mjs` — «Dars videosi» (302 → tokenli stream, Location'da xom manzil yo'q, token boshqa sessiyada/buzilgan/muddati o'tgan → 403, tokensiz → 403) va «Efir yozuvi» (404/403).
 Operatsion: `AUTH_SECRET` (yoki `DATA_ENCRYPTION_KEY`) o'zgartirilsa shifrlangan kontaktlar ochilmaydi — avval eski kalit bilan `--unseal`, keyin yangi kalit bilan qayta `seal`. VPS'ga ko'chishda env aynan ko'chiriladi.
+
+### 4-audit, 2-raund — dinamik tekshiruvlar (2026-11-03, dev server)
+
+Yangi zaiflik topilmadi. Tekshirilganlar (hammasi kutilgandek):
+- Login brute-force: 5 noto'g'ri paroldan keyin 429 (ip+email, 15 daqiqa); 2FA kod tekshiruvi `twoFactorVerify` 5/15 daq (chipta+ip) + `twoFactorUser` 10/15 daq.
+- Yopiq guruh efir yozuvi (`/api/live/[id]/video`): mehmon 401 · a'zo bo'lmagan 403 · egasi/admin 302 (tokenli stream) · pullik — 402/403 · yashirilgan — faqat boshqaruvchi.
+- Path traversal (`/uploads/../.env`, `..%2f`, `_next/static/../../`): 404. Fayl yuklash — magic-bytes sniff (SVG/HTML rad).
+- Statik skan: 46 ta `/api/admin/*` route — hammasi admin tekshiruvi bilan; `[id]` route'larda sessiyasiz faqat ommaviy GET (`optionalViewer`); `dangerouslySetInnerHTML` faqat JSON-LD (`<` ekranlangan), chop CSS va o'z QR SVG'si; markdown/chat havolalari faqat `https?://`; `?next=` — `safeInternalPath`.
+- Webhook'lar: Telegram sirsiz 401; Payme auth'siz JSON-RPC `-32504`; chek sahifalari `canViewPayment/canViewInvoice`.
+- Git'da `.env`/jar/kalit yo'q; kodda hardcoded token yo'q; `npm audit --omit=dev` — avvalgi 6 ta tranzitiv band (yuqoridagi jadval), yangisi yo'q.
