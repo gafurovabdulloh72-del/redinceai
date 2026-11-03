@@ -117,7 +117,9 @@ export default async function OfertaPage() {
           </p>
           <ul>
             <li>
-              Obuna narxi — <strong>oyiga {price}</strong>. Uzoq muddatga to&apos;lansa chegirma beriladi:{" "}
+              Tariflar: <strong>Standart</strong> — bepul (sinov davrida profil ko&apos;rinadi), <strong>Pro</strong> — oyiga {price}, <strong>Max</strong> — oyiga {formatPrice(s.subscriptionPriceMax)}.
+              Har tarifning chegaralari (kunlik takliflar, haftalik post/story, portfolio ishlari) va imkoniyatlari{" "}
+              <a href="/narxlar">Narxlar</a> sahifasida ko&apos;rsatiladi. Pro tarifi uchun uzoq muddatga to&apos;lansa chegirma beriladi (Max&apos;ga ham shu foizlar qo&apos;llanadi):{" "}
               {SUBSCRIPTION_PLANS.map((p, i) => (
                 <span key={p.months}>
                   {i > 0 ? ", " : ""}
@@ -286,7 +288,7 @@ export default async function OfertaPage() {
       related={{ href: "/maxfiylik", label: "Maxfiylik siyosati" }}
       intro={
         <p>
-          {SITE.name}&apos;dan foydalanish shartlari: platforma nima qiladi va nima qilmaydi, mutaxassislar obunasi ({price}/oy), eskrou to&apos;lovlar, komissiya, qaytarish va nizolar tartibi.
+          {SITE.name}&apos;dan foydalanish shartlari: platforma nima qiladi va nima qilmaydi, mutaxassislar tariflari (Pro {price}/oy, Max {formatPrice(s.subscriptionPriceMax)}/oy), eskrou to&apos;lovlar, komissiya, qaytarish va nizolar tartibi.
         </p>
       }
       sections={sections}

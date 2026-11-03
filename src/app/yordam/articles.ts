@@ -178,15 +178,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "obuna-va-sinov-muddati",
     category: "mutaxassislar",
-    title: `Obuna: ${som(price)}/oy va bepul sinov muddati`,
-    summary: `Mutaxassislar oylik obuna to'laydi — standart narx ${som(price)}/oy. Yangi profil ${PLATFORM_DEFAULTS.subscriptionTrialDays} kun bepul.`,
-    keywords: ["obuna", "podpiska", "subscription", "oylik to'lov", "tarif", "sinov", "trial", "50 000", "narxlar"],
+    title: `Tariflar: Standart, Pro (${som(price)}/oy) va Max (${som(PLATFORM_DEFAULTS.subscriptionPriceMax)}/oy)`,
+    summary: `Mutaxassislar uchun uch tarif: Standart — bepul, Pro — ${som(price)}/oy, Max — ${som(PLATFORM_DEFAULTS.subscriptionPriceMax)}/oy. Yangi profil ${PLATFORM_DEFAULTS.subscriptionTrialDays} kun bepul ko'rinadi.`,
+    keywords: ["obuna", "podpiska", "subscription", "oylik to'lov", "tarif", "pro", "max", "sinov", "trial", "narxlar"],
     body: [
       {
         type: "p",
         text: "Kasb Egalari mijoz va mutaxassisni bir-biriga topib beradi. Ko'p hamkorliklar keyin Telegram yoki telefon orqali davom etadi, shuning uchun platforma faqat komissiyaga tayanmaydi: mutaxassislar oylik obuna to'laydi, mijozlar esa bepul foydalanadi.",
       },
-      { type: "h", text: "Qancha turadi" },
+      { type: "h", text: "Tariflar" },
+      {
+        type: "list",
+        items: [
+          `Standart — bepul: kuniga ${PROPOSAL_DAILY_LIMIT} ta taklif, haftasiga 2 ta post va 4 ta story, portfolioda 12 tagacha ish.`,
+          `Pro — ${som(price)}/oy: katalogda yuqorida, «PRO» belgisi, yangi e'lon darhol Telegramga, kuniga ${PRO_PROPOSAL_DAILY_LIMIT} ta taklif, haftasiga 7 post va 14 story, 30 tagacha ish, profilni kim ko'rgani.`,
+          `Max — ${som(PLATFORM_DEFAULTS.subscriptionPriceMax)}/oy: katalogda eng tepada, «MAX» belgisi, yangi e'lon birinchi sizga, kuniga ${MAX_PROPOSAL_DAILY_LIMIT} ta taklif, haftasiga 20 post va 40 story, 60 tagacha ish, tavsiya etilgan ijodkorlar qatorida.`,
+        ],
+      },
+      { type: "h", text: "Pro narxi uzoq muddatga" },
       { type: "list", items: plans },
       {
         type: "p",
