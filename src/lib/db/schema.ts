@@ -360,7 +360,8 @@ export const orders = sqliteTable(
     description: text("description").notNull(),
     budget: integer("budget"),
     deadline: text("deadline"),
-    contactPhone: text("contact_phone").notNull(),
+    /** Shifrlangan (field-crypto) — mijoz telefoni */
+    contactPhone: sealedText("contact_phone").notNull(),
     status: text("status", { enum: ["new", "accepted", "in_progress", "done", "cancelled"] })
       .notNull()
       .default("new"),
@@ -2416,7 +2417,8 @@ export const mentorPayouts = sqliteTable(
       .notNull()
       .references(() => mentors.id, { onDelete: "cascade" }),
     amount: integer("amount").notNull(),
-    card: text("card").notNull(),
+    /** To'liq karta raqami — shifrlangan (field-crypto); faqat admin panel/bot ochadi */
+    card: sealedText("card").notNull(),
     status: text("status", { enum: ["requested", "paid", "rejected"] }).notNull().default("requested"),
     note: text("note"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })

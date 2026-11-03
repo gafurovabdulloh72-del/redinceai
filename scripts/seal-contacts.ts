@@ -1,6 +1,6 @@
 /**
- * Bir martalik (idempotent) kontakt shifrlash (4-audit, 2026-11-03): users.phone, specialists.telegram/instagram
- * ustunlaridagi OCHIQ matn qiymatlar `fe1:` shifrmatnga o'tkaziladi. Allaqachon shifrlanganlar tegilmaydi.
+ * Bir martalik (idempotent) kontakt shifrlash (4-audit, 2026-11-03): users.phone, specialists.telegram/instagram,
+ * orders.contact_phone, mentor_payouts.card ustunlaridagi OCHIQ matn qiymatlar `fe1:` shifrmatnga o'tkaziladi. Allaqachon shifrlanganlar tegilmaydi.
  * Har deployda db-prepare chaqiradi (SEAL_CONTACTS=0 — o'tkazib yuboradi). Kalit: DATA_ENCRYPTION_KEY yoki AUTH_SECRET.
  *
  * Favqulodda qaytarish (kalitni almashtirishdan OLDIN):  npx tsx scripts/seal-contacts.ts --unseal
@@ -21,6 +21,8 @@ const TARGETS: Array<[table: string, col: string]> = [
   ["users", "phone"],
   ["specialists", "telegram"],
   ["specialists", "instagram"],
+  ["orders", "contact_phone"],
+  ["mentor_payouts", "card"],
 ];
 
 async function main() {
