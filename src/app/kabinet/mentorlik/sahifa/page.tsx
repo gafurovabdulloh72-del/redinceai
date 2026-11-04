@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -18,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Mentorning ommaviy sahifasi ma'lumotlari — oldin «Umumiy» sahifa ichida edi, endi alohida */
 export default async function MentorPagePage() {
+  const til = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik/sahifa"));
   const mentor = await getMentorForUser(user.id);
@@ -32,12 +34,12 @@ export default async function MentorPagePage() {
       <div className="space-y-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Mentorlik sahifam</h1>
-            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Talabalar ko&apos;radigan sahifa: rasm, sarlavha, tavsif va ma&apos;lumot kartalari</p>
+            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.myMentorPage)}</h1>
+            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.pageLead)}</p>
           </div>
           {pageHref && (
             <Link href={pageHref} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-              Sahifani ko&apos;rish <ArrowUpRight size={14} />
+              {tr(til, MK.viewPage)} <ArrowUpRight size={14} />
             </Link>
           )}
         </header>

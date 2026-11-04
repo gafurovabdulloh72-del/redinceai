@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { ClipboardList, GraduationCap, LayoutGrid, Wallet } from "lucide-react";
+import { getLocale } from "@/lib/i18n/server";
+import { tr, type Tr } from "@/lib/i18n";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import { cn } from "@/lib/utils";
 
 /**
  * Mentor kabinetining yagona navigatsiyasi (2026-11-01 soddalashtirildi: 6 tab → 4).
  * «Tahlil» endi Daromad ichidan ochiladi, «Yo'l xaritasi» — Umumiy sahifadagi havoladan;
  * o'sha sahifalar o'z ota tabini faol ko'rsatadi (statistika → Daromad, yol-xaritasi → Umumiy).
- * Telefonda gorizontal aylanadi.
+ * Telefonda gorizontal aylanadi. Server komponent — til `getLocale()` dan.
  */
-const TABS = [
-  { key: "umumiy", href: "/kabinet/mentorlik", label: "Umumiy", icon: LayoutGrid },
-  { key: "sahifa", href: "/kabinet/mentorlik/sahifa", label: "Sahifam", icon: GraduationCap },
-  { key: "daromad", href: "/kabinet/mentorlik/daromad", label: "Daromad", icon: Wallet },
-  { key: "vazifalar", href: "/kabinet/mentorlik/vazifalar", label: "Vazifalar", icon: ClipboardList },
-] as const;
+const TABS: ReadonlyArray<{ key: "umumiy" | "sahifa" | "daromad" | "vazifalar"; href: string; label: Tr; icon: typeof LayoutGrid }> = [
+  { key: "umumiy", href: "/kabinet/mentorlik", label: MK.navOverview, icon: LayoutGrid },
+  { key: "sahifa", href: "/kabinet/mentorlik/sahifa", label: MK.navPage, icon: GraduationCap },
+  { key: "daromad", href: "/kabinet/mentorlik/daromad", label: MK.navMoney, icon: Wallet },
+  { key: "vazifalar", href: "/kabinet/mentorlik/vazifalar", label: MK.navTasks, icon: ClipboardList },
+];
 
 export type MentorTab = (typeof TABS)[number]["key"];
 
-export function MentorNav({ active }: { active: MentorTab }) {
+export async function MentorNav({ active }: { active: MentorTab }) {
+  const til = await getLocale();
   return (
-    <nav aria-label="Mentorlik bo'limlari" className="no-scrollbar -mx-4 mb-5 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
+    <nav aria-label={tr(til, MK.navAria)} className="no-scrollbar -mx-4 mb-5 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
       <ul className="flex w-max gap-1">
         {TABS.map((t) => {
           const on = t.key === active;
@@ -34,7 +38,7 @@ export function MentorNav({ active }: { active: MentorTab }) {
                 )}
               >
                 <t.icon size={14} className={on ? "text-fg" : "text-fg-4"} />
-                {t.label}
+                {tr(til, t.label)}
               </Link>
             </li>
           );

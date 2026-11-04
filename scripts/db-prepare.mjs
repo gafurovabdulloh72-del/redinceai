@@ -65,6 +65,16 @@ try {
   console.warn("⚠ reprice.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
 }
 
+// Avtomatik RU lug'at (2026-11-04): koddagi yangi o'zbekcha iboralar — GEMINI_API_KEY bo'lsa deploy paytida tarjima qilinib
+// ru-dict.json ga qo'shiladi (bundle'ga kiradi); kalit bo'lmasa jim o'tadi. --db: prod keshidagi tarjimasiz qatorlar ham to'ldiriladi
+if (process.env.GEMINI_API_KEY) {
+  try {
+    execSync("node scripts/i18n-sync.mjs --db", { stdio: "inherit", env: process.env });
+  } catch (e) {
+    console.warn("⚠ i18n-sync.mjs bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
+  }
+}
+
 // Kontaktlarni shifrlash (4-audit, 2026-11-03): users.phone, specialists.telegram/instagram ochiq matn bo'lsa — AES-GCM
 // shifrmatnga (idempotent; SEAL_CONTACTS=0 o'tkazib yuboradi; kalit DATA_ENCRYPTION_KEY yoki AUTH_SECRET)
 if (process.env.SEAL_CONTACTS !== "0") {

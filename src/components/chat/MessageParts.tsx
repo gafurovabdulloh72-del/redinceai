@@ -256,7 +256,7 @@ const URL_RE = /(https?:\/\/[^\s<>"'()]+)/g;
 export function Linkified({ text, mine }: { text: string; mine?: boolean }) {
   const parts = text.split(URL_RE);
   return (
-    <>
+    <span data-no-auto>
       {parts.map((p, i) =>
         i % 2 === 1 ? (
           <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" className={cn("break-all underline decoration-1 underline-offset-2", mine ? "text-ink-fg" : "text-fg")}>
@@ -266,7 +266,7 @@ export function Linkified({ text, mine }: { text: string; mine?: boolean }) {
           <Fragment key={i}>{p}</Fragment>
         ),
       )}
-    </>
+    </span>
   );
 }
 

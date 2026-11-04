@@ -697,7 +697,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               )}
             </h2>
             {sp.bio?.trim() ? (
-              <p className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{sp.bio}</p>
+              <p data-no-auto className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{sp.bio}</p>
             ) : (
               <p className="mt-4 text-[15px] text-fg-3">{tr(til, PROFIL.noBio)}</p>
             )}

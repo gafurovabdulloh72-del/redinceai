@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { MK, countTa, formatSomTr } from "@/lib/i18n/dict/mentorship";
+import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
+import type { Locale } from "@/lib/i18n";
 import { redirect } from "next/navigation";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser } from "@/lib/mentorship/service";
@@ -10,8 +13,7 @@ import { ChevronRight, MessageCircle } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { MentorNav } from "@/components/mentorship/MentorNav";
 import { mentorAnalytics } from "@/lib/mentorship/growth";
-import { formatSom } from "@/lib/mentorship/format";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,10 +21,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: tr(til, KABINET_NAV.titles["Tahlil"]), robots: { index: false, follow: false }  };
 }
 
-const som = (n: number) => (n ? formatSom(n) : "0 so'm");
+const somOf = (til: Locale, n: number) => (n ? formatSomTr(til, n) : tr(til, MK.zeroSom));
 
 /** Mentor tahlili: kurs ko'rilishi → yozilish, o'rtacha progress, qaysi darsda talabalar to'xtaydi, efir va daromad manbalari */
 export default async function MentorAnalyticsPage() {
+  const til = await getLocale();
+  const som = (n: number) => somOf(til, n);
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik/statistika"));
   const m = await getMentorForUser(user.id);
@@ -34,34 +38,34 @@ export default async function MentorAnalyticsPage() {
       <MentorNav active="daromad" />
       <div className="space-y-5">
         <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Tahlil</h1>
-          <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Kurs ko&apos;rilishi, yozilish, progress, efirlar va daromad manbalari</p>
+          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.analyticsTitle)}</h1>
+          <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.analyticsLead)}</p>
         </header>
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Efirlar" value={`${a.live.count} ta`} hint={a.live.count ? `o'rtacha ${a.live.avgPeak} tomoshabin · eng ko'pi ${a.live.maxPeak}` : "hali efir yo'q"} />
-          <Stat label="Chipta sotuvi" value={`${a.live.tickets} ta`} hint={som(a.live.ticketRevenue)} />
-          <Stat label="Faol obunachilar" value={`${a.activeSubs} ta`} hint={`daromad ${som(a.subRevenue)}`} />
-          <Stat label="Konsultatsiya daromadi" value={som(a.consultRevenue)} />
+          <Stat label={tr(til, MK.lives)} value={countTa(til, a.live.count)} hint={a.live.count ? MK.livesHint[til](a.live.avgPeak, a.live.maxPeak) : tr(til, MK.noLivesYet)} />
+          <Stat label={tr(til, MK.ticketSales)} value={countTa(til, a.live.tickets)} hint={som(a.live.ticketRevenue)} />
+          <Stat label={tr(til, MK.activeSubs)} value={countTa(til, a.activeSubs)} hint={MK.incomeOf[til](som(a.subRevenue))} />
+          <Stat label={tr(til, MK.consultIncome)} value={som(a.consultRevenue)} />
         </section>
 
-        {a.courses.length === 0 && <p className="card p-6 text-center text-[14px] text-fg-3">Hali kurs yo&apos;q.</p>}
+        {a.courses.length === 0 && <p className="card p-6 text-center text-[14px] text-fg-3">{tr(til, MK.noCoursesYet)}</p>}
         {a.courses.map((c) => (
           <section key={c.id} className="card m-flat p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="min-w-0 flex-1 truncate text-[15.5px] font-bold text-fg">{c.title}</h2>
-              {!c.published && <span className="rounded bg-fg/8 px-2 py-0.5 text-[11px] font-bold text-fg-3">chop etilmagan</span>}
+              {!c.published && <span className="rounded bg-fg/8 px-2 py-0.5 text-[11px] font-bold text-fg-3">{tr(til, MK.unpublished)}</span>}
             </div>
             <dl className="mt-3 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-5">
-              <Kpi k="Ko'rilgan" v={String(c.views)} />
-              <Kpi k="Yozilgan" v={`${c.students}${c.conversion ? ` (${c.conversion}%)` : ""}`} />
-              <Kpi k="O'rtacha progress" v={`${c.avgProgress}%`} />
-              <Kpi k="Tugatgan / sertifikat" v={`${c.completed} / ${c.certificates}`} />
-              <Kpi k="Daromad" v={`${som(c.revenue)}${c.sales ? ` · ${c.sales} ta` : ""}`} />
+              <Kpi k={tr(til, MK.kpiViews)} v={String(c.views)} />
+              <Kpi k={tr(til, MK.kpiEnrolled)} v={`${c.students}${c.conversion ? ` (${c.conversion}%)` : ""}`} />
+              <Kpi k={tr(til, MK.kpiAvgProgress)} v={`${c.avgProgress}%`} />
+              <Kpi k={tr(til, MK.kpiCompleted)} v={`${c.completed} / ${c.certificates}`} />
+              <Kpi k={tr(til, MK.kpiIncome)} v={`${som(c.revenue)}${c.sales ? ` · ${countTa(til, c.sales)}` : ""}`} />
             </dl>
             {c.lessons.length > 0 && c.students > 0 && (
               <div className="mt-4">
-                <p className="mb-1.5 text-[12.5px] font-semibold text-fg-3">Darslarni tugatganlar (talabalarning %)</p>
+                <p className="mb-1.5 text-[12.5px] font-semibold text-fg-3">{tr(til, MK.lessonCompletion)}</p>
                 <ul className="space-y-1.5">
                   {c.lessons.map((l, i) => {
                     const prev = i > 0 ? c.lessons[i - 1].pct : 100;
@@ -77,14 +81,14 @@ export default async function MentorAnalyticsPage() {
                     );
                   })}
                 </ul>
-                <p className="mt-2 text-[11.5px] text-fg-4">Qizil — oldingi darsga nisbatan keskin tushish: shu darsni qisqartiring yoki soddalashtiring.</p>
+                <p className="mt-2 text-[11.5px] text-fg-4">{tr(til, MK.dropHint)}</p>
               </div>
             )}
             {c.studentsList.length > 0 && (
               /* Talabalar ro'yxati — kimlar qayerda: progress chizig'i, oxirgi dars, «Yozish» (faqat ommaviy ism/avatar/username) */
               <details className="group mt-4">
                 <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-fg-2 hover:text-fg [&::-webkit-details-marker]:hidden">
-                  <ChevronRight size={14} className="transition group-open:rotate-90" aria-hidden /> Talabalar · {c.studentsList.length}
+                  <ChevronRight size={14} className="transition group-open:rotate-90" aria-hidden /> {tr(til, MK.students)} · {c.studentsList.length}
                 </summary>
                 <ul className="mt-2 divide-y divide-line rounded-[14px] border border-line">
                   {c.studentsList.map((st) => (
@@ -97,11 +101,11 @@ export default async function MentorAnalyticsPage() {
                         </span>
                         <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-fg/8"><span className={cn("block h-full rounded-full", st.progressPct >= 100 ? "bg-success" : "bg-accent")} style={{ width: `${Math.max(2, st.progressPct)}%` }} /></span>
                         <span className="mt-1 block truncate text-[11.5px] text-fg-4">
-                          {st.lastLesson ? `Oxirgi: ${st.lastLesson}` : "Hali boshlamagan"} · yozilgan {timeAgo(st.enrolledAt)}
+                          {st.lastLesson ? MK.lastLesson[til](st.lastLesson) : tr(til, MK.notStarted)} · {MK.enrolledAgo[til](timeAgoLabel(til, st.enrolledAt))}
                         </span>
                       </span>
                       {st.username && (
-                        <Link href={`/yozish/${st.username}`} aria-label={`${st.name}ga yozish`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg">
+                        <Link href={`/yozish/${st.username}`} aria-label={MK.writeTo[til](st.name)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-fg-3 transition hover:border-fg hover:text-fg">
                           <MessageCircle size={14} />
                         </Link>
                       )}

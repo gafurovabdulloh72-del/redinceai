@@ -3185,3 +3185,25 @@ export const articles = sqliteTable(
   (t) => [uniqueIndex("articles_slug_uq").on(t.slug), index("articles_pub_idx").on(t.isPublished, t.publishedAt)],
 );
 export type Article = typeof articles.$inferSelect;
+
+/**
+ * AVTOMATIK RU TARJIMA KESHI (2026-11-04): UI'dagi o'zbekcha matn → ruscha. `source`: dict (statik lug'at),
+ * ai (Gemini), admin (qo'lda). `ru` null — tarjima hali topilmagan (sync skripti/ AI to'ldiradi).
+ * Kalit `src` — normalizatsiya qilingan matn (`lib/i18n/auto.ts normalizeUz`).
+ */
+export const uiTranslations = sqliteTable(
+  "ui_translations",
+  {
+    src: text("src").primaryKey(),
+    ru: text("ru"),
+    source: text("source", { enum: ["dict", "ai", "admin"] }).notNull().default("ai"),
+    hits: integer("hits").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("ui_tr_missing_idx").on(t.ru)],
+);

@@ -139,6 +139,8 @@ export const RATE_LIMITS = {
   stories: { limit: 300, windowMs: HOUR },
   /** Til almashtirish — IP bo'yicha (13-band: cookie yozadi, arzon, lekin cheksiz edi) */
   locale: { limit: 120, windowMs: HOUR },
+  /** Avtomatik RU tarjima (IP) — har so'rov ≤60 matn; Gemini chaqiruvi qimmat */
+  i18nAuto: { limit: 90, windowMs: HOUR },
   /** Post statistikasi — userId (16-band) */
   postStats: { limit: 120, windowMs: HOUR },
 } as const;

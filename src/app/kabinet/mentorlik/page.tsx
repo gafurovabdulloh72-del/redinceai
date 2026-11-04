@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight, ChevronRight, GraduationCap, Radio, Route, Sparkles } from "lucide-react";
@@ -26,6 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * USTOZ: 4 tabli MentorNav (Umumiy · Sahifam · Daromad · Vazifalar); Yo'l xaritasi — shu yerdagi havoladan.
  */
 export default async function KabinetMentorlikPage() {
+  const til = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik"));
 
@@ -43,16 +45,16 @@ export default async function KabinetMentorlikPage() {
           <>
             <header className="flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0">
-                <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Mentorlik</h1>
-                <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Kurslaringiz, talabalar va daromad — hammasi shu yerda</p>
+                <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.mentorshipTitle)}</h1>
+                <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.mentorshipLead)}</p>
               </div>
               {pageHref && (
                 <div className="flex flex-wrap gap-2">
                   <Link href={pageHref} className="btn-ink inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold">
-                    <Radio size={15} /> Post va efir qo&apos;yish
+                    <Radio size={15} /> {tr(til, MK.postAndLive)}
                   </Link>
                   <Link href={pageHref} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-                    Sahifani ko&apos;rish <ArrowUpRight size={14} />
+                    {tr(til, MK.viewPage)} <ArrowUpRight size={14} />
                   </Link>
                 </div>
               )}
@@ -63,8 +65,8 @@ export default async function KabinetMentorlikPage() {
             <Link href="/kabinet/mentorlik/yol-xaritasi" className="card card-hover flex items-center gap-3 p-4">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fg/6 text-fg-2"><Route size={16} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-bold text-fg">Yo&apos;l xaritalari</span>
-                <span className="block text-[12.5px] text-fg-3">Kurslarni ketma-ketlikka yig&apos;ing — talaba keyingi qadamni ko&apos;radi</span>
+                <span className="block text-[14px] font-bold text-fg">{tr(til, MK.roadmaps)}</span>
+                <span className="block text-[12.5px] text-fg-3">{tr(til, MK.roadmapsHint)}</span>
               </span>
               <ChevronRight size={16} className="shrink-0 text-fg-4" />
             </Link>
@@ -73,16 +75,16 @@ export default async function KabinetMentorlikPage() {
           /* ------------------------ O'QUVCHI ko'rinishi ------------------------ */
           <>
             <header>
-              <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Mening kurslarim</h1>
-              <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Yozilgan kurslaringiz va o&apos;qish jarayoni</p>
+              <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.myCourses)}</h1>
+              <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.myCoursesLead)}</p>
             </header>
             {enrollments.length === 0 && (
               <div className="card grid place-items-center gap-2 p-10 text-center m-flat">
                 <GraduationCap size={28} className="text-fg-4" />
-                <p className="text-[15px] font-bold text-fg">Hali kursga yozilmagansiz</p>
-                <p className="max-w-sm text-[13.5px] text-fg-3">Tajribali ustozlardan amaliy kurslar — bepul namunalar bilan. Birini tanlab ko&apos;ring.</p>
+                <p className="text-[15px] font-bold text-fg">{tr(til, MK.notEnrolled)}</p>
+                <p className="max-w-sm text-[13.5px] text-fg-3">{tr(til, MK.notEnrolledHint)}</p>
                 <Link href="/mentorlik" className="btn-accent mt-2 inline-flex h-11 items-center rounded-full px-6 text-[14.5px] font-semibold">
-                  Kurslarni ko&apos;rish
+                  {tr(til, MK.browseCourses)}
                 </Link>
               </div>
             )}
@@ -101,8 +103,8 @@ export default async function KabinetMentorlikPage() {
             <summary className="card flex cursor-pointer list-none items-center gap-3 p-4 transition hover:border-fg/25 [&::-webkit-details-marker]:hidden">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"><Sparkles size={16} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-bold text-fg">Ustoz bo&apos;lmoqchimisiz?</span>
-                <span className="block text-[12.5px] text-fg-3">{mentor ? "Arizangiz ko'rib chiqilmoqda" : "Bilimingizni ulashing va kurs ochib daromad qiling"}</span>
+                <span className="block text-[14px] font-bold text-fg">{tr(til, MK.wantMentor)}</span>
+                <span className="block text-[12.5px] text-fg-3">{mentor ? tr(til, MK.applyPending) : tr(til, MK.applyInvite)}</span>
               </span>
               <ChevronRight size={16} className="shrink-0 text-fg-4 transition group-open:rotate-90" />
             </summary>

@@ -257,7 +257,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             {roadmaps.map((r) => (
               <section key={r.id} className="card p-4 sm:p-5">
                 <h2 className="font-display text-[17px] font-extrabold text-fg">{r.title}</h2>
-                {r.description && <p className="mt-0.5 text-[13.5px] text-fg-3">{r.description}</p>}
+                {r.description && <p data-no-auto className="mt-0.5 text-[13.5px] text-fg-3">{r.description}</p>}
                 <ol className="mt-3 space-y-2">
                   {r.steps.map((st, i) => (
                     <li key={st.id}>

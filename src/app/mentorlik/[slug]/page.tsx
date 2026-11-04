@@ -186,7 +186,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
               <ShareButton title={c.title} size="md" variant="outline" iconOnly />
             </div>
           </div>
-          {c.summary && <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
+          {c.summary && <p data-no-auto className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-fg-2">{c.summary}</p>}
 
           {/* Udemy uslubidagi meta qator: davomiylik · til · yangilangan · sertifikat */}
           <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-fg-3">
@@ -329,7 +329,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                     </p>
                   </div>
                 </div>
-                {r.body && <p className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-fg-2">{r.body}</p>}
+                {r.body && <p data-no-auto className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-fg-2">{r.body}</p>}
               </li>
             ))}
             {c.reviews.length === 0 && <li className="text-[13px] text-fg-3">{tr(til, MS.noReviews)}</li>}

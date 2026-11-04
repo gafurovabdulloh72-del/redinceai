@@ -488,7 +488,7 @@ function WorkBody({ work, author, til, onClose }: { work: WorkLite; author: Moda
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <h3 className="font-display text-[18px] font-semibold text-fg">{work.title}</h3>
-          {work.description && <p className="mt-2 whitespace-pre-wrap text-[14.5px] leading-relaxed text-fg-2">{work.description}</p>}
+          {work.description && <p data-no-auto className="mt-2 whitespace-pre-wrap text-[14.5px] leading-relaxed text-fg-2">{work.description}</p>}
           {work.tags.length > 0 && (
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={tr(til, POST_OYNA.tags)}>
               {work.tags.map((t) => (

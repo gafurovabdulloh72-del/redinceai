@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect } from "react";
 import { DEFAULT_DISPLAY, type DisplayLocale } from "@/lib/i18n";
 import { toCyrillic } from "@/lib/i18n/cyrillic";
+import { RuAutoLayer } from "./RuAutoLayer";
 
 /** Ko'rinish tili (uz | uz_cyrl | ru | en) — switcher uchun. BASE til `useLocale()` da alohida. */
 const DisplayLocaleContext = createContext<DisplayLocale>(DEFAULT_DISPLAY);
@@ -12,6 +13,8 @@ export function DisplayLocaleProvider({ value, children }: { value: DisplayLocal
     <DisplayLocaleContext.Provider value={value}>
       {children}
       <CyrillicLayer active={value === "uz_cyrl"} />
+      {/* Rus (va hozircha ingliz → ru) rejimida lug'atga ulanmagan matnlar avtomatik ruschaga */}
+      <RuAutoLayer active={value === "ru" || value === "en"} />
     </DisplayLocaleContext.Provider>
   );
 }

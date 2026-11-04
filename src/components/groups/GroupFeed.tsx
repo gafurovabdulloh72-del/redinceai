@@ -687,7 +687,7 @@ function PostBody({ body, til }: { body: string; til: Locale }) {
   const long = body.length > CLAMP_CHARS || body.split("\n").length > CLAMP_LINES;
   return (
     <div className="mt-3.5">
-      <p className={cn("whitespace-pre-wrap break-words text-[15.5px] leading-[1.6] text-fg", long && !open && "line-clamp-4")}>
+      <p data-no-auto className={cn("whitespace-pre-wrap break-words text-[15.5px] leading-[1.6] text-fg", long && !open && "line-clamp-4")}>
         <RichText text={body} />
       </p>
       {long && (

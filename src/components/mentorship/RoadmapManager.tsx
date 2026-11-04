@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Loader2, Trash2 } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import { cn } from "@/lib/utils";
 
 type Rm = { id: string; title: string; description: string; courseIds: string[] };
@@ -11,6 +14,7 @@ type Course = { id: string; title: string };
 
 /** Yo'l xaritasi yaratish: kurslarni ketma-ketlikka yig'ish («Boshlovchidan professionalgacha») */
 export function RoadmapManager({ roadmaps, courses }: { roadmaps: Rm[]; courses: Course[] }) {
+  const til = useLocale();
   const router = useRouter();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [title, setTitle] = useState("");
@@ -32,12 +36,12 @@ export function RoadmapManager({ roadmaps, courses }: { roadmaps: Rm[]; courses:
     try {
       const r = await fetch("/api/mentorlik/yol-xaritasi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: editing === "new" ? undefined : editing, title, description, courseIds: ids }) });
       const j = (await r.json()) as { error?: string; fields?: Record<string, string> };
-      if (!r.ok) throw new Error(Object.values(j.fields ?? {})[0] || j.error || "Xatolik");
-      showToast("Saqlandi", "success");
+      if (!r.ok) throw new Error(Object.values(j.fields ?? {})[0] || j.error || tr(til, MK.error));
+      showToast(tr(til, MK.saved), "success");
       setEditing(null);
       router.refresh();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+      showToast(e instanceof Error ? e.message : tr(til, MK.error), "error");
     } finally {
       setBusy(false);
     }
@@ -54,32 +58,32 @@ export function RoadmapManager({ roadmaps, courses }: { roadmaps: Rm[]; courses:
           <li key={r.id} className="card flex items-center gap-3 p-3.5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14.5px] font-bold text-fg">{r.title}</p>
-              <p className="truncate text-[12.5px] text-fg-3">{r.courseIds.length} bosqich</p>
+              <p className="truncate text-[12.5px] text-fg-3">{MK.stagesN[til](r.courseIds.length)}</p>
             </div>
-            <button type="button" onClick={() => open(r)} className="text-[13px] font-semibold text-fg-2 hover:text-fg">Tahrirlash</button>
-            <button type="button" aria-label="O'chirish" onClick={() => void remove(r.id)} className="text-fg-3 hover:text-danger"><Trash2 size={15} /></button>
+            <button type="button" onClick={() => open(r)} className="text-[13px] font-semibold text-fg-2 hover:text-fg">{tr(til, MK.edit)}</button>
+            <button type="button" aria-label={tr(til, MK.del)} onClick={() => void remove(r.id)} className="text-fg-3 hover:text-danger"><Trash2 size={15} /></button>
           </li>
         ))}
-        {roadmaps.length === 0 && <li className="card p-5 text-center text-[13.5px] text-fg-3">Hali yo&apos;l xaritasi yo&apos;q.</li>}
+        {roadmaps.length === 0 && <li className="card p-5 text-center text-[13.5px] text-fg-3">{tr(til, MK.noRoadmaps)}</li>}
       </ul>
       {!editing && courses.length > 0 && roadmaps.length < 6 && (
-        <button type="button" onClick={() => open()} className="h-11 rounded-full bg-fg px-6 text-[14px] font-semibold text-bg">Yangi yo&apos;l xaritasi</button>
+        <button type="button" onClick={() => open()} className="h-11 rounded-full bg-fg px-6 text-[14px] font-semibold text-bg">{tr(til, MK.newRoadmap)}</button>
       )}
-      {courses.length === 0 && <p className="text-[13.5px] text-fg-3">Avval kamida bitta bo&apos;lim (kurs) yarating.</p>}
+      {courses.length === 0 && <p className="text-[13.5px] text-fg-3">{tr(til, MK.needCourseFirst)}</p>}
       {editing && (
         <div className="card m-flat space-y-3 p-4">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="Nomi: Boshlovchidan professionalgacha" className="field h-11 w-full text-[14px]" />
-          <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} placeholder="Qisqa tavsif (ixtiyoriy)" className="field h-11 w-full text-[14px]" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder={tr(til, MK.roadmapNamePh)} className="field h-11 w-full text-[14px]" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} placeholder={tr(til, MK.shortDescPh)} className="field h-11 w-full text-[14px]" />
           <div>
-            <p className="mb-1.5 text-[12.5px] font-semibold text-fg-3">Kurslar (tartib bilan)</p>
+            <p className="mb-1.5 text-[12.5px] font-semibold text-fg-3">{tr(til, MK.coursesOrdered)}</p>
             <ol className="space-y-1">
               {ids.map((id, i) => (
                 <li key={id} className="flex items-center gap-2 rounded-lg bg-fg/[0.04] px-2.5 py-1.5 text-[13.5px]">
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-fg text-[11.5px] font-bold text-bg">{i + 1}</span>
                   <span className="min-w-0 flex-1 truncate font-semibold text-fg">{name(id)}</span>
-                  <button type="button" aria-label="Yuqoriga" onClick={() => move(i, -1)} className="text-fg-3 hover:text-fg"><ArrowUp size={14} /></button>
-                  <button type="button" aria-label="Pastga" onClick={() => move(i, 1)} className="text-fg-3 hover:text-fg"><ArrowDown size={14} /></button>
-                  <button type="button" aria-label="Olib tashlash" onClick={() => setIds((a) => a.filter((x) => x !== id))} className="text-fg-3 hover:text-danger"><Trash2 size={13} /></button>
+                  <button type="button" aria-label={tr(til, MK.up)} onClick={() => move(i, -1)} className="text-fg-3 hover:text-fg"><ArrowUp size={14} /></button>
+                  <button type="button" aria-label={tr(til, MK.down)} onClick={() => move(i, 1)} className="text-fg-3 hover:text-fg"><ArrowDown size={14} /></button>
+                  <button type="button" aria-label={tr(til, MK.remove)} onClick={() => setIds((a) => a.filter((x) => x !== id))} className="text-fg-3 hover:text-danger"><Trash2 size={13} /></button>
                 </li>
               ))}
             </ol>
@@ -90,8 +94,8 @@ export function RoadmapManager({ roadmaps, courses }: { roadmaps: Rm[]; courses:
             </div>
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={busy || title.trim().length < 3 || ids.length === 0} onClick={() => void save()} className="btn-accent inline-flex h-10 items-center gap-2 px-5 text-[14px] font-semibold disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />} Saqlash</button>
-            <button type="button" onClick={() => setEditing(null)} className="h-10 rounded-full px-4 text-[13.5px] font-semibold text-fg-3">Bekor</button>
+            <button type="button" disabled={busy || title.trim().length < 3 || ids.length === 0} onClick={() => void save()} className="btn-accent inline-flex h-10 items-center gap-2 px-5 text-[14px] font-semibold disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />} {tr(til, MK.save)}</button>
+            <button type="button" onClick={() => setEditing(null)} className="h-10 rounded-full px-4 text-[13.5px] font-semibold text-fg-3">{tr(til, MK.cancel)}</button>
           </div>
         </div>
       )}

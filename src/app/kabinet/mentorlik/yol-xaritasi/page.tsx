@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -18,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RoadmapPage() {
+  const til = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik/yol-xaritasi"));
   const m = await getMentorForUser(user.id);
@@ -29,8 +31,8 @@ export default async function RoadmapPage() {
       <MentorNav active="umumiy" />
       <div className="space-y-5">
         <header>
-          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Yo&apos;l xaritalari</h1>
-          <p className="mt-1 text-[13px] text-fg-3 max-sm:hidden">Kurslaringizni ketma-ketlikka yig&apos;ing — talaba qayerdaligini va keyingi qadamni ko&apos;radi.</p>
+          <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.roadmaps)}</h1>
+          <p className="mt-1 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.roadmapsLead)}</p>
         </header>
         <RoadmapManager roadmaps={rms.map((r) => ({ id: r.id, title: r.title, description: r.description, courseIds: r.courseIds }))} courses={cs} />
       </div>

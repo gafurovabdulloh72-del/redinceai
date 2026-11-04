@@ -49,7 +49,7 @@ export function RichText({ text, className }: { text: string; className?: string
       );
     }
   });
-  return <span className={className}>{out}</span>;
+  return <span data-no-auto className={className}>{out}</span>;
 }
 
 /** Matndagi birinchi http(s) havola (havola kartasi uchun); yo'q bo'lsa null */

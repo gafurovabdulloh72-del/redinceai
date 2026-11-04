@@ -4,6 +4,7 @@ import { BarChart3 } from "lucide-react";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
+import { MK } from "@/lib/i18n/dict/mentorship";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -22,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function MentorMoneyPage() {
+  const til = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik/daromad"));
   const m = await getMentorForUser(user.id);
@@ -42,20 +44,20 @@ export default async function MentorMoneyPage() {
       <div className="space-y-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">Daromad va sozlamalar</h1>
-            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">Balans va yechish, promokod, obuna narxi va 1:1 vaqtlar</p>
+            <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.moneyTitle)}</h1>
+            <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.moneyLead)}</p>
           </div>
           {/* Tahlil endi shu tab ichidan ochiladi (nav 4 tabga qisqartirilgan) */}
           <Link href="/kabinet/mentorlik/statistika" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg">
-            <BarChart3 size={14} /> Batafsil tahlil
+            <BarChart3 size={14} /> {tr(til, MK.detailedAnalytics)}
           </Link>
         </header>
         {/* Oylik daromad grafigi (kamchilik #27) — faqat daromad bo'lsa chiziladi */}
         {monthly.some((x) => x.net > 0) && (
-          <section className="card p-5" aria-label="Oylik daromad">
+          <section className="card p-5" aria-label={tr(til, MK.monthlyIncome)}>
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <h2 className="font-display text-[15px] font-semibold text-fg">Oylik daromad — so&apos;nggi 6 oy</h2>
-              <p className="text-[12px] text-fg-3">Sof (komissiyadan keyin), qaytarilganlarsiz</p>
+              <h2 className="font-display text-[15px] font-semibold text-fg">{tr(til, MK.monthlyIncome6)}</h2>
+              <p className="text-[12px] text-fg-3">{tr(til, MK.monthlyIncomeHint)}</p>
             </div>
             {(() => {
               const max = Math.max(...monthly.map((x) => x.net), 1);
