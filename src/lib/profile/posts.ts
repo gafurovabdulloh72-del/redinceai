@@ -117,8 +117,8 @@ export async function setProfilePostPinned(postId: string, authorId: string, pin
   return { ok: true, isPinned: pinned };
 }
 
-/** Profil sarlavhasi uchun sonlar: jami post, video, faqat matn */
-export async function profilePostCounts(authorId: string): Promise<{ posts: number; videos: number; texts: number; views: number }> {
+/** Profil sarlavhasi uchun sonlar: jami post, video, faqat matn. `viewer` — muallif/admin yashirilgan postini ham sanaydi (to'r bilan mos) */
+export async function profilePostCounts(authorId: string, viewer: Viewer = null): Promise<{ posts: number; videos: number; texts: number; views: number }> {
   const [r] = await db
     .select({
       n: sql<number>`count(*)`,
@@ -127,7 +127,7 @@ export async function profilePostCounts(authorId: string): Promise<{ posts: numb
       w: sql<number>`coalesce(sum(${posts.viewsCount}), 0)`,
     })
     .from(posts)
-    .where(and(eq(posts.authorId, authorId), PROFILE_VISIBLE, eq(posts.hiddenByReports, false)));
+    .where(and(eq(posts.authorId, authorId), PROFILE_VISIBLE, postNotHiddenCondition(viewer)));
   return { posts: Number(r?.n ?? 0), videos: Number(r?.v ?? 0), texts: Number(r?.t ?? 0), views: Number(r?.w ?? 0) };
 }
 

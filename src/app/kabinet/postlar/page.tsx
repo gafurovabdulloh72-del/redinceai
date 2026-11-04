@@ -27,7 +27,7 @@ export default async function MyPostsPage() {
     );
   }
   const viewer = { id: user.id, role: user.role };
-  const [page, counts] = await Promise.all([listProfilePosts(user.id, viewer, { limit: 20 }), profilePostCounts(user.id)]);
+  const [page, counts] = await Promise.all([listProfilePosts(user.id, viewer, { limit: 20 }), profilePostCounts(user.id, viewer)]);
   const profileHref = `/mutaxassislar/${user.specialist.slug}?tab=postlar`;
 
   return (

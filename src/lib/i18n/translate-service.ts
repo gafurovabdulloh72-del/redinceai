@@ -39,7 +39,9 @@ export async function translateUiBatch(texts: string[]): Promise<Record<string, 
   }
   if (missing.length === 0) return out;
 
-  const ai = isAutoTranslateConfigured() ? await geminiTranslate(missing) : null;
+  // AI sozlanmagan bo'lsa HECH NARSA yozilmaydi — kalit keyin qo'shilsa shu iboralar birinchi so'rovdayoq tarjima bo'ladi
+  if (!isAutoTranslateConfigured()) return out;
+  const ai = await geminiTranslate(missing);
   const inserts = missing.map((src, i) => {
     const ru = ai?.[i]?.trim();
     const good = ru && ru !== src && /[а-яё]/i.test(ru) ? ru : null;

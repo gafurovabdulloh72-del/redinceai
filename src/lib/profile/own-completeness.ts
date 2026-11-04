@@ -13,7 +13,7 @@ export async function ownCompleteness(user: { id: string; avatarUrl: string | nu
   if (!sp) return null;
   const [pf, pc] = await Promise.all([
     db.select({ n: count() }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id)).then((r) => r[0]?.n ?? 0),
-    profilePostCounts(user.id).catch(() => ({ posts: 0 })),
+    profilePostCounts(user.id, { id: user.id, role: "specialist" }).catch(() => ({ posts: 0 })),
   ]);
   const c = profileCompleteness({
     avatarUrl: user.avatarUrl,

@@ -16,7 +16,8 @@ const ATTRS = ["placeholder", "title", "aria-label"] as const;
 
 function eligible(node: Text): boolean {
   const p = node.parentElement;
-  if (!p || SKIP_TAGS.has(p.tagName)) return false;
+  // SVG elementlarda tagName kichik harfda (svg/text/tspan) — toUpperCase bilan tekshiramiz
+  if (!p || SKIP_TAGS.has(p.tagName.toUpperCase()) || p.closest("svg")) return false;
   if (p.closest('[data-no-auto],[data-no-cyrl],[contenteditable="true"],input,textarea')) return false;
   const v = node.nodeValue ?? "";
   return Boolean(v.trim()) && looksUzbek(v);

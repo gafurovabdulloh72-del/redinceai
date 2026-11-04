@@ -1,9 +1,10 @@
 import "server-only";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { feedbacks, users, type Feedback } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
+import { IMAGE_URL_RE } from "@/components/chat/attachments";
 import { assertNotSpam } from "@/lib/security/spam-filter";
 import { uid } from "@/lib/utils";
 
@@ -27,7 +28,7 @@ export const feedbackSchema = z.object({
     .max(600)
     .optional()
     .nullable()
-    .refine((v) => !v || v.startsWith("/uploads/") || /^https:\/\/[^/]+\.(public\.blob\.vercel-storage\.com|r2\.dev|r2\.cloudflarestorage\.com)\//.test(v), { error: "Skrinshot faqat saytga yuklangan rasm bo'lishi mumkin" }),
+    .refine((v) => !v || IMAGE_URL_RE.test(v), { error: "Skrinshot faqat saytga yuklangan rasm bo'lishi mumkin" }),
 });
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
 
@@ -68,6 +69,6 @@ export async function setFeedbackStatus(id: string, status: "open" | "done"): Pr
 }
 
 export async function openFeedbackCount(): Promise<number> {
-  const rows = await db.select({ id: feedbacks.id }).from(feedbacks).where(eq(feedbacks.status, "open"));
-  return rows.length;
+  const [row] = await db.select({ n: sql<number>`count(*)` }).from(feedbacks).where(eq(feedbacks.status, "open"));
+  return Number(row?.n ?? 0);
 }

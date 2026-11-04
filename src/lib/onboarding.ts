@@ -42,7 +42,7 @@ export async function creatorOnboarding(user: Source): Promise<Onboarding | null
   if (!sp && user.role !== "specialist") return null;
   const [portfolio, posts, communities] = await Promise.all([
     sp ? db.select({ n: count() }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id)).then((r) => r[0]?.n ?? 0) : Promise.resolve(0),
-    profilePostCounts(user.id)
+    profilePostCounts(user.id, { id: user.id, role: user.role })
       .then((c) => c.posts)
       .catch(() => 0),
     // Rasmiy kanalga hamma avtomatik a'zo — «jamoaga qo'shilish» qadamini u bajarmaydi

@@ -87,7 +87,7 @@ export const profileCompletion = cache(async (user: Source): Promise<ProfileComp
   // Mutaxassis: 2 ta yengil sanash so'rovi parallel
   const [portfolio, posts] = await Promise.all([
     sp ? db.select({ n: count() }).from(portfolioItems).where(eq(portfolioItems.specialistId, sp.id)).then((r) => r[0]?.n ?? 0).catch(() => 0) : Promise.resolve(0),
-    profilePostCounts(user.id)
+    profilePostCounts(user.id, { id: user.id, role: user.role })
       .then((c) => c.posts)
       .catch(() => 0),
   ]);

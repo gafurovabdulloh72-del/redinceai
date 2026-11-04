@@ -41,7 +41,7 @@ export async function hasFollowRequest(fromUserId: string, toUserId: string): Pr
 }
 
 /** Yopiq profilga so'rov yuborish (idempotent): bor bo'lsa shunchaki `requested` */
-export async function requestFollow(fromUserId: string, toUserId: string, fromName: string, href: string | null): Promise<{ status: "requested" }> {
+export async function requestFollow(fromUserId: string, toUserId: string, fromName: string): Promise<{ status: "requested" }> {
   const dup = await db.query.followRequests.findFirst({ where: and(eq(followRequests.fromUserId, fromUserId), eq(followRequests.toUserId, toUserId)), columns: { id: true } });
   if (!dup) {
     await db.insert(followRequests).values({ id: uid(), fromUserId, toUserId, createdAt: new Date() });

@@ -31,7 +31,8 @@ export function ok<T>(data: T, init?: ResponseInit) {
 }
 
 export function fail(status: number, message: string, fields?: Record<string, string>, headers?: Record<string, string>) {
-  return NextResponse.json({ ok: false, error: message, fields }, { status, headers });
+  // Xato javobi ham shaxsiy (401/403/422 matnlari) — CDN/brauzer keshlamasin (prod-check shuni tekshiradi)
+  return NextResponse.json({ ok: false, error: message, fields }, { status, headers: { "cache-control": "private, no-store", ...headers } });
 }
 
 export interface HandlerOptions {

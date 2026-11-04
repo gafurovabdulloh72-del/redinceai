@@ -1448,8 +1448,7 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
       return { following: false, followersCount: Number(cnt), status: "cancelled" };
     }
     const who = (await briefUsers([followerId])).get(followerId);
-    const href = who?.slug ? `/mutaxassislar/${who.slug}` : who?.username ? `/yozish/${who.username}` : null;
-    await requestFollow(followerId, followingId, who?.name ?? "Foydalanuvchi", href);
+    await requestFollow(followerId, followingId, who?.name ?? "Foydalanuvchi");
     return { following: false, followersCount: Number(cnt), status: "requested" };
   }
   if (existing) {

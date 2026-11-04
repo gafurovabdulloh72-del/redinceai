@@ -250,7 +250,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const privateLocked = !(await canViewPrivateContent(feedViewer, { id: raw.userId, profilePrivate: raw.user.profilePrivate }));
   const [profilePosts, postCounts, openPost, highlights, badges] = await Promise.all([
     listProfilePosts(raw.userId, feedViewer, { limit: 18 }),
-    profilePostCounts(raw.userId),
+    profilePostCounts(raw.userId, feedViewer),
     typeof postParam === "string" && postParam ? getProfilePostView(postParam, feedViewer, raw.userId) : Promise.resolve(null),
     listHighlights(raw.userId).catch(() => []),
     creatorBadges(raw.userId, til).catch(() => []),
