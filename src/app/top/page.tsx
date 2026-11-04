@@ -114,7 +114,7 @@ export default async function TopPage({ searchParams }: { searchParams: Promise<
               ))}
             </ul>
             <p className="flex items-center justify-center gap-1.5 border-t border-line bg-accent-soft/50 px-4 py-3 text-center text-[12.5px] font-semibold text-accent-text">
-              <Sparkles size={14} /> {tr(til, TOP.premiumGiven)}{latest.premiumUntil ? ` — ${formatDate(new Date(latest.premiumUntil - 1), til)} ${tr(til, TOP.until)}` : ""}
+              <Sparkles size={14} /> {tr(til, TOP.premiumGiven)}{latest.premiumUntil ? (til === "ru" ? ` — до ${formatDate(new Date(latest.premiumUntil - 1), til)}` : ` — ${formatDate(new Date(latest.premiumUntil - 1), til)} ${tr(til, TOP.until)}`) : ""}
             </p>
           </section>
         ) : (
