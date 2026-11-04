@@ -58,6 +58,8 @@ export const users = sqliteTable(
     dmPolicy: text("dm_policy", { enum: ["all", "following", "none"] }).notNull().default("all"),
     commentPolicy: text("comment_policy", { enum: ["all", "followers", "none"] }).notNull().default("all"),
     showOnline: integer("show_online", { mode: "boolean" }).notNull().default(true),
+    /** Yopiq profil (2026-11-04): postlar/story/portfolio faqat tasdiqlangan obunachilarga; obuna — so'rov orqali (follow_requests) */
+    profilePrivate: integer("profile_private", { mode: "boolean" }).notNull().default(false),
     /** Bildirishnoma sozlamalari tur-guruh bo'yicha (kabinet): { orders?: false, social?: false, ... } — yo'q kalit = yoqilgan (lib/notifications NOTIFY_GROUPS) */
     notifyPrefs: text("notify_prefs", { mode: "json" }).$type<Record<string, boolean>>().notNull().default({}),
     /** Jamlama xabarnoma (Telegram/email/sayt): off | daily | weekly. Yangi ro'yxatdan o'tganlarga weekly, eskilarga off (lib/digest.ts) */
@@ -77,6 +79,8 @@ export const users = sqliteTable(
     /** Admin izohi (faqat admin panelda; foydalanuvchiga ko'rsatilmaydi) va qachon yozilgani */
     adminNote: text("admin_note"),
     adminNoteAt: integer("admin_note_at", { mode: "timestamp_ms" }),
+    /** Foydalanuvchi tili (2026-11-04): uz | ru — email bildirishnomalar/jamlama shu tilda; null — noma'lum (uz). `/api/til` va ro'yxatda yoziladi */
+    lang: text("lang", { enum: ["uz", "ru"] }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -268,6 +272,10 @@ export const specialists = sqliteTable(
     /** Ta'tilda: shu sanagacha buyurtma qabul qilmaydi (ISO sana) */
     vacationUntil: text("vacation_until"),
     isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
+    /** Tasdiq so'rovi (2026-11-04): mutaxassis «Tasdiqlash so'rovi» bosgan vaqt (null — so'ralmagan/rad etilgan); admin tasdiqlaganda tozalanadi */
+    verificationRequestedAt: integer("verification_requested_at", { mode: "timestamp_ms" }),
+    /** Admin rad etish sababi (egasiga ko'rinadi); tasdiqlanganda null */
+    verificationNote: text("verification_note"),
     /** Admin katalogdan yashirgan (ro'yxat/xarita/qidiruvda chiqmaydi; to'g'ridan-to'g'ri havola ochiladi) */
     isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),
     isAvailable: integer("is_available", { mode: "boolean" }).notNull().default(true),
@@ -467,6 +475,8 @@ export const reviews = sqliteTable(
     /** Mutaxassisning javobi (bitta) */
     reply: text("reply"),
     replyAt: integer("reply_at", { mode: "timestamp_ms" }),
+    /** Shikoyatlar sababli avtomatik yashirilgan (lib/moderation.ts AUTO_HIDE_REPORTS); admin shikoyatni yopsa qaytadi */
+    hiddenByReports: integer("hidden_by_reports", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -1330,6 +1340,8 @@ export const posts = sqliteTable(
     /** Jonli efir / yig'ilish e'loni: vaqti va havolasi (Zoom, Meet, YouTube, Telegram); null — oddiy post */
     eventAt: integer("event_at", { mode: "timestamp_ms" }),
     eventUrl: text("event_url"),
+    /** Shikoyatlar sababli avtomatik yashirilgan (lib/moderation.ts): lenta/profil/reels/qidiruvda chiqmaydi, egasi va admin ko'radi */
+    hiddenByReports: integer("hidden_by_reports", { mode: "boolean" }).notNull().default(false),
     /** Matn tahrirlangan vaqt (null — tahrirlanmagan). `updatedAt` izoh qo'shilganda ham o'zgaradi, bu ustun — faqat tahrirda */
     editedAt: integer("edited_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -1410,6 +1422,8 @@ export const postComments = sqliteTable(
     body: text("body").notNull(),
     /** Javob berilgan izoh (1 daraja; shu postdagi izoh) — null: oddiy izoh */
     replyToId: text("reply_to_id"),
+    /** Shikoyatlar sababli avtomatik yashirilgan (lib/moderation.ts) — ro'yxatda chiqmaydi */
+    hiddenByReports: integer("hidden_by_reports", { mode: "boolean" }).notNull().default(false),
     /** Post muallifi qadagan izoh — ro'yxatda birinchi turadi (bitta post uchun bitta qadalgan) */
     isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
     /** Muallif tahrirlagan vaqt (null — tahrirlanmagan) */
@@ -3207,3 +3221,49 @@ export const uiTranslations = sqliteTable(
   },
   (t) => [index("ui_tr_missing_idx").on(t.ru)],
 );
+
+/**
+ * YOPIQ PROFIL (2026-11-04): obuna so'rovlari — yopiq profilga obuna bo'lish uchun egasi tasdiqlashi kerak.
+ * Tasdiqlanganda `follows` qatori yoziladi va so'rov o'chiriladi; rad etilganda shunchaki o'chiriladi.
+ */
+export const followRequests = sqliteTable(
+  "follow_requests",
+  {
+    id: text("id").primaryKey(),
+    fromUserId: text("from_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toUserId: text("to_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("follow_requests_pair_idx").on(t.fromUserId, t.toUserId), index("follow_requests_to_idx").on(t.toUserId, t.createdAt)],
+);
+export type FollowRequest = typeof followRequests.$inferSelect;
+
+/**
+ * FIKR BILDIRISH (2026-11-04): ilova ichidan foydalanuvchi fikri (xato / g'oya / boshqa). Mehmon ham yuboradi
+ * (userId null). Admin «Tizim» tabida ko'radi va `status` ni almashtiradi. Matn — xom (UI'da matn sifatida chiziladi).
+ */
+export const feedbacks = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Fikr yuborilgan sahifa yo'li (masalan, /kabinet/profil) */
+    page: text("page").notNull().default(""),
+    kind: text("kind", { enum: ["bug", "idea", "other"] }).notNull().default("other"),
+    text: text("text").notNull(),
+    screenshotUrl: text("screenshot_url"),
+    userAgent: text("user_agent").notNull().default(""),
+    status: text("status", { enum: ["open", "done"] }).notNull().default("open"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("feedback_status_idx").on(t.status, t.createdAt), index("feedback_user_idx").on(t.userId)],
+);
+export type Feedback = typeof feedbacks.$inferSelect;

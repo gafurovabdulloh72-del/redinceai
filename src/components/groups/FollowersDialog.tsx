@@ -7,6 +7,10 @@ import { UsersRound, X } from "lucide-react";
 import { Avatar, Button } from "@/components/ui";
 import { usePresence } from "@/components/motion/usePresence";
 import { FollowButton } from "./FollowButton";
+import { FollowRequests } from "./FollowRequests";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { tr } from "@/lib/i18n";
+import { SOROVLAR } from "@/lib/i18n/dict/moderation";
 import type { FollowRow } from "@/lib/groups/service";
 import { cn } from "@/lib/utils";
 
@@ -101,11 +105,19 @@ export function FollowList({ userId, kind, loggedIn, viewerId, emptyText }: { us
 }
 
 /** Segment: Obunachilar / Obunalar (kabinet sahifasi va dialog ichida) */
-export function FollowTabs({ userId, followers, following, loggedIn, viewerId, initial = "followers" }: { userId: string; followers: number; following: number; loggedIn: boolean; viewerId: string | null; initial?: Kind }) {
-  const [tab, setTab] = useState<Kind>(initial);
+export function FollowTabs({ userId, followers, following, loggedIn, viewerId, initial = "followers", requests = null }: { userId: string; followers: number; following: number; loggedIn: boolean; viewerId: string | null; initial?: Kind | "requests"; requests?: number | null }) {
+  const til = useLocale();
+  const [tab, setTab] = useState<Kind | "requests">(initial);
+  // Yopiq profil egasiga: «So'rovlar» tabi (faqat o'z kabinetida, requests !== null)
+  const [reqCount, setReqCount] = useState(requests ?? 0);
   return (
     <div>
       <div className="segment flex w-full" role="tablist" aria-label="Obunalar">
+        {requests !== null && viewerId === userId && (
+          <button type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")} className={cn("segment-item flex-1", tab === "requests" && "segment-item-active")}>
+            {tr(til, SOROVLAR.tab)} {reqCount > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{reqCount}</span>}
+          </button>
+        )}
         <button type="button" role="tab" aria-selected={tab === "followers"} onClick={() => setTab("followers")} className={cn("segment-item flex-1", tab === "followers" && "segment-item-active")}>
           Obunachilar <span className="ml-1 text-fg-3">{followers}</span>
         </button>
@@ -114,7 +126,7 @@ export function FollowTabs({ userId, followers, following, loggedIn, viewerId, i
         </button>
       </div>
       <div key={tab} className="animate-swap mt-2" role="tabpanel">
-        <FollowList userId={userId} kind={tab} loggedIn={loggedIn} viewerId={viewerId} />
+        {tab === "requests" ? <FollowRequests onCountChange={setReqCount} /> : <FollowList userId={userId} kind={tab} loggedIn={loggedIn} viewerId={viewerId} />}
       </div>
     </div>
   );

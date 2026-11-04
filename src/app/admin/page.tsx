@@ -10,6 +10,7 @@ import { AdminModeration } from "@/components/admin/AdminModeration";
 import { AdminMentors } from "@/components/admin/AdminMentors";
 import { AdminEvents } from "@/components/admin/AdminEvents";
 import { AdminHealthCard } from "@/components/admin/AdminHealthCard";
+import { AdminFeedback } from "@/components/admin/AdminFeedback";
 import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
@@ -166,6 +167,7 @@ export default async function AdminPage() {
     userId: sp.userId,
     bio: sp.bio,
     portfolioCount: Number(sp.portfolioCount ?? 0),
+    requestedAt: sp.verificationRequestedAt?.getTime() ?? null,
     isBanned: bans.get(sp.userId)?.isBanned ?? false,
     bannedReason: bans.get(sp.userId)?.bannedReason ?? null,
   }));
@@ -256,7 +258,7 @@ export default async function AdminPage() {
     { key: "moliya", label: "Moliya", count: finance.manualPending + fraud.total, ids: ["tolovlar", "moliya", "analitika", "shubhali", "tolov-sozlamalari"] },
     { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "xabar"] },
     { key: "odamlar", label: "Odamlar", ids: ["foydalanuvchilar", "faollik"] },
-    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "sozlamalar"] },
+    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "fikrlar", "sozlamalar"] },
   ];
 
   return (
@@ -572,6 +574,12 @@ export default async function AdminPage() {
         <section id="tizim" className={SECTION} aria-labelledby="h-tizim">
           <AdminSectionHeading title={<span id="h-tizim">Tizim holati</span>} description="Baza kechikishi, saqlash usuli, kunlik cron, rate-limit bosimi va kanallar — bir qarashda." />
           <AdminHealthCard />
+        </section>
+
+        {/* ---------- Foydalanuvchi fikrlari (2026-11-04) ---------- */}
+        <section id="fikrlar" className={SECTION} aria-labelledby="h-fikrlar">
+          <AdminSectionHeading title={<span id="h-fikrlar">Fikrlar</span>} description="«Fikr bildirish» tugmasi orqali kelgan xato va g'oyalar — yangi fikr Telegramga ham keladi." />
+          <AdminFeedback />
         </section>
 
         {/* ---------- Sozlamalar ---------- */}

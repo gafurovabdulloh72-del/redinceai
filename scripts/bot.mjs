@@ -8,7 +8,7 @@
  *
  * Kerakli env: TELEGRAM_WEBHOOK_SECRET (webhook sarlavhasi), ADMIN_EMAIL/ADMIN_PASSWORD (admin boti testi; .env'dan ham o'qiladi; bo'lmasa /tmp/ad.jar cookie jar).
  * Tekshiradi: webhook siri, /start savoli (uz/ru), botda ro'yxatdan o'tish (mutaxassis), /profil, oddiy foydalanuvchiga
- * admin buyrug'i yopiqligi, admin ulash → /stat (trend) → /navbat → /shikoyatlar, inline rejim, bot orqali post taklifi.
+ * admin buyrug'i yopiqligi, admin ulash → /stat (trend) → /navbat → /shikoyatlar, admin boti ruscha (language_code=ru → /stat, /admin), inline rejim, bot orqali post taklifi.
  * Lokal fayl bazada test hisobini o'chiradi va adminning avvalgi chat ulanishini qaytaradi.
  */
 import { test, before, after } from "node:test";
@@ -233,5 +233,27 @@ test("admin boti: ulash → /stat (trend) → /navbat → /shikoyatlar", { skip:
   assert.match(texts(rep), /shikoyat/i);
   // Uzish — chat bo'shaydi (after() adminning avvalgi chatini qaytaradi)
   const stop = sentTo(await msg(CHAT_ADMIN, "/stop", "uz"), CHAT_ADMIN);
+  assert.ok(stop.length >= 1);
+});
+
+test("admin boti (ru): language_code=ru → /stat va /admin ruscha", { skip: !ADMIN_PASSWORD && !fs.existsSync(process.env.ADMIN_COOKIE_JAR || "/tmp/ad.jar") && "ADMIN_PASSWORD (yoki /tmp/ad.jar) berilmagan" }, async () => {
+  cookie = cookie || (await login(ADMIN_EMAIL, ADMIN_PASSWORD));
+  assert.ok(cookie, "admin kirishi muvaffaqiyatsiz");
+  const r = await fetch(`${BASE}/api/telegram/link`, { method: "POST", headers: { "content-type": "application/json", origin: BASE, cookie } });
+  const j = await r.json();
+  const code = j.data?.url ? new URL(j.data.url).searchParams.get("start") : null;
+  assert.ok(code, "start kodi yo'q");
+  sentTo(await msg(CHAT_ADMIN, `/start ${code}`, "ru"), CHAT_ADMIN);
+  const stat = sentTo(await msg(CHAT_ADMIN, "/stat", "ru"), CHAT_ADMIN);
+  assert.match(texts(stat), /Статистика/, "ruscha sarlavha yo'q");
+  assert.match(texts(stat), /Тренд/);
+  assert.doesNotMatch(texts(stat), /Foydalanuvchilar|Navbat \(/, "o'zbekcha matn qolgan");
+  assert.ok(buttons(stat).includes("adm:stat:7d"));
+  const menu = sentTo(await msg(CHAT_ADMIN, "/admin", "ru"), CHAT_ADMIN);
+  assert.match(texts(menu), /Админ-меню/);
+  // Tugma bosilganda ham ruscha (adm:stat:7d → xabar tahrirlanadi)
+  const edited = await cb(CHAT_ADMIN, "adm:stat:7d", "ru");
+  assert.match(texts(edited.filter((e) => e.method === "editMessageText" || e.method === "sendMessage")), /Статистика — 7 дней/);
+  const stop = sentTo(await msg(CHAT_ADMIN, "/stop", "ru"), CHAT_ADMIN);
   assert.ok(stop.length >= 1);
 });

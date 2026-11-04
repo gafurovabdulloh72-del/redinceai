@@ -1,0 +1,41 @@
+# Production faqat-o'qish xavfsizlik tekshiruvi (5-audit): sarlavhalar, mehmon 401, health, 404, ru.
+# Hech qanday mutatsiya yo'q (faqat GET/HEAD). Xato — faqat job failure (issue ochilmaydi).
+name: Prod check
+
+on:
+  workflow_dispatch:
+    inputs:
+      prod_url:
+        description: "Tekshiriladigan manzil"
+        default: "https://kasbegalari.vercel.app"
+        required: false
+  schedule:
+    # Har kuni 03:17 UTC (08:17 Toshkent) — daqiqa ataylab 0/30 dan chetda
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Faqat-o'qish tekshiruvi
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROD_URL: ${{ github.event.inputs.prod_url || 'https://kasbegalari.vercel.app' }}
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Paket o'rnatilmaydi — skript faqat node:test + fetch ishlatadi
+      - name: Prod tekshiruvi
+        run: node --test scripts/prod-check.mjs

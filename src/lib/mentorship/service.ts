@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { attachmentFileId, privateFileUrl } from "@/lib/media/private-url";
 import { courseReviews, courseSaves, courses, enrollments, groups, lessonCompletions, lessons, mentors, users } from "@/lib/db/schema";
 import { uid, slugify, escapeLike } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
@@ -284,7 +285,8 @@ export async function getLessonForViewer(lessonId: string, viewerId: string | nu
     prev: idx > 0 ? { id: siblings[idx - 1].id, title: siblings[idx - 1].title } : null,
     next: idx >= 0 && idx < siblings.length - 1 ? { id: siblings[idx + 1].id, title: siblings[idx + 1].title } : null,
     isOwner,
-    materials: enrolled || isOwner || isAdmin ? l.materials ?? [] : [],
+    // 5-audit: material xom manzili chiqmaydi — `/api/media/material/<dars>_<indeks>` (yozilgan/ustoz/admin + token)
+    materials: enrolled || isOwner || isAdmin ? (l.materials ?? []).map((m, i) => ({ ...m, url: privateFileUrl("material", attachmentFileId(l.id, i)) })) : [],
     chapters: l.chapters ?? [],
     quiz: enrolled || isOwner || isAdmin ? publicQuiz(l.quiz) : null,
     quizPassed: viewerId ? await quizPassed(viewerId, l.id) : false,

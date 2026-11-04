@@ -36,6 +36,8 @@ export interface PendingSpecialist {
   portfolioCount?: number;
   /** Admin katalogdan yashirgan (rad etilgan) */
   isHidden?: boolean;
+  /** Ko'k belgi so'rovi yuborilgan vaqt (ms) — navbatda tepada, «So'rov» chipi bilan */
+  requestedAt?: number | null;
 }
 
 /** So'nggi tasdiqlanganlar qatori — tasdiqni olib tashlash uchun */
@@ -51,7 +53,7 @@ export interface VerifiedSpecialist {
   user: { name: string; avatarUrl?: string | null };
 }
 
-type Busy = "verify" | "feature" | "delete" | "ban" | "reject" | "unverify";
+type Busy = "verify" | "feature" | "delete" | "ban" | "reject" | "unverify" | "vreject";
 /** Shuncha kundan ko'p kutgan profil ogohlantirish rangida ko'rinadi */
 const WAIT_WARN_MS = 7 * 24 * 60 * 60 * 1000;
 /** Bio shu uzunlikdan oshsa «ko'proq» tugmasi chiqadi (taxminan 2 qator) */
@@ -125,6 +127,8 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
   /** Inline rad etish formasi (sabab bilan) */
   const [rejectAsk, setRejectAsk] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  /** Ko'k belgi so'rovini rad etish (profil katalogda qoladi) — sabab so'raladi */
+  const [vrejectAsk, setVrejectAsk] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   /** Ochilgan (to'liq) bio'lar */
   const [bioOpen, setBioOpen] = useState<Set<string>>(() => new Set());
@@ -297,6 +301,24 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
     }
   };
 
+  /** Tasdiq so'rovini rad etish: requestedAt tozalanadi, sabab egasiga boradi, profil navbatda qoladi */
+  const verifyReject = async (row: PendingSpecialist, reason: string) => {
+    setError(null);
+    setVrejectAsk(null);
+    mark(row.id, "vreject");
+    try {
+      await call(`/api/admin/specialists/${row.id}`, { method: "PATCH", body: JSON.stringify({ action: "verify_reject", reason: reason.trim() }) });
+      setRows((r) => r.map((x) => (x.id === row.id ? { ...x, requestedAt: null } : x)));
+      setNotice(`${row.user.name} — tasdiq so'rovi rad etildi, sabab egasiga yuborildi`);
+      setRejectReason("");
+      router.refresh();
+    } catch (e) {
+      setError(msg(e));
+    } finally {
+      mark(row.id, null);
+    }
+  };
+
   const toggleBan = async (row: PendingSpecialist, reason?: string) => {
     if (!row.userId) return;
     const next = !row.isBanned;
@@ -366,6 +388,28 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
             </Button>
             <Button size={compact ? "md" : "sm"} variant="ghost" onClick={() => setConfirmDelete(null)} disabled={!!b}>
               Yo&apos;q
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (vrejectAsk === row.id) {
+      return (
+        <div className={panel}>
+          <p className="flex items-start gap-1.5 text-[12px] font-medium text-fg">
+            <AlertCircle size={14} className="mt-0.5 shrink-0 text-warning" /> Ko&apos;k belgi so&apos;rovi rad etiladi — profil katalogda qoladi, egasi sababni ko&apos;radi va keyinroq qayta so&apos;raydi.
+          </p>
+          <label htmlFor={`vreject-${row.id}`} className="sr-only">
+            Rad etish sababi
+          </label>
+          <input id={`vreject-${row.id}`} className="field !min-h-10 !py-1.5 text-[13px]" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} maxLength={300} placeholder="Sabab (kamida 5 belgi): masalan, portfolio sifatsiz" autoFocus />
+          <div className="flex shrink-0 gap-1.5">
+            <Button size={compact ? "md" : "sm"} variant="danger" onClick={() => verifyReject(row, rejectReason)} disabled={!!b || rejectReason.trim().length < 5}>
+              {b === "vreject" ? <Spinner className="h-3.5 w-3.5" /> : <XCircle size={14} />} So&apos;rovni rad etish
+            </Button>
+            <Button size={compact ? "md" : "sm"} variant="ghost" onClick={() => setVrejectAsk(null)} disabled={!!b}>
+              Bekor
             </Button>
           </div>
         </div>
@@ -460,6 +504,22 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                         setConfirmDelete(null);
                         setRejectAsk(null);
                       }
+                    },
+                  },
+                ]
+              : []),
+            ...(row.requestedAt
+              ? [
+                  {
+                    key: "vreject",
+                    label: "Tasdiq so'rovini rad etish",
+                    icon: XCircle,
+                    onSelect: () => {
+                      setVrejectAsk(row.id);
+                      setRejectReason("");
+                      setRejectAsk(null);
+                      setBanAsk(null);
+                      setConfirmDelete(null);
                     },
                   },
                 ]
@@ -604,6 +664,11 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                               {row.isBanned && (
                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-1.5 py-0.5 text-[11px] font-bold text-danger-text" title={row.bannedReason ?? undefined}>
                                   <ShieldBan size={10} /> Bloklangan
+                                </span>
+                              )}
+                              {row.requestedAt && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold text-accent-text" title={`Ko'k belgi so'rovi · ${timeAgo(row.requestedAt)}`}>
+                                  <BadgeCheck size={10} /> So&apos;rov
                                 </span>
                               )}
                               {row.isHidden && (

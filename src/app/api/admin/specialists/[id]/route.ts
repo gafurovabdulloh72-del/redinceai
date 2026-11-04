@@ -5,12 +5,14 @@ import { orders, payments, payouts, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
+import { rejectVerification } from "@/lib/verification";
 
 const schema = z.object({
   isVerified: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
-  /** "reject" — profil katalogga qo'shilmaydi (isHidden), egasiga sabab bilan bildirishnoma boradi */
-  action: z.literal("reject").optional(),
+  /** "reject" — profil katalogga qo'shilmaydi (isHidden), egasiga sabab bilan bildirishnoma boradi;
+   *  "verify_reject" — ko'k belgi so'rovi rad etiladi (verificationRequestedAt tozalanadi, sabab saqlanadi), profil katalogda qoladi */
+  action: z.enum(["reject", "verify_reject"]).optional(),
   reason: z.string().trim().min(5, "Kamida 5 belgi").max(300, "Ko'pi bilan 300 belgi").optional(),
 });
 
@@ -19,6 +21,15 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   const session = await requireSession(["admin"]);
   const { id } = await ctx.params;
   const input = await parseBody(req, schema);
+
+  // Tasdiq (ko'k belgi) so'rovini rad etish — lib/verification.ts
+  if (input.action === "verify_reject") {
+    const reason = input.reason?.trim() ?? "";
+    if (reason.length < 5) throw new ApiError(422, "Rad etish sababini yozing (kamida 5 belgi)", { reason: "Kamida 5 belgi" });
+    await rejectVerification(id, reason);
+    await audit(session.sub, "admin_verify_rejected", { targetType: "specialist", targetId: id, meta: { reason } }, req);
+    return ok({ id, verifyRejected: true });
+  }
 
   // Rad etish: profil o'chmaydi — katalogdan yashiriladi, egasi sababni ko'radi va tuzatib qayta yuboradi
   if (input.action === "reject") {
@@ -36,7 +47,8 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
 
   const res = await db
     .update(specialists)
-    .set({ ...(input.isVerified !== undefined ? { isVerified: input.isVerified } : {}), ...(input.isFeatured !== undefined ? { isFeatured: input.isFeatured } : {}), updatedAt: new Date() })
+    // Tasdiqlanganda so'rov vaqti/rad sababi tozalanadi (kabinet kartasi «tasdiqlangan» holatga o'tadi)
+    .set({ ...(input.isVerified !== undefined ? { isVerified: input.isVerified, ...(input.isVerified ? { verificationRequestedAt: null, verificationNote: null } : {}) } : {}), ...(input.isFeatured !== undefined ? { isFeatured: input.isFeatured } : {}), updatedAt: new Date() })
     .where(eq(specialists.id, id));
   if (res.rowsAffected === 0) throw new ApiError(404, "Mutaxassis topilmadi");
 

@@ -1,11 +1,13 @@
 import "server-only";
-import { and, desc, eq, gt, isNull, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groups, jobs, portfolioItems, posts, specialists, users, vacancies } from "@/lib/db/schema";
 import { courses } from "@/lib/db/schema";
 import { briefUsers } from "@/lib/groups/service";
 import { getSettings } from "@/lib/payments/settings";
 import { listableCondition } from "@/lib/subscriptions/access";
+import { privateProfileCondition } from "@/lib/privacy/private-profile";
+import { postNotHiddenCondition } from "@/lib/moderation";
 import { isVideoAttachment } from "@/components/chat/attachments";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { HELP_ARTICLES } from "@/app/yordam/articles";
@@ -138,7 +140,7 @@ export interface MediaHit {
   count: number;
   /** Video ostidagi matn: ish sarlavhasi/tavsifi yoki post matni */
   caption: string;
-  author: { name: string; avatarUrl: string | null; slug: string | null };
+  author: { name: string; avatarUrl: string | null; slug: string | null; isVerified?: boolean };
   likes: number;
   comments: number;
   createdAt: number;
@@ -166,7 +168,10 @@ const POST_VIDEO = or(
  * Faqat ko'rinadigan ijodkorlar (bloklanmagan, yashirilmagan, obunasi faol) va ochiq jamoalar/profil postlari.
  * So'rov bo'sh bo'lsa — eng yangi media (Explore lentasi).
  */
-export async function exploreSearch(qRaw: string, type: ExploreType = "all", { noFuzzy = false }: { noFuzzy?: boolean } = {}): Promise<ExploreResult> {
+/** Ko'ruvchi — yopiq profil va avto-yashirilgan postlar filtri uchun (lib/privacy/private-profile, lib/moderation) */
+type ExploreViewer = { id: string; role: string } | null;
+
+export async function exploreSearch(qRaw: string, type: ExploreType = "all", { noFuzzy = false, viewer = null }: { noFuzzy?: boolean; viewer?: ExploreViewer } = {}): Promise<ExploreResult> {
   const q = qRaw.trim();
   const needle = q ? `%${norm(q).replace(/[%_]/g, "")}%` : null;
   const settings = await getSettings();
@@ -197,6 +202,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
           .where(
             and(
               visible,
+              privateProfileCondition(specialists.userId, viewer),
               type === "video" ? eq(portfolioItems.type, "video") : undefined,
               needle ? or(like(sql`lower(${portfolioItems.title})`, needle), like(sql`lower(${portfolioItems.description})`, needle), like(sql`lower(${portfolioItems.tags})`, needle), like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle)) : undefined,
             ),
@@ -215,6 +221,8 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
               eq(users.isBanned, false),
               or(isNull(posts.groupId), eq(groups.isPrivate, false)),
               eq(posts.subscribersOnly, false),
+              postNotHiddenCondition(viewer),
+              or(isNotNull(posts.groupId), privateProfileCondition(posts.authorId, viewer)),
               type === "video" ? POST_VIDEO : undefined,
               needle ? or(like(sql`lower(${posts.body})`, needle), like(sql`lower(${users.name})`, needle)) : sql`${posts.media} != '[]'`,
             ),
@@ -239,7 +247,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
       textOnly: p.media.length === 0,
       count: p.media.length,
       caption: p.body.replace(/\s+/g, " ").trim().slice(0, 160),
-      author: { name: a?.name ?? "Foydalanuvchi", avatarUrl: a?.avatarUrl ?? null, slug: a?.slug ?? null },
+      author: { name: a?.name ?? "Foydalanuvchi", avatarUrl: a?.avatarUrl ?? null, slug: a?.slug ?? null, isVerified: Boolean(a?.isVerified) },
       likes: p.likesCount,
       comments: p.commentsCount,
       createdAt: p.createdAt.getTime(),
@@ -272,7 +280,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
   if (!noFuzzy && q && !people.length && !result.media.length && !sections.some((s) => s.items.length)) {
     const fixed = correctQuery(q);
     if (fixed && norm(fixed) !== norm(q)) {
-      const retry = await exploreSearch(fixed, type, { noFuzzy: true });
+      const retry = await exploreSearch(fixed, type, { noFuzzy: true, viewer });
       if (retry.people.length || retry.media.length || retry.sections.some((s) => s.items.length)) return { ...retry, q, corrected: fixed };
     }
   }

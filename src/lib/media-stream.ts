@@ -13,7 +13,26 @@ import { uploadDir } from "./uploads";
  * Javob keshsiz va `private` — CDN/brauzer uni ulashib bo'ladigan resurs sifatida saqlamaydi.
  */
 const UPLOAD_NAME_RE = /^[\w-]+\.(mp4|webm|mov|weba|m4a|ogg|mp3)$/i;
-const MIME: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", weba: "audio/webm", m4a: "audio/mp4", ogg: "audio/ogg", mp3: "audio/mpeg" };
+/** 5-audit: yopiq fayllar (chat biriktirmasi, dars materiali, chek) — rasm va hujjatlar ham oqimlanadi */
+const ANY_NAME_RE = /^[\w-]+\.(mp4|webm|mov|weba|m4a|ogg|mp3|jpe?g|png|webp|gif|pdf|docx?|zip)$/i;
+const MIME: Record<string, string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  weba: "audio/webm",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  mp3: "audio/mpeg",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  zip: "application/zip",
+};
 const PRIVATE_HEADERS = {
   "Cache-Control": "private, no-store",
   "X-Content-Type-Options": "nosniff",
@@ -39,13 +58,36 @@ function parseRange(h: string | null, size: number): { start: number; end: numbe
   return { start, end: Math.min(end, size - 1) };
 }
 
-export async function streamProtectedMedia(sourceUrl: string, req: Request): Promise<Response> {
+export interface StreamOpts {
+  /** true — rasm/hujjat ham ruxsat (yopiq fayllar); standart — faqat video/audio (dars/efir) */
+  any?: boolean;
+  /** Ko'rsatiladigan fayl nomi (`Content-Disposition: inline; filename=…`) */
+  name?: string;
+}
+
+/** `Content-Disposition` uchun xavfsiz nom: ASCII zaxira + RFC 5987 `filename*` (UTF-8) */
+function disposition(name: string | undefined, fallbackExt: string): string {
+  const raw = (name ?? "").replace(/[\u0000-\u001f"\\/]/g, "").trim().slice(0, 120);
+  const ascii = raw.replace(/[^\x20-\x7e]/g, "_") || `fayl.${fallbackExt}`;
+  return raw && raw !== ascii ? `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(raw)}` : `inline; filename="${ascii}"`;
+}
+
+/** Hujjat (PDF/DOC/ZIP) uchun CSP `sandbox` qo'yilmaydi — Chrome PDF ko'ruvchisi sandbox'da ochmaydi; `default-src 'none'` qoladi */
+function headersFor(type: string, ext: string, opts: StreamOpts): Record<string, string> {
+  const h: Record<string, string> = { ...PRIVATE_HEADERS, "Content-Type": type };
+  if (type.startsWith("application/")) h["Content-Security-Policy"] = "default-src 'none'";
+  if (opts.any) h["Content-Disposition"] = disposition(opts.name, ext);
+  return h;
+}
+
+export async function streamProtectedMedia(sourceUrl: string, req: Request, opts: StreamOpts = {}): Promise<Response> {
   const method = req.method === "HEAD" ? "HEAD" : "GET";
+  const nameRe = opts.any ? ANY_NAME_RE : UPLOAD_NAME_RE;
   // Lokal yuklama
   const local = /^\/uploads\/([^/?#]+)$/.exec(sourceUrl);
   if (local) {
     const name = local[1];
-    if (!UPLOAD_NAME_RE.test(name)) return new Response("Not found", { status: 404 });
+    if (!nameRe.test(name)) return new Response("Not found", { status: 404 });
     const file = path.join(uploadDir(), name);
     let s;
     try {
@@ -54,18 +96,20 @@ export async function streamProtectedMedia(sourceUrl: string, req: Request): Pro
       return new Response("Not found", { status: 404 });
     }
     if (!s.isFile()) return new Response("Not found", { status: 404 });
-    const type = MIME[name.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
+    const ext = name.split(".").pop()!.toLowerCase();
+    const type = MIME[ext] ?? "application/octet-stream";
+    const base = headersFor(type, ext, opts);
     const range = parseRange(req.headers.get("range"), s.size);
     if (range) {
       const len = range.end - range.start + 1;
       return new Response(method === "HEAD" ? null : (Readable.toWeb(createReadStream(file, { start: range.start, end: range.end })) as ReadableStream), {
         status: 206,
-        headers: { ...PRIVATE_HEADERS, "Content-Type": type, "Content-Length": String(len), "Content-Range": `bytes ${range.start}-${range.end}/${s.size}` },
+        headers: { ...base, "Content-Length": String(len), "Content-Range": `bytes ${range.start}-${range.end}/${s.size}` },
       });
     }
     return new Response(method === "HEAD" ? null : (Readable.toWeb(createReadStream(file)) as ReadableStream), {
       status: 200,
-      headers: { ...PRIVATE_HEADERS, "Content-Type": type, "Content-Length": String(s.size) },
+      headers: { ...base, "Content-Length": String(s.size) },
     });
   }
 
@@ -87,10 +131,16 @@ export async function streamProtectedMedia(sourceUrl: string, req: Request): Pro
     return new Response("Manba javob bermadi", { status: 502 });
   }
   if (!up.ok && up.status !== 206) return new Response("Not found", { status: up.status === 404 ? 404 : 502 });
-  const type = up.headers.get("content-type") ?? "";
-  if (!/^(video|audio)\//i.test(type)) return new Response("Not found", { status: 404 });
-  const headers = new Headers(PRIVATE_HEADERS);
-  headers.set("Content-Type", type);
+  let type = up.headers.get("content-type") ?? "";
+  const ext = (/\.([a-z0-9]+)$/i.exec(u.pathname)?.[1] ?? "").toLowerCase();
+  if (opts.any) {
+    // Yopiq fayl: turi URL kengaytmasidan (manzil bazada UPLOAD_URL_RE bilan tekshirilgan) — saqlash xizmati bergan
+    // `octet-stream`/noto'g'ri turga ishonmaymiz; kengaytma noma'lum bo'lsa — 404
+    const fromExt = MIME[ext];
+    if (!fromExt) return new Response("Not found", { status: 404 });
+    type = fromExt;
+  } else if (!/^(video|audio)\//i.test(type)) return new Response("Not found", { status: 404 });
+  const headers = new Headers(headersFor(type, ext, opts));
   for (const h of ["content-length", "content-range"]) {
     const v = up.headers.get(h);
     if (v) headers.set(h, v);

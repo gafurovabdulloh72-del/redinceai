@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DISPLAY_LOCALES, LOCALE_COOKIE, pickDisplayLocale } from "@/lib/i18n";
+import { eq } from "drizzle-orm";
+import { baseOf, DISPLAY_LOCALES, LOCALE_COOKIE, pickDisplayLocale, type DisplayLocale } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 import { safeInternalPath } from "@/lib/utils";
 import { clientIp, enforceLimit, RATE_LIMIT_MESSAGE } from "@/lib/security/rate-limit";
 
@@ -21,6 +25,17 @@ function setCookie(res: NextResponse, til: string) {
   res.cookies.set(LOCALE_COOKIE, til, { path: "/", maxAge: YEAR, sameSite: "lax" });
 }
 
+/** Kirgan foydalanuvchi tanlagan tilni `users.lang` ga yozamiz (email/jamlama shu tilda keladi); mehmon — faqat cookie. Xato tilni almashtirishga xalal bermaydi */
+async function rememberLang(til: DisplayLocale): Promise<void> {
+  try {
+    const session = await getSession();
+    if (!session) return;
+    await db.update(users).set({ lang: baseOf(til) }).where(eq(users.id, session.sub));
+  } catch (e) {
+    console.error("[til] users.lang", e);
+  }
+}
+
 /** Tilni almashtirish: POST { til: "uz" | "uz_cyrl" | "ru" | "en" } — fetch + router.refresh() uchun */
 export async function POST(req: NextRequest) {
   if (await limited(req)) return NextResponse.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
@@ -34,7 +49,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Til noto'g'ri" }, { status: 400 });
   }
   const res = new NextResponse(null, { status: 204 });
-  setCookie(res, pickDisplayLocale(til));
+  const picked = pickDisplayLocale(til);
+  setCookie(res, picked);
+  await rememberLang(picked);
   return res;
 }
 
@@ -46,5 +63,6 @@ export async function GET(req: NextRequest) {
   const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin) ?? "/";
   const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
   setCookie(res, til);
+  await rememberLang(til);
   return res;
 }

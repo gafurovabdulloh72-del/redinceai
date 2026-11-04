@@ -8,6 +8,7 @@ import { UsersRound } from "lucide-react";
 import { FollowTabs } from "@/components/groups/FollowersDialog";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { followState } from "@/lib/groups/service";
+import { countFollowRequests } from "@/lib/privacy/private-profile";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,11 +17,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Kabinet: menga obuna bo'lganlar va men obuna bo'lganlar (mijoz ham, ijodkor ham) */
-export default async function FollowsPage() {
+export default async function FollowsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/obunalar"));
   const til = await getLocale();
-  const st = await followState(user.id, user.id);
+  const sp = await searchParams;
+  // Yopiq profil: obuna so'rovlari tabi (?tab=sorovlar — bildirishnomadan to'g'ri shu tabga)
+  const [st, requests] = await Promise.all([followState(user.id, user.id), countFollowRequests(user.id)]);
+  const initial = sp.tab === "sorovlar" ? "requests" : "followers";
   return (
     <div className="animate-fade-up">
       <header className="mb-6 sm:mb-8">
@@ -35,7 +39,7 @@ export default async function FollowsPage() {
         </p>
       </header>
       <div className="card mx-auto max-w-2xl p-3 sm:p-4">
-        <FollowTabs userId={user.id} followers={st.followersCount} following={st.followingCount} loggedIn viewerId={user.id} />
+        <FollowTabs userId={user.id} followers={st.followersCount} following={st.followingCount} loggedIn viewerId={user.id} initial={initial} requests={requests} />
       </div>
     </div>
   );

@@ -45,14 +45,16 @@ export interface DigestMessage {
   href: string;
 }
 
-const NEXT_STEP_TEXT: Record<OnboardingKey, string> = {
-  profile: "ijodkor profilingizni yarating",
-  avatar: "profil rasmingizni yuklang",
-  bio: "o'zingiz haqingizda yozing",
-  portfolio: "birinchi portfolio ishingizni qo'shing",
-  post: "birinchi postingizni joylang",
-  community: "biror jamoaga qo'shiling",
-  telegram: "Telegram'ni ulang — xabarlar telefoningizga keladi",
+/** Jamlama tili — users.lang (null → uz); matnlar aniq {uz, ru} juftliklari */
+type DigestLang = "uz" | "ru";
+const NEXT_STEP_TEXT: Record<OnboardingKey, { uz: string; ru: string }> = {
+  profile: { uz: "ijodkor profilingizni yarating", ru: "создайте профиль автора" },
+  avatar: { uz: "profil rasmingizni yuklang", ru: "загрузите фото профиля" },
+  bio: { uz: "o'zingiz haqingizda yozing", ru: "расскажите о себе" },
+  portfolio: { uz: "birinchi portfolio ishingizni qo'shing", ru: "добавьте первую работу в портфолио" },
+  post: { uz: "birinchi postingizni joylang", ru: "опубликуйте первый пост" },
+  community: { uz: "biror jamoaga qo'shiling", ru: "вступите в какое-нибудь сообщество" },
+  telegram: { uz: "Telegram'ni ulang — xabarlar telefoningizga keladi", ru: "подключите Telegram — сообщения будут приходить на телефон" },
 };
 
 /** Berilgan vaqtdan beri hisoblar. Mutaxassis bo'lmasa profil ko'rishlari 0. */
@@ -89,14 +91,15 @@ export async function digestStats(userId: string, specialistId: string | null, s
 }
 
 /** Sonlar → «3 yangi obunachi · 12 reaksiya · …» (nol bo'lganlar tushiriladi); bo'sh bo'lsa null */
-export function digestLine(s: DigestStats): string | null {
+export function digestLine(s: DigestStats, lang: DigestLang = "uz"): string | null {
+  const ru = lang === "ru";
   const parts: string[] = [];
-  if (s.followers) parts.push(`${s.followers} yangi obunachi`);
-  if (s.reactions) parts.push(`${s.reactions} reaksiya`);
-  if (s.comments) parts.push(`${s.comments} izoh`);
-  if (s.postViews) parts.push(`${s.postViews} post ko'rish`);
-  if (s.profileViews) parts.push(`${s.profileViews} profil ko'rish`);
-  if (s.unreadMessages) parts.push(`${s.unreadMessages} o'qilmagan xabar`);
+  if (s.followers) parts.push(ru ? `${s.followers} нов. подписчиков` : `${s.followers} yangi obunachi`);
+  if (s.reactions) parts.push(ru ? `${s.reactions} реакций` : `${s.reactions} reaksiya`);
+  if (s.comments) parts.push(ru ? `${s.comments} комментариев` : `${s.comments} izoh`);
+  if (s.postViews) parts.push(ru ? `${s.postViews} просмотров постов` : `${s.postViews} post ko'rish`);
+  if (s.profileViews) parts.push(ru ? `${s.profileViews} просмотров профиля` : `${s.profileViews} profil ko'rish`);
+  if (s.unreadMessages) parts.push(ru ? `${s.unreadMessages} непрочитанных сообщений` : `${s.unreadMessages} o'qilmagan xabar`);
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -108,6 +111,8 @@ interface DigestUser {
   createdAt: Date;
   avatarUrl: string | null;
   telegramChatId: string | null;
+  /** users.lang — jamlama tili (null → uz) */
+  lang?: DigestLang | null;
   specialist: Parameters<typeof creatorOnboarding>[0]["specialist"];
 }
 
@@ -117,8 +122,9 @@ export async function buildDigest(u: DigestUser, now: number): Promise<DigestMes
   const window = WINDOW_MS[u.digestFreq];
   // Oyna boshi: oxirgi jamlama, lekin ko'pi bilan 1,3 oyna orqaga (uzoq to'xtashdan keyin eski voqealar to'planib ketmasin)
   const since = new Date(Math.max(u.digestLastAt?.getTime() ?? u.createdAt.getTime(), now - window * 1.3));
+  const lang: DigestLang = u.lang === "ru" ? "ru" : "uz";
   const stats = await digestStats(u.id, u.specialist?.id ?? null, since);
-  const line = digestLine(stats);
+  const line = digestLine(stats, lang);
 
   // Yangi ijodkorga «keyingi qadam» — faqat birinchi 45 kunda va tugallanmagan bo'lsa
   let step: { key: OnboardingKey; href: string } | null = null;
@@ -130,12 +136,23 @@ export async function buildDigest(u: DigestUser, now: number): Promise<DigestMes
   const streak = await learningStreak(u.id, now).then((x) => x.current).catch(() => 0);
   if (!line && !step && streak < 2) return null;
 
-  const label = u.digestFreq === "daily" ? "Kunlik jamlama" : "Haftalik jamlama";
+  const ru = lang === "ru";
+  const label = u.digestFreq === "daily" ? (ru ? "Ежедневная сводка" : "Kunlik jamlama") : ru ? "Еженедельная сводка" : "Haftalik jamlama";
   const bits: string[] = [];
   if (line) bits.push(line + ".");
-  if (step) bits.push(`${line ? "Keyingi qadam" : "Profilingizni to'ldiring"}: ${NEXT_STEP_TEXT[step.key]}.`);
-  if (streak >= 2) bits.push(`🔥 ${streak} kunlik o'quv seriyangiz davom etmoqda — bugun ham bitta dars.`);
-  const title = line ? `${label}: ${u.digestFreq === "daily" ? "kecha" : "o'tgan hafta"} nima bo'ldi` : step ? `${label}: boshlanish uchun bitta qadam` : `🔥 ${streak} kunlik seriya — davom eting`;
+  if (step) bits.push(`${line ? (ru ? "Следующий шаг" : "Keyingi qadam") : ru ? "Заполните профиль" : "Profilingizni to'ldiring"}: ${NEXT_STEP_TEXT[step.key][lang]}.`);
+  if (streak >= 2) bits.push(ru ? `🔥 Ваша учебная серия длится ${streak} дн. — сегодня тоже один урок.` : `🔥 ${streak} kunlik o'quv seriyangiz davom etmoqda — bugun ham bitta dars.`);
+  const title = line
+    ? ru
+      ? `${label}: что произошло ${u.digestFreq === "daily" ? "вчера" : "за прошлую неделю"}`
+      : `${label}: ${u.digestFreq === "daily" ? "kecha" : "o'tgan hafta"} nima bo'ldi`
+    : step
+      ? ru
+        ? `${label}: один шаг для начала`
+        : `${label}: boshlanish uchun bitta qadam`
+      : ru
+        ? `🔥 Серия ${streak} дн. — продолжайте`
+        : `🔥 ${streak} kunlik seriya — davom eting`;
   return { title, body: bits.join(" "), href: line ? "/kabinet" : step ? step.href : "/kabinet/mentorlik" };
 }
 
@@ -173,7 +190,7 @@ export async function runDigests(now = Date.now(), opts: { dry?: boolean } = {})
   }
   const rows = await db.query.users.findMany({
     where: cond,
-    columns: { id: true, role: true, digestFreq: true, digestLastAt: true, createdAt: true, avatarUrl: true, telegramChatId: true },
+    columns: { id: true, role: true, digestFreq: true, digestLastAt: true, createdAt: true, avatarUrl: true, telegramChatId: true, lang: true },
     with: { specialist: true },
     orderBy: sql`coalesce(${users.digestLastAt}, ${users.createdAt}) asc`,
     limit: BATCH,

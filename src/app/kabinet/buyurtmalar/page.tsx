@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { and, inArray, sql } from "drizzle-orm";
 import { ClipboardList, ShieldCheck } from "lucide-react";
 import { OrdersList, type OrderItem, type Tab } from "@/components/orders/OrdersList";
+import { protectAttachments } from "@/lib/media/private-url";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getOrdersForUser } from "@/lib/queries";
 import { availableProviders } from "@/lib/payments/config";
@@ -72,7 +73,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     packageKey: o.packageKey,
     dueDate: o.dueDate,
     meetingUrl: o.meetingUrl,
-    attachments: o.attachments ?? [],
+    attachments: protectAttachments("orderfile", o.id, o.attachments),
     counterAmount: o.counterAmount,
     counterBy: o.counterBy,
     chatCount: chats.get(o.id)?.count ?? 0,

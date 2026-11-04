@@ -15,7 +15,7 @@ import { ContinueLearningCard } from "@/components/feed/ContinueLearningCard";
 import { continueLearning } from "@/lib/mentorship/service";
 import { creatorOnboarding, ONBOARDING_COOKIE, ONBOARDING_DAYS } from "@/lib/onboarding";
 import { storyRail } from "@/lib/stories/service";
-import { ownCompleteness } from "@/lib/profile/own-completeness";
+import { ownCompletion } from "@/lib/profile/completion";
 import { getCurrentUser } from "@/lib/auth";
 import { feedItemById, homeFeed, railData, storyAuthors, type FeedScope } from "@/lib/feed";
 import { savedCount } from "@/lib/groups/posts-extra";
@@ -49,7 +49,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     railData(viewer),
     postId ? feedItemById(postId, viewer).catch(() => null) : Promise.resolve(null),
     user ? savedCount(user.id).catch(() => 0) : Promise.resolve(null),
-    user ? ownCompleteness(user).catch(() => null) : Promise.resolve(null),
+    user ? ownCompletion(user).catch(() => null) : Promise.resolve(null),
     user && wantsOnboarding ? creatorOnboarding(user).catch(() => null) : Promise.resolve(null),
     storyRail(viewer).catch(() => []),
     user ? continueLearning(user.id).catch(() => null) : Promise.resolve(null),

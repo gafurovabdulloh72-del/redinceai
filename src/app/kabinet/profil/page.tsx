@@ -13,6 +13,10 @@ import { getSettings } from "@/lib/payments/settings";
 import { ScheduleEditor } from "@/components/kabinet/ScheduleEditor";
 import { TelegramCard } from "@/components/kabinet/TelegramCard";
 import { ProfilePanels } from "@/components/kabinet/ProfilePanels";
+import { VerificationCard } from "@/components/kabinet/VerificationCard";
+import { verificationStatus } from "@/lib/verification";
+import { ProfileMeter } from "@/components/feed/ProfileMeter";
+import { ownCompletion } from "@/lib/profile/completion";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { resolveVisibility } from "@/lib/privacy";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
@@ -74,6 +78,10 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         }
       : null;
   const usdRate = (await getSettings()).usdRate;
+  // Profil tayyorligi (2026-11-04): ixcham karta tepada, 100% bo'lsa null — chizilmaydi
+  const completion = await ownCompletion(user).catch(() => null);
+  // Tasdiqlangan profil (ko'k belgi) kartasi — faqat mutaxassis profili bo'lsa (lib/verification.ts)
+  const verification = s ? await verificationStatus(user.id).catch(() => null) : null;
   const firstName = user.name.split(" ")[0] || user.name;
   const ctaFirst = !s && user.role === "client";
   // Telegram kartasi faqat bot to'liq sozlangan bo'lsa (token + username) ko'rinadi — server'da env tekshiriladi
@@ -103,6 +111,9 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         </div>
       )}
 
+      {/* Profil tayyorligi — «N% tayyor, M qadam qoldi» + keyingi qadam */}
+      {completion && <ProfileMeter data={completion} til={til} compact className="mb-5" />}
+
       {/* Sarlavha */}
       <div className="mb-5 sm:mb-6">
         <span className="eyebrow">{tr(til, PS.eyebrow)}</span>
@@ -119,7 +130,12 @@ export default async function ProfilPage({ searchParams }: { searchParams: Promi
         panels={[
           { key: "akkaunt", label: tr(til, PS.tabAccount), icon: "user", node: <AccountForm initial={{ name: user.name, phone: user.phone ?? "", avatarUrl: user.avatarUrl ?? "", email: user.email, username: user.username ?? null, emailVerified: user.emailVerified, gender: user.gender ?? null, notifyEmail: user.notifyEmail }} visibility={visibility} /> },
           ...(telegramEnabled ? [{ key: "telegram", label: tr(til, PS.tabTelegram), icon: "send" as const, node: <TelegramCard linked={Boolean(user.telegramChatId)} botLink={telegramBotUsername() ? `https://t.me/${telegramBotUsername()}` : null} /> }] : []),
-          { key: "mutaxassis", label: tr(til, s ? PS.tabSpecialist : PS.tabBecome), icon: "briefcase", node: <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} /> },
+          { key: "mutaxassis", label: tr(til, s ? PS.tabSpecialist : PS.tabBecome), icon: "briefcase", node: (
+              <>
+                {verification && <VerificationCard initial={verification} />}
+                <ProfileForm initial={initial} mode={s ? "edit" : "create"} ctaFirst={ctaFirst} visibility={visibility} prefill={prefill} usdRate={usdRate} />
+              </>
+            ) },
           ...(s
             ? [
                 {

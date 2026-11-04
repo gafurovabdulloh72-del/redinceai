@@ -2,6 +2,7 @@ import "server-only";
 import { bustGroupInbox } from "@/lib/chat/inbox";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { protectAttachments } from "@/lib/media/private-url";
 import { mentorSubs, mentors } from "@/lib/db/schema";
 import { follows, groupMembers, groupMessageReactions, groupMessages, groups, notifications, postComments, postLikes, postSaves, postTags, postViews, posts, specialists, users, videoProgress, watchLater, type FileAttachment, type Group, type PostMusic, type GroupMember, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -14,6 +15,8 @@ import { notifyMentions } from "./mentions";
 import { TYPING_WINDOW_MS, toQuote, type QuoteView } from "@/lib/chat/quote";
 import { DM_REACTIONS, type ReactionSummary } from "@/lib/chat/constants";
 import { isBlockedEither } from "@/lib/privacy/blocks";
+import { cancelFollowRequest, hasFollowRequest, requestFollow } from "@/lib/privacy/private-profile";
+import { commentNotHiddenCondition, postNotHiddenCondition } from "@/lib/moderation";
 
 /**
  * Jamoalar — ijodkorlar hamjamiyati: guruhlar, a'zolik, lenta (post/like/izoh), guruh chati, obuna (follow).
@@ -33,6 +36,8 @@ export interface UserBrief {
   slug: string | null;
   /** So'nggi 5 daqiqada faol bo'lgan (lastSeenAt) — yashil nuqta */
   online: boolean;
+  /** Tasdiqlangan mutaxassis (specialists.isVerified) — ism yonida ko'k belgi (VerifiedBadge) */
+  isVerified: boolean;
 }
 
 export type MembershipState = "owner" | "admin" | "member" | "pending" | "banned" | null;
@@ -128,6 +133,8 @@ export interface PostView {
   reactions: ReactionCounts;
   /** Saqlanganlarimda (bookmark) bormi */
   savedByMe: boolean;
+  /** Shikoyatlar sababli vaqtincha yashirilgan (faqat muallif/admin ko'radi — UI'da belgi, lib/moderation.ts) */
+  hiddenByReports: boolean;
   canDelete: boolean;
 }
 
@@ -182,14 +189,14 @@ export async function briefUsers(ids: string[]): Promise<Map<string, UserBrief>>
   const map = new Map<string, UserBrief>();
   if (!unique.length) return map;
   const rows = await db
-    .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl, username: users.username, slug: specialists.slug, lastSeenAt: users.lastSeenAt, showOnline: users.showOnline })
+    .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl, username: users.username, slug: specialists.slug, lastSeenAt: users.lastSeenAt, showOnline: users.showOnline, isVerified: specialists.isVerified })
     .from(users)
     .leftJoin(specialists, eq(specialists.userId, users.id))
     .where(inArray(users.id, unique));
   const since = Date.now() - ONLINE_WINDOW_MS;
   for (const r of rows) {
     // showOnline=false — maxfiylik: yashil nuqta hech kimga ko'rinmaydi
-    map.set(r.id, { id: r.id, name: r.name, avatarUrl: r.avatarUrl, username: r.username, slug: r.slug ?? null, online: Boolean(r.showOnline && r.lastSeenAt && r.lastSeenAt.getTime() > since) });
+    map.set(r.id, { id: r.id, name: r.name, avatarUrl: r.avatarUrl, username: r.username, slug: r.slug ?? null, online: Boolean(r.showOnline && r.lastSeenAt && r.lastSeenAt.getTime() > since), isVerified: Boolean(r.isVerified) });
   }
   return map;
 }
@@ -197,7 +204,7 @@ export async function briefUsers(ids: string[]): Promise<Map<string, UserBrief>>
 /** "Onlayn" deb hisoblanadigan oyna */
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
-const UNKNOWN: Omit<UserBrief, "id"> = { name: "Foydalanuvchi", avatarUrl: null, username: null, slug: null, online: false };
+const UNKNOWN: Omit<UserBrief, "id"> = { name: "Foydalanuvchi", avatarUrl: null, username: null, slug: null, online: false, isVerified: false };
 
 /** Nomdan URL slug: translit + qisqa suffiks (nomlar takrorlansa ham yagona) */
 export function groupSlugFor(name: string): string {
@@ -1027,6 +1034,7 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     myReaction: myMap.get(p.id) ?? null,
     reactions: counts.get(p.id) ?? {},
     savedByMe: savedSet.has(p.id),
+    hiddenByReports: p.hiddenByReports,
     canDelete: Boolean(viewer && (viewer.id === p.authorId || manager)),
     };
   });
@@ -1037,9 +1045,9 @@ export async function listPosts(group: Group, viewer: Viewer, cursor?: number | 
   const m = await getMembership(group.id, viewer?.id);
   // Qadalgan postlar faqat birinchi sahifada, tepada (3 tagacha); asosiy ro'yxat qadalmaganlardan
   const [pinned, rows] = await Promise.all([
-    cursor ? Promise.resolve([] as Post[]) : db.query.posts.findMany({ where: and(eq(posts.groupId, group.id), eq(posts.isPinned, true)), orderBy: [desc(posts.createdAt)], limit: 3 }),
+    cursor ? Promise.resolve([] as Post[]) : db.query.posts.findMany({ where: and(eq(posts.groupId, group.id), eq(posts.isPinned, true), postNotHiddenCondition(viewer)), orderBy: [desc(posts.createdAt)], limit: 3 }),
     db.query.posts.findMany({
-      where: cursor ? and(eq(posts.groupId, group.id), eq(posts.isPinned, false), lt(posts.createdAt, new Date(cursor))) : and(eq(posts.groupId, group.id), eq(posts.isPinned, false)),
+      where: cursor ? and(eq(posts.groupId, group.id), eq(posts.isPinned, false), lt(posts.createdAt, new Date(cursor)), postNotHiddenCondition(viewer)) : and(eq(posts.groupId, group.id), eq(posts.isPinned, false), postNotHiddenCondition(viewer)),
       orderBy: [desc(posts.createdAt)],
       limit: limit + 1,
     }),
@@ -1167,7 +1175,7 @@ export async function toggleSave(post: Post, userId: string): Promise<{ saved: b
 }
 
 export async function listComments(post: Post, viewer: Viewer, limit = 100): Promise<CommentView[]> {
-  const rows = await db.query.postComments.findMany({ where: eq(postComments.postId, post.id), orderBy: [asc(postComments.createdAt)], limit });
+  const rows = await db.query.postComments.findMany({ where: and(eq(postComments.postId, post.id), commentNotHiddenCondition(viewer)), orderBy: [asc(postComments.createdAt)], limit });
   const authors = await briefUsers(rows.map((c) => c.authorId));
   const moderator = await canModeratePost(post, viewer);
   return rows.map((c) => ({
@@ -1229,7 +1237,7 @@ async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRo
       reactions: deleted ? [] : (reactionMap.get(r.id) ?? []),
       id: r.id,
       body: deleted ? "" : r.body,
-      attachments: deleted ? [] : r.attachments,
+      attachments: deleted ? [] : protectAttachments("group", r.id, r.attachments),
       at: r.createdAt.getTime(),
       mine,
       sender: senders.get(r.senderId) ?? { id: r.senderId, ...UNKNOWN },
@@ -1412,21 +1420,38 @@ export async function markGroupRead(groupId: string, userId: string): Promise<vo
 /* ------------------------------------------------------------------ */
 /* Obuna (follow)                                                      */
 /* ------------------------------------------------------------------ */
-export async function followState(viewerId: string | null, userId: string): Promise<{ following: boolean; followersCount: number; followingCount: number; notifyLevel: "all" | "highlights" | "off" | null }> {
-  const [followers, following, mine] = await Promise.all([
+export async function followState(viewerId: string | null, userId: string): Promise<{ following: boolean; requested: boolean; followersCount: number; followingCount: number; notifyLevel: "all" | "highlights" | "off" | null }> {
+  const [followers, following, mine, requested] = await Promise.all([
     db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, userId)),
     db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followerId, userId)),
     viewerId ? db.query.follows.findFirst({ where: and(eq(follows.followerId, viewerId), eq(follows.followingId, userId)) }) : Promise.resolve(null),
+    // Yopiq profilga yuborilgan, hali tasdiqlanmagan so'rov
+    viewerId && viewerId !== userId ? hasFollowRequest(viewerId, userId) : Promise.resolve(false),
   ]);
-  return { following: Boolean(mine), followersCount: Number(followers[0]?.n ?? 0), followingCount: Number(following[0]?.n ?? 0), notifyLevel: mine?.notifyLevel ?? null };
+  return { following: Boolean(mine), requested, followersCount: Number(followers[0]?.n ?? 0), followingCount: Number(following[0]?.n ?? 0), notifyLevel: mine?.notifyLevel ?? null };
 }
 
-export async function toggleFollow(followerId: string, followingId: string): Promise<{ following: boolean; followersCount: number }> {
+/**
+ * Obuna bo'lish / bekor qilish. Yopiq profil (users.profilePrivate): obuna o'rniga SO'ROV yoziladi (`status: "requested"`),
+ * takror bosish so'rovni bekor qiladi (`status: "cancelled"`); egasi Kabinet → Obunalar → So'rovlar'da tasdiqlaydi.
+ */
+export async function toggleFollow(followerId: string, followingId: string): Promise<{ following: boolean; followersCount: number; status: "following" | "unfollowed" | "requested" | "cancelled" }> {
   if (followerId === followingId) throw new ApiError(400, "O'zingizga obuna bo'lib bo'lmaydi");
-  const target = await db.query.users.findFirst({ where: eq(users.id, followingId), columns: { id: true, isBanned: true } });
+  const target = await db.query.users.findFirst({ where: eq(users.id, followingId), columns: { id: true, isBanned: true, profilePrivate: true } });
   if (!target || target.isBanned) throw new ApiError(404, "Foydalanuvchi topilmadi");
   if (await isBlockedEither(followerId, followingId)) throw new ApiError(403, "Bu foydalanuvchiga obuna bo'lib bo'lmaydi");
   const existing = await db.query.follows.findFirst({ where: and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)) });
+  if (!existing && target.profilePrivate) {
+    const [{ n: cnt }] = await db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, followingId));
+    if (await hasFollowRequest(followerId, followingId)) {
+      await cancelFollowRequest(followerId, followingId);
+      return { following: false, followersCount: Number(cnt), status: "cancelled" };
+    }
+    const who = (await briefUsers([followerId])).get(followerId);
+    const href = who?.slug ? `/mutaxassislar/${who.slug}` : who?.username ? `/yozish/${who.username}` : null;
+    await requestFollow(followerId, followingId, who?.name ?? "Foydalanuvchi", href);
+    return { following: false, followersCount: Number(cnt), status: "requested" };
+  }
   if (existing) {
     await db.delete(follows).where(eq(follows.id, existing.id));
   } else {
@@ -1440,7 +1465,7 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
     if (!dup) await notify(followingId, "follow", title, "Yangi ishlaringiz uning lentasida ko'rinadi.", href);
   }
   const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(follows).where(eq(follows.followingId, followingId));
-  return { following: !existing, followersCount: Number(n) };
+  return { following: !existing, followersCount: Number(n), status: existing ? "unfollowed" : "following" };
 }
 
 export type NotifyLevel = "all" | "highlights" | "off";

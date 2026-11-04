@@ -11,7 +11,7 @@ import { enforceLimit } from "@/lib/security/rate-limit";
 import { uploadDir } from "@/lib/uploads";
 import { uid } from "@/lib/utils";
 import { premiumTier } from "@/lib/social/quota";
-import { MAX_VIDEO_BYTES_FALLBACK, videoLimitFor, uploadName } from "@/components/chat/attachments";
+import { MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES_FALLBACK, videoLimitFor, uploadName } from "@/components/chat/attachments";
 
 /** Video "sehrli baytlari": MP4/MOV — ISO-BMFF "ftyp", WebM — EBML (brauzer MIME'siga ishonmaymiz) */
 function sniffVideo(buf: Buffer): { ext: string; mime: string } | null {
@@ -76,9 +76,11 @@ export const POST = handler(async (req) => {
   const json = await handleUpload({
     body,
     request: req,
-    onBeforeGenerateToken: async (pathname) => {
-      await enforceLimit("upload", session.sub);
-      if (!/^uploads\/[\w-]{10,64}\.(?:mp4|webm|mov|mp3|m4a|ogg)$/i.test(pathname)) throw new ApiError(400, "Fayl yo'li noto'g'ri");
+    onBeforeGenerateToken: async (pathname, clientPayload) => {
+      // clientPayload="voice" — ovozli xabar: faqat audio MIME (.weba/.m4a/.ogg), 5 MB, alohida "voice" kvotasi
+      const voice = clientPayload === "voice";
+      await enforceLimit(voice ? "voice" : "upload", session.sub);
+      if (!(voice ? /^uploads\/[\w-]{10,64}\.(?:weba|m4a|ogg)$/i : /^uploads\/[\w-]{10,64}\.(?:mp4|webm|mov|mp3|m4a|ogg)$/i).test(pathname)) throw new ApiError(400, "Fayl yo'li noto'g'ri");
       const name = uploadName(pathname);
       // Bu nom allaqachon kimdir tomonidan yuklangan bo'lsa — qayta egalik qilib bo'lmaydi (IDOR/soxta egalik oldi)
       const taken = await db.query.auditLogs.findFirst({
@@ -87,10 +89,10 @@ export const POST = handler(async (req) => {
       });
       if (taken) throw new ApiError(409, "Fayl yo'li band — sahifani yangilab, qayta urinib ko'ring");
       // Egalik yozuvi (assertOwnUploads shundan o'qiydi) — nom band qilinadi
-      await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { mime: "video", storage: "blob-client" } }, req);
+      await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { mime: voice ? "voice" : "video", storage: "blob-client" } }, req);
       return {
-        allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/ogg"],
-        maximumSizeInBytes: maxBytes,
+        allowedContentTypes: voice ? ["audio/webm", "audio/mp4", "audio/ogg"] : ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/ogg"],
+        maximumSizeInBytes: voice ? MAX_UPLOAD_BYTES : maxBytes,
         addRandomSuffix: false,
         allowOverwrite: false,
         tokenPayload: JSON.stringify({ userId: session.sub }),

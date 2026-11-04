@@ -9,6 +9,7 @@ import { REPORT_REASONS } from "@/lib/constants";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
 import { notifyAdmins } from "@/lib/notifications";
+import { maybeAutoHide } from "@/lib/moderation";
 import { uid } from "@/lib/utils";
 
 /**
@@ -96,5 +97,10 @@ export const POST = handler(async (req) => {
   await notifyAdmins("report", `Yangi shikoyat: ${label}`, reason.slice(0, 200), "/admin#shikoyatlar", { skipMail: true });
   const { notifyAdminsNewReport } = await import("@/lib/telegram-bot/admin");
   await notifyAdminsNewReport(id).catch(() => undefined);
-  return ok({ id }, { status: 201 });
+  // Avto-yashirish: post/izoh/sharh bo'yicha AUTO_HIDE_REPORTS ta turli shikoyatchi — nishon vaqtincha yashiriladi (lib/moderation.ts)
+  let hidden = false;
+  if (input.targetType === "post" || input.targetType === "comment" || input.targetType === "review") {
+    hidden = await maybeAutoHide(input.targetType, input.targetId).catch((e) => (console.error("[reports:auto-hide]", e), false));
+  }
+  return ok({ id, hidden }, { status: 201 });
 });

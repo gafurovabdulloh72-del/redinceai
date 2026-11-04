@@ -338,6 +338,8 @@
   --animate-modal-in: modal-in 0.28s var(--ease-out) backwards;
   --animate-modal-out: modal-out 0.2s ease-in both;
   --animate-msg-in: msg-in 0.24s var(--ease-out) backwards;
+  /* Sudrab tartiblash: tashlangan qator joyiga «o'tiradi» (ko'tarilgan + soya → tekis); backwards + transform: none qoidasi */
+  --animate-row-settle: row-settle 0.32s var(--ease-spring) backwards;
   --animate-swap: swap 0.22s var(--ease-out) backwards;
   --animate-slide-left: slide-in-left 0.36s var(--ease-out) backwards;
   --animate-slide-right: slide-in-right 0.36s var(--ease-out) backwards;
@@ -462,6 +464,16 @@
     40% { transform: rotate(12deg); }
     60% { transform: rotate(-8deg); }
     80% { transform: rotate(5deg); }
+  }
+  @keyframes row-settle {
+    from {
+      transform: translateY(-3px) scale(1.012);
+      box-shadow: var(--shadow-3);
+    }
+    to {
+      transform: none;
+      box-shadow: none;
+    }
   }
   @keyframes badge-pop {
     0% { transform: scale(0.6); opacity: 0; }
@@ -1538,7 +1550,8 @@ select:focus-visible {
   .animate-pop,
   .animate-fade-in,
   .animate-slide-up,
-  .animate-scale-in {
+  .animate-scale-in,
+  .animate-row-settle {
     animation: none !important;
   }
 }

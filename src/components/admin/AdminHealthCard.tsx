@@ -15,7 +15,7 @@ interface Health {
   email: { configured: boolean };
   sessions: { active: number };
   users: { total: number };
-  livekit: { configured: boolean; usage: LiveKitUsage | null };
+  livekit: { configured: boolean; usage: LiveKitUsage | null; egress?: { configured: boolean; reachable: boolean | null; error?: string } };
 }
 interface LiveKitUsage {
   month: string;
@@ -139,6 +139,18 @@ export function AdminHealthCard() {
             })()
           ) : (
             <p className="mt-1.5 text-[12px] text-fg-3">Sarf hisoblanmadi.</p>
+          )}
+          {h.livekit.egress && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 border-t border-line pt-2 text-[11.5px] text-fg-3">
+              <span className="font-medium">Efir yozuvi (Egress):</span>
+              {!h.livekit.egress.configured ? (
+                <span>sozlanmagan — R2 yoki LiveKit env'lari yo'q, «Yozish» tugmasi chiqmaydi</span>
+              ) : h.livekit.egress.reachable ? (
+                <span className="font-semibold text-success-text">sozlangan · xizmat javob berdi</span>
+              ) : (
+                <span className="font-semibold text-danger-text">sozlangan · xizmat javob bermadi{h.livekit.egress.error ? ` (${h.livekit.egress.error})` : ""} — yozuv boshlanmaydi</span>
+              )}
+            </p>
           )}
         </div>
       )}

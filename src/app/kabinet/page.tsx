@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ActivityFeed } from "@/components/kabinet/ActivityFeed";
+import { profileCompletion } from "@/lib/profile/completion";
 import { BANNER_DAYS, SubscriptionBanner } from "@/components/subscription/SubscriptionBanner";
 import { Avatar, Badge, ButtonLink, IconTile, VerifiedBadge } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -257,20 +258,19 @@ export default async function KabinetPage() {
 
   /* ---------- Profil to'liqligi (mutaxassis) ---------- */
   const needsProfile = !sp && user.role === "specialist";
-  const checklist: CheckItem[] = sp
-    ? [
-        { key: "title", label: tr(til, UMUMIY.ck.title), done: sp.title.trim().length >= 5 && !/yangi mutaxassis$/i.test(sp.title.trim()), href: "/kabinet/profil#mutaxassis", hint: tr(til, UMUMIY.ck.titleHint) },
-        { key: "bio", label: tr(til, UMUMIY.ck.bio), done: sp.bio.trim().length >= 80, href: "/kabinet/profil#mutaxassis", hint: tr(til, UMUMIY.ck.bioHint) },
-        { key: "price", label: tr(til, UMUMIY.ck.price), done: sp.priceFrom > 0, href: "/kabinet/profil#mutaxassis" },
-        { key: "skills", label: tr(til, UMUMIY.ck.skills), done: sp.skills.length >= 3, href: "/kabinet/profil#mutaxassis" },
-        { key: "photo", label: tr(til, UMUMIY.ck.photo), done: Boolean(sp.coverUrl || user.avatarUrl), href: "/kabinet/profil" },
-        { key: "portfolio", label: tr(til, UMUMIY.ck.portfolio), done: portfolioCount >= 3, href: "/kabinet/portfolio", hint: UMUMIY.ck.portfolioHint[til](portfolioCount) },
-        { key: "schedule", label: tr(til, UMUMIY.ck.schedule), done: Boolean(sp.schedule && Object.values(sp.schedule.days ?? {}).some((d) => d?.enabled)), href: "/kabinet/profil#ish-vaqti" },
-        { key: "contact", label: tr(til, UMUMIY.ck.contact), done: Boolean(sp.telegram || sp.instagram), href: "/kabinet/profil#mutaxassis" },
-      ]
+  // Yagona manba (lib/profile/completion.ts, 2026-11-04): ProfileMeter va Kabinet → Profil bilan bir xil foiz
+  const completion = sp ? await profileCompletion(user).catch(() => null) : null;
+  const checklist: CheckItem[] = completion
+    ? completion.steps.map((st) => ({
+        key: st.key,
+        label: tr(til, st.label),
+        done: st.done,
+        href: st.href,
+        hint: st.key === "portfolio" ? UMUMIY.ck.portfolioHint[til](portfolioCount) : st.key === "bio" ? tr(til, UMUMIY.ck.bioHint) : undefined,
+      }))
     : [];
-  const doneCount = checklist.filter((c) => c.done).length;
-  const pct = checklist.length ? Math.round((doneCount / checklist.length) * 100) : 0;
+  const doneCount = completion?.done ?? 0;
+  const pct = completion?.pct ?? 0;
   const onVacation = Boolean(sp && isOnVacation(sp.vacationUntil));
   const showOnboarding = Boolean(sp && pct < 100);
 
@@ -628,6 +628,11 @@ export default async function KabinetPage() {
                 </p>
                 <p className="truncate text-[12.5px] text-fg-3">{sp ? sp.title : user.email}</p>
               </div>
+              {completion && completion.pct < 100 && (
+                <Link href="/kabinet/profil" className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-accent-text" title={UMUMIY.profileAria[til](completion.pct)}>
+                  {completion.pct}%
+                </Link>
+              )}
               {sp && (user.isPaused ? <Badge tone="warning">{tr(til, UMUMIY.paused)}</Badge> : onVacation ? <Badge tone="warning">{tr(til, UMUMIY.vacation)}</Badge> : sp.isAvailable ? <Badge tone="success">{tr(til, UMUMIY.available)}</Badge> : <Badge tone="warning">{tr(til, UMUMIY.busy)}</Badge>)}
             </div>
           </section>

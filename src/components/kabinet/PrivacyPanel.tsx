@@ -1,17 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Eye, EyeOff, MessageCircle, MessagesSquare, PauseCircle, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, MessageCircle, MessagesSquare, PauseCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Tr } from "@/lib/i18n";
 import { MAXFIYLIK as M } from "@/lib/i18n/dict/kabinet-forms";
+import { YOPIQ_PROFIL } from "@/lib/i18n/dict/moderation";
 
 export interface PrivacySettings {
   dmPolicy: "all" | "following" | "none";
   commentPolicy: "all" | "followers" | "none";
   showOnline: boolean;
+  /** Yopiq profil — postlar/story/portfolio faqat tasdiqlangan obunachilarga (lib/privacy/private-profile) */
+  profilePrivate?: boolean;
 }
 type ApiResp = { ok: boolean; data?: PrivacySettings; error?: string; fields?: Record<string, string> };
 
@@ -137,6 +140,14 @@ export function PrivacyPanel({ initial, paused: initialPaused = false, canPause 
             hint={tr(til, v.showOnline ? M.onlineOn : M.onlineOff)}
             checked={v.showOnline}
             onChange={() => void save({ ...v, showOnline: !v.showOnline })}
+          />
+          <SwitchRow
+            id="pp-private"
+            icon={Lock}
+            title={tr(til, YOPIQ_PROFIL.settingTitle)}
+            hint={tr(til, v.profilePrivate ? YOPIQ_PROFIL.settingOn : YOPIQ_PROFIL.settingOff)}
+            checked={Boolean(v.profilePrivate)}
+            onChange={() => void save({ ...v, profilePrivate: !v.profilePrivate })}
           />
           {canPause && (
             <SwitchRow

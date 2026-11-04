@@ -4,7 +4,7 @@ import { Avatar, VerifiedBadge } from "@/components/ui";
 import { FollowButton } from "@/components/groups/FollowButton";
 import { ProfileMeter } from "./ProfileMeter";
 import { RailSearch } from "./RailSearch";
-import type { Completeness } from "@/lib/profile/completeness";
+import type { ProfileCompletion } from "@/lib/profile/completion";
 import { CATEGORY_BY_SLUG } from "@/lib/constants";
 import { tr, type Locale } from "@/lib/i18n";
 import { FEED } from "@/lib/i18n/dict/feed";
@@ -36,7 +36,7 @@ function RailHead({ id, title, href, til }: { id: string; title: string; href?: 
 }
 
 /** O'ng panel (desktop, v6 «Sokin»): qidiruv, (profil to'ldirilganligi), rasmiy kanal va tavsiya ijodkorlar — boshqa hech narsa */
-export function RightRail({ data, user, til, meter = null }: { data: RailData; user: RailUser | null; til: Locale; meter?: Completeness | null }) {
+export function RightRail({ data, user, til, meter = null }: { data: RailData; user: RailUser | null; til: Locale; meter?: ProfileCompletion | null }) {
   const { creators, official } = data;
   return (
     <div className="space-y-6">

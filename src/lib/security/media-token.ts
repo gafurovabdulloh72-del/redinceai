@@ -11,12 +11,12 @@ import { authIkm } from "./totp";
  * tekshirib faylni server orqali oqimlaydi (Range bilan) — xom manzil hech qachon mijozga bermaydi.
  *
  * Token formati: base64url(`${kind}.${id}.${subject}.${exp}`) + "." + base64url(HMAC-SHA256).
- *  kind    — "lesson" | "live"
+ *  kind    — "lesson" | "live" | 5-audit: "dm" | "group" | "order" | "orderfile" | "material" | "receipt" (yopiq fayllar, `lib/media/private-url.ts`)
  *  subject — foydalanuvchi id (mehmon preview uchun "-"): boshqa sessiya ishlata olmaydi
  *  exp     — unix soniya
  * Kalit AUTH_SECRET'dan HKDF bilan alohida maqsad uchun chiqariladi (sessiya kaliti bilan aralashmaydi).
  */
-export type MediaKind = "lesson" | "live";
+export type MediaKind = "lesson" | "live" | "dm" | "group" | "order" | "orderfile" | "material" | "receipt";
 const TTL_SEC = 15 * 60;
 
 function key(): Buffer {

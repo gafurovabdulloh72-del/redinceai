@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, notExists, or, sql, type SQL }
 import { db } from "@/lib/db";
 import { commentLikes, feedMutes, groups, notifications, postComments, postHides, postLikes, postPolls, postPollVotes, postSaves, posts, users, type Post, type PostComment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
+import { commentNotHiddenCondition } from "@/lib/moderation";
 import { notify } from "@/lib/notifications";
 import { addComment, briefUsers, canModeratePost, postHref, type CommentView, type UserBrief } from "@/lib/groups/service";
 import { COMMENT_EDIT_WINDOW_MS, extractTags, POLL_OPTIONS_MAX, POLL_OPTIONS_MIN, POLL_OPTION_MAX, REACTION_KINDS, type ReactionKind } from "./limits";
@@ -178,7 +179,7 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
   const sort: CommentSort = opts.sort === "new" ? "new" : "old";
   // Qadalgan izoh doim birinchi, qolgani tanlangan tartibda
   const rows = await db.query.postComments.findMany({
-    where: eq(postComments.postId, post.id),
+    where: and(eq(postComments.postId, post.id), commentNotHiddenCondition(viewer)),
     orderBy: [desc(postComments.isPinned), sort === "new" ? desc(postComments.createdAt) : asc(postComments.createdAt)],
     limit,
   });
@@ -189,10 +190,10 @@ export async function listCommentsX(post: Post, viewer: Viewer, opts: { sort?: C
   const [authors, moderator, total] = await Promise.all([
     briefUsers([...rows.map((c) => c.authorId), ...extra.map((c) => c.authorId)]),
     canModeratePost(post, viewer),
-    db.select({ n: sql<number>`count(*)` }).from(postComments).where(eq(postComments.postId, post.id)).then((r) => Number(r[0]?.n ?? 0)),
+    db.select({ n: sql<number>`count(*)` }).from(postComments).where(and(eq(postComments.postId, post.id), commentNotHiddenCondition(viewer))).then((r) => Number(r[0]?.n ?? 0)),
   ]);
   const now = Date.now();
-  const UNKNOWN = { name: "Foydalanuvchi", avatarUrl: null, username: null, slug: null, online: false };
+  const UNKNOWN = { name: "Foydalanuvchi", avatarUrl: null, username: null, slug: null, online: false, isVerified: false };
   // Yoqtirishlar: bitta guruhlangan so'rov + ko'ruvchining o'ziniki (ikkalasi ham faqat shu sahifadagi izohlar uchun)
   const ids = rows.map((c) => c.id);
   const [likeRows, mineRows] = ids.length

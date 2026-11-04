@@ -300,6 +300,87 @@ async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: st
   }
 }
 
+/** Presigned PUT (R2) — XHR orqali, yuklash foizi ko'rinishi uchun (fetch'da upload progress yo'q) */
+function putWithProgress(url: string, file: File, contentType: string, p: UploadProgressOpts = {}): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (p.signal?.aborted) return reject(abortError());
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("content-type", contentType);
+    const onAbort = () => xhr.abort();
+    p.signal?.addEventListener("abort", onAbort, { once: true });
+    const done = () => p.signal?.removeEventListener("abort", onAbort);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) p.onProgress?.(Math.min(1, e.loaded / e.total));
+    };
+    xhr.onload = () => {
+      done();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        p.onProgress?.(1);
+        resolve();
+      } else reject(new Error("Saqlashga yuklanmadi — internetni tekshirib, qayta urinib ko'ring"));
+    };
+    xhr.onerror = () => {
+      done();
+      reject(new Error("Tarmoq xatosi — internetni tekshirib, qayta urinib ko'ring"));
+    };
+    xhr.onabort = () => {
+      done();
+      reject(abortError());
+    };
+    xhr.send(file);
+  });
+}
+
+/** Ovozli xabar kengaytmasi: MediaRecorder MIME'idan (.weba — WebM/Opus, .m4a — Safari, .ogg) */
+export function voiceExtFor(mimeOrName: string): "weba" | "m4a" | "ogg" {
+  const s = mimeOrName.toLowerCase();
+  return /mp4|m4a|aac/.test(s) ? "m4a" : /ogg/.test(s) ? "ogg" : "weba";
+}
+
+/**
+ * Ovozli xabar: brauzer → saqlash TO'G'RIDAN-TO'G'RI (server orqali o'tmaydi, video oqimi bilan bir xil):
+ *  1) R2 — `/api/upload/presign {purpose:"voice"}` (audio MIME + ≤5 MB imzoga kiradi, nom serverda) → PUT;
+ *  2) Vercel Blob — client upload, `/api/upload/video` tokeni `clientPayload="voice"` bilan (faqat audio, 5 MB);
+ *  3) ikkalasi ham yo'q (dev/VPS) — eski `/api/upload purpose=voice` (server sehrli baytlarni tekshiradi).
+ * Natija URL baribir `UPLOAD_URL_RE` (o'z saqlashimiz) ga mos — server attachmentSchema begona xostni rad etadi.
+ */
+async function uploadVoice(file: File, ext: "weba" | "m4a" | "ogg", p: UploadProgressOpts = {}): Promise<string> {
+  const presign = (await fetch("/api/upload/presign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ purpose: "voice", ext, size: file.size }),
+    signal: p.signal,
+  })
+    .then((r) => r.json())
+    .catch(() => null)) as PresignResponse | null;
+  if (p.signal?.aborted) throw abortError();
+  if (presign && !presign.ok) throw new Error(presign.error);
+  if (presign?.ok && presign.data.mode === "r2") {
+    const { uploadUrl, publicUrl, contentType } = presign.data;
+    await putWithProgress(uploadUrl, file, contentType, p);
+    return publicUrl;
+  }
+  if (presign?.ok && presign.data.mode === "fallback" && presign.data.blob) {
+    try {
+      const { upload } = await import("@vercel/blob/client");
+      const blob = await upload(`uploads/${crypto.randomUUID()}.${ext}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload/video",
+        clientPayload: "voice",
+        contentType: EXT_MIME[ext],
+        onUploadProgress: (ev) => p.onProgress?.(Math.min(1, ev.percentage / 100)),
+        abortSignal: p.signal,
+      });
+      return blob.url;
+    } catch (e) {
+      if (p.signal?.aborted || (e instanceof Error && e.name === "AbortError")) throw abortError();
+      // Blob tokeni berilmadi — server orqali (5 MB sig'adi)
+    }
+  }
+  return uploadViaApi(file, "voice", p);
+}
+
 /** Brauzerda: faylni yuklab, biriktirma obyektini qaytaradi (xato bo'lsa Error tashlaydi; bekor — name="AbortError") */
 /** Videoning haqiqiy o'lchamini o'qiydi (metadata) — o'qib bo'lmasa null */
 export function readVideoSize(file: File): Promise<{ w: number; h: number } | null> {
@@ -350,7 +431,7 @@ export async function uploadAttachment(file: File, opts?: { docs?: boolean; voic
   if (opts?.voice) {
     if (!/^audio\//.test(file.type) && !/\.(?:weba|webm|m4a|mp4|ogg)$/i.test(file.name)) throw new Error("Ovozli xabar formati qo'llab-quvvatlanmaydi");
     if (file.size > MAX_UPLOAD_BYTES) throw new Error("Ovozli xabar 5 MB dan katta — qisqaroq yozing");
-    const url = await uploadViaApi(file, "voice", p);
+    const url = await uploadVoice(file, voiceExtFor(file.type || file.name), p);
     return { url, name: "Ovozli xabar", size: file.size, type: mimeFromUrl(url) ?? file.type, duration: Math.max(1, Math.round(opts.voice.duration)) };
   }
   const isImage = /^image\/(?:jpeg|png|webp|gif)$/.test(file.type);

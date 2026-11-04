@@ -234,9 +234,11 @@ export const getSpecialistBySlug = cache(async (slug: string) => {
     where: eq(specialists.slug, slug),
     with: {
       // lastLoginAt — faqat "oxirgi faollik" chelagi uchun (F68); aniq vaqt DTO'ga chiqmaydi
-      user: { columns: { id: true, username: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true, lastLoginAt: true, isBanned: true } },
+      user: { columns: { id: true, username: true, name: true, avatarUrl: true, phone: true, email: true, gender: true, createdAt: true, lastLoginAt: true, isBanned: true, profilePrivate: true } },
       portfolio: { orderBy: [asc(portfolioItems.sortOrder), asc(portfolioItems.createdAt)] },
       reviews: {
+        // Shikoyatlar sababli avto-yashirilgan sharhlar chiqmaydi (lib/moderation.ts)
+        where: eq(reviews.hiddenByReports, false),
         orderBy: [desc(reviews.createdAt)],
         with: { author: { columns: { name: true, avatarUrl: true } } },
       },
@@ -795,7 +797,7 @@ export async function recalcRating(specialistId: string) {
   const [row] = await db
     .select({ avg: sql<number>`coalesce(avg(${reviews.rating}), 0)`, n: count() })
     .from(reviews)
-    .where(eq(reviews.specialistId, specialistId));
+    .where(and(eq(reviews.specialistId, specialistId), eq(reviews.hiddenByReports, false)));
   const rating = Math.round(Number(row.avg) * 10) / 10;
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { completedCount: true } });
   // "Top mutaxassis" (F69): payments isTopRated() bilan aynan bir qoida (TOP_RATED_RULE, minCompleted bo'lsa u ham) —

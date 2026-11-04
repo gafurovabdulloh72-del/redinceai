@@ -12,6 +12,7 @@ import { generateUsername } from "@/lib/chat/username";
 import { audit } from "@/lib/security/audit";
 import { hashPassword } from "@/lib/security/password";
 import { clientIp, enforceLimit } from "@/lib/security/rate-limit";
+import { getLocale } from "@/lib/i18n/server";
 
 /**
  * Ro'yxatdan o'tish. Mutaxassis uchun bo'sh "placeholder" profil YARATILMAYDI —
@@ -48,6 +49,8 @@ export const POST = handler(async (req) => {
     role: input.role,
     // Yangi ijodkorga standart — haftalik jamlama (sozlamalardan o'chiriladi); mijozga o'chiq
     digestFreq: input.role === "specialist" ? "weekly" : "off",
+    // Sayt tili (cookie/Accept-Language) — email bildirishnomalar shu tilda
+    lang: await getLocale(),
     lastLoginAt: new Date(),
     termsVersion: TERMS_VERSION,
     termsAcceptedAt: new Date(),

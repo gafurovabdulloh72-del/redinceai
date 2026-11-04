@@ -68,6 +68,10 @@ export const FEED = {
   meterTitle: { uz: "Profilingiz to'ldirilmoqda", ru: "Профиль заполняется" } satisfies Tr,
   meterNext: { uz: "Keyingi qadam", ru: "Следующий шаг" } satisfies Tr,
   meterHint: { uz: "To'liq profil buyurtmalarni 3 baravar ko'paytiradi", ru: "Полный профиль привлекает в 3 раза больше заказов" } satisfies Tr,
+  /* Profil tayyorligi (lib/profile/completion.ts, 2026-11-04) */
+  meterLeft: { uz: (n: number) => `${n} qadam qoldi`, ru: (n: number) => `Осталось шагов: ${n}` },
+  meterReady: { uz: (p: number) => `Profil ${p}% tayyor`, ru: (p: number) => `Профиль готов на ${p}%` },
+  meterOpen: { uz: "Bajarish", ru: "Выполнить" } satisfies Tr,
   follow: { uz: "Obuna", ru: "Подписаться" } satisfies Tr,
   /* Yangi ijodkor yo'riqnomasi (bosh sahifa kartasi) */
   obTitle: { uz: "Birinchi qadamlar", ru: "Первые шаги" } satisfies Tr,

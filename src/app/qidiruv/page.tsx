@@ -14,6 +14,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
 import { PALET, QIDIRUV } from "@/lib/i18n/dict/search";
 import { getSkillStats } from "@/lib/queries";
+import { getCurrentUser } from "@/lib/auth";
 import { exploreSearch, EXPLORE_TYPES, type ExploreType } from "@/lib/search/service";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,9 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const q = (typeof sp.q === "string" ? sp.q : "").trim().slice(0, 80);
   const typeRaw = typeof sp.type === "string" ? sp.type : "all";
   const type: ExploreType = (EXPLORE_TYPES as readonly string[]).includes(typeRaw) ? (typeRaw as ExploreType) : "all";
-  const [til, r, skills] = await Promise.all([getLocale(), exploreSearch(q, type), getSkillStats(8).catch(() => [])]);
+  // Ko'ruvchi — yopiq profil / avto-yashirilgan postlar filtri (natijalar shaxsiy emas, faqat ko'rinish qoidalari)
+  const me = await getCurrentUser();
+  const [til, r, skills] = await Promise.all([getLocale(), exploreSearch(q, type, { viewer: me ? { id: me.id, role: me.role } : null }), getSkillStats(8).catch(() => [])]);
   const nothing = r.people.length === 0 && r.media.length === 0 && r.sections.length === 0;
   const needQuery = !q && NEEDS_QUERY.includes(type);
   const resultTile = "group block rounded-[var(--r-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -146,6 +149,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     <span className="mt-1 flex items-center gap-1.5 text-[12px] text-fg-3">
                       <Avatar name={m.author.name} src={m.author.avatarUrl} size={18} decorative />
                       <span className="truncate font-medium text-fg-2">{m.author.name}</span>
+                      {m.author.isVerified && <VerifiedBadge size={12} className="shrink-0" />}
                       <span aria-hidden>·</span>
                       <span className="shrink-0">{tr(til, QIDIRUV.kind[m.kind])}</span>
                       <span className="ml-auto shrink-0" suppressHydrationWarning>

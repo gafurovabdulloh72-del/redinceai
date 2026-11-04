@@ -49,3 +49,25 @@ export const MENTOR = {
   lessons: { uz: "dars", ru: "уроков" } satisfies Tr,
   free: { uz: "Bepul", ru: "Бесплатно" } satisfies Tr,
 };
+
+/* Jonli reyting (/top «Hafta faollari», lib/leaderboard.ts, 2026-11-04) */
+export const TOP_LIVE = {
+  title: { uz: "Hafta faollari", ru: "Активные недели" } satisfies Tr,
+  titleMonth: { uz: "Oy faollari", ru: "Активные месяца" } satisfies Tr,
+  lead: { uz: "Jonli reyting — mukofot emas: so'nggi davrdagi ball bo'yicha. Har 10 daqiqada yangilanadi.", ru: "Живой рейтинг — не награда: по баллам за последний период. Обновляется каждые 10 минут." } satisfies Tr,
+  week: { uz: "Hafta", ru: "Неделя" } satisfies Tr,
+  month: { uz: "Oy", ru: "Месяц" } satisfies Tr,
+  allCrafts: { uz: "Barcha kasblar", ru: "Все профессии" } satisfies Tr,
+  allRegions: { uz: "Barcha hududlar", ru: "Все регионы" } satisfies Tr,
+  craft: { uz: "Kasb", ru: "Профессия" } satisfies Tr,
+  region: { uz: "Hudud", ru: "Регион" } satisfies Tr,
+  empty: { uz: "Bu davr va filtr bo'yicha hali faollik yo'q", ru: "По этому периоду и фильтру активности пока нет" } satisfies Tr,
+  newEntry: { uz: "yangi", ru: "новый" } satisfies Tr,
+  same: { uz: "o'zgarmadi", ru: "без изменений" } satisfies Tr,
+  up: { uz: (n: number) => `${n} o'rin ko'tarildi`, ru: (n: number) => `поднялся на ${n}` },
+  down: { uz: (n: number) => `${n} o'rin tushdi`, ru: (n: number) => `опустился на ${n}` },
+  you: { uz: (n: number) => `Siz: ${n}-o'rin`, ru: (n: number) => `Вы: ${n}-е место` },
+  youOut: { uz: "Siz hali reytingda yo'qsiz — post joylab, reaksiya yig'ing", ru: "Вас пока нет в рейтинге — публикуйте посты и собирайте реакции" } satisfies Tr,
+  of: { uz: (n: number) => `${n} ijodkor ichida`, ru: (n: number) => `среди ${n}` },
+  reset: { uz: "Tozalash", ru: "Сбросить" } satisfies Tr,
+};

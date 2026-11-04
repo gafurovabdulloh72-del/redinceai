@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getLocale } from "@/lib/i18n/server";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -81,6 +82,8 @@ export async function GET(req: NextRequest) {
       // Parol bilan kirish yo'q — tasodifiy kuchli hash (keyin «parolni tiklash» orqali o'rnatiladi)
       passwordHash: await hashPassword(randomBytes(24).toString("base64url")),
       lastLoginAt: new Date(),
+      // Sayt tili — email bildirishnomalar shu tilda
+      lang: await getLocale(),
       termsVersion: TERMS_VERSION,
       termsAcceptedAt: new Date(),
     });

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { follows, groupMembers, groups, postSaves, posts, specialists, users, type Post } from "@/lib/db/schema";
 import { briefUsers, listGroups, toPostViews, upcomingEvents, type GroupListItem, type PostView } from "@/lib/groups/service";
@@ -10,6 +10,8 @@ import { listableCondition } from "@/lib/subscriptions/access";
 import { listVacancies, type VacancyCard } from "@/lib/vacancies/service";
 import { vacancyFilterSchema } from "@/lib/vacancies/validators";
 import { notBlockedCondition } from "@/lib/privacy/blocks";
+import { privateProfileCondition } from "@/lib/privacy/private-profile";
+import { postNotHiddenCondition } from "@/lib/moderation";
 
 /**
  * Bosh sahifa lentasi (ijtimoiy tarmoq): profil postlari (groupId = null) va ochiq jamoalar/kanallar postlari bir oqimda.
@@ -44,6 +46,8 @@ export interface FeedQuery {
 /** Lenta shartlari — homeFeed va countNewPosts bir xil filtrdan foydalanadi */
 function feedConditions(viewer: Viewer, scope: FeedScope, tag: string | null | undefined): SQL[] {
   const conds: SQL[] = [eq(users.isBanned, false), or(isNull(posts.groupId), eq(groups.isPrivate, false))!, eq(posts.subscribersOnly, false)];
+  // Shikoyatlar sababli yashirilgan postlar (faqat muallif/admin ko'radi) va yopiq profil postlari (faqat obunachilar) — lib/moderation, lib/privacy/private-profile
+  conds.push(postNotHiddenCondition(viewer), or(isNotNull(posts.groupId), privateProfileCondition(posts.authorId, viewer))!);
   // «Yaqin do'stlar» postlari: faqat muallifning ro'yxatidagilarga (va o'ziga) ko'rinadi
   conds.push(
     viewer
@@ -108,7 +112,7 @@ export async function countNewPosts(viewer: Viewer, opts: { scope?: FeedScope; t
 
 /** Bitta post lenta elementi sifatida (`/?post=<id>` va yangi post joylangach tepaga qo'shish). Ko'ra olmasa — null */
 export async function feedItemById(id: string, viewer: Viewer): Promise<FeedItem | null> {
-  const conds: SQL[] = [eq(posts.id, id), eq(users.isBanned, false)];
+  const conds: SQL[] = [eq(posts.id, id), eq(users.isBanned, false), postNotHiddenCondition(viewer), or(isNotNull(posts.groupId), privateProfileCondition(posts.authorId, viewer))!];
   if (viewer) conds.push(notBlockedCondition(posts.authorId, viewer.id));
   conds.push(
     viewer

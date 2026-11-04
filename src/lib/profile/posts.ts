@@ -1,7 +1,9 @@
 import "server-only";
 import { and, desc, eq, isNull, like, lt, not, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, posts, type FileAttachment, type Post, type PostMusic } from "@/lib/db/schema";
+import { follows, posts, users, type FileAttachment, type Post, type PostMusic } from "@/lib/db/schema";
+import { postNotHiddenCondition } from "@/lib/moderation";
+import { canViewPrivateContent } from "@/lib/privacy/private-profile";
 import { briefUsers, toPostViews, type PostView } from "@/lib/groups/service";
 import { notifyMentions } from "@/lib/groups/mentions";
 import { notify } from "@/lib/notifications";
@@ -80,7 +82,9 @@ export async function createProfilePost(authorId: string, body: string, media: F
 /** Ijodkorning profil lentasi: yangi → eski, cursor = oxirgi postning createdAt (ms); filtr — video / rasm / matn */
 export async function listProfilePosts(authorId: string, viewer: Viewer, opts: { cursor?: number | null; limit?: number; filter?: ProfilePostFilter } = {}): Promise<ProfilePostPage> {
   const limit = Math.min(48, Math.max(1, opts.limit ?? 18));
-  const conds: SQL[] = [eq(posts.authorId, authorId), PROFILE_VISIBLE];
+  // Yopiq profil: postlar faqat tasdiqlangan obunachilar, egasi va adminga
+  if (!(await canSeeAuthor(authorId, viewer))) return { items: [], nextCursor: null };
+  const conds: SQL[] = [eq(posts.authorId, authorId), PROFILE_VISIBLE, postNotHiddenCondition(viewer)];
   // «Yaqin do'stlar» postlari: egasi, admin va ro'yxatdagilardan boshqaga ko'rinmaydi
   if (!viewer || (viewer.id !== authorId && viewer.role !== "admin")) {
     conds.push(viewer ? or(eq(posts.audience, "public"), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)! : eq(posts.audience, "public"));
@@ -123,18 +127,25 @@ export async function profilePostCounts(authorId: string): Promise<{ posts: numb
       w: sql<number>`coalesce(sum(${posts.viewsCount}), 0)`,
     })
     .from(posts)
-    .where(and(eq(posts.authorId, authorId), PROFILE_VISIBLE));
+    .where(and(eq(posts.authorId, authorId), PROFILE_VISIBLE, eq(posts.hiddenByReports, false)));
   return { posts: Number(r?.n ?? 0), videos: Number(r?.v ?? 0), texts: Number(r?.t ?? 0), views: Number(r?.w ?? 0) };
 }
 
 /** Bitta profil posti (?post=<id> bilan ochish uchun); authorId berilsa — faqat shu muallifniki */
 export async function getProfilePostView(id: string, viewer: Viewer, authorId?: string): Promise<PostView | null> {
-  const conds: SQL[] = [eq(posts.id, id), PROFILE_VISIBLE];
+  const conds: SQL[] = [eq(posts.id, id), PROFILE_VISIBLE, postNotHiddenCondition(viewer)];
   if (authorId) conds.push(eq(posts.authorId, authorId));
   if (!viewer || viewer.role !== "admin") {
     conds.push(viewer ? or(eq(posts.audience, "public"), eq(posts.authorId, viewer.id), sql`${posts.authorId} in (select cf.owner_id from close_friends cf where cf.friend_id = ${viewer.id})`)! : eq(posts.audience, "public"));
   }
   const row = await db.query.posts.findFirst({ where: and(...conds) });
   if (!row) return null;
+  if (!(await canSeeAuthor(row.authorId, viewer))) return null;
   return (await toPostViews([row], viewer, viewer?.role === "admin"))[0] ?? null;
+}
+
+/** Yopiq profil tekshiruvi (lib/privacy/private-profile): muallif topilmasa — ko'rinmaydi */
+async function canSeeAuthor(authorId: string, viewer: Viewer): Promise<boolean> {
+  const u = await db.query.users.findFirst({ where: eq(users.id, authorId), columns: { id: true, profilePrivate: true } });
+  return u ? canViewPrivateContent(viewer, u) : false;
 }

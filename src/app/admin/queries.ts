@@ -136,7 +136,8 @@ export async function listRecentVerified(limit = 30) {
 export async function listPendingSpecialists(limit = 200) {
   return db.query.specialists.findMany({
     where: eq(specialists.isVerified, false),
-    orderBy: [asc(specialists.createdAt)],
+    // Ko'k belgi so'rovi yuborganlar tepada (eng eski so'rov birinchi), keyin qolganlar — eng uzoq kutganlar birinchi
+    orderBy: [sql`${specialists.verificationRequestedAt} is null`, asc(specialists.verificationRequestedAt), asc(specialists.createdAt)],
     limit,
     extras: {
       /** Bitta skalyar subquery — alohida so'rovsiz portfolio soni.

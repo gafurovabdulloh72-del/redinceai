@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { protectAttachments } from "@/lib/media/private-url";
 import { callPreview } from "@/lib/call/format";
 import { db } from "@/lib/db";
 import { conversations, dmConversationPrefs, dmFolders, dmMessageReactions, dmMessages, specialists, users, type Conversation, type FileAttachment } from "@/lib/db/schema";
@@ -31,6 +32,8 @@ export interface DmPeer {
   lastLoginAt: Date | null;
   /** Mutaxassis profili slug'i (bor bo'lsa) — ism bosilganda profilga o'tadi; mijozlarda null */
   slug?: string | null;
+  /** Tasdiqlangan mutaxassis — chat sarlavhasida ko'k belgi */
+  isVerified?: boolean;
   /** Maxfiylik: onlayn holatini ko'rsatadimi; kim yozishi mumkin */
   showOnline: boolean;
   dmPolicy: string;
@@ -216,8 +219,9 @@ export async function loadConversationFor(meId: string, convId: string) {
   const peer = (conv.aId === meId ? conv.b : conv.a) as DmPeer;
   // Qarshi tomon mutaxassis bo'lsa — profil slug'i (ism bosilganda /mutaxassislar/<slug>'ga o'tadi)
   if (peer.role === "specialist") {
-    const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, peer.id), columns: { slug: true } });
+    const sp = await db.query.specialists.findFirst({ where: eq(specialists.userId, peer.id), columns: { slug: true, isVerified: true } });
     peer.slug = sp?.slug ?? null;
+    peer.isVerified = Boolean(sp?.isVerified);
   }
   // Qarshi tomon suhbatni oxirgi marta qachon o'qigani — ✓✓ (o'qildi) belgisi uchun
   const peerReadAt = conv.aId === meId ? conv.bReadAt : conv.aReadAt;
@@ -341,7 +345,8 @@ export function toDmView(m: DmRow, meId: string, quotes: Map<string, QuoteView>,
     id: m.id,
     mine: m.senderId === meId,
     body: deleted ? "" : m.call ? callPreview(m.call, m.senderId === meId) : m.body,
-    attachments: deleted ? [] : m.attachments,
+    // 5-audit: xom saqlash manzili chiqmaydi — `/api/media/dm/<xabar>_<indeks>` (ishtirokchi + token)
+    attachments: deleted ? [] : protectAttachments("dm", m.id, m.attachments),
     call: deleted ? null : (m.call ?? null),
     at: m.createdAt.getTime(),
     replyTo: m.replyToId ? (quotes.get(m.replyToId) ?? { id: m.replyToId, body: "Xabar o'chirilgan", senderName: "", kind: "text" as const }) : null,
@@ -502,7 +507,10 @@ export async function listDmMedia(convId: string, meId: string, kind: MediaKind,
   });
   const items: MediaItem[] = [];
   for (const m of rows.filter(visibleTo(meId))) {
-    for (const a of m.attachments) if (kindOf(a) === kind) items.push({ ...a, messageId: m.id, at: m.createdAt.getTime(), mine: m.senderId === meId });
+    const safe = protectAttachments("dm", m.id, m.attachments);
+    m.attachments.forEach((a, i) => {
+      if (kindOf(a) === kind) items.push({ ...safe[i], messageId: m.id, at: m.createdAt.getTime(), mine: m.senderId === meId });
+    });
   }
   return { items: items.slice(0, limit), nextCursor: rows.length === 60 ? rows[rows.length - 1].createdAt.getTime() : null };
 }

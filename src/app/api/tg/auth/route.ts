@@ -104,6 +104,7 @@ export const POST = handler(async (req) => {
       username: v.user.username ?? null,
       role: d.role,
       phone: d.phone || null,
+      lang: (v.user.language_code ?? "").toLowerCase().startsWith("ru") ? "ru" : "uz",
       specialist: d.role === "specialist" && d.category && d.region ? { category: d.category, experience: d.experience ?? "middle", regionSlug: d.region } : null,
     });
     await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true, embedded });

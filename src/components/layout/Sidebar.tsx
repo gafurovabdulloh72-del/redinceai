@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { NOTIFICATIONS_UNREAD_EVENT } from "./notification-meta";
 import { AppearancePanel } from "./Appearance";
 import { CreateMenu } from "./CreateMenu";
+import { FeedbackButton, FeedbackHost } from "@/components/feedback/FeedbackButton";
 import { Logo } from "./Logo";
 import { routeActive } from "./nav-utils";
 import type { NavUser } from "./NavbarClient";
@@ -208,6 +209,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 <MoreItem href="/narxlar" icon={CreditCard} label={tr(til, SHELL.nav.prices)} />
                 <MoreItem href="/yordam" icon={HelpCircle} label={tr(til, SHELL.footer.help)} />
                 <MoreItem href="/haqida" icon={Info} label={tr(til, SHELL.nav.about)} />
+                {/* Fikr bildirish (2026-11-04) — Sheet forma, mehmon ham yubora oladi */}
+                <FeedbackButton variant="menu" />
                 <div className="my-1 h-px bg-line" />
                 <div className="px-3 py-2.5">
                   <div className="mb-3 flex items-center justify-between gap-2">
@@ -229,6 +232,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
           </div>
         </div>
       </aside>
+      {/* Fikr bildirish varag'i — bitta egasi (telefonda ham: aside CSS bilan yashirin, varaq portal orqali body'da) */}
+      <FeedbackHost loggedIn={Boolean(user)} />
       <CreateMenu open={createOpen} onClose={() => setCreateOpen(false)} user={user ? { id: user.id, role: user.role, specialistSlug: user.specialistSlug } : null} />
     </>
   );

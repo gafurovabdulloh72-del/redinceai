@@ -51,6 +51,8 @@ import { BlockButton } from "@/components/specialists/BlockButton";
 import { FollowersDialog } from "@/components/groups/FollowersDialog";
 import { TAJRIBA } from "@/lib/i18n/dict/profile";
 import { blockState } from "@/lib/privacy/blocks";
+import { canViewPrivateContent } from "@/lib/privacy/private-profile";
+import { YOPIQ_PROFIL } from "@/lib/i18n/dict/moderation";
 import { PackagesTable } from "@/components/specialists/PackagesTable";
 import { RateCalculator } from "@/components/specialists/RateCalculator";
 import { ShortLink } from "@/components/specialists/ShortLink";
@@ -244,6 +246,8 @@ export default async function SpecialistPage({ params, searchParams }: { params:
 
   // Profil lentasi (Instagram uslubi): shaxsiy postlar, sonlar va ?post=<id> bilan ochiladigan post
   const feedViewer = viewer ? { id: viewer.id, role: viewer.role } : null;
+  // Yopiq profil (users.profilePrivate): postlar/story/portfolio faqat tasdiqlangan obunachilar, egasi va adminga
+  const privateLocked = !(await canViewPrivateContent(feedViewer, { id: raw.userId, profilePrivate: raw.user.profilePrivate }));
   const [profilePosts, postCounts, openPost, highlights, badges] = await Promise.all([
     listProfilePosts(raw.userId, feedViewer, { limit: 18 }),
     profilePostCounts(raw.userId),
@@ -639,7 +643,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && !blockedAny && (
                 <div className="min-w-0 [&>button]:w-full [&>button]:px-3">
-                  <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} showBell initialNotifyLevel={follow.notifyLevel} />
+                  <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} showBell initialNotifyLevel={follow.notifyLevel} initialRequested={follow.requested} />
                 </div>
               )}
               {!PROFILE_HIRING && !isOwner && sp.user.username && !blockedAny && (
@@ -808,13 +812,23 @@ export default async function SpecialistPage({ params, searchParams }: { params:
           )}
 
           {/* Highlights: doimiy story to'plamlari (profil lentasidan yuqorida) */}
-          {(highlights.length > 0 || isOwner) && (
+          {!privateLocked && (highlights.length > 0 || isOwner) && (
             <section className="animate-fade-up" style={{ animationDelay: "120ms" }} aria-label="Story to'plamlari">
               <Highlights initial={highlights} canManage={isOwner} archive={isOwner ? archive : undefined} />
             </section>
           )}
 
           {/* Profil lentasi (Instagram uslubi): Postlar / Videolar / Ishlar — portfolio shu yerda; id="portfolio" eski havolalar uchun saqlanadi */}
+          {privateLocked ? (
+            <section className="card m-flat animate-fade-up flex flex-col items-center gap-3 p-8 text-center" id="portfolio" aria-label={tr(til, YOPIQ_PROFIL.title)}>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-line text-fg-2" aria-hidden="true">
+                <Lock size={24} />
+              </span>
+              <p className="font-display text-[18px] font-semibold text-fg">{tr(til, YOPIQ_PROFIL.title)}</p>
+              <p className="max-w-sm text-[13.5px] leading-relaxed text-fg-2">{tr(til, YOPIQ_PROFIL.text)}</p>
+              {!blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} initialRequested={follow.requested} />}
+            </section>
+          ) : (
           <section className="animate-fade-up scroll-mt-28" style={{ animationDelay: "140ms" }} id="portfolio" aria-label={til === "ru" ? "Лента профиля" : "Profil lentasi"}>
             <ProfileTabs
               til={til}
@@ -844,6 +858,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               }))}
             />
           </section>
+          )}
 
           {/* «Yo'l»: ish tajribasi + ta'lim bitta xronologik chiziqda; «Jamoalari» — ochiq jamoa/kanallar */}
           <Timeline work={raw.workHistory} education={raw.education} til={til} className="animate-fade-up" />
@@ -988,7 +1003,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {/* Yollash yashirin: kasb/hudud hero'da — karta to'g'ridan-to'g'ri amallardan boshlanadi */}
               <div className={cn("flex items-stretch gap-2", PROFILE_HIRING && "mt-5")}>
                 <div className="min-w-0 flex-1">{cta}</div>
-                {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact />}
+                {!isOwner && !blockedAny && <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="lg" compact initialRequested={follow.requested} />}
                 {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="lg" />}
                 <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} variant="outline" size="lg" iconOnly />
               </div>

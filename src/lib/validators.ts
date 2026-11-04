@@ -465,6 +465,8 @@ export const privacySchema = z.object({
   dmPolicy: z.enum(["all", "following", "none"]),
   commentPolicy: z.enum(["all", "followers", "none"]),
   showOnline: z.boolean(),
+  /** Yopiq profil (2026-11-04): postlar/story/portfolio faqat tasdiqlangan obunachilarga; eski klientlar yubormasa — o'zgarmaydi */
+  profilePrivate: z.boolean().optional(),
 });
 
 /** GET /api/search/suggest?q= */

@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { privateFileUrl } from "@/lib/media/private-url";
 import { contactUnlocks, specialists, subscriptionInvoices, users, type SubscriptionInvoice } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { getSettings, type PlatformSettings } from "@/lib/payments/settings";
@@ -182,7 +183,7 @@ export async function pendingContactInvoices(): Promise<Array<{ id: string; stat
   const bmap = new Map(buyers.map((b) => [b.id, b]));
   return rows.map((r) => {
     const meta = r.meta as { title?: string; receiptUrl?: string } | null;
-    return { id: r.id, state: r.state, amount: r.amount, title: meta?.title ?? "Kontakt", createdAt: r.createdAt.getTime(), receiptUrl: meta?.receiptUrl ?? null, buyer: r.userId ? (bmap.get(r.userId) ?? null) : null };
+    return { id: r.id, state: r.state, amount: r.amount, title: meta?.title ?? "Kontakt", createdAt: r.createdAt.getTime(), receiptUrl: meta?.receiptUrl ? privateFileUrl("receipt", r.id) : null, buyer: r.userId ? (bmap.get(r.userId) ?? null) : null };
   });
 }
 

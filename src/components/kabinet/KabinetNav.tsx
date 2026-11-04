@@ -8,6 +8,7 @@ import { Avatar, Spinner } from "@/components/ui";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Sheet } from "@/components/ui/Sheet";
+import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { NOTIFICATIONS_UNREAD_EVENT } from "@/components/layout/notification-meta";
 import { cn } from "@/lib/utils";
 import { tr } from "@/lib/i18n";
@@ -239,6 +240,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
         {extRow("/top", Crown, tr(til, KABINET_NAV.top))}
         {extRow("/narxlar", CreditCard, tr(til, KABINET_NAV.prices))}
         {extRow("/yordam", HelpCircle, tr(til, KABINET_NAV.help))}
+        <FeedbackButton variant="row" />
       </div>
 
       <h2 className="m-label">{tr(til, KABINET_NAV.settings)}</h2>

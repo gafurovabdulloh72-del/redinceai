@@ -16,12 +16,12 @@ export const POST = handler(async (req) => {
   const session = await requireSession();
   await enforceLimit("verifyRequest", session.sub);
 
-  const user = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { id: true, name: true, email: true, emailVerified: true } });
+  const user = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { id: true, name: true, email: true, emailVerified: true, lang: true } });
   if (!user) throw new ApiError(401, "Foydalanuvchi topilmadi");
   if (user.emailVerified) throw new ApiError(409, "Email allaqachon tasdiqlangan");
 
   const { code, expiresAt } = await createEmailVerification(user.id);
-  const result = await sendMail(emailVerifyMail(user.email, user.name, code));
+  const result = await sendMail(emailVerifyMail(user.email, user.name, code, user.lang ?? "uz"));
   await audit(user.id, "email_verify_requested", { targetType: "user", targetId: user.id, meta: { sent: result.sent, reason: result.reason } }, req);
 
   return ok({ requested: true, sent: result.sent, email: user.email, expiresAt: expiresAt.getTime(), ttlSec: Math.round(VERIFY_CODE_TTL_MS / 1000) });

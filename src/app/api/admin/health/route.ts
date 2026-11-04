@@ -5,7 +5,7 @@ import { handler, ok, requireSession } from "@/lib/api";
 import { isR2Enabled } from "@/lib/storage/r2";
 import { isTelegramEnabled, telegramBotUsername } from "@/lib/telegram";
 import { liveKitUsage } from "@/lib/live/usage";
-import { LIVEKIT_WS_URL } from "@/lib/rtc/livekit";
+import { LIVEKIT_WS_URL, egressHealth } from "@/lib/rtc/livekit";
 
 type Backend = "r2" | "blob" | "disk" | "none";
 
@@ -34,7 +34,7 @@ export const GET = handler(async () => {
   }
   const dbMs = Math.round((performance.now() - t0) * 10) / 10;
 
-  const [cron, [{ n: rlActive }], rlTop, [{ n: activeSessions }], [{ n: usersTotal }], livekit] = await Promise.all([
+  const [cron, [{ n: rlActive }], rlTop, [{ n: activeSessions }], [{ n: usersTotal }], livekit, egress] = await Promise.all([
     db.query.auditLogs.findFirst({ where: eq(auditLogs.action, "cron_daily"), orderBy: [desc(auditLogs.createdAt)], columns: { createdAt: true, meta: true } }),
     db.select({ n: sql<number>`count(*)` }).from(rateLimits).where(gt(rateLimits.resetAt, now)),
     // Kalit prefiksi (":" gacha) bo'yicha eng ko'p faol cheklovlar — qaysi oqimda bosim borligi ko'rinadi
@@ -49,6 +49,8 @@ export const GET = handler(async () => {
     db.select({ n: sql<number>`count(*)` }).from(users),
     // LiveKit sarfi — o'z jadvallardan ishtirokchi-daqiqa (xato bo'lsa karta chizilmaydi, tizim holati buzilmaydi)
     liveKitUsage(now).catch(() => null),
+    // 5-audit: efir yozuvi (Egress) xizmati javob beradimi — faqat o'qish (ListEgress), yozuv boshlanmaydi
+    egressHealth(isR2Enabled()).catch((e: unknown) => ({ configured: true, reachable: false as const, error: e instanceof Error ? e.message : "Xato" })),
   ]);
 
   const cronMeta = (cron?.meta ?? {}) as Record<string, unknown>;
@@ -65,6 +67,6 @@ export const GET = handler(async () => {
     email: { configured: Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM) },
     sessions: { active: Number(activeSessions) },
     users: { total: Number(usersTotal) },
-    livekit: { configured: Boolean(LIVEKIT_WS_URL && process.env.LIVEKIT_API_KEY), usage: livekit },
+    livekit: { configured: Boolean(LIVEKIT_WS_URL && process.env.LIVEKIT_API_KEY), usage: livekit, egress },
   });
 });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { protectAttachments } from "@/lib/media/private-url";
 import { recordOrderEvent } from "@/lib/payments/service";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { MAX_ATTACHMENTS, MAX_ORDER_ATTACHMENTS } from "@/components/chat/attachments";
@@ -28,7 +29,7 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   const current = order.attachments ?? [];
   const known = current.map((a) => a.url);
   const fresh = uniqueAttachments(add).filter((a) => !known.includes(a.url));
-  if (!fresh.length) return ok({ attachments: current });
+  if (!fresh.length) return ok({ attachments: protectAttachments("orderfile", id, current) });
   if (current.length + fresh.length > MAX_ORDER_ATTACHMENTS) throw new ApiError(422, `Buyurtmaga jami ${MAX_ORDER_ATTACHMENTS} tagacha fayl biriktiriladi`, { add: `Yana ${Math.max(0, MAX_ORDER_ATTACHMENTS - current.length)} ta qo'shish mumkin` });
   await assertOwnUploads(
     session.sub,
@@ -42,5 +43,6 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   await recordOrderEvent(id, session.sub, "note", { note: `${who} fayl biriktirdi: ${names}` });
   await postSystemMessage(id, `${who} buyurtmaga ${fresh.length} ta fayl biriktirdi: ${names}`);
   await notifyNewMessage(order, role, `buyurtmaga ${fresh.length} ta fayl biriktirdi`);
-  return ok({ attachments: next });
+  // 5-audit: javobda xom manzil emas — `/api/media/orderfile/<buyurtma>_<indeks>`
+  return ok({ attachments: protectAttachments("orderfile", id, next) });
 });

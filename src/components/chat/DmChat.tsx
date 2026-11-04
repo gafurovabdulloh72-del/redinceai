@@ -10,6 +10,7 @@ import { AlertCircle, Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Bell, 
 import { ReportButton } from "@/components/specialists/ReportButton";
 import { CallButton } from "@/components/call/CallButton";
 import { useToast } from "@/components/ui/toast";
+import { VerifiedBadge } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePresence } from "@/components/motion/usePresence";
 import { haptic } from "@/components/motion/haptics";
@@ -41,6 +42,8 @@ interface Peer {
   avatarUrl: string | null;
   isBanned?: boolean;
   slug?: string | null;
+  /** Tasdiqlangan mutaxassis — sarlavhada ko'k belgi */
+  isVerified?: boolean;
   lastSeenAt?: number | null;
   lastActiveAt?: number | null;
 }
@@ -1643,7 +1646,10 @@ export function DmChat({
                       {pr.online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success" aria-hidden="true" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-semibold leading-tight text-fg">{peer.name}</span>
+                      <span className="flex min-w-0 items-center gap-1 text-[14px] font-semibold leading-tight text-fg">
+                        <span className="truncate">{peer.name}</span>
+                        {peer.isVerified && <VerifiedBadge size={13} className="shrink-0" />}
+                      </span>
                       <span className={cn("block truncate text-[12px]", peerTyping ? "italic text-fg-2" : pr.online ? "font-medium text-success-text" : "text-fg-3")}>{peerTyping ? t("typing") : pr.label}</span>
                     </span>
                   </>

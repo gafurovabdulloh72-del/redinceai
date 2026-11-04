@@ -523,10 +523,10 @@ export async function handleTop(chatId: string, lang?: BotLang): Promise<void> {
  *  - suhbat: `/elon` → bot sarlavhani so'raydi → matnni so'raydi (bot_sessions, flow="broadcast").
  * Oxirida oldindan ko'rish + auditoriya tugmalari (`bc:<all|specialists|clients|no>`). Xato bo'lsa adminga aytiladi.
  */
-export async function handleBroadcastStart(chatId: string, text: string): Promise<void> {
+export async function handleBroadcastStart(chatId: string, text: string, lang?: BotLang): Promise<void> {
   const me = await accountOf(chatId);
   if (!me || me.role !== "admin" || me.isBanned) {
-    await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
+    await sendTelegram(chatId, L(lang, "Bu buyruq faqat administrator uchun.", "Эта команда только для администратора."));
     return;
   }
   const raw = text.replace(/^\/elon(@\w+)?\s*/i, "").trim();
@@ -547,24 +547,24 @@ export async function handleBroadcastStart(chatId: string, text: string): Promis
   try {
     const { setBotSession } = await import("@/lib/telegram-bot/session");
     if (title.length >= 4 && body.length >= 10) {
-      await showBroadcastPreview(chatId, title.slice(0, 120), body.slice(0, 600));
+      await showBroadcastPreview(chatId, title.slice(0, 120), body.slice(0, 600), lang);
       return;
     }
     if (title.length >= 4) {
       await setBotSession(chatId, "broadcast", "body", { title: title.slice(0, 120) });
-      await sendTelegram(chatId, `📣 Sarlavha: <b>${escapeTelegramHtml(title.slice(0, 120))}</b>\n\nEndi e'lon <b>matnini</b> yozing (10–600 belgi). Bekor qilish — /start`);
+      await sendTelegram(chatId, L(lang, `📣 Sarlavha: <b>${escapeTelegramHtml(title.slice(0, 120))}</b>\n\nEndi e'lon <b>matnini</b> yozing (10–600 belgi). Bekor qilish — /start`, `📣 Заголовок: <b>${escapeTelegramHtml(title.slice(0, 120))}</b>\n\nТеперь напишите <b>текст</b> рассылки (10–600 символов). Отмена — /start`));
       return;
     }
     await setBotSession(chatId, "broadcast", "title", {});
-    await sendTelegram(chatId, "📣 <b>Ommaviy e'lon</b> — barcha foydalanuvchilarga (sayt + Telegram) bir vaqtda ketadi.\n\n1️⃣ E'lon <b>sarlavhasini</b> yozing (4–120 belgi).\n\n<i>Tezkor usul: <code>/elon Sarlavha | Matn</code>. Bekor qilish — /start</i>");
+    await sendTelegram(chatId, L(lang, "📣 <b>Ommaviy e'lon</b> — barcha foydalanuvchilarga (sayt + Telegram) bir vaqtda ketadi.\n\n1️⃣ E'lon <b>sarlavhasini</b> yozing (4–120 belgi).\n\n<i>Tezkor usul: <code>/elon Sarlavha | Matn</code>. Bekor qilish — /start</i>", "📣 <b>Рассылка</b> — уйдёт всем пользователям (сайт + Telegram) одновременно.\n\n1️⃣ Напишите <b>заголовок</b> (4–120 символов).\n\n<i>Быстрый способ: <code>/elon Заголовок | Текст</code>. Отмена — /start</i>"));
   } catch (e) {
     console.error("[telegram:elon]", e);
-    await sendTelegram(chatId, `⚠️ Xatolik: ${escapeTelegramHtml(e instanceof Error ? e.message : "noma'lum")}. Admin paneldagi «Ommaviy xabar» bo'limidan yuborib ko'ring.`);
+    await sendTelegram(chatId, L(lang, `⚠️ Xatolik: ${escapeTelegramHtml(e instanceof Error ? e.message : "noma'lum")}. Admin paneldagi «Ommaviy xabar» bo'limidan yuborib ko'ring.`, `⚠️ Ошибка: ${escapeTelegramHtml(e instanceof Error ? e.message : "неизвестно")}. Попробуйте раздел «Массовое сообщение» в админ-панели.`));
   }
 }
 
 /** Suhbat rejimida matnli javob (sarlavha → matn) — faqat faol broadcast oqimida; `true` — qabul qilindi */
-export async function handleBroadcastText(chatId: string, text: string): Promise<boolean> {
+export async function handleBroadcastText(chatId: string, text: string, lang?: BotLang): Promise<boolean> {
   const { getBotSession, setBotSession, clearBotSession } = await import("@/lib/telegram-bot/session");
   const s = await getBotSession<{ title?: string; body?: string }>(chatId);
   if (!s || s.flow !== "broadcast") return false;
@@ -576,27 +576,27 @@ export async function handleBroadcastText(chatId: string, text: string): Promise
   const t = text.trim();
   if (s.step === "title") {
     if (t.length < 4 || t.length > 120) {
-      await sendTelegram(chatId, "Sarlavha 4–120 belgi bo'lsin. Qaytadan yozing:");
+      await sendTelegram(chatId, L(lang, "Sarlavha 4–120 belgi bo'lsin. Qaytadan yozing:", "Заголовок — 4–120 символов. Напишите ещё раз:"));
       return true;
     }
     await setBotSession(chatId, "broadcast", "body", { title: t });
-    await sendTelegram(chatId, `Sarlavha: <b>${escapeTelegramHtml(t)}</b> ✓\n\n2️⃣ Endi e'lon <b>matnini</b> yozing (10–600 belgi).`);
+    await sendTelegram(chatId, L(lang, `Sarlavha: <b>${escapeTelegramHtml(t)}</b> ✓\n\n2️⃣ Endi e'lon <b>matnini</b> yozing (10–600 belgi).`, `Заголовок: <b>${escapeTelegramHtml(t)}</b> ✓\n\n2️⃣ Теперь напишите <b>текст</b> рассылки (10–600 символов).`));
     return true;
   }
   if (s.step === "body") {
     if (t.length < 10 || t.length > 600) {
-      await sendTelegram(chatId, "Matn 10–600 belgi bo'lsin. Qaytadan yozing:");
+      await sendTelegram(chatId, L(lang, "Matn 10–600 belgi bo'lsin. Qaytadan yozing:", "Текст — 10–600 символов. Напишите ещё раз:"));
       return true;
     }
-    await showBroadcastPreview(chatId, s.data.title ?? "E'lon", t);
+    await showBroadcastPreview(chatId, s.data.title ?? L(lang, "E'lon", "Объявление"), t, lang);
     return true;
   }
-  await sendTelegram(chatId, "Yuqoridagi xabarda auditoriya tugmasini bosing 👆 (bekor qilish — /start)");
+  await sendTelegram(chatId, L(lang, "Yuqoridagi xabarda auditoriya tugmasini bosing 👆 (bekor qilish — /start)", "Нажмите кнопку аудитории в сообщении выше 👆 (отмена — /start)"));
   return true;
 }
 
 /** Oldindan ko'rish + auditoriya tugmalari; qoralama sessiyada (`bc:` bosilganda o'qiladi) */
-async function showBroadcastPreview(chatId: string, title: string, body: string): Promise<void> {
+async function showBroadcastPreview(chatId: string, title: string, body: string, lang?: BotLang): Promise<void> {
   const { setBotSession } = await import("@/lib/telegram-bot/session");
   await setBotSession(chatId, "broadcast", "confirm", { title, body });
   const { audienceRows, channelStat } = await import("@/lib/broadcast");
@@ -604,25 +604,25 @@ async function showBroadcastPreview(chatId: string, title: string, body: string)
   const st = channelStat(all);
   const sp = all.filter((r) => r.role === "specialist").length;
   const cl = all.filter((r) => r.role === "client").length;
-  await sendTelegram(chatId, `<b>${escapeTelegramHtml(title)}</b>\n${escapeTelegramHtml(body)}\n\n— Shunday ketadi. Kimga yuboramiz? (saytda ${all.length} kishi, Telegramda ${st.telegram} kishi)`, {
+  await sendTelegram(chatId, `<b>${escapeTelegramHtml(title)}</b>\n${escapeTelegramHtml(body)}\n\n${L(lang, `— Shunday ketadi. Kimga yuboramiz? (saytda ${all.length} kishi, Telegramda ${st.telegram} kishi)`, `— Так и уйдёт. Кому отправить? (на сайте ${all.length} чел., в Telegram ${st.telegram} чел.)`)}`, {
     keyboard: [
-      [{ text: `👥 Hammaga (${all.length})`, data: "bc:all" }],
+      [{ text: `${L(lang, "👥 Hammaga", "👥 Всем")} (${all.length})`, data: "bc:all" }],
       [
-        { text: `🎨 Mutaxassislar (${sp})`, data: "bc:specialists" },
-        { text: `🧑‍💼 Mijozlar (${cl})`, data: "bc:clients" },
+        { text: `${L(lang, "🎨 Mutaxassislar", "🎨 Специалистам")} (${sp})`, data: "bc:specialists" },
+        { text: `${L(lang, "🧑‍💼 Mijozlar", "🧑‍💼 Клиентам")} (${cl})`, data: "bc:clients" },
       ],
-      [{ text: "✖️ Bekor qilish", data: "bc:no" }],
+      [{ text: L(lang, "✖️ Bekor qilish", "✖️ Отмена"), data: "bc:no" }],
     ],
   });
 }
 
 /** `bc:<auditoriya|no>` — admin tasdiqlaydi; natija asl xabar ostiga yoziladi, tugmalar yo'qoladi */
-export async function handleBroadcastCallback(chatId: string, data: string, answer: Answer, messageId: number | null): Promise<boolean> {
+export async function handleBroadcastCallback(chatId: string, data: string, answer: Answer, messageId: number | null, lang?: BotLang): Promise<boolean> {
   const m = /^bc:(all|specialists|clients|no)$/.exec(data);
   if (!m) return false;
   const me = await accountOf(chatId);
   if (!me || me.role !== "admin" || me.isBanned) {
-    await answer("Faqat administrator uchun");
+    await answer(L(lang, "Faqat administrator uchun", "Только для администратора"));
     return true;
   }
   const { getBotSession, clearBotSession } = await import("@/lib/telegram-bot/session");
@@ -636,27 +636,28 @@ export async function handleBroadcastCallback(chatId: string, data: string, answ
   };
   if (m[1] === "no") {
     await clearBotSession(chatId);
-    await finish("Bekor qilindi");
+    await finish(L(lang, "Bekor qilindi", "Отменено"));
     return true;
   }
   if (!draft) {
-    await finish("Qoralama topilmadi yoki eskirgan — /elon bilan qaytadan yozing");
+    await finish(L(lang, "Qoralama topilmadi yoki eskirgan — /elon bilan qaytadan yozing", "Черновик не найден или устарел — напишите заново через /elon"));
     return true;
   }
   // CAS: sessiya o'chirilgach yuboriladi — ikki marta bosilsa ikkinchi marta ketmaydi
   const { botSessions } = await import("@/lib/db/schema");
   const del = await db.delete(botSessions).where(eq(botSessions.chatId, chatId)).returning({ chatId: botSessions.chatId });
   if (!del.length) {
-    await answer("Allaqachon yuborilmoqda");
+    await answer(L(lang, "Allaqachon yuborilmoqda", "Уже отправляется"));
     return true;
   }
   const { AUDIENCE_LABEL, sendBroadcast } = await import("@/lib/broadcast");
   const aud = m[1] as "all" | "specialists" | "clients";
+  const AUD_RU: Record<typeof aud, string> = { all: "всем", specialists: "специалистам", clients: "клиентам" };
   try {
     const r = await sendBroadcast({ title: draft.title, body: draft.body, audience: aud }, me.id, "telegram");
-    await finish(`✅ Yuborildi — ${AUDIENCE_LABEL[aud].toLowerCase()}: ${r.sent} kishi (Telegram ${r.channels.telegram})`);
+    await finish(L(lang, `✅ Yuborildi — ${AUDIENCE_LABEL[aud].toLowerCase()}: ${r.sent} kishi (Telegram ${r.channels.telegram})`, `✅ Отправлено — ${AUD_RU[aud]}: ${r.sent} чел. (Telegram ${r.channels.telegram})`));
   } catch (e) {
-    await finish(`Xatolik: ${e instanceof Error ? e.message : "yuborilmadi"}`);
+    await finish(L(lang, `Xatolik: ${e instanceof Error ? e.message : "yuborilmadi"}`, `Ошибка: ${e instanceof Error ? e.message : "не отправлено"}`));
   }
   return true;
 }

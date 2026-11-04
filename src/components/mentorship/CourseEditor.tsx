@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Eye, Pencil, ImagePlus, Loader2, Plus, Trash2, Upload, Video } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Eye, GripVertical, Pencil, ImagePlus, Loader2, Plus, Trash2, Upload, Video } from "lucide-react";
+import { haptic, prefersReducedMotion } from "@/components/motion/haptics";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -107,14 +108,9 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
     }
   };
 
-  /** Darsni bir pog'ona yuqoriga/pastga surish — optimistik; server rad etsa eski tartib qaytadi */
-  const moveLesson = async (id: string, dir: -1 | 1) => {
-    const i = lessons.findIndex((l) => l.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= lessons.length) return;
+  /** Yangi tartibni optimistik qo'llaydi va serverga yozadi (`PUT /api/mentorlik/darslar/tartib`); rad etilsa eski tartib qaytadi + toast */
+  const commitOrder = async (next: LessonData[]) => {
     const prev = lessons;
-    const next = [...lessons];
-    [next[i], next[j]] = [next[j], next[i]];
     const renumbered = next.map((l, k) => ({ ...l, position: k + 1 }));
     setLessons(renumbered);
     try {
@@ -129,6 +125,104 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
       setLessons(prev);
       toast(e instanceof Error ? e.message : tr(til, MK.orderNotSaved), "error");
     }
+  };
+
+  /** Darsni bir pog'ona yuqoriga/pastga surish (klaviatura/a11y) — optimistik; server rad etsa eski tartib qaytadi */
+  const moveLesson = async (id: string, dir: -1 | 1) => {
+    const i = lessons.findIndex((l) => l.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= lessons.length) return;
+    const next = [...lessons];
+    [next[i], next[j]] = [next[j], next[i]];
+    await commitOrder(next);
+  };
+
+  /* ---------- Sudrab tartiblash (Pointer Events: sichqoncha darhol, sensorda 250 ms uzoq bosish) ----------
+     Ro'yxat DOM'da qimirlamaydi: sudralayotgan qator pointer ortidan translateY bilan yuradi (ko'tarilgan, --shadow-3),
+     oradagi qatorlar bo'sh joy (placeholder) ochib berish uchun bir qator balandlikka siljiydi; tashlanganda commitOrder. */
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const dragRef = useRef<{ id: string; from: number; startY: number; mids: number[]; h: number; active: boolean; timer: number | null } | null>(null);
+  const [drag, setDrag] = useState<{ id: string; from: number; over: number; dy: number; h: number } | null>(null);
+  const [settledId, setSettledId] = useState<string | null>(null);
+  const reduceMotion = typeof window !== "undefined" && prefersReducedMotion();
+
+  const beginDrag = () => {
+    const d = dragRef.current;
+    if (!d || d.active) return;
+    const rects = lessons.map((l) => rowRefs.current.get(l.id)?.getBoundingClientRect());
+    const own = rects[d.from];
+    if (!own) return;
+    const gap = rects[1] && rects[0] ? Math.max(0, rects[1].top - rects[0].bottom) : 8;
+    d.mids = rects.map((r) => (r ? r.top + r.height / 2 : 0));
+    d.h = own.height + gap;
+    d.active = true;
+    haptic("light");
+    setDrag({ id: d.id, from: d.from, over: d.from, dy: 0, h: d.h });
+  };
+
+  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
+    if (lessons.length < 2 || editingId || e.button !== 0) return;
+    const from = lessons.findIndex((l) => l.id === id);
+    if (from < 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { id, from, startY: e.clientY, mids: [], h: 0, active: false, timer: null };
+    if (e.pointerType === "touch") dragRef.current.timer = window.setTimeout(beginDrag, 250);
+    else beginDrag();
+  };
+
+  const onGripMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dy = e.clientY - d.startY;
+    if (!d.active) {
+      // Uzoq bosish kutilayotganda barmoq siljisa — bu scroll, sudrash boshlanmaydi
+      if (Math.abs(dy) > 8 && d.timer) {
+        window.clearTimeout(d.timer);
+        dragRef.current = null;
+      }
+      return;
+    }
+    const center = d.mids[d.from] + dy;
+    let over = 0;
+    d.mids.forEach((m, i) => {
+      if (i !== d.from && m < center) over += 1;
+    });
+    setDrag((cur) => (cur && cur.id === d.id ? { ...cur, over, dy } : cur));
+  };
+
+  const onGripUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    if (d.timer) window.clearTimeout(d.timer);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* allaqachon bo'shatilgan */
+    }
+    if (!d.active) return;
+    const center = d.mids[d.from] + (e.clientY - d.startY);
+    let over = 0;
+    d.mids.forEach((m, i) => {
+      if (i !== d.from && m < center) over += 1;
+    });
+    setDrag(null);
+    if (!reduceMotion) setSettledId(d.id);
+    if (over === d.from || e.type === "pointercancel") return;
+    const next = [...lessons];
+    const [row] = next.splice(d.from, 1);
+    next.splice(over, 0, row);
+    haptic("medium");
+    void commitOrder(next);
+  };
+
+  /** Sudrash paytida qatorning siljishi (px): sudralayotgan — pointer ortidan, oradagilar — bir qator yuqoriga/pastga */
+  const rowShift = (i: number): number => {
+    if (!drag) return 0;
+    if (i === drag.from) return drag.dy;
+    if (drag.from < drag.over && i > drag.from && i <= drag.over) return -drag.h;
+    if (drag.from > drag.over && i >= drag.over && i < drag.from) return drag.h;
+    return 0;
   };
 
   const removeLesson = async (id: string) => {
@@ -215,16 +309,43 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
       {/* Darslar */}
       <section>
         <h2 className="mb-3 text-[16px] font-bold text-fg">{tr(til, MK.lessons)} <span className="text-fg-4">· {lessons.length}</span></h2>
-        <ul className="space-y-2">
+        {/* Sudrash yo'riqnomasi — tutqich tugmasi aria-describedby bilan ko'rsatadi */}
+        <p id="lesson-drag-hint" className="sr-only">{tr(til, { uz: "Sudrab tartiblang yoki ↑/↓", ru: "Перетащите для сортировки или ↑/↓" })}</p>
+        <ul className={cn("space-y-2", drag && "select-none")}>
           {/* LessonForm «Bo'lim nomi» maydoni uchun mavjud bo'limlar taklifi */}
           <datalist id="lesson-sections">{[...new Set(lessons.map((l) => l.section).filter(Boolean))].map((x) => <option key={x} value={x} />)}</datalist>
-          {lessons.map((l) => (
+          {lessons.map((l, idx) => (
             editingId === l.id ? (
               <li key={l.id}>
                 <LessonForm courseId={course.id} initial={l} nextPos={l.position} onCancel={() => setEditingId(null)} onSaved={(nl) => { setLessons((ls) => ls.map((x) => (x.id === nl.id ? nl : x))); setEditingId(null); }} />
               </li>
             ) : (
-            <li key={l.id} className="card flex items-center gap-3 p-3 max-sm:gap-2">
+            <li
+              key={l.id}
+              ref={(el) => { if (el) rowRefs.current.set(l.id, el); else rowRefs.current.delete(l.id); }}
+              data-lesson-row={l.id}
+              onAnimationEnd={() => settledId === l.id && setSettledId(null)}
+              className={cn(
+                "card relative flex items-center gap-3 p-3 max-sm:gap-2",
+                drag?.id === l.id ? "z-10 cursor-grabbing" : drag && !reduceMotion && "transition-[transform] duration-200 ease-out",
+                settledId === l.id && "animate-row-settle",
+              )}
+              style={drag ? { transform: rowShift(idx) ? `translateY(${rowShift(idx)}px)${drag.id === l.id ? " scale(1.012)" : ""}` : undefined, boxShadow: drag.id === l.id ? "var(--shadow-3)" : undefined } : undefined}
+            >
+              <button
+                type="button"
+                onPointerDown={(e) => onGripDown(e, l.id)}
+                onPointerMove={onGripMove}
+                onPointerUp={onGripUp}
+                onPointerCancel={onGripUp}
+                aria-label={tr(til, { uz: "Sudrab tartiblash", ru: "Перетащить" })}
+                aria-describedby="lesson-drag-hint"
+                aria-grabbed={drag?.id === l.id}
+                disabled={lessons.length < 2 || Boolean(editingId)}
+                className={cn("flex h-9 w-6 shrink-0 touch-none items-center justify-center rounded-[8px] text-fg-4 transition hover:bg-fg/6 hover:text-fg disabled:opacity-30", drag?.id === l.id ? "cursor-grabbing text-fg" : "cursor-grab")}
+              >
+                <GripVertical size={15} />
+              </button>
               <span className="flex shrink-0 flex-col">
                 <button onClick={() => void moveLesson(l.id, -1)} disabled={l.position <= 1} aria-label={tr(til, MK.moveUp)} className="press flex h-6 w-7 items-center justify-center rounded-[8px] text-fg-3 transition hover:bg-fg/6 hover:text-fg disabled:opacity-30">
                   <ArrowUp size={14} />

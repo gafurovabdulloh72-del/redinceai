@@ -137,6 +137,33 @@ export async function startRoomRecording(room: string, filepath: string, s3: { a
 
 export const stopRecording = (room: string, egressId: string) => roomAdmin(room, "StopEgress", { egress_id: egressId }, "Egress", false).then(() => undefined);
 
+/**
+ * Efir yozuvi xizmatining o'z-o'zini tekshiruvi (5-audit, admin «Tizim holati»): LiveKit + R2 sozlangan bo'lsa
+ * Egress `ListEgress` (bo'sh so'rov — hech narsa boshlanmaydi) 5 soniya ichida javob beradimi.
+ * `configured=false` — R2 yoki LiveKit env'lari yo'q (yozuv tugmasi ham chiqmaydi); `reachable=false` + `error` — xizmat javob bermadi.
+ */
+export async function egressHealth(r2Configured: boolean): Promise<{ configured: boolean; reachable: boolean | null; error?: string }> {
+  const configured = Boolean(API_KEY && API_SECRET && LIVEKIT_WS_URL && r2Configured);
+  if (!configured) return { configured: false, reachable: null };
+  try {
+    const secret = new TextEncoder().encode(API_SECRET!);
+    const token = await new SignJWT({ video: { roomAdmin: true, roomRecord: true } }).setProtectedHeader({ alg: "HS256" }).setIssuer(API_KEY!).setSubject("server").setIssuedAt().setExpirationTime("1m").sign(secret);
+    const base = LIVEKIT_WS_URL.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+    const res = await fetch(`${base}/twirp/livekit.Egress/ListEgress`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ active: true }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    // livekit-server --dev'da egress xizmati yo'q — 501/404 keladi: sozlangan, lekin xizmat yo'q
+    if (!res.ok) return { configured: true, reachable: false, error: `HTTP ${res.status}` };
+    return { configured: true, reachable: true };
+  } catch (e) {
+    return { configured: true, reachable: false, error: e instanceof Error ? (e.name === "TimeoutError" ? "Vaqt tugadi (5 s)" : e.message) : "Xato" };
+  }
+}
+
 export type EgressInfo = { status: string; seconds: number | null };
 /** Egress holati: ACTIVE | ENDING | COMPLETE | FAILED | ABORTED | LIMIT_REACHED (matn yoki raqam bo'lishi mumkin) */
 export async function egressInfo(room: string, egressId: string): Promise<EgressInfo | null> {

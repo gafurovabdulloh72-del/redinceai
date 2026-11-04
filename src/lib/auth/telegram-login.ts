@@ -167,6 +167,8 @@ export interface TelegramSignup {
   username?: string | null;
   role: "client" | "specialist";
   phone?: string | null;
+  /** Telegram tili (language_code → uz|ru) — email bildirishnomalar shu tilda */
+  lang?: "uz" | "ru" | null;
   /** Mutaxassis uchun: kasb, tajriba, hudud — profil qatori darhol yaratiladi (narx daraja bo'yicha taklif) */
   specialist?: { category: string; experience: "junior" | "middle" | "senior" | "expert"; regionSlug: string } | null;
 }
@@ -190,6 +192,7 @@ export async function createTelegramAccount(chatId: string, s: TelegramSignup): 
     telegramChatId: chatId,
     role: s.role,
     digestFreq: s.role === "specialist" ? "weekly" : "off",
+    lang: s.lang ?? null,
     // Parol bilan kirish yo'q — tasodifiy kuchli hash (keyin «parolni tiklash» orqali o'rnatiladi)
     passwordHash: await hashPassword(randomBytes(24).toString("base64url")),
     lastLoginAt: new Date(),

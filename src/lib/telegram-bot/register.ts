@@ -157,6 +157,7 @@ async function finish(chatId: string, d: RegData, who: Who): Promise<void> {
     username: d.tgUsername ?? null,
     role: d.role,
     phone: d.phone ?? null,
+    lang: d.lang ?? null,
     specialist: d.role === "specialist" && d.category && d.experience && d.region ? { category: d.category, experience: d.experience, regionSlug: d.region } : null,
   });
   await clearBotSession(chatId);

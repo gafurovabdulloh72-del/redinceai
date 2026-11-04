@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { stories, storyViews, users, type FileAttachment, type PostMusic, type StorySticker } from "@/lib/db/schema";
 import { briefUsers } from "@/lib/groups/service";
+import { privateProfileCondition } from "@/lib/privacy/private-profile";
 import { STORY_TTL_MS } from "@/lib/social/limits";
 import { assertQuota } from "@/lib/social/quota";
 import { uid } from "@/lib/utils";
@@ -49,7 +50,7 @@ export async function storyRail(viewer: Viewer, limit = 30): Promise<StoryRailIt
     .select({ authorId: stories.authorId, n: sql<number>`count(*)`, latest: sql<number>`max(${stories.createdAt})` })
     .from(stories)
     .innerJoin(users, eq(users.id, stories.authorId))
-    .where(and(gt(stories.expiresAt, now), eq(users.isBanned, false), closeCond(viewer)))
+    .where(and(gt(stories.expiresAt, now), eq(users.isBanned, false), closeCond(viewer), privateProfileCondition(stories.authorId, viewer)))
     .groupBy(stories.authorId)
     .orderBy(desc(sql`max(${stories.createdAt})`))
     .limit(limit);
@@ -83,7 +84,7 @@ export async function authorStories(authorId: string, viewer: Viewer): Promise<A
   if (!author) return null;
   const u = await db.query.users.findFirst({ where: eq(users.id, authorId), columns: { isBanned: true } });
   if (!u || u.isBanned) return null;
-  const rows = await db.query.stories.findMany({ where: and(eq(stories.authorId, authorId), gt(stories.expiresAt, new Date()), closeCond(viewer)), orderBy: [asc(stories.createdAt)] });
+  const rows = await db.query.stories.findMany({ where: and(eq(stories.authorId, authorId), gt(stories.expiresAt, new Date()), closeCond(viewer), privateProfileCondition(stories.authorId, viewer)), orderBy: [asc(stories.createdAt)] });
   if (!rows.length) return null;
   const isMe = viewer?.id === authorId;
   const canSeeViews = isMe || viewer?.role === "admin";

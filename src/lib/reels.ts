@@ -6,6 +6,7 @@ import { briefUsers, toPostViews, type UserBrief } from "@/lib/groups/service";
 import type { ReactionKind } from "@/lib/groups/limits";
 import { getSettings } from "@/lib/payments/settings";
 import { listableCondition } from "@/lib/subscriptions/access";
+import { canViewPrivateContent } from "@/lib/privacy/private-profile";
 
 /**
  * Reels (/lenta): saytga yuklangan BARCHA media-postlar (profil postlari — video va rasm) + mutaxassislarning portfolio videolari.
@@ -96,7 +97,7 @@ async function loadCandidates(): Promise<Candidate[]> {
       .select({ id: posts.id, authorId: posts.authorId, createdAt: posts.createdAt, likes: posts.likesCount, comments: posts.commentsCount, views: posts.viewsCount })
       .from(posts)
       .innerJoin(users, eq(users.id, posts.authorId))
-      .where(and(isNull(posts.groupId), sql`${posts.media} != '[]'`, eq(users.isBanned, false)))
+      .where(and(isNull(posts.groupId), sql`${posts.media} != '[]'`, eq(users.isBanned, false), eq(posts.hiddenByReports, false)))
       .orderBy(desc(posts.createdAt))
       .limit(400),
     db
@@ -140,7 +141,7 @@ function diversify(list: Candidate[]): Candidate[] {
 
 export async function getReels(viewer: Viewer, mode: ReelsMode = "foryou", cursor: string | null = null, limit = 6): Promise<ReelsPage> {
   const now = Date.now();
-  let list = await candidates();
+  let list = await filterPrivateAuthors(await candidates(), viewer);
   if (mode === "new") list.sort((a, b) => b.createdAt - a.createdAt);
   else if (mode === "top") {
     const week = list.filter((c) => c.kind === "post" && now - c.createdAt < 7 * DAY);
@@ -153,10 +154,31 @@ export async function getReels(viewer: Viewer, mode: ReelsMode = "foryou", curso
   return { items, nextCursor: offset + limit < list.length ? encodeCursor(offset + limit) : null };
 }
 
+/**
+ * Yopiq profil mualliflarining ishlari faqat obunachilari, o'zi va adminga (lib/privacy/private-profile).
+ * Nomzodlar keshi ko'ruvchiga bog'liq emas — filtr shu yerda, kichik so'rov bilan (yopiq profillar kam).
+ */
+async function filterPrivateAuthors(list: Candidate[], viewer: Viewer): Promise<Candidate[]> {
+  if (viewer?.role === "admin" || !list.length) return list;
+  const authorIds = [...new Set(list.map((c) => c.authorId))];
+  const priv = await db.select({ id: users.id }).from(users).where(and(inArray(users.id, authorIds), eq(users.profilePrivate, true)));
+  if (!priv.length) return list;
+  const hidden = new Set(priv.map((r) => r.id));
+  if (viewer) {
+    hidden.delete(viewer.id);
+    const ok = await db.select({ id: follows.followingId }).from(follows).where(and(eq(follows.followerId, viewer.id), inArray(follows.followingId, [...hidden])));
+    for (const r of ok) hidden.delete(r.id);
+  }
+  return list.filter((c) => !hidden.has(c.authorId));
+}
+
 /** Bitta post (havola orqali ochilganda Reels boshida turadi) */
 export async function getReelByPostId(postId: string, viewer: Viewer): Promise<ReelItem | null> {
-  const p = await db.query.posts.findFirst({ where: and(eq(posts.id, postId), isNull(posts.groupId)), columns: { id: true, authorId: true, createdAt: true } });
+  const p = await db.query.posts.findFirst({ where: and(eq(posts.id, postId), isNull(posts.groupId)), columns: { id: true, authorId: true, createdAt: true, hiddenByReports: true } });
   if (!p) return null;
+  if (p.hiddenByReports && viewer?.id !== p.authorId && viewer?.role !== "admin") return null;
+  const author = await db.query.users.findFirst({ where: eq(users.id, p.authorId), columns: { id: true, profilePrivate: true } });
+  if (!author || !(await canViewPrivateContent(viewer, author))) return null;
   const [item] = await hydrate([{ key: `p:${p.id}`, kind: "post", id: p.id, authorId: p.authorId, createdAt: p.createdAt.getTime(), engagement: 0 }], viewer, null);
   return item ?? null;
 }

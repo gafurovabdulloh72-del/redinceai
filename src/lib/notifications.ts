@@ -155,7 +155,7 @@ function mailOrigin(): string | null {
  * yuborilmaydi (bloklash haqidagi "account" xabaridan tashqari).
  */
 async function mailNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
-  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { email: true, name: true, notifyEmail: true, isBanned: true } });
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { email: true, name: true, notifyEmail: true, isBanned: true, lang: true } });
   if (!u || !u.notifyEmail || !u.email || DELETED_EMAIL_RE.test(u.email)) return;
   if (u.isBanned && type !== "account") return;
   if (type === "message_new" || type === "chat") {
@@ -164,8 +164,33 @@ async function mailNotification(userId: string, type: NotificationType, title: s
   }
   const origin = mailOrigin();
   const link = absoluteHref(origin, href);
-  const footer = "Email bildirishnomalarni Kabinet → Profil → «Email bildirishnomalar» orqali o'chirishingiz mumkin.";
-  await sendMail(brandedMail({ to: u.email, title, name: u.name, body, link, footer }));
+  const lang = u.lang === "ru" ? "ru" : "uz";
+  const footer = MAIL_FOOTER[lang];
+  // Rus tilidagi foydalanuvchiga sarlavha/matn ruscha (lug'at → baza keshi → AI); foydalanuvchi matni (ism, iqtibos) qo'shilgan uzun matn lug'atda bo'lmaydi va o'zgarmaydi
+  const t = lang === "ru" ? await localizeNotification(title, body) : { title, body };
+  await sendMail(brandedMail({ to: u.email, title: t.title, name: u.name, body: t.body, link, footer, lang }));
+}
+
+/** Email pastki izohi — aniq {uz, ru} juftligi (avto-tarjima emas) */
+const MAIL_FOOTER = {
+  uz: "Email bildirishnomalarni Kabinet → Profil → «Email bildirishnomalar» orqali o'chirishingiz mumkin.",
+  ru: "Отключить email-уведомления можно в Кабинет → Профиль → «Email-уведомления».",
+} as const;
+
+/**
+ * Bildirishnoma sarlavhasi/matnini ruschaga o'girish (users.lang = ru): `translateUiBatch` — faqat qisqa o'zbekcha UI iboralari
+ * (≤160 belgi, `looksUzbek`); topilmagani yoki foydalanuvchi matni aralashgan uzun matn o'zgarishsiz qoladi. Xato — asl matn.
+ */
+export async function localizeNotification(title: string, body: string | null | undefined): Promise<{ title: string; body: string | null | undefined }> {
+  try {
+    const { translateUiBatch } = await import("@/lib/i18n/translate-service");
+    const { normalizeUz } = await import("@/lib/i18n/auto");
+    const map = await translateUiBatch([title, ...(body ? [body] : [])]);
+    const pick = (s: string) => map[normalizeUz(s)] ?? s;
+    return { title: pick(title), body: body ? pick(body) : body };
+  } catch {
+    return { title, body };
+  }
 }
 
 /**

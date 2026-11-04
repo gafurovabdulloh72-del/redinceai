@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ExternalLink, Check, Eye, ImagePlus, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Check, Eye, EyeOff, ImagePlus, Link2, MessageCircle, Pin, PinOff, Send, Trash2, X, MessageSquareText } from "lucide-react";
 import { useViewTracker } from "@/components/groups/useViewTracker";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { compactCount } from "@/lib/utils";
 import { ReactionButton, SaveButton, type ReactionState } from "@/components/groups/Reactions";
-import { Avatar, Button } from "@/components/ui";
+import { Avatar, Button, VerifiedBadge } from "@/components/ui";
+import { AVTO_YASHIRIN } from "@/lib/i18n/dict/moderation";
 import { useToast } from "@/components/ui/toast";
 import { ShareSheet } from "@/components/social/ShareSheet";
 import { uploadAttachment } from "@/components/chat/attachments";
@@ -362,13 +363,19 @@ function PostBody({
       <Avatar name={post.author.name} src={post.author.avatarUrl} size={36} decorative />
       <div className="min-w-0 flex-1">
         {post.author.slug ? (
-          <Link href={`/mutaxassislar/${post.author.slug}`} className="block truncate text-[14px] font-semibold text-fg hover:underline">
-            {post.author.name}
+          <Link href={`/mutaxassislar/${post.author.slug}`} className="flex min-w-0 items-center gap-1 text-[14px] font-semibold text-fg hover:underline">
+            <span className="truncate">{post.author.name}</span>
+            {post.author.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
           </Link>
         ) : (
           <p className="truncate text-[14px] font-semibold text-fg">{post.author.name}</p>
         )}
         <p className="flex items-center gap-1.5 text-[12px] text-fg-3" suppressHydrationWarning>
+          {post.hiddenByReports && (
+            <span className="inline-flex items-center gap-1 text-warning-text" title={tr(til, AVTO_YASHIRIN.badge)}>
+              <EyeOff size={12} aria-hidden /> {tr(til, AVTO_YASHIRIN.short)} ·
+            </span>
+          )}
           {timeAgoLabel(til, post.createdAt)}
           {post.edited && <span>· {tr(til, POST_OYNA.edited)}</span>}
           {pinned && (

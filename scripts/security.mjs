@@ -76,6 +76,13 @@ const GUEST_FORBIDDEN = [
   ["GET", "/api/users/mention?q=a"],
   ["GET", "/api/mentorlik/daromad"],
   ["GET", "/api/mentorlik/kurslar/saqlangan"],
+  // 5-audit: yopiq fayl route'lari — mehmon hech qachon 302/oqim olmaydi
+  ["GET", "/api/media/dm/x_0"],
+  ["GET", "/api/media/group/x_0"],
+  ["GET", "/api/media/order/x_0"],
+  ["GET", "/api/media/material/x_0"],
+  ["GET", "/api/media/receipt/x"],
+  ["GET", "/api/media/dm/x_0/stream"],
 ];
 
 test("Mini App: soxta initData → 401 (imzo tekshiruvi)", async () => {
@@ -445,4 +452,280 @@ test("Efir yozuvi: yo'q efir 404, tokensiz /video/stream 403 (xom R2 manzili API
   assert.equal((await req("cl", "/api/live/yoq-efir-404/video")).status, 404);
   assert.equal((await req("guest", "/api/live/yoq-efir-404/video/stream")).status, 403);
   assert.equal((await req("cl", "/api/live/yoq-efir-404/video/stream?t=abc.def")).status, 403);
+});
+
+/* ------------------------- Ovozli xabar presign (2026-11-04): mehmon 401, noto'g'ri MIME 422, audio OK ------------------------- */
+
+test("Ovozli xabar presign: mehmon 401, video/begona kengaytma 422, 5 MB dan katta 422, audio OK (r2 yoki fallback)", async () => {
+  const body = (o) => ({ method: "POST", body: JSON.stringify(o) });
+  assert.equal((await req("guest", "/api/upload/presign", body({ purpose: "voice", ext: "weba", size: 1000 }))).status, 401, "mehmon 401");
+  assert.equal((await req("sp", "/api/upload/presign", body({ purpose: "voice", ext: "mp4", size: 1000 }))).status, 422, "voice bilan video kengaytmasi 422");
+  assert.equal((await req("sp", "/api/upload/presign", body({ purpose: "voice", ext: "exe", size: 1000 }))).status, 422, "begona kengaytma 422");
+  assert.equal((await req("sp", "/api/upload/presign", body({ purpose: "voice", ext: "weba", size: 6 * 1024 * 1024 }))).status, 422, "5 MB dan katta 422");
+  const okRes = await req("sp", "/api/upload/presign", body({ purpose: "voice", ext: "weba", size: 1000 }));
+  assert.equal(okRes.status, 200, "audio presign 200");
+  const j = await okRes.json();
+  assert.ok(j.ok && (j.data.mode === "fallback" || (j.data.mode === "r2" && j.data.contentType === "audio/webm" && /\/uploads\/[\w-]+\.weba$/.test(j.data.publicUrl))), `javob: ${JSON.stringify(j)}`);
+});
+
+/* ------------------------- 5-AUDIT (2026-11-04): yopiq fayllar — imzolangan URL ------------------------- */
+
+// Chat biriktirmasi xom saqlash manzili (Blob ommaviy!) bilan emas, `/api/media/<kind>/<id>` orqali beriladi:
+// mehmon 401 · begona 404 · ishtirokchi 302 → tokenli /stream 200 · token boshqa sessiya/buzilgan/tokensiz → 403.
+// Fixture: bazaga to'g'ridan-to'g'ri (mijoz ↔ mutaxassis suhbatiga rasm biriktirilgan xabar; yuklama papkasida 1×1 PNG).
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { db as secDb } from "./e2e/_lib.mjs";
+
+async function dmFixture() {
+  const users = await secDb.execute({ sql: "select id, email from users where email in (?, ?)", args: ["mijoz@redince.uz", "mutaxassis@redince.uz"] });
+  const cl = users.rows.find((r) => r.email === "mijoz@redince.uz")?.id;
+  const sp = users.rows.find((r) => r.email === "mutaxassis@redince.uz")?.id;
+  if (!cl || !sp) return null;
+  const [a, b] = [String(cl), String(sp)].sort();
+  let conv = (await secDb.execute({ sql: "select id from conversations where a_id = ? and b_id = ?", args: [a, b] })).rows[0]?.id;
+  if (!conv) {
+    conv = randomUUID();
+    await secDb.execute({ sql: "insert into conversations (id, a_id, b_id, created_by, created_at) values (?, ?, ?, ?, ?)", args: [conv, a, b, a, Date.now()] });
+  }
+  const dir = process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+  fs.mkdirSync(dir, { recursive: true });
+  const fileName = `sec-media-${randomUUID()}.png`;
+  // 1×1 shaffof PNG
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  fs.writeFileSync(path.join(dir, fileName), png);
+  const msgId = randomUUID();
+  const attachments = JSON.stringify([{ url: `/uploads/${fileName}`, name: "sec-test.png", size: png.length, type: "image/png" }]);
+  await secDb.execute({ sql: "insert into dm_messages (id, conversation_id, sender_id, body, attachments, created_at) values (?, ?, ?, ?, ?, ?)", args: [msgId, String(conv), String(cl), "", attachments, Date.now()] });
+  const cleanup = async () => {
+    await secDb.execute({ sql: "delete from dm_messages where id = ?", args: [msgId] }).catch(() => {});
+    try {
+      fs.unlinkSync(path.join(dir, fileName));
+    } catch {}
+  };
+  return { conv: String(conv), msgId, fileName, size: png.length, cleanup };
+}
+
+test("Yopiq fayl: mehmon 401, noma'lum tur/ID 404", async () => {
+  assert.equal((await req("guest", "/api/media/dm/x")).status, 401);
+  assert.equal((await req("cl", "/api/media/xyz/abc_0")).status, 404, "noma'lum tur 404");
+  assert.equal((await req("cl", "/api/media/dm/yoq-xabar_0")).status, 404, "yo'q xabar 404");
+  assert.equal((await req("cl", "/api/media/material/yoq-dars_0")).status, 404, "yo'q dars 404");
+  assert.equal((await req("cl", "/api/media/receipt/yoq-hisob")).status, 404, "yo'q chek 404");
+  assert.equal((await req("cl", "/api/media/dm/yoq-xabar_0/stream")).status, 403, "tokensiz stream 403");
+});
+
+test("DM biriktirmasi: API'da xom manzil yo'q; begona 404; ishtirokchi 302 → tokenli stream 200; token boshqa sessiyada/buzilgan → 403", async (t) => {
+  const f = await dmFixture();
+  if (!f) return t.skip("demo hisoblar topilmadi");
+  try {
+    // 1) Suhbat DTO'sida xom manzil yo'q
+    const thread = await (await req("cl", `/api/chat/${f.conv}`)).json();
+    const item = thread?.data?.items?.find((m) => m.id === f.msgId);
+    assert.ok(item, "fixture xabari suhbatda ko'rinishi kerak");
+    assert.equal(item.attachments[0].url, `/api/media/dm/${f.msgId}_0`);
+    assert.ok(!JSON.stringify(thread).includes(f.fileName), "suhbat javobida xom /uploads manzili sizdi");
+    // 2) Begona (admin ham DM ishtirokchisi emas) → 404
+    if (COOKIES.ad) assert.equal((await req("ad", `/api/media/dm/${f.msgId}_0`)).status, 404, "begona 404");
+    // 3) Ishtirokchi → 302 tokenli stream
+    const r = await req("cl", `/api/media/dm/${f.msgId}_0`);
+    assert.equal(r.status, 302, `ishtirokchi: kutilgan 302, keldi ${r.status}`);
+    const loc = r.headers.get("location") ?? "";
+    assert.ok(loc.includes(`/api/media/dm/${f.msgId}_0/stream?t=`), `Location: ${loc}`);
+    assert.ok(!loc.includes("/uploads/") && !loc.includes(f.fileName), "Location xom manzilni oshkor qiladi");
+    const p = loc.replace(BASE, "");
+    const s = await req("cl", p);
+    assert.equal(s.status, 200, `stream: kutilgan 200, keldi ${s.status}`);
+    assert.equal(s.headers.get("content-type"), "image/png");
+    assert.equal(s.headers.get("x-content-type-options"), "nosniff");
+    assert.ok((s.headers.get("content-disposition") ?? "").startsWith("inline"), "Content-Disposition inline");
+    assert.ok((s.headers.get("cache-control") ?? "").includes("private"), "private kesh");
+    assert.equal((await s.arrayBuffer()).byteLength, f.size);
+    // 4) Token boshqa sessiyada (ikkinchi ishtirokchi ham) ishlamaydi; buzilgan/tokensiz → 403
+    assert.equal((await req("sp", p)).status, 403, "boshqa sessiya tokeni 403");
+    assert.equal((await req("cl", p + "x")).status, 403, "buzilgan token 403");
+    assert.equal((await req("cl", p.split("?")[0])).status, 403, "tokensiz 403");
+    assert.equal((await req("guest", p)).status, 401, "mehmon stream 401");
+    // 5) Indeksdan tashqari biriktirma / muqova yo'q → 404
+    assert.equal((await req("cl", `/api/media/dm/${f.msgId}_1`)).status, 404);
+    assert.equal((await req("cl", `/api/media/dm/${f.msgId}_0_p`)).status, 404);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+/* ------------------------- Fikr bildirish (2026-11-04) ------------------------- */
+
+test("Fikr: mehmon yubora oladi (qattiq limit bilan), XSS matni matn sifatida saqlanadi, begona admin ro'yxatini ko'ra olmaydi", async () => {
+  const xss = `<img src=x onerror=alert(1)> fikr sinovi ${Date.now()}`;
+  const r = await req("guest", "/api/fikr", { method: "POST", body: JSON.stringify({ kind: "bug", text: xss, page: "/top" }) });
+  assert.ok([201, 429].includes(r.status), `mehmon fikr: kutilgan 201 (yoki limit 429), keldi ${r.status}`);
+  // Admin ro'yxati: mehmon 401, oddiy foydalanuvchi 403
+  assert.equal((await req("guest", "/api/admin/fikrlar")).status, 401);
+  assert.equal((await req("cl", "/api/admin/fikrlar")).status, 403);
+  assert.equal((await req("cl", "/api/admin/fikrlar", { method: "PATCH", body: JSON.stringify({ id: "x", status: "done" }) })).status, 403);
+  if (r.status === 201 && COOKIES.ad) {
+    const { data } = await r.json();
+    const list = await req("ad", "/api/admin/fikrlar?status=open");
+    assert.equal(list.status, 200);
+    const j = await list.json();
+    const row = j.data.items.find((x) => x.id === data.id);
+    assert.ok(row, "admin ro'yxatida yangi fikr bor");
+    assert.equal(row.text, xss, "matn o'zgartirilmasdan (xom) saqlanadi — UI matn sifatida chizadi");
+    assert.equal(row.user, null, "mehmon fikri — user null");
+    // Admin sahifasida React matn sifatida chizadi: xom <img ...> tegi HTML'da bo'lmasligi kerak
+    const html = await (await req("ad", "/admin")).text();
+    assert.ok(!html.includes("<img src=x onerror"), "admin sahifasida fikr matni ekranlangan");
+    // Yopish — ro'yxatdan chiqadi
+    const p = await req("ad", "/api/admin/fikrlar", { method: "PATCH", body: JSON.stringify({ id: data.id, status: "done" }) });
+    assert.equal(p.status, 200);
+  }
+});
+
+test("Fikr: tashqi skrinshot URL rad etiladi (422), bo'sh matn 422", async () => {
+  const bad = await req("cl", "/api/fikr", { method: "POST", body: JSON.stringify({ kind: "idea", text: "skrinshot sinovi matni", screenshotUrl: "https://evil.example/x.png" }) });
+  assert.ok([422, 429].includes(bad.status), `tashqi URL: kutilgan 422, keldi ${bad.status}`);
+  const empty = await req("cl", "/api/fikr", { method: "POST", body: JSON.stringify({ kind: "idea", text: "" }) });
+  assert.ok([422, 429].includes(empty.status), `bo'sh matn: kutilgan 422, keldi ${empty.status}`);
+});
+
+/* ------------------------- Moderatsiya (avto-yashirish) va yopiq profil (2026-11-04) ------------------------- */
+
+/** Sinov hisobi: ro'yxatdan o'tadi (register limiti 5/soat IP) va sessiya cookie'sini qaytaradi */
+async function registerTemp(role) {
+  const email = `sec-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@sinov.local`;
+  const r = await fetch(`${BASE}/api/auth/register`, {
+    method: "POST",
+    headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: `Sinov ${role}`, email, password: "Sinov12345", role, acceptTerms: true }),
+    redirect: "manual",
+  });
+  if (!r.ok) return null;
+  const j = await r.json();
+  const list = typeof r.headers.getSetCookie === "function" ? r.headers.getSetCookie() : [r.headers.get("set-cookie") ?? ""];
+  const cookie = list.filter(Boolean).map((c) => c.split(";")[0]).join("; ");
+  // Sessiya haqiqatan ochilganini tekshiramiz (dev serverda qayta kompilyatsiya paytida birinchi so'rov 401 bo'lishi mumkin)
+  for (let i = 0; i < 3; i++) {
+    if ((await fetch(`${BASE}/api/auth/me`, { headers: { Cookie: cookie } })).status === 200) return { id: j.data.id, email, cookie };
+    await new Promise((res) => setTimeout(res, 700));
+  }
+  return null;
+}
+
+/** Sinov hisoblarini bazadan o'chirish (cascade: post, shikoyat, obuna, so'rov) — libsql orqali, CI'da ham ishlaydi */
+async function cleanupTemp(emails) {
+  if (!emails.length) return;
+  try {
+    const { createClient } = await import("@libsql/client");
+    const db = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+    for (const e of emails) await db.execute({ sql: "DELETE FROM users WHERE email = ?", args: [e] });
+  } catch {
+    /* tozalash ixtiyoriy */
+  }
+}
+
+const reqAs = (cookie, path, init = {}) => fetch(BASE + path, { ...init, headers: { Origin: ORIGIN, "Content-Type": "application/json", Cookie: cookie, ...(init.headers ?? {}) }, redirect: "manual" });
+const feedHas = async (cookie, id) => {
+  const r = cookie ? await reqAs(cookie, "/api/feed?limit=30") : await req("guest", "/api/feed?limit=30");
+  const j = await r.json();
+  return Boolean(j.ok && j.data.items.some((p) => p.id === id));
+};
+
+test("Moderatsiya: 3 ta turli shikoyatchi → post lentadan yashirinadi; admin shikoyatni yopsa — qaytadi", async (t) => {
+  const author = await registerTemp("specialist");
+  if (!author) return t.skip("sinov hisobi yaratilmadi (register limiti 5/soat?)");
+  const emails = [author.email];
+  try {
+    const pr = await reqAs(author.cookie, "/api/profil/postlar", { method: "POST", body: JSON.stringify({ body: "Moderatsiya sinovi — avto-yashirish", media: [] }) });
+    assert.equal(pr.status, 201, `post yaratish: ${pr.status}`);
+    const postId = (await pr.json()).data.id;
+    assert.ok(await feedHas("", postId), "yangi post mehmon lentasida bo'lishi kerak");
+    // O'ziga shikoyat qilib bo'lmaydi — sanalmaydi
+    assert.equal((await reqAs(author.cookie, "/api/reports", { method: "POST", body: JSON.stringify({ targetType: "post", targetId: postId, reason: "spam" }) })).status, 400);
+    // 3 ta turli shikoyatchi: demo mijoz, admin va demo mutaxassis; yetmasa vaqtinchalik hisob qo'shiladi
+    const reporters = [COOKIES.cl, COOKIES.ad, COOKIES.sp].filter(Boolean);
+    while (reporters.length < 3) {
+      const more = await registerTemp("client");
+      if (!more) break;
+      emails.push(more.email);
+      reporters.push(more.cookie);
+    }
+    if (reporters.length < 3) return t.skip("3 ta shikoyatchi yig'ilmadi");
+    for (let i = 0; i < 3; i++) {
+      const r = await reqAs(reporters[i], "/api/reports", { method: "POST", body: JSON.stringify({ targetType: "post", targetId: postId, reason: "spam" }) });
+      assert.equal(r.status, 201, `shikoyat ${i + 1}: ${r.status}`);
+      const j = await r.json();
+      assert.equal(j.data.hidden, i === 2, `${i + 1}-shikoyatdan keyin hidden=${j.data.hidden}`);
+    }
+    assert.equal(await feedHas("", postId), false, "3 shikoyatdan keyin mehmon lentasida bo'lmasligi kerak");
+    assert.equal(await feedHas(COOKIES.cl, postId), false, "mijoz lentasida ham yo'q");
+    // Egasi o'z postini belgisi bilan ko'radi
+    const own = await reqAs(author.cookie, `/api/profil/postlar?user=${author.id}`);
+    const ownItems = (await own.json()).data.items;
+    assert.ok(ownItems.some((p) => p.id === postId && p.hiddenByReports === true), "egasi yashirilgan postni hiddenByReports bilan ko'radi");
+    // Mehmon profil lentasida ko'rmaydi
+    const guestList = await req("guest", `/api/profil/postlar?user=${author.id}`);
+    assert.ok(!(await guestList.json()).data.items.some((p) => p.id === postId), "mehmon profil lentasida yashirin post yo'q");
+    if (!COOKIES.ad) return t.skip("admin sessiyasi yo'q — yopish bosqichi o'tkazib yuborildi");
+    const list = await req("ad", "/api/admin/reports?status=open");
+    const mine = (await list.json()).data.filter((r) => r.targetType === "post" && r.targetId === postId);
+    assert.equal(mine.length, 3, "adminda 3 ta ochiq shikoyat");
+    let restored = false;
+    for (const r of mine) {
+      const c = await req("ad", `/api/admin/reports/${r.id}`, { method: "PATCH", body: JSON.stringify({ status: "closed" }) });
+      assert.equal(c.status, 200);
+      restored = restored || Boolean((await c.json()).data.restored);
+    }
+    assert.ok(restored, "oxirgi shikoyat yopilganda post qaytarilishi kerak");
+    assert.ok(await feedHas("", postId), "admin yopgach post lentaga qaytadi");
+  } finally {
+    await cleanupTemp(emails);
+  }
+});
+
+test("Yopiq profil: post mehmon va obunachi bo'lmaganga ko'rinmaydi; so'rov → tasdiq → obunachi ko'radi", async (t) => {
+  const owner = await registerTemp("specialist");
+  if (!owner) return t.skip("sinov hisobi yaratilmadi (register limiti?)");
+  try {
+    const priv = await reqAs(owner.cookie, "/api/account/privacy", { method: "PUT", body: JSON.stringify({ dmPolicy: "all", commentPolicy: "all", showOnline: true, profilePrivate: true }) });
+    assert.equal(priv.status, 200, `yopiq profil sozlash: ${priv.status}`);
+    const pr = await reqAs(owner.cookie, "/api/profil/postlar", { method: "POST", body: JSON.stringify({ body: "Yopiq profil sinovi", media: [] }) });
+    assert.equal(pr.status, 201);
+    const postId = (await pr.json()).data.id;
+    const guest = await req("guest", `/api/profil/postlar?user=${owner.id}`);
+    assert.equal((await guest.json()).data.items.length, 0, "mehmon yopiq profil postlarini ko'rmaydi");
+    assert.equal(await feedHas("", postId), false, "mehmon lentasida yo'q");
+    assert.equal(await feedHas(COOKIES.cl, postId), false, "obunachi bo'lmagan mijoz lentasida yo'q");
+    assert.equal((await req("guest", `/api/posts/${postId}`)).status, 404, "mehmon bitta postni ham ocha olmaydi");
+    // Mijoz obuna bosadi → so'rov; egasi tasdiqlaydi → obuna
+    const f1 = await req("cl", `/api/follow/${owner.id}`, { method: "POST" });
+    assert.equal(f1.status, 200);
+    const f1j = await f1.json();
+    assert.equal(f1j.data.status, "requested", "yopiq profilga obuna = so'rov");
+    assert.equal(f1j.data.following, false);
+    const st = await req("cl", `/api/follow/${owner.id}`);
+    assert.equal((await st.json()).data.requested, true);
+    // Begona so'rovlar ro'yxatini ko'rmaydi / hal qila olmaydi
+    const reqs = await reqAs(owner.cookie, "/api/follow/sorovlar");
+    const items = (await reqs.json()).data.items;
+    assert.equal(items.length, 1, "egasida 1 ta so'rov");
+    assert.equal((await req("guest", "/api/follow/sorovlar")).status, 401);
+    assert.equal((await req("cl", `/api/follow/sorovlar/${items[0].id}`, { method: "PATCH", body: JSON.stringify({ action: "approve" }) })).status, 404, "begona so'rovni tasdiqlay olmaydi");
+    const ap = await reqAs(owner.cookie, `/api/follow/sorovlar/${items[0].id}`, { method: "PATCH", body: JSON.stringify({ action: "approve" }) });
+    assert.equal(ap.status, 200);
+    assert.equal((await (await req("cl", `/api/follow/${owner.id}`)).json()).data.following, true, "tasdiqdan keyin obuna");
+    const seen = await req("cl", `/api/profil/postlar?user=${owner.id}`);
+    assert.ok((await seen.json()).data.items.some((p) => p.id === postId), "obunachi postni ko'radi");
+    assert.ok(await feedHas(COOKIES.cl, postId), "obunachi lentasida bor");
+    assert.equal(await feedHas("", postId), false, "mehmon hali ham ko'rmaydi");
+  } finally {
+    await cleanupTemp([owner.email]);
+  }
+});
+
+test("Tasdiq so'rovi: mehmon 401, mijoz (profil yo'q) 404, admin verify_reject sababsiz 422", async () => {
+  assert.equal((await req("guest", "/api/profile/tasdiq", { method: "POST" })).status, 401);
+  if (COOKIES.cl) assert.equal((await req("cl", "/api/profile/tasdiq", { method: "POST" })).status, 404);
+  if (COOKIES.ad) assert.equal((await req("ad", "/api/admin/specialists/yoq-id", { method: "PATCH", body: JSON.stringify({ action: "verify_reject", reason: "ab" }) })).status, 422);
+  if (COOKIES.cl) assert.equal((await req("cl", "/api/admin/specialists/yoq-id", { method: "PATCH", body: JSON.stringify({ action: "verify_reject", reason: "sabab matni" }) })).status, 403);
 });

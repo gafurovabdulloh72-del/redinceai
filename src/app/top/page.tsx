@@ -10,6 +10,9 @@ import { cn, compactCount, formatDate } from "@/lib/utils";
 import { tr, type Locale } from "@/lib/i18n";
 import { TOP } from "@/lib/i18n/dict/social";
 import { getLocale } from "@/lib/i18n/server";
+import { getCurrentUser } from "@/lib/auth";
+import { LiveLeaderboard } from "@/components/top/LiveLeaderboard";
+import { liveLeaderboard, normalizeHudud, normalizeKasb, normalizePeriod } from "@/lib/leaderboard";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -61,10 +64,15 @@ function Winner({ w, big, til }: { w: AwardView; big?: boolean; til: Locale }) {
 }
 
 /** Oylik reyting: faqat e'lon qilingan oy g'oliblari ko'rinadi (e'lon — har oyning oxirgi kuni). Jonli reyting faqat adminda */
-export default async function TopPage() {
-  const til = await getLocale();
+export default async function TopPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const [til, sp, user] = await Promise.all([getLocale(), searchParams, getCurrentUser()]);
   const now = Date.now();
-  const [latest, ...older] = await publishedMonths(6);
+  // Jonli reyting (2026-11-04): davr + filtrlar URL'dan, 10 daqiqa kesh (lib/leaderboard.ts)
+  const period = normalizePeriod(sp.davr);
+  const kasb = normalizeKasb(sp.kasb);
+  const hudud = normalizeHudud(sp.hudud);
+  const [[latest, ...older], live] = await Promise.all([publishedMonths(6), liveLeaderboard(period, kasb, hudud).catch(() => null)]);
+  const me = user?.specialist ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null;
   const next = nextPublish(now);
   const days = Math.max(0, Math.ceil((next - now) / 86_400_000));
 
@@ -124,6 +132,9 @@ export default async function TopPage() {
           {tr(til, TOP.nextLabel)}: <b className="text-fg">{formatDate(new Date(next), til)}</b>
           <span className="text-fg-4">· {days === 0 ? tr(til, TOP.today) : TOP.daysLeft[til](days)} ({monthLabel(monthKeyOf(next), til)})</span>
         </div>
+
+        {/* Jonli reyting — mukofot bo'limidan KEYIN (e'lon qilingan g'oliblar birinchi) */}
+        {live && <LiveLeaderboard data={live} til={til} me={me} />}
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="card p-4">

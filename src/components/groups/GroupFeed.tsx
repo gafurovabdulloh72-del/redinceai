@@ -17,7 +17,8 @@ import { usePresence } from "@/components/motion/usePresence";
 import { useIsPhone } from "@/components/motion/useMediaQuery";
 import { CommentsSheet } from "@/components/reels/CommentsSheet";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { Avatar, Button, Spinner } from "@/components/ui";
+import { Avatar, Button, Spinner, VerifiedBadge } from "@/components/ui";
+import { AVTO_YASHIRIN } from "@/lib/i18n/dict/moderation";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import { FeedEmpty, LoadMore, RelativeTime, untilTime, useNow, useRequireLogin, withQuery } from "@/components/feed/shared";
 import { VideoCoverPicker } from "@/components/ui/VideoCoverPicker";
@@ -52,7 +53,12 @@ const POST_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/w
 const MEDIA_EXT = /\.(?:jpe?g|png|webp|gif|mp4|webm|mov)$/i;
 
 function AuthorLink({ u, className }: { u: UserBrief; className?: string }) {
-  const inner = <span className={cn("truncate font-semibold text-fg", className)}>{u.name}</span>;
+  const inner = (
+    <span className={cn("inline-flex min-w-0 items-center gap-1 font-semibold text-fg", className)}>
+      <span className="truncate">{u.name}</span>
+      {u.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
+    </span>
+  );
   return u.slug ? (
     <Link href={`/mutaxassislar/${u.slug}`} className="min-w-0 underline-offset-2 hover:underline">
       {inner}
@@ -942,6 +948,11 @@ export function PostCard({
             )}
             {post.followingAuthor === false && loggedIn && <FollowButton userId={post.author.id} initialFollowing={false} initialCount={0} loggedIn size="sm" compact showCount={false} variant="outline" />}
           </div>
+          {post.hiddenByReports && (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-[11.5px] font-semibold text-warning-text" role="status" data-no-auto>
+              <EyeOff size={12} aria-hidden /> {tr(til, AVTO_YASHIRIN.badge)}
+            </p>
+          )}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[12px] text-fg-3">
             <Link href={permalink} className="hover:underline" title={tr(til, FEED.permalink)}>
               <RelativeTime at={post.createdAt} />

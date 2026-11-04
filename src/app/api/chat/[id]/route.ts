@@ -44,6 +44,7 @@ export const GET = handler(async (req, ctx: { params: Promise<{ id: string }> })
       avatarUrl: found.peer.avatarUrl,
       isBanned: found.peer.isBanned,
       slug: found.peer.slug ?? null,
+      isVerified: Boolean(found.peer.isVerified),
       /** Chatdagi real faollik — "Onlayn" (yashil) belgisi faqat shundan hisoblanadi; showOnline=false bo'lsa yashirin */
       lastSeenAt: showOnline && found.peer.lastSeenAt ? found.peer.lastSeenAt.getTime() : null,
       /** Oxirgi faollik — chat faolligi yo'q bo'lsa tizimga kirishdan olinadi; maxfiylikda yashirin */

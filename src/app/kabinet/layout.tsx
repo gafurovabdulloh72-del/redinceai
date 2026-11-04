@@ -14,7 +14,7 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
-import { ownCompleteness } from "@/lib/profile/own-completeness";
+import { ownCompletion } from "@/lib/profile/completion";
 import { ProfileMeter } from "@/components/feed/ProfileMeter";
 import { db } from "@/lib/db";
 import { jobs, notifications, orders, proposals } from "@/lib/db/schema";
@@ -120,7 +120,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
       : Promise.resolve(0),
     unreadDmCount(user.id).catch(() => 0),
     // Profil to'ldirilganlik (maqsad gradienti) — telefon «Menyu»sida tepada ko'rinadi; 100% bo'lsa null
-    ownCompleteness(user).catch(() => null),
+    ownCompletion(user).catch(() => null),
     getLocale(),
   ]);
   // Obuna holati (yagona qoida — subscriptions/access.ts): navigatsiya nuqtasi va banner

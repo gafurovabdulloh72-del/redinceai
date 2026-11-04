@@ -16,7 +16,8 @@ const MIC_HINT: Record<Exclude<MicState, "unknown">, string> = {
 
 /**
  * Ovozli xabar (Telegram uslubi): mikrofon tugmasi → yozish (taymer, pulsli nuqta) → ✓ yuborish / ✕ bekor.
- * MediaRecorder (WebM/Opus; Safari'da MP4) → /api/upload?purpose=voice → biriktirma (duration bilan) → onRecorded.
+ * MediaRecorder (WebM/Opus; Safari'da MP4) → saqlashga to'g'ridan-to'g'ri (`uploadAttachment voice` → R2 presign / Blob; dev'da /api/upload) → biriktirma (duration bilan) → onRecorded.
+ * Yuborish paytida pill ichida foiz + ingichka progress chizig'i ko'rinadi.
  * Yozish paytida ota-komponent matn maydonini yashiradi (onPhase orqali). 3 daqiqada avtomatik to'xtaydi.
  * Ruxsat rad etilsa tugma «o'chiq mikrofon» holatiga o'tadi (bosilsa yana so'raydi).
  */
@@ -161,7 +162,13 @@ export function VoiceRecorder({ onRecorded, onError, onPhase, disabled, size = "
     );
   }
   return (
-    <div className={cn("expand-in flex min-w-0 flex-1 items-center gap-2.5 rounded-full border border-line bg-surface-2 pl-3.5 pr-1", size === "lg" ? "h-11" : "h-10")} role="status">
+    <div className={cn("expand-in relative flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden rounded-full border border-line bg-surface-2 pl-3.5 pr-1", size === "lg" ? "h-11" : "h-10")} role="status" aria-live="polite">
+      {/* Yuklash jarayoni — pill pastida ingichka chiziq (0 → 100%) */}
+      {phase === "uploading" && (
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-fg/8" aria-hidden="true">
+          <span className="block h-full bg-accent transition-[width] duration-200 ease-out" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </span>
+      )}
       <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
         {phase === "recording" && <span className="absolute inline-flex h-full w-full animate-ping-soft rounded-full bg-danger" />}
         <span className={cn("relative inline-flex h-2.5 w-2.5 rounded-full", phase === "recording" ? "bg-danger" : "bg-fg-4")} />

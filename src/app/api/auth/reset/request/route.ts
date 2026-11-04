@@ -26,7 +26,7 @@ export const POST = handler(async (req) => {
   const input = await parseBody(req, resetRequestSchema);
   await rateLimit(`resetEmail:${input.email}`, 3, 60 * 60 * 1000);
 
-  const user = await db.query.users.findFirst({ where: eq(users.email, input.email), columns: { id: true, name: true, email: true } });
+  const user = await db.query.users.findFirst({ where: eq(users.email, input.email), columns: { id: true, name: true, email: true, lang: true } });
   if (user) {
     const base = siteUrl(req);
     after(async () => {
@@ -37,7 +37,7 @@ export const POST = handler(async (req) => {
           return;
         }
         const { token } = await createPasswordReset(user.id);
-        const result = await sendMail(passwordResetMail(user.email, user.name, `${base}/auth/parol-tiklash/${token}`));
+        const result = await sendMail(passwordResetMail(user.email, user.name, `${base}/auth/parol-tiklash/${token}`, user.lang ?? "uz"));
         await audit(user.id, "password_reset_requested", { targetType: "user", targetId: user.id, meta: { sent: result.sent, reason: result.reason } }, req);
       } catch (e) {
         console.error("[auth] reset request", e);

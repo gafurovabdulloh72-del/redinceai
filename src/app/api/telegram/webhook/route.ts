@@ -21,7 +21,7 @@ import { handleRegisterCallback, handleRegisterContact, handleRegisterText, star
 import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
-import { botLang, type BotLang } from "@/lib/telegram-bot/lang";
+import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
 import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -151,14 +151,14 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer, who.lang))) return;
   if (chatId && (await handleContactPayCallback(chatId, data, answer, who.lang))) return;
-  if (chatId && (await handleAdminCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handleAdminCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handlePostCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handleRegisterCallback(chatId, data, answer, msgId, who))) return;
   if (chatId && (await handleLoginCallback(chatId, data, answer, who))) return;
   if (chatId && (await handleOrderCallback(chatId, data, answer))) return;
   if (chatId && (await handleSettingsCallback(chatId, data, answer, msgId, who.lang))) return;
   if (chatId && (await handleMenuCallback(chatId, data, answer, who.lang))) return;
-  if (chatId && (await handleBroadcastCallback(chatId, data, answer, msgId))) return;
+  if (chatId && (await handleBroadcastCallback(chatId, data, answer, msgId, who.lang))) return;
 
   const m = /^mp:(ok|no):([ps]):([\w-]{1,64})$/.exec(data);
   if (!m || !chatId) {
@@ -324,9 +324,9 @@ export async function POST(req: Request) {
     // Savol-javob oqimi (ro'yxatdan o'tish / elon): oddiy matn oqimga ketadi; har qanday buyruq oqimni to'xtatadi
     if (!cmd.startsWith("/")) {
       if (await handleRegisterText(chatId, text)) return Response.json({ ok: true });
-      if (await handleBroadcastText(chatId, text)) return Response.json({ ok: true });
+      if (await handleBroadcastText(chatId, text, lang)) return Response.json({ ok: true });
       if (await handlePostText(chatId, text, lang)) return Response.json({ ok: true });
-      if (await handleAdminPriceText(chatId, text)) return Response.json({ ok: true });
+      if (await handleAdminPriceText(chatId, text, lang)) return Response.json({ ok: true });
     } else {
       await clearBotSession(chatId).catch(() => undefined);
     }
@@ -356,23 +356,24 @@ export async function POST(req: Request) {
     else if (cmd === "/profil") await handleProfile(chatId, lang);
     else if (cmd === "/sozlamalar") await handleSettings(chatId, lang);
     else if (cmd === "/menyu") await handleStart(chatId, "", firstName, lang);
-    else if (cmd === "/elon") await handleBroadcastStart(chatId, text);
+    else if (cmd === "/elon") await handleBroadcastStart(chatId, text, lang);
     else if (cmd === "/post") await sendPostHelp(chatId, lang);
     else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId, lang);
     else if (cmd === "/admin" || cmd === "/stat" || cmd === "/navbat" || cmd === "/tolovlar" || cmd === "/user" || cmd === "/narx" || cmd === "/shikoyatlar" || cmd === "/mentorlar" || cmd === "/nizolar" || cmd === "/payoutlar" || cmd === "/konkurs") {
       // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat
-      if (!(await adminByChat(chatId))) await sendTelegram(chatId, "Bu buyruq faqat administrator uchun.");
-      else if (cmd === "/admin") await sendAdminMenu(chatId);
-      else if (cmd === "/stat") await sendAdminStats(chatId, arg === "7" || arg === "7d" ? "7d" : arg === "30" || arg === "30d" ? "30d" : "today");
-      else if (cmd === "/navbat") await sendAdminQueues(chatId);
-      else if (cmd === "/tolovlar") await sendAdminPayments(chatId);
-      else if (cmd === "/shikoyatlar") await sendAdminReports(chatId);
-      else if (cmd === "/mentorlar") await sendAdminMentorApps(chatId);
-      else if (cmd === "/nizolar") await sendAdminDisputes(chatId);
-      else if (cmd === "/payoutlar") await sendAdminPayouts(chatId);
-      else if (cmd === "/konkurs") await handleAdminChallenge(chatId, normalized.slice(rawCmd.length));
-      else if (cmd === "/narx") await handleAdminPrices(chatId, normalized.slice(rawCmd.length));
-      else await handleAdminUserSearch(chatId, normalized.slice(rawCmd.length));
+      // Admin matnlari ham `lang` bilan (uz/ru) — admin.ts L() juftliklari
+      if (!(await adminByChat(chatId))) await sendTelegram(chatId, L(lang, "Bu buyruq faqat administrator uchun.", "Эта команда только для администратора."));
+      else if (cmd === "/admin") await sendAdminMenu(chatId, lang);
+      else if (cmd === "/stat") await sendAdminStats(chatId, arg === "7" || arg === "7d" ? "7d" : arg === "30" || arg === "30d" ? "30d" : "today", null, lang);
+      else if (cmd === "/navbat") await sendAdminQueues(chatId, lang);
+      else if (cmd === "/tolovlar") await sendAdminPayments(chatId, lang);
+      else if (cmd === "/shikoyatlar") await sendAdminReports(chatId, lang);
+      else if (cmd === "/mentorlar") await sendAdminMentorApps(chatId, lang);
+      else if (cmd === "/nizolar") await sendAdminDisputes(chatId, lang);
+      else if (cmd === "/payoutlar") await sendAdminPayouts(chatId, lang);
+      else if (cmd === "/konkurs") await handleAdminChallenge(chatId, normalized.slice(rawCmd.length), lang);
+      else if (cmd === "/narx") await handleAdminPrices(chatId, normalized.slice(rawCmd.length), lang);
+      else await handleAdminUserSearch(chatId, normalized.slice(rawCmd.length), lang);
     }
     else if (cmd === "/stop") await handleStop(chatId);
     else if (cmd === "/yordam" || cmd === "/help" || cmd.startsWith("/")) {

@@ -143,6 +143,9 @@ export const RATE_LIMITS = {
   i18nAuto: { limit: 90, windowMs: HOUR },
   /** Post statistikasi — userId (16-band) */
   postStats: { limit: 120, windowMs: HOUR },
+  /** Fikr bildirish (/api/fikr) — kirgan: userId, mehmon: IP (qattiqroq) */
+  feedback: { limit: 10, windowMs: HOUR },
+  feedbackGuest: { limit: 3, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 

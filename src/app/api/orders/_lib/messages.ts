@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages, notifications, type OrderMessage } from "@/lib/db/schema";
+import { protectAttachments } from "@/lib/media/private-url";
 import { notify } from "@/lib/notifications";
 import { orderHref, type OrderWithParties } from "@/lib/payments/service";
 import { uid } from "@/lib/utils";
@@ -26,7 +27,8 @@ export function toChatDto(m: OrderMessage, order: OrderWithParties, viewerId: st
   return {
     id: m.id,
     body: m.body,
-    attachments: m.attachments ?? [],
+    // 5-audit: xom saqlash manzili chiqmaydi — `/api/media/order/<xabar>_<indeks>`
+    attachments: protectAttachments("order", m.id, m.attachments),
     mine: m.senderId != null && m.senderId === viewerId,
     sender,
     senderName: sender === "system" ? null : sender === "client" ? order.client.name : order.specialist.user.name,

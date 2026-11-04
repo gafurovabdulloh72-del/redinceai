@@ -41,7 +41,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
   if (!user) redirect(await loginRedirectPath("/kabinet/xavfsizlik"));
   const til = await getLocale();
   const [codes, sessionList, blockedRows, historyRows] = await Promise.all([
-    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { recoveryCodes: true, dmPolicy: true, commentPolicy: true, showOnline: true, isPaused: true } }),
+    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { recoveryCodes: true, dmPolicy: true, commentPolicy: true, showOnline: true, isPaused: true, profilePrivate: true } }),
     listUserSessions(user.id, session, (await headers()).get("user-agent")),
     listBlocked(user.id),
     db.query.auditLogs.findMany({
@@ -101,7 +101,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Sea
 
       <div className="stagger mb-4 grid gap-4 lg:grid-cols-2">
         <div className="animate-fade-up">
-          <PrivacyPanel initial={{ dmPolicy: codes?.dmPolicy ?? "all", commentPolicy: codes?.commentPolicy ?? "all", showOnline: codes?.showOnline ?? true }} paused={codes?.isPaused ?? false} canPause={Boolean(user.specialist)} />
+          <PrivacyPanel initial={{ dmPolicy: codes?.dmPolicy ?? "all", commentPolicy: codes?.commentPolicy ?? "all", showOnline: codes?.showOnline ?? true, profilePrivate: codes?.profilePrivate ?? false }} paused={codes?.isPaused ?? false} canPause={Boolean(user.specialist)} />
         </div>
         <div className="animate-fade-up">
           <BlockedList initial={blockedRows} />
