@@ -55,3 +55,6 @@ Har dushanba: yangi ijodkor soni, profil to'lish %, qaysi kanaldan kelgan (takli
 | Sana | Nima qilindi | Natija |
 |---|---|---|
 | 2026-11-04 | Agent va reja yaratildi | — |
+| 2026-11-05 | Bot tekshirildi (@kasb_egalari_bot sayt boti, marketing boti — alohida), kanal @kasb_egalari ulandi; 1-kun «tanishtirish» posti chiqdi | message_id 5 |
+| 2026-11-05 | «Savolingiz bormi? Kasbdoshlardan so'rang» (Maslahat bo'limi) rasmli posti chiqdi | message_id 6 |
+| 2026-11-05 | Kunlik avtomatik jadval: 08:07/16:07 egasiga ko'rsatish, 10:07/18:07 kanalga (6–15-noyabr banki, rasmlar `docs/marketing/img/`) | — |
