@@ -81,7 +81,7 @@ export default async function MentorlikPage({ searchParams }: { searchParams: Pr
             {lives.map((l) => (
               <li key={l.key} className="w-[250px] shrink-0">
                 <Link
-                  href={l.mentorSlug ? `/mentorlik/ustoz/${l.mentorSlug}?tab=efirlar${l.live ? "&efir=1" : ""}` : "/mentorlik"}
+                  href={l.live && l.streamId ? `/efir/${l.streamId}` : l.mentorSlug ? `/mentorlik/ustoz/${l.mentorSlug}?tab=efirlar` : "/mentorlik"}
                   className={cn("card card-hover flex h-full flex-col gap-2 p-3", l.live && "border-danger/50")}
                 >
                   <span className="flex items-center gap-2">

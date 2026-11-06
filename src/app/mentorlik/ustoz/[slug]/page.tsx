@@ -183,7 +183,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
               ))}
             </dl>
             {liveNow && (
-              <Link href={`/mentorlik/ustoz/${profile.slug}?efir=1`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
+              <Link href={`/efir/${liveNow.id}`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-bold text-white">
                 <span className="h-2 w-2 animate-ping-soft rounded-full bg-white" /> {tr(til, MS.liveJoin)}
               </Link>
             )}

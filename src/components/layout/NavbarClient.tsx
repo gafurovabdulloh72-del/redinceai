@@ -117,7 +117,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
       : { key: "lenta", href: "/lenta", label: SHELL.nav.lenta, icon: Clapperboard, match: (p) => p === "/lenta" || p.startsWith("/lenta/") },
     user
       ? { key: "profile", href: "/kabinet/menyu", label: SHELL.nav.profile, icon: Home, match: (p) => p.startsWith("/kabinet") && !isChatPath(p), avatar: true }
-      : { key: "login", href: "/auth/kirish", label: SHELL.nav.loginShort, icon: Compass, match: (p) => p.startsWith("/auth") },
+      : { key: "login", href: pathname && pathname !== "/" && !pathname.startsWith("/auth") ? `/auth/kirish?next=${encodeURIComponent(pathname)}` : "/auth/kirish", label: SHELL.nav.loginShort, icon: Compass, match: (p) => p.startsWith("/auth") },
   ];
 
   const showBack = !TAB_ROOTS.has(pathname);

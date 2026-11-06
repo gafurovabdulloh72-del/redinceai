@@ -74,7 +74,7 @@ export async function startLive(group: Group, host: Viewer, title: string, price
   const row: typeof liveStreams.$inferInsert = { id, groupId: group.id, hostId: host.id, title: title.trim().slice(0, 100) || "Jonli efir", room: liveRoom(id), priceSom };
   await db.insert(liveStreams).values(row);
   const stream = (await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, id) }))!;
-  void notifyMembers(group, host.id, "live_event", `Jonli efir boshlandi: ${group.name}`, stream.title, `/jamoalar/${group.slug}?efir=1`).catch(() => undefined);
+  void notifyMembers(group, host.id, "live_event", `Jonli efir boshlandi: ${group.name}`, stream.title, `/efir/${stream.id}`).catch(() => undefined);
   return stream;
 }
 

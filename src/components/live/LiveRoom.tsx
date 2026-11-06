@@ -19,7 +19,7 @@ import {
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { ConnectionQuality, ConnectionState, DisconnectReason, RemoteTrackPublication, Room, RoomOptions, Track, VideoPresets, VideoQuality, type Participant } from "livekit-client";
-import { Circle, Gauge, Hand, HelpCircle, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Pencil, Send, Sparkles, SwitchCamera, SlidersHorizontal, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
+import { Circle, Gauge, Hand, HelpCircle, Link2, Loader2, Signal, SignalLow, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Pencil, Send, Sparkles, SwitchCamera, SlidersHorizontal, UserX, Users, Video, VideoOff, X, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { LiveQA } from "./LiveQA";
@@ -466,6 +466,21 @@ function Stage({ conn, streamId, flash, peak, qualityPref, setQualityPref, onLea
 
   const raisedCount = everyone.filter((p) => p.attributes?.hand === "1").length;
 
+  /** Efir havolasini nusxalash — boshlovchi efir davomida ham tomoshabin chaqira olsin (doimiy `/efir/<id>`) */
+  async function copyLink() {
+    const url = `${window.location.origin}/efir/${encodeURIComponent(streamId)}`;
+    try {
+      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
+        await navigator.share({ title: conn.title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      flash("Efir havolasi nusxalandi");
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") flash(url);
+    }
+  }
+
   return (
     <div className="absolute inset-0 flex flex-col">
       {/* Yuqori panel */}
@@ -479,13 +494,16 @@ function Stage({ conn, streamId, flash, peak, qualityPref, setQualityPref, onLea
           </span>
         )}
         <span className="text-[12.5px] tabular-nums text-white/65">{mm}:{ss}</span>
-        <p className="min-w-0 flex-1 truncate text-[14px] font-semibold">{conn.title}</p>
+        <p className="min-w-0 flex-1 truncate text-[14px] font-semibold" data-no-auto>{conn.title}</p>
         {(quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost) && (
           <span className="inline-flex items-center gap-1 rounded-md bg-[#ffcf40]/15 px-2 py-1 text-[11.5px] font-semibold text-[#ffcf40]" title="Internet sekin — sifat avtomatik pasayadi">
             <SignalLow size={12} /> Aloqa sust
           </span>
         )}
         {conn.breakout && <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11.5px] font-semibold">{conn.breakout}</span>}
+        <button type="button" onClick={copyLink} className="inline-flex h-7 items-center gap-1 rounded-md bg-white/10 px-2 text-[12px] font-semibold hover:bg-white/20" aria-label="Efir havolasini ulashish" title="Efir havolasini ulashish">
+          <Link2 size={13} /> <span className="max-sm:hidden">Havola</span>
+        </button>
         <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[12px] font-semibold tabular-nums">
           <Users size={12} /> {everyone.length}
         </span>

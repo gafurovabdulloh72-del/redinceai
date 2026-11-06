@@ -181,7 +181,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 <UserRound size={22} className="xl:hidden" />
                 <span className="hidden text-[14px] font-semibold xl:block">{tr(til, SHELL.nav.start)}</span>
               </Link>
-              <Link href="/auth/kirish" className={cn(row, "justify-center text-fg-2 xl:!justify-center")} data-tip={tr(til, SHELL.nav.login)} data-tip-pos="right">
+              <Link href={pathname && pathname !== "/" && !pathname.startsWith("/auth") ? `/auth/kirish?next=${encodeURIComponent(pathname)}` : "/auth/kirish"} className={cn(row, "justify-center text-fg-2 xl:!justify-center")} data-tip={tr(til, SHELL.nav.login)} data-tip-pos="right">
                 <Compass size={22} className="xl:hidden" />
                 <span className="hidden text-[14px] font-semibold xl:block">{tr(til, SHELL.nav.login)}</span>
               </Link>

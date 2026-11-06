@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { showToast } from "@/components/ui/toast";
 import { LiveRoomOverlay } from "./LiveRoom";
 import { BuyButton } from "@/components/mentorship/PurchaseDialog";
+import { ShareButton } from "@/components/specialists/ShareButton";
 
 type Live = { id: string; title: string; startedAt: number; price?: number; access?: boolean };
 
@@ -80,7 +81,7 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-danger">
                 <span className="h-1.5 w-1.5 animate-ping-soft rounded-full bg-danger" /> Hozir jonli
               </p>
-              <p className="truncate text-[14px] font-semibold text-fg">{live.title}{(live.price ?? 0) > 0 && <span className="ml-1.5 rounded bg-fg/8 px-1.5 py-0.5 text-[11px] font-bold">pullik</span>}</p>
+              <p className="truncate text-[14px] font-semibold text-fg"><span data-no-auto>{live.title}</span>{(live.price ?? 0) > 0 && <span className="ml-1.5 rounded bg-fg/8 px-1.5 py-0.5 text-[11px] font-bold">pullik</span>}</p>
             </>
           ) : asking ? (
             <div className="space-y-2">
@@ -106,6 +107,7 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
             <p className="text-[14px] font-semibold text-fg">Jonli efir</p>
           )}
         </div>
+        {live && <LiveShare id={live.id} title={live.title} />}
         {live ? (
           loggedIn ? (
             (live.price ?? 0) > 0 && !live.access && !canHost ? (
@@ -118,7 +120,7 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
               </button>
             )
           ) : (
-            <a href="/auth/kirish" className="btn-accent inline-flex h-10 items-center px-4 text-[13.5px]">Kirish</a>
+            <a href={`/auth/kirish?next=${encodeURIComponent(`/efir/${live.id}`)}`} className="btn-accent inline-flex h-10 items-center px-4 text-[13.5px]">Kirish</a>
           )
         ) : asking ? (
           <div className="flex gap-2">
@@ -144,4 +146,12 @@ export function LiveBar({ slug, canHost, loggedIn }: { slug: string; canHost: bo
       )}
     </>
   );
+}
+
+/** Efir havolasini ulashish (doimiy `/efir/<id>`) — mutlaq manzil, chunki ShareButton uni aynan shunday nusxalaydi */
+function LiveShare({ id, title }: { id: string; title: string }) {
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  if (!origin) return null;
+  return <ShareButton title={title} url={`${origin}/efir/${encodeURIComponent(id)}`} size="md" variant="outline" iconOnly />;
 }

@@ -28,7 +28,7 @@ export async function mentorBadges(m: { id: string; userId: string; channelId: s
 }
 
 /* ------------------------- Jonli efirlar (katalog) ------------------------- */
-export type LiveItem = { key: string; title: string; mentorName: string; mentorSlug: string | null; photoUrl: string | null; avatarUrl: string | null; live: boolean; startsAt: number; price: number };
+export type LiveItem = { key: string; title: string; mentorName: string; mentorSlug: string | null; photoUrl: string | null; avatarUrl: string | null; live: boolean; startsAt: number; price: number; /** Jonli efir id'si — ulashish havolasi `/efir/<id>` uchun */ streamId?: string };
 
 /** Hozir jonli va bu hafta rejalashtirilgan ustoz efirlari */
 export async function liveAndUpcoming(limit = 8): Promise<LiveItem[]> {
@@ -41,12 +41,12 @@ export async function liveAndUpcoming(limit = 8): Promise<LiveItem[]> {
     db.query.liveStreams.findMany({ where: and(inArray(liveStreams.groupId, ids), eq(liveStreams.status, "live"), gt(liveStreams.startedAt, new Date(now - 6 * 3600_000))) }),
     db.query.posts.findMany({ where: and(inArray(posts.groupId, ids), isNotNull(posts.eventAt), gt(posts.eventAt, new Date(now - 30 * 60_000)), sql`${posts.eventAt} < ${now + 7 * 86_400_000}`), orderBy: [asc(posts.eventAt)], limit: 30, columns: { id: true, groupId: true, body: true, eventAt: true } }),
   ]);
-  const toItem = (gid: string, key: string, title: string, live: boolean, startsAt: number, price: number): LiveItem | null => {
+  const toItem = (gid: string, key: string, title: string, live: boolean, startsAt: number, price: number, streamId?: string): LiveItem | null => {
     const m = byChannel.get(gid);
-    return m ? { key, title, mentorName: m.user.name, mentorSlug: m.slug, photoUrl: m.photoUrl, avatarUrl: m.user.avatarUrl, live, startsAt, price } : null;
+    return m ? { key, title, mentorName: m.user.name, mentorSlug: m.slug, photoUrl: m.photoUrl, avatarUrl: m.user.avatarUrl, live, startsAt, price, ...(streamId ? { streamId } : {}) } : null;
   };
   const items = [
-    ...liveRows.map((l) => toItem(l.groupId, `l${l.id}`, l.title, true, l.startedAt.getTime(), l.priceSom)),
+    ...liveRows.map((l) => toItem(l.groupId, `l${l.id}`, l.title, true, l.startedAt.getTime(), l.priceSom, l.id)),
     ...eventRows.map((e) => toItem(e.groupId as string, `e${e.id}`, e.body.split("\n")[0]?.slice(0, 80) || "Jonli efir", false, (e.eventAt as Date).getTime(), 0)),
   ].filter((x): x is LiveItem => Boolean(x));
   return items.sort((a, b) => Number(b.live) - Number(a.live) || a.startsAt - b.startsAt).slice(0, limit);

@@ -492,7 +492,7 @@ export async function handleLives(chatId: string, lang?: BotLang): Promise<void>
   }
   const fmt = (ms: number) => new Date(ms).toLocaleString(lang === "ru" ? "ru-RU" : "uz-UZ", { timeZone: "Asia/Tashkent", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const lines = items.map((it) => {
-    const href = it.mentorSlug ? `${s}/mentorlik/ustoz/${it.mentorSlug}?tab=efirlar` : `${s}/mentorlik`;
+    const href = it.live && it.streamId ? `${s}/efir/${it.streamId}` : it.mentorSlug ? `${s}/mentorlik/ustoz/${it.mentorSlug}?tab=efirlar` : `${s}/mentorlik`;
     return `${it.live ? `🔴 <b>${L(lang, "JONLI", "В ЭФИРЕ")}</b>` : `🗓 ${escapeTelegramHtml(fmt(it.startsAt))}`} — <a href="${href}"><b>${escapeTelegramHtml(it.title)}</b></a>\n   ${escapeTelegramHtml(it.mentorName)}${it.price > 0 ? ` · ${escapeTelegramHtml(formatPrice(it.price))}` : ""}`;
   });
   await sendTelegram(chatId, `🎥 <b>${L(lang, "Efirlar", "Эфиры")}</b>\n\n${lines.join("\n\n")}`, { button: { text: L(lang, "Mentorlik", "Наставничество"), url: `${s}/mentorlik` } });

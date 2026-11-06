@@ -88,7 +88,7 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
             </button>
           </form>
         ) : (
-          <Link href="/auth/kirish" className="btn-accent flex h-11 items-center justify-center rounded-full text-[14px] font-semibold">
+          <Link href="/auth/kirish" onClick={(e) => { e.preventDefault(); window.location.assign(`/auth/kirish?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); }} className="btn-accent flex h-11 items-center justify-center rounded-full text-[14px] font-semibold">
             Izoh yozish uchun kiring
           </Link>
         )

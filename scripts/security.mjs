@@ -771,3 +771,31 @@ test("Honeypot / tuzoq: soxta yo'llar jurnalga tushadi, canary bloklaydi, real r
     await d.execute("delete from blocked_ips where ip in ('127.0.0.1','::1','unknown')");
   } catch { /* CI'da baza fayli boshqacha bo'lsa — e'tiborsiz */ }
 });
+
+test("Efir ulashish (/efir/<id>): ochiq efir 200 + OG, yopiq jamoa efiri begonaga 404, yo'q efir 404", async (t) => {
+  const { createClient } = await import("@libsql/client");
+  const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+  const pub = (await d.execute("select id, owner_id from groups where is_private=0 limit 1")).rows[0];
+  const priv = (await d.execute("select id, owner_id from groups where is_private=1 limit 1")).rows[0];
+  if (!pub) return t.skip("ochiq jamoa yo'q");
+  const pubId = "sectest_live_pub_" + Date.now();
+  const privId = "sectest_live_priv_" + Date.now();
+  const now = Date.now();
+  await d.execute({ sql: "insert into live_streams (id, group_id, host_id, title, room, status, price_som, started_at) values (?, ?, ?, 'Sinov efiri', ?, 'ended', 0, ?)", args: [pubId, pub.id, pub.owner_id, "live_" + pubId, now - 3600_000] });
+  if (priv) await d.execute({ sql: "insert into live_streams (id, group_id, host_id, title, room, status, price_som, started_at) values (?, ?, ?, 'MAXFIY-EFIR-SARLAVHA', ?, 'ended', 0, ?)", args: [privId, priv.id, priv.owner_id, "live_" + privId, now - 3600_000] });
+  try {
+    const ok = await fetch(BASE + "/efir/" + pubId, { redirect: "manual" });
+    assert.equal(ok.status, 200, "ochiq jamoa efiri 200");
+    const html = await ok.text();
+    assert.ok(html.includes("Sinov efiri"), "sarlavha sahifada");
+    assert.ok(/noindex/.test(html), "efir sahifasi indekslanmaydi");
+    assert.equal((await fetch(BASE + "/efir/yoq-efir-xyz", { redirect: "manual" })).status, 404, "yo'q efir 404");
+    if (priv) {
+      const g = await fetch(BASE + "/efir/" + privId, { redirect: "manual" });
+      assert.equal(g.status, 404, "yopiq jamoa efiri mehmonga 404");
+      assert.ok(!(await g.text()).includes("MAXFIY-EFIR-SARLAVHA"), "yopiq efir sarlavhasi sizib chiqmaydi");
+    }
+  } finally {
+    await d.execute({ sql: "delete from live_streams where id in (?, ?)", args: [pubId, privId] });
+  }
+});

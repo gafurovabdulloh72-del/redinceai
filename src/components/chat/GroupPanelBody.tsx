@@ -5,6 +5,7 @@ import { Loader2, Lock, MessagesSquare, Newspaper, UserPlus } from "lucide-react
 import { ChannelPosts } from "@/components/chat/ChannelPosts";
 import { GroupChat } from "@/components/groups/GroupChat";
 import { GroupFeed, type Page } from "@/components/groups/GroupFeed";
+import { LiveStrip } from "@/components/live/LiveStrip";
 import { Avatar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -177,6 +178,7 @@ export function GroupPanelBody({
 
   return (
     <>
+      <LiveStrip key={`live-${view.id}`} slug={view.slug} />
       {/* Kanal: Postlar · Muhokama tablari (Telegram'dagidek postlar asosiy) */}
       {view.kind === "channel" && showDiscussion && (
         <div className="flex shrink-0 gap-1 border-b border-line px-3" role="tablist" aria-label={view.name}>
