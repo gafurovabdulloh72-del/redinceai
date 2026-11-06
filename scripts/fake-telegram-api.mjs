@@ -78,6 +78,8 @@ http
       fs.appendFileSync(LOG, JSON.stringify({ method, body, at: Date.now() }) + "\n");
       if (method === "getMe") return json(res, { ok: true, result: { id: 111, is_bot: true, first_name: "Kasb Egalari", username: process.env.TELEGRAM_BOT_USERNAME || "KasbEgalariFakeBot", supports_inline_queries: true } });
       if (method === "getWebhookInfo") return json(res, { ok: true, result: { url: "", pending_update_count: 0 } });
+      // Majburiy obuna testi: FAKE_TG_MEMBER="member"|"left"|… (standart "left" — a'zo emas)
+      if (method === "getChatMember") return json(res, { ok: true, result: { status: process.env.FAKE_TG_MEMBER || "left", user: { id: body?.user_id ?? 0 } } });
       if (method === "getFile") {
         const id = String(body.file_id ?? "");
         const isVideo = id.startsWith("vid");

@@ -22,6 +22,7 @@ import { clearBotSession } from "@/lib/telegram-bot/session";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
+import { gateEnabled, handleGateCheck, isChannelMember, sendJoinGate } from "@/lib/telegram-bot/gate";
 import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -148,6 +149,14 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
 
   const from = cb.from ?? {};
   const who = { name: [from.first_name, from.last_name].filter(Boolean).join(" ") || undefined, username: typeof from.username === "string" ? from.username : undefined, lang: botLang(from.language_code) };
+  // Majburiy obuna: «✅ Tekshirish» — a'zolikni qayta tekshiradi (darvozadan oldin, o'zi gate'ga tushmaydi)
+  if (data === "sub:check") {
+    if (chatId && (await handleGateCheck(chatId, answer, who.lang))) {
+      const me = await accountOf(chatId);
+      await sendWelcome(chatId, me && !me.isBanned ? me : null, from.first_name, who.lang);
+    } else if (!chatId) await answer("Noma'lum amal");
+    return;
+  }
   // Mentorlik xaridi, «Telegram bilan kirish» va buyurtma tugmalari — admin tekshiruvi kerak emas
   if (chatId && (await handlePayCallback(chatId, data, answer, who.lang))) return;
   if (chatId && (await handleContactPayCallback(chatId, data, answer, who.lang))) return;
@@ -257,6 +266,25 @@ async function botLimited(chatId: string, name: "tgBot" | "tgStart"): Promise<bo
   }
 }
 
+/**
+ * Majburiy obuna darvozasi (2026-11-06): rasmiy kanalga obuna bo'lmagan foydalanuvchi botdan foydalana olmaydi.
+ * Istisno: `/stop`, saytdan kelgan login/to'lov deep-link'lari (`/start l_…`, `/start b_…`) va adminlar — darvozasiz.
+ * `true` — davom etamiz; `false` — darvoza ko'rsatildi, to'xtaymiz. Darvoza o'chiq bo'lsa (env yo'q) doim `true`.
+ */
+async function gatePass(chatId: string, text: string, lang: BotLang): Promise<boolean> {
+  if (!gateEnabled()) return true;
+  const lower = text.toLowerCase();
+  if (lower === "/stop" || lower.startsWith("/stop ")) return true;
+  if (lower.startsWith("/start ")) {
+    const a = text.slice(7).trim();
+    if (a.startsWith("l_") || a.startsWith("b_")) return true; // login / to'lov deep-link (saytdan boshlanadi)
+  }
+  if (await isChannelMember(chatId)) return true;
+  if (await adminByChat(chatId)) return true; // adminlar darvozasiz
+  await sendJoinGate(chatId, lang);
+  return false;
+}
+
 export async function POST(req: Request) {
   if (!secretOk(req)) return Response.json({ ok: false }, { status: 401 });
   try {
@@ -281,6 +309,10 @@ export async function POST(req: Request) {
     const msg = update?.message;
     const chatId = msg?.chat?.id != null ? String(msg.chat.id) : "";
     if (chatId && msg?.chat?.type === "private") {
+      // Majburiy obuna darvozasi — media/kontakt/matndan OLDIN (obuna bo'lmagan hech narsa yoza olmaydi)
+      const gLang = botLang(msg.from?.language_code);
+      const gText = typeof msg.text === "string" ? msg.text.trim() : "";
+      if (!msg.successful_payment && !(await gatePass(chatId, gText, gLang))) return Response.json({ ok: true });
       if (msg.successful_payment) {
         await handleSuccessfulPayment(chatId, msg.successful_payment);
         return Response.json({ ok: true });

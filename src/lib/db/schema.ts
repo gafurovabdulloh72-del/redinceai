@@ -3311,3 +3311,15 @@ export const blockedIps = sqliteTable(
   (t) => [index("blocked_until_idx").on(t.until)],
 );
 export type BlockedIp = typeof blockedIps.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* MAJBURIY OBUNA (2026-11-06): bot kanal a'zoligi keshi               */
+/* ------------------------------------------------------------------ */
+/** Bot foydalanuvchisining rasmiy kanalga a'zoligi keshi — har harakatda getChatMember chaqirmaslik uchun (TTL) */
+export const tgChannelGate = sqliteTable("tg_channel_gate", {
+  /** Telegram chat id (shaxsiy chat = foydalanuvchi id) */
+  chatId: text("chat_id").primaryKey(),
+  /** Shu vaqtgacha a'zo deb hisoblanadi (ms); o'tgach qayta tekshiriladi (obunani olsa yana darvoza chiqadi) */
+  okUntil: integer("ok_until", { mode: "timestamp_ms" }).notNull(),
+});
+export type TgChannelGate = typeof tgChannelGate.$inferSelect;
