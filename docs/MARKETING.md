@@ -61,4 +61,4 @@ Har dushanba: yangi ijodkor soni, profil to'lish %, qaysi kanaldan kelgan (takli
 | 2026-11-06 | 10:07 — «Mijoz sizni 10 soniyada baholaydi» (rasmli post) | message_id 7 |
 | 2026-11-06 | 12:37 — videograf uchun to'liq videopost (jadval bo'yicha avtomatik) | message_id 8 |
 | 2026-11-06 | 12:4x — dizayner, videograf, mobilograf, montajor uchun umumiy videopost (egasi so'rovi bilan qo'lda) | message_id 9 |
-
+| 2026-11-06 | Rejа qayta tuzildi: har kasb alohida, burchaklar xilma-xil (ustozlar, viloyat, vakansiya, jamoa, konkurs, Reels, bot); 13 ta yangi video (3 ta bugun, 10 ta 7–11-noyabr) | — |
