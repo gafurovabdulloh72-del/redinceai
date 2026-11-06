@@ -58,3 +58,7 @@ Har dushanba: yangi ijodkor soni, profil to'lish %, qaysi kanaldan kelgan (takli
 | 2026-11-05 | Bot tekshirildi (@kasb_egalari_bot sayt boti, marketing boti — alohida), kanal @kasb_egalari ulandi; 1-kun «tanishtirish» posti chiqdi | message_id 5 |
 | 2026-11-05 | «Savolingiz bormi? Kasbdoshlardan so'rang» (Maslahat bo'limi) rasmli posti chiqdi | message_id 6 |
 | 2026-11-05 | Kunlik avtomatik jadval: 08:07/16:07 egasiga ko'rsatish, 10:07/18:07 kanalga (6–15-noyabr banki, rasmlar `docs/marketing/img/`) | — |
+| 2026-11-06 | 10:07 — «Mijoz sizni 10 soniyada baholaydi» (rasmli post) | message_id 7 |
+| 2026-11-06 | 12:37 — videograf uchun to'liq videopost (jadval bo'yicha avtomatik) | message_id 8 |
+| 2026-11-06 | 12:4x — dizayner, videograf, mobilograf, montajor uchun umumiy videopost (egasi so'rovi bilan qo'lda) | message_id 9 |
+
