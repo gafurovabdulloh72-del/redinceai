@@ -382,3 +382,31 @@ Yangi zaiflik topilmadi. Tekshirilganlar (hammasi kutilgandek):
 | 3 | Efir yozuvi (Egress) prod'da ishlashi faqat efir vaqtida bilinardi | 🟡 | **✔** `lib/rtc/livekit.ts` `egressHealth(r2Configured)` — `ListEgress` (faqat o'qish, 5 s timeout) → `GET /api/admin/health` `livekit.egress {configured, reachable, error?}`, `AdminHealthCard` «Efir yozuvi (Egress): sozlangan · xizmat javob berdi / javob bermadi (xato)» |
 
 Testlar: `scripts/security.mjs` — GUEST_FORBIDDEN'ga 6 ta `/api/media/*` qo'shildi; «Yopiq fayl» (noma'lum tur/yo'q id 404, tokensiz stream 403) va «DM biriktirmasi» (fixture bazaga to'g'ridan-to'g'ri — `e2e/_lib.mjs` `db` + yuklama papkasida 1×1 PNG, test oxirida o'chiradi: suhbat DTO'sida xom manzil yo'q, admin 404, ishtirokchi 302 → stream 200 image/png inline nosniff private, boshqa ishtirokchi sessiyasi/buzilgan/tokensiz 403, mehmon 401, indeksdan tashqari 404).
+
+
+# 6-audit: honeypot (tuzoq) + yangi funksiyalar pentesti (2026-11-06)
+
+Foydalanuvchi so'rovi: «buglarni tuzat, pentest qil, hakerlardan himoya va ularga tuzoq tayyorla».
+
+## Yangi funksiyalar pentesti (Blok 13 endpoint'lari)
+6 yo'nalish jonli sinovdan o'tdi (scratchpad `pentest6.mjs`, 20/21 — bitta «fail» test kutilmasi, bug emas):
+- Yopiq media (`/api/media/[kind]/[id]` + `/stream`): mehmon 401, begona 404, uzun id 404, soxta token 403, token sessiyaga bog'langan (A tokeni B uchun ishlamaydi). ✓
+- Obuna so'rovlari (`/api/follow/sorovlar`): mehmon 401, begona so'rov PATCH 404. ✓
+- Tasdiq (`/api/profile/tasdiq`): mehmon 401, mijoz (profil yo'q) null/rad, mezonlar server tomonda. ✓
+- Fikr (`/api/fikr`): mehmon POST 201 (toza matn), spam filtri XSS-ko'rinishli matnni ushlaydi, admin ro'yxati mijozga 403; begona skrinshot URL saqlanmaydi; matn React tomonidan ekranlanib chiziladi. ✓
+- i18n avto (`/api/i18n/avto`): 100 element → 422, 160+ belgi → 422, IP limiti. ✓
+- Ovoz presign: mehmon 401, voice+mp4 → 422, 9 MB → 422 (server tomonda, mijoz da'vosiga qaramay). ✓
+Xulosa: yangi endpoint'larda avtorizatsiya buzilishi topilmadi.
+
+## Honeypot / tuzoq (yangi himoya qatlami)
+| Komponent | Tavsif |
+|---|---|
+| Tuzoq yo'llari | `wp-admin`, `.env`, `.git`, `phpmyadmin`, `administrator`, `backup.sql`… — haqiqiy foydalanuvchi/Google kirmaydi; har urinish hujum signali |
+| Soxta javob | `.env` → ishonarli yolg'on + CANARY kalit; login yo'llari → soxta login HTML; backup → bo'sh dump — hujumchi vaqtini o'g'irlaydi |
+| Canary | Soxta kalit yoki soxta admin yo'l (`/boshqaruv-7731`) ishlatilsa — aniq hujum, 30 kun blok + darhol ogohlantirish |
+| Avtomatik blok | 24 soatda 4 urinish → 24 soat blok; `handler()` bloklangan IP'ga barcha API'da 403 (60 s kesh, baza xatosida bloklamaydi) |
+| Admin | `/admin` «Tizim» → «Tuzoq»: urinishlar, eng faol IP, qo'lda blok/unblok; yangi urinish/blok/canary → sayt + Telegram ogohlantirish |
+| Tozalash | Kunlik cron `purgeHoneypot` — 30 kunlik jurnal va muddati o'tgan bloklar |
+
+Jonli sinovdan o'tdi: `/.env` soxta javob + canary, `/wp-login.php` soxta login, canary kalit → blok, bloklangan IP API'da 403, real route'lar va oddiy 404'lar tegilmagan. Sinov: security.mjs «Honeypot / tuzoq».
+

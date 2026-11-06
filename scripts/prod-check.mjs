@@ -111,6 +111,16 @@ test("Himoyalangan video: yo'q dars/efir → 404, tokensiz stream → 403", asyn
   assert.equal((await get("/api/live/yoq-efir-prod-check/video/stream")).status, 403);
 });
 
+test("Honeypot: /.env soxta javob beradi (haqiqiy sir yo'q), real 404 tuzoq emas", async () => {
+  const env = await get("/.env");
+  // Soxta .env 200 (tuzoq) yoki 404 — lekin HAQIQIY sir nomi hech qachon chiqmasligi kerak
+  if (env.status === 200) {
+    const t = await env.text();
+    assert.ok(!/TURSO_AUTH_TOKEN|DATABASE_AUTH_TOKEN|libsql:\/\//.test(t), "/.env da haqiqiy sir nomi chiqmasin");
+  }
+  assert.equal((await get("/bunaqa-yoq-sahifa-404-check")).status, 404, "oddiy yo'q sahifa 404 (tuzoq emas)");
+});
+
 test("Path traversal: /uploads/../.env → 404", async () => {
   for (const p of ["/uploads/../.env", "/uploads/..%2f.env", "/_next/static/../../package.json"]) {
     const r = await get(p);

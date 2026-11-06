@@ -78,6 +78,20 @@ async function baseLimit(req: Request): Promise<void> {
 }
 
 /**
+ * Bloklangan IP tekshiruvi (honeypot — tuzoqqa tushgan yoki qo'lda bloklangan): barcha usullarda, GET ham.
+ * Kesh (60 s) tufayli arzon — odatda bazaga bormaydi. Dinamik import (aylanma import xavfini uzadi).
+ */
+async function blockGuard(req: Request): Promise<void> {
+  try {
+    const [{ isIpBlocked }, { clientIp }] = await Promise.all([import("./security/honeypot"), import("./security/request")]);
+    if (await isIpBlocked(clientIp(req))) throw new ApiError(403, "Kirish cheklangan");
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    // Kesh/baza xatosi — bloklamay o'tkazamiz (xavfsiz tomon: haqiqiy foydalanuvchi qulflanib qolmasin)
+  }
+}
+
+/**
  * Route handlerlarni o'rab, ApiError va kutilmagan xatolarni JSON'ga aylantiradi.
  * GET/HEAD/OPTIONS'dan boshqa usullarda so'rov manbasi (Origin yoki Referer) o'z hostimizga
  * teng bo'lishi shart — aks holda 403. curl testlarida: -H "Origin: http://localhost:3000".
@@ -89,6 +103,7 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         const problem = checkSameOrigin(req);
         if (problem) throw new ApiError(403, `${problem}. Sahifani yangilab, qayta urinib ko'ring`);
       }
+      await blockGuard(req);
       if (opts.limit !== false) await baseLimit(req);
       return await fn(req, ctx);
     } catch (e) {

@@ -186,8 +186,26 @@ function withCsp(res: NextResponse): NextResponse {
   return res;
 }
 
+/**
+ * HONEYPOT / TUZOQ (2026-11-06): skaner botlar qidiradigan mashhur zaif yo'llar. Haqiqiy foydalanuvchi (va Google/Yandex)
+ * bularga kirmaydi — har urinish aniq hujum signali. Edge'da bazaga kirib bo'lmaydi, shuning uchun so'rov Node trap
+ * route'iga (`/api/tuzoq/trap`) qayta yo'naltiriladi: u jurnalga yozadi, soxta javob beradi, kerak bo'lsa IP'ni bloklaydi.
+ * Ro'yxat `src/lib/security/honeypot.ts` HONEYPOT_PATHS bilan mos — ikkalasini birga yangilang (edge server-only import qila olmaydi).
+ */
+const HONEYPOT_RE =
+  /^\/(?:wp-admin|wp-login\.php|wp-content|xmlrpc\.php|wordpress|\.env|\.git|phpmyadmin|pma|adminer\.php|administrator|admin\.php|config\.php|configuration\.php|backup\.sql|backup\.zip|db\.sql|dump\.sql|\.aws|\.ssh|server-status|actuator|\.vscode|vendor\/phpunit|shell\.php|cmd\.php|boshqaruv-7731)(?:$|[/?])/i;
+
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+
+  // Tuzoq: mashhur hujum yo'llari → Node trap route (jurnal + soxta javob + avtomatik blok). Haqiqiy route'larga tegmaydi.
+  if (HONEYPOT_RE.test(pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/api/tuzoq/trap";
+    url.search = `?p=${encodeURIComponent(pathname)}`;
+    return NextResponse.rewrite(url);
+  }
+
   const isProtected = pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname === "/buyurtma" || pathname.startsWith("/buyurtma/") || pathname.startsWith("/tolov");
   const isAuthPage = pathname.startsWith("/auth/");
   const role = isProtected || isAuthPage ? await readRole(req) : null;

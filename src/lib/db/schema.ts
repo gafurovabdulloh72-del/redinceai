@@ -3267,3 +3267,47 @@ export const feedbacks = sqliteTable(
   (t) => [index("feedback_status_idx").on(t.status, t.createdAt), index("feedback_user_idx").on(t.userId)],
 );
 export type Feedback = typeof feedbacks.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* HONEYPOT / TUZOQ (2026-11-06): hujumchilar skaneri uchun tuzoq      */
+/* ------------------------------------------------------------------ */
+/** Tuzoq yo'liga tushgan so'rovlar jurnali (hech qanday haqiqiy foydalanuvchi bu yo'llarga kirmaydi) */
+export const honeypotHits = sqliteTable(
+  "honeypot_hits",
+  {
+    id: text("id").primaryKey(),
+    ip: text("ip").notNull().default(""),
+    /** Tuzoq turi: scan (soxta yo'l) | fakeLogin (soxta admin login) | canary (soxta kalit ishlatildi) */
+    kind: text("kind", { enum: ["scan", "fakeLogin", "canary"] }).notNull().default("scan"),
+    method: text("method").notNull().default("GET"),
+    path: text("path").notNull().default(""),
+    userAgent: text("user_agent").notNull().default(""),
+    /** Qo'shimcha (soxta login urinishidagi login, canary kalit — PAROL SAQLANMAYDI) */
+    note: text("note").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("honeypot_ip_idx").on(t.ip, t.createdAt), index("honeypot_created_idx").on(t.createdAt)],
+);
+export type HoneypotHit = typeof honeypotHits.$inferSelect;
+
+/** Bloklangan IP'lar: tuzoqqa ko'p tushgan yoki qo'lda bloklangan — API qatlamida 403 oladi (muddat o'tgach o'chadi) */
+export const blockedIps = sqliteTable(
+  "blocked_ips",
+  {
+    ip: text("ip").primaryKey(),
+    reason: text("reason").notNull().default(""),
+    /** Tuzoqqa necha marta tushgan (avtomatik blok sanog'i) */
+    hits: integer("hits").notNull().default(0),
+    /** Blok muddati tugaydigan vaqt (ms); null — doimiy (qo'lda) */
+    until: integer("until", { mode: "timestamp_ms" }),
+    /** Qo'lda bloklangan (admin) — avtomatik tozalashdan himoyalangan */
+    manual: integer("manual", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [index("blocked_until_idx").on(t.until)],
+);
+export type BlockedIp = typeof blockedIps.$inferSelect;

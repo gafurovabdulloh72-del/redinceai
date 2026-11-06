@@ -240,6 +240,14 @@ export async function GET(req: Request) {
     counts.errors.push(`dmTtl: ${e instanceof Error ? e.message : String(e)}`);
   }
 
+  // Honeypot: eski tuzoq jurnali (30 kun) va muddati o'tgan avtomatik bloklar tozalanadi
+  try {
+    const { purgeHoneypot } = await import("@/lib/security/honeypot");
+    await purgeHoneypot();
+  } catch (e) {
+    counts.errors.push(`honeypot: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
   // (n) Muddati o'tgan story'lar (3 kundan eski) o'chiriladi
   try {
     counts.storiesPurged = await purgeExpiredStories();

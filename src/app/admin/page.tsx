@@ -11,6 +11,7 @@ import { AdminMentors } from "@/components/admin/AdminMentors";
 import { AdminEvents } from "@/components/admin/AdminEvents";
 import { AdminHealthCard } from "@/components/admin/AdminHealthCard";
 import { AdminFeedback } from "@/components/admin/AdminFeedback";
+import { AdminHoneypot } from "@/components/admin/AdminHoneypot";
 import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
@@ -258,7 +259,7 @@ export default async function AdminPage() {
     { key: "moliya", label: "Moliya", count: finance.manualPending + fraud.total, ids: ["tolovlar", "moliya", "analitika", "shubhali", "tolov-sozlamalari"] },
     { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "xabar"] },
     { key: "odamlar", label: "Odamlar", ids: ["foydalanuvchilar", "faollik"] },
-    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "fikrlar", "sozlamalar"] },
+    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "fikrlar", "tuzoq", "sozlamalar"] },
   ];
 
   return (
@@ -580,6 +581,12 @@ export default async function AdminPage() {
         <section id="fikrlar" className={SECTION} aria-labelledby="h-fikrlar">
           <AdminSectionHeading title={<span id="h-fikrlar">Fikrlar</span>} description="«Fikr bildirish» tugmasi orqali kelgan xato va g'oyalar — yangi fikr Telegramga ham keladi." />
           <AdminFeedback />
+        </section>
+
+        {/* ---------- Honeypot / tuzoq (2026-11-06) ---------- */}
+        <section id="tuzoq" className={SECTION} aria-labelledby="h-tuzoq">
+          <AdminSectionHeading title={<span id="h-tuzoq">Tuzoq (honeypot)</span>} description="Hujumchi skanerlar tushgan soxta yo'llar va avtomatik bloklangan IP'lar. Canary kalit ishlatilsa — aniq hujum." />
+          <AdminHoneypot />
         </section>
 
         {/* ---------- Sozlamalar ---------- */}

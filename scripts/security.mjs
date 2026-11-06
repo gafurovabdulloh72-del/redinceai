@@ -729,3 +729,45 @@ test("Tasdiq so'rovi: mehmon 401, mijoz (profil yo'q) 404, admin verify_reject s
   if (COOKIES.ad) assert.equal((await req("ad", "/api/admin/specialists/yoq-id", { method: "PATCH", body: JSON.stringify({ action: "verify_reject", reason: "ab" }) })).status, 422);
   if (COOKIES.cl) assert.equal((await req("cl", "/api/admin/specialists/yoq-id", { method: "PATCH", body: JSON.stringify({ action: "verify_reject", reason: "sabab matni" }) })).status, 403);
 });
+
+test("Honeypot / tuzoq: soxta yo'llar jurnalga tushadi, canary bloklaydi, real route'lar tegilmaydi", async () => {
+  // Soxta .env — ishonarli yolg'on, lekin HAQIQIY sir yo'q; canary kalit bor
+  const env = await fetch(BASE + "/.env", { redirect: "manual" });
+  assert.equal(env.status, 200, "/.env soxta javob 200");
+  const envText = await env.text();
+  assert.ok(envText.includes("ke_live_sk_"), "soxta .env canary kalit bor");
+  // Haqiqiy AUTH_SECRET/TURSO token sizib chiqmasligi kerak (soxta qiymatlar generik)
+  assert.ok(!/TURSO|libsql|AUTH_SECRET=/.test(envText), "soxta .env'da haqiqiy sir nomi yo'q");
+  // Soxta login sahifasi
+  const wp = await fetch(BASE + "/wp-login.php", { redirect: "manual" });
+  assert.equal(wp.status, 200, "/wp-login.php soxta login 200");
+  assert.ok((await wp.text()).toLowerCase().includes("login"), "soxta login HTML");
+  // Real yo'q sahifa TUZOQ EMAS — oddiy 404
+  assert.equal((await fetch(BASE + "/bunaqa-yoq-sahifa-tuzoq-test", { redirect: "manual" })).status, 404, "oddiy yo'q sahifa 404 (tuzoq emas)");
+
+  // Admin tuzoq paneli: mehmon 401, mijoz 403, admin 200
+  assert.equal((await req("guest", "/api/admin/tuzoq")).status, 401, "mehmon tuzoq 401");
+  if (COOKIES.cl) assert.equal((await req("cl", "/api/admin/tuzoq")).status, 403, "mijoz tuzoq 403");
+  if (!COOKIES.ad) return; // admin sessiyasi yo'q — qolgan qismi o'tkaziladi
+  const stat = await req("ad", "/api/admin/tuzoq");
+  assert.equal(stat.status, 200, "admin tuzoq 200");
+
+  // Qo'lda blok/unblok — TEST-NET IP (203.0.113.x, hech qachon haqiqiy test-runner IP emas → o'zini bloklamaydi)
+  const testIp = "203.0.113." + (50 + Math.floor(Math.random() * 40));
+  const bl = await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "block", ip: testIp, reason: "security.mjs sinovi" }) });
+  assert.equal(bl.status, 200, "admin IP blokladi");
+  const after = await (await req("ad", "/api/admin/tuzoq")).json();
+  assert.ok(after.data.blocked.some((b) => b.ip === testIp && b.manual), "bloklangan ro'yxatda (qo'lda)");
+  const un = await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "unblock", ip: testIp }) });
+  assert.equal(un.status, 200, "admin blokdan chiqardi");
+  const after2 = await (await req("ad", "/api/admin/tuzoq")).json();
+  assert.ok(!after2.data.blocked.some((b) => b.ip === testIp), "blokdan chiqdi");
+
+  // Tozalash: bu test yaratgan lokal tuzoq izlari (takroriy run'da 127.0.0.1 o'zini bloklab qo'ymasin)
+  try {
+    const { createClient } = await import("@libsql/client");
+    const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+    await d.execute("delete from honeypot_hits where ip in ('127.0.0.1','::1','unknown')");
+    await d.execute("delete from blocked_ips where ip in ('127.0.0.1','::1','unknown')");
+  } catch { /* CI'da baza fayli boshqacha bo'lsa — e'tiborsiz */ }
+});
