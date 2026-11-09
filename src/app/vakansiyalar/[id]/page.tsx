@@ -213,7 +213,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
               </div>
             </div>
           ) : closed ? null : (
-            <ApplyForm vacancyId={v.id} loggedIn={Boolean(user)} hasResume={Boolean(resume)} resumeTitle={resume?.title} initialMine={v.myApplication} applyUrl={v.applyUrl} />
+            <ApplyForm vacancyId={v.id} loggedIn={Boolean(user)} hasResume={Boolean(resume)} resumeTitle={resume?.title} initialMine={v.myApplication} applyUrl={v.applyUrl} screening={v.screening} />
           )}
           {!v.isOwner && (
             <div className="flex flex-wrap gap-2">

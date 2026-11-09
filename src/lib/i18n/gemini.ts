@@ -43,3 +43,36 @@ export async function geminiTranslate(texts: string[]): Promise<string[] | null>
     return null;
   }
 }
+
+/**
+ * Umumiy JSON so'rov (vakansiya yordamchisi va boshqalar): system + user matni → JSON qiymat yoki null.
+ * Kalit yo'q / xato / vaqt tugadi — null (chaqiruvchi shablonga tushadi). Xost yuqoridagi bilan bir xil (SSRF yo'q).
+ */
+export async function geminiJson(system: string, user: string, opts: { temperature?: number; timeoutMs?: number } = {}): Promise<unknown | null> {
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (!key) return null;
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const url = `${HOST}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: { temperature: opts.temperature ?? 0.4, responseMimeType: "application/json" },
+      }),
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 25_000),
+    });
+    if (!r.ok) {
+      console.error("[gemini] HTTP", r.status, (await r.text()).slice(0, 200));
+      return null;
+    }
+    const j = (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const raw = j.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    return JSON.parse(raw) as unknown;
+  } catch (e) {
+    console.error("[gemini]", e instanceof Error ? e.message : e);
+    return null;
+  }
+}

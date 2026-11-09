@@ -35,7 +35,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const v = await loadVacancy(id);
   if (!v) throw new ApiError(404, "Vakansiya topilmadi");
   await enforceLimit("applications", session.sub);
-  const a = await applyToVacancy(v, session.sub, input.coverLetter);
+  const a = await applyToVacancy(v, session.sub, input.coverLetter, input.answers);
   await audit(session.sub, "application_create", { targetType: "vacancy", targetId: v.id, meta: { applicationId: a.id } }, req);
   return ok({ id: a.id, status: a.status }, { status: 201 });
 });

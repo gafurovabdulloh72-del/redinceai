@@ -799,3 +799,25 @@ test("Efir ulashish (/efir/<id>): ochiq efir 200 + OG, yopiq jamoa efiri begonag
     await d.execute({ sql: "delete from live_streams where id in (?, ?)", args: [pubId, privId] });
   }
 });
+
+test("AI saralash: yordamchi mehmonga 401, test javoblari nomzodga ko'rinmaydi, mos nomzodlar/taklif begonaga 403", async (t) => {
+  assert.equal((await req("guest", "/api/vakansiyalar/yordamchi", { method: "POST", body: JSON.stringify({ brief: "Montajchi kerak, Premiere" }) })).status, 401, "mehmon yordamchi 401");
+  if (!COOKIES.cl || !COOKIES.sp) return t.skip("sessiyalar yo'q");
+  const screening = { questions: [{ id: "q1", text: "Tajribangiz haqida yozing", required: true }], quiz: [{ id: "t1", text: "Reels nisbati?", options: ["16:9", "9:16"], correct: 1 }] };
+  const cr = await req("cl", "/api/vakansiyalar", { method: "POST", body: JSON.stringify({ title: "SEC saralash sinovi", profession: "video", description: "Sinov vakansiyasi: montaj, rang korreksiyasi va Reels tayyorlash.", format: "remote", regionSlug: "remote", skills: ["Premiere"], screening }) });
+  if (cr.status === 429) return t.skip("vakansiya limiti");
+  assert.ok(cr.status === 200 || cr.status === 201, `vakansiya yaratildi (${cr.status})`);
+  const vid = (await cr.json()).data.id;
+  try {
+    const pub = (await (await req("sp", `/api/vakansiyalar/${vid}`)).json()).data;
+    assert.ok(pub.screening.quiz.every((q) => !("correct" in q)), "nomzodga to'g'ri javob yo'q");
+    assert.equal(pub.screeningFull, null, "screeningFull nomzodga null");
+    assert.equal((await req("sp", `/api/vakansiyalar/${vid}/nomzodlar`)).status, 403, "begona mos nomzodlar 403");
+    assert.equal((await req("sp", `/api/vakansiyalar/${vid}/taklif`, { method: "POST", body: JSON.stringify({ userId: "x" }) })).status, 403, "begona taklif 403");
+    assert.equal((await req("guest", `/api/vakansiyalar/${vid}/nomzodlar`)).status, 401, "mehmon mos nomzodlar 401");
+    const bad = await req("sp", `/api/vakansiyalar/${vid}/ariza`, { method: "POST", body: JSON.stringify({ coverLetter: "Salom, men tajribali montajchiman, qiziqaman." }) });
+    assert.equal(bad.status, 422, "anketasiz ariza 422");
+  } finally {
+    await req("cl", `/api/vakansiyalar/${vid}`, { method: "DELETE" });
+  }
+});

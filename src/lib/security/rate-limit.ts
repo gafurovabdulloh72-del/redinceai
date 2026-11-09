@@ -85,6 +85,10 @@ export const RATE_LIMITS = {
   /** Vakansiya e'loni va ariza — spamga qarshi */
   vacancies: { limit: 5, windowMs: DAY },
   applications: { limit: 20, windowMs: DAY },
+  /** AI vakansiya yordamchisi (Gemini so'rovi pullik bo'lishi mumkin) */
+  vacancyAi: { limit: 20, windowMs: DAY },
+  /** Mos nomzodga taklif (DM) — spamga qarshi */
+  vacancyInvite: { limit: 30, windowMs: DAY },
   posts: { limit: 30, windowMs: HOUR },
   comments: { limit: 60, windowMs: HOUR },
   social: { limit: 120, windowMs: HOUR },

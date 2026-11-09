@@ -1,11 +1,13 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, isNotNull, isNull, like, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { applications, resumes, specialists, users, vacancies, vacancyAlerts, vacancySaves, type Application, type Resume, type Vacancy } from "@/lib/db/schema";
+import { applications, conversations, resumes, specialists, users, vacancies, vacancyAlerts, vacancyInvites, vacancySaves, type Application, type Resume, type Vacancy } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
 import { APPLICATION_STATUS, COVER_LETTER_MIN, EMPLOYMENT, EXPERIENCE, PAY_FILTER, REMOTE_REGION, VACANCY_TTL_DAYS, WORK_FORMAT, professionLabel, salaryLabel, vacancyRegionLabel, type ApplicationStatus } from "./format";
+import { candidateFrom, scoreMatch, type MatchResult, type MatchVacancy } from "./match";
+import { checkAnswers, publicScreening, quizResult, type PublicScreening, type Screening, type ScreeningAnswers } from "./screening";
 import { VACANCY_ALERT_KEYS, vacancyFilterSchema, type ResumeFilter, type ResumeInput, type VacancyFilter, type VacancyInput } from "./validators";
 
 /**
@@ -61,6 +63,10 @@ export interface VacancyView extends VacancyCard {
   expired: boolean;
   /** Ko'ruvchi saqlab qo'yganmi (bookmark) */
   savedByMe: boolean;
+  /** Anketa/test — nomzodga to'g'ri javobsiz */
+  screening: PublicScreening | null;
+  /** To'liq anketa (to'g'ri javoblar bilan) — FAQAT egasiga, boshqalarga null */
+  screeningFull: Screening | null;
 }
 
 export interface ResumeCard {
@@ -97,6 +103,12 @@ export interface ApplicantView {
   employerNote: string;
   user: UserMini & { email: string; phone: string | null };
   resume: Pick<ResumeView, "id" | "title" | "profession" | "experience" | "skills" | "expectedSalary" | "links" | "summary"> | null;
+  /** Moslik balli va har mezon bo'yicha sabab (joriy rezyume bo'yicha qayta hisoblanadi) */
+  match: MatchResult;
+  /** Anketa javoblari (savol matni bilan) */
+  answers: Array<{ question: string; answer: string }>;
+  /** Test natijasi (test bo'lsa) */
+  quiz: { correct: number; total: number; items: Array<{ question: string; chosen: string | null; right: string; ok: boolean }> } | null;
 }
 
 export interface MyApplication {
@@ -241,6 +253,8 @@ export async function getVacancyView(id: string, viewer: Viewer): Promise<Vacanc
     canApply: Boolean(viewer) && !isOwner && v.status === "open" && !expired && !mine,
     expired,
     savedByMe: Boolean(saved),
+    screening: publicScreening(v.screening),
+    screeningFull: isOwner ? (v.screening ?? null) : null,
   };
 }
 
@@ -372,6 +386,7 @@ export async function createVacancy(userId: string, input: VacancyInput): Promis
     salaryMax: input.salaryMax,
     regionSlug: input.regionSlug,
     skills: input.skills,
+    screening: input.screening ?? null,
     applyUrl: input.applyUrl,
     status: "open",
     applicationsCount: 0,
@@ -391,7 +406,7 @@ export function assertVacancyOwner(v: Vacancy, viewer: Viewer): void {
 
 export async function updateVacancy(v: Vacancy, patch: Partial<VacancyInput> & { status?: Vacancy["status"]; extend?: boolean }): Promise<Vacancy> {
   const set: Partial<typeof vacancies.$inferInsert> = { updatedAt: new Date() };
-  for (const k of ["title", "company", "profession", "description", "requirements", "format", "employment", "experience", "salaryMin", "salaryMax", "regionSlug", "skills", "applyUrl"] as const) {
+  for (const k of ["title", "company", "profession", "description", "requirements", "format", "employment", "experience", "salaryMin", "salaryMax", "regionSlug", "skills", "applyUrl", "screening"] as const) {
     if (patch[k] !== undefined) (set as Record<string, unknown>)[k] = patch[k];
   }
   if (patch.status) set.status = patch.status;
@@ -442,12 +457,31 @@ export async function loadApplication(id: string): Promise<Application | null> {
   return (await db.query.applications.findFirst({ where: eq(applications.id, id) })) ?? null;
 }
 
+const matchVacancy = (v: Vacancy): MatchVacancy => ({ profession: v.profession, experience: v.experience, skills: v.skills, format: v.format, regionSlug: v.regionSlug, salaryMin: v.salaryMin, salaryMax: v.salaryMax, title: v.title, screening: v.screening });
+
+/** Anketa/test javoblarini o'qiladigan ko'rinishga keltirish (faqat egasi uchun) */
+function readableAnswers(s: Screening | null | undefined, a: ScreeningAnswers | null | undefined): Pick<ApplicantView, "answers" | "quiz"> {
+  const answers = (s?.questions ?? []).filter((q) => a?.q?.[q.id]).map((q) => ({ question: q.text, answer: a!.q[q.id] }));
+  const qr = quizResult(s, a);
+  const quiz = qr
+    ? {
+        ...qr,
+        items: s!.quiz.map((q) => {
+          const ch = a?.quiz?.[q.id];
+          return { question: q.text, chosen: typeof ch === "number" ? (q.options[ch] ?? null) : null, right: q.options[q.correct] ?? "", ok: ch === q.correct };
+        }),
+      }
+    : null;
+  return { answers, quiz };
+}
+
 export async function listApplicants(vacancyId: string): Promise<ApplicantView[]> {
-  const rows = await db.query.applications.findMany({ where: eq(applications.vacancyId, vacancyId), orderBy: [desc(applications.createdAt)] });
-  if (!rows.length) return [];
+  const [v, rows] = await Promise.all([loadVacancy(vacancyId), db.query.applications.findMany({ where: eq(applications.vacancyId, vacancyId), orderBy: [desc(applications.createdAt)] })]);
+  if (!rows.length || !v) return [];
   const ids = rows.map((r) => r.userId);
   const [people, res] = await Promise.all([usersMini(ids), db.query.resumes.findMany({ where: inArray(resumes.userId, ids) })]);
   const resumeBy = new Map(res.map((r) => [r.userId, r]));
+  const mv = matchVacancy(v);
   return rows.map((a) => {
     const u = people.get(a.userId) ?? UNKNOWN;
     const r = resumeBy.get(a.userId);
@@ -461,24 +495,30 @@ export async function listApplicants(vacancyId: string): Promise<ApplicantView[]
       // Ariza yuborgan nomzod kontaktini ish beruvchiga ochadi (ariza formasida ogohlantiriladi)
       user: u,
       resume: r ? { id: r.id, title: r.title, profession: r.profession, experience: r.experience, skills: r.skills, expectedSalary: r.expectedSalary, links: r.links, summary: r.summary } : null,
+      match: scoreMatch(mv, candidateFrom(r, a.coverLetter), a.answers),
+      ...readableAnswers(v.screening, a.answers),
     };
   });
 }
 
-export async function applyToVacancy(v: Vacancy, userId: string, coverLetter: string): Promise<Application> {
+export async function applyToVacancy(v: Vacancy, userId: string, coverLetter: string, rawAnswers: ScreeningAnswers = { q: {}, quiz: {} }): Promise<Application> {
   if (v.authorId === userId) throw new ApiError(400, "O'z vakansiyangizga ariza bera olmaysiz");
   if (v.status !== "open" || isExpired(v)) throw new ApiError(409, "Bu vakansiya yopilgan yoki muddati o'tgan");
   const [existing, resume, author] = await Promise.all([
     db.query.applications.findFirst({ where: and(eq(applications.vacancyId, v.id), eq(applications.userId, userId)) }),
-    db.query.resumes.findFirst({ where: eq(resumes.userId, userId), columns: { id: true } }),
+    db.query.resumes.findFirst({ where: eq(resumes.userId, userId) }),
     usersMini([userId]),
   ]);
   if (existing) throw new ApiError(409, "Siz bu vakansiyaga allaqachon ariza yuborgansiz");
+  // Anketa va test: majburiy savollar va barcha test savollariga javob shart
+  const checked = checkAnswers(v.screening, rawAnswers);
+  if (checked.error) throw new ApiError(422, checked.error.message, { [checked.error.field]: checked.error.message });
   if (!resume && coverLetter.length < COVER_LETTER_MIN) {
     throw new ApiError(422, "Rezyume yo'q — qisqacha o'zingiz haqingizda yozing", { coverLetter: `Kamida ${COVER_LETTER_MIN} ta belgi (yoki avval rezyume to'ldiring)` });
   }
   const now = new Date();
-  const row: typeof applications.$inferInsert = { id: uid(), vacancyId: v.id, userId, coverLetter, status: "new", createdAt: now, updatedAt: now };
+  const match = scoreMatch(matchVacancy(v), candidateFrom(resume, coverLetter), checked.answers);
+  const row: typeof applications.$inferInsert = { id: uid(), vacancyId: v.id, userId, coverLetter, answers: checked.answers, matchScore: match.score, status: "new", createdAt: now, updatedAt: now };
   try {
     await db.transaction(async (tx) => {
       await tx.insert(applications).values(row);
@@ -490,7 +530,7 @@ export async function applyToVacancy(v: Vacancy, userId: string, coverLetter: st
     throw e;
   }
   const who = author.get(userId)?.name ?? "Nomzod";
-  await notify(v.authorId, "application_new", `Yangi ariza: ${v.title}`, `${who} vakansiyangizga ariza yubordi${resume ? " (rezyume bilan)" : ""}.`, `/kabinet/vakansiyalar?v=${v.id}`);
+  await notify(v.authorId, "application_new", `Yangi ariza: ${v.title}`, `${who} vakansiyangizga ariza yubordi${resume ? " (rezyume bilan)" : ""} — moslik ${match.score}%.`, `/kabinet/vakansiyalar?v=${v.id}`);
   return { ...row, status: "new", coverLetter, createdAt: now, updatedAt: now } as Application;
 }
 
@@ -693,14 +733,18 @@ export async function suggestedVacanciesForUser(userId: string, profession: stri
 
 /** Nomzodlar CSV (faqat egasi — kontakt ruxsatli): UTF-8 BOM bilan, Excel ochadi */
 export function applicantsCsv(items: ApplicantView[]): string {
+  // Formula injection'dan himoya: = + - @ bilan boshlangan katak oldiga ' (nomzod xati/ismi Excel'da formula bo'lib bajarilmasin)
   const cell = (s: string | number | null | undefined) => {
-    const t = s == null ? "" : String(s);
-    return /[",;\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+    const raw = s == null ? "" : String(s);
+    const t = typeof s === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+    return /[",;\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
-  const head = ["Ism", "Email", "Telefon", "Holat", "Lavozim (rezyume)", "Tajriba", "Kutilayotgan maosh", "Ko'nikmalar", "Yuborilgan", "Xat"];
-  const lines = items.map((a) =>
+  const head = ["Ism", "Moslik %", "Test", "Email", "Telefon", "Holat", "Lavozim (rezyume)", "Tajriba", "Kutilayotgan maosh", "Ko'nikmalar", "Yuborilgan", "Xat"];
+  const lines = [...items].sort((a, b) => b.match.score - a.match.score).map((a) =>
     [
       a.user.name,
+      a.match.score,
+      a.quiz ? `${a.quiz.correct}/${a.quiz.total}` : "",
       a.user.email,
       a.user.phone ?? "",
       APPLICATION_STATUS[a.status],
@@ -845,3 +889,109 @@ export async function listResumes(filter: ResumeFilter): Promise<{ items: Resume
   return { items: rows.map((r) => toResumeCard(r.r, pub(people.get(r.r.userId) ?? UNKNOWN))), total: Number(total), page: filter.page, pages: Math.max(1, Math.ceil(Number(total) / filter.limit)) };
 }
 
+
+/* ------------------------------------------------------------------ */
+/* MOS NOMZODLAR — hunting (2026-11-09, ISH ON g'oyasi)                */
+/* ------------------------------------------------------------------ */
+export interface CandidateMatch {
+  resume: ResumeCard;
+  match: MatchResult;
+  /** Shu vakansiya bo'yicha taklif yuborilganmi */
+  invited: boolean;
+}
+
+/**
+ * Vakansiyaga eng mos OMMAVIY rezyumelar (egasi uchun): ariza bergan, egasining o'zi va bloklangan/ban hisoblar chiqmaydi.
+ * Kontakt BERILMAYDI — ish beruvchi «Taklif yuborish» bilan sayt chati orqali yozadi (rezyume qoidasi saqlanadi).
+ */
+export async function matchingCandidates(v: Vacancy, limit = 12): Promise<CandidateMatch[]> {
+  const applied = await db.select({ userId: applications.userId }).from(applications).where(eq(applications.vacancyId, v.id));
+  const exclude = new Set([v.authorId, ...applied.map((a) => a.userId)]);
+  // Avval shu kasbdagilar, keyin qolganlari (eng yangi 300 ta) — skorlash xotirada, arzon
+  const rows = await db
+    .select({ r: resumes, banned: users.isBanned })
+    .from(resumes)
+    .innerJoin(users, eq(users.id, resumes.userId))
+    .where(and(eq(resumes.isPublic, true), eq(users.isBanned, false)))
+    .orderBy(sql`case when ${resumes.profession} = ${v.profession} then 0 else 1 end`, desc(resumes.updatedAt))
+    .limit(300);
+  const mv = matchVacancy(v);
+  const scored = rows
+    .filter(({ r }) => !exclude.has(r.userId))
+    .map(({ r }) => ({ r, match: scoreMatch(mv, candidateFrom(r)) }))
+    .filter((x) => x.match.score >= 40)
+    .sort((a, b) => b.match.score - a.match.score || b.r.updatedAt.getTime() - a.r.updatedAt.getTime())
+    .slice(0, limit);
+  if (!scored.length) return [];
+  const [people, invites] = await Promise.all([
+    usersMini(scored.map((x) => x.r.userId)),
+    db.select({ userId: vacancyInvites.userId }).from(vacancyInvites).where(and(eq(vacancyInvites.vacancyId, v.id), inArray(vacancyInvites.userId, scored.map((x) => x.r.userId)))),
+  ]);
+  const invited = new Set(invites.map((i) => i.userId));
+  return scored.map(({ r, match }) => ({
+    resume: {
+      id: r.id,
+      userId: r.userId,
+      title: r.title,
+      profession: r.profession,
+      summary: r.summary.slice(0, 220),
+      skills: r.skills,
+      experience: r.experience,
+      expectedSalary: r.expectedSalary,
+      format: r.format,
+      regionSlug: r.regionSlug,
+      updatedAt: r.updatedAt.getTime(),
+      user: pub(people.get(r.userId) ?? UNKNOWN),
+    },
+    match,
+    invited: invited.has(r.userId),
+  }));
+}
+
+/**
+ * Mos nomzodga taklif: sayt chatiga xabar (DM bildirishnomasi Telegram/push'ga ham ketadi) + `vacancy_invites` (bir marta).
+ * Blok va «kim yozishi mumkin» siyosati hurmat qilinadi; faqat ommaviy rezyumesi bor, hali ariza bermagan nomzodga.
+ */
+export async function inviteCandidate(v: Vacancy, ownerId: string, userId: string, message?: string): Promise<{ conversationId: string; score: number }> {
+  if (v.status !== "open" || isExpired(v)) throw new ApiError(409, "Vakansiya yopiq yoki muddati o'tgan — avval qayta oching");
+  if (userId === v.authorId || userId === ownerId) throw new ApiError(400, "O'zingizga taklif yuborib bo'lmaydi");
+  const [r, other, applied, already] = await Promise.all([
+    db.query.resumes.findFirst({ where: and(eq(resumes.userId, userId), eq(resumes.isPublic, true)) }),
+    db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, isBanned: true, dmPolicy: true } }),
+    db.query.applications.findFirst({ where: and(eq(applications.vacancyId, v.id), eq(applications.userId, userId)), columns: { id: true } }),
+    db.query.vacancyInvites.findFirst({ where: and(eq(vacancyInvites.vacancyId, v.id), eq(vacancyInvites.userId, userId)), columns: { id: true } }),
+  ]);
+  if (!r || !other || other.isBanned) throw new ApiError(404, "Nomzod topilmadi");
+  if (applied) throw new ApiError(409, "Bu nomzod allaqachon ariza yuborgan");
+  if (already) throw new ApiError(409, "Bu nomzodga taklif allaqachon yuborilgan");
+  const { assertCanDm } = await import("@/lib/privacy/blocks");
+  const { getOrCreateConversation, sendDm } = await import("@/lib/chat/dm");
+  const [lo, hi] = ownerId < userId ? [ownerId, userId] : [userId, ownerId];
+  const existing = await db.query.conversations.findFirst({ where: and(eq(conversations.aId, lo), eq(conversations.bId, hi)), columns: { lastMessageAt: true } });
+  await assertCanDm(ownerId, other, Boolean(existing?.lastMessageAt));
+  const match = scoreMatch(matchVacancy(v), candidateFrom(r));
+  // Avval band qilamiz (yagona indeks) — ikki marta bosish ikki xabar yubormasin
+  try {
+    await db.insert(vacancyInvites).values({ id: uid(), vacancyId: v.id, userId, score: match.score, createdAt: new Date() });
+  } catch (e) {
+    if (String(e).includes("UNIQUE")) throw new ApiError(409, "Bu nomzodga taklif allaqachon yuborilgan");
+    throw e;
+  }
+  const { SITE_URL } = await import("@/lib/site-url");
+  const extra = message?.trim() ? `\n\n${message.trim().slice(0, 500)}` : "";
+  const body = `Assalomu alaykum! «${v.title}»${v.company ? ` (${v.company})` : ""} vakansiyamiz rezyumengizga mos keldi (moslik ${match.score}%).${extra}\n\nQiziqsangiz, ariza qoldiring: ${SITE_URL}/vakansiyalar/${v.id}`;
+  const conv = await getOrCreateConversation(ownerId, userId);
+  await sendDm(conv, ownerId, body, []);
+  return { conversationId: conv.id, score: match.score };
+}
+
+/** Vakansiya bo'yicha saralash voronkasi (kabinet ro'yxati uchun): kuchli mos arizalar soni */
+export async function strongApplicantCounts(vacancyIds: string[]): Promise<Map<string, number>> {
+  if (!vacancyIds.length) return new Map();
+  const rows = await db
+    .select({ vacancyId: applications.vacancyId, n: sql<number>`count(*)` })
+    .from(applications)
+    .where(and(inArray(applications.vacancyId, vacancyIds), sql`${applications.matchScore} >= 75`))
+    .groupBy(applications.vacancyId);
+  return new Map(rows.map((r) => [r.vacancyId, Number(r.n)]));
+}

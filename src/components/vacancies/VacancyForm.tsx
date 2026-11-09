@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
@@ -11,6 +11,9 @@ import { employmentTr, experienceTr, professionLabelTr, workFormatTr } from "@/l
 import { REGIONS } from "@/lib/constants";
 import { EMPLOYMENT, EXPERIENCE, PROFESSIONS, REMOTE_REGION, VACANCY_DESC_MAX, VACANCY_DESC_MIN, VACANCY_REQ_MAX, VACANCY_SKILLS_MAX, VACANCY_TITLE_MAX, VACANCY_TITLE_MIN, WORK_FORMAT, type Employment, type Experience, type WorkFormat } from "@/lib/vacancies/format";
 import { SkillsInput } from "./SkillsInput";
+import { ScreeningEditor, cleanScreening } from "./ScreeningEditor";
+import { VAK_AI } from "@/lib/i18n/dict/vacancies-ai";
+import type { Screening } from "@/lib/vacancies/screening";
 
 export interface VacancyFormInitial {
   id: string;
@@ -29,6 +32,8 @@ export interface VacancyFormInitial {
   applyUrl: string | null;
   status: "open" | "closed";
   expired: boolean;
+  /** Anketa + test (to'g'ri javoblar bilan — faqat egasiga) */
+  screening?: Screening | null;
 }
 
 type ApiResp = { ok: boolean; data?: { id?: string }; error?: string; fields?: Record<string, string> };
@@ -55,6 +60,38 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
   const [requirements, setRequirements] = useState(initial?.requirements ?? "");
   const [skills, setSkills] = useState<string[]>(initial?.skills ?? []);
   const [applyUrl, setApplyUrl] = useState(initial?.applyUrl ?? "");
+  const [screening, setScreening] = useState<Screening>(initial?.screening ?? { questions: [], quiz: [] });
+  // AI yordamchi: «Menga vakansiya yarat»
+  const [brief, setBrief] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [draftNote, setDraftNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function runAssistant() {
+    if (brief.trim().length < 10 || drafting) return;
+    setDrafting(true);
+    setDraftNote(null);
+    try {
+      const res = await fetch("/api/vakansiyalar/yordamchi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brief: brief.trim(), profession }) });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; fields?: Record<string, string>; data?: { title: string; profession: string; description: string; requirements: string; skills: string[]; experience: Experience; format: WorkFormat; employment: Employment; regionSlug: string | null; screening: Screening; source: "ai" | "template" } };
+      if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, VAK_AI.assistantFailed));
+      const d = j.data;
+      setTitle(d.title);
+      setProfession(d.profession);
+      setDescription(d.description);
+      setRequirements(d.requirements);
+      setSkills(d.skills.slice(0, VACANCY_SKILLS_MAX));
+      setExperience(d.experience);
+      setFormat(d.format);
+      setEmployment(d.employment);
+      if (d.regionSlug) setRegionSlug(d.regionSlug);
+      setScreening(d.screening);
+      setDraftNote({ ok: true, text: tr(til, d.source === "ai" ? VAK_AI.assistantDoneAi : VAK_AI.assistantDoneTpl) });
+    } catch (e) {
+      setDraftNote({ ok: false, text: e instanceof Error ? e.message : tr(til, VAK_AI.assistantFailed) });
+    } finally {
+      setDrafting(false);
+    }
+  }
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +114,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       regionSlug: format === "remote" ? REMOTE_REGION : regionSlug,
       skills,
       applyUrl: applyUrl.trim(),
+      screening: cleanScreening(screening),
     };
   }
 
@@ -117,6 +155,27 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       }}
       className="card grid gap-5 p-5 sm:p-6"
     >
+      {mode === "create" && (
+        <section className="grid gap-2.5 rounded-[16px] border border-accent/25 bg-accent/[0.04] p-4" aria-labelledby="vak-ai-title">
+          <h3 id="vak-ai-title" className="inline-flex items-center gap-2 text-[15px] font-semibold text-fg">
+            <Sparkles size={16} className="text-accent" /> {tr(til, VAK_AI.assistantTitle)}
+          </h3>
+          <p className="text-[12.5px] leading-relaxed text-fg-3">{tr(til, VAK_AI.assistantDesc)}</p>
+          <textarea value={brief} onChange={(e) => setBrief(e.target.value)} maxLength={1500} rows={3} placeholder={tr(til, VAK_AI.assistantPh)} aria-label={tr(til, VAK_AI.assistantTitle)} className="field w-full resize-y bg-surface py-2.5 text-[14px] leading-relaxed" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="accent" size="sm" onClick={() => void runAssistant()} disabled={brief.trim().length < 10 || drafting}>
+              {drafting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {drafting ? tr(til, VAK_AI.assistantBusy) : tr(til, VAK_AI.assistantRun)}
+            </Button>
+            {(title || description) && !draftNote && <span className="text-[11.5px] text-fg-4">{tr(til, VAK_AI.assistantOverwrite)}</span>}
+            {draftNote && (
+              <span role="status" className={`expand-in text-[12.5px] font-semibold ${draftNote.ok ? "text-success-text" : "text-danger-text"}`}>
+                {draftNote.text}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
       <label className="grid gap-1.5">
         <span className={LABEL}>{tr(til, T.position)}</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={VACANCY_TITLE_MAX} placeholder={tr(til, T.positionPh)} className="field h-11 w-full text-[14px]" autoFocus={mode === "create" && !initial} />
@@ -233,6 +292,8 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
         <SkillsInput id="v-skills" value={skills} onChange={setSkills} max={VACANCY_SKILLS_MAX} />
         {errors.skills && <span className="text-[11.5px] text-danger-text">{errors.skills}</span>}
       </div>
+
+      <ScreeningEditor value={screening} onChange={setScreening} />
 
       <label className="grid gap-1.5">
         <span className={LABEL}>{tr(til, T.applyUrl)}</span>

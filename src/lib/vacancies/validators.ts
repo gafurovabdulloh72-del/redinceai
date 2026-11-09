@@ -15,6 +15,7 @@ import {
   VACANCY_TITLE_MAX,
   VACANCY_TITLE_MIN,
 } from "./format";
+import { answersSchema, screeningSchema } from "./screening";
 
 const regionSlugs = REGIONS.map((r) => r.slug) as [string, ...string[]];
 
@@ -62,6 +63,8 @@ const vacancyFields = z.object({
   regionSlug: regionField,
   skills: skillsField(VACANCY_SKILLS_MAX),
   applyUrl: httpsUrl.optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  /** Anketa + test (ixtiyoriy); bo'sh — null */
+  screening: screeningSchema.nullable().optional(),
 });
 
 function salaryCheck(v: { salaryMin: number | null; salaryMax: number | null }, ctx: z.RefinementCtx) {
@@ -96,6 +99,13 @@ export type ResumeInput = z.infer<typeof resumeInputSchema>;
 
 export const applicationInputSchema = z.object({
   coverLetter: z.string().trim().max(COVER_LETTER_MAX, `Ko'pi bilan ${COVER_LETTER_MAX} belgi`).optional().default(""),
+  answers: answersSchema,
+});
+
+/** Mos nomzodga taklif */
+export const inviteSchema = z.object({
+  userId: z.string().trim().min(1).max(64),
+  message: z.string().trim().max(500, "Xabar 500 belgidan oshmasin").optional().default(""),
 });
 
 /** Holat yoki ish beruvchi eslatmasi (kamida bittasi) */

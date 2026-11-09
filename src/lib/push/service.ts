@@ -46,10 +46,11 @@ export type PushInput = { endpoint: string; p256dh: string; auth: string; userAg
 
 /** Obunani saqlash (bir endpoint — bir qator; boshqa hisobda bo'lsa egasi o'zgaradi) */
 export async function savePushSubscription(userId: string, input: PushInput): Promise<void> {
-  if (!isPushEnabled()) throw new ApiError(503, "Push bildirishnomalar sozlanmagan");
+  // Avval kirishni tekshiramiz: begona/noto'g'ri manzil har doim 422 (push sozlanmagan muhitda ham — SSRF himoyasi muhitga bog'liq emas)
   if (!ENDPOINT_RE.test(input.endpoint) || input.endpoint.length > 500) throw new ApiError(422, "Obuna manzili noto'g'ri");
   if (!hostAllowed(input.endpoint)) throw new ApiError(422, "Bu push xizmati qo'llab-quvvatlanmaydi");
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(input.p256dh) || !/^[A-Za-z0-9_-]{10,80}$/.test(input.auth)) throw new ApiError(422, "Obuna kalitlari noto'g'ri");
+  if (!isPushEnabled()) throw new ApiError(503, "Push bildirishnomalar sozlanmagan");
   await db
     .insert(pushSubscriptions)
     .values({ id: uid(), userId, endpoint: input.endpoint, p256dh: input.p256dh, auth: input.auth, userAgent: (input.userAgent ?? "").slice(0, 200) || null })

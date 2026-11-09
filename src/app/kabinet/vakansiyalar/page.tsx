@@ -6,13 +6,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, ChevronDown, Plus } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
-import { ApplicantsList } from "@/components/vacancies/ApplicantsList";
+import { VacancyPanel } from "@/components/vacancies/VacancyPanel";
+import { VAK_AI } from "@/lib/i18n/dict/vacancies-ai";
 import { ExtendVacancyButton } from "@/components/vacancies/ExtendVacancyButton";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
 import { VAK, daysLeftTr, professionLabelTr, salaryLabelTr, workFormatTr } from "@/lib/i18n/dict/vacancies";
 import { KAB_VAK } from "@/lib/i18n/dict/vacancies-kabinet";
-import { listApplicants, myVacancies } from "@/lib/vacancies/service";
+import { listApplicants, myVacancies, strongApplicantCounts } from "@/lib/vacancies/service";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function MyVacanciesPage({ searchParams }: { searchParams: 
   if (!user) redirect(await loginRedirectPath("/kabinet/vakansiyalar"));
   const list = await myVacancies(user.id);
   const openId = typeof sp.v === "string" && list.some((v) => v.id === sp.v) ? sp.v : null;
-  const applicants = openId ? await listApplicants(openId) : [];
+  const [applicants, strongBy] = await Promise.all([openId ? listApplicants(openId) : Promise.resolve([]), strongApplicantCounts(list.map((v) => v.id))]);
   const live = list.filter((v) => v.status === "open" && !v.expired);
   const newTotal = list.reduce((a, v) => a + v.newApplications, 0);
   const btn = "press inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[12.5px] font-semibold text-fg-2 hover:text-fg";
@@ -92,6 +93,7 @@ export default async function MyVacanciesPage({ searchParams }: { searchParams: 
                         {KAB_VAK.applications[til](v.applicationsCount)}
                         {v.newApplications > 0 && <span className="ml-1.5 rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{KAB_VAK.fresh[til](v.newApplications)}</span>}
                       </span>
+                      {(strongBy.get(v.id) ?? 0) > 0 && <span className="font-semibold text-success-text">{VAK_AI.strongCount[til](strongBy.get(v.id) ?? 0)}</span>}
                       <span>{KAB_VAK.views[til](v.viewCount)}</span>
                       <span className={daysLeft !== null && daysLeft <= 3 ? "font-semibold text-warning-text" : undefined} suppressHydrationWarning>
                         {daysLeft !== null ? daysLeftTr(til, daysLeft) : timeAgoLabel(til, v.createdAt)}
@@ -113,7 +115,7 @@ export default async function MyVacanciesPage({ searchParams }: { searchParams: 
                 </div>
                 {open && (
                   <div className="expand-in mt-4 border-t border-line pt-4">
-                    <ApplicantsList vacancyId={v.id} initial={applicants} vacancyOpen={isLive} />
+                    <VacancyPanel vacancyId={v.id} initial={applicants} vacancyOpen={isLive} />
                   </div>
                 )}
               </li>

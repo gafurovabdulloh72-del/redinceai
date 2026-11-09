@@ -50,6 +50,7 @@ export default async function EditVacancyPage({ params }: { params: Promise<{ id
             applyUrl: v.applyUrl,
             status: v.status,
             expired: v.expired,
+            screening: v.screeningFull,
           }}
         />
       </div>

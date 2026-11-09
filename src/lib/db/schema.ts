@@ -1963,6 +1963,8 @@ export const vacancies = sqliteTable(
     /** null — istalgan hudud (masofaviy) */
     regionSlug: text("region_slug"),
     skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
+    /** AI SARALASH (2026-11-09): anketa savollari + test (to'g'ri javoblar faqat egasiga) — lib/vacancies/screening.ts */
+    screening: text("screening", { mode: "json" }).$type<import("@/lib/vacancies/screening").Screening | null>(),
     /** Tashqi ariza havolasi (hh.uz, Google Form…) — ixtiyoriy; asosiy yo'l sayt ichidagi ariza */
     applyUrl: text("apply_url"),
     status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
@@ -2028,6 +2030,10 @@ export const applications = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     coverLetter: text("cover_letter").notNull().default(""),
+    /** Anketa va test javoblari (faqat vakansiya egasiga ko'rinadi) */
+    answers: text("answers", { mode: "json" }).$type<import("@/lib/vacancies/screening").ScreeningAnswers | null>(),
+    /** Ariza paytidagi moslik balli 0–100 (lib/vacancies/match.ts) — bildirishnoma va saralash uchun */
+    matchScore: integer("match_score"),
     status: text("status", { enum: ["new", "viewed", "shortlisted", "rejected", "hired"] }).notNull().default("new"),
     /** Ish beruvchi arizani birinchi marta ochgan vaqt — nomzodga «Ko'rildi: …» deb ko'rinadi */
     viewedAt: integer("viewed_at", { mode: "timestamp_ms" }),
@@ -2041,6 +2047,25 @@ export const applications = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("applications_vacancy_user_uq").on(t.vacancyId, t.userId), index("applications_user_idx").on(t.userId)],
+);
+
+/** Ish beruvchi mos nomzodga yuborgan taklif («Mos nomzodlar» — hunting); bir vakansiyaga bir nomzodga bir marta */
+export const vacancyInvites = sqliteTable(
+  "vacancy_invites",
+  {
+    id: text("id").primaryKey(),
+    vacancyId: text("vacancy_id")
+      .notNull()
+      .references(() => vacancies.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    score: integer("score").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("vacancy_invites_uq").on(t.vacancyId, t.userId)],
 );
 
 /** Saqlangan vakansiya qidiruvi: nomzodga yangi mos vakansiya chiqqanda bildirishnoma (cron) */

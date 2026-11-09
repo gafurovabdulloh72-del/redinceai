@@ -10,6 +10,9 @@ import { tr } from "@/lib/i18n";
 import { VAK_APPLY as T } from "@/lib/i18n/dict/vacancies-forms";
 import { applicationStatusTr } from "@/lib/i18n/dict/vacancies";
 import { COVER_LETTER_MAX, COVER_LETTER_MIN, type ApplicationStatus } from "@/lib/vacancies/format";
+import { VAK_AI } from "@/lib/i18n/dict/vacancies-ai";
+import { SCREEN_ANSWER_MAX, type PublicScreening } from "@/lib/vacancies/screening";
+import { cn } from "@/lib/utils";
 
 type Mine = { id: string; status: ApplicationStatus; createdAt: number } | null;
 
@@ -17,22 +20,26 @@ type Mine = { id: string; status: ApplicationStatus; createdAt: number } | null;
  * Ariza yuborish: rezyume bo'lsa — biriktiriladi (xat ixtiyoriy), bo'lmasa — qisqa xat majburiy.
  * Nomzodga aniq aytiladi: ariza bilan uning ism, email va telefoni shu ish beruvchiga ochiladi.
  */
-export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initialMine, applyUrl }: { vacancyId: string; loggedIn: boolean; hasResume: boolean; resumeTitle?: string | null; initialMine: Mine; applyUrl: string | null }) {
+export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initialMine, applyUrl, screening = null }: { vacancyId: string; loggedIn: boolean; hasResume: boolean; resumeTitle?: string | null; initialMine: Mine; applyUrl: string | null; screening?: PublicScreening | null }) {
   const router = useRouter();
   const til = useLocale();
   const [mine, setMine] = useState<Mine>(initialMine);
   const [letter, setLetter] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qa, setQa] = useState<Record<string, string>>({});
+  const [quiz, setQuiz] = useState<Record<string, number>>({});
   const needLetter = !hasResume;
-  const canSend = !busy && (!needLetter || letter.trim().length >= COVER_LETTER_MIN);
+  // Anketa: majburiy savollar (≥2 belgi) va testning barcha savollari
+  const screeningDone = !screening || (screening.questions.every((q) => !q.required || (qa[q.id] ?? "").trim().length >= 2) && screening.quiz.every((q) => typeof quiz[q.id] === "number"));
+  const canSend = !busy && screeningDone && (!needLetter || letter.trim().length >= COVER_LETTER_MIN);
 
   async function apply() {
     if (!canSend) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/vakansiyalar/${encodeURIComponent(vacancyId)}/ariza`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coverLetter: letter.trim() }) });
+      const res = await fetch(`/api/vakansiyalar/${encodeURIComponent(vacancyId)}/ariza`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coverLetter: letter.trim(), answers: { q: Object.fromEntries(Object.entries(qa).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)), quiz } }) });
       const j = (await res.json()) as { ok: boolean; data?: { id: string; status: ApplicationStatus }; error?: string; fields?: Record<string, string> };
       if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, T.sendFailed));
       setMine({ id: j.data.id, status: j.data.status, createdAt: Date.now() });
@@ -138,6 +145,39 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
           </span>
         )}
       </div>
+      {screening && screening.questions.length > 0 && (
+        <fieldset className="mt-4 grid gap-3">
+          <legend className="mb-1 text-[13px] font-semibold text-fg">{tr(til, VAK_AI.applyQuestions)}</legend>
+          {screening.questions.map((q, i) => (
+            <label key={q.id} className="grid gap-1.5">
+              <span className="text-[13px] text-fg-2">
+                {i + 1}. {q.text}
+                {q.required && <span className="ml-0.5 text-danger-text" aria-hidden>*</span>}
+              </span>
+              <textarea value={qa[q.id] ?? ""} onChange={(e) => setQa((p) => ({ ...p, [q.id]: e.target.value }))} maxLength={SCREEN_ANSWER_MAX} rows={2} required={q.required} placeholder={tr(til, VAK_AI.answerPh)} className="field w-full resize-y py-2 text-[13.5px] leading-relaxed" />
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {screening && screening.quiz.length > 0 && (
+        <fieldset className="mt-4 grid gap-3">
+          <legend className="mb-1 text-[13px] font-semibold text-fg">{tr(til, VAK_AI.applyQuiz)}</legend>
+          {screening.quiz.map((q, i) => (
+            <div key={q.id} role="radiogroup" aria-label={q.text} className="grid gap-1.5 rounded-[12px] border border-line p-3">
+              <p className="text-[13px] font-medium text-fg">
+                {i + 1}. {q.text}
+              </p>
+              {q.options.map((opt, k) => (
+                <label key={k} className={cn("flex cursor-pointer items-center gap-2 rounded-[10px] px-2.5 py-2 text-[13px] transition-colors", quiz[q.id] === k ? "bg-fg/6 text-fg" : "text-fg-2 hover:bg-fg/[0.03]")}>
+                  <input type="radio" name={`quiz-${q.id}`} checked={quiz[q.id] === k} onChange={() => setQuiz((p) => ({ ...p, [q.id]: k }))} className="h-4 w-4 accent-[var(--accent)]" />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          ))}
+        </fieldset>
+      )}
+      {screening && !screeningDone && <p className="mt-2 text-[12px] text-fg-4">{tr(til, VAK_AI.answerAll)}</p>}
       <textarea
         value={letter}
         onChange={(e) => setLetter(e.target.value)}
