@@ -1,0 +1,244 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:SG;src:url(/font/SpaceGrotesk-Bold.ttf);font-weight:700}
+html,body{margin:0;background:#0d0806;overflow:hidden}
+canvas{display:block}
+#ov{position:fixed;inset:0;pointer-events:none;font-family:SG,sans-serif;color:#fff5e6}
+.cap{position:absolute;left:44px;right:44px;text-align:center;font-size:54px;font-weight:700;letter-spacing:-.025em;line-height:1.08;text-shadow:0 4px 34px rgba(0,0,0,.75),0 1px 3px rgba(0,0,0,.6);opacity:0}
+.cap b{color:#ff7a4d}
+.cap.small{font-size:40px;font-weight:700}
+#end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;opacity:0;background:radial-gradient(ellipse at 50% 45%,rgba(20,10,6,.55),rgba(10,5,3,.92))}
+#end .logo{display:flex;align-items:center;gap:18px;font-size:46px}
+#end .tile{width:76px;height:76px;border-radius:20px;background:#f6f4ee;color:#1a1a1c;display:grid;place-items:center;font-size:54px;padding-bottom:5px}
+#end h2{margin:0;font-size:68px;line-height:1.05;letter-spacing:-.035em;text-align:center}
+#end h2 b{color:#ff7a4d}
+#end .pill{background:#ff5a36;color:#fff;border-radius:999px;padding:24px 44px;font-size:46px;box-shadow:0 10px 50px rgba(255,90,54,.45)}
+#end .sub{font-size:34px;opacity:.85}
+</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head><body><div id="ov"></div>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const P = new URLSearchParams(location.search);
+const W = +P.get('w') || 720, H = +P.get('h') || 1280;
+const C = JSON.parse(decodeURIComponent(P.get('shot') || '%7B%7D'));
+const DUR = C.dur || 18;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = C.exposure || 0.82;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const BG = C.bg || '#120a06';
+scene.background = new THREE.Color(BG); scene.fog = new THREE.Fog(BG, 3.5, 9);
+const camera = new THREE.PerspectiveCamera(34, W / H, 0.05, 40);
+
+const std = (c, r = .7, m = 0, x = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, ...x });
+const add = (geo, mat, x, y, z, o = {}) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = o.cast ?? true; m.receiveShadow = true; if (o.rot) m.rotation.set(...o.rot); (o.parent || scene).add(m); return m; };
+const canvasTex = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { c, g: c.getContext('2d'), t }; };
+const glowMat = (tex, k = .42) => new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: k, roughness: .35 });
+
+// --- xona
+const wallCol = C.wall || '#7a4a30';
+const wood = std(C.desk || '#5a2f1b', .55);
+add(new THREE.BoxGeometry(3.2, .07, 1.3), wood, 0, .735, -.05);
+for (let i = 0; i < 9; i++) add(new THREE.BoxGeometry(3.2, .002, .006), std('#3f1f12', .6), 0, .771, -.6 + i * .14, { cast: false });
+add(new THREE.PlaneGeometry(9, 5), std(wallCol, .9), 0, 2, -.75, { cast: false });
+add(new THREE.PlaneGeometry(6, 5), std(wallCol, .9), -1.7, 2, 1.5, { cast: false, rot: [0, Math.PI / 2, 0] });
+add(new THREE.PlaneGeometry(9, 9), std('#2a160d', .9), 0, 0, 0, { cast: false, rot: [-Math.PI / 2, 0, 0] });
+const bookCols = ['#c9502b', '#e8c27a', '#3c5a4a', '#d9d0bd', '#8a2f22'];
+if (!C.minimal) { add(new THREE.BoxGeometry(1.1, .03, .22), wood, .95, 1.75, -.64); for (let i = 0; i < 9; i++) add(new THREE.BoxGeometry(.045, .18 + (i % 3) * .03, .16), std(bookCols[i % 5], .8), .55 + i * .055, 1.86 + (i % 3) * .015, -.64); }
+
+// --- retro kompyuter (markazda)
+const beige = std('#d8c8a6', .5);
+add(new RoundedBoxGeometry(.62, .15, .46, 4, .02), beige, 0, .845, -.25);
+add(new THREE.BoxGeometry(.25, .012, .002), std('#2b2622', .5), -.12, .86, -.019, { cast: false });
+add(new RoundedBoxGeometry(.52, .44, .44, 5, .045), beige, 0, 1.14, -.27);
+add(new RoundedBoxGeometry(.43, .34, .04, 3, .02), std('#cfc1a3', .5), 0, 1.15, -.04);
+const S = canvasTex(640, 480);
+add(new THREE.PlaneGeometry(.37, .28), glowMat(S.t), 0, 1.155, -.018, { cast: false });
+add(new THREE.PlaneGeometry(.07, .07), std('#ffd84a', .8), .2, 1.27, -.016, { cast: false, rot: [0, 0, -.12] });
+add(new RoundedBoxGeometry(.56, .035, .19, 3, .01), beige, 0, .79, .2);
+const keys = new THREE.InstancedMesh(new RoundedBoxGeometry(.028, .016, .028, 2, .005), std('#f3ead6', .5), 75);
+{ let k = 0; const m = new THREE.Matrix4(); for (let r = 0; r < 5; r++) for (let c = 0; c < 15; c++) { m.setPosition(-.238 + c * .034, .813, .135 + r * .033); keys.setMatrixAt(k++, m); } }
+keys.castShadow = keys.receiveShadow = true; scene.add(keys);
+add(new RoundedBoxGeometry(.06, .025, .1, 3, .012), beige, .36, .785, .24);
+add(new THREE.CylinderGeometry(.045, .04, .1, 24), std('#ff5a36', .5), -.42, .82, -.02);
+
+// --- yorug'lik
+scene.add(new THREE.AmbientLight('#3a1e12', .55));
+scene.add(new THREE.HemisphereLight('#ffcf9a', '#2a120a', .35));
+const sun = new THREE.DirectionalLight(C.sunColor || '#ffa860', C.sun || 5.2);
+sun.position.set(-4.5, 3.4, 2.2); sun.target.position.set(0, .9, -.4);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: .5, far: 12 }); sun.shadow.bias = -.0004;
+scene.add(sun, sun.target);
+const slatMat = std('#d9c7a6', .8);
+for (let i = 0; i < 22; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(.02, .03, 3.2), slatMat); s.position.set(-2.4, .6 + i * .11, .6); s.rotation.z = .35; s.castShadow = true; scene.add(s); }
+{ const fr = new THREE.Mesh(new THREE.BoxGeometry(.05, 3, .06), slatMat); fr.position.set(-2.38, 1.8, .55); fr.castShadow = true; scene.add(fr); }
+const flick = [];
+function lamp(x, z) {
+  const metal = std('#1f3a33', .4, .6);
+  add(new THREE.CylinderGeometry(.09, .1, .025, 32), metal, x, .78, z);
+  add(new THREE.CylinderGeometry(.008, .008, .5, 8), metal, x - .02, 1.02, z - .03, { rot: [0, 0, .25] });
+  add(new THREE.CylinderGeometry(.008, .008, .32, 8), metal, x - .12, 1.3, z + .01, { rot: [0, 0, -1.0] });
+  add(new THREE.ConeGeometry(.11, .16, 32, 1, true), std('#1f3a33', .5, .5, { side: THREE.DoubleSide }), x - .26, 1.32, z + .07, { rot: [0, 0, 2.3] });
+  add(new THREE.SphereGeometry(.03, 16, 16), new THREE.MeshBasicMaterial({ color: '#fff1d6' }), x - .28, 1.29, z + .08, { cast: false });
+  const L = new THREE.SpotLight('#ffb070', 6, 3, .75, .55, 1.4); L.position.set(x - .28, 1.29, z + .08); L.target.position.set(x - .42, .76, z + .25);
+  L.castShadow = true; L.shadow.mapSize.set(1024, 1024); scene.add(L, L.target); flick.push(L);
+}
+function plant(x, z) {
+  add(new THREE.CylinderGeometry(.09, .07, .16, 24), std('#b5532d', .8), x, .85, z);
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; add(new THREE.ConeGeometry(.035, .42 + (i % 3) * .08, 6), std('#3f6b3a', .7), x + Math.cos(a) * .04, 1.1, z + Math.sin(a) * .04, { rot: [Math.cos(a) * .35, 0, Math.sin(a) * .35] }); }
+}
+
+// --- kasbga mos buyumlar
+const dark = std('#2c2c31', .4, .3), glass = std('#0c0c0e', .1, .8);
+const PROP = {};
+PROP.tripodCamera = (x, z) => {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; add(new THREE.CylinderGeometry(.008, .01, .8, 8), dark, Math.cos(a) * .12, .38, Math.sin(a) * .12, { parent: g, rot: [Math.sin(a) * .28, 0, -Math.cos(a) * .28] }); }
+  add(new THREE.CylinderGeometry(.02, .02, .5, 12), dark, 0, 1.0, 0, { parent: g });
+  const body = add(new RoundedBoxGeometry(.2, .13, .12, 3, .02), dark, 0, 1.3, 0, { parent: g });
+  add(new THREE.CylinderGeometry(.045, .05, .14, 32), glass, -.03, 1.3, .11, { parent: g, rot: [Math.PI / 2, 0, 0] });
+  add(new THREE.TorusGeometry(.048, .006, 8, 32), std('#3a3a40', .3, .8), -.03, 1.3, .18, { parent: g });
+  add(new THREE.SphereGeometry(.01, 12, 12), new THREE.MeshBasicMaterial({ color: '#ff2a1a' }), .07, 1.35, .061, { parent: g, cast: false });
+  g.rotation.y = -.5; return g;
+};
+PROP.headphones = (x, z) => {
+  const g = new THREE.Group(); g.position.set(x, .79, z); scene.add(g);
+  add(new THREE.TorusGeometry(.1, .014, 12, 40, Math.PI), dark, 0, .0, 0, { parent: g, rot: [-Math.PI / 2 + .25, 0, 0] });
+  for (const s of [-1, 1]) add(new THREE.CylinderGeometry(.055, .055, .04, 32), std('#ff5a36', .45), s * .1, .02, 0, { parent: g, rot: [0, 0, Math.PI / 2] });
+  g.rotation.y = .4; return g;
+};
+PROP.tablet = (x, z) => {
+  const T = canvasTex(400, 280); const g = T.g;
+  const cols = ['#ff5a36', '#1a1a1c', '#e0b25c', '#3c5a4a', '#f6f4ee', '#c9502b'];
+  g.fillStyle = '#111'; g.fillRect(0, 0, 400, 280); cols.forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(50 + (i % 3) * 70, 60 + Math.floor(i / 3) * 70, 26, 0, 7); g.fill(); });
+  g.strokeStyle = '#ff7a4d'; g.lineWidth = 8; g.beginPath(); g.moveTo(240, 220); g.bezierCurveTo(280, 60, 340, 260, 380, 90); g.stroke(); T.t.needsUpdate = true;
+  add(new RoundedBoxGeometry(.34, .012, .24, 3, .012), dark, x, .778, z, { rot: [0, .3, 0] });
+  add(new THREE.PlaneGeometry(.3, .2), glowMat(T.t, .55), x, .786, z, { cast: false, rot: [-Math.PI / 2, 0, .3] });
+  add(new THREE.CylinderGeometry(.006, .004, .17, 12), std('#f6f4ee', .4), x + .2, .79, z + .05, { rot: [0, 0, Math.PI / 2 - .2] });
+};
+PROP.ringPhone = (x, z) => {
+  const R = new THREE.Mesh(new THREE.TorusGeometry(.16, .018, 16, 64), new THREE.MeshStandardMaterial({ color: '#fff4e0', emissive: '#fff1d6', emissiveIntensity: 2.2 }));
+  R.position.set(x, 1.25, z); scene.add(R);
+  const RL = new THREE.PointLight('#ffe8c8', 2.2, 2.2, 1.6); RL.position.set(x, 1.25, z + .05); scene.add(RL);
+  add(new THREE.CylinderGeometry(.01, .01, .5, 8), dark, x, 1.0, z);
+  for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; add(new THREE.CylinderGeometry(.006, .008, .12, 8), dark, x + Math.cos(a) * .05, .79, z + Math.sin(a) * .05, { rot: [Math.sin(a) * .5, 0, -Math.cos(a) * .5] }); }
+  const Ph = canvasTex(180, 360); const g = Ph.g;
+  const grd = g.createLinearGradient(0, 0, 0, 360); grd.addColorStop(0, '#ff7a4d'); grd.addColorStop(1, '#3a1a5a'); g.fillStyle = grd; g.fillRect(0, 0, 180, 360);
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.font = '700 22px SG'; g.fillText('Reels', 14, 34); g.beginPath(); g.moveTo(80, 160); g.lineTo(110, 180); g.lineTo(80, 200); g.fill();
+  [0, 1, 2].forEach(i => { g.beginPath(); g.arc(156, 220 + i * 40, 10, 0, 7); g.fill(); }); Ph.t.needsUpdate = true;
+  add(new RoundedBoxGeometry(.09, .18, .012, 3, .01), dark, x, 1.25, z + .02);
+  add(new THREE.PlaneGeometry(.08, .165), glowMat(Ph.t, .7), x, 1.25, z + .027, { cast: false });
+};
+PROP.secondMonitor = (x, z) => {
+  const M = canvasTex(480, 300); const g = M.g; g.fillStyle = '#16161a'; g.fillRect(0, 0, 480, 300);
+  const cl = ['#ff7a4d', '#e0b25c', '#8fb9a8', '#d9d0bd'];
+  for (let i = 0; i < 12; i++) { g.fillStyle = cl[i % 4]; g.fillRect(24 + (i % 3) * 20, 24 + i * 22, 60 + ((i * 47) % 220), 10); }
+  M.t.needsUpdate = true;
+  add(new RoundedBoxGeometry(.5, .32, .025, 3, .01), dark, x, 1.12, z, { rot: [0, -.35, 0] });
+  add(new THREE.PlaneGeometry(.46, .28), glowMat(M.t, .5), x + .006, 1.12, z + .016, { cast: false, rot: [0, -.35, 0] });
+  add(new THREE.CylinderGeometry(.015, .015, .2, 12), dark, x, .87, z - .02);
+  add(new THREE.BoxGeometry(.18, .01, .12), dark, x, .775, z - .02);
+};
+PROP.photoKit = (x, z) => {
+  const g = new THREE.Group(); g.position.set(x, .78, z); g.rotation.y = -.4; scene.add(g);
+  add(new RoundedBoxGeometry(.16, .1, .07, 3, .015), dark, 0, .05, 0, { parent: g });
+  add(new THREE.CylinderGeometry(.04, .045, .09, 32), glass, 0, .05, .07, { parent: g, rot: [Math.PI / 2, 0, 0] });
+  const ph = [['#ff7a4d', '#3a1a5a'], ['#e0b25c', '#6b3f28'], ['#8fb9a8', '#1c2a26']];
+  ph.forEach((c, i) => { const T = canvasTex(160, 200); const gg = T.g; const gr = gg.createLinearGradient(0, 0, 160, 200); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]); gg.fillStyle = '#f6f4ee'; gg.fillRect(0, 0, 160, 200); gg.fillStyle = gr; gg.fillRect(10, 10, 140, 150); T.t.needsUpdate = true;
+    add(new THREE.PlaneGeometry(.12, .15), std('#ffffff', .6, 0, { map: T.t }), -.35 + i * .14, 1.32 - (i % 2) * .05, -.735, { cast: false, rot: [0, 0, (i - 1) * .08] }); });
+};
+
+// --- ekran kontenti
+const head = (g, title) => { g.fillStyle = '#f6f4ee'; g.fillRect(0, 0, 640, 480); g.fillStyle = '#1a1a1c'; g.fillRect(0, 0, 640, 44); g.fillStyle = '#f6f4ee'; g.font = '700 24px SG'; g.fillText('kasb egalari', 22, 30); g.fillStyle = '#ff5a36'; g.beginPath(); g.arc(612, 22, 8, 0, 7); g.fill(); g.fillStyle = '#1a1a1c'; g.font = '700 44px SG'; g.fillText(title, 32, 104); };
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const SCREEN = {
+  mentor(g, t) { head(g, 'Mentorlik'); for (let i = 0; i < 3; i++) { const a = clamp((t - .6 - i * .5) * 2); g.globalAlpha = a; g.fillStyle = ['#1a1a1c', '#ff5a36', '#e0b25c'][i]; g.fillRect(32 + i * 196, 140, 180, 120); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(108 + i * 196, 182); g.lineTo(136 + i * 196, 200); g.lineTo(108 + i * 196, 218); g.fill(); g.fillStyle = '#1a1a1c'; g.font = '700 20px SG'; g.fillText(['Montaj', 'Videografiya', 'Dizayn'][i], 32 + i * 196, 290); g.globalAlpha = 1; }
+    const p = .5 + .5 * Math.sin(t * 5); g.fillStyle = `rgba(230,40,30,${.6 + .4 * p})`; g.fillRect(32, 330, 170, 44); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('● JONLI EFIR', 44, 360);
+    g.fillStyle = '#1a1a1c'; g.font = '700 22px SG'; g.fillText('Sertifikat · Test · Uy vazifasi', 32, 420); },
+  qa(g, t) { head(g, 'Maslahat'); g.fillStyle = '#1a1a1c'; g.fillRect(32, 130, 470, 70); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('Rangni qanday tekislash kerak?', 50, 172);
+    for (let i = 0; i < 2; i++) { const a = clamp((t - 1 - i * .9) * 2); g.globalAlpha = a; g.fillStyle = '#ece7dc'; g.fillRect(90, 225 + i * 90, 500, 70); g.fillStyle = '#1a1a1c'; g.font = '700 20px SG'; g.fillText(i ? 'Avval oq balans, keyin kontrast…' : 'Scopes bilan tekshiring…', 108, 265 + i * 90); g.globalAlpha = 1; }
+    if (t > 3) { g.fillStyle = '#ff5a36'; g.fillRect(430, 236, 150, 30); g.fillStyle = '#fff'; g.font = '700 16px SG'; g.fillText('★ Eng foydali', 444, 257); } },
+  feed(g, t) { head(g, 'Profil'); g.fillStyle = '#ff5a36'; g.beginPath(); g.arc(70, 160, 38, 0, 7); g.fill(); g.fillStyle = '#1a1a1c'; g.font = '700 22px SG'; g.fillText('Postlar   Videolar   Ishlar', 130, 168);
+    const cl = ['#e0b25c', '#1a1a1c', '#ff7a4d', '#3c5a4a', '#c9502b', '#d9d0bd']; for (let i = 0; i < 6; i++) { const a = clamp((t - .5 - i * .3) * 3); g.globalAlpha = a; g.fillStyle = cl[i]; g.fillRect(32 + (i % 3) * 196, 220 + Math.floor(i / 3) * 124 + (1 - a) * 20, 186, 116); g.globalAlpha = 1; } },
+  contest(g, t) { head(g, 'Konkurs'); for (let i = 0; i < 3; i++) { g.fillStyle = ['#ff7a4d', '#3a1a5a', '#e0b25c'][i]; g.fillRect(32 + i * 196, 130, 180, 200); const pulse = clamp((t - 1.2 - i * .6) * 2); g.fillStyle = `rgba(255,90,54,${.25 + .75 * pulse})`; g.font = `700 ${34 + 10 * pulse}px SG`; g.fillText('❤', 100 + i * 196, 380); }
+    if (t > 3.2) { g.fillStyle = '#1a1a1c'; g.fillRect(32, 410, 240, 44); g.fillStyle = '#ffd84a'; g.font = '700 22px SG'; g.fillText('🏆 Oylik TOP', 46, 440); } },
+  catalog(g, t) { head(g, 'Mutaxassislar'); g.fillStyle = '#1a1a1c'; g.fillRect(32, 126, 190, 40); g.fillStyle = '#fff'; g.font = '700 20px SG'; g.fillText('Veb-dizayner', 46, 153);
+    const regs = ['Toshkent', 'Samarqand', "Farg'ona", 'Andijon', 'Buxoro', 'Namangan', 'Xorazm']; const k = Math.floor(t * 1.4) % regs.length;
+    g.strokeStyle = '#1a1a1c'; g.lineWidth = 3; g.strokeRect(240, 126, 220, 40); g.fillStyle = '#1a1a1c'; g.fillText('Viloyat: ' + regs[k], 252, 153);
+    for (let i = 0; i < 3; i++) { g.fillStyle = '#ece7dc'; g.fillRect(32, 190 + i * 88, 576, 76); g.fillStyle = ['#ff5a36', '#3c5a4a', '#e0b25c'][i]; g.beginPath(); g.arc(76, 228 + i * 88, 24, 0, 7); g.fill(); g.fillStyle = '#c9c1b2'; g.fillRect(118, 214 + i * 88, 220, 14); g.fillRect(118, 238 + i * 88, 140, 10); } },
+  bot(g, t) { g.fillStyle = '#17212b'; g.fillRect(0, 0, 640, 480); g.fillStyle = '#232e3c'; g.fillRect(0, 0, 640, 52); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('@kasb_egalari_bot', 22, 34);
+    const msgs = [['bot', 'Kasbingizni tanlang'], ['me', 'Fotograf'], ['bot', 'Hududingiz?'], ['me', 'Samarqand'], ['bot', '✅ Profil tayyor!']];
+    msgs.forEach((m, i) => { const a = clamp((t - .4 - i * .7) * 3); if (!a) return; g.globalAlpha = a; const me = m[0] === 'me'; g.fillStyle = me ? '#2b5278' : '#182533'; const w = 40 + m[1].length * 12; const x = me ? 610 - w : 30; g.fillRect(x, 74 + i * 78, w, 56); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText(m[1], x + 20, 110 + i * 78); g.globalAlpha = 1; }); },
+};
+function drawScreen(t) { (SCREEN[C.screen] || SCREEN.feed)(S.g, t); S.g.globalAlpha = .06; S.g.fillStyle = '#000'; for (let y = 0; y < 480; y += 4) S.g.fillRect(0, y, 640, 1); S.g.globalAlpha = 1; S.t.needsUpdate = true; }
+
+// --- sahna tarkibi
+if (C.lampLeft) lamp(-.55, -.2); else if (!C.noLamp) lamp(.62, -.15);
+if (!C.noPlant) plant(-.95, -.35);
+(C.props || []).forEach(p => PROP[p.type]?.(p.x, p.z));
+if (C.prop) { const PL = new THREE.PointLight('#ffd2a0', C.propLightK || 1.8, 2.2, 1.5); PL.position.set(C.prop[0] + .3, C.prop[1] + .35, C.prop[2] + .55); scene.add(PL); }
+
+// --- havodagi 3D so'zlar
+await document.fonts.load('700 150px SG');
+const words = (C.words || []).map(w => {
+  const T = canvasTex(1024, 256); const g = T.g; g.font = '700 150px SG'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(255,160,90,.9)'; g.shadowBlur = 30; g.fillStyle = '#fff3e2'; g.fillText(w.text, 512, 128); T.t.needsUpdate = true;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.t, transparent: true, depthWrite: false, opacity: 0 }));
+  sp.position.set(...w.pos); const s = w.size || .5; sp.scale.set(s, s / 4, 1); scene.add(sp); return { sp, w, base: sp.position.clone(), s };
+});
+
+// --- chang
+const N = 700, pos = new Float32Array(N * 3), seed = new Float32Array(N);
+for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - .5) * 2.6; pos[i * 3 + 1] = .8 + Math.random() * 1.4; pos[i * 3 + 2] = -.6 + Math.random() * 1.8; seed[i] = Math.random() * 100; }
+const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(pos.slice(), 3));
+const dot = canvasTex(32, 32); { const gr = dot.g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,230,190,1)'); gr.addColorStop(1, 'rgba(255,230,190,0)'); dot.g.fillStyle = gr; dot.g.fillRect(0, 0, 32, 32); dot.t.needsUpdate = true; }
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: .012, map: dot.t, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: C.minimal ? .45 : .8 }));
+scene.add(dust);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), .3, .55, .9));
+composer.addPass(new OutputPass());
+
+// --- overlay
+const ov = document.getElementById('ov');
+ov.innerHTML = (C.caps || []).map(c => `<div class="cap${c.small ? ' small' : ''}" style="top:${c.top}px">${c.html}</div>`).join('') +
+  `<div id="end"><div class="logo"><div class="tile">k</div>kasb egalari</div><h2>${C.endTitle || 'Bepul profil<br><b>1 daqiqada</b>'}</h2><div class="pill">@kasb_egalari_bot</div><div class="sub">📢 @kasb_egalari</div></div>`;
+const endEl = document.getElementById('end');
+
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const L3 = (a, b, e) => new THREE.Vector3(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * e);
+
+window.renderAt = (t) => {
+  const shots = C.shots; let sh = shots[shots.length - 1];
+  for (const s of shots) if (t >= s.s && t < s.e) { sh = s; break; }
+  const e = ease(clamp((t - sh.s) / (sh.e - sh.s)));
+  camera.position.copy(L3(sh.from, sh.to, e)); camera.lookAt(L3(sh.lf, sh.lt, e));
+  camera.fov = sh.fov || 34; camera.updateProjectionMatrix();
+  drawScreen(t);
+  const p = dust.geometry.attributes.position;
+  for (let i = 0; i < N; i++) { const s = seed[i]; p.array[i * 3] = pos[i * 3] + Math.sin(t * .4 + s) * .04; p.array[i * 3 + 1] = pos[i * 3 + 1] + Math.sin(t * .25 + s * 1.7) * .05; p.array[i * 3 + 2] = pos[i * 3 + 2] + Math.cos(t * .3 + s) * .04; }
+  p.needsUpdate = true;
+  flick.forEach(L => L.intensity = 6 + Math.sin(t * 9) * .1);
+  words.forEach(o => { const a = clamp((t - o.w.in) / .5) * clamp((o.w.out - t) / .5); const pop = 1 - Math.pow(1 - clamp((t - o.w.in) / .6), 3);
+    o.sp.material.opacity = a; o.sp.position.set(o.base.x, o.base.y + Math.sin(t * 1.3 + o.base.x * 3) * .015 + (1 - pop) * -.08, o.base.z); o.sp.scale.set(o.s * (.7 + .3 * pop), o.s / 4 * (.7 + .3 * pop), 1); });
+  (C.caps || []).forEach((c, i) => { const el = ov.children[i]; const a = clamp((t - c.in) / .3) * clamp((c.out - t) / .3); el.style.opacity = a; el.style.transform = `translateY(${(1 - clamp((t - c.in) / .45)) * 26}px)`; });
+  const ea = clamp((t - (DUR - 3.2)) / .5); endEl.style.opacity = ea; endEl.style.transform = `scale(${1.04 - .04 * ea})`;
+  composer.render();
+};
+document.fonts.ready.then(() => { window.ready = true; });
+</script></body></html>
