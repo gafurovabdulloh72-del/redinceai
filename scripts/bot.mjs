@@ -1061,7 +1061,7 @@ test("/til: hisobsiz chat tanlovi saqlanadi (Telegram tili boshqa bo'lsa ham); u
 test("vakansiya arizalari: ish beruvchiga nomzod kartasi (moslik %, tugmalar); tanlovga olish / rad etish; /arizalar; nomzodga ball ko'rsatilmaydi; begona bosolmaydi", { skip: NEED_DB }, async () => {
   const owner = await userIdByChat(CHAT_UZ);
   assert.ok(owner, "test mutaxassisi topilmadi");
-  const cid = (await sql("select id, name, phone from users where email = ?", [CLIENT_EMAIL]))[0];
+  const cid = (await sql("select id, name from users where email = ?", [CLIENT_EMAIL]))[0];
   const vid = crypto.randomUUID();
   const vTitle = `Sinov vakansiya ${RUN}`;
   await sql("insert into vacancies (id, author_id, title, company, profession, description, format, employment, experience, status, expires_at) values (?, ?, ?, ?, 'video', ?, 'remote', 'project', 'none', 'open', ?)", [vid, owner, vTitle, "Sinov Studio", "Bot testi uchun vakansiya: montaj va rang bilan ishlaydigan mutaxassis kerak.", Date.now() + 20 * 86_400_000]);
@@ -1083,8 +1083,8 @@ test("vakansiya arizalari: ish beruvchiga nomzod kartasi (moslik %, tugmalar); t
   assert.ok(cardText.includes(`${RUN}-loyihada`), "xat parchasi yo'q");
   assert.ok(buttons(about).includes(`ap:rj:${appId}`), "«Rad etish» tugmasi yo'q");
   // Kontakt kartaga chiqmaydi (email / telefon — faqat saytdagi ariza sahifasida, egasiga)
-  assert.ok(!cardText.includes(CLIENT_EMAIL), "nomzod emaili kartaga chiqdi");
-  if (cid.phone) assert.ok(!cardText.replace(/\D/g, "").includes(String(cid.phone).replace(/\D/g, "").slice(-7)), "nomzod telefoni kartaga chiqdi");
+  assert.ok(!cardText.includes(CLIENT_EMAIL) && !cardText.includes("@"), "nomzod emaili kartaga chiqdi");
+  assert.doesNotMatch(cardText, /\+?998[\s\d-]{9,}/, "nomzod telefoni kartaga chiqdi");
   // 2) Begona odam (boshqa mutaxassis) va nomzodning o'zi tugmani bosa olmaydi
   assert.match(answers(await cb(CHAT_RU, `ap:sl:${appId}`, "ru")), /не ваша вакансия/i);
   assert.match(answers(await cb(CHAT_CLIENT, `ap:sl:${appId}`)), /sizniki emas/);
@@ -1125,7 +1125,7 @@ test("admin xavfsizligi: /tuzoq, /blok, /blokdan faqat admin chatida; audit yozi
   cookie = cookie || (await login(ADMIN_EMAIL, ADMIN_PASSWORD));
   assert.ok(cookie, "admin kirishi muvaffaqiyatsiz");
   // TEST-NET manzillari (RFC 5737) — haqiqiy mijozga tegmaydi
-  const IP_A = "203.0.113.77";
+  const IP_A = "203.0.113.201";
   const IP_B = "198.51.100.5";
   const blocked = async (ip) => (await sql("select ip, reason, manual from blocked_ips where ip = ?", [ip]))[0] ?? null;
   const audits = async (action, ip) => Number((await sql("select count(*) n from audit_logs where action = ? and target_id = ? and json_extract(meta, '$.via') = 'telegram'", [action, ip]))[0].n);
@@ -1349,6 +1349,12 @@ test("ikki tomonlama xabarlar: /xabarlar ro'yxati → suhbat (o'qildi) → «Jav
   await cb(CHAT_CLIENT, `dm:r:${conv}`);
   assert.match(texts(sentTo(await msg(CHAT_CLIENT, `Rahmat, kelishdik ${RUN}`), CHAT_CLIENT)), /Yuborildi/);
   assert.equal(await count(client.id), cBefore + 1);
+  // Yozishma botda davom etadi: javob yozgan odamga suhbatdoshning KEYINGI xabari yana Telegramga keladi
+  // (bildirishnomaning 30 daqiqalik cheklovi botda o'qilganda/javob yozilganda bo'shatiladi)
+  await cb(CHAT_UZ, `dm:r:${conv}`);
+  const hasSecond = (all) => sentTo(all, CHAT_CLIENT).some((e) => String(e.body?.text ?? "").includes(`Ikkinchi javob ${RUN}`));
+  const second = await collect(await msg(CHAT_UZ, `Ikkinchi javob ${RUN}`), hasSecond);
+  assert.ok(hasSecond(second), "botdagi yozishmada ikkinchi xabar suhbatdoshga yetib bormadi (30 daqiqalik cheklov bo'shatilmagan)");
   // Rasm javob rejimida — post taklifi emas, tushuntirish (rejim saqlanadi)
   await cb(CHAT_UZ, `dm:r:${conv}`);
   const media = sentTo(await hook(photoMsg(CHAT_UZ, "ph_dm")), CHAT_UZ);
@@ -1386,6 +1392,8 @@ test("/profil: profil tayyorligi foizi va keyingi qadam (sayt bilan bitta hisob)
   assert.ok(Number(m[1]) > 0 && Number(m[1]) < 100, `kutilmagan foiz: ${m[1]}`);
   // Yangi mutaxassisda eng og'ir qolgan qadam — portfolio (kamida 3 ta ish)
   assert.match(texts(sp), /Keyingi qadam: <b>Kamida 3 ta ish<\/b>/);
+  // Botda ochilgan hisobning ichki o'rinbosar emaili foydalanuvchiga ko'rsatilmaydi
+  assert.doesNotMatch(texts(sp), /telegram\.local/);
   const first = sp.find((e) => /Profil tayyorligi/.test(e.body?.text ?? ""))?.body.reply_markup?.inline_keyboard?.[0]?.[0];
   assert.ok(first && String(first.url ?? first.web_app?.url ?? "").includes("/kabinet/portfolio"), `keyingi qadam tugmasi yo'q: ${JSON.stringify(first)}`);
   // Mijoz: o'z qadamlari (sayt bilan bir xil ro'yxat)

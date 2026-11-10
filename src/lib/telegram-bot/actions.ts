@@ -237,7 +237,8 @@ export async function handleProfile(chatId: string, lang?: BotLang): Promise<voi
   const roleLabel = (ru ? ROLE_LABEL_RU[me.role] : ROLE_LABEL[me.role]) ?? me.role;
   const lines = [
     `<b>${escapeTelegramHtml(me.name)}</b> — ${escapeTelegramHtml(roleLabel)}${me.username ? ` · @${escapeTelegramHtml(me.username)}` : ""}`,
-    `${escapeTelegramHtml(me.email)} · ${L(lang, "ro'yxatdan", "с")} ${escapeTelegramHtml(since)}`,
+    // Botda ochilgan hisobning emaili ichki o'rinbosar (`tg<chat>@telegram.local`) — foydalanuvchiga ko'rsatilmaydi
+    `${/@telegram\.local$/i.test(me.email) ? L(lang, "email kiritilmagan", "email не указан") : escapeTelegramHtml(me.email)} · ${L(lang, "ro'yxatdan", "с")} ${escapeTelegramHtml(since)}`,
     "",
   ];
   const followersL = L(lang, "obunachi", "подписчиков");

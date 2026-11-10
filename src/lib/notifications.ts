@@ -2,7 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { and, desc, eq, gt, inArray, isNull, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { notifications, users } from "@/lib/db/schema";
+import { notifications, rateLimits, users } from "@/lib/db/schema";
 import { brandedMail, sendMail } from "@/lib/security/mailer";
 import { tryConsume } from "@/lib/security/rate-limit";
 import { siteUrl } from "@/lib/security/site";
@@ -464,6 +464,20 @@ export async function markChatNotificationsRead(userId: string, hrefPrefix: stri
       .where(and(eq(notifications.userId, userId), isNull(notifications.readAt), inArray(notifications.type, ["chat", "message_new"]), like(notifications.href, `${hrefPrefix}%`)));
   } catch (e) {
     console.error("[notify] markChatRead", e);
+  }
+}
+
+/**
+ * Foydalanuvchi suhbatni BOTDA o'qidi yoki botdan javob yozdi — shu suhbat bo'yicha Telegram cheklovi (30 daqiqada bitta xabar)
+ * bo'shatiladi: suhbatdoshning keyingi xabari yana Telegramga keladi. Aks holda botdagi ikki tomonlama yozishma uzilib qolardi
+ * (javob yozdingiz, suhbatdosh 2 daqiqada javob berdi — Telegramga hech narsa kelmaydi). Saytda o'qilganda cheklov SAQLANADI —
+ * saytda jonli yozishayotgan odamga har xabar Telegramga ham kelib turmasin. `href` — bildirishnoma havolasi (`/kabinet/chat?s=<id>`).
+ */
+export async function rearmChatPing(userId: string, href: string): Promise<void> {
+  try {
+    await db.delete(rateLimits).where(eq(rateLimits.key, `tgMsg:${userId}:${href}`.slice(0, 200)));
+  } catch {
+    /* cheklov o'z muddatida tugaydi */
   }
 }
 

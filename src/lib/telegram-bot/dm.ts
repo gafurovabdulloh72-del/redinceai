@@ -2,6 +2,7 @@ import "server-only";
 import { ApiError } from "@/lib/api";
 import { DM_BODY_MAX, listConversations, listMessages, loadConversationFor, markRead, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import type { FileAttachment } from "@/lib/db/schema";
+import { rearmChatPing } from "@/lib/notifications";
 import { assertCanDm } from "@/lib/privacy/blocks";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { cutPlain, escapeTelegramHtml, sendTelegram, sendTelegramEx, type TelegramButton } from "@/lib/telegram";
@@ -34,9 +35,13 @@ interface DmSession extends Record<string, unknown> {
 
 const LIST_MAX = 8;
 const THREAD_MAX = 8;
+/** Suhbat ko'rinishida bitta xabardan ko'rsatiladigan matn: 8 ta xabar Telegram chegarasiga (4096) sig'ishi kerak — eng yangi xabarlar kesilib qolmasin */
+const THREAD_TEXT_MAX = 350;
 const CONV_RE = "[\\w-]{1,64}";
 
 const isVoice = (a: FileAttachment) => a.type.startsWith("audio/") || /\.(?:weba|m4a|ogg)$/i.test(a.url);
+/** Suhbat havolasi — `sendDm` bildirishnomasidagi bilan AYNAN bir xil (Telegram cheklovi kaliti shundan tuziladi) */
+const chatHref = (convId: string): string => `/kabinet/chat?s=${convId}`;
 
 /** Biriktirma yorlig'i (manzilsiz) */
 function attachmentLabel(list: FileAttachment[], lang?: BotLang): string {
@@ -115,7 +120,7 @@ async function sendThread(chatId: string, meId: string, convId: string, lang?: B
   const lines = items.map((m) => {
     const mine = m.senderId === meId;
     const unread = !mine && m.createdAt.getTime() > found.myReadAt ? " 🆕" : "";
-    return `<b>${mine ? L(lang, "Siz", "Вы") : peerName}</b> · ${escapeTelegramHtml(fmtTime(m.createdAt, lang))}${unread}\n${escapeTelegramHtml(messagePreview(m, 600, lang))}`;
+    return `<b>${mine ? L(lang, "Siz", "Вы") : peerName}</b> · ${escapeTelegramHtml(fmtTime(m.createdAt, lang))}${unread}\n${escapeTelegramHtml(messagePreview(m, THREAD_TEXT_MAX, lang))}`;
   });
   const denied = await writeBlock(meId, found);
   const keyboard: TelegramButton[][] = [];
@@ -125,8 +130,8 @@ async function sendThread(chatId: string, meId: string, convId: string, lang?: B
   const bodyText = lines.length ? lines.join("\n\n") : L(lang, "Bu suhbatda hali xabar yo'q.", "В этой переписке пока нет сообщений.");
   const note = denied ? `\n\n<i>${escapeTelegramHtml(await errorText(denied, lang, "Bu suhbatga yozib bo'lmaydi", "В эту переписку писать нельзя"))}</i>` : "";
   await sendTelegram(chatId, `${head}\n\n${bodyText}${note}`, { keyboard });
-  // Xabarlar foydalanuvchiga ko'rsatildi — saytdagi kabi «o'qildi» (suhbatdoshda ✓✓)
-  await Promise.all([markRead(found.conv, meId), touchLastSeen(meId)]).catch(() => undefined);
+  // Xabarlar foydalanuvchiga ko'rsatildi — saytdagi kabi «o'qildi» (suhbatdoshda ✓✓); keyingi xabar yana Telegramga keladi
+  await Promise.all([markRead(found.conv, meId), touchLastSeen(meId), rearmChatPing(meId, chatHref(convId))]).catch(() => undefined);
   return true;
 }
 
@@ -207,6 +212,8 @@ export async function handleDmText(chatId: string, text: string, lang: BotLang |
     if (denied) throw denied;
     await enforceLimit("messages", me.id);
     await sendDm(found.conv, me.id, body, [], null);
+    // Botdan javob yozildi — suhbatdoshning javobi ham shu yerga (Telegramga) kelishi kerak
+    await rearmChatPing(me.id, chatHref(s.data.convId));
     await sendTelegram(chatId, L(lang, `✅ Yuborildi: <b>${escapeTelegramHtml(found.peer.name)}</b>`, `✅ Отправлено: <b>${escapeTelegramHtml(found.peer.name)}</b>`), { keyboard: [[{ text: L(lang, "✍️ Yana yozish", "✍️ Написать ещё"), data: `dm:r:${s.data.convId}` }, { text: L(lang, "💬 Suhbat", "💬 Переписка"), data: `dm:o:${s.data.convId}` }]] });
   } catch (e) {
     await sendTelegram(chatId, `⚠️ ${escapeTelegramHtml(await errorText(e, lang, "Xabar yuborilmadi. Saytdagi chatdan urinib ko'ring.", "Сообщение не отправлено. Попробуйте через чат на сайте."))}`, { keyboard: [[pageButton(L(lang, "Saytda ochish", "Открыть на сайте"), `/kabinet/chat?s=${s.data.convId}`)]] });
