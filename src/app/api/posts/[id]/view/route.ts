@@ -8,13 +8,14 @@ import { optionalViewer } from "@/app/api/groups/_lib";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Mehmon kaliti: IP + User-Agent xeshi (shaxsiy ma'lumot saqlanmaydi; tuz — server kaliti) */
+/**
+ * Mehmon kaliti: faqat IP xeshi (shaxsiy ma'lumot saqlanmaydi; tuz — server kaliti). Ilgari User-Agent ham qo'shilardi —
+ * brauzer nomini har so'rovda almashtirib, bitta odam bitta postga cheksiz «ko'rish» yoza olardi (7-audit). Endi bitta
+ * IP'dan bir postga kuniga bitta mehmon ko'rishi (umumiy NAT ortidagi mehmonlar bitta sanaladi — bu ongli tanlov).
+ */
 function anonKey(req: Request): string {
-  // Ishonchli proksi qo'ygan IP (x-forwarded-for'ning chapdagi qiymatini mijoz o'zi yozishi mumkin — unga tayanilmaydi)
-  const ip = clientIp(req);
-  const ua = req.headers.get("user-agent") ?? "";
   const salt = process.env.AUTH_SECRET ?? process.env.TURSO_AUTH_TOKEN ?? "views";
-  return `a:${createHash("sha256").update(`${salt}|${ip}|${ua}`).digest("hex").slice(0, 24)}`;
+  return `a:${createHash("sha256").update(`${salt}|${clientIp(req)}`).digest("hex").slice(0, 24)}`;
 }
 
 /**

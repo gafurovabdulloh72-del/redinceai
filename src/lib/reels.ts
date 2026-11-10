@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { follows, portfolioItems, postComments, postLikes, postSaves, postViews, posts, specialists, users, type PostMusic } from "@/lib/db/schema";
 import { briefUsers, toPostViews, type UserBrief } from "@/lib/groups/service";
@@ -297,8 +297,22 @@ export async function topCreatorsBetween(from: Date, to: Date, limit = 20): Prom
   const [likes, comments, saves, views, fol] = await Promise.all([
     db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postLikes).innerJoin(posts, eq(posts.id, postLikes.postId)).innerJoin(users, eq(users.id, postLikes.userId)).where(and(gt(postLikes.createdAt, from), lt(postLikes.createdAt, to), lt(users.createdAt, matureBefore), sql`${postLikes.userId} != ${posts.authorId}`)).groupBy(posts.authorId),
     db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postComments).innerJoin(posts, eq(posts.id, postComments.postId)).innerJoin(users, eq(users.id, postComments.authorId)).where(and(gt(postComments.createdAt, from), lt(postComments.createdAt, to), lt(users.createdAt, matureBefore), sql`${postComments.authorId} != ${posts.authorId}`)).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postSaves).innerJoin(posts, eq(posts.id, postSaves.postId)).where(and(gt(postSaves.createdAt, from), lt(postSaves.createdAt, to))).groupBy(posts.authorId),
-    db.select({ a: posts.authorId, n: sql<number>`count(*)` }).from(postViews).innerJoin(posts, eq(posts.id, postViews.postId)).where(and(gt(postViews.createdAt, from), lt(postViews.createdAt, to))).groupBy(posts.authorId),
+    // Saqlash: o'z postini saqlash va yangi (2 kundan yosh) hisoblar sanalmaydi — reaksiya/izoh bilan bir xil qoida
+    db
+      .select({ a: posts.authorId, n: sql<number>`count(*)` })
+      .from(postSaves)
+      .innerJoin(posts, eq(posts.id, postSaves.postId))
+      .innerJoin(users, eq(users.id, postSaves.userId))
+      .where(and(gt(postSaves.createdAt, from), lt(postSaves.createdAt, to), ne(postSaves.userId, posts.authorId), lt(users.createdAt, matureBefore)))
+      .groupBy(posts.authorId),
+    // Ko'rish: TOP ballida faqat RO'YXATDAN O'TGAN (va yetilgan) ko'ruvchilar. Mehmon ko'rishi IP+brauzer xeshi bilan sanaladi —
+    // brauzer nomini almashtirib bitta odam minglab «ko'rish» yasay olardi; TOP g'olibi esa bepul premium oladi (7-audit).
+    db
+      .select({ a: posts.authorId, n: sql<number>`count(*)` })
+      .from(postViews)
+      .innerJoin(posts, eq(posts.id, postViews.postId))
+      .where(and(gt(postViews.createdAt, from), lt(postViews.createdAt, to), sql`${postViews.viewerKey} like 'u:%'`, sql`substr(${postViews.viewerKey}, 3) in (select id from users where created_at < ${matureBefore.getTime()} and is_banned = 0)`))
+      .groupBy(posts.authorId),
     db.select({ a: follows.followingId, n: sql<number>`count(*)` }).from(follows).innerJoin(users, eq(users.id, follows.followerId)).where(and(gt(follows.createdAt, from), lt(follows.createdAt, to), lt(users.createdAt, matureBefore))).groupBy(follows.followingId),
   ]);
   const acc = new Map<string, { likes: number; comments: number; saves: number; views: number; followers: number }>();
