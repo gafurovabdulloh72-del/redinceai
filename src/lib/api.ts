@@ -197,6 +197,22 @@ async function noteDenied(req: Request, status: number): Promise<void> {
 }
 
 /**
+ * TEXNIK ISHLAR («faqat o'qish») rejimi: admin yoqsa, admin bo'lmaganlarning MUTATSIYALARI 503 oladi (o'qish ishlayveradi).
+ * Istisnolar (kirish, admin API, xato hisoboti, til) — `maintenanceExempt`; imzoli webhook'lar (`csrf:false`) bu yerga kelmaydi.
+ */
+async function maintenanceGuard(req: Request): Promise<void> {
+  const method = req.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
+  const { maintenanceState, maintenanceExempt } = await import("./admin/maintenance");
+  if (maintenanceExempt(new URL(req.url).pathname)) return;
+  const m = await maintenanceState().catch(() => null);
+  if (!m?.on) return;
+  const s = await getVerifiedSession().catch(() => null);
+  if (s?.role === "admin") return;
+  throw new ApiError(503, m.message[requestLocale(req)], undefined, { "Retry-After": "300" });
+}
+
+/**
  * Route handlerlarni o'rab, ApiError va kutilmagan xatolarni JSON'ga aylantiradi.
  * GET/HEAD/OPTIONS'dan boshqa usullarda so'rov manbasi (Origin yoki Referer) o'z hostimizga
  * teng bo'lishi shart — aks holda 403. curl testlarida: -H "Origin: http://localhost:3000".
@@ -213,6 +229,7 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         await blockGuard(req);
         const trapped = await probeGuard(req);
         if (trapped) return trapped;
+        await maintenanceGuard(req);
       }
       if (opts.limit !== false) await baseLimit(req);
       if (opts.csrf !== false) await abuseGuard(req);
@@ -224,6 +241,8 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         return fail(e.status, e.message, e.fields, e.headers);
       }
       console.error("[api]", e);
+      // Xatolar jurnali (admin → Tizim → Xatolar). captureError o'zi hech qachon xato tashlamaydi; import dinamik — aylanma bog'lanish bo'lmasin
+      await import("./observability/errors").then((m) => m.captureError(e, { req, status: 500 })).catch(() => undefined);
       return fail(500, "Serverda kutilmagan xatolik");
     }
   };
