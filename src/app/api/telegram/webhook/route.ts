@@ -31,6 +31,7 @@ import { gateEnabled, gateExempt, handleGateCheck, isChannelMember, rememberGate
 import { markReachable, markUnreachable } from "@/lib/telegram-bot/reach";
 import { defer } from "@/lib/telegram-bot/defer";
 import { LIMITED_TEXT, botLimited, firstSeenUpdate, shouldWarnLimited } from "@/lib/telegram-bot/guard";
+import { errorText } from "@/lib/telegram-bot/i18n";
 import { adoptGuestLang, resolveLang } from "@/lib/telegram-bot/lang-store";
 import { handleLanguageCallback, sendLanguageChoice } from "@/lib/telegram-bot/language";
 import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
@@ -201,7 +202,8 @@ async function handleManualApproval(chatId: string, data: string, answer: (t: st
   try {
     result = m[2] === "p" ? await actOnPayment(admin, m[1] === "ok", m[3], lang) : await actOnInvoice(admin, m[1] === "ok", m[3], lang);
   } catch (e) {
-    await answer(e instanceof ApiError ? e.message : L(lang, "Xatolik — admin panelda ko'rib chiqing", "Ошибка — проверьте в админ-панели"));
+    // Servis xatosi (o'zbekcha `ApiError`) rus tilidagi adminga lug'at orqali o'giriladi
+    await answer(await errorText(e, lang, "Xatolik — admin panelda ko'rib chiqing", "Ошибка — проверьте в админ-панели"));
     return true;
   }
   await answer(result);
