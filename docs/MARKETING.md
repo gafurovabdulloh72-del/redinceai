@@ -49,7 +49,8 @@ Agent tayyorlaydi → egasi bajaradi.
 Har dushanba: yangi ijodkor soni, profil to'lish %, qaysi kanaldan kelgan (taklif havolasi/referal), nima ishladi → keyingi hafta rejasi.
 
 ## 6. Dasturchiga takliflar (agent yozadi, kod o'zgarishi kerak bo'lsa)
-- (hozircha bo'sh)
+- 2026-11-10 TUZATILDI (547e73f): oylik TOP g'olibiga bildirishnoma «post va story cheklovlari yo'q» deb yolg'on va'da berardi — endi `TIER_LIMITS.pro` dagi haqiqiy limitlar yoziladi; obuna majburiy rejimda g'olib (`awardPremiumUntil`) katalogdan yashirinib qolardi — `listableCondition` endi uni Pro deb hisoblaydi.
+- Efir yozuvi (Egress + R2) prod'da sinalmagan: kanal matnlarida «yozuvini keyin ko'rasiz» deb va'da qilinmaydi, sinalgandan keyin qaytariladi.
 
 ## 7. Natijalar jurnali
 | Sana | Nima qilindi | Natija |
@@ -62,3 +63,8 @@ Har dushanba: yangi ijodkor soni, profil to'lish %, qaysi kanaldan kelgan (takli
 | 2026-11-06 | 12:37 — videograf uchun to'liq videopost (jadval bo'yicha avtomatik) | message_id 8 |
 | 2026-11-06 | 12:4x — dizayner, videograf, mobilograf, montajor uchun umumiy videopost (egasi so'rovi bilan qo'lda) | message_id 9 |
 | 2026-11-06 | Rejа qayta tuzildi: har kasb alohida, burchaklar xilma-xil (ustozlar, viloyat, vakansiya, jamoa, konkurs, Reels, bot); 13 ta yangi video (3 ta bugun, 10 ta 7–11-noyabr) | — |
+| 2026-11-07…11-09 | 7–23 postlar (har kasb alohida, 3D videolar v1) | message_id 10–23 |
+| 2026-11-10 | AUDIT (ultracode, ko'p agentli): chiqqan 34 post fakt/uslub bo'yicha tekshirildi. Topilgan yolg'on/noaniq da'volar: «bot uchta savol beradi» (aslida rol → ism → yo'nalish → kasb → tajriba → hudud → telefon → tasdiq), konkurs ↔ oylik TOP Pro mukofoti (aslida mukofot faqat TOP-3 da, ≥20 ball), «efir yozuvi» (prod'da sinalmagan), «Instagram'da hudud bo'yicha qidirib bo'lmaydi», «10 soniyada», «minglab», sharhlar (faqat platforma buyurtmasidan keyin), «Bepul profil 1 daqiqada» (katalogda ko'rinish obuna majburiy bo'lsa 30 kun bepul) | `scratchpad/audit/` |
+| 2026-11-10 | Tuzatish (jarayonda): eski 18 post izohi `editMessageCaption` bilan, 11-09 dagi 6 videoning o'zi (`editMessageMedia`) qayta chizildi — yakuniy karta «Ro'yxatdan o'tish bepul», bot ekrani haqiqiy oqim, konkurs ekranida «G'olib belgisi»; hamma postga 2 ta inline tugma (Ro'yxatdan o'tish + mavzuga mos sahifa) | — |
+| 2026-11-10 | Yangi tizim: 3D v3 dvigateli (`marketing-tools/3d-video`: studiya muhitlari, 18 buyum, viloyat xaritasi, soxta raqamsiz UI ekranlar, -15,5 dBTP ovoz), matn qoidalari (taqiqlangan iboralar ro'yxati + `publish2.py lint`), muqova + tugmalar + jim ertalabki slot. Jadval: 08:07 ko'rsatish → 10:07 kanal (jim), 18:07 ko'rsatish → 20:07 kanal | trigger v2 |
+| 2026-11-10 | 20:07 — «Kasb Egalari kanaliga xush kelibsiz» (rejalashtirilgan: qadaladi + kanal tavsifi) | — |

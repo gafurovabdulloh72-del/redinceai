@@ -175,13 +175,13 @@ const SCREEN = {
   feed(g, t) { head(g, 'Profil'); g.fillStyle = '#ff5a36'; g.beginPath(); g.arc(70, 160, 38, 0, 7); g.fill(); g.fillStyle = '#1a1a1c'; g.font = '700 22px SG'; g.fillText('Postlar   Videolar   Ishlar', 130, 168);
     const cl = ['#e0b25c', '#1a1a1c', '#ff7a4d', '#3c5a4a', '#c9502b', '#d9d0bd']; for (let i = 0; i < 6; i++) { const a = clamp((t - .5 - i * .3) * 3); g.globalAlpha = a; g.fillStyle = cl[i]; g.fillRect(32 + (i % 3) * 196, 220 + Math.floor(i / 3) * 124 + (1 - a) * 20, 186, 116); g.globalAlpha = 1; } },
   contest(g, t) { head(g, 'Konkurs'); for (let i = 0; i < 3; i++) { g.fillStyle = ['#ff7a4d', '#3a1a5a', '#e0b25c'][i]; g.fillRect(32 + i * 196, 130, 180, 200); const pulse = clamp((t - 1.2 - i * .6) * 2); g.fillStyle = `rgba(255,90,54,${.25 + .75 * pulse})`; g.font = `700 ${34 + 10 * pulse}px SG`; g.fillText('❤', 100 + i * 196, 380); }
-    if (t > 3.2) { g.fillStyle = '#1a1a1c'; g.fillRect(32, 410, 240, 44); g.fillStyle = '#ffd84a'; g.font = '700 22px SG'; g.fillText('🏆 Oylik TOP', 46, 440); } },
+    if (t > 3.2) { g.fillStyle = '#1a1a1c'; g.fillRect(32, 410, 240, 44); g.fillStyle = '#ffd84a'; g.font = '700 22px SG'; g.fillText("🏆 G'olib belgisi", 46, 440); } },
   catalog(g, t) { head(g, 'Mutaxassislar'); g.fillStyle = '#1a1a1c'; g.fillRect(32, 126, 190, 40); g.fillStyle = '#fff'; g.font = '700 20px SG'; g.fillText('Veb-dizayner', 46, 153);
     const regs = ['Toshkent', 'Samarqand', "Farg'ona", 'Andijon', 'Buxoro', 'Namangan', 'Xorazm']; const k = Math.floor(t * 1.4) % regs.length;
     g.strokeStyle = '#1a1a1c'; g.lineWidth = 3; g.strokeRect(240, 126, 220, 40); g.fillStyle = '#1a1a1c'; g.fillText('Viloyat: ' + regs[k], 252, 153);
     for (let i = 0; i < 3; i++) { g.fillStyle = '#ece7dc'; g.fillRect(32, 190 + i * 88, 576, 76); g.fillStyle = ['#ff5a36', '#3c5a4a', '#e0b25c'][i]; g.beginPath(); g.arc(76, 228 + i * 88, 24, 0, 7); g.fill(); g.fillStyle = '#c9c1b2'; g.fillRect(118, 214 + i * 88, 220, 14); g.fillRect(118, 238 + i * 88, 140, 10); } },
   bot(g, t) { g.fillStyle = '#17212b'; g.fillRect(0, 0, 640, 480); g.fillStyle = '#232e3c'; g.fillRect(0, 0, 640, 52); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('@kasb_egalari_bot', 22, 34);
-    const msgs = [['bot', 'Kasbingizni tanlang'], ['me', 'Fotograf'], ['bot', 'Hududingiz?'], ['me', 'Samarqand'], ['bot', '✅ Profil tayyor!']];
+    const msgs = [['bot', 'Siz kimsiz?'], ['me', 'Mutaxassis'], ['bot', 'Kasb: Fotograf ✓'], ['bot', 'Hudud: Samarqand ✓'], ['bot', 'Tasdiqlandi ✓']];
     msgs.forEach((m, i) => { const a = clamp((t - .4 - i * .7) * 3); if (!a) return; g.globalAlpha = a; const me = m[0] === 'me'; g.fillStyle = me ? '#2b5278' : '#182533'; const w = 40 + m[1].length * 12; const x = me ? 610 - w : 30; g.fillRect(x, 74 + i * 78, w, 56); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText(m[1], x + 20, 110 + i * 78); g.globalAlpha = 1; }); },
 };
 function drawScreen(t) { (SCREEN[C.screen] || SCREEN.feed)(S.g, t); S.g.globalAlpha = .06; S.g.fillStyle = '#000'; for (let y = 0; y < 480; y += 4) S.g.fillRect(0, y, 640, 1); S.g.globalAlpha = 1; S.t.needsUpdate = true; }
@@ -217,7 +217,7 @@ composer.addPass(new OutputPass());
 // --- overlay
 const ov = document.getElementById('ov');
 ov.innerHTML = (C.caps || []).map(c => `<div class="cap${c.small ? ' small' : ''}" style="top:${c.top}px">${c.html}</div>`).join('') +
-  `<div id="end"><div class="logo"><div class="tile">k</div>kasb egalari</div><h2>${C.endTitle || 'Bepul profil<br><b>1 daqiqada</b>'}</h2><div class="pill">@kasb_egalari_bot</div><div class="sub">📢 @kasb_egalari</div></div>`;
+  `<div id="end"><div class="logo"><div class="tile">k</div>kasb egalari</div><h2>${C.endTitle || "Ro'yxatdan o'tish<br><b>bepul</b>"}</h2><div class="pill">@kasb_egalari_bot</div><div class="sub">📢 @kasb_egalari</div></div>`;
 const endEl = document.getElementById('end');
 
 const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
