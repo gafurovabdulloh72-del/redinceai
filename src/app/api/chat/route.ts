@@ -6,6 +6,8 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { assertOwnUploads, attachmentListSchema } from "@/app/api/orders/_lib/attachments";
 import { DM_BODY_MAX, getOrCreateConversation, listConversations, listFolders, sendDm, touchLastSeen } from "@/lib/chat/dm";
 import { groupTypingNames, listGroupInbox } from "@/lib/chat/inbox";
+import { cleanBody } from "@/lib/chat/text";
+import { listOrderInbox } from "@/lib/chat/unread";
 import { normalizeUsername } from "@/lib/chat/username";
 import { assertCanDm } from "@/lib/privacy/blocks";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -19,9 +21,16 @@ export const GET = handler(async (req) => {
   const session = await requireSession();
   await touchLastSeen(session.sub);
   const folder = new URL(req.url).searchParams.get("papka");
-  const [items, folders, groups, typing] = await Promise.all([listConversations(session.sub, 60, folder), listFolders(session.sub), listGroupInbox(session.sub), groupTypingNames(session.sub)]);
+  const [items, folders, groups, typing, orders] = await Promise.all([
+    listConversations(session.sub, 60, folder),
+    listFolders(session.sub),
+    listGroupInbox(session.sub),
+    groupTypingNames(session.sub),
+    // O'qilmagan xabari bor buyurtma chatlari (B6) — xato bo'lsa ro'yxat baribir ochiladi
+    listOrderInbox(session.sub).catch(() => []),
+  ]);
   // «Yozmoqda…» (kamchilik #3) — kesh qatorlarini o'zgartirmasdan yangi obyektlarga qo'shiladi
-  return ok({ items, folders, groups: groups.map((g) => ({ ...g, typing: typing.get(g.id) ?? null })) });
+  return ok({ items, folders, groups: groups.map((g) => ({ ...g, typing: typing.get(g.id) ?? null })), orders, now: Date.now() });
 });
 
 /** Tana ixtiyoriy: bo'sh bo'lsa faqat suhbat ochiladi (xabarsiz); bor bo'lsa birinchi xabar ham yuboriladi */
@@ -55,10 +64,11 @@ export const POST = handler(async (req) => {
   await assertCanDm(session.sub, other, Boolean(existing?.lastMessageAt));
 
   const conv = await getOrCreateConversation(session.sub, other.id);
-  if (input.body || input.attachments.length > 0) {
+  const body = cleanBody(input.body);
+  if (body || input.attachments.length > 0) {
     await assertOwnUploads(session.sub, input.attachments.map((a) => a.url));
     await enforceLimit("messages", session.sub);
-    await sendDm(conv, session.sub, input.body, input.attachments);
+    await sendDm(conv, session.sub, body, input.attachments);
   }
   return ok({ conversationId: conv.id }, { status: 201 });
 });

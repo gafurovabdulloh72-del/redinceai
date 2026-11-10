@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groupMessages, groupTopics, type Group } from "@/lib/db/schema";
+import { groupMembers, groupMessages, groupTopics, type Group } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { assertCanManage, assertActiveMember } from "@/lib/groups/service";
 import { uid } from "@/lib/utils";
@@ -24,10 +24,32 @@ export interface TopicView {
   isClosed: boolean;
   messages: number;
   lastAt: number | null;
+  /** Ko'ruvchi hali ko'rmagan xabarlar soni (o'zinikidan tashqari) — mavzu yorlig'idagi nishon uchun */
+  unread: number;
 }
 
-/** Guruh mavzulari (xabar soni va oxirgi faollik bilan) — faol a'zolar ko'radi */
-export async function listTopics(group: Group, viewer: Viewer): Promise<TopicView[]> {
+/**
+ * Oqimlar bo'yicha o'qilmagan xabarlar: kalit — mavzu id'si yoki "" («Umumiy»). O'qilmagan = a'zoning `last_read_at`
+ * (va klient shu sessiyada ko'rgan oqim uchun `seen[kalit]`) dan keyin kelgan, o'chirilmagan, begona xabar.
+ */
+export async function streamUnread(groupId: string, viewerId: string, seen: Record<string, number> = {}): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const m = await db.query.groupMembers.findFirst({ where: and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, viewerId)), columns: { lastReadAt: true } });
+  const last = m?.lastReadAt?.getTime() ?? 0;
+  const rows = await db
+    .select({ topicId: groupMessages.topicId, at: groupMessages.createdAt })
+    .from(groupMessages)
+    .where(and(eq(groupMessages.groupId, groupId), sql`${groupMessages.deletedAt} is null`, sql`${groupMessages.senderId} != ${viewerId}`, sql`${groupMessages.createdAt} > ${last}`))
+    .limit(500);
+  for (const r of rows) {
+    const key = r.topicId ?? "";
+    if (r.at.getTime() > (seen[key] ?? 0)) out.set(key, (out.get(key) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** Guruh mavzulari (xabar soni, oxirgi faollik va ko'ruvchining o'qilmaganlari bilan) — faol a'zolar ko'radi */
+export async function listTopics(group: Group, viewer: Viewer, unread?: Map<string, number>): Promise<TopicView[]> {
   await assertActiveMember(group, viewer);
   const rows = await db.query.groupTopics.findMany({ where: eq(groupTopics.groupId, group.id), orderBy: [asc(groupTopics.position), asc(groupTopics.createdAt)] });
   if (!rows.length) return [];
@@ -37,7 +59,7 @@ export async function listTopics(group: Group, viewer: Viewer): Promise<TopicVie
     .where(and(eq(groupMessages.groupId, group.id), sql`${groupMessages.topicId} is not null`, sql`${groupMessages.deletedAt} is null`))
     .groupBy(groupMessages.topicId);
   const map = new Map(stats.map((s) => [s.topicId, { n: Number(s.n), last: Number(s.last) }]));
-  return rows.map((r) => ({ id: r.id, name: r.name, position: r.position, isClosed: r.isClosed, messages: map.get(r.id)?.n ?? 0, lastAt: map.get(r.id)?.last ?? null }));
+  return rows.map((r) => ({ id: r.id, name: r.name, position: r.position, isClosed: r.isClosed, messages: map.get(r.id)?.n ?? 0, lastAt: map.get(r.id)?.last ?? null, unread: unread?.get(r.id) ?? 0 }));
 }
 
 export async function createTopic(group: Group, actor: Viewer, name: string): Promise<TopicView> {
@@ -46,9 +68,12 @@ export async function createTopic(group: Group, actor: Viewer, name: string): Pr
   if (!t) throw new ApiError(422, "Mavzu nomi bo'sh", { name: "Nom kerak" });
   const n = await db.$count(groupTopics, eq(groupTopics.groupId, group.id));
   if (n >= TOPIC_MAX) throw new ApiError(422, `Ko'pi bilan ${TOPIC_MAX} mavzu`);
+  // Bir xil nomli ikkita mavzu chalkashtiradi — katta-kichik harfga qaramay takror bo'lmaydi
+  const dup = await db.query.groupTopics.findFirst({ where: and(eq(groupTopics.groupId, group.id), sql`lower(${groupTopics.name}) = ${t.toLowerCase()}`), columns: { id: true } });
+  if (dup) throw new ApiError(409, "Bunday nomli mavzu bor", { name: "Boshqa nom tanlang" });
   const id = uid();
   await db.insert(groupTopics).values({ id, groupId: group.id, name: t, createdBy: actor.id, position: n + 1 });
-  return { id, name: t, position: n + 1, isClosed: false, messages: 0, lastAt: null };
+  return { id, name: t, position: n + 1, isClosed: false, messages: 0, lastAt: null, unread: 0 };
 }
 
 export async function updateTopic(group: Group, actor: Viewer, id: string, patch: { name?: string; isClosed?: boolean }): Promise<void> {
@@ -83,8 +108,6 @@ export async function assertTopicWritable(group: Group, actor: Viewer, topicId: 
   const t = await db.query.groupTopics.findFirst({ where: and(eq(groupTopics.id, topicId), eq(groupTopics.groupId, group.id)) });
   if (!t) throw new ApiError(422, "Mavzu topilmadi", { topicId: "Mavzu topilmadi" });
   if (t.isClosed) {
-    const m = await db.query.groupTopics.findFirst({ where: eq(groupTopics.id, topicId), columns: { id: true } });
-    void m;
     // Yopilgan mavzuga faqat boshqaruvchilar yozadi
     await assertCanManage(group, actor).catch(() => {
       throw new ApiError(409, "Bu mavzu yopilgan");
