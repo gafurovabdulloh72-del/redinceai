@@ -25,7 +25,7 @@ import { pageButton } from "@/lib/telegram-bot/ui";
  * Javob bitta xabar uchun so'raladi (har javobdan keyin rejim yopiladi) — qidiruv matni adashib suhbatga ketib qolmasin.
  */
 type Answer = (text: string) => Promise<unknown>;
-type DmRow = Awaited<ReturnType<typeof listMessages>>[number];
+type DmRow = Awaited<ReturnType<typeof listMessages>>["rows"][number];
 interface DmSession extends Record<string, unknown> {
   convId: string;
   peerName: string;
@@ -85,7 +85,7 @@ export async function handleMessages(chatId: string, lang?: BotLang): Promise<vo
   const rows = [...all.filter((c) => c.unread > 0), ...all.filter((c) => c.unread === 0)].slice(0, LIST_MAX);
   const unreadTotal = all.reduce((s, c) => s + (c.prefs.muted ? 0 : c.unread), 0);
   // Parcha: muddati o'tgan / men uchun o'chirilgan xabar chiqmasin — oxirgi ko'rinadigan xabar alohida olinadi
-  const previews = await Promise.all(rows.map((c) => listMessages(c.id, me.id, null, 4).then((list) => list[list.length - 1] ?? null).catch(() => null)));
+  const previews = await Promise.all(rows.map((c) => listMessages(c.id, me.id, { limit: 4 }).then((page) => page.rows[page.rows.length - 1] ?? null).catch(() => null)));
   const lines = rows.map((c, i) => {
     const m = previews[i];
     const who = m ? (m.senderId === me.id ? L(lang, "Siz: ", "Вы: ") : "") : "";
@@ -115,7 +115,7 @@ async function writeBlock(meId: string, found: NonNullable<Awaited<ReturnType<ty
 async function sendThread(chatId: string, meId: string, convId: string, lang?: BotLang): Promise<boolean> {
   const found = await loadConversationFor(meId, convId);
   if (!found) return false;
-  const items = (await listMessages(convId, meId, null, THREAD_MAX * 2)).slice(-THREAD_MAX);
+  const items = (await listMessages(convId, meId, { limit: THREAD_MAX * 2 })).rows.slice(-THREAD_MAX);
   const peerName = escapeTelegramHtml(found.peer.name);
   const lines = items.map((m) => {
     const mine = m.senderId === meId;

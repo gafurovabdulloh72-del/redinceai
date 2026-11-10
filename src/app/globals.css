@@ -600,7 +600,8 @@ td, time, .tabular {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
-  border-radius: inherit;
+  /* `border-radius: inherit` OLIB TASHLANGAN: layersiz qoida utility'ni yengib, fokusdagi yumaloq input/tugmani otasining
+     radiusiga (ko'pincha 0) o'tkazardi — maydon fokusda to'rtburchak bo'lib qolardi. Halqa elementning o'z radiusiga ergashadi. */
 }
 .field:focus-visible,
 input:focus-visible,
