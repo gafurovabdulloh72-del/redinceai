@@ -26,3 +26,6 @@ public/uploads/*
 .DS_Store
 *.tsbuildinfo
 npm-debug.log*
+
+# agentlarning vaqtinchalik ish nusxalari (git worktree)
+.claude/worktrees/
