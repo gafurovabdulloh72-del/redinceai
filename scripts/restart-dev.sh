@@ -9,19 +9,24 @@
 set -e
 cd "$(dirname "$0")/.."
 PORT="${PORT:-3000}"
+PIDFILE="/tmp/dev-$PORT.pid"
 
-# Shu portni tinglayotgan jarayon(lar) va ularning `next dev` ota jarayoni
-PIDS="$(ss -ltnpH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)"
+# To'xtatiladigan jarayonlar: (1) oldingi ishga tushirishda yozilgan PID, (2) aynan shu port bilan ishga tushirilgan `next dev`
+PIDS=""
+[ -f "$PIDFILE" ] && PIDS="$(cat "$PIDFILE" 2>/dev/null || true)"
+PIDS="$PIDS $(pgrep -f "next dev -p $PORT( |\$)" 2>/dev/null || true)"
+ALL=""
 for pid in $PIDS; do
-  parent="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
-  if [ -n "$parent" ] && ps -o args= -p "$parent" 2>/dev/null | grep -q "next"; then kill "$parent" 2>/dev/null || true; fi
-  kill "$pid" 2>/dev/null || true
+  [ -n "$pid" ] || continue
+  ALL="$ALL $pid $(pgrep -P "$pid" 2>/dev/null || true)"   # bolasi — next-server
 done
+for pid in $ALL; do kill "$pid" 2>/dev/null || true; done
 sleep 1
-for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
+for pid in $ALL; do kill -9 "$pid" 2>/dev/null || true; done
 
 rm -rf .next
-LOG="/tmp/dev${PORT:+-$PORT}.log"
+LOG="/tmp/dev-$PORT.log"
 [ "$PORT" = "3000" ] && LOG="/tmp/dev.log"
-NODE_OPTIONS="--max-old-space-size=6144" nohup npx next dev -p "$PORT" > "$LOG" 2>&1 &
-echo "Dev server ishga tushirildi (port $PORT, log: $LOG) — sog'liq: curl -s localhost:$PORT/api/health"
+NODE_OPTIONS="--max-old-space-size=4096" nohup node node_modules/next/dist/bin/next dev -p "$PORT" > "$LOG" 2>&1 &
+echo $! > "$PIDFILE"
+echo "Dev server ishga tushirildi (port $PORT, pid $(cat "$PIDFILE"), log: $LOG) — sog'liq: curl -s localhost:$PORT/api/health"
