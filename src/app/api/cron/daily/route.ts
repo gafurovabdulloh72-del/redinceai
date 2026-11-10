@@ -66,6 +66,8 @@ function addDays(date: string, days: number): string {
  *  (k) muddati 3 kun ichida tugaydigan ochiq vakansiyalar — egasiga bir martalik eslatma (expireRemindedAt)
  *  (q) admin kunlik hisoboti Telegramga (lib/telegram-bot/admin.ts sendAdminDailyReport — kechagi kun, bir marta)
  *  (m) kunlik/haftalik jamlama (users.digest_freq): obunachi, reaksiya, izoh, ko'rish, o'qilmagan xabarlar — bo'sh bo'lsa yuborilmaydi (lib/digest.ts)
+ *  (s) xatolar jurnali (error_logs): hal qilingan 30 kundan, qayta uchramagan 90 kundan keyin o'chiriladi (lib/observability/errors.ts)
+ * Admin panel «Cron holati» kartasi qadamlarni lib/admin/cron.ts CRON_STEPS bo'yicha ko'rsatadi — yangi qadam qo'shsangiz u yerga ham yozing.
  * Har bir qadam alohida try/catch ichida — biri yiqilsa, qolganlari ishlayveradi; sonlari JSON javobda va audit meta'da.
  * `?dry=1` — hech narsa o'zgartirmasdan (d)–(f) va (i) bo'yicha nechta yozuv tegishini qaytaradi.
  */
@@ -111,6 +113,7 @@ export async function GET(req: Request) {
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
     storiesPurged: 0,
+    errorLogsPurged: 0,
     monthlyTop: null as Record<string, unknown> | null,
     indexNow: null as { urls: number; sent: number; status: number | null } | null,
     savedSearches: null as { checked: number; notified: number } | null,
@@ -347,8 +350,16 @@ export async function GET(req: Request) {
   } catch (e) {
     counts.errors.push(`sessions: ${e instanceof Error ? e.message : String(e)}`);
   }
+  // Xatolar jurnali: hal qilingan (30 kun) va uzoq vaqt uchramagan (90 kun) yozuvlar o'chiriladi
+  try {
+    const { purgeErrorLogs } = await import("@/lib/observability/errors");
+    counts.errorLogsPurged = await purgeErrorLogs(now);
+  } catch (e) {
+    counts.errors.push(`errorLogs: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
-  await audit(null, "cron_daily", { targetType: "system", meta: { ...counts, errors: counts.errors.length ? counts.errors : undefined } });
+  // `ms` (davomiylik) va `source` (jadval | admin qo'lda) — admin «Cron holati» kartasi uchun (lib/admin/cron.ts)
+  await audit(null, "cron_daily", { targetType: "system", meta: { ...counts, errors: counts.errors.length ? counts.errors : undefined, ms: Date.now() - now, source: req.headers.get("x-cron-source") === "admin" ? "admin" : "schedule" } });
   return Response.json({ ok: counts.errors.length === 0, ts: now, ...counts }, { headers });
 }
 
