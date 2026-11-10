@@ -741,7 +741,7 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
     }
     if (data === "adm:elon") {
       await answer("");
-      const { handleBroadcastStart } = await import("@/lib/telegram-bot/actions");
+      const { handleBroadcastStart } = await import("@/lib/telegram-bot/broadcast-flow");
       await handleBroadcastStart(chatId, "/elon", lang);
       return true;
     }
@@ -865,9 +865,9 @@ export async function sendAdminDailyReport(now = Date.now(), opts: { force?: boo
     if (!a.telegramChatId) continue;
     const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
     const { text, weekly } = render(lang);
-    const ok = await sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: L(lang, "📊 Bugun", "📊 Сегодня"), data: "adm:stat:today" }, { text: L(lang, "📥 Navbat", "📥 Очередь"), data: "adm:queue" }], [panelButton("/admin", PANEL(lang))]] });
+    const ok = await sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[{ text: L(lang, "📊 Bugun", "📊 Сегодня"), data: "adm:stat:today" }, { text: L(lang, "📥 Navbat", "📥 Очередь"), data: "adm:queue" }], [panelButton("/admin", PANEL(lang))]] });
     if (ok) sent++;
-    if (weekly) await sendTelegram(a.telegramChatId, weekly, { keyboard: [[{ text: L(lang, "30 kun", "30 дней"), data: "adm:stat:30d" }, panelButton("/admin#analitika", L(lang, "📈 Analitika", "📈 Аналитика"))]] });
+    if (weekly) await sendTelegram(a.telegramChatId, weekly, { bulk: true, keyboard: [[{ text: L(lang, "30 kun", "30 дней"), data: "adm:stat:30d" }, panelButton("/admin#analitika", L(lang, "📈 Analitika", "📈 Аналитика"))]] });
   }
   return { sent, skipped: false };
 }
@@ -885,8 +885,9 @@ export async function notifyAdminsNewSpecialist(specialistId: string): Promise<v
     await Promise.all(
       admins.map(async (a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
-        await notify(a.id, "account", `Yangi mutaxassis: ${sp.user.name}`, `${sp.title} — tasdiqlash navbatida.`, "/admin#tasdiqlash", { skipMail: true }).catch(() => undefined);
-        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text(lang), { keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ver:${sp.id}` }, { text: L(lang, "👁 Profil", "👁 Профиль"), url: `${site()}/mutaxassislar/${sp.slug}` }]] });
+        // siteOnly: Telegramga quyida tugmali maxsus xabar ketadi (umumiy bildirishnoma ikkinchi marta bormasin)
+        await notify(a.id, "account", `Yangi mutaxassis: ${sp.user.name}`, `${sp.title} — tasdiqlash navbatida.`, "/admin#tasdiqlash", { siteOnly: true }).catch(() => undefined);
+        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text(lang), { bulk: true, keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ver:${sp.id}` }, { text: L(lang, "👁 Profil", "👁 Профиль"), url: `${site()}/mutaxassislar/${sp.slug}` }]] });
       }),
     );
   } catch (e) {
@@ -903,7 +904,7 @@ export async function notifyAdminsNewReport(reportId: string): Promise<void> {
     await Promise.all(
       admins.map((a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
-        return a.telegramChatId ? sendTelegram(a.telegramChatId, `🚩 <b>${L(lang, "Yangi shikoyat", "Новая жалоба")}</b>\n${reportText(r, lang)}`, { keyboard: reportKeyboard(r, lang) }) : Promise.resolve(false);
+        return a.telegramChatId ? sendTelegram(a.telegramChatId, `🚩 <b>${L(lang, "Yangi shikoyat", "Новая жалоба")}</b>\n${reportText(r, lang)}`, { bulk: true, keyboard: reportKeyboard(r, lang) }) : Promise.resolve(false);
       }),
     );
   } catch (e) {
@@ -921,8 +922,8 @@ export async function notifyAdminsMentorApplied(mentorId: string): Promise<void>
     await Promise.all(
       admins.map(async (a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
-        await notify(a.id, "account", `Mentor arizasi: ${m.user.name}`, `${m.headline} — tasdiqlash navbatida.`, "/admin/mentorlik", { skipMail: true }).catch(() => undefined);
-        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text(lang), { keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ma:ok:${m.id}` }, { text: L(lang, "❌ Rad etish", "❌ Отклонить"), data: `adm:ma:no:${m.id}` }], [panelButton("/admin/mentorlik", L(lang, "👁 Admin panelda", "👁 В админ-панели"))]] });
+        await notify(a.id, "account", `Mentor arizasi: ${m.user.name}`, `${m.headline} — tasdiqlash navbatida.`, "/admin/mentorlik", { siteOnly: true }).catch(() => undefined);
+        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text(lang), { bulk: true, keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ma:ok:${m.id}` }, { text: L(lang, "❌ Rad etish", "❌ Отклонить"), data: `adm:ma:no:${m.id}` }], [panelButton("/admin/mentorlik", L(lang, "👁 Admin panelda", "👁 В админ-панели"))]] });
       }),
     );
   } catch (e) {
@@ -938,7 +939,7 @@ export async function notifyAdminsContactSold(buyerName: string, specialistName:
       admins.map((a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
         const text = `💰 <b>${L(lang, "Kontakt sotildi", "Контакт продан")}</b> — ${formatPrice(amount)}\n${escapeTelegramHtml(buyerName)} → ${escapeTelegramHtml(specialistName)}`;
-        return a.telegramChatId ? sendTelegram(a.telegramChatId, text, { keyboard: [[{ text: L(lang, "📊 Statistika", "📊 Статистика"), data: "adm:stat:today" }, panelButton("/admin/kontaktlar", L(lang, "Kontakt sotuvi", "Продажа контактов"))]] }) : Promise.resolve(false);
+        return a.telegramChatId ? sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[{ text: L(lang, "📊 Statistika", "📊 Статистика"), data: "adm:stat:today" }, panelButton("/admin/kontaktlar", L(lang, "Kontakt sotuvi", "Продажа контактов"))]] }) : Promise.resolve(false);
       }),
     );
   } catch (e) {
@@ -1051,10 +1052,10 @@ export async function notifyAdminsNewFeedback(feedbackId: string): Promise<void>
     const kind = f.kind === "bug" ? "🐞 Xato" : f.kind === "idea" ? "💡 G'oya" : "💬 Fikr";
     const excerpt = f.text.length > 300 ? `${f.text.slice(0, 300)}…` : f.text;
     const title = `${kind}: ${who?.name ?? "Mehmon"}`;
-    await notifyAdmins("account", title, `${excerpt.slice(0, 160)}${f.page ? ` · ${f.page}` : ""}`, "/admin#fikrlar", { skipMail: true }).catch(() => undefined);
+    await notifyAdmins("account", title, `${excerpt.slice(0, 160)}${f.page ? ` · ${f.page}` : ""}`, "/admin#fikrlar", { siteOnly: true }).catch(() => undefined);
     const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)), columns: { telegramChatId: true } });
     const text = [`<b>${escapeTelegramHtml(title)}</b>${f.page ? ` — <code>${escapeTelegramHtml(f.page)}</code>` : ""}`, escapeTelegramHtml(excerpt), f.screenshotUrl ? `📎 ${escapeTelegramHtml(f.screenshotUrl.startsWith("/") ? `${site()}${f.screenshotUrl}` : f.screenshotUrl)}` : ""].filter(Boolean).join("\n");
-    await Promise.all(admins.map((a) => (a.telegramChatId ? sendTelegram(a.telegramChatId, text, { keyboard: [[panelButton("/admin#fikrlar", "👁 Fikrlar")]] }) : Promise.resolve(false))));
+    await Promise.all(admins.map((a) => (a.telegramChatId ? sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[panelButton("/admin#fikrlar", "👁 Fikrlar")]] }) : Promise.resolve(false))));
   } catch (e) {
     console.error("[admin-bot:newFeedback]", e);
   }

@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
+import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { base64url } from "jose";
 
 /**
@@ -23,6 +23,46 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Telegram xabari matn chegarasi */
 const MAX_TEXT_LEN = 4096;
+/** Rasm izohi chegarasi */
+const MAX_CAPTION_LEN = 1024;
+
+/** Oddiy matnni qirqish: surrogat juftligi (emoji) o'rtasidan kesilmaydi (`.slice()` yarim emoji qoldirishi mumkin) */
+export function cutPlain(s: string, max: number): string {
+  if (s.length <= max) return s;
+  let end = max;
+  const c = s.charCodeAt(end - 1);
+  if (c >= 0xd800 && c <= 0xdbff) end--;
+  return s.slice(0, end);
+}
+
+/**
+ * HTML matnni xavfsiz qirqish: surrogat juftligi (emoji) o'rtasidan, HTML teg yoki `&amp;` kabi belgi ichidan kesilmaydi —
+ * aks holda Telegram matnni rad etadi («can't parse entities» yoki noto'g'ri UTF-8).
+ */
+export function cutText(s: string, max: number): string {
+  if (s.length <= max) return s;
+  let out = cutPlain(s, max);
+  // Yopilmagan HTML teg (`<b`) yoki belgi (`&am`) qolgan bo'lsa — o'shandan oldin kesamiz
+  const lt = out.lastIndexOf("<");
+  if (lt > out.lastIndexOf(">")) out = out.slice(0, lt);
+  const amp = out.lastIndexOf("&");
+  if (amp >= 0 && amp > out.length - 8 && out.indexOf(";", amp) < 0) out = out.slice(0, amp);
+  return out;
+}
+
+/** Yolg'iz surrogatlarni olib tashlash (foydalanuvchi matni `.slice()` bilan kesilganda emoji yarmi qolishi mumkin) */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+const wellFormed = (s: string): string => s.replace(LONE_SURROGATE, "");
+
+/** HTML'ni oddiy matnga (parse xatosida zaxira yuborish uchun) */
+function plainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
+}
 
 export function isTelegramEnabled(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN);
@@ -97,6 +137,13 @@ export interface SendOpts {
   removeKeyboard?: boolean;
   /** replyKeyboard bir marta ishlatilgach yig'iladi (savol-javob qadamlari uchun) */
   oneTime?: boolean;
+  /** Javob maydonini ochish (ForceReply) — foydalanuvchining keyingi xabari shu xabarga javob bo'lib keladi; matn — maydon ishorasi */
+  forceReply?: string | true;
+  /**
+   * Ommaviy yuborish (bildirishnoma, e'lon, jamlama, admin ogohlantirishi): navbatda suhbat javoblaridan KEYIN turadi,
+   * 429'da uzoqroq kutadi va «yetib bo'lmaydigan» (botni bloklagan) chatga umuman urinmaydi.
+   */
+  bulk?: boolean;
 }
 
 /** `reply_markup` — inline / doimiy klaviatura / olib tashlash (bittasi) */
@@ -104,7 +151,7 @@ export function replyMarkup(opts: SendOpts): Record<string, unknown> | null {
   const keyboard: TelegramButton[][] | null = opts.keyboard ?? (opts.button ? [[{ text: opts.button.text, url: opts.button.url }]] : null);
   if (keyboard)
     return {
-      inline_keyboard: keyboard.map((row) => row.map((b) => (b.webApp ? { text: b.text, web_app: { url: b.webApp } } : b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data ?? "noop" }))),
+      inline_keyboard: keyboard.map((row) => row.map((b) => (b.webApp ? { text: wellFormed(b.text), web_app: { url: b.webApp } } : b.url ? { text: wellFormed(b.text), url: b.url } : { text: wellFormed(b.text), callback_data: b.data ?? "noop" }))),
     };
   if (opts.replyKeyboard)
     return {
@@ -113,66 +160,216 @@ export function replyMarkup(opts: SendOpts): Record<string, unknown> | null {
       ...(opts.oneTime ? { one_time_keyboard: true } : { is_persistent: true }),
     };
   if (opts.removeKeyboard) return { remove_keyboard: true };
+  if (opts.forceReply) return { force_reply: true, ...(typeof opts.forceReply === "string" ? { input_field_placeholder: cutText(opts.forceReply, 64) } : {}) };
   return null;
 }
 
-async function callSend(method: "sendMessage" | "sendPhoto", body: Record<string, unknown>): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return false;
-  try {
-    const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) {
-      console.error(`[telegram] ${method}`, res.status, (await res.text().catch(() => "")).slice(0, 300));
-      return false;
+/* ------------------------------------------------------------------ */
+/* Yuborish navbati: ~25 xabar/s, 429 `retry_after`, bloklagan chatlar  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Telegram bir botdan soniyasiga ~30 xabardan ortig'ini 429 bilan qaytaradi. Barcha yuborishlar BITTA navbatdan o'tadi:
+ * har 40 ms da bitta ruxsat (≈25/s). Ikki qator: suhbat javoblari (ustun) va ommaviy (`bulk`) — katta e'lon ketayotganda
+ * ham foydalanuvchiga javob kechikmaydi. 429 kelsa butun navbat `retry_after` soniyaga to'xtaydi va xabar QAYTA yuboriladi.
+ * Jarayon bo'yicha bitta (dev'da modul qayta yuklanadi — globalThis'da).
+ */
+const SEND_GAP_MS = 40;
+interface Pacer {
+  high: (() => void)[];
+  low: (() => void)[];
+  nextAt: number;
+  pausedUntil: number;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+const pacerFlag = globalThis as { __redinceTgPacer?: Pacer };
+const pacer = (): Pacer => (pacerFlag.__redinceTgPacer ??= { high: [], low: [], nextAt: 0, pausedUntil: 0, timer: null });
+
+function pump(): void {
+  const p = pacer();
+  if (p.timer) return;
+  const step = () => {
+    p.timer = null;
+    const now = Date.now();
+    const at = Math.max(p.nextAt, p.pausedUntil);
+    if (at > now) {
+      p.timer = setTimeout(step, at - now);
+      return;
     }
-    return true;
-  } catch (e) {
-    console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
-    return false;
+    const next = p.high.shift() ?? p.low.shift();
+    if (!next) return;
+    p.nextAt = now + SEND_GAP_MS;
+    next();
+    if (p.high.length || p.low.length) p.timer = setTimeout(step, SEND_GAP_MS);
+  };
+  step();
+}
+
+/** Navbatdan ruxsat olish (o'z vaqti kelganda hal bo'ladi) */
+function acquireSendSlot(bulk: boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const p = pacer();
+    (bulk ? p.low : p.high).push(resolve);
+    pump();
+  });
+}
+
+/** 429: butun navbatni `ms` ga to'xtatish */
+function pauseSends(ms: number): void {
+  const p = pacer();
+  p.pausedUntil = Math.max(p.pausedUntil, Date.now() + ms);
+}
+
+/** Navbat holati (admin diagnostikasi va testlar uchun) */
+export function sendQueueStats(): { waiting: number; pausedMs: number } {
+  const p = pacer();
+  return { waiting: p.high.length + p.low.length, pausedMs: Math.max(0, p.pausedUntil - Date.now()) };
+}
+
+export interface SendResult {
+  ok: boolean;
+  /** HTTP holati (tarmoq xatosida yo'q) */
+  status?: number;
+  description?: string;
+  /** Chat yetib bo'lmaydigan: foydalanuvchi botni bloklagan / o'chirilgan / chat topilmadi */
+  blocked?: boolean;
+  messageId?: number;
+}
+
+/** 403 va «chat not found» — bu chatga yozib bo'lmaydi (qayta urinish befoyda) */
+const isBlockedError = (status: number, description: string): boolean =>
+  status === 403 || (status === 400 && /chat not found|user is deactivated|PEER_ID_INVALID/i.test(description));
+
+async function callSend(method: "sendMessage" | "sendPhoto", body: Record<string, unknown>, bulk = false): Promise<SendResult> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { ok: false, description: "token yo'q" };
+  const chatId = String(body.chat_id ?? "");
+  // Ommaviy yuborishda botni bloklagan chatga umuman urinmaymiz (har e'londa 403 yig'ilmasin) — lib/telegram-bot/reach.ts
+  if (bulk && chatId) {
+    const { isUnreachable } = await import("@/lib/telegram-bot/reach");
+    if (await isUnreachable(chatId)) return { ok: false, blocked: true, description: "chat yetib bo'lmaydigan deb belgilangan" };
+  }
+  const maxAttempts = bulk ? 5 : 2;
+  let payload = body;
+  let triedPlain = false;
+  for (let attempt = 1; ; attempt++) {
+    await acquireSendSlot(bulk);
+    try {
+      const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; description?: string; parameters?: { retry_after?: number }; result?: { message_id?: number } } | null;
+      if (res.ok && j?.ok !== false) return { ok: true, status: res.status, messageId: typeof j?.result?.message_id === "number" ? j.result.message_id : undefined };
+      const description = String(j?.description ?? "").slice(0, 300);
+      if (res.status === 429) {
+        // Telegram aytgan muddatga butun navbat to'xtaydi; suhbat javobi faqat qisqa kutishni ko'taradi
+        const retry = Math.min(120, Math.max(1, Number(j?.parameters?.retry_after) || 1));
+        pauseSends(retry * 1000 + 200);
+        if (attempt < maxAttempts && (bulk || retry <= 5)) continue;
+        console.error(`[telegram] ${method} 429 — ${attempt} urinishdan keyin tashlab yuborildi (retry_after ${retry}s)`);
+        return { ok: false, status: 429, description };
+      }
+      if (isBlockedError(res.status, description)) {
+        if (chatId) {
+          const { markUnreachable } = await import("@/lib/telegram-bot/reach");
+          await markUnreachable(chatId, description).catch(() => undefined);
+        }
+        return { ok: false, status: res.status, description, blocked: true };
+      }
+      // Buzilgan HTML (kesilgan teg va h.k.) — xabar yo'qolmasin: bir marta oddiy matn bilan qayta yuboramiz
+      if (res.status === 400 && /parse entities|unsupported start tag|can't find end/i.test(description) && !triedPlain) {
+        triedPlain = true;
+        const { parse_mode: _drop, ...rest } = payload;
+        void _drop;
+        payload = { ...rest, ...(typeof rest.text === "string" ? { text: plainText(rest.text) } : {}), ...(typeof rest.caption === "string" ? { caption: plainText(rest.caption) } : {}) };
+        continue;
+      }
+      console.error(`[telegram] ${method}`, res.status, description);
+      return { ok: false, status: res.status, description };
+    } catch (e) {
+      console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
+      return { ok: false, description: e instanceof Error ? e.message : "tarmoq xatosi" };
+    }
   }
 }
 
-export async function sendTelegram(chatId: string, text: string, opts: SendOpts = {}): Promise<boolean> {
-  if (!chatId || !text) return false;
+/** sendMessage — to'liq natija bilan (yetkazildi / bloklangan / xato). Hech qachon throw qilmaydi */
+export async function sendTelegramEx(chatId: string, text: string, opts: SendOpts = {}): Promise<SendResult> {
+  if (!chatId || !text) return { ok: false, description: "bo'sh" };
   const markup = replyMarkup(opts);
-  return callSend("sendMessage", {
-    chat_id: chatId,
-    text: text.slice(0, MAX_TEXT_LEN),
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-    ...(markup ? { reply_markup: markup } : {}),
-  });
+  return callSend(
+    "sendMessage",
+    {
+      chat_id: chatId,
+      text: cutText(wellFormed(text), MAX_TEXT_LEN),
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(markup ? { reply_markup: markup } : {}),
+    },
+    Boolean(opts.bulk),
+  );
+}
+
+export async function sendTelegram(chatId: string, text: string, opts: SendOpts = {}): Promise<boolean> {
+  return (await sendTelegramEx(chatId, text, opts)).ok;
 }
 
 /** Rasm + izoh (HTML, ≤1024 belgi). Rasm yuborilmasa (masalan, lokal manzil) oddiy matn bilan davom etadi */
 export async function sendTelegramPhoto(chatId: string, photoUrl: string, caption: string, opts: SendOpts = {}): Promise<boolean> {
   if (!chatId) return false;
   const markup = replyMarkup(opts);
-  const okPhoto = await callSend("sendPhoto", {
-    chat_id: chatId,
-    photo: photoUrl,
-    caption: caption.slice(0, 1024),
-    parse_mode: "HTML",
-    ...(markup ? { reply_markup: markup } : {}),
-  });
-  return okPhoto || sendTelegram(chatId, caption, opts);
+  const photo = await callSend(
+    "sendPhoto",
+    {
+      chat_id: chatId,
+      photo: photoUrl,
+      caption: cutText(wellFormed(caption), MAX_CAPTION_LEN),
+      parse_mode: "HTML",
+      ...(markup ? { reply_markup: markup } : {}),
+    },
+    Boolean(opts.bulk),
+  );
+  if (photo.ok) return true;
+  // Chat bloklangan bo'lsa matn ham yetib bormaydi — ikkinchi urinish befoyda
+  if (photo.blocked) return false;
+  return sendTelegram(chatId, caption, opts);
 }
 
 /** Jarayon bo'yicha bir marta (dev'da modul qayta yuklanadi — globalThis'da, auth.ts uslubi) */
-const keyFlag = globalThis as { __redinceTgKeys?: Map<string, Buffer> };
+const keyFlag = globalThis as { __redinceTgKeys?: Map<string, Buffer>; __redinceTgRandom?: Buffer };
+
+/** .env.example / dev namunaviy qiymatlar (auth.ts PLACEHOLDER_SECRET bilan bir xil) — hammaga ma'lum, kalit bo'la olmaydi */
+const PLACEHOLDER_SECRET = /^(change-me|dev-only)/i;
+let secretWarned = false;
+
+/**
+ * Kalit manbasi. Productionda NAMUNAVIY AUTH_SECRET («change-me…») ishlatilmaydi: auth.ts uni e'tiborsiz qoldirib sayt
+ * ishlayveradi, lekin undan hosil bo'lgan webhook siri va ulash kodi imzosini istalgan odam hisoblab chiqa olardi.
+ * Bunday holda baza tokeniga o'tiladi; u ham bo'lmasa — jarayon ichida tasodifiy kalit (webhook 401 qaytaradi, xavfsiz tomon).
+ */
+function keyMaterial(): string | Buffer {
+  const prod = process.env.NODE_ENV === "production";
+  const s = process.env.AUTH_SECRET;
+  if (s && !(prod && PLACEHOLDER_SECRET.test(s))) return s;
+  const token = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
+  if (token) return token;
+  if (!prod) return "dev-only-insecure-secret-change-me-please-123456";
+  if (!secretWarned) {
+    secretWarned = true;
+    console.error("[telegram] AUTH_SECRET namunaviy yoki yo'q — webhook siri uchun ishonchli kalit topilmadi. Haqiqiy AUTH_SECRET (yoki TELEGRAM_WEBHOOK_SECRET) bering va admin panelda «Webhookni o'rnatish»ni qayta bosing");
+  }
+  return (keyFlag.__redinceTgRandom ??= randomBytes(32));
+}
 
 /** Sessiya kaliti manbasidan HKDF bilan maqsadga xos kalit (har "info" uchun alohida) */
 function derivedKey(info: string): Buffer {
   const cache = (keyFlag.__redinceTgKeys ??= new Map());
   const hit = cache.get(info);
   if (hit) return hit;
-  const base = process.env.AUTH_SECRET || process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || "dev-only-insecure-secret-change-me-please-123456";
-  const key = Buffer.from(hkdfSync("sha256", base, "redince", info, 32));
+  const key = Buffer.from(hkdfSync("sha256", keyMaterial(), "redince", info, 32));
   cache.set(info, key);
   return key;
 }
@@ -195,21 +392,39 @@ export function telegramWebhookSecret(): string {
   return derivedKey("telegram-webhook-v1").toString("hex");
 }
 
-/** Bot API chaqiruvi (umumiy): natija json yoki null (tarmoq xatosi — log, throw yo'q) */
-export async function telegramApi<T = unknown>(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: T; description?: string } | null> {
+/**
+ * Bot API chaqiruvi (umumiy): natija json yoki null (tarmoq xatosi — log, throw yo'q).
+ * DIQQAT: xato holatida ham THROW QILMAYDI — `null` (tarmoq) yoki `{ok:false, description}` (Telegram rad etdi) qaytadi;
+ * chaqiruvchi ikkalasini ham tekshirishi shart. Xabar yuboradigan metodlar (`send*`) umumiy yuborish navbatidan o'tadi;
+ * qisqa 429 (≤3 s) bir marta qayta uriniladi.
+ */
+export async function telegramApi<T = unknown>(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: T; description?: string; error_code?: number } | null> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return null;
-  try {
-    const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body ?? {}),
-      signal: AbortSignal.timeout(10000),
-    });
-    return (await res.json()) as { ok: boolean; result?: T; description?: string };
-  } catch (e) {
-    console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
-    return null;
+  const paced = method.startsWith("send");
+  for (let attempt = 1; ; attempt++) {
+    if (paced) await acquireSendSlot(false);
+    try {
+      const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(10000),
+      });
+      const j = (await res.json()) as { ok: boolean; result?: T; description?: string; error_code?: number; parameters?: { retry_after?: number } };
+      if (res.status === 429) {
+        const retry = Math.min(120, Math.max(1, Number(j?.parameters?.retry_after) || 1));
+        if (paced) pauseSends(retry * 1000 + 200);
+        if (attempt === 1 && retry <= 3) {
+          if (!paced) await new Promise((r) => setTimeout(r, retry * 1000 + 100));
+          continue;
+        }
+      }
+      return j;
+    } catch (e) {
+      console.error(`[telegram] ${method}`, e instanceof Error ? e.message : e);
+      return null;
+    }
   }
 }
 

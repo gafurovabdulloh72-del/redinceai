@@ -15,7 +15,8 @@ import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
 import { handleIncomingMedia, handlePostCallback, handlePostText, sendPostHelp, type IncomingMedia } from "@/lib/telegram-bot/media";
-import { accountOf, handleBroadcastCallback, handleBroadcastStart, handleBroadcastText, handleCourses, handleMyContacts, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { accountOf, handleCourses, handleMyContacts, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { handleBroadcastCallback, handleBroadcastStart, handleBroadcastText } from "@/lib/telegram-bot/broadcast-flow";
 import { MENU_COMMAND, clearChatCommands, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
 import { clearBotSession } from "@/lib/telegram-bot/session";
@@ -23,6 +24,8 @@ import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
 import { gateEnabled, handleGateCheck, isChannelMember, sendJoinGate } from "@/lib/telegram-bot/gate";
+import { markReachable, markUnreachable } from "@/lib/telegram-bot/reach";
+import { defer } from "@/lib/telegram-bot/defer";
 import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -58,6 +61,9 @@ function secretOk(req: Request): boolean {
 
 /** Telegram update'ining bizga kerakli qismi (to'liq tip shart emas) */
 interface TelegramUpdate {
+  update_id?: unknown;
+  /** Foydalanuvchi botni blokladi («kicked») yoki blokdan chiqardi / qayta ishga tushirdi («member») */
+  my_chat_member?: { chat?: { id?: unknown; type?: unknown }; new_chat_member?: { status?: unknown } };
   message?: {
     text?: unknown;
     from?: { id?: unknown; first_name?: string; last_name?: string; username?: string; language_code?: string };
@@ -285,10 +291,29 @@ async function gatePass(chatId: string, text: string, lang: BotLang): Promise<bo
   return false;
 }
 
+/**
+ * `my_chat_member` (shaxsiy chat): foydalanuvchi botni blokladi → chat «yetib bo'lmaydigan» deb belgilanadi (ommaviy
+ * yuborishlar unga urinmaydi); blokdan chiqardi yoki qayta ishga tushirdi → belgi olinadi (lib/telegram-bot/reach.ts).
+ */
+async function handleMyChatMember(m: NonNullable<TelegramUpdate["my_chat_member"]>): Promise<void> {
+  if (m.chat?.type !== "private" || m.chat.id == null) return;
+  const chatId = String(m.chat.id);
+  const status = typeof m.new_chat_member?.status === "string" ? m.new_chat_member.status : "";
+  if (status === "kicked" || status === "left") await markUnreachable(chatId, "foydalanuvchi botni blokladi");
+  else if (status === "member") await markReachable(chatId);
+}
+
 export async function POST(req: Request) {
   if (!secretOk(req)) return Response.json({ ok: false }, { status: 401 });
   try {
     const update = (await req.json()) as TelegramUpdate;
+    if (update?.my_chat_member) {
+      await handleMyChatMember(update.my_chat_member);
+      return Response.json({ ok: true });
+    }
+    // Chatdan xabar/tugma keldi — foydalanuvchi botni bloklamagan: «yetib bo'lmaydigan» belgisi (bo'lsa) olinadi
+    const activeChat = update?.message?.chat?.type === "private" ? update.message.chat.id : update?.callback_query?.message?.chat?.type === "private" ? update.callback_query.message.chat.id : null;
+    if (activeChat != null) defer(() => markReachable(String(activeChat)), "reach");
     if (update?.callback_query) {
       const cbChat = update.callback_query.message?.chat?.id;
       const cbId = cbChat != null ? String(cbChat) : "";

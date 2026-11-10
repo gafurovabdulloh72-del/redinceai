@@ -29,6 +29,9 @@ interface TgWebhookInfo {
   last_error_date?: number;
 }
 
+/** Webhook qabul qiladigan update turlari — o'zgarsa admin panelda «Webhookni yangilash» bosilishi shart */
+const WEBHOOK_UPDATES = ["message", "callback_query", "pre_checkout_query", "inline_query", "my_chat_member"];
+
 function expectedWebhookUrl(): string {
   return `${SITE_URL.replace(/\/$/, "")}/api/telegram/webhook`;
 }
@@ -75,8 +78,9 @@ export const POST = handler(async (req) => {
   const res = await telegramApi("setWebhook", {
     url,
     secret_token: telegramWebhookSecret(),
-    // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov
-    allowed_updates: ["message", "callback_query", "pre_checkout_query", "inline_query"],
+    // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov;
+    // my_chat_member — foydalanuvchi botni blokladi/blokdan chiqardi (bloklagan chatga ommaviy xabar yuborilmaydi)
+    allowed_updates: WEBHOOK_UPDATES,
   });
   if (!res) throw new ApiError(502, "Telegram API'ga ulanib bo'lmadi — birozdan so'ng qayta urinib ko'ring");
   if (!res.ok) throw new ApiError(502, `Telegram rad etdi: ${res.description ?? "noma'lum xato"}`);

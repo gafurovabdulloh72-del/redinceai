@@ -117,6 +117,17 @@ export const MENU_COMMAND: Record<string, string> = {
 const site = () => siteUrl() ?? "";
 const BANNER = () => `${site()}/bot/welcome.png`;
 
+/**
+ * Sayt sahifasiga olib boradigan tugma. https bo'lsa — Mini App (`web_app`): Telegram ichida ochiladi va hisobga AVTOMATIK
+ * kiradi. Botda ro'yxatdan o'tgan foydalanuvchining paroli yo'q — oddiy `url` tugmasi uni kirish sahifasiga olib borib
+ * qo'yardi; shuning uchun shaxsiy sahifalar (kabinet, buyurtma, chat, to'lov holati) FAQAT shu yordamchi orqali beriladi.
+ * http (dev) yoki tashqi havolada — oddiy URL.
+ */
+export function pageButton(text: string, path: string): TelegramButton {
+  const app = path.startsWith("/") ? appUrl(path) : null;
+  return app ? { text, webApp: app } : { text, url: path.startsWith("/") ? `${site()}${path}` : path };
+}
+
 /** Doimiy menyu: yuqorida Mini App tugmasi (https bo'lsa), keyin bo'limlar; admin uchun «🛠 Admin» qatori */
 export function menuRows(admin = false, lang: BotLang = "uz"): ReplyButton[][] {
   const app = appUrl();

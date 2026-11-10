@@ -56,8 +56,8 @@ export async function notifyAdminsManualPending(opts: {
     const body = opts.body + (opts.receiptUrl ? " Chek biriktirilgan." : "");
     await Promise.all(
       admins.map(async (a) => {
-        // Sayt qo'ng'irog'i — skipMail: Telegram quyida tugmali maxsus xabar bilan ketadi (ikki marta bormasin)
-        await notify(a.id, opts.type, opts.title, body, opts.href, { skipMail: true });
+        // Sayt qo'ng'irog'i — siteOnly: Telegram quyida tugmali maxsus xabar bilan ketadi (ikki marta bormasin)
+        await notify(a.id, opts.type, opts.title, body, opts.href, { siteOnly: true });
         if (!isTelegramEnabled() || !a.telegramChatId) return;
         const keyboard: TelegramButton[][] = [
           [
@@ -67,7 +67,7 @@ export async function notifyAdminsManualPending(opts: {
         ];
         if (receipt) keyboard.push([{ text: "🧾 Chekni ko'rish", url: receipt }]);
         if (panel) keyboard.push([{ text: "Saytda ochish", url: panel }]);
-        await sendTelegram(a.telegramChatId, `<b>${escapeTelegramHtml(opts.title)}</b>\n${escapeTelegramHtml(body)}`, { keyboard });
+        await sendTelegram(a.telegramChatId, `<b>${escapeTelegramHtml(opts.title)}</b>\n${escapeTelegramHtml(body)}`, { keyboard, bulk: true });
       }),
     );
   } catch (e) {
