@@ -114,14 +114,14 @@ export function FollowTabs({ userId, followers, following, loggedIn, viewerId, i
     <div>
       <div className="segment flex w-full" role="tablist" aria-label="Obunalar">
         {requests !== null && viewerId === userId && (
-          <button type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")} className={cn("segment-item flex-1", tab === "requests" && "segment-item-active")}>
+          <button type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")} data-active={tab === "requests"} className="segment-item flex-1">
             {tr(til, SOROVLAR.tab)} {reqCount > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{reqCount}</span>}
           </button>
         )}
-        <button type="button" role="tab" aria-selected={tab === "followers"} onClick={() => setTab("followers")} className={cn("segment-item flex-1", tab === "followers" && "segment-item-active")}>
+        <button type="button" role="tab" aria-selected={tab === "followers"} onClick={() => setTab("followers")} data-active={tab === "followers"} className="segment-item flex-1">
           Obunachilar <span className="ml-1 text-fg-3">{followers}</span>
         </button>
-        <button type="button" role="tab" aria-selected={tab === "following"} onClick={() => setTab("following")} className={cn("segment-item flex-1", tab === "following" && "segment-item-active")}>
+        <button type="button" role="tab" aria-selected={tab === "following"} onClick={() => setTab("following")} data-active={tab === "following"} className="segment-item flex-1">
           Obunalar <span className="ml-1 text-fg-3">{following}</span>
         </button>
       </div>

@@ -138,7 +138,8 @@ export const VAK_DETAL = {
   seeSimilarPre: { uz: "Shunga o'xshash ochiq vakansiyalarni ", ru: "Похожие открытые вакансии можно " } satisfies Tr,
   seeSimilarLink: { uz: "ko'ring", ru: "посмотреть" } satisfies Tr,
   emailVerified: { uz: "Email tasdiqlangan", ru: "Email подтверждён" } satisfies Tr,
-  perMonthLong: { uz: "so'm / oy", ru: "сум / месяц" } satisfies Tr,
+  // Valyuta maosh matnining o'zida bor («8–12 mln so'm») — bu yerda takrorlanmaydi (ilgari «so'm so'm / oy» chiqardi)
+  perMonthLong: { uz: "/ oy", ru: "/ месяц" } satisfies Tr,
   tasksTitle: { uz: "Vazifalar va shartlar", ru: "Обязанности и условия" } satisfies Tr,
   requirementsTitle: { uz: "Talablar", ru: "Требования" } satisfies Tr,
   skillsTitle: { uz: "Ko'nikmalar", ru: "Навыки" } satisfies Tr,

@@ -183,7 +183,7 @@ function GroupSection({ icon: Icon, title, hint, items }: { icon: typeof Radio; 
 function OfficialRow({ g, next }: { g: GroupListItem; next: PostView | null }) {
   const live = next?.eventAt ? Date.now() >= next.eventAt && Date.now() < next.eventAt + 2 * 60 * 60 * 1000 : false;
   return (
-    <Link href={`/jamoalar/${g.slug}`} className="card m-plain flex items-center gap-3 p-3 transition hover:border-fg/25 max-sm:px-0">
+    <Link href={`/jamoalar/${g.slug}`} className="card m-plain flex items-center gap-3 p-3 transition hover:border-fg/25 max-sm:px-4">
       <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-[12px] bg-ink">
         {g.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

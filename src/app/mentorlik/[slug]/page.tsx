@@ -339,7 +339,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
         {/* Yon panel: narx + yozilish */}
         <aside id="kursga-yozilish" className="min-w-0 max-sm:order-first lg:sticky lg:top-24 lg:self-start">
-          <div className="card-elevated p-5 m-flat max-sm:px-0 max-sm:pb-4 max-sm:pt-0">
+          <div className="card-elevated p-5 m-flat max-sm:px-4 max-sm:pb-4 max-sm:pt-0">
             <p className="text-[26px] font-bold leading-none text-fg">{formatSomTr(til, c.priceFrom)}</p>
             {c.priceFrom > 0 && usdRate > 0 && <p className="mt-1 text-[12.5px] text-fg-3">{formatUsd(c.priceFrom, usdRate)}</p>}
             {c.enrolled && c.progressPct > 0 && (

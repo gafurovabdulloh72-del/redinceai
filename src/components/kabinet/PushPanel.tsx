@@ -119,7 +119,7 @@ export function PushPanel() {
   if (!info.enabled) return null;
 
   return (
-    <section className="card p-4 m-flat max-sm:px-0 max-sm:py-3" aria-label={tr(til, P.title)}>
+    <section className="card p-4 m-flat max-sm:py-3" aria-label={tr(til, P.title)}>
       <div className="flex items-start gap-3">
         <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full", on ? "bg-accent text-white" : "bg-fg/6 text-fg-2")}>{on ? <Bell size={16} /> : <BellOff size={16} />}</span>
         <div className="min-w-0 flex-1">

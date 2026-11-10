@@ -527,7 +527,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
       {/* ================= HERO ================= */}
       <section className="card animate-fade-up m-flat overflow-hidden !rounded-[var(--r-lg)] max-sm:!rounded-none">
         {/* Balandlik 4:1 nisbatdan — kesish oynasida (ImageCropper) moslangan muqova qayta kesilmasin */}
-        <div className={cn("relative overflow-hidden bg-surface-2", hasCover ? "h-36 sm:h-auto sm:max-h-[260px] sm:aspect-[4/1]" : "h-20 sm:h-24")}>
+        <div className={cn("relative overflow-hidden bg-surface-2", hasCover ? "h-36 w-full sm:h-auto sm:max-h-[260px] sm:aspect-[4/1]" : "h-20 sm:h-24")}>
           {/* Rasm bo'lmasa: tinch yuza + yo'nalish rangida nozik nur (rang-barang gradient o'rniga) */}
           <div
             className="absolute inset-0 opacity-70 dark:opacity-50"
@@ -643,10 +643,10 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 <ContactUnlockCard variant="button" specialistId={raw.id} price={contactPrice} loggedIn={Boolean(viewer)} loginHref={loginHref} />
               </li>
             )}
-            <li id="profil-amallar" className="grid w-full grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
+            <li id="profil-amallar" className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto_auto] items-center gap-2 lg:hidden">
               {PROFILE_HIRING && !isOwner && !inactive && <CompareButton item={compareItem} variant="ghost" className="border border-line-2" />}
               {!isOwner && !blockedAny && (
-                <div className="min-w-0 [&>button]:w-full [&>button]:px-3">
+                <div className="min-w-0 [&>button]:w-full [&>button]:px-3 [&>span]:flex [&>span]:w-full [&>span>button:first-child]:min-w-0 [&>span>button:first-child]:flex-1 [&>span>button:first-child]:px-3">
                   <FollowButton userId={raw.userId} initialFollowing={follow.following} initialCount={follow.followersCount} loggedIn={Boolean(viewer)} size="md" showCount={false} showBell initialNotifyLevel={follow.notifyLevel} initialRequested={follow.requested} />
                 </div>
               )}

@@ -293,7 +293,7 @@ function ApplicantItem({ a, busy, error, onStatus, onNote }: { a: ApplicantView;
           </p>
           {/* Kontakt: nomzod ariza yuborish bilan shu ish beruvchiga ochgan */}
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-            <a href={`mailto:${a.user.email}`} className="break-all font-semibold text-fg underline-offset-2 hover:underline">
+            <a href={`mailto:${a.user.email}`} className="min-w-0 max-w-full truncate font-semibold text-fg underline-offset-2 hover:underline" title={a.user.email}>
               {a.user.email}
             </a>
             {a.user.phone && (

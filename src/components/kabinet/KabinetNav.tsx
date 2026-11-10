@@ -285,7 +285,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
         <span className="flex-1 truncate">{item.label}</span>
         {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={active} />}
         {badge ? (
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent-strong text-white")}>
+          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums leading-none", active ? "bg-fg/10 text-fg" : "bg-accent-strong text-white")}>
             {badge > 99 ? "99+" : badge}
           </span>
         ) : null}
@@ -390,7 +390,7 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
                   {item.label}
                   {item.dot && <StatusDot dot={item.dot} label={item.dotLabel} active={active} />}
                   {badge ? (
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none", active ? "bg-ink-fg/20 text-ink-fg" : "bg-accent-strong text-white")}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none", active ? "bg-fg/10 text-fg" : "bg-accent-strong text-white")}>
                       {badge > 99 ? "99+" : badge}
                     </span>
                   ) : null}

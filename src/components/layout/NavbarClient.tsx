@@ -150,8 +150,12 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
             ) : (
               <>
                 <LocaleSwitch />
-                <ThemeToggle />
-                <Link href="/auth/royxat" className="btn-ink ml-1 inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold">
+                {/* Tor telefonda (≤420px) tema tugmasi yashiriladi — aks holda sahifa nomiga joy qolmay «Mutaxassisl…» bo'lib kesilardi
+                    (tema baribir tizimnikiga ergashadi; almashtirish — pastdagi menyuda) */}
+                <span className="max-[420px]:hidden">
+                  <ThemeToggle />
+                </span>
+                <Link href="/auth/royxat" className="btn-ink ml-1 inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold max-[420px]:px-3 max-[420px]:text-[13px]">
                   {tr(til, SHELL.nav.start)}
                 </Link>
               </>

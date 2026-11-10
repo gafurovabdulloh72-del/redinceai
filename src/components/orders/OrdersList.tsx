@@ -434,7 +434,7 @@ export function OrdersList({
                 <button key={t.id} type="button" className="segment-item inline-flex min-h-10 items-center gap-1.5" data-active={tab === t.id} onClick={() => switchTab(t.id)}>
                   <t.icon size={14} className={tab === t.id ? undefined : "text-fg-3"} />
                   {t.label}
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none", tab === t.id ? "bg-ink-fg/20 text-ink-fg" : "bg-fg/8 text-fg-3")}>{t.count}</span>
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none", tab === t.id ? "bg-fg/10 text-fg" : "bg-fg/8 text-fg-3")}>{t.count}</span>
                 </button>
               ))}
             </div>

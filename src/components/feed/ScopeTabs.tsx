@@ -24,7 +24,7 @@ export function ScopeTabs({ scope, tag, onSelect }: { scope: FeedScope; tag: str
     ["following", tr(til, FEED.following), `/?scope=following${q ? `&${q}` : ""}`],
   ];
   return (
-    <div className="glass sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 -mx-4 px-4 sm:mx-0 sm:rounded-t-[var(--r-md)] sm:px-0 md:top-0">
+    <div className="glass under-topbar sticky z-20 -mx-4 px-4 sm:mx-0 sm:rounded-t-[var(--r-md)] sm:px-0 md:top-0">
       <div className="tabs" role="tablist" aria-label="Lenta">
         {tabs.map(([k, label, href]) => (
           <Link

@@ -450,7 +450,7 @@ export default async function KabinetPage() {
               </div>
             ))}
           </dl>
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
+          <div className="mt-5 grid gap-5 md:grid-cols-2 [&>*]:min-w-0">
             <div>
               <h3 className="mb-2 text-[12.5px] font-semibold text-fg-2">{til === "ru" ? "Кто смотрел профиль" : "Profilingizni kim ko'rdi"}</h3>
               {pstats.recentViewers.length === 0 ? (

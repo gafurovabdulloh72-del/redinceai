@@ -30,7 +30,7 @@ function leftLabel(endsAt: number, til: Locale): string {
 function Card({ c, til }: { c: ChallengeCard; til: Locale }) {
   return (
     <li className="m-plain card overflow-hidden p-0 transition hover:border-fg/25">
-      <Link href={`/konkurs/${c.id}`} className="flex gap-4 p-4 max-sm:px-0">
+      <Link href={`/konkurs/${c.id}`} className="flex gap-4 p-4">
         <span className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-surface-2 max-sm:h-16 max-sm:w-20">
           {c.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

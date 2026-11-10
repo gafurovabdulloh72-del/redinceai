@@ -1,6 +1,7 @@
 "use client";
 
 import { Printer } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 
 /**
@@ -25,7 +26,7 @@ export function PrintButton({ className, fileName, variant = "primary" }: { clas
     window.setTimeout(restore, 2000);
   };
   return (
-    <Button type="button" size="md" variant={variant} onClick={print} className={className}>
+    <Button type="button" size="md" variant={variant} onClick={print} className={cn("shrink-0 whitespace-nowrap", className)}>
       <Printer size={15} /> Chop etish / PDF
     </Button>
   );

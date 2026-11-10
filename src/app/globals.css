@@ -845,6 +845,12 @@ select:focus-visible {
   .segment-item {
     position: relative;
     z-index: 1;
+    /* inline-flex: ichidagi ikonka (svg — blok element) va son yorliq bilan BIR QATORDA turadi (ilgari ikonka alohida qatorga
+       tushib, son yorliqqa yopishib qolardi — «Ishlar9») */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
     min-height: 36px;
     padding: 0.4rem 0.95rem;
     border-radius: 8px;
@@ -1819,6 +1825,20 @@ select:focus-visible {
 }
 html[data-topbar-hidden] .m-topbar {
   transform: translateY(-100%);
+}
+/* Yuqori panel ostiga yopishadigan qator (lenta tablari): panel yashiringanda ekran tepasiga ko'tariladi — ilgari 56px bo'shliq
+   qolib, ustidan kontent ko'rinib turardi. md+ da yuqori panel yo'q (sinfdagi md:top-0 ustun turadi). */
+@media (max-width: 767px) {
+  .under-topbar {
+    top: calc(3.5rem + env(safe-area-inset-top, 0px));
+    transition: top 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  html[data-topbar-hidden] .under-topbar {
+    top: env(safe-area-inset-top, 0px);
+  }
+  html[data-motion="reduce"] .under-topbar {
+    transition: none;
+  }
 }
 html[data-motion="reduce"] .m-topbar {
   transition: none;

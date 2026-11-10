@@ -33,7 +33,7 @@ export default async function BlogPage() {
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
           {items.map((a) => (
             <li key={a.id} className="m-plain card overflow-hidden p-0 transition hover:border-fg/25">
-              <Link href={`/blog/${a.slug}`} className="block max-sm:flex max-sm:gap-3.5 max-sm:py-3">
+              <Link href={`/blog/${a.slug}`} className="block max-sm:flex max-sm:gap-3.5 max-sm:px-4 max-sm:py-3">
                 {a.coverUrl && (
                   <span className="relative block aspect-[16/9] w-full overflow-hidden bg-surface-2 max-sm:h-20 max-sm:w-28 max-sm:shrink-0 max-sm:rounded-xl">
                     <SafeImage optimize={480} src={a.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

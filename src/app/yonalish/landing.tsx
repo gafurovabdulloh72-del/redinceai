@@ -202,7 +202,7 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
           )}
         </div>
         {list.items.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {list.items.map((sp, i) => (
               <SpecialistCard key={sp.id} sp={sp} priority={i < 4} showCompare />
             ))}

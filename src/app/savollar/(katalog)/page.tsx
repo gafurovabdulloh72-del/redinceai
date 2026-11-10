@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 function Row({ q, til }: { q: QuestionCard; til: Locale }) {
   return (
     <li className="m-plain card p-0 transition hover:border-fg/25">
-      <Link href={`/savollar/${q.id}`} className="flex items-start gap-3.5 p-4 max-sm:px-0">
+      <Link href={`/savollar/${q.id}`} className="flex items-start gap-3.5 p-4">
         <Avatar name={q.author.name} src={q.author.avatarUrl} size={40} decorative />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">

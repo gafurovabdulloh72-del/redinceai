@@ -77,7 +77,7 @@ export default async function VacanciesPage({ searchParams }: { searchParams: Pr
       />
 
       {/* Telefonda: ixcham — «Qidirish» tugmasi yo'q (Enter/klaviatura «Qidirish»), format tanlansa darhol qidiradi */}
-      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 m-flat max-sm:mt-4 max-sm:px-0 max-sm:pb-3 lg:grid-cols-[1fr_minmax(0,160px)_auto]">
+      <form action={BASE} method="get" className="card mt-8 grid gap-3 p-3 m-flat max-sm:mt-4 max-sm:px-4 max-sm:pb-3 lg:grid-cols-[1fr_minmax(0,160px)_auto]">
         {f.profession && <input type="hidden" name="profession" value={f.profession} />}
         {f.min > 0 && <input type="hidden" name="min" value={f.min} />}
         {f.pay && <input type="hidden" name="pay" value={f.pay} />}

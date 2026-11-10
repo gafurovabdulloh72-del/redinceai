@@ -107,7 +107,7 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
       {q.answers.length > 0 && (
         <ul className="grid gap-3 max-sm:gap-0 max-sm:divide-y max-sm:divide-line max-sm:border-y max-sm:border-line">
           {q.answers.map((a) => (
-            <li key={a.id} className={`m-plain card p-4 max-sm:px-0 ${a.isAccepted ? "ring-1 ring-success-text/40" : ""}`}>
+            <li key={a.id} className={`m-plain card p-4 ${a.isAccepted ? "ring-1 ring-success-text/40" : ""}`}>
               <div className="flex items-center gap-2.5">
                 <Avatar name={a.author.name} src={a.author.avatarUrl} size={34} decorative />
                 <div className="min-w-0 flex-1">

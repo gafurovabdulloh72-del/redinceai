@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Clock, UserCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -90,7 +91,9 @@ export function FollowButton({
   ) : (
     <Button type="button" variant={following ? "ghost" : variant} size={size} onClick={toggle} disabled={busy} aria-pressed={following} title={following ? "Obunani bekor qilish" : "Yangi ishlaridan xabardor bo'ling"}>
       {following ? <UserCheck size={15} /> : <UserPlus size={15} />}
-      {!compact && (following ? "Obunasiz" : "Obuna bo'lish")}
+      {/* «Obunasiz» — «obuna EMASsiz» deb o'qilardi; holat aniq aytiladi */}
+      {/* Qo'ng'iroqcha yonida (showBell) tor telefonda yorliq sig'maydi va qo'shni tugma ustiga chiqardi — belgi (✓) qoladi */}
+      {!compact && <span className={cn("truncate", showBell && following && "max-[420px]:sr-only")}>{following ? (til === "ru" ? "Вы подписаны" : "Obunadasiz") : til === "ru" ? "Подписаться" : "Obuna bo'lish"}</span>}
       {showCount && <span className={following ? "text-fg-3" : "opacity-80"}>{count}</span>}
     </Button>
   );

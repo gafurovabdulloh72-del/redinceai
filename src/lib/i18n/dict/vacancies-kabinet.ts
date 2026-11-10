@@ -72,7 +72,7 @@ export const REZ_SAHIFA = {
     ru: "Закрытое резюме — вы видите его, потому что кандидат откликнулся на вашу вакансию.",
   } satisfies Tr,
   emailVerified: { uz: "Email tasdiqlangan", ru: "Email подтверждён" } satisfies Tr,
-  perMonth: { uz: "so'm / oy", ru: "в месяц" } satisfies Tr,
+  perMonth: { uz: "/ oy", ru: "в месяц" } satisfies Tr,
   about: { uz: "Men haqimda", ru: "О себе" } satisfies Tr,
   links: { uz: "Havolalar", ru: "Ссылки" } satisfies Tr,
   yourResume: { uz: "Bu sizning rezyumeingiz", ru: "Это ваше резюме" } satisfies Tr,
