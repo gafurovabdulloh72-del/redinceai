@@ -36,6 +36,10 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
   const quizTaken = Boolean(screening?.quiz.length) && quizTodo.length < (screening?.quiz.length ?? 0);
   const screeningDone = !screening || (screening.questions.every((q) => !q.required || (qa[q.id] ?? "").trim().length >= 2) && quizTodo.every((q) => typeof quiz[q.id] === "number"));
   const canSend = !busy && screeningDone && (!needLetter || letter.trim().length >= COVER_LETTER_MIN);
+  // Nima yetishmayapti — tugma yonida aniq aytiladi (ilgari tugma shunchaki o'chiq turardi)
+  const missQ = screening ? screening.questions.filter((q) => q.required && (qa[q.id] ?? "").trim().length < 2).length : 0;
+  const missT = quizTodo.filter((q) => typeof quiz[q.id] !== "number").length;
+  const missL = needLetter ? Math.max(0, COVER_LETTER_MIN - letter.trim().length) : 0;
 
   async function apply() {
     if (!canSend) return;
@@ -181,7 +185,6 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
           ))}
         </fieldset>
       )}
-      {screening && !screeningDone && <p className="mt-2 text-[12px] text-fg-4">{tr(til, VAK_AI.answerAll)}</p>}
       <textarea
         value={letter}
         onChange={(e) => setLetter(e.target.value)}
@@ -201,6 +204,11 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
         <Button type="button" variant="accent" size="md" onClick={apply} disabled={!canSend}>
           <Send size={15} /> {busy ? tr(til, T.sending) : tr(til, T.send)}
         </Button>
+        {!busy && !canSend && (missQ > 0 || missT > 0 || missL > 0) && (
+          <p className="basis-full text-[12.5px] font-medium text-warning-text" role="status">
+            {VAK_AI.missing[til](missQ, missT, missL)}
+          </p>
+        )}
         {applyUrl && (
           <a href={applyUrl} target="_blank" rel="noopener noreferrer" onClick={countExternal} className="press inline-flex h-11 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg">
             {tr(til, T.externalForm)} <ExternalLink size={14} />

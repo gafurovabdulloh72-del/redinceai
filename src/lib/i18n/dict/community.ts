@@ -23,6 +23,9 @@ export const KONKURS = {
   unvoteAria: { uz: "Ovozni bekor qilish", ru: "Отменить голос" },
   pickTitle: { uz: "Qaysi ishingiz bilan ishtirok etasiz?", ru: "С какой работой участвуете?" },
   pickLabel: { uz: "Konkursga post tanlash", ru: "Выбор поста для конкурса" },
+  /** Mijoz (ijodkor profili yo'q) uchun: konkursda ijodkorlar qatnashadi — unga «post joylang» deyish chalg'itardi */
+  clientOnly: { uz: "Konkursda ijodkorlar qatnashadi — o'z ishini post qilib qo'shadi. Siz yoqqan ishga ovoz bera olasiz. O'zingiz ham qatnashmoqchimisiz? ", ru: "В конкурсе участвуют авторы — они добавляют свою работу постом. Вы можете голосовать за понравившуюся. Хотите участвовать сами? " },
+  becomeCreator: { uz: "Ijodkor profilini oching", ru: "Создайте профиль автора" },
   noEligible: { uz: "Yaroqli post topilmadi. Konkursga qo'shish uchun avval profilingizga rasm yoki videoli OMMAVIY post joylang — ", ru: "Подходящий пост не найден. Чтобы участвовать, сначала опубликуйте в профиле ОТКРЫТЫЙ пост с фото или видео — " },
   postLink: { uz: "post joylash", ru: "опубликовать пост" },
   joinedToast: { uz: "Ishingiz konkursga qo'shildi 🎉", ru: "Ваша работа добавлена в конкурс 🎉" },

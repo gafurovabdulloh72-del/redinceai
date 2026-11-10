@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { courses, lessons } from "@/lib/db/schema";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Award, ChevronLeft, ChevronRight, Star } from "lucide-react";
@@ -35,7 +38,13 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   try {
     lesson = await getLessonForViewer(id, user?.id ?? null, user?.role === "admin");
   } catch {
-    redirect("/mentorlik");
+    // Yopiq dars: ilgari hech qanday izohsiz katalogga tashlab yuborilardi. Endi mehmon — kirish sahifasiga (qaytib shu darsga),
+    // kirgan foydalanuvchi — o'sha KURS sahifasidagi «Yozilish» paneliga boradi.
+    const row = await db.query.lessons.findFirst({ where: eq(lessons.id, id), columns: { courseId: true } }).catch(() => null);
+    const course = row ? await db.query.courses.findFirst({ where: eq(courses.id, row.courseId), columns: { slug: true } }).catch(() => null) : null;
+    if (!course) notFound();
+    if (!user) redirect(`/auth/kirish?next=${encodeURIComponent(`/mentorlik/dars/${id}`)}`);
+    redirect(`/mentorlik/${course.slug}#kursga-yozilish`);
   }
   if (!lesson) notFound();
 

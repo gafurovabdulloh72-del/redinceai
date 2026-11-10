@@ -40,6 +40,11 @@ export const VAK_AI = {
   stateExpired: { uz: "muddati o'tgan", ru: "срок истёк" },
   stateClosed: { uz: "yopilgan", ru: "закрыта" },
   answerAll: { uz: "Barcha majburiy savollarga va testga javob bering", ru: "Ответьте на все обязательные вопросы и тест" },
+  /** «Ariza yuborish» o'chiq turganda NIMA yetishmayotgani (umumiy «hammasiga javob bering» o'rniga aniq sanoq) */
+  missing: {
+    uz: (q: number, t: number, l: number) => `Yuborish uchun: ${[q ? `${q} ta majburiy savolga javob` : "", t ? `${t} ta test savoli` : "", l ? `xatga yana ${l} belgi` : ""].filter(Boolean).join(" · ")}`,
+    ru: (q: number, t: number, l: number) => `Чтобы отправить: ${[q ? `ответьте на обязательные вопросы (${q})` : "", t ? `вопросы теста (${t})` : "", l ? `ещё ${l} симв. в письме` : ""].filter(Boolean).join(" · ")}`,
+  },
   // Moslik
   matchTitle: { uz: "Moslik", ru: "Совпадение" },
   why: { uz: "Nega bu ball?", ru: "Почему такой балл?" },

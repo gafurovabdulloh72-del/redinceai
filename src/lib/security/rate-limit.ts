@@ -153,11 +153,25 @@ export const RATE_LIMITS = {
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
-function tooMany(resetAt: number): ApiError {
+/**
+ * KUNLIK (ishbilarmonlik) limitlari uchun tushunarli nom. Bular spam himoyasi emas, mahsulot qoidasi — shuning uchun xabar
+ * «Juda ko'p urinish» emas, limitning o'zini aytadi («Kunlik limit: kuniga 5 ta vakansiya»); aks holda oltinchi vakansiyani
+ * joylamoqchi bo'lgan odam «696 daqiqadan keyin urinib ko'ring» degan tushunarsiz xatoni ko'rardi.
+ */
+const LIMIT_LABELS: Partial<Record<string, (n: number) => string>> = {
+  vacancies: (n) => `kuniga ${n} ta vakansiya`,
+  applications: (n) => `kuniga ${n} ta ariza`,
+  jobs: (n) => `kuniga ${n} ta e'lon`,
+  vacancyAi: (n) => `kuniga ${n} ta AI loyiha`,
+  vacancyInvite: (n) => `kuniga ${n} ta taklif`,
+};
+
+function tooMany(resetAt: number, label?: string): ApiError {
   const retry = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
   // Kamchilik #96: foydalanuvchi qancha kutishini xabarning o'zida ko'rsin (UI alohida taymer chizmasa ham)
-  const human = retry >= 120 ? `${Math.ceil(retry / 60)} daqiqadan` : `${retry} soniyadan`;
-  return new ApiError(429, `Juda ko'p urinish. ${human} keyin qayta urinib ko'ring`, undefined, { "Retry-After": String(retry) });
+  const human = retry >= 5400 ? `${Math.ceil(retry / 3600)} soatdan` : retry >= 120 ? `${Math.ceil(retry / 60)} daqiqadan` : `${retry} soniyadan`;
+  const text = label ? `Kunlik limit tugadi: ${label}. ${human} keyin yana urinib ko'ring` : `Juda ko'p urinish. ${human} keyin qayta urinib ko'ring`;
+  return new ApiError(429, text, undefined, { "Retry-After": String(retry) });
 }
 
 /** Vaqti o'tgan yozuvlarni vaqti-vaqti bilan tozalash (har ~50 chaqiriqda bir) */
@@ -174,7 +188,7 @@ async function sweep() {
  * Qat'iy oyna (fixed window) hisoblagichi — atomar UPSERT (serverless/ko'p nusxa uchun bazada).
  * Limitdan oshsa ApiError(429) + Retry-After tashlaydi.
  */
-export async function rateLimit(key: string, limit: number, windowMs: number): Promise<void> {
+export async function rateLimit(key: string, limit: number, windowMs: number, label?: string): Promise<void> {
   const now = Date.now();
   const resetAt = now + windowMs;
   const [row] = await db
@@ -189,13 +203,13 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
     })
     .returning({ count: rateLimits.count, resetAt: rateLimits.resetAt });
   void sweep();
-  if (row && row.count > limit) throw tooMany(row.resetAt);
+  if (row && row.count > limit) throw tooMany(row.resetAt, label);
 }
 
 /** Tayyor limit bo'yicha: `enforceLimit("orders", session.sub)` */
 export function enforceLimit(name: RateLimitName, id: string) {
   const { limit, windowMs } = RATE_LIMITS[name];
-  return rateLimit(`${name}:${id}`, limit, windowMs);
+  return rateLimit(`${name}:${id}`, limit, windowMs, LIMIT_LABELS[name]?.(limit));
 }
 
 /**

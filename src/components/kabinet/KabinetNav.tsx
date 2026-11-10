@@ -136,6 +136,12 @@ function useOverflowing(ref: RefObject<HTMLElement | null>) {
   return over;
 }
 
+/** Sozlama qatori: boshqaruvning o'ziga emas, qatorga bosilganda — ichidagi birinchi tugma bosiladi */
+function rowTap(e: React.MouseEvent<HTMLDivElement>) {
+  if ((e.target as HTMLElement).closest("button, a, [role='menu'], [role='listbox']")) return;
+  e.currentTarget.querySelector<HTMLButtonElement>("button")?.click();
+}
+
 export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; user: KabinetNavUser; /** Telefon menyusida profil kartasi ostida ko'rinadigan progress kartasi (server komponent) */ meter?: React.ReactNode }) {
   const til = useLocale();
   const pathname = usePathname();
@@ -245,12 +251,13 @@ export function KabinetNav({ items, user, meter }: { items: KabinetNavItem[]; us
 
       <h2 className="m-label">{tr(til, KABINET_NAV.settings)}</h2>
       <div className="m-rows border-y border-line">
-        <div className="m-row">
+        {/* Butun qator bosiladi (boshqa qatorlar kabi): bo'sh joyga/yorliqqa bosish o'ngdagi boshqaruvni ishga tushiradi */}
+        <div className="m-row cursor-pointer" onClick={rowTap}>
           <Globe size={21} strokeWidth={1.7} className="shrink-0 text-fg-3" />
           <span className="flex-1 text-[16px] text-fg">{tr(til, KABINET_NAV.language)}</span>
           <LocaleSwitch />
         </div>
-        <div className="m-row">
+        <div className="m-row cursor-pointer" onClick={rowTap}>
           <Palette size={21} strokeWidth={1.7} className="shrink-0 text-fg-3" />
           <span className="flex-1 text-[16px] text-fg">{tr(til, KABINET_NAV.appearance)}</span>
           <ThemeToggle />

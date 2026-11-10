@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NoPaymentMethods } from "@/components/payments/NoPaymentMethods";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, ArrowUpRight, Check, CheckCircle2, Copy, Hourglass, ShieldCheck } from "lucide-react";
@@ -155,7 +156,7 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
             );
           })}
         </div>
-        {providers.length === 0 && <p className="mt-3 text-[13px] text-warning">To'lov usullari hali ulanmagan. Administrator bilan bog'laning.</p>}
+        {providers.length === 0 && <NoPaymentMethods className="mt-3" />}
       </div>
 
       {/* Amal */}

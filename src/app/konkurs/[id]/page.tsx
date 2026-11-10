@@ -54,7 +54,7 @@ export default async function ChallengePage({ params }: { params: Params }) {
           )}
         </p>
       </header>
-      <ChallengeView initial={c} authed={Boolean(session)} />
+      <ChallengeView initial={c} authed={Boolean(session)} canPost={!session || session.role === "specialist" || session.role === "admin"} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { NoPaymentMethods } from "@/components/payments/NoPaymentMethods";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, Tag } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
@@ -173,7 +174,7 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
           {!free && (
             <fieldset className="space-y-1.5">
               <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">{tr(til, MS.payMethod)}</legend>
-              {q.providers.length === 0 && <p className="text-[13px] text-danger">{tr(til, MS.noProviders)}</p>}
+              {q.providers.length === 0 && <NoPaymentMethods til={til} />}
               {q.providers.map((p) => (
                 <label key={p} className={cn("flex cursor-pointer items-center gap-2.5 rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold", provider === p ? "border-fg bg-fg/[0.03]" : "border-line")}>
                   <input type="radio" name="prov" checked={provider === p} onChange={() => setProvider(p)} /> {til === "ru" ? PROVIDER_LABEL_RU[p] : PROVIDER_LABEL[p]}

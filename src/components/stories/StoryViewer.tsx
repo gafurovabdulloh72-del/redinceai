@@ -254,7 +254,8 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
             )}
             {story.music && <audio key={`a-${story.id}`} ref={audioRef} src={story.music.url} autoPlay loop />}
             {story.media && story.caption && (
-              <p className="absolute inset-x-6 bottom-28 rounded-2xl bg-black/45 px-4 py-3 text-center text-[16px] font-semibold leading-snug text-white backdrop-blur-sm">{story.caption}</p>
+              // Stiker (so'rovnoma/savol) pastda turadi — u bor bo'lsa izoh yuqoriga ko'chadi (ilgari so'rovnoma izohni yopib qo'yardi)
+              <p className={cn("absolute inset-x-6 rounded-2xl bg-black/45 px-4 py-3 text-center text-[16px] font-semibold leading-snug text-white backdrop-blur-sm", story.sticker ? "top-24" : "bottom-28")}>{story.caption}</p>
             )}
 
             {/* Bosish zonalari: chap — oldingi, o'ng — keyingi, bosib turish — pauza */}

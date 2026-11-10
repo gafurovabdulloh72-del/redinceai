@@ -23,7 +23,7 @@ import { KONKURS } from "@/lib/i18n/dict/community";
 type EligiblePost = { id: string; body: string; thumbUrl: string | null; isVideo: boolean; createdAt: number };
 type Api<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; authed: boolean }) {
+export function ChallengeView({ initial, authed, canPost = true }: { initial: ChallengeDetail; authed: boolean; /** Ijodkor (mutaxassis/admin) — profilga post joylay oladi; mijozga boshqa tushuntirish chiqadi */ canPost?: boolean }) {
   const router = useRouter();
   const til = useLocale();
   const { toast } = useToast();
@@ -161,11 +161,23 @@ export function ChallengeView({ initial, authed }: { initial: ChallengeDetail; a
           </div>
         ) : posts.length === 0 ? (
           <div className="px-1 py-6 text-center text-[13.5px] leading-relaxed text-fg-3">
-            {tr(til, KONKURS.noEligible)}{" "}
-            <Link href="/kabinet/postlar" className="font-semibold text-accent underline-offset-2 hover:underline">
-              {tr(til, KONKURS.postLink)}
-            </Link>
-            .
+            {canPost ? (
+              <>
+                {tr(til, KONKURS.noEligible)}{" "}
+                <Link href="/kabinet/postlar" className="font-semibold text-accent underline-offset-2 hover:underline">
+                  {tr(til, KONKURS.postLink)}
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                {tr(til, KONKURS.clientOnly)}
+                <Link href="/kabinet/profil" className="font-semibold text-accent underline-offset-2 hover:underline">
+                  {tr(til, KONKURS.becomeCreator)}
+                </Link>
+                .
+              </>
+            )}
           </div>
         ) : (
           <ul className="grid grid-cols-3 gap-2 p-1">

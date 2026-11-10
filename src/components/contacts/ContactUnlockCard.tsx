@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { NoPaymentMethods } from "@/components/payments/NoPaymentMethods";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Lock, LogIn, Send, ShieldCheck, Unlock } from "lucide-react";
@@ -129,7 +130,7 @@ export function ContactUnlockCard({ specialistId, price, loggedIn, loginHref, cl
           {q.amount > 0 && (
             <fieldset className="space-y-1.5">
               <legend className="mb-1 text-[12.5px] font-semibold text-fg-3">{tr(til, T.method)}</legend>
-              {q.providers.length === 0 && <p className="text-[13px] text-danger">{tr(til, T.noMethods)}</p>}
+              {q.providers.length === 0 && <NoPaymentMethods til={til} />}
               {q.providers.map((p) => (
                 <label key={p} className={cn("flex cursor-pointer items-center gap-2.5 rounded-[12px] border px-3 py-2.5 text-[14px] font-semibold", provider === p ? "border-fg bg-fg/[0.03]" : "border-line")}>
                   <input type="radio" name="kontakt-prov" checked={provider === p} onChange={() => setProvider(p)} /> {PROVIDER_LABEL[p]}
