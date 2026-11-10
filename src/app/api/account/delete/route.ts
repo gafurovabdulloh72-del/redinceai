@@ -8,6 +8,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
 import { hashPassword, verifyPassword } from "@/lib/security/password";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { mentorBlocksDeletion, purgeAccountData } from "@/lib/account/purge";
 
 const schema = z.object({ password: z.string().min(1, "Parolni kiriting").max(200) });
 
@@ -18,8 +19,11 @@ const DELETED_NAME = "O'chirilgan foydalanuvchi";
  * mutaxassis profili + portfolio + sevimlilar + bildirishnomalar + saqlangan qidiruvlar o'chiriladi.
  * Buyurtma/to'lov daftari (ledger) SAQLANADI: mutaxassis profiliga buyurtma/to'lov bog'langan bo'lsa (FK kaskad —
  * o'chirsak daftar yo'qoladi) profil o'chirilmaydi, balki bo'shatiladi va isBanned bilan ro'yxatdan yashiriladi.
- * Rad etiladi (409): eskroudagi (created/pending/paid) to'lovlar yoki kutilayotgan pul chiqarish so'rovi bo'lsa.
+ * Rad etiladi (409): eskroudagi (created/pending/paid) to'lovlar yoki kutilayotgan pul chiqarish so'rovi bo'lsa;
+ * o'quvchisi yoki tugamagan hisob-kitobi bor ustoz (o'chsa — pul to'lagan o'quvchilar darsdan ayrilardi).
  * Admin hisobini bu yerdan o'chirib bo'lmaydi.
+ * 7-audit: kirish bog'lanishlari (Google, Telegram) va taxallus ham uziladi — aks holda o'sha Google/Telegram bilan qayta
+ * ro'yxatdan o'tib bo'lmasdi (bloklangan eski hisob topilardi); ijtimoiy tarmoq ma'lumotlari `purgeAccountData` bilan tozalanadi.
  */
 export const POST = handler(async (req) => {
   const session = await requireSession();
@@ -45,6 +49,10 @@ export const POST = handler(async (req) => {
     if (openPayout) throw new ApiError(409, "Kutilayotgan pul chiqarish so'rovi bor — u yakunlangach o'chirish mumkin");
   }
 
+  if (await mentorBlocksDeletion(user.id)) {
+    throw new ApiError(409, "Ustoz hisobingizda o'quvchilar yoki tugamagan hisob-kitob bor. Hisobni o'chirish uchun qo'llab-quvvatlashga yozing");
+  }
+
   // 1) Hisobni anonimlashtirish (kirish darhol yopiladi: parol tasodifiy, sessiya versiyasi +1, bloklangan)
   await db
     .update(users)
@@ -54,8 +62,21 @@ export const POST = handler(async (req) => {
       phone: null,
       avatarUrl: null,
       gender: null,
+      username: null,
+      prevUsername: null,
+      googleId: null,
+      telegramChatId: null,
       emailVerified: false,
       notifyEmail: false,
+      notifyPrefs: {},
+      digestFreq: "off",
+      showOnline: false,
+      profilePrivate: true,
+      dmPolicy: "none",
+      commentPolicy: "none",
+      commentFilter: null,
+      lastSeenAt: null,
+      lang: null,
       totpEnabled: false,
       totpSecretEnc: null,
       recoveryCodes: [],
@@ -111,8 +132,11 @@ export const POST = handler(async (req) => {
     db.delete(passwordResets).where(eq(passwordResets.userId, user.id)),
   ]);
 
+  // 4) Ijtimoiy tarmoq ma'lumotlari (postlar, story, rezyume, arizalar, obunalar, push, a'zoliklar…)
+  const purge = await purgeAccountData(user.id, user.telegramChatId ?? null);
+
   await revokeAllSessions(user.id).catch(() => undefined);
-  await audit(user.id, "account_deleted", { targetType: "user", targetId: user.id, meta: { role: user.role, profile } }, req);
+  await audit(user.id, "account_deleted", { targetType: "user", targetId: user.id, meta: { role: user.role, profile, ...(purge.failed.length ? { purgeFailed: purge.failed } : {}) } }, req);
   const current = await getSession();
   if (current) await revokeSession(current).catch(() => undefined);
   await clearSession();

@@ -65,6 +65,39 @@ async function req(who, path, init = {}) {
   return fetch(BASE + path, { ...init, headers, redirect: "manual" });
 }
 
+/**
+ * Bazaga TO'G'RIDAN-TO'G'RI murojaat (fixture, tozalash, tekshiruv). Lokal SQLite faylida server ham yozayotgan bo'lsa
+ * `SQLITE_BUSY` keladi (o'qishda ham) — qisqa kutib qayta urinamiz, aks holda test tasodifiy yiqiladi.
+ */
+let sharedDb = null;
+/** registerTemp() uchun navbatdagi TEST-NET manzil oxiri (pastda) */
+let tempSeq = Math.floor(Math.random() * 200);
+async function dbRun(sql, args = []) {
+  if (!sharedDb) {
+    const { createClient } = await import("@libsql/client");
+    sharedDb = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+  }
+  for (let i = 0; ; i++) {
+    try {
+      return await sharedDb.execute({ sql, args });
+    } catch (e) {
+      if (!/SQLITE_BUSY|database is locked/i.test(String(e?.message ?? e))) throw e;
+      // Band bo'lib yiqilgan so'rov ulanishni «tugamagan» holatda qoldiradi — keyingi yozuvlar commit bo'lmay qoladi; yangilaymiz
+      await Promise.resolve(sharedDb.reconnect()).catch(() => undefined);
+      if (i >= 6) throw e;
+      await new Promise((r) => setTimeout(r, 120 * (i + 1)));
+    }
+  }
+}
+
+/**
+ * Har test oldidan «hisob tuzog'i» ballari tozalanadi: to'plam demo hisoblar nomidan ataylab o'nlab 403/404 oladi — ballar
+ * to'planib (ayniqsa to'plam bir soat ichida qayta yurgizilsa) demo hisobning o'zi muzlab, keyingi testlar 401/429 olardi.
+ */
+beforeEach(async () => {
+  await dbRun("DELETE FROM rate_limits WHERE key LIKE 'abuse:%' OR key LIKE 'abuse1:%'").catch(() => undefined);
+});
+
 /* ------------------------- 1. Mehmon yopiq route'larga kira olmaydi ------------------------- */
 
 const GUEST_FORBIDDEN = [
@@ -468,12 +501,182 @@ test("Ovozli xabar presign: mehmon 401, video/begona kengaytma 422, 5 MB dan kat
   assert.ok(j.ok && (j.data.mode === "fallback" || (j.data.mode === "r2" && j.data.contentType === "audio/webm" && /\/uploads\/[\w-]+\.weba$/.test(j.data.publicUrl))), `javob: ${JSON.stringify(j)}`);
 });
 
+/* ------------------------- 7-AUDIT: 2FA urinishlari foydalanuvchi bo'yicha ATOMAR sanaladi ------------------------- */
+
+/** RFC 6238 TOTP (SHA-1, 30 s, 6 xona) — server `lib/security/totp.ts` bilan bir xil */
+function totpAt(secretB32, ms) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const ch of secretB32.replace(/=+$/, "").toUpperCase()) bits += A.indexOf(ch).toString(2).padStart(5, "0");
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const msg = Buffer.alloc(8);
+  msg.writeBigUInt64BE(BigInt(Math.floor(ms / 1000 / 30)));
+  const mac = createHmac("sha1", key).update(msg).digest();
+  const o = mac[mac.length - 1] & 0x0f;
+  const bin = ((mac[o] & 0x7f) << 24) | (mac[o + 1] << 16) | (mac[o + 2] << 8) | mac[o + 3];
+  return String(bin % 1e6).padStart(6, "0");
+}
+
+// Ilgari «limit to'lmaganmi» deb o'qilar, hisoblagich esa kod noto'g'ri chiqqach oshirilardi: turli chiptalar bilan PARALLEL
+// yuborilgan so'rovlar hammasi tekshiruvdan o'tib, bir oynada 10 emas — xohlagancha kodni sinab ko'ra olardi.
+test("2FA kirish: parallel noto'g'ri kodlardan ko'pi bilan 10 tasi tekshiriladi (qolgani 429); to'g'ri kod hisoblagichni tozalaydi", async (t) => {
+  const u = await registerTemp("client");
+  if (!u) return t.skip("sinov hisobi ochilmadi (register limiti)");
+  const post = (cookie, path, body) => reqAs(cookie, path, { method: "POST", body: JSON.stringify(body) });
+  const ticket = async () => {
+    const r = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify({ email: u.email, password: "Sinov12345" }) });
+    const j = await r.json();
+    assert.ok(j.data?.twoFactor && j.data.ticket, `kirish 2FA chiptasini berdi: ${r.status} ${JSON.stringify(j).slice(0, 120)}`);
+    return j.data.ticket;
+  };
+  const verify = (tk, code) => fetch(`${BASE}/api/auth/2fa/verify`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify({ ticket: tk, code }) });
+  try {
+    const setup = await post(u.cookie, "/api/auth/2fa/setup", {});
+    assert.equal(setup.status, 200, `2FA sozlash: ${setup.status}`);
+    const secret = (await setup.json()).data.secret;
+    const en = await post(u.cookie, "/api/auth/2fa/enable", { code: totpAt(secret, Date.now()) });
+    assert.equal(en.status, 200, `2FA yoqish: ${en.status}`);
+
+    // 1) Ikki noto'g'ri kod → 422; to'g'ri kod (keyingi qadam — yoqishdagi kod ikkinchi marta qabul qilinmaydi) → kirish
+    const a = await ticket();
+    assert.equal((await verify(a, "000000")).status, 422, "noto'g'ri kod 422");
+    assert.equal((await verify(a, "000001")).status, 422, "noto'g'ri kod 422");
+    const good = await verify(a, totpAt(secret, Date.now() + 30_000));
+    assert.equal(good.status, 200, `to'g'ri kod: ${good.status}`);
+
+    // 2) Hisoblagich tozalangan: uch chipta × 5 = 15 ta noto'g'ri kod BIR VAQTDA — ko'pi bilan 10 tasi tekshiriladi
+    const tickets = [await ticket(), await ticket(), await ticket()];
+    const res = await Promise.all(tickets.flatMap((tk, i) => [0, 1, 2, 3, 4].map((n) => verify(tk, String(100000 + i * 10 + n)))));
+    const codes = res.map((r) => r.status);
+    const checked = codes.filter((c) => c === 422).length;
+    const limited = codes.filter((c) => c === 429).length;
+    assert.ok(checked <= 10, `tekshirilgan kodlar: ${checked} (≤10 bo'lishi shart) — ${codes.join(",")}`);
+    assert.ok(checked >= 1 && limited >= 5, `limit ishladi: 422×${checked}, 429×${limited} — ${codes.join(",")}`);
+  } finally {
+    await cleanupTemp([u.email]);
+  }
+});
+
+/* ------------------------- 7-AUDIT: hisobni o'chirish ijtimoiy tarmoq ma'lumotlarini ham tozalaydi ------------------------- */
+
+// Hisob qatori saqlanadi (to'lov daftari) — kaskad ishlamaydi. Ilgari o'chirilgan hisobning postlari, obunalari, push obunasi
+// va Google/Telegram bog'lanishi qolib ketardi: odam o'sha Google/Telegram bilan qayta ro'yxatdan o'ta olmasdi.
+test("Hisobni o'chirish: Google/Telegram bog'lanishi, taxallus, postlar, obunalar va push obunasi tozalanadi; eski sessiya yopiladi", async (t) => {
+  const u = await registerTemp("specialist");
+  if (!u) return t.skip("sinov hisobi ochilmadi");
+  const target = (await dbRun("SELECT id FROM users WHERE email = ?", ["mijoz@redince.uz"])).rows[0]?.id;
+  let deleted = false;
+  try {
+    const pr = await reqAs(u.cookie, "/api/profil/postlar", { method: "POST", body: JSON.stringify({ body: "O'chiriladigan hisob posti", media: [] }) });
+    assert.equal(pr.status, 201, `post: ${pr.status}`);
+    const fl = await reqAs(u.cookie, `/api/follow/${target}`, { method: "POST" });
+    assert.ok(fl.ok, `obuna: ${fl.status}`);
+    // Tashqi bog'lanishlar va push obunasi — bazaga to'g'ridan-to'g'ri (Google/Telegram/VAPID bu muhitda sozlanmagan bo'lishi mumkin)
+    const chat = `9${Date.now()}`.slice(0, 12);
+    await dbRun("UPDATE users SET google_id = ?, telegram_chat_id = ? WHERE id = ?", [`sec-google-${u.id}`, chat, u.id]);
+    await dbRun("INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)", [`sec-push-${u.id}`, u.id, `https://fcm.googleapis.com/fcm/send/sec-${u.id}`, "p", "a"]);
+
+    const wrong = await reqAs(u.cookie, "/api/account/delete", { method: "POST", body: JSON.stringify({ password: "notogri-parol" }) });
+    assert.equal(wrong.status, 422, `noto'g'ri parol bilan o'chmaydi: ${wrong.status}`);
+    const del = await reqAs(u.cookie, "/api/account/delete", { method: "POST", body: JSON.stringify({ password: "Sinov12345" }) });
+    assert.equal(del.status, 200, `o'chirish: ${del.status}`);
+    deleted = true;
+
+    const row = (await dbRun("SELECT email, username, google_id, telegram_chat_id, is_banned FROM users WHERE id = ?", [u.id])).rows[0];
+    assert.ok(row, "hisob qatori saqlangan (daftar uchun)");
+    assert.match(String(row.email), /^deleted-/, "email anonimlashtirilgan");
+    assert.equal(row.username, null, "taxallus bo'shatilgan");
+    assert.equal(row.google_id, null, "Google bog'lanishi uzilgan");
+    assert.equal(row.telegram_chat_id, null, "Telegram bog'lanishi uzilgan");
+    assert.equal(Number(row.is_banned), 1, "hisob yopilgan");
+    const count = async (sql) => Number((await dbRun(sql, [u.id])).rows[0].n);
+    assert.equal(await count("SELECT count(*) AS n FROM posts WHERE author_id = ? AND group_id IS NULL"), 0, "profil postlari o'chirilgan");
+    assert.equal(await count("SELECT count(*) AS n FROM follows WHERE follower_id = ?"), 0, "obunalar o'chirilgan");
+    assert.equal(await count("SELECT count(*) AS n FROM push_subscriptions WHERE user_id = ?"), 0, "push obunasi o'chirilgan");
+    assert.equal(await count("SELECT count(*) AS n FROM specialists WHERE user_id = ?"), 0, "mutaxassis profili o'chirilgan");
+    assert.equal((await (await reqAs(u.cookie, "/api/auth/me")).json()).data, null, "eski sessiya yopilgan (joriy foydalanuvchi yo'q)");
+    assert.equal((await reqAs(u.cookie, "/api/chat")).status, 401, "eski sessiya bilan yopiq API 401");
+    const back = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify({ email: u.email, password: "Sinov12345" }) });
+    assert.equal(back.status, 401, `eski email/parol bilan kirib bo'lmaydi: ${back.status}`);
+  } finally {
+    if (deleted) await dbRun("DELETE FROM users WHERE id = ?", [u.id]).catch(() => undefined);
+    else await cleanupTemp([u.email]);
+  }
+});
+
+/* ------------------------- 7-AUDIT: promokod limiti CAS bilan band qilinadi ------------------------- */
+
+// 100% chegirmali «1 marta» promokod: ilgari limit narx hisoblanayotganda O'QILAR, hisoblagich esa kirish berilgach oshirilardi —
+// parallel so'rovlar bilan bir necha hisob bepul kirib olardi. Fixture bazaga to'g'ridan-to'g'ri (ustoz + kurs + kod), oxirida o'chiriladi.
+test("Promokod: «1 marta» 100% kod ikki hisobdan BIR VAQTDA — faqat bittasiga kirish ochiladi", async (t) => {
+  if (!COOKIES.sp) return t.skip("mutaxassis sessiyasi yo'q");
+  const owner = (await dbRun("SELECT id FROM users WHERE email = ?", ["madina.yusupova@example.com"])).rows[0]?.id;
+  if (!owner) return t.skip("demo ustoz hisobi yo'q");
+  const mark = randomUUID().slice(0, 8);
+  const had = (await dbRun("SELECT id FROM mentors WHERE user_id = ?", [owner])).rows[0]?.id;
+  const mentorId = had ?? `sec-mentor-${mark}`;
+  const courseId = `sec-course-${mark}`;
+  const code = `SEC${mark.toUpperCase()}`.replace(/[^A-Z0-9]/g, "");
+  if (!had) await dbRun("INSERT INTO mentors (id, user_id, headline, is_approved) VALUES (?, ?, ?, 1)", [mentorId, owner, "SEC promo sinovi"]);
+  try {
+    await dbRun("INSERT INTO courses (id, mentor_id, slug, title, is_published, price_from) VALUES (?, ?, ?, ?, 1, 50000)", [courseId, mentorId, `sec-promo-${mark}`, `SEC promo kursi ${mark}`]);
+    await dbRun("INSERT INTO promo_codes (id, mentor_id, code, percent, course_id, max_uses, uses, is_active) VALUES (?, ?, ?, 100, ?, 1, 0, 1)", [`sec-promo-${mark}`, mentorId, code, courseId]);
+    const buy = (who) => req(who, "/api/mentorlik/tolov", { method: "POST", body: JSON.stringify({ type: "course", id: courseId, promo: code, provider: "manual" }) });
+    const res = await Promise.all([buy("cl"), buy("sp")]);
+    const bodies = await Promise.all(res.map((r) => r.json().catch(() => ({}))));
+    const free = bodies.filter((b) => b?.data?.free === true).length;
+    const statuses = res.map((r) => r.status).join(",");
+    assert.equal(free, 1, `bepul kirish soni: ${free} (statuslar: ${statuses})`);
+    assert.ok(res.some((r) => [409, 422].includes(r.status)), `ikkinchisi rad etildi: ${statuses}`);
+    const enrolled = Number((await dbRun("SELECT count(*) AS n FROM enrollments WHERE course_id = ?", [courseId])).rows[0].n);
+    const uses = Number((await dbRun("SELECT uses FROM promo_codes WHERE code = ?", [code])).rows[0].uses);
+    assert.equal(enrolled, 1, `yozilganlar: ${enrolled}`);
+    assert.equal(uses, 1, `kod ishlatilishi: ${uses}`);
+  } finally {
+    await dbRun("DELETE FROM notifications WHERE title LIKE ? OR body LIKE ?", [`%SEC promo kursi ${mark}%`, `%SEC promo kursi ${mark}%`]).catch(() => undefined);
+    await dbRun("DELETE FROM enrollments WHERE course_id = ?", [courseId]).catch(() => undefined);
+    await dbRun("DELETE FROM promo_codes WHERE code = ?", [code]).catch(() => undefined);
+    await dbRun("DELETE FROM courses WHERE id = ?", [courseId]).catch(() => undefined);
+    if (!had) await dbRun("DELETE FROM mentors WHERE id = ?", [mentorId]).catch(() => undefined);
+  }
+});
+
+/* ------------------------- 7-AUDIT: yuklama manzili fayl saqlangan joyga mos bo'lishi shart ------------------------- */
+
+// Egalik fayl NOMI bo'yicha tekshiriladi, yuklama naqshi esa har qanday Blob do'konini o'tkazadi: foydalanuvchi faylni bizga
+// yuklab, keyin O'Z do'konidagi shu nomli faylga havola bera olardi (mazmunini keyin almashtiradi). Endi rad etiladi.
+test("Yuklama: bizga yuklangan fayl nomi bilan BEGONA Blob do'koniga havola — 422; haqiqiy manzil o'tadi", async () => {
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  const fd = new FormData();
+  fd.append("file", new Blob([png], { type: "image/png" }), "sec-store.png");
+  fd.append("purpose", "attachment");
+  const up = await fetch(BASE + "/api/upload", { method: "POST", headers: { Origin: ORIGIN, Cookie: COOKIES.sp }, body: fd });
+  assert.equal(up.status, 201, `yuklash: ${up.status}`);
+  const url = (await up.json()).data.url;
+  const name = url.split("/").pop();
+  const to = (await dbRun("SELECT username FROM users WHERE email = ?", ["mijoz@redince.uz"])).rows[0]?.username;
+  assert.ok(to, "mijoz taxallusi topildi");
+  const send = (u) => req("sp", "/api/chat", { method: "POST", body: JSON.stringify({ to, body: "", attachments: [{ url: u, name: "sec-store.png", size: png.length, type: "image/png" }] }) });
+  try {
+    const foreign = await send(`https://begona-dokon.public.blob.vercel-storage.com/uploads/${name}`);
+    // Fayl diskda yoki R2'da saqlangan bo'lsa — Blob manzili umuman bizniki emas; Blob'da saqlangan bo'lsa — xost boshqa
+    assert.equal(foreign.status, 422, `begona do'kon: ${foreign.status}`);
+    const stranger = await req("cl", "/api/chat", { method: "POST", body: JSON.stringify({ to: (await dbRun("SELECT username FROM users WHERE email = ?", ["mutaxassis@redince.uz"])).rows[0]?.username, body: "", attachments: [{ url, name: "sec-store.png", size: png.length, type: "image/png" }] }) });
+    assert.equal(stranger.status, 422, `boshqa foydalanuvchi yuklagan fayl: ${stranger.status}`);
+    const real = await send(url);
+    assert.equal(real.status, 201, `haqiqiy manzil: ${real.status}`);
+  } finally {
+    await dbRun("DELETE FROM dm_messages WHERE attachments LIKE ?", [`%${name}%`]);
+    if (url.startsWith("/uploads/")) fs.rmSync(path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"), name), { force: true });
+  }
+});
+
 /* ------------------------- 5-AUDIT (2026-11-04): yopiq fayllar — imzolangan URL ------------------------- */
 
 // Chat biriktirmasi xom saqlash manzili (Blob ommaviy!) bilan emas, `/api/media/<kind>/<id>` orqali beriladi:
 // mehmon 401 · begona 404 · ishtirokchi 302 → tokenli /stream 200 · token boshqa sessiya/buzilgan/tokensiz → 403.
 // Fixture: bazaga to'g'ridan-to'g'ri (mijoz ↔ mutaxassis suhbatiga rasm biriktirilgan xabar; yuklama papkasida 1×1 PNG).
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import path from "node:path";
 import { db as secDb } from "./e2e/_lib.mjs";
 
@@ -593,10 +796,14 @@ test("Fikr: tashqi skrinshot URL rad etiladi (422), bo'sh matn 422", async () =>
 
 /** Sinov hisobi: ro'yxatdan o'tadi (register limiti 5/soat IP) va sessiya cookie'sini qaytaradi */
 async function registerTemp(role) {
+  // Ro'yxat limiti (5/soat, IP) to'plamning o'zini to'xtatib qo'ymasin: sinov hisoblari soni limitdan ko'p — navbatdagi
+  // testlar jim «o'tkazib yuborilardi» (hisobni egallash, hisob tuzog'i). Har hisob alohida TEST-NET manzilidan ochiladi
+  // (proksisiz lokal/CI serverda `X-Forwarded-For` mijoz manzili sifatida olinadi); limitning o'zi bu yerda sinalmaydi.
+  tempSeq = (tempSeq % 250) + 1;
   const email = `sec-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@sinov.local`;
   const r = await fetch(`${BASE}/api/auth/register`, {
     method: "POST",
-    headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+    headers: { Origin: ORIGIN, "Content-Type": "application/json", "X-Forwarded-For": `203.0.113.${tempSeq}` },
     body: JSON.stringify({ name: `Sinov ${role}`, email, password: "Sinov12345", role, acceptTerms: true }),
     redirect: "manual",
   });
