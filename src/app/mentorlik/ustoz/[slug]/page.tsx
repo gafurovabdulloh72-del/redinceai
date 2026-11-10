@@ -75,8 +75,9 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "lenta";
   const [liveNow, past, recs] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([]), tab === "efirlar" || tab === "lenta" ? listRecordings(channel.id, Boolean(view.canManage), viewer) : Promise.resolve([])]) : [null, [], []];
   const [feed, ev] = await Promise.all([
-    channel && view && tab === "lenta" ? listPosts(channel, viewer, null) : null,
-    channel && view ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
+    // Kanal yopiq bo'lsa (a'zo emas) — postlar va efir e'lonlari yuklanmaydi (view.canView); ilgari bu yerda tekshirilmasdi
+    channel && view?.canView && tab === "lenta" ? listPosts(channel, viewer, null) : null,
+    channel && view?.canView ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
   ]);
   const canStudio = isOwner || user?.role === "admin";
   const badges = await mentorBadges({ id: profile.id, userId: profile.userId, channelId: channel?.id ?? null, studentsCount: profile.studentsCount, rating: profile.rating, reviewsCount: profile.reviewsCount });

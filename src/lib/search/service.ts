@@ -1,4 +1,7 @@
 import "server-only";
+import { ciLike } from "./ci";
+import { postAudienceCondition } from "@/lib/social/post-access";
+import { notBlockedCondition } from "@/lib/privacy/blocks";
 import { and, desc, eq, gt, isNotNull, isNull, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groups, jobs, portfolioItems, posts, specialists, users, vacancies } from "@/lib/db/schema";
@@ -62,32 +65,32 @@ export async function globalSearch(q: string): Promise<SearchSection[]> {
       .select({ slug: specialists.slug, title: specialists.title, name: users.name, category: specialists.category })
       .from(specialists)
       .innerJoin(users, eq(users.id, specialists.userId))
-      .where(and(eq(specialists.isHidden, false), eq(users.isBanned, false), listableCondition(settings), or(like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle))))
+      .where(and(eq(specialists.isHidden, false), eq(users.isBanned, false), listableCondition(settings), or(ciLike(users.name, nq), ciLike(specialists.title, nq))))
       .orderBy(desc(specialists.rating), desc(specialists.createdAt))
       .limit(5),
     db
       .select({ id: vacancies.id, title: vacancies.title, company: vacancies.company, profession: vacancies.profession, min: vacancies.salaryMin, max: vacancies.salaryMax })
       .from(vacancies)
-      .where(and(eq(vacancies.status, "open"), or(isNull(vacancies.expiresAt), gt(vacancies.expiresAt, now)), or(like(sql`lower(${vacancies.title})`, needle), like(sql`lower(${vacancies.company})`, needle), like(sql`lower(${vacancies.skills})`, needle))))
+      .where(and(eq(vacancies.status, "open"), or(isNull(vacancies.expiresAt), gt(vacancies.expiresAt, now)), or(ciLike(vacancies.title, nq), ciLike(vacancies.company, nq), ciLike(vacancies.skills, nq))))
       .orderBy(desc(vacancies.createdAt))
       .limit(5),
     db
       .select({ slug: groups.slug, name: groups.name, kind: groups.kind, members: groups.membersCount, isOfficial: groups.isOfficial })
       .from(groups)
-      .where(or(like(sql`lower(${groups.name})`, needle), like(sql`lower(${groups.description})`, needle)))
+      .where(or(ciLike(groups.name, nq), ciLike(groups.description, nq)))
       .orderBy(desc(groups.isOfficial), desc(groups.membersCount))
       .limit(5),
     db
       .select({ id: jobs.id, title: jobs.title, category: jobs.category })
       .from(jobs)
-      .where(and(eq(jobs.status, "open"), or(like(sql`lower(${jobs.title})`, needle), like(sql`lower(${jobs.description})`, needle))))
+      .where(and(eq(jobs.status, "open"), or(ciLike(jobs.title, nq), ciLike(jobs.description, nq))))
       .orderBy(desc(jobs.createdAt))
       .limit(5),
     // Mentorlik kurslari (2026-11-01, KEYINGI-REJA): faqat chop etilganlar
     db
       .select({ slug: courses.slug, title: courses.title, category: courses.category, price: courses.priceFrom })
       .from(courses)
-      .where(and(eq(courses.isPublished, true), or(like(sql`lower(${courses.title})`, needle), like(sql`lower(${courses.summary})`, needle))))
+      .where(and(eq(courses.isPublished, true), or(ciLike(courses.title, nq), ciLike(courses.summary, nq))))
       .orderBy(desc(courses.createdAt))
       .limit(5),
   ]);
@@ -174,6 +177,7 @@ type ExploreViewer = { id: string; role: string } | null;
 export async function exploreSearch(qRaw: string, type: ExploreType = "all", { noFuzzy = false, viewer = null }: { noFuzzy?: boolean; viewer?: ExploreViewer } = {}): Promise<ExploreResult> {
   const q = qRaw.trim();
   const needle = q ? `%${norm(q).replace(/[%_]/g, "")}%` : null;
+  const nq = q ? norm(q).replace(/[%_]/g, "") : "";
   const settings = await getSettings();
   const visible = and(eq(users.isBanned, false), eq(specialists.isHidden, false), listableCondition(settings))!;
   // "groups" / "vacancies" turlari — faqat bo'limlar (globalSearch), media va odamlar so'ralmaydi
@@ -189,7 +193,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
           .select({ slug: specialists.slug, name: users.name, title: specialists.title, avatarUrl: users.avatarUrl, category: specialists.category, rating: specialists.rating, reviewCount: specialists.reviewCount, isVerified: specialists.isVerified })
           .from(specialists)
           .innerJoin(users, eq(users.id, specialists.userId))
-          .where(and(visible, or(like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle), like(sql`lower(${specialists.bio})`, needle), like(sql`lower(${specialists.skills})`, needle))))
+          .where(and(visible, or(ciLike(users.name, nq), ciLike(specialists.title, nq), ciLike(specialists.bio, nq), ciLike(specialists.skills, nq))))
           .orderBy(desc(specialists.rating), desc(specialists.reviewCount))
           .limit(12)
       : Promise.resolve([]),
@@ -204,7 +208,7 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
               visible,
               privateProfileCondition(specialists.userId, viewer),
               type === "video" ? eq(portfolioItems.type, "video") : undefined,
-              needle ? or(like(sql`lower(${portfolioItems.title})`, needle), like(sql`lower(${portfolioItems.description})`, needle), like(sql`lower(${portfolioItems.tags})`, needle), like(sql`lower(${users.name})`, needle), like(sql`lower(${specialists.title})`, needle)) : undefined,
+              needle ? or(ciLike(portfolioItems.title, nq), ciLike(portfolioItems.description, nq), ciLike(portfolioItems.tags, nq), ciLike(users.name, nq), ciLike(specialists.title, nq)) : undefined,
             ),
           )
           .orderBy(desc(portfolioItems.createdAt))
@@ -222,9 +226,11 @@ export async function exploreSearch(qRaw: string, type: ExploreType = "all", { n
               or(isNull(posts.groupId), eq(groups.isPrivate, false)),
               eq(posts.subscribersOnly, false),
               postNotHiddenCondition(viewer),
-              or(isNotNull(posts.groupId), privateProfileCondition(posts.authorId, viewer)),
+              // Profil posti: yopiq profil + «yaqin do'stlar» auditoriyasi (ilgari auditoriya tekshirilmay, qidiruvda chiqib qolardi)
+              or(isNotNull(posts.groupId), and(privateProfileCondition(posts.authorId, viewer), postAudienceCondition(viewer))),
+              viewer ? notBlockedCondition(posts.authorId, viewer.id) : undefined,
               type === "video" ? POST_VIDEO : undefined,
-              needle ? or(like(sql`lower(${posts.body})`, needle), like(sql`lower(${users.name})`, needle)) : sql`${posts.media} != '[]'`,
+              needle ? or(ciLike(posts.body, nq), ciLike(users.name, nq)) : sql`${posts.media} != '[]'`,
             ),
           )
           .orderBy(desc(posts.createdAt))

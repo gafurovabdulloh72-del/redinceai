@@ -12,6 +12,7 @@ import { vacancyFilterSchema } from "@/lib/vacancies/validators";
 import { notBlockedCondition } from "@/lib/privacy/blocks";
 import { privateProfileCondition } from "@/lib/privacy/private-profile";
 import { postNotHiddenCondition } from "@/lib/moderation";
+import { postVisibility } from "@/lib/social/post-access";
 
 /**
  * Bosh sahifa lentasi (ijtimoiy tarmoq): profil postlari (groupId = null) va ochiq jamoalar/kanallar postlari bir oqimda.
@@ -191,7 +192,9 @@ async function toFeedItems(page: FeedRow[], viewer: Viewer): Promise<FeedItem[]>
 export async function listSavedPosts(viewer: NonNullable<Viewer>, opts: { cursor?: number | null; limit?: number } = {}): Promise<FeedPage> {
   const limit = Math.min(30, Math.max(1, opts.limit ?? 10));
   const myGroups = db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active")));
-  const conds: SQL[] = [eq(postSaves.userId, viewer.id), eq(users.isBanned, false)];
+  // Saqlangan post ham lentadagi qoidalar bilan ko'rinadi: saqlagandan keyin yopilgan profil / «yaqin do'stlar»dan chiqarilgan /
+  // shikoyat bilan yashirilgan / bloklangan muallif posti ro'yxatda ochilib qolmasin (7-audit)
+  const conds: SQL[] = [eq(postSaves.userId, viewer.id), eq(users.isBanned, false), postVisibility(viewer), notBlockedCondition(posts.authorId, viewer.id)];
   if (viewer.role !== "admin") conds.push(or(isNull(posts.groupId), eq(groups.isPrivate, false), inArray(posts.groupId, myGroups))!);
   if (opts.cursor) conds.push(lt(postSaves.createdAt, new Date(opts.cursor)));
   const rows = await db

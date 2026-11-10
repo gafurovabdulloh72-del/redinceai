@@ -1,9 +1,7 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { ApiError, handler, ok } from "@/lib/api";
-import { db } from "@/lib/db";
-import { groups } from "@/lib/db/schema";
-import { assertCanView, loadPost, recordView } from "@/lib/groups/service";
+import { handler, ok } from "@/lib/api";
+import { recordView } from "@/lib/groups/service";
+import { isPostLocked, loadViewablePost } from "@/lib/social/post-access";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { optionalViewer } from "@/app/api/groups/_lib";
 
@@ -26,12 +24,8 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const viewer = await optionalViewer();
   const key = viewer ? `u:${viewer.id}` : anonKey(req);
   await enforceLimit("views", key);
-  const post = await loadPost(id);
-  if (!post) throw new ApiError(404, "Post topilmadi");
-  if (post.groupId) {
-    const group = await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) });
-    if (!group) throw new ApiError(404, "Jamoa topilmadi");
-    await assertCanView(group, viewer);
-  }
+  const { post } = await loadViewablePost(id, viewer);
+  // Qulflangan (obunachilarga yopiq) postni ko'rmagan odam «ko'rdi» deb sanalmaydi
+  if (await isPostLocked(post, viewer)) return ok({ views: post.viewsCount });
   return ok({ views: await recordView(post, key, viewer?.id ?? null) });
 });

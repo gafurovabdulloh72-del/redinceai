@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { buildFeedItems, type FeedItem, type FeedPage, type FeedRowLite } from "@/lib/feed";
 import { notBlockedCondition } from "@/lib/privacy/blocks";
+import { assertCanViewPost, canViewPost, postVisibility } from "@/lib/social/post-access";
 
 /**
  * Kutubxona: ko'rish tarixi (davom ettirish), «keyinroq ko'rish» navbati va to'plamlar (pleylist).
@@ -28,7 +29,9 @@ const feedSelect = { p: posts, gslug: groups.slug, gname: groups.name, gkind: gr
 /** Postni ko'ra olish sharti (lenta bilan bir xil): ochiq jamoa yoki a'zo bo'lgan jamoa, bloklanmagan muallif */
 function visibleConds(viewer: Viewer): SQL[] {
   const myGroups = db.select({ id: groupMembers.groupId }).from(groupMembers).where(and(eq(groupMembers.userId, viewer.id), eq(groupMembers.status, "active")));
-  const conds: SQL[] = [eq(users.isBanned, false), notBlockedCondition(posts.authorId, viewer.id)];
+  // postVisibility: shikoyat bilan yashirilgan emas + profil postida yopiq profil va «yaqin do'stlar» auditoriyasi (7-audit:
+  // ilgari bu yerda faqat jamoa yopiqligi tekshirilardi — saqlab qo'yilgan yopiq post ro'yxatda ochilib qolardi)
+  const conds: SQL[] = [eq(users.isBanned, false), notBlockedCondition(posts.authorId, viewer.id), postVisibility(viewer)];
   if (viewer.role !== "admin") conds.push(or(isNull(posts.groupId), eq(groups.isPrivate, false), inArray(posts.groupId, myGroups))!);
   return conds;
 }
@@ -215,7 +218,7 @@ export async function deleteCollection(id: string, viewer: Viewer): Promise<void
 /** Postni to'plamga qo'shish / olib tashlash (muqova birinchi postdan avtomatik olinadi) */
 export async function toggleInCollection(id: string, viewer: Viewer, postId: string): Promise<{ added: boolean; itemsCount: number }> {
   const c = await own(id, viewer);
-  const post = await db.query.posts.findFirst({ where: eq(posts.id, postId), columns: { id: true, media: true } });
+  const post = await db.query.posts.findFirst({ where: eq(posts.id, postId), columns: { id: true, media: true, groupId: true, authorId: true, audience: true, hiddenByReports: true, subscribersOnly: true } });
   if (!post) throw new ApiError(404, "Post topilmadi");
   const existing = await db.query.collectionItems.findFirst({ where: and(eq(collectionItems.collectionId, c.id), eq(collectionItems.postId, postId)), columns: { id: true } });
   if (existing) {
@@ -225,9 +228,14 @@ export async function toggleInCollection(id: string, viewer: Viewer, postId: str
     return { added: false, itemsCount: left };
   }
   if (c.itemsCount >= COLLECTION_ITEMS_MAX) throw new ApiError(422, `To'plamda ko'pi bilan ${COLLECTION_ITEMS_MAX} ta post`);
+  // Ko'ra olmaydigan postni (ID'ni taxmin qilib) to'plamga qo'shib bo'lmaydi
+  await assertCanViewPost(post, viewer);
   const [{ maxPos }] = await db.select({ maxPos: sql<number>`coalesce(max(${collectionItems.position}), -1)` }).from(collectionItems).where(eq(collectionItems.collectionId, c.id));
   await db.insert(collectionItems).values({ id: uid(), collectionId: c.id, postId, position: Number(maxPos) + 1 });
-  const cover = c.coverUrl ?? post.media.find((m) => m.poster)?.poster ?? post.media.find((m) => !m.type.startsWith("video/"))?.url ?? null;
+  // Muqova faqat HAMMAGA ochiq postdan olinadi: to'plam ommaviy bo'lishi mumkin — pullik (obunachilarga) yoki
+  // «yaqin do'stlar»/yopiq profil postining rasmi muqova orqali begonalarga chiqib ketmasin
+  const publicPost = !post.subscribersOnly && (await canViewPost(post, null));
+  const cover = c.coverUrl ?? (publicPost ? (post.media.find((m) => m.poster)?.poster ?? post.media.find((m) => !m.type.startsWith("video/"))?.url ?? null) : null);
   const count = c.itemsCount + 1;
   await db.update(collections).set({ itemsCount: count, coverUrl: cover, updatedAt: new Date() }).where(eq(collections.id, c.id));
   return { added: true, itemsCount: count };
@@ -262,7 +270,7 @@ export async function getCollection(id: string, viewer: Viewer | null): Promise<
   const owner = await db.query.users.findFirst({ where: eq(users.id, c.ownerId), columns: { id: true, name: true } });
   const conds: SQL[] = [eq(collectionItems.collectionId, c.id), eq(users.isBanned, false)];
   if (viewer) conds.push(...visibleConds(viewer));
-  else conds.push(or(isNull(posts.groupId), eq(groups.isPrivate, false))!);
+  else conds.push(or(isNull(posts.groupId), eq(groups.isPrivate, false))!, postVisibility(null));
   const rows = await db
     .select({ ...feedSelect, pos: collectionItems.position })
     .from(collectionItems)

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { saveProgress } from "@/lib/social/library";
+import { loadViewablePost } from "@/lib/social/post-access";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -12,6 +13,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const { position, duration } = await parseBody(req, schema);
   await enforceLimit("views", session.sub);
+  await loadViewablePost(id, { id: session.sub, role: session.role }, { unlocked: true });
   await saveProgress(session.sub, id, position, duration);
   return ok({ saved: true });
 });

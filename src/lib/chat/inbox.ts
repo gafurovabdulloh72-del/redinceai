@@ -126,7 +126,9 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
   // Oxirgi post (kanallar)
   const lastPosts = channelIds.length
     ? await db
-        .select({ groupId: posts.groupId, postId: posts.id, body: posts.body, at: posts.createdAt, by: users.name, files: sql<number>`json_array_length(${posts.media})` })
+        // Obunachilarga yopiq (pullik) post matni ro'yxatdagi parchada CHIQMAYDI — kanalning har a'zosi obunachi emas (7-audit);
+        // shikoyat bilan yashirilgan post matni ham ko'rsatilmaydi
+        .select({ groupId: posts.groupId, postId: posts.id, body: sql<string>`case when ${posts.subscribersOnly} = 1 then '🔒 Obunachilar uchun post' when ${posts.hiddenByReports} = 1 then '' else ${posts.body} end`, at: posts.createdAt, by: users.name, files: sql<number>`case when ${posts.subscribersOnly} = 1 or ${posts.hiddenByReports} = 1 then 0 else json_array_length(${posts.media}) end` })
         .from(posts)
         .innerJoin(users, eq(users.id, posts.authorId))
         .where(and(inArray(posts.groupId, channelIds), sql`${posts.id} in (select id from posts p2 where p2.group_id = ${posts.groupId} order by p2.created_at desc limit 1)`))

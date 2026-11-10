@@ -863,6 +863,125 @@ test("Qisman PATCH yuborilmagan maydonlarni O'ZGARTIRMAYDI (zod v4 partial+defau
   }
 });
 
+/* ------------------------- 7-audit (2026-11-10): «mijoz/ijodkor bo'lib kirib buzish» yo'llari ------------------------- */
+
+test("«Yaqin do'stlar» posti ID orqali o'qilmaydi: izoh/reaksiya/saqlash/ko'rish/keyinroq/to'plam — begonaga 404; qidiruvda yo'q", async (t) => {
+  const owner = await registerTemp("specialist");
+  if (!owner) return t.skip("sinov hisobi yaratilmadi (register limiti?)");
+  try {
+    const mark = `yaqinsinov${Date.now().toString(36)}`;
+    // Auditoriya post bilan BIRGA yoziladi (ilgari avval ommaviy yaratilib, keyin PATCH qilinardi)
+    const pr = await reqAs(owner.cookie, "/api/profil/postlar", { method: "POST", body: JSON.stringify({ body: `Faqat yaqin do'stlar uchun ${mark}`, media: [], audience: "close" }) });
+    assert.equal(pr.status, 201, `yaqin do'stlar posti: ${pr.status}`);
+    const id = (await pr.json()).data.id;
+    assert.equal(await feedHas(COOKIES.cl, id), false, "begona lentasida yo'q");
+    for (const [who, label] of [["guest", "mehmon"], ["cl", "begona mijoz"]]) {
+      assert.equal((await req(who, `/api/posts/${id}`)).status, 404, `${label}: post 404`);
+      assert.equal((await req(who, `/api/posts/${id}/comments`)).status, 404, `${label}: izohlar 404`);
+      assert.equal((await req(who, `/api/posts/${id}/reactions`)).status, 404, `${label}: reaksiyalar 404`);
+      assert.equal((await req(who, `/api/posts/${id}/view`, { method: "POST" })).status, 404, `${label}: ko'rish 404`);
+    }
+    for (const [path, init] of [
+      [`/api/posts/${id}/save`, { method: "POST" }],
+      [`/api/posts/${id}/like`, { method: "POST", body: JSON.stringify({ reaction: "heart" }) }],
+      [`/api/posts/${id}/comments`, { method: "POST", body: JSON.stringify({ body: "begona izoh" }) }],
+      [`/api/posts/${id}/keyinroq`, { method: "POST" }],
+      [`/api/posts/${id}/progress`, { method: "POST", body: JSON.stringify({ position: 3, duration: 10 }) }],
+      [`/api/posts/${id}/hide`, { method: "POST", body: JSON.stringify({ hidden: true }) }],
+      [`/api/posts/${id}/toplamlar`, {}],
+    ]) {
+      assert.equal((await req("cl", path, init)).status, 404, `begona: ${init.method ?? "GET"} ${path.replace(id, ":id")} → 404`);
+    }
+    // To'plamga ham qo'shib bo'lmaydi (ID'ni taxmin qilib)
+    const col = await req("cl", "/api/toplamlar", { method: "POST", body: JSON.stringify({ title: "Sinov to'plam" }) });
+    if (col.status === 201 || col.status === 200) {
+      const colId = (await col.json()).data.id;
+      assert.equal((await req("cl", `/api/toplamlar/${colId}/items`, { method: "POST", body: JSON.stringify({ postId: id }) })).status, 404, "begona: to'plamga qo'shish 404");
+      await req("cl", `/api/toplamlar/${colId}`, { method: "DELETE" });
+    }
+    // Egasi o'zi ko'radi
+    assert.equal((await reqAs(owner.cookie, `/api/posts/${id}/comments`)).status, 200, "muallif izohlarni ko'radi");
+    // Qidiruv sahifasida begonaga chiqmaydi
+    const html = await (await fetch(`${BASE}/qidiruv?q=${mark}`, { headers: { Cookie: COOKIES.cl ?? "" } })).text();
+    assert.ok(!html.includes(`/mutaxassislar/`) || !html.includes(mark + '"'), "qidiruv natijasida post havolasi yo'q");
+    assert.ok(!new RegExp(`post=${id}`).test(html), "qidiruvda yaqin do'stlar posti chiqmagan");
+  } finally {
+    await cleanupTemp([owner.email]);
+  }
+});
+
+test("Rejalashtirilgan post: begona kanalga yozib bo'lmaydi (403), mijoz profilga rejalashtira olmaydi", async (t) => {
+  if (!COOKIES.sp || !COOKIES.cl) return t.skip("demo sessiyalar yo'q");
+  // Kanal: faqat egasi/adminlar yozadi. Egasi — mutaxassis; mijoz a'zo bo'lsa ham reja orqali yoza olmasligi kerak.
+  const name = `Sinov kanal ${Date.now().toString(36)}`;
+  const g = await req("sp", "/api/groups", { method: "POST", body: JSON.stringify({ name, description: "Rejalashtirish ruxsati sinovi", kind: "channel" }) });
+  if (g.status !== 201 && g.status !== 200) return t.skip(`sinov kanali yaratilmadi (${g.status})`);
+  const slug = (await g.json()).data.slug;
+  const { createClient } = await import("@libsql/client");
+  const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+  try {
+    const gid = (await d.execute({ sql: "select id from groups where slug = ?", args: [slug] })).rows[0]?.id;
+    assert.ok(gid, "kanal bazada bor");
+    const runAt = Date.now() + 20 * 60 * 1000;
+    const body = "Begona kanalga reja orqali post";
+    // a'zo emas
+    assert.equal((await req("cl", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body, media: [], groupId: gid, runAt }) })).status, 403, "a'zo bo'lmagan: id bilan → 403");
+    assert.equal((await req("cl", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body, media: [], groupSlug: slug, runAt }) })).status, 403, "a'zo bo'lmagan: slug bilan → 403");
+    // a'zo bo'ldi — kanalda baribir faqat egasi/adminlar yozadi
+    await req("cl", `/api/groups/${slug}/join`, { method: "POST", body: JSON.stringify({}) });
+    assert.equal((await req("cl", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body, media: [], groupSlug: slug, runAt }) })).status, 403, "kanal a'zosi (admin emas) → 403");
+    assert.equal((await req("cl", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body, media: [], groupId: "yoq-jamoa-id", runAt }) })).status, 404, "mavjud bo'lmagan jamoa → 404");
+    assert.equal((await req("cl", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body: "Mijoz profil posti", media: [], runAt }) })).status, 403, "mijoz profilga post rejalashtira olmaydi");
+    const left = await d.execute({ sql: "select count(*) as n from scheduled_posts where body = ?", args: [body] });
+    assert.equal(Number(left.rows[0].n), 0, "rad etilgan reja bazaga yozilmagan");
+    // Egasi rejalashtira oladi (jamoaga ketadi — ilgari profilga tushib qolardi)
+    const own = await req("sp", "/api/rejalashtirilgan", { method: "POST", body: JSON.stringify({ body: "Egasining rejasi", media: [], groupSlug: slug, runAt }) });
+    assert.equal(own.status, 201, `kanal egasi rejalashtiradi: ${own.status}`);
+    const row = (await d.execute({ sql: "select group_id from scheduled_posts where id = ?", args: [(await own.json()).data.id] })).rows[0];
+    assert.equal(row?.group_id, gid, "reja aynan shu jamoaga bog'langan");
+  } finally {
+    await d.execute({ sql: "delete from scheduled_posts where group_id in (select id from groups where slug = ?)", args: [slug] }).catch(() => undefined);
+    await d.execute({ sql: "delete from groups where slug = ?", args: [slug] }).catch(() => undefined);
+  }
+});
+
+test("JSON-LD saqlangan XSS: savol sarlavhasidagi </script> sahifada skript tegini yopmaydi", async (t) => {
+  if (!COOKIES.cl) return t.skip("mijoz sessiyasi yo'q");
+  const payload = `Sinov savoli </script><script>window.__xss=1</script> ${Date.now().toString(36)}`;
+  const r = await req("cl", "/api/savollar", { method: "POST", body: JSON.stringify({ title: payload, body: "JSON-LD qochirish sinovi" }) });
+  if (r.status !== 201) return t.skip(`savol yaratilmadi (${r.status}) — sarlavha validatsiyada rad etilgan bo'lsa ham xavfsiz`);
+  const id = (await r.json()).data.id;
+  try {
+    const html = await (await fetch(`${BASE}/savollar/${id}`)).text();
+    const ld = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g) ?? [];
+    assert.ok(ld.length >= 1, "JSON-LD bloki bor");
+    assert.ok(!html.includes("</script><script>window.__xss=1"), "xom </script><script> sahifada yo'q");
+    assert.ok(ld.some((b) => b.includes("\\u003c/script\\u003e")), "sarlavha JSON-LD ichida \\u003c ko'rinishida qochirilgan");
+    for (const b of ld) JSON.parse(b.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "")); // har blok to'g'ri JSON
+  } finally {
+    await req("cl", `/api/savollar/${id}`, { method: "DELETE" });
+  }
+});
+
+test("Highlights: yopiq profilning saqlangan story to'plamlari begonaga ko'rinmaydi", async (t) => {
+  const owner = await registerTemp("specialist");
+  if (!owner) return t.skip("sinov hisobi yaratilmadi (register limiti?)");
+  try {
+    const h = await reqAs(owner.cookie, "/api/highlights", { method: "POST", body: JSON.stringify({ title: "Sinov" }) });
+    assert.equal(h.status, 201, `highlight yaratish: ${h.status}`);
+    const hid = (await h.json()).data.id;
+    assert.equal((await (await req("guest", `/api/highlights?user=${owner.id}`)).json()).data.items.length, 1, "ochiq profilda ko'rinadi");
+    const priv = await reqAs(owner.cookie, "/api/account/privacy", { method: "PUT", body: JSON.stringify({ dmPolicy: "all", commentPolicy: "all", showOnline: true, profilePrivate: true }) });
+    assert.equal(priv.status, 200);
+    assert.equal((await (await req("guest", `/api/highlights?user=${owner.id}`)).json()).data.items.length, 0, "yopiq profil: mehmonga bo'sh");
+    assert.equal((await (await req("cl", `/api/highlights?user=${owner.id}`)).json()).data.items.length, 0, "yopiq profil: begonaga bo'sh");
+    assert.equal((await req("cl", `/api/highlights/${hid}`)).status, 404, "yopiq profil: to'plam ID orqali ham 404");
+    assert.equal((await reqAs(owner.cookie, `/api/highlights/${hid}`)).status, 200, "egasi ko'radi");
+  } finally {
+    await cleanupTemp([owner.email]);
+  }
+});
+
 /** Brauzer sarlavhalari (Fetch Metadata) — tuzoq «kim so'rayapti»ni shular bo'yicha ajratadi */
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const NAV_HEADERS = { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "none", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "sec-fetch-user": "?1" };

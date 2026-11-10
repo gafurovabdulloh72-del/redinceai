@@ -1,5 +1,6 @@
 import { handler, ok, requireSession } from "@/lib/api";
 import { toggleWatchLater } from "@/lib/social/library";
+import { loadViewablePost } from "@/lib/social/post-access";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -9,5 +10,6 @@ export const POST = handler(async (_req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   await enforceLimit("social", session.sub);
+  await loadViewablePost(id, { id: session.sub, role: session.role });
   return ok(await toggleWatchLater(session.sub, id));
 });

@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
-import { db } from "@/lib/db";
-import { groups } from "@/lib/db/schema";
-import { assertActiveMember, assertCanView, loadPost } from "@/lib/groups/service";
+import { handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
+import { assertActiveMember } from "@/lib/groups/service";
+import { loadViewablePost } from "@/lib/social/post-access";
 import { addCommentX, listCommentsX } from "@/lib/groups/posts-extra";
 import { commentInputSchema } from "@/lib/groups/validators";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -17,20 +15,14 @@ const createSchema = commentInputSchema.extend({
   replyToId: z.string().trim().max(64).nullable().optional(),
 });
 
-async function postAndGroup(id: string) {
-  const post = await loadPost(id);
-  if (!post) throw new ApiError(404, "Post topilmadi");
-  const group = post.groupId ? await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) }) : null;
-  return { post, group };
-}
 
 /** GET ?sort=old|new — izohlar (standart eski → yangi) + jami soni (`total`) */
 export const GET = handler(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const { sort } = parseQuery(req.url, querySchema);
-  const { post, group } = await postAndGroup(id);
   const viewer = await optionalViewer();
-  if (group) await assertCanView(group, viewer);
+  // Postni ko'ra olmaydigan (yopiq profil, «yaqin do'stlar», yashirilgan, qulflangan pullik post) izohlarini ham o'qiy olmaydi
+  const { post } = await loadViewablePost(id, viewer, { unlocked: true });
   return ok(await listCommentsX(post, viewer, { sort }));
 });
 
@@ -39,8 +31,8 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { id } = await ctx.params;
   const input = await parseBody(req, createSchema);
-  const { post, group } = await postAndGroup(id);
   const viewer = { id: session.sub, role: session.role };
+  const { post, group } = await loadViewablePost(id, viewer, { unlocked: true });
   if (group) await assertActiveMember(group, viewer);
   else await assertCanInteractProfilePost(session.sub, post.authorId, "comment");
   await enforceLimit("comments", session.sub);

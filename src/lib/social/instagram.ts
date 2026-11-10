@@ -184,6 +184,20 @@ export interface HighlightView {
   itemsCount: number;
 }
 
+/**
+ * Highlights'ni ko'ruvchi ko'ra oladimi: egasi/admin — ha; bloklangan hisob, blok juftligi yoki YOPIQ profil (obunachi emas) — yo'q.
+ * 7-audit: ilgari `/api/highlights?user=` va `/api/highlights/<id>` hech narsani tekshirmasdi — yopiq profilning saqlangan
+ * story'lari ID orqali hammaga ochiq edi.
+ */
+export async function canSeeHighlightsOf(viewer: { id: string; role: string } | null, ownerId: string): Promise<boolean> {
+  if (viewer && (viewer.id === ownerId || viewer.role === "admin")) return true;
+  const owner = await db.query.users.findFirst({ where: eq(users.id, ownerId), columns: { id: true, profilePrivate: true, isBanned: true } });
+  if (!owner || owner.isBanned) return false;
+  if (viewer && (await isBlockedEither(viewer.id, ownerId))) return false;
+  const { canViewPrivateContent } = await import("@/lib/privacy/private-profile");
+  return canViewPrivateContent(viewer, owner);
+}
+
 export async function listHighlights(ownerId: string): Promise<HighlightView[]> {
   const rows = await db.query.storyHighlights.findMany({ where: eq(storyHighlights.ownerId, ownerId), orderBy: [desc(storyHighlights.updatedAt)], limit: HIGHLIGHTS_MAX });
   return rows.map((h) => ({ id: h.id, title: h.title, coverUrl: h.coverUrl, itemsCount: h.itemsCount }));
@@ -230,9 +244,10 @@ export interface HighlightItemView {
   bg: string | null;
 }
 
-export async function highlightItems(highlightId: string): Promise<{ title: string; items: HighlightItemView[] } | null> {
+export async function highlightItems(highlightId: string, viewer: { id: string; role: string } | null = null): Promise<{ title: string; items: HighlightItemView[] } | null> {
   const h = await db.query.storyHighlights.findFirst({ where: eq(storyHighlights.id, highlightId) });
   if (!h) return null;
+  if (!(await canSeeHighlightsOf(viewer, h.ownerId))) return null;
   const rows = await db.query.storyHighlightItems.findMany({ where: eq(storyHighlightItems.highlightId, highlightId), orderBy: [asc(storyHighlightItems.position)], limit: HIGHLIGHT_ITEMS_MAX });
   return { title: h.title, items: rows.map((r) => ({ id: r.id, media: r.media, caption: r.caption, bg: r.bg })) };
 }

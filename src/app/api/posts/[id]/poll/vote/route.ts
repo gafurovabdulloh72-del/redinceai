@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
-import { db } from "@/lib/db";
-import { groups } from "@/lib/db/schema";
-import { assertActiveMember, loadPost } from "@/lib/groups/service";
+import { handler, ok, parseBody, requireSession } from "@/lib/api";
+import { assertActiveMember } from "@/lib/groups/service";
+import { loadViewablePost } from "@/lib/social/post-access";
 import { votePoll } from "@/lib/groups/posts-extra";
 import { assertCanInteractProfilePost } from "@/lib/privacy/blocks";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -20,12 +18,10 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const input = await parseBody(req, schema);
   await enforceLimit("feedActions", session.sub);
-  const post = await loadPost(id);
-  if (!post) throw new ApiError(404, "Post topilmadi");
-  if (post.groupId) {
-    const group = await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) });
-    if (!group) throw new ApiError(404, "Jamoa topilmadi");
-    await assertActiveMember(group, { id: session.sub, role: session.role });
+  const viewer = { id: session.sub, role: session.role };
+  const { post, group } = await loadViewablePost(id, viewer, { unlocked: true });
+  if (group) {
+    await assertActiveMember(group, viewer);
   } else {
     await assertCanInteractProfilePost(session.sub, post.authorId, "react");
   }

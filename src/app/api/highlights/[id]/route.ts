@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { addToHighlight, deleteHighlight, highlightItems } from "@/lib/social/instagram";
+import { optionalViewer } from "@/app/api/groups/_lib";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /** GET: to'plam ichidagi story nusxalari. POST {storyId}: qo'shish. DELETE: to'plamni o'chirish */
 export const GET = handler(async (_req, ctx: Ctx) => {
   const { id } = await ctx.params;
-  const data = await highlightItems(id);
+  const data = await highlightItems(id, await optionalViewer());
   if (!data) throw new ApiError(404, "To'plam topilmadi");
   return ok(data);
 });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
-import { loadPost } from "@/lib/groups/service";
+import { loadViewablePost } from "@/lib/social/post-access";
 import { setPostHidden } from "@/lib/groups/posts-extra";
 import { enforceLimit } from "@/lib/security/rate-limit";
 
@@ -13,8 +13,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const input = req.headers.get("content-type")?.includes("application/json") ? await parseBody(req, schema) : { hidden: true };
   await enforceLimit("feedActions", session.sub);
-  const post = await loadPost(id);
-  if (!post) throw new ApiError(404, "Post topilmadi");
+  const { post } = await loadViewablePost(id, { id: session.sub, role: session.role });
   if (post.authorId === session.sub) throw new ApiError(400, "O'z postingizni yashirib bo'lmaydi — o'chirishingiz mumkin");
   return ok(await setPostHidden(post.id, session.sub, input.hidden));
 });
