@@ -3377,3 +3377,45 @@ export const tgChannelGate = sqliteTable("tg_channel_gate", {
   okUntil: integer("ok_until", { mode: "timestamp_ms" }).notNull(),
 });
 export type TgChannelGate = typeof tgChannelGate.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* XATOLAR JURNALI (2026-11-10, «Sentry-lite»): server va brauzer xatolari */
+/* ------------------------------------------------------------------ */
+/**
+ * Bir xil xato (fingerprint = tur + normallashtirilgan xabar + stekning birinchi kadri xeshi) BITTA qatorda turadi:
+ * takror kelganda `count`/`lastAt` oshadi va `resolvedAt` tozalanadi (hal qilingan xato qaytsa — yana ochiq).
+ * Xabar/stek/yo'l yozishdan OLDIN tozalanadi (lib/observability/sanitize.ts: query, token, email, telefon yo'q).
+ * `userId` — ataylab FK'siz (o'chirilgan foydalanuvchi sababli yozuv yo'qolmasin); qatorlar soni qat'iy chegaralangan
+ * (lib/observability/errors.ts MAX_ROWS) — xato to'foni bazani to'ldira olmaydi.
+ */
+export const errorLogs = sqliteTable(
+  "error_logs",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind", { enum: ["server", "client"] }).notNull().default("server"),
+    fingerprint: text("fingerprint").notNull(),
+    /** ≤500 belgi, tozalangan */
+    message: text("message").notNull(),
+    /** ≤4000 belgi, tozalangan (oxirgi uchragan holat) */
+    stack: text("stack").notNull().default(""),
+    /** So'rov yoki sahifa yo'li (query'siz) */
+    path: text("path").notNull().default(""),
+    method: text("method").notNull().default(""),
+    status: integer("status"),
+    userId: text("user_id"),
+    /** ≤200 belgi */
+    userAgent: text("user_agent").notNull().default(""),
+    /** Qo'shimcha kontekst (digest, manba, route turi) — kichik JSON, tozalangan */
+    extra: text("extra", { mode: "json" }).$type<Record<string, string | number | boolean>>().notNull().default({}),
+    count: integer("count").notNull().default(1),
+    firstAt: integer("first_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    lastAt: integer("last_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [uniqueIndex("error_logs_fp_idx").on(t.fingerprint), index("error_logs_last_idx").on(t.lastAt), index("error_logs_resolved_idx").on(t.resolvedAt, t.lastAt)],
+);
+export type ErrorLog = typeof errorLogs.$inferSelect;

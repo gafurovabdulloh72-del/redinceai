@@ -7,12 +7,15 @@ import { Button, ButtonLink, IconTile } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
+import { reportClientError } from "@/components/system/report-error";
 
 /** Sahifa darajasidagi xatolik — Studio uslubida, o'zbekcha, qayta urinish bilan */
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const til = useLocale();
   useEffect(() => {
     console.error("[page-error]", error);
+    // Admin «Xatolar» jurnaliga (server xatosi — digest bor — serverda allaqachon yozilgan, qayta yuborilmaydi)
+    reportClientError(error, { type: "boundary", digest: error.digest });
   }, [error]);
 
   return (

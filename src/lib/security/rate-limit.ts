@@ -150,6 +150,14 @@ export const RATE_LIMITS = {
   /** Fikr bildirish (/api/fikr) — kirgan: userId, mehmon: IP (qattiqroq) */
   feedback: { limit: 10, windowMs: HOUR },
   feedbackGuest: { limit: 3, windowMs: HOUR },
+
+  /* ---- 2026-11-10 admin vositalari ---- */
+  /** Brauzer xatolari (/api/xato) — IP bo'yicha, qattiq: jurnalni begona odam to'ldira olmasin */
+  clientError: { limit: 30, windowMs: HOUR },
+  /** Admin: kunlik cron'ni qo'lda ishga tushirish — admin userId (og'ir vazifa, bildirishnoma yuboradi) */
+  adminCron: { limit: 6, windowMs: HOUR },
+  /** Admin: parol tiklash havolasini yuborish — NISHON foydalanuvchi bo'yicha (xat bombardimoniga qarshi) */
+  adminReset: { limit: 5, windowMs: HOUR },
 } as const;
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
