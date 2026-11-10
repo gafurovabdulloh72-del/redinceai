@@ -7,7 +7,7 @@
  * Ishga tushirish: dev server ishlab tursin, keyin `node --test scripts/security.mjs`.
  * Jar fayllar (/tmp/sp.jar, /tmp/cl.jar, /tmp/ad.jar) scratchpad'dagi restart-dev.sh bilan yaratiladi.
  */
-import { test } from "node:test";
+import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
