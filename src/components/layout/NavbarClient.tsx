@@ -17,6 +17,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Tr } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import { setFavoritesViewer } from "@/components/specialists/favorites-store";
+import { useChatUnread } from "@/components/chat/unread-store";
 import { cn } from "@/lib/utils";
 
 export interface NavUser {
@@ -59,6 +60,8 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
   // Sevimlilar do'koniga ko'ruvchini e'lon qilamiz — kirish/chiqishdan so'ng yurak tugmalari yangilanadi
   const userId = user?.id ?? null;
   useEffect(() => setFavoritesViewer(userId), [userId]);
+  // «Chat» tabidagi nishon jonli (QA A2): boshlang'ich son serverdan, keyin yengil so'rov bilan (faqat kirgan foydalanuvchi)
+  const chatUnread = useChatUnread(dmUnread, Boolean(user)).total;
 
   // Instagram uslubi: telefonda pastga aylantirilganda yuqori panel yashirinadi, yuqoriga — qaytadi
   // (html[data-topbar-hidden] — globals.css transform). Sahifa almashganda bayroq tozalanadi.
@@ -113,7 +116,7 @@ export function NavbarClient({ user, unread = 0, dmUnread = 0 }: { user: NavUser
     { key: "search", href: "/qidiruv", label: SHELL.nav.search, icon: Search, match: (p) => p === "/qidiruv" || p.startsWith("/qidiruv/") },
     { key: "create", href: "#yaratish", label: SHELL.nav.create, icon: PlusSquare, match: () => false },
     user
-      ? { key: "chat", href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, match: isChatPath, badge: dmUnread }
+      ? { key: "chat", href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, match: isChatPath, badge: chatUnread }
       : { key: "lenta", href: "/lenta", label: SHELL.nav.lenta, icon: Clapperboard, match: (p) => p === "/lenta" || p.startsWith("/lenta/") },
     user
       ? { key: "profile", href: "/kabinet/menyu", label: SHELL.nav.profile, icon: Home, match: (p) => p.startsWith("/kabinet") && !isChatPath(p), avatar: true }

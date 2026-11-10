@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
+import { cleanBody } from "@/lib/chat/text";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { uid } from "@/lib/utils";
 import { loadOrderForParty } from "../../_lib/access";
@@ -34,7 +35,8 @@ const postSchema = z
     body: z.string().max(4000, "Xabar 4000 belgidan oshmasin").optional().default(""),
     attachments: attachmentListSchema().optional().default([]),
   })
-  .transform((v) => ({ body: v.body.replace(/\r\n/g, "\n").trim(), attachments: uniqueAttachments(v.attachments) }))
+  // Faqat ko'rinmas belgilardan (zero-width va h.k.) iborat matn — bo'sh xabar (bo'sh pufakcha chiqmasin; DM/guruh bilan bir xil qoida)
+  .transform((v) => ({ body: cleanBody(v.body.replace(/\r\n/g, "\n").trim()), attachments: uniqueAttachments(v.attachments) }))
   .refine((v) => v.body.length > 0 || v.attachments.length > 0, { message: "Xabar matnini yozing", path: ["body"] });
 
 /**
