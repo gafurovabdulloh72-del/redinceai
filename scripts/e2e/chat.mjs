@@ -489,6 +489,36 @@ try {
   ok(postsEv.some((e) => e.ev === "posts"), "A18: kanaldagi yangi post SSE `posts` hodisasi bilan keladi", JSON.stringify(postsEv.map((e) => e.ev)));
   const chRow = (await J(await req("cl", "/api/chat"))).data.groups.find((g) => g.slug === CH);
   ok(chRow?.unread === 1 && chRow.kind === "channel", "A7: kanal qatorida yangi post o'qilmagan bo'lib ko'rinadi");
+
+  /* ================================================================ */
+  /* HAVOLALAR: /yozish ochilmasa sababi bilan (B10); eski «a'zolar» manzili (A3) */
+  /* ================================================================ */
+  const hop = async (who, path) => {
+    const r = await fetch(`${BASE}${path}`, { headers: { cookie: C[who] }, redirect: "manual" });
+    return `${r.status} ${r.headers.get("location") ?? ""}`;
+  };
+  const nf = await hop("sp", "/yozish/bunday-taxallus-yoq-e2e");
+  ok(/^30[78] .*\/kabinet\/chat\?xato=topilmadi$/.test(nf), "B10: mavjud bo'lmagan taxallus — ro'yxatga SABABI bilan (?xato=topilmadi)", nf);
+  const self = await hop("sp", `/yozish/${SP.username}`);
+  ok(/xato=ozim$/.test(self), "B10: o'z taxallusi — ?xato=ozim", self);
+  await post("sp", `/api/blocks/${CL.id}`, {});
+  const blk = await hop("cl", `/yozish/${SP.username}`);
+  ok(/xato=blok$/.test(blk), "B10: blok juftligi — ?xato=blok (suhbat yaratilmaydi)", blk);
+  await req("sp", `/api/blocks/${CL.id}`, { method: "DELETE" });
+  const okHop = await hop("cl", `/yozish/${SP.username}`);
+  ok(new RegExp(`/kabinet/chat\\?s=${convId}$`).test(okHop), "/yozish/<taxallus> mavjud suhbatni ochadi", okHop);
+  const az = await hop("sp", `/jamoalar/${encodeURIComponent(P)}?tab=azolar`);
+  ok(/guruh=.*gtab=azolar/.test(az), "A3: eski «a'zolar» havolasi a'zolar varag'iga olib boradi (gtab=azolar)", az);
+
+  /* ================================================================ */
+  /* BUYURTMA CHATI: ko'rinmas matn (A22)                               */
+  /* ================================================================ */
+  const ord = (await db.execute({ sql: "select o.id from orders o join specialists s on s.id = o.specialist_id where s.user_id = ? order by o.created_at desc limit 1", args: [SP.id] })).rows[0];
+  if (ord) {
+    const om = `/api/orders/${ord.id}/messages`;
+    ok((await J(await post("sp", om, { body: zw }))).status === 422, "A22: buyurtma chatida ham ko'rinmas matn rad etiladi (422)");
+    ok((await J(await post("sp", om, { body: "  " }))).status === 422, "buyurtma chatida bo'sh xabar 422");
+  }
 } finally {
   /* ---------------------------------------------------------------- */
   /* Tozalash                                                          */

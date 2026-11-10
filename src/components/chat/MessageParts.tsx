@@ -1,13 +1,18 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { CornerUpLeft, FileText, Image as ImageIcon, Mic, Paperclip, Pause, Play, Video, X } from "lucide-react";
+import Link from "next/link";
+import { CornerUpLeft, FileText, Image as ImageIcon, Mic, Pause, Play, Video, X } from "lucide-react";
+import { Lightbox } from "@/components/groups/PostParts";
+import { haptic } from "@/components/motion/haptics";
 import { SafeImage } from "@/components/specialists/SafeImage";
 import type { QuoteView } from "@/lib/chat/quote";
 import { DM_REACTIONS, type LinkPreviewView, type ReactionSummary } from "@/lib/chat/constants";
+import { splitLinks } from "@/lib/chat/text";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { attachmentExt, formatBytes, formatDuration, isAudioAttachment, isImageAttachment, isVideoAttachment, type Attachment } from "./attachments";
-import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
+import { EmojiSticker, stickerSrc } from "@/components/social/EmojiSticker";
 
 /** Dumaloq ikonka tugma — chat bo'ylab bir xil (40px, fokus halqasi) */
 export const iconBtn = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/6 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg disabled:opacity-40";
@@ -209,11 +214,115 @@ export function AudioBubble({ a, mine }: { a: Attachment; mine: boolean }) {
 /* ------------------------------------------------------------------ */
 /* Biriktirmalar ro'yxati (ovoz / video / rasm / fayl)                  */
 /* ------------------------------------------------------------------ */
-export function AttachmentList({ attachments, mine }: { attachments: Attachment[]; mine: boolean }) {
+const ATT_T = {
+  openImage: { uz: "rasmni ochish", ru: "открыть изображение" },
+  more: { uz: "yana", ru: "ещё" },
+} as const;
+
+const IMG_MAX_W = 320;
+const IMG_MAX_H = 340;
+const IMG_MIN_W = 150;
+const IMG_MIN_H = 90;
+/**
+ * Bitta rasm qutisi o'lchami (asl o'lchamdan): kichik rasm KATTALASHTIRILMAYDI (48 px ikonka 48 px bo'lib qoladi),
+ * katta rasm 320×340 ichiga sig'diriladi; juda baland (skrinshot) yoki juda keng (panorama) rasm ingichka chiziqqa
+ * aylanmasligi uchun quti kengaytiriladi va rasm markazdan kesiladi (to'liq ko'rinishi — ko'ruvchida).
+ */
+function fitImage(nw: number, nh: number): { w: number; h: number } {
+  const s = Math.min(1, IMG_MAX_W / nw, IMG_MAX_H / nh);
+  let w = Math.round(nw * s);
+  let h = Math.round(nh * s);
+  if (s < 1) {
+    w = Math.max(w, Math.min(IMG_MIN_W, nw));
+    h = Math.max(h, Math.min(IMG_MIN_H, nh));
+  }
+  return { w: Math.max(w, 40), h: Math.max(h, 40) };
+}
+
+/** Bitta rasmli xabar: o'lcham rasm yuklangach asl nisbatidan hisoblanadi (yuklanguncha — yumshoq fonli quti) */
+function SingleImage({ a, label, onOpen }: { a: Attachment; label: string; onOpen: () => void }) {
+  const ref = useRef<HTMLImageElement>(null);
+  const [dim, setDim] = useState<{ w: number; h: number } | null>(null);
+  const [broken, setBroken] = useState(false);
+  // Keshdan kelgan rasm `load` hodisasini komponent ulanishidan oldin berib bo'lgan bo'lishi mumkin
+  useEffect(() => {
+    const el = ref.current;
+    if (!el?.complete) return;
+    if (el.naturalWidth > 0) setDim({ w: el.naturalWidth, h: el.naturalHeight });
+    else setBroken(true);
+  }, [a.url]);
+  if (broken) {
+    return (
+      <a href={a.url} target="_blank" rel="noopener" className="flex h-24 w-44 max-w-full items-center justify-center rounded-[12px] bg-fg/5 px-2 text-center text-[11.5px] text-fg-4 [overflow-wrap:anywhere]">
+        {a.name}
+      </a>
+    );
+  }
+  const box = dim ? fitImage(dim.w, dim.h) : { w: 220, h: 160 };
+  return (
+    <button type="button" onClick={onOpen} aria-label={label} style={{ width: box.w, height: box.h }} className="relative block max-w-full overflow-hidden rounded-[12px] bg-fg/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={ref}
+        src={a.url}
+        alt={a.name}
+        loading="eager"
+        decoding="async"
+        draggable={false}
+        onLoad={(e) => setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+        onError={() => setBroken(true)}
+        data-img-loading={dim ? undefined : ""}
+        className="h-full w-full object-cover"
+      />
+    </button>
+  );
+}
+
+/**
+ * Xabardagi rasmlar (QA B8): bitta rasm — o'z nisbatida (`fitImage`), bir nechta — ikki ustunli kvadrat to'r.
+ * Bosilganda rasm yangi oynada emas, ilova ichidagi ko'ruvchida (Lightbox: kattalashtirish, ←/→, saqlash) ochiladi.
+ */
+function ImageGroup({ images, locale }: { images: Attachment[]; locale: Locale }) {
+  const [index, setIndex] = useState<number | null>(null);
+  const shown = images.slice(0, 4);
+  return (
+    <>
+      {images.length === 1 ? (
+        <SingleImage a={images[0]} label={`${images[0].name} — ${ATT_T.openImage[locale]}`} onOpen={() => setIndex(0)} />
+      ) : (
+        <div className="grid w-[min(300px,62vw)] max-w-full grid-cols-2 gap-1">
+          {shown.map((a, i) => (
+            <button
+              key={a.url}
+              type="button"
+              onClick={() => setIndex(i)}
+              aria-label={`${a.name} — ${ATT_T.openImage[locale]}`}
+              // Uchta rasm: birinchisi butun qatorni egallaydi (bo'sh katak qolmasin)
+              className={cn("relative block overflow-hidden rounded-[12px] bg-fg/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg", shown.length === 3 && i === 0 ? "col-span-2 aspect-[2/1]" : "aspect-square")}
+            >
+              <SafeImage src={a.url} alt={a.name} loading="eager" draggable={false} className="h-full w-full object-cover" fallback={<span className="flex h-full w-full items-center justify-center px-2 text-center text-[11.5px] text-fg-4 [overflow-wrap:anywhere]">{a.name}</span>} />
+              {i === 3 && images.length > 4 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-[15px] font-bold text-white" aria-label={`${ATT_T.more[locale]} ${images.length - 4}`}>
+                  +{images.length - 4}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      <Lightbox items={images} index={index} onClose={() => setIndex(null)} onIndex={setIndex} />
+    </>
+  );
+}
+
+export function AttachmentList({ attachments, mine, locale = "uz" }: { attachments: Attachment[]; mine: boolean; locale?: Locale }) {
   if (!attachments.length) return null;
+  const images = attachments.filter((a) => isImageAttachment(a) && !isAudioAttachment(a));
+  const rest = attachments.filter((a) => !images.includes(a));
   return (
     <div className="mb-1.5 space-y-1.5">
-      {attachments.map((a) =>
+      {images.length > 0 && <ImageGroup images={images} locale={locale} />}
+      {rest.map((a) =>
         isAudioAttachment(a) ? (
           <AudioBubble key={a.url} a={a} mine={mine} />
         ) : isVideoAttachment(a) && a.round ? (
@@ -221,11 +330,7 @@ export function AttachmentList({ attachments, mine }: { attachments: Attachment[
           <RoundVideo key={a.url} a={a} />
         ) : isVideoAttachment(a) ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video key={a.url} src={a.url} controls preload="metadata" playsInline onPlay={(e) => claimMedia(e.currentTarget)} className="max-h-64 w-full rounded-[10px] bg-black/20" title={a.name} />
-        ) : isImageAttachment(a) ? (
-          <a key={a.url} href={a.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-[10px]" aria-label={`${a.name} — rasmni ochish`}>
-            <SafeImage src={a.url} alt={a.name} width={360} height={240} className="h-auto max-h-56 w-full object-cover" />
-          </a>
+          <video key={a.url} src={a.url} poster={a.poster} controls preload="metadata" playsInline onPlay={(e) => claimMedia(e.currentTarget)} className="max-h-72 w-[min(320px,100%)] rounded-[12px] bg-black" title={a.name} />
         ) : (
           <a
             key={a.url}
@@ -233,7 +338,7 @@ export function AttachmentList({ attachments, mine }: { attachments: Attachment[
             target="_blank"
             rel="noopener"
             download={a.name}
-            className={cn("flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[12.5px] font-semibold transition", mine ? "bg-ink-fg/10 hover:bg-ink-fg/15" : "bg-fg/5 hover:bg-fg/8")}
+            className={cn("flex min-h-11 items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[12.5px] font-semibold transition", mine ? "bg-ink-fg/10 hover:bg-ink-fg/15" : "bg-fg/5 hover:bg-fg/8")}
           >
             <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[9.5px] font-bold tracking-wide", mine ? "bg-ink-fg/15" : "bg-surface")}>{attachmentExt(a)}</span>
             <span className="min-w-0 flex-1">
@@ -250,20 +355,37 @@ export function AttachmentList({ attachments, mine }: { attachments: Attachment[
 /* ------------------------------------------------------------------ */
 /* Matn: havolalar bosiladigan + birinchi havola kartasi                */
 /* ------------------------------------------------------------------ */
-const URL_RE = /(https?:\/\/[^\s<>"'()]+)/g;
+/** @taxallus — so'z boshida (oldida harf/raqam/@/nuqta yo'q); `ism@domen.uz` ichidagi @domen eslatma emas */
+const MENTION_SPLIT = /((?<![\p{L}\p{N}_@.])@[a-z0-9_.-]{3,32}(?![\p{L}\p{N}_.-]))/giu;
 
-/** Matndagi http(s) havolalarni bosiladigan qilish (boshqa hech qanday HTML yo'q); uzun havola 390px'da sinadi */
-export function Linkified({ text, mine }: { text: string; mine?: boolean }) {
-  const parts = text.split(URL_RE);
+/**
+ * Chat matni: havolalar bosiladigan (`https://…`, `www.…`, yalang'och domenlar — lib/chat/text.ts), ixtiyoriy @eslatmalar
+ * (guruh chati). Boshqa hech qanday HTML yo'q. Uzun so'z/havola pufakchadan chiqmaydi (ota elementda `overflow-wrap:anywhere`).
+ * Rang pufakcha matnidan olinadi (o'z xabarida oq, begonada asosiy matn) — aksent rangi marjon pufakchada ko'rinmasdi.
+ */
+export function Linkified({ text, mine, mentions = false }: { text: string; mine?: boolean; mentions?: boolean }) {
+  const link = cn("underline decoration-1 underline-offset-2 [overflow-wrap:anywhere]", mine ? "text-ink-fg" : "text-fg");
   return (
     <span data-no-auto>
-      {parts.map((p, i) =>
-        i % 2 === 1 ? (
-          <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" className={cn("break-all underline decoration-1 underline-offset-2", mine ? "text-ink-fg" : "text-fg")}>
-            {p}
+      {splitLinks(text).map((p, i) =>
+        p.href ? (
+          <a key={i} href={p.href} target="_blank" rel="noopener noreferrer nofollow" className={link}>
+            {p.text}
           </a>
+        ) : mentions && p.text.includes("@") ? (
+          <Fragment key={i}>
+            {p.text.split(MENTION_SPLIT).map((s, j) =>
+              j % 2 === 1 ? (
+                <Link key={j} href={`/yozish/${encodeURIComponent(s.slice(1).toLowerCase())}`} className={cn("font-semibold underline-offset-2 hover:underline", mine ? "text-ink-fg" : "text-accent-text")}>
+                  {s}
+                </Link>
+              ) : (
+                <Fragment key={j}>{s}</Fragment>
+              ),
+            )}
+          </Fragment>
         ) : (
-          <Fragment key={i}>{p}</Fragment>
+          <Fragment key={i}>{p.text}</Fragment>
         ),
       )}
     </span>
@@ -317,11 +439,15 @@ export function LinkCard({ url, mine }: { url: string; mine: boolean }) {
 /* ------------------------------------------------------------------ */
 /* Reaksiyalar                                                          */
 /* ------------------------------------------------------------------ */
-/** Xabar ostidagi reaksiya chiplari — bosilsa o'zimniki qo'shiladi/olinadi */
-export function ReactionChips({ reactions, mine, onToggle }: { reactions: ReactionSummary[]; mine: boolean; onToggle?: (emoji: string) => void }) {
+/**
+ * Xabar ostidagi reaksiya chiplari — bosilsa o'zimniki qo'shiladi/olinadi.
+ * `overlap=false` — pufakcha ostida alohida qator (vaqt va ✓✓ pufakcha ichida o'ng pastda turadigan Telegram uslubida
+ * chip ularning ustiga chiqib qolmasin); standart — pufakcha chetiga biroz kirib turadi (buyurtma chati).
+ */
+export function ReactionChips({ reactions, mine, onToggle, overlap = true }: { reactions: ReactionSummary[]; mine: boolean; onToggle?: (emoji: string) => void; overlap?: boolean }) {
   if (!reactions.length) return null;
   return (
-    <div className={cn("relative z-[1] -mt-2 flex flex-wrap gap-1 px-2", mine ? "justify-end" : "justify-start")} aria-label="Reaksiyalar">
+    <div className={cn("relative z-[1] flex flex-wrap gap-1", overlap ? "-mt-2 px-2" : "mt-1 px-0.5", mine ? "justify-end" : "justify-start")} aria-label="Reaksiyalar">
       {reactions.map((r) => (
         <button
           key={r.emoji}
@@ -342,6 +468,22 @@ export function ReactionChips({ reactions, mine, onToggle }: { reactions: Reacti
       ))}
     </div>
   );
+}
+
+let reactionsPreloaded = false;
+/**
+ * Reaksiya tanlagich rasmlarini oldindan yuklash: menyu birinchi ochilganda emoji'lar birma-bir «sakrab» chiqmasin
+ * (ayniqsa telefon varag'ida). Chat ochilgach bir marta, sahifa yuklanishiga xalaqit bermaydigan paytda.
+ */
+export function preloadReactions() {
+  if (reactionsPreloaded || typeof window === "undefined") return;
+  reactionsPreloaded = true;
+  window.setTimeout(() => {
+    for (const e of DM_REACTIONS) {
+      const src = stickerSrc(e);
+      if (src) new window.Image().src = src;
+    }
+  }, 1200);
 }
 
 /** Reaksiya tanlash qatori (menyu ichida) */
@@ -369,15 +511,24 @@ export function ReactionPicker({ current, onPick }: { current?: string | null; o
 /* ------------------------------------------------------------------ */
 const KIND_ICON = { text: null, voice: Mic, image: ImageIcon, video: Video, file: FileText } as const;
 
-/** Xabar ichidagi iqtibos bloki — bosilsa asl xabarga o'tadi va uni yoritadi */
-export function QuoteBlock({ q, mine, className }: { q: QuoteView; mine: boolean; className?: string }) {
+const QUOTE_T = { uz: "Asl xabarga o'tish", ru: "Перейти к сообщению" } as const;
+
+/**
+ * Xabar ichidagi iqtibos bloki — bosilsa asl xabarga o'tadi va uni yoritadi. `onJump` berilsa o'tishni chat o'zi bajaradi
+ * (asl xabar hali yuklanmagan eski sahifada bo'lsa — avval tarixni yuklaydi).
+ */
+export function QuoteBlock({ q, mine, className, onJump, locale = "uz" }: { q: QuoteView; mine: boolean; className?: string; onJump?: (id: string) => void; locale?: Locale }) {
   const Icon = KIND_ICON[q.kind];
   return (
     <button
       type="button"
-      onClick={() => jumpToMessage(q.id)}
-      className={cn("mb-1.5 flex w-full min-w-0 max-w-full items-stretch gap-2 rounded-[10px] border-l-[3px] border-accent px-2.5 py-1.5 text-left transition", mine ? "bg-ink-fg/10 hover:bg-ink-fg/15" : "bg-accent-soft/70 hover:bg-accent-soft", className)}
-      title="Asl xabarga o'tish"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onJump) onJump(q.id);
+        else jumpToMessage(q.id);
+      }}
+      className={cn("mb-1.5 flex w-full min-w-0 max-w-full items-stretch gap-2 rounded-[10px] border-l-[3px] px-2.5 py-1.5 text-left transition", mine ? "border-ink-fg/70 bg-ink-fg/10 hover:bg-ink-fg/15" : "border-accent bg-accent-soft/70 hover:bg-accent-soft", className)}
+      title={QUOTE_T[locale]}
     >
       <span className="block min-w-0 flex-1 overflow-hidden">
         {q.senderName && <span className={cn("block truncate text-[11.5px] font-bold", mine ? "text-ink-fg" : "text-accent-text")}>{q.senderName}</span>}
@@ -390,20 +541,25 @@ export function QuoteBlock({ q, mine, className }: { q: QuoteView; mine: boolean
   );
 }
 
+const REPLY_T = {
+  reply: { uz: "Javob", ru: "Ответ" },
+  cancel: { uz: "Javobni bekor qilish", ru: "Отменить ответ" },
+} as const;
+
 /** Kompozitor ustidagi "Javob:" paneli (chiqish animatsiyasi uchun `closing`) */
-export function ReplyBar({ q, onCancel, closing }: { q: QuoteView; onCancel: () => void; closing?: boolean }) {
+export function ReplyBar({ q, onCancel, closing, locale = "uz" }: { q: QuoteView; onCancel: () => void; closing?: boolean; locale?: Locale }) {
   const Icon = KIND_ICON[q.kind];
   return (
     <div className={cn(closing ? "expand-out" : "expand-in", "mb-2 flex items-center gap-2 rounded-[12px] border-l-[3px] border-accent bg-accent-soft/60 py-1.5 pl-3 pr-1")} role="status">
       <CornerUpLeft size={14} className="shrink-0 text-accent" />
       <span className="block min-w-0 flex-1 overflow-hidden">
-        <span className="block truncate text-[11.5px] font-bold text-accent-text">{q.senderName ? `Javob: ${q.senderName}` : "Javob"}</span>
-        <span className="flex min-w-0 items-center gap-1 text-[12.5px] text-fg-2">
+        <span className="block truncate text-[11.5px] font-bold text-accent-text">{q.senderName ? `${REPLY_T.reply[locale]}: ${q.senderName}` : REPLY_T.reply[locale]}</span>
+        <span className="flex min-w-0 items-center gap-1 text-[12.5px] text-fg-2" data-no-auto>
           {Icon && <Icon size={12} className="shrink-0" />}
           <span className="block min-w-0 flex-1 truncate">{q.body || "…"}</span>
         </span>
       </span>
-      <button type="button" onClick={onCancel} aria-label="Javobni bekor qilish" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/8 hover:text-fg focus-visible:outline-2 focus-visible:outline-fg">
+      <button type="button" onClick={onCancel} aria-label={REPLY_T.cancel[locale]} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-fg-3 transition hover:bg-fg/8 hover:text-fg focus-visible:outline-2 focus-visible:outline-fg">
         <X size={14} />
       </button>
     </div>
@@ -428,22 +584,60 @@ export function ReplyButton({ onClick, mine }: { onClick: () => void; mine: bool
   );
 }
 
-/** Asl xabarga o'tish va qisqa yoritish */
-export function jumpToMessage(id: string) {
+/** Asl xabarga o'tish va qisqa yoritish; qaytaradi: xabar sahifada bormi */
+export function jumpToMessage(id: string): boolean {
   const el = document.getElementById(`msg-${id}`);
-  if (!el) return;
+  if (!el) return false;
   el.scrollIntoView({ block: "center", behavior: "smooth" });
   el.classList.add("ring-2", "ring-accent/60");
   window.setTimeout(() => el.classList.remove("ring-2", "ring-accent/60"), 1400);
+  return true;
+}
+
+/**
+ * Sensorli ekranda xabarni BOSIB TURISH (450 ms) → menyu. Barmoq 10 px dan ortiq siljisa (aylantirish/surish) bekor bo'ladi.
+ * Menyu `Layer` orqali ochiladi — u barmoq ko'tarilguncha bosishlarni qabul qilmaydi (QA A17).
+ *   const press = useLongPress();  …  <div {...press((pt) => openMenu(m, pt))}>
+ */
+export function useLongPress(ms = 450) {
+  const timer = useRef<number | null>(null);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const clear = () => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = null;
+    start.current = null;
+  };
+  useEffect(() => clear, []);
+  return (onPress: (pt: { x: number; y: number }) => void) => ({
+    onPointerDown: (e: ReactPointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      clear();
+      const pt = { x: e.clientX, y: e.clientY };
+      start.current = pt;
+      timer.current = window.setTimeout(() => {
+        timer.current = null;
+        haptic("light");
+        onPress(pt);
+      }, ms);
+    },
+    onPointerMove: (e: ReactPointerEvent) => {
+      const s = start.current;
+      if (s && (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10)) clear();
+    },
+    onPointerUp: clear,
+    onPointerCancel: clear,
+    onPointerLeave: clear,
+  });
 }
 
 /* ------------------------------------------------------------------ */
 /* Kun ajratuvchisi (yopishqoq pill) va "Yozmoqda…"                     */
 /* ------------------------------------------------------------------ */
-export function DayPill({ label }: { label: string }) {
+/** `tg` — Telegram uslubidagi chat foni (`tg-chat-bg`) ustida: pufakcha rangidagi kapsula (fon bilan qo'shilib ketmaydi) */
+export function DayPill({ label, tg = false }: { label: string; tg?: boolean }) {
   return (
-    <div className="pointer-events-none sticky top-0 z-[1] flex justify-center py-1" role="separator" aria-label={label}>
-      <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-fg-3">{label}</span>
+    <div className="pointer-events-none sticky top-0 z-[1] flex justify-center py-1.5" role="separator" aria-label={label}>
+      <span className={cn("rounded-full font-semibold", tg ? "tg-bubble px-3 py-1 text-[12px] text-fg-2 shadow-sm" :"bg-surface-2 px-2.5 py-0.5 text-[11px] text-fg-3")}>{label}</span>
     </div>
   );
 }
@@ -462,8 +656,13 @@ export function TypingDots({ label, closing }: { label: string; closing?: boolea
 }
 
 /** Guruh uchun "yozmoqda" matni: 1 — "Ali yozmoqda…", 2 — "Ali va Vali yozmoqda…", 3+ — "3 kishi yozmoqda…" */
-export function typingLabel(names: string[]): string {
+export function typingLabel(names: string[], locale: Locale = "uz"): string {
   if (names.length === 0) return "";
+  if (locale === "ru") {
+    if (names.length === 1) return `${names[0]} печатает…`;
+    if (names.length === 2) return `${names[0]} и ${names[1]} печатают…`;
+    return `${names.length} чел. печатают…`;
+  }
   if (names.length === 1) return `${names[0]} yozmoqda…`;
   if (names.length === 2) return `${names[0]} va ${names[1]} yozmoqda…`;
   return `${names.length} kishi yozmoqda…`;
