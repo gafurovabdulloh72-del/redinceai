@@ -2,12 +2,13 @@ import "server-only";
 import { after } from "next/server";
 import { and, desc, eq, gt, inArray, isNull, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { notifications, users } from "@/lib/db/schema";
+import { notifications, rateLimits, users } from "@/lib/db/schema";
 import { brandedMail, sendMail } from "@/lib/security/mailer";
 import { tryConsume } from "@/lib/security/rate-limit";
 import { siteUrl } from "@/lib/security/site";
-import { escapeTelegramHtml, isTelegramEnabled, sendTelegram } from "@/lib/telegram";
+import { cutPlain, escapeTelegramHtml, isTelegramEnabled, sendTelegramEx } from "@/lib/telegram";
 import { appUrl } from "@/lib/telegram-bot/app-url";
+import { L, type BotLang } from "@/lib/telegram-bot/lang";
 import { uid } from "@/lib/utils";
 
 /**
@@ -135,10 +136,25 @@ function absoluteHref(origin: string | null | undefined, href: string | null | u
 export interface NotifyOptions {
   /** message_new emaili/Telegram xabari uchun cheklov kaliti (odatda orderId). Berilmasa href ishlatiladi */
   mailKey?: string;
-  /** Tashqi kanallarga yubormaslik (faqat saytdagi bildirishnoma — email ham, Telegram ham chiqmaydi) */
+  /**
+   * Faqat EMAIL yuborilmaydi — Telegram va push avvalgidek ketadi (2026-11-10 tuzatildi: ilgari bu bayroq butun tashqi
+   * fan-out'ni to'xtatib, «sayt + Telegram» deb mo'ljallangan xabarlar Telegramga umuman bormasdi).
+   */
   skipMail?: boolean;
+  /**
+   * FAQAT saytdagi bildirishnoma: email ham, Telegram ham, push ham chiqmaydi. Chaqiruvchi Telegram xabarini O'ZI
+   * (tugmalar bilan) yuboradigan joylar uchun — aks holda admin bitta hodisa haqida ikki marta xabar oladi.
+   */
+  siteOnly?: boolean;
   /** MAIL_TYPES'da bo'lmagan tur uchun ham email yuborish (masalan, admin ommaviy e'loni "email bilan" rejimida) */
   forceMail?: boolean;
+  /**
+   * Telegram kanalini o'tkazib yuborish (email va push ketadi): chaqiruvchi Telegramga `deliverTelegramNotification`
+   * bilan o'zi yuboradi va natijani sanaydi (ommaviy e'lon — haqiqiy yetkazilgan son uchun).
+   */
+  skipTelegram?: boolean;
+  /** Yangi buyurtma bildirishnomasi: «Qabul qilish / Rad etish» tugmalari shu buyurtmaga bog'lanadi (berilmasa href'dan olinadi) */
+  orderId?: string;
 }
 
 /** Email havolasi uchun sayt manzili: sozlamadagi kanonik manzil, dev'da — lokal server */
@@ -177,16 +193,42 @@ const MAIL_FOOTER = {
   ru: "Отключить email-уведомления можно в Кабинет → Профиль → «Email-уведомления».",
 } as const;
 
+/** Bildirishnoma matnidagi bo'lak ajratgichlari: «Sarlavha: nom», «Sarlavha — nom», «a · b», gaplar va qatorlar */
+const PART_SEP = /(: | — | · |\. |\n)/;
+
+/**
+ * Butun matn tarjimasi topilmaganda — BO'LAKLAB lug'atdan: `Yangi buyurtma: <nom>` → `Новый заказ: <nom>`,
+ * `… Qabul qiling va narx belgilang.` → `… Примите заказ и назначьте цену.` Faqat lug'atda ANIQ bor bo'laklar almashadi
+ * (foydalanuvchi matni — ism, sarlavha — o'zgarishsiz qoladi); AI'ga hech narsa yuborilmaydi. Hech biri topilmasa — asl matn.
+ */
+function localizeParts(s: string, lookup: (x: string) => string | null): string {
+  const parts = s.split(PART_SEP);
+  if (parts.length < 3) return s;
+  let hit = false;
+  const out = parts.map((p, i) => {
+    if (i % 2 === 1) return p; // ajratgichning o'zi
+    const core = p.trim();
+    if (core.length < 3) return p;
+    const end = /[.!]$/.test(core) ? core.slice(-1) : "";
+    const ru = lookup(core) ?? (end ? lookup(core.slice(0, -1)) : null);
+    if (!ru) return p;
+    hit = true;
+    return p.replace(core, end && !/[.!]$/.test(ru) ? ru + end : ru);
+  });
+  return hit ? out.join("") : s;
+}
+
 /**
  * Bildirishnoma sarlavhasi/matnini ruschaga o'girish (users.lang = ru): `translateUiBatch` — faqat qisqa o'zbekcha UI iboralari
- * (≤160 belgi, `looksUzbek`); topilmagani yoki foydalanuvchi matni aralashgan uzun matn o'zgarishsiz qoladi. Xato — asl matn.
+ * (≤160 belgi, `looksUzbek`: lug'at → baza keshi → AI); butun matn topilmasa — bo'laklab lug'atdan (`localizeParts`: dinamik
+ * sarlavhalarning doimiy qismi). Topilmagani yoki foydalanuvchi matni o'zgarishsiz qoladi. Xato — asl matn.
  */
 export async function localizeNotification(title: string, body: string | null | undefined): Promise<{ title: string; body: string | null | undefined }> {
   try {
     const { translateUiBatch } = await import("@/lib/i18n/translate-service");
-    const { normalizeUz } = await import("@/lib/i18n/auto");
+    const { normalizeUz, lookupRu } = await import("@/lib/i18n/auto");
     const map = await translateUiBatch([title, ...(body ? [body] : [])]);
-    const pick = (s: string) => map[normalizeUz(s)] ?? s;
+    const pick = (s: string) => map[normalizeUz(s)] ?? localizeParts(s, lookupRu);
     return { title: pick(title), body: body ? pick(body) : body };
   } catch {
     return { title, body };
@@ -199,64 +241,147 @@ export async function localizeNotification(title: string, body: string | null | 
  * Email'dan farqli, barcha turlar yuboriladi (eslatmalar ham foydali); bloklangan hisobga faqat "account".
  * message_new / chat uchun email bilan bir xil 30 daqiqalik cheklov — alohida kalit (emailga xalal bermaydi).
  */
-/** Telegram inline tugma yorlig'i — bildirishnoma turiga mos (foydalanuvchi nima ochilishini oldindan biladi) */
-const TG_BUTTON_LABEL: Partial<Record<NotificationType, string>> = {
-  message_new: "Xabarni ochish",
-  chat: "Xabarni ochish",
-  proposal_new: "Taklifni ko'rish",
-  proposal_accepted: "Buyurtmani ochish",
-  proposal_declined: "E'lonni ochish",
-  proposal_shortlisted: "E'lonni ochish",
-  job_new: "E'lonni ochish",
-  job_closed: "E'lonni ochish",
-  job_expired: "E'lonni uzaytirish",
-  saved_search: "Natijalarni ko'rish",
-  payout: "Balansni ochish",
-  payout_requested: "So'rovni ko'rish",
-  refund_needed: "To'lovni ko'rish",
-  payment_pending: "To'lovni ko'rish",
-  payment_refunded: "To'lovni ko'rish",
-  payment_cancelled: "To'lovni ko'rish",
-  dispute: "Nizoni ko'rish",
-  dispute_opened: "Nizoni ko'rish",
-  dispute_resolved: "Qarorni ko'rish",
-  report: "Shikoyatni ko'rish",
-  review_new: "Sharhni ko'rish",
-  subscription_expiring: "Obunani uzaytirish",
-  subscription_expired: "Obunani uzaytirish",
-  subscription_paid: "Obunani ko'rish",
-  subscription_pending: "Hisobni ko'rish",
-  group_request: "So'rovni ko'rish",
-  channel_post: "Postni ochish",
-  live_event: "Efirga qo'shilish",
-  application_new: "Arizani ko'rish",
-  application_status: "Arizani ko'rish",
-  broadcast: "Batafsil",
-  account: "Kabinetni ochish",
-  digest: "Kabinetni ochish",
+/** Telegram inline tugma yorlig'i — bildirishnoma turiga mos (foydalanuvchi nima ochilishini oldindan biladi): [uz, ru] */
+type Pair = readonly [uz: string, ru: string];
+const TG_BUTTON_LABEL: Partial<Record<NotificationType, Pair>> = {
+  message_new: ["Xabarni ochish", "Открыть сообщение"],
+  chat: ["Xabarni ochish", "Открыть сообщение"],
+  proposal_new: ["Taklifni ko'rish", "Посмотреть отклик"],
+  proposal_accepted: ["Buyurtmani ochish", "Открыть заказ"],
+  proposal_declined: ["E'lonni ochish", "Открыть объявление"],
+  proposal_shortlisted: ["E'lonni ochish", "Открыть объявление"],
+  job_new: ["E'lonni ochish", "Открыть объявление"],
+  job_closed: ["E'lonni ochish", "Открыть объявление"],
+  job_expired: ["E'lonni uzaytirish", "Продлить объявление"],
+  saved_search: ["Natijalarni ko'rish", "Посмотреть результаты"],
+  payout: ["Balansni ochish", "Открыть баланс"],
+  payout_requested: ["So'rovni ko'rish", "Посмотреть запрос"],
+  refund_needed: ["To'lovni ko'rish", "Посмотреть платёж"],
+  payment_pending: ["To'lovni ko'rish", "Посмотреть платёж"],
+  payment_refunded: ["To'lovni ko'rish", "Посмотреть платёж"],
+  payment_cancelled: ["To'lovni ko'rish", "Посмотреть платёж"],
+  dispute: ["Nizoni ko'rish", "Посмотреть спор"],
+  dispute_opened: ["Nizoni ko'rish", "Посмотреть спор"],
+  dispute_resolved: ["Qarorni ko'rish", "Посмотреть решение"],
+  report: ["Shikoyatni ko'rish", "Посмотреть жалобу"],
+  review_new: ["Sharhni ko'rish", "Посмотреть отзыв"],
+  subscription_expiring: ["Obunani uzaytirish", "Продлить подписку"],
+  subscription_expired: ["Obunani uzaytirish", "Продлить подписку"],
+  subscription_paid: ["Obunani ko'rish", "Открыть подписку"],
+  subscription_pending: ["Hisobni ko'rish", "Посмотреть счёт"],
+  group_request: ["So'rovni ko'rish", "Посмотреть запрос"],
+  channel_post: ["Postni ochish", "Открыть пост"],
+  live_event: ["Efirga qo'shilish", "Присоединиться к эфиру"],
+  application_new: ["Arizani ko'rish", "Посмотреть отклик"],
+  application_status: ["Arizani ko'rish", "Посмотреть отклик"],
+  vacancy_expiring: ["Vakansiyani uzaytirish", "Продлить вакансию"],
+  broadcast: ["Batafsil", "Подробнее"],
+  account: ["Kabinetni ochish", "Открыть кабинет"],
+  digest: ["Kabinetni ochish", "Открыть кабинет"],
 };
 
-async function telegramNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions): Promise<void> {
-  if (!isTelegramEnabled()) return;
-  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { telegramChatId: true, isBanned: true } });
-  if (!u?.telegramChatId) return;
-  if (u.isBanned && type !== "account") return;
+/**
+ * Umumiy turlar (`subscription_paid`, `account` …) juda ko'p hodisaga ishlatiladi — sertifikat, kurs sotuvi, kontakt…
+ * Ularda tugma yorlig'i HAVOLAGA qarab tanlanadi (aks holda sertifikat xabari ostida «Obunani ko'rish» chiqardi).
+ */
+const HREF_LABEL: readonly (readonly [RegExp, Pair])[] = [
+  [/^\/sertifikat\//, ["Sertifikatni ochish", "Открыть сертификат"]],
+  [/^\/mentorlik\/dars\//, ["Darsni ochish", "Открыть урок"]],
+  [/^\/mentorlik\/konsultatsiya\//, ["Konsultatsiyani ochish", "Открыть консультацию"]],
+  [/^\/kabinet\/mentorlik\/vazifalar/, ["Vazifalarni ko'rish", "Посмотреть задания"]],
+  [/^\/kabinet\/mentorlik\/daromad/, ["Daromadni ko'rish", "Посмотреть доход"]],
+  [/^\/kabinet\/mentorlik/, ["Mentorlikni ochish", "Открыть наставничество"]],
+  [/^\/mentorlik/, ["Kursni ochish", "Открыть курс"]],
+  [/^\/kabinet\/kontaktlar/, ["Kontaktlarni ko'rish", "Посмотреть контакты"]],
+  [/^\/kabinet\/obuna/, ["Obunani ko'rish", "Открыть подписку"]],
+  [/^\/kabinet\/xavfsizlik/, ["Xavfsizlik bo'limini ochish", "Открыть раздел безопасности"]],
+  [/^\/kabinet\/story-javoblar/, ["Javoblarni ko'rish", "Посмотреть ответы"]],
+  [/^\/kabinet\/tolovlar/, ["Balansni ochish", "Открыть баланс"]],
+  [/^\/mutaxassislar\/[^?#]+\?(?:.*&)?post=/, ["Postni ochish", "Открыть пост"]],
+  [/^\/mutaxassislar\//, ["Profilni ochish", "Открыть профиль"]],
+  [/^\/jamoalar\//, ["Jamoani ochish", "Открыть сообщество"]],
+  [/^\/efir\//, ["Efirga qo'shilish", "Присоединиться к эфиру"]],
+  [/^\/konkurs/, ["Konkursni ochish", "Открыть конкурс"]],
+  [/^\/savollar/, ["Savolni ochish", "Открыть вопрос"]],
+  [/^\/top/, ["Reytingni ko'rish", "Открыть рейтинг"]],
+  [/^\/admin/, ["Admin panelni ochish", "Открыть админ-панель"]],
+];
+const GENERIC_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>(["subscription_paid", "account", "post_comment", "post_like", "mention", "group_joined", "profile_post", "follow", "top_award", "broadcast"]);
+
+function buttonLabel(type: NotificationType, href: string | null | undefined, lang: BotLang): string {
+  const pick = (p: Pair) => L(lang, p[0], p[1]);
+  if (href?.startsWith("https://")) return type === "live_event" ? L(lang, "Efirga qo'shilish", "Присоединиться к эфиру") : L(lang, "Havolani ochish", "Открыть ссылку");
+  const byType = TG_BUTTON_LABEL[type];
+  const byHref = href ? HREF_LABEL.find(([re]) => re.test(href))?.[1] : undefined;
+  const chosen = GENERIC_TYPES.has(type) ? (byHref ?? byType) : (byType ?? byHref);
+  if (chosen) return pick(chosen);
+  return type.startsWith("order_") ? L(lang, "Buyurtmani ochish", "Открыть заказ") : L(lang, "Saytda ochish", "Открыть на сайте");
+}
+
+/** Buyurtma id'si: `/buyurtma/<id>` yoki kabinet havolasi `/kabinet/buyurtmalar?id=<id>` (orderHref shuni qaytaradi) */
+export function orderIdFromHref(href: string | null | undefined): string | undefined {
+  if (!href) return undefined;
+  return /\/buyurtma\/([\w-]{1,64})/.exec(href)?.[1] ?? (/^\/kabinet\/buyurtmalar/.test(href) ? /[?&]id=([\w-]{1,64})/.exec(href)?.[1] : undefined);
+}
+
+/** Telegramga yetkazish natijasi: `none` — yuborilmadi (chat ulanmagan, o'chirilgan, cheklov), `blocked` — foydalanuvchi botni bloklagan */
+export type TelegramDelivery = "sent" | "none" | "blocked" | "failed";
+
+/**
+ * Bitta bildirishnomani foydalanuvchining Telegramiga yetkazish (til: `users.lang`; ruscha — `localizeNotification`).
+ * `notify()` fan-out'i va ommaviy e'lon (`lib/broadcast.ts` — natijani sanaydi) shu funksiyadan foydalanadi.
+ * Yuborish «ommaviy» qatorda (`bulk`) ketadi: navbat ~25 xabar/s, 429'da `retry_after` kutiladi, bloklagan chatga urinilmaydi.
+ */
+export async function deliverTelegramNotification(userId: string, type: NotificationType, title: string, body: string | null | undefined, href: string | null | undefined, opts: NotifyOptions = {}): Promise<TelegramDelivery> {
+  if (!isTelegramEnabled()) return "none";
+  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { telegramChatId: true, isBanned: true, lang: true } });
+  if (!u?.telegramChatId) return "none";
+  if (u.isBanned && type !== "account") return "none";
   if (type === "message_new" || type === "chat") {
     const key = opts.mailKey ?? href ?? "general";
-    if (!(await tryConsume(`tgMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return;
+    if (!(await tryConsume(`tgMsg:${userId}:${key}`.slice(0, 200), MESSAGE_MAIL_WINDOW_MS))) return "none";
   }
+  const chat = u.telegramChatId;
+  const lang: BotLang = u.lang === "ru" ? "ru" : "uz";
   const origin = mailOrigin();
   const link = absoluteHref(origin, href);
-  const text = `<b>${escapeTelegramHtml(title)}</b>` + (body ? `\n${escapeTelegramHtml(body)}` : "");
-  // Yangi buyurtma mutaxassisga: xabar ostida «Qabul qilish / Rad etish» tugmalari (botda bir bosishda)
-  const orderId = type === "order_new" && link ? /\/buyurtma\/([\w-]+)/.exec(href ?? "")?.[1] : undefined;
-  if (orderId) {
-    const kb = await orderActionButtons(orderId, userId, link!);
-    if (kb) return void (await sendTelegram(u.telegramChatId, text, { keyboard: kb }));
+  const done = (r: { ok: boolean; blocked?: boolean }): TelegramDelivery => (r.ok ? "sent" : r.blocked ? "blocked" : "failed");
+
+  // Yangi ariza ish beruvchiga: oddiy xabar o'rniga NOMZOD KARTASI (moslik balli, rezyume, xat parchasi) va
+  // «Tanlovga olish / Rad etish» tugmalari — lib/telegram-bot/applications.ts. Karta tuzilmasa oddiy xabar ketadi.
+  if (type === "application_new") {
+    const vacancyId = /[?&]v=([\w-]{1,64})/.exec(href ?? "")?.[1];
+    if (vacancyId) {
+      try {
+        const { applicationCardFor } = await import("@/lib/telegram-bot/applications");
+        const card = await applicationCardFor(vacancyId, userId, lang);
+        if (card) return done(await sendTelegramEx(chat, card.text, { keyboard: card.keyboard, bulk: true }));
+      } catch (e) {
+        console.error("[notify:tg] ariza kartasi", e instanceof Error ? e.message : e);
+      }
+    }
   }
-  // Yalang'och URL o'rniga xabar ostida tugma — turga mos yorliq bilan (TG_BUTTON_LABEL; order_* — umumiy)
-  const buttonText = href?.startsWith("https://") ? (type === "live_event" ? "Efirga qo'shilish" : "Havolani ochish") : (TG_BUTTON_LABEL[type] ?? (type.startsWith("order_") ? "Buyurtmani ochish" : "Saytda ochish"));
-  await sendTelegram(u.telegramChatId, text, link ? { keyboard: [[telegramOpenButton(buttonText, href ?? null, link)]] } : {});
+
+  // Rus tilidagi foydalanuvchiga sarlavha/matn ruscha (email bilan bir xil yo'l: lug'at → baza keshi → AI)
+  const t = lang === "ru" ? await localizeNotification(title, body) : { title, body };
+  const text = `<b>${escapeTelegramHtml(t.title)}</b>` + (t.body ? `\n${escapeTelegramHtml(t.body)}` : "");
+
+  // Yangi buyurtma mutaxassisga: xabar ostida «Qabul qilish / Rad etish» tugmalari (botda bir bosishda)
+  const orderId = type === "order_new" ? (opts.orderId ?? orderIdFromHref(href)) : undefined;
+  if (orderId) {
+    const kb = await orderActionButtons(orderId, userId, link, lang);
+    if (kb) return done(await sendTelegramEx(chat, text, { keyboard: kb, bulk: true }));
+  }
+
+  const keyboard: { text: string; url?: string; data?: string; webApp?: string }[][] = [];
+  // Yalang'och URL o'rniga xabar ostida tugma — turga/havolaga mos yorliq bilan
+  if (link) keyboard.push([telegramOpenButton(buttonLabel(type, href, lang), href ?? null, link)]);
+  // Shaxsiy xabar: saytni ochmasdan shu chatning o'zidan javob yozish (lib/telegram-bot/dm.ts — `dm:r:<suhbat>`)
+  if (type === "chat") {
+    const convId = /^\/kabinet\/chat\?(?:.*&)?s=([\w-]{1,64})/.exec(href ?? "")?.[1];
+    if (convId) keyboard.unshift([{ text: L(lang, "✍️ Javob yozish", "✍️ Ответить"), data: `dm:r:${convId}` }, { text: L(lang, "💬 Suhbatni ko'rish", "💬 Показать переписку"), data: `dm:o:${convId}` }]);
+  }
+  return done(await sendTelegramEx(chat, text, { ...(keyboard.length ? { keyboard } : {}), bulk: true }));
 }
 
 /**
@@ -275,7 +400,7 @@ export function telegramOpenButton(text: string, href: string | null, link: stri
  * Yangi buyurtma bildirishnomasi mutaxassisga ketayotgan bo'lsa, botda tezkor tugmalar beramiz.
  * Faqat `new` holatidagi va AYNAN shu mutaxassisning buyurtmasi uchun (mijozga oddiy havola ketadi).
  */
-async function orderActionButtons(orderId: string, recipientId: string, link: string) {
+async function orderActionButtons(orderId: string, recipientId: string, link: string | null, lang: BotLang) {
   try {
     const { orders, specialists } = await import("@/lib/db/schema");
     const row = await db
@@ -286,7 +411,7 @@ async function orderActionButtons(orderId: string, recipientId: string, link: st
       .limit(1);
     if (row[0]?.status !== "new" || row[0]?.spUserId !== recipientId) return null;
     const { orderButtons } = await import("@/lib/telegram-bot/actions");
-    return orderButtons(orderId, link);
+    return orderButtons(orderId, link, lang);
   } catch {
     return null;
   }
@@ -342,6 +467,20 @@ export async function markChatNotificationsRead(userId: string, hrefPrefix: stri
   }
 }
 
+/**
+ * Foydalanuvchi suhbatni BOTDA o'qidi yoki botdan javob yozdi — shu suhbat bo'yicha Telegram cheklovi (30 daqiqada bitta xabar)
+ * bo'shatiladi: suhbatdoshning keyingi xabari yana Telegramga keladi. Aks holda botdagi ikki tomonlama yozishma uzilib qolardi
+ * (javob yozdingiz, suhbatdosh 2 daqiqada javob berdi — Telegramga hech narsa kelmaydi). Saytda o'qilganda cheklov SAQLANADI —
+ * saytda jonli yozishayotgan odamga har xabar Telegramga ham kelib turmasin. `href` — bildirishnoma havolasi (`/kabinet/chat?s=<id>`).
+ */
+export async function rearmChatPing(userId: string, href: string): Promise<void> {
+  try {
+    await db.delete(rateLimits).where(eq(rateLimits.key, `tgMsg:${userId}:${href}`.slice(0, 200)));
+  } catch {
+    /* cheklov o'z muddatida tugaydi */
+  }
+}
+
 export async function notify(userId: string, type: NotificationType, title: string, body?: string | null, href?: string | null, opts: NotifyOptions = {}): Promise<void> {
   // Kabinet sozlamalari (users.notifyPrefs): guruh o'chirilgan bo'lsa — na saytda, na emailda, na Telegramda (xavfsizlik turlari bundan mustasno)
   if (!(await isNotifyAllowed(userId, type))) return;
@@ -353,22 +492,24 @@ export async function notify(userId: string, type: NotificationType, title: stri
       id: uid(),
       userId,
       type,
-      title: title.slice(0, 160),
-      body: body ? body.slice(0, 600) : null,
+      title: cutPlain(title, 160),
+      body: body ? cutPlain(body, 600) : null,
       href: href ?? null,
     });
   } catch (e) {
     console.error("[notify]", type, e);
   }
-  if (opts.skipMail) return;
-  const t = title.slice(0, 160);
-  const b = body ? body.slice(0, 600) : body;
+  // `siteOnly` — faqat sayt qo'ng'irog'i (chaqiruvchi Telegram xabarini o'zi yuboradi). `skipMail` esa FAQAT emailni o'chiradi.
+  if (opts.siteOnly) return;
+  const t = cutPlain(title, 160);
+  const b = body ? cutPlain(body, 600) : body;
+  const wantMail = !opts.skipMail && (MAIL_TYPES.has(type) || Boolean(opts.forceMail));
   try {
-    // Email (faqat MAIL_TYPES) va Telegram parallel — biri yiqilsa ikkinchisi baribir yuboriladi
+    // Email (faqat MAIL_TYPES), Telegram va push parallel — biri yiqilsa qolganlari baribir yuboriladi
     inBackground(async () => {
       const results = await Promise.allSettled([
-        MAIL_TYPES.has(type) || opts.forceMail ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(),
-        telegramNotification(userId, type, t, b, href, opts),
+        wantMail ? mailNotification(userId, type, t, b, href, opts) : Promise.resolve(),
+        opts.skipTelegram ? Promise.resolve() : deliverTelegramNotification(userId, type, t, b, href, opts),
         pushNotification(userId, type, t, b, href),
       ]);
       for (const r of results) if (r.status === "rejected") console.error("[notify:fanout]", type, r.reason);
@@ -383,17 +524,19 @@ export async function notify(userId: string, type: NotificationType, title: stri
  * `dedupeMs` berilsa, shu muddat ichida bir xil (tur + sarlavha + matn) xabar bo'lsa qayta yozilmaydi —
  * provayder takroriy chaqiruvlari (masalan Payme CancelTransaction) adminni xabar bilan to'ldirmasin.
  */
-export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null, opts: { dedupeMs?: number; skipMail?: boolean } = {}): Promise<void> {
+export async function notifyAdmins(type: NotificationType, title: string, body?: string | null, href?: string | null, opts: { dedupeMs?: number; skipMail?: boolean; siteOnly?: boolean } = {}): Promise<void> {
   try {
     if (opts.dedupeMs) {
       const dup = await db.query.notifications.findFirst({
-        where: and(eq(notifications.type, type), eq(notifications.title, title.slice(0, 160)), gt(notifications.createdAt, new Date(Date.now() - opts.dedupeMs))),
+        where: and(eq(notifications.type, type), eq(notifications.title, cutPlain(title, 160)), gt(notifications.createdAt, new Date(Date.now() - opts.dedupeMs))),
         columns: { id: true },
       });
       if (dup) return;
     }
     const admins = await db.query.users.findMany({ where: eq(users.role, "admin"), columns: { id: true } });
-    await Promise.all(admins.map((a) => notify(a.id, type, title, body, href, opts.skipMail ? { skipMail: true } : {})));
+    // `skipMail` — emailsiz (sayt + Telegram + push); `siteOnly` — faqat sayt (chaqiruvchi Telegramga o'zi tugmali xabar yuboradi)
+    const pass: NotifyOptions = { ...(opts.skipMail ? { skipMail: true } : {}), ...(opts.siteOnly ? { siteOnly: true } : {}) };
+    await Promise.all(admins.map((a) => notify(a.id, type, title, body, href, pass)));
   } catch (e) {
     console.error("[notifyAdmins]", type, e);
   }

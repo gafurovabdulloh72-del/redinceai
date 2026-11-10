@@ -1,29 +1,31 @@
 import "server-only";
 import { escapeTelegramHtml, telegramApi } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
-import { CATEGORY_BY_SLUG } from "@/lib/constants";
+import { categoryLabel } from "@/lib/telegram-bot/labels-ru";
 import { searchPeople } from "@/lib/telegram-bot/actions";
 import { formatPrice } from "@/lib/utils";
-import { botLang, L } from "@/lib/telegram-bot/lang";
+import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * INLINE REJIM (2026-10-31): istalgan chatda `@bot montajchi` → ijodkor kartalari (article natijalar) — tanlangani
  * suhbatga havola va «Profilni ochish» tugmasi bilan yuboriladi. Bo'sh so'rov — eng yaxshi ijodkorlar.
  * BotFather'da /setinline yoqilgan bo'lishi va webhook `allowed_updates`da `inline_query` bo'lishi shart
  * (admin panel → «Webhookni yangilash»).
+ * Natijalar TILGA bog'liq (uz/ru) — `is_personal: true`: aks holda Telegram bir tildagi javobni boshqa tildagi
+ * foydalanuvchiga keshdan berardi. `lang` — chaqiruvchi hisob tilini (`users.lang`) hisobga olib beradi.
  */
-export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; offset?: unknown; from?: { language_code?: string } }): Promise<void> {
+export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; offset?: unknown; from?: { language_code?: string } }, langOverride?: BotLang): Promise<void> {
   const id = iq.id != null ? String(iq.id) : "";
   if (!id) return;
   const q = (typeof iq.query === "string" ? iq.query : "").trim().slice(0, 80);
   const s = siteUrl() ?? "";
-  const lang = botLang(iq.from?.language_code);
+  const lang = langOverride ?? botLang(iq.from?.language_code);
   const stars = (r: number) => (r > 0 ? `⭐ ${r.toFixed(1)}` : L(lang, "yangi", "новый"));
   let results: unknown[] = [];
   try {
     const people = await searchPeople(q, 10);
     results = people.map((p) => {
-      const cat = CATEGORY_BY_SLUG[p.category]?.name ?? p.category;
+      const cat = categoryLabel(p.category, lang);
       const url = `${s}/mutaxassislar/${p.slug}`;
       const thumb = p.avatarUrl && /^https:\/\//.test(p.avatarUrl) ? p.avatarUrl : s.startsWith("https://") ? `${s}/icons/icon-192.png` : undefined;
       return {
@@ -47,7 +49,7 @@ export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; off
     inline_query_id: id,
     results,
     cache_time: 60,
-    is_personal: false,
+    is_personal: true,
     ...(results.length === 0 && s.startsWith("https://") ? { button: { text: L(lang, `«${q || "ijodkor"}» — katalogda qidirish`, `«${q || "специалист"}» — искать в каталоге`), web_app: { url: `${s}/tg?to=${encodeURIComponent(`/qidiruv?q=${encodeURIComponent(q)}`)}` } } } : {}),
   });
 }

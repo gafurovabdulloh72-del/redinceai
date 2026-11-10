@@ -2,9 +2,11 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { notify, type NotificationType } from "@/lib/notifications";
+import { localizeNotification, notify, type NotificationType } from "@/lib/notifications";
 import { SITE_URL } from "@/lib/site-url";
 import { escapeTelegramHtml, isTelegramEnabled, sendTelegram, type TelegramButton } from "@/lib/telegram";
+import { L, type BotLang } from "@/lib/telegram-bot/lang";
+import { pageButton } from "@/lib/telegram-bot/ui";
 
 /**
  * Qo'lda o'tkazma tasdiqlash oqimi: foydalanuvchi «To'ladim» bosganda adminlarga
@@ -49,25 +51,29 @@ export async function notifyAdminsManualPending(opts: {
   receiptUrl?: string | null;
 }): Promise<void> {
   try {
-    const admins = await db.query.users.findMany({ where: eq(users.role, "admin"), columns: { id: true, telegramChatId: true } });
+    const admins = await db.query.users.findMany({ where: eq(users.role, "admin"), columns: { id: true, telegramChatId: true, lang: true, isBanned: true } });
     const k = opts.kind === "pay" ? "p" : "s";
     const receipt = absoluteUrl(opts.receiptUrl);
-    const panel = absoluteUrl(opts.href);
     const body = opts.body + (opts.receiptUrl ? " Chek biriktirilgan." : "");
+    // Rus tilidagi adminga sarlavha/matn ruscha (bildirishnomalar bilan bir xil yo'l) — bir marta hisoblanadi
+    let ru: { title: string; body: string | null | undefined } | null = null;
     await Promise.all(
       admins.map(async (a) => {
-        // Sayt qo'ng'irog'i — skipMail: Telegram quyida tugmali maxsus xabar bilan ketadi (ikki marta bormasin)
-        await notify(a.id, opts.type, opts.title, body, opts.href, { skipMail: true });
-        if (!isTelegramEnabled() || !a.telegramChatId) return;
+        // Sayt qo'ng'irog'i — siteOnly: Telegram quyida tugmali maxsus xabar bilan ketadi (ikki marta bormasin)
+        await notify(a.id, opts.type, opts.title, body, opts.href, { siteOnly: true });
+        if (!isTelegramEnabled() || !a.telegramChatId || a.isBanned) return;
+        const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
+        const t = lang === "ru" ? (ru ??= await localizeNotification(opts.title, body)) : { title: opts.title, body };
         const keyboard: TelegramButton[][] = [
           [
-            { text: "✅ Tasdiqlash", data: `mp:ok:${k}:${opts.id}` },
-            { text: "❌ Rad etish", data: `mp:no:${k}:${opts.id}` },
+            { text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `mp:ok:${k}:${opts.id}` },
+            { text: L(lang, "❌ Rad etish", "❌ Отклонить"), data: `mp:no:${k}:${opts.id}` },
           ],
         ];
-        if (receipt) keyboard.push([{ text: "🧾 Chekni ko'rish", url: receipt }]);
-        if (panel) keyboard.push([{ text: "Saytda ochish", url: panel }]);
-        await sendTelegram(a.telegramChatId, `<b>${escapeTelegramHtml(opts.title)}</b>\n${escapeTelegramHtml(body)}`, { keyboard });
+        if (receipt) keyboard.push([{ text: L(lang, "🧾 Chekni ko'rish", "🧾 Посмотреть чек"), url: receipt }]);
+        // Admin panel — Mini App tugmasi (https bo'lsa): Telegram ichida ochiladi, qayta kirish shart emas
+        if (opts.href.startsWith("/") && siteOrigin()) keyboard.push([pageButton(L(lang, "Admin panelda ochish", "Открыть в админ-панели"), opts.href)]);
+        await sendTelegram(a.telegramChatId, `<b>${escapeTelegramHtml(t.title)}</b>\n${escapeTelegramHtml(t.body ?? "")}`, { keyboard, bulk: true });
       }),
     );
   } catch (e) {

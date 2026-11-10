@@ -4,11 +4,13 @@ import { isTelegramEnabled, telegramApi, telegramBotUsername, telegramWebhookSec
 import { audit } from "@/lib/security/audit";
 import { setupBotProfile } from "@/lib/telegram-bot/ui";
 import { sendAdminDailyReport } from "@/lib/telegram-bot/admin";
+import { unreachableCount } from "@/lib/telegram-bot/reach";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq, isNotNull, sql } from "drizzle-orm";
 import { sendTelegram } from "@/lib/telegram";
+import { L, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * Admin: Telegram bot holati va webhook'ni bir tugmada o'rnatish.
@@ -29,6 +31,9 @@ interface TgWebhookInfo {
   last_error_date?: number;
 }
 
+/** Webhook qabul qiladigan update turlari — o'zgarsa admin panelda «Webhookni yangilash» bosilishi shart */
+const WEBHOOK_UPDATES = ["message", "callback_query", "pre_checkout_query", "inline_query", "my_chat_member"];
+
 function expectedWebhookUrl(): string {
   return `${SITE_URL.replace(/\/$/, "")}/api/telegram/webhook`;
 }
@@ -47,6 +52,8 @@ async function status() {
     inlineEnabled: me?.ok ? Boolean(me.result?.supports_inline_queries) : null,
     linkedUsers: Number(linked?.total ?? 0),
     adminChats: Number(linked?.admins ?? 0),
+    /** Botni bloklagan / yetib bo'lmaydigan chatlar (ommaviy yuborishlar ularga urinmaydi) — lib/telegram-bot/reach.ts */
+    unreachableChats: await unreachableCount(),
     botUsername: me?.ok ? (me.result?.username ?? null) : null,
     usernameEnv: telegramBotUsername(),
     expectedUrl: expectedWebhookUrl(),
@@ -75,8 +82,9 @@ export const POST = handler(async (req) => {
   const res = await telegramApi("setWebhook", {
     url,
     secret_token: telegramWebhookSecret(),
-    // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov
-    allowed_updates: ["message", "callback_query", "pre_checkout_query", "inline_query"],
+    // callback_query — inline tugmalar; pre_checkout_query — Telegram ichidagi to'lov;
+    // my_chat_member — foydalanuvchi botni blokladi/blokdan chiqardi (bloklagan chatga ommaviy xabar yuborilmaydi)
+    allowed_updates: WEBHOOK_UPDATES,
   });
   if (!res) throw new ApiError(502, "Telegram API'ga ulanib bo'lmadi — birozdan so'ng qayta urinib ko'ring");
   if (!res.ok) throw new ApiError(502, `Telegram rad etdi: ${res.description ?? "noma'lum xato"}`);
@@ -99,7 +107,7 @@ const patchSchema = z.object({ kind: z.enum(["test", "daily"]).default("test") }
 export const PATCH = handler(async (req) => {
   const session = await requireSession(["admin"]);
   if (!isTelegramEnabled()) throw new ApiError(503, "TELEGRAM_BOT_TOKEN sozlanmagan");
-  const me = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true, name: true } });
+  const me = await db.query.users.findFirst({ where: eq(users.id, session.sub), columns: { telegramChatId: true, name: true, lang: true } });
   if (!me?.telegramChatId) throw new ApiError(400, "Sizning hisobingiz Telegramga ulanmagan — Kabinet → Profil → «Telegramga ulash»");
   const { kind } = patchSchema.parse(await req.json().catch(() => ({})));
   if (kind === "daily") {
@@ -108,8 +116,12 @@ export const PATCH = handler(async (req) => {
     await audit(session.sub, "admin_settings", { meta: { action: "telegram_daily_report_now" } }, req);
     return ok({ sent: true, kind });
   }
-  const sent = await sendTelegram(me.telegramChatId, `✅ <b>Bot ishlayapti</b> — sinov xabari (${new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" })}).\nAdmin buyruqlari: /admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /nizolar · /payoutlar · /user · /narx · /elon`, {
-    keyboard: [[{ text: "📊 Statistika", data: "adm:stat:today" }, { text: "📥 Navbat", data: "adm:queue" }]],
+  // Sinov xabari adminning tilida (users.lang)
+  const lang: BotLang = me.lang === "ru" ? "ru" : "uz";
+  const time = new Date().toLocaleTimeString(lang === "ru" ? "ru-RU" : "uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
+  const commands = "/admin · /stat · /navbat · /tolovlar · /shikoyatlar · /mentorlar · /nizolar · /payoutlar · /user · /narx · /elon · /tuzoq";
+  const sent = await sendTelegram(me.telegramChatId, L(lang, `✅ <b>Bot ishlayapti</b> — sinov xabari (${time}).\nAdmin buyruqlari: ${commands}`, `✅ <b>Бот работает</b> — тестовое сообщение (${time}).\nКоманды администратора: ${commands}`), {
+    keyboard: [[{ text: L(lang, "📊 Statistika", "📊 Статистика"), data: "adm:stat:today" }, { text: L(lang, "📥 Navbat", "📥 Очередь"), data: "adm:queue" }]],
   });
   if (!sent) throw new ApiError(502, "Telegram xabarni qabul qilmadi — token yoki chat holatini tekshiring");
   await audit(session.sub, "admin_settings", { meta: { action: "telegram_test_message" } }, req);
