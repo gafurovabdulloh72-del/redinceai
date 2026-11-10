@@ -1,54 +1,47 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bug, HeartHandshake, Lock, Send, ShieldCheck, Trophy } from "lucide-react";
+import { Bug, HeartHandshake, Send, Trophy } from "lucide-react";
 import { SITE } from "@/lib/constants";
 import { getLocale } from "@/lib/i18n/server";
 
 /**
- * XAVFSIZLIK VA MAS'ULIYATLI XABAR BERISH (2026-11-10): tuzoq (honeypot) hazil sahifalari, brauzer konsolidagi
- * ogohlantirish va `/.well-known/security.txt` shu yerga havola beradi. Maqsad: kamchilik topgan odam saytni buzmasdan,
- * bizga yozsin. Pul mukofoti VA'DA QILINMAYDI (egasi qaror qilsa — shu yerga yoziladi); «Shon-sharaf zali» qo'lda to'ldiriladi.
+ * XAVFSIZLIK — KAMCHILIK HAQIDA XABAR BERISH (2026-11-10): brauzer konsolidagi ogohlantirish, `/.well-known/security.txt`
+ * va footer shu yerga havola beradi. Maqsad: kamchilik topgan odam saytni buzmasdan, bizga yozsin.
+ *
+ * QOIDA (egasi talabi): bu sahifa himoyamiz QANDAY ishlashini AYTMAYDI — hech qanday texnik tafsilot, «bizda … bor»
+ * ro'yxati, bloklash/kuzatuv haqida gap yo'q (hujumchiga xarita chizib bermaymiz). Va'dalar ham minimal:
+ * pul mukofoti yoki huquqiy kafolat yozilmagan — egasi qaror qilsa, o'zi qo'shadi.
  */
 type T2 = { uz: string; ru: string };
 
 const TXT = {
   metaTitle: { uz: "Xavfsizlik — kamchilik haqida xabar berish", ru: "Безопасность — сообщить об уязвимости" },
-  metaDesc: { uz: "Kasb Egalari'da kamchilik topdingizmi? Iltimos, buzib kirmang — bizga yozing: rahmat aytamiz va ismingizni Shon-sharaf zaliga yozamiz.", ru: "Нашли уязвимость на Kasb Egalari? Пожалуйста, не взламывайте — напишите нам: скажем спасибо и добавим вас в Зал славы." },
+  metaDesc: { uz: "Kasb Egalari'da kamchilik topdingizmi? Iltimos, buzib kirmang — bizga yozing, rahmat aytamiz.", ru: "Нашли уязвимость на Kasb Egalari? Пожалуйста, не взламывайте — напишите нам, скажем спасибо." },
   title: { uz: "Xavfsizlik", ru: "Безопасность" },
   lead: { uz: "Iltimos, bizni buzib kirmang 🙏 Yaxshisi — birga mustahkamlaymiz.", ru: "Пожалуйста, не взламывайте нас 🙏 Лучше — укрепим вместе." },
   intro: {
-    uz: "Biz kichik jamoamiz va foydalanuvchilarimiz ma'lumotini jiddiy himoya qilamiz. Hech bir tizim mukammal emas: agar kamchilik topsangiz, undan foydalanmasdan bizga xabar bering — tez tuzatamiz va sizga minnatdorchilik bildiramiz.",
-    ru: "Мы небольшая команда и серьёзно защищаем данные пользователей. Идеальных систем не бывает: если вы нашли уязвимость — не используйте её, а сообщите нам. Мы быстро исправим и поблагодарим вас.",
+    uz: "Foydalanuvchilarimiz ma'lumotini jiddiy himoya qilamiz. Agar kamchilik topsangiz — undan foydalanmasdan bizga xabar bering: tuzatamiz va sizga minnatdorchilik bildiramiz.",
+    ru: "Мы серьёзно защищаем данные пользователей. Если вы нашли уязвимость — не используйте её, а сообщите нам: исправим и поблагодарим вас.",
   },
   reportTitle: { uz: "Kamchilik topdingizmi?", ru: "Нашли уязвимость?" },
   reportBody: {
-    uz: "Bizga Telegram orqali yozing. Xabarda: qaysi sahifa yoki so'rov, qanday takrorlash mumkin (qadamlar), nima ko'rindi. Skrinshot yoki qisqa video bo'lsa — yanada yaxshi.",
-    ru: "Напишите нам в Telegram. В сообщении укажите: какая страница или запрос, как воспроизвести (шаги), что вы увидели. Скриншот или короткое видео — ещё лучше.",
+    uz: "Bizga Telegram orqali yozing: qaysi sahifa, qanday takrorlash mumkin va nima ko'rindi. Skrinshot bo'lsa — yanada yaxshi.",
+    ru: "Напишите нам в Telegram: какая страница, как воспроизвести и что вы увидели. Скриншот — ещё лучше.",
   },
   reportBtn: { uz: "Telegram orqali yozish", ru: "Написать в Telegram" },
   reportNote: { uz: "Imkon qadar tez javob beramiz.", ru: "Ответим как можно скорее." },
-  rulesTitle: { uz: "Halol tekshirish qoidalari", ru: "Правила честного исследования" },
+  rulesTitle: { uz: "Iltimosimiz", ru: "Наша просьба" },
   rules: [
-    { uz: "Faqat o'z hisobingiz va o'z ma'lumotlaringiz bilan sinang — boshqalarning ma'lumotini ochmang, o'zgartirmang, o'chirmang.", ru: "Проверяйте только на своём аккаунте и своих данных — не открывайте, не меняйте и не удаляйте чужие." },
-    { uz: "Saytni ishdan chiqaradigan (DoS), spam yoki ommaviy avtomatik skanerlash usullaridan foydalanmang.", ru: "Не используйте методы, выводящие сайт из строя (DoS), спам и массовое автоматическое сканирование." },
-    { uz: "Kamchilikni topgach to'xtang: uni chuqurroq «ekspluatatsiya» qilmang va boshqalarga oshkor etmang — avval bizga tuzatish uchun vaqt bering (90 kungacha).", ru: "Найдя уязвимость — остановитесь: не эксплуатируйте её глубже и не раскрывайте другим, дайте нам время на исправление (до 90 дней)." },
-    { uz: "Foydalanuvchilarni aldash (fishing, ijtimoiy injeneriya) va jismoniy kirish — qamrovdan tashqarida.", ru: "Обман пользователей (фишинг, социальная инженерия) и физический доступ — вне области исследования." },
+    { uz: "Faqat o'z hisobingiz bilan sinang — boshqalarning ma'lumotini ochmang, o'zgartirmang, o'chirmang.", ru: "Проверяйте только на своём аккаунте — не открывайте, не меняйте и не удаляйте чужие данные." },
+    { uz: "Saytni ishdan chiqaradigan usullar, spam va ommaviy avtomatik skanerlashdan foydalanmang.", ru: "Не используйте методы, выводящие сайт из строя, спам и массовое автоматическое сканирование." },
+    { uz: "Kamchilikni topgach to'xtang va boshqalarga oshkor etmang — avval bizga tuzatish uchun vaqt bering.", ru: "Найдя уязвимость — остановитесь и не раскрывайте её другим: дайте нам время на исправление." },
   ] as T2[],
-  promiseTitle: { uz: "Biz nima va'da qilamiz", ru: "Что мы обещаем" },
-  promises: [
-    { uz: "Qoidalarga amal qilgan tadqiqotchiga nisbatan huquqiy da'vo qilmaymiz.", ru: "Не предъявляем юридических претензий исследователю, соблюдающему правила." },
-    { uz: "Xabaringizni o'qiymiz, holatini aytib turamiz va tuzatilgach xabar beramiz.", ru: "Прочитаем сообщение, будем держать в курсе и сообщим, когда исправим." },
-    { uz: "Xohlasangiz, ismingizni «Shon-sharaf zali»ga yozamiz. Hozircha pul mukofoti yo'q — lekin rahmat va choy bizdan ☕", ru: "Если захотите — добавим ваше имя в «Зал славы». Денежного вознаграждения пока нет — но спасибо и чай с нас ☕" },
-  ] as T2[],
-  howTitle: { uz: "Saytni qanday himoya qilamiz", ru: "Как мы защищаем сайт" },
-  how: [
-    { uz: "Parollar bir tomonlama xeshlanadi; ikki bosqichli kirish (2FA) va faol qurilmalarni boshqarish bor.", ru: "Пароли хешируются необратимо; есть двухфакторный вход (2FA) и управление активными устройствами." },
-    { uz: "Telefon va boshqa aloqa ma'lumotlari bazada shifrlangan holda saqlanadi.", ru: "Телефоны и другие контакты хранятся в базе в зашифрованном виде." },
-    { uz: "Yopiq fayl va pullik videolar faqat ruxsati bor foydalanuvchiga, vaqtinchalik havola bilan beriladi.", ru: "Закрытые файлы и платные видео выдаются только тем, у кого есть доступ, по временной ссылке." },
-    { uz: "Shubhali so'rovlar cheklanadi; saytda tuzoqlar bor 🪤 — avtomatik skanerlar bloklanadi. Qo'lda va ehtiyotkorlik bilan tekshiring.", ru: "Подозрительные запросы ограничиваются; на сайте есть ловушки 🪤 — автоматические сканеры блокируются. Проверяйте вручную и аккуратно." },
-  ] as T2[],
-  fameTitle: { uz: "Shon-sharaf zali", ru: "Зал славы" },
-  fameEmpty: { uz: "Hozircha bo'sh — birinchi bo'ling! Kamchilik haqida halol xabar bergan odamlarning ismi shu yerda turadi.", ru: "Пока пусто — станьте первым! Здесь будут имена тех, кто честно сообщил об уязвимости." },
+  thanksTitle: { uz: "Rahmat aytamiz", ru: "Скажем спасибо" },
+  thanksBody: {
+    uz: "Har bir xabarni o'qiymiz. Halol xabar bergan odamning ismini — o'zi xohlasa — shu yerga yozib qo'yamiz.",
+    ru: "Мы читаем каждое сообщение. Имя того, кто честно сообщил об уязвимости, — если он захочет — появится здесь.",
+  },
+  fameEmpty: { uz: "Hozircha bo'sh — birinchi bo'ling!", ru: "Пока пусто — станьте первым!" },
   userTitle: { uz: "Oddiy foydalanuvchimisiz?", ru: "Вы обычный пользователь?" },
   userBody: { uz: "Hisobingizni himoyalash uchun ikki bosqichli kirishni yoqing va begona qurilmalarni tekshiring.", ru: "Чтобы защитить аккаунт, включите двухфакторный вход и проверьте чужие устройства." },
   userBtn: { uz: "Kabinet → Xavfsizlik", ru: "Кабинет → Безопасность" },
@@ -102,37 +95,12 @@ export default async function SecurityPage() {
             </ul>
           </section>
 
-          <section className={card} aria-labelledby="xavf-vada">
-            <h2 id="xavf-vada" className={h2}>
-              <ShieldCheck size={18} className="text-fg-3" /> {t(TXT.promiseTitle)}
-            </h2>
-            <ul className="mt-3 grid gap-2.5">
-              {TXT.promises.map((r, i) => (
-                <li key={i} className={li}>
-                  <span className={dot} aria-hidden /> {t(r)}
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className={card} aria-labelledby="xavf-himoya">
-            <h2 id="xavf-himoya" className={h2}>
-              <Lock size={18} className="text-fg-3" /> {t(TXT.howTitle)}
-            </h2>
-            <ul className="mt-3 grid gap-2.5">
-              {TXT.how.map((r, i) => (
-                <li key={i} className={li}>
-                  <span className={dot} aria-hidden /> {t(r)}
-                </li>
-              ))}
-            </ul>
-          </section>
-
           <section className={card} aria-labelledby="xavf-zal">
             <h2 id="xavf-zal" className={h2}>
-              <Trophy size={18} className="text-fg-3" /> {t(TXT.fameTitle)}
+              <Trophy size={18} className="text-fg-3" /> {t(TXT.thanksTitle)}
             </h2>
-            <p className="mt-2 rounded-[12px] border border-dashed border-line px-4 py-5 text-center text-[13.5px] leading-relaxed text-fg-3">{t(TXT.fameEmpty)}</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-fg-2">{t(TXT.thanksBody)}</p>
+            <p className="mt-3 rounded-[12px] border border-dashed border-line px-4 py-4 text-center text-[13.5px] leading-relaxed text-fg-3">{t(TXT.fameEmpty)}</p>
           </section>
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-fg/[0.04] px-5 py-4" aria-labelledby="xavf-user">

@@ -18,7 +18,7 @@ import { uid } from "@/lib/utils";
  */
 
 // Yo'llar, canary qiymatlari va hujum imzolari — sof modulda (edge middleware ham shu manbadan oladi)
-export { HONEYPOT_PATHS, isHoneypotPath, CANARY_TOKEN, CANARY_ADMIN_PATH, CANARY_EMAIL, isCanaryToken, isCanaryEmail, attackSignature, type ProbeSig } from "./trap-patterns";
+export { HONEYPOT_PATHS, isHoneypotPath, CANARY_TOKEN, CANARY_ADMIN_PATH, CANARY_EMAIL, isCanaryToken, isCanaryEmail, attackSignature, trapClient, type ProbeSig, type TrapClient } from "./trap-patterns";
 
 /** Avtomatik blok chegarasi: 24 soat oynasida shuncha tuzoq urinishdan keyin IP bloklanadi */
 export const AUTO_BLOCK_THRESHOLD = 4;
@@ -30,15 +30,18 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 export type HoneypotKind = "scan" | "fakeLogin" | "canary" | "probe";
 /** `probe` uchun alohida, yuqoriroq chegara: qidiruvga «<script» yozib ko'rgan qiziquvchan foydalanuvchi darhol bloklanmasin */
 export const PROBE_BLOCK_THRESHOLD = 10;
+/** Bir IP'dan 24 soatda saqlanadigan jurnal yozuvlari chegarasi (qattiq / yumshoq) */
+const MAX_HARD_ROWS = 300;
+const MAX_SOFT_ROWS = 40;
 
 /** IP'ning so'nggi 24 soatdagi tuzoq urinishlari soni (prank darajasini tanlash uchun; xato bo'lsa 0) */
-export async function recentHitCount(ip: string, kind?: HoneypotKind): Promise<number> {
+export async function recentHitCount(ip: string, kind?: HoneypotKind, soft = false): Promise<number> {
   if (!ip) return 0;
   try {
     const [row] = await db
       .select({ n: sql<number>`count(*)` })
       .from(honeypotHits)
-      .where(and(eq(honeypotHits.ip, ip), gt(honeypotHits.createdAt, new Date(Date.now() - WINDOW_MS)), kind ? eq(honeypotHits.kind, kind) : undefined));
+      .where(and(eq(honeypotHits.ip, ip), eq(honeypotHits.soft, soft), gt(honeypotHits.createdAt, new Date(Date.now() - WINDOW_MS)), kind ? eq(honeypotHits.kind, kind) : undefined));
     return Number(row?.n ?? 0);
   } catch {
     return 0;
@@ -46,38 +49,53 @@ export async function recentHitCount(ip: string, kind?: HoneypotKind): Promise<n
 }
 
 /* ---- Bloklangan IP keshi (Node jarayonida, 60 s TTL) — har API so'rovida bazaga bormaslik uchun ---- */
-let cache: { at: number; set: Set<string> } | null = null;
+let cache: { at: number; map: Map<string, boolean> } | null = null; // ip → manual (qo'lda blok)mi
 const CACHE_TTL = 60_000;
 
-async function loadBlocked(): Promise<Set<string>> {
+async function loadBlocked(): Promise<Map<string, boolean>> {
   const now = Date.now();
-  if (cache && now - cache.at < CACHE_TTL) return cache.set;
+  if (cache && now - cache.at < CACHE_TTL) return cache.map;
   try {
     const rows = await db
-      .select({ ip: blockedIps.ip })
+      .select({ ip: blockedIps.ip, manual: blockedIps.manual })
       .from(blockedIps)
       .where(or(isNull(blockedIps.until), gt(blockedIps.until, new Date(now))));
-    cache = { at: now, set: new Set(rows.map((r) => r.ip)) };
+    cache = { at: now, map: new Map(rows.map((r) => [r.ip, r.manual])) };
   } catch {
     // Baza javob bermasa — bor keshni saqlaymiz, yo'q bo'lsa bo'sh (xavfsiz tomon: hech kimni bloklamaymiz)
-    cache = cache ?? { at: now, set: new Set() };
+    cache = cache ?? { at: now, map: new Map() };
   }
-  return cache.set;
+  return cache.map;
 }
 /** Keshni darhol bekor qilish (blok qo'shil/olingach) */
 function bustCache() {
   cache = null;
 }
 
-/** IP bloklanganmi (keshdan, arzon) — `handler()` shuni chaqiradi */
+/** IP aniqlanmagan (`unknown-<ua xeshi>`) — bunday kalit bir xil brauzerli HAMMANI anglatadi, bloklab bo'lmaydi */
+const noIp = (ip: string) => !ip || ip.startsWith("unknown");
+
+/** IP bloklanganmi (keshdan, arzon) */
 export async function isIpBlocked(ip: string): Promise<boolean> {
-  if (!ip || ip === "unknown") return false;
+  if (noIp(ip)) return false;
   return (await loadBlocked()).has(ip);
+}
+
+/**
+ * Blok turi (`handler()` shuni chaqiradi): "manual" — admin qo'lda bloklagan (hamma mijozga 403);
+ * "auto" — tuzoq avtomatik bloklagan (FAQAT brauzer bo'lmagan mijozga 403 — bitta NAT ortidagi haqiqiy odamlar
+ * skaner tufayli qulflanib qolmasin; aks holda mobil operator IP'larini ketma-ket «tuzoqqa tushirib», saytni
+ * minglab odamga yopib qo'yish mumkin edi); null — bloklanmagan.
+ */
+export async function ipBlockKind(ip: string): Promise<"manual" | "auto" | null> {
+  if (noIp(ip)) return null;
+  const manual = (await loadBlocked()).get(ip);
+  return manual === undefined ? null : manual ? "manual" : "auto";
 }
 
 /** Qo'lda yoki avtomatik bloklash (upsert): manual=true doimiy va avtomatik tozalashdan himoyalangan */
 export async function blockIp(ip: string, reason: string, opts: { manual?: boolean; ms?: number } = {}): Promise<void> {
-  if (!ip || ip === "unknown") return;
+  if (noIp(ip)) return;
   const until = opts.manual ? null : new Date(Date.now() + (opts.ms ?? AUTO_BLOCK_MS));
   await db
     .insert(blockedIps)
@@ -104,21 +122,39 @@ export async function unblockIp(ip: string): Promise<void> {
  * Tuzoq urinishini yozadi va kerak bo'lsa IP'ni avtomatik bloklaydi + adminlarga ogohlantiradi.
  * `note` — soxta login(parolSIZ) yoki canary kalit; parol HECH QACHON saqlanmaydi.
  */
-export async function recordHoneypotHit(opts: { ip: string; kind: HoneypotKind; method: string; path: string; userAgent: string; note?: string }): Promise<void> {
+export async function recordHoneypotHit(opts: { ip: string; kind: HoneypotKind; method: string; path: string; userAgent: string; note?: string; /** brauzer navigatsiyasi / qidiruv boti — faqat jurnal, blok/ogohlantirish yo'q (trap-patterns.ts `trapClient`) */ soft?: boolean }): Promise<void> {
   const ip = (opts.ip || "unknown").slice(0, 64);
+  const soft = Boolean(opts.soft);
+  // Shu IP'ning 24 soatlik oynadagi (shu turdagi: qattiq/yumshoq) yozuvlari — blok chegarasi va jurnal shishishiga qarshi
+  let before = 0;
   try {
-    await db.insert(honeypotHits).values({
-      id: uid(),
-      ip,
-      kind: opts.kind,
-      method: opts.method.slice(0, 10),
-      path: opts.path.slice(0, 300),
-      userAgent: (opts.userAgent || "").slice(0, 300),
-      note: (opts.note || "").slice(0, 200),
-    });
+    const [row] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(honeypotHits)
+      .where(and(eq(honeypotHits.ip, ip), eq(honeypotHits.soft, soft), gt(honeypotHits.createdAt, new Date(Date.now() - WINDOW_MS))));
+    before = Number(row?.n ?? 0);
   } catch {
-    /* jurnal yozilmasa ham javob buzilmasin */
+    /* sanash xatosi — nol deb olamiz */
   }
+  // Jurnal chegarasi: bir IP kuniga MAX_ROWS dan ortiq yozuv qoldirmaydi (bloklangan skaner jadvalni to'ldirib yubormasin)
+  if (before < (soft ? MAX_SOFT_ROWS : MAX_HARD_ROWS)) {
+    try {
+      await db.insert(honeypotHits).values({
+        id: uid(),
+        ip,
+        kind: opts.kind,
+        soft,
+        method: opts.method.slice(0, 10),
+        path: opts.path.slice(0, 300),
+        userAgent: (opts.userAgent || "").slice(0, 300),
+        note: (opts.note || "").slice(0, 200),
+      });
+    } catch {
+      /* jurnal yozilmasa ham javob buzilmasin */
+    }
+  }
+  // Yumshoq urinish (brauzerda ochilgan havola, qidiruv boti): begunoh odam aldab yuborilgan bo'lishi mumkin — hech kim bloklanmaydi
+  if (soft) return;
 
   // Canary kalit ishlatildi — darhol uzoq muddatli blok + ogohlantirish (eng kuchli signal)
   if (opts.kind === "canary") {
@@ -127,17 +163,7 @@ export async function recordHoneypotHit(opts: { ip: string; kind: HoneypotKind; 
     return;
   }
 
-  // 24 soatlik oynadagi urinishlar soni
-  let count = 1;
-  try {
-    const [row] = await db
-      .select({ n: sql<number>`count(*)` })
-      .from(honeypotHits)
-      .where(and(eq(honeypotHits.ip, ip), gt(honeypotHits.createdAt, new Date(Date.now() - WINDOW_MS))));
-    count = Number(row?.n ?? 1);
-  } catch {
-    /* sanash xatosi — bitta deb olamiz */
-  }
+  const count = before + 1;
   // Imzo urinishlari (probe) yuqoriroq chegarada bloklanadi; qolgan turlar — AUTO_BLOCK_THRESHOLD
   if (count >= (opts.kind === "probe" ? PROBE_BLOCK_THRESHOLD : AUTO_BLOCK_THRESHOLD)) {
     const already = await isIpBlocked(ip);
@@ -156,7 +182,7 @@ async function alertAdmins(ip: string, title: string, body: string): Promise<voi
 }
 
 export interface HoneypotStats {
-  recent: Array<{ id: string; ip: string; kind: string; method: string; path: string; userAgent: string; note: string; createdAt: number }>;
+  recent: Array<{ id: string; ip: string; kind: string; soft: boolean; method: string; path: string; userAgent: string; note: string; createdAt: number }>;
   topIps: Array<{ ip: string; n: number }>;
   blocked: Array<{ ip: string; reason: string; hits: number; until: number | null; manual: boolean; createdAt: number }>;
   total24h: number;
@@ -172,7 +198,7 @@ export async function honeypotStats(): Promise<HoneypotStats> {
     db.select({ n: sql<number>`count(*)` }).from(honeypotHits).where(gt(honeypotHits.createdAt, since)),
   ]);
   return {
-    recent: recent.map((r) => ({ id: r.id, ip: r.ip, kind: r.kind, method: r.method, path: r.path, userAgent: r.userAgent, note: r.note, createdAt: r.createdAt.getTime() })),
+    recent: recent.map((r) => ({ id: r.id, ip: r.ip, kind: r.kind, soft: r.soft, method: r.method, path: r.path, userAgent: r.userAgent, note: r.note, createdAt: r.createdAt.getTime() })),
     topIps: top.map((r) => ({ ip: r.ip, n: Number(r.n) })),
     blocked: blocked.map((r) => ({ ip: r.ip, reason: r.reason, hits: r.hits, until: r.until?.getTime() ?? null, manual: r.manual, createdAt: r.createdAt.getTime() })),
     total24h: Number(total[0]?.n ?? 0),

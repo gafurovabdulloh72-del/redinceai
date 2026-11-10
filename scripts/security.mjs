@@ -863,6 +863,32 @@ test("Qisman PATCH yuborilmagan maydonlarni O'ZGARTIRMAYDI (zod v4 partial+defau
   }
 });
 
+/** Brauzer sarlavhalari (Fetch Metadata) — tuzoq «kim so'rayapti»ni shular bo'yicha ajratadi */
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const NAV_HEADERS = { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "none", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "sec-fetch-user": "?1" };
+const IMG_HEADERS = { "user-agent": BROWSER_UA, accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "same-origin", "sec-fetch-mode": "no-cors", "sec-fetch-dest": "image" };
+const XHR_HEADERS = { "user-agent": BROWSER_UA, accept: "*/*", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", "sec-fetch-dest": "empty" };
+const LOCAL_IP_RE = /^(?:127\.0\.0\.1|::1|::ffff:127\.)/;
+/**
+ * Xom HTTP so'rov (node:http): Node `fetch` `sec-fetch-mode` ni o'zi "cors" qilib qayta yozadi — brauzer navigatsiyasini
+ * taqlid qilib bo'lmaydi. Bu yordamchi sarlavhalarni AYNAN berilgandek yuboradi. Natija: { status, text }.
+ */
+async function raw(path, headers = {}, init = {}) {
+  const { request } = await import("node:http");
+  const u = new URL(BASE + path);
+  return new Promise((resolve, reject) => {
+    const r = request({ hostname: u.hostname, port: u.port || 80, path: u.pathname + u.search, method: init.method ?? "GET", headers }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (c) => (text += c));
+      res.on("end", () => resolve({ status: res.statusCode, text }));
+    });
+    r.on("error", reject);
+    if (init.body) r.write(init.body);
+    r.end();
+  });
+}
+
 test("Tuzoq pranklari: hujum imzosi sahifa/API'ga yetmaydi (418), oddiy qidiruv ishlaydi, canary email bloklaydi, admin blokni yechadi", async (t) => {
   const cleanup = async () => {
     try {
@@ -872,15 +898,62 @@ test("Tuzoq pranklari: hujum imzosi sahifa/API'ga yetmaydi (418), oddiy qidiruv 
       await d.execute("delete from blocked_ips where ip in ('127.0.0.1','::1','unknown') or ip like '::ffff:127.%'");
     } catch { /* e'tiborsiz */ }
   };
+  const stats = async () => (await (await req("ad", "/api/admin/tuzoq")).json()).data;
+  /** Server keshidagi blokni ham darhol tozalaydi (admin API `bustCache` qiladi) */
+  const unblockLocal = async () => {
+    if (!COOKIES.ad) return;
+    for (const b of (await stats())?.blocked ?? []) if (LOCAL_IP_RE.test(b.ip)) await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "unblock", ip: b.ip }) });
+  };
+  const waitBlocked = async (re) => {
+    for (let i = 0; i < 24; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      const hit = (await stats())?.blocked?.find((b) => LOCAL_IP_RE.test(b.ip) && re.test(b.reason));
+      if (hit) return hit.ip;
+    }
+    return null;
+  };
   try {
+    await cleanup();
+    await unblockLocal();
+
+    // 0) TUZOQNI QUROLGA AYLANTIRIB BO'LMAYDI: brauzerning ichki so'rovlari (begona odam qo'ygan <img>, prefetch) iz qoldirmaydi,
+    //    brauzerda ochilgan havola va qidiruv boti esa faqat «yumshoq» yoziladi — nechta bo'lsa ham IP bloklanmaydi.
+    for (let i = 0; i < 6; i++) {
+      const img = await raw("/boshqaruv-7731", IMG_HEADERS);
+      assert.equal(img.status, 404, "<img src=tuzoq> → oddiy 404");
+    }
+    assert.equal((await raw("/.env", { ...IMG_HEADERS, "sec-fetch-dest": "iframe", "sec-fetch-mode": "navigate", "sec-fetch-site": "cross-site" })).status, 404, "begona saytdagi iframe → 404");
+    const form = "log=a&pwd=b";
+    assert.equal((await raw("/wp-login.php", { ...NAV_HEADERS, "sec-fetch-site": "cross-site", "content-type": "application/x-www-form-urlencoded", "content-length": String(form.length) }, { method: "POST", body: form })).status, 404, "begona saytdagi yashirin forma → 404");
+    for (let i = 0; i < 5; i++) {
+      const nav = await raw("/wp-login.php", NAV_HEADERS);
+      assert.equal(nav.status, 200, "brauzerda ochilgan tuzoq → soxta login");
+    }
+    const navCanary = await raw("/boshqaruv-7731", { ...NAV_HEADERS, "sec-fetch-site": "same-origin" });
+    assert.equal(navCanary.status, 200, "chatdagi havola orqali canary yo'li → soxta login (blok emas)");
+    const bot = await raw("/.env", { "user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", accept: "text/html" });
+    assert.equal(bot.status, 404, "qidiruv botiga soxta .env berilmaydi (404)");
+    assert.ok(!bot.text.includes("ke_live_sk_"), "botga canary kalit chiqmagan");
+    const xhrProbe = await raw("/api/vakansiyalar?q=" + encodeURIComponent("<script>alert(1)</script>"), XHR_HEADERS);
+    assert.equal(xhrProbe.status, 418, "brauzerdan API imzo → 418 (lekin blokka sanalmaydi)");
+    if (COOKIES.ad) {
+      await new Promise((r) => setTimeout(r, 900));
+      const st = await stats();
+      assert.ok(!st.blocked.some((b) => LOCAL_IP_RE.test(b.ip)), "brauzer so'rovlari IP'ni BLOKLAMADI (12+ urinish)");
+      const mine = st.recent.filter((h) => LOCAL_IP_RE.test(h.ip));
+      assert.ok(mine.length >= 6 && mine.every((h) => h.soft === true), `faqat yumshoq yozuvlar (${mine.length} ta)`);
+      assert.ok(mine.filter((h) => h.path.startsWith("/boshqaruv-7731")).length === 1, "rasm so'rovlari yozilmagan — faqat bitta navigatsiya");
+    }
+
     // 1) Sahifa manzilidagi XSS / SQLi / fayl o'qish urinishi → 418 hazil sahifa; payload haqiqiy sahifaga yetmaydi
-    for (const [q, word] of [["/qidiruv?q=" + encodeURIComponent("<script>alert(1)</script>"), "XSS"], ["/mutaxassislar?q=" + encodeURIComponent("' OR 1=1 --"), "parametrlangan"], ["/ishlar?f=" + encodeURIComponent("../../../../etc/passwd"), "fayl"]]) {
+    for (const [q, word] of [["/qidiruv?q=" + encodeURIComponent("<script>alert(1)</script>"), "bajarilmaydi"], ["/mutaxassislar?q=" + encodeURIComponent("' OR 1=1 --"), "Jadvallar"], ["/ishlar?f=" + encodeURIComponent("../../../../etc/passwd"), "fayl"]]) {
       const r = await fetch(BASE + q, { redirect: "manual", headers: { accept: "text/html" } });
       assert.equal(r.status, 418, `${q} → 418`);
       const html = await r.text();
       assert.ok(html.includes("buzib kirmang"), "hazil sahifa: «buzib kirmang»");
       assert.ok(html.includes(word), `sabab matni (${word})`);
       assert.ok(!html.includes("<script>alert(1)</script>"), "payload sahifaga aks etmagan");
+      assert.ok(!/bloklan|jurnal|IP:|urinish —/i.test(html), "hazil sahifa himoya tafsilotini (blok, jurnal, IP) oshkor qilmaydi");
     }
     // 2) Soxta signal yo'q: o'zbekcha apostrof, «javascript», «select», «union» so'zlari oddiy qidiruvda ishlaydi
     for (const q of ["o'zbek tilida javascript kursi", "select union video", "Premiere Pro <3", "a'lo or b'lo"]) {
@@ -891,33 +964,53 @@ test("Tuzoq pranklari: hujum imzosi sahifa/API'ga yetmaydi (418), oddiy qidiruv 
     const api = await req("guest", "/api/vakansiyalar?q=" + encodeURIComponent("' or 1=1--"));
     assert.equal(api.status, 418, "API imzo 418");
     assert.ok(/buzib kirmang/.test((await api.json()).error ?? ""), "API hazil xabari");
-    // 4) «Yashirin API» yemi
-    const bait = await req("guest", "/api/v1/users");
-    assert.equal(bait.status, 418, "/api/v1/users yem 418");
-    // 5) security.txt va xabar berish sahifasi
+    // 4) security.txt va xabar berish sahifasi
     const sec = await fetch(BASE + "/.well-known/security.txt");
     assert.equal(sec.status, 200, "security.txt 200");
     assert.ok(/^Contact: /m.test(await sec.text()), "security.txt Contact");
     assert.equal((await fetch(BASE + "/xavfsizlik")).status, 200, "/xavfsizlik 200");
+    // 5) O'z saytimizning sahifa manzili avatar/rasm bo'la olmaydi (ko'ruvchilar brauzeri o'sha manzilga so'rov yubormasin)
+    if (COOKIES.sp) {
+      const me = (await (await req("sp", "/api/auth/me")).json()).data?.user ?? {};
+      const own = await req("sp", "/api/profile", { method: "PATCH", body: JSON.stringify({ name: me.name ?? "Sinov Hisob", avatarUrl: `https://${new URL(BASE).host}/boshqaruv-7731` }) });
+      assert.equal(own.status, 422, "avatar = sayt sahifasi manzili → 422");
+      assert.ok((await own.json()).fields?.avatarUrl, "xato aynan avatarUrl maydonida");
+    }
 
-    // 6) Canary email bilan kirish → oddiy 401, lekin IP bloklanadi; ALLAQACHON kirgan admin blokni yecha oladi
-    if (!COOKIES.ad) return; // admin sessiyasiz bu qismni sinab bo'lmaydi (blokni yechib bo'lmaydi)
+    if (!COOKIES.ad) return; // admin sessiyasiz qolgan qismni sinab bo'lmaydi (blokni yechib bo'lmaydi)
+
+    // 6) SKANER (brauzer bo'lmagan mijoz): «yashirin API» yemi + soxta .env → to'liq hisob → 4-urinishda avtomatik blok.
+    //    Blok FAQAT vositaga: shu IP ortidagi haqiqiy brauzer (bitta NAT) ishlayveradi.
+    const bait = await req("guest", "/api/v1/users");
+    assert.equal(bait.status, 418, "/api/v1/users yem 418");
+    const env = await fetch(BASE + "/.env", { redirect: "manual" });
+    assert.equal(env.status, 200, "skanerga soxta .env beriladi");
+    assert.ok((await env.text()).includes("ke_live_sk_"), "soxta .env ichida canary kalit");
+    const autoIp = await waitBlocked(/Tuzoqqa/);
+    assert.ok(autoIp, "skaner avtomatik bloklandi");
+    assert.equal((await req("guest", "/api/vakansiyalar")).status, 403, "bloklangan IP'dan VOSITA so'rovi → 403");
+    assert.equal((await raw("/api/vakansiyalar", XHR_HEADERS)).status, 200, "shu IP ortidagi BRAUZER ishlayveradi (avtomatik blok unga tegmaydi)");
+    await unblockLocal();
     await cleanup();
+
+    // 7) Canary email bilan kirish → oddiy 401, lekin IP bloklanadi; ALLAQACHON kirgan admin blokni yecha oladi
     const login = await req("guest", "/api/auth/login", { method: "POST", body: JSON.stringify({ email: "sysadmin@kasbegalari.internal", password: "Kasb#2026#r00t!" }) });
     assert.equal(login.status, 401, "canary login oddiy 401 ko'rinadi");
-    let blockedIp = null;
-    for (let i = 0; i < 20 && !blockedIp; i++) {
-      await new Promise((r) => setTimeout(r, 250));
-      const st = await (await req("ad", "/api/admin/tuzoq")).json();
-      blockedIp = st.data?.blocked?.find((b) => /Canary/i.test(b.reason))?.ip ?? null;
-    }
+    const blockedIp = await waitBlocked(/Canary/i);
     assert.ok(blockedIp, "canary login IP'ni blokladi");
-    const blockedCall = await req("guest", "/api/vakansiyalar");
-    assert.equal(blockedCall.status, 403, "bloklangan IP API'da 403");
+    assert.equal((await req("guest", "/api/vakansiyalar")).status, 403, "bloklangan IP API'da 403");
     const un = await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "unblock", ip: blockedIp }) });
     assert.equal(un.status, 200, "kirgan admin bloklangan IP'dan ham blokni yechadi");
     assert.equal((await req("guest", "/api/vakansiyalar")).status, 200, "blok yechilgach API ishlaydi");
+
+    // 8) Qo'lda (admin) blok — brauzerga ham amal qiladi
+    const man = await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "block", ip: blockedIp, reason: "sinov: qo'lda blok" }) });
+    assert.equal(man.status, 200, "qo'lda blok qo'yildi");
+    assert.equal((await raw("/api/vakansiyalar", XHR_HEADERS)).status, 403, "qo'lda blok brauzerga ham 403");
+    await unblockLocal();
+    assert.equal((await raw("/api/vakansiyalar", XHR_HEADERS)).status, 200, "qo'lda blok yechildi");
   } finally {
+    await unblockLocal().catch(() => undefined);
     await cleanup();
   }
 });

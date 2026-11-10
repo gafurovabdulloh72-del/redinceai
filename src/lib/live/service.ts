@@ -9,7 +9,7 @@ import { r2Config, r2Delete, r2PublicUrl } from "@/lib/storage/r2";
 import { liveTickets } from "@/lib/db/schema";
 import { canWatchPaid } from "@/lib/mentorship/purchases";
 import { egressInfo, startRoomRecording, stopRecording } from "@/lib/rtc/livekit";
-import { IMAGE_URL_RE } from "@/lib/validators";
+import { IMAGE_URL_RE, isOwnPageUrl } from "@/lib/validators";
 import { closeRoom, listIdentities, liveRoom, muteTrack, removeParticipant, setStage } from "@/lib/rtc/livekit";
 
 /** Token 6 soat yashaydi — undan uzoq "jonli" yozuv yetim (host yopmagan) hisoblanadi */
@@ -277,7 +277,7 @@ export async function updateRecording(streamId: string, actor: Viewer, patch: { 
     set.title = t;
   }
   if (patch.coverUrl !== undefined) {
-    if (patch.coverUrl !== null && !IMAGE_URL_RE.test(patch.coverUrl)) throw new ApiError(422, "Muqova manzili noto'g'ri");
+    if (patch.coverUrl !== null && (!IMAGE_URL_RE.test(patch.coverUrl) || isOwnPageUrl(patch.coverUrl))) throw new ApiError(422, "Muqova manzili noto'g'ri");
     set.coverUrl = patch.coverUrl;
   }
   if (patch.hidden !== undefined) set.recordingHidden = patch.hidden;

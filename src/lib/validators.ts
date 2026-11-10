@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PRICE_MIN, PRICE_MIN_USD } from "./pricing";
 import { CATEGORIES, EXPERIENCE_LEVELS, ORDER_STATUSES, PACKAGE_TIERS, REGIONS, REPORT_REASONS, VISIBILITY_FIELDS, VISIBILITY_LEVELS, WEEKDAYS, WORK_TYPES } from "./constants";
 import { normalizeUzPhone } from "./utils";
+import { SITE_URL } from "./site-url";
 
 /* ------------------------------------------------------------------ */
 /* Zod xabarlarini o'zbekchaga o'girish (maxsus message berilmagan hollar) */
@@ -147,11 +148,34 @@ const optionalUrl = z
   .optional()
   .or(z.literal(""));
 
+/**
+ * O'Z SAYTIMIZNING sahifa/API manzili rasm sifatida berilmasin (7-audit): `<img src="https://<sayt>/api/…">` har ko'ruvchining
+ * brauzeridan o'sha manzilga so'rov yuboradi — tuzoq yo'li (begunoh odam «skaner» bo'lib ko'rinardi) yoki yon ta'sirli GET.
+ * O'z hostimizdan faqat `/uploads/<fayl>` qabul qilinadi. Hostlar faqat serverda ma'lum (klientda tekshiruv o'tib ketadi —
+ * hal qiluvchi tekshiruv serverdagi zod).
+ */
+const OWN_HOSTS = new Set(
+  [SITE_URL, process.env.SITE_URL, process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL]
+    .map((v) => (v ?? "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase())
+    .filter(Boolean),
+);
+export function isOwnPageUrl(v: string): boolean {
+  if (!/^https?:\/\//i.test(v)) return false;
+  try {
+    const u = new URL(v);
+    return OWN_HOSTS.has(u.host.toLowerCase()) && !/^\/uploads\/[\w-]+\.(?:jpe?g|png|webp|gif)$/i.test(u.pathname);
+  } catch {
+    return true; // tahlil qilib bo'lmaydigan manzil — rad
+  }
+}
+const OWN_PAGE_MSG = "Sayt sahifasining manzili rasm bo'la olmaydi — rasmni yuklang";
+
 const optionalImageUrl = z
   .string()
   .trim()
   .max(300)
   .refine((v) => v === "" || IMAGE_URL_RE.test(v), IMAGE_URL_MSG)
+  .refine((v) => v === "" || !isOwnPageUrl(v), OWN_PAGE_MSG)
   .optional()
   .or(z.literal(""));
 
@@ -319,6 +343,7 @@ export const portfolioItemSchema = z
   })
   // "Rasm" turidagi ishning manzili rasm sifatida ko'rsatiladi — https bo'lishi shart
   .refine((d) => d.type !== "image" || IMAGE_URL_RE.test(d.url), { message: IMAGE_URL_MSG, path: ["url"] })
+  .refine((d) => d.type !== "image" || !isOwnPageUrl(d.url), { message: OWN_PAGE_MSG, path: ["url"] })
   .refine((d) => !d.beforeUrl || d.type === "image", { message: "Oldin/keyin juftligi faqat rasm turidagi ish uchun", path: ["beforeUrl"] });
 
 /** Portfolio ishini tahrirlash (PATCH /api/portfolio/[id]): turi va manzili o'zgarmaydi; tags/beforeUrl berilmasa tegilmaydi */

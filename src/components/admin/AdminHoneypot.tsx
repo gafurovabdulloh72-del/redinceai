@@ -10,6 +10,8 @@ interface Hit {
   id: string;
   ip: string;
   kind: string;
+  /** Brauzerda ochilgan havola yoki qidiruv boti — blokka sanalmaydi */
+  soft?: boolean;
   method: string;
   path: string;
   userAgent: string;
@@ -136,6 +138,11 @@ export function AdminHoneypot() {
             {data.recent.map((h) => (
               <li key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px]">
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", h.kind === "canary" ? "bg-danger-soft text-danger-text" : h.kind === "fakeLogin" || h.kind === "probe" ? "bg-warning-soft text-warning-text" : "bg-fg/6 text-fg-2")}>{KIND_LABEL[h.kind] ?? h.kind}</span>
+                {h.soft && (
+                  <span className="rounded-full border border-line px-1.5 py-0.5 text-[10.5px] font-medium text-fg-3" title="Brauzerda ochilgan havola yoki qidiruv boti — kimdir aldab yuborgan bo'lishi mumkin, shuning uchun blokka sanalmaydi">
+                    yumshoq
+                  </span>
+                )}
                 <code className="font-mono text-[11.5px] text-fg">{h.ip}</code>
                 <span className="font-mono text-fg-2">{h.method}</span>
                 <span className="min-w-0 flex-1 truncate font-mono text-fg-3" title={h.path}>{h.path}</span>

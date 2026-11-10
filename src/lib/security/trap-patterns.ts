@@ -83,3 +83,46 @@ export function attackSignature(urlPart: string): ProbeSig | null {
   for (const [sig, re] of SIGNATURES) if (re.test(s)) return sig;
   return null;
 }
+
+/* ------------------------------------------------------------------ */
+/* Kim so'rayapti: vosita (skaner) / brauzer navigatsiyasi / brauzer ichki so'rovi / qidiruv boti */
+/* ------------------------------------------------------------------ */
+/**
+ * TUZOQNI QUROLGA AYLANTIRISHDAN HIMOYA (7-audit, 2026-11-10).
+ * Muammo: hujumchi BEGUNOH odamning brauzerini tuzoq manziliga yubora oladi — avatar/rasm manzili o'rniga tuzoq yo'li
+ * (`<img src="/boshqaruv-7731">`), chatdagi havola, begona saytdagi yashirin forma; qidiruv botini ham (tashqi sahifaga
+ * havola qo'yib). Agar har so'rov sanalsa, qurbonning IP'si (CGNAT'da — butun operator abonentlari) bloklanadi.
+ * Shuning uchun AVTOMATIK BLOK faqat brauzer bo'lmagan mijozga (skaner, curl, skript) qo'llanadi: ular Fetch Metadata
+ * (`Sec-Fetch-*`) va `Accept-Language` yubormaydi, brauzerni esa bu sarlavhalarsiz so'rov yuborishga majburlab bo'lmaydi.
+ *   "tool" — Sec-Fetch yo'q VA (Accept-Language yo'q yoki UA brauzerniki emas) → to'liq hisob (blokka sanaladi);
+ *   "nav"  — brauzerda ochilgan sahifa (manzil qatori / havola) → soxta/hazil sahifa ko'rsatiladi, jurnalga «yumshoq»
+ *            yoziladi, lekin HECH QACHON blokka sanalmaydi (havola orqali aldangan bo'lishi mumkin);
+ *   "sub"  — rasm/iframe/skript/fetch/prefetch/RSC yoki begona saytdan kelgan forma → umuman e'tiborsiz (oddiy 404);
+ *   "bot"  — o'zini qidiruv/havola-ko'rik boti deb tanishtirgan (Googlebot, YandexBot, TelegramBot…) → oddiy 404
+ *            (soxta `.env` indeksga tushmasin), «yumshoq» yozuv, blok yo'q. UA soxtalashtirilishi mumkin — shuning
+ *            uchun bu faqat «jazolamaslik», hech qanday imtiyoz emas.
+ * Brauzerni to'liq taqlid qilgan skaner blokdan qochadi — bu ongli tanlov: avtomatik jazo faqat ANIQ dalil bo'lganda.
+ */
+export type TrapClient = "tool" | "nav" | "sub" | "bot";
+const CRAWLER_RE = /\b(?:googlebot|google-inspectiontool|googleother|adsbot-google|mediapartners-google|bingbot|bingpreview|yandex\w*|duckduckbot|applebot|baiduspider|petalbot|mail\.ru_bot|facebookexternalhit|meta-externalagent|twitterbot|telegrambot|whatsapp|slackbot|discordbot|linkedinbot|vkshare|skypeuripreview|pinterestbot|redditbot)\b/i;
+export function trapClient(h: Headers, method = "GET"): TrapClient {
+  const site = h.get("sec-fetch-site");
+  const dest = h.get("sec-fetch-dest");
+  const mode = h.get("sec-fetch-mode");
+  const accept = h.get("accept") ?? "";
+  const ua = h.get("user-agent") ?? "";
+  // Haqiqiy brauzer uchala sarlavhani BIRGA yuboradi. Faqat bittasi bo'lsa (Node `fetch` — `sec-fetch-mode: cors`) — bu vosita.
+  if (site && dest && mode) {
+    // Zamonaviy brauzer. Prefetch/prerender va barcha ichki so'rovlar (rasm, iframe, fetch, RSC) — foydalanuvchi tanlovi emas
+    if (/prefetch|prerender/i.test(h.get("sec-purpose") ?? h.get("purpose") ?? "")) return "sub";
+    if (dest !== "document" || mode !== "navigate") return "sub";
+    // Begona saytdan kelgan POST (yashirin forma) — e'tiborsiz; GET havola — ko'rsatamiz (yumshoq)
+    if (site === "cross-site" && method.toUpperCase() !== "GET") return "sub";
+    return "nav";
+  }
+  if (CRAWLER_RE.test(ua)) return "bot";
+  // Fetch Metadata'siz: eski brauzer (Safari < 16.4…) yoki vosita. Brauzer doim Accept-Language yuboradi — sahifa uni o'chira olmaydi
+  if (!h.get("accept-language") || !/^Mozilla\/5\.0 /.test(ua)) return "tool";
+  if (/text\/html/i.test(accept) && method.toUpperCase() === "GET") return "nav";
+  return "sub";
+}

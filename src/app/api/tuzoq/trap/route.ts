@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { clientIp } from "@/lib/security/request";
-import { AUTO_BLOCK_THRESHOLD, CANARY_ADMIN_PATH, CANARY_EMAIL, CANARY_TOKEN, PROBE_BLOCK_THRESHOLD, isCanaryToken, recentHitCount, recordHoneypotHit, type HoneypotKind } from "@/lib/security/honeypot";
+import { CANARY_ADMIN_PATH, CANARY_EMAIL, CANARY_TOKEN, isCanaryToken, recentHitCount, recordHoneypotHit, trapClient, type HoneypotKind } from "@/lib/security/honeypot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +13,14 @@ export const dynamic = "force-dynamic";
  * (3) HAZIL: aniq hujum imzosi, soxta loginga 3-urinish yoki canary ishlatilganda — «Salom, haker! Iltimos, buzib kirmang 🙏»
  *     sahifasi (mas'uliyatli xabar berish sahifasiga havola bilan).
  * PAROL HECH QACHON saqlanmaydi — faqat login nomi (soxta login formasidan). Sahifalar statik HTML, skriptsiz (CSP-safe).
+ *
+ * KIM SO'RAYAPTI (`trapClient`, 7-audit): tuzoq begunoh odamga qarshi ishlatilmasligi uchun —
+ *   sub (rasm/iframe/fetch/prefetch, begona saytdan forma) → oddiy 404, HECH NARSA yozilmaydi;
+ *   bot (Googlebot/Yandex/TelegramBot…) → oddiy 404 (soxta sir indeksga tushmasin), «yumshoq» yozuv;
+ *   nav (brauzerda ochilgan sahifa) → soxta/hazil javob, «yumshoq» yozuv, blok YO'Q;
+ *   tool (skaner/curl/skript) → soxta/hazil javob + to'liq hisob (4 urinish → 24 soat, canary → 30 kun).
+ * Istisno: canary kalit SARLAVHADA (Authorization / x-api-key) kelsa — har qanday mijozda qattiq hisob: brauzerni
+ * begona sayt bunday sarlavha yuborishga majburlay olmaydi (CORS preflight).
  */
 
 /**
@@ -53,10 +61,9 @@ function fakeDump(): string {
     "",
     "DROP TABLE IF EXISTS `users`;",
     "CREATE TABLE `users` (`id` int NOT NULL, `login` varchar(64), `email` varchar(120), `password` varchar(120));",
-    "INSERT INTO `users` VALUES (1,'admin','iltimos-buzib-kirmang@kasbegalari.uz','$2y$10$bu.parol.emas.shunchaki.hazil.xavfsizlik.sahifasiga.qarang');",
+    "INSERT INTO `users` VALUES (1,'admin','iltimos-buzib-kirmang@kasbegalari.uz','$2y$10$Q9mJ4bTz1xW7kLr3vNf8sOeYh2Ua6Dc5Gp0XiKtMwRl1BzEoHnA7y');",
     "",
-    "-- Dump completed. Bu yerda boshqa hech narsa yo'q :)",
-    "-- Kamchilik topdingizmi? Buzmasdan yozing: /xavfsizlik",
+    "-- Dump completed on 2026-10-02  3:14:07",
     "",
   ].join("\n");
 }
@@ -70,18 +77,22 @@ function fakeLoginHtml(heading = "Administrator Login"): string {
 
 type PrankReason = "xss" | "sqli" | "lfi" | "rce" | "login" | "canary" | "api";
 
+/**
+ * Hazil matnlari. QOIDA (egasi talabi, 2026-11-10): himoya QANDAY ishlashi aytilmaydi — nima soxta ekani, nechta urinishdan
+ * keyin nima bo'lishi, nima yozib olinishi. Faqat hazil + «buzib kirmang» iltimosi.
+ */
 const REASON_HTML: Record<PrankReason, string> = {
-  xss: "<code>&lt;script&gt;</code> yubordingiz — lekin u bu yerda bajarilmaydi. XSS yo'q, uzr 😅",
-  sqli: "<code>' OR 1=1 --</code> ishlamadi: so'rovlarimiz parametrlangan. Jadvallar ham joyida turibdi 😌",
+  xss: "<code>&lt;script&gt;</code> yubordingiz — lekin u bu yerda bajarilmaydi, uzr 😅",
+  sqli: "<code>' OR 1=1 --</code> ishlamadi. Jadvallar ham joyida turibdi 😌",
   lfi: "<code>../../etc/passwd</code> — bunday fayl bu yerda yo'q. Zinadan qancha ko'tarilmang, tom yopiq 🙂",
   rce: "Buyruq bajarilmadi. <code>whoami</code> → <code>mehmon</code> 😄",
-  login: "Bu admin panel emas — tuzoq 🪤. Kiritgan parollaringiz hech qayerga saqlanmadi (faqat urinishlar sanaldi).",
-  canary: "🎣 Tuzoqqa tushdingiz: bu kalit/manzil soxta edi — uni faqat soxta <code>.env</code> faylidan topish mumkin.",
-  api: "Bu yerda yashirin API yo'q — faqat tuzoq 🪤.",
+  login: "Bu yerda admin panel yo'q 🙂 Parol terib charchamang.",
+  canary: "Bu kalit bu eshikni ochmaydi 🙂",
+  api: "Bu yerda yashirin API yo'q 🙂",
 };
 
 /** «Salom, haker!» sahifasi — hazil + iltimos + mas'uliyatli xabar berish havolasi. Skriptsiz, faqat CSS animatsiya. */
-function prankHtml(reason: PrankReason, ip: string, blockNote: string): string {
+function prankHtml(reason: PrankReason): string {
   return `<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Salom, haker 👋</title><style>
 :root{color-scheme:dark}*{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0b0d;color:#f6f4ee;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:20px}
@@ -104,33 +115,22 @@ p{margin:8px 0;color:#c9c7c1}small{color:#8b8984}code{color:#9fe870}
 <h1>Salom, haker do'stim! 👋</h1>
 <p>${REASON_HTML[reason]}</p>
 <p class="big">Iltimos, bizni buzib kirmang 🙏</p>
-<p>Biz kichik jamoamiz — bu saytni kechalari uxlamay qurganmiz. Chindan ham kamchilik topgan bo'lsangiz, buzmasdan bizga yozing: rahmat aytamiz, ismingizni «Shon-sharaf zali»ga yozamiz, choy ham bizdan ☕</p>
+<p>Biz kichik jamoamiz — bu saytni kechalari uxlamay qurganmiz. Chindan ham kamchilik topgan bo'lsangiz, buzmasdan bizga yozing: rahmat aytamiz, choy ham bizdan ☕</p>
 <p><small>Пожалуйста, не взламывайте нас 🙏 Нашли уязвимость — напишите нам, скажем спасибо.<br>Please don't hack us 🙏 Found a real bug? Tell us — we'll say thanks.</small></p>
 <a class="btn" href="/xavfsizlik">Kamchilik haqida xabar berish</a><a class="btn ghost" href="/">Bosh sahifa</a>
-<p><small>IP: ${esc(ip)} · urinish jurnalga yozildi${blockNote ? ` · ${esc(blockNote)}` : ""}<br>P.S. Parol «admin123» emas — o'zimiz ham tekshirib ko'rdik 😄</small></p>
+<p><small>P.S. Parol «admin123» emas — o'zimiz ham tekshirib ko'rdik 😄</small></p>
 </div></main></body></html>`;
 }
 
-const REASON_TEXT: Record<PrankReason, string> = {
-  xss: "XSS urinishi aniqlandi — bu yerda bajarilmaydi.",
-  sqli: "SQL-inyeksiya urinishi aniqlandi — so'rovlar parametrlangan.",
-  lfi: "Fayl o'qish urinishi aniqlandi — bunday fayl yo'q.",
-  rce: "Buyruq bajarish urinishi aniqlandi — bajarilmadi.",
-  login: "Bu admin panel emas — tuzoq.",
-  canary: "Bu kalit/manzil soxta (tuzoq) edi.",
-  api: "Bu yerda yashirin API yo'q — tuzoq.",
-};
-
-function prankJson(reason: PrankReason, blockNote: string, status: number, headers: Record<string, string>): Response {
+function prankJson(status: number, headers: Record<string, string>): Response {
   return Response.json(
     {
       ok: false,
       error: "Iltimos, buzib kirmang 🙏",
-      message: `Salom, haker! ${REASON_TEXT[reason]} Chindan ham kamchilik topgan bo'lsangiz — buzmasdan bizga yozing, rahmat aytamiz.`,
+      message: "Salom, haker! Bu yerda bu ishlamaydi 🙂 Chindan ham kamchilik topgan bo'lsangiz — buzmasdan bizga yozing, rahmat aytamiz.",
       ru: "Пожалуйста, не взламывайте нас 🙏 Нашли уязвимость — напишите нам.",
       en: "Please don't hack us 🙏 Found a real bug? Tell us.",
       report: "/xavfsizlik",
-      ...(blockNote ? { note: blockNote } : {}),
     },
     { status, headers },
   );
@@ -157,10 +157,20 @@ async function trap(req: Request): Promise<Response> {
   const sig = sigRaw === "xss" || sigRaw === "sqli" || sigRaw === "lfi" || sigRaw === "rce" ? sigRaw : null;
 
   // Canary: soxta "maxfiy admin" yo'li yoki canary kalit (header/query'da) — eng kuchli signal
-  const tokenSeen = isCanaryToken(url.searchParams.get("key") || url.searchParams.get("token") || url.searchParams.get("api_key") || req.headers.get("x-api-key") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "");
+  const headerToken = isCanaryToken(req.headers.get("x-api-key")) || isCanaryToken(req.headers.get("authorization")?.replace(/^Bearer\s+/i, ""));
+  const tokenSeen = headerToken || isCanaryToken(url.searchParams.get("key") || url.searchParams.get("token") || url.searchParams.get("api_key") || "");
   const isCanary = low.startsWith(CANARY_ADMIN_PATH) || tokenSeen;
   const isLoginPath = /wp-login|administrator|admin\.php|adminer|login|old-admin|boshqaruv-7731/.test(low);
   const wantsJson = low.startsWith("/api/") || /^\/(?:graphql|swagger|api-docs|wp-json)/.test(low) || (!/text\/html/.test(req.headers.get("accept") ?? "") && /application\/json/.test(req.headers.get("accept") ?? ""));
+
+  const headers: Record<string, string> = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" };
+  const html = { ...headers, "content-type": "text/html; charset=utf-8" };
+  const notFound = () => new Response("Not Found", { status: 404, headers });
+
+  // Kim so'rayapti: brauzerning ichki so'rovi (rasm/iframe/fetch) — begona odam yuborgan bo'lishi mumkin → iz qoldirmaymiz
+  const client = headerToken ? "tool" : trapClient(req.headers, method);
+  if (client === "sub") return notFound();
+  const soft = client !== "tool";
 
   // Soxta login urinishi — login nomini olamiz (PAROLNI EMAS)
   let note = sig ? `imzo: ${sig}` : "";
@@ -179,27 +189,24 @@ async function trap(req: Request): Promise<Response> {
       /* tanani o'qib bo'lmadi — faqat yo'l yoziladi */
     }
   }
+  if (client === "bot") note = note ? `${note} · bot` : "bot";
 
-  // Avvalgi urinishlar (shu so'rovdan OLDIN) — hazil darajasi va «bloklandi» izohi uchun
-  const prior = await recentHitCount(ip);
-  const priorLogins = isLoginPost ? await recentHitCount(ip, "fakeLogin") : 0;
+  // Soxta loginga avvalgi urinishlar (shu so'rovdan OLDIN) — 3-urinishdan hazil sahifasi
+  const priorLogins = isLoginPost ? await recentHitCount(ip, "fakeLogin", soft) : 0;
 
   // Jurnal + avtomatik blok javobdan KEYIN (hujumchi kutmaydi, javob tez)
-  after(() => recordHoneypotHit({ ip, kind, method, path, userAgent: ua, note }));
+  after(() => recordHoneypotHit({ ip, kind, method, path, userAgent: ua, note, soft }));
 
-  const headers: Record<string, string> = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" };
-  const html = { ...headers, "content-type": "text/html; charset=utf-8" };
-  const threshold = kind === "probe" ? PROBE_BLOCK_THRESHOLD : AUTO_BLOCK_THRESHOLD;
-  const left = threshold - (prior + 1);
-  const blockNote = kind === "canary" ? "IP 30 kunga bloklandi" : left <= 0 ? "IP 24 soatga bloklandi" : left <= 2 ? `yana ${left} ta urinish — va IP 24 soatga dam oladi 😴` : "";
+  // Qidiruv/havola boti: soxta sirlarni ko'rsatmaymiz (indeksga tushmasin) — oddiy 404
+  if (client === "bot") return notFound();
 
   // 1) Canary ishlatildi (kalit yoki soxta admin yo'liga POST) — «tuzoqqa tushdingiz»
   if (tokenSeen || (isCanary && method === "POST")) {
-    return wantsJson ? prankJson("canary", blockNote, 403, headers) : new Response(prankHtml("canary", ip, blockNote), { status: 403, headers: html });
+    return wantsJson ? prankJson(403, headers) : new Response(prankHtml("canary"), { status: 403, headers: html });
   }
   // 2) URL'da hujum imzosi — 418 «men choynakman» 🫖 (payload hech qaysi sahifaga yetmagan)
   if (sig) {
-    return wantsJson ? prankJson(sig, blockNote, 418, headers) : new Response(prankHtml(sig, ip, blockNote), { status: 418, headers: html });
+    return wantsJson ? prankJson(418, headers) : new Response(prankHtml(sig), { status: 418, headers: html });
   }
   // 3) Soxta sirlar — ishonarli (canary shu yerda tashlanadi)
   if (/\.git(?:\/|$)/.test(low)) {
@@ -217,7 +224,7 @@ async function trap(req: Request): Promise<Response> {
   }
   if (isLoginPost) {
     await sleep(1200); // tarpit: parol terish botini sekinlashtiradi
-    if (priorLogins >= 2) return new Response(prankHtml("login", ip, blockNote), { status: 200, headers: html });
+    if (priorLogins >= 2) return new Response(prankHtml("login"), { status: 200, headers: html });
     return new Response(fakeLoginHtml("Login failed — try again"), { status: 200, headers: html });
   }
   // 5) Soxta "backup" — kichik, ichida hazil
@@ -225,12 +232,12 @@ async function trap(req: Request): Promise<Response> {
     return new Response(fakeDump(), { status: 200, headers: { ...headers, "content-type": "application/sql; charset=utf-8" } });
   }
   // 6) «Yashirin API» qidiruvchilar (graphql/swagger/api/v1/…) — JSON hazil
-  if (wantsJson) return prankJson("api", blockNote, 418, headers);
+  if (wantsJson) return prankJson(418, headers);
   if (method === "POST") {
     return new Response(fakeLoginHtml("Login failed — try again"), { status: 200, headers: html });
   }
   // Qolgan tuzoq yo'llari — oddiy 404 ko'rinishi (lekin baribir jurnalga tushdi)
-  return new Response("Not Found", { status: 404, headers });
+  return notFound();
 }
 
 export const GET = trap;
