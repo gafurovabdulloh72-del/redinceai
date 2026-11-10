@@ -1,0 +1,338 @@
+[
+ {
+  "id": 5,
+  "needsEdit": true,
+  "captionHtml": "<b>Videograf, montajor, grafik dizayner: mijozlar sizga qaysi yo'l bilan keladi?</b>\n\nKasb Egalari O'zbekiston bo'ylab ishlaydi. Profil, portfolio, narx va mijoz bilan chat bir joyda jamlangan.\nMijoz katalogda kasb va hududni tanlab qidiradi.\nProfilingizdagi «Yozish» tugmasi orqali saytdagi chatda sizga yozadi.\nHisob ochish bepul. Birinchi 30 kun profilingiz katalogda ham bepul turadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Katalogni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/mutaxassislar",
+  "changes": [
+   "DELIVERY (this blocks the edit call): post 5 is kind \"text\" in channel-posts.json, so editMessageCaption will fail on it. Use editMessageText with parse_mode HTML and send reply_markup (the buttons) in the same call. Also pass link_preview_options {is_disabled:true}, because the old text had a URL and Telegram could keep showing its preview. The bot needs can_edit_messages in @kasb_egalari.",
+   "Title kept from the corrected version: one sentence, no emoji, no dash. The original's hook idea and all three professions stay, with the catalog names Videograf, Montajor and Grafik dizayner (src/lib/categories.ts:54,55,67).",
+   "REQUIRED fix applied: 'Kasb Egalari O'zbekiston bo'ylab kasb egalari uchun platforma: ... bir joyda.' had no verb and no dash between subject and predicate, and it repeated 'Kasb Egalari ... kasb egalari'. It now reads 'Kasb Egalari O'zbekiston bo'ylab ishlaydi: profil, portfolio, narx va mijoz bilan chat bir joyda jamlangan.' This keeps 'O'zbekiston bo'ylab' from the original, gives the sentence a verb, removes the echo, leaves the brand uninflected and drops the possible 'only platform' reading.",
+   "'viloyatni' became 'hududni'. The catalog filter label is «Hudud» (src/lib/i18n/dict/catalog.ts:175), and its list includes Toshkent shahri and Qoraqalpog'iston Respublikasi, which are not viloyats.",
+   "The «Yozish» line stays as the approved factCorrections wording. It is true: /yozish/<username> leads to /kabinet/chat. A guest has to log in first and a creator can close DMs; those conditions are acceptable to leave out, as the reviewer noted.",
+   "'Ro'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.' is unchanged. The catalog line needs the 30-day condition because subscriptionEnforced=1 is the default (constants.ts:189-191) and the site uses the same idea (PlanCards.tsx:93).",
+   "Kept from the corrected version: the Instagram and Telegram groups line, 'hammasi tarqoq' and the '👉 kasbegalari.vercel.app' end line are all removed. The link is now button 2 (/mutaxassislar, a real route at src/app/mutaxassislar/(royxat)/page.tsx). The tail is exactly '#profil' plus 'Ro'yxatdan o'tish: @kasb_egalari_bot'.",
+   "Optional suggestions not applied, to keep the edit minimal: joining the 'Yozish' line onto the catalog line; adding 'ijodiy va onlayn' (no longer needed now that the 'kasb egalari uchun' phrase is gone); a t.me startapp deep link for the button (the plain https URL is the allowed fallback).",
+   "Checks: 4 body lines; 435 characters including tags and tail (428 without); no em or en dashes; ASCII apostrophes only; no emoji; no competitors, invented numbers, 'hech kim', 'hammasi', 'ko'pincha' or 'Bepul profil'."
+  ]
+ },
+ {
+  "id": 7,
+  "needsEdit": true,
+  "captionHtml": "<b>Mijoz sizni ishlaringizga qarab baholaydi.</b>\n\nIshlaringiz har xil joylarda bo'lsa, ularni ko'rsatish qiyin.\n\nKasb Egalari saytida rasm va videolaringizni bitta profilga yig'asiz.\nPostlaringiz ham u yerda, alohida bo'limda turadi.\nPortfoliodagi ishlar tartibini o'zingiz belgilaysiz.\nStandart tarifda portfolioga 12 tagacha ish qo'shasiz.\n\nHisob ochish bepul.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Saytda ro'yxatdan o'tish",
+  "button2Url": "https://kasbegalari.vercel.app/auth/royxat?role=specialist",
+  "changes": [
+   "Title unchanged from the corrected version. The made-up '10 soniyada' stays out and the hook (clients judge you by your work) stays in.",
+   "Fixed the problem line's grammar. 'turli joyda tarqoq' said the same thing twice, used a singular noun, and had no possessor or object. It now reads 'Ishlaringiz har xil joylarda bo'lsa, ularni mijozga ko'rsatish qiyin.'",
+   "Fixed where reordering happens. 'Ishlar bo'limida ... tartiblaysiz' pointed at the public «Ishlar» tab, which is view-only. You actually set the order in Kabinet → Portfolio (PortfolioManager drag and ↑/↓, PUT /api/portfolio/reorder), and the profile shows works in that sortOrder (src/lib/queries.ts:238). The line is now 'Portfoliodagi ishlar tartibini o'zingiz belgilaysiz.' with no tab name.",
+   "Made the limit a cap: '12 ta' became '12 tagacha'. The server blocks new works once n >= min(30, TIER_LIMITS.free.portfolio=12) (src/app/api/portfolio/route.ts:26-29, src/lib/subscriptions/pro.ts:43).",
+   "Smoothed the calque 'profilda lenta bo'lib turadi' to 'profilingizda lenta ko'rinishida turadi', so the possessive matches the lines around it.",
+   "Button 2 now points to /auth/royxat?role=specialist. This preselects the specialist role and skips the role step (src/app/auth/royxat/page.tsx:19-25). Portfolio only exists for specialists (POST /api/portfolio requires specialist/admin). Label stays 'Saytda ro'yxatdan o'tish'.",
+   "Kept from the corrected version: 'Kasb Egalari saytida' (brand name not inflected), no Instagram comparison, 'Ro'yxatdan o'tish bepul.' with no catalog promise (so no 30-day line is needed), the old end block removed, and the standard #profil tail. Final length is 429 characters. The text has no em/en dashes, uses only ASCII apostrophes and has no emoji.",
+   "Site inconsistency, not in this caption: Kabinet → Portfolio tells every user '30 tagacha' (src/app/kabinet/portfolio/page.tsx:21,51; src/lib/i18n/dict/kabinet-forms.ts:288), but Standart is capped at 12. That page should show TIER_LIMITS[premiumTier].portfolio."
+  ]
+ },
+ {
+  "id": 8,
+  "needsEdit": true,
+  "captionHtml": "<b>Videograf, showreel'ingizni mijozga qanday yuborasiz?</b>\n\nKasb Egalari saytida video va rasm ishlaringiz bitta profilda yig'iladi. Mijozga profilning qisqa havolasini yoki QR kodini yuborasiz.\n• Video postlaringiz Reels lentasida ham chiqadi, story 24 soat turadi.\n• Mijoz sizni katalogda kasb va viloyat bo'yicha topadi.\n• Profilingizdagi «Yozish» tugmasi orqali mijoz saytdagi chatda yozadi.\n• Jamoalarda kasbdoshlar bilan tajriba almashasiz.\n\nRo'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Videograflar katalogi",
+  "button2Url": "https://kasbegalari.vercel.app/yonalish/videograf",
+  "changes": [
+   "Title: the deficit hook 'Showreel'ingiz DM'larda yo'qolib ketyaptimi? 🎬' becomes a question about how the reader sends a showreel. It keeps the showreel idea and the videograf profession, and the trailing emoji is gone.",
+   "The title question is now answered in the opening sentences: 'Kasb Egalari saytida video va rasm ishlaringiz bitta profilda yig'iladi. Mijozga profilning qisqa havolasini yoki QR kodini yuborasiz.' This is true in the code. Each profile gets a short link /u/<KOD> and a QR download (src/app/mutaxassislar/[slug]/page.tsx:272-277). The ShareButton on the profile passes that short URL and the QR (page.tsx:655). Its share sheet has copy link, Telegram and QR (src/components/specialists/ShareButton.tsx:35).",
+   "Removed the earlier wording ': postlar, videolar va ishlar'. It said 'ishlar' twice and named UI tabs in lowercase. The verb 'turadi' became 'yig'iladi', so 'turadi' now appears only twice.",
+   "The short link and QR went into the opening sentence instead of a separate bullet. That keeps the body at 7 lines and avoids repeating 'profil havolasi'.",
+   "'Reels va story joylaysiz' becomes 'Video postlaringiz Reels lentasida ham chiqadi, story 24 soat turadi.' There is no separate Reels upload: CreateMenu offers Post, Jamoa, Vakansiya and E'lon only (CreateMenu.tsx:40-51). The reels feed collects profile posts that have media, plus portfolio videos (src/lib/reels.ts:94-119). The 24-hour story lifetime is true (src/lib/social/limits.ts:15).",
+   "Removed the Instagram comparison, the em dashes, the competitor line 'Instagram'da ishlar tarqoq, papkalarni esa hech kim ochmaydi', the unverifiable 'u ko'rmaydi' line and the inflected brand tagline.",
+   "The catalog bullet uses 'kasb va viloyat' (queries.ts:150-153). Kept unchanged.",
+   "Removed 'chat va ovozli/video qo'ng'iroq'. Calls depend on LiveKit in prod, which is not confirmed. The bullet is reordered so that two consecutive bullets do not start with 'Mijoz': 'Profilingizdagi «Yozish» tugmasi orqali mijoz saytdagi chatda yozadi.' The «Yozish» button is real (profile.ts:389, page.tsx:649-652).",
+   "Kept the jamoalar bullet (true). The caption stays under 600 characters with it.",
+   "'Profil bepul, 1 daqiqada ochiladi 👇' becomes 'Ro'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.' The 30-day line comes from the trial window and subscriptionEnforced=1 (constants.ts:189-191, subscriptions/access.ts:63-66, 107-115). The unmeasured '1 daqiqada' claim is removed.",
+   "Removed the old end block (the ⚡ bot line, the 👉 t.me URL and the 📢 channel line). It is replaced with the fixed tail '#profil' plus 'Ro'yxatdan o'tish: @kasb_egalari_bot'.",
+   "Button: relabelled 'Videograflar katalogi'. The reader is a videographer, so the button shows where their profile is listed rather than sending them to browse competitors. The URL /yonalish/videograf exists (src/app/yonalish/[category]/page.tsx; slug at categories.ts:54). Prod content is UNVERIFIED because the sandbox proxy refused kasbegalari.vercel.app (CONNECT 403). Before editing, open the page and check that at least one videograf is listed. If it is empty (noindex, yonalish/landing.tsx:62), use 'Katalogni ochish' -> https://kasbegalari.vercel.app/mutaxassislar?category=videograf.",
+   "Length: 572 characters with HTML (565 visible), 7 body lines. No em or en dashes, ASCII apostrophes only, no banned words."
+  ]
+ },
+ {
+  "id": 9,
+  "needsEdit": true,
+  "captionHtml": "<b>Grafik dizayner, videograf, montajor: ishlaringiz telefonda qolib ketmasin</b>\n\nKasb Egalari saytida rasm, video va loyihalaringiz bitta profilda turadi. Mijoz katalogda kasb va viloyatni tanlab qidiradi. Profilingizdagi «Yozish» tugmasini bosib, sizga saytdagi chatda yozadi.\n\nTelefonda video olsangiz, «Reels / Shorts yaratuvchi» yoki «UGC kreator» kasbini tanlang.\n\nRo'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Katalogni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/mutaxassislar",
+  "changes": [
+   "Title: dropped 'Mobilograf' (not a catalog profession) and used the exact name «Grafik dizayner'. Replaced the deficit question 'ishingiz yo'qolib ketyaptimi?' with 'ishlaringiz telefonda qolib ketmasin', which keeps the same hook. Removed the em dash and the trailing 🎯.",
+   "Hook line: removed the made-up numbers 'yuzlab kadr' and 'o'nlab loyiha'. The idea stays: the work sits on the phone and in folders, and the client does not see it.",
+   "Removed the em dash in the 'Kasb Egalari — ... platformasi:' intro. Turned the 5-bullet list into prose, and wrote 'Kasb Egalari saytida' so the brand name is not inflected.",
+   "Removed the competitor mention '(Instagram kabi lenta)'.",
+   "Catalog line: now uses the corrected wording 'kasb va viloyatni tanlab qidiradi'. The five-profession list was shortened. «Reels / Shorts yaratuvchi» and «UGC kreator» now replace the 'Mobilograf bo'lsangiz ham' CTA.",
+   "Removed 'haftalik konkurslar'. Contests only run when an admin creates one, so nothing makes them weekly.",
+   "Removed 'ovozli/video qo'ng'iroq' (it depends on LiveKit). Chat now uses the corrected wording: the client writes through the «Yozish» button on your profile, in the site chat.",
+   "Removed 'jamoalar, mentorlik kurslari va jonli efirlar' to fit the length limit. Live streams were conditional anyway.",
+   "Kept the vacancies line without the em dash: 'e'lon va rezyume bepul' (the vacancy and resume routes have no payment gate).",
+   "Replaced 'bepul profil oching 👇' with 'Ro'yxatdan o'tish bepul.' and added the 30-day catalog line, since enforcement is on by default.",
+   "Removed the old end block (⚡ line, 👉 t.me link, 📢 channel line). Added the standard tail '#profil' / 'Ro'yxatdan o'tish: @kasb_egalari_bot'. The catalog link moved to button 2 (/mutaxassislar).",
+   "Length: 597 plain-text characters including the tail. 6 body lines, no dashes, ASCII apostrophes only."
+  ]
+ },
+ {
+  "id": 10,
+  "needsEdit": true,
+  "captionHtml": "<b>Montajni kimdan o'rgansangiz, tezroq o'sasiz?</b>\n\nKasb Egalari saytidagi «Mentorlik» bo'limida ustozlar kurs ochadi.\n• Har ustozning o'z sahifasi bor: kurslari, efirlari va postlari.\n• Ustoz jonli efir o'tkazsa, efirda unga savol yozasiz. So'rovnoma ochsa, ovoz berasiz.\n• Ustoz bir darsni bepul namuna qilib qo'ysa, uni kursga yozilishdan oldin ko'rasiz.\n• Barcha darslarni tugatib, testlardan o'tsangiz, sertifikat olasiz.\n• Montajni yaxshi bilsangiz, mentorlikka ariza berasiz. Admin tasdiqlagach, kurs ochasiz.\n\n#ustoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Mentorlikni ochish",
+  "button2Url": "https://kasbegalari.vercel.app/mentorlik",
+  "changes": [
+   "Removed the 🎓 emoji from the end of the title. The title and hook are unchanged.",
+   "Deleted the YouTube comparison ('YouTube'da yuzlab dars bor, lekin ... odam yo'q'). It was a competitor claim nobody can check.",
+   "Line 1 now promises courses only: 'ustozlar kurs ochadi'. Live streaming depends on LiveKit being configured (rtc/livekit.ts:25), and prod could not be checked, so the live promise moved into a conditional bullet. The brand is not inflected: 'Kasb Egalari saytidagi'.",
+   "Mentor page bullet: 'lentasi' -> 'efirlari va postlari'. Added the conjunction 'va'. This matches the Postlar · Kurslar · Efirlar tabs (ustoz/[slug]/page.tsx).",
+   "Live bullet is now conditional: 'Ustoz jonli efir o'tkazsa, efirda unga savol yozasiz. So'rovnoma ochsa, ovoz berasiz.' Questions need a live stream (askQuestion, at most 5 per stream, interactive.ts:29-35). Only the host can open a poll (createPoll :71), and with no open poll votePoll returns 409 (:86-89).",
+   "Removed the recording promise ('keyin yozuvini ko'rasiz'). Recording needs R2 and the «Yozish» button (live/service.ts:194-204), and prod has not been confirmed.",
+   "Free preview lesson is conditional and reads more naturally: 'Ustoz bir darsni bepul namuna qilib qo'ysa, uni kursga yozilishdan oldin ko'rasiz.' 'sotib olish' was replaced with the site's own word 'yozilish' (isPreview, mentorship/service.ts:221,266).",
+   "Certificate condition fixed: 'Barcha darslarni tugatib, testlardan o'tsangiz'. Finishing a test is not enough: the score must reach passPct (learning.ts:42), and maybeIssueCertificate checks quizPassed for every quiz (learning.ts:57).",
+   "Becoming a mentor: replaced the 'mumkin' hedge with the real condition. You apply, and you open a course only after admin approval (mentorship/service.ts:53-65).",
+   "Replaced every em dash (—) with a comma or a period. Bullets start with a capital letter and end with a period.",
+   "Removed the old end block (URL and the ⚡/👉/📢 lines). The caption now ends with '#ustoz' + 'Ro'yxatdan o'tish: @kasb_egalari_bot'.",
+   "Button: 'Mentorlikni ochish' -> /mentorlik. The page is a real route ((katalog)/page.tsx), but the «Ustozlar» row shows only when an approved mentor with a slug exists, and prod could not be checked. Switch to 'Ustozlarni ko'rish' once an approved mentor is confirmed. Do not use ?kasb=montaj: the filtered view hides the ustozlar row.",
+   "Length is 563 characters with HTML and 556 as plain text. The body has 6 lines. No em or en dashes, all apostrophes are ASCII.",
+   "BEFORE EDITING: in a browser, check that /mentorlik shows at least one course. If admin → Tizim holati shows LiveKit configured, line 1 can go back to 'ustozlar kurs ochadi va jonli efir o'tkazadi'."
+  ]
+ },
+ {
+  "id": 11,
+  "needsEdit": true,
+  "captionHtml": "<b>Mijoz Samarqandda, siz Toshkentda: bir-biringizni topa olasizmi?</b>\n\nKasb Egalari saytida mijoz katalogdan dizayner qidiradi. Hududni tanlash shart emas.\nGrafik dizayner, UI/UX dizayner, logo va brend dizayner, SMM dizayner, qadoq dizayner: har biri alohida kasb.\nHar hududdagi har kasbning o'z sahifasi bor, masalan «Toshkentdagi dizaynerlar».\nMijoz profilingizdagi «Yozish» tugmasi orqali saytdagi chatda yozadi. Platforma orqali bajarilgan buyurtmadan keyin sharh qoldiradi.\nRo'yxatdan o'tish bepul, birinchi 30 kun profilingiz katalogda ham pulsiz turadi.\n\n#hudud\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Grafik dizaynerlar",
+  "button2Url": "https://kasbegalari.vercel.app/mutaxassislar?category=dizayner",
+  "changes": [
+   "Title: replaced the em dash with a colon and removed the trailing 🗺 emoji. The Samarqand/Toshkent hook is unchanged.",
+   "Removed 'Mijozlar ko'pincha o'z shahridagi dizaynerni qidiradi' (made-up 'ko'pincha') and the Instagram claim (competitor comparison).",
+   "Removed the 'Kasb Egalari'da:' bullet intro and stopped inflecting the brand: it now reads 'Kasb Egalari saytida'. The bullets became prose lines.",
+   "Line 1 now answers the hook. The old version, 'kasb va viloyatni tanlab', made choosing a region sound required, but a client who picks Samarqand never sees a Toshkent designer (queries.ts:150 eq). New line: 'mijoz katalogdan dizayner qidiradi. Hududni tanlash shart emas.' Region is optional, and the default is «Barcha hududlar» (validators.ts:483 optional, Filters.tsx:473, catalog.ts:176).",
+   "Profession list uses the exact categories.ts labels: «Grafik dizayner», «UI/UX dizayner», «Logo va brend dizayner», «SMM dizayner», «Qadoq dizayner» (categories.ts:67-69, 72, 76). 'SMM va qadoq dizayneri' had read as one profession. 'alohida' now appears once.",
+   "Landing line: removed 'profilingiz shu yerda ko'rinadi' (a landing page shows only part of the list). 'viloyat' became 'hudud', the term the site uses (catalog.ts:175); Toshkent shahri is not a viloyat. The sentence was reworded so 'o'z' has a possessor: 'Har hududdagi har kasbning o'z sahifasi bor, masalan «Toshkentdagi dizaynerlar».' The example title is verified (landing.tsx:28-32 placeForms + lowerFirst of 'Dizaynerlar').",
+   "Reviews are now conditional: a client can leave one only after an order completed through the platform (mutaxassislar/[slug]/page.tsx:230-233, 333).",
+   "Chat line uses the verified wording: the client writes in the site chat via the «Yozish» button (dict/profile.ts:389, page.tsx:649-652, /yozish/[username]).",
+   "Added 'Ro'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.' (subscriptionTrialDays=30 and subscriptionEnforced=1, constants.ts:189-191; access.ts:94-101). Removed the 'profil oching' CTA.",
+   "Old end block removed (CTA with 👇, ⚡/👉/📢 lines, links). New tail: #hudud + the registration line.",
+   "Button: label changed from 'Dizaynerlar katalogi' to 'Grafik dizaynerlar', because /mutaxassislar?category=dizayner lists only the main category 'Grafik dizayner' (queries.ts:153 eq), not all five design professions. The URL is kept: it is valid and the slug passes specialistFilterSchema. The production content of this route was not confirmed.",
+   "Final check: 596 plain characters including the tail, 5 body lines, no em or en dashes, ASCII apostrophes only, no invented numbers, no competitor names."
+  ]
+ },
+ {
+  "id": 12,
+  "needsEdit": true,
+  "captionHtml": "<b>Veb-dizayner: ish qidiryapsizmi yoki jamoa yig'ayapsizmi?</b>\n\nKasb Egalari saytidagi «Vakansiyalar» bo'limi onlayn kasblar uchun: UI/UX, veb-dizayn, WordPress, no-code va boshqalar.\n• E'lonlarni «Dizayn» kabi yo'nalishlar bo'yicha ko'rasiz va ariza yuborasiz.\n• Ommaviy rezyume joylasangiz, telefon va emailingiz unda ko'rinmaydi: ularni faqat siz ariza yuborgan ish beruvchi ko'radi, boshqalar sizga saytdagi chat orqali yozadi.\n• Ish beruvchi bo'lsangiz, vakansiya joylash bepul.\n\n#vakansiya\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Vakansiyalarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/vakansiyalar",
+  "changes": [
+   "Kept the hook, the profession (Veb-dizayner) and the job-seeker/employer angle. Removed the emoji from the bold title.",
+   "Removed both em dashes and used a colon and commas instead. Stopped inflecting the brand: \"Kasb Egalari'da alohida «Vakansiyalar» bo'limi\" is now \"Kasb Egalari saytidagi «Vakansiyalar» bo'limi\".",
+   "Changed 'kasb bo'yicha' to 'yo'nalish bo'yicha'. Vacancies filter by 11 broad directions, not by profession (src/lib/vacancies/format.ts:8-20).",
+   "Reviewer 1: named the direction by its short chip label «Dizayn», which is what /vakansiyalar shows (professionLabelTr(til, slug, true), (katalog)/page.tsx:149). The full name «Dizayn (grafik, UI/UX)» appears only in forms.",
+   "Reviewer 2, grammar: bullet 1 had no comma after 'masalan' and a wrong comma before 'va'. It now reads 'E'lonlarni «Dizayn» kabi yo'nalishlar bo'yicha ko'rasiz va ariza yuborasiz.', which also restores the original 'ko'rasiz va ariza yuborasiz'.",
+   "Reviewers 1 and 2, resume bullet: it now says what the reader does ('Ommaviy rezyume joylasangiz') and is accurate on both points. The public resume hides phone and email (pub(), service.ts:133). The owner of a vacancy you applied to sees your contacts (listApplicants, service.ts:461). Everyone else writes through the site chat ('Chatda yozish', rezyumelar/[id]/page.tsx:48).",
+   "'e'lon joylash to'lovsiz' is now 'vakansiya joylash bepul'. Any logged-in user can post 5 per day for free (api/vakansiyalar/route.ts:7).",
+   "Moved the bot bullet into the standard tail and removed the old 👇 end line. Added the #vakansiya tail and a /vakansiyalar button. I used the general catalog rather than /vakansiyalar/kasb/dizayn because I could not check prod content.",
+   "Final check: 554 characters with tags (547 plain), 5 body lines, no em/en dashes, ASCII apostrophes only."
+  ]
+ },
+ {
+  "id": 13,
+  "needsEdit": true,
+  "captionHtml": "<b>Reels / Shorts yaratuvchi: telefondagi videolaringiz uchun joy</b>\n\nReels, Story va UGC ishlaringizni Kasb Egalari saytida ko'rsatasiz.\n• Video postlaringiz Reels lentasida chiqadi.\n• 24 soatlik Story va postlarga musiqa qo'shasiz. Standart tarifda haftasiga 2 ta post va 4 ta Story joylay olasiz.\n• Katalogda «Reels / Shorts yaratuvchi» va «UGC kreator» kasblari bor.\n• Konkurs e'lon qilinsa, ommaviy video postingiz bilan qatnashasiz.\n• Mijoz profilingizdagi «Yozish» tugmasi orqali chatda yozadi.\n\nRo'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Reels'ni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/lenta",
+  "changes": [
+   "Applied from review 2: 'Standart tarifda: haftasiga 2 post, 4 story.' became 'Standart tarifda haftasiga 2 post va 4 story.' I dropped the telegraph-style colon and joined the list with 'va'. The facts stay the same (social/limits.ts, pro.ts TIER_LIMITS).",
+   "Applied from review 2: button label 'Reelsni ko'rish' became 'Reels'ni ko'rish', following the house rule that an apostrophe goes before a suffix after a foreign name. button2Url stays https://kasbegalari.vercel.app/lenta.",
+   "Length: 598 plain-text characters including the tail, which is what Telegram counts for a caption. It is 605 with the <b></b> tags. There are 7 body lines, no em or en dashes, and only ASCII apostrophes.",
+   "Skipped from review 2, optional: the contest line wording 'profilingizdagi ommaviy video post' adds 11 characters and would push the caption over 600. The bullet before it already ties 'video postlaringiz' to the profile and Reels.",
+   "Skipped from review 2, optional: the title change 'telefonda olgan videolaringiz' adds 3 characters (601). The current title is valid, and keeping it is the smaller edit.",
+   "Skipped from review 1, optional: the HTML-counted trims. Telegram counts caption length after it parses the entities, so the plain-text count of 598 is the one that matters.",
+   "Still open: I could not confirm that /lenta has content on prod, because the proxy returned 403. Check it before running editMessageCaption.",
+   "Updated the draft file /tmp/claude-0/-home-user-redinceai/77cf9a75-26bd-5b69-afa7-330aecac2f47/scratchpad/audit/p13.txt to match captionHtml."
+  ]
+ },
+ {
+  "id": 14,
+  "needsEdit": true,
+  "captionHtml": "<b>Videograflar bir joyda to'plansa-chi?</b>\n\nKamera, montaj yoki mijoz bilan ishlash bo'yicha savol tug'ilsa, maslahat so'rashga odam kerak bo'ladi. Kasb Egalari saytida kasbdoshlar uchun jamoalar va kanallar bor.\n\n• Jamoa chatida savol berasiz, tajriba almashasiz.\n• Videograflar jamoasi bo'lmasa, o'zingiz ochasiz.\n• «Maslahat» bo'limiga savol yozib, eng foydali javobni belgilaysiz.\n\nVideograf sifatida qo'shiling, bu bepul.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Jamoalarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/jamoalar",
+  "changes": [
+   "Kept the hook 'Videograflar bir joyda to'plansa-chi?', the videograf profession and the community (jamoa) angle. Removed the trailing 🎥 from the title, which is still one bold sentence.",
+   "Replaced 'Yolg'iz ishlash — kamera, montaj, mijoz va savol berish uchun hech kim.' because it had an em dash, the banned 'hech kim' and the 'yolg'iz' deficit framing. The new line is 'Kamera, montaj yoki mijoz bo'yicha savol tug'ilsa, maslahat so'rashga odam kerak bo'ladi.' It uses the corrected 'maslahat so'rashga' phrasing.",
+   "Removed the banned bullet intro 'Kasb Egalari'da:' and stopped inflecting the brand. The new wording is 'Kasb Egalari saytida kasbdoshlar uchun jamoa va kanallar bor.'",
+   "Rewrote the jamoa bullet without the em dash: 'Jamoa chatida savol berasiz, tajriba almashasiz.' Added a true line that supports the hook: 'Videograflar jamoasi bo'lmasa, o'zingiz ochasiz.' Any logged-in user can create a jamoa: POST /api/groups only needs requireSession (src/app/api/groups/route.ts:18-27).",
+   "Removed 'platformaning o'zida jonli efir: o'tkazish ham, tomosha qilish ham mumkin'. Only a jamoa or channel owner or moderator can start a live (live/service.ts:47,66), and live depends on LiveKit being configured in prod, which has not been confirmed.",
+   "Removed 'Telegram kabi chat, ovozli va video qo'ng'iroq'. It compares the site to another product, and calls depend on LiveKit, which is unverified in prod. The real group chat is covered by the jamoa chat bullet.",
+   "Kept the Maslahat bullet because it is true: the question owner marks «Eng foydali».",
+   "Removed 'oylik TOP reytingda faol ijodkorlar ko'rinadi'. It was off-angle, and only TOP-3 with a score of 20 or more win, so a month can end with no winner (top.ts:11-13,108).",
+   "Changed 'profil bepul 👇' to 'Ro'yxatdan o'tish bepul.' Catalog visibility is free only for the 30-day trial when subscriptions are enforced (constants.ts:191).",
+   "Removed the old end block (⚡ Tezda ro'yxatdan o'tish, the 👉 t.me link and 📢 Kanalimiz). Replaced it with the standard tail '#jamoa' and 'Ro'yxatdan o'tish: @kasb_egalari_bot'. The link moved to button 2, /jamoalar, which always lists at least the official channel. The jamoalar?category=videograf filter could be empty on prod, and prod could not be reached to check.",
+   "The result has 473 visible characters, no em or en dashes, ASCII apostrophes only, 5 body lines and no emoji."
+  ]
+ },
+ {
+  "id": 15,
+  "needsEdit": true,
+  "captionHtml": "<b>Dizaynerlar konkursda bellashsa, siz ham qatnashasizmi?</b>\n\nKonkurs e'lon qilinganda, ishingizni kasbdoshlar oldida ko'rsatasiz. 🏆\n• Profilingizdagi ommaviy rasm yoki video postni konkursga qo'yasiz, bitta ish bilan qatnashasiz.\n• Saytda ro'yxatdan o'tganlar ovoz beradi, har kim bitta ishga. O'z ishingizga ovoz berib bo'lmaydi.\n• Muddat tugagach, eng ko'p ovoz olgan ish g'olib bo'ladi va muallif profiliga «Konkurs g'olibi» belgisi qo'shiladi.\n\nKonkursdan tashqari, «Maslahat» bo'limida dizayn bo'yicha savol berasiz va eng foydali javobni o'zingiz belgilaysiz.\n\n#konkurs\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Konkurslarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/konkurs",
+  "changes": [
+   "Title: changed 'bellashadi' to 'bellashsa'. The old present tense said a contest is running, but a contest exists only after an admin creates one (challenges/service.ts:199-208). The title shows in previews, so the condition in the body did not cover it. The hook (designers competing, 'siz ham qatnashasizmi?') is kept, with no emoji at the end of the title.",
+   "Bullet 1: changed 'har kim bitta ish bilan qatnashadi' to 'bitta ish bilan qatnashasiz'. This stops the switch from 2nd to 3rd person halfway through the sentence and removes the repeated 'har kim'. The rule is the same: own public media profile post, one entry per person (service.ts:156-172).",
+   "Bullet 3: 'profilida' pointed back to 'ish', as if the work had a profile. It is now 'muallif profilida', because the badge goes on the entrant's creator profile (badges.ts:50-56). Added 'Muddat tugagach' because the winner is picked by the daily cron only after the deadline (closeDueChallenges, service.ts:216-236). 'chiqadi' became 'paydo bo'ladi' to match the factCorrections wording.",
+   "Kept as verified: the vote rule (any logged-in user, one vote, no voting for your own work; ovoz/route.ts:10, service.ts:184-192), the Maslahat bullet (only the question owner marks the most useful answer; qa/service.ts:269), the conditional opener 'Konkurs e'lon qilinganda', one emoji (🏆) in the body, the exact tail '#konkurs' plus 'Ro'yxatdan o'tish: @kasb_egalari_bot', and the button 'Konkurslarni ko'rish' to /konkurs (route exists).",
+   "Length: 577 characters plain (578 UTF-16 units, 584 with the <b> tags). That is under 600, with 5 body lines and no em or en dashes or curly apostrophes.",
+   "Pre-publish check, not a text change: production could not be reached (proxy 403). The #konkurs rubric is for open contests only, so confirm /konkurs or the admin panel shows a real contest before editing. If none is open, the conditional copy is still honest, but the button leads to an empty list."
+  ]
+ },
+ {
+  "id": 16,
+  "needsEdit": true,
+  "captionHtml": "<b>Montajor, viloyatingizdagi mijoz sizni topa olyaptimi?</b>\n\nTo'y, reklama yoki blog montaji kerak bo'lgan mijoz Kasb Egalari katalogida kasb va viloyatni tanlab qidiradi.\n• Har kasb va viloyat uchun alohida sahifa ham bor, masalan «Andijon viloyatidagi montajorlar».\n• Video ishlaringiz profilingizda turadi.\n• Mijoz profilingizdagi «Yozish» tugmasini bosib, saytdagi chatda sizga yozadi.\n\nRo'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#hudud\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Montajorlarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/yonalish/montajor",
+  "changes": [
+   "Title: replaced the deficit-framed and awkward 'viloyatingizdan topilmayapsizmi?' with the corrected wording 'viloyatingizdagi mijoz sizni topa olyaptimi?'. Kept the montajor and region hook, and dropped the trailing emoji.",
+   "Removed the invented frequency claim 'buyurtma ko'pincha o'z shahringizdan keladi' and the banned 'qayerdan qidirsin' hook.",
+   "Removed the em dashes (two of them) and the 'Kasb Egalari'da:' bullet intro. The brand is not inflected: 'Kasb Egalari katalogida'.",
+   "Catalog line now uses the corrected wording: the client picks profession and region. The two filters are independent, so the order is no longer implied.",
+   "Landing page bullet: removed 'profilingiz shu yerda ko'rinadi'. That is not guaranteed: the page lists up to 12 profiles, only under the main category, and only within the catalog window. Added the real title format as an example: «Andijon viloyatidagi montajorlar» (landing.tsx placeForms).",
+   "Dropped the UI tab jargon '(Postlar, Videolar, Ishlar)' and kept the plain result: 'Video ishlaringiz profilingizda turadi.'",
+   "Replaced the hedged 'platformaning o'zida yozishi mumkin' with the verified mechanism: the «Yozish» button opens the site chat.",
+   "Replaced 'profil oching' with 'Ro'yxatdan o'tish bepul.' and added the 30-day catalog line, because subscriptionEnforced defaults to 1.",
+   "Replaced the old end block (the 👇, ⚡, 👉 and 📢 lines and the raw t.me URL) with the standard tail '#hudud' plus the bot line. The link moved to button 2, which points to /yonalish/montajor (src/app/yonalish/[category]/page.tsx).",
+   "Length: 506 characters including the tail, with 6 body lines."
+  ]
+ },
+ {
+  "id": 17,
+  "needsEdit": true,
+  "captionHtml": "<b>Videografiyani kimdan o'rganasiz?</b>\n\nKasb Egalari saytidagi «Mentorlik» bo'limida ustozlar kurs ochadi.\n\nHar ustozning o'z sahifasi bor: kurslari va postlari.\nKursga yozilib, barcha darslarni tugatsangiz va testlardan o'tsangiz, sertifikat olasiz.\n\n#ustoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Kurslarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/mentorlik",
+  "changes": [
+   "Kept the hook question, the videography profession and the learner angle. The title has no emoji.",
+   "Took out the YouTube comparison (competitor claim), the unverified recording claim ('yozuvini keyin qayta ko'rasiz') and the mentor-recruitment line.",
+   "Brand name is no longer inflected ('Kasb Egalari saytidagi'). Changed the verb 'jonli efir ochadi' to 'jonli efir o'tkazadi'.",
+   "Made the poll line conditional: 'Efirda ustozga savol yozasiz. Ustoz so'rovnoma ochsa, unda ovoz berasiz.' Only the host or an admin can open a poll (createPoll -> hostedStream, src/lib/live/interactive.ts:71). votePoll returns 409 when no poll is open (:86-89). Any viewer can ask questions, up to 5 per live (:29-36).",
+   "Made the certificate line precise: 'Kursga yozilib, barcha darslarni tugatsangiz va testlardan o'tsangiz, sertifikat olasiz.' Enrolment is required ('Avval kursga yoziling', src/lib/mentorship/service.ts:438-439). A lesson that has a test can only be marked done after the test is passed (service.ts:440). The certificate needs every lesson done and every test passed with scorePct >= passPct (learning.ts:42, 50-57).",
+   "Changed 'lentasi' to 'postlari' to match the mentor page tabs: Postlar, Kurslar, Efirlar (mentorlik/ustoz/[slug]/page.tsx:35-41).",
+   "Changed the bullet list to plain lines and replaced the old end block (site URL, ⚡/👉/📢) with the standard tail '#ustoz' plus the registration line. Plain text is 397 characters, with no em/en dashes and only ASCII apostrophes (plus the « » guillemets).",
+   "Button: 'Kurslarni ko'rish' pointing to plain /mentorlik. That page is a real route ((katalog)/page.tsx) and shows courses first, with ustozlar below. I did not use ?kasb=videografiya because I could not check prod for a Videografiya course (the proxy returned 403).",
+   "FOR THE PUBLISHER, unverified before editing: (1) open https://kasbegalari.vercel.app/mentorlik?kasb=videografiya. If no course is listed, the 'Videografiyani kimdan o'rganasiz?' hook overpromises. (2) The 'jonli efir o'tkazadi' sentence needs LiveKit configured in prod (Admin -> Tizim holati). If it is not, cut that clause to 'ustozlar kurs ochadi.' and drop the Efir line. Some mentor lives are paid tickets (live/service.ts:149 returns 402), so the caption does not say live is free.",
+   "NOT FIXABLE with editMessageCaption: the post 17 video still shows the removed claims on screen. Frame 2 says 'Ustozlar kurs va jonli efir ochadi', frame 3's subtitle says 'yozuvini keyin ko'rasiz', and the end card says 'Bepul profil 1 daqiqada'. Fixing these needs editMessageMedia with a re-rendered video. Otherwise, record the mismatch in the log."
+  ]
+ },
+ {
+  "id": 18,
+  "needsEdit": true,
+  "captionHtml": "<b>Reels / Shorts yaratuvchi, UGC kreator yoki SMM menejer uchun ish e'lonlari</b>\n\nBrendlarga kontent kerak, sizga esa buyurtma. «Vakansiyalar» bo'limida e'lonlarni yo'nalish bo'yicha ko'rasiz, masalan «Marketing» yoki «Video».\n• Mos e'lonni tanlab, ariza yuborasiz.\n• Ommaviy rezyume yaratasiz: emailingiz va telefon raqamingiz ko'rinmaydi, ish beruvchi sizga chatda yozadi.\n• Reels va portfolio ishlaringiz profilingizda ko'rinadi.\n• Ish beruvchi bo'lsangiz, vakansiya joylash to'lovsiz.\n\nRo'yxatdan o'tish bepul.\n\n#vakansiya\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Vakansiyalarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/vakansiyalar",
+  "changes": [
+   "Title: 'Mobilograf' is not a catalog profession, so it now uses the exact categories.ts names «Reels / Shorts yaratuvchi» (categories.ts:57), «UGC kreator» (:87) and «SMM menejer» (:127). Also removed the banned 'qayerdan topiladi' hook, the em dash and the trailing 📲 emoji.",
+   "Removed the em dash from 'sizga esa — buyurtma'.",
+   "Vacancies filter by 11 broad directions, not by profession (vacancies/format.ts:8-20). 'kasb bo'yicha e'lonlar' is now 'e'lonlarni yo'nalish bo'yicha ko'rasiz', with the real names «Marketing / SMM / reklama» and «Video, montaj, animatsiya». The first bullet is now 'mos e'lonni tanlab, ariza yuborasiz'.",
+   "Public resume bullet: em dash replaced with a colon. The vague 'kontaktingiz ochiq ko'rinmaydi, chat orqali yozishadi' now says what actually happens: email and phone stay hidden and the employer writes in the chat (rezyumelar/[id]/page.tsx:48, 159; vacancies/service.ts pub()).",
+   "Kept the Reels/portfolio bullet and the free vacancy posting bullet unchanged; both are true (vakansiyalar/route.ts:7).",
+   "'Ro'yxatdan o'tish bepul 👇' is now 'Ro'yxatdan o'tish bepul.' with no emoji, because the arrow pointed at the old end block that was removed.",
+   "Removed the old end block (the ⚡ bot line, the 👉 t.me link and 📢 Kanalimiz) and added the standard tail: #vakansiya plus 'Ro'yxatdan o'tish: @kasb_egalari_bot'. The site link moves to button 2, which goes to /vakansiyalar.",
+   "Length is 576 characters with HTML tags, 569 without. Body is 6 lines. No em or en dashes, and only ASCII apostrophes."
+  ]
+ },
+ {
+  "id": 19,
+  "needsEdit": true,
+  "captionHtml": "<b>Montaj bo'yicha savol bo'lsa, kasbdoshdan so'rang</b>\n\nRang tekislash, ovoz yoki eksport sozlamasi bo'yicha har doim ham yoningizda maslahat beradigan odam bo'lmaydi.\n\n• Savolingizni «Maslahat» bo'limiga yozasiz.\n• Saytda ro'yxatdan o'tgan har kim savolingizga bitta javob yoza oladi.\n• Eng foydali javobni o'zingiz belgilaysiz.\n\nSavol berish bepul.\n\n#maslahat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Savol berish",
+  "button2Url": "https://kasbegalari.vercel.app/savollar/yangi",
+  "changes": [
+   "Title is now one sentence: 'Montajda qotib qolsangiz, kasbdoshdan so'rang'. The hook is the same, the trailing emoji is gone, and the banned question 'qotib qoldingizmi' is not used.",
+   "Fixed the grammar and the deficit framing. The original 'yoningizda so'raydigan odam bo'lmaydi' now reads 'Savol tug'ilganda maslahat so'rashga odam har doim ham topilmaydi.' It keeps the required phrase, is not absolute, and is no longer a 'yo'qmi?' style deficit question.",
+   "Bullet 2 now states the real rule: one answer per person per question. It reads 'Saytda ro'yxatdan o'tgan har kim savolga bitta javob yoza oladi.' The earlier 'bitta savolga bitta javob' read as one answer per question in total. In the code, the unique index question_answers_user_uq is on (questionId, userId) (src/lib/db/schema.ts:3152), and qa/service.ts returns 409 'Siz bu savolga allaqachon javob yozgansiz'. This also replaces the vague original 'Montajorlar va boshqa mutaxassislar javob yozishi mumkin'.",
+   "Kept 'Eng foydali javobni o'zingiz belgilaysiz' because it is true: acceptAnswer allows only the question owner (403 'Faqat savol egasi belgilaydi').",
+   "Kept «Maslahat» because it is the real section name in the nav.",
+   "Kept 'Savol berish bepul.' because POST /api/savollar needs only a session, with no payment. Removed the site URL from that line; the link is on the button now.",
+   "Removed the old end block (the lightning, pointing-finger and megaphone emoji lines and the t.me link) and added the standard tail '#maslahat' / 'Ro'yxatdan o'tish: @kasb_egalari_bot'.",
+   "Button 2 'Savol berish' goes to /savollar/yangi. Guests are redirected to /auth/kirish?next=/savollar/yangi (savollar/yangi/page.tsx:22).",
+   "Format check: 5 body lines, 380 visible characters including the tail, no em or en dashes, ASCII apostrophes only."
+  ]
+ },
+ {
+  "id": 20,
+  "needsEdit": true,
+  "captionHtml": "<b>Grafik dizayner, ishlaringiz profilda tartib bilan tursin</b>\n\nYangi post chiqqan sari eski ish pastda qoladi.\n\n• Postlar, videolar va ishlar profilingizda alohida bo'limlarda.\n• Ishlar tartibini kabinetdagi «Portfolio» bo'limida o'zingiz belgilaysiz.\n• Story 24 soat ko'rinadi, postga musiqa qo'shasiz.\n• Mijoz sizni katalogdan kasb va viloyat bo'yicha topadi.\n\nRo'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Ishlarni qo'shish",
+  "button2Url": "https://kasbegalari.vercel.app/kabinet/portfolio",
+  "changes": [
+   "Title: 'Dizayner' changed to the exact catalog name 'Grafik dizayner' (categories.ts:67); the trailing emoji is removed and the hook stays the same.",
+   "Removed 'eski ishni hech kim ko'rmaydi' (banned absolute claim). Replaced with 'eski ish pastda qoladi'.",
+   "The tab jargon bullet 'Postlar, Videolar va Ishlar alohida tablarda' is reworded as a reader result: 'profilingizda alohida bo'limlarda' (ProfileTabs.tsx:249-252).",
+   "Added a verified bullet: you set the order of works in Ishlar yourself (PUT /api/portfolio/reorder; the public profile sorts by sortOrder, queries.ts:238).",
+   "Kept the story 24 soat and musiqa bullet, which the factCorrections mark TRUE.",
+   "'Profil ochish bepul' is replaced with 'Ro'yxatdan o'tish bepul. Birinchi 30 kun profilingiz katalogda bepul turadi.' This adds the needed condition to the catalog line, since subscriptionEnforced=1 by default (constants.ts:191).",
+   "Removed the old end block: the site URL in the text, plus the ⚡, 👉 and 📢 lines. Added the standard tail '#profil' and 'Ro'yxatdan o'tish: @kasb_egalari_bot'. The link now lives in button 2, which opens /kabinet/portfolio; guests are sent to login and come back afterwards (loginRedirectPath).",
+   "Checked: no em or en dashes; 540 characters including HTML and tail; 8 body lines including blanks; 'alohida' is used once."
+  ]
+ },
+ {
+  "id": 21,
+  "needsEdit": true,
+  "captionHtml": "<b>Telefonda olgan eng yaxshi Reels'ingiz qaysi?</b>\n\nKonkurs e'lon qilinganda, Reels'ingizni unga qo'ying. Konkurs tugagach, eng ko'p ovoz olgan ish g'olib bo'ladi.\n\n• Profilingizdagi ommaviy rasm yoki video postni qo'yasiz, har kim bitta ish bilan qatnashadi.\n• Ro'yxatdan o'tgan foydalanuvchilar saytda ovoz beradi, har biri bitta ishga. O'z ishingizga ovoz berib bo'lmaydi.\n• G'olib profilida «Konkurs g'olibi» belgisi paydo bo'ladi.\n\nKatalogda «Reels / Shorts yaratuvchi» va «UGC kreator» kasblari ham bor.\n\n#konkurs\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Konkurslarni ko'rish",
+  "button2Url": "https://kasbegalari.vercel.app/konkurs",
+  "changes": [
+   "Title: removed the trailing emoji. The hook question is unchanged.",
+   "'Kasb Egalari'da konkurslar bor' is now conditional: 'Konkurs e'lon qilinganda, uni o'sha konkursga qo'ying.' A contest exists only after an admin creates one (src/lib/challenges/service.ts:198-208).",
+   "'G'olibni kasbdoshlar ovozi aniqlaydi' became 'Konkurs tugagach, eng ko'p ovoz olgan ish g'olib bo'ladi.' The daily cron picks the winner after the end date, by vote count (service.ts:214-230, cron/daily/route.ts:251-252). This also stops 'G'olib' meaning the work in one line and the person in the next. The tie rule was left out: adding it would push the caption to about 598 of the 600-character limit.",
+   "Entry bullet now states what the code checks: your own public profile post with a photo or video, one entry per person (service.ts:156-172).",
+   "Voter bullet: 'Kasbdoshlar ovoz beradi' became 'Ro'yxatdan o'tgan foydalanuvchilar saytda ovoz beradi, har biri bitta ishga.' This covers bot sign-ups, which create the same site account, and avoids repeating 'har kim'. Any logged-in user can vote, one vote per contest (konkurs/[id]/ovoz/route.ts:10, service.ts:186-195). Kept the true line about not voting for your own work (service.ts:184).",
+   "Removed the misleading line 'Oylik TOP-3 g'oliblari keyingi oy premium imkoniyat oladi'. That reward belongs to the monthly TOP, not to contests. The real contest reward is the «Konkurs g'olibi» badge (src/lib/badges.ts:56).",
+   "Kept the catalog professions line, which is accurate (src/lib/categories.ts:57, :87).",
+   "Removed the site URL and the old end block. Added the #konkurs tail. The link is now button2, pointing to /konkurs. Final length: 548 visible characters, 7 body lines, no dashes, ASCII apostrophes.",
+   "Not verified: the proxy blocked prod, so I could not check whether a contest is open right now. If none is, the button opens the empty state 'Hozircha konkurs yo'q'. Before editing, check in /admin or with the bot command /konkurs. If a contest is open, consider pointing button2 to /konkurs/<id> with the label 'Konkursni ochish'."
+  ]
+ },
+ {
+  "id": 22,
+  "needsEdit": true,
+  "captionHtml": "<b>Andijondagi mijoz veb-dizaynerni katalogda qanday qidiradi?</b>\n\nKasb sifatida veb-dizaynerni, viloyat sifatida Andijonni tanlaydi. Har kasb va viloyat uchun sahifa ham bor, masalan «Andijon viloyatidagi veb-dizaynerlar».\n\n• «UI/UX dizayner», «Veb-dizayner», «WordPress / Tilda mutaxassisi» va «No-code ishlab chiquvchi» alohida kasblar.\n• Mijoz profilingizdagi «Yozish» tugmasi orqali sizga saytdagi chatda yozadi.\n\nRo'yxatdan o'tish bepul, unda kasb va viloyatingizni belgilaysiz. Birinchi 30 kun profilingiz katalogda bepul turadi.\n\n#hudud\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Sahifani ochish",
+  "button2Url": "https://kasbegalari.vercel.app/yonalish/veb-dizayner/andijon",
+  "changes": [
+   "Title: the two-sentence hook ending in an emoji is now one bold sentence. It keeps Andijon, veb-dizayner and the 'how does the client find you' idea, and the trailing emoji is gone.",
+   "'mijoz avval kasbni, keyin viloyatni tanlaydi' is replaced with the corrected wording 'kasb va viloyatni tanlab qidiradi'. The filters are independent of each other (factCorrections, yonalish/landing.tsx).",
+   "'Har kasb va viloyat juftligi uchun alohida sahifa bor' no longer uses the jargon word 'juftlik'. It now gives the real landing title for this region: «Andijon viloyatidagi veb-dizaynerlar». Region name 'Andijon viloyati' is at constants.ts:18 and placeForms is in landing.tsx.",
+   "The professions bullet now uses the exact names from categories.ts:68,71,116,123: «UI/UX dizayner», «Veb-dizayner», «WordPress / Tilda mutaxassisi», «No-code ishlab chiquvchi». 'alohida' now appears once, down from twice.",
+   "'Mijoz sizga platformaning o'zida yozadi' is replaced with the corrected wording 'profilingizdagi «Yozish» tugmasi orqali saytdagi chatda yozadi'.",
+   "'Profilingiz o'sha ro'yxatda chiqadi' and 'Viloyatingizni tanlab profil oching' now read: 'Ro'yxatdan o'tish bepul: kasb va viloyatingizni tanlaysiz. Birinchi 30 kun profilingiz katalogda bepul turadi.' Catalog visibility lasts only for the 30-day window while enforcement is on.",
+   "Removed: the old end block (the ⚡/👉/📢 lines), the site URL in the text and the 🗺 emoji. Added the tail '#hudud' plus the bot line. The page link moved to button 2.",
+   "The caption is 546 characters as plain text, has no em or en dashes and uses only the ASCII apostrophe.",
+   "Not checked: I could not reach prod from here (the proxy blocked it), so the button target /yonalish/veb-dizayner/andijon is unconfirmed. The route always renders, but if the region has 0 specialists the page is noindex and its list is empty. Per the audit, the video frames show Farg'ona and Namangan, which contradicts the caption's Andijon. A caption edit cannot fix that."
+  ]
+ },
+ {
+  "id": 23,
+  "needsEdit": true,
+  "captionHtml": "<b>Fotograf, hisobingizni Telegram'dan chiqmasdan oching</b>\n\n@kasb_egalari_bot'ga /royxat deb yozing. Bot savollarni tugmalar bilan beradi: siz kimsiz, ismingiz, kasbingiz, tajribangiz, hududingiz.\nTelefon raqami ixtiyoriy. «Tasdiqlash»ni bossangiz, hisobingiz ochiladi.\n\n• Yangi xabar va bildirishnomalar Telegram'ga keladi.\n• Botdagi tugma saytni Telegram ichida ochadi.\n\nKeyin profilga rasm, qisqa tavsif va portfolio ishlaringizni qo'shasiz.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
+  "button2Label": "Profilni to'ldirish",
+  "button2Url": "https://kasbegalari.vercel.app/kabinet/profil",
+  "changes": [
+   "Title: kept the hook (Fotograf + Telegram'dan chiqmasdan). Removed the trailing 📷 emoji. Changed 'profilni' to 'hisobingizni' because the bot opens an account ('🎉 Hisob ochildi!', register.ts:166) and the profile is filled in afterwards.",
+   "Replaced the false 'Bot uchta savol beradi: kasb, hudud, tajriba. Javob bergach, profilingiz tayyor.' with the real flow from register.ts:75-136: role, name, profession, experience, then region (experience comes before region), phone optional, then «Tasdiqlash» opens the account.",
+   "Fixed the detached suffix: '@kasb_egalari_bot ga' is now '@kasb_egalari_bot'ga'. Moved the /royxat instruction out of the bullets into the opening line. /royxat starts registration (webhook route.ts:333).",
+   "Kept two true bullets: notifications arrive in Telegram, and the bot button opens the site inside Telegram (Mini App).",
+   "Last line now matches what the bot asks for after signup (register.ts:170): photo, short description and portfolio, instead of only portfolio photos.",
+   "Removed the old end block (the ⚡ quick signup line, the 👉 t.me?start=reg link, the 📢 channel line). Added the tail '#bot' plus 'Ro'yxatdan o'tish: @kasb_egalari_bot'.",
+   "Button 2 is Profilni to'ldirish, linking to /kabinet/profil (the route exists; a guest is sent to login first, then back). Row 1 stays the standard start=reg button.",
+   "Not changed here: the video itself still shows the '3 SAVOL' chip, the 'kasb, hudud, tajriba' subtitle and '✅ Profil tayyor!', and those are wrong. A caption edit cannot fix them; the video would need re-rendering (see the p6 fact correction).",
+   "Length is 490 characters including the tail. It has no em or en dashes and uses only ASCII apostrophes."
+  ]
+ }
+]

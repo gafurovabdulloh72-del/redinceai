@@ -167,7 +167,7 @@ const head = (g, title) => { g.fillStyle = '#f6f4ee'; g.fillRect(0, 0, 640, 480)
 const clamp = (x) => Math.max(0, Math.min(1, x));
 const SCREEN = {
   mentor(g, t) { head(g, 'Mentorlik'); for (let i = 0; i < 3; i++) { const a = clamp((t - .6 - i * .5) * 2); g.globalAlpha = a; g.fillStyle = ['#1a1a1c', '#ff5a36', '#e0b25c'][i]; g.fillRect(32 + i * 196, 140, 180, 120); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(108 + i * 196, 182); g.lineTo(136 + i * 196, 200); g.lineTo(108 + i * 196, 218); g.fill(); g.fillStyle = '#1a1a1c'; g.font = '700 20px SG'; g.fillText(['Montaj', 'Videografiya', 'Dizayn'][i], 32 + i * 196, 290); g.globalAlpha = 1; }
-    const p = .5 + .5 * Math.sin(t * 5); g.fillStyle = `rgba(230,40,30,${.6 + .4 * p})`; g.fillRect(32, 330, 170, 44); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('● JONLI EFIR', 44, 360);
+    const p = .5 + .5 * Math.sin(t * 5); g.fillStyle = `rgba(230,40,30,${.6 + .4 * p})`; g.fillRect(32, 330, 230, 44); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('▶ Bepul namuna', 44, 360);
     g.fillStyle = '#1a1a1c'; g.font = '700 22px SG'; g.fillText('Sertifikat · Test · Uy vazifasi', 32, 420); },
   qa(g, t) { head(g, 'Maslahat'); g.fillStyle = '#1a1a1c'; g.fillRect(32, 130, 470, 70); g.fillStyle = '#fff'; g.font = '700 22px SG'; g.fillText('Rangni qanday tekislash kerak?', 50, 172);
     for (let i = 0; i < 2; i++) { const a = clamp((t - 1 - i * .9) * 2); g.globalAlpha = a; g.fillStyle = '#ece7dc'; g.fillRect(90, 225 + i * 90, 500, 70); g.fillStyle = '#1a1a1c'; g.font = '700 20px SG'; g.fillText(i ? 'Avval oq balans, keyin kontrast…' : 'Scopes bilan tekshiring…', 108, 265 + i * 90); g.globalAlpha = 1; }
