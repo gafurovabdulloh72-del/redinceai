@@ -1013,6 +1013,52 @@ test("Hisobni egallash yo'llari yopiq: band email bilan ro'yxat (422), tasdiqlas
   }
 });
 
+test("Hisob tuzog'i: begona manzillarni terib chiqqan hisob adminga ko'rinadi va muzlatiladi; oddiy takror so'rov sanalmaydi", async (t) => {
+  const u = await registerTemp("client");
+  if (!u) return t.skip("sinov hisobi yaratilmadi (register limiti?)");
+  const { createClient } = await import("@libsql/client");
+  const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+  const score = async () => Number((await d.execute({ sql: "select count from rate_limits where key = ?", args: [`abuse:${u.id}`] })).rows[0]?.count ?? 0);
+  try {
+    // 1) Bitta manzilni 12 marta so'rash (sahifa takror so'rovi) — bir marta sanaladi
+    for (let i = 0; i < 12; i++) await reqAs(u.cookie, "/api/posts/yoq-post-bir-xil/comments");
+    await new Promise((r) => setTimeout(r, 600));
+    assert.equal(await score(), 1, "bir xil manzil takrori — 1 ball");
+    // 2) Admin yo'liga urinish og'irroq (5 ball)
+    assert.equal((await reqAs(u.cookie, "/api/admin/tuzoq")).status, 403);
+    await new Promise((r) => setTimeout(r, 600));
+    assert.equal(await score(), 6, "admin yo'li — +5 ball");
+    // 3) Turli begona ID'larni terib chiqish (IDOR sinovi) — ball o'sadi, 30 dan oshganda audit yozuvi paydo bo'ladi
+    for (let i = 0; i < 30; i++) await reqAs(u.cookie, `/api/posts/idor-sinov-${i}/comments`);
+    await new Promise((r) => setTimeout(r, 1200));
+    assert.ok((await score()) >= 30, `ball 30 dan oshdi (${await score()})`);
+    const al = await d.execute({ sql: "select count(*) as n from audit_logs where actor_id = ? and action = 'abuse_suspected'", args: [u.id] });
+    assert.equal(Number(al.rows[0].n), 1, "adminlar uchun «shubhali hisob» audit yozuvi (bir marta)");
+    assert.equal((await reqAs(u.cookie, "/api/feed?limit=1")).status, 200, "ogohlantirish bosqichida hisob hali ishlaydi");
+    // 4) Davom etsa — muzlatiladi: API 429, sessiya yopiladi
+    for (let i = 0; i < 95; i++) await reqAs(u.cookie, `/api/posts/idor-sinov-b${i}/comments`);
+    await new Promise((r) => setTimeout(r, 1500));
+    const fz = await d.execute({ sql: "select reset_at from rate_limits where key = ?", args: [`frozen:${u.id}`] });
+    assert.ok(Number(fz.rows[0]?.reset_at ?? 0) > Date.now(), "hisob muzlatildi");
+    const after = await reqAs(u.cookie, "/api/feed?limit=1");
+    assert.ok(after.status === 429 || after.status === 200, `muzlatilgach eski sessiya yopilgan (lenta mehmon sifatida ${after.status})`);
+    assert.equal((await reqAs(u.cookie, "/api/posts/saved")).status, 401, "eski sessiya endi ishlamaydi (401)");
+    // Qayta kirsa ham — muzlatish tugaguncha 429
+    const relog = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify({ email: u.email, password: "Sinov12345" }), redirect: "manual" });
+    const list = typeof relog.headers.getSetCookie === "function" ? relog.headers.getSetCookie() : [relog.headers.get("set-cookie") ?? ""];
+    const cookie2 = list.filter(Boolean).map((c) => c.split(";")[0]).join("; ");
+    if (relog.ok && cookie2) {
+      const blocked = await reqAs(cookie2, "/api/posts/saved");
+      assert.equal(blocked.status, 429, "qayta kirgach ham API 429");
+      assert.ok(!/ball|IDOR|urinish|tuzoq/i.test((await blocked.json()).error ?? ""), "xabar sababni oshkor qilmaydi");
+    }
+  } finally {
+    await d.execute({ sql: "delete from rate_limits where key in (?, ?)", args: [`abuse:${u.id}`, `frozen:${u.id}`] }).catch(() => undefined);
+    await d.execute("delete from rate_limits where key like 'abuse1:%'").catch(() => undefined);
+    await cleanupTemp([u.email]);
+  }
+});
+
 /** Brauzer sarlavhalari (Fetch Metadata) — tuzoq «kim so'rayapti»ni shular bo'yicha ajratadi */
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const NAV_HEADERS = { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "none", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "sec-fetch-user": "?1" };

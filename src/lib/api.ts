@@ -126,7 +126,13 @@ async function probeGuard(req: Request): Promise<Response | null> {
     const record = hard || client === "nav" || client === "bot" || req.headers.get("sec-fetch-site") === "same-origin";
     if (record) {
       const [{ recordHoneypotHit }, { clientIp }, { after }] = await Promise.all([import("./security/honeypot"), import("./security/request"), import("next/server")]);
-      const hit = { ip: clientIp(req), kind: canary ? ("canary" as const) : ("probe" as const), method: req.method, path: (u.pathname + u.search).slice(0, 300), userAgent: req.headers.get("user-agent") ?? "", note: canary ? "canary kalit haqiqiy API'da" : `imzo: ${sig}`, soft: !hard };
+      // Kirgan foydalanuvchi bo'lsa — urinish uning HISOBIGA ham yoziladi (jurnalda kimligi ko'rinadi, ball to'planadi)
+      const session = await getVerifiedSession().catch(() => null);
+      if (session) {
+        const { noteAbuse } = await import("./security/abuse");
+        void noteAbuse({ id: session.sub, role: session.role }, canary && headerCanary ? "canary" : "probe", `${req.method} ${u.pathname}${u.search}`, clientIp(req));
+      }
+      const hit = { ip: clientIp(req), kind: canary ? ("canary" as const) : ("probe" as const), method: req.method, path: (u.pathname + u.search).slice(0, 300), userAgent: req.headers.get("user-agent") ?? "", note: `${canary ? "canary kalit haqiqiy API'da" : `imzo: ${sig}`}${session ? ` · hisob: ${session.sub}` : ""}`, soft: !hard };
       try {
         after(() => recordHoneypotHit(hit));
       } catch {
@@ -144,6 +150,49 @@ async function probeGuard(req: Request): Promise<Response | null> {
     );
   } catch {
     return null;
+  }
+}
+
+/** Muzlatilgan hisob (ko'p ruxsatsiz urinish — security/abuse.ts): chiqish va joriy holatni o'qishdan boshqa hamma so'rovga 429 */
+async function abuseGuard(req: Request): Promise<void> {
+  let frozen = false;
+  try {
+    const { anyAbuseFrozen, isAbuseFrozen } = await import("./security/abuse");
+    // Odatiy holat — muzlatilgan hisob yo'q: sessiya ham o'qilmaydi (qo'shimcha so'rov yo'q)
+    if (!(await anyAbuseFrozen())) return;
+    const session = await getVerifiedSession();
+    if (!session || session.role === "admin") return;
+    frozen = await isAbuseFrozen(session.sub);
+  } catch {
+    return; // kesh/baza xatosi — cheklamaymiz
+  }
+  if (!frozen) return;
+  const path = new URL(req.url).pathname;
+  if (path === "/api/auth/logout" || path === "/api/auth/me") return;
+  const { ABUSE_FROZEN_MESSAGE } = await import("./security/abuse");
+  throw new ApiError(429, ABUSE_FROZEN_MESSAGE);
+}
+
+/**
+ * Ruxsatsiz urinishni hisobga olish: faqat KIRGAN foydalanuvchi va faqat o'zi yuborgan so'rov (begona sayt yoki rasm/iframe
+ * orqali «yubortirilgan» GET sanalmaydi — aks holda birovni havola bilan aldab, hisobini muzlatib qo'yish mumkin bo'lardi).
+ * Admin yo'liga urinish og'irroq sanaladi. Xato tashlamaydi.
+ */
+async function noteDenied(req: Request, status: number): Promise<void> {
+  try {
+    const method = req.method.toUpperCase();
+    const site = req.headers.get("sec-fetch-site");
+    const dest = req.headers.get("sec-fetch-dest");
+    if (site === "cross-site") return;
+    if ((method === "GET" || method === "HEAD") && dest !== null && dest !== "empty") return;
+    const session = await getVerifiedSession();
+    if (!session) return;
+    const u = new URL(req.url);
+    const [{ noteAbuse }, { clientIp }] = await Promise.all([import("./security/abuse"), import("./security/request")]);
+    const kind = status === 403 && u.pathname.startsWith("/api/admin") ? "admin" : "denied";
+    await noteAbuse({ id: session.sub, role: session.role }, kind, `${method} ${u.pathname}${u.search}`, clientIp(req));
+  } catch {
+    /* hisob yuritish xatosi javobga ta'sir qilmaydi */
   }
 }
 
@@ -166,9 +215,14 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         if (trapped) return trapped;
       }
       if (opts.limit !== false) await baseLimit(req);
+      if (opts.csrf !== false) await abuseGuard(req);
       return await fn(req, ctx);
     } catch (e) {
-      if (e instanceof ApiError) return fail(e.status, e.message, e.fields, e.headers);
+      if (e instanceof ApiError) {
+        // Kirgan foydalanuvchining ruxsatsiz urinishlari hisobga olinadi (security/abuse.ts — «hisob tuzog'i»); javobni kutmaydi
+        if (e.status === 403 || e.status === 404) void noteDenied(req, e.status);
+        return fail(e.status, e.message, e.fields, e.headers);
+      }
       console.error("[api]", e);
       return fail(500, "Serverda kutilmagan xatolik");
     }
