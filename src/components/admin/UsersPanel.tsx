@@ -289,7 +289,8 @@ export function UsersPanel() {
                       aria-label={`${u.name}: faollik analitikasi`}
                       className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
                     >
-                      <BarChart3 size={13} /> Analitika
+                      {/* Tor telefonda (≤430px) faqat ikonka — to'rtta amal bitta qatorga sig'adi («⋯» yolg'iz pastga tushmaydi) */}
+                      <BarChart3 size={13} /> <span className="max-[430px]:sr-only">Analitika</span>
                     </button>
                     <AdminRowMenu
                       label={`${u.name}: boshqa amallar`}

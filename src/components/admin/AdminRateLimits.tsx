@@ -158,7 +158,8 @@ export function AdminRateLimits() {
                       <span className="min-w-0 break-words">{r.label}</span>
                       {r.limited && <span className="rounded-full bg-danger-soft px-1.5 py-0.5 text-[10.5px] font-bold text-danger-text">cheklangan</span>}
                     </p>
-                    <p className="mt-0.5 truncate text-[12.5px] text-fg-3" title={r.key} data-no-auto>
+                    {/* <div>, <p> emas: globals'dagi layersiz `p { text-wrap: pretty }` `truncate`ni yengib, matnni o'rab yuboradi */}
+                    <div className="mt-0.5 truncate text-[12.5px] text-fg-3" title={r.key} data-no-auto>
                       {r.user ? (
                         <>
                           <span className="font-medium text-fg-2">{r.user.name}</span> · {r.user.email}
@@ -166,7 +167,7 @@ export function AdminRateLimits() {
                       ) : (
                         <code className="font-mono text-[12px] text-fg-2">{r.id}</code>
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 @lg:w-[46%] @lg:shrink-0">
                     <div className="min-w-0 flex-1">
