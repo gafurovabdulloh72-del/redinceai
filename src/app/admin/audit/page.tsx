@@ -97,9 +97,11 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
         </div>
         {/* md+: o'ng tepadagi til/tema kapsulasi (fixed) tugmalarni yopib qo'ymasin */}
         <div className="flex flex-wrap gap-2 md:pr-28 min-[1920px]:pr-0">
-          <ButtonLink href={`/api/admin/audit?format=csv${qs ? `&${qs}` : ""}`} variant="outline" size="sm" aria-label="CSV yuklab olish (joriy filtr)">
+          {/* Oddiy <a> (next/link EMAS): Link productionda manzilni oldindan yuklaydi (prefetch) — sahifa har ochilganda
+              eksport ishlab, audit jurnaliga soxta «CSV eksport» yozuvi tushardi */}
+          <a href={`/api/admin/audit?format=csv${qs ? `&${qs}` : ""}`} download aria-label="CSV yuklab olish (joriy filtr)" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3.5 text-[13px] font-semibold text-fg-2 transition-colors hover:border-fg hover:text-fg">
             <Download size={14} /> CSV
-          </ButtonLink>
+          </a>
           <ButtonLink href="/admin" variant="outline" size="sm">
             <ArrowLeft size={14} /> Admin panel
           </ButtonLink>
