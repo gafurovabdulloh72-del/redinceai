@@ -5,7 +5,7 @@ import { users } from "@/lib/db/schema";
 import { createSession, verifyTwoFactorTicket } from "@/lib/auth";
 import { ApiError, handler, ok, parseBody } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
-import { RATE_LIMITS, assertUnderLimit, clearLimit, clientIp, enforceLimit, isConsumed, rateLimit, tryConsume } from "@/lib/security/rate-limit";
+import { RATE_LIMITS, clearLimit, clientIp, enforceLimit, isConsumed, rateLimit, tryConsume } from "@/lib/security/rate-limit";
 import { consumeSecondFactor, secondFactorCode } from "@/lib/security/two-factor";
 
 const schema = z
@@ -20,8 +20,8 @@ const EXPIRED = "Kirish muddati tugadi. Email va parolni qaytadan kiriting";
 
 /**
  * Kirishning ikkinchi bosqichi: parol bosqichidagi 5 daqiqalik chipta + ilovadagi kod (yoki zaxira kodi).
- * Rate limit: chipta + IP bo'yicha 5 urinish / 15 daqiqa; foydalanuvchi bo'yicha 10 muvaffaqiyatsiz kod / 15 daqiqa
- * (yangi chipta olib terib chiqib bo'lmasin). Chipta bir martalik.
+ * Rate limit: chipta + IP bo'yicha 5 urinish / 15 daqiqa; foydalanuvchi bo'yicha 10 urinish / 15 daqiqa — atomar,
+ * to'g'ri kod bilan tozalanadi (yangi chipta olib yoki parallel so'rovlar bilan terib chiqib bo'lmasin). Chipta bir martalik.
  */
 export const POST = handler(async (req) => {
   const input = await parseBody(req, schema);
@@ -33,8 +33,11 @@ export const POST = handler(async (req) => {
   // Ishlatilgan chipta bilan kod (ayniqsa zaxira kodi) behuda sarflanmasin
   if (await isConsumed(usedKey)) throw new ApiError(401, EXPIRED);
   await enforceLimit("twoFactorVerify", `${ticket.jti}:${ip}`);
+  // Foydalanuvchi bo'yicha urinish OLDINDAN, atomar band qilinadi (7-audit): ilgari avval «limit to'lmaganmi» deb o'qilar,
+  // hisoblagich esa kod noto'g'ri chiqqach oshirilardi — parallel so'rovlar (turli chipta/IP) hammasi tekshiruvdan o'tib,
+  // bir oynada 10 emas, yuzlab kodni sinab ko'ra olardi. Muvaffaqiyatli kirishda hisoblagich tozalanadi.
   const userKey = `twoFactorUser:${ticket.sub}`;
-  await assertUnderLimit(userKey, RATE_LIMITS.twoFactorUser.limit);
+  await rateLimit(userKey, RATE_LIMITS.twoFactorUser.limit, RATE_LIMITS.twoFactorUser.windowMs);
 
   const user = await db.query.users.findFirst({ where: eq(users.id, ticket.sub) });
   if (!user || user.isBanned || user.sessionVersion !== ticket.sv || !user.totpEnabled) throw new ApiError(401, EXPIRED);
@@ -42,10 +45,7 @@ export const POST = handler(async (req) => {
   const field = input.recoveryCode ? "recoveryCode" : "code";
   const kind = await consumeSecondFactor(user, input.recoveryCode ?? input.code ?? "");
   if (!kind) {
-    await Promise.all([
-      rateLimit(userKey, RATE_LIMITS.twoFactorUser.limit, RATE_LIMITS.twoFactorUser.windowMs).catch(() => undefined),
-      audit(user.id, "login_2fa_failed", { targetType: "user", targetId: user.id, meta: { via: field } }, req),
-    ]);
+    await audit(user.id, "login_2fa_failed", { targetType: "user", targetId: user.id, meta: { via: field } }, req);
     throw new ApiError(422, "Kod noto'g'ri yoki eskirgan", { [field]: field === "code" ? "Kod noto'g'ri. Ilovadagi joriy kodni kiriting" : "Zaxira kodi noto'g'ri yoki ishlatilgan" });
   }
   // Chipta bir martalik (parallel so'rovlardan faqat bittasi sessiya oladi)

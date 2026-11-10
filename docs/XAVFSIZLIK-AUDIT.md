@@ -410,3 +410,54 @@ Xulosa: yangi endpoint'larda avtorizatsiya buzilishi topilmadi.
 
 Jonli sinovdan o'tdi: `/.env` soxta javob + canary, `/wp-login.php` soxta login, canary kalit → blok, bloklangan IP API'da 403, real route'lar va oddiy 404'lar tegilmagan. Sinov: security.mjs «Honeypot / tuzoq».
 
+
+
+# 7-audit: ishga tushirish oldi (2026-11-10, «blok 16»)
+
+Foydalanuvchi so'rovi: «pentest qil, kamchiliklarni tuzat, hakerlar uchun pranklar va tuzoqlar; haker o'zini mijoz yoki ijodkor qilib ham buza olmasin».
+Uchta mustaqil kod auditi (ijtimoiy/marketpleys · auth/pul/fayl · Telegram bot) va ikki QA o'tkazildi. Quyida — TOPILGAN va TUZATILGAN narsalar.
+Belgilar: **Yuqori** — begona ma'lumot/pul/hisobga yo'l; **O'rta** — cheklovni chetlab o'tish; **Past** — nazariy yoki kam ta'sirli.
+
+## A. Ichkaridan buzish (ro'yxatdan o'tgan «mijoz» yoki «ijodkor»)
+
+| # | Daraja | Topilma | Tuzatish |
+|---|---|---|---|
+| 1 | Yuqori | Saqlangan XSS: savol/blog/kurs sarlavhasi JSON-LD ichida `</script>` bilan chiqib ketardi (ikki sahifada qo'lda `.replace` umuman ishlamas edi) | Yagona `jsonLdHtml()` (`lib/seo/json-ld.ts`) — `<`, `>`, `&`, U+2028/9; 11 sahifaning hammasi shundan |
+| 2 | Yuqori | `zod` `.partial()` + `.default()`: qisman PATCH yuborilmagan maydonlarni standart qiymatga «tozalardi» (vakansiyani yopish kompaniya/talablarni o'chirar, yopiq jamoa ochiq bo'lib qolardi) | `parseBody(…, { onlyProvided: true })` — faqat yuborilgan kalitlar |
+| 3 | Yuqori | Post ID'sini bilgan har kim yopiq profil / «yaqin do'stlar» / yopiq jamoa postiga izoh, reaksiya, saqlash, ko'rish yoza olardi (10 ta route) | Yagona manba `lib/social/post-access.ts` (`loadViewablePost`) — hamma route shundan |
+| 4 | Yuqori | Rejalashtirilgan post: mijoz ham profil posti qo'ya olar, joylanayotganda ban/limit/jamoa huquqi qayta tekshirilmasdi | Reja qo'yilganda VA joylanganda `assertCanPost` + haftalik limit |
+| 5 | Yuqori | Post avval OMMAVIY yaratilib, keyin «yaqin do'stlar»ga PATCH qilinardi — oraliqda hammaga ko'rinar, bildirishnoma hammaga ketardi | Auditoriya/joy/belgilar yaratish so'rovining o'zida |
+| 6 | Yuqori | Hisobni egallash: `…@telegram.local` email bilan ro'yxatdan o'tib, shu chatdan «Telegram bilan kirish» qilgan odamning hisobiga ega bo'lish | Zaxira domenlar taqiq (`isReservedEmail`), `users.signup_via` — faqat `telegram` hisobi qayta bog'lanadi |
+| 7 | Yuqori | Tasdiqlanmagan emailli lokal hisobga Google orqali kirgan haqiqiy egada hujumchining paroli/sessiyasi/2FA'si qolardi | Bog'lanishda parol, sessiyalar, 2FA, Telegram va push bekor qilinadi |
+| 8 | Yuqori | Email tasdiqlash kodi parol tiklash tokeni sifatida qabul qilinardi | `purpose = "reset"` filtri |
+| 9 | Yuqori | Tarif almashtirish: Pro muddati qolgan foydalanuvchi 1 oylik Max sotib olsa butun qolgan muddat Max bo'lib ketardi; refund muddatni qaytarmasdi | Qolgan vaqt narx nisbatida qayta hisoblanadi, `meta.prev` — refund avvalgi holatga qaytaradi |
+| 10 | Yuqori | Ustoz daromadi: qaytarilgan sotuv ochiq yechish so'rovida qolardi (pul ikki marta chiqardi) | So'rovdan chiqariladi / to'langan bo'lsa manfiy tuzatish |
+| 11 | Yuqori | Dars videosi manzili — har qanday URL: ustoz serverni ichki tarmoq manziliga so'rov yuborishga majburlardi (SSRF) | Faqat o'z yuklamamiz (`isOwnVideoUrl`); oqim faqat o'z saqlash hostlariga, redirectsiz |
+| 12 | O'rta | Soxta sharhlar: to'lovsiz buyurtma + yangi hisob bilan reytingni ko'tarish; uch do'st shikoyati bilan raqib sharhini yashirish | `reviews.suspect` (reytingga kirmaydi), sharh shikoyat bilan avtomatik yashirilmaydi, shikoyatchi hisobi ≥3 kun |
+| 13 | O'rta | TOP reytingini mehmon ko'rishlari va yangi hisob saqlashlari bilan ko'tarish | Ballga kirmaydi; mehmon ko'rishi IP bo'yicha |
+| 14 | O'rta | Efir: transkript/xonalar/hammualliflar ro'yxati kirish huquqisiz o'qilardi; tomoshabin subtitr/doska paketini soxtalashtirardi | `assertLiveReadable`; paket faqat `canPublish` ishtirokchidan; token 10 daqiqa |
+| 15 | O'rta | Testni qayta topshirib ball ko'tarish (vakansiya saralashi) | Birinchi javoblar saqlanadi (`vacancy_quiz_attempts`) |
+| 16 | O'rta | `x-real-ip` sarlavhasini o'zi yuborib IP limitlarini aylanib o'tish (o'z serverimizda) | Faqat Vercel/Railway'da ishoniladi; Caddy `X-Real-IP {remote_host}` |
+| 17 | Past | 2FA: foydalanuvchi bo'yicha urinishlar soni atomar emas edi — parallel so'rovlar bilan oynada 10 emas, yuzlab kod | Urinish oldindan atomar band qilinadi |
+| 18 | Past | 100% chegirmali «1 marta» promokod parallel so'rovlar bilan bir necha hisobga | Limit CAS bilan band qilinadi |
+| 19 | Past | Yuklangan fayl NOMI bilan begona saqlash do'koniga havola (mazmunni keyin almashtirish) | Manzil fayl saqlangan joyga mos bo'lishi shart (`storageMatches`) |
+
+## B. Tashqaridan: tuzoq v2
+
+Tuzoq endi **begunoh odamga qarshi ishlatib bo'lmaydigan** qilib qayta qurildi (avatar o'rniga tuzoq manzili, chatdagi havola, begona saytdagi forma bilan birovning IP'sini blokka tushirish yo'li yopildi). Mijoz turi so'rov sarlavhalaridan aniqlanadi; avtomatik blok faqat aniq skanerga, qo'lda blok — hammaga. Tafsilotlar ataylab shu hujjatda emas — `lib/security/trap-patterns.ts` izohlarida.
+
+**Egasi qoidasi:** himoya QANDAY ishlashi foydalanuvchiga ko'rinadigan hech bir matnda aytilmaydi (chegaralar, nima yozilishi, qaysi javob soxta). Hazil sahifalar faqat hazil; `/xavfsizlik` sahifasi faqat xabar berish yo'lini beradi.
+
+## C. Hisob tuzog'i (ichkaridagi razvedka)
+
+Kirgan foydalanuvchi begona manzillarni ketma-ket sinasa (turli 403/404, admin yo'llari, hujum imzolari) — ball to'planadi: avval adminlarga xabar, davom etsa hisob vaqtincha muzlatiladi va sessiyalari yopiladi (`lib/security/abuse.ts`). Admin: `/api/admin/shubhali`.
+
+## D. Tekshiruv
+
+`scripts/security.mjs` — 80 ta test (yangi: tuzoq v2, yaqin do'stlar, rejalashtirilgan post, JSON-LD, highlights, hisobni egallash, hisob tuzog'i, yuklama manzili). `scripts/e2e/tarif.mjs` — tarif almashtirish va refund. Production build'da hammasi o'tadi.
+
+## E. Ochiq qolgan (ongli)
+
+- Brauzerni TO'LIQ taqlid qilgan skaner avtomatik blokdan qochadi — tanlov: avtomatik jazo faqat aniq dalil bo'lganda (begunohni bloklamaslik muhimroq). Qo'lda blok ishlaydi.
+- Pullik yo'lda promokod limiti to'lov paytida sanaladi — bir vaqtda ochilgan bir necha hisob limitdan biroz oshishi mumkin (ustoz pulini oladi; bepul kirish yo'li yopilgan).
+- Tekshirilmagan (kalit/servis yo'q): haqiqiy Payme/Click, LiveKit Egress, Gemini.

@@ -115,7 +115,7 @@ export const POST = handler(async (req) => {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
       const blob = await put(`uploads/${name}`, bytes, { access: "public", contentType: kind.mime, addRandomSuffix: false });
-      await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "blob" } }, req);
+      await audit(session.sub, "upload", { targetType: "file", targetId: name, meta: { size: bytes.length, mime: kind.mime, storage: "blob", host: new URL(blob.url).hostname.toLowerCase() } }, req);
       return ok({ url: blob.url }, { status: 201 });
     } catch (e) {
       // Blob token eskirgan / store o'chgan / kvota — foydalanuvchiga aniq xabar (admin → "Fayl saqlash" → Sinab ko'rish)

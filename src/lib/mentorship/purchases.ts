@@ -213,8 +213,16 @@ export async function startPurchase(
   if (price.amount <= 0) {
     if (q.type === "sub" || q.type === "consult") throw new ApiError(400, "Bu xarid uchun to'lov kerak");
     await db.transaction(async (tx) => {
+      // Promokod limiti CAS bilan band qilinadi (7-audit): 100% chegirmali «1 marta» kod parallel so'rovlar bilan
+      // bir necha hisobga bepul kirish ochib yubormasin. Avval band qilamiz, keyin kirish beramiz — biri yiqilsa ikkalasi qaytadi.
+      if (price.promo) {
+        const used = await tx
+          .update(promoCodes)
+          .set({ uses: sql`${promoCodes.uses} + 1` })
+          .where(and(eq(promoCodes.id, price.promo.id), sql`(${promoCodes.maxUses} is null or ${promoCodes.uses} < ${promoCodes.maxUses})`));
+        if ((used.rowsAffected ?? 0) === 0) throw new ApiError(409, "Promokod limiti tugagan", { promo: "Promokod limiti tugagan" });
+      }
       await grantAccess(tx, q.type, q.itemId, buyer.id, q.mentorId);
-      if (price.promo) await tx.update(promoCodes).set({ uses: sql`${promoCodes.uses} + 1` }).where(eq(promoCodes.id, price.promo.id));
     });
     await afterPaid(buyer.id, q.mentorUserId, q.type, q.title, 0, null);
     return { free: true, type: q.type, itemId: q.itemId };
