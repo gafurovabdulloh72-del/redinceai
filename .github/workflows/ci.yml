@@ -128,6 +128,7 @@ jobs:
           node scripts/e2e/savollar.mjs
           node scripts/e2e/inbox.mjs
           node scripts/e2e/tarif.mjs
+          node --test scripts/e2e/chat.mjs
 
       - name: Server logi (xato bo'lsa)
         if: failure()
