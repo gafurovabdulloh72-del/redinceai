@@ -249,7 +249,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-[12px] text-fg-3">{r.ip ?? "—"}</td>
                     <td className="max-w-[300px] px-3 py-3 text-[12px] text-fg-3">
                       {noteOf(r.meta) && <span className="mb-0.5 block font-medium text-fg">Izoh: {noteOf(r.meta)}</span>}
-                      <span className="line-clamp-2 break-all">{metaText(r.meta) || (noteOf(r.meta) ? "" : "—")}</span>
+                      {/* overflow-wrap:anywhere (break-all emas): oddiy so'zlar o'rtasidan sinmaydi, faqat uzun id/URL sinadi */}
+                      <span className="line-clamp-2 [overflow-wrap:anywhere]">{metaText(r.meta) || (noteOf(r.meta) ? "" : "—")}</span>
                     </td>
                     <td className="py-2.5 pl-1 pr-4 text-right">
                       <AuditDetailButton row={detailOf(r)} />
@@ -290,12 +291,13 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
                         {r.targetId ? ` ${r.targetId.slice(0, 12)}` : ""}
                       </span>
                     )}
-                    <span className="break-all">{metaText(r.meta)}</span>
+                    <span className="[overflow-wrap:anywhere]">{metaText(r.meta)}</span>
                   </p>
                   <div className="mt-1.5 flex items-center justify-between gap-3">
-                    <p className="min-w-0 truncate font-mono text-[11px] text-fg-4">
+                    {/* <div>: layersiz `p { text-wrap: pretty }` qoidasi `truncate`ni yengadi */}
+                    <div className="min-w-0 truncate font-mono text-[11px] text-fg-4">
                       {r.ip ?? "—"} · {formatDateTime(r.createdAt)}
-                    </p>
+                    </div>
                     <AuditDetailButton row={detailOf(r)} />
                   </div>
                 </li>
