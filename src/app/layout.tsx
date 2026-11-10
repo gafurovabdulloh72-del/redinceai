@@ -60,6 +60,9 @@ const TITLE = `${SITE.name} — ${SITE.tagline}`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  // iOS Safari raqam/sana/manzilni o'zi havolaga aylantirmasin: u DOM'ni React jonlantirishidan OLDIN o'zgartiradi va
+  // «server matni mos emas» (React #418) beradi — admin sahifasida (karta/telefon raqamlari, summalar) iOS'dan shu xato kelgan
+  formatDetection: { telephone: false, date: false, address: false, email: false },
   title: {
     default: TITLE,
     template: `%s · ${SITE.name}`,
