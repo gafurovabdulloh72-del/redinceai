@@ -42,12 +42,12 @@ jobs:
       CRON_SECRET: ci-cron-secret-9a7b3c1d5e2f4a6b
     steps:
       - name: Kodni olish
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Node 20
-        uses: actions/setup-node@v4
+      - name: Node 22
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Paketlar (npm ci)

@@ -29,6 +29,16 @@ export const VAK_AI = {
   applyQuestions: { uz: "Ish beruvchi savollari", ru: "Вопросы работодателя" },
   applyQuiz: { uz: "Qisqa test", ru: "Короткий тест" },
   answerPh: { uz: "Javobingiz…", ru: "Ваш ответ…" },
+  quizTaken: { uz: "Bu vakansiya testini avval topshirgansiz — birinchi javoblaringiz hisobga olinadi.", ru: "Вы уже проходили тест этой вакансии — учитываются ваши первые ответы." },
+  editCrumb: { uz: "Tahrirlash", ru: "Редактирование" },
+  editMine: { uz: "Vakansiyalarim", ru: "Мои вакансии" },
+  editTitle: { uz: "Vakansiyani tahrirlash", ru: "Редактирование вакансии" },
+  editStats: {
+    uz: (a: number, v: number, state: string) => `${a} ta ariza · ${v} ta ko'rish${state ? ` · ${state}` : ""}`,
+    ru: (a: number, v: number, state: string) => `Откликов: ${a} · просмотров: ${v}${state ? ` · ${state}` : ""}`,
+  },
+  stateExpired: { uz: "muddati o'tgan", ru: "срок истёк" },
+  stateClosed: { uz: "yopilgan", ru: "закрыта" },
   answerAll: { uz: "Barcha majburiy savollarga va testga javob bering", ru: "Ответьте на все обязательные вопросы и тест" },
   // Moslik
   matchTitle: { uz: "Moslik", ru: "Совпадение" },

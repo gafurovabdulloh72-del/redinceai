@@ -821,3 +821,44 @@ test("AI saralash: yordamchi mehmonga 401, test javoblari nomzodga ko'rinmaydi, 
     await req("cl", `/api/vakansiyalar/${vid}`, { method: "DELETE" });
   }
 });
+
+test("Qisman PATCH yuborilmagan maydonlarni O'ZGARTIRMAYDI (zod v4 partial+default regressiyasi): vakansiya va yopiq jamoa", async (t) => {
+  if (!COOKIES.cl) return t.skip("sessiya yo'q");
+  // 1) Vakansiya: yopish/uzaytirish kompaniya, talab, format, tajriba, ko'nikmalarni o'chirib yubormasin
+  const cr = await req("cl", "/api/vakansiyalar", { method: "POST", body: JSON.stringify({ title: "SEC qisman patch sinovi", company: "SEC Studio", profession: "video", description: "Sinov vakansiyasi: montaj, rang korreksiyasi va Reels tayyorlash.", requirements: "Portfolio bo'lishi shart", format: "office", employment: "part", experience: "middle", regionSlug: "samarqand", salaryMin: "3000000", salaryMax: "5000000", skills: ["Premiere", "DaVinci"] }) });
+  if (cr.status === 429) return t.skip("vakansiya limiti");
+  assert.ok(cr.status === 200 || cr.status === 201, `vakansiya yaratildi (${cr.status})`);
+  const vid = (await cr.json()).data.id;
+  try {
+    for (const body of [{ status: "closed" }, { extend: true }]) {
+      const r = await req("cl", `/api/vakansiyalar/${vid}`, { method: "PATCH", body: JSON.stringify(body) });
+      assert.equal(r.status, 200, `PATCH ${JSON.stringify(body)}`);
+      const v = (await r.json()).data;
+      assert.equal(v.company, "SEC Studio", "kompaniya saqlandi");
+      assert.equal(v.requirements, "Portfolio bo'lishi shart", "talablar saqlandi");
+      assert.equal(v.format, "office", "format saqlandi");
+      assert.equal(v.employment, "part", "bandlik saqlandi");
+      assert.equal(v.experience, "middle", "tajriba saqlandi");
+      assert.equal(v.regionSlug, "samarqand", "hudud saqlandi");
+      assert.equal(v.salaryMin, 3000000, "maosh saqlandi");
+      assert.deepEqual(v.skills, ["Premiere", "DaVinci"], "ko'nikmalar saqlandi");
+    }
+  } finally {
+    await req("cl", `/api/vakansiyalar/${vid}`, { method: "DELETE" });
+  }
+  // 2) Yopiq kanal: bitta maydonni o'zgartirish uni OCHIQ guruhga aylantirmasin, tavsifini o'chirmasin
+  const g = await req("cl", "/api/groups", { method: "POST", body: JSON.stringify({ name: "SEC yopiq kanal " + Date.now().toString(36), description: "Sinov tavsifi", isPrivate: true, kind: "channel" }) });
+  if (g.status === 429) return t.skip("jamoa limiti");
+  assert.ok(g.status === 200 || g.status === 201, `jamoa yaratildi (${g.status})`);
+  const slug = (await g.json()).data.slug;
+  try {
+    const r = await req("cl", `/api/groups/${slug}`, { method: "PATCH", body: JSON.stringify({ rules: "Hurmat bilan yozing" }) });
+    assert.equal(r.status, 200, "qoidalar yangilandi");
+    const v = (await r.json()).data;
+    assert.equal(v.isPrivate, true, "yopiq jamoa yopiqligicha qoldi");
+    assert.equal(v.kind, "channel", "kanal kanalligicha qoldi");
+    assert.equal(v.description, "Sinov tavsifi", "tavsif saqlandi");
+  } finally {
+    await req("cl", `/api/groups/${slug}`, { method: "DELETE" });
+  }
+});

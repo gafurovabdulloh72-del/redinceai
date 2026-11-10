@@ -27,7 +27,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   const v = await vacancyOr404(id);
   const viewer = { id: session.sub, role: session.role };
   assertVacancyOwner(v, viewer);
-  const patch = await parseBody(req, vacancyPatchSchema);
+  const patch = await parseBody(req, vacancyPatchSchema, { onlyProvided: true });
   const row = await updateVacancy(v, patch);
   await audit(session.sub, "vacancy_update", { targetType: "vacancy", targetId: v.id, meta: { fields: Object.keys(patch) } }, req);
   return ok(await getVacancyView(row.id, viewer));

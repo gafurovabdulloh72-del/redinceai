@@ -2034,6 +2034,9 @@ export const applications = sqliteTable(
     answers: text("answers", { mode: "json" }).$type<import("@/lib/vacancies/screening").ScreeningAnswers | null>(),
     /** Ariza paytidagi moslik balli 0–100 (lib/vacancies/match.ts) — bildirishnoma va saralash uchun */
     matchScore: integer("match_score"),
+    /** Ariza paytidagi anketa/test NUSXASI — ish beruvchi keyin anketani o'zgartirsa ham nomzod o'zi javob bergan
+        savollar bo'yicha baholanadi (aks holda eski arizalar yangi test bo'yicha nohaq 0 olardi) */
+    screeningSnapshot: text("screening_snapshot", { mode: "json" }).$type<import("@/lib/vacancies/screening").Screening | null>(),
     status: text("status", { enum: ["new", "viewed", "shortlisted", "rejected", "hired"] }).notNull().default("new"),
     /** Ish beruvchi arizani birinchi marta ochgan vaqt — nomzodga «Ko'rildi: …» deb ko'rinadi */
     viewedAt: integer("viewed_at", { mode: "timestamp_ms" }),
@@ -2047,6 +2050,30 @@ export const applications = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("applications_vacancy_user_uq").on(t.vacancyId, t.userId), index("applications_user_idx").on(t.userId)],
+);
+
+/**
+ * Test urinishlari (2026-11-10): nomzodning BIRINCHI test javoblari. Ariza qaytarib olinsa ham qator qoladi —
+ * qayta ariza berganda test qayta topshirilmaydi (aks holda «qaytarib ol → qayta yubor» bilan to'g'ri javoblarni
+ * tanlab topish mumkin edi). Vakansiya o'chsa kaskad bilan ketadi.
+ */
+export const vacancyQuizAttempts = sqliteTable(
+  "vacancy_quiz_attempts",
+  {
+    id: text("id").primaryKey(),
+    vacancyId: text("vacancy_id")
+      .notNull()
+      .references(() => vacancies.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** test savoli id → tanlangan variant indeksi (birinchi javob; keyin qo'shilgan savollar ustiga yoziladi) */
+    quiz: text("quiz", { mode: "json" }).$type<Record<string, number>>().notNull().default({}),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("vacancy_quiz_attempts_uq").on(t.vacancyId, t.userId)],
 );
 
 /** Ish beruvchi mos nomzodga yuborgan taklif («Mos nomzodlar» — hunting); bir vakansiyaga bir nomzodga bir marta */

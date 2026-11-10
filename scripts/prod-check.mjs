@@ -121,9 +121,18 @@ test("Honeypot: /.env soxta javob beradi (haqiqiy sir yo'q), real 404 tuzoq emas
   assert.equal((await get("/bunaqa-yoq-sahifa-404-check")).status, 404, "oddiy yo'q sahifa 404 (tuzoq emas)");
 });
 
-test("Path traversal: /uploads/../.env → 404", async () => {
+test("Path traversal: /uploads/../.env → 404 (yoki tuzoqning SOXTA javobi)", async () => {
+  // fetch `..` bo'laklarini o'zi yechadi: "/uploads/../.env" serverga "/.env" bo'lib boradi — u esa 2026-11-06 dan beri
+  // TUZOQ (honeypot) va ataylab 200 + soxta fayl qaytaradi. Shuning uchun 200 faqat javob soxta ekani isbotlansa qabul
+  // qilinadi (canary kalit bor, haqiqiy sir nomi yo'q); aks holda — haqiqiy sizib chiqish, test yiqiladi.
   for (const p of ["/uploads/../.env", "/uploads/..%2f.env", "/_next/static/../../package.json"]) {
     const r = await get(p);
+    if (r.status === 200) {
+      const t = await r.text();
+      assert.ok(t.includes("ke_live_sk_"), `${p}: 200, lekin tuzoq javobi emas (haqiqiy fayl sizib chiqqan bo'lishi mumkin)`);
+      assert.ok(!/TURSO_AUTH_TOKEN|DATABASE_AUTH_TOKEN|libsql:\/\/|"dependencies"/.test(t), `${p}: javobda haqiqiy sir/fayl mazmuni bor`);
+      continue;
+    }
     assert.ok([400, 404].includes(r.status), `${p}: ${r.status}`);
   }
 });

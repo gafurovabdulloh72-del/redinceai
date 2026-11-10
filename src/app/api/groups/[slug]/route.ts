@@ -23,7 +23,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   const group = await groupOr404(slug);
   const viewer = { id: session.sub, role: session.role };
   await assertCanManage(group, viewer);
-  const patch = await parseBody(req, groupPatchSchema);
+  const patch = await parseBody(req, groupPatchSchema, { onlyProvided: true });
   if (patch.coverUrl) {
     if (!IMAGE_URL_RE.test(patch.coverUrl)) throw new ApiError(422, "Muqova rasm bo'lishi kerak", { coverUrl: "Rasmni sayt orqali yuklang" });
     if (patch.coverUrl !== group.coverUrl) await assertOwnUploads(session.sub, [patch.coverUrl], [], "coverUrl");

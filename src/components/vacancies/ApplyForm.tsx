@@ -20,7 +20,7 @@ type Mine = { id: string; status: ApplicationStatus; createdAt: number } | null;
  * Ariza yuborish: rezyume bo'lsa — biriktiriladi (xat ixtiyoriy), bo'lmasa — qisqa xat majburiy.
  * Nomzodga aniq aytiladi: ariza bilan uning ism, email va telefoni shu ish beruvchiga ochiladi.
  */
-export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initialMine, applyUrl, screening = null }: { vacancyId: string; loggedIn: boolean; hasResume: boolean; resumeTitle?: string | null; initialMine: Mine; applyUrl: string | null; screening?: PublicScreening | null }) {
+export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initialMine, applyUrl, screening = null, quizAnswered = [] }: { vacancyId: string; loggedIn: boolean; hasResume: boolean; resumeTitle?: string | null; initialMine: Mine; applyUrl: string | null; screening?: PublicScreening | null; /** Avval javob berilgan test savollari — qayta so'ralmaydi */ quizAnswered?: string[] }) {
   const router = useRouter();
   const til = useLocale();
   const [mine, setMine] = useState<Mine>(initialMine);
@@ -31,7 +31,10 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
   const [quiz, setQuiz] = useState<Record<string, number>>({});
   const needLetter = !hasResume;
   // Anketa: majburiy savollar (≥2 belgi) va testning barcha savollari
-  const screeningDone = !screening || (screening.questions.every((q) => !q.required || (qa[q.id] ?? "").trim().length >= 2) && screening.quiz.every((q) => typeof quiz[q.id] === "number"));
+  // Test bir marta topshiriladi: avval javob berilgan savollar ko'rsatilmaydi (server birinchi javobni saqlab qolgan)
+  const quizTodo = (screening?.quiz ?? []).filter((q) => !quizAnswered.includes(q.id));
+  const quizTaken = Boolean(screening?.quiz.length) && quizTodo.length < (screening?.quiz.length ?? 0);
+  const screeningDone = !screening || (screening.questions.every((q) => !q.required || (qa[q.id] ?? "").trim().length >= 2) && quizTodo.every((q) => typeof quiz[q.id] === "number"));
   const canSend = !busy && screeningDone && (!needLetter || letter.trim().length >= COVER_LETTER_MIN);
 
   async function apply() {
@@ -159,10 +162,11 @@ export function ApplyForm({ vacancyId, loggedIn, hasResume, resumeTitle, initial
           ))}
         </fieldset>
       )}
-      {screening && screening.quiz.length > 0 && (
+      {quizTaken && <p className="mt-4 rounded-[12px] bg-fg/[0.04] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-fg-2">{tr(til, VAK_AI.quizTaken)}</p>}
+      {quizTodo.length > 0 && (
         <fieldset className="mt-4 grid gap-3">
           <legend className="mb-1 text-[13px] font-semibold text-fg">{tr(til, VAK_AI.applyQuiz)}</legend>
-          {screening.quiz.map((q, i) => (
+          {quizTodo.map((q, i) => (
             <div key={q.id} role="radiogroup" aria-label={q.text} className="grid gap-1.5 rounded-[12px] border border-line p-3">
               <p className="text-[13px] font-medium text-fg">
                 {i + 1}. {q.text}

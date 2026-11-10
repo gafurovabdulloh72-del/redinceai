@@ -141,7 +141,13 @@ const INVALID_BODY: Record<Locale, string> = { uz: "Ma'lumotlarni tekshiring", r
 const INVALID_QUERY: Record<Locale, string> = { uz: "So'rov parametrlari noto'g'ri", ru: "Неверные параметры запроса" };
 const INVALID_JSON: Record<Locale, string> = { uz: "JSON noto'g'ri", ru: "Неверный JSON" };
 
-export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S): Promise<z.output<S>> {
+/**
+ * `onlyProvided` — QISMAN YANGILASH (PATCH) uchun MAJBURIY: natijada faqat so'rovda HAQIQATAN yuborilgan kalitlar qoladi.
+ * Sabab (2026-11-10 topilgan xato): zod v4'da `schema.partial()` ichidagi `.default(...)` yo'q kalit uchun ham ishlaydi —
+ * `PATCH {status:"closed"}` vakansiyaning kompaniya/talab/format/ko'nikmalarini standart qiymatga QAYTARIB yuborardi
+ * (jamoada esa yopiq jamoa ochiqqa, kanal guruhga aylanishi mumkin edi). `.partial()` li sxemani bu bayroqsiz ishlatmang.
+ */
+export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S, opts: { onlyProvided?: boolean } = {}): Promise<z.output<S>> {
   const til = requestLocale(req);
   let raw: unknown;
   try {
@@ -151,6 +157,11 @@ export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S)
   }
   const result = schema.safeParse(raw);
   if (!result.success) throw new ApiError(422, INVALID_BODY[til], flattenErrors(result.error, til));
+  if (opts.onlyProvided && raw && typeof raw === "object" && !Array.isArray(raw) && result.data && typeof result.data === "object") {
+    const given = new Set(Object.keys(raw as Record<string, unknown>));
+    const data = result.data as Record<string, unknown>;
+    for (const k of Object.keys(data)) if (!given.has(k)) delete data[k];
+  }
   return result.data;
 }
 

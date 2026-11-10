@@ -29,12 +29,12 @@ jobs:
       PROD_URL: ${{ github.event.inputs.prod_url || 'https://kasbegalari.vercel.app' }}
     steps:
       - name: Kodni olish
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Node 20
-        uses: actions/setup-node@v4
+      - name: Node 22
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       # Paket o'rnatilmaydi — skript faqat node:test + fetch ishlatadi
       - name: Prod tekshiruvi
