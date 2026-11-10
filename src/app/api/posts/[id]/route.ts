@@ -6,7 +6,7 @@ import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { UPLOAD_URL_RE } from "@/components/chat/attachments";
 import { IMAGE_URL_RE } from "@/lib/validators";
 import { eq } from "drizzle-orm";
-import { assertCanManage, canModeratePost, deletePost, editPost, loadPost, setPostPinned } from "@/lib/groups/service";
+import { assertActiveMember, assertCanManage, canModeratePost, deletePost, editPost, loadPost, setPostPinned } from "@/lib/groups/service";
 import { markPostEdited } from "@/lib/groups/posts-extra";
 import { feedItemById } from "@/lib/feed";
 import { POST_BODY_MAX } from "@/lib/groups/limits";
@@ -43,6 +43,14 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   if (!post) throw new ApiError(404, "Post topilmadi");
   const viewer = { id: session.sub, role: session.role };
   let editedAt: number | null = post.editedAt?.getTime() ?? null;
+  // Jamoa postini tahrirlash (matn/joy/muqova) — faqat HOZIR ham faol a'zo bo'lgan muallifga: jamoadan chiqarilgan yoki
+  // bloklangan sobiq a'zo eski postlarini o'zgartirib, jamoaga istalgan matnni «qaytarib» qo'ya olmasin (7-audit)
+  const editing = input.body !== undefined || input.audience !== undefined || input.placeName !== undefined || input.poster !== undefined;
+  if (editing && post.groupId && session.role !== "admin") {
+    const g = await db.query.groups.findFirst({ where: eq(groups.id, post.groupId) });
+    if (!g) throw new ApiError(404, "Jamoa topilmadi");
+    await assertActiveMember(g, viewer);
+  }
   if (input.body !== undefined) {
     if (post.authorId !== session.sub && session.role !== "admin") throw new ApiError(403, "Faqat muallif tahrirlaydi");
     if (input.body !== post.body) {

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { isBlockedEither } from "@/lib/privacy/blocks";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { orders, specialists, type PackageKey } from "@/lib/db/schema";
@@ -53,6 +54,9 @@ export const POST = handler(async (req) => {
   // Bloklangan yoki o'chirilgan (anonimlashtirilgan — isBanned) mutaxassis ro'yxat/profilda yo'q — buyurtma ham qabul qilinmaydi
   if (!sp || sp.user.isBanned) throw new ApiError(404, "Mutaxassis topilmadi");
   if (sp.userId === session.sub) throw new ApiError(400, "O'zingizga buyurtma bera olmaysiz");
+  // Blok juftligi: bloklagan/bloklangan odamga buyurtma (va u orqali chat, bildirishnoma) yuborib bo'lmaydi — blok faqat
+  // DM/izohni emas, buyurtmani ham yopadi (aks holda bloklangan odam buyurtma ochib, o'sha odamga yozishda davom etardi)
+  if (await isBlockedEither(session.sub, sp.userId)) throw new ApiError(403, "Bu mutaxassisga buyurtma yuborib bo'lmaydi");
   const settings = await getSettings();
   if (!canReceiveOrders(sp, settings)) throw new ApiError(403, "Mutaxassis obunasi faol emas");
 

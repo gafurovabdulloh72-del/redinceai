@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assignmentSubmissions, certificates, courses, enrollments, lessonCompletions, lessonComments, lessonNotes, lessons, mentors, quizAttempts, roadmaps, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -31,12 +31,25 @@ export async function quizPassed(userId: string, lessonId: string): Promise<bool
 }
 
 /** Testni topshirish: foiz hisoblanadi; to'g'ri javoblar faqat o'tgandan keyin ko'rsatiladi */
+/** Test: ketma-ket muvaffaqiyatsiz urinishlar chegarasi (QUIZ_TRIES ta / QUIZ_COOLDOWN_MS) */
+const QUIZ_TRIES = 3;
+const QUIZ_COOLDOWN_MS = 10 * 60 * 1000;
+
 export async function submitQuiz(userId: string, lessonId: string, answers: number[], admin = false) {
   const { l, access } = await lessonWithAccess(lessonId, userId, admin);
   if (!access) throw new ApiError(403, "Avval kursga yoziling");
   const quiz = l.quiz;
   if (!quiz?.questions.length) throw new ApiError(404, "Bu darsda test yo'q");
   if (answers.length !== quiz.questions.length) throw new ApiError(422, "Barcha savollarga javob bering");
+  // Tanaffus: 10 daqiqada 3 marta o'ta olmasa — biroz kutadi. Javobda qaysi savollar xato ekani ko'rsatiladi, shuning uchun
+  // cheksiz urinish bilan to'g'ri javoblarni «terib» chiqib, darsni ko'rmasdan sertifikat olish mumkin edi (7-audit).
+  if (!admin) {
+    const [recent] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(quizAttempts)
+      .where(and(eq(quizAttempts.userId, userId), eq(quizAttempts.lessonId, lessonId), eq(quizAttempts.passed, false), gt(quizAttempts.createdAt, new Date(Date.now() - QUIZ_COOLDOWN_MS))));
+    if (Number(recent?.n ?? 0) >= QUIZ_TRIES) throw new ApiError(429, "Bir necha marta o'ta olmadingiz — darsni qayta ko'rib chiqing va 10 daqiqadan keyin urinib ko'ring");
+  }
   const right = quiz.questions.map((q, i) => answers[i] === q.correct);
   const scorePct = Math.round((right.filter(Boolean).length / quiz.questions.length) * 100);
   const passed = scorePct >= quiz.passPct;

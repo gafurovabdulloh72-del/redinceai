@@ -5,7 +5,8 @@ import { getVerifiedSession } from "@/lib/auth";
 import { getMembership, loadGroupByAnySlug } from "@/lib/groups/service";
 import { runEventReminders } from "@/lib/events/reminders";
 import { canWatchPaid } from "@/lib/mentorship/purchases";
-import { activeLive, startLive } from "@/lib/live/service";
+import { activeLive, endLive, startLive } from "@/lib/live/service";
+import { PASSCODE_RE, setEntryRules } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
 
@@ -33,8 +34,13 @@ const bodySchema = z.object({
   price: z.number().int().min(0).max(1_000_000).default(0),
   /** Kutish xonasi: har bir yangi odamni boshlovchi qo'shadi */
   waitingRoom: z.boolean().default(false),
-  /** Efir kodi (4–12 belgi) yoki bo'sh — kodsiz */
-  passcode: z.string().max(32).optional(),
+  /** Efir kodi (6–12 belgi, harf/raqam) yoki bo'sh — kodsiz. Efir BOSHLANISHIDAN OLDIN tekshiriladi (pastga qarang) */
+  passcode: z
+    .string()
+    .trim()
+    .max(32)
+    .refine((v) => v === "" || PASSCODE_RE.test(v), { error: "Kod 6–12 belgi, faqat harf va raqam" })
+    .optional(),
 });
 
 /** POST — efir boshlash (egasi/moderator) */
@@ -47,8 +53,15 @@ export const POST = handler(async (req) => {
   const actor = { id: session.sub, role: session.role };
   const s = await startLive(group, actor, input.title, input.price);
   if (input.waitingRoom || input.passcode) {
-    const { setEntryRules } = await import("@/lib/live/zoom");
-    await setEntryRules(s.id, actor, { waitingRoom: input.waitingRoom, passcode: input.passcode || null });
+    // Ilgari kod shu yerda (efir allaqachon boshlangach) tekshirilardi: noto'g'ri kod 422 qaytarar, efir esa HIMOYASIZ ochiq
+    // qolardi (boshlovchi «kod qo'ydim» deb o'ylardi). Endi kod sxemada oldindan tekshiriladi; qoidani o'rnatib bo'lmasa —
+    // efir darhol yopiladi (ochiq holda qoldirilmaydi).
+    try {
+      await setEntryRules(s.id, actor, { waitingRoom: input.waitingRoom, passcode: input.passcode || null });
+    } catch (e) {
+      await endLive(s.id, actor).catch(() => undefined);
+      throw e;
+    }
   }
   return ok({ id: s.id, title: s.title });
 });

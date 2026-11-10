@@ -1,4 +1,5 @@
 import "server-only";
+import { isBlockedEither } from "@/lib/privacy/blocks";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { jobs, orders, proposals, specialists, users } from "@/lib/db/schema";
@@ -122,6 +123,8 @@ export async function createProposal(session: SessionPayload, input: ProposalInp
   const [job, settings] = await Promise.all([getJobRow(input.jobId), getSettings()]);
   if (!job || job.client.isBanned) throw new ApiError(404, "E'lon topilmadi");
   if (job.clientId === session.sub) throw new ApiError(400, "O'z e'loningizga taklif yubora olmaysiz");
+  // Blok juftligi: e'lon egasi bloklagan (yoki uni bloklagan) mutaxassis taklif yubora olmaydi
+  if (await isBlockedEither(session.sub, job.clientId)) throw new ApiError(403, "Bu e'longa taklif yuborib bo'lmaydi");
   const now = Date.now();
   if (job.status !== "open" || (job.expiresAt && job.expiresAt.getTime() <= now)) throw new ApiError(400, "E'lon yopilgan — taklif qabul qilinmaydi");
   if (!canReceiveOrders(sp, settings, new Date(now))) {
