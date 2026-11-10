@@ -21,6 +21,9 @@ export interface VacancyDraft {
   employment: "full" | "part" | "project" | "internship";
   /** Talabda shahar/viloyat aytilgan bo'lsa (ofis/gibrid uchun) */
   regionSlug: string | null;
+  /** Talabda maosh aytilgan bo'lsa («8–12 mln», «5 000 000 dan») — so'mda; aytilmagan — null */
+  salaryMin: number | null;
+  salaryMax: number | null;
   screening: Screening;
   source: "ai" | "template";
 }
@@ -112,11 +115,14 @@ function detectExperience(b: string): VacancyDraft["experience"] {
 }
 function detectFormat(b: string): VacancyDraft["format"] {
   if (/gibrid|hybrid/i.test(b)) return "hybrid";
-  if (/ofis|office|joyida|filial/i.test(b)) return "office";
+  if (/masofa|remote|onlayn|online|uydan|удал[её]н/i.test(b)) return "remote";
+  if (/ofis|office|joyida|filial|studiya/i.test(b)) return "office";
+  // Shahar/viloyat aytilgan, «masofaviy» deyilmagan — joyida ish («Toshkentdagi studiyamizga…», «Samarqandga dizayner»)
+  if (detectRegion(b)) return "office";
   return "remote";
 }
 function detectEmployment(b: string): VacancyDraft["employment"] {
-  if (/amaliyot|stajyor|internship/i.test(b)) return "internship";
+  if (/amaliyot|stajyor|stajirovka|internship/i.test(b)) return "internship";
   if (/yarim stavka|part[- ]?time|kuniga \d soat/i.test(b)) return "part";
   if (/loyiha|freelance|frilans|bir martalik|proyekt/i.test(b)) return "project";
   return "full";
@@ -134,14 +140,40 @@ export function detectRegion(b: string): string | null {
   return null;
 }
 
+/**
+ * Talab matnidan maoshni ajratib olish (so'mda): «8-12 million», «8–12 mln so'm», «5 mln dan», «700 ming», «6 000 000 so'm».
+ * Topilmasa — ikkalasi null. Dollar miqdorlari hisobga olinmaydi (forma so'mda).
+ */
+export function detectSalary(brief: string): { salaryMin: number | null; salaryMax: number | null } {
+  const low = brief.toLowerCase().replace(/[’ʻ`]/g, "'");
+  const unit = (u: string) => (/^(mln|million|млн)/.test(u) ? 1_000_000 : 1_000);
+  const num = (x: string) => Number(x.replace(/\s/g, "").replace(",", "."));
+  const cap = (n: number) => (Number.isFinite(n) && n >= 100_000 && n <= 1_000_000_000 ? Math.round(n) : null);
+  // oraliq: 8-12 mln
+  const range = /(\d+(?:[.,]\d+)?)\s*(?:-|–|—|dan)\s*(\d+(?:[.,]\d+)?)\s*(mln|million|млн|ming|тыс)/.exec(low);
+  if (range) return { salaryMin: cap(num(range[1]) * unit(range[3])), salaryMax: cap(num(range[2]) * unit(range[3])) };
+  // bitta son + birlik: «5 mln dan», «700 ming gacha»
+  const one = /(\d+(?:[.,]\d+)?)\s*(mln|million|млн|ming|тыс)\w*\s*(?:so'm|сум)?\s*(dan|gacha|до|от)?/.exec(low);
+  if (one) {
+    const v = cap(num(one[1]) * unit(one[2]));
+    return one[3] === "gacha" || one[3] === "до" ? { salaryMin: null, salaryMax: v } : { salaryMin: v, salaryMax: null };
+  }
+  // to'liq yozilgan: 6 000 000 so'm
+  const full = /(\d{1,3}(?:[ .]\d{3}){1,3})\s*(?:so'm|сум)/.exec(low);
+  if (full) return { salaryMin: cap(Number(full[1].replace(/[ .]/g, ""))), salaryMax: null };
+  return { salaryMin: null, salaryMax: null };
+}
+
 function templateDraft(brief: string, prof?: ProfessionSlug): VacancyDraft {
   const profession = prof || detectProfession(brief);
   const experience = detectExperience(brief);
   const format = detectFormat(brief);
   const employment = detectEmployment(brief);
-  // Sarlavha: talabning birinchi qisqa jumlasi «kerak/izlayapmiz» so'zlarisiz, bo'lmasa kasb nomi
-  const first = brief.split(/[.\n!?]/)[0]?.replace(/\b(bizga|kerak|izlayapmiz|qidiryapmiz|qidirilmoqda|talab qilinadi)\b/gi, "").replace(/\s+/g, " ").trim() ?? "";
-  const title = (first.length >= 5 && first.length <= 70 ? first[0].toUpperCase() + first.slice(1) : TITLES[profession]).slice(0, VACANCY_TITLE_MAX);
+  // Sarlavha: kasb nomi + joy (masalan «Video montajchi (Toshkent sh.)»). Ilgari talabning birinchi jumlasi xomligicha olinardi —
+  // «Toshkentdagi studiyamizga 2 yil tajribali video montajchi» kabi sarlavha e'lon ro'yxatida yomon ko'rinardi.
+  const region = format === "remote" ? null : detectRegion(brief);
+  const where = format === "remote" ? "masofaviy" : region ? (REGIONS.find((r) => r.slug === region)?.short ?? "") : "";
+  const title = `${TITLES[profession]}${where ? ` (${where})` : ""}`.slice(0, VACANCY_TITLE_MAX);
   const lower = brief.toLowerCase();
   const skills = SKILLS[profession].filter((s) => lower.includes(s.toLowerCase().split(" ").pop() ?? "")).concat(SKILLS[profession]).filter((s, i, a) => a.indexOf(s) === i).slice(0, 6);
   const description = [
@@ -173,7 +205,7 @@ function templateDraft(brief: string, prof?: ProfessionSlug): VacancyDraft {
     ],
     quiz: (QUIZ[profession] ?? []).map((q) => ({ id: newScreenId("t"), ...q })),
   };
-  return { title, profession, description, requirements, skills, experience, format, employment, regionSlug: format === "remote" ? null : detectRegion(brief), screening, source: "template" };
+  return { title, profession, description, requirements, skills, experience, format, employment, regionSlug: region, ...detectSalary(brief), screening, source: "template" };
 }
 
 /* ------------------------------------------------------------------ */
@@ -218,6 +250,7 @@ export async function draftVacancy(brief: string, profession?: ProfessionSlug | 
       format: d.format,
       employment: d.employment,
       regionSlug: d.format === "remote" ? null : detectRegion(brief),
+      ...detectSalary(brief),
       screening: { questions: d.questions.map((text) => ({ id: newScreenId("q"), text, required: true })), quiz },
       source: "ai",
     };

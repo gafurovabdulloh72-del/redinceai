@@ -72,7 +72,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
     setDraftNote(null);
     try {
       const res = await fetch("/api/vakansiyalar/yordamchi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brief: brief.trim(), profession }) });
-      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; fields?: Record<string, string>; data?: { title: string; profession: string; description: string; requirements: string; skills: string[]; experience: Experience; format: WorkFormat; employment: Employment; regionSlug: string | null; screening: Screening; source: "ai" | "template" } };
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; fields?: Record<string, string>; data?: { title: string; profession: string; description: string; requirements: string; skills: string[]; experience: Experience; format: WorkFormat; employment: Employment; regionSlug: string | null; salaryMin?: number | null; salaryMax?: number | null; screening: Screening; source: "ai" | "template" } };
       if (!res.ok || !j.ok || !j.data) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, VAK_AI.assistantFailed));
       const d = j.data;
       setTitle(d.title);
@@ -84,6 +84,11 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       setFormat(d.format);
       setEmployment(d.employment);
       if (d.regionSlug) setRegionSlug(d.regionSlug);
+      // Talabda maosh aytilgan bo'lsa — maydonlarga tushadi (ilgari «maosh 8-12 mln» yozilsa ham bo'sh qolardi)
+      if (d.salaryMin || d.salaryMax) {
+        setSalaryMin(fmtMoney(d.salaryMin ?? null));
+        setSalaryMax(fmtMoney(d.salaryMax ?? null));
+      }
       setScreening(d.screening);
       setDraftNote({ ok: true, text: tr(til, d.source === "ai" ? VAK_AI.assistantDoneAi : VAK_AI.assistantDoneTpl) });
     } catch (e) {
