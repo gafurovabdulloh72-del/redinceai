@@ -40,30 +40,42 @@ const PILL_DAYS = 5;
  * Ixcham obuna pill'i (G6/#74): to'liq banner faqat kabinetning umumiy sahifasida (kabinet/page.tsx),
  * qolgan sahifalarda kontentni pastga surmaydigan bir qatorlik eslatma — faqat ≤5 kun qolganda yoki tugaganda.
  */
-function SubscriptionPill({ st }: { st: SubscriptionState }) {
+function SubscriptionPill({ st, til }: { st: SubscriptionState; til: "uz" | "ru" }) {
   if (st.status === "off" || st.status === "exempt") return null;
   const urgent = st.status === "expired" || st.status === "grace";
   if (!urgent && st.daysLeft > PILL_DAYS) return null;
   const expired = st.status === "expired";
-  const label = expired
-    ? "Obuna faol emas — profil katalogda ko'rinmaydi"
-    : st.status === "grace"
-      ? `Obuna tugadi — muhlat: ${st.daysLeft} kun`
-      : st.status === "trial"
-        ? `Sinov tugashiga ${st.daysLeft} kun qoldi`
-        : `Obuna tugashiga ${st.daysLeft} kun qoldi`;
+  const ru = til === "ru";
+  const label = ru
+    ? expired
+      ? "Подписка неактивна — профиль не виден в каталоге"
+      : st.status === "grace"
+        ? `Подписка закончилась — льготный период: ${st.daysLeft} дн.`
+        : st.status === "trial"
+          ? `До конца пробного периода ${st.daysLeft} дн.`
+          : `До конца подписки ${st.daysLeft} дн.`
+    : expired
+      ? "Obuna faol emas — profil katalogda ko'rinmaydi"
+      : st.status === "grace"
+        ? `Obuna tugadi — muhlat: ${st.daysLeft} kun`
+        : st.status === "trial"
+          ? `Sinov tugashiga ${st.daysLeft} kun qoldi`
+          : `Obuna tugashiga ${st.daysLeft} kun qoldi`;
   return (
     <div
       // Doimiy banner: role="alert" har navigatsiyada avtomatik silkinardi — status (o'qiladi, lekin shovqinsiz)
       role="status"
+      data-no-auto
       className={cn(
-        "mb-5 flex min-h-10 items-center justify-between gap-3 rounded-full border px-4 py-1.5",
+        // kabinet-sub-pill: to'liq banner bor sahifada (umumiy) yashiriladi — bir xil ogohlantirish ikki marta chiqmasin (globals.css).
+        // md:mr-28 — o'ng tepadagi suzuvchi til/tema kapsulasi «Uzaytirish» havolasini yopib qo'ymasin
+        "kabinet-sub-pill mb-5 flex min-h-10 items-center justify-between gap-3 rounded-full border px-4 py-1.5 md:mr-28",
         expired ? "border-danger/30 bg-danger-soft" : "border-warning/30 bg-warning-soft",
       )}
     >
       <p className={cn("truncate text-[13px] font-semibold", expired ? "text-danger-text" : "text-warning-text")}>{label}</p>
       <Link href="/kabinet/obuna#rejalar" className="shrink-0 text-[13px] font-semibold text-fg underline underline-offset-2 transition hover:opacity-80">
-        Uzaytirish
+        {ru ? "Продлить" : "Uzaytirish"}
       </Link>
     </div>
   );
@@ -214,7 +226,7 @@ export default async function KabinetLayout({ children }: { children: React.Reac
           To'liq obuna banneri faqat umumiy sahifada (kabinet/page.tsx) — boshqa sahifalarda kontent pastga surilmasin */}
       <div className="print:hidden">
         <TermsBanner />
-        {subState && <SubscriptionPill st={subState} />}
+        {subState && <SubscriptionPill st={subState} til={til} />}
         {/* Telegram ulanmagan bo'lsa — buyurtma/javob/e'lon xabarini o'tkazib yubormaslik uchun eslatma (admindan tashqari hammaga) */}
         {user.role !== "admin" && isTelegramEnabled() && telegramBotUsername() && !user.telegramChatId && <TelegramNudge forClient={user.role === "client"} />}
         <InstallPrompt />

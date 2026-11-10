@@ -20,7 +20,10 @@ function eligible(node: Text): boolean {
   if (!p || SKIP_TAGS.has(p.tagName.toUpperCase()) || p.closest("svg")) return false;
   if (p.closest('[data-no-auto],[data-no-cyrl],[contenteditable="true"],input,textarea')) return false;
   const v = node.nodeValue ?? "";
-  return Boolean(v.trim()) && looksUzbek(v);
+  // Lotin harfli har qanday matn LUG'ATDAN qidiriladi (bitta so'zli yorliqlar ham: «Yangi», «Tarix», «Hammasi»); AI'ga esa
+  // faqat `looksUzbek` matnlar yuboriladi (applyText). Ilgari bu yerda `looksUzbek` turardi va bitta so'zli yorliqlar
+  // lug'atda bo'lsa ham tarjima qilinmasdi (ruscha sahifada «Yangi → Принято → Jarayonda» kabi aralash ko'rinardi).
+  return Boolean(v.trim()) && /[a-z]/i.test(v) && !/[а-яё]/i.test(v) && v.length <= 200;
 }
 
 export function RuAutoLayer({ active }: { active: boolean }) {
@@ -45,7 +48,7 @@ export function RuAutoLayer({ active }: { active: boolean }) {
         const trail = v.match(/\s*$/)?.[0] ?? "";
         const next = lead + ru + trail;
         if (next !== v) t.nodeValue = next;
-      } else {
+      } else if (looksUzbek(v)) {
         const k = normalizeUz(v);
         if (!asked.has(k)) queue.add(k);
       }
@@ -53,11 +56,11 @@ export function RuAutoLayer({ active }: { active: boolean }) {
     const applyAttrs = (el: Element) => {
       for (const a of ATTRS) {
         const v = el.getAttribute(a);
-        if (!v || !looksUzbek(v)) continue;
+        if (!v || !/[a-z]/i.test(v) || /[а-яё]/i.test(v)) continue;
         const ru = lookupRu(v);
         if (ru) {
           if (ru !== v) el.setAttribute(a, ru);
-        } else {
+        } else if (looksUzbek(v)) {
           const k = normalizeUz(v);
           if (!asked.has(k)) queue.add(k);
         }
@@ -141,11 +144,35 @@ export function RuAutoLayer({ active }: { active: boolean }) {
     });
 
     let cancelled = false;
-    void ensureDict().then(() => {
+    let idle: number | null = null;
+    /**
+     * Birinchi ishga tushish — sahifa TO'LIQ jonlangach (gidratsiyadan keyin): `load` + brauzer bo'sh qolganda.
+     * Ilgari lug'at yuklanishi bilan darhol ishlardi; React hali jonlantirmagan bo'laklarning (Suspense oqimi) matni ruschaga
+     * almashib qolar va React «server matni mos emas» (#418) deb o'sha bo'lakni qaytadan chizardi — rus tilidagi sahifalarda
+     * konsol xatosi va ortiqcha qayta chizish (kabinet/obuna, to'lovlar, xarita…). Kuzatuvchi ham shu paytgacha ulanmaydi.
+     */
+    const start = () => {
+      idle = null;
       if (!cancelled) run(root);
+    };
+    const whenIdle = () => {
+      if (cancelled) return;
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+      idle = w.requestIdleCallback ? w.requestIdleCallback(start, { timeout: 2000 }) : window.setTimeout(start, 350);
+    };
+    void ensureDict().then(() => {
+      if (cancelled) return;
+      if (document.readyState === "complete") whenIdle();
+      else window.addEventListener("load", whenIdle, { once: true });
     });
     return () => {
       cancelled = true;
+      window.removeEventListener("load", whenIdle);
+      if (idle !== null) {
+        const w = window as Window & { cancelIdleCallback?: (id: number) => void };
+        if (w.cancelIdleCallback) w.cancelIdleCallback(idle);
+        else window.clearTimeout(idle);
+      }
       obs?.disconnect();
       if (timer !== null) window.clearTimeout(timer);
     };

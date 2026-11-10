@@ -310,7 +310,7 @@ export default async function KabinetPage() {
   return (
     <div className="animate-fade-up">
       {/* ---------- To'liq obuna banneri (G6/#74): faqat shu umumiy sahifada ---------- */}
-      {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} />}
+      {subState && <SubscriptionBanner status={subState.status} until={subState.until} daysLeft={subState.daysLeft} graceUntil={subState.graceUntil} til={til} />}
 
       {/* ---------- To'lov kutilmoqda (kamchilik #54) ---------- */}
       {pendingInvoice && invoiceHref && (

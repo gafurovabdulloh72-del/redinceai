@@ -52,12 +52,22 @@ const UNIT_RULES: Array<[RegExp, string]> = [
   [/^(\d+) daqiqa$/, "$1 мин"],
   [/^(\d+) daqiqa oldin$/, "$1 мин назад"],
   [/^(\d+) ta$/, "$1"],
+  [/^Eng yaxshi (\d+) tasi ko'rsatildi$/, "Показаны лучшие $1"],
+  [/^(\d+) kun qoldi$/, "Осталось $1 дн."],
+  [/^(\d+) soat qoldi$/, "Осталось $1 ч"],
+  [/^Byudjet (\d[\d ]*) (ming|mln) so'm$/, "Бюджет $1 $2 сум"],
+  [/^Byudjet (\d[\d ]*) so'm$/, "Бюджет $1 сум"],
+  [/^xizmat haqi (\d+)%$/, "комиссия сервиса $1%"],
+  [/^(\d+) hudud$/, "$1 регионов"],
+  [/^(\d+) (?:ta )?mutaxassis$/, "$1 специалистов"],
+  [/^(\d[\d ]*) so'mdan$/, "от $1 сум"],
+  [/^(\d[\d ]*) (ming|mln) so'mdan$/, "от $1 $2 сум"],
   [/^(\d+) ta (dars|post|ish|izoh|ovoz|obunachi|talaba|kurs|efir|xabar|savol|javob|ko'rish|fayl|a'zo)$/, "$1 $2"],
 ];
 const SHORT: Record<string, string> = { Bor: "Есть", "Yo'q": "Нет", kun: "дн.", soat: "ч", daqiqa: "мин", oy: "мес", yil: "г.", dars: "уроков", post: "постов", ish: "работ", izoh: "комментариев", ovoz: "голосов", obunachi: "подписчиков", talaba: "студентов", kurs: "курсов", efir: "эфиров", xabar: "сообщений", savol: "вопросов", javob: "ответов", "ko'rish": "просмотров", fayl: "файлов", "a'zo": "участников" };
 function unitRu(key: string): string | null {
   for (const [re, to] of UNIT_RULES) {
-    if (re.test(key)) return key.replace(re, to).replace(/ (dars|post|ish|izoh|ovoz|obunachi|talaba|kurs|efir|xabar|savol|javob|ko'rish|fayl|a'zo)$/, (_, w: string) => " " + SHORT[w]);
+    if (re.test(key)) return key.replace(re, to).replace(/ ming сум/, " тыс. сум").replace(/ mln сум/, " млн сум").replace(/ (dars|post|ish|izoh|ovoz|obunachi|talaba|kurs|efir|xabar|savol|javob|ko'rish|fayl|a'zo)$/, (_, w: string) => " " + SHORT[w]);
   }
   return SHORT[key] ?? null;
 }

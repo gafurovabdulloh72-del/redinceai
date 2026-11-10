@@ -1826,6 +1826,10 @@ select:focus-visible {
 html[data-topbar-hidden] .m-topbar {
   transform: translateY(-100%);
 }
+/* Kabinet: to'liq obuna banneri bor sahifada (umumiy) qobiqdagi ixcham eslatma takrorlanmaydi */
+[data-kabinet]:has([data-sub-banner]) .kabinet-sub-pill {
+  display: none;
+}
 /* Yuqori panel ostiga yopishadigan qator (lenta tablari): panel yashiringanda ekran tepasiga ko'tariladi — ilgari 56px bo'shliq
    qolib, ustidan kontent ko'rinib turardi. md+ da yuqori panel yo'q (sinfdagi md:top-0 ustun turadi). */
 @media (max-width: 767px) {

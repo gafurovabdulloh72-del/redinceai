@@ -27,6 +27,6 @@ for pid in $ALL; do kill -9 "$pid" 2>/dev/null || true; done
 rm -rf .next
 LOG="/tmp/dev-$PORT.log"
 [ "$PORT" = "3000" ] && LOG="/tmp/dev.log"
-NODE_OPTIONS="--max-old-space-size=4096" nohup node node_modules/next/dist/bin/next dev -p "$PORT" > "$LOG" 2>&1 &
+NODE_OPTIONS="--max-old-space-size=${DEV_HEAP_MB:-3072}" nohup node node_modules/next/dist/bin/next dev -p "$PORT" > "$LOG" 2>&1 &
 echo $! > "$PIDFILE"
 echo "Dev server ishga tushirildi (port $PORT, pid $(cat "$PIDFILE"), log: $LOG) — sog'liq: curl -s localhost:$PORT/api/health"
