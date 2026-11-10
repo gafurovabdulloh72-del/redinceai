@@ -94,7 +94,7 @@ export const POST = handler(async (req) => {
   await db.insert(reports).values({ id, reporterId: session.sub, targetType: input.targetType, targetId: input.targetId, reason });
   await audit(session.sub, "report_created", { targetType: input.targetType, targetId: input.targetId, meta: { reason: input.reason } }, req);
   // Saytda — navbat havolasi; Telegramda — tugmalar bilan alohida xabar (admin boti), shuning uchun bu yerda tashqi kanal o'chiq
-  await notifyAdmins("report", `Yangi shikoyat: ${label}`, reason.slice(0, 200), "/admin#shikoyatlar", { skipMail: true });
+  await notifyAdmins("report", `Yangi shikoyat: ${label}`, reason.slice(0, 200), "/admin#shikoyatlar", { siteOnly: true });
   const { notifyAdminsNewReport } = await import("@/lib/telegram-bot/admin");
   await notifyAdminsNewReport(id).catch(() => undefined);
   // Avto-yashirish: post/izoh/sharh bo'yicha AUTO_HIDE_REPORTS ta turli shikoyatchi — nishon vaqtincha yashiriladi (lib/moderation.ts)
