@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { AlertCircle, Check, CheckCheck, ChevronDown, FileText, ImageOff, ImagePlus, Lock, MessageCircle, Plus, RotateCcw, Send, ShieldAlert, X, Zap } from "lucide-react";
 import { Spinner } from "@/components/ui";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -8,7 +8,8 @@ import { usePresence } from "@/components/motion/usePresence";
 import { clock, dayKey, dayLabel, relativeTime } from "@/lib/chat/time";
 import { cn } from "@/lib/utils";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT_DOCS, formatBytes, isImageAttachment, isVideoAttachment, uploadAttachment, type Attachment } from "./attachments";
-import { DayPill, claimMedia, useNowTick } from "./MessageParts";
+import { DayPill, Linkified, claimMedia, useNowTick } from "./MessageParts";
+import { refreshChatUnread, useChatUnread } from "./unread-store";
 
 /* ------------------------------------------------------------------ */
 /* Turlar (GET/POST /api/orders/[id]/messages bilan bir xil)           */
@@ -41,24 +42,6 @@ const DEFAULT_QUICK_REPLIES = [
   "Ish tayyor, tekshirib ko'ring. Tuzatishlar bo'lsa shu yerga yozing.",
   "Rahmat! Hamkorlikdan xursandman — sharh qoldirsangiz minnatdor bo'lardim.",
 ];
-
-/** Matndagi http(s) havolalarni bosiladigan qilish (boshqa hech qanday HTML yo'q) */
-function Linkified({ text }: { text: string }) {
-  const parts = text.split(/(https?:\/\/[^\s<>"']+)/g);
-  return (
-    <>
-      {parts.map((p, i) =>
-        /^https?:\/\//.test(p) ? (
-          <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" className="break-all font-medium underline decoration-1 underline-offset-2">
-            {p}
-          </a>
-        ) : (
-          <Fragment key={i}>{p}</Fragment>
-        ),
-      )}
-    </>
-  );
-}
 
 function readQuickReplies(): string[] {
   try {
@@ -177,6 +160,12 @@ export function OrderChat({
   const now = useNowTick(60_000);
   const panel = usePresence(open, 160);
   useEffect(() => setCoarse(window.matchMedia("(pointer: coarse)").matches), []);
+  // «Chat» tugmasidagi o'qilmaganlar — JONLI (QA B6): ilgari son sahifa bilan bir marta kelar va buyurtmalar sahifasi
+  // ochiq turganda yangi xabar kelsa o'zgarmasdi. Umumiy nishon manbai (unread-store) buyurtma bo'yicha taqsimotni beradi.
+  const liveUnread = useChatUnread(0, role !== "admin");
+  const shownUnread = open ? 0 : liveUnread.live ? (liveUnread.orderUnread[orderId] ?? 0) : unread;
+  // Yopiq turganda kelgan yangi xabarlar «Chat (N)» soniga ham qo'shiladi
+  const shownCount = count + (open ? 0 : Math.max(0, shownUnread - unread));
 
   const scroller = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
@@ -214,11 +203,15 @@ export function OrderChat({
         const json = (await res.json().catch(() => null)) as ApiResponse<ListData> | null;
         if (!json) throw new Error("Server javob bermadi");
         if (!json.ok) throw new Error(json.error);
+        // Polling 2 soniya ustma-ust so'raydi — «yangi» deb faqat avval ko'rilmagan vaqtdagi xabar hisoblanadi
+        const seenUpTo = lastAt.current;
         merge(json.data.messages, full);
         setReadUpTo(json.data.readUpTo);
         setCanWrite(json.data.canWrite);
         setUnread(0);
         setLoadErr(null);
+        // O'qildi (server belgiladi) — yon panel/pastki tabdagi «Chat» nishoni ham darhol yangilansin
+        if (full || json.data.messages.some((m) => !m.mine && m.sender !== "system" && m.createdAt > seenUpTo)) refreshChatUnread();
       } catch (e) {
         setLoadErr(e instanceof Error ? e.message : "Xabarlarni yuklab bo'lmadi");
       } finally {
@@ -387,11 +380,11 @@ export function OrderChat({
           open ? "border-fg bg-fg/4 text-fg" : "border-line bg-surface text-fg-2 hover:border-line-2 hover:text-fg",
         )}
       >
-        <MessageCircle size={15} className={unread > 0 ? "text-accent" : undefined} />
-        Chat{count > 0 ? ` (${count})` : ""}
-        {unread > 0 && (
-          <span className="rounded-full bg-accent-strong px-1.5 py-0.5 text-[11px] font-bold leading-none text-white tabular-nums" aria-label={`${unread} ta o'qilmagan xabar`}>
-            {unread}
+        <MessageCircle size={15} className={shownUnread > 0 ? "text-accent" : undefined} />
+        Chat{shownCount > 0 ? ` (${shownCount})` : ""}
+        {shownUnread > 0 && (
+          <span key={shownUnread} className="animate-badge-pop rounded-full bg-accent-strong px-1.5 py-0.5 text-[11px] font-bold leading-none text-white tabular-nums" aria-label={`${shownUnread} ta o'qilmagan xabar`}>
+            {shownUnread}
           </span>
         )}
         <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
@@ -440,7 +433,7 @@ export function OrderChat({
                           >
                             {m.body && (
                               <p className="whitespace-pre-wrap break-words">
-                                <Linkified text={m.body} />
+                                <Linkified text={m.body} mine={m.mine} />
                               </p>
                             )}
                             <AttachmentList items={m.attachments} compact className={m.body ? "mt-2" : undefined} />
@@ -593,7 +586,7 @@ export function OrderChat({
                   }}
                   onKeyDown={onKey}
                   placeholder="Xabar yozing…"
-                  className="field min-h-10 flex-1 resize-none !py-2 text-[14px] leading-snug"
+                  className="field min-h-10 min-w-0 flex-1 resize-none !rounded-[20px] !py-2.5 text-[14px] leading-snug max-md:text-[16px]"
                   style={{ height: 40 }}
                 />
                 <button

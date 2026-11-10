@@ -18,6 +18,7 @@ import { FeedbackButton, FeedbackHost } from "@/components/feedback/FeedbackButt
 import { Logo } from "./Logo";
 import { routeActive } from "./nav-utils";
 import type { NavUser } from "./NavbarClient";
+import { useChatUnread } from "@/components/chat/unread-store";
 
 interface Item {
   href: string;
@@ -83,6 +84,8 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     return () => window.removeEventListener(NOTIFICATIONS_UNREAD_EVENT, on);
   }, []);
   const notifUnread = liveUnread ?? unread;
+  // «Chat» nishoni jonli (QA A2): boshlang'ich son serverdan, keyin yengil so'rov bilan yangilanadi (faqat kirgan foydalanuvchi)
+  const chatUnread = useChatUnread(dmUnread + groupsUnread, Boolean(user)).total;
 
   const login = (next: string) => `/auth/kirish?next=${encodeURIComponent(next)}`;
 
@@ -91,7 +94,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
     { href: "/qidiruv", label: SHELL.nav.search, icon: Search },
     { href: "/lenta", label: SHELL.nav.lenta, icon: Clapperboard },
     // Telegram inbox (2026-11-01): «Hamjamiyat» alohida band emas — guruh/kanallar Chat ichida; katalog «Yana»da va Chat qidiruv tugmasida
-    { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: dmUnread + groupsUnread, authOnly: true },
+    { href: "/kabinet/chat", label: SHELL.nav.messages, icon: MessageCircle, badge: chatUnread, authOnly: true },
     { href: "/kabinet/bildirishnomalar", label: SHELL.menu.notifications, icon: Bell, badge: notifUnread, authOnly: true },
   ];
   // Ikkilamchi bandlar; TOP reyting «Yana» menyusida (panel tinch qolsin).

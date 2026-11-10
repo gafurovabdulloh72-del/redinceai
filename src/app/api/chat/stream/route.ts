@@ -15,12 +15,14 @@ const PING_MS = 15_000;
 const querySchema = z.object({
   conv: z.string().trim().max(64).optional(),
   group: z.string().trim().max(80).optional(),
+  /** only=group — faqat jamoa hodisalari (GroupChat/ChannelPosts o'z ulanishi): shaxsiy suhbat/ro'yxat so'rovlari bajarilmaydi */
+  only: z.enum(["group"]).optional(),
 });
 
 /**
- * SSE oqimi: `dm {conv}` va `group {}` hodisalari (lib/chat/stream.ts). Faqat kirgan foydalanuvchi;
- * jamoa chati — faqat faol a'zo. Hech qanday xabar matni oqimda ketmaydi — mijoz hodisadan keyin
- * odatdagi API'dan (ruxsat tekshiruvlari bilan) qayta so'raydi.
+ * SSE oqimi: `dm {conv}`, `inbox {}`, `group {}`, `posts {}` hodisalari (lib/chat/stream.ts). Faqat kirgan foydalanuvchi;
+ * jamoa hodisalari — faqat faol a'zo (a'zo bo'lmasa 403, EventSource qayta ulanmaydi). Hech qanday xabar matni oqimda
+ * ketmaydi — mijoz hodisadan keyin odatdagi API'dan (ruxsat tekshiruvlari bilan) qayta so'raydi.
  */
 export const GET = handler(async (req) => {
   const session = await requireSession();
@@ -33,7 +35,7 @@ export const GET = handler(async (req) => {
       groupId = g.id;
     }
   }
-  const watcher = createWatcher(session.sub, { conv: q.conv ?? null, groupId });
+  const watcher = createWatcher(session.sub, { conv: q.conv ?? null, groupId, dm: q.only !== "group" });
   // Cursor: qayta ulanishda EventSource `Last-Event-ID` yuboradi — o'tkazib yuborilgan o'zgarishlar yo'qolmaydi
   const lastId = Number(req.headers.get("last-event-id"));
   let since = Number.isFinite(lastId) && lastId > 0 ? lastId : Date.now() - 2000;

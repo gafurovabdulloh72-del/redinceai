@@ -1,17 +1,28 @@
+import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
+import { cleanBody } from "@/lib/chat/text";
+import { GROUP_MSG_MAX } from "@/lib/groups/limits";
 import { assertActiveMember, assertCanManage, deleteGroupMessage, editGroupMessage, loadGroupMessage, setPinnedMessage } from "@/lib/groups/service";
-import { messagePatchSchema } from "@/lib/groups/validators";
 import { audit } from "@/lib/security/audit";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { groupOr404 } from "../../../_lib";
 
 type Ctx = { params: Promise<{ slug: string; id: string }> };
 
-/** PATCH {body?} — o'z xabarini tahrirlash (24 soat); {pinned} — qadash/olish (egasi/admin) */
+/**
+ * Xabar tahriri / qadash. `body` bo'sh bo'lishi mumkin — biriktirmali xabarda matn izoh (caption) hisoblanadi (C6);
+ * matnli xabar bo'sh qilinmasligini `editGroupMessage` tekshiradi.
+ */
+const patchSchema = z.object({
+  body: z.string().trim().max(GROUP_MSG_MAX, { error: `Xabar ${GROUP_MSG_MAX} belgidan oshmasin` }).optional(),
+  pinned: z.boolean().optional(),
+});
+
+/** PATCH {body?} — o'z xabarini tahrirlash (3 soat); {pinned} — qadash/olish (egasi/admin) */
 export const PATCH = handler(async (req, ctx: Ctx) => {
   const session = await requireSession();
   const { slug, id } = await ctx.params;
-  const input = await parseBody(req, messagePatchSchema);
+  const input = await parseBody(req, patchSchema, { onlyProvided: true });
   if (input.body === undefined && input.pinned === undefined) throw new ApiError(422, "O'zgarish yo'q");
   await enforceLimit("messages", session.sub);
   const group = await groupOr404(slug);
@@ -19,7 +30,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   await assertActiveMember(group, viewer);
   const msg = await loadGroupMessage(group, id);
   if (!msg) throw new ApiError(404, "Xabar topilmadi");
-  if (input.body !== undefined) await editGroupMessage(viewer, msg, input.body);
+  if (input.body !== undefined) await editGroupMessage(viewer, msg, cleanBody(input.body));
   if (input.pinned !== undefined) {
     await assertCanManage(group, viewer);
     if (input.pinned && msg.deletedAt) throw new ApiError(400, "O'chirilgan xabarni qadab bo'lmaydi");

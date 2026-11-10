@@ -1,7 +1,8 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groupMembers, groupMessages, groups, posts, users } from "@/lib/db/schema";
+import { groupMembers, groupMessages, groups, posts, users, type FileAttachment } from "@/lib/db/schema";
+import { quoteKind, type QuoteView } from "./quote";
 
 /**
  * YAGONA CHAT INBOX (Telegram uslubi, 2026-11-01): «Chat» bo'limida shaxsiy suhbatlar bilan
@@ -22,7 +23,8 @@ export interface GroupInboxRow {
   coverUrl: string | null;
   isOfficial: boolean;
   membersCount: number;
-  last: { body: string; at: number; by: string | null; hasFiles: boolean } | null;
+  /** `kind` — biriktirma turi (matn bo'lmasa parchada «Rasm» / «Video» / «Fayl» / «Ovozli xabar» chiqadi) */
+  last: { body: string; at: number; by: string | null; hasFiles: boolean; kind: QuoteView["kind"] } | null;
   /** Kanal uchun: oxirgi post id (qator bosilganda to'g'ridan o'sha post ochiladi, kamchilik #2) */
   lastPostId?: string | null;
   unread: number;
@@ -31,6 +33,8 @@ export interface GroupInboxRow {
   folderId: string | null;
   /** Ko'ruvchi bu jamoani boshqaradimi (egasi/admin) — panelda Sozlash tugmasi uchun */
   canManage: boolean;
+  /** Ko'ruvchi egasimi — egasi «Chiqish»ni ko'rmaydi (jamoadan chiqa olmaydi) */
+  isOwner: boolean;
   /** Chat ro'yxatida arxivlangan (faqat o'z a'zoligim sozlamasi) */
   archived: boolean;
   /** Hozir yozayotgan a'zo nomi (kamchilik #3) — keshdan tashqari, har so'rovda yangi hisoblanadi */
@@ -62,7 +66,7 @@ export async function groupTypingNames(meId: string): Promise<Map<string, string
  * yangi xabarlar kechikmaydi. O'zim o'qisam/pin qilsam `bustGroupInbox` darhol tozalaydi.
  * Serverless'da instansiya ichidagi Map — eng yomoni bir instansiyada 60 s eski mute holati.
  */
-const inboxCache = new Map<string, { at: number; activityKey: number; rows: GroupInboxRow[] }>();
+const inboxCache = new Map<string, { at: number; key: string; rows: GroupInboxRow[] }>();
 const INBOX_TTL_MS = 60_000;
 
 /** Foydalanuvchining guruh-inbox keshini bekor qilish (o'qildi/pin/papka/a'zolik o'zgarganda) */
@@ -70,22 +74,32 @@ export function bustGroupInbox(userId: string) {
   inboxCache.delete(userId);
 }
 
-/** A'zoliklarim bo'yicha eng so'nggi guruh faolligi (ms) — kesh yangiligini tekshirish uchun bitta so'rov */
-async function latestActivity(meId: string): Promise<number> {
+/**
+ * Kesh kaliti — bitta arzon so'rov: a'zoliklarim bo'yicha eng so'nggi guruh faolligi + a'zoliklar «imzosi»
+ * (nechta faol a'zolik va eng oxirgisi qachon qo'shilgan). Imzo tufayli qo'shilish / chiqish / so'rov tasdiqlanishi
+ * keshni darhol eskirtadi (bu amallar boshqa modulda — u yerdan `bustGroupInbox` chaqirilmaydi).
+ */
+async function inboxKey(meId: string): Promise<string> {
   const [r] = await db
-    .select({ x: sql<number | null>`max(coalesce(${groups.lastActivityAt}, ${groups.createdAt}))` })
+    .select({
+      act: sql<number | null>`max(coalesce(${groups.lastActivityAt}, ${groups.createdAt}))`,
+      n: sql<number>`count(*)`,
+      joined: sql<number | null>`max(${groupMembers.createdAt})`,
+      members: sql<number | null>`sum(${groups.membersCount})`,
+    })
     .from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .where(and(eq(groupMembers.userId, meId), eq(groupMembers.status, "active")));
-  return Number(r?.x ?? 0);
+  return `${Number(r?.act ?? 0)}:${Number(r?.n ?? 0)}:${Number(r?.joined ?? 0)}:${Number(r?.members ?? 0)}`;
 }
+
+/** Faollik qismi (ms) — SSE kuzatuvchisi «inbox» hodisasi uchun ham shu kalitni ishlatadi */
+export const groupInboxKey = inboxKey;
 
 export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
   const cached = inboxCache.get(meId);
-  if (cached && Date.now() - cached.at < INBOX_TTL_MS) {
-    const latest = await latestActivity(meId);
-    if (latest <= cached.activityKey) return cached.rows;
-  }
+  const key = await inboxKey(meId);
+  if (cached && Date.now() - cached.at < INBOX_TTL_MS && key === cached.key) return cached.rows;
   const rows = await db
     .select({
       id: groups.id,
@@ -101,6 +115,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
       role: groupMembers.role,
       archivedAt: groupMembers.archivedAt,
       muted: groupMembers.muted,
+      mutedUntil: groupMembers.mutedUntil,
       folderId: groupMembers.folderId,
       pinnedAt: groupMembers.pinnedAt,
     })
@@ -117,7 +132,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
   // Oxirgi xabar (guruhlar) — har guruh uchun eng so'nggi o'chirilmagan xabar, bitta so'rovda
   const lastMsgs = groupIds.length
     ? await db
-        .select({ groupId: groupMessages.groupId, body: groupMessages.body, at: groupMessages.createdAt, by: users.name, files: sql<number>`json_array_length(${groupMessages.attachments})` })
+        .select({ groupId: groupMessages.groupId, body: groupMessages.body, at: groupMessages.createdAt, by: users.name, files: groupMessages.attachments })
         .from(groupMessages)
         .innerJoin(users, eq(users.id, groupMessages.senderId))
         .where(and(inArray(groupMessages.groupId, groupIds), isNull(groupMessages.deletedAt), sql`${groupMessages.id} in (select id from group_messages m2 where m2.group_id = ${groupMessages.groupId} and m2.deleted_at is null order by m2.created_at desc limit 1)`))
@@ -128,20 +143,24 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     ? await db
         // Obunachilarga yopiq (pullik) post matni ro'yxatdagi parchada CHIQMAYDI — kanalning har a'zosi obunachi emas (7-audit);
         // shikoyat bilan yashirilgan post matni ham ko'rsatilmaydi
-        .select({ groupId: posts.groupId, postId: posts.id, body: sql<string>`case when ${posts.subscribersOnly} = 1 then '🔒 Obunachilar uchun post' when ${posts.hiddenByReports} = 1 then '' else ${posts.body} end`, at: posts.createdAt, by: users.name, files: sql<number>`case when ${posts.subscribersOnly} = 1 or ${posts.hiddenByReports} = 1 then 0 else json_array_length(${posts.media}) end` })
+        .select({ groupId: posts.groupId, postId: posts.id, body: sql<string>`case when ${posts.subscribersOnly} = 1 then '🔒 Obunachilar uchun post' when ${posts.hiddenByReports} = 1 then '' else ${posts.body} end`, at: posts.createdAt, by: users.name, files: posts.media, locked: sql<number>`case when ${posts.subscribersOnly} = 1 or ${posts.hiddenByReports} = 1 then 1 else 0 end` })
         .from(posts)
         .innerJoin(users, eq(users.id, posts.authorId))
         .where(and(inArray(posts.groupId, channelIds), sql`${posts.id} in (select id from posts p2 where p2.group_id = ${posts.groupId} order by p2.created_at desc limit 1)`))
         .limit(channelIds.length * 2)
     : [];
-  const lastBy = new Map<string, { body: string; at: number; by: string | null; hasFiles: boolean }>();
+  const lastBy = new Map<string, NonNullable<GroupInboxRow["last"]>>();
   const lastPostBy = new Map<string, string>();
-  for (const m of [...lastMsgs, ...lastPosts]) {
-    if (!m.groupId) continue;
-    const prev = lastBy.get(m.groupId);
-    const at = m.at.getTime();
-    if (!prev || at > prev.at) lastBy.set(m.groupId, { body: m.body, at, by: m.by, hasFiles: Number(m.files ?? 0) > 0 });
-  }
+  const put = (groupId: string | null, body: string, atDate: Date, by: string | null, files: FileAttachment[] | null) => {
+    if (!groupId) return;
+    const prev = lastBy.get(groupId);
+    const at = atDate.getTime();
+    const list = files ?? [];
+    if (!prev || at > prev.at) lastBy.set(groupId, { body, at, by, hasFiles: list.length > 0, kind: quoteKind(list) });
+  };
+  for (const m of lastMsgs) put(m.groupId, m.body, m.at, m.by, m.files);
+  // Yopiq/yashirilgan post biriktirmalari parchada ham ko'rinmaydi
+  for (const m of lastPosts) put(m.groupId, m.body, m.at, m.by, Number(m.locked) ? [] : m.files);
   for (const m of lastPosts) if (m.groupId) lastPostBy.set(m.groupId, m.postId);
 
   // O'qilmaganlar — lastReadAt'dan keyingilar (guruh: xabarlar, kanal: postlar), guruhlangan sanash
@@ -165,6 +184,7 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     for (const x of r) if (x.gid) unread.set(x.gid, Number(x.n));
   }
 
+  const nowMs = Date.now();
   const out: GroupInboxRow[] = rows.map((r) => ({
     kind: r.kind === "channel" ? "channel" : "group",
     id: r.id,
@@ -176,16 +196,17 @@ export async function listGroupInbox(meId: string): Promise<GroupInboxRow[]> {
     last: lastBy.get(r.id) ?? null,
     lastPostId: lastPostBy.get(r.id) ?? null,
     unread: Math.min(unread.get(r.id) ?? 0, 999),
-    muted: Boolean(r.muted),
+    // Vaqtincha jim (mutedUntil) ham «ovozsiz» — nishon hisobiga kirmaydi
+    muted: Boolean(r.muted) || Boolean(r.mutedUntil && r.mutedUntil.getTime() > nowMs),
     pinned: Boolean(r.pinnedAt),
     folderId: r.folderId,
     canManage: r.role === "owner" || r.role === "admin",
+    isOwner: r.role === "owner",
     archived: Boolean(r.archivedAt),
   }));
   // Xotira chegarasi: juda ko'p foydalanuvchi yig'ilib qolmasin
   if (inboxCache.size > 1000) inboxCache.clear();
-  const activityKey = rows.reduce((m, r) => Math.max(m, (r.lastActivityAt ?? r.createdAt).getTime()), 0);
-  inboxCache.set(meId, { at: Date.now(), activityKey, rows: out });
+  inboxCache.set(meId, { at: Date.now(), key, rows: out });
   return out;
 }
 

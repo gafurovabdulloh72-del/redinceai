@@ -167,6 +167,8 @@ export interface GroupMessageView {
   canEdit: boolean;
   /** Emoji reaksiyalar yig'indisi (DM bilan bir xil to'plam) */
   reactions: ReactionSummary[];
+  /** Mavzu (group_topics.id); null — «Umumiy» oqim. Qidiruv natijasi / qadalgan xabar boshqa mavzuda bo'lsa klient o'sha mavzuga o'tadi */
+  topicId: string | null;
 }
 
 type Viewer = { id: string; role: string } | null;
@@ -1249,25 +1251,79 @@ async function toMessageViews(group: Group, viewer: Viewer, rows: GroupMessageRo
       edited: Boolean(r.editedAt) && !deleted,
       editedAt: r.editedAt && !deleted ? r.editedAt.getTime() : null,
       canDelete: !deleted && (mine || manager),
-      canEdit: !deleted && mine && Boolean(r.body) && now - r.createdAt.getTime() < MESSAGE_EDIT_WINDOW_MS,
+      // Biriktirmali xabarda matn — izoh (caption): matnsiz yuborilgan rasmga ham keyin izoh qo'shsa bo'ladi (C6); ovozli xabar bundan mustasno
+      canEdit: !deleted && mine && (Boolean(r.body) || r.attachments.some((a) => !a.type.startsWith("audio/"))) && now - r.createdAt.getTime() < MESSAGE_EDIT_WINDOW_MS,
+      topicId: r.topicId ?? null,
     };
   });
 }
 
-export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200, topicId: string | null = null): Promise<GroupMessageView[]> {
-  // Mavzu oqimi: topicId berilsa faqat shu mavzu, aks holda «Umumiy» (mavzusiz) xabarlar
-  const inTopic = topicId ? eq(groupMessages.topicId, topicId) : sql`${groupMessages.topicId} is null`;
+/** Bir sahifadagi xabarlar (birinchi ochilish va «eskiroq» sahifalar) va sakrashdagi eng uzun oraliq */
+export const GROUP_PAGE = 80;
+export const GROUP_JUMP_MAX = 1200;
+const GROUP_JUMP_CONTEXT = 20;
+
+export interface GroupMessagePage {
+  items: GroupMessageView[];
+  /** Bu oynadan ESKIROQ xabarlar bormi (yuqoriga aylantirganda yuklash uchun) */
+  hasMore: boolean;
+  /** Sakrashda: nishon xabar turgan oqim (mavzu id yoki null — «Umumiy») */
+  topicId: string | null;
+}
+
+/**
+ * Guruh chati xabarlari sahifasi (eski → yangi), mavzu oqimi bo'yicha (`topicId` yo'q — «Umumiy»):
+ *  - `afterId`  — faqat undan keyingilar (polling);
+ *  - `beforeId` — undan OLDINGI bir sahifa (yuqoriga aylantirish, C1);
+ *  - `fromId`   — shu xabardan (biroz oldingi kontekst bilan) eng yangisigacha — qidiruv/qadalgan/iqtibos nishoniga sakrash;
+ *                 oqim nishon xabarning O'Z mavzusidan olinadi (boshqa mavzudagi natijaga ham o'tiladi, A20);
+ *  - hech biri — oxirgi `limit` ta.
+ */
+export async function pageGroupMessages(group: Group, viewer: Viewer, opts: { afterId?: string | null; beforeId?: string | null; fromId?: string | null; topicId?: string | null; limit?: number } = {}): Promise<GroupMessagePage> {
+  const limit = opts.limit ?? GROUP_PAGE;
+  const inStream = (topicId: string | null) => (topicId ? eq(groupMessages.topicId, topicId) : sql`${groupMessages.topicId} is null`);
+  const cursor = async (id: string) => (await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, id), eq(groupMessages.groupId, group.id)), columns: { id: true, createdAt: true, topicId: true } })) ?? null;
+  const older = (at: Date, id: string) => or(lt(groupMessages.createdAt, at), and(eq(groupMessages.createdAt, at), lt(groupMessages.id, id)));
+  let topicId = opts.topicId ?? null;
   let rows: GroupMessageRow[];
-  if (afterId) {
-    const m = await db.query.groupMessages.findFirst({ where: and(eq(groupMessages.id, afterId), eq(groupMessages.groupId, group.id)), columns: { createdAt: true } });
-    // Noma'lum id (eski klient / boshqa guruh) — abadiy bo'sh qolmasin: oxirgi 50 ta qaytadi
-    rows = m
-      ? await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic, gt(groupMessages.createdAt, m.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit })
-      : (await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: 50 })).reverse();
+  let hasMore = false;
+
+  if (opts.fromId) {
+    const c = await cursor(opts.fromId);
+    if (!c) throw new ApiError(404, "Xabar topilmadi");
+    topicId = c.topicId ?? null;
+    const base = and(eq(groupMessages.groupId, group.id), inStream(topicId));
+    const [before, after] = await Promise.all([
+      db.query.groupMessages.findMany({ where: and(base, older(c.createdAt, c.id)), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: GROUP_JUMP_CONTEXT + 1 }),
+      db.query.groupMessages.findMany({ where: and(base, or(gt(groupMessages.createdAt, c.createdAt), and(eq(groupMessages.createdAt, c.createdAt), sql`${groupMessages.id} >= ${c.id}`))), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit: GROUP_JUMP_MAX + 1 }),
+    ]);
+    if (after.length > GROUP_JUMP_MAX) throw new ApiError(422, "Xabar juda eski — tarixni yuqoriga aylantirib oching");
+    rows = [...before.slice(0, GROUP_JUMP_CONTEXT).reverse(), ...after];
+    hasMore = before.length > GROUP_JUMP_CONTEXT;
   } else {
-    rows = (await db.query.groupMessages.findMany({ where: and(eq(groupMessages.groupId, group.id), inTopic), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit })).reverse();
+    const base = and(eq(groupMessages.groupId, group.id), inStream(topicId));
+    const after = opts.afterId ? await cursor(opts.afterId) : null;
+    const before = !after && opts.beforeId ? await cursor(opts.beforeId) : null;
+    if (after) {
+      rows = await db.query.groupMessages.findMany({ where: and(base, gt(groupMessages.createdAt, after.createdAt)), orderBy: [asc(groupMessages.createdAt), asc(groupMessages.id)], limit: 200 });
+    } else if (opts.beforeId) {
+      // Noma'lum kursor — bo'sh sahifa (klient «boshqa yo'q» deb to'xtaydi)
+      const page = before ? await db.query.groupMessages.findMany({ where: and(base, older(before.createdAt, before.id)), orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: limit + 1 }) : [];
+      rows = page.slice(0, limit).reverse();
+      hasMore = page.length > limit;
+    } else {
+      // Birinchi ochilish (yoki noma'lum `after` — eski klient / boshqa guruh): oxirgi sahifa
+      const page = await db.query.groupMessages.findMany({ where: base, orderBy: [desc(groupMessages.createdAt), desc(groupMessages.id)], limit: limit + 1 });
+      rows = page.slice(0, limit).reverse();
+      hasMore = page.length > limit;
+    }
   }
-  return toMessageViews(group, viewer, rows);
+  return { items: await toMessageViews(group, viewer, rows), hasMore, topicId };
+}
+
+/** Eski imzo (boshqa modullar uchun saqlangan): oqimning oxirgi `limit` ta xabari yoki `afterId` dan keyingilari */
+export async function listGroupMessages(group: Group, viewer: Viewer, afterId?: string | null, limit = 200, topicId: string | null = null): Promise<GroupMessageView[]> {
+  return (await pageGroupMessages(group, viewer, { afterId, limit, topicId })).items;
 }
 
 /** Tahrirlangan/o'chirilgan xabarlarning yangilanishi (polling: `since` dan keyin o'zgarganlar) */
@@ -1360,11 +1416,12 @@ export async function deleteGroupMessage(group: Group, viewer: NonNullable<Viewe
   }
 }
 
-/** Tahrir: faqat muallif, 3 soat ichida, matnli xabar. O'chirish esa doim mumkin. */
+/** Tahrir: faqat muallif, 3 soat ichida. Biriktirmali xabarda matn — izoh (bo'sh qoldirish mumkin); matnli xabar bo'sh bo'lmaydi. O'chirish esa doim mumkin. */
 export async function editGroupMessage(viewer: NonNullable<Viewer>, msg: GroupMessageRow, body: string): Promise<void> {
   if (msg.senderId !== viewer.id) throw new ApiError(403, "Faqat o'z xabaringizni tahrirlaysiz");
   if (msg.deletedAt) throw new ApiError(400, "Xabar o'chirilgan");
   if (Date.now() - msg.createdAt.getTime() > MESSAGE_EDIT_WINDOW_MS) throw new ApiError(400, "Tahrirlash muddati (3 soat) o'tgan");
+  if (!body && msg.attachments.length === 0) throw new ApiError(422, "Matn bo'sh", { body: "Matn bo'sh" });
   if (body === msg.body) return;
   await db.update(groupMessages).set({ body, editedAt: new Date() }).where(eq(groupMessages.id, msg.id));
 }
@@ -1390,7 +1447,14 @@ export async function sendGroupMessage(group: Group, senderId: string, body: str
   const now = new Date();
   const row: typeof groupMessages.$inferInsert = { id: uid(), groupId: group.id, senderId, body, attachments, replyToId, topicId, createdAt: now };
   await db.insert(groupMessages).values(row);
-  await Promise.all([touchActivity(group.id), markGroupRead(group.id, senderId), setGroupTyping(group.id, senderId, false)]);
+  await Promise.all([touchActivity(group.id), setGroupTyping(group.id, senderId, false)]);
+  // Yozgan odam shu oqimni o'qigan hisoblanadi (boshqa mavzulardagi o'qilmaganlari saqlanadi — markGroupStreamRead)
+  await markGroupStreamRead({ ...group, lastActivityAt: now }, senderId, topicId);
+  // @eslatma (A21): faqat shu jamoaning faol a'zolariga, blok juftligi va jim qilganlarga yo'q — xato yuborishni buzmaydi
+  if (body.includes("@")) {
+    const { notifyChatMentions } = await import("@/lib/chat/mentions");
+    await notifyChatMentions({ group, senderId, text: body }).catch((e) => console.error("[group-chat] mention", e));
+  }
   return { ...row, createdAt: now };
 }
 
@@ -1414,10 +1478,65 @@ export async function typingMembers(groupId: string, exceptUserId: string, limit
   return rows.map((r) => r.name);
 }
 
-export async function markGroupRead(groupId: string, userId: string): Promise<void> {
-  await db.update(groupMembers).set({ lastReadAt: new Date() }).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+/**
+ * Jamoani o'qilgan deb belgilash. Standart — SHARTLI: faqat oxirgi ko'rishdan keyin faollik bo'lsa yozadi
+ * (har polling `last_read_at = hozir` yozsa, SSE kuzatuvchisi buni boshqa a'zolarga «o'zgarish» qilib uzatar va ochiq
+ * chatlar bir-birini soniyasiga bir marta qayta yuklatardi). `force` — foydalanuvchining aniq amali («o'qildi deb belgilash»).
+ */
+export async function markGroupRead(groupId: string, userId: string, opts: { force?: boolean } = {}): Promise<void> {
+  const now = new Date();
+  const mine = and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId));
+  const res = await db
+    .update(groupMembers)
+    .set({ lastReadAt: now })
+    .where(opts.force ? mine : and(mine, sql`coalesce(${groupMembers.lastReadAt}, 0) < coalesce((select g.last_activity_at from groups g where g.id = ${groupId}), 0)`));
   // Chat inbox keshi eskirdi — o'qilmaganlar soni darhol yangilansin
+  if (opts.force || (res.rowsAffected ?? 0) > 0) bustGroupInbox(userId);
+}
+
+/**
+ * Chat OQIMI (mavzu yoki null — «Umumiy») o'qildi. Mavzuli guruhda a'zo bitta oqimni ko'rib turganda boshqa mavzudagi
+ * yangi xabarlar «o'qilgan» bo'lib ketmasin (A20): boshqa oqimlarda hali ko'rilmagan xabar bo'lsa, o'qish belgisi faqat
+ * o'sha xabargacha suriladi. `seen` — klient shu sessiyada ko'rgan oqimlar: { "<topicId>" | "" (Umumiy): ms } — faqat
+ * foydalanuvchining O'Z o'qilmaganlar hisobiga ta'sir qiladi. Faollik bo'lmasa hech narsa yozilmaydi.
+ */
+export async function markGroupStreamRead(group: Pick<Group, "id" | "lastActivityAt">, userId: string, stream: string | null, seen: Record<string, number> = {}): Promise<void> {
+  const m = await getMembership(group.id, userId);
+  if (!m || m.status !== "active") return;
+  const last = m.lastReadAt?.getTime() ?? 0;
+  if ((group.lastActivityAt?.getTime() ?? 0) <= last) return;
+  const others = await db
+    .select({ topicId: groupMessages.topicId, at: groupMessages.createdAt })
+    .from(groupMessages)
+    .where(and(eq(groupMessages.groupId, group.id), isNull(groupMessages.deletedAt), sql`${groupMessages.senderId} != ${userId}`, gt(groupMessages.createdAt, new Date(last)), stream ? sql`(${groupMessages.topicId} is null or ${groupMessages.topicId} != ${stream})` : isNotNull(groupMessages.topicId)))
+    .orderBy(asc(groupMessages.createdAt))
+    .limit(300);
+  const pending = others.find((o) => o.at.getTime() > (seen[o.topicId ?? ""] ?? 0));
+  const target = pending ? pending.at.getTime() - 1 : Date.now();
+  if (target <= last) return;
+  await db.update(groupMembers).set({ lastReadAt: new Date(target) }).where(eq(groupMembers.id, m.id));
   bustGroupInbox(userId);
+}
+
+/**
+ * O'qilganlik holati (A8) — har so'rovda (to'liq yuklash ham, polling ham) to'liq hisoblanadi:
+ *  - `readUpTo` — boshqa faol a'zolardan kimdir o'qigan eng so'nggi vaqt (ms): shungacha bo'lgan mening xabarlarim ✓✓;
+ *  - `seen` — shu oqimdagi OXIRGI xabarimni nechta a'zo ko'rgani («N kishi ko'rdi»); xabarim yo'q bo'lsa null.
+ */
+export async function groupSeenState(group: Group, viewerId: string, stream: string | null): Promise<{ readUpTo: number; seen: { messageId: string; count: number } | null }> {
+  const [top, mine] = await Promise.all([
+    db
+      .select({ at: sql<number | null>`max(${groupMembers.lastReadAt})` })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "active"), sql`${groupMembers.userId} != ${viewerId}`)),
+    db.query.groupMessages.findFirst({
+      where: and(eq(groupMessages.groupId, group.id), eq(groupMessages.senderId, viewerId), isNull(groupMessages.deletedAt), stream ? eq(groupMessages.topicId, stream) : isNull(groupMessages.topicId)),
+      orderBy: [desc(groupMessages.createdAt)],
+      columns: { id: true, createdAt: true },
+    }),
+  ]);
+  const seen = mine ? { messageId: mine.id, count: await seenCountFor(group, viewerId, mine.createdAt) } : null;
+  return { readUpTo: Number(top[0]?.at ?? 0), seen };
 }
 
 /* ------------------------------------------------------------------ */

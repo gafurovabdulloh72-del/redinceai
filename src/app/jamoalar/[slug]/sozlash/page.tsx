@@ -40,7 +40,7 @@ export default async function GroupSettingsPage({ params }: { params: Promise<{ 
         title={view.name}
         description={view.pendingCount > 0 ? `${view.pendingCount} ta so'rov kutmoqda.` : "Nom, tavsif, qoidalar, muqova va kirish rejimi."}
         action={
-          <ButtonLink href={`/jamoalar/${view.slug}?tab=azolar`} variant="outline" size="md">
+          <ButtonLink href={`/kabinet/chat?guruh=${encodeURIComponent(view.slug)}&gtab=azolar`} variant="outline" size="md">
             {view.pendingCount > 0 ? `${view.pendingCount} ta so'rov` : "A'zolar"}
           </ButtonLink>
         }
