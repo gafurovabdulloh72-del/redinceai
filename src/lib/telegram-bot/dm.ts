@@ -8,7 +8,7 @@ import { enforceLimit } from "@/lib/security/rate-limit";
 import { cutPlain, escapeTelegramHtml, sendTelegram, sendTelegramEx, type TelegramButton } from "@/lib/telegram";
 import { activeAccount } from "@/lib/telegram-bot/actions";
 import { errorText } from "@/lib/telegram-bot/i18n";
-import { L, type BotLang } from "@/lib/telegram-bot/lang";
+import { L, plural, type BotLang } from "@/lib/telegram-bot/lang";
 import { getBotSession, setBotSession, takeBotSession } from "@/lib/telegram-bot/session";
 import { pageButton } from "@/lib/telegram-bot/ui";
 
@@ -90,7 +90,7 @@ export async function handleMessages(chatId: string, lang?: BotLang): Promise<vo
     const m = previews[i];
     const who = m ? (m.senderId === me.id ? L(lang, "Siz: ", "Вы: ") : "") : "";
     const tail = m ? `${who}${messagePreview(m, 70, lang)}` : L(lang, "xabar yo'q", "сообщений нет");
-    const badge = c.unread > 0 ? ` · <b>${c.unread} ${L(lang, "yangi", "новых")}</b>` : "";
+    const badge = c.unread > 0 ? ` · <b>${plural(lang, c.unread, "yangi", ["новое", "новых", "новых"])}</b>` : "";
     return `${i + 1}. <b>${escapeTelegramHtml(c.peer.name)}</b>${badge}${c.prefs.muted ? " 🔕" : ""}\n   ${escapeTelegramHtml(tail)}`;
   });
   const head = unreadTotal > 0 ? L(lang, `💬 <b>Xabarlar</b> — ${unreadTotal} ta o'qilmagan`, `💬 <b>Сообщения</b> — непрочитанных: ${unreadTotal}`) : L(lang, "💬 <b>Xabarlar</b> — hammasi o'qilgan", "💬 <b>Сообщения</b> — всё прочитано");
@@ -199,7 +199,7 @@ export async function handleDmText(chatId: string, text: string, lang: BotLang |
   }
   const body = text.trim();
   if (body.length > DM_BODY_MAX) {
-    await sendTelegram(chatId, L(lang, `Xabar juda uzun (${body.length} belgi, eng ko'pi ${DM_BODY_MAX}). Qisqartirib qayta yuboring.`, `Сообщение слишком длинное (${body.length} символов, максимум ${DM_BODY_MAX}). Сократите и отправьте снова.`));
+    await sendTelegram(chatId, L(lang, `Xabar juda uzun (${body.length} belgi, eng ko'pi ${DM_BODY_MAX}). Qisqartirib qayta yuboring.`, `Сообщение слишком длинное (символов: ${body.length}, максимум ${DM_BODY_MAX}). Сократите и отправьте снова.`));
     return true;
   }
   // Sessiya ATOMAR olinadi — qayta yuborilgan update yoki ikki marta yuborish ikkinchi xabar yaratmaydi

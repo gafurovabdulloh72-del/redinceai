@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import { regionLabel } from "@/lib/telegram-bot/labels-ru";
 import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
 import { SETTINGS_TEXT, SETTINGS_TEXT_RU, appUrl, pageButton, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
-import { L, type BotLang } from "@/lib/telegram-bot/lang";
+import { L, plural, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * Botdagi tezkor amallar (Telegram tarafi):
@@ -241,19 +241,20 @@ export async function handleProfile(chatId: string, lang?: BotLang): Promise<voi
     `${/@telegram\.local$/i.test(me.email) ? L(lang, "email kiritilmagan", "email не указан") : escapeTelegramHtml(me.email)} · ${L(lang, "ro'yxatdan", "с")} ${escapeTelegramHtml(since)}`,
     "",
   ];
-  const followersL = L(lang, "obunachi", "подписчиков");
-  const postsL = L(lang, "post", "постов");
-  const ordersL = L(lang, "faol buyurtma", "активных заказов");
+  // Sonlar: o'zbekchada ot o'zgarmaydi, ruschada son bilan moslashadi (1 пост · 2 поста · 5 постов) — `plural`
+  const followersT = plural(lang, followers, "obunachi", ["подписчик", "подписчика", "подписчиков"]);
+  const postsT = plural(lang, postsN, "post", ["пост", "поста", "постов"]);
+  const ordersT = plural(lang, ordersN, "faol buyurtma", ["активный заказ", "активных заказа", "активных заказов"]);
   if (sp) {
     lines.push(`🎨 ${escapeTelegramHtml(sp.title)} · ${sp.isVerified ? L(lang, "tasdiqlangan ✅", "подтверждён ✅") : L(lang, "tasdiq kutmoqda ⏳", "ожидает подтверждения ⏳")}`);
-    lines.push(`👁 ${sp.viewCount} ${L(lang, "ko'rish", "просмотров")} · ⭐ ${sp.reviewCount ? `${sp.rating.toFixed(1)} (${sp.reviewCount})` : L(lang, "sharh yo'q", "отзывов нет")} · 👥 ${followers} ${followersL} · 📝 ${postsN} ${postsL}`);
-    lines.push(`📦 ${ordersN} ${ordersL} · 🔓 ${L(lang, `kontaktingizni ${soldN} kishi oldi`, `контакт купили: ${soldN}`)} · ${L(lang, "rejim", "режим")}: ${sp.contactMode === "hidden" ? L(lang, "faqat portfolio", "только портфолио") : L(lang, "sotiladi", "продаётся")}`);
+    lines.push(`👁 ${plural(lang, sp.viewCount, "ko'rish", ["просмотр", "просмотра", "просмотров"])} · ⭐ ${sp.reviewCount ? `${sp.rating.toFixed(1)} (${sp.reviewCount})` : L(lang, "sharh yo'q", "отзывов нет")} · 👥 ${followersT} · 📝 ${postsT}`);
+    lines.push(`📦 ${ordersT} · 🔓 ${L(lang, `kontaktingizni ${soldN} kishi oldi`, `контакт купили: ${soldN}`)} · ${L(lang, "rejim", "режим")}: ${sp.contactMode === "hidden" ? L(lang, "faqat portfolio", "только портфолио") : L(lang, "sotiladi", "продаётся")}`);
     if (sp.subscriptionUntil) {
       const until = new Date(sp.subscriptionUntil).toLocaleDateString(ru ? "ru-RU" : "uz-UZ", { day: "numeric", month: "long" });
       lines.push(`💠 ${L(lang, `Obuna: ${until} gacha`, `Подписка: до ${until}`)}`);
     }
   } else {
-    lines.push(`👥 ${followers} ${followersL} · 📝 ${postsN} ${postsL} · 📦 ${ordersN} ${ordersL} · 🔓 ${boughtN} ${L(lang, "ochilgan kontakt", "открытых контактов")}`);
+    lines.push(`👥 ${followersT} · 📝 ${postsT} · 📦 ${ordersT} · 🔓 ${plural(lang, boughtN, "ochilgan kontakt", ["открытый контакт", "открытых контакта", "открытых контактов"])}`);
   }
   // Profil tayyorligi — sayt bilan BITTA manba (lib/profile/completion.ts): foiz, chiziq va eng muhim keyingi qadam (tugmasi bilan)
   let nextStep: TelegramButton | null = null;
@@ -561,7 +562,7 @@ export async function handleCourses(chatId: string, lang?: BotLang): Promise<voi
   }
   const lines = items.map((c, i) => {
     const price = c.priceFrom > 0 ? formatPrice(c.priceFrom) : L(lang, "Bepul", "Бесплатно");
-    return `${i + 1}. <a href="${s}/mentorlik/${c.slug}"><b>${escapeTelegramHtml(c.title)}</b></a>\n   ${c.lessonsCount} ${L(lang, "dars", "уроков")} · ${c.studentsCount} ${L(lang, "talaba", "учеников")} · ${stars(c.rating, lang)} · ${escapeTelegramHtml(price)}`;
+    return `${i + 1}. <a href="${s}/mentorlik/${c.slug}"><b>${escapeTelegramHtml(c.title)}</b></a>\n   ${plural(lang, c.lessonsCount, "dars", ["урок", "урока", "уроков"])} · ${plural(lang, c.studentsCount, "talaba", ["ученик", "ученика", "учеников"])} · ${stars(c.rating, lang)} · ${escapeTelegramHtml(price)}`;
   });
   // «Sotib olish» — ro'yxatning o'zidan (`buy:c:<kurs>` → lib/mentorship/telegram-pay.ts): narx va to'lov usullari; bepul kurs — «Boshlash»
   const buy: TelegramButton[][] = items.map((c, i) => [{ text: `${c.priceFrom > 0 ? "🛒" : "🎁"} ${i + 1}. ${c.priceFrom > 0 ? `${L(lang, "Sotib olish", "Купить")} — ${formatPrice(c.priceFrom, { compact: true })}` : L(lang, "Bepul boshlash", "Начать бесплатно")}`, data: `buy:c:${c.id}` }]);
@@ -601,7 +602,7 @@ export async function handleTop(chatId: string, lang?: BotLang): Promise<void> {
     return;
   }
   const medal = ["🥇", "🥈", "🥉", "4.", "5."];
-  const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${r.score} ${L(lang, "ball", "баллов")}\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
+  const lines = rows.map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${s}/mutaxassislar/${r.author.slug ?? ""}"><b>${escapeTelegramHtml(r.author.name)}</b></a> — ${plural(lang, r.score, "ball", ["балл", "балла", "баллов"])}\n   ❤️ ${r.likes} · 💬 ${r.comments} · 👁 ${r.views}`);
   await sendTelegram(chatId, `🏆 <b>${L(lang, "Oyning TOP ijodkorlari", "ТОП авторов месяца")}</b> (${L(lang, "jonli hisob", "живой счёт")})\n\n${lines.join("\n\n")}`, { button: { text: L(lang, "To'liq reyting", "Полный рейтинг"), url: `${s}/top` } });
 }
 

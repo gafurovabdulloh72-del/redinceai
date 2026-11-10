@@ -1402,3 +1402,48 @@ test("/profil: profil tayyorligi foizi va keyingi qadam (sayt bilan bitta hisob)
   // Ruscha
   assert.match(texts(sentTo(await msg(CHAT_RU, "/profil", "ru"), CHAT_RU)), /Заполненность профиля: <b>\d{1,3}%<\/b>/);
 });
+
+test("«Sinov xabari» (kabinet va admin panel): foydalanuvchi tilida keladi; botni bloklagan bo'lsa aniq sabab aytiladi", { skip: ADMIN_SKIP || NEED_DB }, async () => {
+  const cookieCl = await clientSession();
+  const cid = (await sql("select id from users where email = ?", [CLIENT_EMAIL]))[0].id;
+  // Soatiga 5 ta chegara — lokalda testni ketma-ket bir necha marta ishga tushirishga xalal bermasin
+  await sql("delete from rate_limits where key = ?", [`tgTest:${cid}`]);
+  try {
+    fresh();
+    const ok = await api(cookieCl, "POST", "/api/telegram/test");
+    assert.equal(ok.status, 200, JSON.stringify(ok.json).slice(0, 200));
+    assert.match(texts(sentTo(await settle(), CHAT_CLIENT)), /Sinov xabari/);
+    // Hisob tili ruscha — xabar ham ruscha
+    await sql("update users set lang = 'ru' where id = ?", [cid]);
+    assert.equal((await api(cookieCl, "POST", "/api/telegram/test")).status, 200);
+    assert.match(texts(sentTo(await settle(), CHAT_CLIENT)), /Тестовое сообщение/);
+    await sql("update users set lang = null where id = ?", [cid]);
+    // Foydalanuvchi botni bloklagan: umumiy «qabul qilmadi» emas — nima qilish kerakligi aytiladi
+    await control({ blocked: [String(CHAT_CLIENT)] });
+    const blocked = await api(cookieCl, "POST", "/api/telegram/test");
+    await control({ blocked: [] });
+    assert.equal(blocked.status, 502);
+    assert.match(String(blocked.json?.error ?? ""), /bloklagansiz/);
+  } finally {
+    await control({ blocked: [] });
+    await sql("update users set lang = null where id = ?", [cid]);
+    await sql("delete from rate_limits where key in (?, ?)", [`tgDead:${CHAT_CLIENT}`, `tgTest:${cid}`]);
+  }
+  // Admin panel «Sinov xabari» va holat (botni bloklagan chatlar soni)
+  cookie = cookie || (await login(ADMIN_EMAIL, ADMIN_PASSWORD));
+  assert.ok(cookie, "admin kirishi muvaffaqiyatsiz");
+  await linkChat(cookie, CHAT_ADMIN);
+  try {
+    fresh();
+    const adm = await api(cookie, "PATCH", "/api/admin/telegram", { kind: "test" });
+    assert.equal(adm.status, 200, JSON.stringify(adm.json).slice(0, 200));
+    const got = sentTo(await settle(), CHAT_ADMIN);
+    assert.match(texts(got), /Bot ishlayapti/);
+    assert.match(texts(got), /\/tuzoq/, "admin buyruqlari ro'yxatida yangi buyruqlar yo'q");
+    const st = await api(cookie, "GET", "/api/admin/telegram");
+    assert.equal(st.status, 200);
+    assert.equal(typeof st.json?.data?.unreachableChats, "number", "holatda «yetib bo'lmaydigan chatlar» soni yo'q");
+  } finally {
+    await msg(CHAT_ADMIN, "/stop");
+  }
+});
