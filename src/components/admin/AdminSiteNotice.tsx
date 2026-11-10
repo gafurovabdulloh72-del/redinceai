@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Megaphone, Save, Trash2, Wrench } from "lucide-react";
 import { adminApi, errText } from "@/components/admin/admin-api";
 import { SiteBannerView, type BannerViewTone } from "@/components/system/SiteBannerView";
@@ -13,7 +14,8 @@ import { cn, formatDateTime, timeAgo } from "@/lib/utils";
  * Admin «Tizim» tabi: «SAYT E'LONI» (tepadagi chiziq: matn uz/ru, ohang, havola, muddat, oldindan ko'rish) va
  * «TEXNIK ISHLAR REJIMI» (faqat o'qish: admin bo'lmaganlar hech narsa yoza olmaydi; tasdiq bilan yoqiladi).
  * API: GET/PUT/DELETE /api/admin/sayt-elon, GET/PUT /api/admin/texnik-ishlar. Har o'zgarish audit jurnaliga yoziladi.
- * O'zgarish saytda ≤15 soniyada ko'rinadi (server keshi).
+ * Tashrifchiga chiziq sahifa ochilganda/yangilanganda ko'rinadi (server keshi ≤15 s; ochiq turgan tabda sahifalar orasida
+ * o'tish layout'ni qayta chizmaydi). Adminning o'z sahifasi saqlagach `router.refresh()` bilan darhol yangilanadi.
  */
 interface Banner {
   textUz: string;
@@ -55,6 +57,7 @@ function fromLocalInput(v: string): number | null {
 
 export function AdminSiteNotice() {
   const confirm = useConfirm();
+  const router = useRouter();
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -111,7 +114,9 @@ export function AdminSiteNotice() {
     try {
       const d = await adminApi<{ banner: Banner }>("/api/admin/sayt-elon", { method: "PUT", json: { textUz: textUz.trim(), textRu: textRu.trim(), tone, href: href.trim(), until: fromLocalInput(until) } });
       fillBanner(d.banner);
-      showToast("E'lon saqlandi — saytda 15 soniya ichida ko'rinadi");
+      showToast("E'lon saqlandi — tashrifchilarga sahifa ochilganda ko'rinadi");
+      // Adminning o'z sahifasida chiziq darhol paydo bo'lsin (layout qayta chiziladi)
+      router.refresh();
     } catch (e) {
       setBannerError(errText(e, "Saqlab bo'lmadi"));
     } finally {
@@ -127,6 +132,7 @@ export function AdminSiteNotice() {
       fillBanner(null);
       setBannerError(null);
       showToast("E'lon olib tashlandi");
+      router.refresh();
     } catch (e) {
       showToast(errText(e), "error");
     } finally {
@@ -139,6 +145,7 @@ export function AdminSiteNotice() {
     try {
       fillMaint(await adminApi<Maintenance>("/api/admin/texnik-ishlar", { method: "PUT", json: body }));
       showToast(okText);
+      router.refresh();
     } catch (e) {
       showToast(errText(e), "error");
     } finally {

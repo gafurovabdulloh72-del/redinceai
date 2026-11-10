@@ -604,7 +604,7 @@ export default async function AdminPage() {
 
         {/* ---------- Sayt e'loni va texnik ishlar rejimi (2026-11-10) ---------- */}
         <section id="sayt-elon" className={SECTION} aria-labelledby="h-sayt-elon">
-          <AdminSectionHeading title={<span id="h-sayt-elon">Sayt e&apos;loni va texnik ishlar</span>} description="Sayt tepasidagi e'lon chizig'i (ikki tilda) va «faqat o'qish» rejimi. O'zgarish 15 soniya ichida hammaga ko'rinadi; har amal audit jurnalida." />
+          <AdminSectionHeading title={<span id="h-sayt-elon">Sayt e&apos;loni va texnik ishlar</span>} description="Sayt tepasidagi e'lon chizig'i (ikki tilda) va «faqat o'qish» rejimi. Tashrifchiga sahifa ochilganda yoki yangilanganda ko'rinadi; har amal audit jurnalida." />
           <AdminSiteNotice />
         </section>
 

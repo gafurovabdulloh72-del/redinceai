@@ -13,7 +13,12 @@ import { SiteBannerView } from "./SiteBannerView";
  * Joylashuv: oqim ichida (fixed EMAS) — telefonda yuqori panel ostida, desktopda kontent ustunining tepasida;
  * navbar/yon panelni yopmaydi va kontent bilan birga aylanib ketadi. `main`ning tepa bo'shlig'i manfiy margin bilan
  * qoplanadi (chiziq chetga yopishib turadi), pastda esa o'sha bo'shliq qayta beriladi.
- * To'liq ekranli sahifalarda (kirish/ro'yxat — bitta ekran qoidasi, Reels) chizilmaydi; chop etishda ham.
+ * To'liq ekranli sahifalarda (kirish/ro'yxat — bitta ekran qoidasi, Reels) chizilmaydi; chop etishda ham. Oyna
+ * balandligiga sig'dirilgan desktop chatda oddiy e'lon yashiriladi (SiteBannerFrame `FIT_SCREENS`) — texnik ishlar
+ * chizig'i esa hamma joyda ko'rinadi.
+ *
+ * Yangilanish: chiziq sahifa SERVERDA chizilganda paydo bo'ladi (yangi ochilgan/yangilangan sahifa). Ochiq turgan tabda
+ * sahifalar orasida o'tish (soft navigation) layout'ni qayta chizmaydi — e'lon keyingi to'liq yuklanishda ko'rinadi.
  *
  * Ma'lumot: `getSiteNotice()` — xotira keshi (≤15 s), ya'ni layout har so'rovda bazaga bormaydi.
  * Texnik ishlar rejimi yoqilgan bo'lsa oddiy e'lon o'rniga OGOHLANTIRISH chizig'i (yopib bo'lmaydi).
@@ -48,7 +53,8 @@ export async function SiteBanner() {
   if ((await cookies()).get(BANNER_COOKIE)?.value === String(b.version)) return null;
   const text = til === "ru" && b.textRu ? b.textRu : b.textUz;
   return (
-    <SiteBannerFrame version={b.version} dismissLabel={tr(til, BANNER.dismiss)} className={SHELL}>
+    // key — versiya: e'lon yangilansa (router.refresh) ramka qayta o'rnatiladi va avval yopilgan bo'lsa ham yana ochiladi
+    <SiteBannerFrame key={b.version} version={b.version} dismissLabel={tr(til, BANNER.dismiss)} className={SHELL}>
       <div role="region" aria-label={tr(til, BANNER.label)} data-site-notice="banner">
         <SiteBannerView tone={b.tone} text={text} href={b.href} moreLabel={tr(til, BANNER.more)} className={`pr-12 sm:pr-12 md:pr-40 lg:pr-40 ${DESKTOP}`} />
       </div>

@@ -1,10 +1,20 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { usePresence } from "@/components/motion/usePresence";
 import { cn } from "@/lib/utils";
 import { BANNER_COOKIE, BANNER_STORAGE_KEY } from "./banner-keys";
+
+/**
+ * Oyna balandligiga SIG'DIRILGAN desktop ekranlar (lg+): chat paneli `100dvh − 130px` bilan hisoblangan — oqimga qo'shilgan
+ * e'lon chizig'i uni pastga surib, yozish maydonini ekrandan chiqarib yuborardi. Bunday ekranlarda oddiy e'lon lg+ da
+ * ko'rsatilmaydi (telefon/planshetda ro'yxat oddiy oqimda — ko'rinadi; ochiq suhbat esa baribir to'liq ekran).
+ * Texnik ishlar chizig'i bu qoidadan MUSTASNO (SiteBanner) — u qisqa muddatli va yozish baribir yopiq.
+ * Yangi shunday sahifa qo'shsangiz (balandligi `100dvh`dan hisoblangan) — yo'lini shu ro'yxatga yozing.
+ */
+const FIT_SCREENS = ["/kabinet/chat"] as const;
 
 /**
  * E'lon chizig'ini yopish («×»). Yopilgan versiya `localStorage`da eslab qolinadi — admin e'lonni o'zgartirsa
@@ -18,6 +28,9 @@ import { BANNER_COOKIE, BANNER_STORAGE_KEY } from "./banner-keys";
 export function SiteBannerFrame({ version, dismissLabel, className, children }: { version: number; dismissLabel: string; className?: string; children: ReactNode }) {
   const [open, setOpen] = useState(true);
   const { mounted } = usePresence(open, 280);
+  // usePathname serverda ham joriy yo'lni beradi — birinchi render server bilan bir xil (gidratsiya mos)
+  const pathname = usePathname() ?? "";
+  const fitScreen = FIT_SCREENS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   useEffect(() => {
     try {
@@ -40,7 +53,7 @@ export function SiteBannerFrame({ version, dismissLabel, className, children }: 
 
   if (!mounted) return null;
   return (
-    <div className={cn("grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out", open ? "grid-rows-[1fr]" : "!my-0 grid-rows-[0fr] opacity-0", className)} data-print-hide>
+    <div className={cn("grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out", open ? "grid-rows-[1fr]" : "!my-0 grid-rows-[0fr] opacity-0", fitScreen && "lg:hidden", className)} data-print-hide>
       <div className="relative min-h-0 overflow-hidden">
         {children}
         {/* md+: o'ng tepada til/tema kapsulasi (fixed) turadi — tugma undan chapda */}
