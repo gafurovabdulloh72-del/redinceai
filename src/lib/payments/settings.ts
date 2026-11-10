@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { platformSettings } from "@/lib/db/schema";
 import { PLATFORM_DEFAULTS, TOP_RATED_RULE } from "@/lib/constants";
@@ -148,4 +148,114 @@ export async function saveManualCard(card: string, name: string): Promise<void> 
       .values({ key, value, updatedAt: now })
       .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedAt: now } });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sayt e'loni va texnik ishlar rejimi (2026-11-10)                     */
+/* ------------------------------------------------------------------ */
+/**
+ * Ikki kalit `platform_settings`da JSON obyekt sifatida turadi:
+ *  siteBanner  — sayt tepasidagi e'lon chizig'i (matn uz/ru, ohang, havola, muddat, versiya);
+ *  maintenance — «faqat o'qish» rejimi (admin bo'lmaganlarning o'zgartirishlari 503 oladi — lib/admin/maintenance.ts).
+ * Bu yerda faqat XOM o'qish/yozish; keshlangan o'qish — lib/admin/site-notice.ts (layout har so'rovda bazaga bormasin).
+ */
+export const BANNER_TONES = ["info", "warn", "success"] as const;
+export type BannerTone = (typeof BANNER_TONES)[number];
+
+export interface SiteBannerSetting {
+  textUz: string;
+  /** Bo'sh bo'lsa rus tilidagi tashrifchiga ham o'zbekcha matn ko'rsatiladi */
+  textRu: string;
+  tone: BannerTone;
+  /** Ichki yo'l (/…) yoki https havola; null — havolasiz */
+  href: string | null;
+  /** Shu vaqtgacha (ms) ko'rsatiladi; null — o'chirilguncha */
+  until: number | null;
+  /** Har saqlashda yangilanadi — tashrifchi yopgan e'lon yangi versiyada yana ko'rinadi */
+  version: number;
+}
+
+export interface MaintenanceSetting {
+  on: boolean;
+  /** Bo'sh bo'lsa standart matn (i18n/dict/system.ts) */
+  messageUz: string;
+  messageRu: string;
+  /** Yoqilgan vaqt (ms) — admin panelda «N daqiqadan beri» */
+  since: number | null;
+}
+
+export const BANNER_LIMITS = { text: 240, href: 300, message: 300 } as const;
+const NOTICE_KEYS = ["siteBanner", "maintenance"] as const;
+export const MAINTENANCE_OFF: MaintenanceSetting = { on: false, messageUz: "", messageRu: "", since: null };
+
+const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+
+/** E'lon havolasi xavfsizmi: ichki yo'l (`/…`, `//` emas) yoki https manzil. Boshqa sxema (javascript:, data:, http:) — yo'q */
+export function safeBannerHref(v: unknown): string | null {
+  const s = str(v, BANNER_LIMITS.href);
+  if (!s) return null;
+  if (s.startsWith("/")) return s.startsWith("//") || /[\\\u0000-\u001f\s]/.test(s) ? null : s;
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" && !u.username && !u.password ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseBanner(v: unknown): SiteBannerSetting | null {
+  const o = obj(v);
+  if (!o) return null;
+  const textUz = str(o.textUz, BANNER_LIMITS.text);
+  if (!textUz) return null;
+  const tone = (BANNER_TONES as readonly string[]).includes(String(o.tone)) ? (o.tone as BannerTone) : "info";
+  const until = typeof o.until === "number" && Number.isFinite(o.until) && o.until > 0 ? Math.round(o.until) : null;
+  const version = typeof o.version === "number" && Number.isFinite(o.version) ? Math.round(o.version) : 1;
+  return { textUz, textRu: str(o.textRu, BANNER_LIMITS.text), tone, href: safeBannerHref(o.href), until, version };
+}
+
+function parseMaintenance(v: unknown): MaintenanceSetting {
+  const o = obj(v);
+  if (!o) return { ...MAINTENANCE_OFF };
+  return {
+    on: o.on === true,
+    messageUz: str(o.messageUz, BANNER_LIMITS.message),
+    messageRu: str(o.messageRu, BANNER_LIMITS.message),
+    since: typeof o.since === "number" && Number.isFinite(o.since) ? Math.round(o.since) : null,
+  };
+}
+
+/** Keshsiz o'qish (admin API va kesh yangilash uchun). Baza xatosi YUQORIGA tashlanadi — kesh qatlami oxirgi ma'lum holatni saqlaydi */
+export async function readSiteNotice(): Promise<{ banner: SiteBannerSetting | null; maintenance: MaintenanceSetting }> {
+  const rows = await db.select().from(platformSettings).where(inArray(platformSettings.key, [...NOTICE_KEYS]));
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  return { banner: parseBanner(map.get("siteBanner")), maintenance: parseMaintenance(map.get("maintenance")) };
+}
+
+async function putSetting(key: (typeof NOTICE_KEYS)[number], value: unknown): Promise<void> {
+  const now = new Date();
+  await db
+    .insert(platformSettings)
+    .values({ key, value, updatedAt: now })
+    .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedAt: now } });
+}
+
+/** Admin: e'lonni saqlash (versiya yangilanadi) yoki `null` bilan o'chirish. Saqlangan holatni qaytaradi */
+export async function saveSiteBanner(input: Omit<SiteBannerSetting, "version"> | null): Promise<SiteBannerSetting | null> {
+  if (!input) {
+    await db.delete(platformSettings).where(eq(platformSettings.key, "siteBanner"));
+    return null;
+  }
+  const saved = parseBanner({ ...input, version: Date.now() });
+  if (!saved) throw new Error("E'lon matni bo'sh");
+  await putSetting("siteBanner", saved);
+  return saved;
+}
+
+/** Admin: texnik ishlar rejimini saqlash. `since` — yoqilgan paytda qo'yiladi, o'chirilganda tozalanadi */
+export async function saveMaintenance(input: Pick<MaintenanceSetting, "on" | "messageUz" | "messageRu">, prev?: MaintenanceSetting): Promise<MaintenanceSetting> {
+  const saved = parseMaintenance({ ...input, since: input.on ? (prev?.on && prev.since ? prev.since : Date.now()) : null });
+  await putSetting("maintenance", saved);
+  return saved;
 }

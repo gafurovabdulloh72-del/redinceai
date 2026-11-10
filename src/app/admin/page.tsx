@@ -12,6 +12,11 @@ import { AdminEvents } from "@/components/admin/AdminEvents";
 import { AdminHealthCard } from "@/components/admin/AdminHealthCard";
 import { AdminFeedback } from "@/components/admin/AdminFeedback";
 import { AdminHoneypot } from "@/components/admin/AdminHoneypot";
+import { AdminReadiness } from "@/components/admin/AdminReadiness";
+import { AdminSiteNotice } from "@/components/admin/AdminSiteNotice";
+import { AdminErrors } from "@/components/admin/AdminErrors";
+import { AdminCron } from "@/components/admin/AdminCron";
+import { AdminRateLimits } from "@/components/admin/AdminRateLimits";
 import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
@@ -66,6 +71,7 @@ import { getSettings } from "@/lib/payments/settings";
 import { getAdminOverview } from "@/lib/queries";
 import { getSubscriptionRevenueSummary } from "@/lib/subscriptions/queries";
 import { contactUnlockStats, pendingContactInvoices } from "@/lib/contacts/unlock";
+import { countOpenErrors } from "@/lib/observability/errors";
 import { cn, formatPrice, timeAgo } from "@/lib/utils";
 import { getAdminAnalytics } from "./analytics";
 import { getFraudSignals } from "./fraud";
@@ -117,8 +123,23 @@ const money = (n: number) => formatPrice(n, { compact: n >= 1_000_000 });
 const PAYMENTS_CAP = 60;
 const REVIEWS_CAP = 30;
 
-/** Bo'lim o'rami: bir xil vertikal ritm va langar siljishi (telefonda tepadagi panel 56px, desktopda panel yo'q) */
-const SECTION = "mt-10 scroll-mt-20 sm:mt-12 md:scroll-mt-6";
+/** Bo'lim o'rami: bir xil vertikal ritm va langar siljishi (telefonda tepadagi panel 56px; desktopda yopishqoq tab qatori ~53px — sarlavha uning ostida qolmasin) */
+const SECTION = "mt-10 scroll-mt-20 sm:mt-12 md:scroll-mt-[4.5rem]";
+
+/** «Tizim» tabi uzun (11 bo'lim) — tepada bo'limlarga tezkor o'tish chiplari (hash → AdminTabs ochadi va aylantiradi) */
+const TIZIM_NAV: Array<[id: string, label: string]> = [
+  ["tayyorlik", "Tayyorlik"],
+  ["sayt-elon", "E'lon va texnik ishlar"],
+  ["xatolar", "Xatolar"],
+  ["cron", "Cron"],
+  ["limitlar", "Limitlar"],
+  ["telegram-bot", "Telegram bot"],
+  ["r2-saqlash", "Fayl saqlash"],
+  ["tizim", "Tizim holati"],
+  ["fikrlar", "Fikrlar"],
+  ["tuzoq", "Tuzoq"],
+  ["sozlamalar", "Sozlamalar"],
+];
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
@@ -127,7 +148,7 @@ export default async function AdminPage() {
   if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
 
   // Tasdiqlash navbati listPendingSpecialists'dan keladi (eng eskisi birinchi, 200 tagacha, avatar + portfolio soni bilan)
-  const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue, contactStats, contactPending] = await Promise.all([
+  const [{ stats, latestUsers, latestOrders }, pending, recentVerified, finance, payouts, payments, settings, disputes, reviewsLatest, reports, analytics, fraud, settingsHistory, subRevenue, contactStats, contactPending, openErrors] = await Promise.all([
     getAdminOverview(),
     listPendingSpecialists(200),
     listRecentVerified(30),
@@ -144,6 +165,8 @@ export default async function AdminPage() {
     getSubscriptionRevenueSummary(),
     contactUnlockStats(),
     pendingContactInvoices().then((r) => r.length).catch(() => 0),
+    // Xatolar jurnali: ochiq xatolar soni — «Tizim» tabi belgisi (xato bo'lsa 0, sahifa buzilmaydi)
+    countOpenErrors(),
   ]);
   const bans = await banFlagsFor(pending.map((sp) => sp.userId));
   // Demo (seed) yozuvlari soni — tozalash tugmasi faqat ular borida ko'rinadi
@@ -259,7 +282,8 @@ export default async function AdminPage() {
     { key: "moliya", label: "Moliya", count: finance.manualPending + fraud.total, ids: ["tolovlar", "moliya", "analitika", "shubhali", "tolov-sozlamalari"] },
     { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "xabar"] },
     { key: "odamlar", label: "Odamlar", ids: ["foydalanuvchilar", "faollik"] },
-    { key: "tizim", label: "Tizim", ids: ["telegram-bot", "r2-saqlash", "tizim", "fikrlar", "tuzoq", "sozlamalar"] },
+    // Belgi — ochiq xatolar soni (AdminErrors amal bajarilganda `admin-tab-count` hodisasi bilan jonli yangilaydi)
+    { key: "tizim", label: "Tizim", count: openErrors, ids: TIZIM_NAV.map(([id]) => id) },
   ];
 
   return (
@@ -274,7 +298,9 @@ export default async function AdminPage() {
             <h1 className="mt-1.5 font-display text-[26px] font-semibold leading-tight tracking-tight text-fg sm:text-[30px]">Boshqaruv markazi</h1>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-3">Navbatlar, moliya, foydalanuvchilar va sozlamalar — bir joyda.</p>
           </div>
-          <nav aria-label="Admin sahifalari" className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] font-semibold sm:max-w-[60%] sm:justify-end">
+          {/* md+: o'ng tepada til/tema kapsulasi (fixed, ~96px) suzib turadi — havolalar uning ostida qolmasligi uchun o'ngdan joy
+              qoldiriladi (≥1920px da kontent markazlashgan, kapsula undan tashqarida — joy kerak emas) */}
+          <nav aria-label="Admin sahifalari" className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] font-semibold sm:max-w-[60%] sm:justify-end md:pr-28 min-[1920px]:pr-0">
             {[
               { href: "/admin/obunalar", label: "Obunalar", icon: CreditCard, badge: subRevenue.pendingManual },
               { href: "/admin/mentorlik", label: "Mentorlik", icon: GraduationCap, badge: 0 },
@@ -295,11 +321,12 @@ export default async function AdminPage() {
         {!user.totpEnabled && (
           <div role="alert" className="mt-4 flex flex-wrap items-start gap-3 rounded-2xl border border-warning/40 bg-warning-soft p-4 text-[13.5px] sm:flex-nowrap">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warning-text" aria-hidden="true" />
-            <div className="min-w-0 flex-1">
+            {/* basis-[13rem]: telefonda tugma matn yonida turib uni ~150px ga siqmasin — sig'masa pastga tushadi */}
+            <div className="min-w-0 flex-1 basis-[13rem]">
               <p className="font-semibold text-fg">Admin hisobida ikki bosqichli himoya (2FA) yoqilmagan</p>
               <p className="mt-0.5 leading-relaxed text-fg-3">Admin parolini bilgan odam butun platformani boshqara oladi. Autentifikator ilovasi bilan 2FA&apos;ni yoqing — bir daqiqa. Barcha adminlar yoqqach, Vercel&apos;da <code className="font-mono text-[12px]">ADMIN_REQUIRE_2FA=1</code> qo&apos;ying — 2FA&apos;siz admin panel va admin bot yopiladi.</p>
             </div>
-            <a href="/kabinet/xavfsizlik" className="btn-ink inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold">2FA&apos;ni yoqish</a>
+            <a href="/kabinet/xavfsizlik" className="btn-ink inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold max-sm:ml-[30px]">2FA&apos;ni yoqish</a>
           </div>
         )}
 
@@ -559,6 +586,46 @@ export default async function AdminPage() {
         </section>
           </div>
           <div>
+        {/* ---------- «Tizim» tabi: bo'limlarga tezkor o'tish ---------- */}
+        <nav aria-label="Tizim bo'limlari" className="no-scrollbar -mx-4 mt-5 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          {TIZIM_NAV.map(([id, label]) => (
+            <a key={id} href={`#${id}`} className="chip shrink-0">
+              {label}
+              {id === "xatolar" && openErrors > 0 && <span className="rounded-full bg-accent-soft px-1.5 text-[11px] font-bold tabular-nums text-accent-text">{openErrors}</span>}
+            </a>
+          ))}
+        </nav>
+
+        {/* ---------- Ishga tushirishga tayyorlik (2026-11-10) ---------- */}
+        <section id="tayyorlik" className={SECTION} aria-labelledby="h-tayyorlik">
+          <AdminSectionHeading title={<span id="h-tayyorlik">Ishga tushirishga tayyorlik</span>} description="Ochilishdan oldingi tekshiruv: sozlamalar, xavfsizlik, to'lov, aloqa va media. Har band — holat va qanday tuzatish; kalit qiymatlari hech qayerda ko'rsatilmaydi." />
+          <AdminReadiness />
+        </section>
+
+        {/* ---------- Sayt e'loni va texnik ishlar rejimi (2026-11-10) ---------- */}
+        <section id="sayt-elon" className={SECTION} aria-labelledby="h-sayt-elon">
+          <AdminSectionHeading title={<span id="h-sayt-elon">Sayt e&apos;loni va texnik ishlar</span>} description="Sayt tepasidagi e'lon chizig'i (ikki tilda) va «faqat o'qish» rejimi. Tashrifchiga sahifa ochilganda yoki yangilanganda ko'rinadi; har amal audit jurnalida." />
+          <AdminSiteNotice />
+        </section>
+
+        {/* ---------- Xatolar jurnali (2026-11-10) ---------- */}
+        <section id="xatolar" className={SECTION} aria-labelledby="h-xatolar">
+          <AdminSectionHeading title={<span id="h-xatolar">Xatolar</span>} description="Server va brauzer xatolari — bir xili bitta qatorda, necha marta va qachon uchragani bilan. Shaxsiy ma'lumot (email, telefon, token) yozilmaydi." />
+          <AdminErrors initialOpen={openErrors} />
+        </section>
+
+        {/* ---------- Cron holati (2026-11-10) ---------- */}
+        <section id="cron" className={SECTION} aria-labelledby="h-cron">
+          <AdminSectionHeading title={<span id="h-cron">Cron holati</span>} description="Kunlik fon vazifasi: har qadam nima qiladi va oxirgi safar nima bo'ldi. Jadval ishlamay qolsa — shu yerdan qo'lda ishga tushiring." />
+          <AdminCron />
+        </section>
+
+        {/* ---------- Tezlik cheklovlari (2026-11-10) ---------- */}
+        <section id="limitlar" className={SECTION} aria-labelledby="h-limitlar">
+          <AdminSectionHeading title={<span id="h-limitlar">Tezlik cheklovlari</span>} description="Hozir faol hisoblagichlar. Haqiqiy foydalanuvchi «juda ko'p urinish»ga tushib qolsa — toping va limitini tozalang." />
+          <AdminRateLimits />
+        </section>
+
         {/* ---------- Telegram bot ---------- */}
         <section id="telegram-bot" className={SECTION} aria-labelledby="h-telegram">
           <AdminSectionHeading title={<span id="h-telegram">Telegram bot</span>} description="Token Vercel'da bo'lsa webhook shu yerdan bir tugmada o'rnatiladi." />

@@ -21,6 +21,8 @@ import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { CallCenter } from "@/components/call/CallCenter";
 import { TgAppBridge } from "@/components/tg/TgAppBridge";
 import { ConsoleGreeting } from "@/components/security/ConsoleGreeting";
+import { SiteBanner } from "@/components/system/SiteBanner";
+import { ClientErrorReporter } from "@/components/system/ClientErrorReporter";
 import { getCurrentUser } from "@/lib/auth";
 import { getDisplayLocale, getLocale } from "@/lib/i18n/server";
 import { DISPLAY_LANG, tr } from "@/lib/i18n";
@@ -175,6 +177,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   ≥1920px: kontent 1600px bilan cheklanadi va markazda turadi */}
               <div className="app-shell md:pl-[72px] xl:pl-[232px]">
                 <main id="asosiy" tabIndex={-1} className="pt-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] pb-[calc(3.75rem+env(safe-area-inset-bottom)+1rem)] outline-none md:pb-12 md:pt-8 min-[1920px]:mx-auto min-[1920px]:max-w-[100rem]">
+                  {/* Sayt e'loni / texnik ishlar chizig'i (admin → Tizim): oqim ichida, navbarni yopmaydi */}
+                  <SiteBanner />
                   {children}
                 </main>
                 <FooterGate guest={!currentUser}>
@@ -191,6 +195,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <NetworkBanner />
               <AppearanceSync />
               <ConsoleGreeting />
+              {/* Brauzer xatolari → admin «Xatolar» jurnali (POST /api/xato) */}
+              <ClientErrorReporter />
               <ServiceWorkerRegister />
               {/* Global qo'ng'iroq markazi (Telegram uslubi): kiruvchi/chiquvchi ekran + jiringlash — faqat kirgan foydalanuvchiga */}
               <CallCenter enabled={!!currentUser} />

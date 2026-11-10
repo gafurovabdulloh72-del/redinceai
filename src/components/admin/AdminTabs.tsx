@@ -22,7 +22,18 @@ export interface AdminTabDef {
 
 export function AdminTabs({ tabs, children }: { tabs: AdminTabDef[]; children: ReactNode }) {
   const [active, setActive] = useState(tabs[0]?.key ?? "");
+  /** Jonli sonlar: bo'lim ichida amal bajarilganda (masalan, xato «hal qilindi») belgi sahifani yangilamasdan o'zgaradi */
+  const [live, setLive] = useState<Record<string, number>>({});
   const kids = Children.toArray(children);
+
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ key?: string; count?: number }>).detail;
+      if (d?.key && typeof d.count === "number") setLive((p) => (p[d.key as string] === d.count ? p : { ...p, [d.key as string]: d.count as number }));
+    };
+    window.addEventListener("admin-tab-count", on);
+    return () => window.removeEventListener("admin-tab-count", on);
+  }, []);
 
   const openHash = useCallback(
     (hash: string) => {
@@ -51,6 +62,7 @@ export function AdminTabs({ tabs, children }: { tabs: AdminTabDef[]; children: R
         <div className="no-scrollbar flex gap-1.5 overflow-x-auto py-2" role="tablist" aria-label="Admin bo'limlari">
           {tabs.map((t) => {
             const on = t.key === active;
+            const count = live[t.key] ?? t.count ?? 0;
             return (
               <button
                 key={t.key}
@@ -68,8 +80,8 @@ export function AdminTabs({ tabs, children }: { tabs: AdminTabDef[]; children: R
                 )}
               >
                 {t.label}
-                {(t.count ?? 0) > 0 && (
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums", on ? "bg-bg/20 text-bg" : "bg-accent-soft text-accent-text")}>{t.count}</span>
+                {count > 0 && (
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums", on ? "bg-bg/20 text-bg" : "bg-accent-soft text-accent-text")}>{count > 999 ? "999+" : count}</span>
                 )}
               </button>
             );

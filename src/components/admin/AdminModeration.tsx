@@ -225,10 +225,11 @@ export function AdminModeration() {
           {(shown as GroupRow[]).map((g) => (
             <li key={g.id} className={cn("px-4 py-3 sm:px-5", busy === g.id && "opacity-60")}>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-[12rem]">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold text-fg">
-                    <Link href={`/jamoalar/${g.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-accent">
-                      <span className="truncate">{g.name}</span> <ExternalLink size={12} className="text-fg-4" />
+                    {/* min-w-0 + max-w-full: uzun nom «⋯» tugmasi ostiga chiqib ketmasin — qisqartiriladi (to'liq nomi title'da) */}
+                    <Link href={`/jamoalar/${g.slug}`} target="_blank" rel="noreferrer" title={g.name} className="inline-flex min-w-0 max-w-full items-center gap-1 hover:text-accent">
+                      <span className="min-w-0 truncate">{g.name}</span> <ExternalLink size={12} className="shrink-0 text-fg-4" />
                     </Link>
                     <Badge tone={g.kind === "channel" ? "info" : "neutral"}>{g.kind === "channel" ? "Kanal" : "Guruh"}</Badge>
                     {g.isOfficial && <Badge tone="accent">Rasmiy</Badge>}
@@ -283,10 +284,10 @@ export function AdminModeration() {
           {(shown as VacancyRow[]).map((v) => (
             <li key={v.id} className={cn("px-4 py-3 sm:px-5", busy === v.id && "opacity-60")}>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-[12rem]">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold text-fg">
-                    <Link href={`/vakansiyalar/${v.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-accent">
-                      <span className="truncate">{v.title}</span> <ExternalLink size={12} className="text-fg-4" />
+                    <Link href={`/vakansiyalar/${v.id}`} target="_blank" rel="noreferrer" title={v.title} className="inline-flex min-w-0 max-w-full items-center gap-1 hover:text-accent">
+                      <span className="min-w-0 truncate">{v.title}</span> <ExternalLink size={12} className="shrink-0 text-fg-4" />
                     </Link>
                     <Badge tone={v.status === "open" ? (v.expired ? "neutral" : "success") : "neutral"}>{v.status === "open" ? (v.expired ? "Muddati o'tgan" : "Ochiq") : "Yopilgan"}</Badge>
                     {v.externalApply && <Badge tone="info">Tashqi ariza</Badge>}

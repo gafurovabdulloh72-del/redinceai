@@ -113,7 +113,7 @@ export function AdminBlog({ initial }: { initial: ArticleCard[] }) {
 
   if (draft) {
     return (
-      <div className="grid gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <div className="flex items-center justify-between">
           <p className="text-[14px] font-bold text-fg">{draft.id ? "Maqolani tahrirlash" : "Yangi maqola"}</p>
           <button type="button" onClick={() => setDraft(null)} aria-label="Yopish" className="flex h-8 w-8 items-center justify-center rounded-full text-fg-3 hover:bg-fg/6 hover:text-fg">
@@ -169,7 +169,9 @@ export function AdminBlog({ initial }: { initial: ArticleCard[] }) {
   }
 
   return (
-    <div className="grid gap-3">
+    // grid-cols-[minmax(0,1fr)]: grid ustuni kontentning eng kichik kengligidan (uzun sarlavha/slug) kengaymasin — telefonda
+    // qator ekrandan chiqib ketardi (x≈529); `truncate` faqat `min-w-0` bo'lgan flex elementda ishlaydi
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <div>
         <Button type="button" onClick={() => setDraft({ ...EMPTY })}>
           <Plus size={15} /> Yangi maqola
@@ -178,17 +180,17 @@ export function AdminBlog({ initial }: { initial: ArticleCard[] }) {
       {items.length === 0 ? (
         <p className="py-6 text-center text-[13.5px] text-fg-3">Hali maqola yo&apos;q — birinchisini yozing.</p>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="min-w-0 divide-y divide-line">
           {items.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 py-2.5">
+            <li key={a.id} className="flex min-w-0 items-center gap-3 py-2.5">
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer" className="truncate text-[14px] font-semibold text-fg hover:underline">
+                <span className="flex min-w-0 items-center gap-2">
+                  <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer" className="min-w-0 truncate text-[14px] font-semibold text-fg hover:underline">
                     {a.title}
                   </a>
                   <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold", a.isPublished ? "bg-success-soft text-success-text" : "bg-fg/8 text-fg-3")}>{a.isPublished ? "E'lon qilingan" : "Qoralama"}</span>
                 </span>
-                <span className="block text-[12px] text-fg-3">
+                <span className="block truncate text-[12px] text-fg-3">
                   /blog/{a.slug}
                   {a.publishedAt ? ` · ${formatDate(new Date(a.publishedAt))}` : ""}
                 </span>

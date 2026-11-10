@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Ban, BarChart3, Download, ExternalLink, Eye, EyeOff, Loader2, MessageCircle, Search, ShieldCheck, Star, StickyNote, Undo2 } from "lucide-react";
+import { Ban, BarChart3, Download, ExternalLink, Eye, EyeOff, KeyRound, Loader2, MessageCircle, Search, ShieldCheck, Star, StickyNote, Undo2 } from "lucide-react";
 import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
 import { UserAnalyticsSheet } from "@/components/admin/UserAnalyticsSheet";
+import { UserSecuritySheet } from "@/components/admin/UserSecuritySheet";
 import { Avatar, Button } from "@/components/ui";
 import { showToast } from "@/components/ui/toast";
 import { cn, formatDate, formatDateTime, timeAgo } from "@/lib/utils";
@@ -55,6 +56,8 @@ export function UsersPanel() {
   const [panel, setPanel] = useState<{ id: string; kind: "ban" | "note" } | null>(null);
   /** Faollik tahlili pastki varag'i (bitta foydalanuvchi) */
   const [analyticsUser, setAnalyticsUser] = useState<{ id: string; name: string } | null>(null);
+  /** Sessiyalar va parol varag'i: faol qurilmalar, barcha sessiyalarni tugatish, parol tiklash havolasi */
+  const [securityUser, setSecurityUser] = useState<{ id: string; name: string } | null>(null);
   const [reason, setReason] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -204,11 +207,13 @@ export function UsersPanel() {
             const canList = u.role !== "admin" && (u.role === "specialist" || u.slug);
             return (
               <li key={u.id} className={cn("p-4 transition-colors", isBusy && "opacity-60")}>
-                <div className="flex flex-wrap items-center gap-3">
+                {/* Tor ekranda (390px) matn ustuni siqilib qolmasin: unga 13rem asos beriladi — amallar sig'masa PASTGA tushadi
+                    (ilgari `flex-1` nol asosda ~20px gacha qisilib, ism bir bo'g'indan sinib ketardi) */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
                   <Avatar name={u.name} src={u.avatarUrl} size={38} decorative />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-[13rem]">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[14px] font-semibold text-fg">
-                      <span className="truncate">{u.name}</span>
+                      <span className="min-w-0 truncate">{u.name}</span>
                       {u.role === "admin" && <ShieldCheck size={14} className="text-accent" aria-label="Administrator" />}
                       {u.isPrivileged && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-bold text-info-text">
@@ -244,7 +249,7 @@ export function UsersPanel() {
                       </button>
                     )}
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                  <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
                     {canList && (
                       <button
                         type="button"
@@ -284,7 +289,8 @@ export function UsersPanel() {
                       aria-label={`${u.name}: faollik analitikasi`}
                       className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-2 px-3 text-[12.5px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
                     >
-                      <BarChart3 size={13} /> Analitika
+                      {/* Tor telefonda (≤430px) faqat ikonka — to'rtta amal bitta qatorga sig'adi («⋯» yolg'iz pastga tushmaydi) */}
+                      <BarChart3 size={13} /> <span className="max-[430px]:sr-only">Analitika</span>
                     </button>
                     <AdminRowMenu
                       label={`${u.name}: boshqa amallar`}
@@ -293,6 +299,7 @@ export function UsersPanel() {
                         ...(u.username ? [{ key: "dm", label: "Xabar yozish", icon: MessageCircle, href: `/yozish/${u.username}` }] : []),
                         ...(u.slug ? [{ key: "profile", label: "Ommaviy profil", icon: ExternalLink, href: `/mutaxassislar/${u.slug}` }] : []),
                         ...(u.slug ? [{ key: "priv", label: u.isPrivileged ? "Imtiyozni bekor qilish" : "Imtiyoz berish (obunasiz)", icon: Star, active: u.isPrivileged, onSelect: () => void setPrivileged(u, !u.isPrivileged) }] : []),
+                        { key: "security", label: "Sessiyalar va parol", icon: KeyRound, onSelect: () => setSecurityUser({ id: u.id, name: u.name }) },
                         { key: "note", label: u.adminNote ? "Izohni tahrirlash" : "Izoh qo'shish", icon: StickyNote, divider: true, onSelect: () => openPanel(u, "note") },
                       ]}
                     />
@@ -367,6 +374,7 @@ export function UsersPanel() {
         </ul>
       )}
       <UserAnalyticsSheet user={analyticsUser} onClose={() => setAnalyticsUser(null)} />
+      <UserSecuritySheet user={securityUser} onClose={() => setSecurityUser(null)} />
     </div>
   );
 }
