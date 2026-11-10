@@ -96,7 +96,8 @@ export function listableCondition(s: SubscriptionSettings, now: Date = new Date(
   const trialMs = s.subscriptionTrialDays * DAY;
   const cutoff = now.getTime() - s.subscriptionGraceDays * DAY;
   // Imtiyozli shaxslar obunadan qat'i nazar doim ko'rinadi
-  return sql`(${specialists.isPrivileged} = 1 or coalesce(${specialists.subscriptionUntil}, max(${specialists.createdAt}, ${SUBSCRIPTION_LAUNCH_AT}) + ${trialMs}) >= ${cutoff})`;
+  // Oylik TOP g'oliblari (awardPremiumUntil) ham Pro hisoblanadi — mukofot muddati ichida katalogda ko'rinadi
+  return sql`(${specialists.isPrivileged} = 1 or coalesce(${specialists.awardPremiumUntil}, 0) >= ${now.getTime()} or coalesce(${specialists.subscriptionUntil}, max(${specialists.createdAt}, ${SUBSCRIPTION_LAUNCH_AT}) + ${trialMs}) >= ${cutoff})`;
 }
 
 /** Reja chegirmasi (%): SUBSCRIPTION_PLANS'da yo'q oylar uchun 0 */

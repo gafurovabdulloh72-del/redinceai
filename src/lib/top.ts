@@ -5,6 +5,7 @@ import { specialists, topAwards } from "@/lib/db/schema";
 import { briefUsers, type UserBrief } from "@/lib/groups/service";
 import { notify } from "@/lib/notifications";
 import { topCreatorsBetween, type TopCreator } from "@/lib/reels";
+import { TIER_LIMITS } from "@/lib/subscriptions/pro";
 import { uid } from "@/lib/utils";
 
 /** Oylik TOP: g'oliblar soni va premium muddati (keyingi oy oxirigacha). Vaqt — Toshkent (UTC+5, yozgi vaqt yo'q) */
@@ -119,7 +120,7 @@ export async function publishMonthlyTop(key: string): Promise<{ published: numbe
       .update(specialists)
       .set({ awardPremiumUntil: sql`max(coalesce(${specialists.awardPremiumUntil}, 0), ${premiumUntil.getTime()})` })
       .where(eq(specialists.userId, t.author.id));
-    await notify(t.author.id, "top_award", `Tabriklaymiz! ${monthLabel(key)} TOP-${t.rank}`, `Siz oyning eng yaxshi ijodkorlaridan biri bo'ldingiz. Premium imtiyoz ${new Date(premiumUntil.getTime() - 1 + TZ_OFFSET).toISOString().slice(0, 10)} gacha — post va story cheklovlari yo'q.`, "/top").catch(() => undefined);
+    await notify(t.author.id, "top_award", `Tabriklaymiz! ${monthLabel(key)} TOP-${t.rank}`, `Siz oyning eng yaxshi ijodkorlaridan biri bo'ldingiz. ${new Date(premiumUntil.getTime() - 1 + TZ_OFFSET).toISOString().slice(0, 10)} gacha Pro tarifi: haftasiga ${TIER_LIMITS.pro.posts} ta post, ${TIER_LIMITS.pro.stories} ta story, portfolioda ${TIER_LIMITS.pro.portfolio} ta ish.`, "/top").catch(() => undefined);
   }
   return { published: top.length };
 }
