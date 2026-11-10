@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNotNull, like, or, sql, type AnyColumn } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, or, sql, type AnyColumn } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contactUnlocks, dmMessages, feedbacks, mentorPayouts, mentors, orders, payments, payouts, postComments, posts, reports, reviews, specialists, stories, subscriptionInvoices, users } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -8,7 +8,7 @@ import { notify, notifyAdmins } from "@/lib/notifications";
 import { audit } from "@/lib/security/audit";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { siteUrl } from "@/lib/security/site";
-import { escapeTelegramHtml, sendTelegram, telegramApi, type TelegramButton } from "@/lib/telegram";
+import { cutPlain, escapeTelegramHtml, sendTelegram, telegramApi, type TelegramButton } from "@/lib/telegram";
 import { formatPrice } from "@/lib/utils";
 import { tashkentDayStart } from "@/lib/jobs/server";
 import { purchaseMeta } from "@/lib/mentorship/purchases";
@@ -23,6 +23,7 @@ import { getSpecialistBalance, listAdminPayouts, specialistOwnerId } from "@/lib
 import { PAYOUT_STATE_LABEL } from "@/lib/constants";
 import { adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 import { L, type BotLang } from "@/lib/telegram-bot/lang";
+import { likeAny, userIdsByPhone } from "@/lib/telegram-bot/text-search";
 
 /**
  * ADMIN BOTI (2026-10-31): administrator Telegramdan platformani kuzatadi va navbatni hal qiladi.
@@ -310,7 +311,9 @@ export async function sendAdminStats(chatId: string, period: StatPeriod = "today
   const text = renderStats(s, undefined, { prev, series }, lang);
   if (msgId) {
     const r = await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text, parse_mode: "HTML", reply_markup: { inline_keyboard: toInline(statsKeyboard(period, lang)) } });
-    if (r?.ok) return;
+    // Faol davr qayta bosilsa matn o'zgarmaydi — Telegram «message is not modified» deydi: bu xato emas (ilgari statistika
+    // ikkinchi marta yangi xabar bo'lib yuborilardi)
+    if (r?.ok || /not modified/i.test(r?.description ?? "")) return;
   }
   await sendTelegram(chatId, text, { keyboard: statsKeyboard(period, lang) });
 }
@@ -412,7 +415,10 @@ export async function sendAdminPayments(chatId: string, lang?: BotLang): Promise
     const icon = isContactUnlock(i) ? "🔓" : kind === "purchase" ? "🎓" : "💠";
     const receipt = (i.meta as { receiptUrl?: string } | null)?.receiptUrl;
     const keyboard: TelegramButton[][] = [[{ text: OK, data: `mp:ok:s:${i.id}` }, { text: NO, data: `mp:no:s:${i.id}` }]];
-    if (receipt && /^https?:\/\//.test(receipt)) keyboard.push([{ text: L(lang, "🧾 Chek", "🧾 Чек"), url: receipt }]);
+    // Chek manzili diskda saqlanganda nisbiy (`/uploads/…`) bo'ladi — sayt manzili bilan to'ldiriladi (ilgari «chek bor» deb
+    // yozilib, tugma chiqmasdi). Telegram tugmasi faqat https havolani qabul qiladi.
+    const receiptUrl = receipt ? (receipt.startsWith("/") && !receipt.startsWith("//") ? `${site()}${receipt}` : receipt) : "";
+    if (/^https:\/\//.test(receiptUrl)) keyboard.push([{ text: L(lang, "🧾 Chek", "🧾 Чек"), url: receiptUrl }]);
     await sendTelegram(chatId, `${icon} <b>${escapeTelegramHtml(title)}</b> — ${formatPrice(i.amount)}\n${escapeTelegramHtml(i.userId ? (bmap.get(i.userId) ?? L(lang, "Foydalanuvchi", "Пользователь")) : "—")} · ${fmtDate(i.createdAt.getTime())}${receipt ? L(lang, " · chek bor", " · есть чек") : ""}`, { keyboard });
   }
 }
@@ -506,12 +512,14 @@ const payoutState = (state: string, lang?: BotLang) => (lang === "ru" ? (PAYOUT_
 
 /** /payoutlar — pul chiqarish so'rovlari: «To'landi» (kartaga o'tkazgach) / «Rad etish» (summa balansga qaytadi); rekvizit faqat panelda */
 export async function sendAdminPayouts(chatId: string, lang?: BotLang): Promise<void> {
-  const rows = (await listAdminPayouts(40)).filter((p) => p.state === "requested" || p.state === "approved").slice(0, 5);
+  const all = (await listAdminPayouts(40)).filter((p) => p.state === "requested" || p.state === "approved");
+  const rows = all.slice(0, 5);
   if (!rows.length) {
     await sendTelegram(chatId, L(lang, "💸 Kutilayotgan pul chiqarish so'rovi yo'q ✅", "💸 Ожидающих запросов на вывод нет ✅"));
     return;
   }
-  await sendTelegram(chatId, L(lang, `💸 <b>Pul chiqarish so'rovlari:</b> ${rows.length} ta. Rekvizitni admin panelda ko'rib, kartaga o'tkazing — so'ng «To'landi» bosing.`, `💸 <b>Запросы на вывод:</b> ${rows.length}. Посмотрите реквизиты в админ-панели, переведите на карту — затем нажмите «Выплачено».`));
+  // Sarlavhada JAMI son (ilgari faqat ko'rsatilgan 5 tasi sanalardi)
+  await sendTelegram(chatId, L(lang, `💸 <b>Pul chiqarish so'rovlari:</b> ${all.length} ta. Rekvizitni admin panelda ko'rib, kartaga o'tkazing — so'ng «To'landi» bosing.`, `💸 <b>Запросы на вывод:</b> ${all.length}. Посмотрите реквизиты в админ-панели, переведите на карту — затем нажмите «Выплачено».`));
   for (const p of rows) {
     // Karta raqami niqoblanadi (faqat birinchi 4 va oxirgi 4 raqam) — to'liq rekvizit faqat admin panelda
     const digits = p.details.replace(/\D/g, "");
@@ -528,6 +536,7 @@ export async function sendAdminPayouts(chatId: string, lang?: BotLang): Promise<
       ],
     });
   }
+  if (all.length > rows.length) await sendTelegram(chatId, MORE_IN_PANEL(all.length - rows.length, lang), { keyboard: [[panelButton("/admin#payoutlar", SEE_ALL(lang))]] });
 }
 
 /** Payout qarori botdan — admin panel route'i bilan bir xil CAS/balans tekshiruvi; rad etish sababi standart */
@@ -596,14 +605,16 @@ const ROLE: Record<string, string> = { client: "Mijoz", specialist: "Mutaxassis"
 const ROLE_RU: Record<string, string> = { client: "Клиент", specialist: "Специалист", admin: "Админ" };
 
 export async function handleAdminUserSearch(chatId: string, q: string, lang?: BotLang): Promise<void> {
-  const needle = q.trim().replace(/^@/, "").toLowerCase();
+  const needle = q.trim().replace(/^@/, "");
   if (needle.length < 2) {
-    await sendTelegram(chatId, L(lang, "Qidirish: <code>/user ism</code>, <code>/user email</code> yoki <code>/user @taxallus</code>", "Поиск: <code>/user имя</code>, <code>/user email</code> или <code>/user @ник</code>"));
+    await sendTelegram(chatId, L(lang, "Qidirish: <code>/user ism</code>, <code>/user email</code>, <code>/user @taxallus</code> yoki <code>/user telefon</code>", "Поиск: <code>/user имя</code>, <code>/user email</code>, <code>/user @ник</code> или <code>/user телефон</code>"));
     return;
   }
-  const term = `%${needle.replace(/[%_]/g, (c) => `\\${c}`)}%`;
+  // Ism/email/taxallus: registrning bir nechta varianti bilan (SQLite `lower()` kirillchani kichraytirmaydi — «Алишер» topilmasdi).
+  // Telefon: ustun shifrlangan, `LIKE` ishlamaydi — raqamlar ochib solishtiriladi (aniq / oxirgi raqamlar bo'yicha).
+  const phoneIds = await userIdsByPhone(needle).catch(() => [] as string[]);
   const rows = await db.query.users.findMany({
-    where: or(sql`lower(${users.name}) like ${term} escape '\\'`, sql`lower(${users.email}) like ${term} escape '\\'`, sql`lower(coalesce(${users.username}, '')) like ${term} escape '\\'`, like(users.phone, term)),
+    where: or(likeAny(users.name, needle), likeAny(users.email, needle), likeAny(sql`coalesce(${users.username}, '')`, needle), ...(phoneIds.length ? [inArray(users.id, phoneIds)] : [])),
     orderBy: [desc(users.createdAt)],
     limit: 5,
     columns: { id: true, name: true, email: true, role: true, isBanned: true, bannedReason: true, username: true, createdAt: true, telegramChatId: true, lastSeenAt: true },
@@ -675,22 +686,30 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
         await answer(L(lang, "Shikoyat topilmadi", "Жалоба не найдена"));
         return true;
       }
+      // CAS: shikoyatni AVVAL yopamiz (faqat hali ochiq bo'lsa) — kontent shundan keyingina o'chiriladi. Ilgari o'chirish holat
+      // tekshiruvidan oldin bajarilib, boshqa admin «yopish — kontent qolsin» deb hal qilgan shikoyat bo'yicha ham post o'chib ketardi
+      const [won] = await db.update(reports).set({ status: "closed", resolvedBy: admin.id }).where(and(eq(reports.id, r.id), eq(reports.status, "open"))).returning({ id: reports.id });
+      if (!won) {
+        await answer(L(lang, "Bu shikoyat allaqachon yopilgan", "Эта жалоба уже закрыта"));
+        if (msgId) await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
+        return true;
+      }
       let note = "";
-      if (m[1] === "del") note = await deleteReportTarget(r, admin.id, lang);
-      if (r.status === "open") {
-        // Bir xil nishon bo'yicha barcha ochiq shikoyatlar birga yopiladi (kontent o'chirilganda ham mantiqiy)
+      if (m[1] === "del") {
+        note = await deleteReportTarget(r, admin.id, lang);
+        // Bir xil nishon bo'yicha qolgan ochiq shikoyatlar ham yopiladi (kontent endi yo'q)
         await db
           .update(reports)
           .set({ status: "closed", resolvedBy: admin.id })
-          .where(m[1] === "del" ? and(eq(reports.targetType, r.targetType), eq(reports.targetId, r.targetId), eq(reports.status, "open")) : eq(reports.id, r.id));
-        await audit(admin.id, "admin_report_closed", { targetType: "report", targetId: r.id, meta: { target: `${r.targetType}:${r.targetId}`, via: "telegram", deleted: m[1] === "del" } });
-        // O'chirmasdan yopish = avto-yashirilgan post/izoh/sharhni qaytarish (lib/moderation.ts)
-        if (m[1] === "close") {
-          const { restoreIfNoOpenReports } = await import("@/lib/moderation");
-          if (await restoreIfNoOpenReports(r.targetType, r.targetId).catch(() => false)) note = note || "Yopildi, kontent qaytarildi ✅";
-        }
+          .where(and(eq(reports.targetType, r.targetType), eq(reports.targetId, r.targetId), eq(reports.status, "open")));
       }
-      await answer(note || (r.status === "open" ? L(lang, "Yopildi ✅", "Закрыто ✅") : L(lang, "Allaqachon yopilgan", "Уже закрыта")));
+      await audit(admin.id, "admin_report_closed", { targetType: "report", targetId: r.id, meta: { target: `${r.targetType}:${r.targetId}`, via: "telegram", deleted: m[1] === "del" } });
+      // O'chirmasdan yopish = avto-yashirilgan post/izoh/sharhni qaytarish (lib/moderation.ts)
+      if (m[1] === "close") {
+        const { restoreIfNoOpenReports } = await import("@/lib/moderation");
+        if (await restoreIfNoOpenReports(r.targetType, r.targetId).catch(() => false)) note = L(lang, "Yopildi, kontent qaytarildi ✅", "Закрыто, контент возвращён ✅");
+      }
+      await answer(note || L(lang, "Yopildi ✅", "Закрыто ✅"));
       if (msgId) await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text: `✅ <b>${L(lang, `${REPORT_TYPE[r.targetType]} shikoyati yopildi`, `${reportTitle(r.targetType, lang)} закрыта`)}</b>${note ? ` · ${escapeTelegramHtml(note)}` : ""} · ${escapeTelegramHtml(admin.name)}`, parse_mode: "HTML" });
       return true;
     }
@@ -972,9 +991,14 @@ export async function handleAdminPrices(chatId: string, args: string, lang?: Bot
     return;
   }
   const key = LEVELS[parts[0].replace(/['ʼ’]/g, "")];
-  const amount = Number(parts[1].replace(/\D/g, ""));
-  if (!key || !Number.isFinite(amount) || amount < 0 || amount > 50_000_000) {
-    await sendTelegram(chatId, L(lang, "Format: <code>/narx junior|middle|senior|expert 50000</code> (0 — bepul).", "Формат: <code>/narx junior|middle|senior|expert 50000</code> (0 — бесплатно)."));
+  // Summa bo'shliq bilan yozilishi mumkin («60 000») — qolgan BARCHA bo'laklar birlashtiriladi (ilgari faqat birinchisi olinib,
+  // narx 60 so'm bo'lib qolardi va shu darajadagi har kontakt xaridi «Summa juda kichik» bilan yiqilardi)
+  const raw = parts.slice(1).join("");
+  const digits = raw.replace(/[\s.,_'’]/g, "");
+  const amount = /^\d{1,9}$/.test(digits) ? Number(digits) : NaN;
+  // 0 — bepul; aks holda kamida 1 000 so'm (to'lov tizimi undan kichik summani qabul qilmaydi)
+  if (!key || !Number.isFinite(amount) || (amount !== 0 && amount < 1000) || amount > 50_000_000) {
+    await sendTelegram(chatId, L(lang, "Format: <code>/narx junior|middle|senior|expert 50000</code> — summa 1 000 so'mdan kam bo'lmasin (0 — bepul).", "Формат: <code>/narx junior|middle|senior|expert 50000</code> — сумма не меньше 1 000 сум (0 — бесплатно)."));
     return;
   }
   const saved = await saveSettings({ [key]: Math.round(amount) });
@@ -1049,13 +1073,20 @@ export async function notifyAdminsNewFeedback(feedbackId: string): Promise<void>
     const f = await db.query.feedbacks.findFirst({ where: eq(feedbacks.id, feedbackId) });
     if (!f) return;
     const who = f.userId ? await db.query.users.findFirst({ where: eq(users.id, f.userId), columns: { name: true } }) : null;
-    const kind = f.kind === "bug" ? "🐞 Xato" : f.kind === "idea" ? "💡 G'oya" : "💬 Fikr";
-    const excerpt = f.text.length > 300 ? `${f.text.slice(0, 300)}…` : f.text;
-    const title = `${kind}: ${who?.name ?? "Mehmon"}`;
-    await notifyAdmins("account", title, `${excerpt.slice(0, 160)}${f.page ? ` · ${f.page}` : ""}`, "/admin#fikrlar", { siteOnly: true }).catch(() => undefined);
-    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)), columns: { telegramChatId: true } });
-    const text = [`<b>${escapeTelegramHtml(title)}</b>${f.page ? ` — <code>${escapeTelegramHtml(f.page)}</code>` : ""}`, escapeTelegramHtml(excerpt), f.screenshotUrl ? `📎 ${escapeTelegramHtml(f.screenshotUrl.startsWith("/") ? `${site()}${f.screenshotUrl}` : f.screenshotUrl)}` : ""].filter(Boolean).join("\n");
-    await Promise.all(admins.map((a) => (a.telegramChatId ? sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[panelButton("/admin#fikrlar", "👁 Fikrlar")]] }) : Promise.resolve(false))));
+    const kindOf = (lang: BotLang) => (f.kind === "bug" ? L(lang, "🐞 Xato", "🐞 Ошибка") : f.kind === "idea" ? L(lang, "💡 G'oya", "💡 Идея") : L(lang, "💬 Fikr", "💬 Отзыв"));
+    const nameOf = (lang: BotLang) => who?.name ?? L(lang, "Mehmon", "Гость");
+    const excerpt = f.text.length > 300 ? `${cutPlain(f.text, 300)}…` : f.text;
+    // Sayt qo'ng'irog'i (o'zbekcha manba; rus tilidagi adminga `notify()` o'zi o'giradi) — Telegramga quyida alohida, shuning uchun siteOnly
+    await notifyAdmins("account", `${kindOf("uz")}: ${nameOf("uz")}`, `${cutPlain(excerpt, 160)}${f.page ? ` · ${f.page}` : ""}`, "/admin#fikrlar", { siteOnly: true }).catch(() => undefined);
+    const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)), columns: { telegramChatId: true, lang: true } });
+    const shot = f.screenshotUrl ? (f.screenshotUrl.startsWith("/") ? `${site()}${f.screenshotUrl}` : f.screenshotUrl) : "";
+    await Promise.all(
+      admins.map((a) => {
+        const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
+        const text = [`<b>${escapeTelegramHtml(`${kindOf(lang)}: ${nameOf(lang)}`)}</b>${f.page ? ` — <code>${escapeTelegramHtml(f.page)}</code>` : ""}`, escapeTelegramHtml(excerpt), shot ? `📎 ${escapeTelegramHtml(shot)}` : ""].filter(Boolean).join("\n");
+        return a.telegramChatId ? sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[panelButton("/admin#fikrlar", L(lang, "👁 Fikrlar", "👁 Отзывы"))]] }) : Promise.resolve(false);
+      }),
+    );
   } catch (e) {
     console.error("[admin-bot:newFeedback]", e);
   }

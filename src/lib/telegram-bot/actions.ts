@@ -2,14 +2,13 @@ import "server-only";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, specialists, users } from "@/lib/db/schema";
-import { ApiError } from "@/lib/api";
-import { escapeTelegramHtml, sendTelegram, telegramApi, type TelegramButton } from "@/lib/telegram";
+import { escapeTelegramHtml, replyMarkup, sendTelegram, telegramApi, type TelegramButton } from "@/lib/telegram";
 import { decideLoginRequest, findLoginRequest } from "@/lib/auth/telegram-login";
 import { siteUrl } from "@/lib/security/site";
 import { formatPrice } from "@/lib/utils";
 import { REGION_BY_SLUG } from "@/lib/constants";
 import { NOTIFY_GROUP_KEYS, type NotifyGroupKey } from "@/lib/notifications";
-import { SETTINGS_TEXT, SETTINGS_TEXT_RU, appUrl, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
+import { SETTINGS_TEXT, SETTINGS_TEXT_RU, appUrl, pageButton, sendNotLinked, settingsKeyboard } from "@/lib/telegram-bot/ui";
 import { L, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
@@ -24,9 +23,31 @@ import { L, type BotLang } from "@/lib/telegram-bot/lang";
 
 type Answer = (text: string) => Promise<unknown>;
 
-/** Chatga ulangan hisob (yo'q bo'lsa null) */
+/** Chatga ulangan hisob (yo'q bo'lsa null). `lang` — foydalanuvchi tanlagan til (`/til`, sayt); null — Telegram tiliga qaraladi */
 export async function accountOf(chatId: string) {
-  return db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true, email: true, username: true, createdAt: true, notifyPrefs: true } });
+  return db.query.users.findFirst({ where: eq(users.telegramChatId, chatId), columns: { id: true, name: true, role: true, isBanned: true, email: true, username: true, createdAt: true, notifyPrefs: true, lang: true } });
+}
+
+/** Bloklangan hisobga botdagi yagona javob (o'qish buyruqlari ham yopiq — kontaktlar, buyurtmalar, profil) */
+export const BANNED_TEXT = (lang?: BotLang): string =>
+  L(lang, "Hisobingiz bloklangan — botdagi amallar yopiq. Xato deb hisoblasangiz, /yordam orqali qo'llab-quvvatlashga yozing.", "Ваш аккаунт заблокирован — действия в боте недоступны. Если это ошибка, напишите в поддержку через /yordam.");
+
+/**
+ * Shaxsiy ma'lumot ko'rsatadigan buyruqlar uchun FAOL hisob: ulanmagan chatga «akkauntingiz bormi?», bloklangan hisobga blok
+ * matni yuboriladi va null qaytadi. Bloklangan foydalanuvchi bot orqali ochilgan kontaktlar, buyurtmalar, profil va kurslarni
+ * o'qiy olmasligi kerak (yozish amallari avvaldan yopiq edi — o'qish ochiq qolgan edi).
+ */
+export async function activeAccount(chatId: string, lang?: BotLang) {
+  const me = await accountOf(chatId);
+  if (!me) {
+    await sendNotLinked(chatId, lang);
+    return null;
+  }
+  if (me.isBanned) {
+    await sendTelegram(chatId, BANNED_TEXT(lang));
+    return null;
+  }
+  return me;
 }
 
 const ROLE_LABEL: Record<string, string> = { client: "Mijoz", specialist: "Mutaxassis", admin: "Administrator" };
@@ -36,48 +57,74 @@ const ROLE_LABEL_RU: Record<string, string> = { client: "Клиент", speciali
 /* «Telegram bilan kirish»                                             */
 /* ------------------------------------------------------------------ */
 
-/** `/start l_<kod>` — tasdiqlash tugmalarini ko'rsatadi */
-export async function handleLoginStart(chatId: string, arg: string, who: { name?: string; username?: string; lang?: BotLang }): Promise<boolean> {
-  const m = /^l_(\d{6})$/.exec(arg);
-  if (!m) return false;
-  const lang = who.lang;
-  const req = await findLoginRequest(m[1]);
+const LOGIN_EXPIRED = (lang?: BotLang): string =>
+  L(lang, "Kirish so'rovi topilmadi yoki eskirgan. Saytda «Telegram bilan kirish»ni qayta bosing.", "Запрос на вход не найден или истёк. Нажмите «Войти через Telegram» на сайте ещё раз.");
+
+/**
+ * Kirish so'rovi tasdig'i: qaysi qurilmadan va qachon so'ralgani + fishing ogohlantirishi + «Ha, bu men / Yo'q».
+ * QOIDA (2026-11-10): saytga kirish HAR DOIM shu savol orqali tasdiqlanadi — hisob endigina ochilgan yoki qayta ulangan
+ * bo'lsa ham avtomatik tasdiq YO'Q (ilgari begona odam yuborgan `l_<kod>` havolasi bir bosishda kirishni tasdiqlab qo'yardi).
+ * So'rov eskirgan bo'lsa — shu aytiladi va false qaytadi.
+ */
+export async function sendLoginPrompt(chatId: string, code: string, accountName: string, lang?: BotLang): Promise<boolean> {
+  const req = await findLoginRequest(code);
   if (!req) {
-    await sendTelegram(chatId, L(lang, "Kirish so'rovi topilmadi yoki eskirgan (5 daqiqa amal qiladi). Saytda «Telegram bilan kirish»ni qayta bosing.", "Запрос на вход не найден или истёк (действует 5 минут). Нажмите «Войти через Telegram» на сайте ещё раз."));
-    return true;
+    await sendTelegram(chatId, LOGIN_EXPIRED(lang));
+    return false;
   }
-  const linked = await accountOf(chatId);
-  if (!linked) {
-    // Hisobsiz Telegram — avtomatik hisob OCHILMAYDI: savol-javob bilan ro'yxatdan o'tadi, so'ng kirish tasdiqlanadi
-    const { startRegistration } = await import("@/lib/telegram-bot/register");
-    await startRegistration(chatId, who, { loginCode: m[1] });
-    return true;
-  }
-  // Fishingga qarshi: qaysi qurilmadan va qachon so'ralgani + aniq ogohlantirish (kodni boshqa odam bergan bo'lishi mumkin)
   const when = new Date(req.createdAt).toLocaleTimeString(lang === "ru" ? "ru-RU" : "uz-UZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" });
   const device = req.deviceLabel ? escapeTelegramHtml(req.deviceLabel) : L(lang, "noma'lum qurilma", "неизвестное устройство");
   const text = L(
     lang,
-    `<b>Saytga kirish so'rovi</b>\nKod: <code>${m[1]}</code>\nHisob: <b>${escapeTelegramHtml(linked.name)}</b>\nQurilma: ${device} · ${when}\n\n⚠️ Faqat <b>o'zingiz hozir saytda</b> «Telegram bilan kirish»ni bosgan bo'lsangiz tasdiqlang. Kodni kimdir sizga yuborgan bo'lsa — bu firibgarlik: «Yo'q» ni bosing.`,
-    `<b>Запрос на вход на сайт</b>\nКод: <code>${m[1]}</code>\nАккаунт: <b>${escapeTelegramHtml(linked.name)}</b>\nУстройство: ${device} · ${when}\n\n⚠️ Подтверждайте, только если <b>вы сами сейчас</b> нажали «Войти через Telegram» на сайте. Если код вам кто-то прислал — это мошенничество: нажмите «Нет».`,
+    `<b>Saytga kirish so'rovi</b>\nKod: <code>${code}</code>\nHisob: <b>${escapeTelegramHtml(accountName)}</b>\nQurilma: ${device} · ${when}\n\n⚠️ Faqat <b>o'zingiz hozir saytda</b> «Telegram bilan kirish»ni bosgan bo'lsangiz tasdiqlang. Kodni kimdir sizga yuborgan bo'lsa — bu firibgarlik: «Yo'q» ni bosing.`,
+    `<b>Запрос на вход на сайт</b>\nКод: <code>${code}</code>\nАккаунт: <b>${escapeTelegramHtml(accountName)}</b>\nУстройство: ${device} · ${when}\n\n⚠️ Подтверждайте, только если <b>вы сами сейчас</b> нажали «Войти через Telegram» на сайте. Если код вам кто-то прислал — это мошенничество: нажмите «Нет».`,
   );
   await sendTelegram(chatId, text, {
     keyboard: [
       [
-        { text: L(lang, "✅ Ha, bu men", "✅ Да, это я"), data: `lg:ok:${m[1]}` },
-        { text: L(lang, "✖️ Yo'q", "✖️ Нет"), data: `lg:no:${m[1]}` },
+        { text: L(lang, "✅ Ha, bu men", "✅ Да, это я"), data: `lg:ok:${code}` },
+        { text: L(lang, "✖️ Yo'q", "✖️ Нет"), data: `lg:no:${code}` },
       ],
     ],
   });
-  void who;
   return true;
 }
 
-/** `lg:ok|no:<kod>` tugmasi */
-export async function handleLoginCallback(chatId: string, data: string, answer: Answer, who: { name?: string; username?: string }): Promise<boolean> {
+/** `/start l_<kod>` — tasdiqlash tugmalarini ko'rsatadi (hisobsiz chat — avval ro'yxatdan o'tadi, keyin shu savol) */
+export async function handleLoginStart(chatId: string, arg: string, who: { name?: string; username?: string; lang?: BotLang }): Promise<boolean> {
+  const m = /^l_(\d{6})$/.exec(arg);
+  if (!m) return false;
+  const lang = who.lang;
+  if (!(await findLoginRequest(m[1]))) {
+    await sendTelegram(chatId, LOGIN_EXPIRED(lang));
+    return true;
+  }
+  const linked = await accountOf(chatId);
+  if (linked?.isBanned) {
+    await sendTelegram(chatId, BANNED_TEXT(lang));
+    return true;
+  }
+  if (!linked) {
+    // Hisobsiz Telegram — avtomatik hisob OCHILMAYDI: savol-javob bilan ro'yxatdan o'tadi, so'ng kirishni tasdiqlaydi
+    const { startRegistration } = await import("@/lib/telegram-bot/register");
+    await startRegistration(chatId, who, { loginCode: m[1] });
+    return true;
+  }
+  await sendLoginPrompt(chatId, m[1], linked.name, lang);
+  return true;
+}
+
+/** `lg:ok|no:<kod>` tugmasi. «Tasdiqlandi» faqat so'rov HAQIQATDA tasdiqlangan bo'lsa aytiladi (eskirgan — shu aytiladi) */
+export async function handleLoginCallback(chatId: string, data: string, answer: Answer, who: { name?: string; username?: string; lang?: BotLang }): Promise<boolean> {
   const m = /^lg:(ok|no):(\d{6})$/.exec(data);
   if (!m) return false;
-  if (m[1] === "ok" && !(await accountOf(chatId))) {
+  const lang = who.lang;
+  const me = await accountOf(chatId);
+  if (me?.isBanned) {
+    await answer(BANNED_TEXT(lang));
+    return true;
+  }
+  if (m[1] === "ok" && !me) {
     await answer("");
     const { startRegistration } = await import("@/lib/telegram-bot/register");
     await startRegistration(chatId, who, { loginCode: m[2] });
@@ -85,11 +132,16 @@ export async function handleLoginCallback(chatId: string, data: string, answer: 
   }
   const okNow = await decideLoginRequest(m[2], chatId, m[1] === "ok", who);
   if (!okNow) {
-    await answer("So'rov eskirgan — saytda qayta bosing");
+    await answer(L(lang, "So'rov eskirgan — saytda qayta bosing", "Запрос истёк — нажмите на сайте ещё раз"));
     return true;
   }
-  await answer(m[1] === "ok" ? "Tasdiqlandi — saytga qaytasiz" : "Rad etildi");
-  await sendTelegram(chatId, m[1] === "ok" ? "✅ Kirish tasdiqlandi. Saytdagi oynaga qaytib qarang." : "Kirish rad etildi. Agar bu siz bo'lmasangiz, hech narsa qilish shart emas.");
+  await answer(m[1] === "ok" ? L(lang, "Tasdiqlandi — saytga qaytasiz", "Подтверждено — вернитесь на сайт") : L(lang, "Rad etildi", "Отклонено"));
+  await sendTelegram(
+    chatId,
+    m[1] === "ok"
+      ? L(lang, "✅ Kirish tasdiqlandi. Saytdagi oynaga qaytib qarang.", "✅ Вход подтверждён. Вернитесь в окно сайта.")
+      : L(lang, "Kirish rad etildi. Agar so'rovni siz yubormagan bo'lsangiz, hech narsa qilish shart emas.", "Вход отклонён. Если запрос отправляли не вы, ничего делать не нужно."),
+  );
   return true;
 }
 
@@ -111,33 +163,33 @@ export function orderButtons(orderId: string, href: string | null, lang?: BotLan
   ];
 }
 
-/** `ord:ok|no:<id>` — mutaxassis buyurtmani botda hal qiladi */
-export async function handleOrderCallback(chatId: string, data: string, answer: Answer): Promise<boolean> {
+/** `ord:ok|no:<id>` — mutaxassis buyurtmani botda hal qiladi; bosilgan xabardagi tugmalar olib tashlanadi */
+export async function handleOrderCallback(chatId: string, data: string, answer: Answer, lang?: BotLang, msgId: number | null = null): Promise<boolean> {
   const m = /^ord:(ok|no):([\w-]{1,64})$/.exec(data);
   if (!m) return false;
   const me = await accountOf(chatId);
   if (!me || me.isBanned) {
-    await answer("Avval hisobni ulang: saytda Kabinet → Profil");
+    await answer(me?.isBanned ? BANNED_TEXT(lang) : L(lang, "Avval hisobni ulang: saytda Kabinet → Profil", "Сначала привяжите аккаунт: на сайте Кабинет → Профиль"));
     return true;
   }
   try {
     const { setOrderStatus } = await import("@/lib/telegram-bot/orders");
-    const res = await setOrderStatus(m[2], me.id, m[1] === "ok");
+    const res = await setOrderStatus(m[2], me.id, m[1] === "ok", lang);
     await answer(res);
-    await sendTelegram(chatId, escapeTelegramHtml(res), { button: { text: "Buyurtmani ochish", url: `${siteUrl()}/buyurtma/${m[2]}` } });
+    // Hal qilingan buyurtma xabarida faqat «ochish» qoladi (amal tugmalari qayta bosilmasin)
+    if (msgId) await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: replyMarkup({ keyboard: [[pageButton(L(lang, "Buyurtmani ochish", "Открыть заказ"), `/buyurtma/${m[2]}`)]] }) });
+    await sendTelegram(chatId, escapeTelegramHtml(res), { keyboard: [[pageButton(L(lang, "Buyurtmani ochish", "Открыть заказ"), `/buyurtma/${m[2]}`)]] });
   } catch (e) {
-    await answer(e instanceof ApiError ? e.message : "Xatolik — saytdan bajaring");
+    const { errorText } = await import("@/lib/telegram-bot/i18n");
+    await answer(await errorText(e, lang, "Xatolik — saytdan bajaring", "Ошибка — выполните на сайте"));
   }
   return true;
 }
 
 /** `/buyurtmalarim` — ochiq buyurtmalar (mutaxassis uchun yangi buyurtmalar tugmalar bilan) */
 export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<void> {
-  const me = await accountOf(chatId);
-  if (!me) {
-    await sendNotLinked(chatId, lang);
-    return;
-  }
+  const me = await activeAccount(chatId, lang);
+  if (!me) return;
   // Buyurtmada `specialistId` — specialists qatori; mutaxassis userId'si join bilan olinadi
   const rows = await db
     .select({ id: orders.id, title: orders.title, status: orders.status, amount: orders.amount, spUserId: specialists.userId })
@@ -147,7 +199,7 @@ export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<vo
     .orderBy(desc(orders.createdAt))
     .limit(8);
   if (!rows.length) {
-    await sendTelegram(chatId, L(lang, "Ochiq buyurtma yo'q.", "Открытых заказов нет."), { button: { text: L(lang, "Buyurtmalarim", "Мои заказы"), url: `${siteUrl()}/kabinet/buyurtmalar` } });
+    await sendTelegram(chatId, L(lang, "Ochiq buyurtma yo'q.", "Открытых заказов нет."), { keyboard: [[pageButton(L(lang, "Buyurtmalarim", "Мои заказы"), "/kabinet/buyurtmalar")]] });
     return;
   }
   const { STATUS_LABEL } = await import("@/lib/telegram-bot/orders");
@@ -155,8 +207,8 @@ export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<vo
   for (const o of rows) {
     const mine = o.spUserId === me.id;
     const text = `<b>${escapeTelegramHtml(o.title)}</b>\n${escapeTelegramHtml(orderStatusLabel(lang ?? "uz", o.status, STATUS_LABEL[o.status] ?? o.status))}${o.amount ? ` · ${escapeTelegramHtml(formatPrice(o.amount))}` : ""}`;
-    const href = `${siteUrl()}/buyurtma/${o.id}`;
-    await sendTelegram(chatId, text, mine && o.status === "new" ? { keyboard: orderButtons(o.id, href, lang) } : { button: { text: L(lang, "Ochish", "Открыть"), url: href } });
+    // Shaxsiy sahifa — Mini App tugmasi (botda ro'yxatdan o'tganlar kirish sahifasiga tushib qolmasin)
+    await sendTelegram(chatId, text, { keyboard: mine && o.status === "new" ? orderButtons(o.id, `${siteUrl() ?? ""}/buyurtma/${o.id}`, lang) : [[pageButton(L(lang, "Ochish", "Открыть"), `/buyurtma/${o.id}`)]] });
   }
 }
 
@@ -166,11 +218,8 @@ export async function handleMyOrders(chatId: string, lang?: BotLang): Promise<vo
 
 /** `/profil` — hisob kartasi */
 export async function handleProfile(chatId: string, lang?: BotLang): Promise<void> {
-  const me = await accountOf(chatId);
-  if (!me) {
-    await sendNotLinked(chatId, lang);
-    return;
-  }
+  const me = await activeAccount(chatId, lang);
+  if (!me) return;
   const ru = lang === "ru";
   const since = new Date(me.createdAt).toLocaleDateString(ru ? "ru-RU" : "uz-UZ", { day: "numeric", month: "long", year: "numeric" });
   const { follows, posts, contactUnlocks } = await import("@/lib/db/schema");
@@ -221,15 +270,12 @@ export async function handleProfile(chatId: string, lang?: BotLang): Promise<voi
 
 /** `/xabarlar` — o'qilmagan DM soni */
 export async function handleMessages(chatId: string, lang?: BotLang): Promise<void> {
-  const me = await accountOf(chatId);
-  if (!me) {
-    await sendNotLinked(chatId, lang);
-    return;
-  }
+  const me = await activeAccount(chatId, lang);
+  if (!me) return;
   const { unreadDmCount } = await import("@/lib/chat/dm");
   const n = await unreadDmCount(me.id).catch(() => 0);
   const text = n > 0 ? L(lang, `💬 <b>${n} ta o'qilmagan xabar</b> bor.`, `💬 <b>Непрочитанных сообщений: ${n}</b>`) : L(lang, "💬 O'qilmagan xabar yo'q.", "💬 Непрочитанных сообщений нет.");
-  await sendTelegram(chatId, text, { button: { text: n > 0 ? L(lang, "Xabarlarni o'qish", "Читать сообщения") : L(lang, "Chatni ochish", "Открыть чат"), url: `${siteUrl() ?? ""}/kabinet/chat` } });
+  await sendTelegram(chatId, text, { keyboard: [[pageButton(n > 0 ? L(lang, "Xabarlarni o'qish", "Читать сообщения") : L(lang, "Chatni ochish", "Открыть чат"), "/kabinet/chat")]] });
 }
 
 /** `/vakansiyalar` — so'nggi 5 ta ochiq vakansiya (hamma uchun, ulash shart emas) */
@@ -253,11 +299,8 @@ export async function handleVacancies(chatId: string, lang?: BotLang): Promise<v
 
 /** `/sozlamalar` — bildirishnoma guruhlari switch'lari */
 export async function handleSettings(chatId: string, lang?: BotLang): Promise<void> {
-  const me = await accountOf(chatId);
-  if (!me) {
-    await sendNotLinked(chatId, lang);
-    return;
-  }
+  const me = await activeAccount(chatId, lang);
+  if (!me) return;
   await sendTelegram(chatId, L(lang, SETTINGS_TEXT, SETTINGS_TEXT_RU), { keyboard: settingsKeyboard(me.notifyPrefs ?? {}, lang) });
 }
 
@@ -268,8 +311,8 @@ export async function handleSettingsCallback(chatId: string, data: string, answe
   const key = m[1] as NotifyGroupKey;
   if (!NOTIFY_GROUP_KEYS.includes(key)) return false;
   const me = await accountOf(chatId);
-  if (!me) {
-    await answer(L(lang, "Avval hisobni ulang", "Сначала привяжите аккаунт"));
+  if (!me || me.isBanned) {
+    await answer(me?.isBanned ? BANNED_TEXT(lang) : L(lang, "Avval hisobni ulang", "Сначала привяжите аккаунт"));
     return true;
   }
   const next = { ...(me.notifyPrefs ?? {}) };
@@ -317,6 +360,8 @@ export interface BotPerson {
   reviewCount: number;
   isVerified: boolean;
   avatarUrl?: string | null;
+  /** Mutaxassis qatori id'si — «Kontaktni ochish» tugmasi uchun */
+  specialistId?: string;
   /** Kontakt sotuvi: narx (so'm) yoki null — «faqat portfolio» */
   contactPrice?: number | null;
 }
@@ -349,19 +394,49 @@ const RU_REGION_ALIASES: [RegExp, string][] = [
   [/каракалпак|нукус/, "qoraqalpogiston"],
 ];
 
+/**
+ * Ism / sarlavha / ko'nikma bo'yicha ijodkorlar — registrning bir nechta varianti bilan (lib/telegram-bot/text-search.ts).
+ * Sayt qidiruvi (`exploreSearch`) so'rovni kichik harfga o'tkazib `lower(ustun)` bilan solishtiradi, SQLite esa kirillchani
+ * kichraytirmaydi — «Алишер» deb saqlangan ism topilmaydi. Ko'rinish shartlari `exploreSearch` bilan bir xil
+ * (bloklanmagan, yashirilmagan, obunasi faol).
+ */
+async function peopleByVariants(q: string, limit: number): Promise<BotPerson[]> {
+  const { listableCondition } = await import("@/lib/subscriptions/access");
+  const { getSettings } = await import("@/lib/payments/settings");
+  const { likeAny } = await import("@/lib/telegram-bot/text-search");
+  const settings = await getSettings();
+  const rows = await db
+    .select({ slug: specialists.slug, name: users.name, title: specialists.title, avatarUrl: users.avatarUrl, category: specialists.category, rating: specialists.rating, reviewCount: specialists.reviewCount, isVerified: specialists.isVerified })
+    .from(specialists)
+    .innerJoin(users, eq(users.id, specialists.userId))
+    .where(and(eq(users.isBanned, false), eq(specialists.isHidden, false), listableCondition(settings), or(likeAny(users.name, q), likeAny(specialists.title, q), likeAny(specialists.bio, q))))
+    .orderBy(desc(specialists.rating), desc(specialists.reviewCount))
+    .limit(limit);
+  return rows.map((r) => ({ ...r, title: r.title ?? "", isVerified: Boolean(r.isVerified) }));
+}
+
 /** Ijodkor qidiruvi (bot va inline rejim umumiy): ism/sarlavha → bo'lmasa kasb+hudud bo'yicha katalog (o'zbekcha yoki ruscha so'zlar); bo'sh so'rov — eng yaxshilari */
 export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
   const { exploreSearch } = await import("@/lib/search/service");
   const { CATEGORIES, REGIONS } = await import("@/lib/constants");
   const { listSpecialists } = await import("@/lib/queries");
   const { specialistFilterSchema } = await import("@/lib/validators");
+  const { hasNonAsciiLetter } = await import("@/lib/telegram-bot/text-search");
   const fromCatalog = async (f: Record<string, unknown>) => {
     const r = await listSpecialists(specialistFilterSchema.parse({ ...f, limit }));
     return r.items.slice(0, limit).map((it) => ({ slug: it.slug, name: it.user.name, title: it.title ?? "", category: it.category, rating: it.rating, reviewCount: it.reviewCount, isVerified: Boolean(it.isVerified), avatarUrl: it.user.avatarUrl }));
   };
-  if (q.length < 2) return fromCatalog({});
+  if (q.length < 2) return withContactPrices(await fromCatalog({}));
   const res = await exploreSearch(q, "people");
   let people: BotPerson[] = res.people.slice(0, limit);
+  // Kirillcha so'rov: registr variantlari bilan qo'shimcha qidiruv (sayt qidiruvi katta harfli kirill ismni topa olmaydi)
+  if (people.length < limit && hasNonAsciiLetter(q)) {
+    const seen = new Set(people.map((p) => p.slug));
+    for (const p of await peopleByVariants(q, limit).catch(() => [] as BotPerson[])) {
+      if (people.length >= limit) break;
+      if (!seen.has(p.slug)) people.push(p);
+    }
+  }
   if (!people.length) {
     // Ism/sarlavha topilmadi — kasb va hudud nomi bo'yicha katalog («montajchi Samarqand»)
     const ql = q.toLowerCase();
@@ -381,29 +456,26 @@ export async function searchPeople(q: string, limit = 5): Promise<BotPerson[]> {
   return withContactPrices(people);
 }
 
-/** Har ijodkorga kontakt narxi (daraja/maxsus) yoki null («faqat portfolio») — bot va inline natijalarida ko'rsatiladi */
+/** Har ijodkorga mutaxassis id'si va kontakt narxi (daraja/maxsus) yoki null («faqat portfolio») — bot va inline natijalarida ko'rsatiladi */
 async function withContactPrices(people: BotPerson[]): Promise<BotPerson[]> {
   if (!people.length) return people;
   const { contactPriceFor } = await import("@/lib/contacts/unlock");
   const { getSettings } = await import("@/lib/payments/settings");
   const [rows, settings] = await Promise.all([
-    db.query.specialists.findMany({ where: inArray(specialists.slug, people.map((p) => p.slug)), columns: { slug: true, contactMode: true, experience: true, contactPrice: true } }),
+    db.query.specialists.findMany({ where: inArray(specialists.slug, people.map((p) => p.slug)), columns: { id: true, slug: true, contactMode: true, experience: true, contactPrice: true } }),
     getSettings(),
   ]);
   const map = new Map(rows.map((r) => [r.slug, r]));
   return people.map((p) => {
     const r = map.get(p.slug);
-    return { ...p, contactPrice: r ? (r.contactMode === "hidden" ? null : contactPriceFor(r, settings)) : undefined };
+    return { ...p, specialistId: r?.id, contactPrice: r ? (r.contactMode === "hidden" ? null : contactPriceFor(r, settings)) : undefined };
   });
 }
 
 /** `/kontaktlarim` — ochilgan kontaktlar to'g'ridan-to'g'ri chatda (telefon, Telegram, Instagram, email) */
 export async function handleMyContacts(chatId: string, lang?: BotLang): Promise<void> {
-  const me = await accountOf(chatId);
-  if (!me) {
-    await sendNotLinked(chatId, lang);
-    return;
-  }
+  const me = await activeAccount(chatId, lang);
+  if (!me) return;
   const { listUnlockedContacts } = await import("@/lib/contacts/unlock");
   const { formatUzPhone } = await import("@/lib/utils");
   const s = siteUrl() ?? "";

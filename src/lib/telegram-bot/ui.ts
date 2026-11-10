@@ -214,13 +214,13 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
 }
 
 /** `/ilova` — Mini App tugmasi */
-export async function sendApp(chatId: string): Promise<void> {
+export async function sendApp(chatId: string, lang: BotLang = "uz"): Promise<void> {
   const app = appUrl();
   if (!app) {
-    await sendTelegram(chatId, "Ilova faqat https manzilda ishlaydi — saytni oching.", { button: { text: "🌐 Sayt", url: `${site()}/` } });
+    await sendTelegram(chatId, L(lang, "Ilova faqat https manzilda ishlaydi — saytni oching.", "Приложение работает только по https — откройте сайт."), { button: { text: L(lang, "🌐 Sayt", "🌐 Сайт"), url: `${site()}/` } });
     return;
   }
-  await sendTelegram(chatId, "📱 <b>Kasb Egalari ilovasi</b> — Telegram ichida ochiladi, hisobingizga avtomatik kirasiz.", { keyboard: [[{ text: "Ilovani ochish", webApp: app }]] });
+  await sendTelegram(chatId, L(lang, "📱 <b>Kasb Egalari ilovasi</b> — Telegram ichida ochiladi, hisobingizga avtomatik kirasiz.", "📱 <b>Приложение Kasb Egalari</b> — открывается внутри Telegram, вход в аккаунт выполняется автоматически."), { keyboard: [[{ text: L(lang, "Ilovani ochish", "Открыть приложение"), webApp: app }]] });
 }
 
 /** Yordam — bot nima qila oladi (ulangan/ulanmagan holatga qarab) */
@@ -281,7 +281,7 @@ const GROUP_ICON: Record<NotifyGroupKey, string> = { orders: "📦", jobs: "💼
 /** Sozlamalar klaviaturasi: har guruh — bitta qator, bosilsa `st:<guruh>` bilan almashadi */
 export function settingsKeyboard(prefs: Record<string, boolean>, lang: BotLang = "uz"): TelegramButton[][] {
   const rows: TelegramButton[][] = NOTIFY_GROUP_KEYS.map((k) => [{ text: `${prefs[k] === false ? "○" : "●"} ${GROUP_ICON[k]} ${lang === "ru" ? GROUP_LABEL_RU[k] : NOTIFY_GROUP_META[k].label}`, data: `st:${k}` }]);
-  rows.push([{ text: L(lang, "Saytdagi sozlamalar", "Настройки на сайте"), url: `${site()}/kabinet/bildirishnomalar#sozlamalar` }]);
+  rows.push([pageButton(L(lang, "Saytdagi sozlamalar", "Настройки на сайте"), "/kabinet/bildirishnomalar#sozlamalar")]);
   return rows;
 }
 export const SETTINGS_TEXT = "<b>Bildirishnomalar</b>\nQaysi turdagi xabarlar Telegramga kelsin — bosib yoqing/o'chiring (● yoqilgan, ○ o'chirilgan).\nHisob xavfsizligi va nizo xabarlari doim keladi.";

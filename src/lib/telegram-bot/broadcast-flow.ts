@@ -1,13 +1,9 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { botSessions } from "@/lib/db/schema";
 import { escapeTelegramHtml, sendTelegram, telegramApi } from "@/lib/telegram";
 import { adminByChat } from "@/lib/telegram-bot/admin";
 import { defer } from "@/lib/telegram-bot/defer";
 import { L, type BotLang } from "@/lib/telegram-bot/lang";
-import { clearBotSession, getBotSession, setBotSession } from "@/lib/telegram-bot/session";
+import { clearBotSession, getBotSession, newNonce, setBotSession, takeBotSession } from "@/lib/telegram-bot/session";
 import type { TelegramTally } from "@/lib/broadcast";
 
 /**
@@ -27,7 +23,6 @@ interface Draft extends Record<string, unknown> {
   nonce?: string;
 }
 const NOT_ADMIN = (lang?: BotLang) => L(lang, "Bu buyruq faqat administrator uchun.", "Эта команда только для администратора.");
-const newNonce = () => randomBytes(4).toString("hex").slice(0, 6);
 
 export async function handleBroadcastStart(chatId: string, text: string, lang?: BotLang): Promise<void> {
   if (!(await adminByChat(chatId))) {
@@ -152,11 +147,7 @@ export async function handleBroadcastCallback(chatId: string, data: string, answ
   }
   const draftHtml = `<b>${escapeTelegramHtml(current.title!)}</b>\n${escapeTelegramHtml(current.body!)}\n\n`;
   // CAS: qoralama AYNAN shu nonce bilan o'chirilgandagina davom etamiz — ikki marta bosish / Telegram qayta yuborishi ikkinchi marta jo'natmaydi
-  const del = await db
-    .delete(botSessions)
-    .where(and(eq(botSessions.chatId, chatId), eq(botSessions.flow, "broadcast"), sql`json_extract(${botSessions.data}, '$.nonce') = ${nonce}`))
-    .returning({ chatId: botSessions.chatId });
-  if (!del.length) {
+  if (!(await takeBotSession(chatId, "broadcast", nonce))) {
     await answer(L(lang, "Allaqachon yuborilmoqda", "Уже отправляется"));
     return true;
   }

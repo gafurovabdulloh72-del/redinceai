@@ -1,20 +1,25 @@
 import "server-only";
+import { ApiError } from "@/lib/api";
 import { escapeTelegramHtml, sendTelegram, telegramApi, type TelegramButton } from "@/lib/telegram";
-import { createTelegramAccount, decideLoginRequest, findTelegramUser } from "@/lib/auth/telegram-login";
+import { createTelegramAccount, findTelegramUser } from "@/lib/auth/telegram-login";
 import { CATEGORIES_BY_GROUP, CATEGORY_BY_SLUG, CATEGORY_GROUPS } from "@/lib/categories";
 import { EXPERIENCE_LEVELS, REGIONS, REGION_BY_SLUG } from "@/lib/constants";
 import { normalizeUzPhone, formatUzPhone } from "@/lib/utils";
 import { audit } from "@/lib/security/audit";
 import { clearBotSession, getBotSession, setBotSession } from "@/lib/telegram-bot/session";
-import { appUrl, menuRows, sendLinkOptions, sendWelcome } from "@/lib/telegram-bot/ui";
+import { menuRows, pageButton, sendLinkOptions, sendWelcome } from "@/lib/telegram-bot/ui";
+import { BANNED_TEXT, sendLoginPrompt } from "@/lib/telegram-bot/actions";
 import { L, type BotLang } from "@/lib/telegram-bot/lang";
 
 /**
  * BOTDA RO'YXATDAN O'TISH (2026-10-31): hisobsiz Telegram foydalanuvchisi savol-javob bilan hisob ochadi —
  * rol → ism → (mutaxassis: yo'nalish → kasb → tajriba → hudud) → telefon (ixtiyoriy) → tasdiqlash.
  * Holat `bot_sessions`da (flow="register"), tugmalar `rg:*`, matn javoblari webhook'dan `handleRegisterText`ga keladi.
- * Avtomatik «mijoz» hisobi endi OCHILMAYDI: Mini App (/api/tg/auth) va «Telegram bilan kirish» (l_<kod>) ham shu oqimga yuboradi;
- * `loginCode` bo'lsa, hisob yaratilgach kirish so'rovi tasdiqlanadi (sayt oynasi davom etadi).
+ * Avtomatik «mijoz» hisobi endi OCHILMAYDI: Mini App (/api/tg/auth) va «Telegram bilan kirish» (l_<kod>) ham shu oqimga yuboradi.
+ *
+ * KIRISH TASDIG'I (2026-11-10): `loginCode` bo'lsa, hisob ochilgach (yoki eski hisob qayta ulangach) saytga kirish
+ * AVTOMATIK tasdiqlanmaydi — odatdagi «qurilma · vaqt · Ha, bu men / Yo'q» savoli ko'rsatiladi (`sendLoginPrompt`).
+ * Begona odam yuborgan `l_<kod>` havolasi bir bosishda kirishni tasdiqlab qo'ymasligi uchun.
  */
 type Who = { name?: string; username?: string; lang?: BotLang };
 type Answer = (text: string) => Promise<unknown>;
@@ -37,39 +42,70 @@ const SKIP_PHONE = "⏭ O'tkazib yuborish";
 const SKIP_PHONE_RU = "⏭ Пропустить";
 const rows = <T,>(items: T[], per: number): T[][] => items.reduce<T[][]>((acc, it, i) => ((i % per === 0 ? acc.push([it]) : acc[acc.length - 1].push(it)), acc), []);
 
+/**
+ * Ism qoidasi — yozilgan ism va Telegram nomi («shu qolsin») uchun BIR XIL: 2–60 belgi, kamida bitta harf,
+ * havola / @taxallus / uzun raqamsiz. Mos kelmasa null.
+ */
+export function cleanName(raw: string | null | undefined): string | null {
+  const name = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (name.length < 2 || name.length > 60) return null;
+  if (/https?:\/\/|www\.|t\.me\/|@|\d{5,}/i.test(name)) return null;
+  if (!/\p{L}/u.test(name)) return null;
+  return name;
+}
+
 async function edit(chatId: string, msgId: number | null, text: string): Promise<void> {
   if (!msgId) return;
   await telegramApi("editMessageText", { chat_id: chatId, message_id: msgId, text, parse_mode: "HTML" }).catch(() => undefined);
 }
-async function load(chatId: string): Promise<RegData | null> {
+async function load(chatId: string): Promise<{ step: string; data: RegData } | null> {
   const s = await getBotSession<RegData>(chatId);
-  return s?.flow === "register" ? s.data : null;
+  return s?.flow === "register" ? { step: s.step, data: s.data } : null;
 }
 async function save(chatId: string, step: string, data: RegData): Promise<void> {
   await setBotSession(chatId, "register", step, data);
 }
+/** Telefon qadamida chiqqan «Raqamni ulashish» klaviaturasi chatda qolib ketmasin (keyingi bosish qidiruvga ketib qolardi) */
+const hadPhoneKeyboard = (step: string | undefined): boolean => step === "phone" || step === "confirm";
 
-/** Boshlash: hisob bo'lsa — menyu; bo'lmasa — 1-savol (rol) */
+/** Chatga ulangan hisobni topish: `banned` — hisob bloklangan (403), null — hisob yo'q */
+async function existingAccount(chatId: string): Promise<{ userId: string; role: string; name: string } | "banned" | null> {
+  try {
+    return await findTelegramUser(chatId);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) return "banned";
+    console.error("[telegram:register] hisobni topib bo'lmadi", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/** Boshlash: hisob bo'lsa — menyu (kirish so'rovi bo'lsa — tasdiq savoli); bo'lmasa — 1-savol (rol) */
 export async function startRegistration(chatId: string, who: Who, opts: { loginCode?: string } = {}): Promise<void> {
   const lang = who.lang;
-  const found = await findTelegramUser(chatId).catch(() => null);
-  if (found) {
-    if (opts.loginCode) await decideLoginRequest(opts.loginCode, chatId, true, who);
-    await sendTelegram(
-      chatId,
-      L(lang, `Siz allaqachon <b>${escapeTelegramHtml(found.name)}</b> hisobi bilan ulangansiz ✅${opts.loginCode ? "\nSaytga kirish tasdiqlandi — brauzerdagi oynaga qayting." : ""}`, `Вы уже привязаны к аккаунту <b>${escapeTelegramHtml(found.name)}</b> ✅${opts.loginCode ? "\nВход на сайт подтверждён — вернитесь в окно браузера." : ""}`),
-      { replyKeyboard: menuRows(false, lang) },
-    );
+  const prev = await load(chatId);
+  const found = await existingAccount(chatId);
+  if (found === "banned") {
+    await clearBotSession(chatId).catch(() => undefined);
+    await sendTelegram(chatId, BANNED_TEXT(lang), { removeKeyboard: true });
     return;
   }
-  const data: RegData = { lang, tgName: who.name?.slice(0, 80), tgUsername: who.username, loginCode: opts.loginCode };
+  if (found) {
+    await clearBotSession(chatId).catch(() => undefined);
+    await sendTelegram(chatId, L(lang, `Siz allaqachon <b>${escapeTelegramHtml(found.name)}</b> hisobi bilan ulangansiz ✅`, `Вы уже привязаны к аккаунту <b>${escapeTelegramHtml(found.name)}</b> ✅`), { replyKeyboard: menuRows(found.role === "admin", lang) });
+    // Kirish so'rovi: avtomatik tasdiq YO'Q — odatdagi savol (qurilma, vaqt, ogohlantirish)
+    if (opts.loginCode) await sendLoginPrompt(chatId, opts.loginCode, found.name, lang);
+    return;
+  }
+  // Qayta boshlash: telefon qadamidagi klaviatura qolgan bo'lsa olib tashlanadi
+  if (hadPhoneKeyboard(prev?.step)) await sendTelegram(chatId, L(lang, "Qaytadan boshlaymiz.", "Начнём заново."), { removeKeyboard: true });
+  const data: RegData = { lang, tgName: cleanName(who.name) ?? undefined, tgUsername: who.username, loginCode: opts.loginCode };
   await save(chatId, "role", data);
   await sendTelegram(
     chatId,
     L(
       lang,
-      `📝 <b>Ro'yxatdan o'tish</b> — bir daqiqa, bir nechta savol.${opts.loginCode ? "\nSaytga kirish uchun avval hisob ochamiz, keyin kirish o'zi tasdiqlanadi." : ""}\n\n<b>Siz kimsiz?</b>`,
-      `📝 <b>Регистрация</b> — одна минута, несколько вопросов.${opts.loginCode ? "\nСначала создадим аккаунт, затем вход на сайт подтвердится автоматически." : ""}\n\n<b>Кто вы?</b>`,
+      `📝 <b>Ro'yxatdan o'tish</b> — bir daqiqa, bir nechta savol.${opts.loginCode ? "\nSaytga kirish uchun avval hisob ochamiz, keyin kirishni shu yerda tasdiqlaysiz." : ""}\n\n<b>Siz kimsiz?</b>`,
+      `📝 <b>Регистрация</b> — одна минута, несколько вопросов.${opts.loginCode ? "\nСначала создадим аккаунт, затем вы подтвердите вход на сайт здесь же." : ""}\n\n<b>Кто вы?</b>`,
     ),
     {
       keyboard: [[{ text: L(lang, "🧑‍💼 Mijoz — ijodkor izlayman", "🧑‍💼 Клиент — ищу специалиста"), data: "rg:role:client" }], [{ text: L(lang, "🎨 Mutaxassis — xizmat ko'rsataman", "🎨 Специалист — оказываю услуги"), data: "rg:role:specialist" }], [CANCEL(lang)]],
@@ -83,6 +119,7 @@ const expLabel = (lang: BotLang | undefined, v: string) => (lang === "ru" ? (EXP
 async function askName(chatId: string, d: RegData): Promise<void> {
   await save(chatId, "name", d);
   await sendTelegram(chatId, L(d.lang, "👤 <b>Ism-familiyangizni yozing</b>\nMasalan: <i>Dilnoza Karimova</i>", "👤 <b>Напишите имя и фамилию</b>\nНапример: <i>Дилноза Каримова</i>"), {
+    // «Shu qolsin» faqat Telegram nomi ism qoidasiga mos bo'lsa taklif qilinadi (havola/@/raqamli nomlar emas)
     keyboard: [...(d.tgName ? [[{ text: L(d.lang, `✅ ${d.tgName.slice(0, 40)} — shu qolsin`, `✅ ${d.tgName.slice(0, 40)} — оставить`), data: "rg:name:tg" }]] : []), [CANCEL(d.lang)]],
   });
 }
@@ -132,6 +169,8 @@ function summary(d: RegData): string {
 }
 async function askConfirm(chatId: string, d: RegData): Promise<void> {
   await save(chatId, "confirm", d);
+  // Telefon qadamidagi klaviatura shu yerda olib tashlanadi (inline tugmali xabar uni o'zi olib tashlay olmaydi)
+  await sendTelegram(chatId, L(d.lang, "Rahmat! Endi ma'lumotlarni tekshiring 👇", "Спасибо! Теперь проверьте данные 👇"), { removeKeyboard: true });
   await sendTelegram(
     chatId,
     L(d.lang, `✅ <b>Tekshiring</b>\n${summary(d)}\n\nHammasi to'g'rimi? Tasdiqlasangiz hisob ochiladi (oferta va maxfiylik siyosatiga rozilik bildirgan hisoblanasiz).`, `✅ <b>Проверьте</b>\n${summary(d)}\n\nВсё верно? После подтверждения аккаунт будет создан (вы соглашаетесь с офертой и политикой конфиденциальности).`),
@@ -146,7 +185,7 @@ async function afterName(chatId: string, d: RegData): Promise<void> {
   else await askPhone(chatId, d);
 }
 
-async function finish(chatId: string, d: RegData, who: Who): Promise<void> {
+async function finish(chatId: string, d: RegData): Promise<void> {
   if (!d.name || !d.role) {
     await clearBotSession(chatId);
     await sendTelegram(chatId, L(d.lang, "Ma'lumot yetarli emas — /royxat bilan qaytadan boshlang.", "Недостаточно данных — начните заново: /royxat."));
@@ -162,16 +201,15 @@ async function finish(chatId: string, d: RegData, who: Who): Promise<void> {
   });
   await clearBotSession(chatId);
   await audit(r.userId, "register", { targetType: "user", targetId: r.userId, meta: { role: d.role, provider: "telegram_bot", isNew: r.isNew } }).catch(() => undefined);
-  if (d.loginCode) await decideLoginRequest(d.loginCode, chatId, true, who).catch(() => false);
-  await sendTelegram(chatId, L(d.lang, `🎉 <b>Hisob ochildi!</b> Xush kelibsiz, ${escapeTelegramHtml(d.name)}.${d.loginCode ? "\n\nSaytga kirish tasdiqlandi — brauzerdagi oynaga qayting." : ""}`, `🎉 <b>Аккаунт создан!</b> Добро пожаловать, ${escapeTelegramHtml(d.name)}.${d.loginCode ? "\n\nВход на сайт подтверждён — вернитесь в окно браузера." : ""}`), { removeKeyboard: true });
+  await sendTelegram(chatId, L(d.lang, `🎉 <b>Hisob ochildi!</b> Xush kelibsiz, ${escapeTelegramHtml(d.name)}.`, `🎉 <b>Аккаунт создан!</b> Добро пожаловать, ${escapeTelegramHtml(d.name)}.`), { removeKeyboard: true });
   await sendWelcome(chatId, { id: r.userId, name: r.name, role: r.role as "client" | "specialist" | "admin" }, d.name.split(" ")[0], d.lang);
   if (d.role === "specialist") {
-    const app = appUrl("/kabinet/profil");
-    const t = L(d.lang, "Profilni to'ldirish", "Заполнить профиль");
     await sendTelegram(chatId, L(d.lang, "🧰 Keyingi qadam — <b>profilni to'ldiring</b>: rasm, qisqa tavsif, ishlaringiz (portfolio) va narx. To'liq profil katalogda yuqoriroq chiqadi va mijozlar ko'proq yozadi.", "🧰 Следующий шаг — <b>заполните профиль</b>: фото, короткое описание, работы (портфолио) и цену. Полный профиль выше в каталоге, и клиенты пишут чаще."), {
-      keyboard: [[app ? { text: t, webApp: app } : { text: t, data: "menu:help" }]],
+      keyboard: [[pageButton(L(d.lang, "Profilni to'ldirish", "Заполнить профиль"), "/kabinet/profil")]],
     });
   }
+  // Saytga kirish so'ralgan bo'lsa — endi odatdagi tasdiq savoli (so'rov shu orada eskirgan bo'lsa, shu aytiladi)
+  if (d.loginCode) await sendLoginPrompt(chatId, d.loginCode, r.name, d.lang);
 }
 
 /** `rg:*` tugmalari */
@@ -184,17 +222,24 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
   }
   if (data === "rg:have") {
     await answer("");
-    const found = await findTelegramUser(chatId).catch(() => null);
-    if (found) await sendTelegram(chatId, L(who.lang, `Siz allaqachon <b>${escapeTelegramHtml(found.name)}</b> hisobi bilan ulangansiz ✅`, `Вы уже привязаны к аккаунту <b>${escapeTelegramHtml(found.name)}</b> ✅`), { replyKeyboard: menuRows(false, who.lang) });
+    const found = await existingAccount(chatId);
+    if (found === "banned") await sendTelegram(chatId, BANNED_TEXT(who.lang));
+    else if (found) await sendTelegram(chatId, L(who.lang, `Siz allaqachon <b>${escapeTelegramHtml(found.name)}</b> hisobi bilan ulangansiz ✅`, `Вы уже привязаны к аккаунту <b>${escapeTelegramHtml(found.name)}</b> ✅`), { replyKeyboard: menuRows(found.role === "admin", who.lang) });
     else await sendLinkOptions(chatId, who.lang);
     return true;
   }
-  const d = await load(chatId);
+  const s = await load(chatId);
+  const d = s?.data;
   const lang = d?.lang ?? who.lang;
   if (data === "rg:cancel") {
     await clearBotSession(chatId);
     await answer(L(lang, "Bekor qilindi", "Отменено"));
-    await edit(chatId, msgId, L(lang, "Ro'yxatdan o'tish bekor qilindi. Istalgan vaqt /royxat bilan qaytadan boshlashingiz mumkin.", "Регистрация отменена. В любой момент можно начать заново: /royxat."));
+    const text = L(lang, "Ro'yxatdan o'tish bekor qilindi. Istalgan vaqt /royxat bilan qaytadan boshlashingiz mumkin.", "Регистрация отменена. В любой момент можно начать заново: /royxat.");
+    // Telefon qadamidan keyin bekor qilinsa — «Raqamni ulashish» klaviaturasi ham olib tashlanadi
+    if (hadPhoneKeyboard(s?.step)) {
+      if (msgId) await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
+      await sendTelegram(chatId, text, { removeKeyboard: true });
+    } else await edit(chatId, msgId, text);
     return true;
   }
   if (!d) {
@@ -213,9 +258,15 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
     await askName(chatId, { ...d, role });
     return true;
   }
-  if (data === "rg:name:tg" && d.tgName) {
-    await edit(chatId, msgId, `${L(lang, "Ism", "Имя")}: <b>${escapeTelegramHtml(d.tgName)}</b> ✓`);
-    await afterName(chatId, { ...d, name: d.tgName });
+  if (data === "rg:name:tg") {
+    // Yozilgan ism bilan bir xil qoida (eski sessiyada tekshirilmagan nom qolgan bo'lishi mumkin)
+    const name = cleanName(d.tgName);
+    if (!name) {
+      await sendTelegram(chatId, L(lang, "Ism 2–60 belgi bo'lsin, havola va raqamlarsiz. Ism-familiyangizni yozing:", "Имя — от 2 до 60 символов, без ссылок и цифр. Напишите имя и фамилию:"));
+      return true;
+    }
+    await edit(chatId, msgId, `${L(lang, "Ism", "Имя")}: <b>${escapeTelegramHtml(name)}</b> ✓`);
+    await afterName(chatId, { ...d, name });
     return true;
   }
   if (data === "rg:groups") {
@@ -245,8 +296,14 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
   if (data === "rg:ok") {
     await edit(chatId, msgId, `${summary(d)}\n\n<b>${L(lang, "Tasdiqlandi ✓", "Подтверждено ✓")}</b>`);
     try {
-      await finish(chatId, d, who);
+      await finish(chatId, d);
     } catch (e) {
+      // Bloklangan hisob: savol-javobni qayta-qayta o'tkazib, har safar «hisob ochilmadi» demaymiz — sababini aytamiz
+      if (e instanceof ApiError && e.status === 403) {
+        await clearBotSession(chatId).catch(() => undefined);
+        await sendTelegram(chatId, BANNED_TEXT(lang), { removeKeyboard: true });
+        return true;
+      }
       console.error("[telegram:register]", e);
       await sendTelegram(chatId, L(lang, "⚠️ Hisob ochilmadi — birozdan keyin /royxat bilan qayta urinib ko'ring yoki saytdan ro'yxatdan o'ting.", "⚠️ Не удалось создать аккаунт — попробуйте позже (/royxat) или зарегистрируйтесь на сайте."));
     }
@@ -263,8 +320,8 @@ export async function handleRegisterText(chatId: string, text: string): Promise<
   const d = s.data;
   const lang = d.lang;
   if (s.step === "name") {
-    const name = text.replace(/\s+/g, " ").trim();
-    if (name.length < 2 || name.length > 60 || /https?:\/\/|@|\d{5,}/.test(name)) {
+    const name = cleanName(text);
+    if (!name) {
       await sendTelegram(chatId, L(lang, "Ism 2–60 belgi bo'lsin, havola va raqamlarsiz. Qaytadan yozing:", "Имя — от 2 до 60 символов, без ссылок и цифр. Напишите ещё раз:"));
       return true;
     }
@@ -304,5 +361,17 @@ export async function handleRegisterContact(chatId: string, contact: { phone_num
   }
   const phone = normalizeUzPhone(raw) ?? (raw.startsWith("+") ? raw : `+${raw}`).replace(/[^\d+]/g, "");
   await askConfirm(chatId, { ...s.data, phone });
+  return true;
+}
+
+/**
+ * Ro'yxat oqimi TUGAGAN/bekor qilingan, lekin telefon qadamidagi klaviatura chatda qolgan: «O'tkazib yuborish» bosildi yoki
+ * kontakt ulashildi. Ilgari bunday bosish ijodkor qidiruviga ketib qolardi — endi klaviatura olib tashlanadi (ulangan
+ * hisobda — doimiy menyu qaytadi). `true` — xabar shu holatga tegishli edi.
+ */
+export async function handleRegisterStray(chatId: string, text: string | null, lang: BotLang | undefined, account: { role: string } | null): Promise<boolean> {
+  if (text !== null && text !== SKIP_PHONE && text !== SKIP_PHONE_RU) return false;
+  if (account) await sendTelegram(chatId, L(lang, "Ro'yxatdan o'tish allaqachon yakunlangan. Pastdagi menyudan foydalaning 👇", "Регистрация уже завершена. Пользуйтесь меню внизу 👇"), { replyKeyboard: menuRows(account.role === "admin", lang) });
+  else await sendTelegram(chatId, L(lang, "Ro'yxatdan o'tish oqimi yopilgan. Qaytadan boshlash — /royxat", "Регистрация закрыта. Начать заново — /royxat"), { removeKeyboard: true });
   return true;
 }
