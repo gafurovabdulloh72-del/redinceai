@@ -862,3 +862,62 @@ test("Qisman PATCH yuborilmagan maydonlarni O'ZGARTIRMAYDI (zod v4 partial+defau
     await req("cl", `/api/groups/${slug}`, { method: "DELETE" });
   }
 });
+
+test("Tuzoq pranklari: hujum imzosi sahifa/API'ga yetmaydi (418), oddiy qidiruv ishlaydi, canary email bloklaydi, admin blokni yechadi", async (t) => {
+  const cleanup = async () => {
+    try {
+      const { createClient } = await import("@libsql/client");
+      const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+      await d.execute("delete from honeypot_hits where ip in ('127.0.0.1','::1','unknown') or ip like '::ffff:127.%'");
+      await d.execute("delete from blocked_ips where ip in ('127.0.0.1','::1','unknown') or ip like '::ffff:127.%'");
+    } catch { /* e'tiborsiz */ }
+  };
+  try {
+    // 1) Sahifa manzilidagi XSS / SQLi / fayl o'qish urinishi → 418 hazil sahifa; payload haqiqiy sahifaga yetmaydi
+    for (const [q, word] of [["/qidiruv?q=" + encodeURIComponent("<script>alert(1)</script>"), "XSS"], ["/mutaxassislar?q=" + encodeURIComponent("' OR 1=1 --"), "parametrlangan"], ["/ishlar?f=" + encodeURIComponent("../../../../etc/passwd"), "fayl"]]) {
+      const r = await fetch(BASE + q, { redirect: "manual", headers: { accept: "text/html" } });
+      assert.equal(r.status, 418, `${q} → 418`);
+      const html = await r.text();
+      assert.ok(html.includes("buzib kirmang"), "hazil sahifa: «buzib kirmang»");
+      assert.ok(html.includes(word), `sabab matni (${word})`);
+      assert.ok(!html.includes("<script>alert(1)</script>"), "payload sahifaga aks etmagan");
+    }
+    // 2) Soxta signal yo'q: o'zbekcha apostrof, «javascript», «select», «union» so'zlari oddiy qidiruvda ishlaydi
+    for (const q of ["o'zbek tilida javascript kursi", "select union video", "Premiere Pro <3", "a'lo or b'lo"]) {
+      const r = await fetch(BASE + "/qidiruv?q=" + encodeURIComponent(q), { redirect: "manual" });
+      assert.equal(r.status, 200, `oddiy qidiruv «${q}» 200`);
+    }
+    // 3) API manzilida imzo → 418 JSON (route'ga yetmaydi)
+    const api = await req("guest", "/api/vakansiyalar?q=" + encodeURIComponent("' or 1=1--"));
+    assert.equal(api.status, 418, "API imzo 418");
+    assert.ok(/buzib kirmang/.test((await api.json()).error ?? ""), "API hazil xabari");
+    // 4) «Yashirin API» yemi
+    const bait = await req("guest", "/api/v1/users");
+    assert.equal(bait.status, 418, "/api/v1/users yem 418");
+    // 5) security.txt va xabar berish sahifasi
+    const sec = await fetch(BASE + "/.well-known/security.txt");
+    assert.equal(sec.status, 200, "security.txt 200");
+    assert.ok(/^Contact: /m.test(await sec.text()), "security.txt Contact");
+    assert.equal((await fetch(BASE + "/xavfsizlik")).status, 200, "/xavfsizlik 200");
+
+    // 6) Canary email bilan kirish → oddiy 401, lekin IP bloklanadi; ALLAQACHON kirgan admin blokni yecha oladi
+    if (!COOKIES.ad) return; // admin sessiyasiz bu qismni sinab bo'lmaydi (blokni yechib bo'lmaydi)
+    await cleanup();
+    const login = await req("guest", "/api/auth/login", { method: "POST", body: JSON.stringify({ email: "sysadmin@kasbegalari.internal", password: "Kasb#2026#r00t!" }) });
+    assert.equal(login.status, 401, "canary login oddiy 401 ko'rinadi");
+    let blockedIp = null;
+    for (let i = 0; i < 20 && !blockedIp; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      const st = await (await req("ad", "/api/admin/tuzoq")).json();
+      blockedIp = st.data?.blocked?.find((b) => /Canary/i.test(b.reason))?.ip ?? null;
+    }
+    assert.ok(blockedIp, "canary login IP'ni blokladi");
+    const blockedCall = await req("guest", "/api/vakansiyalar");
+    assert.equal(blockedCall.status, 403, "bloklangan IP API'da 403");
+    const un = await req("ad", "/api/admin/tuzoq", { method: "POST", body: JSON.stringify({ action: "unblock", ip: blockedIp }) });
+    assert.equal(un.status, 200, "kirgan admin bloklangan IP'dan ham blokni yechadi");
+    assert.equal((await req("guest", "/api/vakansiyalar")).status, 200, "blok yechilgach API ishlaydi");
+  } finally {
+    await cleanup();
+  }
+});

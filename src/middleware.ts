@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { HONEYPOT_RE, attackSignature } from "@/lib/security/trap-patterns";
 import { jwtVerify } from "jose";
 
 const COOKIE = "redince_session";
@@ -190,21 +191,33 @@ function withCsp(res: NextResponse): NextResponse {
  * HONEYPOT / TUZOQ (2026-11-06): skaner botlar qidiradigan mashhur zaif yo'llar. Haqiqiy foydalanuvchi (va Google/Yandex)
  * bularga kirmaydi — har urinish aniq hujum signali. Edge'da bazaga kirib bo'lmaydi, shuning uchun so'rov Node trap
  * route'iga (`/api/tuzoq/trap`) qayta yo'naltiriladi: u jurnalga yozadi, soxta javob beradi, kerak bo'lsa IP'ni bloklaydi.
- * Ro'yxat `src/lib/security/honeypot.ts` HONEYPOT_PATHS bilan mos — ikkalasini birga yangilang (edge server-only import qila olmaydi).
+ * Yo'llar ro'yxati va hujum imzolari YAGONA sof modulda: `src/lib/security/trap-patterns.ts` (edge ham, Node ham shundan oladi).
  */
-const HONEYPOT_RE =
-  /^\/(?:wp-admin|wp-login\.php|wp-content|xmlrpc\.php|wordpress|\.env|\.git|phpmyadmin|pma|adminer\.php|administrator|admin\.php|config\.php|configuration\.php|backup\.sql|backup\.zip|db\.sql|dump\.sql|\.aws|\.ssh|server-status|actuator|\.vscode|vendor\/phpunit|shell\.php|cmd\.php|boshqaruv-7731)(?:$|[/?])/i;
+/**
+ * Tuzoq route'iga ichki yo'naltirish. Asl yo'l va imzo SO'ROV SARLAVHALARIDA uzatiladi: App Router route handler'ida
+ * `req.url` rewrite manzilini emas, ASL manzilni ko'rsatadi (query orqali uzatilgan qiymat yetib bormaydi).
+ * Sarlavhalar har doim shu yerda qayta yoziladi — mijoz yuborgan `x-trap-*` qiymatlari o'tmaydi.
+ */
+function trapRewrite(req: NextRequest, path: string, sig: string | null) {
+  const url = req.nextUrl.clone();
+  url.pathname = "/api/tuzoq/trap";
+  url.search = "";
+  const headers = new Headers(req.headers);
+  headers.set("x-trap-path", encodeURIComponent(path.slice(0, 300)));
+  if (sig) headers.set("x-trap-sig", sig);
+  else headers.delete("x-trap-sig");
+  return NextResponse.rewrite(url, { request: { headers } });
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   // Tuzoq: mashhur hujum yo'llari → Node trap route (jurnal + soxta javob + avtomatik blok). Haqiqiy route'larga tegmaydi.
-  if (HONEYPOT_RE.test(pathname)) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/api/tuzoq/trap";
-    url.search = `?p=${encodeURIComponent(pathname)}`;
-    return NextResponse.rewrite(url);
-  }
+  if (HONEYPOT_RE.test(pathname)) return trapRewrite(req, pathname, null);
+  // Hujum imzosi (XSS / SQL-inyeksiya / fayl o'qish / RCE urinishi) sahifa manzilida — tuzoqning «hazil» sahifasiga.
+  // Haqiqiy sahifa umuman chizilmaydi (payload hech qayerga yetmaydi), urinish jurnalga tushadi.
+  const sig = attackSignature(pathname + search);
+  if (sig) return trapRewrite(req, pathname + search, sig);
 
   const isProtected = pathname.startsWith("/kabinet") || pathname.startsWith("/admin") || pathname === "/buyurtma" || pathname.startsWith("/buyurtma/") || pathname.startsWith("/tolov");
   const isAuthPage = pathname.startsWith("/auth/");

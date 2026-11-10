@@ -8,6 +8,8 @@ import { loginSchema } from "@/lib/validators";
 import { audit } from "@/lib/security/audit";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/security/password";
 import { RATE_LIMITS, clearLimit, clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { after } from "next/server";
+import { isCanaryEmail } from "@/lib/security/trap-patterns";
 
 // embedded — sahifa iframe ichida (Telegram Web Mini App): sessiya cookie'si SameSite=None; Secure; Partitioned bo'ladi
 const schema = loginSchema.extend({ remember: z.boolean().optional().default(true), embedded: z.boolean().optional().default(false) });
@@ -31,6 +33,18 @@ export const POST = handler(async (req) => {
   await rateLimit(keyPair, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs);
   await rateLimit(keyIp, RATE_LIMITS.loginIp.limit, RATE_LIMITS.loginIp.windowMs);
   await rateLimit(keyEmail, RATE_LIMITS.loginEmail.limit, RATE_LIMITS.loginEmail.windowMs);
+
+  // TUZOQ: soxta `.env`dagi «admin» emaili bilan kirishga urinish — faqat o'sha faylni o'g'irlagan hujumchi biladi.
+  // Javob oddiy «noto'g'ri parol» bilan bir xil (vaqt ham), IP esa 30 kunga bloklanadi va adminlarga xabar ketadi.
+  if (isCanaryEmail(input.email)) {
+    await verifyAgainstDummy(input.password);
+    const ua = req.headers.get("user-agent") ?? "";
+    after(async () => {
+      const { recordHoneypotHit } = await import("@/lib/security/honeypot");
+      await recordHoneypotHit({ ip, kind: "canary", method: "POST", path: "/api/auth/login", userAgent: ua, note: "soxta .env'dagi admin emaili bilan kirish" });
+    });
+    throw new ApiError(401, "Email yoki parol noto'g'ri");
+  }
 
   const user = await db.query.users.findFirst({ where: eq(users.email, input.email) });
   const valid = user ? await verifyPassword(input.password, user.passwordHash) : await verifyAgainstDummy(input.password);

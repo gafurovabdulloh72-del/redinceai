@@ -3330,7 +3330,7 @@ export const honeypotHits = sqliteTable(
     id: text("id").primaryKey(),
     ip: text("ip").notNull().default(""),
     /** Tuzoq turi: scan (soxta yo'l) | fakeLogin (soxta admin login) | canary (soxta kalit ishlatildi) */
-    kind: text("kind", { enum: ["scan", "fakeLogin", "canary"] }).notNull().default("scan"),
+    kind: text("kind", { enum: ["scan", "fakeLogin", "canary", "probe"] }).notNull().default("scan"),
     method: text("method").notNull().default("GET"),
     path: text("path").notNull().default(""),
     userAgent: text("user_agent").notNull().default(""),

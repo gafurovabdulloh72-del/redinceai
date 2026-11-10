@@ -175,6 +175,7 @@ export const SHELL = {
     becomeSpecialist: { uz: "Mutaxassis bo'lish", ru: "Стать специалистом" },
     terms: { uz: "Foydalanish shartlari", ru: "Условия использования" },
     privacy: { uz: "Maxfiylik siyosati", ru: "Политика конфиденциальности" },
+    security: { uz: "Xavfsizlik", ru: "Безопасность" },
     socialAria: { uz: "Ijtimoiy tarmoqlar", ru: "Социальные сети" },
     byCraft: { uz: "Yo'nalish bo'yicha", ru: "По направлению" },
     byCity: { uz: "Shahar bo'yicha", ru: "По городу" },

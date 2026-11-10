@@ -17,25 +17,8 @@ import { uid } from "@/lib/utils";
  * Sahifalar edge middleware'da (bazasiz) — u yerda blok qilinmaydi, lekin sahifalardan ma'lumot oqmaydi.
  */
 
-/** Tuzoq yo'llari — hech bir haqiqiy mijoz/bot (Google/Yandex ham) bularni so'ramaydi */
-export const HONEYPOT_PATHS: readonly string[] = [
-  "/wp-admin", "/wp-login.php", "/wp-content", "/xmlrpc.php", "/wordpress",
-  "/.env", "/.env.local", "/.env.production", "/.git/config", "/.git/HEAD",
-  "/phpmyadmin", "/pma", "/adminer.php", "/administrator", "/admin.php",
-  "/config.php", "/configuration.php", "/backup.sql", "/backup.zip", "/db.sql", "/dump.sql",
-  "/.aws/credentials", "/.ssh/id_rsa", "/server-status", "/actuator/env", "/.vscode/sftp.json",
-  "/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php", "/shell.php", "/cmd.php", "/.well-known/security.txt.bak",
-];
-/** Yo'l tuzoqmi — aniq moslik yoki shu prefiks bilan boshlanishi (`/.git/config`, `/wp-admin/...`) */
-export function isHoneypotPath(pathname: string): boolean {
-  const p = pathname.toLowerCase().replace(/\/+$/, "") || "/";
-  return HONEYPOT_PATHS.some((h) => p === h || p.startsWith(h + "/"));
-}
-
-/** CANARY (tuzoq) qiymatlari — soxta `.env`da beriladi; ishlatilsa aniq hujum (lib bu qiymatlarni kuzatadi) */
-export const CANARY_TOKEN = "ke_live_sk_4Fq8Zx2Rn7Wv3Lm9Tb6Yc1Hd5Gj0Kp"; // soxta — hech qayerda haqiqiy emas
-export const CANARY_ADMIN_PATH = "/boshqaruv-7731"; // soxta "maxfiy admin" yo'li
-export const isCanaryToken = (s: string | null | undefined) => Boolean(s) && s === CANARY_TOKEN;
+// Yo'llar, canary qiymatlari va hujum imzolari — sof modulda (edge middleware ham shu manbadan oladi)
+export { HONEYPOT_PATHS, isHoneypotPath, CANARY_TOKEN, CANARY_ADMIN_PATH, CANARY_EMAIL, isCanaryToken, isCanaryEmail, attackSignature, type ProbeSig } from "./trap-patterns";
 
 /** Avtomatik blok chegarasi: 24 soat oynasida shuncha tuzoq urinishdan keyin IP bloklanadi */
 export const AUTO_BLOCK_THRESHOLD = 4;
@@ -43,7 +26,24 @@ const AUTO_BLOCK_MS = 24 * 60 * 60 * 1000; // 1 kun
 const CANARY_BLOCK_MS = 30 * 24 * 60 * 60 * 1000; // canary = 30 kun
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
-type HoneypotKind = "scan" | "fakeLogin" | "canary";
+/** scan — tuzoq yo'li; fakeLogin — soxta login formasi; canary — soxta kalit/email/yo'l ishlatildi; probe — URL'da hujum imzosi (XSS/SQLi/…) */
+export type HoneypotKind = "scan" | "fakeLogin" | "canary" | "probe";
+/** `probe` uchun alohida, yuqoriroq chegara: qidiruvga «<script» yozib ko'rgan qiziquvchan foydalanuvchi darhol bloklanmasin */
+export const PROBE_BLOCK_THRESHOLD = 10;
+
+/** IP'ning so'nggi 24 soatdagi tuzoq urinishlari soni (prank darajasini tanlash uchun; xato bo'lsa 0) */
+export async function recentHitCount(ip: string, kind?: HoneypotKind): Promise<number> {
+  if (!ip) return 0;
+  try {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(honeypotHits)
+      .where(and(eq(honeypotHits.ip, ip), gt(honeypotHits.createdAt, new Date(Date.now() - WINDOW_MS)), kind ? eq(honeypotHits.kind, kind) : undefined));
+    return Number(row?.n ?? 0);
+  } catch {
+    return 0;
+  }
+}
 
 /* ---- Bloklangan IP keshi (Node jarayonida, 60 s TTL) — har API so'rovida bazaga bormaslik uchun ---- */
 let cache: { at: number; set: Set<string> } | null = null;
@@ -138,7 +138,8 @@ export async function recordHoneypotHit(opts: { ip: string; kind: HoneypotKind; 
   } catch {
     /* sanash xatosi — bitta deb olamiz */
   }
-  if (count >= AUTO_BLOCK_THRESHOLD) {
+  // Imzo urinishlari (probe) yuqoriroq chegarada bloklanadi; qolgan turlar — AUTO_BLOCK_THRESHOLD
+  if (count >= (opts.kind === "probe" ? PROBE_BLOCK_THRESHOLD : AUTO_BLOCK_THRESHOLD)) {
     const already = await isIpBlocked(ip);
     await blockIp(ip, `Tuzoqqa ${count} marta tushdi (${opts.kind})`).catch(() => undefined);
     if (!already) await alertAdmins(ip, "🪤 IP avtomatik bloklandi", `${ip} tuzoqqa ${count} marta tushdi (oxirgi: ${opts.method} ${opts.path}). 24 soatga bloklandi.`).catch(() => undefined);

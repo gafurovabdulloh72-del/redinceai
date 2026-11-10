@@ -6,6 +6,7 @@ import { checkSameOrigin } from "./security/origin";
 import { flattenErrors } from "./validators";
 import { LOCALE_COOKIE, pickLocale, type Locale } from "./i18n";
 import { ADMIN_2FA_MESSAGE, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
+import { attackSignature, isCanaryToken } from "./security/trap-patterns";
 
 export class ApiError extends Error {
   constructor(
@@ -84,10 +85,50 @@ async function baseLimit(req: Request): Promise<void> {
 async function blockGuard(req: Request): Promise<void> {
   try {
     const [{ isIpBlocked }, { clientIp }] = await Promise.all([import("./security/honeypot"), import("./security/request")]);
-    if (await isIpBlocked(clientIp(req))) throw new ApiError(403, "Kirish cheklangan");
+    if (await isIpBlocked(clientIp(req))) {
+      // Tiklanish yo'li: ALLAQACHON kirgan admin bloklangan IP'dan ham ishlay oladi — aks holda tasodifan tuzoqqa tushgan
+      // (yoki hujumchi bilan bitta NAT ortidagi) admin blokni panel orqali yecha olmay, o'zi qulflanib qolardi.
+      const s = await getVerifiedSession().catch(() => null);
+      if (s?.role === "admin") return;
+      throw new ApiError(403, "Kirish vaqtincha cheklangan: bu IP manzildan shubhali so'rovlar kelgan. Xato deb hisoblasangiz — t.me/kasb_egalari ga yozing");
+    }
   } catch (e) {
     if (e instanceof ApiError) throw e;
     // Kesh/baza xatosi — bloklamay o'tkazamiz (xavfsiz tomon: haqiqiy foydalanuvchi qulflanib qolmasin)
+  }
+}
+
+/**
+ * TUZOQ (API tomoni, 2026-11-10): middleware `/api/*` ni ko'rmaydi, shuning uchun shu yerda:
+ *  - URL'da (yo'l + query) aniq hujum imzosi (XSS/SQLi/LFI/RCE) bo'lsa — so'rov route'ga YETMAYDI, 418 + hazil JSON;
+ *  - soxta `.env`dagi CANARY kalit haqiqiy API'da ishlatilsa (Authorization / x-api-key / ?key|token|api_key) —
+ *    aniq hujum: 30 kunlik blok (recordHoneypotHit "canary") + 403.
+ * Faqat URL va sarlavhalar tekshiriladi (tana o'qilmaydi — arzon). Xato bo'lsa jim o'tadi (xizmat buzilmasin).
+ */
+async function probeGuard(req: Request): Promise<Response | null> {
+  try {
+    const u = new URL(req.url);
+    const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+    const canary = isCanaryToken(bearer) || isCanaryToken(req.headers.get("x-api-key")) || isCanaryToken(u.searchParams.get("key")) || isCanaryToken(u.searchParams.get("token")) || isCanaryToken(u.searchParams.get("api_key"));
+    const sig = canary ? null : attackSignature(u.pathname + u.search);
+    if (!canary && !sig) return null;
+    const [{ recordHoneypotHit }, { clientIp }, { after }] = await Promise.all([import("./security/honeypot"), import("./security/request"), import("next/server")]);
+    const hit = { ip: clientIp(req), kind: canary ? ("canary" as const) : ("probe" as const), method: req.method, path: (u.pathname + u.search).slice(0, 300), userAgent: req.headers.get("user-agent") ?? "", note: canary ? "canary kalit haqiqiy API'da" : `imzo: ${sig}` };
+    try {
+      after(() => recordHoneypotHit(hit));
+    } catch {
+      void recordHoneypotHit(hit).catch(() => undefined);
+    }
+    return NextResponse.json(
+      {
+        ok: false,
+        error: canary ? "Bu kalit soxta (tuzoq) edi — IP bloklandi. Iltimos, buzib kirmang 🙏" : "Salom, haker! Bu yerda bu ishlamaydi 🙂 Iltimos, buzib kirmang 🙏",
+        report: "/xavfsizlik",
+      },
+      { status: canary ? 403 : 418, headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return null;
   }
 }
 
@@ -104,6 +145,8 @@ export function handler<Ctx>(fn: (req: Request, ctx: Ctx) => Promise<Response>, 
         if (problem) throw new ApiError(403, `${problem}. Sahifani yangilab, qayta urinib ko'ring`);
       }
       await blockGuard(req);
+      const trapped = await probeGuard(req);
+      if (trapped) return trapped;
       if (opts.limit !== false) await baseLimit(req);
       return await fn(req, ctx);
     } catch (e) {

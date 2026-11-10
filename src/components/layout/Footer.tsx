@@ -21,6 +21,7 @@ const LINKS: Array<{ href: string; label: Tr }> = [
 const LEGAL: Array<{ href: string; label: Tr }> = [
   { href: "/oferta", label: SHELL.footer.terms },
   { href: "/maxfiylik", label: SHELL.footer.privacy },
+  { href: "/xavfsizlik", label: SHELL.footer.security },
 ];
 const SOCIAL = [
   { href: SITE.telegram, label: "Telegram", icon: Send },
