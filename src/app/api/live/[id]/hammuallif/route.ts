@@ -1,14 +1,16 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { assertLiveReadable } from "@/lib/live/service";
 import { listCohosts, toggleCohost } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
 
 /** GET — hammuallif id'lari (ro'yxatda belgi qo'yish uchun) */
 export const GET = handler(async (_req, ctx: { params: Promise<{ id: string }> }) => {
-  await requireSession();
+  const session = await requireSession();
   const { id } = await ctx.params;
+  await assertLiveReadable(id, { id: session.sub, role: session.role });
   return ok({ items: await listCohosts(id) });
 });
 

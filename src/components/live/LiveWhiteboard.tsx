@@ -49,6 +49,10 @@ export function LiveWhiteboard({ canDraw, onClose }: { canDraw: boolean; onClose
   const { send } = useDataChannel("wb", (msg) => {
     try {
       const p = JSON.parse(dec.decode(msg.payload)) as Packet;
+      // Chizish/tozalash/holat paketlari faqat sahnadagilardan (canPublish) qabul qilinadi — tomoshabin doskani buza olmaydi.
+      // «ask» (holatni so'rash) — har kimdan.
+      const trusted = Boolean(msg.from?.permissions?.canPublish);
+      if (p.t !== "ask" && !trusted) return;
       if (p.t === "stroke") strokes.current = [...strokes.current.slice(-400), p.s];
       else if (p.t === "clear") strokes.current = [];
       else if (p.t === "all") strokes.current = p.list.slice(-400);

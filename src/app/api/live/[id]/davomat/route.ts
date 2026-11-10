@@ -2,6 +2,7 @@ import { handler, ok, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { csvResponse } from "@/lib/security/csv";
 import { attendance, touchAttendance } from "@/lib/live/zoom";
+import { liveAccess } from "@/lib/live/service";
 import { getLocale } from "@/lib/i18n/server";
 import { intlLocale } from "@/lib/utils";
 
@@ -28,6 +29,9 @@ export const POST = handler(async (_req, ctx: { params: Promise<{ id: string }> 
   const session = await requireSession();
   await enforceLimit("liveWrite", session.sub);
   const { id } = await ctx.params;
+  // Faqat efirga kirish huquqi bor odam davomatga yoziladi (ilgari istalgan kirgan foydalanuvchi o'zini begona/yopiq
+  // efirning davomat ro'yxatiga qo'sha olardi)
+  await liveAccess(id, { id: session.sub, role: session.role });
   await touchAttendance(id, session.sub);
   return ok({ done: true });
 });

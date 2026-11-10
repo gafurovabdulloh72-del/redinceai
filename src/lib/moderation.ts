@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { postComments, posts, reports, reviews, specialists } from "@/lib/db/schema";
+import { postComments, posts, reports, reviews, specialists, users } from "@/lib/db/schema";
 import { notify, notifyAdmins } from "@/lib/notifications";
 
 /**
@@ -13,6 +13,8 @@ import { notify, notifyAdmins } from "@/lib/notifications";
  * O'z-o'ziga shikoyat qilish API'da taqiqlangan, shuning uchun bu yerda alohida sanalmaydi; baribir muallif chiqarib tashlanadi.
  */
 export const AUTO_HIDE_REPORTS = 3;
+/** Shikoyati avto-yashirishga sanalishi uchun shikoyatchi hisobining eng kam yoshi */
+export const REPORTER_MIN_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export type AutoHideTarget = "post" | "comment" | "review";
 
@@ -34,10 +36,14 @@ export function commentNotHiddenCondition(viewer: Viewer): SQL {
 
 /** Nishon bo'yicha ochiq shikoyatlarda nechta turli shikoyatchi bor (muallifning o'zi sanalmaydi) */
 async function distinctOpenReporters(targetType: AutoHideTarget, targetId: string, authorId: string): Promise<number> {
+  // Faqat «yetilgan» hisoblar sanaladi (REPORTER_MIN_AGE_MS, bloklanmagan): bir kunda ochilgan uchta soxta hisob bilan
+  // begona postni lentadan yo'qotib bo'lmasin (7-audit — ommaviy shikoyat bilan jim qilish)
+  const aged = Date.now() - REPORTER_MIN_AGE_MS;
   const [row] = await db
     .select({ n: sql<number>`count(distinct ${reports.reporterId})` })
     .from(reports)
-    .where(and(eq(reports.targetType, targetType), eq(reports.targetId, targetId), eq(reports.status, "open"), sql`${reports.reporterId} != ${authorId}`));
+    .innerJoin(users, eq(users.id, reports.reporterId))
+    .where(and(eq(reports.targetType, targetType), eq(reports.targetId, targetId), eq(reports.status, "open"), sql`${reports.reporterId} != ${authorId}`, eq(users.isBanned, false), sql`${users.createdAt} <= ${aged}`));
   return Number(row?.n ?? 0);
 }
 
@@ -78,6 +84,10 @@ const ADMIN_LABEL: Record<AutoHideTarget, string> = { post: "Post", comment: "Iz
  * va adminlarga ogohlantirish yuboradi. Qaytaradi: hozir yashirildimi.
  */
 export async function maybeAutoHide(targetType: AutoHideTarget, targetId: string): Promise<boolean> {
+  // SHARH avtomatik yashirilmaydi (7-audit): yashirish reytingni o'zgartiradi — mutaxassis yordamchi hisoblar bilan o'ziga
+  // yozilgan yomon sharhni, raqib esa yaxshi sharhni «shikoyat» orqali yo'qotib qo'ya olardi. Sharh bo'yicha qarorni faqat
+  // admin chiqaradi (har shikoyat adminlarga alohida xabar bo'lib boradi). Ilgari yashirilganlari admin yopganda qaytadi.
+  if (targetType === "review") return false;
   const meta = await targetMeta(targetType, targetId);
   if (!meta || meta.hidden) return false;
   const n = await distinctOpenReporters(targetType, targetId, meta.authorId);
@@ -86,11 +96,8 @@ export async function maybeAutoHide(targetType: AutoHideTarget, targetId: string
   const res =
     targetType === "post"
       ? await db.update(posts).set({ hiddenByReports: true }).where(and(eq(posts.id, targetId), eq(posts.hiddenByReports, false)))
-      : targetType === "comment"
-        ? await db.update(postComments).set({ hiddenByReports: true }).where(and(eq(postComments.id, targetId), eq(postComments.hiddenByReports, false)))
-        : await db.update(reviews).set({ hiddenByReports: true }).where(and(eq(reviews.id, targetId), eq(reviews.hiddenByReports, false)));
+      : await db.update(postComments).set({ hiddenByReports: true }).where(and(eq(postComments.id, targetId), eq(postComments.hiddenByReports, false)));
   if (res.rowsAffected === 0) return false;
-  if (targetType === "review") await recalcReview(targetId);
   await notify(meta.authorId, "account", `${LABEL[targetType]} vaqtincha yashirildi`, `${LABEL[targetType]} bir nechta shikoyat sababli vaqtincha yashirildi — admin ko'rib chiqadi. Qoidabuzarlik bo'lmasa, qaytariladi.`, meta.href).catch(() => undefined);
   await notifyAdmins("report", `${ADMIN_LABEL[targetType]} avtomatik yashirildi (${n} ta shikoyat)`, "Navbatda ko'rib chiqing: shikoyatni yopsangiz — qaytadi, o'chirsangiz — yo'qoladi.", "/admin#shikoyatlar", { skipMail: true }).catch(() => undefined);
   return true;

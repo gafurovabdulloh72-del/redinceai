@@ -56,7 +56,10 @@ export async function mintCallToken(opts: { identity: string; name: string; room
     .setSubject(opts.identity)
     .setJti(opts.identity)
     .setIssuedAt()
-    .setExpirationTime("6h")
+    // Token faqat ULANISH paytida tekshiriladi (ulangan seans muddat o'tgach ham davom etadi; uzilsa mijoz yangisini so'raydi).
+    // Qisqa muddat SHART (7-audit): 6 soatlik token bilan efirdan chiqarilgan/taqiqlangan odam o'sha token orqali qayta kira olardi —
+    // yangi token esa `liveAccess` taqiqni tekshirgach beriladi.
+    .setExpirationTime("10m")
     .sign(secret);
 }
 

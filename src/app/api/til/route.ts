@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { safeInternalPath } from "@/lib/utils";
 import { clientIp, enforceLimit, RATE_LIMIT_MESSAGE } from "@/lib/security/rate-limit";
+import { checkSameOrigin } from "@/lib/security/origin";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,8 @@ async function rememberLang(til: DisplayLocale): Promise<void> {
 
 /** Tilni almashtirish: POST { til: "uz" | "uz_cyrl" | "ru" | "en" } — fetch + router.refresh() uchun */
 export async function POST(req: NextRequest) {
+  // Begona saytdan yuborilgan so'rov tilni (va `users.lang`ni) o'zgartira olmaydi (bu route `handler()`siz — tekshiruv shu yerda)
+  if (checkSameOrigin(req)) return NextResponse.json({ error: "So'rov manbasi saytga mos kelmaydi" }, { status: 403 });
   if (await limited(req)) return NextResponse.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
   let til: unknown;
   try {
@@ -62,6 +65,12 @@ export async function GET(req: NextRequest) {
   // Ochiq redirect emas: faqat sayt ichidagi yo'l ("/\evil.com" kabi backslash variantlari ham rad etiladi)
   const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin) ?? "/";
   const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
+  // GET — JS'siz zaxira havola. Yon ta'sir faqat foydalanuvchi O'ZI shu saytda bosgan/ochgan havolada: rasm/iframe/prefetch
+  // (`<img src="/api/til?t=ru">`) yoki begona saytdan kelgan so'rov tilni almashtirmaydi — shunchaki yo'naltiriladi.
+  const dest = req.headers.get("sec-fetch-dest");
+  const site = req.headers.get("sec-fetch-site");
+  const induced = (dest !== null && dest !== "document") || site === "cross-site" || /prefetch|prerender/i.test(req.headers.get("sec-purpose") ?? req.headers.get("purpose") ?? "");
+  if (induced) return res;
   setCookie(res, til);
   await rememberLang(til);
   return res;

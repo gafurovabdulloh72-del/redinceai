@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { reports, reviews } from "@/lib/db/schema";
-import { ApiError, handler, ok, requireSession } from "@/lib/api";
+import { z } from "zod";
+import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { recalcRating } from "@/lib/queries";
 import { audit } from "@/lib/security/audit";
 
@@ -20,4 +21,17 @@ export const DELETE = handler(async (req, ctx: { params: Promise<{ id: string }>
     .where(and(eq(reports.targetType, "review"), eq(reports.targetId, id), eq(reports.status, "open")));
   await audit(session.sub, "review_deleted", { targetType: "review", targetId: id, meta: { admin: true, specialistId: row.specialistId, authorId: row.authorId, rating: row.rating } }, req);
   return ok({ deleted: true, specialistId: row.specialistId });
+});
+
+/** Admin: shubhali sharhni TASDIQLASH (`suspect: false` — reytingga qo'shiladi) yoki qayta shubhali qilish */
+export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
+  const session = await requireSession(["admin"]);
+  const { id } = await ctx.params;
+  const { suspect } = await parseBody(req, z.object({ suspect: z.boolean() }));
+  const row = await db.query.reviews.findFirst({ where: eq(reviews.id, id), columns: { id: true, specialistId: true } });
+  if (!row) throw new ApiError(404, "Sharh topilmadi");
+  await db.update(reviews).set({ suspect }).where(eq(reviews.id, id));
+  await recalcRating(row.specialistId);
+  await audit(session.sub, suspect ? "review_marked_suspect" : "review_approved", { targetType: "review", targetId: id, meta: { specialistId: row.specialistId } }, req);
+  return ok({ id, suspect });
 });

@@ -797,7 +797,8 @@ export async function recalcRating(specialistId: string) {
   const [row] = await db
     .select({ avg: sql<number>`coalesce(avg(${reviews.rating}), 0)`, n: count() })
     .from(reviews)
-    .where(and(eq(reviews.specialistId, specialistId), eq(reviews.hiddenByReports, false)));
+    // Shikoyat bilan yashirilgan va SHUBHALI (soxta hisob belgisi bor, admin tasdiqlamagan) sharhlar reytingga kirmaydi
+    .where(and(eq(reviews.specialistId, specialistId), eq(reviews.hiddenByReports, false), eq(reviews.suspect, false)));
   const rating = Math.round(Number(row.avg) * 10) / 10;
   const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { completedCount: true } });
   // "Top mutaxassis" (F69): payments isTopRated() bilan aynan bir qoida (TOP_RATED_RULE, minCompleted bo'lsa u ham) —

@@ -355,7 +355,9 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   const genderLabel = genderInfo ? genderPersonLabel(til, genderInfo.value, genderInfo.label) : null;
   const onVacation = isOnVacation(sp.vacationUntil);
   const scheduleLock = lockReason(vis.schedule, effectiveViewer);
-  const distribution = ratingDistribution(raw.reviews);
+  // Reyting taqsimoti va yig'ma ko'rsatkichlar — reytingga kiradigan sharhlar bo'yicha (shubhali deb belgilanganlar sanalmaydi)
+  const countedReviews = raw.reviews.filter((r) => !r.suspect);
+  const distribution = ratingDistribution(countedReviews);
   // "… dan" narx: priceFrom bo'sh bo'lsa — eng arzon paket (F31); dollar ekvivalenti (F99) — platforma kursi bilan
   const priceFrom = effectivePriceFrom(raw);
   const price = priceRangeLabel(til, priceFrom, sp.priceTo);
@@ -920,7 +922,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
               {sp.reviewCount > 1 && <ReviewSort current={reviewSort} basePath={profilePath} til={til} />}
             </div>
             <div className="space-y-4">
-              <ReviewSummary rating={sp.rating} count={sp.reviewCount} distribution={distribution} items={raw.reviews} />
+              <ReviewSummary rating={sp.rating} count={sp.reviewCount} distribution={distribution} items={countedReviews} />
               <ReviewForm
                 specialistId={raw.id}
                 canReview={canReview && !previewMode}

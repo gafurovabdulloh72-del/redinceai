@@ -47,8 +47,12 @@ export function useLiveCaptions({ streamId, speak, startedAt, lang = "uz-UZ" }: 
 
   const { send } = useDataChannel("caption", (msg) => {
     try {
-      const j = JSON.parse(dec.decode(msg.payload)) as { name?: string; text?: string };
-      if (j.text) setLine({ name: j.name || "Ishtirokchi", text: j.text.slice(0, 300), at: Date.now() });
+      // Subtitr faqat GAPIRISH huquqi bor ishtirokchidan qabul qilinadi (boshlovchi / sahnadagi). Tomoshabin ham data kanaliga
+      // yoza oladi (chat, reaksiya uchun) — usiz u boshlovchi nomidan soxta «subtitr» chiqara olardi. Ism ham paketdan emas,
+      // LiveKit bergan ishtirokchi ma'lumotidan olinadi.
+      if (!msg.from?.permissions?.canPublish) return;
+      const j = JSON.parse(dec.decode(msg.payload)) as { text?: string };
+      if (j.text) setLine({ name: msg.from.name || "Ishtirokchi", text: String(j.text).slice(0, 300), at: Date.now() });
     } catch {
       /* buzuq paket */
     }

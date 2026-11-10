@@ -164,6 +164,29 @@ export async function liveAccess(
   return { stream, host, group, staged, moderator, gate, room, breakout };
 }
 
+/**
+ * Efirning yordamchi ma'lumotlarini (transkript, kichik xonalar, hammualliflar ro'yxati) O'QISH huquqi (7-audit: bu GET'lar
+ * faqat «kirganmi»ni tekshirardi — yopiq jamoa yoki pullik efirning transkripti/ishtirokchilari har kimga ochiq edi).
+ *   jonli efir   → `liveAccess` (yopiq jamoa a'zoligi, pullik chipta, taqiq, kod / kutish xonasi);
+ *   tugagan efir → boshlovchi/admin; qolganlarga — jamoani ko'ra olsa va (pullik bo'lsa) chiptasi/obunasi bo'lsa.
+ */
+export async function assertLiveReadable(streamId: string, v: Viewer): Promise<void> {
+  const stream = await db.query.liveStreams.findFirst({ where: eq(liveStreams.id, streamId) });
+  if (!stream) throw new ApiError(404, "Efir topilmadi");
+  if (stream.status === "live" && stream.startedAt.getTime() >= Date.now() - LIVE_MAX_MS) {
+    await liveAccess(streamId, v);
+    return;
+  }
+  if (stream.hostId === v.id || v.role === "admin") return;
+  const group = await db.query.groups.findFirst({ where: eq(groups.id, stream.groupId) });
+  if (!group) throw new ApiError(404, "Jamoa topilmadi");
+  if (group.isPrivate) {
+    const m = await getMembership(group.id, v.id);
+    if (!m || m.status !== "active") throw new ApiError(403, "Bu efir yopiq jamoa a'zolari uchun");
+  }
+  if (stream.priceSom > 0 && !(await canWatchPaid(v.id, stream, false))) throw new ApiError(402, "Bu efir pullik — chipta oling yoki ustozga obuna bo'ling");
+}
+
 const CHAT_MAX = 300;
 
 /** Efir chatiga yozuv (tarix uchun; realtime — LiveKit data). Taqiqlanganlar yoza olmaydi (liveAccess) */

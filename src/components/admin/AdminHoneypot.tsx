@@ -33,7 +33,7 @@ interface Stats {
   total24h: number;
 }
 
-const KIND_LABEL: Record<string, string> = { scan: "Skaner", fakeLogin: "Soxta login", canary: "Canary 🚨", probe: "Hujum imzosi" };
+const KIND_LABEL: Record<string, string> = { scan: "Tuzoq yo'li", fakeLogin: "Soxta login", canary: "Canary 🚨", probe: "Hujum imzosi" };
 
 /** Admin «Tizim» tabi: honeypot (tuzoq) — tuzoqqa tushgan urinishlar, eng faol IP'lar, bloklangan IP'lar. */
 export function AdminHoneypot() {
@@ -64,7 +64,7 @@ export function AdminHoneypot() {
   async function blockManual() {
     const ip = ipInput.trim();
     if (ip.length < 3) return;
-    if (!(await confirm({ title: "IP'ni bloklash?", text: `${ip} — barcha API so'rovlari 403 oladi (doimiy).`, confirmLabel: "Bloklash", danger: true }))) return;
+    if (!(await confirm({ title: "IP'ni bloklash?", text: `${ip} — shu manzildan kelgan BARCHA so'rovlar (brauzer ham) 403 oladi, doimiy. Avtomatik blok esa faqat skaner/skriptga amal qiladi.`, confirmLabel: "Bloklash", danger: true }))) return;
     setIpInput("");
     await act("block", ip);
   }
@@ -86,7 +86,7 @@ export function AdminHoneypot() {
       {/* Qo'lda bloklash */}
       <div className="flex flex-wrap items-center gap-2">
         <input value={ipInput} onChange={(e) => setIpInput(e.target.value)} placeholder="IP manzil (masalan 1.2.3.4)" className="field h-9 max-w-[220px] flex-1 text-[13px]" inputMode="numeric" />
-        <button type="button" onClick={() => void blockManual()} disabled={ipInput.trim().length < 3} className="btn-ink h-9 rounded-full px-3 text-[12.5px] font-semibold disabled:opacity-40">
+        <button type="button" onClick={() => void blockManual()} disabled={ipInput.trim().length < 3} className="btn-ink inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40">
           <ShieldX size={14} /> Bloklash
         </button>
       </div>
@@ -140,7 +140,7 @@ export function AdminHoneypot() {
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", h.kind === "canary" ? "bg-danger-soft text-danger-text" : h.kind === "fakeLogin" || h.kind === "probe" ? "bg-warning-soft text-warning-text" : "bg-fg/6 text-fg-2")}>{KIND_LABEL[h.kind] ?? h.kind}</span>
                 {h.soft && (
                   <span className="rounded-full border border-line px-1.5 py-0.5 text-[10.5px] font-medium text-fg-3" title="Brauzerda ochilgan havola yoki qidiruv boti — kimdir aldab yuborgan bo'lishi mumkin, shuning uchun blokka sanalmaydi">
-                    yumshoq
+                    brauzer
                   </span>
                 )}
                 <code className="font-mono text-[11.5px] text-fg">{h.ip}</code>

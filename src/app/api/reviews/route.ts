@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
+import { reviewSuspicion } from "@/lib/reviews/trust";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { reviews, specialists } from "@/lib/db/schema";
 import { ApiError, handler, ok, parseBody, parseQuery, requireSession } from "@/lib/api";
 import { reviewDeleteSchema, reviewSchema } from "@/lib/validators";
 import { hasCompletedOrderWith, recalcRating } from "@/lib/queries";
-import { notify } from "@/lib/notifications";
+import { notify, notifyAdmins } from "@/lib/notifications";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
 import { uid } from "@/lib/utils";
@@ -84,7 +85,12 @@ async function saveReview(req: Request, mode: "upsert" | "update") {
     await db.update(reviews).set(values).where(eq(reviews.id, existing.id));
   } else {
     reviewId = uid();
-    await db.insert(reviews).values({ id: reviewId, specialistId: sp.id, authorId: session.sub, ...values });
+    // Soxta hisob belgilari bo'lsa sharh «shubhali» saqlanadi: ko'rinadi, lekin reyting/nishonga kirmaydi (lib/reviews/trust.ts)
+    const why = session.role === "admin" ? null : await reviewSuspicion(session.sub, sp).catch(() => null);
+    await db.insert(reviews).values({ id: reviewId, specialistId: sp.id, authorId: session.sub, ...values, suspect: Boolean(why) });
+    if (why) {
+      await notifyAdmins("report", "Shubhali sharh — tekshiring", `${session.name} → /mutaxassislar/${sp.slug}: ${rating} yulduz. Sabab: ${why}. Tasdiqlanmaguncha reytingga kirmaydi.`, `/mutaxassislar/${sp.slug}#sharh-${reviewId}`, { skipMail: true }).catch(() => undefined);
+    }
   }
   await recalcRating(sp.id);
   await audit(session.sub, existing ? "review_updated" : "review_created", { targetType: "specialist", targetId: sp.id, meta: { rating, media: media.length || undefined, recommend: values.recommend ?? undefined } }, req);

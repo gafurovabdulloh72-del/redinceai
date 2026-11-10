@@ -1,14 +1,16 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { assertLiveReadable } from "@/lib/live/service";
 import { assignBreakout, autoAssign, breakouts, createBreakouts, MAX_BREAKOUTS, setBreakoutOpen } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
 
 /** GET — kichik xonalar va a'zolari */
 export const GET = handler(async (_req, ctx: { params: Promise<{ id: string }> }) => {
-  await requireSession();
+  const session = await requireSession();
   const { id } = await ctx.params;
+  await assertLiveReadable(id, { id: session.sub, role: session.role });
   return ok({ items: await breakouts(id) });
 });
 

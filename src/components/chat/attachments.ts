@@ -65,6 +65,14 @@ export const EXTERNAL_AUDIO_RE = /^https:\/\/(?:audio-ssl\.itunes\.apple\.com|[a
 export const isAudioUrl = (u: string) => AUDIO_URL_RE.test(u) || EXTERNAL_AUDIO_RE.test(u);
 /** Faqat rasm (sharh rasmlari, avatar) — hujjat URL o'tmaydi */
 export const IMAGE_URL_RE = uploadUrlRe("jpe?g|png|webp|gif");
+const VIDEO_UPLOAD_RE = uploadUrlRe("mp4|webm|mov");
+const RECORDING_URL_RE = R2_BASE.startsWith("https://") ? new RegExp(`^${escapeRe(R2_BASE)}\\/recordings\\/[\\w-]+\\.mp4$`, "i") : null;
+/**
+ * Dars videosi manzili: FAQAT o'z saqlashimizdagi video (yuklama) yoki efir yozuvi (R2 `recordings/<id>.mp4`).
+ * Ilgari har qanday URL qabul qilinardi va server uni pleyer uchun o'zi o'qirdi — ustoz ichki tarmoq manzilini
+ * (yoki unga yo'naltiruvchi havolani) qo'yib, serverni o'sha manzilga so'rov yuborishga majburlay olardi (SSRF, 7-audit).
+ */
+export const isOwnVideoUrl = (u: string) => VIDEO_UPLOAD_RE.test(u) || Boolean(RECORDING_URL_RE?.test(u));
 
 const EXT_MIME: Record<string, string> = {
   jpg: "image/jpeg",

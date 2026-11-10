@@ -483,6 +483,11 @@ export const reviews = sqliteTable(
     reply: text("reply"),
     replyAt: integer("reply_at", { mode: "timestamp_ms" }),
     /** Shikoyatlar sababli avtomatik yashirilgan (lib/moderation.ts AUTO_HIDE_REPORTS); admin shikoyatni yopsa qaytadi */
+    /**
+     * Shubhali sharh (7-audit — soxta hisoblar bilan reyting ko'tarish): matni ko'rinadi, lekin REYTING va «Top mutaxassis»
+     * hisobiga KIRMAYDI, toki admin tasdiqlamaguncha. Avtomatik belgilanadi (`lib/reviews/trust.ts`).
+     */
+    suspect: integer("suspect", { mode: "boolean" }).notNull().default(false),
     hiddenByReports: integer("hidden_by_reports", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()

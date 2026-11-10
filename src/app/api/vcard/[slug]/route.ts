@@ -1,5 +1,5 @@
 import { ApiError, handler } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { getVerifiedSession } from "@/lib/auth";
 import { CATEGORY_BY_SLUG, REGION_BY_SLUG, SITE } from "@/lib/constants";
 import { getSettings } from "@/lib/payments/settings";
 import { filterSpecialistForViewer, type Viewer } from "@/lib/privacy";
@@ -34,7 +34,7 @@ export const GET = handler(async (req, ctx: { params: Promise<{ slug: string }> 
   const raw = await getSpecialistBySlug(slug);
   if (!raw) throw new ApiError(404, "Mutaxassis topilmadi");
 
-  const [session, settings] = await Promise.all([getSession(), getSettings()]);
+  const [session, settings] = await Promise.all([getVerifiedSession(), getSettings()]);
   const isOwner = Boolean(session && session.sub === raw.userId);
   const viewer: Viewer = {
     userId: session?.sub ?? null,

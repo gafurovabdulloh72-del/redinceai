@@ -165,7 +165,9 @@ export async function createInvoice(
   tier: "pro" | "max" = "pro",
 ): Promise<{ invoice: SubscriptionInvoice; reused: boolean }> {
   if (!isPlanMonths(months)) throw new ApiError(422, "Bunday obuna rejasi yo'q", { months: "1, 3, 6 yoki 12 oy tanlang" });
-  if (!isProviderConfigured(provider)) throw new ApiError(400, "Bu to'lov usuli hozircha ulanmagan");
+  // `await` SHART: isProviderConfigured — async. Ilgari Promise'ning o'zi tekshirilardi (har doim «rost») va sozlanmagan
+  // to'lov usuliga ham hisob ochilib, foydalanuvchi ishlamaydigan to'lov havolasini olardi.
+  if (!(await isProviderConfigured(provider))) throw new ApiError(400, "Bu to'lov usuli hozircha ulanmagan");
   const settings = await getSettings();
   const amount = planPrice(months, settings, tier);
   const unitPrice = tierUnitPrice(settings, tier);

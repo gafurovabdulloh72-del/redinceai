@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IMAGE_URL_RE, UPLOAD_URL_RE } from "@/components/chat/attachments";
+import { IMAGE_URL_RE, UPLOAD_URL_RE, isOwnVideoUrl } from "@/components/chat/attachments";
 import { MENTOR_CATEGORIES, COURSE_LEVELS, MENTOR_LIMITS } from "./format";
 
 const categoryKeys = MENTOR_CATEGORIES.map((c) => c.key) as [string, ...string[]];
@@ -32,7 +32,7 @@ export type CourseInput = z.infer<typeof courseSchema>;
 export const lessonSchema = z.object({
   title: z.string().trim().min(3, "Dars nomi kamida 3 belgi").max(MENTOR_LIMITS.lessonTitleMax),
   body: z.string().trim().max(MENTOR_LIMITS.lessonBodyMax).default(""),
-  videoUrl: z.string().trim().url().max(500).nullish(),
+  videoUrl: z.string().trim().max(500).refine((u) => isOwnVideoUrl(u), "Video sayt orqali yuklanishi kerak").nullish(),
   durationMin: z.coerce.number().int().min(0).max(100000).default(0),
   isPreview: z.boolean().default(false),
   /** Kurs bo'limi nomi (ixtiyoriy) */

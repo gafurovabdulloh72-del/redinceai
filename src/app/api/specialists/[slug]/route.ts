@@ -1,5 +1,5 @@
 import { ApiError, handler, ok } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { getVerifiedSession } from "@/lib/auth";
 import { getSettings } from "@/lib/payments/settings";
 import { filterSpecialistForViewer, resolveVisibility, type Viewer } from "@/lib/privacy";
 import { getSpecialistBySlug, hasAcceptedOrderWith } from "@/lib/queries";
@@ -15,7 +15,7 @@ export const GET = handler(async (_req, ctx: { params: Promise<{ slug: string }>
   const sp = await getSpecialistBySlug(slug);
   if (!sp) throw new ApiError(404, "Mutaxassis topilmadi");
 
-  const [session, settings] = await Promise.all([getSession(), getSettings()]);
+  const [session, settings] = await Promise.all([getVerifiedSession(), getSettings()]);
   const isOwner = Boolean(session && session.sub === sp.userId);
   const viewer: Viewer = {
     userId: session?.sub ?? null,

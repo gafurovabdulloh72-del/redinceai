@@ -1,15 +1,16 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
-import { liveAccess } from "@/lib/live/service";
+import { assertLiveReadable, liveAccess } from "@/lib/live/service";
 import { saveCaption, transcript } from "@/lib/live/zoom";
 
 export const runtime = "nodejs";
 
 /** GET — transkript (efir subtitrlari ketma-ket) */
 export const GET = handler(async (_req, ctx: { params: Promise<{ id: string }> }) => {
-  await requireSession();
+  const session = await requireSession();
   const { id } = await ctx.params;
+  await assertLiveReadable(id, { id: session.sub, role: session.role });
   return ok({ items: await transcript(id) });
 });
 

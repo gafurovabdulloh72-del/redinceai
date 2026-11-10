@@ -80,6 +80,21 @@ function headersFor(type: string, ext: string, opts: StreamOpts): Record<string,
   return h;
 }
 
+/** O'z saqlashimiz: Vercel Blob ommaviy do'koni yoki sozlangan R2 ommaviy manzili (R2_PUBLIC_BASE) */
+function isOwnStorageHost(u: URL): boolean {
+  const host = u.hostname.toLowerCase();
+  if (host.endsWith(".public.blob.vercel-storage.com")) return true;
+  const r2 = (process.env.R2_PUBLIC_BASE ?? "").trim();
+  if (r2.startsWith("https://")) {
+    try {
+      return new URL(r2).hostname.toLowerCase() === host;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export async function streamProtectedMedia(sourceUrl: string, req: Request, opts: StreamOpts = {}): Promise<Response> {
   const method = req.method === "HEAD" ? "HEAD" : "GET";
   const nameRe = opts.any ? ANY_NAME_RE : UPLOAD_NAME_RE;
@@ -121,12 +136,15 @@ export async function streamProtectedMedia(sourceUrl: string, req: Request, opts
     return new Response("Not found", { status: 404 });
   }
   if (u.protocol !== "https:") return new Response("Not found", { status: 404 });
+  // Server FAQAT o'z saqlash xizmatlarimizga so'rov yuboradi (SSRF himoyasi, 7-audit): bazadagi manzil begona host bo'lsa — 404.
+  // Redirect kuzatilmaydi (saqlash xizmati to'g'ridan-to'g'ri beradi; yo'naltirish ichki manzilga olib borishi mumkin edi).
+  if (!isOwnStorageHost(u)) return new Response("Not found", { status: 404 });
   const fwd = new Headers();
   const range = req.headers.get("range");
   if (range) fwd.set("range", range);
   let up: Response;
   try {
-    up = await fetch(u, { method, headers: fwd, redirect: "follow", signal: AbortSignal.timeout(30_000) });
+    up = await fetch(u, { method, headers: fwd, redirect: "manual", signal: AbortSignal.timeout(30_000) });
   } catch {
     return new Response("Manba javob bermadi", { status: 502 });
   }
