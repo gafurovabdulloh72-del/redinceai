@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { handler, ok, parseQuery, requireSession } from "@/lib/api";
+import { audit } from "@/lib/security/audit";
 import { csvResponse } from "@/lib/security/csv";
 import { formatDateTime } from "@/lib/utils";
-import { auditFilterFromQuery, labelFor, queryAuditLogs } from "@/app/admin/queries";
+import { auditCursorOf, auditFilterFromQuery, labelFor, parseAuditCursor, queryAuditLogs } from "@/app/admin/queries";
 
 const schema = z.object({
   action: z.string().trim().max(40).optional(),
@@ -10,18 +11,30 @@ const schema = z.object({
   from: z.string().trim().max(10).optional(),
   to: z.string().trim().max(10).optional(),
   q: z.string().trim().max(80).optional(),
+  /** Nishon turi (aniq) va nishon id (boshidan moslik) */
+  target: z.string().trim().max(40).optional(),
+  tid: z.string().trim().max(200).optional(),
+  /** Kursor: oldingi javobdagi `nextCursor` — shundan eski yozuvlar */
+  before: z.string().trim().max(90).optional(),
   format: z.enum(["json", "csv"]).default("json"),
-  limit: z.coerce.number().int().min(1).max(5000).default(2000),
+  /** JSON: sahifa hajmi (≤200); CSV: eksport chegarasi (≤5000) */
+  limit: z.coerce.number().int().min(1).max(5000).optional(),
 });
 
-/** Admin: audit jurnali — filtrlar (harakat, kim, sana) va CSV eksport (F90) */
+/**
+ * Admin: audit jurnali — filtrlar (harakat, kim, nishon turi/id, sana, erkin matn).
+ *  · JSON: kursor bo'yicha sahifalash — `{ items, nextCursor }` (`?before=<nextCursor>` keyingi sahifa);
+ *  · CSV (`format=csv`): joriy filtr bo'yicha 5000 tagacha qator, formula-inyeksiyadan himoyalangan (lib/security/csv.ts);
+ *    eksportning o'zi ham jurnalga yoziladi (kim, qaysi filtr bilan, nechta qator).
+ */
 export const GET = handler(async (req) => {
-  await requireSession(["admin"]);
+  const session = await requireSession(["admin"]);
   const q = parseQuery(req.url, schema);
   const filter = auditFilterFromQuery(q);
-  const rows = await queryAuditLogs(filter, { limit: q.limit, offset: 0 });
 
   if (q.format === "csv") {
+    const rows = await queryAuditLogs(filter, { limit: Math.min(q.limit ?? 2000, 5000) });
+    await audit(session.sub, "admin_export", { targetType: "audit", meta: { ...filter, rows: rows.length } }, req);
     return csvResponse(
       "kasbegalari-audit",
       ["vaqt", "harakat", "harakat_kodi", "kim", "email", "nishon_turi", "nishon_id", "ip", "izoh", "tafsilot"],
@@ -29,8 +42,12 @@ export const GET = handler(async (req) => {
     );
   }
 
-  return ok(
-    rows.map((r) => ({
+  const limit = Math.min(q.limit ?? 50, 200);
+  const rows = await queryAuditLogs(filter, { limit: limit + 1, before: parseAuditCursor(q.before) });
+  const page = rows.slice(0, limit);
+  const last = page[page.length - 1];
+  return ok({
+    items: page.map((r) => ({
       id: r.id,
       action: r.action,
       label: labelFor(r.action, r.meta),
@@ -41,5 +58,6 @@ export const GET = handler(async (req) => {
       meta: r.meta,
       createdAt: r.createdAt.getTime(),
     })),
-  );
+    nextCursor: rows.length > limit && last ? auditCursorOf(last) : null,
+  });
 });

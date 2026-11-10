@@ -12,12 +12,36 @@ const ADMIN_PAYMENT_LABELS: Record<string, string> = {
   refund: "Admin: pul mijozga qaytarildi",
   cancel: "Admin: to'lov bekor qilindi",
 };
+/**
+ * Admin vositalari (2026-11-10) harakatlarining nomlari. `lib/security/audit.ts` AUDIT_ACTION_LABEL'da yo'q kodlar uchun
+ * shu yerda — jurnal sahifasi va CSV'da xom kod («admin_error_resolved») o'rniga o'qiladigan nom chiqadi.
+ */
+const ADMIN_TOOL_LABELS: Record<string, string> = {
+  admin_error_resolved: "Admin: xato hal qilindi",
+  admin_error_reopened: "Admin: xato qayta ochildi",
+  admin_error_deleted: "Admin: xato yozuvi o'chirildi",
+  admin_errors_cleared: "Admin: xatolar jurnali tozalandi",
+  admin_site_banner: "Admin: sayt e'loni saqlandi",
+  admin_site_banner_removed: "Admin: sayt e'loni olib tashlandi",
+  admin_maintenance_on: "Admin: texnik ishlar rejimi YOQILDI",
+  admin_maintenance_off: "Admin: texnik ishlar rejimi o'chirildi",
+  admin_maintenance_message: "Admin: texnik ishlar xabari o'zgartirildi",
+  admin_cron_run: "Admin: cron qo'lda ishga tushirildi",
+  admin_rate_limit_cleared: "Admin: tezlik cheklovi tozalandi",
+  admin_sessions_revoked: "Admin: foydalanuvchi sessiyalari tugatildi",
+  admin_password_reset_sent: "Admin: parol tiklash havolasi yuborildi",
+  admin_ip_block: "Admin: IP bloklandi",
+  admin_ip_unblock: "Admin: IP blokdan chiqarildi",
+  admin_feedback_done: "Admin: fikr bajarildi deb belgilandi",
+  admin_feedback_reopened: "Admin: fikr qayta ochildi",
+};
+
 export function labelFor(action: string, meta?: Record<string, unknown> | null): string {
   if (action === "admin_payment") {
     const a = typeof meta?.action === "string" ? meta.action : null;
     return (a && ADMIN_PAYMENT_LABELS[a]) || "Admin: to'lov amali";
   }
-  return auditLabel(action);
+  return ADMIN_TOOL_LABELS[action] ?? auditLabel(action);
 }
 
 /* ------------------------------------------------------------------ */
@@ -33,6 +57,10 @@ export interface AuditFilter {
   to?: string;
   /** Erkin matn: nishon id, harakat kodi yoki meta (JSON matni) ichida qisman moslik */
   q?: string;
+  /** Nishon turi (user, order, platform_settings, error_log…) — aniq moslik */
+  targetType?: string;
+  /** Nishon id — boshidan moslik (to'liq id yoki uning boshi) */
+  targetId?: string;
 }
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -45,15 +73,30 @@ export function dayStartMs(day: string | undefined): number | null {
 }
 
 /** Querystring'dan xavfsiz filtr (noto'g'ri qiymatlar tashlab yuboriladi) */
-export function auditFilterFromQuery(q: { action?: string; actor?: string; from?: string; to?: string; q?: string }): AuditFilter {
+export function auditFilterFromQuery(q: { action?: string; actor?: string; from?: string; to?: string; q?: string; target?: string; tid?: string }): AuditFilter {
   return {
-    action: q.action && /^[a-z_]{1,40}$/.test(q.action) ? q.action : undefined,
+    // Harakat kodi: kichik harf, raqam va pastki chiziq («2fa_enabled» ham bor)
+    action: q.action && /^[a-z0-9_]{1,40}$/.test(q.action) ? q.action : undefined,
     actor: q.actor?.trim() ? q.actor.trim().slice(0, 120) : undefined,
     from: dayStartMs(q.from) != null ? q.from : undefined,
     to: dayStartMs(q.to) != null ? q.to : undefined,
     q: q.q?.trim() && q.q.trim().length >= 2 ? q.q.trim().slice(0, 80) : undefined,
+    targetType: q.target && /^[a-z_]{1,40}$/.test(q.target) ? q.target : undefined,
+    targetId: q.tid?.trim() ? q.tid.trim().slice(0, 200) : undefined,
   };
 }
+
+/* Kursor bo'yicha sahifalash: `<createdAt ms>_<id>` — shu yozuvdan ESKILARI. Offset'dan farqli: jurnalga yangi yozuv
+   tushganda sahifalar siljimaydi va chuqur sahifalar ham indeks bo'yicha tez o'qiladi. */
+export interface AuditCursor {
+  at: number;
+  id: string;
+}
+export function parseAuditCursor(v: string | undefined | null): AuditCursor | null {
+  const m = /^(\d{10,16})_([A-Za-z0-9-]{1,64})$/.exec(v ?? "");
+  return m ? { at: Number(m[1]), id: m[2] } : null;
+}
+export const auditCursorOf = (row: { createdAt: Date; id: string }): string => `${row.createdAt.getTime()}_${row.id}`;
 
 function auditWhere(f: AuditFilter): SQL | undefined {
   const conds: SQL[] = [];
@@ -71,6 +114,8 @@ function auditWhere(f: AuditFilter): SQL | undefined {
     const m = or(sql`lower(coalesce(${auditLogs.targetId}, '')) like ${term} escape '\\'`, sql`lower(${auditLogs.action}) like ${term} escape '\\'`, sql`lower(cast(${auditLogs.meta} as text)) like ${term} escape '\\'`);
     if (m) conds.push(m);
   }
+  if (f.targetType) conds.push(eq(auditLogs.targetType, f.targetType));
+  if (f.targetId) conds.push(sql`${auditLogs.targetId} like ${`${escapeLike(f.targetId)}%`} escape '\\'`);
   const from = dayStartMs(f.from);
   const to = dayStartMs(f.to);
   if (from != null) conds.push(gte(auditLogs.createdAt, new Date(from)));
@@ -78,7 +123,21 @@ function auditWhere(f: AuditFilter): SQL | undefined {
   return conds.length ? and(...conds) : undefined;
 }
 
-export async function queryAuditLogs(f: AuditFilter, page: { limit: number; offset: number }) {
+/** Jurnalda uchraydigan nishon turlari (filtr ro'yxati uchun), ko'p uchraganidan boshlab */
+export async function listAuditTargetTypes(): Promise<string[]> {
+  const rows = await db
+    .select({ t: auditLogs.targetType, n: sql<number>`count(*)` })
+    .from(auditLogs)
+    .where(sql`${auditLogs.targetType} is not null and ${auditLogs.targetType} <> ''`)
+    .groupBy(auditLogs.targetType)
+    .orderBy(desc(sql`count(*)`))
+    .limit(40);
+  return rows.map((r) => r.t).filter((t): t is string => Boolean(t));
+}
+
+export async function queryAuditLogs(f: AuditFilter, page: { limit: number; offset?: number; before?: AuditCursor | null }) {
+  const base = auditWhere(f);
+  const cur = page.before ? or(lt(auditLogs.createdAt, new Date(page.before.at)), and(eq(auditLogs.createdAt, new Date(page.before.at)), lt(auditLogs.id, page.before.id))) : undefined;
   return db
     .select({
       id: auditLogs.id,
@@ -95,10 +154,10 @@ export async function queryAuditLogs(f: AuditFilter, page: { limit: number; offs
     })
     .from(auditLogs)
     .leftJoin(users, eq(auditLogs.actorId, users.id))
-    .where(auditWhere(f))
-    .orderBy(desc(auditLogs.createdAt))
+    .where(base && cur ? and(base, cur) : (base ?? cur))
+    .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
     .limit(page.limit)
-    .offset(page.offset);
+    .offset(page.offset ?? 0);
 }
 
 /** Filtrga mos yozuvlar soni va harakat bo'yicha taqsimot (chiplar uchun — filtrning action qismisiz) */
