@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { courses, enrollments, lessons } from "@/lib/db/schema";
@@ -34,7 +35,5 @@ export const GET = handler(async (req, ctx: Ctx) => {
   // 4-audit: xom saqlash manziliga EMAS — shu foydalanuvchiga bog'langan 15 daqiqalik tokenli oqimga yo'naltiramiz
   // (Network panelida ham faqat /stream?t=… ko'rinadi; token boshqa sessiyada ishlamaydi)
   const token = mintMediaToken("lesson", l.id, session?.sub ?? null);
-  const target = new URL(`/api/mentorlik/video/${encodeURIComponent(l.id)}/stream`, req.url);
-  target.searchParams.set("t", token);
-  return NextResponse.redirect(target, { status: 302, headers: { "Cache-Control": "private, no-store" } });
+  return redirectTo(`/api/mentorlik/video/${encodeURIComponent(l.id)}/stream?t=${encodeURIComponent(token)}`, 302, { "Cache-Control": "private, no-store" });
 });

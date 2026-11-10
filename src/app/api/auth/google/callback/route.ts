@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { getLocale } from "@/lib/i18n/server";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -17,7 +18,7 @@ const STATE_COOKIE = "g_oauth";
 
 /** Xatolik bilan kirish sahifasiga qaytaradi va state cookie'ni tozalaydi */
 function fail(req: NextRequest, reason: string) {
-  const res = NextResponse.redirect(new URL(`/auth/kirish?reason=${reason}`, req.nextUrl.origin));
+  const res = redirectTo(`/auth/kirish?reason=${encodeURIComponent(reason)}`);
   res.cookies.delete(STATE_COOKIE);
   return res;
 }
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest) {
     if (tf?.totpEnabled) {
       const ticket = await createTwoFactorTicket({ id: user.id, sessionVersion: tf.sessionVersion }, true);
       const nextQ = saved.n ? `?next=${encodeURIComponent(saved.n)}` : "";
-      const res2 = NextResponse.redirect(new URL(`/auth/kirish${nextQ}#t2=${ticket}`, req.nextUrl.origin));
+      const res2 = redirectTo(`/auth/kirish${nextQ}#t2=${ticket}`);
       res2.cookies.delete(STATE_COOKIE);
       return res2;
     }
@@ -136,7 +137,7 @@ export async function GET(req: NextRequest) {
 
   // Yangi foydalanuvchi → tanishuv (onboarding); aks holda next yoki kabinet
   const dest = isNew ? "/xush-kelibsiz" : saved.n || "/kabinet";
-  const res = NextResponse.redirect(new URL(dest, req.nextUrl.origin));
+  const res = redirectTo(dest);
   res.cookies.delete(STATE_COOKIE);
   return res;
 }

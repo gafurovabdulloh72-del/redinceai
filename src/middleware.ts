@@ -148,7 +148,9 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${IMG_HOSTS}`,
     // Video/audio faqat o'z domenimizdan, Vercel Blob va R2'dan (chat videosi) — barcha https emas
-    `media-src 'self' https://*.public.blob.vercel-storage.com https://audio-ssl.itunes.apple.com https://*.mzstatic.com${R2_PUBLIC_ORIGIN}`,
+    // blob: — yuklashdan OLDINGI lokal ko'rik (story/post/dars videosi `URL.createObjectURL`): usiz ko'rik bo'sh qolar, videodan
+    // muqova kadri olinmas va past sifat ogohlantirishi ishlamas edi (blob manzilni faqat shu sahifaning o'zi yarata oladi)
+    `media-src 'self' blob: https://*.public.blob.vercel-storage.com https://audio-ssl.itunes.apple.com https://*.mzstatic.com${R2_PUBLIC_ORIGIN}`,
     `frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${PAYMENT_HOSTS}`,
     // blob: — virtual fon (MediaPipe) wasm ishchisini blob URL'dan ishga tushiradi
     "worker-src 'self' blob:",

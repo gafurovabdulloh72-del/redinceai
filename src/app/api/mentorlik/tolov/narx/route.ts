@@ -19,7 +19,8 @@ export const POST = handler(async (req) => {
     promo: p.promo ? { code: p.promo.code, percent: p.promo.percent, discount: p.promo.discount } : null,
     ref: p.ref ? { percent: p.ref.percent, discount: p.ref.discount } : null,
     creditUsed: p.creditUsed,
-    creditBalance: await creditBalance(session.sub),
+    // Shu ustozda ishlatsa bo'ladigan kredit (boshqa ustoz dasturidan tushgani bu yerda sarflanmaydi)
+    creditBalance: await creditBalance(session.sub, q.mentorId),
     providers: await availableProviders(),
     telegram: isTelegramEnabled() && Boolean(telegramBotUsername()),
   });

@@ -433,7 +433,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 /** Ko'rish holati 15 soniyada bir saqlanadi (davom ettirish uchun) */
 const PROGRESS_EVERY_MS = 15_000;
 
-export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 }: { src: string; title?: string; className?: string; poster?: string; /** Ko'rish holatini saqlash uchun (davom ettirish + tarix) */ postId?: string; /** Qaysi soniyadan davom ettirish */ resumeAt?: number }) {
+export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0, track = true }: { src: string; title?: string; className?: string; poster?: string; /** Ko'rish holatini saqlash uchun (davom ettirish + tarix) */ postId?: string; /** Qaysi soniyadan davom ettirish */ resumeAt?: number; /** false — ko'rish holati serverga yuborilmaydi (mehmon: API 401 qaytarardi va har tashrifda konsolda xato chiqardi) */ track?: boolean }) {
   const til = useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
@@ -464,7 +464,7 @@ export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 
   // Ko'rish holatini 15 soniyada bir va pauzada saqlaymiz
   useEffect(() => {
     const el = ref.current;
-    if (!el || !postId) return;
+    if (!el || !postId || !track) return;
     const send = (force = false) => {
       const now = Date.now();
       if (!force && now - lastSent.current < PROGRESS_EVERY_MS) return;
@@ -487,7 +487,7 @@ export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onPause);
     };
-  }, [postId]);
+  }, [postId, track]);
 
   useEffect(() => {
     const el = ref.current;
@@ -590,7 +590,7 @@ export function FeedVideo({ src, title, className, poster, postId, resumeAt = 0 
 /** Ikki marta bosib yoqtirish hodisasi (MediaGrid → ReactionButton): detail.postId */
 export const LIKE_EVENT = "ke:double-like";
 
-export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachment[]; alt: string; /** Ko'rish holati (davom ettirish) uchun */ postId?: string; resumeAt?: number }) {
+export function MediaGrid({ media, alt, postId, resumeAt = 0, track = true }: { media: Attachment[]; alt: string; /** Ko'rish holati (davom ettirish) uchun */ postId?: string; resumeAt?: number; /** Kirgan foydalanuvchidagina ko'rish holati saqlanadi */ track?: boolean }) {
   const til = useLocale();
   const [idx, setIdx] = useState<number | null>(null);
   const [heart, setHeart] = useState(0);
@@ -626,7 +626,7 @@ export function MediaGrid({ media, alt, postId, resumeAt = 0 }: { media: Attachm
         )}
         {media.map((a, i) =>
           isVideoAttachment(a) ? (
-            <FeedVideo key={a.url} src={a.url} poster={a.poster} postId={postId} resumeAt={resumeAt} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
+            <FeedVideo key={a.url} src={a.url} poster={a.poster} postId={postId} resumeAt={resumeAt} track={track} title={a.name} className={cn(single ? "max-h-[480px]" : "aspect-[4/3] object-cover", !single && media.length === 3 && i === 2 && "col-span-2 aspect-[2/1]")} />
           ) : (
             <button
               key={a.url}

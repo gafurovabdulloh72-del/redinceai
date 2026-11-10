@@ -1023,7 +1023,9 @@ export async function toPostViews(rows: Post[], viewer: Viewer, manager: boolean
     isPinned: p.isPinned,
     eventAt: p.eventAt?.getTime() ?? null,
     eventUrl: p.eventUrl ?? null,
-    edited: p.updatedAt.getTime() - p.createdAt.getTime() > 60_000,
+    // Faqat MATN haqiqatan tahrirlanganda (edited_at). Ilgari `updatedAt` bo'yicha hisoblanardi — u reaksiya/izoh/muqova
+    // o'zgarishida ham yangilanadi va begona odam yoqtirgach post «tahrirlangan» bo'lib qolardi
+    edited: Boolean(p.editedAt),
     createdAt: p.createdAt.getTime(),
     author: authors.get(p.authorId) ?? { id: p.authorId, ...UNKNOWN },
     placeName: p.placeName ?? null,

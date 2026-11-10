@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groups, liveStreams } from "@/lib/db/schema";
@@ -41,7 +42,5 @@ export const GET = handler(async (req: Request, ctx: Ctx) => {
     }
   }
 
-  const target = new URL(`/api/live/${encodeURIComponent(id)}/video/stream`, req.url);
-  target.searchParams.set("t", mintMediaToken("live", id, session?.sub ?? null));
-  return NextResponse.redirect(target, { status: 302, headers: { "Cache-Control": "private, no-store" } });
+  return redirectTo(`/api/live/${encodeURIComponent(id)}/video/stream?t=${encodeURIComponent(mintMediaToken("live", id, session?.sub ?? null))}`, 302, { "Cache-Control": "private, no-store" });
 });

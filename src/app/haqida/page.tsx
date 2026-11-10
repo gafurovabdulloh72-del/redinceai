@@ -28,6 +28,9 @@ import {
 } from "lucide-react";
 import { ButtonLink, IconTile, PageHeader } from "@/components/ui";
 import { SITE } from "@/lib/constants";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { specialists } from "@/lib/db/schema";
 
 export async function generateMetadata(): Promise<Metadata> {
   const til = await getLocale();
@@ -145,7 +148,11 @@ const PATHS: Array<{ icon: LucideIcon; t: string; items: string[]; href: string;
   },
 ];
 
-export default function AboutPage() {
+/** Asoschining saytdagi profili — bor bo'lsagina havola chiqadi (ilgari qattiq yozilgan manzil 404 berardi) */
+const FOUNDER_SLUG = "kasb-egalari-admin";
+
+export default async function AboutPage() {
+  const founder = await db.query.specialists.findFirst({ where: and(eq(specialists.slug, FOUNDER_SLUG), eq(specialists.isHidden, false)), columns: { slug: true } }).catch(() => null);
   return (
     <div className="container-x animate-fade-up">
       <PageHeader
@@ -308,12 +315,14 @@ export default function AboutPage() {
               >
                 <Send size={14} aria-hidden="true" /> Telegram: @montajor_man
               </a>
-              <Link
-                href="/mutaxassislar/kasb-egalari-admin"
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
-              >
-                <Clapperboard size={14} aria-hidden="true" /> Saytdagi profili
-              </Link>
+              {founder && (
+                <Link
+                  href={`/mutaxassislar/${founder.slug}`}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"
+                >
+                  <Clapperboard size={14} aria-hidden="true" /> Saytdagi profili
+                </Link>
+              )}
               <Link
                 href="/jamoalar"
                 className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg"

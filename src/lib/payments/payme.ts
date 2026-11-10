@@ -1,5 +1,8 @@
 import "server-only";
 import { isPurchase } from "@/lib/mentorship/purchases";
+
+/** Kontakt ochish hisobi (`meta.kind = "contact"`, lib/contacts/unlock.ts) — aylanma importsiz, shu yerda tekshiriladi */
+const isContactInvoice = (i: { meta: unknown }): boolean => (i.meta as { kind?: string } | null)?.kind === "contact";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, payments, subscriptionInvoices, type Payment, type SubscriptionInvoice } from "@/lib/db/schema";
@@ -413,7 +416,9 @@ async function expireInvoiceIfStale(i: SubscriptionInvoice): Promise<Subscriptio
  */
 async function validateInvoiceAccount(params: Json, invoiceId: string, existing?: SubscriptionInvoice | null): Promise<SubscriptionInvoice> {
   let inv = await loadInvoice(invoiceId);
-  if (!inv || (!inv.specialistId && !isPurchase(inv)) || inv.provider !== "payme") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
+  // To'lanadigan hisob turlari: obuna (specialistId), mentorlik xaridi, KONTAKT ochish. Ilgari kontakt hisobi bu yerda
+  // «topilmadi» bo'lib, Payme orqali to'lab bo'lmasdi (faqat qo'lda o'tkazma ishlardi).
+  if (!inv || (!inv.specialistId && !isPurchase(inv) && !isContactInvoice(inv)) || inv.provider !== "payme") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");
   if (!existing) {
     if (inv.state === "pending") inv = await expireInvoiceIfStale(inv);
     if (inv.state !== "created" && inv.state !== "pending") throw new RpcError(PAYME_ERR.ACCOUNT_NOT_FOUND, "order_id");

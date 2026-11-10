@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { SESSION_COOKIE, clearSession, getSession, getVerifiedSession, revokeSession } from "@/lib/auth";
 import { handler, ok } from "@/lib/api";
 import { safeInternalPath } from "@/lib/utils";
@@ -25,12 +26,12 @@ export async function GET(req: NextRequest) {
   const session = await getVerifiedSession().catch(() => null);
   if (session) {
     const back = next && !next.startsWith("/auth/") && !next.startsWith("/api/") ? next : "/kabinet";
-    return NextResponse.redirect(new URL(back, req.nextUrl.origin));
+    return redirectTo(back);
   }
-  const url = new URL("/auth/kirish", req.nextUrl.origin);
-  if (next && !next.startsWith("/auth/")) url.searchParams.set("next", next);
-  url.searchParams.set("reason", "expired");
-  const res = NextResponse.redirect(url);
+  const q = new URLSearchParams();
+  if (next && !next.startsWith("/auth/")) q.set("next", next);
+  q.set("reason", "expired");
+  const res = redirectTo(`/auth/kirish?${q.toString()}`);
   res.cookies.delete(SESSION_COOKIE);
   return res;
 }

@@ -1041,7 +1041,7 @@ export function PostCard({
           )}
         </p>
       )}
-      {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} postId={post.id} resumeAt={post.resumeAt} />}
+      {!post.locked && <MediaGrid media={media} alt={body.slice(0, 120)} postId={post.id} resumeAt={post.resumeAt} track={loggedIn} />}
       {collectOpen && <CollectionSheet open onClose={() => setCollectOpen(false)} postId={post.id} />}
       {statsOpen && <PostStatsSheet open onClose={() => setStatsOpen(false)} postId={post.id} />}
       {posterOpen && media[posterIdx.current] && <VideoCoverPicker open onClose={() => setPosterOpen(false)} src={media[posterIdx.current].url} onPick={(f) => changePoster(f)} />}

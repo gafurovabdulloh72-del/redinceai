@@ -146,7 +146,7 @@ export function PostModal({
 /* ------------------------------------------------------------------ */
 /* Media varaqlagich — tugmalar va ←/→ (matn maydonida emas)             */
 /* ------------------------------------------------------------------ */
-function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ url: string; type: string; poster?: string }>; alt: string; til: Locale; /** Ko'rish holatini saqlash (davom ettirish + tarix) */ postId?: string; resumeAt?: number }) {
+function MediaPane({ media, alt, til, postId, resumeAt = 0, track = true }: { media: Array<{ url: string; type: string; poster?: string }>; alt: string; til: Locale; /** Ko'rish holatini saqlash (davom ettirish + tarix) */ postId?: string; resumeAt?: number; /** false — mehmon: holat serverga yuborilmaydi */ track?: boolean }) {
   const [i, setI] = useState(0);
   const total = media.length;
   const prev = useCallback(() => setI((v) => (v - 1 + total) % total), [total]);
@@ -199,7 +199,7 @@ function MediaPane({ media, alt, til, postId, resumeAt = 0 }: { media: Array<{ u
               if (el.readyState >= 1) apply();
               else el.addEventListener("loadedmetadata", apply, { once: true });
             }
-            if (el.dataset.tracked) return;
+            if (el.dataset.tracked || !track) return;
             el.dataset.tracked = "1";
             let last = 0;
             const send = (force = false) => {
@@ -447,7 +447,7 @@ function PostBody({
 
   return (
     <>
-      {!textOnly && <MediaPane media={mediaList} alt={post.body.slice(0, 120)} til={til} postId={post.id} resumeAt={post.resumeAt} />}
+      {!textOnly && <MediaPane media={mediaList} alt={post.body.slice(0, 120)} til={til} postId={post.id} resumeAt={post.resumeAt} track={loggedIn} />}
       <div className={cn("flex min-h-0 flex-col bg-surface", textOnly ? "w-full" : "md:w-[380px] md:shrink-0 md:border-l md:border-line")}>
         {header}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

@@ -112,13 +112,26 @@ export interface PriceBreakdown {
   amount: number;
 }
 
-/** Foydalanuvchining ishlatish mumkin bo'lgan tavsiya krediti (band qilinmagan, bekor qilinmagan) */
-export async function creditBalance(userId: string): Promise<number> {
-  const [r] = await db
-    .select({ s: sql<number>`coalesce(sum(${referralRewards.amount}),0)` })
-    .from(referralRewards)
-    .where(and(eq(referralRewards.referrerId, userId), eq(referralRewards.voided, false), isNull(referralRewards.consumedInvoiceId)));
-  return Number(r?.s ?? 0);
+/**
+ * Ishlatish mumkin bo'lgan tavsiya kreditlari (band qilinmagan, bekor qilinmagan). `mentorId` berilsa — FAQAT shu ustozning
+ * tavsiya dasturidan tushgan kreditlar (7-audit): kreditni o'sha ustoz moliyalaydi (o'z kursidan chegirma), shuning uchun u
+ * faqat shu ustozning mahsulotlarida sarflanadi. Ilgari kredit istalgan ustozda ishlardi — til biriktirgan «ustoz» o'z kursiga
+ * yuqori foiz qo'yib, soxta xaridlar bilan kredit yig'ar va uni BOSHQA ustozlarning kurslariga (ularning hisobidan) sarflardi.
+ */
+async function creditRows(userId: string, mentorId?: string): Promise<Array<{ id: string; amount: number }>> {
+  const rows = await db.query.referralRewards.findMany({
+    where: and(eq(referralRewards.referrerId, userId), eq(referralRewards.voided, false), isNull(referralRewards.consumedInvoiceId)),
+    orderBy: [asc(referralRewards.createdAt)],
+    columns: { id: true, amount: true, invoiceId: true },
+  });
+  if (!mentorId || !rows.length) return rows.map((r) => ({ id: r.id, amount: r.amount }));
+  const src = await db.query.subscriptionInvoices.findMany({ where: inArray(subscriptionInvoices.id, [...new Set(rows.map((r) => r.invoiceId))]), columns: { id: true, meta: true } });
+  const mentorOf = new Map(src.map((i) => [i.id, (i.meta as { mentorId?: string } | null)?.mentorId ?? null]));
+  return rows.filter((r) => mentorOf.get(r.invoiceId) === mentorId).map((r) => ({ id: r.id, amount: r.amount }));
+}
+
+export async function creditBalance(userId: string, mentorId?: string): Promise<number> {
+  return (await creditRows(userId, mentorId)).reduce((a, r) => a + r.amount, 0);
 }
 
 export async function priceFor(q: Quote, buyerId: string, opts: { promo?: string; ref?: string; useCredit?: boolean }): Promise<PriceBreakdown> {
@@ -158,10 +171,8 @@ export async function priceFor(q: Quote, buyerId: string, opts: { promo?: string
   const creditIds: string[] = [];
   if (opts.useCredit && amount > 0) {
     const cap = Math.floor(amount / 2);
-    const rows = await db.query.referralRewards.findMany({
-      where: and(eq(referralRewards.referrerId, buyerId), eq(referralRewards.voided, false), isNull(referralRewards.consumedInvoiceId)),
-      orderBy: [asc(referralRewards.createdAt)],
-    });
+    // Faqat SHU ustozning tavsiya dasturidan tushgan kreditlar (creditRows izohiga qarang)
+    const rows = await creditRows(buyerId, q.mentorId);
     for (const r of rows) {
       if (creditUsed + r.amount > cap) continue;
       creditUsed += r.amount;
@@ -316,7 +327,29 @@ export async function revokePurchase(tx: Tx, inv: SubscriptionInvoice): Promise<
       await tx.update(mentorSlots).set({ status: "open", invoiceId: null, bookedBy: null, heldUntil: null }).where(eq(mentorSlots.invoiceId, inv.id));
     }
   }
-  await tx.update(mentorEarnings).set({ status: "refunded" }).where(eq(mentorEarnings.invoiceId, inv.id));
+  /**
+   * Ustoz daromadi (7-audit): qaytarilgan sotuv YECHISH SO'ROVIGA kirib ulgurgan bo'lishi mumkin.
+   *   so'rov hali to'lanmagan → summasidan shu daromad chiqariladi (nolga tushsa — so'rov bekor qilinadi);
+   *   so'rov allaqachon to'langan → manfiy tuzatish yozuvi: keyingi daromaddan ushlanadi (balans manfiy bo'lsa yechib bo'lmaydi).
+   * Ilgari daromad faqat «refunded» deb belgilanardi, so'rov summasi esa o'zgarmasdi — admin qaytarilgan pulni ham o'tkazib yuborardi.
+   */
+  const earning = await tx.query.mentorEarnings.findFirst({ where: eq(mentorEarnings.invoiceId, inv.id) });
+  if (earning && earning.status !== "refunded") {
+    if (earning.status === "paid_out" && earning.payoutId) {
+      const payout = await tx.query.mentorPayouts.findFirst({ where: eq(mentorPayouts.id, earning.payoutId), columns: { id: true, amount: true, status: true } });
+      if (payout?.status === "requested") {
+        const left = payout.amount - earning.net;
+        if (left > 0) await tx.update(mentorPayouts).set({ amount: left }).where(and(eq(mentorPayouts.id, payout.id), eq(mentorPayouts.status, "requested")));
+        else await tx.update(mentorPayouts).set({ amount: 0, status: "rejected", note: "Sotuv qaytarilgani sababli bekor qilindi", resolvedAt: new Date() }).where(and(eq(mentorPayouts.id, payout.id), eq(mentorPayouts.status, "requested")));
+      } else if (payout?.status === "paid") {
+        await tx
+          .insert(mentorEarnings)
+          .values({ id: uid(), mentorId: earning.mentorId, invoiceId: `adj_${inv.id}`, kind: earning.kind, title: `Qaytarilgan to'lov: ${earning.title}`.slice(0, 200), gross: 0, fee: 0, net: -earning.net, status: "available", availableAt: new Date() })
+          .onConflictDoNothing();
+      }
+    }
+    await tx.update(mentorEarnings).set({ status: "refunded", payoutId: null }).where(eq(mentorEarnings.id, earning.id));
+  }
   await tx.update(referralRewards).set({ voided: true }).where(eq(referralRewards.invoiceId, inv.id));
 }
 
@@ -440,7 +473,8 @@ export async function resolvePayout(payoutId: string, action: "paid" | "rejected
   if (!p) throw new ApiError(404, "So'rov topilmadi");
   const claimed = await db.update(mentorPayouts).set({ status: action, note: note ?? null, resolvedAt: new Date() }).where(and(eq(mentorPayouts.id, payoutId), eq(mentorPayouts.status, "requested"))).returning({ id: mentorPayouts.id });
   if (!claimed.length) throw new ApiError(409, "So'rov allaqachon hal qilingan");
-  if (action === "rejected") await db.update(mentorEarnings).set({ status: "available", payoutId: null }).where(eq(mentorEarnings.payoutId, payoutId));
+  // Faqat hali «paid_out» turgan daromadlar balansga qaytadi — shu orada QAYTARILGAN (refunded) sotuv qayta «mavjud» bo'lib qolmasin
+  if (action === "rejected") await db.update(mentorEarnings).set({ status: "available", payoutId: null }).where(and(eq(mentorEarnings.payoutId, payoutId), eq(mentorEarnings.status, "paid_out")));
   await notify(p.mentor.userId, "subscription_paid", action === "paid" ? `Pul kartangizga o'tkazildi: ${formatPrice(p.amount)}` : "Yechish so'rovi rad etildi", note || (action === "paid" ? "Mablag' kartaga yuborildi." : "Mablag' balansingizga qaytdi."), "/kabinet/mentorlik/daromad", { skipMail: true }).catch(() => undefined);
 }
 

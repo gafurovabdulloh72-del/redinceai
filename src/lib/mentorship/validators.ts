@@ -17,7 +17,9 @@ export type MentorApplyInput = z.infer<typeof mentorApplySchema>;
 export const courseSchema = z.object({
   title: z.string().trim().min(5, "Sarlavha kamida 5 belgi").max(MENTOR_LIMITS.courseTitleMax),
   summary: z.string().trim().max(MENTOR_LIMITS.courseSummaryMax).default(""),
-  coverUrl: z.string().trim().url().max(500).nullish(),
+  // O'z yuklamamiz (lokal diskda `/uploads/…` — nisbiy manzil; `.url()` uni rad etardi va serverda fayl saqlanadigan
+  // o'rnatmada muqova umuman saqlanmasdi)
+  coverUrl: z.string().trim().max(500).refine((u) => IMAGE_URL_RE.test(u), "Muqova sayt orqali yuklanishi kerak").nullish(),
   category: z.enum(categoryKeys).default("boshqa"),
   level: z.enum(levelKeys).default("boshlangich"),
   priceFrom: z.coerce.number().int().min(0).max(MENTOR_LIMITS.priceMax).default(0),

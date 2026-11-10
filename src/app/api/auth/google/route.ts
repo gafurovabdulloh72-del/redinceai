@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { randomBytes } from "node:crypto";
 import { googleAuthUrl, isGoogleConfigured } from "@/lib/auth/google";
 import { safeInternalPath } from "@/lib/utils";
@@ -12,7 +13,7 @@ const STATE_COOKIE = "g_oauth";
  */
 export async function GET(req: NextRequest) {
   if (!isGoogleConfigured()) {
-    return NextResponse.redirect(new URL("/auth/kirish?reason=google_off", req.nextUrl.origin));
+    return redirectTo("/auth/kirish?reason=google_off");
   }
   const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin);
   const state = randomBytes(18).toString("base64url");

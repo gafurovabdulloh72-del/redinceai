@@ -273,13 +273,31 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
       return { row, sp: null };
     }
     if (!row.specialistId) return { row, sp: null };
-    const sp = await tx.query.specialists.findFirst({ where: eq(specialists.id, row.specialistId), columns: { id: true, userId: true, createdAt: true, subscriptionUntil: true } });
+    const sp = await tx.query.specialists.findFirst({ where: eq(specialists.id, row.specialistId), columns: { id: true, userId: true, createdAt: true, subscriptionUntil: true, subscriptionTier: true } });
     if (!sp) return { row, sp: null };
-    const { periodStart, periodEnd } = subscriptionPeriod(sp, row.months, settings, now);
     // Tarif hisob meta'sidan (pro | max); eski hisoblar — pro
     const tier = (row.meta as { tier?: string } | null)?.tier === "max" ? "max" : "pro";
+    /**
+     * TARIF ALMASHGANDA qolgan to'langan vaqt NARX NISBATIDA qayta hisoblanadi (7-audit). Ilgari yangi tarif butun qolgan
+     * muddatga qo'llanardi: 12 oylik Pro olib, ustidan 1 oylik Max to'lagan odam 13 oy Max'ga ega bo'lardi. Endi masalan
+     * 11 oy Pro qolgan bo'lsa, u ~6.8 oy Max'ga aylanadi (49/79) va ustiga sotib olingan oylar qo'shiladi; Max → Pro'da aksincha.
+     * Avvalgi holat hisob meta'siga yoziladi — pul qaytarilganda tarif va muddat o'sha holatga qaytadi.
+     */
+    const prevUntilMs = sp.subscriptionUntil?.getTime() ?? null;
+    const prevTier = sp.subscriptionTier === "max" ? "max" : "pro";
+    let subject: typeof sp = sp;
+    if (prevUntilMs !== null && prevUntilMs > now.getTime() && prevTier !== tier) {
+      const from = tierUnitPrice(settings, prevTier);
+      const to = tierUnitPrice(settings, tier);
+      if (from > 0 && to > 0 && from !== to) subject = { ...sp, subscriptionUntil: new Date(now.getTime() + Math.floor((prevUntilMs - now.getTime()) * (from / to))) };
+    }
+    const { periodStart, periodEnd } = subscriptionPeriod(subject, row.months, settings, now);
     await tx.update(specialists).set({ subscriptionUntil: periodEnd, subscriptionTier: tier, updatedAt: now }).where(eq(specialists.id, sp.id));
-    const [withPeriod] = await tx.update(subscriptionInvoices).set({ periodStart, periodEnd }).where(eq(subscriptionInvoices.id, row.id)).returning();
+    const [withPeriod] = await tx
+      .update(subscriptionInvoices)
+      .set({ periodStart, periodEnd, meta: { ...(row.meta ?? {}), prev: { until: prevUntilMs, tier: prevTier } } })
+      .where(eq(subscriptionInvoices.id, row.id))
+      .returning();
     return { row: withPeriod ?? row, sp };
   });
 
@@ -410,12 +428,29 @@ export async function refundInvoice(id: string, actorId: string | null, opts: { 
       if (sp?.subscriptionUntil) {
         userId = sp.userId;
         const oldUntil = sp.subscriptionUntil.getTime();
-        // Kalendar oy bilan orqaga (to'lashdagi addMonths'ning teskarisi), lekin hech qachon hozirdan pastga emas
-        const back = addMonths(sp.subscriptionUntil, -row.months).getTime();
+        // To'lov paytidagi avvalgi holat (tarif + muddat) — markInvoicePaid meta'ga yozgan
+        const prev = (row.meta as { prev?: { until?: number | null; tier?: string } } | null)?.prev;
+        const isLatest = Math.abs(oldUntil - row.periodEnd.getTime()) < DAY;
+        // Kalendar oy bilan orqaga (to'lashdagi addMonths'ning teskarisi), lekin hech qachon hozirdan pastga emas.
+        // Bu hisob oxirgisi bo'lsa va avvalgi holat ma'lum bo'lsa — aynan o'sha muddatga qaytamiz (tarif almashgan bo'lsa,
+        // qayta hisoblangan vaqt ham to'g'ri tiklanadi).
+        const back = isLatest && prev && typeof prev.until === "number" ? prev.until : isLatest && prev && prev.until === null ? now.getTime() : addMonths(sp.subscriptionUntil, -row.months).getTime();
         const clamped = back < now.getTime();
         newUntil = new Date(clamped ? now.getTime() : back);
         const delta = oldUntil - newUntil.getTime();
-        await tx.update(specialists).set({ subscriptionUntil: newUntil, updatedAt: now }).where(eq(specialists.id, sp.id));
+        // Tarif: qaytarilgan hisob Max'ga o'tkazgan bo'lsa — avvalgi tarifga qaytadi (aks holda pul qaytgach ham Max qolib ketardi).
+        // Avvalgi holat noma'lum (eski hisob) bo'lsa — qolgan to'langan hisoblarning eng oxirgisining tarifi, bo'lmasa Pro.
+        let tierBack: "pro" | "max" | null = isLatest && prev?.tier ? (prev.tier === "max" ? "max" : "pro") : null;
+        if (!tierBack) {
+          const rest = await tx.query.subscriptionInvoices.findMany({
+            where: and(eq(subscriptionInvoices.specialistId, sp.id), eq(subscriptionInvoices.state, "paid"), ne(subscriptionInvoices.id, row.id)),
+            columns: { meta: true, paidAt: true },
+            orderBy: [desc(subscriptionInvoices.paidAt)],
+            limit: 1,
+          });
+          tierBack = (rest[0]?.meta as { tier?: string } | null)?.tier === "max" ? "max" : "pro";
+        }
+        await tx.update(specialists).set({ subscriptionUntil: newUntil, subscriptionTier: tierBack, updatedAt: now }).where(eq(specialists.id, sp.id));
         // Shu hisobdan KEYIN qo'shilgan to'langan davrlar ham surilib, yozuvlar yangi muddat bilan mos qoladi (chekdagi davr)
         if (delta > 0) {
           const later = await tx.query.subscriptionInvoices.findMany({

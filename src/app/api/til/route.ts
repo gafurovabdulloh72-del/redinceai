@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { redirectTo } from "@/lib/http/redirect";
 import { eq } from "drizzle-orm";
 import { baseOf, DISPLAY_LOCALES, LOCALE_COOKIE, pickDisplayLocale, type DisplayLocale } from "@/lib/i18n";
 import { getSession } from "@/lib/auth";
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
   const til = pickDisplayLocale(req.nextUrl.searchParams.get("t"));
   // Ochiq redirect emas: faqat sayt ichidagi yo'l ("/\evil.com" kabi backslash variantlari ham rad etiladi)
   const next = safeInternalPath(req.nextUrl.searchParams.get("next"), req.nextUrl.origin) ?? "/";
-  const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
+  const res = redirectTo(next, 303);
   // GET — JS'siz zaxira havola. Yon ta'sir faqat foydalanuvchi O'ZI shu saytda bosgan/ochgan havolada: rasm/iframe/prefetch
   // (`<img src="/api/til?t=ru">`) yoki begona saytdan kelgan so'rov tilni almashtirmaydi — shunchaki yo'naltiriladi.
   const dest = req.headers.get("sec-fetch-dest");
