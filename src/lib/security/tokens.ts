@@ -22,7 +22,7 @@ export async function invalidatePasswordResets(userId: string): Promise<void> {
   await db
     .update(passwordResets)
     .set({ usedAt: new Date() })
-    .where(and(eq(passwordResets.userId, userId), isNull(passwordResets.usedAt)));
+    .where(and(eq(passwordResets.userId, userId), eq(passwordResets.purpose, "reset"), isNull(passwordResets.usedAt)));
 }
 
 /** Yangi tiklash tokeni: eski ishlatilmagan tokenlar bekor qilinadi */
@@ -43,7 +43,9 @@ export async function consumePasswordReset(token: string): Promise<string | null
   const [row] = await db
     .update(passwordResets)
     .set({ usedAt: new Date() })
-    .where(and(eq(passwordResets.tokenHash, hashToken(token)), isNull(passwordResets.usedAt), gt(passwordResets.expiresAt, new Date())))
+    // purpose = "reset" SHART (7-audit): shu jadvalda email tasdiqlash kodlari ham turadi (xeshi sha256("<6 raqam>:<userId>")).
+    // Filtrsiz hujumchi `"<kod>:<userId>"` ni «tiklash tokeni» sifatida yuborib, 6 xonali kodni terib chiqib parolni almashtira olardi.
+    .where(and(eq(passwordResets.tokenHash, hashToken(token)), eq(passwordResets.purpose, "reset"), isNull(passwordResets.usedAt), gt(passwordResets.expiresAt, new Date())))
     .returning({ userId: passwordResets.userId });
   return row?.userId ?? null;
 }
@@ -51,6 +53,6 @@ export async function consumePasswordReset(token: string): Promise<string | null
 /** Tokenning hali amal qilishini (ishlatmasdan) tekshirish — sahifani ochganda */
 export async function peekPasswordReset(token: string): Promise<boolean> {
   if (!token || token.length < 16 || token.length > 128) return false;
-  const row = await db.query.passwordResets.findFirst({ where: eq(passwordResets.tokenHash, hashToken(token)), columns: { usedAt: true, expiresAt: true } });
+  const row = await db.query.passwordResets.findFirst({ where: and(eq(passwordResets.tokenHash, hashToken(token)), eq(passwordResets.purpose, "reset")), columns: { usedAt: true, expiresAt: true } });
   return Boolean(row && !row.usedAt && row.expiresAt.getTime() >= Date.now());
 }

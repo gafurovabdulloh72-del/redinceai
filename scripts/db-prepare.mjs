@@ -85,6 +85,13 @@ if (process.env.SEAL_CONTACTS !== "0") {
   }
 }
 
+// Hisob manbai (7-audit, 2026-11-10): users.signup_via — Telegram hisobini qayta bog'lash faqat Telegram ochgan hisobga
+try {
+  execSync("npx tsx scripts/backfill-signup-via.ts", { stdio: "inherit", env: process.env });
+} catch (e) {
+  console.warn("⚠ backfill-signup-via.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
+}
+
 // Tariflar (2026-11-03): Pro narxi 49 000 so'm. Eski standart 50 000 saqlangan bo'lsa (admin o'zgartirmagan) — 49 000 ga
 // o'tkaziladi. Boshqa qiymatga (admin qo'lda belgilagan) tegilmaydi. Max narxi yo'q bo'lsa standart 79 000 kod'dan olinadi.
 try {

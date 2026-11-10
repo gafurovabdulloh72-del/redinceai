@@ -107,6 +107,15 @@ export const POST = handler(async (req) => {
       lang: (v.user.language_code ?? "").toLowerCase().startsWith("ru") ? "ru" : "uz",
       specialist: d.role === "specialist" && d.category && d.region ? { category: d.category, experience: d.experience ?? "middle", regionSlug: d.region } : null,
     });
+    // `createTelegramAccount` idempotent: chat allaqachon hisobga ulangan bo'lsa O'SHA hisobni qaytaradi. Bu holda bu — oddiy
+    // kirish, shuning uchun 2FA baribir so'raladi (7-audit: ilgari `register` yuborib, TOTP'ni chetlab sessiya olish mumkin edi).
+    if (!r.isNew) {
+      const tf = await db.query.users.findFirst({ where: eq(users.id, r.userId), columns: { totpEnabled: true, sessionVersion: true } });
+      if (tf?.totpEnabled) {
+        const ticket = await createTwoFactorTicket({ id: r.userId, sessionVersion: tf.sessionVersion }, true, embedded);
+        return ok({ status: "2fa", ticket, next: safePath(body.to) });
+      }
+    }
     await createSession({ id: r.userId, role: r.role as "client" | "specialist" | "admin", name: r.name }, { remember: true, embedded });
     await audit(r.userId, r.isNew ? "register" : "login_success", { targetType: "user", targetId: r.userId, meta: { provider: "telegram_webapp", role: d.role } }, req).catch(() => undefined);
     return ok({ status: "ok", isNew: r.isNew, next: r.isNew ? "/xush-kelibsiz" : safePath(body.to) });

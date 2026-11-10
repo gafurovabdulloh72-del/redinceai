@@ -20,9 +20,9 @@ function behindCloudflare(): boolean {
 /**
  * Mijoz IP manzili (rate limit va audit uchun). Faqat ishonchli proksi qo'ygan sarlavhalar hisobga olinadi:
  *   cf-connecting-ip — faqat TRUST_CLOUDFLARE=1 bo'lsa;
- *   x-vercel-forwarded-for → x-real-ip — faqat Vercel'da (VERCEL; Vercel ularni o'zi qayta yozadi);
- *   x-real-ip — boshqa joyda faqat trustProxy() bo'lsa (Railway yoki TRUST_PROXY_HOST=1, Nginx qayta yozadi);
- *   → x-forwarded-for'ning o'ngdan TRUSTED_PROXY_HOPS-chi qiymati (proksi o'zi qo'shgan; standart — eng o'ngdagi).
+ *   x-vercel-forwarded-for → x-real-ip — faqat Vercel'da (VERCEL; Vercel ularni o'zi qayta yozadi); x-real-ip — Railway'da ham;
+ *   → x-forwarded-for'ning o'ngdan TRUSTED_PROXY_HOPS-chi qiymati (proksi o'zi qo'shgan; standart — eng o'ngdagi);
+ *   → x-real-ip — o'z serverimizda (TRUST_PROXY_HOST=1) faqat x-forwarded-for bo'lmasa (zaxira);
  * Birinchi (chapdagi) qiymat mijoz tomonidan soxtalashtirilishi mumkin, shuning uchun hech qachon ishlatilmaydi.
  * Sarlavha umuman bo'lmasa (lokal dev, to'g'ridan-to'g'ri ulanish) hamma bitta "local" bucket'ga tushmasin —
  * user-agent hash'idan "unknown-…" kaliti beriladi.
@@ -35,10 +35,15 @@ export function clientIp(req: Request): string {
 export function clientIpFromHeaders(h: Headers): string {
   const first = (name: string) => h.get(name)?.split(",")[0]?.trim() || null;
   const onVercel = Boolean(process.env.VERCEL);
+  // x-real-ip'ga faqat uni O'ZI qayta yozadigan platformada ishoniladi (Vercel, Railway). O'z serverimizda (Caddy/Nginx,
+  // TRUST_PROXY_HOST=1) Caddy bu sarlavhani standart holatda QO'YMAYDI va mijoz yuborganini o'tkazib yuboradi — 7-audit:
+  // hujumchi `X-Real-IP: <istalgan>` yuborib, limitlarni aylanib o'tar va boshqa odamning IP'sini «tuzoqqa tushirar» edi.
+  // Shuning uchun u yerda avval x-forwarded-for'ning proksi qo'shgan (o'ngdagi) qiymati olinadi; x-real-ip — faqat zaxira.
+  const rewritesRealIp = onVercel || Boolean(process.env.RAILWAY_PUBLIC_DOMAIN);
   const direct =
     (behindCloudflare() ? first("cf-connecting-ip") : null) ||
-    (onVercel ? first("x-vercel-forwarded-for") || first("x-real-ip") : null) ||
-    (!onVercel && trustProxy() ? first("x-real-ip") : null);
+    (onVercel ? first("x-vercel-forwarded-for") : null) ||
+    (rewritesRealIp ? first("x-real-ip") : null);
   if (direct) return direct.slice(0, 64);
   const xff = h.get("x-forwarded-for");
   if (xff) {
@@ -46,6 +51,8 @@ export function clientIpFromHeaders(h: Headers): string {
     const pick = hops[Math.max(0, hops.length - trustedProxyHops())];
     if (pick) return pick.slice(0, 64);
   }
+  const fallback = !rewritesRealIp && trustProxy() ? first("x-real-ip") : null;
+  if (fallback) return fallback.slice(0, 64);
   const ua = h.get("user-agent") ?? "";
   return `unknown-${createHash("sha256").update(ua).digest("hex").slice(0, 16)}`;
 }

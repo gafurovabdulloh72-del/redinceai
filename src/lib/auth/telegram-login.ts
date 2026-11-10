@@ -151,8 +151,10 @@ export async function findTelegramUser(chatId: string): Promise<TelegramUserResu
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, existing.id));
     return { userId: existing.id, role: existing.role, name: existing.name, isNew: false };
   }
-  const old = await db.query.users.findFirst({ where: eq(users.email, placeholderEmail(chatId)), columns: { id: true, role: true, name: true, isBanned: true } });
-  if (old) {
+  const old = await db.query.users.findFirst({ where: eq(users.email, placeholderEmail(chatId)), columns: { id: true, role: true, name: true, isBanned: true, signupVia: true } });
+  // Qayta bog'lash FAQAT Telegram orqali ochilgan hisobga (signupVia). Shu emailni kimdir SAYTDAN ro'yxatdan o'tkazgan bo'lsa —
+  // bu hujum (hisobni oldindan egallash): unga ulanmaymiz, chat «hisobsiz» hisoblanadi va o'ziga yangi hisob ochadi.
+  if (old && old.signupVia === "telegram") {
     if (old.isBanned) throw new ApiError(403, "Hisob bloklangan");
     await db.update(users).set({ telegramChatId: chatId, lastLoginAt: new Date() }).where(eq(users.id, old.id));
     return { userId: old.id, role: old.role, name: old.name, isNew: false };
@@ -182,11 +184,21 @@ export async function createTelegramAccount(chatId: string, s: TelegramSignup): 
   if (found) return found;
   const name = s.name.trim().slice(0, 80) || "Telegram foydalanuvchisi";
   const id = uid();
+  // Odatiy email band bo'lsa (kimdir uni saytdan egallab olgan yoki noma'lum eski qator) — tasodifiy qo'shimchali manzil:
+  // begona hisobga ulanmaymiz, ro'yxatdan o'tish ham to'xtab qolmaydi. Adminlarga xabar beriladi.
+  let email = placeholderEmail(chatId);
+  const squatter = await db.query.users.findFirst({ where: eq(users.email, email), columns: { id: true } });
+  if (squatter) {
+    email = `tg${chatId}-${randomBytes(4).toString("hex")}@telegram.local`;
+    const { notifyAdmins } = await import("@/lib/notifications");
+    await notifyAdmins("account", "Shubhali hisob: band qilingan Telegram emaili", `tg${chatId}@telegram.local manzili Telegram'dan tashqarida ro'yxatdan o'tgan. Hisobni tekshiring.`, "/admin", { skipMail: true }).catch(() => undefined);
+  }
   await db.insert(users).values({
     id,
     username: await generateUsername(s.username || name),
     name,
-    email: placeholderEmail(chatId),
+    email,
+    signupVia: "telegram",
     emailVerified: false,
     phone: s.phone || null,
     telegramChatId: chatId,

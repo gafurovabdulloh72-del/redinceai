@@ -56,13 +56,35 @@ export async function GET(req: NextRequest) {
 
   // 2) email bo'yicha — mavjud hisobni bog'lash (Google emailni tasdiqlagan, xavfsiz)
   if (!user) {
-    const byEmail = await db.query.users.findFirst({ where: eq(users.email, profile.email), columns: { id: true, role: true, name: true, isBanned: true, avatarUrl: true } });
+    const byEmail = await db.query.users.findFirst({ where: eq(users.email, profile.email), columns: { id: true, role: true, name: true, isBanned: true, avatarUrl: true, emailVerified: true, sessionVersion: true } });
     if (byEmail) {
-      const patch: { googleId: string; emailVerified: boolean; lastLoginAt: Date; avatarUrl?: string } = { googleId: profile.sub, emailVerified: true, lastLoginAt: new Date() };
+      const patch: Partial<typeof users.$inferInsert> = { googleId: profile.sub, emailVerified: true, lastLoginAt: new Date() };
       if (!byEmail.avatarUrl && profile.picture) patch.avatarUrl = profile.picture;
+      /**
+       * HISOBNI OLDINDAN EGALLASH (pre-hijack) himoyasi, 7-audit: email TASDIQLANMAGAN lokal hisobni kim ochgani noma'lum —
+       * hujumchi qurbonning emaili bilan o'z parolini qo'yib ro'yxatdan o'tgan bo'lishi mumkin. Google egalikni isbotlagach,
+       * avvalgi BARCHA kirish vositalari bekor qilinadi: parol (tasodifiyga almashadi), ochiq sessiyalar, 2FA, ulangan Telegram,
+       * push qurilmalari, tiklash tokenlari. Haqiqiy egasi bo'lsa — «Parolni unutdingizmi?» orqali yangi parol qo'yadi.
+       */
+      const takeover = !byEmail.emailVerified;
+      if (takeover) {
+        patch.passwordHash = await hashPassword(randomBytes(24).toString("base64url"));
+        patch.sessionVersion = byEmail.sessionVersion + 1;
+        patch.passwordChangedAt = new Date();
+        patch.totpEnabled = false;
+        patch.totpSecretEnc = null;
+        patch.recoveryCodes = [];
+        patch.telegramChatId = null;
+      }
       await db.update(users).set(patch).where(eq(users.id, byEmail.id));
+      if (takeover) {
+        const { passwordResets, pushSubscriptions, sessions } = await import("@/lib/db/schema");
+        await db.delete(passwordResets).where(eq(passwordResets.userId, byEmail.id)).catch(() => undefined);
+        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, byEmail.id)).catch(() => undefined);
+        await db.delete(sessions).where(eq(sessions.userId, byEmail.id)).catch(() => undefined);
+      }
       user = { id: byEmail.id, role: byEmail.role, name: byEmail.name, isBanned: byEmail.isBanned };
-      await audit(byEmail.id, "google_link", { targetType: "user", targetId: byEmail.id }, req).catch(() => undefined);
+      await audit(byEmail.id, "google_link", { targetType: "user", targetId: byEmail.id, meta: { resetCredentials: takeover } }, req).catch(() => undefined);
     }
   }
 
@@ -76,6 +98,7 @@ export async function GET(req: NextRequest) {
       name: profile.name,
       email: profile.email,
       googleId: profile.sub,
+      signupVia: "google",
       avatarUrl: profile.picture,
       emailVerified: true,
       role: "client",

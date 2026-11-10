@@ -117,9 +117,19 @@ export const strongPassword = z
   .max(100)
   .refine((v) => /[a-zA-Z]/.test(v) && /\d/.test(v), "Parolda harf ham, raqam ham bo'lsin");
 
+/**
+ * Band (xizmat) email domenlari — foydalanuvchi bu manzillar bilan ro'yxatdan o'ta olmaydi va emailini ularga o'zgartira olmaydi:
+ *   @telegram.local — bot/Mini App ochgan hisoblarning vaqtinchalik manzili (`tg<chatId>@telegram.local`). Kimdir uni saytdan
+ *     oldindan egallasa, keyin Telegram'dan kelgan odam o'sha (paroli hujumchida bo'lgan) hisobga ulanib qolardi (7-audit);
+ *   *.internal — ichki/tuzoq manzillar.
+ */
+const RESERVED_EMAIL_RE = /@(?:telegram\.local|(?:[a-z0-9-]+\.)*internal)$/i;
+export const isReservedEmail = (email: string) => RESERVED_EMAIL_RE.test(email.trim());
+const RESERVED_EMAIL_MSG = "Bu email manzilidan foydalanib bo'lmaydi";
+
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgi").max(60),
-  email: z.string().trim().toLowerCase().email("Email noto'g'ri"),
+  email: z.string().trim().toLowerCase().email("Email noto'g'ri").max(120).refine((v) => !isReservedEmail(v), RESERVED_EMAIL_MSG),
   password: strongPassword,
   gender: z.enum(["male", "female"]).optional().nullable(),
   phone: optionalPhone,
@@ -367,7 +377,7 @@ export const accountSchema = z.object({
   gender: z.enum(["male", "female"]).optional().nullable(),
   /** Chat taxallusi (@username) — tekshiruv va bandlik api/profile PATCH ichida (setUsername) */
   username: z.string().trim().max(24).optional(),
-  email: z.string().trim().toLowerCase().email("Email noto'g'ri").max(120).optional(),
+  email: z.string().trim().toLowerCase().email("Email noto'g'ri").max(120).refine((v) => !isReservedEmail(v), RESERVED_EMAIL_MSG).optional(),
   currentPassword: z.string().max(100).optional(),
   notifyEmail: z.boolean().optional(),
 });

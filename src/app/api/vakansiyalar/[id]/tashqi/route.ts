@@ -1,4 +1,5 @@
 import { ApiError, handler, ok } from "@/lib/api";
+import { clientIp } from "@/lib/security/request";
 import { optionalViewer } from "@/app/api/groups/_lib";
 import { bumpApplyClick, loadVacancy } from "@/lib/vacancies/service";
 import { enforceLimit } from "@/lib/security/rate-limit";
@@ -11,7 +12,7 @@ export const POST = handler(async (req, ctx: Ctx) => {
   const v = await loadVacancy(id);
   if (!v || !v.applyUrl) throw new ApiError(404, "Vakansiya topilmadi");
   const viewer = await optionalViewer();
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  const ip = clientIp(req);
   await enforceLimit("views", viewer?.id ?? ip);
   // Egasining o'z bosishlari statistikani buzmasin
   if (!viewer || viewer.id !== v.authorId) await bumpApplyClick(v.id);

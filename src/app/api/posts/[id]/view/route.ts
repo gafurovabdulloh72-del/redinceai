@@ -3,13 +3,15 @@ import { handler, ok } from "@/lib/api";
 import { recordView } from "@/lib/groups/service";
 import { isPostLocked, loadViewablePost } from "@/lib/social/post-access";
 import { enforceLimit } from "@/lib/security/rate-limit";
+import { clientIp } from "@/lib/security/request";
 import { optionalViewer } from "@/app/api/groups/_lib";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /** Mehmon kaliti: IP + User-Agent xeshi (shaxsiy ma'lumot saqlanmaydi; tuz — server kaliti) */
 function anonKey(req: Request): string {
-  const ip = (req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "0").split(",")[0].trim();
+  // Ishonchli proksi qo'ygan IP (x-forwarded-for'ning chapdagi qiymatini mijoz o'zi yozishi mumkin — unga tayanilmaydi)
+  const ip = clientIp(req);
   const ua = req.headers.get("user-agent") ?? "";
   const salt = process.env.AUTH_SECRET ?? process.env.TURSO_AUTH_TOKEN ?? "views";
   return `a:${createHash("sha256").update(`${salt}|${ip}|${ua}`).digest("hex").slice(0, 24)}`;

@@ -2,7 +2,11 @@
 # SITE_DOMAIN .env faylidan keladi (masalan, kasbegalari.uz)
 {$SITE_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy app:3000
+	reverse_proxy app:3000 {
+		# Mijoz yuborgan X-Real-IP'ni HAQIQIY ulanish manzili bilan almashtiramiz — aks holda uni soxtalashtirib, IP bo'yicha
+		# limit va bloklarni aylanib o'tish mumkin. X-Forwarded-For'ni Caddy o'zi to'g'ri yozadi (mijoznikiga ishonmaydi).
+		header_up X-Real-IP {remote_host}
+	}
 }
 
 # www → asosiy domenga doimiy yo'naltirish

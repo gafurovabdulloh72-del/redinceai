@@ -982,6 +982,37 @@ test("Highlights: yopiq profilning saqlangan story to'plamlari begonaga ko'rinma
   }
 });
 
+test("Hisobni egallash yo'llari yopiq: band email bilan ro'yxat (422), tasdiqlash kodi «tiklash tokeni» bo'lib o'tmaydi", async (t) => {
+  // 1) @telegram.local (bot hisoblarining vaqtinchalik manzili) va *.internal bilan saytdan ro'yxatdan o'tib bo'lmaydi
+  for (const email of [`tg${Date.now()}@telegram.local`, "kimdir@kasbegalari.internal"]) {
+    const r = await req("guest", "/api/auth/register", { method: "POST", body: JSON.stringify({ name: "Band Email", email, password: "Sinov12345", role: "client", acceptTerms: true }) });
+    assert.equal(r.status, 422, `${email} → 422 (keldi: ${r.status})`);
+    assert.ok((await r.json()).fields?.email, "xato email maydonida");
+  }
+  // 2) Email tasdiqlash kodi (6 raqam) parolni tiklash tokeni sifatida ishlamaydi
+  const u = await registerTemp("client");
+  if (!u) return t.skip("sinov hisobi yaratilmadi (register limiti?)");
+  const { createClient } = await import("@libsql/client");
+  const { createHash, randomUUID } = await import("node:crypto");
+  const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+  try {
+    const code = "424242";
+    const hash = createHash("sha256").update(`${code}:${u.id}`).digest("hex");
+    await d.execute({ sql: "insert into password_resets (id, user_id, token_hash, purpose, expires_at) values (?, ?, ?, 'verify_email', ?)", args: [randomUUID(), u.id, hash, Date.now() + 10 * 60 * 1000] });
+    const r = await req("guest", "/api/auth/reset/confirm", { method: "POST", body: JSON.stringify({ token: `${code}:${u.id}`, newPassword: "Buzilgan12345" }) });
+    assert.equal(r.status, 400, `tasdiqlash kodi tiklash tokeni emas (keldi: ${r.status})`);
+    const stolen = await req("guest", "/api/auth/login", { method: "POST", body: JSON.stringify({ email: u.email, password: "Buzilgan12345" }) });
+    assert.equal(stolen.status, 401, "parol o'zgarmagan — yangi parol bilan kirib bo'lmaydi");
+    const still = await d.execute({ sql: "select used_at from password_resets where token_hash = ?", args: [hash] });
+    assert.equal(still.rows[0]?.used_at ?? null, null, "tasdiqlash kodi «ishlatilgan» deb belgilanmagan");
+    // 3) Emailni band manzilga o'zgartirib bo'lmaydi
+    const ch = await reqAs(u.cookie, "/api/profile", { method: "PATCH", body: JSON.stringify({ name: "Sinov client", email: "tg777000111@telegram.local", currentPassword: "Sinov12345" }) });
+    assert.equal(ch.status, 422, `emailni band manzilga o'zgartirish → 422 (keldi: ${ch.status})`);
+  } finally {
+    await cleanupTemp([u.email]);
+  }
+});
+
 /** Brauzer sarlavhalari (Fetch Metadata) — tuzoq «kim so'rayapti»ni shular bo'yicha ajratadi */
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const NAV_HEADERS = { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "uz,ru;q=0.8", "sec-fetch-site": "none", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document", "sec-fetch-user": "?1" };

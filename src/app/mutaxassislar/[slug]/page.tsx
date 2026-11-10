@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { clientIpFromHeaders } from "@/lib/security/request";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -293,7 +294,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   // Ko'rishlar soni — kunlik noyob (profile_views): egasi (shu jumladan preview) va botlar hisoblanmaydi; natijani kutmaymiz.
   // Ko'ruvchi kaliti: kirgan — u:<id>; mehmon — IP+UA xeshi (shaxsiy ma'lumot saqlanmaydi)
   if (!isOwner && !isBotUserAgent(hdrs.get("user-agent"))) {
-    const ip = (hdrs.get("x-forwarded-for") ?? hdrs.get("x-real-ip") ?? "").split(",")[0].trim();
+    const ip = clientIpFromHeaders(hdrs);
     const viewerKey = viewer ? `u:${viewer.id}` : `a:${createHash("sha256").update(`${ip}|${hdrs.get("user-agent") ?? ""}`).digest("hex").slice(0, 24)}`;
     try {
       void recordProfileView(raw.id, viewerKey).catch(() => {});

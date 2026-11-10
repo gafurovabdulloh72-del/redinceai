@@ -35,6 +35,13 @@ export const users = sqliteTable(
     emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
     /** Google OAuth identifikatori (sub) — «Google bilan kirish» orqali bog'langan hisob */
     googleId: text("google_id"),
+    /**
+     * Hisob QAYERDAN ochilgan: site (email+parol formasi) | google | telegram (bot / Mini App). 7-audit: uzilgan Telegram
+     * hisobini `tg<chatId>@telegram.local` emaili bo'yicha qayta bog'lash FAQAT `telegram` bo'lsa ruxsat — aks holda
+     * hujumchi shu emailni saytdan oldindan ro'yxatdan o'tkazib, keyin kelgan odamni o'z hisobiga «ulab» olardi.
+     * Eski qatorlar `scripts/backfill-signup-via.ts` bilan to'ldiriladi (null — noma'lum, qayta bog'lanmaydi).
+     */
+    signupVia: text("signup_via", { enum: ["site", "google", "telegram"] }),
     /** Bloklangan hisob: kira olmaydi, profili ro'yxatda chiqmaydi */
     isBanned: integer("is_banned", { mode: "boolean" }).notNull().default(false),
     bannedReason: text("banned_reason"),
