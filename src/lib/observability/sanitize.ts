@@ -16,7 +16,42 @@ export const MAX_STACK = 4000;
 export const MAX_PATH = 300;
 export const MAX_UA = 200;
 
+/**
+ * Regexlardan OLDINGI uzunlik chegaralari. Tozalash regexlari eng yomon holatda kvadratik ishlaydi (bitta uzun
+ * «so'z»da — masalan 12 000 ta raqam — har pozitsiyadan qayta urinish): /api/xato ommaviy bo'lgani uchun kirish
+ * uzunligi qat'iy cheklanadi — 600 belgili qator ≈ 1–2 ms, 12 KB li yaxlit qator esa ≈ 0.5 s edi (CPU DoS).
+ */
+const LINE_CAP = 600;
+const TEXT_CAP = 4000;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Shu belgidan KEYIN kesish xavfsiz (so'z/token/email o'rtasi emas) */
+const isBreakChar = (ch: string) => ch === " " || ch === "\n" || ch === "\t" || ch === "\r" || '"\'<>()[]{},;'.includes(ch);
+/** Telefon raqami bo'lagi bo'lishi mumkin bo'lgan belgi */
+const isPhoneChar = (ch: string) => (ch >= "0" && ch <= "9") || " ().+-".includes(ch);
+
+/**
+ * Matnni `cap` belgigacha qisqartiradi — regexlar ishlashidan OLDIN (chiziqli, regexsiz).
+ * Kesilgan joyda yarim qolgan bo'lak tashlanadi: yarim token «tasodifiy satr» deb, yarim email/telefon esa
+ * email/telefon deb TANILMAY qolardi va tozalanmagan holda saqlanib ketishi mumkin edi.
+ */
+export function clip(s: string, cap: number): string {
+  if (s.length <= cap) return s;
+  const floor = Math.max(0, cap - 200);
+  // 1) Yarim qolgan so'z: oxirgi ajratgichgacha qaytamiz (200 belgida ajratgich bo'lmasa — yaxlit uzun satr, o'zicha kesiladi)
+  let end = cap;
+  while (end > floor && !isBreakChar(s[end - 1])) end--;
+  if (end === floor) end = cap;
+  // 2) Yarim qolgan telefon: oxirdagi raqam/ajratgich ketma-ketligi (ichida raqam bo'lsa) tashlanadi
+  let tail = end;
+  let hasDigit = false;
+  while (tail > floor && isPhoneChar(s[tail - 1])) {
+    if (s[tail - 1] >= "0" && s[tail - 1] <= "9") hasDigit = true;
+    tail--;
+  }
+  return s.slice(0, hasDigit ? tail : end);
+}
 
 /** Uzun satr «tokenga o'xshaydimi»: tasodifiy (katta+kichik harf+raqam) yoki uzun hex / aralash — so'zli slug emas */
 function looksLikeToken(s: string): boolean {
@@ -32,12 +67,12 @@ function looksLikeToken(s: string): boolean {
 }
 
 /**
- * Matndan shaxsiy va maxfiy bo'laklarni olib tashlaydi (uzunlikni cheklamaydi — chaqiruvchi kesadi).
+ * Matndan shaxsiy va maxfiy bo'laklarni olib tashlaydi. Kirish `cap` belgigacha qisqartiriladi (`clip` — regexlar
+ * kvadratik bo'lgani uchun); yakuniy uzunlikni chaqiruvchi kesadi.
  * Yangi qatorlar saqlanadi (stek uchun), boshqa boshqaruv belgilari probelga aylanadi.
  */
-export function scrub(input: unknown): string {
-  let s = typeof input === "string" ? input : String(input ?? "");
-  if (s.length > 20_000) s = s.slice(0, 20_000);
+export function scrub(input: unknown, cap = TEXT_CAP): string {
+  let s = clip(typeof input === "string" ? input : String(input ?? ""), cap);
   s = s.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, " ");
   // Drizzle: «Failed query: … params: a@b.c,+99890…» — qiymatlar butunlay kesiladi
   s = s.replace(/\bparams:[\s\S]*$/i, "params: [yashirildi]");
@@ -65,9 +100,11 @@ export function scrub(input: unknown): string {
   return s;
 }
 
-/** Bir qatorli, kesilgan xabar */
+/** Bir qatorli, kesilgan xabar (tozalashga `max`dan 3 baravar uzun bo'lak beriladi — tozalangach qisqarishi mumkin) */
 export function cleanMessage(input: unknown, max = MAX_MESSAGE): string {
-  const s = scrub(input).replace(/\s+/g, " ").trim();
+  const s = scrub(input, Math.min(TEXT_CAP, Math.max(1200, max * 3)))
+    .replace(/\s+/g, " ")
+    .trim();
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
@@ -81,19 +118,26 @@ export function cleanStack(input: unknown, max = MAX_STACK): string {
     .slice(0, 40_000)
     .split(/\r?\n/)
     .slice(0, 120)
-    .map((l) => scrub(l).replace(/\s+$/g, "").slice(0, 400))
+    .map((l) => scrub(l, LINE_CAP).trimEnd().slice(0, 400))
     .filter((l) => l.trim())
     .slice(0, 60);
   const out = lines.join("\n");
   return out.length > max ? out.slice(0, max) : out;
 }
 
-/** Stekdan faqat kadr qatorlari (V8 «at …», Firefox/Safari «fn@url:qator:ustun») — xabar sarlavhasi tashlanadi */
+/**
+ * Stekdan faqat kadr qatorlari (V8 «at …», Firefox/Safari «fn@url:qator:ustun») — xabar sarlavhasi tashlanadi.
+ * Qatorlar shu yerning o'zida cheklanadi (≤200 qator, har biri ≤600 belgi): keyingi regexlar (bu yerdagi, tidyFrames,
+ * topFrame) uzun yaxlit qatorda sekinlashmasin.
+ */
 export function stackFrames(stack: unknown): string {
   if (typeof stack !== "string") return "";
   return stack
+    .slice(0, 40_000)
     .split(/\r?\n/)
-    .filter((l) => /^\s*at\s/.test(l) || /@.*:\d+(?::\d+)?\s*$/.test(l))
+    .slice(0, 200)
+    .map((l) => clip(l, LINE_CAP))
+    .filter((l) => /^\s*at\s/.test(l) || /@[^@]*:\d+(?::\d+)?\s*$/.test(l))
     .join("\n");
 }
 
@@ -125,7 +169,7 @@ export function tidyFrames(frames: string, root?: string): string {
  */
 export function cleanPath(input: unknown, max = MAX_PATH): string {
   if (typeof input !== "string" || !input) return "";
-  let p = input.trim();
+  let p = input.trim().slice(0, 2000);
   try {
     if (/^https?:\/\//i.test(p)) p = new URL(p).pathname;
   } catch {
