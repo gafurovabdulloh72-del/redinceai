@@ -4,6 +4,7 @@ import { CATEGORY_BY_SLUG, REGION_BY_SLUG } from "@/lib/constants";
 import { getLandingIndex } from "@/lib/queries";
 import { tr, type Locale } from "@/lib/i18n";
 import { SHELL } from "@/lib/i18n/dict/shell";
+import { ruName } from "@/lib/i18n/names";
 
 /**
  * SEO: yo'nalish sahifalariga ichki havolalar (2026-10-24).
@@ -48,7 +49,7 @@ export async function FooterLandings({ til }: { til: Locale }) {
         <span className="text-[12.5px] font-semibold text-fg-2">{tr(til, SHELL.footer.byCraft)}</span>
         {crafts.map((slug) => (
           <Link key={slug} href={`/yonalish/${slug}`} className={link}>
-            {CATEGORY_BY_SLUG[slug].plural}
+            {ruName(til, CATEGORY_BY_SLUG[slug].plural)}
           </Link>
         ))}
       </div>
@@ -57,7 +58,9 @@ export async function FooterLandings({ til }: { til: Locale }) {
           <span className="text-[12.5px] font-semibold text-fg-2">{tr(til, SHELL.footer.byCity)}</span>
           {pairs.map((p) => (
             <Link key={`${p.category}/${p.region}`} href={`/yonalish/${p.category}/${p.region}`} className={link}>
-              {SHELL.footer.inRegion[til](CATEGORY_BY_SLUG[p.category].plural.toLowerCase(), REGION_BY_SLUG[p.region].short)}
+              {til === "ru"
+                ? SHELL.footer.inRegion.ru(ruName(til, CATEGORY_BY_SLUG[p.category].plural), ruName(til, REGION_BY_SLUG[p.region].short))
+                : SHELL.footer.inRegion.uz(CATEGORY_BY_SLUG[p.category].plural.toLowerCase(), REGION_BY_SLUG[p.region].short)}
             </Link>
           ))}
         </div>

@@ -44,7 +44,7 @@ export default async function ChallengePage({ params }: { params: Params }) {
             <Users size={14} /> {KONKURS.entries[til](c.entriesCount)}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <CalendarClock size={14} /> {formatDate(new Date(c.startsAt))} — {formatDate(new Date(c.endsAt))}
+            <CalendarClock size={14} /> {formatDate(new Date(c.startsAt), til)} — {formatDate(new Date(c.endsAt), til)}
           </span>
           {c.winner && (
             <span className="inline-flex items-center gap-1.5 font-semibold text-fg">

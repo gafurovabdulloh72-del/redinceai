@@ -927,16 +927,12 @@ export function PostCard({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[15px] font-bold leading-tight">
             <AuthorLink u={post.author} />
+            {/* Ajratuvchi nuqta yo'q: jamoa nomi keyingi qatorga tushganda nuqta birinchi qator oxirida osilib qolardi — belgi (ikonka) o'zi ajratadi */}
             {source && (
-              <>
-                <span className="text-fg-4" aria-hidden>
-                  ·
-                </span>
-                <Link href={`/jamoalar/${source.slug}`} className="inline-flex min-w-0 max-w-[14rem] items-center gap-1 text-[12.5px] font-semibold text-fg-3 transition hover:text-fg">
-                  {source.isOfficial ? <BadgeCheck size={13} className="shrink-0 text-accent" /> : source.kind === "channel" ? <Radio size={13} className="shrink-0" /> : <UsersRound size={13} className="shrink-0" />}
-                  <span className="truncate">{source.name}</span>
-                </Link>
-              </>
+              <Link href={`/jamoalar/${source.slug}`} className="inline-flex min-w-0 max-w-[14rem] items-center gap-1 text-[12.5px] font-semibold text-fg-3 transition hover:text-fg">
+                {source.isOfficial ? <BadgeCheck size={13} className="shrink-0 text-accent" /> : source.kind === "channel" ? <Radio size={13} className="shrink-0" /> : <UsersRound size={13} className="shrink-0" />}
+                <span className="truncate">{source.name}</span>
+              </Link>
             )}
             {pinned && (
               <span className="inline-flex items-center text-fg-3" title={tr(til, FEED.pinned)}>
@@ -944,7 +940,6 @@ export function PostCard({
                 <span className="sr-only">{tr(til, FEED.pinned)}</span>
               </span>
             )}
-            {post.followingAuthor === false && loggedIn && <FollowButton userId={post.author.id} initialFollowing={false} initialCount={0} loggedIn size="sm" compact showCount={false} variant="outline" />}
           </div>
           {post.hiddenByReports && (
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-[11.5px] font-semibold text-warning-text" role="status" data-no-auto>
@@ -963,6 +958,12 @@ export function PostCard({
             {views > 0 && <span className="tabular-nums text-fg-4">· {FEED.views[til](views)}</span>}
           </p>
         </div>
+        {/* Obuna tugmasi sarlavha qatorida EMAS, o'ngda («⋯» yonida): telefonda ism + jamoa nomi bilan bir qatorga sig'may, alohida qatorga tushib qolardi */}
+        {post.followingAuthor === false && loggedIn && (
+          <span className="shrink-0">
+            <FollowButton userId={post.author.id} initialFollowing={false} initialCount={0} loggedIn size="sm" compact showCount={false} variant="outline" />
+          </span>
+        )}
         <PostMenu items={menuItems} extra={loggedIn && !post.canDelete ? <ReportButton targetType="post" targetId={post.id} loggedIn modal triggerClassName="!h-9 w-full justify-start rounded-[10px] px-2.5 !text-[13px] !text-fg hover:bg-fg/6" /> : undefined} />
       </header>
 

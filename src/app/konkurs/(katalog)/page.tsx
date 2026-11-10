@@ -53,7 +53,7 @@ function Card({ c, til }: { c: ChallengeCard; til: Locale }) {
               <Users size={13} /> {KONKURS.entries[til](c.entriesCount)}
             </span>
             <span className="inline-flex items-center gap-1">
-              <CalendarClock size={13} /> {c.state === "done" ? formatDate(new Date(c.endsAt)) : leftLabel(c.endsAt, til)}
+              <CalendarClock size={13} /> {c.state === "done" ? formatDate(new Date(c.endsAt), til) : leftLabel(c.endsAt, til)}
             </span>
             {c.winner && (
               <span className="inline-flex items-center gap-1.5 font-semibold text-fg">

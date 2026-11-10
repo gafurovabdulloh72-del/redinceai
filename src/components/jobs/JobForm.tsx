@@ -310,7 +310,7 @@ export function JobForm({ initial, prefill, clientFirstName, emailVerified }: { 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={JOB_TITLE_MAX}
-              placeholder="Masalan: Kafe uchun 30 soniyalik reklama roligi"
+              placeholder="Masalan: Kafe uchun reklama roligi"
               autoComplete="off"
               aria-invalid={Boolean(errors.title)}
               aria-describedby={errors.title ? "job-title-err" : "job-title-hint"}

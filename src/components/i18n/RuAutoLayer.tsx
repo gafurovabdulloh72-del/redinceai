@@ -14,6 +14,20 @@ import { ensureDict, lookupRu, looksUzbek, normalizeUz, rememberRu } from "@/lib
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "TEXTAREA", "NOSCRIPT", "SVG", "KBD"]);
 const ATTRS = ["placeholder", "title", "aria-label"] as const;
 
+/**
+ * Tugunni React allaqachon JONLANTIRGANMI (gidratsiya qilganmi). React jonlantirgan har DOM tuguniga `__reactFiber$…`
+ * xususiyatini yozadi. Sahifa bo'laklab jonlanadi (Suspense, tanlab gidratsiya) va bu `load` hodisasidan KEYIN ham davom
+ * etadi: hali jonlanmagan bo'lakdagi matnni almashtirsak, React «server matni mos emas» (#418) deb o'sha bo'lakni
+ * boshidan chizadi — konsol xatosi va ortiqcha ish. Shuning uchun faqat jonlangan tugunlarga tegamiz; qolganlari keyingi
+ * aylanishda (pastdagi `sweep`) almashadi — jonlanish DOM'ni o'zgartirmaydi, kuzatuvchi buni sezmaydi.
+ */
+function hydrated(node: Node): boolean {
+  for (const k in node) if (k.startsWith("__reactFiber$") || k.startsWith("__reactProps$")) return true;
+  return false;
+}
+/** Oxirgi aylanishda jonlanmagani uchun o'tkazib yuborilgan tugunlar soni */
+let skippedCold = 0;
+
 function eligible(node: Text): boolean {
   const p = node.parentElement;
   // SVG elementlarda tagName kichik harfda (svg/text/tspan) — toUpperCase bilan tekshiramiz
@@ -23,7 +37,35 @@ function eligible(node: Text): boolean {
   // Lotin harfli har qanday matn LUG'ATDAN qidiriladi (bitta so'zli yorliqlar ham: «Yangi», «Tarix», «Hammasi»); AI'ga esa
   // faqat `looksUzbek` matnlar yuboriladi (applyText). Ilgari bu yerda `looksUzbek` turardi va bitta so'zli yorliqlar
   // lug'atda bo'lsa ham tarjima qilinmasdi (ruscha sahifada «Yangi → Принято → Jarayonda» kabi aralash ko'rinardi).
-  return Boolean(v.trim()) && /[a-z]/i.test(v) && !/[а-яё]/i.test(v) && v.length <= 200;
+  // Kirill harfi bor tugun odatda allaqachon tarjima qilingan; istisno — «·» bilan yig'ilgan satrlar («Контакт · 80 ming so'm»)
+  if (!(Boolean(v.trim()) && /[a-z]/i.test(v) && v.length <= 200 && (!/[а-яё]/i.test(v) || v.includes("·")))) return false;
+  // Matn tugunining o'z belgisi bor; yagona satr-bola («<span>Matn</span>») holatida React matnni ota elementning
+  // mazmuni sifatida jonlantiradi — belgi faqat otada bo'ladi. Aralash bolali otaning belgisi YETARLI EMAS: React ota bilan
+  // bolalar orasida to'xtab turishi mumkin (bo'lib-bo'lib ishlash).
+  if (hydrated(node) || (p.childNodes.length === 1 && hydrated(p))) return true;
+  skippedCold++;
+  return false;
+}
+
+/**
+ * «·» bilan yig'ilgan satr («Motion dizayner · Nukus · Qoraqalpog'iston», «3D artist · », «Контакт · 80 ming so'm»):
+ * har bo'lak ALOHIDA lug'atdan qidiriladi — butun satr lug'atda bo'lmaydi (kasb × shahar × hudud kombinatsiyalari cheksiz).
+ * Ajratgichlar (atrofidagi bo'shliqlari bilan) o'zgarishsiz qoladi. Hech bo'lak topilmasa — null.
+ */
+function translateParts(v: string): string | null {
+  if (!v.includes("·")) return null;
+  let changed = false;
+  const out = v
+    .split(/(\s*·\s*)/)
+    .map((part, i) => {
+      if (i % 2 === 1 || !part.trim() || !/[a-z]/i.test(part) || /[а-яё]/i.test(part)) return part;
+      const ru = lookupRu(part);
+      if (!ru) return part;
+      changed = true;
+      return (part.match(/^\s*/)?.[0] ?? "") + ru + (part.match(/\s*$/)?.[0] ?? "");
+    })
+    .join("");
+  return changed ? out : null;
 }
 
 export function RuAutoLayer({ active }: { active: boolean }) {
@@ -41,8 +83,14 @@ export function RuAutoLayer({ active }: { active: boolean }) {
     /** Matn tugunini almashtirish; topilmasa navbatga */
     const applyText = (t: Text) => {
       const v = t.nodeValue ?? "";
-      const ru = lookupRu(v);
-      if (ru) {
+      const mixed = /[а-яё]/i.test(v);
+      const ru = mixed ? null : lookupRu(v);
+      const parts = ru ? null : translateParts(v);
+      if (parts) {
+        if (parts !== v) t.nodeValue = parts;
+      } else if (mixed) {
+        /* kirill + lotin, lekin bo'laklar lug'atda yo'q — tegmaymiz (AI'ga ham yuborilmaydi) */
+      } else if (ru) {
         // bo'shliqlarni saqlab almashtiramiz (inline matn yonidagi probel)
         const lead = v.match(/^\s*/)?.[0] ?? "";
         const trail = v.match(/\s*$/)?.[0] ?? "";
@@ -54,6 +102,10 @@ export function RuAutoLayer({ active }: { active: boolean }) {
       }
     };
     const applyAttrs = (el: Element) => {
+      if (!hydrated(el)) {
+        skippedCold++;
+        return;
+      }
       for (const a of ATTRS) {
         const v = el.getAttribute(a);
         if (!v || !/[a-z]/i.test(v) || /[а-яё]/i.test(v)) continue;
@@ -111,6 +163,7 @@ export function RuAutoLayer({ active }: { active: boolean }) {
         if (got.length === 0) return;
         for (const k of got) rememberRu(k, map[k]);
         run(root); // endi lug'atda bor — DOM'ga qo'llaymiz
+        applyTitle();
       } catch {
         /* tarmoq xatosi — matn o'zbekcha qoladi */
       }
@@ -120,6 +173,40 @@ export function RuAutoLayer({ active }: { active: boolean }) {
       if (queue.size === 0 || timer !== null) return;
       timer = window.setTimeout(() => void flush(), 400);
     };
+
+    /**
+     * Brauzer yorlig'i sarlavhasi (`<title>`, qolip «Bo'lim · Kasb Egalari»): DOM matni emas, shuning uchun alohida.
+     * Har bo'lak («·» bo'yicha, kerak bo'lsa «—» bo'yicha ham) lug'atdan qidiriladi; brend va foydalanuvchi matni (ism,
+     * post sarlavhasi) lug'atda yo'q — o'zgarmaydi. Telefon yuqori paneli nomni shu sarlavhadan o'qiydi (`useMobileTitle`).
+     */
+    const ruPart = (seg: string): string => {
+      if (!/[a-z]/i.test(seg) || /[а-яё]/i.test(seg)) return seg;
+      const whole = lookupRu(seg);
+      if (whole) return whole;
+      if (looksUzbek(seg)) {
+        const k = normalizeUz(seg);
+        if (!asked.has(k)) queue.add(k);
+      }
+      return seg;
+    };
+    const applyTitle = () => {
+      const cur = document.title;
+      const m = /^(\(\d+\+?\)\s+)?([\s\S]*)$/.exec(cur);
+      const rest = m?.[2] ?? cur;
+      const next =
+        (m?.[1] ?? "") +
+        rest
+          .split(" · ")
+          .map((seg) => {
+            const whole = ruPart(seg);
+            if (whole !== seg || !seg.includes(" — ")) return whole;
+            return seg.split(" — ").map(ruPart).join(" — ");
+          })
+          .join(" · ");
+      if (next !== cur) document.title = next;
+      schedule();
+    };
+    const titleObs = new MutationObserver(applyTitle);
 
     obs = new MutationObserver((records) => {
       pause();
@@ -145,15 +232,27 @@ export function RuAutoLayer({ active }: { active: boolean }) {
 
     let cancelled = false;
     let idle: number | null = null;
+    let sweepTimer: number | null = null;
     /**
      * Birinchi ishga tushish — sahifa TO'LIQ jonlangach (gidratsiyadan keyin): `load` + brauzer bo'sh qolganda.
      * Ilgari lug'at yuklanishi bilan darhol ishlardi; React hali jonlantirmagan bo'laklarning (Suspense oqimi) matni ruschaga
      * almashib qolar va React «server matni mos emas» (#418) deb o'sha bo'lakni qaytadan chizardi — rus tilidagi sahifalarda
      * konsol xatosi va ortiqcha qayta chizish (kabinet/obuna, to'lovlar, xarita…). Kuzatuvchi ham shu paytgacha ulanmaydi.
      */
+    /** Jonlanmagan bo'laklar qolgan bo'lsa — birozdan keyin yana aylanamiz (ko'pi bilan 6 marta: ~0.6 s … 8 s) */
+    const sweep = (attempt: number) => {
+      sweepTimer = null;
+      if (cancelled) return;
+      skippedCold = 0;
+      run(root);
+      if (skippedCold > 0 && attempt < 6) sweepTimer = window.setTimeout(() => sweep(attempt + 1), 600 * 1.6 ** attempt);
+    };
     const start = () => {
       idle = null;
-      if (!cancelled) run(root);
+      if (cancelled) return;
+      sweep(0);
+      applyTitle();
+      titleObs.observe(document.head, { childList: true, subtree: true, characterData: true });
     };
     const whenIdle = () => {
       if (cancelled) return;
@@ -174,7 +273,9 @@ export function RuAutoLayer({ active }: { active: boolean }) {
         else window.clearTimeout(idle);
       }
       obs?.disconnect();
+      titleObs.disconnect();
       if (timer !== null) window.clearTimeout(timer);
+      if (sweepTimer !== null) window.clearTimeout(sweepTimer);
     };
   }, [active]);
 

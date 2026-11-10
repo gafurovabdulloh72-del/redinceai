@@ -119,7 +119,7 @@ jobs:
           BASE_URL: http://localhost:3000
         run: node --test scripts/bot.mjs
 
-      # Konkurs / Maslahat / Chat-inbox E2E oqimlari (kamchilik #86 — /tmp'dan repoga ko'chirilgan)
+      # Konkurs / Maslahat / Chat-inbox / Tarif almashtirish E2E oqimlari (kamchilik #86 — /tmp'dan repoga ko'chirilgan)
       - name: E2E oqim testlari
         env:
           BASE_URL: http://localhost:3000
@@ -127,6 +127,7 @@ jobs:
           node scripts/e2e/konkurs.mjs
           node scripts/e2e/savollar.mjs
           node scripts/e2e/inbox.mjs
+          node scripts/e2e/tarif.mjs
 
       - name: Server logi (xato bo'lsa)
         if: failure()

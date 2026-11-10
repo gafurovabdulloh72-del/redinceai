@@ -303,7 +303,7 @@ export function VacancyForm({ mode, initial }: { mode: "create" | "edit"; initia
       <label className="grid gap-1.5">
         <span className={LABEL}>{tr(til, T.applyUrl)}</span>
         <input type="url" value={applyUrl} onChange={(e) => setApplyUrl(e.target.value)} placeholder={tr(til, T.applyUrlPh)} dir="ltr" className="field h-11 w-full text-[14px]" />
-        {errors.applyUrl && <span className="text-[11.5px] text-danger-text">{errors.applyUrl}</span>}
+        {errors.applyUrl ? <span className="text-[11.5px] text-danger-text">{errors.applyUrl}</span> : <span className="text-[11.5px] leading-snug text-fg-3">{tr(til, T.applyUrlHint)}</span>}
       </label>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
