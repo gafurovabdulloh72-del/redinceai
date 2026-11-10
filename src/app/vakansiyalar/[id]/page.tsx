@@ -22,6 +22,7 @@ import { isBotUserAgent } from "@/lib/privacy";
 import { SITE_URL } from "@/lib/site-url";
 import { formatDate } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
@@ -103,12 +104,12 @@ export default async function VacancyPage({ params }: { params: Params }) {
   return (
     <div className="container-x animate-fade-up">
       {/* `<` ekranlanadi: title/description/company — foydalanuvchi matni, aks holda `</script>` bilan chiqib ketish mumkin */}
-      {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPosting).replace(/</g, "\\u003c") }} />}
+      {jobPosting && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(jobPosting) }} />}
       {/* Yo'l (breadcrumb) — Google natijalarda «Vakansiyalar › Kasb › E'lon» ko'rsatadi */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLdHtml({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
@@ -116,7 +117,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
               { "@type": "ListItem", position: 2, name: professionLabel(v.profession), item: `${SITE_URL}/vakansiyalar/kasb/${v.profession}` },
               { "@type": "ListItem", position: 3, name: v.title, item: `${SITE_URL}/vakansiyalar/${v.id}` },
             ],
-          }).replace(/</g, "\\u003c"),
+          }),
         }}
       />
       <nav aria-label={tr(til, VAK_DETAL.breadcrumbAria)} className="text-[13px] text-fg-3">

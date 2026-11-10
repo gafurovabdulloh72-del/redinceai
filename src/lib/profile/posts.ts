@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, isNull, like, lt, not, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { follows, posts, users, type FileAttachment, type Post, type PostMusic } from "@/lib/db/schema";
+import { closeFriends, follows, posts, users, type FileAttachment, type Post, type PostMusic } from "@/lib/db/schema";
 import { postNotHiddenCondition } from "@/lib/moderation";
 import { canViewPrivateContent } from "@/lib/privacy/private-profile";
 import { briefUsers, toPostViews, type PostView } from "@/lib/groups/service";
@@ -46,8 +46,16 @@ const PROFILE_VISIBLE: SQL = or(isNull(posts.groupId), sql`${posts.groupId} in (
 const isVideo = (m: FileAttachment) => m.type.startsWith("video/") || /\.(?:mp4|webm|mov)(?:$|\?)/i.test(m.url);
 
 /** Yangi profil posti; obunachilarga (follows) bildirishnoma — sayt + Telegram, email emas (25 talik bo'laklar) */
-export async function createProfilePost(authorId: string, body: string, media: FileAttachment[], music: PostMusic | null = null): Promise<Post> {
+export async function createProfilePost(
+  authorId: string,
+  body: string,
+  media: FileAttachment[],
+  music: PostMusic | null = null,
+  /** Auditoriya va joy YARATISH paytida yoziladi — «yaqin do'stlar» posti bir lahza ham ommaviy bo'lmaydi */
+  opts: { audience?: "public" | "close"; placeName?: string | null } = {},
+): Promise<Post> {
   const now = new Date();
+  const close = opts.audience === "close";
   const row: typeof posts.$inferInsert = {
     id: uid(),
     groupId: null,
@@ -55,6 +63,8 @@ export async function createProfilePost(authorId: string, body: string, media: F
     body,
     media,
     music,
+    audience: close ? "close" : "public",
+    placeName: opts.placeName?.trim().slice(0, 80) || null,
     likesCount: 0,
     commentsCount: 0,
     isPinned: false,
@@ -69,10 +79,12 @@ export async function createProfilePost(authorId: string, body: string, media: F
   const href = author?.slug ? `/mutaxassislar/${author.slug}?post=${row.id}` : null;
   const snippet = body.replace(/\s+/g, " ").trim().slice(0, 140) || (media.length ? (media.some(isVideo) ? "Yangi video" : "Yangi rasm") : "");
   // @username eslatmalari — obunachi bo'lmasa ham xabar oladi (ochiq profil posti); eslatilganlar umumiy "yangi post" xabarini qayta olmaydi
-  const mentioned = new Set(await notifyMentions({ text: body, actorId: authorId, actorName: author?.name ?? "Ijodkor", href: href ?? `/?post=${row.id}`, where: "post" }).catch((e) => (console.error("[profile-post:mentions]", e), [] as string[])));
+  // «Yaqin do'stlar» posti: eslatma ham, «yangi post» xabari ham FAQAT yaqin do'stlar ro'yxatidagilarga (boshqalar postni ko'ra olmaydi)
+  const circle = close ? new Set((await db.query.closeFriends.findMany({ where: eq(closeFriends.ownerId, authorId), columns: { friendId: true } })).map((r) => r.friendId)) : null;
+  const mentioned = new Set(await notifyMentions({ text: body, actorId: authorId, actorName: author?.name ?? "Ijodkor", href: href ?? `/?post=${row.id}`, where: "post", ...(circle ? { onlyIds: circle } : {}) }).catch((e) => (console.error("[profile-post:mentions]", e), [] as string[])));
   // Faqat «har post» darajasini tanlaganlarga xabar (qo'ng'iroq: all / highlights / off)
   const fans = await db.query.follows.findMany({ where: and(eq(follows.followingId, authorId), eq(follows.notifyLevel, "all")), columns: { followerId: true } });
-  const ids = fans.map((f) => f.followerId).filter((id) => id !== authorId && !mentioned.has(id));
+  const ids = fans.map((f) => f.followerId).filter((id) => id !== authorId && !mentioned.has(id) && (!circle || circle.has(id)));
   for (let i = 0; i < ids.length; i += 25) {
     await Promise.all(ids.slice(i, i + 25).map((id) => notify(id, "profile_post", `${author?.name ?? "Ijodkor"} yangi post joyladi`, snippet, href, { skipMail: true }).catch(() => undefined)));
   }

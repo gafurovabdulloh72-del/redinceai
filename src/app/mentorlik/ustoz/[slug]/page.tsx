@@ -28,6 +28,7 @@ import { DeleteLiveButton } from "@/components/live/DeleteLiveButton";
 import { activeLive, listRecordings, pastLives } from "@/lib/live/service";
 import { cn, compactCount, formatDateTime } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
@@ -107,7 +108,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({ "@context": "https://schema.org", "@type": "Person", name: profile.name, jobTitle: profile.roleLabel || profile.headline, description: profile.bio || profile.headline, image: profile.photoUrl || undefined, url: `/mentorlik/ustoz/${profile.slug}` }).replace(/</g, "\\u003c"),
+          __html: jsonLdHtml({ "@context": "https://schema.org", "@type": "Person", name: profile.name, jobTitle: profile.roleLabel || profile.headline, description: profile.bio || profile.headline, image: profile.photoUrl || undefined, url: `/mentorlik/ustoz/${profile.slug}` }),
         }}
       />
       <nav aria-label={tr(til, MS.breadcrumb)} className="text-[13px] text-fg-3">

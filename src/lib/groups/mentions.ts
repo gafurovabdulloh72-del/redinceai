@@ -29,6 +29,8 @@ export async function notifyMentions(opts: {
   where: "post" | "comment";
   group?: Pick<Group, "id" | "isPrivate"> | null;
   excludeIds?: string[];
+  /** Berilsa — faqat shu ro'yxatdagilarga xabar ketadi («yaqin do'stlar» posti: boshqalar postni ocha olmaydi, matn parchasi ham oqmasin) */
+  onlyIds?: Set<string>;
 }): Promise<string[]> {
   const names = extractMentions(opts.text);
   if (!names.length) return [];
@@ -38,7 +40,7 @@ export async function notifyMentions(opts: {
     .where(and(inArray(sql`lower(${users.username})`, names), eq(users.isBanned, false)));
   const skip = new Set([opts.actorId, ...(opts.excludeIds ?? [])]);
   // Blok juftligidagilarga eslatma yetmaydi
-  let ids = await filterBlocked(opts.actorId, rows.map((r) => r.id).filter((id) => !skip.has(id)));
+  let ids = await filterBlocked(opts.actorId, rows.map((r) => r.id).filter((id) => !skip.has(id) && (!opts.onlyIds || opts.onlyIds.has(id))));
   if (ids.length && opts.group?.isPrivate) {
     const members = await db.query.groupMembers.findMany({
       where: and(eq(groupMembers.groupId, opts.group.id), eq(groupMembers.status, "active"), inArray(groupMembers.userId, ids)),

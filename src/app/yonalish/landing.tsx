@@ -14,6 +14,7 @@ import { specialistFilterSchema } from "@/lib/validators";
 import { formatPrice } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site-url";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 /*
  * SEO landing sahifalari (F59/F60): /yonalish/[category] va /yonalish/[category]/[region].
  * Faqat MEHMON ma'lumoti (toListItem + GUEST_VIEWER) — sahifa keshlanishi mumkin, ko'ruvchiga bog'liq emas.
@@ -105,11 +106,11 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
     },
   ];
   // FAQPage strukturaviy ma'lumoti ("<" ekranlanadi — skript ichidan chiqib ketib bo'lmasin)
-  const faqJsonLd = JSON.stringify({
+  const faqJsonLd = jsonLdHtml({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
-  }).replace(/</g, "\\u003c");
+  });
 
   const statTiles: Array<{ icon: ReactNode; text: string }> = [{ icon: <CategoryIcon icon={cat.icon} size={14} className="text-fg-3" />, text: `${stats.n} ta mutaxassis` }];
   if (stats.avgRating) statTiles.push({ icon: <Star size={14} className="text-fg-3" />, text: `O'rtacha reyting ${stats.avgRating.toFixed(1)}` });
@@ -122,11 +123,11 @@ export async function LandingPage({ cat, region }: { cat: Category; region: Regi
     { name: cat.plural, item: `${SITE_URL}/yonalish/${cat.slug}` },
     ...(region ? [{ name: region.name, item: `${SITE_URL}/yonalish/${cat.slug}/${region.slug}` }] : []),
   ];
-  const breadcrumbJsonLd = JSON.stringify({
+  const breadcrumbJsonLd = jsonLdHtml({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: c.item })),
-  }).replace(/</g, "\\u003c");
+  });
 
   return (
     <div className="container-x">

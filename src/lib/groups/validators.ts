@@ -93,6 +93,13 @@ export const postInputSchema = z.object({
   /** Efir/yig'ilish: vaqti (ms, kelajakda) va https havola (Zoom/Meet/YouTube/Telegram) — ikkalasi ixtiyoriy, havola vaqtsiz bo'lmaydi */
   eventAt: z.coerce.number().int().positive().nullable().optional(),
   eventUrl: z.string().trim().max(300).regex(/^https:\/\/\S+$/, "Havola https:// bilan boshlanishi kerak").optional().or(z.literal("")),
+  /**
+   * Auditoriya / joy / belgilanganlar — post YARATILAYOTGANDA beriladi (7-audit): ilgari post avval «hammaga» bo'lib yaratilib,
+   * keyin alohida PATCH bilan «yaqin do'stlar»ga o'tkazilardi — shu orada u lentaga tushar va obunachilarga xabar ketardi.
+   */
+  audience: z.enum(["public", "close"]).optional(),
+  placeName: z.string().trim().max(80).nullable().optional(),
+  tagIds: z.array(z.string().max(64)).max(20).optional(),
 });
 
 export const commentInputSchema = z.object({

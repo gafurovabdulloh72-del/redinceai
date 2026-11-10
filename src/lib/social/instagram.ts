@@ -313,23 +313,29 @@ export async function runScheduledPosts(now = Date.now()): Promise<{ published: 
         .where(and(eq(scheduledPosts.id, row.id), eq(scheduledPosts.status, "pending")))
         .returning({ id: scheduledPosts.id });
       if (!taken.length) continue;
+      // Ruxsat JOYLASH PAYTIDA qayta tekshiriladi (reja qo'yilgandan beri bloklangan / jamoadan chiqarilgan / roli o'zgargan bo'lishi mumkin)
+      const author = await db.query.users.findFirst({ where: eq(users.id, row.authorId), columns: { id: true, role: true, isBanned: true } });
+      if (!author || author.isBanned) throw new Error("Hisob bloklangan yoki o'chirilgan");
       let postId: string;
       if (row.groupId) {
-        const { createPost } = await import("@/lib/groups/service");
+        const { assertCanPost, createPost } = await import("@/lib/groups/service");
         const { groups } = await import("@/lib/db/schema");
         const group = await db.query.groups.findFirst({ where: eq(groups.id, row.groupId) });
         if (!group) throw new Error("Jamoa topilmadi");
-        const p = await createPost(group, row.authorId, row.body, row.media);
+        await assertCanPost(group, { id: author.id, role: author.role });
+        const p = await createPost(group, row.authorId, row.body, row.media, { at: null, url: null }, { placeName: row.placeName });
         postId = p.id;
         // Musiqa jamoa postida createPost orqali o'tmaydi — alohida yoziladi
         if (row.music) await db.update(posts).set({ music: row.music }).where(eq(posts.id, p.id));
       } else {
+        if (author.role !== "specialist" && author.role !== "admin") throw new Error("Profilga post faqat mutaxassislar uchun");
+        // Haftalik post limiti rejalashtirilgan postga ham amal qiladi (aks holda reja orqali limitni aylanib o'tish mumkin edi)
+        const { assertQuota } = await import("@/lib/social/quota");
+        await assertQuota(author.id, "post");
         const { createProfilePost } = await import("@/lib/profile/posts");
-        const p = await createProfilePost(row.authorId, row.body, row.media, row.music ?? null);
+        // Auditoriya YARATISH paytida: «yaqin do'stlar» posti bir lahza ham ommaviy bo'lmaydi
+        const p = await createProfilePost(row.authorId, row.body, row.media, row.music ?? null, { audience: row.audience, placeName: row.placeName });
         postId = p.id;
-      }
-      if (row.audience === "close" || row.placeName) {
-        await db.update(posts).set({ audience: row.audience, placeName: row.placeName }).where(eq(posts.id, postId));
       }
       if (row.tagIds.length) await setPostTags(postId, row.authorId, row.tagIds);
       await db.update(scheduledPosts).set({ postId }).where(eq(scheduledPosts.id, row.id));

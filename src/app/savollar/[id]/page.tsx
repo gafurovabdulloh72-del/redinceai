@@ -11,6 +11,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
 import { SAVOL } from "@/lib/i18n/dict/community";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
@@ -51,7 +52,7 @@ export default async function QuestionPage({ params }: { params: Params }) {
   };
   return (
     <div className="container-x animate-fade-up py-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "<") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }} />
       <Link href="/savollar" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
         <ArrowLeft size={15} /> {tr(til, SAVOL.title)}
       </Link>

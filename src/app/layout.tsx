@@ -31,6 +31,7 @@ import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
 import { telegramBotUsername } from "@/lib/telegram";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 // Brend shrifti (faqat logotip so'z belgisi): Space Grotesk 300–700 (lotin to'plami, subset)
 const spaceGrotesk = localFont({
   src: "../fonts/SpaceGrotesk.woff2",
@@ -101,7 +102,7 @@ export const metadata: Metadata = {
 };
 
 /** Organization + WebSite (SearchAction) strukturaviy ma'lumoti — qidiruv tizimlari uchun ("<" ekranlanadi) */
-const ORG_JSONLD = JSON.stringify([
+const ORG_JSONLD = jsonLdHtml([
   {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -120,7 +121,7 @@ const ORG_JSONLD = JSON.stringify([
       "query-input": "required name=search_term_string",
     },
   },
-]).replace(/</g, "\\u003c");
+]);
 
 /** Brauzer manzil paneli rangi — globals.css --bg bilan bir xil (yorug' #fafaf8, qorong'u #0c0c0d); qo'lda tanlangan rejimda AppearanceSync yangilaydi */
 export const viewport: Viewport = {

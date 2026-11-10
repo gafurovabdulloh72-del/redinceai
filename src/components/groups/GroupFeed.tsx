@@ -406,6 +406,10 @@ export function Composer({
         eventUrl: eventOpen ? eventUrl.trim() : "",
         ...(allowSubOnly && subOnly ? { subscribersOnly: true } : {}),
         ...(isProfile && music ? { music: { url: music.url, title: music.title || "Musiqa", ...(music.artist ? { artist: music.artist } : {}) } } : {}),
+        // Auditoriya / joy / belgilanganlar post bilan BIRGA ketadi: «yaqin do'stlar» posti bir lahza ham ommaviy bo'lmaydi
+        ...(isProfile && audience === "close" ? { audience } : {}),
+        ...(placeName.trim() ? { placeName: placeName.trim() } : {}),
+        ...(tagged.length ? { tagIds: tagged.map((t) => t.id) } : {}),
       };
       // Rejalashtirilgan post: darhol joylanmaydi, cron vaqti kelganda qo'yadi
       const runAt = scheduleAt ? new Date(scheduleAt).getTime() : 0;
@@ -413,7 +417,8 @@ export function Composer({
         const sr = await fetch("/api/rejalashtirilgan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: body.trim(), media, audience, placeName: placeName.trim() || null, tagIds: tagged.map((t) => t.id), groupId: isProfile ? null : undefined, runAt }),
+          // Jamoa kompozitoridan rejalashtirilgan post o'sha JAMOAGA ketadi (ilgari slug yuborilmay, profilga tushib qolardi)
+          body: JSON.stringify({ body: body.trim(), media, audience, placeName: placeName.trim() || null, tagIds: tagged.map((t) => t.id), groupSlug: isProfile ? null : decodeURIComponent(base.split("/")[3] ?? "") || null, runAt }),
         });
         const sj = (await sr.json()) as ApiResp<{ id: string }>;
         if (!sr.ok || !sj.ok) throw new Error((sj.fields && Object.values(sj.fields)[0]) || sj.error || "Rejalashtirilmadi");
@@ -425,13 +430,6 @@ export function Composer({
       const j = (await res.json()) as ApiResp<{ id: string }>;
       if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || "Yuborilmadi");
       const id = j.data?.id;
-      // Auditoriya / joy / belgilanganlar — post yaratilgandan keyin
-      if (id && (audience === "close" || placeName.trim())) {
-        await fetch(`/api/posts/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience, placeName: placeName.trim() || null }) }).catch(() => undefined);
-      }
-      if (id && tagged.length) {
-        await fetch(`/api/posts/${encodeURIComponent(id)}/tags`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: tagged.map((t) => t.id) }) }).catch(() => undefined);
-      }
       if (id && pollOpen && pollClean.length >= POLL_OPTIONS_MIN) {
         try {
           const pr = await fetch(`/api/posts/${encodeURIComponent(id)}/poll`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ options: pollClean }) });

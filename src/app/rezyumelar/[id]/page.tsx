@@ -17,6 +17,7 @@ import { REZ_SAHIFA, viewsCountTr } from "@/lib/i18n/dict/vacancies-kabinet";
 import { bumpResumeView, getResumeView, similarResumes } from "@/lib/vacancies/service";
 import { formatDate } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
@@ -61,7 +62,7 @@ export default async function ResumePage({ params }: { params: Params }) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLdHtml({
               "@context": "https://schema.org",
               "@type": "BreadcrumbList",
               itemListElement: [
@@ -69,7 +70,7 @@ export default async function ResumePage({ params }: { params: Params }) {
                 { "@type": "ListItem", position: 2, name: professionLabelTr(til, r.profession), item: `${SITE_URL}/rezyumelar?kasb=${r.profession}` },
                 { "@type": "ListItem", position: 3, name: r.title, item: `${SITE_URL}/rezyumelar/${r.id}` },
               ],
-            }).replace(/</g, "\\u003c"),
+            }),
           }}
         />
       )}

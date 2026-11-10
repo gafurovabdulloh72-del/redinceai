@@ -10,6 +10,7 @@ import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site-url";
 import { formatDate } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 // Yumshoq 404 qoidasi: bu papkada loading.tsx YO'Q — yo'q maqola haqiqiy 404 qaytaradi
 export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string }>;
@@ -61,7 +62,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
 
   return (
     <div className="container-x animate-fade-up max-w-3xl py-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "<") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }} />
       <Link href="/blog" className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-fg-3 transition hover:text-fg">
         <ArrowLeft size={15} /> Blog
       </Link>

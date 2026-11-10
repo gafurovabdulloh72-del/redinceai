@@ -99,6 +99,7 @@ import {
 import { creatorBadges, type CreatorBadge } from "@/lib/badges";
 import { activityBucket, cn, formatDate, formatNumber, formatPrice, formatUsd } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 
 /** Egasi uchun "boshqalar ko'zi bilan" rejimlari (yorliq/izoh — PROFIL.previewModes lug'atida) */
@@ -440,7 +441,7 @@ export default async function SpecialistPage({ params, searchParams }: { params:
   return (
     <div className={cn("container-x", PROFILE_HIRING ? "pb-24 lg:pb-0" : "pb-10")}>
       {/* Tuzilgan ma'lumot (SEO) — "</script>" ichida chiqmasligi uchun "<" belgisi qochiriladi */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }} />
 
       {/* ================= PREVIEW BANNER (faqat egasi) ================= */}
       {previewMode && (

@@ -24,6 +24,7 @@ import { tr } from "@/lib/i18n";
 import { timeAgoLabel } from "@/lib/i18n/dict/catalog";
 import { MS, categoryLabelTr, formatDurationTr, formatSomTr, languageLabelTr, lessonsTaTr, lessonsTr, levelLabelTr, reviewsTr, sectionsTr, studentsTr } from "@/lib/i18n/dict/mentorship";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -158,7 +159,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="container-x py-6 sm:py-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(ld) }} />
       <RefCapture />
       <Link href="/mentorlik" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-fg-3 transition hover:text-fg max-sm:hidden">
         <ChevronLeft size={15} /> {tr(til, MS.mentorship)}

@@ -850,7 +850,7 @@ export async function createPost(
   body: string,
   media: FileAttachment[],
   event: { at: number | null; url: string | null } = { at: null, url: null },
-  opts: { subscribersOnly?: boolean } = {},
+  opts: { subscribersOnly?: boolean; placeName?: string | null } = {},
 ): Promise<Post> {
   const now = new Date();
   const row: typeof posts.$inferInsert = {
@@ -860,6 +860,7 @@ export async function createPost(
     body,
     media,
     subscribersOnly: Boolean(opts.subscribersOnly),
+    placeName: opts.placeName?.trim().slice(0, 80) || null,
     likesCount: 0,
     commentsCount: 0,
     isPinned: false,

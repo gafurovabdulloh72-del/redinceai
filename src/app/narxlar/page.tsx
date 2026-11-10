@@ -15,6 +15,7 @@ import { getSettings, NEW_TIER_MAX_COMPLETED, TOP_RATED_MIN_RATING, TOP_RATED_MI
 import { plansFor } from "@/lib/subscriptions/billing";
 import { cn, formatPrice } from "@/lib/utils";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 /** Narxlar admin sozlamalaridan olinadi — 10 daqiqada bir yangilanadi */
 export const revalidate = 600;
 
@@ -63,11 +64,11 @@ export default async function PricingPage() {
   ];
   const faq = buildFaq(til);
   // JSON-LD (SEO) o'zgarmaydi — uz matnlardan
-  const faqJsonLd = JSON.stringify({
+  const faqJsonLd = jsonLdHtml({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: buildFaq("uz").map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
-  }).replace(/</g, "\\u003c");
+  });
 
   return (
     <div className="container-x animate-fade-up">

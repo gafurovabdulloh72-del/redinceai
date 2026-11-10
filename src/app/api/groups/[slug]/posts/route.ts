@@ -40,6 +40,10 @@ export const POST = handler(async (req, ctx: Ctx) => {
     const m = await db.query.mentors.findFirst({ where: eq(mentors.channelId, group.id), columns: { subPrice: true } });
     subscribersOnly = Boolean(m && m.subPrice > 0);
   }
-  const p = await createPost(group, session.sub, input.body, input.media, { at: input.eventAt ?? null, url: input.eventUrl || null }, { subscribersOnly });
+  const p = await createPost(group, session.sub, input.body, input.media, { at: input.eventAt ?? null, url: input.eventUrl || null }, { subscribersOnly, placeName: input.placeName ?? null });
+  if (input.tagIds?.length) {
+    const { setPostTags } = await import("@/lib/social/instagram");
+    await setPostTags(p.id, session.sub, input.tagIds).catch((e) => console.error("[group-post:tags]", e));
+  }
   return ok({ id: p.id }, { status: 201 });
 });

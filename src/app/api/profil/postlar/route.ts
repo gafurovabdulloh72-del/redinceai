@@ -7,6 +7,7 @@ import { postInputSchema } from "@/lib/groups/validators";
 import { createProfilePost, listProfilePosts } from "@/lib/profile/posts";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { assertQuota } from "@/lib/social/quota";
+import { setPostTags } from "@/lib/social/instagram";
 
 const querySchema = z.object({
   user: z.string().trim().min(1).max(64),
@@ -34,6 +35,7 @@ export const POST = handler(async (req) => {
   await assertQuota(session.sub, "post");
   await assertOwnUploads(session.sub, input.media.flatMap((m) => (m.poster ? [m.url, m.poster] : [m.url])), [], "media");
   if (input.music) await useMusic(session.sub, input.music);
-  const p = await createProfilePost(session.sub, input.body, input.media, input.music ?? null);
+  const p = await createProfilePost(session.sub, input.body, input.media, input.music ?? null, { audience: input.audience, placeName: input.placeName ?? null });
+  if (input.tagIds?.length) await setPostTags(p.id, session.sub, input.tagIds).catch((e) => console.error("[profile-post:tags]", e));
   return ok({ id: p.id }, { status: 201 });
 });

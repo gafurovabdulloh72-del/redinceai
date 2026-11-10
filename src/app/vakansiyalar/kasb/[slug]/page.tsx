@@ -16,6 +16,7 @@ import { listVacancies, vacancyCountsByProfession } from "@/lib/vacancies/servic
 import { SITE_URL } from "@/lib/site-url";
 import { filterChip, flatSearch, parseVacancyFilter, toQueryString, vacancyQuery, type RawSearch } from "../../_shared";
 
+import { jsonLdHtml } from "@/lib/seo/json-ld";
 export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string }>;
 
@@ -59,7 +60,7 @@ export default async function ProfessionVacanciesPage({ params, searchParams }: 
 
   return (
     <div className="container-x animate-fade-up">
-      {itemList && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList).replace(/</g, "\\u003c") }} />}
+      {itemList && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(itemList) }} />}
       <nav aria-label={tr(til, VAK_DETAL.breadcrumbAria)} className="text-[13px] text-fg-3">
         <Link href="/vakansiyalar" className="transition hover:text-fg">
           {tr(til, VAK_DETAL.vacancies)}
