@@ -9,6 +9,10 @@
  * Kerakli env: TELEGRAM_WEBHOOK_SECRET (webhook sarlavhasi), ADMIN_EMAIL/ADMIN_PASSWORD (admin boti testi; .env'dan ham o'qiladi; bo'lmasa /tmp/ad.jar cookie jar).
  * Tekshiradi: webhook siri, /start savoli (uz/ru), botda ro'yxatdan o'tish (mutaxassis), /profil, oddiy foydalanuvchiga
  * admin buyrug'i yopiqligi, admin ulash → /stat (trend) → /navbat → /shikoyatlar, admin boti ruscha (language_code=ru → /stat, /admin), inline rejim, bot orqali post taklifi.
+ * 2026-11-10: takror update / chegaralar / majburiy obuna (TELEGRAM_REQUIRED_CHANNEL bilan), kirish tasdig'i, buyurtma tugmalari,
+ * yuborish navbati (429, 403), /elon, chek (rasm/PDF), Telegram ichidagi to'lov (TELEGRAM_PAYMENT_PROVIDER_TOKEN bilan), /til,
+ * vakansiya arizalari (/arizalar, /arizalarim), admin /tuzoq · /blok · /blokdan, qo'llab-quvvatlash, ro'yxatdan xarid
+ * tugmalari, ikki tomonlama xabarlar (/xabarlar), profil tayyorligi. Soxta Bot API holati `/__control` orqali almashtiriladi.
  * Lokal fayl bazada test hisobini o'chiradi va adminning avvalgi chat ulanishini qaytaradi.
  */
 import { test, before, after } from "node:test";
@@ -1010,4 +1014,383 @@ test("kurs xaridi botda: promokod havolada saqlanadi; Telegram to'lovi ochilmasa
     await settle(800);
     await msg(CHAT_ADMIN, "/stop");
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* Til, arizalar, admin xavfsizligi, qo'llab-quvvatlash, xarid         */
+/* tugmalari, ikki tomonlama xabarlar, profil tayyorligi               */
+/* ------------------------------------------------------------------ */
+
+test("/til: hisobsiz chat tanlovi saqlanadi (Telegram tili boshqa bo'lsa ham); ulangan hisobda users.lang, menyu va bildirishnomalar tili almashadi", { skip: NEED_DB }, async () => {
+  if (GATE) await control({ memberOf: { [CHAT_G4]: "member" } });
+  const ask = sentTo(await msg(CHAT_G4, "/til"), CHAT_G4);
+  assert.ok(buttons(ask).includes("lng:uz") && buttons(ask).includes("lng:ru"), `til tugmalari yo'q: ${buttons(ask).join(", ")}`);
+  const picked = await cb(CHAT_G4, "lng:ru");
+  assert.match(answers(picked), /русский/);
+  // Shu chatga buyruqlar menyusi ruscha qo'yiladi (Telegram ilovasi tili o'zbekcha bo'lsa ham)
+  const cmds = picked.find((e) => e.method === "setMyCommands" && String(e.body?.scope?.chat_id) === String(CHAT_G4));
+  assert.ok(cmds && /[а-я]/i.test(cmds.body.commands[0].description), "chat buyruqlar menyusi ruscha qo'yilmadi");
+  assert.match(texts(sentTo(await msg(CHAT_G4, "/yordam", "uz"), CHAT_G4)), /Что умеет бот/, "tanlangan til (ru) qo'llanmadi");
+  await cb(CHAT_G4, "lng:uz");
+  assert.match(texts(sentTo(await msg(CHAT_G4, "/yordam", "ru"), CHAT_G4)), /nima qiladi/, "tanlangan til (uz) qo'llanmadi");
+  // Ulangan hisob: tanlov users.lang ga yoziladi — bot javoblari va bildirishnomalar shu tilda
+  const uid = await userIdByChat(CHAT_UZ);
+  const ru = await cb(CHAT_UZ, "lng:ru");
+  assert.equal((await sql("select lang from users where id = ?", [uid]))[0].lang, "ru");
+  assert.ok(ru.some((e) => Array.isArray(e.body?.reply_markup?.keyboard) && JSON.stringify(e.body.reply_markup.keyboard).includes("Мои заказы")), "doimiy menyu ruscha chizilmadi");
+  try {
+    assert.match(texts(sentTo(await msg(CHAT_UZ, "/profil", "uz"), CHAT_UZ)), /Специалист/);
+    // Bildirishnoma: yangi buyurtma kartasi ruscha sarlavha va ruscha tugmalar bilan
+    fresh();
+    const title = `Sinov til ${RUN}`;
+    const id = await placeOrder(title);
+    const card = sentTo(await waitFor((all) => buttons(sentTo(all, CHAT_UZ)).includes(`ord:ok:${id}`)), CHAT_UZ).filter((e) => String(e.body?.text ?? "").includes(title));
+    assert.equal(card.length, 1, "buyurtma kartasi kelmadi");
+    assert.match(card[0].body.text, /Новый заказ/, `sarlavha ruscha emas: ${card[0].body.text.slice(0, 120)}`);
+    assert.match(card[0].body.text, /Примите заказ и назначьте цену/);
+    const labels = (card[0].body.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.text).join(" ");
+    assert.match(labels, /Принять/);
+    assert.match(answers(await cb(CHAT_UZ, `ord:no:${id}`, "uz")), /Отклон/);
+  } finally {
+    await cb(CHAT_UZ, "lng:uz");
+    await settle(900);
+  }
+  assert.equal((await sql("select lang from users where id = ?", [uid]))[0].lang, "uz");
+});
+
+test("vakansiya arizalari: ish beruvchiga nomzod kartasi (moslik %, tugmalar); tanlovga olish / rad etish; /arizalar; nomzodga ball ko'rsatilmaydi; begona bosolmaydi", { skip: NEED_DB }, async () => {
+  const owner = await userIdByChat(CHAT_UZ);
+  assert.ok(owner, "test mutaxassisi topilmadi");
+  const cid = (await sql("select id, name, phone from users where email = ?", [CLIENT_EMAIL]))[0];
+  const vid = crypto.randomUUID();
+  const vTitle = `Sinov vakansiya ${RUN}`;
+  await sql("insert into vacancies (id, author_id, title, company, profession, description, format, employment, experience, status, expires_at) values (?, ?, ?, ?, 'video', ?, 'remote', 'project', 'none', 'open', ?)", [vid, owner, vTitle, "Sinov Studio", "Bot testi uchun vakansiya: montaj va rang bilan ishlaydigan mutaxassis kerak.", Date.now() + 20 * 86_400_000]);
+  created.vacancies.push(vid);
+  fresh();
+  const letter = `Salom! ${RUN}-loyihada montaj va rang bilan ishlaganman, to'rt yillik tajribam bor — portfolio bilan tanishing.`;
+  const r = await api(await clientSession(), "POST", `/api/vakansiyalar/${vid}/ariza`, { coverLetter: letter });
+  assert.equal(r.status, 201, `ariza yuborilmadi: ${JSON.stringify(r.json).slice(0, 240)}`);
+  const appId = r.json.data.id;
+  const status = async () => (await sql("select status from applications where id = ?", [appId]))[0].status;
+  // 1) Ish beruvchiga BITTA xabar: nomzod kartasi (oddiy «Yangi ariza» bildirishnomasi o'rnida)
+  const got = sentTo(await waitFor((all) => buttons(sentTo(all, CHAT_UZ)).includes(`ap:sl:${appId}`)), CHAT_UZ);
+  const about = [...got, ...sentTo(await settle(900), CHAT_UZ)].filter((e) => e.method === "sendMessage" && String(e.body?.text ?? "").includes(vTitle));
+  assert.equal(about.length, 1, `ariza haqida ${about.length} ta xabar keldi (bitta karta bo'lishi kerak)`);
+  const cardText = about[0].body.text;
+  assert.match(cardText, /Yangi ariza/);
+  assert.match(cardText, /moslik <b>\d{1,3}%<\/b>/, `moslik balli yo'q: ${cardText}`);
+  assert.ok(cardText.includes(cid.name), "nomzod ismi yo'q");
+  assert.ok(cardText.includes(`${RUN}-loyihada`), "xat parchasi yo'q");
+  assert.ok(buttons(about).includes(`ap:rj:${appId}`), "«Rad etish» tugmasi yo'q");
+  // Kontakt kartaga chiqmaydi (email / telefon — faqat saytdagi ariza sahifasida, egasiga)
+  assert.ok(!cardText.includes(CLIENT_EMAIL), "nomzod emaili kartaga chiqdi");
+  if (cid.phone) assert.ok(!cardText.replace(/\D/g, "").includes(String(cid.phone).replace(/\D/g, "").slice(-7)), "nomzod telefoni kartaga chiqdi");
+  // 2) Begona odam (boshqa mutaxassis) va nomzodning o'zi tugmani bosa olmaydi
+  assert.match(answers(await cb(CHAT_RU, `ap:sl:${appId}`, "ru")), /не ваша вакансия/i);
+  assert.match(answers(await cb(CHAT_CLIENT, `ap:sl:${appId}`)), /sizniki emas/);
+  assert.equal(await status(), "new");
+  // 3) Tanlovga olish: holat, tugmalar yangilanadi, nomzodga bildirishnoma (ballsiz)
+  const toCand = (re) => (all) => sentTo(all, CHAT_CLIENT).some((e) => re.test(e.body?.text ?? ""));
+  const sl = await collect(await cb(CHAT_UZ, `ap:sl:${appId}`), toCand(/Ariza holati: Tanlovda/));
+  assert.match(answers(sl), /Tanlovga olindi/);
+  assert.equal(await status(), "shortlisted");
+  const edited = sl.find((e) => e.method === "editMessageReplyMarkup");
+  assert.ok(edited && !buttons([edited]).includes(`ap:sl:${appId}`) && buttons([edited]).includes(`ap:rj:${appId}`), "karta tugmalari yangi holatga moslanmadi");
+  const note = sentTo(sl, CHAT_CLIENT).filter((e) => /Ariza holati/.test(e.body?.text ?? ""));
+  assert.equal(note.length, 1, "nomzodga bildirishnoma bitta bo'lishi kerak");
+  assert.doesNotMatch(texts(note), /moslik|\d+\s?%/, "nomzodga moslik balli ko'rsatildi");
+  // Qayta bosish — takror bildirishnoma yo'q
+  const again = [...(await cb(CHAT_UZ, `ap:sl:${appId}`)), ...(await settle(700))];
+  assert.match(answers(again), /Allaqachon tanlovda/);
+  assert.equal(sentTo(again, CHAT_CLIENT).length, 0, "takror bosishda nomzodga yana xabar ketdi");
+  // 4) Rad etish
+  const rj = await collect(await cb(CHAT_UZ, `ap:rj:${appId}`), toCand(/Ariza holati: Rad etildi/));
+  assert.match(answers(rj), /Rad etildi/);
+  assert.equal(await status(), "rejected");
+  // 5) /arizalar — hal qilinmagan arizalar kartalari bilan
+  await sql("update applications set status = 'new' where id = ?", [appId]);
+  const list = sentTo(await msg(CHAT_UZ, "/arizalar"), CHAT_UZ);
+  assert.match(texts(list), /Hal qilinmagan arizalar/);
+  assert.ok(buttons(list).includes(`ap:sl:${appId}`), "ro'yxatda ariza kartasi yo'q");
+  // 6) /arizalarim — nomzod o'z arizasini ko'radi, moslik balli YO'Q
+  const mine = sentTo(await msg(CHAT_CLIENT, "/arizalarim"), CHAT_CLIENT);
+  assert.ok(texts(mine).includes(vTitle), `nomzod ro'yxatida vakansiya yo'q: ${texts(mine).slice(0, 200)}`);
+  assert.doesNotMatch(texts(mine), /moslik|\d+\s?%/, "nomzodga moslik balli ko'rsatildi");
+  // Vakansiyasi yo'q foydalanuvchi
+  assert.match(texts(sentTo(await msg(CHAT_CLIENT, "/arizalar"), CHAT_CLIENT)), /vakansiya yo'q/);
+  await sql("delete from rate_limits where key = ? or key like ?", [`tgAppCard:${appId}`, `tgApDo:${appId}:%`]);
+});
+
+test("admin xavfsizligi: /tuzoq, /blok, /blokdan faqat admin chatida; audit yoziladi; lokal va noto'g'ri manzil rad etiladi", { skip: ADMIN_SKIP || NEED_DB }, async () => {
+  cookie = cookie || (await login(ADMIN_EMAIL, ADMIN_PASSWORD));
+  assert.ok(cookie, "admin kirishi muvaffaqiyatsiz");
+  // TEST-NET manzillari (RFC 5737) — haqiqiy mijozga tegmaydi
+  const IP_A = "203.0.113.77";
+  const IP_B = "198.51.100.5";
+  const blocked = async (ip) => (await sql("select ip, reason, manual from blocked_ips where ip = ?", [ip]))[0] ?? null;
+  const audits = async (action, ip) => Number((await sql("select count(*) n from audit_logs where action = ? and target_id = ? and json_extract(meta, '$.via') = 'telegram'", [action, ip]))[0].n);
+  const hitIds = [0, 1, 2].map(() => crypto.randomUUID());
+  for (const id of hitIds) await sql("insert into honeypot_hits (id, ip, kind, soft, method, path, user_agent, note) values (?, ?, 'scan', 0, 'GET', '/wp-login.php', 'sinov-skaner', 'bot-test')", [id, IP_A]);
+  try {
+    // Oddiy foydalanuvchi: buyruq ham, tugma ham yopiq — hech narsa bloklanmaydi va tafsilot ko'rsatilmaydi
+    const denied = sentTo(await msg(CHAT_UZ, "/tuzoq"), CHAT_UZ);
+    assert.match(texts(denied), /faqat administrator/);
+    assert.ok(!texts(denied).includes(IP_A), "tuzoq tafsiloti oddiy foydalanuvchiga ko'rsatildi");
+    assert.match(texts(sentTo(await msg(CHAT_UZ, `/blok ${IP_B}`), CHAT_UZ)), /faqat administrator/);
+    assert.match(answers(await cb(CHAT_UZ, `adm:ipb:${IP_B}`)), /administrator/);
+    assert.equal(await blocked(IP_B), null, "oddiy foydalanuvchi IP blokladi");
+    await linkChat(cookie, CHAT_ADMIN);
+    // /tuzoq — urinishlar, eng faol manzil va «Bloklash» tugmasi
+    const trap = sentTo(await msg(CHAT_ADMIN, "/tuzoq"), CHAT_ADMIN);
+    assert.match(texts(trap), /Tuzoq/);
+    assert.ok(texts(trap).includes(IP_A), "urinish manzili ko'rinmadi");
+    assert.match(texts(trap), /wp-login\.php/);
+    assert.ok(buttons(trap).includes(`adm:ipb:${IP_A}`), `«Bloklash» tugmasi yo'q: ${buttons(trap).join(", ")}`);
+    // Tugma bilan bloklash: doimiy (qo'lda), audit yozuvi
+    assert.match(answers(await cb(CHAT_ADMIN, `adm:ipb:${IP_A}`)), /Bloklandi/);
+    assert.equal((await blocked(IP_A))?.manual, 1, "IP qo'lda bloklanmadi");
+    assert.equal(await audits("admin_ip_block", IP_A), 1, "bloklash auditga yozilmadi");
+    const trap2 = sentTo(await cb(CHAT_ADMIN, "adm:trap"), CHAT_ADMIN);
+    assert.ok(buttons(trap2).includes(`adm:ipu:${IP_A}`), "bloklangan manzilga «Blokdan chiqarish» tugmasi yo'q");
+    // /blokdan — blok olinadi, audit
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, `/blokdan ${IP_A}`), CHAT_ADMIN)), /blokdan chiqarildi/);
+    assert.equal(await blocked(IP_A), null);
+    assert.equal(await audits("admin_ip_unblock", IP_A), 1);
+    // /blok <ip> <sabab> — sabab saqlanadi; noto'g'ri va lokal manzil rad etiladi
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, `/blok ${IP_B} skaner sinov ${RUN}`), CHAT_ADMIN)), /bloklandi/);
+    assert.equal((await blocked(IP_B))?.reason, `skaner sinov ${RUN}`);
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, "/blok notogri-manzil"), CHAT_ADMIN)), /noto'g'ri/);
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, "/blok 127.0.0.1"), CHAT_ADMIN)), /Lokal manzil/);
+    assert.equal(await blocked("127.0.0.1"), null, "lokal manzil bloklandi");
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, "/blokdan 192.0.2.200"), CHAT_ADMIN)), /ro'yxatida yo'q/);
+    // Ruscha admin
+    assert.match(texts(sentTo(await msg(CHAT_ADMIN, `/blokdan ${IP_B}`, "ru"), CHAT_ADMIN)), /blokdan chiqarildi|разблокирован/);
+  } finally {
+    await sql("delete from honeypot_hits where note = 'bot-test'");
+    await sql("delete from blocked_ips where ip in (?, ?, '127.0.0.1')", [IP_A, IP_B]);
+    await sql("delete from audit_logs where target_type = 'ip' and target_id in (?, ?)", [IP_A, IP_B]);
+    await msg(CHAT_ADMIN, "/stop");
+  }
+});
+
+test("qo'llab-quvvatlash: /yordam → «yozish» → keyingi xabar (matn, ixtiyoriy rasm) fikrlar ro'yxatiga yoziladi va adminga boradi; mehmon va bloklangan ham yoza oladi", { skip: ADMIN_SKIP || NEED_DB }, async () => {
+  cookie = cookie || (await login(ADMIN_EMAIL, ADMIN_PASSWORD));
+  assert.ok(cookie, "admin kirishi muvaffaqiyatsiz");
+  if (GATE) await control({ memberOf: { [CHAT_G4]: "member" } });
+  await linkChat(cookie, CHAT_ADMIN);
+  const rows = async (like) => sql("select id, user_id, page, text, screenshot_url, user_agent from feedback where text like ? order by created_at", [`%${like}%`]);
+  const banned = (await sql("select id from users where email = ?", [`tg${CHAT_RU}@telegram.local`]))[0]?.id;
+  try {
+    // 1) Mehmon (hisobsiz chat): /yordam → tugma → juda qisqa matn qabul qilinmaydi → to'liq matn yoziladi
+    assert.ok(buttons(sentTo(await msg(CHAT_G4, "/yordam"), CHAT_G4)).includes("sup:start"), "«Qo'llab-quvvatlashga yozish» tugmasi yo'q");
+    assert.match(texts(sentTo(await cb(CHAT_G4, "sup:start"), CHAT_G4)), /Qo'llab-quvvatlash/);
+    assert.match(texts(sentTo(await msg(CHAT_G4, "abc"), CHAT_G4)), /batafsilroq/);
+    const q1 = `Mehmon murojaati ${RUN}: to'lov sahifasi ochilmayapti`;
+    const sent1 = await collect(await msg(CHAT_G4, q1), (all) => sentTo(all, CHAT_ADMIN).some((e) => String(e.body?.text ?? "").includes(`Mehmon murojaati ${RUN}`)));
+    assert.match(texts(sentTo(sent1, CHAT_G4)), /qabul qilindi/);
+    const f1 = await rows(`Mehmon murojaati ${RUN}`);
+    assert.equal(f1.length, 1, "murojaat bazaga bitta yozilishi kerak");
+    assert.equal(f1[0].text, q1, "foydalanuvchi matni o'zgartirilgan");
+    assert.equal(f1[0].page, "/telegram-bot");
+    assert.equal(f1[0].user_id, null);
+    assert.ok(String(f1[0].user_agent).includes(`chat ${CHAT_G4}`) && String(f1[0].user_agent).includes("@sinovbot"), `Telegram aloqasi saqlanmadi: ${f1[0].user_agent}`);
+    // Adminga Telegram ogohlantirishi: matn + kim yozgani
+    const alert = sentTo(sent1, CHAT_ADMIN).filter((e) => String(e.body?.text ?? "").includes(`Mehmon murojaati ${RUN}`));
+    assert.equal(alert.length, 1, "adminga ogohlantirish kelmadi");
+    assert.match(alert[0].body.text, /Qo'llab-quvvatlash/);
+    assert.match(alert[0].body.text, /@sinovbot/);
+    // Rejim yopildi: keyingi matn — oddiy qidiruv (yana murojaat bo'lib yozilmaydi)
+    const search = sentTo(await msg(CHAT_G4, "videograf"), CHAT_G4);
+    assert.doesNotMatch(texts(search), /qabul qilindi/);
+    assert.equal((await rows("videograf")).filter((r) => r.page === "/telegram-bot").length, 0);
+    // 2) Ulangan foydalanuvchi + rasm: rasm post taklifiga AYLANMAYDI, matn bilan birga yoziladi
+    await cb(CHAT_UZ, "sup:start");
+    const shot = sentTo(await hook(photoMsg(CHAT_UZ, "ph_sup")), CHAT_UZ);
+    assert.match(texts(shot), /Rasm qabul qilindi/);
+    assert.ok(!buttons(shot).some((d) => d.startsWith("pst:")), "qo'llab-quvvatlash rasmi post taklifiga aylandi");
+    const q2 = `Skrinshotli murojaat ${RUN}: profil sahifasida xato`;
+    assert.match(texts(sentTo(await msg(CHAT_UZ, q2), CHAT_UZ)), /qabul qilindi/);
+    const f2 = await rows(`Skrinshotli murojaat ${RUN}`);
+    assert.equal(f2.length, 1);
+    assert.equal(f2[0].user_id, await userIdByChat(CHAT_UZ));
+    assert.ok(f2[0].screenshot_url, "skrinshot saqlanmadi");
+    // 3) Bekor qilish: «Bekor» → keyingi matn murojaat emas
+    await cb(CHAT_UZ, "sup:start");
+    assert.match(answers(await cb(CHAT_UZ, "sup:no")), /Bekor qilindi/);
+    await msg(CHAT_UZ, `Bekor qilingan ${RUN} murojaat`);
+    assert.equal((await rows(`Bekor qilingan ${RUN}`)).length, 0, "bekor qilingan rejimda matn yozildi");
+    // 4) Bloklangan hisob: /yordam murojaat rejimini ochadi (blok matni shu yo'lni ko'rsatadi); boshqa buyruqlar yopiq
+    assert.ok(banned, "ikkinchi test hisobi topilmadi");
+    await sql("update users set is_banned = 1 where id = ?", [banned]);
+    assert.match(texts(sentTo(await msg(CHAT_RU, "/profil", "ru"), CHAT_RU)), /заблокирован/);
+    assert.match(texts(sentTo(await msg(CHAT_RU, "/yordam", "ru"), CHAT_RU)), /Поддержка/);
+    assert.match(texts(sentTo(await msg(CHAT_RU, `Почему меня заблокировали? Sinov ${RUN}`, "ru"), CHAT_RU)), /принято/);
+    assert.equal((await rows(`Почему меня заблокировали? Sinov ${RUN}`)).length, 1, "bloklangan foydalanuvchi murojaati yozilmadi");
+    assert.match(texts(sentTo(await msg(CHAT_RU, "/kontaktlarim", "ru"), CHAT_RU)), /заблокирован/);
+    await sql("update users set is_banned = 0 where id = ?", [banned]);
+    // 5) Chegara: tafsilotsiz umumiy javob, yozuv yaratilmaydi
+    await exhaust(`tgSupport:${CHAT_G4}`);
+    await cb(CHAT_G4, "sup:start");
+    const lim = sentTo(await msg(CHAT_G4, `Chegaradan keyingi ${RUN} murojaat`), CHAT_G4);
+    assert.match(texts(lim), /Juda ko'p so'rov/);
+    assert.doesNotMatch(texts(lim), /\d/, "chegara matnida qiymat aytildi");
+    assert.equal((await rows(`Chegaradan keyingi ${RUN}`)).length, 0);
+  } finally {
+    if (banned) await sql("update users set is_banned = 0 where id = ?", [banned]);
+    for (const r of await rows(String(RUN))) if (r.page === "/telegram-bot") created.feedback.push(r.id);
+    await sql("delete from notifications where title like ? and created_at > ?", ["🆘 Qo'llab-quvvatlash:%", Date.now() - 600_000]);
+    await settle(600);
+    await msg(CHAT_ADMIN, "/stop");
+  }
+});
+
+test("ro'yxatdan xarid: qidiruv natijasida «Kontaktni ochish», /kurslar ostida «Sotib olish» — narx va to'lov usullari shu yerda", { skip: NEED_DB }, async () => {
+  const { course } = await ensureCourse();
+  const sp2 = (await sql("select s.id from specialists s join users u on u.id = s.user_id where u.email = ?", [`tg${CHAT_RU}@telegram.local`]))[0]?.id;
+  assert.ok(sp2, "ikkinchi test mutaxassisi topilmadi");
+  const restoreCard = await withManualCard();
+  const startedAt = Date.now();
+  const cid = (await sql("select id from users where email = ?", [CLIENT_EMAIL]))[0].id;
+  try {
+    // 1) Qidiruv: natija ostida «🔓 … — narx» tugmasi → narx va to'lov usullari (saytga o'tmasdan)
+    const found = sentTo(await msg(CHAT_CLIENT, "алишер синов"), CHAT_CLIENT);
+    assert.ok(buttons(found).includes(`cb:${sp2}`), `«Kontaktni ochish» tugmasi yo'q: ${buttons(found).join(", ")}`);
+    const offer = sentTo(await cb(CHAT_CLIENT, `cb:${sp2}`), CHAT_CLIENT);
+    assert.match(texts(offer), /To'lov usulini tanlang/);
+    assert.ok(buttons(offer).includes(`cx:m:${sp2}`), "to'lov usuli tugmalari yo'q");
+    // «Faqat portfolio» rejimidagi ijodkorga tugma chiqmaydi
+    await sql("update specialists set contact_mode = 'hidden' where id = ?", [sp2]);
+    const hidden = sentTo(await msg(CHAT_CLIENT, "алишер синов"), CHAT_CLIENT);
+    assert.match(texts(hidden), /faqat portfolio/);
+    assert.ok(!buttons(hidden).includes(`cb:${sp2}`), "sotilmaydigan kontaktga tugma chiqdi");
+    await sql("update specialists set contact_mode = 'paid' where id = ?", [sp2]);
+    // 2) /kurslar: har kurs ostida xarid tugmasi; bosilganda — narx va usullar
+    const courses = sentTo(await msg(CHAT_UZ, "/kurslar"), CHAT_UZ);
+    assert.ok(buttons(courses).some((d) => /^buy:c:[\w-]{8,}$/.test(d)), `«Sotib olish» tugmalari yo'q: ${buttons(courses).join(", ")}`);
+    const buy = sentTo(await cb(CHAT_UZ, `buy:c:${course}`), CHAT_UZ);
+    assert.match(texts(buy), new RegExp(`Sinov kursi ${RUN}`));
+    assert.match(texts(buy), /50[\s  ]?000/);
+    assert.ok(buttons(buy).some((d) => d.startsWith(`bp:m:c:${course}`)), `to'lov usullari chiqmadi: ${buttons(buy).join(", ")}`);
+    // Hisobsiz chat: avval hisob so'raladi (hisob ochilmaydi)
+    const guest = sentTo(await cb(CHAT_G4, `buy:c:${course}`), CHAT_G4);
+    assert.match(texts(guest), /hisobni ulang/);
+    assert.ok(!buttons(guest).some((d) => d.startsWith("bp:")));
+    // Mavjud bo'lmagan kurs — tushunarli xato (tugma javobsiz qolmaydi)
+    assert.match(texts(sentTo(await cb(CHAT_UZ, `buy:c:${crypto.randomUUID()}`), CHAT_UZ)), /Kurs topilmadi/);
+  } finally {
+    await restoreCard();
+    await sql("update specialists set contact_mode = 'paid' where id = ?", [sp2]);
+    await sql("delete from subscription_invoices where user_id = ? and created_at >= ? and json_extract(meta, '$.kind') = 'contact'", [cid, startedAt - 1000]);
+  }
+});
+
+test("ikki tomonlama xabarlar: /xabarlar ro'yxati → suhbat (o'qildi) → «Javob yozish» → matn suhbatga ketadi; blok va yo'qoladigan xabarlar qoidasi saqlanadi", { skip: NEED_DB }, async () => {
+  const spUser = await userIdByChat(CHAT_UZ);
+  const client = (await sql("select id, name from users where email = ?", [CLIENT_EMAIL]))[0];
+  assert.ok(spUser && client, "test hisoblari topilmadi");
+  const [aId, bId] = [spUser, client.id].sort();
+  let conv = (await sql("select id from conversations where a_id = ? and b_id = ?", [aId, bId]))[0]?.id;
+  if (!conv) {
+    conv = crypto.randomUUID();
+    await sql("insert into conversations (id, a_id, b_id, created_by, created_at) values (?, ?, ?, ?, ?)", [conv, aId, bId, client.id, Date.now() - 60_000]);
+  }
+  created.conversations.push(conv);
+  const say = async (sender, body, extra = {}) => {
+    const id = crypto.randomUUID();
+    const at = Date.now();
+    await sql("insert into dm_messages (id, conversation_id, sender_id, body, attachments, expires_at, created_at) values (?, ?, ?, ?, '[]', ?, ?)", [id, conv, sender, body, extra.expiresAt ?? null, at]);
+    await sql("update conversations set last_message_at = ? where id = ?", [at, conv]);
+    return id;
+  };
+  const count = async (sender) => Number((await sql("select count(*) n from dm_messages where conversation_id = ? and sender_id = ?", [conv, sender]))[0].n);
+  const readAt = async () => (await sql(`select ${aId === spUser ? "a_read_at" : "b_read_at"} t from conversations where id = ?`, [conv]))[0].t;
+  const first = `Salom, loyiha bo'yicha savol ${RUN}`;
+  await say(client.id, first);
+  // 1) /xabarlar — ro'yxat: suhbatdosh, o'qilmaganlar, oxirgi xabar parchasi, suhbat tugmasi
+  const list = sentTo(await msg(CHAT_UZ, "/xabarlar"), CHAT_UZ);
+  assert.ok(texts(list).includes(client.name), `suhbatdosh ro'yxatda yo'q: ${texts(list).slice(0, 200)}`);
+  assert.match(texts(list), /1 yangi/);
+  assert.ok(texts(list).includes(first), "oxirgi xabar parchasi yo'q");
+  assert.ok(buttons(list).includes(`dm:o:${conv}`), "suhbat tugmasi yo'q");
+  // 2) Suhbatni ochish: xabarlar, «Javob yozish», suhbat o'qilgan deb belgilanadi
+  assert.equal(await readAt(), null);
+  const thread = sentTo(await cb(CHAT_UZ, `dm:o:${conv}`), CHAT_UZ);
+  assert.ok(texts(thread).includes(first));
+  assert.ok(buttons(thread).includes(`dm:r:${conv}`), "«Javob yozish» tugmasi yo'q");
+  assert.ok(Number(await readAt()) > 0, "suhbat o'qilgan deb belgilanmadi");
+  // Begona odam suhbatni ocha olmaydi
+  assert.match(answers(await cb(CHAT_RU, `dm:o:${conv}`, "ru")), /не найдена/);
+  // 3) Javob rejimi (ForceReply) → matn suhbatga ketadi → suhbatdoshga Telegram bildirishnomasi (javob tugmasi bilan)
+  fresh();
+  const ask = sentTo(await cb(CHAT_UZ, `dm:r:${conv}`), CHAT_UZ);
+  const prompt = ask.find((e) => e.body?.reply_markup?.force_reply);
+  assert.ok(prompt, "javob so'rovi (ForceReply) kelmadi");
+  assert.ok(prompt.body.text.includes(client.name));
+  // Eski (boshqa) so'rovga yozilgan javob adashib shu suhbatga ketmaydi
+  const before = await count(spUser);
+  const stale = sentTo(await hook({ message: { message_id: upd, from: from(CHAT_UZ), chat: { id: CHAT_UZ, type: "private" }, date: 1, text: `Adashgan javob ${RUN}`, reply_to_message: { message_id: prompt.message_id + 5000 } } }), CHAT_UZ);
+  assert.match(texts(stale), /eski so'rovga javob/);
+  assert.equal(await count(spUser), before, "eski so'rovga javob suhbatga ketdi");
+  const reply = `Assalomu alaykum, javob ${RUN}`;
+  const gotNote = (all) => sentTo(all, CHAT_CLIENT).some((e) => /Yangi xabar/.test(e.body?.text ?? ""));
+  const sent = await collect(await hook({ message: { message_id: upd, from: from(CHAT_UZ), chat: { id: CHAT_UZ, type: "private" }, date: 1, text: reply, reply_to_message: { message_id: prompt.message_id } } }), gotNote);
+  assert.match(texts(sentTo(sent, CHAT_UZ)), /Yuborildi/);
+  assert.equal(await count(spUser), before + 1, "javob suhbatga yozilmadi");
+  assert.equal((await sql("select body from dm_messages where conversation_id = ? and sender_id = ? order by created_at desc limit 1", [conv, spUser]))[0].body, reply);
+  const note = sentTo(sent, CHAT_CLIENT).filter((e) => /Yangi xabar/.test(e.body?.text ?? ""));
+  assert.equal(note.length, 1, "suhbatdoshga bildirishnoma kelmadi");
+  assert.ok(note[0].body.text.includes(reply));
+  assert.ok(buttons(note).includes(`dm:r:${conv}`) && buttons(note).includes(`dm:o:${conv}`), `bildirishnomada javob tugmalari yo'q: ${buttons(note).join(", ")}`);
+  // Rejim bitta xabar uchun: keyingi matn — qidiruv
+  await msg(CHAT_UZ, "videograf");
+  assert.equal(await count(spUser), before + 1, "rejim yopilmagan — qidiruv matni suhbatga ketdi");
+  // 4) Suhbatdosh bildirishnomadagi tugma bilan javob yozadi
+  const cBefore = await count(client.id);
+  await cb(CHAT_CLIENT, `dm:r:${conv}`);
+  assert.match(texts(sentTo(await msg(CHAT_CLIENT, `Rahmat, kelishdik ${RUN}`), CHAT_CLIENT)), /Yuborildi/);
+  assert.equal(await count(client.id), cBefore + 1);
+  // Rasm javob rejimida — post taklifi emas, tushuntirish (rejim saqlanadi)
+  await cb(CHAT_UZ, `dm:r:${conv}`);
+  const media = sentTo(await hook(photoMsg(CHAT_UZ, "ph_dm")), CHAT_UZ);
+  assert.match(texts(media), /faqat matn/);
+  assert.ok(!buttons(media).some((d) => d.startsWith("pst:")));
+  assert.match(texts(sentTo(await msg(CHAT_UZ, "/bekor"), CHAT_UZ)), /Bekor qilindi/);
+  // 5) Yo'qoladigan xabarlar: muddati o'tgani ko'rinmaydi, o'tmagani — matnsiz belgi bilan
+  await say(client.id, `Muddati otgan sir ${RUN}`, { expiresAt: Date.now() - 1000 });
+  await say(client.id, `Hali tirik sir ${RUN}`, { expiresAt: Date.now() + 3_600_000 });
+  const ttl = texts(sentTo(await cb(CHAT_UZ, `dm:o:${conv}`), CHAT_UZ));
+  assert.ok(!ttl.includes(`Muddati otgan sir ${RUN}`), "muddati o'tgan xabar ko'rsatildi");
+  assert.ok(!ttl.includes(`Hali tirik sir ${RUN}`), "yo'qoladigan xabar matni Telegramga chiqdi");
+  assert.match(ttl, /Yo'qoladigan xabar/);
+  const ttlList = texts(sentTo(await msg(CHAT_UZ, "/xabarlar"), CHAT_UZ));
+  assert.ok(!ttlList.includes(`Hali tirik sir ${RUN}`) && !ttlList.includes(`Muddati otgan sir ${RUN}`), "yo'qoladigan xabar ro'yxat parchasiga chiqdi");
+  // 6) Blok: yozib bo'lmaydi (tugma ham, ochiq rejimdagi matn ham); o'qish mumkin, «Javob yozish» yo'q
+  await cb(CHAT_UZ, `dm:r:${conv}`);
+  const blockId = crypto.randomUUID();
+  await sql("insert into user_blocks (id, blocker_id, blocked_id, created_at) values (?, ?, ?, ?)", [blockId, client.id, spUser, Date.now()]);
+  try {
+    const n = await count(spUser);
+    assert.match(texts(sentTo(await msg(CHAT_UZ, `Blokdan keyingi xabar ${RUN}`), CHAT_UZ)), /yozishish mumkin emas/);
+    assert.equal(await count(spUser), n, "bloklangan suhbatga xabar ketdi");
+    assert.match(answers(await cb(CHAT_UZ, `dm:r:${conv}`)), /yozishish mumkin emas/);
+    assert.ok(!buttons(sentTo(await cb(CHAT_UZ, `dm:o:${conv}`), CHAT_UZ)).includes(`dm:r:${conv}`), "bloklangan suhbatda «Javob yozish» tugmasi chiqdi");
+  } finally {
+    await sql("delete from user_blocks where id = ?", [blockId]);
+  }
+});
+
+test("/profil: profil tayyorligi foizi va keyingi qadam (sayt bilan bitta hisob)", { skip: NEED_DB }, async () => {
+  const sp = sentTo(await msg(CHAT_UZ, "/profil"), CHAT_UZ);
+  const m = /Profil tayyorligi: <b>(\d{1,3})%<\/b>/.exec(texts(sp));
+  assert.ok(m, `tayyorlik foizi yo'q: ${texts(sp).slice(0, 300)}`);
+  assert.ok(Number(m[1]) > 0 && Number(m[1]) < 100, `kutilmagan foiz: ${m[1]}`);
+  // Yangi mutaxassisda eng og'ir qolgan qadam — portfolio (kamida 3 ta ish)
+  assert.match(texts(sp), /Keyingi qadam: <b>Kamida 3 ta ish<\/b>/);
+  const first = sp.find((e) => /Profil tayyorligi/.test(e.body?.text ?? ""))?.body.reply_markup?.inline_keyboard?.[0]?.[0];
+  assert.ok(first && String(first.url ?? first.web_app?.url ?? "").includes("/kabinet/portfolio"), `keyingi qadam tugmasi yo'q: ${JSON.stringify(first)}`);
+  // Mijoz: o'z qadamlari (sayt bilan bir xil ro'yxat)
+  const cl = texts(sentTo(await msg(CHAT_CLIENT, "/profil"), CHAT_CLIENT));
+  assert.match(cl, /Profil tayyorligi: <b>\d{1,3}%<\/b>/);
+  // Ruscha
+  assert.match(texts(sentTo(await msg(CHAT_RU, "/profil", "ru"), CHAT_RU)), /Заполненность профиля: <b>\d{1,3}%<\/b>/);
 });

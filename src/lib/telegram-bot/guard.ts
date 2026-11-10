@@ -47,7 +47,7 @@ export async function firstSeen(key: string, windowMs: number): Promise<boolean>
   }
 }
 
-export type BotBucket = "tgBot" | "tgStart" | "tgMsg" | "tgInline" | "tgSupport" | "tgDm";
+export type BotBucket = "tgBot" | "tgStart" | "tgMsg" | "tgInline" | "tgSupport";
 
 /**
  * Chat (yoki foydalanuvchi) bo'yicha chegara. `true` — chegaradan o'tildi, davom etmaymiz. Telegram update'i baribir 200 bilan

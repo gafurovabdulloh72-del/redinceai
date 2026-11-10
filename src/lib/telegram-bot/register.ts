@@ -10,6 +10,7 @@ import { clearBotSession, getBotSession, setBotSession } from "@/lib/telegram-bo
 import { menuRows, pageButton, sendLinkOptions, sendWelcome } from "@/lib/telegram-bot/ui";
 import { BANNED_TEXT, sendLoginPrompt } from "@/lib/telegram-bot/actions";
 import { L, type BotLang } from "@/lib/telegram-bot/lang";
+import { categoryLabel, groupLabel, regionLabel } from "@/lib/telegram-bot/labels-ru";
 
 /**
  * BOTDA RO'YXATDAN O'TISH (2026-10-31): hisobsiz Telegram foydalanuvchisi savol-javob bilan hisob ochadi —
@@ -126,15 +127,15 @@ async function askName(chatId: string, d: RegData): Promise<void> {
 async function askGroups(chatId: string, d: RegData): Promise<void> {
   await save(chatId, "group", d);
   await sendTelegram(chatId, L(d.lang, "🎨 <b>Kasbingiz qaysi yo'nalishda?</b>", "🎨 <b>В каком направлении ваша профессия?</b>"), {
-    keyboard: [...rows(CATEGORY_GROUPS.map((g) => ({ text: g.name, data: `rg:grp:${g.slug}` })), 2), [CANCEL(d.lang)]],
+    keyboard: [...rows(CATEGORY_GROUPS.map((g) => ({ text: groupLabel(g.slug, d.lang), data: `rg:grp:${g.slug}` })), 2), [CANCEL(d.lang)]],
   });
 }
 async function askCategories(chatId: string, d: RegData, group: string): Promise<void> {
   const items = CATEGORIES_BY_GROUP.find((g) => g.group.slug === group)?.items ?? [];
   if (!items.length) return askGroups(chatId, d);
   await save(chatId, "category", { ...d, group });
-  await sendTelegram(chatId, `${L(d.lang, "🎯 <b>Kasbingizni tanlang</b>", "🎯 <b>Выберите профессию</b>")} — ${escapeTelegramHtml(CATEGORY_GROUPS.find((g) => g.slug === group)?.name ?? "")}`, {
-    keyboard: [...rows(items.map((c) => ({ text: c.name, data: `rg:cat:${c.slug}` })), 2), [{ text: L(d.lang, "⬅️ Yo'nalishlar", "⬅️ Направления"), data: "rg:groups" }, CANCEL(d.lang)]],
+  await sendTelegram(chatId, `${L(d.lang, "🎯 <b>Kasbingizni tanlang</b>", "🎯 <b>Выберите профессию</b>")} — ${escapeTelegramHtml(groupLabel(group, d.lang))}`, {
+    keyboard: [...rows(items.map((c) => ({ text: categoryLabel(c.slug, d.lang), data: `rg:cat:${c.slug}` })), 2), [{ text: L(d.lang, "⬅️ Yo'nalishlar", "⬅️ Направления"), data: "rg:groups" }, CANCEL(d.lang)]],
   });
 }
 async function askExperience(chatId: string, d: RegData): Promise<void> {
@@ -143,7 +144,7 @@ async function askExperience(chatId: string, d: RegData): Promise<void> {
 }
 async function askRegion(chatId: string, d: RegData): Promise<void> {
   await save(chatId, "region", d);
-  await sendTelegram(chatId, L(d.lang, "📍 <b>Qaysi hududdasiz?</b>", "📍 <b>В каком регионе вы находитесь?</b>"), { keyboard: [...rows(REGIONS.map((r) => ({ text: r.short, data: `rg:reg:${r.slug}` })), 2), [CANCEL(d.lang)]] });
+  await sendTelegram(chatId, L(d.lang, "📍 <b>Qaysi hududdasiz?</b>", "📍 <b>В каком регионе вы находитесь?</b>"), { keyboard: [...rows(REGIONS.map((r) => ({ text: regionLabel(r.slug, d.lang, true), data: `rg:reg:${r.slug}` })), 2), [CANCEL(d.lang)]] });
 }
 async function askPhone(chatId: string, d: RegData): Promise<void> {
   await save(chatId, "phone", d);
@@ -160,9 +161,9 @@ function summary(d: RegData): string {
   const ru = d.lang === "ru";
   const lines = [`👤 ${ru ? "Имя" : "Ism"}: <b>${escapeTelegramHtml(d.name ?? "")}</b>`, `🎭 ${ru ? "Роль" : "Rol"}: <b>${d.role === "specialist" ? (ru ? "Специалист" : "Mutaxassis") : ru ? "Клиент" : "Mijoz"}</b>`];
   if (d.role === "specialist") {
-    lines.push(`🎯 ${ru ? "Профессия" : "Kasb"}: <b>${escapeTelegramHtml(CATEGORY_BY_SLUG[d.category ?? ""]?.name ?? d.category ?? "")}</b>`);
+    lines.push(`🎯 ${ru ? "Профессия" : "Kasb"}: <b>${escapeTelegramHtml(categoryLabel(d.category ?? "", d.lang))}</b>`);
     lines.push(`📈 ${ru ? "Опыт" : "Tajriba"}: <b>${escapeTelegramHtml(expLabel(d.lang, d.experience ?? ""))}</b>`);
-    lines.push(`📍 ${ru ? "Регион" : "Hudud"}: <b>${escapeTelegramHtml(REGION_BY_SLUG[d.region ?? ""]?.name ?? "")}</b>`);
+    lines.push(`📍 ${ru ? "Регион" : "Hudud"}: <b>${escapeTelegramHtml(d.region ? regionLabel(d.region, d.lang) : "")}</b>`);
   }
   lines.push(`📱 ${ru ? "Телефон" : "Telefon"}: <b>${d.phone ? escapeTelegramHtml(formatUzPhone(d.phone)) : "—"}</b>`);
   return lines.join("\n");
@@ -274,12 +275,12 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
     return true;
   }
   if ((m = /^rg:grp:([a-z0-9-]{1,40})$/.exec(data))) {
-    await edit(chatId, msgId, `${L(lang, "Yo'nalish", "Направление")}: <b>${escapeTelegramHtml(CATEGORY_GROUPS.find((g) => g.slug === m![1])?.name ?? m[1])}</b> ✓`);
+    await edit(chatId, msgId, `${L(lang, "Yo'nalish", "Направление")}: <b>${escapeTelegramHtml(groupLabel(m[1], lang))}</b> ✓`);
     await askCategories(chatId, d, m[1]);
     return true;
   }
   if ((m = /^rg:cat:([a-z0-9-]{1,60})$/.exec(data)) && CATEGORY_BY_SLUG[m[1]]) {
-    await edit(chatId, msgId, `${L(lang, "Kasb", "Профессия")}: <b>${escapeTelegramHtml(CATEGORY_BY_SLUG[m[1]].name)}</b> ✓`);
+    await edit(chatId, msgId, `${L(lang, "Kasb", "Профессия")}: <b>${escapeTelegramHtml(categoryLabel(m[1], lang))}</b> ✓`);
     await askExperience(chatId, { ...d, category: m[1] });
     return true;
   }
@@ -289,7 +290,7 @@ export async function handleRegisterCallback(chatId: string, data: string, answe
     return true;
   }
   if ((m = /^rg:reg:([a-z0-9-]{1,40})$/.exec(data)) && REGION_BY_SLUG[m[1]]) {
-    await edit(chatId, msgId, `${L(lang, "Hudud", "Регион")}: <b>${escapeTelegramHtml(REGION_BY_SLUG[m[1]].name)}</b> ✓`);
+    await edit(chatId, msgId, `${L(lang, "Hudud", "Регион")}: <b>${escapeTelegramHtml(regionLabel(m[1], lang))}</b> ✓`);
     await askPhone(chatId, { ...d, region: m[1] });
     return true;
   }

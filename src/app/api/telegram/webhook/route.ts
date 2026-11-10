@@ -15,11 +15,15 @@ import { isPurchase, purchaseHref, purchaseMeta } from "@/lib/mentorship/purchas
 import { contactHref, contactMeta, isContactUnlock } from "@/lib/contacts/unlock";
 import { handleBuyStart, handleMyPurchases, handlePayCallback, handlePreCheckout, handleSuccessfulPayment } from "@/lib/mentorship/telegram-pay";
 import { handleIncomingMedia, handlePostCallback, handlePostText, sendPostHelp, type IncomingMedia } from "@/lib/telegram-bot/media";
-import { BANNED_TEXT, accountOf, handleCourses, handleMyContacts, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMessages, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
+import { BANNED_TEXT, accountOf, handleCourses, handleMyContacts, handleLives, handleLoginCallback, handleLoginStart, handleMenuCallback, handleMyOrders, handleOrderCallback, handleProfile, handleSearch, handleSettings, handleSettingsCallback, handleTop, handleVacancies } from "@/lib/telegram-bot/actions";
 import { handleBroadcastCallback, handleBroadcastStart, handleBroadcastText } from "@/lib/telegram-bot/broadcast-flow";
-import { MENU_COMMAND, clearChatCommands, pageButton, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
+import { MENU_COMMAND, clearChatCommands, menuRows, pageButton, sendApp, sendHelp, sendWelcome, setAdminCommands } from "@/lib/telegram-bot/ui";
 import { handleRegisterCallback, handleRegisterContact, handleRegisterStray, handleRegisterText, startRegistration } from "@/lib/telegram-bot/register";
-import { clearBotSession } from "@/lib/telegram-bot/session";
+import { clearBotSession, getBotSession } from "@/lib/telegram-bot/session";
+import { handleApplicationCallback, handleEmployerApplications, handleMyApplications } from "@/lib/telegram-bot/applications";
+import { handleDmCallback, handleDmMedia, handleDmText, handleMessages } from "@/lib/telegram-bot/dm";
+import { handleSupportCallback, handleSupportMedia, handleSupportText, startSupport, type SupportSender } from "@/lib/telegram-bot/support";
+import { handleAdminBlock, handleAdminUnblock, sendAdminTrap } from "@/lib/telegram-bot/admin-security";
 import { handleInlineQuery } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
@@ -27,6 +31,8 @@ import { gateEnabled, gateExempt, handleGateCheck, isChannelMember, rememberGate
 import { markReachable, markUnreachable } from "@/lib/telegram-bot/reach";
 import { defer } from "@/lib/telegram-bot/defer";
 import { LIMITED_TEXT, botLimited, firstSeenUpdate, shouldWarnLimited } from "@/lib/telegram-bot/guard";
+import { adoptGuestLang, resolveLang } from "@/lib/telegram-bot/lang-store";
+import { handleLanguageCallback, sendLanguageChoice } from "@/lib/telegram-bot/language";
 import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPriceText, handleAdminPrices, handleAdminUserSearch, sendAdminMenu, sendAdminDisputes, sendAdminMentorApps, sendAdminPayments, sendAdminPayouts, sendAdminQueues, sendAdminReports, sendAdminStats } from "@/lib/telegram-bot/admin";
 
 /**
@@ -46,11 +52,15 @@ import { adminByChat, handleAdminCallback, handleAdminChallenge, handleAdminPric
  *   /start <kod>     — hisobni ulash (kod: /api/telegram/link, 15 daqiqa amal qiladi)
  *   /start l_<kod>   — «Telegram bilan kirish» tasdig'i
  *   /start b_<tur>_<id> — mentorlik xaridi (to'lov usuli tugmalari: lib/mentorship/telegram-pay.ts); b_x_<id> — kontakt ochish (lib/telegram-bot/contact-pay.ts)
- *   /ilova · /buyurtmalarim · /xabarlar · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
- *   /profil · /sozlamalar · /yordam · /stop · /elon (faqat admin: ommaviy e'lon, auditoriya tugmalari)
+ *   /ilova · /buyurtmalarim · /qidiruv <so'z> · /kurslar · /kurslarim · /efirlar · /vakansiyalar · /top
+ *   /xabarlar — suhbatlar: o'qish va javob yozish (lib/telegram-bot/dm.ts, tugmalar `dm:*`)
+ *   /arizalar · /arizalarim — vakansiya arizalari (lib/telegram-bot/applications.ts, tugmalar `ap:*`)
+ *   /profil · /sozlamalar · /til · /yordam (→ «Qo'llab-quvvatlashga yozish», lib/telegram-bot/support.ts `sup:*`) · /bekor · /stop
+ *   /elon (faqat admin: ommaviy e'lon, auditoriya tugmalari)
  *   /admin · /stat · /navbat · /tolovlar · /user <q> — admin boti (lib/telegram-bot/admin.ts), tugmalar `adm:*`
+ *   /tuzoq · /blok <ip> [sabab] · /blokdan <ip> — tuzoq holati va IP bloklash (lib/telegram-bot/admin-security.ts; faqat admin)
  *   doimiy menyu tugmalari (📦 Buyurtmalarim …) — MENU_COMMAND orqali shu buyruqlarga aylanadi
- *   boshqa matn      — ijodkor qidiruvi (exploreSearch)
+ *   boshqa matn      — faol oqim (ro'yxat / e'lon / post izohi / qo'llab-quvvatlash / suhbatga javob) yoki ijodkor qidiruvi
  *
  * callback_query (`mp:<ok|no>:<p|s>:<id>`) — qo'lda o'tkazmani ADMIN bir bosishda tasdiqlashi/rad etishi
  * (lib/manual-approval.ts yuborgan tugmalar). Chat admin hisobiga ulanganligi majburiy tekshiriladi (`adminByChat`).
@@ -116,11 +126,9 @@ interface TelegramUpdate {
   };
 }
 
-type Account = NonNullable<Awaited<ReturnType<typeof accountOf>>>;
-type Who = { name?: string; username?: string; lang: BotLang };
+type Who ={ name?: string; username?: string; lang: BotLang };
 
-/** Bot tili: foydalanuvchi tanlagani (`users.lang` — `/til` yoki sayt) ustun; bo'lmasa Telegram tili */
-const pickLang = (me: Pick<Account, "lang"> | null | undefined, code?: string | null): BotLang => (me?.lang === "ru" || me?.lang === "uz" ? me.lang : botLang(code));
+/** `who` — handlerlarga uzatiladigan foydalanuvchi ma'lumoti. Til: `resolveLang` (hisob tili → chat tanlovi → Telegram tili) */
 const whoOf = (from: TgFrom | undefined, lang: BotLang): Who => ({ name: [from?.first_name, from?.last_name].filter(Boolean).join(" ") || undefined, username: typeof from?.username === "string" ? from.username : undefined, lang });
 
 /* ------------------------------------------------------------------ */
@@ -214,8 +222,8 @@ async function handleManualApproval(chatId: string, data: string, answer: (t: st
 /* Majburiy obuna darvozasi                                            */
 /* ------------------------------------------------------------------ */
 
-/** Darvozadan tashqari tugmalar: tekshirishning o'zi, saytdan boshlangan to'lov/kirish oqimi, admin tugmalari (ular o'zi admin ekanini tekshiradi) */
-const GATE_FREE_CALLBACK = /^(sub:|bp:|bd:|cx:|lg:|mp:|adm:|bc:)/;
+/** Darvozadan tashqari tugmalar: tekshirishning o'zi, til, saytdan boshlangan to'lov/kirish oqimi, admin tugmalari (ular o'zi admin ekanini tekshiradi) */
+const GATE_FREE_CALLBACK = /^(sub:|lng:|bp:|bd:|cx:|lg:|mp:|adm:|bc:)/;
 
 /**
  * Majburiy obuna darvozasi (2026-11-06): rasmiy kanalga obuna bo'lmagan foydalanuvchi botdan foydalana olmaydi.
@@ -293,11 +301,14 @@ async function handleStart(chatId: string, code: string, firstName?: string, lan
       "/kabinet/profil?tab=telegram#telegram",
     ).catch(() => undefined);
   }
-  // Ulandi — xush kelibsiz ekrani doimiy menyu bilan; admin bo'lsa buyruqlar menyusiga /elon qo'shiladi
+  // Chat ulanishidan oldin `/til` bilan til tanlagan bo'lsa — tanlov hisobga ko'chadi (hisobning o'z tili bo'lsa u ustun)
+  await adoptGuestLang(chatId, userId);
+  // Ulandi — xush kelibsiz ekrani doimiy menyu bilan; admin bo'lsa buyruqlar menyusiga admin buyruqlari qo'shiladi
   const me = await accountOf(chatId);
-  if (me?.role === "admin") await setAdminCommands(chatId).catch(() => false);
-  // Til: hisobda tanlangan bo'lsa o'sha (sayt/`/til`), aks holda Telegram tili
-  await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName, pickLang(me, lang));
+  // Til: hisobda tanlangan bo'lsa o'sha (sayt/`/til`), aks holda chatning hozirgi tili
+  const finalLang: BotLang = me?.lang === "ru" || me?.lang === "uz" ? me.lang : lang;
+  if (me?.role === "admin") await setAdminCommands(chatId, finalLang).catch(() => false);
+  await sendWelcome(chatId, me && !me.isBanned ? me : null, firstName, finalLang);
 }
 
 /**
@@ -362,7 +373,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
       return;
     }
     const me = (await accountOf(chatId)) ?? null;
-    lang = pickLang(me, from.language_code);
+    lang = await resolveLang(chatId, me, from.language_code);
     const who = whoOf(from, lang);
     // Chegara: javob BILAN (ilgari chegarada tugma javobsiz qolib, «aylanib» turardi)
     if (await botLimited(chatId, "tgBot")) {
@@ -378,12 +389,16 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
       }
       return;
     }
-    // Bloklangan hisob: botdagi barcha amallar yopiq
-    if (me?.isBanned) {
+    // Bloklangan hisob: botdagi barcha amallar yopiq — qo'llab-quvvatlashga yozishdan tashqari (blok matni shu yo'lni ko'rsatadi)
+    if (me?.isBanned && !data.startsWith("sup:")) {
       await answer(BANNED_TEXT(lang));
       return;
     }
     if (!(await gateCallback(chatId, data, answer, lang))) return;
+    // Qo'llab-quvvatlashga yozish (`sup:start|no`) — hisobsiz va bloklangan foydalanuvchiga ham ochiq
+    if (await handleSupportCallback(chatId, data, answer, lang)) return;
+    // Til tanlash (`/til`): hisobda yoki (hisobsiz chatda) chatning o'zida saqlanadi
+    if (await handleLanguageCallback(chatId, data, answer, msgId, me, lang)) return;
     // «Telegram bilan kirish» tasdig'i — kodni terib topishga qarshi qattiqroq chegara (`/start l_` bilan bir xil o'lcham, alohida hisob)
     if (data.startsWith("lg:") && (await botLimited(chatId, "tgStart", "cb"))) {
       await answer(LIMITED_TEXT(lang));
@@ -397,6 +412,9 @@ async function handleCallback(cb: NonNullable<TelegramUpdate["callback_query"]>)
     if (await handleRegisterCallback(chatId, data, answer, msgId, who)) return;
     if (await handleLoginCallback(chatId, data, answer, who)) return;
     if (await handleOrderCallback(chatId, data, answer, lang, msgId)) return;
+    // Vakansiya arizasi kartasi («Tanlovga olish / Rad etish») va shaxsiy xabarlar (o'qish / javob yozish)
+    if (await handleApplicationCallback(chatId, data, answer, msgId, lang)) return;
+    if (await handleDmCallback(chatId, data, answer, lang)) return;
     if (await handleSettingsCallback(chatId, data, answer, msgId, lang)) return;
     if (await handleMenuCallback(chatId, data, answer, lang)) return;
     if (await handleBroadcastCallback(chatId, data, answer, msgId, lang)) return;
@@ -431,7 +449,7 @@ function mediaOf(msg: TgMessage): IncomingMedia | null {
   return null;
 }
 
-const ADMIN_COMMANDS = new Set(["/admin", "/stat", "/navbat", "/tolovlar", "/user", "/narx", "/shikoyatlar", "/mentorlar", "/nizolar", "/payoutlar", "/konkurs"]);
+const ADMIN_COMMANDS = new Set(["/admin", "/stat", "/navbat", "/tolovlar", "/user", "/narx", "/shikoyatlar", "/mentorlar", "/nizolar", "/payoutlar", "/konkurs", "/tuzoq", "/blok", "/blokdan"]);
 
 async function handleMessage(msg: TgMessage): Promise<void> {
   const chatId = msg.chat?.id != null ? String(msg.chat.id) : "";
@@ -439,7 +457,7 @@ async function handleMessage(msg: TgMessage): Promise<void> {
   if (!chatId || msg.chat?.type !== "private") return;
   const from = msg.from ?? {};
   const me = (await accountOf(chatId)) ?? null;
-  const lang = pickLang(me, from.language_code);
+  const lang = await resolveLang(chatId, me, from.language_code);
   const who = whoOf(from, lang);
   const firstName = typeof from.first_name === "string" ? from.first_name : undefined;
   const text = typeof msg.text === "string" ? msg.text.trim() : "";
@@ -463,16 +481,27 @@ async function handleMessage(msg: TgMessage): Promise<void> {
   const [rawCmd = "", arg = ""] = normalized.split(/\s+/);
   const cmd = rawCmd.startsWith("/") ? rawCmd.split("@")[0].toLowerCase() : ""; // "/start@BotNomi" ham qabul qilinadi
 
-  // Bloklangan hisob: faqat uzish mumkin — o'qish buyruqlari ham yopiq (ochilgan kontaktlar, buyurtmalar, profil, kurslar)
+  const caption = typeof msg.caption === "string" ? msg.caption : "";
+  /** Qo'llab-quvvatlashga yozuvchi: hisob (bo'lsa) + Telegram ismi/taxallusi (mehmon bilan yagona aloqa) */
+  const sender: SupportSender = { userId: me?.id ?? null, name: who.name, username: who.username };
+
+  // Bloklangan hisob: faqat uzish va qo'llab-quvvatlashga yozish mumkin — o'qish buyruqlari ham yopiq (ochilgan kontaktlar,
+  // buyurtmalar, profil, kurslar). /yordam to'g'ridan-to'g'ri murojaat rejimini ochadi (blok matni shu yo'lni ko'rsatadi)
   if (me?.isBanned) {
     if (cmd === "/stop") await handleStop(chatId, lang);
+    else if (cmd === "/yordam" || cmd === "/help" || cmd === "/support") await startSupport(chatId, lang);
+    else if (media ? await handleSupportMedia(chatId, media, caption, lang, sender) : !cmd && Boolean(text) && (await handleSupportText(chatId, text, lang, sender))) return;
     else await sendTelegram(chatId, BANNED_TEXT(lang), { removeKeyboard: true });
     return;
   }
 
-  // Rasm / rasm-hujjat / PDF / video — chek (ochiq karta xaridi bo'lsa) yoki lentaga post taklifi (lib/telegram-bot/media.ts)
+  // Rasm / rasm-hujjat / PDF / video — faol oqimga (qo'llab-quvvatlash skrinshoti, suhbatga javob) yoki chek (ochiq karta xaridi
+  // bo'lsa) / lentaga post taklifi (lib/telegram-bot/media.ts)
   if (media) {
-    await handleIncomingMedia(chatId, media, typeof msg.caption === "string" ? msg.caption : "", lang, typeof msg.media_group_id === "string" ? msg.media_group_id : null);
+    const flow = (await getBotSession(chatId))?.flow ?? null;
+    if (flow === "support" && (await handleSupportMedia(chatId, media, caption, lang, sender))) return;
+    if (flow === "dm" && (await handleDmMedia(chatId, lang))) return;
+    await handleIncomingMedia(chatId, media, caption, lang, typeof msg.media_group_id === "string" ? msg.media_group_id : null);
     return;
   }
   // Ro'yxatdan o'tishda «Raqamni ulashish» — faqat o'z raqami (user_id = from.id)
@@ -487,12 +516,16 @@ async function handleMessage(msg: TgMessage): Promise<void> {
     return;
   }
 
-  // Savol-javob oqimi (ro'yxatdan o'tish / elon / post izohi …): oddiy matn oqimga ketadi; har qanday buyruq oqimni to'xtatadi
+  // Savol-javob oqimi (ro'yxatdan o'tish / elon / post izohi / qo'llab-quvvatlash / suhbatga javob): oddiy matn faol oqimga
+  // ketadi; har qanday buyruq oqimni to'xtatadi. Sessiya BIR MARTA o'qiladi — faqat faol oqim ishlovchisi chaqiriladi.
   if (!cmd) {
-    if (await handleRegisterText(chatId, text)) return;
-    if (await handleBroadcastText(chatId, text, lang)) return;
-    if (await handlePostText(chatId, text, lang)) return;
-    if (await handleAdminPriceText(chatId, text, lang)) return;
+    const flow = (await getBotSession(chatId))?.flow ?? null;
+    if (flow === "register" && (await handleRegisterText(chatId, text))) return;
+    if (flow === "broadcast" && (await handleBroadcastText(chatId, text, lang))) return;
+    if (flow === "post" && (await handlePostText(chatId, text, lang))) return;
+    if (flow === "adminprice" && (await handleAdminPriceText(chatId, text, lang))) return;
+    if (flow === "support" && (await handleSupportText(chatId, text, lang, sender))) return;
+    if (flow === "dm" && (await handleDmText(chatId, text, lang, typeof msg.reply_to_message?.message_id === "number" ? msg.reply_to_message.message_id : null))) return;
     // Yopilgan ro'yxat oqimidan qolgan klaviatura tugmasi — qidiruvga ketmasin
     if (await handleRegisterStray(chatId, text, lang, me)) return;
     await handleSearch(chatId, text, lang); // oddiy matn — ijodkor qidiruvi
@@ -504,7 +537,14 @@ async function handleMessage(msg: TgMessage): Promise<void> {
   else if (cmd === "/start") await dispatchStart(chatId, arg, who, firstName);
   else if (cmd === "/kurslarim" || cmd === "/xaridlar") await handleMyPurchases(chatId, lang);
   else if (cmd === "/buyurtmalarim" || cmd === "/buyurtmalar") await handleMyOrders(chatId, lang);
-  else if (cmd === "/xabarlar") await handleMessages(chatId, lang);
+  else if (cmd === "/xabarlar" || cmd === "/chat") await handleMessages(chatId, lang);
+  else if (cmd === "/arizalar") await handleEmployerApplications(chatId, lang);
+  else if (cmd === "/arizalarim") await handleMyApplications(chatId, lang);
+  else if (cmd === "/support" || cmd === "/murojaat") await startSupport(chatId, lang);
+  else if (cmd === "/bekor" || cmd === "/cancel") {
+    // Faol oqim yuqorida (har buyruqda) yopildi — klaviatura holatga mos qaytariladi
+    await sendTelegram(chatId, L(lang, "Bekor qilindi.", "Отменено."), me ? { replyKeyboard: menuRows(me.role === "admin", lang) } : { removeKeyboard: true });
+  }
   else if (cmd === "/ilova" || cmd === "/app") await sendApp(chatId, lang);
   else if (cmd === "/qidiruv" || cmd === "/qidir") await handleSearch(chatId, normalized.slice(rawCmd.length), lang);
   else if (cmd === "/kurslar") await handleCourses(chatId, lang);
@@ -513,14 +553,20 @@ async function handleMessage(msg: TgMessage): Promise<void> {
   else if (cmd === "/vakansiyalar") await handleVacancies(chatId, lang);
   else if (cmd === "/profil") await handleProfile(chatId, lang);
   else if (cmd === "/sozlamalar") await handleSettings(chatId, lang);
+  else if (cmd === "/til" || cmd === "/lang" || cmd === "/language") await sendLanguageChoice(chatId, lang);
   else if (cmd === "/menyu") await handleStart(chatId, "", firstName, lang);
   else if (cmd === "/elon") await handleBroadcastStart(chatId, text, lang);
   else if (cmd === "/post") await sendPostHelp(chatId, lang);
   else if (cmd === "/kontaktlarim" || cmd === "/kontaktlar") await handleMyContacts(chatId, lang);
   else if (ADMIN_COMMANDS.has(cmd)) {
     // Admin boti (lib/telegram-bot/admin.ts) — faqat admin hisobiga ulangan chat; matnlar `lang` bilan (uz/ru)
-    if (!(await adminByChat(chatId))) await sendTelegram(chatId, L(lang, "Bu buyruq faqat administrator uchun.", "Эта команда только для администратора."));
+    const admin = await adminByChat(chatId);
+    if (!admin) await sendTelegram(chatId, L(lang, "Bu buyruq faqat administrator uchun.", "Эта команда только для администратора."));
     else if (cmd === "/admin") await sendAdminMenu(chatId, lang);
+    // Tuzoq holati va IP bloklash — tafsilotlar FAQAT shu yerda (admin chati); oddiy foydalanuvchiga hech qayerda aytilmaydi
+    else if (cmd === "/tuzoq") await sendAdminTrap(chatId, lang);
+    else if (cmd === "/blok") await handleAdminBlock(chatId, admin, normalized.slice(rawCmd.length), lang);
+    else if (cmd === "/blokdan") await handleAdminUnblock(chatId, admin, normalized.slice(rawCmd.length), lang);
     else if (cmd === "/stat") await sendAdminStats(chatId, arg === "7" || arg === "7d" ? "7d" : arg === "30" || arg === "30d" ? "30d" : "today", null, lang);
     else if (cmd === "/navbat") await sendAdminQueues(chatId, lang);
     else if (cmd === "/tolovlar") await sendAdminPayments(chatId, lang);
@@ -562,7 +608,7 @@ async function handleInline(iq: NonNullable<TelegramUpdate["inline_query"]>): Pr
     return;
   }
   const me = (await accountOf(userId)) ?? null;
-  const lang = pickLang(me, iq.from?.language_code);
+  const lang = await resolveLang(userId, me, iq.from?.language_code);
   if (me?.isBanned) {
     await empty();
     return;

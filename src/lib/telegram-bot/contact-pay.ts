@@ -74,8 +74,14 @@ export async function handleContactBuyStart(chatId: string, payload: string, lan
   return true;
 }
 
-/** `cx:<p|c|m|f>:<specialistId>` */
+/** `cb:<specialistId>` (qidiruv natijasidagi «🔓 Kontaktni ochish») — narx va usullar; `cx:<p|c|m|f>:<specialistId>` — usul tanlandi */
 export async function handleContactPayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>, lang?: BotLang): Promise<boolean> {
+  const offer = /^cb:([\w-]{1,48})$/.exec(data);
+  if (offer) {
+    await answer("");
+    await offerContact(chatId, offer[1], lang);
+    return true;
+  }
   const m = /^cx:([pcmf]):([\w-]{1,48})$/.exec(data);
   if (!m) return false;
   const user = await userByChat(chatId);

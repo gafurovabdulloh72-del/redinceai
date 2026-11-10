@@ -11,11 +11,14 @@ export { appUrl };
  * Bot DIZAYNI (2026-10-31): profil matnlari, buyruqlar ro'yxati, doimiy menyu, xush kelibsiz ekrani.
  * Hamma matn shu yerda — bot «ovozi» bir joydan boshqariladi. Rasmlar: `public/bot/*.png`
  * (welcome 1280×640 — /start banneri; description 640×360 va avatar — BotFather orqali qo'lda).
+ * IKKI TIL (2026-11-10): buyruqlar menyusi va bot tavsifi ham uz/ru — Telegram ularni foydalanuvchi ilovasi tiliga qarab
+ * ko'rsatadi (`language_code: "ru"`); foydalanuvchi `/til` bilan boshqa tilni tanlasa, o'sha chatga alohida menyu qo'yiladi.
  */
 
 export const BOT_NAME = "Kasb Egalari";
 /** «About» — profil kartasida (≤120 belgi) */
 export const BOT_SHORT_DESC = "Kasb Egalari — ijodkorlar platformasi. Buyurtma, xabar va kurs bildirishnomalari Telegramda.";
+export const BOT_SHORT_DESC_RU = "Kasb Egalari — платформа творческих специалистов. Заказы, сообщения и курсы — в Telegram.";
 /** Bo'sh chatdagi tavsif (≤512 belgi) */
 export const BOT_DESC =
   "Kasb Egalari — videograf, montajchi, dizayner va boshqa ijodkorlar platformasining rasmiy boti.\n\n" +
@@ -23,54 +26,89 @@ export const BOT_DESC =
   "• Xabarlar, to'lovlar va kurslar bo'yicha bildirishnomalar\n" +
   "• Saytga Telegram orqali bir bosishda kirish\n\n" +
   "Boshlash uchun «Start» ni bosing.";
+export const BOT_DESC_RU =
+  "Kasb Egalari — официальный бот платформы видеографов, монтажёров, дизайнеров и других творческих специалистов.\n\n" +
+  "• Новые заказы принимаете прямо здесь\n" +
+  "• Уведомления о сообщениях, оплатах и курсах\n" +
+  "• Вход на сайт через Telegram в один клик\n\n" +
+  "Чтобы начать, нажмите «Start».";
 
+interface Cmd {
+  command: string;
+  uz: string;
+  ru: string;
+}
 /** Buyruqlar menyusi (Telegram «/» tugmasi) — tartib: eng ko'p ishlatiladigani yuqorida */
-export const BOT_COMMANDS: { command: string; description: string }[] = [
-  { command: "start", description: "Bosh menyu" },
-  { command: "royxat", description: "Ro'yxatdan o'tish — hisob ochish (1 daqiqa)" },
-  { command: "ilova", description: "Ilovani Telegram ichida ochish" },
-  { command: "post", description: "Rasm/video yuborib lentaga post joylash" },
-  { command: "kontaktlarim", description: "Ochilgan kontaktlar (telefon, Telegram)" },
-  { command: "buyurtmalarim", description: "Ochiq buyurtmalar — qabul qilish / rad etish" },
-  { command: "xabarlar", description: "O'qilmagan xabarlar" },
-  { command: "qidiruv", description: "Ijodkor qidirish: /qidiruv montajchi" },
-  { command: "kurslar", description: "Kurslar katalogi" },
-  { command: "kurslarim", description: "Mening kurslarim va to'lovlar" },
-  { command: "efirlar", description: "Jonli va yaqin efirlar" },
-  { command: "vakansiyalar", description: "So'nggi vakansiyalar" },
-  { command: "top", description: "Oyning TOP ijodkorlari" },
-  { command: "profil", description: "Hisobim va ulanish holati" },
-  { command: "sozlamalar", description: "Qaysi bildirishnomalar kelsin" },
-  { command: "yordam", description: "Bot nima qila oladi" },
-  { command: "stop", description: "Telegramni hisobdan uzish" },
+const COMMANDS: Cmd[] = [
+  { command: "start", uz: "Bosh menyu", ru: "Главное меню" },
+  { command: "royxat", uz: "Ro'yxatdan o'tish — hisob ochish (1 daqiqa)", ru: "Регистрация — создать аккаунт (1 минута)" },
+  { command: "ilova", uz: "Ilovani Telegram ichida ochish", ru: "Открыть приложение внутри Telegram" },
+  { command: "post", uz: "Rasm/video yuborib lentaga post joylash", ru: "Опубликовать пост: пришлите фото или видео" },
+  { command: "kontaktlarim", uz: "Ochilgan kontaktlar (telefon, Telegram)", ru: "Открытые контакты (телефон, Telegram)" },
+  { command: "buyurtmalarim", uz: "Ochiq buyurtmalar — qabul qilish / rad etish", ru: "Открытые заказы — принять / отклонить" },
+  { command: "xabarlar", uz: "Xabarlar — o'qish va javob yozish", ru: "Сообщения — читать и отвечать" },
+  { command: "qidiruv", uz: "Ijodkor qidirish: /qidiruv montajchi", ru: "Поиск специалиста: /qidiruv монтажёр" },
+  { command: "kurslar", uz: "Kurslar katalogi", ru: "Каталог курсов" },
+  { command: "kurslarim", uz: "Mening kurslarim va to'lovlar", ru: "Мои курсы и оплаты" },
+  { command: "efirlar", uz: "Jonli va yaqin efirlar", ru: "Прямые и ближайшие эфиры" },
+  { command: "vakansiyalar", uz: "So'nggi vakansiyalar", ru: "Свежие вакансии" },
+  { command: "arizalarim", uz: "Yuborgan arizalarim va holati", ru: "Мои отклики и их статус" },
+  { command: "arizalar", uz: "Vakansiyalarimga kelgan arizalar", ru: "Отклики на мои вакансии" },
+  { command: "top", uz: "Oyning TOP ijodkorlari", ru: "ТОП авторов месяца" },
+  { command: "profil", uz: "Hisobim va ulanish holati", ru: "Мой аккаунт и статус привязки" },
+  { command: "sozlamalar", uz: "Qaysi bildirishnomalar kelsin", ru: "Какие уведомления присылать" },
+  { command: "til", uz: "Til: o'zbekcha / ruscha", ru: "Язык: узбекский / русский" },
+  { command: "yordam", uz: "Bot nima qila oladi va qo'llab-quvvatlash", ru: "Что умеет бот и поддержка" },
+  { command: "stop", uz: "Telegramni hisobdan uzish", ru: "Отвязать Telegram от аккаунта" },
 ];
-
-/** Admin chat uchun buyruqlar: umumiy ro'yxat + /elon (Telegram «chat» scope — faqat shu chatda ko'rinadi) */
-export const ADMIN_COMMANDS = [
-  ...BOT_COMMANDS.slice(0, 1),
-  { command: "admin", description: "🛠 Admin menyu: statistika, navbat, to'lovlar" },
-  { command: "stat", description: "📊 Statistika — bugun / 7 kun / 30 kun" },
-  { command: "navbat", description: "📥 Tasdiq navbati (mutaxassis, o'tkazma, shikoyat)" },
-  { command: "tolovlar", description: "💳 Kutilayotgan qo'lda o'tkazmalar" },
-  { command: "shikoyatlar", description: "🚩 Ochiq shikoyatlar — yopish / o'chirish / bloklash" },
-  { command: "mentorlar", description: "🎓 Mentor arizalari — tasdiqlash / rad etish" },
-  { command: "nizolar", description: "⚖️ Ochiq nizolar (qaror — admin panelda)" },
-  { command: "payoutlar", description: "💸 Pul chiqarish so'rovlari — to'landi / rad etish" },
-  { command: "user", description: "👤 Foydalanuvchi qidirish: /user ism yoki email" },
-  { command: "narx", description: "💰 Kontakt narxlari: /narx middle 60000" },
-  { command: "konkurs", description: "🏆 Ijod konkursi: /konkurs Sarlavha | Tavsif | kunlar" },
-  { command: "elon", description: "📣 Ommaviy e'lon: /elon Sarlavha | Matn" },
-  ...BOT_COMMANDS.slice(1),
+/** Faqat admin chatida ko'rinadigan buyruqlar (umumiy ro'yxatdagi /start dan keyin) */
+const ADMIN_ONLY: Cmd[] = [
+  { command: "admin", uz: "🛠 Admin menyu: statistika, navbat, to'lovlar", ru: "🛠 Админ-меню: статистика, очередь, платежи" },
+  { command: "stat", uz: "📊 Statistika — bugun / 7 kun / 30 kun", ru: "📊 Статистика — сегодня / 7 дней / 30 дней" },
+  { command: "navbat", uz: "📥 Tasdiq navbati (mutaxassis, o'tkazma, shikoyat)", ru: "📥 Очередь подтверждений (специалисты, переводы, жалобы)" },
+  { command: "tolovlar", uz: "💳 Kutilayotgan qo'lda o'tkazmalar", ru: "💳 Ожидающие ручные переводы" },
+  { command: "shikoyatlar", uz: "🚩 Ochiq shikoyatlar — yopish / o'chirish / bloklash", ru: "🚩 Открытые жалобы — закрыть / удалить / заблокировать" },
+  { command: "mentorlar", uz: "🎓 Mentor arizalari — tasdiqlash / rad etish", ru: "🎓 Заявки менторов — подтвердить / отклонить" },
+  { command: "nizolar", uz: "⚖️ Ochiq nizolar (qaror — admin panelda)", ru: "⚖️ Открытые споры (решение — в админ-панели)" },
+  { command: "payoutlar", uz: "💸 Pul chiqarish so'rovlari — to'landi / rad etish", ru: "💸 Запросы на вывод — выплачено / отклонить" },
+  { command: "user", uz: "👤 Foydalanuvchi qidirish: /user ism, email yoki telefon", ru: "👤 Поиск пользователя: /user имя, email или телефон" },
+  { command: "narx", uz: "💰 Kontakt narxlari: /narx middle 60000", ru: "💰 Цены контактов: /narx middle 60000" },
+  { command: "konkurs", uz: "🏆 Ijod konkursi: /konkurs Sarlavha | Tavsif | kunlar", ru: "🏆 Творческий конкурс: /konkurs Название | Описание | дни" },
+  { command: "elon", uz: "📣 Ommaviy e'lon: /elon Sarlavha | Matn", ru: "📣 Рассылка: /elon Заголовок | Текст" },
+  { command: "tuzoq", uz: "🪤 Tuzoq (honeypot): urinishlar va bloklangan IP'lar", ru: "🪤 Ловушка (honeypot): попытки и заблокированные IP" },
+  { command: "blok", uz: "⛔ IP'ni bloklash: /blok 1.2.3.4 sabab", ru: "⛔ Заблокировать IP: /blok 1.2.3.4 причина" },
+  { command: "blokdan", uz: "✅ IP'ni blokdan chiqarish: /blokdan 1.2.3.4", ru: "✅ Разблокировать IP: /blokdan 1.2.3.4" },
 ];
+type TgCommand = { command: string; description: string };
+const pick = (list: Cmd[], lang: BotLang): TgCommand[] => list.map((c) => ({ command: c.command, description: lang === "ru" ? c.ru : c.uz }));
 
-/** Admin chatiga /elon bilan buyruqlar menyusini qo'yish (ulanganda va «Bot profilini sozlash»da) */
-export async function setAdminCommands(chatId: string): Promise<boolean> {
-  const r = await telegramApi("setMyCommands", { commands: ADMIN_COMMANDS, scope: { type: "chat", chat_id: Number(chatId) || chatId } });
+/** Buyruqlar ro'yxati tanlangan tilda */
+export const botCommands = (lang: BotLang = "uz"): TgCommand[] => pick(COMMANDS, lang);
+/** Admin chat uchun: /start, admin buyruqlari, keyin qolgan umumiy buyruqlar */
+export const adminCommands = (lang: BotLang = "uz"): TgCommand[] => [...pick(COMMANDS.slice(0, 1), lang), ...pick(ADMIN_ONLY, lang), ...pick(COMMANDS.slice(1), lang)];
+/** Eski nomlar (o'zbekcha ro'yxat) — mos kelish uchun */
+export const BOT_COMMANDS = botCommands("uz");
+export const ADMIN_COMMANDS = adminCommands("uz");
+
+const chatScope = (chatId: string) => ({ type: "chat", chat_id: Number(chatId) || chatId });
+
+/** Admin chatiga admin buyruqlari bilan menyuni qo'yish (ulanganda, til almashganda va «Bot profilini sozlash»da) */
+export async function setAdminCommands(chatId: string, lang: BotLang = "uz"): Promise<boolean> {
+  const r = await telegramApi("setMyCommands", { commands: adminCommands(lang), scope: chatScope(chatId) });
   return Boolean(r?.ok);
 }
-/** Chat uzilganda admin menyusini olib tashlash */
+/** Chat uzilganda maxsus (admin / til) menyusini olib tashlash — umumiy menyuga qaytadi */
 export async function clearChatCommands(chatId: string): Promise<void> {
-  await telegramApi("deleteMyCommands", { scope: { type: "chat", chat_id: Number(chatId) || chatId } });
+  await telegramApi("deleteMyCommands", { scope: chatScope(chatId) });
+}
+/**
+ * Chat tilini qo'llash (`/til`): shu chatga buyruqlar menyusi va Mini App tugmasi tanlangan tilda qo'yiladi — foydalanuvchining
+ * Telegram ilovasi boshqa tilda bo'lsa ham bot tanlangan tilda ko'rinadi.
+ */
+export async function applyChatLanguage(chatId: string, lang: BotLang, admin = false): Promise<void> {
+  await telegramApi("setMyCommands", { commands: admin ? adminCommands(lang) : botCommands(lang), scope: chatScope(chatId) });
+  const app = appUrl();
+  if (app) await telegramApi("setChatMenuButton", { chat_id: Number(chatId) || chatId, menu_button: { type: "web_app", text: L(lang, "Ilova", "Приложение"), web_app: { url: app } } });
 }
 
 /** Doimiy menyu tugmalari (chat ostida) — matn tugma sifatida keladi, `MENU_COMMAND` buyruqqa aylantiradi */
@@ -114,7 +152,8 @@ export const MENU_COMMAND: Record<string, string> = {
   [MENU_RU.help]: "/yordam",
 };
 
-const site = () => siteUrl() ?? "";
+/** Sayt manzili: sozlamadagi kanonik manzil; dev'da sozlanmagan bo'lsa — lokal server (nisbiy havola Telegram tugmasiga yaramaydi) */
+const site = () => siteUrl() ?? (process.env.NODE_ENV !== "production" ? `http://localhost:${process.env.PORT || 3000}` : "");
 const BANNER = () => `${site()}/bot/welcome.png`;
 
 /**
@@ -223,48 +262,62 @@ export async function sendApp(chatId: string, lang: BotLang = "uz"): Promise<voi
   await sendTelegram(chatId, L(lang, "📱 <b>Kasb Egalari ilovasi</b> — Telegram ichida ochiladi, hisobingizga avtomatik kirasiz.", "📱 <b>Приложение Kasb Egalari</b> — открывается внутри Telegram, вход в аккаунт выполняется автоматически."), { keyboard: [[{ text: L(lang, "Ilovani ochish", "Открыть приложение"), webApp: app }]] });
 }
 
+/** Yordam ostidagi tugmalar: qo'llab-quvvatlashga yozish (`sup:start`) va til (`lng:menu`); ulanmagan chatga — «akkauntingiz bormi?» ham */
+function helpKeyboard(linked: boolean, lang: BotLang): TelegramButton[][] {
+  return [
+    [{ text: L(lang, "✍️ Qo'llab-quvvatlashga yozish", "✍️ Написать в поддержку"), data: "sup:start" }],
+    [{ text: L(lang, "🌐 Til / Язык", "🌐 Язык / Til"), data: "lng:menu" }],
+    ...(linked ? [] : ACCOUNT_QUESTION_ROWS(lang)),
+  ];
+}
+
 /** Yordam — bot nima qila oladi (ulangan/ulanmagan holatga qarab) */
 export async function sendHelp(chatId: string, linked: boolean, admin = false, lang: BotLang = "uz"): Promise<void> {
   if (lang === "ru") {
     const ru =
       "<b>Что умеет бот Kasb Egalari</b>\n\n" +
       "📦 /buyurtmalarim — открытые заказы; новый заказ принимаете кнопкой «Принять» / «Отклонить»\n" +
-      "💬 /xabarlar — непрочитанные сообщения и ссылка на чат\n" +
-      "🔎 любое слово или /qidiruv &lt;слово&gt; — поиск специалиста (например: <i>монтажёр Ташкент</i>); в любом чате <code>@bot слово</code> — поделиться карточкой\n" +
-      "🎓 /kurslar — каталог · /kurslarim — мои курсы и ожидающие оплаты (чек можно прислать сюда)\n" +
-      "🔴 /efirlar — эфиры · 🏆 /top — ТОП месяца · 💼 /vakansiyalar — вакансии\n" +
+      "💬 /xabarlar — переписки: читать и отвечать прямо здесь\n" +
+      "🔎 любое слово или /qidiruv &lt;слово&gt; — поиск специалиста (например: <i>монтажёр Ташкент</i>), контакт можно открыть тут же; в любом чате <code>@bot слово</code> — поделиться карточкой\n" +
+      "🎓 /kurslar — каталог и покупка · /kurslarim — мои курсы и ожидающие оплаты (чек — фото или PDF — можно прислать сюда)\n" +
+      "🔴 /efirlar — эфиры · 🏆 /top — ТОП месяца\n" +
+      "💼 /vakansiyalar — вакансии · /arizalarim — мои отклики · /arizalar — отклики на мои вакансии (в шорт-лист / отклонить)\n" +
       "📱 /ilova — приложение внутри Telegram\n" +
       "📸 /post — пришлите фото или видео (подпись под фото) — опубликую пост или сторис\n" +
       "🔓 /kontaktlarim — открытые вами контакты (телефон, Telegram, Instagram)\n" +
-      "👤 /profil — аккаунт и статус привязки · 🔔 /sozlamalar — какие уведомления присылать\n" +
+      "👤 /profil — аккаунт, заполненность профиля и следующий шаг\n" +
+      "🔔 /sozlamalar — какие уведомления присылать · 🌐 /til — язык бота\n" +
+      "🔐 Если на сайте нажать «Войти через Telegram» — подтверждение придёт сюда\n" +
       (linked ? "" : "📝 /royxat — создать аккаунт (вопрос-ответ, 1 минута); если аккаунт уже есть — кнопка «Да, есть аккаунт»\n") +
       "⛔ /stop — отвязать Telegram\n" +
-      (admin ? "🛠 /admin · 📊 /stat · 📥 /navbat · 💳 /tolovlar · 🚩 /shikoyatlar · 🎓 /mentorlar · ⚖️ /nizolar · 💸 /payoutlar · 👤 /user имя · 💰 /narx · 🏆 /konkurs · 📣 /elon — инструменты администратора\n" : "") +
+      (admin ? "🛠 /admin · 📊 /stat · 📥 /navbat · 💳 /tolovlar · 🚩 /shikoyatlar · 🎓 /mentorlar · ⚖️ /nizolar · 💸 /payoutlar · 👤 /user имя · 💰 /narx · 🏆 /konkurs · 📣 /elon · 🪤 /tuzoq · ⛔ /blok · ✅ /blokdan — инструменты администратора\n" : "") +
       "\n" +
-      (linked ? "Аккаунт привязан ✅" : "Аккаунт ещё не привязан.");
-    await sendTelegram(chatId, ru, linked ? { replyKeyboard: menuRows(admin, "ru") } : { keyboard: ACCOUNT_QUESTION_ROWS("ru") });
+      (linked ? "Аккаунт привязан ✅" : "Аккаунт ещё не привязан.") +
+      "\n\nЕсть вопрос или что-то не работает? Напишите в поддержку — кнопка ниже.";
+    await sendTelegram(chatId, ru, { keyboard: helpKeyboard(linked, "ru") });
     return;
   }
   const text =
     "<b>Kasb Egalari boti nima qiladi</b>\n\n" +
     "📦 /buyurtmalarim — ochiq buyurtmalar; yangi buyurtmani «Qabul qilish» / «Rad etish» tugmasi bilan hal qilasiz\n" +
-    "💬 /xabarlar — o'qilmagan xabarlar soni va chatga havola\n" +
-    "🔎 istalgan so'z yoki /qidiruv &lt;so'z&gt; — ijodkor qidirish (masalan: <i>montajchi Toshkent</i>); istalgan chatda <code>@bot so'z</code> — ijodkor kartasini ulashish\n" +
-    "🎓 /kurslar — katalog · /kurslarim — yozilgan kurslar, kutilayotgan to'lovlar (chek rasmini shu yerga yuborsangiz bo'ladi)\n" +
+    "💬 /xabarlar — suhbatlar: o'qish va shu yerning o'zida javob yozish\n" +
+    "🔎 istalgan so'z yoki /qidiruv &lt;so'z&gt; — ijodkor qidirish (masalan: <i>montajchi Toshkent</i>), kontaktini shu yerda ochish mumkin; istalgan chatda <code>@bot so'z</code> — ijodkor kartasini ulashish\n" +
+    "🎓 /kurslar — katalog va sotib olish · /kurslarim — yozilgan kurslar, kutilayotgan to'lovlar (chek rasmi yoki PDF'ni shu yerga yuborsangiz bo'ladi)\n" +
     "🔴 /efirlar — jonli va yaqin efirlar · 🏆 /top — oyning TOP ijodkorlari\n" +
-    "💼 /vakansiyalar — so'nggi ochiq vakansiyalar\n" +
+    "💼 /vakansiyalar — so'nggi vakansiyalar · /arizalarim — yuborgan arizalarim · /arizalar — vakansiyalarimga kelgan arizalar (tanlovga olish / rad etish)\n" +
     "📱 /ilova — Telegram ichida ochiladigan ilova\n" +
-    "📸 /post — rasm yoki video yuboring (izoh rasm ostida) — lentangizga post joylayman\n" +
+    "📸 /post — rasm yoki video yuboring (izoh rasm ostida) — post yoki story joylayman\n" +
     "🔓 /kontaktlarim — ochgan kontaktlaringiz (telefon, Telegram, Instagram) shu yerda\n" +
-    "👤 /profil — hisob va ulanish holati\n" +
-    "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin\n" +
+    "👤 /profil — hisob, profil to'liqligi va keyingi qadam\n" +
+    "🔔 /sozlamalar — qaysi bildirishnomalar Telegramga kelsin · 🌐 /til — bot tili\n" +
     "🔐 Saytda «Telegram bilan kirish» bosilsa — tasdiqlash shu yerga keladi\n" +
     (linked ? "" : "📝 /royxat — hisob ochish (savol-javob, 1 daqiqa) · akkauntingiz bo'lsa — «Ha, akkauntim bor» tugmasi bilan ulang\n") +
     "⛔ /stop — Telegramni hisobdan uzish\n" +
-    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika va trend · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 🚩 /shikoyatlar — shikoyatlarni chatda hal qilish · 🎓 /mentorlar — mentor arizalari · ⚖️ /nizolar — ochiq nizolar · 💸 /payoutlar — pul chiqarish so'rovlari · 👤 /user ism (blok, kontakt rejimi, maxsus narx) · 💰 /narx — kontakt narxlari · 🏆 /konkurs — ijod konkursi ochish · 📣 /elon — ommaviy e'lon\n" : "") +
+    (admin ? "🛠 /admin — admin menyu · 📊 /stat — statistika va trend · 📥 /navbat — tasdiq navbati · 💳 /tolovlar · 🚩 /shikoyatlar — shikoyatlarni chatda hal qilish · 🎓 /mentorlar — mentor arizalari · ⚖️ /nizolar — ochiq nizolar · 💸 /payoutlar — pul chiqarish so'rovlari · 👤 /user ism (blok, kontakt rejimi, maxsus narx) · 💰 /narx — kontakt narxlari · 🏆 /konkurs — ijod konkursi ochish · 📣 /elon — ommaviy e'lon · 🪤 /tuzoq — tuzoq holati · ⛔ /blok va ✅ /blokdan — IP bloklash\n" : "") +
     "\n" +
-    (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».");
-  await sendTelegram(chatId, text, linked ? { replyKeyboard: menuRows(admin) } : { keyboard: ACCOUNT_QUESTION_ROWS() });
+    (linked ? "Hisob ulangan ✅" : "Hisob hali ulanmagan — saytda Kabinet → Profil → «Telegramga ulash».") +
+    "\n\nSavol yoki muammo bo'lsa — pastdagi tugma orqali qo'llab-quvvatlashga yozing.";
+  await sendTelegram(chatId, text, { keyboard: helpKeyboard(linked, "uz") });
 }
 
 /** Ulanmagan chat uchun standart javob (amal tugmasi bilan) */
@@ -311,22 +364,30 @@ export async function setupBotProfile(): Promise<BotProfileResult> {
     if (!r?.ok) errors.push(`${method}: ${r?.description ?? "ulanib bo'lmadi"}`);
     return Boolean(r?.ok);
   };
+  const all = { type: "all_private_chats" };
   const [name, shortDescription, description, commands, menuButton] = await Promise.all([
     call("setMyName", { name: BOT_NAME }),
     call("setMyShortDescription", { short_description: BOT_SHORT_DESC }),
     call("setMyDescription", { description: BOT_DESC }),
-    call("setMyCommands", { commands: BOT_COMMANDS, scope: { type: "all_private_chats" } }),
+    call("setMyCommands", { commands: botCommands("uz"), scope: all }),
     // Menyu tugmasi: https bo'lsa Mini App («Ilova»), aks holda buyruqlar ro'yxati
     call("setChatMenuButton", { menu_button: appUrl() ? { type: "web_app", text: "Ilova", web_app: { url: appUrl() } } : { type: "commands" } }),
   ]);
-  // Adminlar (Telegram ulangan) — chat scope bilan /elon ham menyuda
+  // Ruscha variantlar: Telegram ilovasi rus tilida bo'lgan foydalanuvchiga tavsif va buyruqlar menyusi ruscha ko'rinadi
+  // (natija asosiy bayroqlarga qo'shilmaydi — xato bo'lsa `errors`ga yoziladi)
+  await Promise.all([
+    call("setMyShortDescription", { short_description: BOT_SHORT_DESC_RU, language_code: "ru" }),
+    call("setMyDescription", { description: BOT_DESC_RU, language_code: "ru" }),
+    call("setMyCommands", { commands: botCommands("ru"), scope: all, language_code: "ru" }),
+  ]);
+  // Adminlar (Telegram ulangan) — chat scope bilan admin buyruqlari ham menyuda, har biri o'z tilida
   let adminChats = 0;
   try {
     const { db } = await import("@/lib/db");
     const { users } = await import("@/lib/db/schema");
     const { and, eq, isNotNull } = await import("drizzle-orm");
-    const admins = await db.select({ chat: users.telegramChatId }).from(users).where(and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)));
-    for (const a of admins) if (a.chat && (await setAdminCommands(a.chat))) adminChats++;
+    const admins = await db.select({ chat: users.telegramChatId, lang: users.lang }).from(users).where(and(eq(users.role, "admin"), eq(users.isBanned, false), isNotNull(users.telegramChatId)));
+    for (const a of admins) if (a.chat && (await setAdminCommands(a.chat, a.lang === "ru" ? "ru" : "uz"))) adminChats++;
   } catch (e) {
     errors.push(`adminCommands: ${e instanceof Error ? e.message : String(e)}`);
   }

@@ -125,8 +125,18 @@ async function setNative(inv: SubscriptionInvoice, on: boolean): Promise<void> {
     .where(and(eq(subscriptionInvoices.id, inv.id), eq(subscriptionInvoices.state, "created")));
 }
 
-/** `bp:<usul>:<tur>:<id>` va `bd:<hisob>` callback'lari. false — bu callback bizniki emas */
+/**
+ * `buy:<tur>:<id>` — botning o'z ro'yxatidagi «Sotib olish» tugmasi (`/kurslar`): saytdagi deep-link (`/start b_<tur>_<id>`)
+ * bilan BIR XIL yo'l — narx va to'lov usullari. `bp:<usul>:<tur>:<id>` va `bd:<hisob>` — usul tanlandi / «To'ladim».
+ * false — bu callback bizniki emas.
+ */
 export async function handlePayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>, lang?: BotLang): Promise<boolean> {
+  const offer = new RegExp(`^buy:([ctsk]):(${UUID}|[\\w-]{1,48})$`).exec(data);
+  if (offer) {
+    await answer("");
+    await handleBuyStart(chatId, `b_${offer[1]}_${offer[2]}`, lang);
+    return true;
+  }
   const buyRaw = /^bp:([pcmft]):([ctsk]):(.+)$/.exec(data);
   const buyRef = buyRaw ? parseItemRef(buyRaw[3]) : null;
   const done = /^bd:([\w-]{1,64})$/.exec(data);

@@ -59,7 +59,8 @@ interface PostData extends Record<string, unknown> {
 const MAX_BYTES = 20 * 1024 * 1024;
 const POST_CAPTION_MAX = 2000;
 
-function sniffImage(b: Buffer): { ext: string; mime: string } | null {
+/** Rasm turini BAYTLARDAN aniqlash (kengaytma/mime'ga ishonilmaydi); rasm emas — null */
+export function sniffImage(b: Buffer): { ext: string; mime: string } | null {
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { ext: "jpg", mime: "image/jpeg" };
   if (b.length >= 8 && b.subarray(1, 4).toString("ascii") === "PNG") return { ext: "png", mime: "image/png" };
   if (b.length >= 12 && b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP") return { ext: "webp", mime: "image/webp" };

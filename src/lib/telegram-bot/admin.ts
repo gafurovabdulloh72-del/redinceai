@@ -333,8 +333,8 @@ export async function sendAdminMenu(chatId: string, lang?: BotLang): Promise<voi
     chatId,
     L(
       lang,
-      `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /nizolar — nizolar · /payoutlar — pul chiqarish · /user ism — foydalanuvchi · /narx — kontakt narxlari · /konkurs — ijod konkursi · /elon — ommaviy e'lon`,
-      `🛠 <b>Админ-меню</b>\n${total > 0 ? `📥 В очереди <b>${total}</b> задач.` : "📥 Очередь пуста ✅"}\n\n/stat — статистика и тренд · /navbat — очередь подтверждений · /tolovlar — переводы · /shikoyatlar — жалобы · /mentorlar — заявки менторов · /nizolar — споры · /payoutlar — вывод средств · /user имя — пользователь · /narx — цены контактов · /konkurs — творческий конкурс · /elon — рассылка`,
+      `🛠 <b>Admin menyu</b>\n${total > 0 ? `📥 Navbatda <b>${total}</b> ta ish bor.` : "📥 Navbat bo'sh ✅"}\n\n/stat — statistika va trend · /navbat — tasdiq navbati · /tolovlar — o'tkazmalar · /shikoyatlar — shikoyatlar · /mentorlar — mentor arizalari · /nizolar — nizolar · /payoutlar — pul chiqarish · /user ism — foydalanuvchi · /narx — kontakt narxlari · /konkurs — ijod konkursi · /elon — ommaviy e'lon · /tuzoq — tuzoq va bloklangan IP'lar (/blok, /blokdan)`,
+      `🛠 <b>Админ-меню</b>\n${total > 0 ? `📥 В очереди <b>${total}</b> задач.` : "📥 Очередь пуста ✅"}\n\n/stat — статистика и тренд · /navbat — очередь подтверждений · /tolovlar — переводы · /shikoyatlar — жалобы · /mentorlar — заявки менторов · /nizolar — споры · /payoutlar — вывод средств · /user имя — пользователь · /narx — цены контактов · /konkurs — творческий конкурс · /elon — рассылка · /tuzoq — ловушка и заблокированные IP (/blok, /blokdan)`,
     ),
     {
       keyboard: [
@@ -342,6 +342,7 @@ export async function sendAdminMenu(chatId: string, lang?: BotLang): Promise<voi
         [{ text: `${L(lang, "💳 To'lovlar", "💳 Платежи")}${cnt(q.manualPayments + q.manualInvoices)}`, data: "adm:pay" }, { text: `${L(lang, "🚩 Shikoyatlar", "🚩 Жалобы")}${cnt(q.reports)}`, data: "adm:reports" }],
         [{ text: `${L(lang, "🎓 Mentor arizalari", "🎓 Заявки менторов")}${cnt(q.mentorApps)}`, data: "adm:mentors" }, { text: `${L(lang, "💸 Payoutlar", "💸 Выплаты")}${cnt(q.payouts)}`, data: "adm:payouts" }],
         [{ text: `${L(lang, "⚖️ Nizolar", "⚖️ Споры")}${cnt(q.disputes)}`, data: "adm:disputes" }, { text: L(lang, "📣 E'lon", "📣 Рассылка"), data: "adm:elon" }],
+        [{ text: L(lang, "🪤 Tuzoq", "🪤 Ловушка"), data: "adm:trap" }],
         [panelButton("/admin", PANEL(lang))],
       ],
       // Doimiy menyuga «🛠 Admin» qatori qo'shiladi
@@ -655,6 +656,11 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
   }
   let m: RegExpExecArray | null;
   try {
+    // Tuzoq holati va IP bloklash tugmalari (`adm:trap`, `adm:ipb|ipu:<ip>`) — lib/telegram-bot/admin-security.ts
+    if (data === "adm:trap" || data.startsWith("adm:ip")) {
+      const { handleAdminSecurityCallback } = await import("@/lib/telegram-bot/admin-security");
+      if (await handleAdminSecurityCallback(chatId, admin, data, answer, lang)) return true;
+    }
     if ((m = /^adm:stat:(today|7d|30d)$/.exec(data))) {
       await answer("");
       await sendAdminStats(chatId, m[1] as StatPeriod, msgId, lang);
@@ -1067,13 +1073,18 @@ export async function handleAdminChallenge(chatId: string, argText: string, lang
   }
 }
 
+/** Fikr yozuvidagi «sahifa» — bot orqali qo'llab-quvvatlashga yozilgan xabar belgisi (lib/telegram-bot/support.ts) */
+export const SUPPORT_PAGE = "/telegram-bot";
+
 /** Yangi fikr (2026-11-04, /api/fikr) — adminlarga saytda bildirishnoma (emailsiz) + Telegramda bitta qisqa xabar (matn parchasi) */
 export async function notifyAdminsNewFeedback(feedbackId: string): Promise<void> {
   try {
     const f = await db.query.feedbacks.findFirst({ where: eq(feedbacks.id, feedbackId) });
     if (!f) return;
     const who = f.userId ? await db.query.users.findFirst({ where: eq(users.id, f.userId), columns: { name: true } }) : null;
-    const kindOf = (lang: BotLang) => (f.kind === "bug" ? L(lang, "🐞 Xato", "🐞 Ошибка") : f.kind === "idea" ? L(lang, "💡 G'oya", "💡 Идея") : L(lang, "💬 Fikr", "💬 Отзыв"));
+    // Botdan kelgan murojaat: sarlavha «Qo'llab-quvvatlash», ostida Telegram aloqasi (taxallus / chat) — admin javob yoza olsin
+    const viaBot = f.page === SUPPORT_PAGE;
+    const kindOf = (lang: BotLang) => (viaBot ? L(lang, "🆘 Qo'llab-quvvatlash", "🆘 Поддержка") : f.kind === "bug" ? L(lang, "🐞 Xato", "🐞 Ошибка") : f.kind === "idea" ? L(lang, "💡 G'oya", "💡 Идея") : L(lang, "💬 Fikr", "💬 Отзыв"));
     const nameOf = (lang: BotLang) => who?.name ?? L(lang, "Mehmon", "Гость");
     const excerpt = f.text.length > 300 ? `${cutPlain(f.text, 300)}…` : f.text;
     // Sayt qo'ng'irog'i (o'zbekcha manba; rus tilidagi adminga `notify()` o'zi o'giradi) — Telegramga quyida alohida, shuning uchun siteOnly
@@ -1083,7 +1094,7 @@ export async function notifyAdminsNewFeedback(feedbackId: string): Promise<void>
     await Promise.all(
       admins.map((a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
-        const text = [`<b>${escapeTelegramHtml(`${kindOf(lang)}: ${nameOf(lang)}`)}</b>${f.page ? ` — <code>${escapeTelegramHtml(f.page)}</code>` : ""}`, escapeTelegramHtml(excerpt), shot ? `📎 ${escapeTelegramHtml(shot)}` : ""].filter(Boolean).join("\n");
+        const text = [`<b>${escapeTelegramHtml(`${kindOf(lang)}: ${nameOf(lang)}`)}</b>${f.page && !viaBot ? ` — <code>${escapeTelegramHtml(f.page)}</code>` : ""}`, escapeTelegramHtml(excerpt), viaBot && f.userAgent ? `👤 ${escapeTelegramHtml(f.userAgent)}` : "", shot ? `📎 ${escapeTelegramHtml(shot)}` : ""].filter(Boolean).join("\n");
         return a.telegramChatId ? sendTelegram(a.telegramChatId, text, { bulk: true, keyboard: [[panelButton("/admin#fikrlar", L(lang, "👁 Fikrlar", "👁 Отзывы"))]] }) : Promise.resolve(false);
       }),
     );

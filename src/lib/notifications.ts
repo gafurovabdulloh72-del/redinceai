@@ -193,16 +193,42 @@ const MAIL_FOOTER = {
   ru: "Отключить email-уведомления можно в Кабинет → Профиль → «Email-уведомления».",
 } as const;
 
+/** Bildirishnoma matnidagi bo'lak ajratgichlari: «Sarlavha: nom», «Sarlavha — nom», «a · b», gaplar va qatorlar */
+const PART_SEP = /(: | — | · |\. |\n)/;
+
+/**
+ * Butun matn tarjimasi topilmaganda — BO'LAKLAB lug'atdan: `Yangi buyurtma: <nom>` → `Новый заказ: <nom>`,
+ * `… Qabul qiling va narx belgilang.` → `… Примите заказ и назначьте цену.` Faqat lug'atda ANIQ bor bo'laklar almashadi
+ * (foydalanuvchi matni — ism, sarlavha — o'zgarishsiz qoladi); AI'ga hech narsa yuborilmaydi. Hech biri topilmasa — asl matn.
+ */
+function localizeParts(s: string, lookup: (x: string) => string | null): string {
+  const parts = s.split(PART_SEP);
+  if (parts.length < 3) return s;
+  let hit = false;
+  const out = parts.map((p, i) => {
+    if (i % 2 === 1) return p; // ajratgichning o'zi
+    const core = p.trim();
+    if (core.length < 3) return p;
+    const end = /[.!]$/.test(core) ? core.slice(-1) : "";
+    const ru = lookup(core) ?? (end ? lookup(core.slice(0, -1)) : null);
+    if (!ru) return p;
+    hit = true;
+    return p.replace(core, end && !/[.!]$/.test(ru) ? ru + end : ru);
+  });
+  return hit ? out.join("") : s;
+}
+
 /**
  * Bildirishnoma sarlavhasi/matnini ruschaga o'girish (users.lang = ru): `translateUiBatch` — faqat qisqa o'zbekcha UI iboralari
- * (≤160 belgi, `looksUzbek`); topilmagani yoki foydalanuvchi matni aralashgan uzun matn o'zgarishsiz qoladi. Xato — asl matn.
+ * (≤160 belgi, `looksUzbek`: lug'at → baza keshi → AI); butun matn topilmasa — bo'laklab lug'atdan (`localizeParts`: dinamik
+ * sarlavhalarning doimiy qismi). Topilmagani yoki foydalanuvchi matni o'zgarishsiz qoladi. Xato — asl matn.
  */
 export async function localizeNotification(title: string, body: string | null | undefined): Promise<{ title: string; body: string | null | undefined }> {
   try {
     const { translateUiBatch } = await import("@/lib/i18n/translate-service");
-    const { normalizeUz } = await import("@/lib/i18n/auto");
+    const { normalizeUz, lookupRu } = await import("@/lib/i18n/auto");
     const map = await translateUiBatch([title, ...(body ? [body] : [])]);
-    const pick = (s: string) => map[normalizeUz(s)] ?? s;
+    const pick = (s: string) => map[normalizeUz(s)] ?? localizeParts(s, lookupRu);
     return { title: pick(title), body: body ? pick(body) : body };
   } catch {
     return { title, body };
@@ -321,6 +347,21 @@ export async function deliverTelegramNotification(userId: string, type: Notifica
   const link = absoluteHref(origin, href);
   const done = (r: { ok: boolean; blocked?: boolean }): TelegramDelivery => (r.ok ? "sent" : r.blocked ? "blocked" : "failed");
 
+  // Yangi ariza ish beruvchiga: oddiy xabar o'rniga NOMZOD KARTASI (moslik balli, rezyume, xat parchasi) va
+  // «Tanlovga olish / Rad etish» tugmalari — lib/telegram-bot/applications.ts. Karta tuzilmasa oddiy xabar ketadi.
+  if (type === "application_new") {
+    const vacancyId = /[?&]v=([\w-]{1,64})/.exec(href ?? "")?.[1];
+    if (vacancyId) {
+      try {
+        const { applicationCardFor } = await import("@/lib/telegram-bot/applications");
+        const card = await applicationCardFor(vacancyId, userId, lang);
+        if (card) return done(await sendTelegramEx(chat, card.text, { keyboard: card.keyboard, bulk: true }));
+      } catch (e) {
+        console.error("[notify:tg] ariza kartasi", e instanceof Error ? e.message : e);
+      }
+    }
+  }
+
   // Rus tilidagi foydalanuvchiga sarlavha/matn ruscha (email bilan bir xil yo'l: lug'at → baza keshi → AI)
   const t = lang === "ru" ? await localizeNotification(title, body) : { title, body };
   const text = `<b>${escapeTelegramHtml(t.title)}</b>` + (t.body ? `\n${escapeTelegramHtml(t.body)}` : "");
@@ -335,6 +376,11 @@ export async function deliverTelegramNotification(userId: string, type: Notifica
   const keyboard: { text: string; url?: string; data?: string; webApp?: string }[][] = [];
   // Yalang'och URL o'rniga xabar ostida tugma — turga/havolaga mos yorliq bilan
   if (link) keyboard.push([telegramOpenButton(buttonLabel(type, href, lang), href ?? null, link)]);
+  // Shaxsiy xabar: saytni ochmasdan shu chatning o'zidan javob yozish (lib/telegram-bot/dm.ts — `dm:r:<suhbat>`)
+  if (type === "chat") {
+    const convId = /^\/kabinet\/chat\?(?:.*&)?s=([\w-]{1,64})/.exec(href ?? "")?.[1];
+    if (convId) keyboard.unshift([{ text: L(lang, "✍️ Javob yozish", "✍️ Ответить"), data: `dm:r:${convId}` }, { text: L(lang, "💬 Suhbatni ko'rish", "💬 Показать переписку"), data: `dm:o:${convId}` }]);
+  }
   return done(await sendTelegramEx(chat, text, { ...(keyboard.length ? { keyboard } : {}), bulk: true }));
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { escapeTelegramHtml, telegramApi } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
-import { CATEGORY_BY_SLUG } from "@/lib/constants";
+import { categoryLabel } from "@/lib/telegram-bot/labels-ru";
 import { searchPeople } from "@/lib/telegram-bot/actions";
 import { formatPrice } from "@/lib/utils";
 import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
@@ -25,7 +25,7 @@ export async function handleInlineQuery(iq: { id?: unknown; query?: unknown; off
   try {
     const people = await searchPeople(q, 10);
     results = people.map((p) => {
-      const cat = CATEGORY_BY_SLUG[p.category]?.name ?? p.category;
+      const cat = categoryLabel(p.category, lang);
       const url = `${s}/mutaxassislar/${p.slug}`;
       const thumb = p.avatarUrl && /^https:\/\//.test(p.avatarUrl) ? p.avatarUrl : s.startsWith("https://") ? `${s}/icons/icon-192.png` : undefined;
       return {
