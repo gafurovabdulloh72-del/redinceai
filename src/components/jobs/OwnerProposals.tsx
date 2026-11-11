@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertCircle, ArrowRight, Award, CalendarClock, Check, ChevronDown, Inbox, Lock, MapPin, Phone, Star, Table2, X } from "lucide-react";
@@ -173,7 +174,7 @@ function ProposalItem({ p, jobOpen, defaultPhone }: { p: OwnerProposal; jobOpen:
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <div className="flex items-center gap-2 text-[12px] text-fg-3">
           <Badge tone={PROPOSAL_STATUS_TONE[p.status]}>{PROPOSAL_STATUS_LABEL[p.status]}</Badge>
-          <span suppressHydrationWarning>{timeAgo(p.createdAt)}</span>
+          <span suppressHydrationWarning><Ago at={p.createdAt} /></span>
         </div>
 
         {p.status === "accepted" && p.orderId && (

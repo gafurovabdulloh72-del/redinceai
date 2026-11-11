@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { Ban, BarChart3, Download, ExternalLink, Eye, EyeOff, KeyRound, Loader2, MessageCircle, Search, ShieldCheck, Star, StickyNote, Undo2 } from "lucide-react";
 import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
 import { UserAnalyticsSheet } from "@/components/admin/UserAnalyticsSheet";
@@ -233,7 +234,7 @@ export function UsersPanel() {
                             {" "}
                             · kirgan{" "}
                             <time dateTime={new Date(u.lastLoginAt).toISOString()} title={formatDateTime(u.lastLoginAt)} suppressHydrationWarning>
-                              {timeAgo(u.lastLoginAt)}
+                              <Ago at={u.lastLoginAt} />
                             </time>
                           </>
                         ) : (

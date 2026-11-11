@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { CheckCircle2, CircleAlert, Clock3, FlaskConical, Play, RefreshCw, TriangleAlert } from "lucide-react";
 import { adminApi, errText } from "@/components/admin/admin-api";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -132,7 +133,7 @@ export function AdminCron() {
               <>
                 Oxirgi marta{" "}
                 <time dateTime={new Date(last.at).toISOString()} title={formatDateTime(last.at)} suppressHydrationWarning>
-                  {timeAgo(last.at)}
+                  <Ago at={last.at} />
                 </time>
               </>
             )}

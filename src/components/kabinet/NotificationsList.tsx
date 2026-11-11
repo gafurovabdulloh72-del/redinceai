@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CheckCheck, ChevronDown, Eraser } from "lucide-react";
@@ -222,7 +223,7 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
             <span className="font-semibold uppercase tracking-wide">{meta.label}</span>
             <span aria-hidden="true">·</span>
             <time dateTime={new Date(n.createdAt).toISOString()} title={formatDateTime(n.createdAt)} suppressHydrationWarning>
-              {timeAgo(n.createdAt)}
+              <Ago at={n.createdAt} />
             </time>
           </span>
         </span>
@@ -310,7 +311,7 @@ export function NotificationsList({ items, unread, canPurge }: { items: Notifica
               <span className="font-semibold uppercase tracking-wide">{meta.label}</span>
               <span aria-hidden="true">·</span>
               <time dateTime={new Date(newest.createdAt).toISOString()} suppressHydrationWarning>
-                {timeAgo(newest.createdAt)}
+                <Ago at={newest.createdAt} />
               </time>
               {freshN > 0 && (
                 <>

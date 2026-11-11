@@ -11,5 +11,22 @@ const UNSAFE: Record<string, string> = { "<": "\\u003c", ">": "\\u003e", "&": "\
 const UNSAFE_RE = new RegExp(`[<>&${String.fromCharCode(0x2028)}${String.fromCharCode(0x2029)}]`, "g");
 
 export function jsonLdHtml(data: unknown): string {
-  return JSON.stringify(data).replace(UNSAFE_RE, (c) => UNSAFE[c] ?? c);
+  return JSON.stringify(normalize(data)).replace(UNSAFE_RE, (c) => UNSAFE[c] ?? c);
+}
+
+/**
+ * Bir nechta obyekt — massiv EMAS, `{"@context", "@graph": [...]}` ko'rinishida (2026-11-11). Ildizi massiv bo'lgan
+ * JSON-LD standartga to'g'ri, lekin sahifadagi JSON-LD'ni o'qiydigan ba'zi skriptlar (iOS Safari'dagi kengaytmalar,
+ * reklama/tahlil vositalari) ildizdan `["@context"].toLowerCase()` o'qiydi va massivda yiqiladi — xatolar jurnalida
+ * har sahifada «r["@context"].toLowerCase» chiqardi. `@graph` shakli Google uchun ham to'liq teng.
+ */
+function normalize(data: unknown): unknown {
+  if (!Array.isArray(data)) return data;
+  const graph = data.map((d) => {
+    if (!d || typeof d !== "object") return d;
+    const { ["@context"]: _ctx, ...rest } = d as Record<string, unknown>;
+    void _ctx;
+    return rest;
+  });
+  return { "@context": "https://schema.org", "@graph": graph };
 }

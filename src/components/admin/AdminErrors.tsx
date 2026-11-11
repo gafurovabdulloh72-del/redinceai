@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { Bug, Check, ChevronDown, Copy, Eraser, Monitor, RefreshCw, RotateCcw, Search, Server, Trash2 } from "lucide-react";
 import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
 import { adminApi, errText, setAdminTabCount } from "@/components/admin/admin-api";
@@ -265,7 +266,7 @@ export function AdminErrors({ initialOpen = 0 }: { initialOpen?: number }) {
                       )}
                       {r.status ? <span className="tabular-nums">{r.status}</span> : null}
                       <time dateTime={new Date(r.lastAt).toISOString()} title={formatDateTime(r.lastAt)} suppressHydrationWarning>
-                        {timeAgo(r.lastAt)}
+                        <Ago at={r.lastAt} />
                       </time>
                       {r.resolvedAt && <span className="rounded-full bg-success-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-success-text">hal qilingan</span>}
                     </span>

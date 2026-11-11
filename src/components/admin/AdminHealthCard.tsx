@@ -1,6 +1,9 @@
 "use client";
 
+import type React from "react";
+
 import { useCallback, useEffect, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { Activity, Clock3, Database, HardDrive, Mail, Radio, RefreshCw, Send, Users } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 
@@ -30,7 +33,7 @@ interface LiveKitUsage {
 const fmtMin = (m: number) => (m >= 60 ? `${Math.round(m / 6) / 10} soat` : `${m} daq`);
 const BACKEND: Record<Health["storage"]["backend"], string> = { r2: "Cloudflare R2", blob: "Vercel Blob", disk: "Server diski", none: "Sozlanmagan" };
 
-function Metric({ icon: Icon, label, value, hint, tone = "neutral" }: { icon: typeof Database; label: string; value: string; hint?: string; tone?: "neutral" | "ok" | "warn" | "bad" }) {
+function Metric({ icon: Icon, label, value, hint, tone = "neutral" }: { icon: typeof Database; label: string; value: React.ReactNode; hint?: string; tone?: "neutral" | "ok" | "warn" | "bad" }) {
   return (
     <div className="min-w-0 rounded-[var(--r-sm)] border border-line px-3.5 py-3">
       <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-fg-3">
@@ -38,7 +41,7 @@ function Metric({ icon: Icon, label, value, hint, tone = "neutral" }: { icon: ty
       </p>
       <p className={cn("mt-1 flex items-center gap-1.5 text-[15px] font-semibold tabular-nums", tone === "ok" ? "text-success-text" : tone === "warn" ? "text-warning-text" : tone === "bad" ? "text-danger-text" : "text-fg")}>
         <span aria-hidden="true" className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tone === "ok" ? "bg-success" : tone === "warn" ? "bg-warning" : tone === "bad" ? "bg-danger" : "bg-line-2")} />
-        <span className="min-w-0 truncate" title={value}>{value}</span>
+        <span className="min-w-0 truncate" title={typeof value === "string" ? value : undefined}>{value}</span>
       </p>
       {hint && <p className="mt-0.5 truncate text-[11.5px] text-fg-4">{hint}</p>}
     </div>
@@ -74,7 +77,7 @@ export function AdminHealthCard() {
         <p className="text-[12px] text-fg-3" aria-live="polite">
           {h ? (
             <>
-              Yangilandi <time dateTime={new Date(h.ts).toISOString()} suppressHydrationWarning>{timeAgo(h.ts)}</time>
+              Yangilandi <time dateTime={new Date(h.ts).toISOString()} suppressHydrationWarning><Ago at={h.ts} /></time>
             </>
           ) : (
             "Holat yuklanmoqda…"
@@ -99,7 +102,7 @@ export function AdminHealthCard() {
         <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Metric icon={Database} label="Baza" value={h.db.ok ? `${h.db.ms} ms` : "Javob yo'q"} hint={h.db.ok ? (h.db.ms > 300 ? "Sekin — Turso hududini tekshiring" : "select 1") : "Ulanish xatosi"} tone={!h.db.ok ? "bad" : h.db.ms > 300 ? "warn" : "ok"} />
           <Metric icon={HardDrive} label="Fayl saqlash" value={BACKEND[h.storage.backend]} hint={h.storage.backend === "none" ? "Yuklash ishlamaydi" : h.storage.onVercel ? "Vercel" : "Lokal/VPS"} tone={h.storage.backend === "none" ? "bad" : "ok"} />
-          <Metric icon={Clock3} label="Kunlik cron" value={h.cron.lastRunAt ? timeAgo(h.cron.lastRunAt) : "Hali ishlamagan"} hint={h.cron.errors ? `${h.cron.errors} ta xato (audit)` : h.cron.stale ? "36 soatdan ko'p o'tdi" : "Xatosiz"} tone={!h.cron.lastRunAt || h.cron.stale ? "warn" : h.cron.errors ? "warn" : "ok"} />
+          <Metric icon={Clock3} label="Kunlik cron" value={h.cron.lastRunAt ? <Ago at={h.cron.lastRunAt} /> : "Hali ishlamagan"} hint={h.cron.errors ? `${h.cron.errors} ta xato (audit)` : h.cron.stale ? "36 soatdan ko'p o'tdi" : "Xatosiz"} tone={!h.cron.lastRunAt || h.cron.stale ? "warn" : h.cron.errors ? "warn" : "ok"} />
           <Metric icon={Activity} label="Rate-limit" value={`${h.rateLimit.active} faol kalit`} hint={h.rateLimit.top.length ? h.rateLimit.top.map((t) => `${t.prefix} ${t.keys}`).join(" · ") : "Bosim yo'q"} tone={h.rateLimit.active > 200 ? "warn" : "neutral"} />
           <Metric icon={Send} label="Telegram bot" value={h.telegram.enabled ? (h.telegram.username ? `@${h.telegram.username}` : "Yoqilgan") : "O'chiq"} tone={h.telegram.enabled ? "ok" : "neutral"} />
           <Metric icon={Mail} label="Email (Resend)" value={h.email.configured ? "Sozlangan" : "Sozlanmagan"} tone={h.email.configured ? "ok" : "neutral"} />

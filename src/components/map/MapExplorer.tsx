@@ -1,6 +1,7 @@
 "use client";
 
 import { usePresence } from "@/components/motion/usePresence";
+import { Ago } from "@/components/ui/Ago";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -524,7 +525,7 @@ function JobsPanel({
                         </span>
                       )}
                       <span className="whitespace-nowrap font-semibold text-fg-2">{budgetLine(j)}</span>
-                      <time suppressHydrationWarning>{timeAgo(j.createdAt)}</time>
+                      <time suppressHydrationWarning><Ago at={j.createdAt} /></time>
                     </p>
                   </div>
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-fg-3 transition group-hover:border-fg group-hover:text-fg">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRightLeft, CheckCircle2, History, RotateCcw, Scale } from "lucide-react";
@@ -153,7 +154,7 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                       <span className="text-[11px] text-fg-4">
                         So'nggi faollik:{" "}
                         <time dateTime={new Date(r.openedAt).toISOString()} title={formatDateTime(r.openedAt)} suppressHydrationWarning>
-                          {timeAgo(r.openedAt)}
+                          <Ago at={r.openedAt} />
                         </time>
                       </span>
                     </p>
@@ -204,7 +205,7 @@ export function AdminDisputes({ rows: initialRows }: { rows: AdminDisputeRow[] }
                               {" "}
                               · {e.actor ?? "Tizim"} ·{" "}
                               <time dateTime={new Date(e.createdAt).toISOString()} title={formatDateTime(e.createdAt)} suppressHydrationWarning>
-                                {timeAgo(e.createdAt)}
+                                <Ago at={e.createdAt} />
                               </time>
                             </span>
                           </li>

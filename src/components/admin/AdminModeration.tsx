@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, ExternalLink, Flag, Loader2, Lock, LockOpen, Search, Trash2, UserCog, Users, XCircle } from "lucide-react";
 import { AdminRowMenu } from "@/components/admin/AdminRowMenu";
@@ -241,7 +242,7 @@ export function AdminModeration() {
                     )}
                   </p>
                   <p className="truncate text-[12px] text-fg-3">
-                    {g.membersCount} a&apos;zo · {g.postsCount} post · faollik {g.lastActivityAt ? timeAgo(g.lastActivityAt) : "yo'q"} · egasi: {g.owner ? `${g.owner.name} (${g.owner.email})` : "—"}
+                    {g.membersCount} a&apos;zo · {g.postsCount} post · faollik {g.lastActivityAt ? <Ago at={g.lastActivityAt} /> : "yo'q"} · egasi: {g.owner ? `${g.owner.name} (${g.owner.email})` : "—"}
                     {g.owner?.isBanned ? " · bloklangan" : ""}
                   </p>
                 </div>

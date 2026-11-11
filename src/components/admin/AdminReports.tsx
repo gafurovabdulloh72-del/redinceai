@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, ExternalLink, Flag, RotateCcw, Trash2, UserCheck } from "lucide-react";
@@ -123,7 +124,7 @@ export function AdminReports({ rows: initialRows }: { rows: AdminReportRowDto[] 
               )
             ) : null}
             <time dateTime={new Date(r.createdAt).toISOString()} className="text-[11px] text-fg-4" title={formatDateTime(r.createdAt)} suppressHydrationWarning>
-              {timeAgo(r.createdAt)}
+              <Ago at={r.createdAt} />
             </time>
           </p>
           {r.target?.snippet && <p className="mt-1 line-clamp-2 rounded-[12px] bg-surface-2 px-3 py-1.5 text-[12px] italic text-fg-3">«{r.target.snippet}»</p>}

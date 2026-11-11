@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -851,7 +852,7 @@ function OrderCard({
           )}
         </div>
         <time dateTime={new Date(o.createdAt).toISOString()} className="shrink-0 text-[12px] text-fg-4" title={formatDateTime(o.createdAt)} suppressHydrationWarning>
-          {timeAgo(o.createdAt)}
+          <Ago at={o.createdAt} />
         </time>
       </div>
 
@@ -1334,7 +1335,7 @@ function OrderTimeline({ orderId, onExtras }: { orderId: string; onExtras: (e: E
                       <span className="block text-[11px] text-fg-4">
                         {e.actor ?? "Tizim"} ·{" "}
                         <time dateTime={new Date(e.createdAt).toISOString()} title={formatDateTime(e.createdAt)} suppressHydrationWarning>
-                          {timeAgo(e.createdAt)}
+                          <Ago at={e.createdAt} />
                         </time>
                       </span>
                     </span>

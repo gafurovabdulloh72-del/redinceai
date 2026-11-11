@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useEffect, useState, type FormEvent } from "react";
 import { CornerDownRight, Heart, Send, X } from "lucide-react";
 import { Avatar, Spinner } from "@/components/ui";
@@ -108,7 +109,7 @@ export function CommentsSheet({ postId, open, onClose, loggedIn, onCount }: { po
                 <Avatar name={c.author.name} src={c.author.avatarUrl} size={36} decorative />
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px]">
-                    <span className="font-semibold text-fg">{c.author.name}</span> <span className="text-fg-4">· {timeAgo(c.createdAt)}</span>
+                    <span className="font-semibold text-fg">{c.author.name}</span> <span className="text-fg-4">· <Ago at={c.createdAt} /></span>
                   </p>
                   {c.replyTo && (
                     <p className="mt-0.5 flex items-center gap-1 truncate text-[12px] text-fg-4">

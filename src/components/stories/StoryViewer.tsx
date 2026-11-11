@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Eye, Heart, Music2, Pause, Play, Send, Trash2, Volume2, VolumeX, X } from "lucide-react";
@@ -280,7 +281,7 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                   <Avatar name={data.author.name} src={data.author.avatarUrl} size={34} decorative />
                   <span className="truncate text-[14px] font-semibold">{data.author.name}</span>
                 </Link>
-                <span className="shrink-0 text-[12.5px] text-white/65">{timeAgo(story.createdAt)}</span>
+                <span className="shrink-0 text-[12.5px] text-white/65"><Ago at={story.createdAt} /></span>
                 {story.music && (
                   <span className="hidden min-w-0 items-center gap-1 truncate text-[12px] text-white/75 sm:inline-flex">
                     <Music2 size={12} /> {story.music.title}
@@ -388,7 +389,7 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                       <li key={i} className="flex items-center gap-3">
                         <Avatar name={v.user.name} src={v.user.avatarUrl} size={36} decorative />
                         <span className="flex-1 truncate text-[14px] font-medium">{v.user.name}</span>
-                        <span className="text-[12px] text-fg-4">{timeAgo(v.at)}</span>
+                        <span className="text-[12px] text-fg-4"><Ago at={v.at} /></span>
                       </li>
                     ))}
                   </ul>

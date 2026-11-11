@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { Megaphone, Save, Trash2, Wrench } from "lucide-react";
 import { adminApi, errText } from "@/components/admin/admin-api";
@@ -291,7 +292,13 @@ export function AdminSiteNotice() {
                 <Wrench size={16} aria-hidden="true" /> Texnik ishlar rejimi
               </h3>
               <p className={cn("mt-0.5 text-[12.5px]", maint.on ? "font-semibold text-warning-text" : "text-fg-3")} aria-live="polite">
-                {maint.on ? `YOQILGAN${maint.since ? ` · ${timeAgo(maint.since)}` : ""} — sayt faqat o'qish rejimida` : "O'chiq — sayt to'liq ishlayapti"}
+                {maint.on ? (
+                  <>
+                    YOQILGAN{maint.since ? <> · <Ago at={maint.since} /></> : null} — sayt faqat o&apos;qish rejimida
+                  </>
+                ) : (
+                  "O'chiq — sayt to'liq ishlayapti"
+                )}
               </p>
             </div>
             <button type="button" role="switch" aria-checked={maint.on} aria-label="Texnik ishlar rejimi" onClick={() => void toggleMaint()} disabled={savingMaint} className="switch disabled:opacity-50" />

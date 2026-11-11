@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, Banknote, Check, CheckCircle2, Copy, ExternalLink, Eye, EyeOff, Search, ShieldAlert, X } from "lucide-react";
@@ -217,7 +218,7 @@ export function AdminPayoutsQueue({ rows: initialRows }: { rows: AdminPayoutRow[
             <div className="flex items-center gap-2">
               <Badge tone={PAYOUT_TONE[r.state]}>{PAYOUT_STATE_LABEL[r.state]}</Badge>
               <time dateTime={new Date(r.processedAt ?? r.createdAt).toISOString()} className="text-[11px] text-fg-4" title={formatDateTime(r.processedAt ?? r.createdAt)} suppressHydrationWarning>
-                {timeAgo(r.processedAt ?? r.createdAt)}
+                <Ago at={r.processedAt ?? r.createdAt} />
               </time>
             </div>
             {isOpen && rejecting !== r.id && paying !== r.id && (

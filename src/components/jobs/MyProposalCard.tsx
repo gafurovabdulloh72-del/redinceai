@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Ago } from "@/components/ui/Ago";
 import { useState } from "react";
 import { AlertCircle, ArrowRight, CalendarClock, CheckCircle2, ChevronDown, Undo2, Wallet } from "lucide-react";
 import { Badge, ButtonLink, Spinner } from "@/components/ui";
@@ -74,7 +75,7 @@ export function MyProposalCard({
             Sizning taklifingiz
           </h2>
           <p className="mt-0.5 text-[12.5px] text-fg-3" suppressHydrationWarning>
-            Yuborildi: {timeAgo(proposal.createdAt)}
+            Yuborildi: <Ago at={proposal.createdAt} />
           </p>
         </div>
         <Badge tone={PROPOSAL_STATUS_TONE[proposal.status]}>{PROPOSAL_STATUS_LABEL[proposal.status]}</Badge>

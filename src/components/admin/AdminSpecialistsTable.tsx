@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, BadgeCheck, CheckCircle2, ExternalLink, EyeOff, Hourglass, Images, Mail, MapPin, Phone, Search, ShieldBan, ShieldCheck, Star, Trash2, XCircle } from "lucide-react";
@@ -69,7 +70,7 @@ function WaitBadge({ createdAt, className }: { createdAt: number; className?: st
     >
       <Hourglass size={10} /> Kutmoqda ·{" "}
       <time dateTime={new Date(createdAt).toISOString()} suppressHydrationWarning>
-        {timeAgo(createdAt)}
+        <Ago at={createdAt} />
       </time>
     </span>
   );
@@ -886,7 +887,7 @@ export function AdminSpecialistsTable({ pending, verified = [] }: { pending: Pen
                     </p>
                   </div>
                   <time className="hidden whitespace-nowrap text-[11.5px] text-fg-4 md:block" dateTime={new Date(row.verifiedAt).toISOString()} suppressHydrationWarning>
-                    {timeAgo(row.verifiedAt)}
+                    <Ago at={row.verifiedAt} />
                   </time>
                   {asking ? (
                     <span className="expand-in flex shrink-0 items-center gap-1.5">

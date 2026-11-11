@@ -1,6 +1,9 @@
 "use client";
 
+import type React from "react";
+
 import { useEffect, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { Activity, CalendarCheck, Clock, Footprints, TrendingUp } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Spinner } from "@/components/ui";
@@ -98,8 +101,8 @@ export function UserAnalyticsSheet({ user, onClose }: { user: { id: string; name
           {/* Meta */}
           <section className="grid grid-cols-1 gap-1.5 border-t border-line pt-4 text-[12.5px] text-fg-3 sm:grid-cols-3">
             <Meta label="Ro'yxatdan o'tgan" value={formatDate(data.user.createdAt)} />
-            <Meta label="Oxirgi faollik" value={data.user.lastSeenAt ? timeAgo(data.user.lastSeenAt) : "—"} />
-            <Meta label="Oxirgi kirish" value={data.user.lastLoginAt ? timeAgo(data.user.lastLoginAt) : "—"} />
+            <Meta label="Oxirgi faollik" value={data.user.lastSeenAt ? <Ago at={data.user.lastSeenAt} /> : "—"} />
+            <Meta label="Oxirgi kirish" value={data.user.lastLoginAt ? <Ago at={data.user.lastLoginAt} /> : "—"} />
           </section>
           <p className="text-[11px] leading-relaxed text-fg-4">Vaqt taqribiy — saytda faol bo'lgan daqiqalar (5 daqiqalik oynalar) yig'indisi.</p>
         </div>
@@ -120,7 +123,7 @@ function Tile({ icon: Icon, label, value, sub }: { icon: typeof Clock; label: st
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+function Meta({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <span className="flex justify-between gap-2 sm:flex-col sm:justify-start">
       <span className="font-semibold text-fg-4">{label}</span>

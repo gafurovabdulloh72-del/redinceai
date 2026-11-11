@@ -67,6 +67,8 @@ export function TgAppBridge() {
     w.Telegram.WebView.receiveEvent = receive;
     w.TelegramGameProxy = { ...(w.TelegramGameProxy ?? {}), receiveEvent: receive };
     w.TelegramGameProxy_receiveEvent = receive;
+    // Sahifa jonlanguncha kelgan hodisalar (layout'dagi vaqtinchalik qabul qiluvchi navbatga yiqqan)
+    const early = (w as TgWindow & { __tgq?: Array<[string, unknown]> }).__tgq;
     const onMessage = (e: MessageEvent) => {
       // Faqat Telegram Web (ota-oyna, *.telegram.org) — boshqa oyna/sayt «orqaga» yoki tema hodisasini soxtalashtira olmasin
       if (e.source !== window.parent || !TG_ORIGIN_RE.test(e.origin) || typeof e.data !== "string") return;
@@ -90,6 +92,7 @@ export function TgAppBridge() {
       }
     };
     handlers.add(onEvent);
+    if (early?.length) early.splice(0).forEach(([t, d]) => receive(t, d));
 
     postEvent("web_app_ready");
     postEvent("web_app_expand");

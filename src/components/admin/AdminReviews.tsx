@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, MessageSquareText, Star, Trash2 } from "lucide-react";
@@ -94,7 +95,7 @@ export function AdminReviews({ rows: initialRows }: { rows: AdminReviewRow[] }) 
                         {r.specialist.name}
                       </Link>
                       <time dateTime={new Date(r.createdAt).toISOString()} className="text-[11px] text-fg-4" title={formatDateTime(r.createdAt)} suppressHydrationWarning>
-                        {timeAgo(r.createdAt)}
+                        <Ago at={r.createdAt} />
                       </time>
                     </p>
                     <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-fg-2">{r.text}</p>

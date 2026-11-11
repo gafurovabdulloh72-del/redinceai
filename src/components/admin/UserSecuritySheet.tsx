@@ -1,6 +1,9 @@
 "use client";
 
+import type React from "react";
+
 import { useCallback, useEffect, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { KeyRound, LogOut, Monitor, Smartphone } from "lucide-react";
 import { adminApi, errText } from "@/components/admin/admin-api";
 import { Spinner } from "@/components/ui";
@@ -46,11 +49,11 @@ interface Data {
 const VISIBLE = 6;
 
 /* Eslatma: matn qatorlari <div> — globals'dagi layersiz `p { text-wrap: pretty }` qoidasi `truncate`ni yengadi */
-function Fact({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" }) {
+function Fact({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "ok" | "warn" }) {
   return (
     <div className="min-w-0 rounded-[var(--r-sm)] border border-line px-3 py-2">
       <div className="truncate text-[11.5px] text-fg-4">{label}</div>
-      <div className={cn("truncate text-[13px] font-semibold", tone === "ok" ? "text-success-text" : tone === "warn" ? "text-warning-text" : "text-fg")} title={value}>
+      <div className={cn("truncate text-[13px] font-semibold", tone === "ok" ? "text-success-text" : tone === "warn" ? "text-warning-text" : "text-fg")} title={typeof value === "string" ? value : undefined}>
         {value}
       </div>
     </div>
@@ -147,7 +150,7 @@ export function UserSecuritySheet({ user, onClose }: { user: { id: string; name:
       {data && u && (
         <div className="space-y-4 pb-1">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Fact label="Oxirgi kirish" value={u.lastLoginAt ? timeAgo(u.lastLoginAt) : "Hali kirmagan"} />
+            <Fact label="Oxirgi kirish" value={u.lastLoginAt ? <Ago at={u.lastLoginAt} /> : "Hali kirmagan"} />
             <Fact label="Parol o'zgartirilgan" value={u.passwordChangedAt ? formatDateTime(u.passwordChangedAt) : "O'zgartirilmagan"} />
             <Fact label="Ikki bosqichli himoya" value={u.totpEnabled ? "Yoqilgan" : "Yoqilmagan"} tone={u.totpEnabled ? "ok" : undefined} />
             <Fact label="Email" value={u.placeholderEmail ? "Yo'q (Telegram hisobi)" : u.emailVerified ? "Tasdiqlangan" : "Tasdiqlanmagan"} tone={u.placeholderEmail || !u.emailVerified ? "warn" : "ok"} />
@@ -191,7 +194,7 @@ export function UserSecuritySheet({ user, onClose }: { user: { id: string; name:
                           </div>
                           {/* Ikki bo'lak alohida: tor ekranda sana kesilmaydi — «kirgan» butunligicha keyingi qatorga tushadi */}
                           <div className="flex flex-wrap gap-x-3 text-[12px] text-fg-3">
-                            <span className="whitespace-nowrap">faol: {timeAgo(s.lastSeenAt)}</span>
+                            <span className="whitespace-nowrap">faol: <Ago at={s.lastSeenAt} /></span>
                             <span className="whitespace-nowrap">kirgan: {formatDateTime(s.createdAt)}</span>
                           </div>
                         </div>

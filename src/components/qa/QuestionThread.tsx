@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Ago } from "@/components/ui/Ago";
 import { useRouter } from "next/navigation";
 import { Award, ThumbsUp, Trash2 } from "lucide-react";
 import { Avatar, Button } from "@/components/ui";
@@ -121,7 +122,7 @@ export function QuestionThread({ initial, viewer }: { initial: QuestionDetail; v
                     )}
                   </p>
                   <p className="truncate text-[12px] text-fg-3">
-                    {a.author.title ?? tr(til, SAVOL.userFallback)} · {timeAgo(a.createdAt)}
+                    {a.author.title ?? tr(til, SAVOL.userFallback)} · <Ago at={a.createdAt} />
                   </p>
                 </div>
                 {a.isAccepted && (

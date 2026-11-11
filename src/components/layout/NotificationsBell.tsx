@@ -1,6 +1,7 @@
 "use client";
 
 import { usePresence } from "@/components/motion/usePresence";
+import { Ago } from "@/components/ui/Ago";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -233,7 +234,7 @@ export function NotificationsBell({ initialUnread = 0 }: { initialUnread?: numbe
                         </span>
                         {n.body && <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-fg-3">{n.body}</span>}
                         <time dateTime={new Date(n.createdAt).toISOString()} className="mt-1 block text-[11px] text-fg-4">
-                          {timeAgo(n.createdAt)}
+                          <Ago at={n.createdAt} />
                         </time>
                       </span>
                     </>

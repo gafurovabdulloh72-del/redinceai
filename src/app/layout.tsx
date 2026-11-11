@@ -106,6 +106,12 @@ export const metadata: Metadata = {
   },
 };
 
+const TG_RECEIVER_STUB =
+  "(function(){try{var w=window,q=w.__tgq=w.__tgq||[];var r=function(t,d){if(q.length<50)q.push([t,d])};" +
+  "w.Telegram=w.Telegram||{};w.Telegram.WebView=w.Telegram.WebView||{};if(!w.Telegram.WebView.receiveEvent)w.Telegram.WebView.receiveEvent=r;" +
+  "w.TelegramGameProxy=w.TelegramGameProxy||{};if(!w.TelegramGameProxy.receiveEvent)w.TelegramGameProxy.receiveEvent=r;" +
+  "if(!w.TelegramGameProxy_receiveEvent)w.TelegramGameProxy_receiveEvent=r}catch(e){}})()";
+
 /** Organization + WebSite (SearchAction) strukturaviy ma'lumoti — qidiruv tizimlari uchun ("<" ekranlanadi) */
 const ORG_JSONLD = jsonLdHtml([
   {
@@ -155,6 +161,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {/* suppressHydrationWarning: brauzer ishlatilgan nonce atributini yashiradi ("" qaytaradi) — React bilan solishtirilmasin */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Telegram ilovasi (iOS) Mini App ochilishi bilan, React jonlanmasdan oldin `TelegramGameProxy.receiveEvent`ni
+            chaqiradi — qabul qiluvchi yo'q bo'lsa xato. Bu vaqtinchalik qabul qiluvchilar hodisalarni navbatga yig'adi,
+            `TgAppBridge` ulanganda ularni o'qiydi. Oddiy brauzerda hech narsa qilmaydi. */}
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: TG_RECEIVER_STUB }} />
       </head>
       <body className="min-h-dvh">
         {/* O'tish havolasi (a11y): klaviatura foydalanuvchisi navbarni chetlab asosiy kontentga o'tadi (main tabIndex=-1 — Safari/Firefox'da ham fokus o'tadi) */}
