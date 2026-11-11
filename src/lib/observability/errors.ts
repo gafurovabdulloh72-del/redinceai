@@ -367,10 +367,11 @@ export async function errorLogCounts(now = Date.now()): Promise<ErrorCounts> {
   return { open: Number(r?.open ?? 0), resolved: Number(r?.resolved ?? 0), openServer: Number(r?.openServer ?? 0), openClient: Number(r?.openClient ?? 0), open24h: Number(r?.open24h ?? 0) };
 }
 
-/** Ochiq xatolar soni (admin «Tizim» tabi belgisi) — xato bo'lsa 0 (sahifa buzilmasin) */
+/** Ochiq SERVER xatolari soni (admin «Tizim» tabi belgisi) — xato bo'lsa 0 (sahifa buzilmasin) */
 export async function countOpenErrors(): Promise<number> {
   try {
-    const [r] = await db.select({ n: sql<number>`count(*)` }).from(errorLogs).where(isNull(errorLogs.resolvedAt));
+    // Faqat server xatolari: brauzer yozuvlari (kengaytma/eski brauzer shovqini) belgini qizartirmaydi
+    const [r] = await db.select({ n: sql<number>`count(*)` }).from(errorLogs).where(and(isNull(errorLogs.resolvedAt), eq(errorLogs.kind, "server")));
     return Number(r?.n ?? 0);
   } catch {
     return 0;

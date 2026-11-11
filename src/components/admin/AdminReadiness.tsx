@@ -123,7 +123,8 @@ export function AdminReadiness() {
   const tone: Status = s.fail ? "fail" : s.warn ? "warn" : "ok";
   const issues = s.fail + s.warn;
   const headline = s.fail ? `${s.fail} ta muhim muammo` : s.warn ? "Muhim muammo yo'q" : "Hammasi tayyor";
-  const shown = view === "issues" ? data.checks.filter((c) => c.status !== "ok") : data.checks;
+  // «Muammolar» — faqat haqiqiy muammolar; ixtiyoriy sozlanmagan imkoniyatlar «Hammasi»da ko'rinadi
+  const shown = view === "issues" ? data.checks.filter((c) => c.status !== "ok" && !c.optional) : data.checks;
 
   return (
     <div className="card skeleton-swap overflow-hidden">

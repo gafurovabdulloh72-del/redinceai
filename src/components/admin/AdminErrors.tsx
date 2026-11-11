@@ -67,7 +67,7 @@ export function AdminErrors({ initialOpen = 0 }: { initialOpen?: number }) {
 
   const applyCounts = useCallback((c: Counts) => {
     setCounts(c);
-    setAdminTabCount("tizim", c.open);
+    setAdminTabCount("tizim", c.openServer);
   }, []);
 
   const load = useCallback(

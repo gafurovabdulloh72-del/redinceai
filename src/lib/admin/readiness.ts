@@ -196,8 +196,10 @@ export async function launchReadiness(): Promise<ReadinessReport> {
   await guard("errors", "asosiy", "Xatolar jurnali", async () => {
     const title = "Xatolar jurnali";
     const c = await errorLogCounts(now);
-    if (c.open24h > 0) add({ key: "errors", group: "asosiy", status: "warn", title, detail: `${c.open} ta ochiq xato, ${c.open24h} tasi so'nggi 24 soatda uchragan`, fix: "«Xatolar» bo'limida ko'rib chiqing: tuzatilganini «Hal qilindi» deb belgilang." });
-    else add({ key: "errors", group: "asosiy", status: "ok", title, detail: c.open ? `So'nggi 24 soatda yangi xato yo'q (${c.open} ta eski ochiq yozuv bor)` : "Ochiq xato yo'q" });
+    // Faqat SERVER xatolari muammo sanaladi. Brauzer xatolari (kengaytmalar, eski brauzer, uzilgan tarmoq) asosan shovqin —
+    // ular «Xatolar» bo'limida ko'rinadi, lekin bu ro'yxatni va tab belgisini qizartirmaydi.
+    if (c.openServer > 0) add({ key: "errors", group: "asosiy", status: "warn", title, detail: `${c.openServer} ta ochiq server xatosi`, fix: "«Xatolar» bo'limida «Server» filtrini oching; tuzatilganini «Hal qilindi» deb belgilang." });
+    else add({ key: "errors", group: "asosiy", status: "ok", title, detail: c.openClient ? `Server xatosi yo'q (${c.openClient} ta brauzer yozuvi — odatda kengaytma yoki eski brauzer shovqini)` : "Ochiq xato yo'q" });
   });
 
   /* ---------------------------- Xavfsizlik ---------------------------- */
@@ -215,13 +217,13 @@ export async function launchReadiness(): Promise<ReadinessReport> {
     else add({ key: "admin_2fa", group: "xavfsizlik", status: "ok", title: "Adminlarda 2FA", detail: `Barcha adminlarda yoqilgan (${active.length} ta)` });
 
     if (adminTwoFactorRequired()) add({ key: "admin_2fa_env", group: "xavfsizlik", status: "ok", title: "Majburiy 2FA (ADMIN_REQUIRE_2FA)", detail: "Yoqilgan — 2FA'siz admin panel va admin bot yopiq" });
-    else add({ key: "admin_2fa_env", group: "xavfsizlik", status: "warn", title: "Majburiy 2FA (ADMIN_REQUIRE_2FA)", detail: "O'chiq — parolni bilgan odam 2FA'siz admin panelga kira oladi", fix: no2fa ? "AVVAL barcha adminlar 2FA'ni yoqsin, KEYIN hostingda ADMIN_REQUIRE_2FA=1 qo'ying (aks holda o'zingizni qulflab qo'yasiz)." : "Hostingda ADMIN_REQUIRE_2FA=1 qo'ying va qayta deploy qiling." });
+    else add({ key: "admin_2fa_env", group: "xavfsizlik", status: "warn", optional: true, title: "Majburiy 2FA (ADMIN_REQUIRE_2FA)", detail: no2fa ? "O'chiq — 2FA'siz admin parol bilan kira oladi (yuqoridagi «Adminlarda 2FA» bandini hal qiling)" : "O'chiq, lekin barcha adminlarda 2FA yoqilgan — kirishda kod baribir so'raladi. Yangi admin qo'shilsa foydali", fix: no2fa ? "AVVAL barcha adminlar 2FA'ni yoqsin, KEYIN hostingda ADMIN_REQUIRE_2FA=1 qo'ying (aks holda o'zingizni qulflab qo'yasiz)." : "Hostingda ADMIN_REQUIRE_2FA=1 qo'ying va qayta deploy qiling." });
   });
 
   await guard("data_key", "xavfsizlik", "Kontakt shifrlash kaliti (DATA_ENCRYPTION_KEY)", () => {
     const title = "Kontakt shifrlash kaliti (DATA_ENCRYPTION_KEY)";
     if ((process.env.DATA_ENCRYPTION_KEY?.trim() ?? "").length >= 16) add({ key: "data_key", group: "xavfsizlik", status: "ok", title, detail: "Alohida kalit o'rnatilgan" });
-    else add({ key: "data_key", group: "xavfsizlik", status: "warn", title, detail: "O'rnatilmagan — telefon/Telegram/Instagram AUTH_SECRET'dan hosil qilingan kalit bilan muhrlanadi (AUTH_SECRET almashsa kontaktlar o'qilmay qoladi)", fix: "Alohida kalit bering: `openssl rand -base64 48` → DATA_ENCRYPTION_KEY. Mavjud bazada OLDIN eski kalit bilan `npx tsx scripts/seal-contacts.ts --unseal`, kalitni qo'ygach qayta `npx tsx scripts/seal-contacts.ts`." });
+    else add({ key: "data_key", group: "xavfsizlik", status: "warn", optional: true, title, detail: "Kontaktlar AUTH_SECRET'dan hosil qilingan kalit bilan shifrlangan va ishlayapti. Faqat AUTH_SECRET'ni o'zgartirmang", fix: "Alohida kalit bering: `openssl rand -base64 48` → DATA_ENCRYPTION_KEY. Mavjud bazada OLDIN eski kalit bilan `npx tsx scripts/seal-contacts.ts --unseal`, kalitni qo'ygach qayta `npx tsx scripts/seal-contacts.ts`." });
   });
 
   await guard("demo_accounts", "xavfsizlik", "Demo (seed) hisoblar", async () => {
@@ -232,7 +234,9 @@ export async function launchReadiness(): Promise<ReadinessReport> {
       .where(or(like(users.email, "%@redince.uz"), like(users.email, "%@example.com"), like(users.id, "seed-%")));
     const n = Number(r?.n ?? 0);
     const admins = Number(r?.admins ?? 0);
-    if (n) add({ key: "demo_accounts", group: "xavfsizlik", status: "warn", title, detail: `${n} ta demo/seed hisob bor${admins ? ` (shundan ${admins} tasi admin)` : ""} — katalogda soxta profillar ko'rinadi`, fix: "Admin panel tepasidagi «Demo ma'lumotlarni o'chirish» tugmasi bilan tozalang; admin hisobini haqiqiy emailga o'tkazing." });
+    const profiles = n - admins;
+    if (profiles > 0) add({ key: "demo_accounts", group: "xavfsizlik", status: "warn", title, detail: `${profiles} ta demo profil — katalogda soxta ijodkorlar ko'rinadi`, fix: "Admin panel tepasidagi «Demo ma'lumotlarni o'chirish» tugmasi bilan tozalang." });
+    else if (admins > 0) add({ key: "demo_accounts", group: "xavfsizlik", status: "warn", optional: true, title, detail: `Katalog toza. Boshlang'ich admin hisobi (${admins} ta, @redince.uz) qolgan — paroli standart emas`, fix: "Ishlatmasangiz: hostingda ADMIN_EMAIL'ni o'z emailingizga o'zgartiring yoki shu hisobning parolini uzun va noyob qiling." });
     else add({ key: "demo_accounts", group: "xavfsizlik", status: "ok", title, detail: "Demo hisoblar yo'q" });
   });
 
@@ -352,11 +356,12 @@ export async function launchReadiness(): Promise<ReadinessReport> {
   const si: Record<ReadinessStatus, number> = { fail: 0, warn: 1, ok: 2 };
   checks.sort((a, b) => (gi.get(a.group) ?? 9) - (gi.get(b.group) ?? 9) || si[a.status] - si[b.status]);
 
-  const ok = checks.filter((c) => c.status === "ok").length;
+  // Ixtiyoriy (sozlanmagan) bandlar — muammo emas: na ogohlantirishlar soniga, na foizga ta'sir qiladi
+  const ok = checks.filter((c) => c.status === "ok" || (c.optional && c.status === "warn")).length;
   const fail = checks.filter((c) => c.status === "fail").length;
   const warn = checks.length - ok - fail;
   // Foiz: bajarilgan = 1, ogohlantirish = 0.5 (ixtiyoriy imkoniyat sozlanmagani tayyorlikni kam pasaytiradi — 0.75)
-  const score = checks.reduce((s, c) => s + (c.status === "ok" ? 1 : c.status === "warn" ? (c.optional ? 0.75 : 0.5) : 0), 0);
+  const score = checks.reduce((s, c) => s + (c.status === "ok" || c.optional ? 1 : c.status === "warn" ? 0.5 : 0), 0);
   const environment = onVercel ? `Vercel${prod ? "" : " (dev)"}` : process.env.RAILWAY_ENVIRONMENT ? "Railway" : prod ? "O'z serveri (production)" : "Lokal (development)";
 
   return { ts: now, production: prod, environment, checks, summary: { total: checks.length, ok, warn, fail, percent: checks.length ? Math.round((score / checks.length) * 100) : 0 } };
