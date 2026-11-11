@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { clientIp } from "@/lib/security/request";
+import { secretEquals } from "@/lib/security/secret-box";
 import { CANARY_ADMIN_PATH, CANARY_EMAIL, CANARY_TOKEN, isCanaryToken, recentHitCount, recordHoneypotHit, trapClient, type HoneypotKind } from "@/lib/security/honeypot";
 
 export const runtime = "nodejs";
@@ -195,7 +196,12 @@ async function trap(req: Request): Promise<Response> {
   const priorLogins = isLoginPost ? await recentHitCount(ip, "fakeLogin", soft) : 0;
 
   // Jurnal + avtomatik blok javobdan KEYIN (hujumchi kutmaydi, javob tez)
-  after(() => recordHoneypotHit({ ip, kind, method, path, userAgent: ua, note, soft }));
+  // O'Z TEKSHIRUVIMIZ (scripts/prod-check.mjs): `x-self-test` sarlavhasi `PROD_CHECK_TOKEN` siriga teng bo'lsa — javob
+  // odatdagidek (tuzoq ishlashi tekshiriladi), lekin jurnal/blok/ogohlantirish YO'Q — haqiqiy hujum shovqinda yo'qolmasin.
+  // Sir sozlanmagan bo'lsa hech narsa o'zgarmaydi. Imzo (User-Agent) bo'yicha emas: uni har kim ko'chira oladi.
+  const selfKey = process.env.PROD_CHECK_TOKEN?.trim() ?? "";
+  const selfTest = selfKey.length >= 16 && secretEquals(req.headers.get("x-self-test") ?? "", selfKey);
+  if (!selfTest) after(() => recordHoneypotHit({ ip, kind, method, path, userAgent: ua, note, soft }));
 
   // Qidiruv/havola boti: soxta sirlarni ko'rsatmaymiz (indeksga tushmasin) — oddiy 404
   if (client === "bot") return notFound();

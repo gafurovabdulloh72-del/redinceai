@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 10
     env:
       PROD_URL: ${{ github.event.inputs.prod_url || 'https://kasbegalari.vercel.app' }}
+      PROD_CHECK_TOKEN: ${{ secrets.PROD_CHECK_TOKEN }}
     steps:
       - name: Kodni olish
         uses: actions/checkout@v5

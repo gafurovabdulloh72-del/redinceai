@@ -11,11 +11,13 @@ import assert from "node:assert/strict";
 
 const BASE = (process.env.PROD_URL || "https://kasbegalari.vercel.app").replace(/\/+$/, "");
 const UA = "kasb-egalari-prod-check/1 (+security self-test; read-only)";
+// Saytdagi PROD_CHECK_TOKEN bilan bir xil bo'lsa — tuzoq tekshiruvi adminlarga ogohlantirish yubormaydi
+const SELF = (process.env.PROD_CHECK_TOKEN || "").trim();
 
 /** Faqat GET/HEAD — boshqa metod bu skriptda umuman ishlatilmaydi */
 async function get(path, headers = {}, method = "GET") {
   if (method !== "GET" && method !== "HEAD") throw new Error("prod-check faqat GET/HEAD yuboradi");
-  return fetch(BASE + path, { method, headers: { "user-agent": UA, ...headers }, redirect: "manual", signal: AbortSignal.timeout(20_000) });
+  return fetch(BASE + path, { method, headers: { "user-agent": UA, ...(SELF ? { "x-self-test": SELF } : {}), ...headers }, redirect: "manual", signal: AbortSignal.timeout(20_000) });
 }
 
 test("Xavfsizlik sarlavhalari (bosh sahifa)", async () => {
