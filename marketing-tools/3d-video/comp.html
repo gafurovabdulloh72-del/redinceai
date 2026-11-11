@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:MR;src:url(/font/Manrope.woff2);font-weight:200 800}
+@font-face{font-family:SG;src:url(/font/SpaceGrotesk-Bold.ttf);font-weight:700}
+*{margin:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden}
+body{background:var(--bg);font-family:MR;color:var(--fg)}
+#stage{position:absolute;inset:0}
+.glow{position:absolute;left:50%;top:62%;width:1400px;height:1400px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,var(--glow),transparent 70%)}
+#phone{position:absolute;left:50%;top:430px;width:700px;height:1560px;transform-origin:50% 30%;will-change:transform}
+#phone .body{position:absolute;inset:0;border-radius:92px;background:#111214;box-shadow:0 60px 120px -30px rgba(0,0,0,.35),0 0 0 2px #2a2c31 inset}
+#phone .scr{position:absolute;left:18px;top:18px;right:18px;bottom:18px;border-radius:76px;overflow:hidden;background:#fff}
+#phone .scr img{position:absolute;left:0;right:0;top:58px;width:100%;height:calc(100% - 58px);object-fit:cover;object-position:top;transform-origin:var(--zx,50%) var(--zy,50%)}
+#phone .sb{z-index:2;background:#fff;position:absolute;left:0;right:0;top:0;height:58px;display:flex;justify-content:space-between;align-items:center;padding:6px 52px 0;font:700 24px MR;color:#111}
+#phone .isl{position:absolute;left:50%;top:30px;width:150px;height:40px;margin-left:-75px;border-radius:30px;background:#000}
+.tap{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:5px solid #ff5a36;background:rgba(255,90,54,.18);opacity:0}
+#cap{position:absolute;left:84px;right:84px;top:160px;font-weight:800;font-size:76px;line-height:1.08;letter-spacing:-.02em}
+#cap.sm{font-size:64px}
+#cap .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:8px}
+#cap .w>span{display:inline-block}
+#cap .u{background:linear-gradient(var(--accent),var(--accent)) no-repeat 0 92%/calc(var(--ul,0)*100%) 10px}
+#tag{position:absolute;left:84px;top:110px;font:700 30px SG;letter-spacing:.02em;color:var(--muted)}
+#end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;opacity:0;background:var(--bg)}
+#end .mark{display:flex;align-items:center;gap:22px;font:700 62px SG;letter-spacing:-.02em}
+#end .mark i{width:96px;height:96px;border-radius:24px;background:var(--fg);color:var(--bg);display:grid;place-items:center;font:700 70px SG;font-style:normal;position:relative}
+#end .mark i:after{content:"";position:absolute;right:14px;top:14px;width:16px;height:16px;border-radius:50%;background:#ff5a36}
+#end .cta{font-weight:800;font-size:84px;letter-spacing:-.02em;text-align:center;line-height:1.05;max-width:900px}
+#end .pill{background:#ff5a36;color:#fff;font-weight:800;font-size:46px;padding:26px 54px;border-radius:999px}
+#end .url{font-weight:600;font-size:34px;color:var(--muted)}
+</style></head><body><div id="stage"><div class="glow"></div><div id="tag"></div><div id="cap"></div>
+<div id="phone"><div class="body"></div><div class="scr"><div class="sb"><b>9:41</b><span>●●● ▮</span></div><img id="img"></div><div class="isl"></div><div class="tap" id="tap"></div></div></div>
+<div id="end"><div class="mark"><i>k</i>kasb egalari</div><div class="cta" id="cta"></div><div class="pill">@kasb_egalari_bot</div><div class="url">kasbegalari.vercel.app</div></div>
+<script>
+const C = window.CFG; const T = C.theme === 'dark'
+  ? { bg: '#0d0e10', fg: '#f6f4ee', muted: '#8d8a84', glow: 'rgba(255,90,54,.10)', accent: '#ff5a36' }
+  : { bg: '#f6f4ee', fg: '#1a1a1c', muted: '#8a857c', glow: 'rgba(255,255,255,.9)', accent: '#ff5a36' };
+for (const k in T) document.documentElement.style.setProperty('--' + k, T[k]);
+document.getElementById('tag').textContent = C.tag || '';
+document.getElementById('cta').textContent = C.endCta || '';
+const cl = x => Math.max(0, Math.min(1, x)), eo = x => 1 - Math.pow(1 - cl(x), 3), eio = x => { x = cl(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const cap = document.getElementById('cap'), img = document.getElementById('img'), phone = document.getElementById('phone'), tap = document.getElementById('tap'), end = document.getElementById('end');
+let curCap = -1, words = [];
+function setCap(i) { curCap = i; const c = C.caps[i]; cap.className = c.text.length > 34 ? 'sm' : '';
+  cap.innerHTML = c.text.split(/\s+/).map(w => { const em = /^\*.*\*[.,!?:]?$/.test(w); return `<span class="w"><span class="${em ? 'u' : ''}">${w.replace(/\*/g, '').replace(/</g, '&lt;')}</span></span>`; }).join(' ');
+  words = [...cap.querySelectorAll('.w>span')]; }
+window.renderAt = async (t) => {
+  const N = C.frames, fps = 30, flowEnd = N / fps;
+  const fi = Math.min(N - 1, Math.max(0, Math.floor(t * fps)));
+  const src = `/fl/${String(fi).padStart(5, '0')}.jpg`;
+  if (img.getAttribute('src') !== src) { img.src = src; await img.decode().catch(() => {}); }
+  // telefon kirishi + yengil suzish
+  const enter = eo(t / .9); let s = .94 + .06 * enter, ty = (1 - enter) * 120, rot = 0;
+  // zoom: tap atrofida
+  let z = 1, zx = .5, zy = .5;
+  for (const tp of C.taps) { const ta = tp.frame / fps; const k = eio((t - ta + .45) / .45) * (1 - eio((t - ta - 1.1) / .6)); if (k > 0) { z = 1 + .18 * k; zx = tp.x; zy = tp.y; } }
+  phone.style.transform = `translateX(-50%) translateY(${ty + Math.sin(t * .8) * 4}px) scale(${s})`;
+  img.style.transformOrigin = `${zx * 100}% ${zy * 100}%`; img.style.transform = `scale(${z})`;
+  // tap halqasi
+  let to = 0; for (const tp of C.taps) { const ta = tp.frame / fps; const d = t - (ta + .1); if (d > -.05 && d < .6) { to = 1 - cl(d / .6); tap.style.left = (18 + tp.x * 664) + 'px'; tap.style.top = (18 + 58 + tp.y * (1524 - 58)) + 'px'; tap.style.transform = `scale(${.6 + .6 * cl(d / .6)})`; } }
+  tap.style.opacity = to;
+  // yozuvlar
+  let ci = -1; C.caps.forEach((c, i) => { if (t >= c.in - .01 && t < c.out + .3) ci = i; });
+  if (ci >= 0 && ci !== curCap) setCap(ci);
+  cap.style.display = ci >= 0 ? 'block' : 'none';
+  if (ci >= 0) { const c = C.caps[ci]; words.forEach((w, i) => { const k = eo((t - c.in - i * .05) / .4), o = cl((t - c.out) / .25); w.style.transform = `translateY(${(1 - k) * 110 - o * 20}%)`; w.style.opacity = 1 - o; });
+    cap.querySelectorAll('.u').forEach(u => u.style.setProperty('--ul', eo((t - c.in - .4) / .5) * (1 - cl((t - c.out) / .25)))); }
+  // yakuniy karta
+  const e = eo((t - flowEnd - .1) / .6); end.style.opacity = e; end.style.transform = `translateY(${(1 - e) * 40}px)`;
+};
+window.ready = true;
+</script></body></html>

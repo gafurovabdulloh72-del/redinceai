@@ -1,0 +1,247 @@
+{
+ "posts": [
+  {
+   "id": "w2-11-14B",
+   "kind": "photo",
+   "profession": "Telegram bot dasturchisi",
+   "captionHtml": "<b>Telegram bot dasturchisi, kod bo'yicha savolingizni «Maslahat» bo'limiga yozing</b>\n\n«Maslahat» bo'limida «Savol berish»ni bosing. Savolni 10 belgidan 150 belgigacha qisqa yozasiz, kod va xato matnini «Tafsilot» maydoniga qo'yasiz.\n\n«Yo'nalish» ro'yxatidan «Dasturlash va IT»ni tanlang. Bo'limda shu filtrni ochgan kasbdoshlar savolingizni o'z ro'yxatida ko'radi.\n\nJavob kelganda bildirishnoma olasiz. Javoblardan birini «Eng foydali» deb o'zingiz belgilaysiz, keyin boshqasiga almashtirsangiz ham bo'ladi.\n\n#maslahat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Savolni kasbdoshlarga bering",
+   "button2Label": "Savol berish",
+   "button2Url": "https://kasbegalari.vercel.app/savollar/yangi",
+   "screenPath": "/savollar/yangi",
+   "poll": null,
+   "factsUsed": [
+    "components/qa/AskForm.tsx:48-84 title minLength 10 / maxLength 150, «Tafsilot» optional up to 4000, «Yo'nalish» select from CATEGORY_GROUPS",
+    "dict/community.ts:36,67-80 «Savol berish», qLabel, detail «Tafsilot», catLabel «Yo'nalish», notifyHint «Javob kelganda bildirishnoma olasiz.»",
+    "categories.ts:35 group «Dasturlash va IT»; app/savollar/(katalog)/page.tsx:60 ?cat= filter by CATEGORY_GROUPS slug",
+    "CLAUDE.md MASLAHAT: «Eng foydali» faqat savol egasi, toggle, almashtirish mumkin; javob → egasiga bildirishnoma",
+    "Asker angle: no team question needed (not the Savol-javob format)"
+   ]
+  },
+  {
+   "id": "w2-11-14D",
+   "kind": "photo",
+   "profession": "Logo va brend dizayner",
+   "captionHtml": "<b>Logo va brend dizayner, ishlaringizni faqat tasdiqlagan obunachilaringizga ko'rsating</b>\n\nKabinet → «Xavfsizlik» bo'limida «Yopiq profil»ni yoqing. Shundan keyin postlar, story va portfolio faqat siz tasdiqlagan obunachilarga ko'rinadi.\n\nProfilingizni ochgan boshqa odam qulf belgisi va obuna tugmasini ko'radi. Yangi obunalar so'rov bo'lib keladi, ularni Kabinet → «Obunalar» → «So'rovlar» bo'limida tasdiqlaysiz yoki rad etasiz.\n\nHozirgi obunachilaringiz ishlaringizni avvalgidek ko'radi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Ishlar faqat obunachilarga",
+   "button2Label": "Sozlamani ochish",
+   "button2Url": "https://kasbegalari.vercel.app/kabinet/xavfsizlik",
+   "screenPath": "/kabinet/xavfsizlik",
+   "poll": null,
+   "factsUsed": [
+    "components/kabinet/PrivacyPanel.tsx:16-17,148-150 «Yopiq profil» switch (profilePrivate)",
+    "dict/moderation.ts:47-51 settingOn «Postlar, story va portfolio faqat siz tasdiqlagan obunachilarga ko'rinadi; yangi obunalar so'rov bilan keladi»",
+    "app/mutaxassislar/[slug]/page.tsx:250,822-829 privateLocked → Lock card + FollowButton instead of ProfileTabs",
+    "dict/moderation.ts:34-37 tab «So'rovlar», «Tasdiqlash»/«Rad etish»; dict/kabinet.ts:29,35 «Obunalar», «Xavfsizlik»",
+    "privacy/private-profile.ts:18-24 canViewPrivateContent: existing follows row keeps access"
+   ]
+  },
+  {
+   "id": "w2-11-15A",
+   "kind": "photo",
+   "profession": "Frontend dasturchi",
+   "captionHtml": "<b>Frontend dasturchi kerak bo'lsa, vakansiyani saytda bepul joylang</b>\n\n«Yaratish» menyusidan «Vakansiya joylash»ni tanlang, yo'nalishda «Dasturlash / IT»ni belgilang. E'lon 30 kun ochiq turadi. Tugashiga 3 kun qolganda eslatma keladi, o'rin bo'sh bo'lsa, kabinetdan yana 30 kunga uzaytirasiz.\n\nArizalar Kabinet → «Vakansiyalar» bo'limiga tushadi. Har nomzodga «Ko'rildi», «Tanlovda», «Rad etildi» yoki «Ishga olindi» holatini qo'yasiz. Ariza bergan nomzodning email va telefoni sizga ko'rinadi.\n\n#vakansiya\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Vakansiya joylash bepul",
+   "button2Label": "Vakansiya joylash",
+   "button2Url": "https://kasbegalari.vercel.app/vakansiyalar/yangi",
+   "screenPath": "/vakansiyalar/yangi",
+   "poll": null,
+   "factsUsed": [
+    "dict/shell.ts:118-119 create menu «Vakansiya joylash» (hint «Bepul, 2 daqiqa»); api/vakansiyalar/route.ts:7 «to'lovsiz», any logged-in user",
+    "vacancies/format.ts:9 «Dasturlash / IT»; :37 VACANCY_TTL_DAYS = 30; :34 APPLICATION_STATUS Ko'rildi/Tanlovda/Rad etildi/Ishga olindi",
+    "vacancies/service.ts:289-315 reminder 3 days before expiry, one time; :399-402 extend = +30 days",
+    "components/vacancies/ApplicantsList.tsx:212-217 owner sees applicant email and phone (phone if filled)",
+    "dict/kabinet.ts:24 «Vakansiyalar»"
+   ]
+  },
+  {
+   "id": "w2-11-15B",
+   "kind": "poll",
+   "profession": "Podkast muharriri",
+   "captionHtml": "",
+   "coverHook": null,
+   "button2Label": null,
+   "button2Url": null,
+   "screenPath": null,
+   "poll": {
+    "question": "Podkast muharriri, tayyor epizod balandligini qaysi darajaga keltirasiz?",
+    "options": [
+     "-14 LUFS",
+     "-16 LUFS",
+     "-19 LUFS",
+     "-23 LUFS",
+     "O'lchamayman, quloqqa ishonaman"
+    ]
+   },
+   "factsUsed": [
+    "categories.ts:108 podkast-muharrir «Podkast muharriri» (Podkast yozish, tozalash va montaj)",
+    "Opinion poll, no correct answer claimed; no buttons on polls (textSystem endBlock)"
+   ]
+  },
+  {
+   "id": "w2-11-15C",
+   "kind": "photo",
+   "profession": "Portret / lifestyle fotograf",
+   "captionHtml": "<b>Portret fotograf, fotosessiyadan keyingi story'ga musiqa va so'rovnoma qo'shing</b>\n\nBosh sahifadagi story qatorida avataringiz yonidagi «+»ni bosib, kadrni tanlang. «Musiqa qo'shish» orqali qo'shiq qidirasiz: internet katalogidagi treklar 30 soniyalik namuna bo'lib qo'shiladi, o'z MP3, M4A yoki OGG faylingizni ham yuklaysiz.\n\nStikerlardan «So'rovnoma»ni tanlang, masalan «Rangli yoki oq-qora?». Ovoz bergan odam natijani foizda ko'radi.\n\nStory 24 soat turadi. Standart tarifda 7 kunda 4 ta story joylaysiz.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Story'ga musiqa va so'rovnoma",
+   "button2Label": "Story qo'shish",
+   "button2Url": "https://kasbegalari.vercel.app/",
+   "screenPath": "/",
+   "poll": null,
+   "factsUsed": [
+    "components/stories/StoryRail.tsx:31-36 own avatar + «Yangi story» plus button opens StoryComposer",
+    "components/stories/StoryComposer.tsx:44 music = internet catalog + site library, 30 s preview, own file; :105-121 upload «MP3, M4A yoki OGG»; :178 «Musiqa qo'shish»",
+    "StoryComposer.tsx sticker kinds «So'rovnoma», «Savol», «Hisoblagich», «Havola» (one per story)",
+    "components/stories/StorySticker.tsx:29-31,140-143 after voting the viewer sees percentages",
+    "social/limits.ts:12,15 STORY_WEEKLY_LIMIT 4, STORY_TTL_MS 24h; subscriptions/pro.ts:43 free stories = STORY_WEEKLY_LIMIT 4 per 7 days"
+   ]
+  },
+  {
+   "id": "w2-11-15D",
+   "kind": "photo",
+   "profession": "Musiqa prodyuseri",
+   "captionHtml": "<b>Musiqa prodyuseri, yangi ishlaringiz uchun saytda kanal oching</b>\n\n«Yaratish» menyusida «Guruh yoki kanal ochish»ni bosing va turini «Kanal» qiling. Kanalga siz va adminlaringiz yozadi, a'zolar o'qiydi, reaksiya va izoh qoldiradi.\n\nHar yangi postingiz haqida a'zolarga saytda bildirishnoma boradi, Telegram'ni ulaganlarga botda ham keladi. Kanalni jim qilib qo'ygan a'zoga xabar bormaydi.\n\nA'zolarda kanal «Chat» bo'limida, yozishmalar bilan bir ro'yxatda turadi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "O'z kanalingizni oching",
+   "button2Label": "Kanal ochish",
+   "button2Url": "https://kasbegalari.vercel.app/jamoalar/yangi",
+   "screenPath": "/jamoalar/yangi",
+   "poll": null,
+   "factsUsed": [
+    "dict/shell.ts:116 «Guruh yoki kanal ochish»; components/groups/GroupForm.tsx:216 Kanal: «Faqat siz va adminlar yozasiz; a'zolar o'qiydi, izoh qoldiradi»",
+    "groups/service.ts:297-301 canPostWith: channel → only managers",
+    "groups/service.ts:886-891,903-918 channel post → notifyMembers (site + Telegram, skipMail), muted / mutedUntil members excluded",
+    "CLAUDE.md CHAT = TELEGRAM INBOX: member groups and channels listed with DMs in «Chat»; ChannelPosts reactions + comments"
+   ]
+  },
+  {
+   "id": "w2-11-16A",
+   "kind": "photo",
+   "profession": "Retusher",
+   "captionHtml": "<b>Retusher, kursni oxirigacha o'tsangiz, tekshiriladigan sertifikat olasiz</b>\n\nSertifikat kursdagi barcha darslar bajarilgach beriladi. Testli darsda testdan o'tmasangiz, dars bajarilgan hisoblanmaydi.\n\nSertifikat o'z sahifasida ochiladi: ismingiz, kurs nomi, darslar soni, sana, ustoz ismi va 10 belgili raqam. Tepada «Sertifikat haqiqiy» yozuvi turadi, havolani ish beruvchiga yuborasiz. «Chop etish / PDF» tugmasi uni PDF qilib saqlaydi.\n\nKurslarni «Mentorlik» katalogidagi «Fotografiya» yo'nalishidan topasiz.\n\n#ustoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Kurs oxirida sertifikat",
+   "button2Label": "Kurslarni ko'rish",
+   "button2Url": "https://kasbegalari.vercel.app/mentorlik?kasb=foto",
+   "screenPath": "/mentorlik?kasb=foto",
+   "poll": null,
+   "factsUsed": [
+    "mentorship/learning.ts:49-57 maybeIssueCertificate: all lessons completed + every quiz passed; :47 certCode 10 uppercase chars",
+    "CLAUDE.md: dars testi (quiz, o'tmasa dars tugatilmaydi)",
+    "app/sertifikat/[code]/page.tsx:29-62 shows student, course, lessons count, issue date, code, mentor; ShareButton + PrintButton",
+    "dict/mentorship.ts:392 certValid «✓ Sertifikat haqiqiy...»; :707 printPdf «Chop etish / PDF»",
+    "mentorship/format.ts:8 foto = «Fotografiya»; (katalog)/page.tsx:36 ?kasb=",
+    "CAVEAT: confirm a Fotografiya course exists on prod"
+   ]
+  },
+  {
+   "id": "w2-11-16B",
+   "kind": "photo",
+   "profession": "Arxitektura vizualizatori",
+   "captionHtml": "<b>Arxitektura vizualizatori, kontaktingiz qanday ochilishini o'zingiz tanlaysiz</b>\n\nSaytda telefon, Telegram, Instagram va email profilda bepul ko'rsatilmaydi. Kabinet → «Kontaktlar» bo'limida ikki rejim bor.\n\n«Kontaktim sotilsin»: mijoz renderlaringizni ko'radi va aloqa ma'lumotlaringizni platformaga to'lab ochadi. Kim ochganini shu sahifada ko'rasiz, sizga bildirishnoma ham keladi.\n\n«Faqat portfolio»: kontakt umuman ko'rsatilmaydi, mijoz sayt chatida yozadi.\n\nKontakt narxini administrator belgilaydi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Kontakt rejimini tanlang",
+   "button2Label": "Rejimni tanlash",
+   "button2Url": "https://kasbegalari.vercel.app/kabinet/kontaktlar",
+   "screenPath": "/kabinet/kontaktlar",
+   "poll": null,
+   "factsUsed": [
+    "dict/kontaktlar.ts:6-17 modeTitle, modeHint (narxni administrator belgilaydi), paidTitle «Kontaktim sotilsin» + paidDesc, hiddenTitle «Faqat portfolio» + hiddenDesc, buyersTitle",
+    "contacts/unlock.ts:118 notify specialist «Kontaktingizni mijoz oldi» → /kabinet/kontaktlar",
+    "CLAUDE.md KONTAKT SOTUVI + PROFILE_HIRING=false: contacts never free; contactMode paid (default) | hidden",
+    "categories.ts:93 arxitektura-vizual «Arxitektura vizualizatori»"
+   ]
+  },
+  {
+   "id": "w2-11-16C",
+   "kind": "photo",
+   "profession": "Prezentatsiya dizayner",
+   "captionHtml": "<b>Prezentatsiya dizayner, pitch-deck oxiriga profilingiz QR kodini qo'ying</b>\n\nOmmaviy profilingizdagi «Ulashish» tugmasi qisqa havolani beradi: kasbegalari.vercel.app/u/ va 6 belgili kod. Shu oynadagi «QR kod» bandi kodni ko'rsatadi, «SVG yuklab olish» esa uni vektor faylda beradi.\n\nSVG'ni kattalashtirsangiz ham sifati buzilmaydi, uni taqdimotning yakuniy slaydiga yoki vizitkaga qo'yasiz. Kamera bilan skanerlagan odam to'g'ri profilingizga tushadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Profilingiz QR kodda",
+   "button2Label": "Profilni to'ldirish",
+   "button2Url": "https://kasbegalari.vercel.app/kabinet/profil",
+   "screenPath": "/mutaxassislar",
+   "poll": null,
+   "factsUsed": [
+    "app/mutaxassislar/[slug]/page.tsx:272-277,655,1008 ShareButton url = /u/<shortCode>, qrDownloadHref /u/<code>/qr?yuklab=1",
+    "lib/queries.ts:430-431 short code 6 chars",
+    "components/specialists/ShareButton.tsx:141-165,186-190 «QR kod» view + «SVG yuklab olish»; dict/profile.ts:484-491",
+    "app/u/[code]/page.tsx: 308 redirect to /mutaxassislar/<slug>; app/u/[code]/qr/route.ts image/svg+xml",
+    "categories.ts:73 prezentatsiya «Prezentatsiya dizayner»"
+   ]
+  },
+  {
+   "id": "w2-11-16D",
+   "kind": "quiz",
+   "profession": "Kolorist",
+   "captionHtml": "",
+   "coverHook": null,
+   "button2Label": null,
+   "button2Url": null,
+   "screenPath": null,
+   "poll": {
+    "question": "Kolorist, vektorskopdagi teri rangi chizig'i (skin tone line) qaysi ranglar oralig'idan o'tadi?",
+    "options": [
+     "Qizil va sariq oralig'idan",
+     "Sariq va yashil oralig'idan",
+     "Ko'k va moviy oralig'idan",
+     "Magenta va ko'k oralig'idan"
+    ],
+    "correctIndex": 0,
+    "explanation": "Teri chizig'i qizil va sariq oralig'idan o'tadi. Teri ohangi har xil bo'lsa ham, uning rangi shu chiziq atrofida yig'iladi. Yashil yoki magenta tomonga og'sa, balansni tuzatasiz."
+   },
+   "factsUsed": [
+    "categories.ts:60 kolorist «Kolorist» (Rang korreksiya va grading)",
+    "Craft fact: vectorscope skin tone line runs between red and yellow (standard colorist reference)"
+   ]
+  },
+  {
+   "id": "w2-11-17A",
+   "kind": "photo",
+   "profession": "2D animator",
+   "captionHtml": "<b>2D animator, oylik TOP ballari shunday hisoblanadi</b>\n\nOy oxirida eng ko'p ball yig'gan 3 ijodkor e'lon qilinadi, ular keyingi oy oxirigacha Pro tarifini oladi. Ball 20 dan kam bo'lsa, o'rin berilmaydi.\n\nBallga postlaringizga kelgan reaksiya, izoh, saqlash, ko'rish va yangi obunachilar kiradi. O'zingizga bosgan reaksiya va 2 kundan yosh akkauntlarning faolligi hisobga olinmaydi.\n\nJoriy o'rinlarni «TOP reyting» sahifasidagi «Hafta faollari» ro'yxatida «2D animator» kasbi bo'yicha ko'rasiz.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Oylik TOP ballari",
+   "button2Label": "Reytingni ochish",
+   "button2Url": "https://kasbegalari.vercel.app/top?davr=hafta&kasb=animator",
+   "screenPath": "/top?davr=hafta&kasb=animator",
+   "poll": null,
+   "factsUsed": [
+    "top.ts:11-13 TOP_AWARD_COUNT 3, MIN_AWARD_SCORE 20; factCorrections: reward = Pro until end of next month (top.ts:120, pro.ts:30)",
+    "reels.ts:284-312 score = reactions×3 + comments×4 + saves×5 + views×0.3 + new followers×6; self reactions excluded; accounts younger than 2 days excluded",
+    "app/top/page.tsx:70-74 reads ?davr ?kasb ?hudud; leaderboard.ts:40-41 normalizeKasb via CATEGORY_BY_SLUG; dict/social.ts:55 «Hafta faollari»",
+    "Sidebar label «TOP reyting» (CLAUDE.md); categories.ts:59 animator «2D animator»"
+   ]
+  },
+  {
+   "id": "w2-11-17B",
+   "kind": "photo",
+   "profession": "Interyer dizayner",
+   "captionHtml": "<b>Interyer dizayner, profil ko'rsatkichlarini botdan ko'ring</b>\n\n@kasb_egalari_bot'da «👤 Profil» tugmasini bosing yoki /profil deb yozing. Bot bitta xabarda kasbingiz, tasdiq holati, profil ko'rishlari, reyting, obunachilar va postlar sonini, faol buyurtmalar va kontakt rejimini chiqaradi.\n\nXabar ostida «Profilni tahrirlash» va «Ommaviy sahifam» tugmalari turadi.\n\nBuyruq hisobingiz botga ulangan bo'lsa ishlaydi. Saytda ochgan bo'lsangiz, Kabinet → Profil sahifasidagi «Telegramga ulash» tugmasi bilan ulaysiz.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Profilingiz botda",
+   "button2Label": "Profilni tahrirlash",
+   "button2Url": "https://kasbegalari.vercel.app/kabinet/profil",
+   "screenPath": "/kabinet/profil",
+   "poll": null,
+   "factsUsed": [
+    "telegram-bot/actions.ts:166-218 handleProfile: title, isVerified (tasdiqlangan / tasdiq kutmoqda), viewCount, rating/reviews, followers, posts, active orders, contact sales + mode; buttons Kabinet, «Profilni tahrirlash», «Kontaktimni olganlar», «Ommaviy sahifam»",
+    "actions.ts:169-171 not linked → sendNotLinked",
+    "telegram-bot/ui.ts:84 menu «👤 Profil» → /profil",
+    "components/kabinet/TelegramCard.tsx:22 «Telegramga ulash»",
+    "categories.ts:94 interyer-dizayner «Interyer dizayner»"
+   ]
+  },
+  {
+   "id": "w2-11-17D",
+   "kind": "photo",
+   "profession": "Jonli efir rejissyori",
+   "captionHtml": "<b>Jonli efir rejissyori: katalogdagi kasb kartasi</b>\n\nKasb «Video va animatsiya» yo'nalishida turadi. Tavsifi: onlayn translyatsiya, vMix/OBS, multikamera. Saytda kasbning o'z sahifasi bor: «O'zbekistondagi jonli efir rejissyorlari».\n\nMultikamera efirida signal uzilsa, ekranga nima chiqarasiz: zaxira kadrmi, oldindan yozilgan rolikmi?\n\nShu mavzuda savolingiz bo'lsa, «Maslahat» bo'limida «Video va animatsiya» yo'nalishini tanlab yozing. Javob kelganda bildirishnoma olasiz.\n\n#kasb_kartasi\nRo'yxatdan o'tish: @kasb_egalari_bot",
+   "coverHook": "Jonli efir rejissyori",
+   "button2Label": "Kasb sahifasi",
+   "button2Url": "https://kasbegalari.vercel.app/yonalish/jonli-efir",
+   "screenPath": "/yonalish/jonli-efir",
+   "poll": null,
+   "factsUsed": [
+    "categories.ts:63 jonli-efir «Jonli efir rejissyori», plural «Jonli efir rejissyorlari», «Onlayn translyatsiya, vMix/OBS, multikamera»; group «Video va animatsiya» (:30)",
+    "yonalish/landing.tsx:30-31,159-164 no region → «O'zbekistondagi» + plural (lowercased)",
+    "components/qa/AskForm.tsx «Yo'nalish» select of CATEGORY_GROUPS; dict/community.ts:80 notifyHint"
+   ]
+  }
+ ]
+}
