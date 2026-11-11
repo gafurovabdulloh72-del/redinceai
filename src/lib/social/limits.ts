@@ -22,6 +22,12 @@ export const STORY_BACKGROUNDS: Record<string, string> = {
   sunset: "linear-gradient(150deg,#f7b733,#fc4a1a)",
   forest: "linear-gradient(150deg,#1f8a5b,#0f4c3a)",
   lilac: "linear-gradient(150deg,#a78bfa,#ec4899)",
+  ink: "linear-gradient(160deg,#0b0b0c,#26262b)",
+  cream: "linear-gradient(160deg,#f6f4ee,#e6dfcf)",
+  sky: "linear-gradient(150deg,#38bdf8,#6366f1)",
+  rose: "linear-gradient(150deg,#fb7185,#be123c)",
+  mint: "linear-gradient(150deg,#34d399,#0ea5e9)",
+  gold: "linear-gradient(150deg,#fde68a,#f59e0b)",
 };
 export const MUSIC_TITLE_MAX = 80;
 

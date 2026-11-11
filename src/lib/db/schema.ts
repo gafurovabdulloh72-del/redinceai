@@ -1561,6 +1561,8 @@ export const stories = sqliteTable(
     audience: text("audience", { enum: ["public", "close"] }).notNull().default("public"),
     /** Stiker: so'rovnoma / savol / hisoblagich / havola (bittadan) */
     sticker: text("sticker", { mode: "json" }).$type<StorySticker | null>(),
+    /** Muharrir dizayni: matn uslubi/joyi, stiker joyi, media sig'ishi (lib/stories/design.ts); null — eski ko'rinish */
+    design: text("design", { mode: "json" }).$type<import("@/lib/stories/design").StoryDesign | null>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

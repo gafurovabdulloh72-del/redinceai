@@ -24,6 +24,8 @@ export interface StoryView {
   viewsCount: number | null;
   /** Stiker (so'rovnoma / savol / hisoblagich / havola) — null: yo'q */
   sticker: StorySticker | null;
+  /** Muharrir dizayni; null — eski ko'rinish */
+  design: import("./design").StoryDesign | null;
   /** public — hamma; close — yaqin do'stlar */
   audience: "public" | "close";
 }

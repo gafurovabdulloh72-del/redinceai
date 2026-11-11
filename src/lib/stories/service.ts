@@ -16,7 +16,7 @@ type Viewer = { id: string; role: string } | null;
  * Story'lar (Instagram uslubi): 24 soat yashaydi, hammaga ochiq (bloklangan hisob muallifi chiqmaydi).
  * Qator tartibi: o'zim → ko'rilmaganlar (yangisi birinchi) → ko'rilganlar. Limit — lib/social/quota (oddiy: sutkada 4).
  */
-export async function createStory(authorId: string, input: { media: FileAttachment | null; caption: string; bg: string | null; music: PostMusic | null; audience?: "public" | "close"; sticker?: StorySticker | null }): Promise<{ id: string }> {
+export async function createStory(authorId: string, input: { media: FileAttachment | null; caption: string; bg: string | null; music: PostMusic | null; audience?: "public" | "close"; design?: import("./design").StoryDesign | null; sticker?: StorySticker | null }): Promise<{ id: string }> {
   await assertQuota(authorId, "story");
   const now = Date.now();
   const id = uid();
@@ -29,6 +29,7 @@ export async function createStory(authorId: string, input: { media: FileAttachme
     music: input.music,
     audience: input.audience ?? "public",
     sticker: input.sticker ?? null,
+    design: input.design ?? null,
     createdAt: new Date(now),
     expiresAt: new Date(now + STORY_TTL_MS),
   });
@@ -94,6 +95,7 @@ export async function authorStories(authorId: string, viewer: Viewer): Promise<A
   const items: StoryView[] = rows.map((r) => ({
     id: r.id,
     sticker: r.sticker ?? null,
+    design: r.design ?? null,
     audience: r.audience,
     media: r.media ?? null,
     caption: r.caption,

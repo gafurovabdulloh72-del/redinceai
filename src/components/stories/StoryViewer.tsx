@@ -10,6 +10,7 @@ import { StoryStickerCard } from "./StorySticker";
 import { showToast } from "@/components/ui/toast";
 import { useScrollLock } from "@/components/motion/useScrollLock";
 import { STORY_BACKGROUNDS } from "@/lib/social/limits";
+import { StoryText } from "./StoryText";
 import { cn, timeAgo } from "@/lib/utils";
 import type { AuthorStories, StoryRailItem } from "@/lib/stories/types";
 import { EmojiSticker, EmojiStack } from "@/components/social/EmojiSticker";
@@ -198,6 +199,7 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
     <div className="overlay-in fixed inset-0 z-[136] flex items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label={`${author?.author.name ?? ""} story'lari`}>
       <div
         className="relative h-full w-full overflow-hidden bg-[#0b0b0c] sm:h-[min(92vh,880px)] sm:w-auto sm:aspect-[9/16] sm:rounded-[22px]"
+        style={{ containerType: "inline-size" }}
         /* Instagram imo-ishoralari: pastga surish — yopish, chapga/o'ngga — keyingi/oldingi. Oddiy bosish zonalariga tegmaydi */
         onTouchStart={(e) => {
           const t0 = e.touches[0];
@@ -239,21 +241,23 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
                     if (v.duration) setProgress(v.currentTime / v.duration);
                   }}
                   onEnded={next}
-                  className="h-full w-full object-contain"
+                  className={cn("h-full w-full", story.design?.fit === "cover" ? "object-cover" : "object-contain")}
                 />
               ) : (
                 <>
-                  <img src={story.media.url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
-                  <img key={story.id} src={story.media.url} alt={story.caption ?? "Story"} className="animate-fade-in relative h-full w-full object-contain" />
+                  {story.design?.fit !== "cover" && <img src={story.media.url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />}
+                  <img key={story.id} src={story.media.url} alt={story.caption ?? "Story"} className={cn("animate-fade-in relative h-full w-full", story.design?.fit === "cover" ? "object-cover" : "object-contain")} />
                 </>
               )
             ) : (
               <div className="grid h-full place-items-center p-8" style={{ background: bg }}>
-                <p className="text-balance text-center font-display text-[28px] font-extrabold leading-tight text-white drop-shadow">{story.caption}</p>
+                {!story.design?.text && <p className="text-balance text-center font-display text-[28px] font-extrabold leading-tight text-white drop-shadow">{story.caption}</p>}
               </div>
             )}
             {story.music && <audio key={`a-${story.id}`} ref={audioRef} src={story.music.url} autoPlay loop />}
-            {story.media && story.caption && (
+            {/* Muharrirda qo'yilgan matn: uslubi va joyi bilan (muharrirdagi bilan aynan bir xil chiziladi) */}
+            {story.caption && story.design?.text && <StoryText text={story.caption} design={story.design.text} className="pointer-events-none" />}
+            {story.media && story.caption && !story.design?.text && (
               // Stiker (so'rovnoma/savol) pastda turadi — u bor bo'lsa izoh yuqoriga ko'chadi (ilgari so'rovnoma izohni yopib qo'yardi)
               <p className={cn("absolute inset-x-6 rounded-2xl bg-black/45 px-4 py-3 text-center text-[16px] font-semibold leading-snug text-white backdrop-blur-sm", story.sticker ? "top-24" : "bottom-28")}>{story.caption}</p>
             )}
@@ -306,7 +310,11 @@ export function StoryViewer({ rail, startIndex, me, onClose, onSeen }: { rail: S
 
             {/* Stiker (so'rovnoma / savol / hisoblagich / havola) — media ustida, pastki paneldan yuqorida */}
             {story.sticker && (
-              <div className="pointer-events-auto absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] flex justify-center px-4" onPointerDown={(e) => e.stopPropagation()}>
+              <div
+                className={cn("pointer-events-auto absolute inset-x-0 flex justify-center px-4", story.design?.stickerY == null && "bottom-[calc(env(safe-area-inset-bottom)+4.75rem)]")}
+                style={story.design?.stickerY != null ? { top: `${Math.min(0.8, Math.max(0.14, story.design.stickerY)) * 100}%`, transform: "translateY(-50%)" } : undefined}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
                 <StoryStickerCard storyId={story.id} sticker={story.sticker} isMe={data.isMe} onBusy={setPaused} />
               </div>
             )}

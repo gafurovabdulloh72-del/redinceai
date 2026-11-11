@@ -7,6 +7,7 @@ import { musicSchema } from "@/lib/groups/validators";
 import { STORY_BACKGROUNDS, STORY_CAPTION_MAX } from "@/lib/social/limits";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { createStory, storyRail } from "@/lib/stories/service";
+import { storyDesignSchema } from "@/lib/stories/design";
 
 /** GET: story qatori (faol story'lari bor mualliflar, ko'rilmaganlar oldinda) */
 export const GET = handler(async () => {
@@ -31,6 +32,8 @@ const schema = z.object({
     ])
     .nullable()
     .optional(),
+  /** Muharrir dizayni (matn uslubi/joyi, stiker joyi, media sig'ishi) */
+  design: storyDesignSchema.nullable().optional(),
 });
 
 /** POST: yangi story (ijodkor yoki admin). Limit: oddiy — 7 kunda 4 ta, premium — cheksiz */
@@ -43,6 +46,6 @@ export const POST = handler(async (req) => {
   await enforceLimit("posts", session.sub);
   await assertOwnUploads(session.sub, media ? [media.url] : [], [], "media");
   if (input.music) await useMusic(session.sub, input.music);
-  const res = await createStory(session.sub, { media, caption: input.caption, bg: input.bg ?? null, music: input.music ?? null, audience: input.audience, sticker: input.sticker ?? null });
+  const res = await createStory(session.sub, { media, caption: input.caption, bg: input.bg ?? null, music: input.music ?? null, audience: input.audience, sticker: input.sticker ?? null, design: input.design ?? null });
   return ok(res, { status: 201 });
 });
