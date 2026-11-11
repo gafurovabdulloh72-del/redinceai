@@ -60,6 +60,7 @@ import { AdminPayoutsQueue, type AdminPayoutRow } from "@/components/admin/Admin
 import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminReviews, type AdminReviewRow } from "@/components/admin/AdminReviews";
 import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admin/AdminSpecialistsTable";
+import { AutoVerifyToggle } from "@/components/admin/AutoVerifyToggle";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
 import { Avatar, Badge, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -359,6 +360,7 @@ export default async function AdminPage() {
             description="Eng uzoq kutganlar tepada. Tasdiqlangan profil katalogda belgi bilan chiqadi."
             action={<QueueChip n={pending.length} some={(n) => `${n} ta kutmoqda`} none="Navbat bo'sh" />}
           />
+          <AutoVerifyToggle initial={settings.autoVerifySpecialists === 1} />
           <AdminSpecialistsTable
             pending={pendingRows}
             verified={recentVerified.map((sp) => ({

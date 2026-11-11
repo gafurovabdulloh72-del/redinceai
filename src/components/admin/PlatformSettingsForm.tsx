@@ -49,6 +49,7 @@ const KEY_META: Record<string, { label: string; fmt: (v: number) => string }> = 
   subscriptionGraceDays: { label: "Imtiyozli muddat", fmt: (v) => `${v} kun` },
   subscriptionEnforced: { label: "Obuna talabi", fmt: (v) => (v === 1 ? "Yoqilgan" : "O'chirilgan") },
   urgentPct: { label: "Shoshilinch ustama", fmt: (v) => `${v}%` },
+  autoVerifySpecialists: { label: "Avtomatik tasdiqlash", fmt: (v) => (v === 1 ? "Yoqilgan" : "O'chirilgan") },
   usdRate: { label: "USD kursi", fmt: (v) => `1 $ = ${formatNumber(v)} so'm` },
 };
 const fmtVal = (key: string, v: number | null) => (v == null ? "—" : (KEY_META[key]?.fmt ?? String)(v));

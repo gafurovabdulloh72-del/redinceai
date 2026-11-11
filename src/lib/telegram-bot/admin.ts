@@ -366,7 +366,11 @@ export async function sendAdminQueues(chatId: string, lang?: BotLang): Promise<v
     `💸 ${L(lang, "Payout so'rovlari", "Запросы на выплату")}: <b>${q.payouts}</b> · ${L(lang, "mentor yechish", "вывод менторов")}: <b>${q.mentorPayouts}</b>`,
     `🎓 ${L(lang, "Mentor arizalari", "Заявки менторов")}: <b>${q.mentorApps}</b>`,
   ];
+  const { getSettings } = await import("@/lib/payments/settings");
+  const autoOn = (await getSettings()).autoVerifySpecialists === 1;
+  lines.push("", autoOn ? L(lang, "🤖 Avtomatik tasdiqlash: <b>yoqilgan</b>", "🤖 Автоподтверждение: <b>включено</b>") : L(lang, "🤖 Avtomatik tasdiqlash: o'chiq", "🤖 Автоподтверждение: выключено"));
   const keyboard: TelegramButton[][] = [];
+  keyboard.push([{ text: autoOn ? L(lang, "🤖 Avto-tasdiqni o'chirish", "🤖 Выключить автоподтверждение") : L(lang, "🤖 Avto-tasdiqni yoqish", "🤖 Включить автоподтверждение"), data: `adm:auto:${autoOn ? 0 : 1}` }]);
   if (q.manualPayments + q.manualInvoices > 0) keyboard.push([{ text: `${L(lang, "💳 O'tkazmalarni ko'rish", "💳 Показать переводы")} (${q.manualPayments + q.manualInvoices})`, data: "adm:pay" }]);
   if (q.reports > 0) keyboard.push([{ text: `${L(lang, "🚩 Shikoyatlarni ko'rish", "🚩 Показать жалобы")} (${q.reports})`, data: "adm:reports" }]);
   if (q.disputes > 0) keyboard.push([{ text: `${L(lang, "⚖️ Nizolar", "⚖️ Споры")} (${q.disputes})`, data: "adm:disputes" }]);
@@ -770,6 +774,38 @@ export async function handleAdminCallback(chatId: string, data: string, answer: 
       await handleBroadcastStart(chatId, "/elon", lang);
       return true;
     }
+    if ((m = /^adm:auto:([01])$/.exec(data))) {
+      const on = m[1] === "1";
+      const { getSettings, saveSettings } = await import("@/lib/payments/settings");
+      const before = (await getSettings()).autoVerifySpecialists;
+      await saveSettings({ autoVerifySpecialists: on ? 1 : 0 });
+      await audit(admin.id, "admin_settings", { targetType: "platform_settings", meta: { before: { autoVerifySpecialists: before }, after: { autoVerifySpecialists: on ? 1 : 0 }, via: "telegram" } });
+      await answer(on ? L(lang, "Avtomatik tasdiqlash yoqildi", "Автоподтверждение включено") : L(lang, "Avtomatik tasdiqlash o'chirildi", "Автоподтверждение выключено"));
+      if (msgId) await telegramApi("editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+      await sendAdminQueues(chatId, lang);
+      return true;
+    }
+    if ((m = /^adm:unver:([\w-]{1,64})$/.exec(data))) {
+      const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, m[1]), columns: { id: true, isVerified: true }, with: { user: { columns: { name: true } } } });
+      if (!sp) {
+        await answer(L(lang, "Profil topilmadi", "Профиль не найден"));
+        return true;
+      }
+      if (sp.isVerified) {
+        await db.update(specialists).set({ isVerified: false, updatedAt: new Date() }).where(eq(specialists.id, sp.id));
+        await audit(admin.id, "admin_unverify", { targetType: "specialist", targetId: sp.id, meta: { via: "telegram" } });
+      }
+      await answer(L(lang, "Tasdiq bekor qilindi", "Подтверждение отменено"));
+      if (msgId)
+        await telegramApi("editMessageText", {
+          chat_id: chatId,
+          message_id: msgId,
+          text: `↩️ <b>${escapeTelegramHtml(sp.user.name)}</b> — ${L(lang, "tasdiq bekor qilindi, navbatga qaytdi", "подтверждение отменено, снова в очереди")} · ${escapeTelegramHtml(admin.name)}`,
+          parse_mode: "HTML",
+          reply_markup: { inline_keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), callback_data: `adm:ver:${sp.id}` }]] },
+        });
+      return true;
+    }
     if ((m = /^adm:ver:([\w-]{1,64})$/.exec(data))) {
       const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, m[1]), columns: { id: true, userId: true, isVerified: true, slug: true }, with: { user: { columns: { name: true } } } });
       if (!sp) {
@@ -900,24 +936,59 @@ export async function sendAdminDailyReport(now = Date.now(), opts: { force?: boo
 /* ------------------------------------------------------------------ */
 /* Jonli ogohlantirishlar (adminga)                                    */
 /* ------------------------------------------------------------------ */
-/** Yangi mutaxassis profili (bot/ilova ro'yxati yoki saytda profil to'ldirilganda): saytda bildirishnoma + Telegramda «Tasdiqlash» tugmasi */
+/**
+ * Yangi mutaxassis profili (bot/ilova ro'yxati yoki saytda profil to'ldirilganda).
+ * Avtomatik tasdiqlash yoqilgan bo'lsa (`autoVerifySpecialists`=1 — admin panel «Tasdiqlash navbati» yoki bot /navbat)
+ * profil shu yerda tasdiqlanadi, egasiga «tasdiqlandi» xabari ketadi, adminlarga esa faqat MA'LUMOT (+ «Bekor qilish»).
+ * O'chiq bo'lsa — avvalgidek: saytda bildirishnoma + Telegramda «Tasdiqlash» tugmasi.
+ */
 export async function notifyAdminsNewSpecialist(specialistId: string): Promise<void> {
   try {
-    const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { id: true, slug: true, title: true, isVerified: true }, with: { user: { columns: { name: true, email: true } } } });
+    const sp = await db.query.specialists.findFirst({ where: eq(specialists.id, specialistId), columns: { id: true, userId: true, slug: true, title: true, isVerified: true }, with: { user: { columns: { name: true, email: true } } } });
     if (!sp || sp.isVerified) return;
+    const { getSettings } = await import("@/lib/payments/settings");
+    const auto = (await getSettings()).autoVerifySpecialists === 1 && (await autoVerifySpecialist(sp.id));
+    if (auto) {
+      await notify(sp.userId, "account", "Profilingiz tasdiqlandi ✅", "Profilingiz tasdiqlandi — endi katalogda «tasdiqlangan» belgisi bilan chiqasiz.", `/mutaxassislar/${sp.slug}`).catch(() => undefined);
+    }
     const admins = await db.query.users.findMany({ where: and(eq(users.role, "admin"), eq(users.isBanned, false)), columns: { id: true, telegramChatId: true, lang: true } });
-    const text = (lang: BotLang) => `🎨 <b>${L(lang, "Yangi mutaxassis", "Новый специалист")}:</b> ${escapeTelegramHtml(sp.user.name)} — ${escapeTelegramHtml(sp.title)}\n${escapeTelegramHtml(sp.user.email)}\n${L(lang, "Profilni ko'rib, tasdiqlang.", "Проверьте профиль и подтвердите.")}`;
+    const head = (lang: BotLang) => `🎨 <b>${L(lang, "Yangi mutaxassis", "Новый специалист")}:</b> ${escapeTelegramHtml(sp.user.name)} — ${escapeTelegramHtml(sp.title)}\n${escapeTelegramHtml(sp.user.email)}`;
+    const text = (lang: BotLang) =>
+      `${head(lang)}\n${auto ? L(lang, "✅ Avtomatik tasdiqlandi.", "✅ Подтверждён автоматически.") : L(lang, "Profilni ko'rib, tasdiqlang.", "Проверьте профиль и подтвердите.")}`;
+    const profileBtn = (lang: BotLang): TelegramButton => ({ text: L(lang, "👁 Profil", "👁 Профиль"), url: `${site()}/mutaxassislar/${sp.slug}` });
     await Promise.all(
       admins.map(async (a) => {
         const lang: BotLang = a.lang === "ru" ? "ru" : "uz";
         // siteOnly: Telegramga quyida tugmali maxsus xabar ketadi (umumiy bildirishnoma ikkinchi marta bormasin)
-        await notify(a.id, "account", `Yangi mutaxassis: ${sp.user.name}`, `${sp.title} — tasdiqlash navbatida.`, "/admin#tasdiqlash", { siteOnly: true }).catch(() => undefined);
-        if (a.telegramChatId) await sendTelegram(a.telegramChatId, text(lang), { bulk: true, keyboard: [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ver:${sp.id}` }, { text: L(lang, "👁 Profil", "👁 Профиль"), url: `${site()}/mutaxassislar/${sp.slug}` }]] });
+        await notify(
+          a.id,
+          "account",
+          `Yangi mutaxassis: ${sp.user.name}`,
+          auto ? `${sp.title} — avtomatik tasdiqlandi.` : `${sp.title} — tasdiqlash navbatida.`,
+          auto ? `/mutaxassislar/${sp.slug}` : "/admin#tasdiqlash",
+          { siteOnly: true },
+        ).catch(() => undefined);
+        if (!a.telegramChatId) return;
+        const keyboard: TelegramButton[][] = auto
+          ? [[{ text: L(lang, "↩️ Tasdiqni bekor qilish", "↩️ Отменить подтверждение"), data: `adm:unver:${sp.id}` }, profileBtn(lang)]]
+          : [[{ text: L(lang, "✅ Tasdiqlash", "✅ Подтвердить"), data: `adm:ver:${sp.id}` }, profileBtn(lang)]];
+        await sendTelegram(a.telegramChatId, text(lang), { bulk: true, keyboard });
       }),
     );
   } catch (e) {
     console.error("[admin-bot:newSpecialist]", e);
   }
+}
+
+/** Avtomatik tasdiqlash (CAS: faqat hali tasdiqlanmagan profil); audit aktyorsiz, `meta.auto` bilan */
+async function autoVerifySpecialist(spId: string): Promise<boolean> {
+  const res = await db
+    .update(specialists)
+    .set({ isVerified: true, verificationRequestedAt: null, verificationNote: null, updatedAt: new Date() })
+    .where(and(eq(specialists.id, spId), eq(specialists.isVerified, false)));
+  if ((res.rowsAffected ?? 0) === 0) return false;
+  await audit(null, "admin_verify", { targetType: "specialist", targetId: spId, meta: { auto: true } }).catch(() => undefined);
+  return true;
 }
 
 /** Yangi shikoyat — adminga Telegramda TUGMALAR bilan (yopish / o'chirish / bloklash); saytdagi bildirishnomani route'ning o'zi yozadi */

@@ -2449,5 +2449,12 @@
  "Xarita": "Карта",
  "Birinchi ishni joylang": "Опубликуйте первую работу",
  "Hamjamiyatni kuzating": "Следите за сообществом",
- "Yordam markazi": "Центр помощи"
+ "Yordam markazi": "Центр помощи",
+ "Profilingiz tasdiqlandi — endi katalogda «tasdiqlangan» belgisi bilan chiqasiz.": "Ваш профиль подтверждён — теперь в каталоге вы отображаетесь со значком «подтверждён».",
+ "avtomatik tasdiqlandi.": "подтверждён автоматически.",
+ "Yangi mutaxassislarni avtomatik tasdiqlash": "Автоматически подтверждать новых специалистов",
+ "Yoqilgan — yangi profil ochilishi bilan tasdiqlanadi, sizga faqat xabar keladi": "Включено — новый профиль подтверждается сразу, вам приходит только уведомление",
+ "O'chiq — har bir yangi profilni shu navbatda qo'lda tasdiqlaysiz": "Выключено — каждый новый профиль вы подтверждаете вручную в этой очереди",
+ "Avtomatik tasdiqlash yoqildi": "Автоподтверждение включено",
+ "Avtomatik tasdiqlash o'chirildi": "Автоподтверждение выключено"
 }

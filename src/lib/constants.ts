@@ -196,6 +196,8 @@ export const PLATFORM_DEFAULTS = {
   contactPriceMiddle: 50_000,
   contactPriceSenior: 80_000,
   contactPriceExpert: 120_000,
+  // 1 — yangi mutaxassis profili ochilishi bilan AVTOMATIK tasdiqlanadi (admin navbatini kutmaydi); 0 — qo'lda
+  autoVerifySpecialists: 0,
 } as const;
 
 /* ------------------------------------------------------------------ */

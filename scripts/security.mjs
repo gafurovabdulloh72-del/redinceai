@@ -1417,3 +1417,36 @@ test("Tuzoq pranklari: hujum imzosi sahifa/API'ga yetmaydi (418), oddiy qidiruv 
     await cleanup();
   }
 });
+
+test("Avtomatik tasdiqlash: faqat admin yoqadi; yoqilganda yangi mutaxassis profili darhol tasdiqlanadi, o'chirilganda navbatda qoladi", async (t) => {
+  for (const who of ["guest", "cl", "sp"]) {
+    const r = await req(who, "/api/admin/avto-tasdiq", { method: "PATCH", body: JSON.stringify({ on: true }) });
+    assert.ok(r.status === 401 || r.status === 403, `${who} → 401/403 (keldi: ${r.status})`);
+  }
+  const before = await req("ad", "/api/admin/avto-tasdiq");
+  if (before.status !== 200) return t.skip(`admin sessiyasi yo'q (${before.status})`);
+  const was = (await before.json()).data.on;
+  const profile = (title) => JSON.stringify({ title, category: "videograf", regionSlug: "toshkent-shahri", city: "Toshkent", priceFrom: 300000, experience: "middle" });
+  const verifiedOf = async (id) => {
+    const { createClient } = await import("@libsql/client");
+    const d = createClient({ url: process.env.DATABASE_URL || "file:./data/redince.db" });
+    const row = await d.execute({ sql: "select is_verified from specialists where user_id = ?", args: [id] });
+    return Number(row.rows[0]?.is_verified ?? -1);
+  };
+  const emails = [];
+  try {
+    for (const on of [true, false]) {
+      const set = await req("ad", "/api/admin/avto-tasdiq", { method: "PATCH", body: JSON.stringify({ on }) });
+      assert.equal(set.status, 200, `kalit ${on} → 200`);
+      const u = await registerTemp("specialist");
+      if (!u) return t.skip("sinov hisobi yaratilmadi");
+      emails.push(u.email);
+      const p = await reqAs(u.cookie, "/api/profile", { method: "PUT", body: profile("To'y videografi sinov") });
+      assert.ok(p.status === 200 || p.status === 201, `profil yaratildi (keldi: ${p.status})`);
+      assert.equal(await verifiedOf(u.id), on ? 1 : 0, on ? "avtomatik tasdiqlangan" : "navbatda (tasdiqlanmagan)");
+    }
+  } finally {
+    await req("ad", "/api/admin/avto-tasdiq", { method: "PATCH", body: JSON.stringify({ on: was }) });
+    await cleanupTemp(emails);
+  }
+});
