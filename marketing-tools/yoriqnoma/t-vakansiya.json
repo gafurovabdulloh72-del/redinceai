@@ -1,0 +1,11 @@
+{"steps":[
+ {"goto":"/vakansiyalar/yangi","cap":"Yaratish → Vakansiya joylash","sub":"Ish beruvchilar uchun: e'lon joylash bepul.","num":1},{"hold":2.0},
+ {"type":{"sel":"input[placeholder^='Masalan: Video montajchi']","text":"Video montajchi, masofaviy"},"cap":"Lavozim nomini yozing","sub":"Qisqa va aniq: kim kerak va qanday formatda.","num":2},{"hold":0.8},
+ {"select":{"sel":"select >> nth=0","label":"Video, montaj, animatsiya"},"cap":"Yo'nalishni tanlang","sub":"Nomzodlar vakansiyani shu filtr orqali topadi.","num":3},
+ {"tap":"button:has-text(\"Masofaviy\")","cap":"Ish formati va bandlik","sub":"Masofaviy, gibrid yoki ofis; to'liq yoki yarim stavka.","num":4},
+ {"select":{"sel":"select >> nth=1","label":"Loyihaviy / freelance"}},{"hold":0.6},
+ {"type":{"sel":"textarea >> nth=0","text":"Reklama roliklari montaji, haftasiga 3 ta video"},"cap":"Vazifani tasvirlab bering","sub":"Nima qilinadi, qanday loyihalar, ish vaqti.","num":5},{"hold":0.8},
+ {"type":{"sel":"textarea >> nth=1","text":"Premiere Pro, portfolio"},"cap":"Talablarni yozing","sub":"Har qatorga bitta talab.","num":6},{"hold":0.8},
+ {"blur":true},
+ {"tap":"button:has-text(\"Vakansiyani joylash\")","cap":"«Vakansiyani joylash»","sub":"E'lon 30 kun ochiq turadi. Arizalar Kabinet → «Vakansiyalar» bo'limiga tushadi.","num":7,"wait":3000},{"hold":2.8}
+]}

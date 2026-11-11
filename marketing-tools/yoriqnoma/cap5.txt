@@ -1,0 +1,15 @@
+<b>Ustoz bo'lish: mentorlikka ariza berish</b>
+
+Bilimingizni kursga aylantirmoqchi bo'lsangiz, avval ariza berasiz. Videoda hammasi bosqichma-bosqich ko'rsatilgan:
+
+1. Kabinet → «Mentorlik» bo'limini oching.
+2. «Ustoz bo'lmoqchimisiz?» kartasini bosing.
+3. Qisqa unvon yozing, masalan «8 yillik montajchi».
+4. Tajribangiz va nimani o'rgatishingizni yozing.
+5. Yo'nalishni tanlang, 6 tagacha.
+6. «Ariza yuborish»ni bosing.
+
+Admin tasdiqlagach, kurs ochasiz: darslar, testlar, uy vazifasi va sertifikat.
+
+#ustoz
+Ro'yxatdan o'tish: @kasb_egalari_bot

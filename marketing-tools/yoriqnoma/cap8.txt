@@ -1,0 +1,15 @@
+<b>Guruh yoki kanal ochish: 8 qadam</b>
+
+Kasbdoshlar bilan savol-javob uchun guruh, o'z auditoriyangiz uchun kanal ochasiz. Videoda ko'rsatilgan:
+
+1. Chap menyudagi «Yaratish» tugmasini bosing.
+2. «Guruh yoki kanal ochish»ni tanlang.
+3. Turini tanlang: guruhda hamma yozadi, kanalda faqat siz va adminlar.
+4. Nomini yozing, masalan «Buxoro montajchilari».
+5. Jamoa nima haqida ekanini yozing.
+6. Yo'nalish va hududni tanlang.
+7. Xohlasangiz jamoani yopiq qiling: a'zolarni o'zingiz tasdiqlaysiz.
+8. «Guruh ochish»ni bosing. Guruh «Chat» bo'limida ochiladi.
+
+#jamoa
+Ro'yxatdan o'tish: @kasb_egalari_bot

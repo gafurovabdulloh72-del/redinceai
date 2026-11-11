@@ -1,0 +1,118 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:MR;src:url(/font/Manrope.woff2);font-weight:200 800}
+@font-face{font-family:SG;src:url(/font/SpaceGrotesk-Bold.ttf);font-weight:700}
+*{margin:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#101114;font-family:MR}
+#bg{position:absolute;inset:0;background:
+ radial-gradient(1100px 800px at 85% 115%,rgba(255,90,54,.55),transparent 62%),
+ radial-gradient(900px 700px at 0% 0%,rgba(255,138,92,.22),transparent 60%),
+ linear-gradient(135deg,#17181c,#0d0e11)}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;will-change:transform}
+#persp{position:absolute;inset:0;transform-style:preserve-3d}
+#stage{perspective:2400px}
+#win{position:absolute;left:120px;top:58px;width:1680px;height:989px;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 60px 140px -30px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.1);transform-origin:50% 100%}
+#bar{position:absolute;left:0;right:0;top:0;height:44px;background:#f3f2ef;border-bottom:1px solid #e4e2dd;display:flex;align-items:center;padding:0 18px;gap:9px}
+#bar i{width:13px;height:13px;border-radius:50%}
+#bar i:nth-child(1){background:#ff5f57}#bar i:nth-child(2){background:#febc2e}#bar i:nth-child(3){background:#28c840}
+#url{margin:0 auto;width:640px;height:28px;border-radius:8px;background:#fff;border:1px solid #e4e2dd;display:flex;align-items:center;justify-content:center;gap:8px;font:600 16px MR;color:#6b6964}
+#url b{color:#1a1a1c;font-weight:700}
+#scr{position:absolute;left:0;top:44px;width:1680px;height:945px}
+#img{width:100%;height:100%;display:block}
+#cur{position:absolute;left:0;top:0;width:44px;height:44px;margin:-4px 0 0 -6px;will-change:transform;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+#ring{position:absolute;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;border:4px solid #ff5a36;opacity:0}
+#scrim{position:absolute;left:0;right:0;bottom:0;height:330px;background:linear-gradient(180deg,rgba(10,10,12,0),rgba(10,10,12,.82) 62%,rgba(10,10,12,.92));opacity:0;pointer-events:none}
+#cap{position:absolute;left:110px;right:110px;bottom:62px;display:flex;align-items:flex-end;justify-content:space-between;gap:60px;color:#f6f4ee;opacity:0}
+#cap .n{font:700 26px SG;color:#ff8a5c;letter-spacing:.08em}
+#cap .t{font-weight:800;font-size:54px;letter-spacing:-.025em;line-height:1.05;margin-top:10px}
+#cap .s{font-weight:600;font-size:28px;color:#c9c5bd;margin-top:10px;max-width:1150px;line-height:1.3}
+#cap .w{display:inline-block;overflow:hidden;vertical-align:top}#cap .w>span{display:inline-block}
+#dots{display:flex;gap:10px;padding-bottom:14px}
+#dots i{height:6px;width:24px;border-radius:6px;background:rgba(255,255,255,.18)}#dots i.on{background:#ff5a36;width:46px}#dots i.done{background:rgba(255,90,54,.5)}
+#title{position:absolute;left:0;right:0;top:140px;text-align:center;color:#f6f4ee;opacity:0}
+#title .k{font:700 28px SG;letter-spacing:.12em;color:#ff8a5c;text-transform:uppercase}
+#title h1{font-weight:800;font-size:112px;letter-spacing:-.04em;line-height:1;margin-top:18px}
+#title p{font-weight:600;font-size:36px;color:#c9c5bd;margin-top:18px}
+#end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;color:#f6f4ee;text-align:center;opacity:0}
+#end .mark{display:flex;align-items:center;gap:22px;font:700 60px SG;letter-spacing:-.02em}
+#end .mark i{width:92px;height:92px;border-radius:24px;background:#f6f4ee;color:#1a1a1c;display:grid;place-items:center;font:700 66px SG;font-style:normal;position:relative}
+#end .mark i:after{content:"";position:absolute;right:13px;top:13px;width:15px;height:15px;border-radius:50%;background:#ff5a36}
+#end .cta{font-weight:800;font-size:96px;letter-spacing:-.035em;line-height:1.02}
+#end .pill{background:#ff5a36;color:#fff;font-weight:800;font-size:44px;padding:24px 52px;border-radius:999px}
+#end .url{font-weight:600;font-size:32px;color:#a9a59d}
+</style></head><body><div id="bg"></div>
+<div id="stage"><div id="persp"><div id="win"><div id="bar"><i></i><i></i><i></i><div id="url">🔒 <b>kasbegalari.vercel.app</b><span id="path"></span></div></div>
+<div id="scr"><img id="img"><div id="ring"></div>
+<svg id="cur" viewBox="0 0 24 24"><path d="M4 2.5l15 9.2-6.6 1.4 3.7 7.1-2.9 1.5-3.7-7.1L4.6 19z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div></div></div></div>
+<div id="title"><div class="k" id="tk"></div><h1 id="th"></h1><p id="tp"></p></div>
+<div id="scrim"></div><div id="cap"><div><div class="n" id="cn"></div><div class="t" id="ct"></div><div class="s" id="cs"></div></div><div id="dots"></div></div>
+<div id="end"><div class="mark"><i>k</i>kasb egalari</div><div class="cta" id="cta"></div><div class="pill">@kasb_egalari_bot</div><div class="url">kasbegalari.vercel.app</div></div>
+<script>
+const C = window.CFG, M = C.marks, FPS = 30, IN = C.intro ?? 2.4, FL = M.frames / FPS, NSTEP = Math.max(...M.caps.map(c => c.step || 0), M.caps.length);
+const $ = id => document.getElementById(id);
+$('tk').textContent = C.kicker || ''; $('th').textContent = C.title; $('tp').textContent = C.sub || ''; $('cta').textContent = C.endCta || '';
+const cl = x => Math.max(0, Math.min(1, x)), eo = x => 1 - Math.pow(1 - cl(x), 3), eio = x => { x = cl(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const WX = 120, WY = 58, WW = 1680, BAR = 44, SW = 1680, SH = 945;
+// diqqat nuqtalari (vaqt bo'yicha)
+const pts = [];
+for (const f of M.focus) pts.push({ a: f.frame / FPS, b: f.frame / FPS + f.dur, x: f.x, y: f.y, z: 1.75, tap: null });
+for (const t of M.taps) pts.push({ a: t.frame / FPS - .7, b: t.frame / FPS + .8, x: t.x, y: t.y, z: 1.65, tap: t.frame / FPS });
+pts.sort((p, q) => p.a - q.a);
+// kamera: yaqin nuqtalar guruhi bitta yaqinlashuvda, ichida silliq surilish
+const sm = x => { x = cl(x); return x * x * x * (x * (x * 6 - 15) + 10); };
+const ZM = C.zoom || 1.62, TIN = 1.05;
+const groups = []; for (const p of pts) { const g = groups[groups.length - 1]; if (g && p.a - g.b < 2.4) { g.b = Math.max(g.b, p.b); g.p.push(p); } else groups.push({ a: p.a, b: p.b, p: [p] }); }
+function cam(t) { let z = 1, g = null; for (const G of groups) { const k = sm((t - G.a + TIN) / TIN) * (1 - sm((t - G.b) / TIN)); if (k > 0) { z = 1 + (ZM - 1) * k; g = G; } }
+  if (!g) return [1, .5, .5]; let x = g.p[0].x, y = g.p[0].y;
+  for (let i = 1; i < g.p.length; i++) { const e = sm((t - (g.p[i].a - .5)) / 1.0); x += (g.p[i].x - x) * e; y += (g.p[i].y - y) * e; }
+  return [z, x, y]; }
+// kursor kalitlari
+const ck = [[0, .62, .55]]; pts.forEach(p => { const lead = p.tap != null ? p.tap - .15 : p.a + .1; ck.push([Math.max(ck[ck.length - 1][0] + .05, lead - .65), ck[ck.length - 1][1], ck[ck.length - 1][2]]); ck.push([lead, p.x, p.y + .012]); });
+function curAt(t) { for (let i = ck.length - 1; i >= 0; i--) if (t >= ck[i][0]) { const nx = ck[i + 1]; if (!nx) return [ck[i][1], ck[i][2]]; const e = eio((t - ck[i][0]) / (nx[0] - ck[i][0])); return [ck[i][1] + (nx[1] - ck[i][1]) * e, ck[i][2] + (nx[2] - ck[i][2]) * e]; } return [ck[0][1], ck[0][2]]; }
+let lastCap = -1, W1 = [], W2 = [], capT = 0;
+window.renderAt = async (T) => {
+  const t = T - IN; const fi = Math.max(0, Math.min(M.frames - 1, Math.floor(t * FPS)));
+  const src = `/fl/${String(fi).padStart(5, '0')}.jpg`; const img = $('img');
+  if (img.getAttribute('src') !== src) { img.src = src; await img.decode().catch(() => {}); }
+  let u = ''; for (const x of (M.urls || [])) if (t >= x.frame / FPS - .1) u = x.path; $('path').textContent = u === '/' ? '' : u;
+  // intro: oyna pastdan qiya chiqadi
+  const ie = eio((T - 1.05) / 1.3); const win = $('win');
+  win.style.transform = `translateY(${(1 - ie) * 520}px) rotateX(${(1 - ie) * 24}deg) scale(${.9 + .1 * ie})`;
+  const tt = $('title'); tt.style.opacity = Math.min(eo(T / .4), 1 - cl((T - 1.0) / .45)); tt.style.transform = `translateY(${(1 - eo(T / .6)) * 30 - cl((T - 1.0) / .45) * 50}px)`; tt.style.top = '400px';
+  // kamera
+  const camAt = (tt) => { let [z, cx, cy] = tt > 0 && tt < FL ? cam(tt) : [1, .5, .5];
+    const px = WX + cx * SW, py = WY + BAR + cy * SH; const k = cl((z - 1) / (ZM - 1));
+    // to'liq yaqinlashganda nuqta qayerda turishi kerak (oyna kadrni to'ldirib turadigan qilib)
+    let txF = 960 - px * ZM, tyF = 420 - py * ZM;
+    txF = Math.min(-WX * ZM, Math.max(1920 - (WX + WW) * ZM, txF)); tyF = Math.min(-WY * ZM, Math.max(1080 - (WY + 989) * ZM - 300, tyF));
+    const sxF = txF + px * ZM, syF = tyF + py * ZM;
+    // nuqta o'z joyidan maqsadga to'g'ri chiziq bo'ylab boradi: kadr yon tomonga og'maydi
+    const sx = px + (sxF - px) * k, sy = py + (syF - py) * k;
+    return [z, sx - px * z, sy - py * z, cx, cy, k]; };
+  const [z, tx, ty, cx, cy, kz] = camAt(t); const [z2, tx2, ty2] = camAt(t - 1 / 30);
+  const speed = Math.hypot(tx - tx2, ty - ty2) + Math.abs(z - z2) * 900;
+  const rx = (cy - .5) * -1.6 * Math.sin(kz * Math.PI), ry = (cx - .5) * 2 * Math.sin(kz * Math.PI);
+  $('stage').style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
+  $('persp').style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; $('persp').style.transformOrigin = '960px 540px';
+  $('persp').style.filter = speed > 10 ? `blur(${Math.min(1.1, (speed - 10) / 25)}px)` : 'none';
+  $('bg').style.filter = `blur(${kz * 10}px) brightness(${1 - kz * .25})`;
+  // kursor
+  const [qx, qy] = curAt(Math.max(0, t)); const cur = $('cur');
+  let press = 1, ring = 0; for (const p of pts) if (p.tap != null) { const d = t - p.tap; if (d > -.12 && d < .5) { press = d < .08 ? .82 : 1; ring = d >= 0 ? 1 - cl(d / .5) : 0; const R = $('ring'); R.style.left = p.x * SW + 'px'; R.style.top = p.y * SH + 'px'; R.style.transform = `scale(${.5 + cl(d / .5)})`; } }
+  $('ring').style.opacity = ring;
+  cur.style.transform = `translate(${qx * SW}px,${qy * SH}px) scale(${press / Math.max(1, z * .8)})`; cur.style.opacity = t > 0 && t < FL ? 1 : 0;
+  // yozuv
+  let ci = -1; M.caps.forEach((c, i) => { if (t >= c.frame / FPS - .05) ci = i; });
+  const capEl = $('cap'); const vis = ci >= 0 && t < FL;
+  $('scrim').style.opacity = vis ? Math.min(1, cl(t / .4)) * (1 - cl((t - FL + .3) / .3)) : 0;
+  if (vis) { const c = M.caps[ci]; const st = c.step ?? ci + 1;
+    if (ci !== lastCap) { lastCap = ci; capT = c.frame / FPS; $('cn').textContent = String(st).padStart(2, '0') + ' / ' + String(NSTEP).padStart(2, '0');
+      const wr = (el, tx) => { el.innerHTML = (tx || '').split(/\s+/).filter(Boolean).map(w => `<span class="w"><span>${w.replace(/</g, '&lt;')}</span></span>`).join(' '); return [...el.querySelectorAll('.w>span')]; };
+      W1 = wr($('ct'), c.text); W2 = wr($('cs'), c.sub); $('dots').innerHTML = Array.from({ length: NSTEP }, (_, i) => `<i class="${i < st - 1 ? 'done' : i === st - 1 ? 'on' : ''}"></i>`).join(''); }
+    const nx = M.caps[ci + 1]; const out = nx ? cl((t - nx.frame / FPS + .25) / .25) : cl((t - FL + .3) / .3);
+    W1.forEach((w, i) => { const k = eo((t - capT - i * .05) / .45); w.style.transform = `translateY(${(1 - k) * 108}%)`; });
+    W2.forEach((w, i) => { const k = eo((t - capT - .25 - i * .02) / .45); w.style.transform = `translateY(${(1 - k) * 108}%)`; });
+    capEl.style.opacity = 1 - out; $('cn').style.opacity = eo((t - capT) / .3); } else capEl.style.opacity = 0;
+  const ee = eo((t - FL - .1) / .6); $('end').style.opacity = ee; $('stage').style.opacity = 1 - ee;
+};
+window.ready = true;
+</script></body></html>

@@ -1,0 +1,16 @@
+<b>Story qo'yish: 7 qadam</b>
+
+Story 24 soat turadi va kunlik ishingizni tez ko'rsatadi. Videoda to'liq ko'rsatilgan:
+
+1. Bosh sahifadagi story qatorida «+» ni bosing.
+2. Rasm yoki video tanlang.
+3. Qisqa izoh yozing.
+4. Musiqa qo'shing: katalogdan yoki o'z faylingiz.
+5. Stiker qo'shing: so'rovnoma, savol, hisoblagich yoki havola.
+6. Kim ko'rishini tanlang: hamma yoki yaqin do'stlar.
+7. «Story'da ulashish»ni bosing.
+
+Standart tarifda haftasiga 4 ta story qo'yiladi.
+
+#profil
+Ro'yxatdan o'tish: @kasb_egalari_bot

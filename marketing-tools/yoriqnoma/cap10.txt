@@ -1,0 +1,16 @@
+<b>Profilni to'ldirish: mijoz sizga ishonishi uchun</b>
+
+To'liq profil katalogda ko'proq ishonch uyg'otadi. Videoda qayerga kirish va nimani to'ldirish ko'rsatilgan:
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet menyusida «Profil»ni oching.
+3. «Tasdiqlangan profil» shartlarini ko'ring.
+4. Sarlavha yozing: kasbingiz va uslubingiz.
+5. Hudud va shaharni belgilang, mijoz shu bo'yicha qidiradi.
+6. O'zingiz haqingizda yozing: tajriba, uslub, jihozlar.
+7. Ko'nikmalarni qo'shing.
+8. Narxni so'm yoki dollarda belgilang.
+9. «Saqlash»ni bosing.
+
+#profil
+Ro'yxatdan o'tish: @kasb_egalari_bot

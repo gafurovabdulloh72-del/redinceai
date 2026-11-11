@@ -1,0 +1,13 @@
+{"steps":[
+ {"goto":"/kabinet/rezyume","cap":"Kabinet → Rezyume","sub":"Bir marta to'ldirasiz, har vakansiyaga bir bosishda ariza yuborasiz.","num":1},{"hold":2.2},
+ {"type":{"sel":"input[placeholder^='Masalan: Motion']","text":"Motion dizayner"},"cap":"Izlayotgan lavozimni yozing","sub":"Ish beruvchi rezyumeni shu nom bilan ko'radi.","num":2},{"hold":0.8},
+ {"select":{"sel":"select >> nth=0","label":"Video, montaj, animatsiya"},"cap":"Kasb va sohani tanlang","sub":"Rezyumelar katalogida shu yo'nalish bo'yicha chiqasiz.","num":3},
+ {"select":{"sel":"select >> nth=1","label":"1–3 yil"},"cap":"Tajriba va ish formati","sub":"Masofaviy, gibrid yoki ofis.","num":4},
+ {"select":{"sel":"select >> nth=2","label":"Masofaviy"}},
+ {"type":{"sel":"textarea","text":"Reklama roliklari va logo animatsiyalari, After Effects"},"cap":"O'zingiz haqingizda yozing","sub":"Tajriba, loyihalar va qaysi dasturlarda ishlashingiz.","num":5},{"hold":0.8},
+ {"type":{"sel":"input[placeholder^='Masalan: Figma']","text":"After Effects","enter":true},"cap":"Ko'nikmalarni qo'shing","sub":"Rezyumelar qidiruvi shu so'zlarni hisobga oladi.","num":6},{"hold":0.8},
+ {"blur":true},
+ {"focus":"button:has-text(\"Havola qo'shish\")","cap":"Ishlaringizga havola qo'shing","sub":"Portfolio, Behance yoki showreel havolasi.","num":7,"fdur":1.8},
+ {"focus":"button[aria-label='Katalogda ko\\'rinsin']","cap":"«Katalogda ko'rinsin»","sub":"Yoqilgan bo'lsa, ish beruvchilar rezyumeni topib, chatda yozadi. Telefon va email ko'rinmaydi.","num":8,"fdur":3.0},
+ {"tap":"button:has-text(\"Rezyumeni yaratish\")","cap":"«Rezyumeni yaratish»","sub":"Endi vakansiyaga ariza berganda rezyume avtomatik qo'shiladi.","num":9,"wait":2500},{"hold":2.6}
+]}

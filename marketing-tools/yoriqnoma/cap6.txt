@@ -1,0 +1,16 @@
+<b>Rezyume yaratish: 9 qadam</b>
+
+Rezyumeni bir marta to'ldirasiz, keyin har vakansiyaga ariza berganda u avtomatik qo'shiladi. Videoda to'liq ko'rsatilgan:
+
+1. Kabinet → «Rezyume» bo'limini oching.
+2. Izlayotgan lavozimni yozing.
+3. Kasb va sohani tanlang.
+4. Tajriba va ish formatini belgilang.
+5. O'zingiz haqingizda yozing.
+6. Ko'nikmalarni qo'shing, qidiruv ularni hisobga oladi.
+7. Portfolio yoki showreel havolasini qo'shing.
+8. «Katalogda ko'rinsin»ni yoqing: ish beruvchi chatda yozadi, telefon va email ko'rinmaydi.
+9. «Rezyumeni yaratish»ni bosing.
+
+#vakansiya
+Ro'yxatdan o'tish: @kasb_egalari_bot
