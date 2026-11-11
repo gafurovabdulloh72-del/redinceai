@@ -6,6 +6,9 @@ const B = "http://127.0.0.1:3000"; const FPS = 30, DESK = F.desktop !== false, W
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: DESK ? 1920 / 1280 : 1080 / W, isMobile: !DESK, hasTouch: !DESK, locale: "en-GB" });
+if (F.tgNudge !== true) await ctx.addInitScript(() => { try { localStorage.setItem("tg-nudge-yopildi", "1"); } catch {} });
+if (F.saver) await ctx.addInitScript(() => { try { localStorage.setItem("redince-saver", "1"); } catch {} });
+await ctx.addInitScript(() => { const fix = (n) => { const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT); let t; while ((t = w.nextNode())) if (t.nodeValue.includes("127.0.0.1:3000")) t.nodeValue = t.nodeValue.replace(/(https?:\/\/)?127\.0\.0\.1:3000/g, "kasbegalari.vercel.app"); }; new MutationObserver(() => document.body && fix(document.body)).observe(document, { subtree: true, childList: true, characterData: true }); });
 const page = await ctx.newPage();
 if (F.login !== false) {
   await page.request.post(B + "/api/auth/login", { data: { email: "ijodkor.demo2@example.com", password: "Demo-parol-2026!" }, headers: { origin: B } });
@@ -42,7 +45,7 @@ for (const s of F.steps) {
     const k = Math.round((s.dur || 1) * FPS);
     for (let i = 1; i <= k; i++) { await page.evaluate(y => window.scrollTo(0, y), y0 + (y1 - y0) * ease(i / k)); await snap(); }
   }
-  if (s.focus) { const l = loc(s.focus); await toCenter(l); const c = await center(l); if (c) marks.focus.push({ frame: n, dur: s.fdur || 1.6, ...c, z: s.z || 1.6 }); await hold(s.fdur || 1.6); }
+  if (s.focus) { const l = loc(s.focus); await toCenter(l); const c = await center(l); if (c) marks.focus.push({ frame: n, dur: s.fdur || 1.6, ...c, z: s.z || 1.6, zoom: s.zoom || null }); await hold(s.fdur || 1.6); }
   if (s.tap) {
     const l = loc(s.tap); await toCenter(l); await page.waitForTimeout(150);
     const c = await center(l);
@@ -55,7 +58,7 @@ for (const s of F.steps) {
   }
   if (s.type) {
     const l = loc(s.type.sel); await toCenter(l); const c = await center(l);
-    if (c) marks.focus.push({ frame: n, dur: s.type.text.length * 2 / FPS + 0.8, ...c, z: s.z || 1.45 });
+    if (c) marks.focus.push({ frame: n, dur: s.type.text.length * 2 / FPS + 0.8, ...c, z: s.z || 1.45, zoom: s.zoom || null });
     await l.click().catch(() => {}); await hold(0.3);
     for (const ch of s.type.text) { await page.keyboard.type(ch); await snap(); await snap(); }
     if (s.type.enter) { await page.keyboard.press("Enter"); await page.waitForTimeout(200); }
@@ -64,6 +67,7 @@ for (const s of F.steps) {
   if (s.upload) { await page.locator(s.upload.sel).first().setInputFiles(s.upload.file); await page.waitForTimeout(s.wait ?? 2500); await page.addStyleTag({ content: css }).catch(() => {}); await hold(0.6); }
   if (s.select) { const l = loc(s.select.sel); await toCenter(l); const c = await center(l); if (c) marks.focus.push({ frame: n, dur: 1.4, ...c, z: 1.5 }); await hold(0.5); await l.selectOption({ label: s.select.label }).catch(e => console.log("select", e.message)); await hold(0.9); }
   if (s.blur) { await page.evaluate(() => document.activeElement?.blur()); }
+  if (s.key) { await page.keyboard.press(s.key); await hold(0.6); }
 }
 fs.writeFileSync(`${out}/marks.json`, JSON.stringify({ frames: n, ...marks }));
 console.log(out, n, "kadr", (n / 30).toFixed(1), "s");

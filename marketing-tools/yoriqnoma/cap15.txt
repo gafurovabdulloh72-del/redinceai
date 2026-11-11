@@ -1,0 +1,15 @@
+<b>Kontakt rejimi: telefoningiz qanday ochilishini o'zingiz tanlaysiz</b>
+
+Saytda telefon, Telegram, Instagram va email ochiq turmaydi. Ikki rejimdan birini tanlaysiz:
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet menyusida «Kontaktlar»ni oching.
+3. «Kontaktim qanday ochiladi» bo'limini o'qing.
+4. «Kontaktim sotilsin»: mijoz ishlaringizni ko'rib, kontaktni platforma orqali ochadi.
+5. «Faqat portfolio»: kontakt umuman ko'rsatilmaydi, mijoz sayt chati orqali yozadi.
+6. Kontaktingizni kim ochganini «Kontaktimni olganlar» ro'yxatida ko'rasiz, sizga bildirishnoma ham keladi.
+
+Kontakt narxini administrator tajriba darajasiga qarab belgilaydi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

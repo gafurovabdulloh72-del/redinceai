@@ -1,0 +1,15 @@
+<b>Telegramni hisobga ulash: buyurtma va xabarlar darhol keladi</b>
+
+Saytga kirmasangiz ham yangi buyurtma, taklif va xabarni Telegramda ko'rasiz. Ulash bir daqiqa oladi:
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet tepasida «Ulash» eslatmasi chiqsa, shuni bosing.
+3. Yoki kabinet menyusida «Profil»ni oching.
+4. Bo'limlar qatoridan «Telegram»ni tanlang.
+5. «Telegramga ulash» tugmasini bosing, bot ochiladi.
+6. Botda «Start» bosing. Saytdagi karta o'zi «Ulangan» bo'ladi.
+
+Ulangach botda buyurtmani qabul qilish, /sozlamalar va ijodkor qidiruvi ham ishlaydi. Uzish uchun botga /stop yozing.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

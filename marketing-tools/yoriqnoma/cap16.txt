@@ -1,0 +1,15 @@
+<b>Yopiq profil: postlarni faqat siz tasdiqlaganlar ko'radi</b>
+
+Ishlaringizni hammaga emas, faqat tanlangan odamlarga ko'rsatmoqchi bo'lsangiz, profilni yopib qo'ying.
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet menyusida «Xavfsizlik»ni oching.
+3. «Maxfiylik» bo'limini toping.
+4. «Yopiq profil» kalitini yoqing: postlar, story va ishlar faqat siz tasdiqlagan obunachilarga ko'rinadi.
+5. Kalitni qayta bossangiz, profil yana hammaga ochiq bo'ladi.
+6. Obuna so'rovlari «Obunalar» → «So'rovlar» bo'limiga keladi: tasdiqlaysiz yoki rad etasiz.
+
+Shu bo'limda kim sizga yozishi, kim izoh qoldirishi va onlayn holatingiz ko'rinishini ham sozlaysiz.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

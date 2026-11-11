@@ -1,0 +1,17 @@
+<b>Chat: yozishmalar, ovozli xabar va papkalar</b>
+
+Mijoz bilan yozishmalar, guruhlar va kanallar bitta ro'yxatda turadi. Asosiy imkoniyatlar:
+
+1. Chap menyuda «Chat»ni oching.
+2. Papkalar: Barcha chatlar, Shaxsiy, Guruhlar va Kanallar.
+3. Suhbatni oching. Yangi xabar kelsa, o'qilmagan belgi chiqadi.
+4. Javob yozing: matn, rasm, video yoki fayl yuborish mumkin.
+5. Ovozli xabar: mikrofon belgisini bosib gapiring.
+6. Doira video xabar: 60 soniyagacha qisqa video.
+7. Pastdagi papka belgisi bilan o'z papkangizni yarating, masalan «Mijozlar».
+8. Suhbat qatoridagi «⋯» orqali uni shu papkaga ko'chirasiz.
+
+Hisobingiz Telegramga ulangan bo'lsa, yangi xabar botga ham keladi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

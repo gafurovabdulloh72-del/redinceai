@@ -54,7 +54,7 @@ const cl = x => Math.max(0, Math.min(1, x)), eo = x => 1 - Math.pow(1 - cl(x), 3
 const WX = 120, WY = 58, WW = 1680, BAR = 44, SW = 1680, SH = 945;
 // diqqat nuqtalari (vaqt bo'yicha)
 const pts = [];
-for (const f of M.focus) pts.push({ a: f.frame / FPS, b: f.frame / FPS + f.dur, x: f.x, y: f.y, z: 1.75, tap: null });
+for (const f of M.focus) pts.push({ a: f.frame / FPS, b: f.frame / FPS + f.dur, x: f.x, y: f.y, zm: f.zoom || null, tap: null });
 for (const t of M.taps) pts.push({ a: t.frame / FPS - .7, b: t.frame / FPS + .8, x: t.x, y: t.y, z: 1.65, tap: t.frame / FPS });
 pts.sort((p, q) => p.a - q.a);
 // kamera: yaqin nuqtalar guruhi bitta yaqinlashuvda, ichida silliq surilish
@@ -62,9 +62,9 @@ const sm = x => { x = cl(x); return x * x * x * (x * (x * 6 - 15) + 10); };
 const ZM = C.zoom || 1.62, TIN = 1.05;
 const groups = []; for (const p of pts) { const g = groups[groups.length - 1]; if (g && p.a - g.b < 2.4) { g.b = Math.max(g.b, p.b); g.p.push(p); } else groups.push({ a: p.a, b: p.b, p: [p] }); }
 function cam(t) { let z = 1, g = null; for (const G of groups) { const k = sm((t - G.a + TIN) / TIN) * (1 - sm((t - G.b) / TIN)); if (k > 0) { z = 1 + (ZM - 1) * k; g = G; } }
-  if (!g) return [1, .5, .5]; let x = g.p[0].x, y = g.p[0].y;
-  for (let i = 1; i < g.p.length; i++) { const e = sm((t - (g.p[i].a - .5)) / 1.0); x += (g.p[i].x - x) * e; y += (g.p[i].y - y) * e; }
-  return [z, x, y]; }
+  if (!g) return [1, .5, .5, ZM]; let x = g.p[0].x, y = g.p[0].y, m = g.p[0].zm || ZM;
+  for (let i = 1; i < g.p.length; i++) { const e = sm((t - (g.p[i].a - .5)) / 1.0); x += (g.p[i].x - x) * e; y += (g.p[i].y - y) * e; m += ((g.p[i].zm || ZM) - m) * e; }
+  return [1 + (m - 1) * (z - 1) / (ZM - 1), x, y, m]; }
 // kursor kalitlari
 const ck = [[0, .62, .55]]; pts.forEach(p => { const lead = p.tap != null ? p.tap - .15 : p.a + .1; ck.push([Math.max(ck[ck.length - 1][0] + .05, lead - .65), ck[ck.length - 1][1], ck[ck.length - 1][2]]); ck.push([lead, p.x, p.y + .012]); });
 function curAt(t) { for (let i = ck.length - 1; i >= 0; i--) if (t >= ck[i][0]) { const nx = ck[i + 1]; if (!nx) return [ck[i][1], ck[i][2]]; const e = eio((t - ck[i][0]) / (nx[0] - ck[i][0])); return [ck[i][1] + (nx[1] - ck[i][1]) * e, ck[i][2] + (nx[2] - ck[i][2]) * e]; } return [ck[0][1], ck[0][2]]; }
@@ -79,12 +79,12 @@ window.renderAt = async (T) => {
   win.style.transform = `translateY(${(1 - ie) * 520}px) rotateX(${(1 - ie) * 24}deg) scale(${.9 + .1 * ie})`;
   const tt = $('title'); tt.style.opacity = Math.min(eo(T / .4), 1 - cl((T - 1.0) / .45)); tt.style.transform = `translateY(${(1 - eo(T / .6)) * 30 - cl((T - 1.0) / .45) * 50}px)`; tt.style.top = '400px';
   // kamera
-  const camAt = (tt) => { let [z, cx, cy] = tt > 0 && tt < FL ? cam(tt) : [1, .5, .5];
-    const px = WX + cx * SW, py = WY + BAR + cy * SH; const k = cl((z - 1) / (ZM - 1));
+  const camAt = (tt) => { let [z, cx, cy, ZQ] = tt > 0 && tt < FL ? cam(tt) : [1, .5, .5, ZM];
+    const px = WX + cx * SW, py = WY + BAR + cy * SH; const k = cl((z - 1) / (ZQ - 1));
     // to'liq yaqinlashganda nuqta qayerda turishi kerak (oyna kadrni to'ldirib turadigan qilib)
-    let txF = 960 - px * ZM, tyF = 420 - py * ZM;
-    txF = Math.min(-WX * ZM, Math.max(1920 - (WX + WW) * ZM, txF)); tyF = Math.min(-WY * ZM, Math.max(1080 - (WY + 989) * ZM - 300, tyF));
-    const sxF = txF + px * ZM, syF = tyF + py * ZM;
+    let txF = 960 - px * ZQ, tyF = 420 - py * ZQ;
+    txF = Math.min(-WX * ZQ, Math.max(1920 - (WX + WW) * ZQ, txF)); tyF = Math.min(-WY * ZQ, Math.max(1080 - (WY + 989) * ZQ - 300, tyF));
+    const sxF = txF + px * ZQ, syF = tyF + py * ZQ;
     // nuqta o'z joyidan maqsadga to'g'ri chiziq bo'ylab boradi: kadr yon tomonga og'maydi
     const sx = px + (sxF - px) * k, sy = py + (syF - py) * k;
     return [z, sx - px * z, sy - py * z, cx, cy, k]; };

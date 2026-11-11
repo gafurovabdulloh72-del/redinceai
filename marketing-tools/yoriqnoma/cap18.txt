@@ -1,0 +1,16 @@
+<b>Vakansiyaga ariza yuborish: rezyume bilan bir bosishda</b>
+
+Saytdagi vakansiyalar barcha onlayn kasblar uchun, ariza yuborish to'lovsiz. Tartibi:
+
+1. Chap menyuda «Vakansiyalar»ni oching.
+2. Kasb, format yoki maosh bo'yicha filtrlab, mos vakansiyani oching.
+3. Vazifa, talablar va kerakli ko'nikmalarni o'qing.
+4. Kabinetdagi rezyumengiz arizaga avtomatik biriktiriladi.
+5. Xohlasangiz qisqa xat yozing: nega aynan siz va qachondan boshlay olasiz.
+6. «Ariza yuborish»ni bosing. Ism, email va telefoningiz faqat shu ish beruvchiga ko'rinadi.
+7. Ariza holatini «Arizalarim» bo'limida kuzatasiz.
+
+Rezyume hali yo'q bo'lsa, avval Kabinet → «Rezyume»da yarating: mundarijadagi «Rezyume» yo'riqnomasida ko'rsatilgan.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

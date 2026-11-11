@@ -1,0 +1,17 @@
+<b>Post statistikasi: postingiz qanday ishlaganini ko'ring</b>
+
+Har bir post uchun alohida hisobot bor. Qaysi post yaxshi ishlaganini ko'rib, keyingisini shunga qarab qilasiz.
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet menyusida «Postlarim»ni oching.
+3. Post kartasining o'ng burchagidagi «⋯» tugmasini bosing.
+4. «Statistika»ni tanlang.
+5. Ko'rishlar va noyob ko'ruvchilar: necha marta va nechta alohida odam ko'rgani.
+6. Faollik: har 100 ko'rishga nechta reaksiya va izoh to'g'ri kelgani.
+7. Reaksiyalar: qaysi biri qancha bosilgani.
+8. Eng faol izohchilar: postni eng ko'p muhokama qilganlar.
+
+Videodagi raqamlar sinov postidan olingan, sizda o'z postingiz natijasi chiqadi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

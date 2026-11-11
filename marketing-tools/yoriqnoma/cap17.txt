@@ -1,0 +1,16 @@
+<b>Ikki bosqichli himoya: parol o'g'irlansa ham hisob sizda qoladi</b>
+
+Kirishda paroldan tashqari telefoningizdagi 6 xonali kod so'raladi. Kodsiz hisobga kirib bo'lmaydi.
+
+1. Chap menyuda «Yana» → «Kabinet».
+2. Kabinet menyusida «Xavfsizlik»ni oching.
+3. «Ikki bosqichli himoya» kartasini toping.
+4. «Himoyani yoqish»ni bosing. Telefonda Google Authenticator yoki Microsoft Authenticator kerak.
+5. Kasb Egalari hisobini ilovaga qo'shing: havolani bosing yoki sirni «Kalitni kiritish»ga yozing.
+6. Ilova ko'rsatgan 6 xonali kodni yozing.
+7. «Tasdiqlash va yoqish»ni bosing.
+
+Himoya parol, Google va Telegram orqali kirishda ham ishlaydi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

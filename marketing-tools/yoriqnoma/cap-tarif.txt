@@ -1,0 +1,18 @@
+<b>Tariflar: Standart, Pro va Max nimasi bilan farq qiladi</b>
+
+Standart tarifda profil, portfolio, post, story, chat va vakansiyalar ishlaydi. Pro va Max ko'proq ko'rinish va ko'proq imkoniyat beradi:
+
+• Kunlik taklif: 5 / 20 / 50 ta.
+• Profil posti 7 kunda: 2 / 7 / 20 ta.
+• Story 7 kunda: 4 / 14 / 40 ta.
+• Portfolio ishlari: 12 / 30 / 60 ta.
+• «Profilni kim ko'rdi»: Pro'da 8, Max'da 30 kishi.
+• Katalogda: Pro oddiy profillardan oldin, Max eng tepada. Kartada PRO yoki MAX belgisi.
+• Mos yangi e'lon Telegramga darhol keladi, Max'da birinchi bo'lib.
+
+Bepul sinov davrida limitlar Standart'niki bo'ladi. Oylik TOP-3 g'oliblariga Pro keyingi oy oxirigacha sovg'a qilinadi.
+
+Narx va to'lov: Kabinet → «Obuna» yoki saytdagi «Narxlar» sahifasi.
+
+#tariflar
+Ro'yxatdan o'tish: @kasb_egalari_bot

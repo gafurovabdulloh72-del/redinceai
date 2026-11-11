@@ -1,0 +1,15 @@
+<b>Profil QR kodi va qisqa havola: ulashish uchun</b>
+
+Profilingizni bio, xabar yoki vizitkaga qo'yish uchun qisqa havola va QR kod tayyor turadi.
+
+1. Chap menyuning pastida ismingiz yonidagi «Profil»ni bosing.
+2. Ism ostidagi @username'ni bossangiz, profil havolasi nusxalanadi.
+3. «Profilni tahrirlash» yonidagi «Ulashish» belgisini bosing.
+4. «Havolani nusxalash» qatorida profilingizning qisqa manzili turadi.
+5. «QR kod»ni tanlang.
+6. QR kodni yuklab oling: telefon kamerasi skanerlasa, profilingiz ochiladi.
+
+QR kodni tadbirdagi bannerga, kartochkaga yoki ish namunalari ostiga qo'ysangiz, mijoz bir bosishda profilga tushadi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot
