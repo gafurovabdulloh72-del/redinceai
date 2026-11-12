@@ -1378,5 +1378,25 @@
 "caption": "<b>Buyurtma sehrgari: qaysi ijodkor kerakligini bilmasangiz</b>\n\nMijozlar uchun: sehrgar 4 ta savol bilan mos ijodkorlarni topib beradi.\n\n1. Chap menyuda «Mutaxassislar»ni oching.\n2. «Buyurtma sehrgari» tugmasini bosing.\n3. Yo'nalishni, keyin aniq kasbni tanlang.\n4. Taxminiy summa, hudud yoki masofaviy ish va muddatni belgilang.\n5. Oxirida mos ijodkorlar ro'yxati chiqadi.\n\n#mijoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🪄 Buyurtma sehrgari",
 "url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "v-tema",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBOWr1MVTHF3qpGMqWSsO4eOB5D0UAA5WjAAKME7FLvVkK7Id99xk9BA",
+"dur": 20,
+"cover": "AgACAgIAAxUHavUxVMYWrkn2es6yjO_tHBhlNIsAAjkaaxuME7FLIIZzy66r9AEBAAMCAAN5AAM9BA",
+"caption": "<b>Qorong'u tema va shrift o'lchami</b>\n\nSaytni ko'zingizga qulay qilib sozlang: tema va shrift «Yana» menyusida.\n\n1. Chap menyuda «Yana»ni bosing.\n2. «Ko'rinish» bo'limida «Qorong'u»ni tanlang.\n3. «Shrift» qatorida kattaroq o'lchamni tanlang.\n4. Qaytarish uchun «Avto» yoki «Yorug'»ni bosing.\n\n«Avto» telefon yoki kompyuteringiz temasiga moslashadi.\n\n#sozlama\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "⚙️ Saytni ochish",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "v-vakfiltr",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBOmr1MVeh_9uLAAHn390Rn6fs7nmlLAAClqMAAowTsUvusgKf2VtA8T0E",
+"dur": 16,
+"cover": "AgACAgIAAxUHavUxV0GtUdxOhT8ytRN1VDsOvtsAAjoaaxuME7FL-zP42_8S4QQBAAMCAAN5AAM9BA",
+"caption": "<b>Vakansiyalarni filtrlab, xabardor bo'lish</b>\n\nKerakli ishni filtr bilan toping va shunga o'xshash yangilari chiqsa, xabar oling.\n\n1. Chap menyuda «Vakansiyalar»ni oching.\n2. Kasb guruhini tanlang, masalan «Video».\n3. «Masofaviy» filtrini qo'shing.\n4. «Xabardor qil» tugmasini bosing.\n\nVakansiyaga ariza yuborish to'lovsiz.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💼 Vakansiyalar",
+"url": "https://kasbegalari.vercel.app/vakansiyalar"
 }
 ]
