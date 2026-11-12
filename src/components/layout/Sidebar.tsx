@@ -198,7 +198,7 @@ export function Sidebar({ user, unread = 0, dmUnread = 0, groupsUnread = 0 }: { 
                 role="menu"
                 aria-label={tr(til, SHELL.nav.more)}
                 style={{ ["--pop-origin" as string]: "bottom left" }}
-                className={cn("card-floating absolute bottom-[calc(100%+8px)] left-0 w-72 overflow-hidden p-1.5", more.closing ? "pop-out" : "pop-in")}
+                className={cn("card-floating absolute bottom-[calc(100%+8px)] left-0 max-h-[calc(100dvh-6rem)] w-72 overflow-y-auto overscroll-contain p-1.5", more.closing ? "pop-out" : "pop-in")}
               >
                 {user && <MoreItem href="/kabinet" icon={LayoutDashboard} label={tr(til, SHELL.menu.cabinet)} />}
                 {user && <MoreItem href="/kabinet/saqlanganlar" icon={Bookmark} label={tr(til, SHELL.menu.saved)} />}
