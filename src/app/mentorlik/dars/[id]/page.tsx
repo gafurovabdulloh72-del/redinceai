@@ -81,7 +81,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         {/* Chap ustun: pleyer + sarlavha + tablar */}
         <div className="min-w-0">
-          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} next={lesson.next} />
+          <LessonPlayer lessonId={lesson.id} videoUrl={lesson.videoUrl} next={lesson.next} watermark={user && !lesson.isOwner && user.role !== "admin" ? viewerMark(user) : null} />
 
           <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -136,4 +136,12 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       </div>
     </div>
   );
+}
+
+/** Suv belgisi matni: ism + qisman email (Telegram hisobida email yo'q — qisqa ID). To'liq kontakt chiqarilmaydi */
+function viewerMark(u: { id: string; name: string; email: string | null }): string {
+  const e = u.email ?? "";
+  if (!e || e.endsWith("@telegram.local")) return `${u.name} · ID ${u.id.slice(0, 8)}`;
+  const [local, domain] = e.split("@");
+  return `${u.name} · ${local.slice(0, 2)}***@${domain ?? ""}`;
 }

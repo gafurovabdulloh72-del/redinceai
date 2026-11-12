@@ -27,7 +27,16 @@ export const courseSchema = z.object({
   requirements: z.array(z.string().trim().min(1).max(MENTOR_LIMITS.outcomeMax)).max(MENTOR_LIMITS.requirementsMax).default([]),
   audience: z.string().trim().max(MENTOR_LIMITS.audienceMax).default(""),
   language: z.enum(["uz", "ru", "en"]).default("uz"),
+  // Yopiq guruh taklif havolasi: faqat t.me (bo'sh — olib tashlash). Berilmasa (eski klient) — tegilmaydi
+  telegramUrl: z
+    .string()
+    .trim()
+    .max(200)
+    .refine((u) => u === "" || TG_GROUP_URL_RE.test(u), { error: "Telegram havolasi: https://t.me/+… yoki https://t.me/guruh_nomi" })
+    .optional(),
 });
+/** t.me taklif havolasi (`+kod`, `joinchat/kod`) yoki ommaviy guruh/kanal nomi */
+export const TG_GROUP_URL_RE = /^https:\/\/t\.me\/(?:\+[\w-]{8,64}|joinchat\/[\w-]{8,64}|[A-Za-z][A-Za-z0-9_]{4,31})$/;
 export type CourseInput = z.infer<typeof courseSchema>;
 
 /** Dars yaratish/tahrirlash */

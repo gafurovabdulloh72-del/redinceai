@@ -150,6 +150,8 @@ export interface CourseDetail extends CourseCard {
   mentorBio: string;
   refPercent: number;
   certificateCode: string | null;
+  /** Yopiq Telegram guruh havolasi (faqat kirish huquqi borlarga, aks holda bo'sh) */
+  telegramUrl: string;
   isOwner: boolean;
   enrolled: boolean;
   progressPct: number;
@@ -214,6 +216,8 @@ export async function getCourseBySlug(slug: string, viewerId: string | null, isA
     mentorBio: c.mentor.bio,
     refPercent: c.mentor.refPercent,
     certificateCode: viewerId && enrolled ? await myCertificateCode(viewerId, c.id) : null,
+    // Yopiq guruh havolasi — faqat kirish huquqi borlarga (yozilgan / ustoz / admin); boshqalarga umuman yuborilmaydi
+    telegramUrl: access ? (c.telegramUrl ?? "") : "",
     isOwner,
     enrolled,
     progressPct: enrollment?.progressPct ?? 0,
@@ -361,7 +365,7 @@ async function ownedCourse(userId: string, courseId: string, isAdmin = false) {
 
 export async function updateCourse(userId: string, courseId: string, input: CourseInput, isAdmin = false) {
   await ownedCourse(userId, courseId, isAdmin);
-  await db.update(courses).set({ title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom, outcomes: input.outcomes, requirements: input.requirements, audience: input.audience, language: input.language, updatedAt: new Date() }).where(eq(courses.id, courseId));
+  await db.update(courses).set({ title: input.title, summary: input.summary, coverUrl: input.coverUrl ?? null, category: input.category, level: input.level as CourseLevel, priceFrom: input.priceFrom, outcomes: input.outcomes, requirements: input.requirements, audience: input.audience, language: input.language, ...(input.telegramUrl !== undefined ? { telegramUrl: input.telegramUrl } : {}), updatedAt: new Date() }).where(eq(courses.id, courseId));
 }
 
 export async function setCoursePublished(userId: string, courseId: string, publish: boolean, isAdmin = false) {
@@ -495,7 +499,7 @@ export async function getCourseForOwner(userId: string, courseId: string, isAdmi
   if (c.mentor.userId !== userId && !isAdmin) return null;
   const lessonRows = await db.query.lessons.findMany({ where: eq(lessons.courseId, courseId), orderBy: [asc(lessons.position)] });
   return {
-    course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount, outcomes: c.outcomes ?? [], requirements: c.requirements ?? [], audience: c.audience ?? "", language: c.language ?? "uz" },
+    course: { id: c.id, slug: c.slug, title: c.title, summary: c.summary, coverUrl: c.coverUrl, category: c.category, level: c.level, priceFrom: c.priceFrom, isPublished: c.isPublished, lessonsCount: c.lessonsCount, studentsCount: c.studentsCount, outcomes: c.outcomes ?? [], requirements: c.requirements ?? [], audience: c.audience ?? "", language: c.language ?? "uz", telegramUrl: c.telegramUrl ?? "" },
     lessons: lessonRows.map((l) => ({ id: l.id, position: l.position, title: l.title, body: l.body, videoUrl: l.videoUrl, durationMin: l.durationMin, section: l.section ?? "", isPreview: l.isPreview, materials: l.materials ?? [], chapters: l.chapters ?? [], quiz: l.quiz ?? null, assignment: l.assignment })),
   };
 }

@@ -198,6 +198,8 @@ export const PLATFORM_DEFAULTS = {
   contactPriceExpert: 120_000,
   // 1 — yangi mutaxassis profili ochilishi bilan AVTOMATIK tasdiqlanadi (admin navbatini kutmaydi); 0 — qo'lda
   autoVerifySpecialists: 0,
+  // Mentorlik kursi uchun «N kun ichida pulni qaytarish kafolati» belgisi (0 — ko'rsatilmaydi). Qaytarish o'zi admin panelida
+  courseRefundDays: 0,
 } as const;
 
 /* ------------------------------------------------------------------ */

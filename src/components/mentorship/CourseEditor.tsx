@@ -33,6 +33,7 @@ interface CourseData {
   requirements?: string[];
   audience?: string;
   language?: string;
+  telegramUrl?: string;
 }
 type LessonData = LessonFull;
 
@@ -54,6 +55,7 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
   const [requirements, setRequirements] = useState((course.requirements ?? []).join("\n"));
   const [audience, setAudience] = useState(course.audience ?? "");
   const [language, setLanguage] = useState(course.language ?? "uz");
+  const [telegramUrl, setTelegramUrl] = useState(course.telegramUrl ?? "");
   const lines = (s: string, max: number) => s.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, max);
   const [published, setPublished] = useState(course.isPublished);
   const [savingCourse, setSavingCourse] = useState(false);
@@ -68,9 +70,10 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
     }
     setSavingCourse(true);
     try {
-      const res = await fetch(`/api/mentorlik/kurslar/${course.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title.trim(), summary: summary.trim(), coverUrl, category, level, priceFrom: Number(price) || 0, outcomes: lines(outcomes, MENTOR_LIMITS.outcomesMax), requirements: lines(requirements, MENTOR_LIMITS.requirementsMax), audience: audience.trim(), language }) });
-      const j = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !j.ok) throw new Error(j.error || tr(til, MK.notSaved));
+      const res = await fetch(`/api/mentorlik/kurslar/${course.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title.trim(), summary: summary.trim(), coverUrl, category, level, priceFrom: Number(price) || 0, telegramUrl: telegramUrl.trim(), outcomes: lines(outcomes, MENTOR_LIMITS.outcomesMax), requirements: lines(requirements, MENTOR_LIMITS.requirementsMax), audience: audience.trim(), language }) });
+      const j = (await res.json()) as { ok: boolean; error?: string; fields?: Record<string, string> };
+      // Maydon xatosi (masalan, noto'g'ri Telegram havolasi) — umumiy «Ma'lumotlarni tekshiring» o'rniga aniq sabab
+      if (!res.ok || !j.ok) throw new Error((j.fields && Object.values(j.fields)[0]) || j.error || tr(til, MK.notSaved));
       toast(tr(til, MK.saved), "success");
       router.refresh();
     } catch (e) {
@@ -298,6 +301,11 @@ export function CourseEditor({ course, lessons: initialLessons }: { course: Cour
             <label className="block">
               <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">{tr(til, MK.lessonLang)}</span>
               <select value={language} onChange={(e) => setLanguage(e.target.value)} className="field h-10 w-full text-[13.5px]">{COURSE_LANGUAGES.map((l) => <option key={l.key} value={l.key}>{languageLabelTr(til, l.key)}</option>)}</select>
+            </label>
+            {/* Yopiq Telegram guruh — havola faqat kursga yozilganlarga ko'rinadi (GetCourse/Tribute odati) */}
+            <label className="block">
+              <span className="mb-1 block text-[12.5px] font-semibold text-fg-2">{tr(til, MK.tgGroup)} <span className="font-normal text-fg-4">{tr(til, MK.tgGroupHint)}</span></span>
+              <input value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} maxLength={200} inputMode="url" placeholder="https://t.me/+AbCdEf123456" className="field h-10 w-full text-[13.5px]" />
             </label>
           </div>
         </div>

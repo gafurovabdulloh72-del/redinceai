@@ -23,6 +23,8 @@ export interface PlatformSettingsValue {
   subscriptionEnforced?: number;
   /** Shoshilinch buyurtma ustamasi (%) va USD kursi (1 $ = N so'm) */
   urgentPct?: number;
+  /** Mentorlik kursi: «N kun ichida pulni qaytarish kafolati» (0 — ko'rsatilmaydi) */
+  courseRefundDays?: number;
   usdRate?: number;
 }
 
@@ -49,6 +51,7 @@ const KEY_META: Record<string, { label: string; fmt: (v: number) => string }> = 
   subscriptionGraceDays: { label: "Imtiyozli muddat", fmt: (v) => `${v} kun` },
   subscriptionEnforced: { label: "Obuna talabi", fmt: (v) => (v === 1 ? "Yoqilgan" : "O'chirilgan") },
   urgentPct: { label: "Shoshilinch ustama", fmt: (v) => `${v}%` },
+  courseRefundDays: { label: "Kursda qaytarish kafolati", fmt: (v) => (v > 0 ? `${v} kun` : "Ko'rsatilmaydi") },
   autoVerifySpecialists: { label: "Avtomatik tasdiqlash", fmt: (v) => (v === 1 ? "Yoqilgan" : "O'chirilgan") },
   usdRate: { label: "USD kursi", fmt: (v) => `1 $ = ${formatNumber(v)} so'm` },
 };
@@ -80,6 +83,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
   const [graceDays, setGraceDays] = useState(String(init.subscriptionGraceDays));
   const [enforced, setEnforced] = useState(init.subscriptionEnforced === 1);
   const [urgent, setUrgent] = useState(String(init.urgentPct));
+  const [refund, setRefund] = useState(String(initial.courseRefundDays ?? 0));
   const [usdRate, setUsdRate] = useState(formatNumber(init.usdRate));
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -96,6 +100,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
   const trialNum = Number(digits(trialDays)) || 0;
   const graceNum = Number(digits(graceDays)) || 0;
   const urgentNum = Number(digits(urgent)) || 0;
+  const refundNum = Number(digits(refund)) || 0;
   const usdNum = Number(digits(usdRate)) || 0;
   const dirty =
     pctNum !== initial.commissionPct ||
@@ -109,6 +114,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
     graceNum !== init.subscriptionGraceDays ||
     (enforced ? 1 : 0) !== init.subscriptionEnforced ||
     urgentNum !== init.urgentPct ||
+    refundNum !== (initial.courseRefundDays ?? 0) ||
     usdNum !== init.usdRate;
   const example = 1_000_000;
 
@@ -135,6 +141,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
     if (trialNum > 365) errs.subscriptionTrialDays = "Ko'pi bilan 365 kun";
     if (graceNum > 60) errs.subscriptionGraceDays = "Ko'pi bilan 60 kun";
     if (urgentNum > 100) errs.urgentPct = "Ko'pi bilan 100%";
+    if (refundNum > 30) errs.courseRefundDays = "Ko'pi bilan 30 kun";
     if (usdNum < 1000 || usdNum > 100_000) errs.usdRate = "1 000 – 100 000 so'm oralig'ida";
     if (Object.keys(errs).length) {
       setFields(errs);
@@ -159,6 +166,7 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
           subscriptionGraceDays: graceNum,
           subscriptionEnforced: enforced ? 1 : 0,
           urgentPct: urgentNum,
+          courseRefundDays: refundNum,
           usdRate: usdNum,
         }),
       });
@@ -312,6 +320,13 @@ export function PlatformSettingsForm({ initial, history = [] }: { initial: Platf
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-fg-3">%</span>
           </div>
           {fields.urgentPct ? <p className="field-error">{fields.urgentPct}</p> : <p id="set-urgent-hint" className="mt-1 text-[11px] text-fg-4">Shoshilinch buyurtmada narxga qo&apos;shiladi (mutaxassisga)</p>}
+        </div>
+        <div>
+          <label htmlFor="set-refund" className="field-label">
+            Kursda pulni qaytarish kafolati (kun)
+          </label>
+          <input id="set-refund" className="field tabular-nums" inputMode="numeric" value={refund} onChange={(e) => setRefund(digits(e.target.value).slice(0, 2))} aria-invalid={Boolean(fields.courseRefundDays)} aria-describedby="set-refund-hint" />
+          {fields.courseRefundDays ? <p className="field-error">{fields.courseRefundDays}</p> : <p id="set-refund-hint" className="mt-1 text-[11px] text-fg-4">0 — ko&apos;rsatilmaydi. Kurs sahifasida «N kun ichida pulni qaytarish kafolati» chiqadi; qaytarishni o&apos;zingiz panel orqali qilasiz</p>}
         </div>
         <div>
           <label htmlFor="set-usd" className="field-label">

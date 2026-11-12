@@ -5,6 +5,7 @@ import { NoPaymentMethods } from "@/components/payments/NoPaymentMethods";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, Tag } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
+import { MENTOR_FEATURES } from "@/lib/mentorship/format";
 import { showToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
@@ -146,7 +147,7 @@ export function PurchaseDialog({ open, onClose, type, id, loggedIn = true }: { o
             </div>
           </dl>
 
-          {!q.ref && (
+          {MENTOR_FEATURES.promo && !q.ref && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();

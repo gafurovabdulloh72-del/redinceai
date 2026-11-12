@@ -1450,3 +1450,44 @@ test("Avtomatik tasdiqlash: faqat admin yoqadi; yoqilganda yangi mutaxassis prof
     await cleanupTemp(emails);
   }
 });
+
+test("Kurs Telegram guruhi: havola faqat yozilganlarga ko'rinadi, faqat t.me qabul qilinadi; ustoz kabineti — 3 tab", async (t) => {
+  const me = await (await req("sp", "/api/auth/me")).json();
+  if (!me?.data?.id) return t.skip("mutaxassis sessiyasi yo'q");
+  const mk = await req("ad", "/api/admin/mentors", { method: "POST", body: JSON.stringify({ userId: me.data.id }) });
+  if (mk.status === 401 || mk.status === 403) return t.skip("admin sessiyasi yo'q");
+  const cr = await req("sp", "/api/mentorlik/kurslar", { method: "POST", body: JSON.stringify({ title: "Sinov: guruh havolasi kursi", priceFrom: 0 }) });
+  assert.equal(cr.status, 201, `kurs yaratildi (${cr.status})`);
+  const id = (await cr.json()).data.id;
+  try {
+    const base = { title: "Sinov: guruh havolasi kursi", priceFrom: 0 };
+    for (const bad of ["https://evil.example/x", "http://t.me/+abcdefgh12", "javascript:alert(1)"]) {
+      const r = await req("sp", `/api/mentorlik/kurslar/${id}`, { method: "PATCH", body: JSON.stringify({ ...base, telegramUrl: bad }) });
+      assert.equal(r.status, 422, `${bad} → 422 (keldi: ${r.status})`);
+    }
+    const okr = await req("sp", `/api/mentorlik/kurslar/${id}`, { method: "PATCH", body: JSON.stringify({ ...base, telegramUrl: "https://t.me/+SinovGuruh12345" }) });
+    assert.equal(okr.status, 200, "t.me taklif havolasi saqlandi");
+    // Havolasiz PATCH (eski klient) havolani o'chirib yubormaydi
+    await req("sp", `/api/mentorlik/kurslar/${id}`, { method: "PATCH", body: JSON.stringify(base) });
+    await req("sp", `/api/mentorlik/kurslar/${id}/darslar`, { method: "POST", body: JSON.stringify({ title: "Kirish darsi", isPreview: true }) });
+    await req("sp", `/api/mentorlik/kurslar/${id}/publish`, { method: "POST", body: JSON.stringify({ publish: true }) });
+    const page = await req("sp", `/kabinet/mentorlik/${id}`);
+    const slug = (await page.text()).match(new RegExp(`/mentorlik/([a-z0-9-]+-${id.slice(0, 6)})`))?.[1];
+    assert.ok(slug, "kurs manzili topildi");
+    const own = await (await req("sp", `/mentorlik/${slug}`)).text();
+    assert.ok(own.includes("t.me/+SinovGuruh12345"), "egasiga havola ko'rinadi (havolasiz PATCH uni o'chirmagan)");
+    const guest = await (await req("guest", `/mentorlik/${slug}`)).text();
+    assert.ok(!guest.includes("SinovGuruh12345"), "mehmonga havola berilmaydi");
+    const cl0 = await (await req("cl", `/mentorlik/${slug}`)).text();
+    assert.ok(!cl0.includes("SinovGuruh12345"), "yozilmagan mijozga havola berilmaydi");
+    const en = await req("cl", `/api/mentorlik/kurslar/${id}/yozilish`, { method: "POST", body: "{}" });
+    assert.ok(en.status === 200 || en.status === 201, `mijoz bepul kursga yozildi (${en.status})`);
+    const cl1 = await (await req("cl", `/mentorlik/${slug}`)).text();
+    assert.ok(cl1.includes("t.me/+SinovGuruh12345"), "yozilgandan keyin havola ko'rinadi");
+    // Begona foydalanuvchi kursni tahrirlay olmaydi
+    const foreign = await req("cl", `/api/mentorlik/kurslar/${id}`, { method: "PATCH", body: JSON.stringify({ ...base, telegramUrl: "https://t.me/+Buzgunchi12345" }) });
+    assert.ok(foreign.status === 403 || foreign.status === 404, `begona tahrir → 403/404 (keldi: ${foreign.status})`);
+  } finally {
+    await dbRun("DELETE FROM courses WHERE id = ?", [id]);
+  }
+});

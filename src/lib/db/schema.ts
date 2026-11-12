@@ -2262,6 +2262,8 @@ export const courses = sqliteTable(
     requirements: text("requirements", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     /** «Kimlar uchun» — qisqa matn */
     audience: text("audience").notNull().default(""),
+    /** Kurs o'quvchilarining yopiq Telegram guruhi (taklif havolasi) — FAQAT yozilganlar, ustoz va adminga ko'rinadi */
+    telegramUrl: text("telegram_url").notNull().default(""),
     /** Dars tili: uz | ru | en */
     language: text("language").notNull().default("uz"),
     isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),

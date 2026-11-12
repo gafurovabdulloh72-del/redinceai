@@ -6,34 +6,33 @@ import { MK } from "@/lib/i18n/dict/mentorship";
 import { cn } from "@/lib/utils";
 
 /**
- * Mentor kabinetining yagona navigatsiyasi (2026-11-01 soddalashtirildi: 6 tab → 4).
- * «Tahlil» endi Daromad ichidan ochiladi, «Yo'l xaritasi» — Umumiy sahifadagi havoladan;
- * o'sha sahifalar o'z ota tabini faol ko'rsatadi (statistika → Daromad, yol-xaritasi → Umumiy).
+ * Mentor kabinetining yagona navigatsiyasi (2026-11-12: 4 tab → 3 — Kurslarim · Daromad · O'quvchilar).
+ * «Sahifam» (ommaviy sahifa tahriri) endi tab emas — o'ng tomondagi ixcham tugma; «Tahlil» Daromad ichidan,
+ * «Yo'l xaritasi» Kurslarim sahifasidagi havoladan ochiladi (ular o'z ota tabini faol ko'rsatadi).
  * Telefonda gorizontal aylanadi. Server komponent — til `getLocale()` dan.
  */
-const TABS: ReadonlyArray<{ key: "umumiy" | "sahifa" | "daromad" | "vazifalar"; href: string; label: Tr; icon: typeof LayoutGrid }> = [
+const TABS: ReadonlyArray<{ key: "umumiy" | "daromad" | "vazifalar"; href: string; label: Tr; icon: typeof LayoutGrid }> = [
   { key: "umumiy", href: "/kabinet/mentorlik", label: MK.navOverview, icon: LayoutGrid },
-  { key: "sahifa", href: "/kabinet/mentorlik/sahifa", label: MK.navPage, icon: GraduationCap },
   { key: "daromad", href: "/kabinet/mentorlik/daromad", label: MK.navMoney, icon: Wallet },
   { key: "vazifalar", href: "/kabinet/mentorlik/vazifalar", label: MK.navTasks, icon: ClipboardList },
 ];
 
-export type MentorTab = (typeof TABS)[number]["key"];
+export type MentorTab = (typeof TABS)[number]["key"] | "sahifa";
 
 export async function MentorNav({ active }: { active: MentorTab }) {
   const til = await getLocale();
   return (
-    <nav aria-label={tr(til, MK.navAria)} className="no-scrollbar -mx-4 mb-5 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
-      <ul className="flex w-max gap-1">
+    <nav aria-label={tr(til, MK.navAria)} className="-mx-4 mb-5 flex items-center gap-2 border-b border-line px-4 sm:mx-0 sm:px-0">
+      <ul className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto">
         {TABS.map((t) => {
           const on = t.key === active;
           return (
-            <li key={t.key}>
+            <li key={t.key} className="shrink-0">
               <Link
                 href={t.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex h-10 items-center gap-1.5 px-3 text-[13.5px] font-semibold transition",
+                  "relative inline-flex h-10 items-center gap-1.5 px-3 text-[13.5px] font-semibold transition-colors max-sm:px-2.5",
                   on ? "text-fg after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:bg-fg" : "text-fg-3 hover:text-fg",
                 )}
               >
@@ -44,6 +43,17 @@ export async function MentorNav({ active }: { active: MentorTab }) {
           );
         })}
       </ul>
+      <Link
+        href="/kabinet/mentorlik/sahifa"
+        aria-current={active === "sahifa" ? "page" : undefined}
+        aria-label={tr(til, MK.navPage)}
+        title={tr(til, MK.navPage)}
+        className={cn("mb-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors max-sm:w-8 max-sm:justify-center max-sm:px-0", active === "sahifa" ? "border-fg bg-fg text-bg" : "border-line-2 text-fg-2 hover:text-fg")}
+      >
+        <GraduationCap size={13} />
+        {/* Telefonda faqat ikonka — uchala tab sig'sin */}
+        <span className="max-sm:sr-only">{tr(til, MK.navPage)}</span>
+      </Link>
     </nav>
   );
 }

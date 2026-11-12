@@ -9,6 +9,7 @@ import { showToast } from "@/components/ui/toast";
 import { uploadAttachment } from "@/components/chat/attachments";
 import { ImageCropper } from "@/components/kabinet/ImageCropper";
 import { MENTOR_CATEGORIES, MENTOR_LIMITS } from "@/lib/mentorship/format";
+import { CourseWizard } from "./CourseWizard";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { MK, categoryLabelTr } from "@/lib/i18n/dict/mentorship";
@@ -228,42 +229,14 @@ export function MentorPageForm({ mentor }: { mentor: MentorProfile }) {
 /** Bo'limlar (kurslar): yangi bo'lim qo'shish + ro'yxat. Bo'lim ichidagi darslar — `/kabinet/mentorlik/[courseId]` */
 export function MentorSections({ mentor, courses, admin = false }: { mentor: MentorProfile; courses: CourseRow[]; admin?: boolean }) {
   const til = useLocale();
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  async function addSection() {
-    if (adding) return;
-    if (title.trim().length < 5) return showToast(tr(til, MK.sectionMin5), "error");
-    setAdding(true);
-    try {
-      const res = await fetch("/api/mentorlik/kurslar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: title.trim(), ...(admin ? { mentorId: mentor.id } : {}) }) });
-      const j = (await res.json()) as { ok: boolean; error?: string; data?: { id: string } };
-      if (!res.ok || !j.ok || !j.data) throw new Error(j.error || tr(til, MK.notAdded));
-      router.push(`/kabinet/mentorlik/${j.data.id}`);
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : tr(til, MK.notAdded), "error");
-      setAdding(false);
-    }
-  }
-
   return (
     <section>
       <h2 className="text-[15px] font-bold text-fg">
         {tr(til, MK.sections)} <span className="font-normal text-fg-4">· {courses.length}</span>
       </h2>
-      <form
-        className="mt-2.5 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void addSection();
-        }}
-      >
-        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={MENTOR_LIMITS.courseTitleMax} placeholder={tr(til, MK.newSectionPh)} aria-label={tr(til, MK.sectionName)} className="field h-11 min-w-0 flex-1 text-[14px]" />
-        <button type="submit" disabled={adding} className="btn-ink inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-5 text-[14px] font-semibold disabled:opacity-60">
-          {adding ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />} {tr(til, MK.add)}
-        </button>
-      </form>
+      <div className="mt-2.5">
+        <CourseWizard mentorId={mentor.id} admin={admin} />
+      </div>
       {courses.length > 0 ? (
         <ul className="mt-1 divide-y divide-line border-t border-line">
           {courses.map((c) => (

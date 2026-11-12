@@ -80,3 +80,19 @@ export const COURSE_LANGUAGES = [
 export function languageLabel(key: string): string {
   return COURSE_LANGUAGES.find((l) => l.key === key)?.label ?? key;
 }
+
+/**
+ * Mentorlik imkoniyatlari (2026-11-12 soddalashtirish): boshlang'ich bosqichda faqat «kurs + 1:1» savdosi ko'rinadi —
+ * ustoz nimadan boshlashni bilmay qolmasin. Quyidagilar O'CHIRILMAGAN (server, jadval, API ishlayveradi), faqat UI'da
+ * yashirin; qaytarish — qiymatni `true` qilish. Mavjud oylik obunachilarning «… gacha obuna» belgisi baribir ko'rinadi.
+ */
+export const MENTOR_FEATURES = {
+  /** Ustozga oylik obuna (sahifadagi «Obuna bo'lish» tugmasi, narx sozlamasi, «faqat obunachilarga» postlar) */
+  monthlySub: false,
+  /** Promokodlar (ustoz kabinetida yaratish, xarid oynasida kiritish) */
+  promo: false,
+  /** Tavsiya qilish (do'st chegirmasi kartasi, tavsiya foizi sozlamasi) */
+  referral: false,
+  /** Ustoz sahifasidagi yutuq belgilari */
+  badges: false,
+} as const;

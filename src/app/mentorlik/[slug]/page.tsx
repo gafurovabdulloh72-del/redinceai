@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Award, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Clock, Download, Infinity, Languages, ListChecks, Lock, PlayCircle, RefreshCw, Smartphone, Star, Target, Users } from "lucide-react";
+import { Award, CheckCircle2, Send, ShieldCheck, ChevronLeft, ChevronRight, ClipboardCheck, Clock, Download, Infinity, Languages, ListChecks, Lock, PlayCircle, RefreshCw, Smartphone, Star, Target, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { EnrollButton } from "@/components/mentorship/EnrollButton";
 import { RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { MENTOR_FEATURES } from "@/lib/mentorship/format";
 import { ReferralCard } from "@/components/mentorship/ReferralCard";
 import { CourseReviewForm } from "@/components/mentorship/CourseReviewForm";
 import { CourseCard } from "@/components/mentorship/CourseCard";
@@ -64,7 +65,9 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
       ]
     : [];
   // Kamchilik #57: narx yonida taxminiy $ ekvivalenti
-  const usdRate = (await getSettings().catch(() => null))?.usdRate ?? 0;
+  const settings = await getSettings().catch(() => null);
+  const usdRate = settings?.usdRate ?? 0;
+  const refundDays = settings?.courseRefundDays ?? 0;
   const ld = {
     "@context": "https://schema.org",
     "@graph": [
@@ -362,11 +365,29 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                 <EnrollButton courseId={c.id} enrolled={c.enrolled} loggedIn={Boolean(user)} firstLessonId={c.enrolled ? resumeLesson : firstLesson} price={c.priceFrom} />
               )}
             </div>
+            {/* Pulni qaytarish kafolati — admin sozlamasi (0 — ko'rsatilmaydi; va'dani faqat platforma bera oladi) */}
+            {refundDays > 0 && c.priceFrom > 0 && !c.enrolled && !c.isOwner && (
+              <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-fg-3">
+                <ShieldCheck size={14} className="text-success-text" /> {MS.refundGuarantee[til](refundDays)}
+              </p>
+            )}
+            {/* Yopiq Telegram guruh — server faqat kirish huquqi borlarga havola beradi */}
+            {c.telegramUrl && (
+              <a href={c.telegramUrl} target="_blank" rel="noopener noreferrer" className="press mt-3 flex items-center gap-3 rounded-[14px] border border-line p-3 transition-colors hover:border-line-2">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#229ED9] text-white">
+                  <Send size={17} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13.5px] font-semibold text-fg">{tr(til, MS.tgJoin)}</span>
+                  <span className="block text-[12px] text-fg-3">{tr(til, MS.tgJoinHint)}</span>
+                </span>
+              </a>
+            )}
             {/* «Bu kursga kiradi» (Udemy): haqiqiy sonlar — video daqiqa, dars, material, test, vazifa */}
             <p className="mt-5 text-[13px] font-bold text-fg max-sm:hidden">{tr(til, MS.includes)}</p>
             <ul className="mt-2 space-y-2 text-[13px] text-fg-2 max-sm:hidden">{includes}</ul>
           </div>
-          {user && !c.isOwner && c.priceFrom > 0 && <div className="mt-3"><ReferralCard path={`/mentorlik/${c.slug}`} percent={c.refPercent} /></div>}
+          {MENTOR_FEATURES.referral && user && !c.isOwner && c.priceFrom > 0 && <div className="mt-3"><ReferralCard path={`/mentorlik/${c.slug}`} percent={c.refPercent} /></div>}
         </aside>
       </div>
 

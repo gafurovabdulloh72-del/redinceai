@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { showToast } from "@/components/ui/toast";
-import { MIN_PAYOUT, MENTOR_FEE_PCT, EARNING_HOLD_DAYS } from "@/lib/mentorship/format";
+import { MIN_PAYOUT, MENTOR_FEE_PCT, EARNING_HOLD_DAYS, MENTOR_FEATURES } from "@/lib/mentorship/format";
 import type { PurchaseType } from "@/lib/mentorship/format";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Locale } from "@/lib/i18n";
@@ -95,6 +95,9 @@ export function MentorMoney({ d }: { d: MoneyData }) {
         )}
       </Box>
 
+      {/* Oylik obuna va tavsiya foizi — MENTOR_FEATURES bilan yashirin (soddalashtirish) */}
+      {(MENTOR_FEATURES.monthlySub || MENTOR_FEATURES.referral) && (
+        <>
       <Box title={tr(til, MK.subRefTitle)} hint={tr(til, MK.subRefHint)}>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-[12.5px] font-semibold text-fg-3">
@@ -110,7 +113,11 @@ export function MentorMoney({ d }: { d: MoneyData }) {
           {tr(til, MK.save)}
         </button>
       </Box>
+        </>
+      )}
 
+      {MENTOR_FEATURES.promo && (
+        <>
       <Box title={tr(til, MK.promos)}>
         <div className="grid gap-2 sm:grid-cols-[1fr_90px_1fr]">
           <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder={tr(til, MK.promoCodePh)} maxLength={20} className="field h-10 text-[14px] uppercase" aria-label={tr(til, MK.code)} />
@@ -142,6 +149,8 @@ export function MentorMoney({ d }: { d: MoneyData }) {
           </ul>
         )}
       </Box>
+        </>
+      )}
 
       <Box title={tr(til, MK.slotsTitle)} hint={tr(til, MK.slotsHint)}>
         <div className="grid gap-2 sm:grid-cols-[1fr_110px_1fr_auto]">

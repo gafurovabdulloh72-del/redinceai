@@ -20,8 +20,9 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "
 
 /** Dars videosi: tezlik tanlash (eslab qoladi), vaqt belgilari (bosilsa shu joyga o'tadi), to'xtagan joydan davom etish,
  *  tugagach «Keyingi dars» sanog'i (bekor qilish mumkin; o'chirilsa eslab qoladi) */
-export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: string; videoUrl: string | null; chapters?: Array<{ t: number; title: string }>; next?: { id: string; title: string } | null }) {
+export function LessonPlayer({ lessonId, videoUrl, next = null, watermark = null }: { lessonId: string; videoUrl: string | null; chapters?: Array<{ t: number; title: string }>; next?: { id: string; title: string } | null; watermark?: string | null }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const til = useLocale();
   const [left, setLeft] = useState<number | null>(null); // avto-o'tish sanog'i (null — ko'rinmaydi)
@@ -109,6 +110,32 @@ export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: st
       }
     }
   }
+  // SUV BELGISI (2026-11-12): ko'ruvchining ismi va qisman emaili video ustida ~12 s da joy almashtirib suzadi —
+  // ekrandan yozib Telegramga «oqizilgan» kurs kimdan chiqqani ko'rinadi. To'liq ekranda ham qolishi uchun video emas,
+  // uning qutisi to'liq ekranga chiqariladi (iOS'ning o'z pleyeri bundan mustasno — u yerda belgi ko'rinmaydi).
+  const [wm, setWm] = useState({ x: 8, y: 10 });
+  useEffect(() => {
+    if (!watermark) return;
+    const move = () => setWm({ x: 4 + Math.random() * 56, y: 6 + Math.random() * 74 });
+    move();
+    const t = setInterval(move, 12_000);
+    return () => clearInterval(t);
+  }, [watermark]);
+  useEffect(() => {
+    if (!watermark) return;
+    const onFs = () => {
+      const v = ref.current;
+      const box = boxRef.current;
+      if (!v || !box || document.fullscreenElement !== v) return;
+      void document
+        .exitFullscreen()
+        .then(() => box.requestFullscreen())
+        .catch(() => undefined);
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, [watermark]);
+
   if (!videoUrl) {
     return (
       <div className="grid aspect-video w-full place-items-center rounded-[16px] bg-fg/5">
@@ -120,9 +147,19 @@ export function LessonPlayer({ lessonId, videoUrl, next = null }: { lessonId: st
     /* Telefon/planshet: video yopishqoq — tablar/eslatmalar o'qilganda ham ko'rinib turadi (YouTube/Udemy mobil odati);
        yuqori panel yashiringanda top 0 (globals.css [data-sticky-player]) */
     <div data-sticky-player="" className="max-lg:sticky max-lg:top-[calc(3.5rem+env(safe-area-inset-top))] max-lg:z-20 max-lg:-mx-4 max-lg:bg-bg max-lg:px-4 max-lg:pb-2 transition-[top] duration-200">
-      <div className="relative overflow-hidden rounded-[16px] bg-black">
+      <div ref={boxRef} className="relative overflow-hidden rounded-[16px] bg-black [&:fullscreen]:grid [&:fullscreen]:place-items-center [&:fullscreen]:rounded-none [&:fullscreen_video]:h-full [&:fullscreen_video]:w-full">
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video ref={ref} data-lesson-video="" src={videoUrl} controls={left === null} controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} playsInline onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onEnded={onEnded} onPlay={() => setLeft(null)} className="aspect-video w-full bg-black" />
+        {watermark && (
+          <span
+            aria-hidden
+            data-no-auto
+            className="pointer-events-none absolute z-10 select-none whitespace-nowrap text-[11px] font-semibold text-white/35 transition-[left,top] duration-[1400ms] ease-in-out [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] sm:text-[13px]"
+            style={{ left: `${wm.x}%`, top: `${wm.y}%` }}
+          >
+            {watermark}
+          </span>
+        )}
         {left !== null && next && (
           /* Video tugadi — keyingi dars kartasi (sanoq halqasi + bekor qilish). Parda bg-black/.. — bg-ink qorong'uda krem bo'ladi */
           <div className={cn("absolute inset-0 grid place-items-center bg-black/70 p-3 text-white sm:p-4", !prefersReducedMotion() && "pop-in")} role="status" aria-live="polite">

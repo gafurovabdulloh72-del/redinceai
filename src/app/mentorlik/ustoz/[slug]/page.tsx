@@ -22,8 +22,9 @@ import { mentorBadges } from "@/lib/mentorship/growth";
 import { listRoadmaps, listShowcase } from "@/lib/mentorship/learning";
 import { listSlots, myConsults } from "@/lib/mentorship/purchases";
 import { db as _db } from "@/lib/db";
-import { mentorSubs } from "@/lib/db/schema";
-import { and as _and, eq as _eq } from "drizzle-orm";
+import { mentorSubs, posts as _posts } from "@/lib/db/schema";
+import { and as _and, eq as _eq, sql as _sql } from "drizzle-orm";
+import { MENTOR_FEATURES } from "@/lib/mentorship/format";
 import { DeleteLiveButton } from "@/components/live/DeleteLiveButton";
 import { activeLive, listRecordings, pastLives } from "@/lib/live/service";
 import { cn, compactCount, formatDateTime } from "@/lib/utils";
@@ -72,7 +73,14 @@ export default async function MentorChannelPage({ params, searchParams }: { para
   const isMember = view ? view.membership === "owner" || view.membership === "admin" || view.membership === "member" : false;
   if (user && channel && isMember) await markGroupRead(channel.id, user.id).catch(() => undefined);
 
-  const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : "lenta";
+  // Kanalda post bo'lmasa (2026-11-12) «Postlar» tabi mehmonga ko'rinmaydi va sahifa «Kurslar»dan ochiladi — bo'sh lenta yomon taassurot
+  const postsCount = channel
+    ? Number((await _db.select({ n: _sql<number>`count(*)` }).from(_posts).where(_eq(_posts.groupId, channel.id)))[0]?.n ?? 0)
+    : 0;
+  const canStudioEarly = isOwner || user?.role === "admin";
+  const showPosts = postsCount > 0 || canStudioEarly;
+  const defaultTab: Tab = !showPosts && courses.length > 0 ? "bolimlar" : "lenta";
+  const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : defaultTab;
   const [liveNow, past, recs] = channel && view?.canView ? await Promise.all([activeLive(channel.id), tab === "efirlar" ? pastLives(channel.id) : Promise.resolve([]), tab === "efirlar" || tab === "lenta" ? listRecordings(channel.id, Boolean(view.canManage), viewer) : Promise.resolve([])]) : [null, [], []];
   const [feed, ev] = await Promise.all([
     // Kanal yopiq bo'lsa (a'zo emas) — postlar va efir e'lonlari yuklanmaydi (view.canView); ilgari bu yerda tekshirilmasdi
@@ -80,7 +88,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
     channel && view?.canView ? listEvents(channel, viewer, tab === "efirlar" ? 30 : 3) : { upcoming: [] as PostView[], past: [] as PostView[] },
   ]);
   const canStudio = isOwner || user?.role === "admin";
-  const badges = await mentorBadges({ id: profile.id, userId: profile.userId, channelId: channel?.id ?? null, studentsCount: profile.studentsCount, rating: profile.rating, reviewsCount: profile.reviewsCount });
+  const badges = !MENTOR_FEATURES.badges ? [] : await mentorBadges({ id: profile.id, userId: profile.userId, channelId: channel?.id ?? null, studentsCount: profile.studentsCount, rating: profile.rating, reviewsCount: profile.reviewsCount });
   const subRow = user && profile.subPrice > 0 ? await _db.query.mentorSubs.findFirst({ where: _and(_eq(mentorSubs.userId, user.id), _eq(mentorSubs.mentorId, profile.id)) }) : null;
   const subActive = Boolean(subRow && subRow.until.getTime() > Date.now());
   const [roadmaps, showcase] = tab === "bolimlar" ? await Promise.all([listRoadmaps(profile.id, user?.id ?? null), listShowcase(profile.id)]) : [[], []];
@@ -90,10 +98,11 @@ export default async function MentorChannelPage({ params, searchParams }: { para
     if (t.key === "muhokama") return false;
     if (t.key === "konsultatsiya") return slots.length > 0 || tab === "konsultatsiya";
     if (t.key === "bolimlar") return courses.length > 0 || canStudio || tab === "bolimlar";
+    if (t.key === "lenta") return showPosts || tab === "lenta";
     return true;
   });
 
-  const tabHref = (k: Tab) => (k === "lenta" ? `/mentorlik/ustoz/${profile.slug}` : `/mentorlik/ustoz/${profile.slug}?tab=${k}`);
+  const tabHref = (k: Tab) => (k === defaultTab ? `/mentorlik/ustoz/${profile.slug}` : `/mentorlik/ustoz/${profile.slug}?tab=${k}`);
   // Sarlavha ostidagi qator: rol yorlig'i va asosiy sarlavha (umumiy «Mentor» so'zi takrorlanmaydi)
   const subtitle = [profile.roleLabel, profile.headline].filter((x, i, a) => x && x.trim() && x.trim().toLowerCase() !== "mentor" && a.indexOf(x) === i).join(" · ");
   const stats = [
@@ -192,6 +201,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             <div className="mt-5 flex flex-wrap items-center gap-2" data-theme="dark">
               {profile.subPrice > 0 &&
                 !canStudio &&
+                (MENTOR_FEATURES.monthlySub || subActive) &&
                 (subActive ? (
                   <span className="inline-flex h-10 items-center rounded-full bg-white/15 px-4 text-[13.5px] font-semibold">{MS.subscribedUntil[til](formatDateTime(subRow!.until.getTime()))}</span>
                 ) : (
@@ -249,7 +259,7 @@ export default async function MentorChannelPage({ params, searchParams }: { para
           <>
             {ev.upcoming.length > 0 && <EventsCard events={ev.upcoming.slice(0, 3)} />}
             {feed ? (
-              <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} allowSubOnly={view.canManage && profile.subPrice > 0} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />
+              <GroupFeed slug={view.slug} kind={view.kind} canPost={view.canPost} canInteract={isMember} canSchedule={view.canManage} allowSubOnly={MENTOR_FEATURES.monthlySub && view.canManage && profile.subPrice > 0} loggedIn={Boolean(user)} initial={feed} highlightId={typeof sp.post === "string" ? sp.post : null} />
             ) : null}
           </>
         )}
