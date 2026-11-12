@@ -1,10 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { mentors, subscriptionInvoices, users, workReviews, type FileAttachment } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
-import { notify } from "@/lib/notifications";
+import { notify, notifyAdmins } from "@/lib/notifications";
 import { uid } from "@/lib/utils";
 import { attachmentFileId, privateFileUrl } from "@/lib/media/private-url";
 import { attachmentSchema } from "@/app/api/orders/_lib/attachments";
@@ -91,6 +91,10 @@ export interface WorkReviewView {
   paidAt: number | null;
   dueAt: number | null;
   answeredAt: number | null;
+  /** Muddat o'tgan va hali javob yo'q */
+  overdue: boolean;
+  /** Talaba pulni qaytarishni so'ragan (vaqti) */
+  refundRequestedAt: number | null;
   mentor: { id: string; name: string; slug: string | null; avatarUrl: string | null };
   student: { id: string; name: string; avatarUrl: string | null };
 }
@@ -126,6 +130,8 @@ async function toViews(rows: Row[]): Promise<WorkReviewView[]> {
       paidAt: r.paidAt?.getTime() ?? null,
       dueAt: r.dueAt?.getTime() ?? null,
       answeredAt: r.answeredAt?.getTime() ?? null,
+      overdue: r.status === "waiting" && Boolean(r.dueAt && r.dueAt.getTime() < Date.now()),
+      refundRequestedAt: r.refundRequestedAt?.getTime() ?? null,
       mentor: { id: r.mentorId, name: m?.user.name ?? "Ustoz", slug: m?.slug ?? null, avatarUrl: m?.user.avatarUrl ?? null },
       student: { id: r.userId, name: s?.name ?? "Talaba", avatarUrl: s?.avatarUrl ?? null },
     };
@@ -255,4 +261,81 @@ export async function resolveWorkReviewFile(id: string, index: number, viewer: {
   if (index === 0) return isMentor && !viewer.admin && r.status === "pending_payment" ? null : (r.workFile ?? null);
   if (index === 1) return r.status === "done" || r.status === "refunded" ? (r.responseVideo ?? null) : null;
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Kechikish: eslatma, ogohlantirish, qaytarish so'rovi (2026-11-12)    */
+/* ------------------------------------------------------------------ */
+/** Muddatdan keyin admin va talabaga xabar berilguncha kutiladigan vaqt */
+export const WORK_REVIEW_ESCALATE_MS = 48 * 3_600_000;
+
+/**
+ * Kunlik cron: (1) muddati o'tgan, javobsiz so'rov — ustozga bir martalik eslatma; (2) muddatdan 48 soat o'tib ham javob
+ * yo'q — adminlarga (qaytarishni ko'rib chiqish uchun) va talabaga (kechikish + qaytarishni so'rash imkoniyati) xabar.
+ * Har bosqich CAS bilan band qilinadi — cron ikki marta ishlasa ham xabar takrorlanmaydi. Pul AVTOMATIK qaytarilmaydi:
+ * qo'lda o'tkazma bo'lsa pulni mijozga admin qaytaradi, shuning uchun qarorni ham admin qabul qiladi.
+ */
+export async function processOverdueWorkReviews(now = Date.now()): Promise<{ reminded: number; escalated: number }> {
+  let reminded = 0;
+  let escalated = 0;
+  const due = await db.query.workReviews.findMany({
+    where: and(eq(workReviews.status, "waiting"), lt(workReviews.dueAt, new Date(now)), isNull(workReviews.remindedAt)),
+    columns: { id: true, userId: true },
+    with: { mentor: { columns: { userId: true } } },
+    limit: 200,
+  });
+  for (const r of due) {
+    const res = await db.update(workReviews).set({ remindedAt: new Date(now) }).where(and(eq(workReviews.id, r.id), isNull(workReviews.remindedAt)));
+    if ((res.rowsAffected ?? 0) === 0) continue;
+    const student = (await db.query.users.findFirst({ where: eq(users.id, r.userId), columns: { name: true } }))?.name ?? "Talaba";
+    await notify(r.mentor.userId, "subscription_paid", "Ish sharhi muddati o'tdi", `${student} ishiga sharh kutmoqda — iltimos, imkon qadar tezroq javob bering.`, "/kabinet/mentorlik/vazifalar").catch(() => undefined);
+    reminded++;
+  }
+  const late = await db.query.workReviews.findMany({
+    where: and(eq(workReviews.status, "waiting"), lt(workReviews.dueAt, new Date(now - WORK_REVIEW_ESCALATE_MS)), isNull(workReviews.escalatedAt)),
+    columns: { id: true, userId: true, price: true },
+    with: { mentor: { columns: { userId: true } } },
+    limit: 200,
+  });
+  for (const r of late) {
+    const res = await db.update(workReviews).set({ escalatedAt: new Date(now) }).where(and(eq(workReviews.id, r.id), isNull(workReviews.escalatedAt)));
+    if ((res.rowsAffected ?? 0) === 0) continue;
+    const mentorName = (await db.query.users.findFirst({ where: eq(users.id, r.mentor.userId), columns: { name: true } }))?.name ?? "Ustoz";
+    await notifyAdmins("report", "Ish sharhi 2 kundan beri kechikmoqda", `${mentorName} — muddat o'tganiga 48 soatdan oshdi. Ustoz bilan bog'laning yoki xaridni qaytaring.`, "/admin/mentorlik", { skipMail: true }).catch(() => undefined);
+    await notify(
+      r.userId,
+      "subscription_paid",
+      "Ustoz sharhni kechiktirmoqda",
+      r.price > 0 ? `${mentorName} hali javob bermadi. Kutishingiz yoki pulni qaytarishni so'rashingiz mumkin.` : `${mentorName} hali javob bermadi. Kutishingiz yoki so'rovni bekor qilishingiz mumkin.`,
+      "/kabinet/mentorlik#ish-sharhlari",
+    ).catch(() => undefined);
+    escalated++;
+  }
+  return { reminded, escalated };
+}
+
+/**
+ * Talaba: muddati o'tgan so'rov bo'yicha — bepul bo'lsa bekor qiladi, pullik bo'lsa qaytarishni so'raydi (adminga xabar;
+ * qaror va pulni qaytarish adminning o'zida). Takror so'rov — o'zgarishsiz qaytadi.
+ */
+export async function requestWorkReviewRefund(id: string, userId: string): Promise<{ status: "cancelled" | "requested" }> {
+  const r = await db.query.workReviews.findFirst({ where: eq(workReviews.id, id), with: { mentor: { columns: { userId: true } } } });
+  if (!r || r.userId !== userId) throw new ApiError(404, "So'rov topilmadi");
+  if (r.status !== "waiting") throw new ApiError(409, "Bu so'rov javob kutmayapti");
+  if (!r.dueAt || r.dueAt.getTime() > Date.now()) throw new ApiError(409, "Muddat hali tugamagan — ustoz javobini kuting");
+  if (r.price <= 0) {
+    const res = await db.update(workReviews).set({ status: "cancelled" }).where(and(eq(workReviews.id, id), eq(workReviews.status, "waiting")));
+    if ((res.rowsAffected ?? 0) === 0) throw new ApiError(409, "So'rov holati o'zgardi — sahifani yangilang");
+    return { status: "cancelled" };
+  }
+  if (r.refundRequestedAt) return { status: "requested" };
+  const res = await db.update(workReviews).set({ refundRequestedAt: new Date() }).where(and(eq(workReviews.id, id), eq(workReviews.status, "waiting"), isNull(workReviews.refundRequestedAt)));
+  if ((res.rowsAffected ?? 0) > 0) {
+    const [student, mentorName] = await Promise.all([
+      db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true } }),
+      db.query.users.findFirst({ where: eq(users.id, r.mentor.userId), columns: { name: true } }),
+    ]);
+    await notifyAdmins("report", "Ish sharhi uchun pulni qaytarish so'raldi", `${student?.name ?? "Talaba"} → ${mentorName?.name ?? "ustoz"}: ${r.price.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} so'm, muddat o'tgan.`, "/admin/mentorlik").catch(() => undefined);
+  }
+  return { status: "requested" };
 }

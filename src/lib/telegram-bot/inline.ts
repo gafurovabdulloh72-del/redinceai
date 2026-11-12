@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { escapeTelegramHtml, telegramApi } from "@/lib/telegram";
 import { siteUrl } from "@/lib/security/site";
 import { categoryLabel } from "@/lib/telegram-bot/labels-ru";
@@ -23,6 +24,11 @@ import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
 const SEARCH_TTL_MS = 120_000;
 const SEARCH_MAX = 300;
 const searchCache = new Map<string, { at: number; people: Promise<Awaited<ReturnType<typeof searchPeople>>> }>();
+/**
+ * Ikkinchi qatlam — Next data cache (Vercel'da BARCHA server nusxalari uchun umumiy, saqlanib qoladi): yangi uyg'ongan
+ * nusxa ham bazaga bormaydi. 5 daqiqada yangilanadi (yangi ijodkor/narx shu vaqt ichida ko'rinadi).
+ */
+const sharedPeople = unstable_cache(async (q: string) => searchPeople(q, 10), ["tg-inline-people-v1"], { revalidate: 300, tags: ["tg-inline-people"] });
 
 const normQuery = (raw: unknown) => (typeof raw === "string" ? raw : "").trim().slice(0, 80);
 
@@ -33,7 +39,7 @@ export function cachedPeople(rawQuery: unknown) {
   const now = Date.now();
   const hit = searchCache.get(key);
   if (hit && now - hit.at < SEARCH_TTL_MS) return hit.people;
-  const people = searchPeople(q, 10).catch((e) => {
+  const people = sharedPeople(q).catch((e) => {
     searchCache.delete(key); // xato keshlanmaydi
     throw e;
   });

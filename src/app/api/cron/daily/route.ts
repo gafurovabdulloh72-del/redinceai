@@ -109,6 +109,8 @@ export async function GET(req: Request) {
     pushPurged: 0,
     dmsExpired: 0,
     challengesClosed: 0,
+    workReviewsReminded: 0,
+    workReviewsEscalated: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -263,6 +265,15 @@ export async function GET(req: Request) {
     counts.challengesClosed = await closeDueChallenges(nowDate);
   } catch (e) {
     counts.errors.push(`konkurs: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  // (s) «Ishimni baholang»: muddati o'tgan sharh — ustozga eslatma; +48 soat — admin va talabaga ogohlantirish (pul avtomatik qaytmaydi)
+  try {
+    const { processOverdueWorkReviews } = await import("@/lib/mentorship/work-review");
+    const w = await processOverdueWorkReviews(now);
+    counts.workReviewsReminded = w.reminded;
+    counts.workReviewsEscalated = w.escalated;
+  } catch (e) {
+    counts.errors.push(`ishSharh: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (o) Oylik TOP: oyning oxirgi kunida g'oliblar e'lon qilinadi va premium beriladi (lib/top.ts; boshqa kunlarda bo'sh)

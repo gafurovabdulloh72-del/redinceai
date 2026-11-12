@@ -1561,3 +1561,53 @@ test("Ish sharhi: o'z xizmatini sotib olib bo'lmaydi, faqat https havola, begona
     await cleanupTemp([mentorUser.email, stranger.email]);
   }
 });
+
+test("Kechikkan ish sharhi: begona 404, muddat o'tmagan 409, talaba qaytarishni so'raydi (takror — o'zgarishsiz); cron eslatadi; xaridni faqat admin qaytaradi", async (t) => {
+  const mentorUser = await registerTemp("specialist");
+  const stranger = await registerTemp("client");
+  if (!mentorUser || !stranger) return t.skip("sinov hisoblari yaratilmadi");
+  const mk = await req("ad", "/api/admin/mentors", { method: "POST", body: JSON.stringify({ userId: mentorUser.id }) });
+  if (mk.status === 401 || mk.status === 403) {
+    await cleanupTemp([mentorUser.email, stranger.email]);
+    return t.skip("admin sessiyasi yo'q");
+  }
+  const mentorId = (await dbRun("SELECT id FROM mentors WHERE user_id = ?", [mentorUser.id])).rows[0]?.id;
+  const clId = (await (await req("cl", "/api/auth/me")).json()).data.id;
+  const ids = { soon: `sec-wr-soon-${Date.now()}`, late: `sec-wr-late-${Date.now()}` };
+  const now = Date.now();
+  try {
+    // Muddati hali o'tmagan va 3 kun oldin o'tgan (pullik) so'rovlar
+    await dbRun("INSERT INTO work_reviews (id, mentor_id, user_id, status, price, days, note, response, created_at, paid_at, due_at) VALUES (?, ?, ?, 'waiting', 50000, 3, '', '', ?, ?, ?)", [ids.soon, mentorId, clId, now, now, now + 86_400_000]);
+    await dbRun("INSERT INTO work_reviews (id, mentor_id, user_id, status, price, days, note, response, created_at, paid_at, due_at) VALUES (?, ?, ?, 'waiting', 50000, 3, '', '', ?, ?, ?)", [ids.late, mentorId, clId, now - 6 * 86_400_000, now - 6 * 86_400_000, now - 3 * 86_400_000]);
+    const foreign = await reqAs(stranger.cookie, `/api/mentorlik/ish-sharh/${ids.late}/qaytarish`, { method: "POST" });
+    assert.equal(foreign.status, 404, `begona → 404 (keldi: ${foreign.status})`);
+    const early = await req("cl", `/api/mentorlik/ish-sharh/${ids.soon}/qaytarish`, { method: "POST" });
+    assert.equal(early.status, 409, `muddat o'tmagan → 409 (keldi: ${early.status})`);
+    const ask = await req("cl", `/api/mentorlik/ish-sharh/${ids.late}/qaytarish`, { method: "POST" });
+    assert.equal(ask.status, 200, `talaba so'radi (keldi: ${ask.status})`);
+    assert.equal((await ask.json()).data.status, "requested");
+    const again = await req("cl", `/api/mentorlik/ish-sharh/${ids.late}/qaytarish`, { method: "POST" });
+    assert.equal((await again.json()).data.status, "requested", "takror so'rov o'zgarishsiz");
+    const row = (await dbRun("SELECT status, refund_requested_at FROM work_reviews WHERE id = ?", [ids.late])).rows[0];
+    assert.equal(row.status, "waiting", "so'rov o'zi holatini o'zgartirmaydi — qarorni admin qiladi");
+    assert.ok(row.refund_requested_at, "qaytarish so'rovi yozildi");
+    // Cron: muddati o'tgani — ustozga eslatma va (48 soatdan oshgani uchun) ogohlantirish, bir marta
+    if (process.env.CRON_SECRET) {
+      const cr = await fetch(`${BASE}/api/cron/daily`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+      assert.equal(cr.status, 200, `cron (keldi: ${cr.status})`);
+      const after = (await dbRun("SELECT reminded_at, escalated_at FROM work_reviews WHERE id = ?", [ids.late])).rows[0];
+      assert.ok(after.reminded_at && after.escalated_at, "cron eslatma va ogohlantirishni belgiladi");
+      const soon = (await dbRun("SELECT reminded_at FROM work_reviews WHERE id = ?", [ids.soon])).rows[0];
+      assert.equal(soon.reminded_at ?? null, null, "muddati o'tmaganiga eslatma yo'q");
+    }
+    // Xaridni qaytarish — faqat admin; noma'lum hisob 404
+    const notAdmin = await req("sp", "/api/admin/mentor-money", { method: "POST", body: JSON.stringify({ kind: "invoice", id: "sub_yoq", action: "refund" }) });
+    assert.ok(notAdmin.status === 401 || notAdmin.status === 403, `admin emas → 401/403 (keldi: ${notAdmin.status})`);
+    const missing = await req("ad", "/api/admin/mentor-money", { method: "POST", body: JSON.stringify({ kind: "invoice", id: "sub_yoq", action: "refund" }) });
+    assert.equal(missing.status, 404, `noma'lum xarid → 404 (keldi: ${missing.status})`);
+  } finally {
+    await dbRun("DELETE FROM work_reviews WHERE id IN (?, ?)", [ids.soon, ids.late]).catch(() => undefined);
+    if (mentorId) await dbRun("DELETE FROM mentors WHERE id = ?", [mentorId]).catch(() => undefined);
+    await cleanupTemp([mentorUser.email, stranger.email]);
+  }
+});

@@ -9,8 +9,8 @@ import { adminListMentors } from "@/lib/mentorship/service";
 import { AdminMentorMoney } from "@/components/admin/AdminMentorMoney";
 import { listOpenPayouts, purchaseMeta } from "@/lib/mentorship/purchases";
 import { db } from "@/lib/db";
-import { subscriptionInvoices, users } from "@/lib/db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { subscriptionInvoices, users, workReviews } from "@/lib/db/schema";
+import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { ADMIN_2FA_PATH, adminTwoFactorRequired } from "@/lib/security/admin-2fa";
 
 export const dynamic = "force-dynamic";
@@ -21,14 +21,27 @@ export default async function AdminMentorlikPage() {
   if (!user) redirect(await loginRedirectPath("/admin/mentorlik"));
   if (user.role !== "admin") redirect("/kabinet");
   if (adminTwoFactorRequired() && !user.totpEnabled) redirect(ADMIN_2FA_PATH);
-  const [mentors, openPayouts, pendingInv] = await Promise.all([
+  const since = new Date(Date.now() - 45 * 86_400_000);
+  const [mentors, openPayouts, pendingInv, recentInv] = await Promise.all([
     adminListMentors(),
     listOpenPayouts(),
     db.query.subscriptionInvoices.findMany({ where: and(eq(subscriptionInvoices.state, "pending"), eq(subscriptionInvoices.provider, "manual"), sql`json_extract(${subscriptionInvoices.meta}, '$.kind') = 'purchase'`) }),
+    // So'nggi 45 kundagi to'langan / qaytarilgan xaridlar — «Qaytarish» tugmasi uchun
+    db.query.subscriptionInvoices.findMany({
+      where: and(inArray(subscriptionInvoices.state, ["paid", "refunded"]), gte(subscriptionInvoices.updatedAt, since), sql`json_extract(${subscriptionInvoices.meta}, '$.kind') = 'purchase'`),
+      orderBy: [desc(subscriptionInvoices.updatedAt)],
+      limit: 40,
+    }),
   ]);
-  const buyerIds = pendingInv.map((i) => i.userId).filter((x): x is string => Boolean(x));
+  const buyerIds = [...pendingInv, ...recentInv].map((i) => i.userId).filter((x): x is string => Boolean(x));
   const buyers = buyerIds.length ? await db.query.users.findMany({ where: inArray(users.id, buyerIds), columns: { id: true, name: true } }) : [];
   const bmap = new Map(buyers.map((b) => [b.id, b.name]));
+  // «Ishimni baholang» kechikkani uchun talaba qaytarishni so'ragan xaridlar — ro'yxatda belgi
+  const recentIds = recentInv.map((i) => i.id);
+  const asked = recentIds.length
+    ? await db.query.workReviews.findMany({ where: and(inArray(workReviews.invoiceId, recentIds), isNotNull(workReviews.refundRequestedAt)), columns: { invoiceId: true } })
+    : [];
+  const askedSet = new Set(asked.map((a) => a.invoiceId));
   return (
     <div className="container-x">
       <div className="mx-auto max-w-[860px] space-y-5 py-2">
@@ -41,6 +54,7 @@ export default async function AdminMentorlikPage() {
         <AdminMentorMoney
           payouts={openPayouts.map((p) => ({ id: p.id, mentor: p.mentor.user.name, amount: p.amount, card: p.card, createdAt: p.createdAt.getTime() }))}
           purchases={pendingInv.map((i) => ({ id: i.id, title: purchaseMeta(i).title, buyer: i.userId ? (bmap.get(i.userId) ?? "—") : "—", amount: i.amount, createdAt: i.createdAt.getTime() }))}
+          recent={recentInv.map((i) => ({ id: i.id, title: purchaseMeta(i).title, buyer: i.userId ? (bmap.get(i.userId) ?? "—") : "—", amount: i.amount, createdAt: (i.paidAt ?? i.createdAt).getTime(), provider: i.provider, refunded: i.state === "refunded", refundAsked: askedSet.has(i.id) }))}
         />
         <AdminMentorManager mentors={mentors} />
         <section>

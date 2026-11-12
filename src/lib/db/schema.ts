@@ -2845,6 +2845,11 @@ export const workReviews = sqliteTable(
     paidAt: integer("paid_at", { mode: "timestamp_ms" }),
     dueAt: integer("due_at", { mode: "timestamp_ms" }),
     answeredAt: integer("answered_at", { mode: "timestamp_ms" }),
+    /** Kechikish (2026-11-12): muddat o'tgach ustozga eslatma; +48 soatda admin va talabaga ogohlantirish (bir martalik) */
+    remindedAt: integer("reminded_at", { mode: "timestamp_ms" }),
+    escalatedAt: integer("escalated_at", { mode: "timestamp_ms" }),
+    /** Talaba kechikkan sharh uchun pulni qaytarishni so'radi — admin «So'nggi xaridlar»da belgi ko'radi */
+    refundRequestedAt: integer("refund_requested_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("work_reviews_mentor_idx").on(t.mentorId, t.status), index("work_reviews_user_idx").on(t.userId, t.createdAt)],
 );

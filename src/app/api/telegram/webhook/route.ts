@@ -599,6 +599,20 @@ async function handleMyChatMember(m: NonNullable<TelegramUpdate["my_chat_member"
   else if (status === "member") await markReachable(chatId);
 }
 
+/**
+ * Inline tezligi (2026-11-12): har harf — alohida so'rov. Hisob (til/ban) 60 soniya xotirada saqlanadi — chegara va obuna
+ * tekshiruvi bilan parallel ketadi. Ban 60 soniyagacha kechikib ta'sir qilishi mumkin — natijada faqat ommaviy kartalar.
+ */
+const inlineAccounts = new Map<string, { at: number; row: Awaited<ReturnType<typeof accountOf>> }>();
+async function inlineAccount(userId: string) {
+  const hit = inlineAccounts.get(userId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.row;
+  const row = await accountOf(userId);
+  if (inlineAccounts.size > 5000) inlineAccounts.delete(inlineAccounts.keys().next().value as string);
+  inlineAccounts.set(userId, { at: Date.now(), row });
+  return row;
+}
+
 /** Inline rejim (`@bot so'z`): alohida chegara (har harf — bitta so'rov), majburiy obuna, til */
 async function handleInline(iq: NonNullable<TelegramUpdate["inline_query"]>): Promise<void> {
   const userId = iq.from?.id != null ? String(iq.from.id) : "";
@@ -610,7 +624,7 @@ async function handleInline(iq: NonNullable<TelegramUpdate["inline_query"]>): Pr
   prefetchInline(iq.query);
   const [limited, meRow, member] = await Promise.all([
     botLimited(userId, "tgInline"),
-    accountOf(userId),
+    inlineAccount(userId),
     gateEnabled() ? isChannelMember(userId) : Promise.resolve(true),
   ]);
   if (limited) {

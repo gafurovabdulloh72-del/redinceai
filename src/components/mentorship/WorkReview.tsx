@@ -447,6 +447,15 @@ export function MyWorkReviews({ items }: { items: WorkReviewView[] }) {
     router.refresh();
   }
 
+  /** Muddati o'tgan so'rov: pullik — qaytarishni so'rash (admin hal qiladi), bepul — bekor qilish */
+  async function askRefund(r: WorkReviewView) {
+    if (!(await confirm({ title: r.price > 0 ? tr(til, WR.askRefundQ) : tr(til, WR.cancelQ), danger: r.price <= 0 }))) return;
+    const { ok, j } = await postJson(`/api/mentorlik/ish-sharh/${r.id}/qaytarish`, "POST");
+    if (!ok) return showToast(errOf(j, tr(til, WR.error)), "error");
+    showToast(r.price > 0 ? tr(til, WR.refundAsked) : tr(til, WR.cancelled), "success");
+    router.refresh();
+  }
+
   return (
     <section id="ish-sharhlari" className="space-y-3">
       <h2 className="flex items-center gap-2 text-[16px] font-bold text-fg">
@@ -476,7 +485,19 @@ export function MyWorkReviews({ items }: { items: WorkReviewView[] }) {
                 {r.status === "done" && <CheckCircle2 size={13} />} {tr(til, WR.status[r.status])}
               </span>
             </div>
-            {r.status === "waiting" && r.dueAt != null && <p className="text-[12.5px] text-fg-3">{WR.expectedBy[til](formatDateTime(r.dueAt, til))}</p>}
+            {r.status === "waiting" && r.dueAt != null && !r.overdue && <p className="text-[12.5px] text-fg-3">{WR.expectedBy[til](formatDateTime(r.dueAt, til))}</p>}
+            {r.overdue && (
+              <div className="flex flex-wrap items-center gap-2 rounded-[12px] bg-danger/[0.06] p-3">
+                <p className="min-w-0 flex-1 text-[13px] font-medium text-danger">{tr(til, WR.overdueNote)}</p>
+                {r.refundRequestedAt ? (
+                  <span className="text-[12.5px] font-semibold text-fg-3">{tr(til, WR.refundAsked)}</span>
+                ) : (
+                  <button type="button" onClick={() => void askRefund(r)} className="inline-flex h-9 items-center rounded-full border border-danger/40 px-4 text-[13px] font-semibold text-danger hover:bg-danger/10">
+                    {r.price > 0 ? tr(til, WR.askRefund) : tr(til, WR.cancelOverdue)}
+                  </button>
+                )}
+              </div>
+            )}
             {(r.workUrl || r.workFile || r.note) && (
               <details className="group rounded-[12px] bg-fg/[0.03] p-3" open={r.status !== "done"}>
                 <summary className="cursor-pointer list-none text-[12.5px] font-semibold text-fg-3 [&::-webkit-details-marker]:hidden">{tr(til, WR.yourWork)}</summary>
