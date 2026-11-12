@@ -14,10 +14,10 @@ if not cid: sys.exit(1)
 size = os.path.getsize(vid)
 u = cj(["-X", "POST", f"https://rupload.facebook.com/ig-api-upload/{V}/{cid}", "-H", "offset: 0", "-H", f"file_size: {size}", "--data-binary", f"@{vid}"])
 print("upload", u)
-for i in range(40):
+for i in range(80):
     s = cj([f"{G}/{cid}?fields=status_code,status"]); print("status", s.get("status_code"), s.get("status", "")[:120])
     if s.get("status_code") in ("FINISHED", "ERROR", "EXPIRED"): break
-    time.sleep(6)
+    time.sleep(8)
 if s.get("status_code") != "FINISHED": sys.exit(2)
 p = cj(["-X", "POST", f"{G}/{IG}/media_publish", "--data-urlencode", f"creation_id={cid}"]); print("publish", p)
 if p.get("id"):

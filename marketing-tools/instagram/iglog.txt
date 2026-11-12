@@ -1,0 +1,24 @@
+16:54:42 OK nv_narx https://www.instagram.com/reel/DfpiBBtgdHA/
+17:01:43 OK nv_xarita https://www.instagram.com/reel/DfpiypgCSGe/
+17:15:04 XATO nv_mentorlik eing processed. | status IN_PROGRESS In Progress: Media is still being processed. | status IN_PROGRESS In Progress: Media is still being processed. | status IN_PROGRESS In Progress: Media is still being processed. | status IN_PROGRESS In Progress: Media is still being processed. | status IN_PROGRESS In Progress: Media is still being processed. | status IN_PROGRESS In Progress: Media is still being processed. | 
+17:21:43 OK nv_top3 https://www.instagram.com/reel/DfplH3zjN7s/
+17:28:20 OK nv_story https://www.instagram.com/reel/Dfpl4gCDN_b/
+17:35:01 OK nv_portfolio https://www.instagram.com/reel/Dfpmo7XFfr1/
+17:41:41 OK nv_qadamlar https://www.instagram.com/reel/DfpnaCnCr9Q/
+17:48:12 OK nv_tayyorlik https://www.instagram.com/reel/DfpoKtPDCHx/
+17:54:52 OK nv_royxat https://www.instagram.com/reel/Dfpo6fJCs78/
+18:01:31 OK nv_takliflar https://www.instagram.com/reel/DfpprQkAWbg/
+18:08:09 OK nv_vakansiya https://www.instagram.com/reel/DfpqcABCWyx/
+18:14:39 OK v_v-hisobot https://www.instagram.com/reel/DfprMgogFOj/
+18:21:10 OK m_f_kurs_saqlash https://www.instagram.com/reel/Dfpr8AHCZME/
+18:27:46 OK v_v-mehmon https://www.instagram.com/reel/Dfpsrt8gY4c/
+18:34:19 OK m_tip_vg_stabil https://www.instagram.com/reel/DfptcAuAQB8/
+18:40:54 OK v_v-nomzod https://www.instagram.com/reel/DfpuML-ilqi/
+18:47:30 OK m_f_konsultatsiya https://www.instagram.com/reel/Dfpu8PRAXRN/
+18:54:14 OK v_v-qidiruv https://www.instagram.com/reel/DfpvstwCKQj/
+19:00:14 vaqt tugadi
+19:00:14 TAMOM: 15 ta joylandi
+19:04:15 OK nv_mentorlik https://www.instagram.com/reel/Dfpw26WgY8I/
+19:04:55 OK m_tip_vg_toy https://www.instagram.com/reel/Dfpw7_CgQkO/
+19:05:00 vaqt tugadi
+19:05:00 TAMOM: 2 ta joylandi
