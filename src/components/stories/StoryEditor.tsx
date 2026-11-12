@@ -8,6 +8,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { showToast } from "@/components/ui/toast";
 import { useScrollLock } from "@/components/motion/useScrollLock";
+import { haptic, prefersReducedMotion } from "@/components/motion/haptics";
 import { uploadAttachment, type Attachment } from "@/components/chat/attachments";
 import type { StorySticker } from "@/lib/db/schema";
 import { STORY_BACKGROUNDS, STORY_CAPTION_MAX } from "@/lib/social/limits";
@@ -210,9 +211,9 @@ function StickerSheet({ open, onClose, value, onDone }: { open: boolean; onClose
 }
 
 /** Dumaloq asbob tugmasi (tuval ustida) */
-function Tool({ label, active, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
+function Tool({ label, active, onClick, children, i = 0 }: { label: string; active?: boolean; onClick: () => void; children: React.ReactNode; i?: number }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} title={label} aria-pressed={active} className={cn("press grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition", active ? "bg-white text-black" : "bg-black/45 text-white hover:bg-black/60")}>
+    <button type="button" onClick={onClick} aria-label={label} title={label} aria-pressed={active} style={{ animationDelay: `${i * 45}ms` }} className={cn("press grid h-11 w-11 animate-story-tool place-items-center rounded-full backdrop-blur-md transition-[background-color,color,transform]", active ? "bg-white text-black" : "bg-black/45 text-white hover:bg-black/60")}>
       {children}
     </button>
   );
@@ -227,6 +228,12 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
   const [musicOpen, setMusicOpen] = useState(false);
   const [posting, setPosting] = useState<string | null>(null);
   const [guide, setGuide] = useState<{ v: boolean; h: boolean }>({ v: false, h: false });
+  // Surish paytida: asboblar yashirinadi, pastda axlat qutisi chiqadi (Instagram); ustiga olib kelinsa element kichrayadi
+  const [dragging, setDragging] = useState<"text" | "sticker" | null>(null);
+  const [overTrash, setOverTrash] = useState(false);
+  // Matn tahriridan chiqqanda / stiker qo'yilganda «pop» bilan paydo bo'lish uchun kalit
+  const [popKey, setPopKey] = useState(0);
+  const trashRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -276,6 +283,11 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
   useEffect(() => {
     if (editing) areaRef.current?.focus();
   }, [editing, cur]);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !editing) setPopKey((k) => k + 1);
+    wasEditing.current = editing;
+  }, [editing]);
 
   /** Fayllarni qo'shish: har biri alohida slayd, yuklash fon rejimida */
   function addFiles(list: FileList | File[] | null | undefined) {
@@ -337,11 +349,20 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
     const oy = what === "text" ? slide.design.y : slide.stickerY;
     const id = slide.id;
     let moved = false;
+    let trash = false;
     const move = (ev: PointerEvent) => {
       const dx = (ev.clientX - sx) / box.width;
       const dy = (ev.clientY - sy) / box.height;
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+      if (!moved) setDragging(what);
       moved = true;
+      const t = trashRef.current?.getBoundingClientRect();
+      const near = Boolean(t && Math.hypot(ev.clientX - (t.left + t.width / 2), ev.clientY - (t.top + t.height / 2)) < 64);
+      if (near !== trash) {
+        trash = near;
+        setOverTrash(near);
+        if (near) haptic("light");
+      }
       let nx = clamp(ox + dx, 0.08, 0.92);
       let ny = clamp(oy + dy, 0.1, 0.9);
       const snapV = Math.abs(nx - 0.5) < 0.025;
@@ -361,6 +382,14 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
       setGuide({ v: false, h: false });
+      setDragging(null);
+      setOverTrash(false);
+      if (moved && trash) {
+        haptic("medium");
+        if (what === "text") patch(id, (s) => ({ text: "", design: { ...s.design, x: 0.5, y: 0.5 } }));
+        else patch(id, { sticker: null, stickerY: 0.48 });
+        return;
+      }
       if (!moved) {
         if (what === "text") setEditing(true);
         else setStickerOpen(true);
@@ -403,6 +432,19 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
         done++;
       }
       showToast(done > 1 ? `${done} ta story joylandi — 24 soat ko'rinadi` : "Story joylandi — 24 soat ko'rinadi", "success");
+      haptic("success");
+      const el = canvasRef.current;
+      if (el && !prefersReducedMotion()) {
+        await el
+          .animate(
+            [
+              { transform: "none", opacity: 1, borderRadius: "24px" },
+              { transform: "translate(-38%, -46%) scale(0.12)", opacity: 0, borderRadius: "9999px" },
+            ],
+            { duration: 420, easing: "cubic-bezier(0.5, 0, 0.2, 1)", fill: "forwards" },
+          )
+          .finished.catch(() => undefined);
+      }
       onCreated();
       onClose();
     } catch (e) {
@@ -429,7 +471,7 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
       {/* TUVAL (9:16). Telefonda — pastki panelgacha butun ekran; keng ekranda — markazda */}
       <div
         ref={canvasRef}
-        className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#0b0b0c] sm:aspect-[9/16] sm:w-auto sm:flex-none sm:rounded-[24px] sm:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] sm:[height:min(calc(100dvh-11.5rem),780px)]"
+        className="relative min-h-0 w-full flex-1 animate-modal-in overflow-hidden bg-[#0b0b0c] sm:aspect-[9/16] sm:w-auto sm:flex-none sm:rounded-[24px] sm:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] sm:[height:min(calc(100dvh-11.5rem),780px)]"
         style={{ containerType: "inline-size" }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -445,13 +487,13 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
               <p className="mt-1.5 text-[14px] leading-snug text-white/60">{blocked ? "Bu hafta story limiti tugadi" : "24 soat ko'rinadi. Bir nechta rasm yoki videoni birdan tanlash mumkin."}</p>
             </div>
             <div className="grid w-full max-w-[300px] grid-cols-2 gap-3">
-              <button type="button" disabled={blocked} onClick={() => fileRef.current?.click()} className="press flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-[22px] bg-white/8 ring-1 ring-white/12 transition hover:bg-white/14 disabled:opacity-40">
+              <button type="button" disabled={blocked} onClick={() => fileRef.current?.click()} className="press animate-story-pop flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-[22px] bg-white/8 ring-1 ring-white/12 transition hover:bg-white/14 disabled:opacity-40">
                 <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#ff7a45] to-[#e0412b]">
                   <ImagePlus size={24} />
                 </span>
                 <span className="text-[14.5px] font-semibold">Galereya</span>
               </button>
-              <button type="button" disabled={blocked} onClick={addText} className="press flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-[22px] bg-white/8 ring-1 ring-white/12 transition hover:bg-white/14 disabled:opacity-40">
+              <button type="button" disabled={blocked} onClick={addText} style={{ animationDelay: "70ms" }} className="press animate-story-pop flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-[22px] bg-white/8 ring-1 ring-white/12 transition hover:bg-white/14 disabled:opacity-40">
                 <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#a78bfa] to-[#ec4899]">
                   <Type size={24} />
                 </span>
@@ -472,15 +514,15 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
             {slide.kind === "media" ? (
               slide.preview &&
               (slide.isVideo ? (
-                <video key={slide.id} src={slide.preview} muted autoPlay loop playsInline className={cn("h-full w-full", slide.fit === "cover" ? "object-cover" : "object-contain")} />
+                <video key={slide.id} src={slide.preview} muted autoPlay loop playsInline className={cn("h-full w-full animate-fade-in", slide.fit === "cover" ? "object-cover" : "object-contain")} />
               ) : (
                 <>
                   {slide.fit === "contain" && <img src={slide.preview} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />}
-                  <img key={slide.id} src={slide.preview} alt="" className={cn("relative h-full w-full", slide.fit === "cover" ? "object-cover" : "object-contain")} />
+                  <img key={slide.id} src={slide.preview} alt="" className={cn("animate-fade-in relative h-full w-full", slide.fit === "cover" ? "object-cover" : "object-contain")} />
                 </>
               ))
             ) : (
-              <div className="absolute inset-0" style={{ background: STORY_BACKGROUNDS[slide.bg] }} />
+              <div className="absolute inset-0 transition-[background] duration-500" style={{ background: STORY_BACKGROUNDS[slide.bg] }} />
             )}
 
             {/* Markaz chiziqlari (surish paytida) */}
@@ -490,14 +532,20 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
             {/* STIKER */}
             {slide.sticker && !editing && (
               <div onPointerDown={(e) => drag(e, "sticker")} className="absolute left-1/2 flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none justify-center active:cursor-grabbing" style={{ top: `${slide.stickerY * 100}%` }}>
-                <StickerPreview s={slide.sticker} />
+                <div key={`s${popKey}-${slide.sticker.kind}`} className={cn("animate-story-pop transition-[scale,opacity] duration-200", dragging === "sticker" && (overTrash ? "scale-[0.45] opacity-60" : "scale-105"))}>
+                  <StickerPreview s={slide.sticker} />
+                </div>
               </div>
             )}
 
             {/* MATN (surish / bosib tahrirlash) */}
             {!editing &&
               (slide.text.trim() ? (
-                <div onPointerDown={(e) => drag(e, "text")} className="absolute inset-0 touch-none [&>div]:pointer-events-auto [&>div]:cursor-grab [&>div]:active:cursor-grabbing pointer-events-none">
+                <div
+                  key={`t${popKey}`}
+                  onPointerDown={(e) => drag(e, "text")}
+                  className={cn("pointer-events-none absolute inset-0 touch-none [&>div]:pointer-events-auto [&>div]:cursor-grab [&>div]:active:cursor-grabbing", "[&>div]:transition-[scale,opacity] [&>div]:duration-200", popKey > 0 && "[&>div]:animate-story-pop", dragging === "text" && (overTrash ? "[&>div]:scale-[0.45] [&>div]:opacity-60" : "[&>div]:scale-105"))}
+                >
                   <StoryText text={slide.text} design={slide.design} />
                 </div>
               ) : (
@@ -528,39 +576,55 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
             )}
             {slide.failed && <span className="absolute bottom-3 left-3 rounded-full bg-[#e0412b] px-3 py-1.5 text-[12px] font-semibold">Yuklanmadi — olib tashlang</span>}
 
+            {/* AXLAT QUTISI — faqat surish paytida */}
+            {dragging && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] flex flex-col items-center gap-1.5">
+                <div
+                  ref={trashRef}
+                  className={cn(
+                    "grid animate-story-pop place-items-center rounded-full border-2 transition-[width,height,background-color,border-color] duration-200",
+                    overTrash ? "h-[68px] w-[68px] border-transparent bg-[#ff3b30] text-white" : "h-14 w-14 border-white/80 bg-black/35 text-white backdrop-blur-md",
+                  )}
+                >
+                  <Trash2 size={overTrash ? 26 : 22} />
+                </div>
+                <span className={cn("text-[12px] font-semibold text-white drop-shadow transition-opacity", overTrash ? "opacity-100" : "opacity-0")}>Qo&apos;yib yuboring — o&apos;chadi</span>
+              </div>
+            )}
+
             {/* ASBOBLAR */}
             {!editing && (
               <>
-                <div className="absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-black/45 to-transparent p-3 pb-10 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+                <div className={cn("absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-black/45 to-transparent p-3 pb-10 pt-[calc(env(safe-area-inset-top)+0.75rem)] transition-opacity duration-200", dragging && "pointer-events-none opacity-0")}>
                   <Tool label="Yopish" onClick={() => void close()}>
                     <X size={20} />
                   </Tool>
                   <div className="flex flex-col gap-2.5">
-                    <Tool label="Matn" active={Boolean(slide.text.trim())} onClick={() => setEditing(true)}>
+                    <Tool i={1} label="Matn" active={Boolean(slide.text.trim())} onClick={() => setEditing(true)}>
                       <Type size={19} />
                     </Tool>
-                    <Tool label="Stiker" active={Boolean(slide.sticker)} onClick={() => setStickerOpen(true)}>
+                    <Tool i={2} label="Stiker" active={Boolean(slide.sticker)} onClick={() => setStickerOpen(true)}>
                       <Smile size={20} />
                     </Tool>
-                    <Tool label="Musiqa" active={Boolean(slide.music)} onClick={() => setMusicOpen(true)}>
+                    <Tool i={3} label="Musiqa" active={Boolean(slide.music)} onClick={() => setMusicOpen(true)}>
                       <Music2 size={19} />
                     </Tool>
                     {slide.kind === "media" ? (
-                      <Tool label={slide.fit === "cover" ? "To'liq ko'rsatish" : "Ekranni to'ldirish"} onClick={() => patch(slide.id, { fit: slide.fit === "cover" ? "contain" : "cover" })}>
+                      <Tool i={4} label={slide.fit === "cover" ? "To'liq ko'rsatish" : "Ekranni to'ldirish"} onClick={() => patch(slide.id, { fit: slide.fit === "cover" ? "contain" : "cover" })}>
                         {slide.fit === "cover" ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                       </Tool>
                     ) : (
-                      <Tool label="Fonni almashtirish" onClick={() => patch(slide.id, { bg: BG_KEYS[(BG_KEYS.indexOf(slide.bg) + 1) % BG_KEYS.length] })}>
+                      <Tool i={4} label="Fonni almashtirish" onClick={() => patch(slide.id, { bg: BG_KEYS[(BG_KEYS.indexOf(slide.bg) + 1) % BG_KEYS.length] })}>
                         <Palette size={19} />
                       </Tool>
                     )}
-                    <Tool label="Slaydni o'chirish" onClick={() => removeSlide(slide.id)}>
+                    <Tool i={5} label="Slaydni o'chirish" onClick={() => removeSlide(slide.id)}>
                       <Trash2 size={18} />
                     </Tool>
                   </div>
                 </div>
                 {slide.kind === "text" && (
-                  <div className="no-scrollbar absolute inset-x-0 bottom-3 flex justify-center gap-2 overflow-x-auto px-3" role="radiogroup" aria-label="Fon">
+                  <div className={cn("no-scrollbar absolute inset-x-0 bottom-3 flex animate-slide-up justify-center gap-2 overflow-x-auto px-3 transition-opacity duration-200", dragging && "pointer-events-none opacity-0")} role="radiogroup" aria-label="Fon">
                     {BG_KEYS.map((k) => (
                       <button key={k} type="button" role="radio" aria-checked={slide.bg === k} aria-label={`Fon: ${k}`} onClick={() => patch(slide.id, { bg: k })} className={cn("h-7 w-7 shrink-0 rounded-full ring-2 transition", slide.bg === k ? "ring-white" : "ring-white/25")} style={{ background: STORY_BACKGROUNDS[k] }} />
                     ))}
@@ -571,7 +635,7 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
 
             {/* MATN TAHRIRI */}
             {editing && ts && (
-              <div className="absolute inset-0 flex flex-col bg-black/55 backdrop-blur-[2px]">
+              <div className="absolute inset-0 flex animate-fade-in flex-col bg-black/55 backdrop-blur-[2px]">
                 <div className="flex items-center justify-between gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
                   <div className="flex gap-1.5">
                     <button type="button" aria-label="Tekislash" title="Tekislash" onClick={() => patchDesign({ align: STORY_ALIGNS[(STORY_ALIGNS.indexOf(slide.design.align) + 1) % STORY_ALIGNS.length] })} className="press grid h-10 w-10 place-items-center rounded-full bg-white/14">
@@ -612,7 +676,7 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
                     {slide.text.length}/{STORY_CAPTION_MAX}
                   </span>
                 </div>
-                <div className="space-y-2.5 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+                <div className="animate-slide-up space-y-2.5 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
                   <div className="no-scrollbar flex justify-center gap-1.5 overflow-x-auto" role="radiogroup" aria-label="Shrift">
                     {STORY_FONTS.map((f) => (
                       <button key={f} type="button" role="radio" aria-checked={slide.design.font === f} onClick={() => patchDesign({ font: f })} className={cn("press h-9 shrink-0 rounded-full px-3.5 text-[13.5px] font-semibold transition", slide.design.font === f ? "bg-white text-black" : "bg-white/14 text-white")} style={{ fontFamily: STORY_FONT_FAMILY[f] }}>
@@ -644,7 +708,7 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
         <div className="w-full shrink-0 space-y-2.5 bg-black px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2.5 sm:mt-3 sm:w-auto sm:min-w-[380px] sm:rounded-[20px] sm:bg-white/8 sm:pb-3">
           <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
             {slides.map((s, i) => (
-              <button key={s.id} type="button" onClick={() => (setCur(i), setEditing(false))} aria-label={`${i + 1}-slayd`} aria-current={i === cur} className={cn("relative h-14 w-9 shrink-0 overflow-hidden rounded-[9px] ring-2 transition", i === cur ? "ring-white" : "ring-transparent opacity-70")}>
+              <button key={s.id} type="button" onClick={() => (setCur(i), setEditing(false))} aria-label={`${i + 1}-slayd`} aria-current={i === cur} className={cn("relative h-14 w-9 shrink-0 overflow-hidden rounded-[9px] ring-2 transition-[scale,opacity,box-shadow] duration-200", i === cur ? "scale-105 ring-white" : "ring-transparent opacity-70")}>
                 {s.kind === "media" ? (
                   s.preview && (s.isVideo ? <video src={s.preview} muted className="h-full w-full object-cover" /> : <img src={s.preview} alt="" className="h-full w-full object-cover" />)
                 ) : (
@@ -690,7 +754,11 @@ export function StoryEditor({ open, onClose, onCreated }: { open: boolean; onClo
         </div>
       )}
 
-      <StickerSheet open={stickerOpen} onClose={() => setStickerOpen(false)} value={slide?.sticker ?? null} onDone={(s) => slide && patch(slide.id, { sticker: s })} />
+      <StickerSheet open={stickerOpen} onClose={() => setStickerOpen(false)} value={slide?.sticker ?? null} onDone={(s) => {
+          if (!slide) return;
+          patch(slide.id, { sticker: s });
+          setPopKey((k) => k + 1);
+        }} />
       <MusicSheet
         open={musicOpen}
         onClose={() => setMusicOpen(false)}

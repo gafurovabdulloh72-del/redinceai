@@ -365,6 +365,10 @@
 
   /* Jonli efir reaksiyasi: emoji pastdan yuqoriga uchib chiqadi va yo'qoladi */
   --animate-live-float: live-float 3.4s cubic-bezier(0.25, 0.6, 0.3, 1) both;
+  /* Story (Instagram uslubi): asbob tugmalari ketma-ket kirishi, element «pop» bilan paydo bo'lishi, halqa yuklanishi */
+  --animate-story-tool: story-tool-in 0.36s var(--ease-spring) backwards;
+  --animate-story-pop: story-pop 0.44s var(--ease-spring) backwards;
+  --animate-story-load: spin 0.85s linear infinite;
 
   @keyframes live-float {
     0% { opacity: 0; transform: translateY(0) scale(0.6); }
@@ -422,6 +426,16 @@
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+  @keyframes story-tool-in {
+    from { opacity: 0; transform: translateX(16px) scale(0.7); }
+    to { opacity: 1; transform: none; }
+  }
+  /* `scale` xususiyati (transform EMAS): story matni o'zini transform: translate(-50%,-50%) bilan markazlaydi — buzilmasin */
+  @keyframes story-pop {
+    0% { opacity: 0; scale: 0.35; }
+    60% { opacity: 1; scale: 1.07; }
+    100% { opacity: 1; scale: 1; }
   }
   @keyframes pop {
     0% { transform: scale(1); }
@@ -1999,6 +2013,21 @@ html:has([data-reels-screen]) .shell-capsule {
     padding: 2px;
     border-radius: 9999px;
     background: var(--line-2);
+  }
+  /* Bosilgandan keyin story yuklanayotganda — halqa aylanadi (Instagram) */
+  .story-ring-loading {
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+  }
+  .story-ring-loading::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(var(--accent) 0 62%, transparent 62% 100%);
+    animation: var(--animate-story-load);
   }
   .story-ring > .story-gap,
   .story-ring-seen > .story-gap {
