@@ -116,6 +116,12 @@ const GUEST_FORBIDDEN = [
   ["GET", "/api/media/material/x_0"],
   ["GET", "/api/media/receipt/x"],
   ["GET", "/api/media/dm/x_0/stream"],
+  // «Ishimni baholang»: so'rovlar ro'yxati, yaratish, javob va fayl
+  ["GET", "/api/mentorlik/ish-sharh"],
+  ["POST", "/api/mentorlik/ish-sharh"],
+  ["GET", "/api/mentorlik/ish-sharh/x"],
+  ["POST", "/api/mentorlik/ish-sharh/x/javob"],
+  ["GET", "/api/media/review/x_0"],
 ];
 
 test("Mini App: soxta initData → 401 (imzo tekshiruvi)", async () => {
@@ -1448,5 +1454,69 @@ test("Avtomatik tasdiqlash: faqat admin yoqadi; yoqilganda yangi mutaxassis prof
   } finally {
     await req("ad", "/api/admin/avto-tasdiq", { method: "PATCH", body: JSON.stringify({ on: was }) });
     await cleanupTemp(emails);
+  }
+});
+
+/* ------------------------- «Ishimni baholang» (pullik ish sharhi) ------------------------- */
+
+// Fixture: vaqtinchalik mutaxassis hisobi bazada tasdiqlangan ustoz qilinadi (bepul xizmat yoqiladi), mijoz demo hisobi
+// so'rov yuboradi, ikkinchi vaqtinchalik hisob — begona. Oxirida so'rovlar, ustoz qatori va hisoblar o'chiriladi.
+test("Ish sharhi: o'z xizmatini sotib olib bo'lmaydi, faqat https havola, begona so'rov/javob/faylga 404, talaba javob bera olmaydi (403)", async (t) => {
+  const mentorUser = await registerTemp("specialist");
+  const stranger = await registerTemp("client");
+  if (!mentorUser || !stranger) return t.skip("sinov hisoblari yaratilmadi");
+  const mentorId = `sec-wr-${randomUUID().slice(0, 8)}`;
+  const post = (cookie, path, body) => reqAs(cookie, path, { method: "POST", body: JSON.stringify(body) });
+  try {
+    await dbRun("INSERT INTO mentors (id, user_id, headline, is_approved, review_enabled, review_price, review_about, review_days) VALUES (?, ?, ?, 1, 1, 0, ?, 3)", [mentorId, mentorUser.id, "SEC ish sharhi", "SEC sinov xizmati"]);
+    // Sozlamani begona o'zgartira olmaydi
+    const set = await req("cl", `/api/mentorlik/ustoz/${mentorId}/ish-sharh`, { method: "PUT", body: JSON.stringify({ enabled: false, price: 0, about: "", days: 3 }) });
+    assert.equal(set.status, 403, `begona sozlama: ${set.status}`);
+    // Ustozning o'zi o'z xizmatini so'ray olmaydi
+    const self = await post(mentorUser.cookie, "/api/mentorlik/ish-sharh", { mentorId, workUrl: "https://youtu.be/sec" });
+    assert.equal(self.status, 400, `o'z xizmati: ${self.status}`);
+    // Havola faqat https
+    for (const bad of ["http://youtu.be/sec", "javascript:alert(1)", "https://user:pass@example.com/x", "ftp://example.com/x"]) {
+      const r = await req("cl", "/api/mentorlik/ish-sharh", { method: "POST", body: JSON.stringify({ mentorId, workUrl: bad }) });
+      assert.equal(r.status, 422, `${bad} → ${r.status}`);
+    }
+    // Begona saytdagi «yuklama» rad etiladi (fayl sayt orqali yuklanishi shart)
+    const ext = await req("cl", "/api/mentorlik/ish-sharh", { method: "POST", body: JSON.stringify({ mentorId, workFile: { url: "https://evil.example.com/uploads/x.png", name: "x.png" } }) });
+    assert.equal(ext.status, 422, `tashqi fayl: ${ext.status}`);
+
+    // Mijoz o'z yuklamasi bilan bepul so'rov yuboradi
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    const fd = new FormData();
+    fd.append("file", new Blob([png], { type: "image/png" }), "sec-wr.png");
+    fd.append("purpose", "attachment");
+    const up = await fetch(BASE + "/api/upload", { method: "POST", headers: { Origin: ORIGIN, Cookie: COOKIES.cl }, body: fd });
+    assert.equal(up.status, 201, `yuklash: ${up.status}`);
+    const fileUrl = (await up.json()).data.url;
+    const made = await req("cl", "/api/mentorlik/ish-sharh", { method: "POST", body: JSON.stringify({ mentorId, workFile: { url: fileUrl, name: "sec-wr.png" }, note: "SEC sinov" }) });
+    assert.equal(made.status, 201, `so'rov: ${made.status}`);
+    const { id, free } = (await made.json()).data;
+    assert.equal(free, true, "bepul so'rov darhol yuborildi");
+
+    // Begona: so'rov, javob, fayl, to'lov hisobi — hammasi 404
+    assert.equal((await reqAs(stranger.cookie, `/api/mentorlik/ish-sharh/${id}`)).status, 404, "begona so'rovni ko'radi");
+    assert.equal((await post(stranger.cookie, `/api/mentorlik/ish-sharh/${id}/javob`, { response: "x".repeat(40) })).status, 404, "begona javob beradi");
+    assert.equal((await reqAs(stranger.cookie, `/api/media/review/${id}_0`)).status, 404, "begona faylni oladi");
+    assert.equal((await reqAs(stranger.cookie, `/api/media/review/${id}_1`)).status, 404, "begona javob videosini oladi");
+    assert.equal((await reqAs(stranger.cookie, `/api/mentorlik/ish-sharh/${id}`, { method: "DELETE" })).status, 404, "begona bekor qiladi");
+    assert.equal((await post(stranger.cookie, "/api/mentorlik/tolov/narx", { type: "review", id })).status, 404, "begona narx so'raydi");
+    // DTO'da xom fayl manzili yo'q; talaba javob bera olmaydi; ustoz faylni ochadi
+    const view = await req("cl", `/api/mentorlik/ish-sharh/${id}`);
+    const text = await view.text();
+    assert.equal(view.status, 200);
+    assert.ok(!text.includes(fileUrl) && text.includes(`/api/media/review/${id}_0`), "faqat himoyalangan manzil");
+    assert.equal((await req("cl", `/api/mentorlik/ish-sharh/${id}/javob`, { method: "POST", body: JSON.stringify({ response: "x".repeat(40) }) })).status, 403, "talaba javob beradi");
+    assert.equal((await reqAs(mentorUser.cookie, `/api/media/review/${id}_0`)).status, 302, "ustoz faylni ochadi");
+    const ans = await post(mentorUser.cookie, `/api/mentorlik/ish-sharh/${id}/javob`, { response: "SEC sinov sharhi: kompozitsiya yaxshi, ranglarni iliqroq qiling." });
+    assert.equal(ans.status, 200, `ustoz javobi: ${ans.status}`);
+  } finally {
+    await dbRun("DELETE FROM notifications WHERE href = '/kabinet/mentorlik#ish-sharhlari' AND user_id = (SELECT id FROM users WHERE email = ?) AND created_at > ?", ["mijoz@redince.uz", Date.now() - 10 * 60_000]).catch(() => undefined);
+    await dbRun("DELETE FROM work_reviews WHERE mentor_id = ?", [mentorId]).catch(() => undefined);
+    await dbRun("DELETE FROM mentors WHERE id = ?", [mentorId]).catch(() => undefined);
+    await cleanupTemp([mentorUser.email, stranger.email]);
   }
 });

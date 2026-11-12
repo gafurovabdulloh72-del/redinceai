@@ -10,6 +10,7 @@ import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser, getMentorProfileForEditor } from "@/lib/mentorship/service";
 import { MentorNav } from "@/components/mentorship/MentorNav";
 import { MentorPageForm } from "@/components/mentorship/MentorStudio";
+import { WorkReviewSettings } from "@/components/mentorship/WorkReview";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,6 +45,7 @@ export default async function MentorPagePage() {
           )}
         </header>
         <MentorPageForm mentor={profile} />
+        <WorkReviewSettings mentorId={profile.id} initial={profile.review} />
       </div>
     </div>
   );

@@ -24,16 +24,16 @@ import { contactMeta, isContactUnlock } from "@/lib/contacts/unlock";
 
 /**
  * Mentorlik to'lovi Telegram bot orqali.
- *  - Saytdagi «Telegramda to'lash» → t.me/bot?start=b_<tur>_<id> (tur: c|t|s|k)
+ *  - Saytdagi «Telegramda to'lash» → t.me/bot?start=b_<tur>_<id> (tur: c|t|s|k|r)
  *  - Bot narxni ko'rsatadi, usulni tanlatadi (callback `bp:<usul>:<tur>:<id>`), hisob ochadi (startPurchase),
  *    Payme/Click havolasi yoki karta rekvizitlarini yuboradi; o'tkazma uchun «To'ladim» (`bd:<hisob>`).
  *  - To'langach kirish/bildirishnoma mavjud oqim (markInvoicePaid → fulfillPurchase → notify) orqali keladi.
  * Hisob faqat chat ulangan foydalanuvchiga ochiladi.
  */
 
-const TYPE_CODE: Record<PurchaseType, string> = { course: "c", ticket: "t", sub: "s", consult: "k" };
-const CODE_TYPE: Record<string, PurchaseType> = { c: "course", t: "ticket", s: "sub", k: "consult" };
-const PURCHASE_LABEL_RU: Record<PurchaseType, string> = { course: "Курс", ticket: "Билет на эфир", sub: "Месячная подписка", consult: "Консультация" };
+const TYPE_CODE: Record<PurchaseType, string> = { course: "c", ticket: "t", sub: "s", consult: "k", review: "r" };
+const CODE_TYPE: Record<string, PurchaseType> = { c: "course", t: "ticket", s: "sub", k: "consult", r: "review" };
+const PURCHASE_LABEL_RU: Record<PurchaseType, string> = { course: "Курс", ticket: "Билет на эфир", sub: "Месячная подписка", consult: "Консультация", review: "Разбор работы" };
 const METHOD: Record<string, "payme" | "click" | "manual"> = { p: "payme", c: "click", m: "manual" };
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -101,7 +101,7 @@ async function sendBuyOptions(chatId: string, userId: string, typeCode: string, 
 
 /** `/start b_c_<id>` — xarid xulosasi va to'lov usullari */
 export async function handleBuyStart(chatId: string, payload: string, lang?: BotLang): Promise<boolean> {
-  const m = /^b_([ctsk])_(.+)$/.exec(payload);
+  const m = /^b_([ctskr])_(.+)$/.exec(payload);
   const ref = m ? parseItemRef(m[2]) : null;
   if (!m || !ref) return false;
   const user = await userByChat(chatId);
@@ -131,13 +131,13 @@ async function setNative(inv: SubscriptionInvoice, on: boolean): Promise<void> {
  * false — bu callback bizniki emas.
  */
 export async function handlePayCallback(chatId: string, data: string, answer: (t: string) => Promise<unknown>, lang?: BotLang): Promise<boolean> {
-  const offer = new RegExp(`^buy:([ctsk]):(${UUID}|[\\w-]{1,48})$`).exec(data);
+  const offer = new RegExp(`^buy:([ctskr]):(${UUID}|[\\w-]{1,48})$`).exec(data);
   if (offer) {
     await answer("");
     await handleBuyStart(chatId, `b_${offer[1]}_${offer[2]}`, lang);
     return true;
   }
-  const buyRaw = /^bp:([pcmft]):([ctsk]):(.+)$/.exec(data);
+  const buyRaw = /^bp:([pcmft]):([ctskr]):(.+)$/.exec(data);
   const buyRef = buyRaw ? parseItemRef(buyRaw[3]) : null;
   const done = /^bd:([\w-]{1,64})$/.exec(data);
   if (!(buyRaw && buyRef) && !done) return false;

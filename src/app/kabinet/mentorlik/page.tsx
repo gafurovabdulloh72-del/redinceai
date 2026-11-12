@@ -5,7 +5,7 @@ import { KABINET_NAV } from "@/lib/i18n/dict/kabinet";
 import { MK } from "@/lib/i18n/dict/mentorship";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowUpRight, ChevronRight, GraduationCap, Radio, Route, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronRight, GraduationCap, MessageSquareText, Radio, Route, Sparkles } from "lucide-react";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { getMentorForUser, getMentorProfileForEditor, listCoursesOfMentor, listMyEnrollments } from "@/lib/mentorship/service";
 import { ApplyBlock, MyEnrollments } from "@/components/mentorship/MentorDashboard";
@@ -13,6 +13,9 @@ import { MentorNav } from "@/components/mentorship/MentorNav";
 import { MentorSections, MentorStats } from "@/components/mentorship/MentorStudio";
 import { LearningStreakCard } from "@/components/mentorship/LearningStreak";
 import { learningStreak } from "@/lib/mentorship/streak";
+import { listMyWorkReviews, waitingWorkReviewsCount } from "@/lib/mentorship/work-review";
+import { MyWorkReviews } from "@/components/mentorship/WorkReview";
+import { WR } from "@/lib/i18n/dict/mentorship";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,9 +34,10 @@ export default async function KabinetMentorlikPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await loginRedirectPath("/kabinet/mentorlik"));
 
-  const [mentor, enrollments, streak] = await Promise.all([getMentorForUser(user.id), listMyEnrollments(user.id), learningStreak(user.id)]);
+  const [mentor, enrollments, streak, myReviews] = await Promise.all([getMentorForUser(user.id), listMyEnrollments(user.id), learningStreak(user.id), listMyWorkReviews(user.id)]);
   const profile = mentor?.isApproved ? await getMentorProfileForEditor(mentor.id, { id: user.id, admin: user.role === "admin" }) : null;
   const courses = profile ? await listCoursesOfMentor(profile.id) : [];
+  const reviewsWaiting = profile ? await waitingWorkReviewsCount(profile.id) : 0;
   const pageHref = profile?.slug ? `/mentorlik/ustoz/${profile.slug}` : null;
 
   return (
@@ -60,6 +64,16 @@ export default async function KabinetMentorlikPage() {
               )}
             </header>
             <MentorStats mentor={profile} courses={courses} />
+            {reviewsWaiting > 0 && (
+              <Link href="/kabinet/mentorlik/vazifalar#ish-sharhlari" className="card card-hover flex items-center gap-3 border-accent/40 p-4">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"><MessageSquareText size={16} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-bold text-fg">{WR.waitingCard[til](reviewsWaiting)}</span>
+                  <span className="block text-[12.5px] text-fg-3">{tr(til, WR.waitingCardHint)}</span>
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-fg-4" />
+              </Link>
+            )}
             <MentorSections mentor={profile} courses={courses} />
             {/* Yo'l xaritasi — nav 4 tabga qisqargach shu yerdan ochiladi */}
             <Link href="/kabinet/mentorlik/yol-xaritasi" className="card card-hover flex items-center gap-3 p-4">
@@ -78,7 +92,7 @@ export default async function KabinetMentorlikPage() {
               <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.myCourses)}</h1>
               <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.myCoursesLead)}</p>
             </header>
-            {enrollments.length === 0 && (
+            {enrollments.length === 0 && myReviews.length === 0 && (
               <div className="card grid place-items-center gap-2 p-10 text-center m-flat">
                 <GraduationCap size={28} className="text-fg-4" />
                 <p className="text-[15px] font-bold text-fg">{tr(til, MK.notEnrolled)}</p>
@@ -96,6 +110,8 @@ export default async function KabinetMentorlikPage() {
         <MyEnrollments
           enrollments={enrollments.map((e) => ({ progressPct: e.progressPct, lastLessonId: e.lastLessonId, title: e.course.title, slug: e.course.slug, coverUrl: e.course.coverUrl, mentorName: e.course.mentor.name, lessonsCount: e.course.lessonsCount }))}
         />
+        {/* «Ishimni baholang» — talaba sifatida yuborgan ishlarim va ustoz sharhlari */}
+        <MyWorkReviews items={myReviews} />
 
         {/* «Ustoz bo'lish» — endi yig'ilgan karta (ariza kutilayotganda ochiq turadi) */}
         {!profile && (

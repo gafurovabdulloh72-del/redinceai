@@ -15,6 +15,7 @@ import { parseAttachmentFileId, type PrivateFileKind } from "./private-url";
  *  - orderfile — buyurtmaning o'z biriktirmalari (orders.attachments): mijoz / mutaxassis / admin
  *  - material — dars materiali: kursga yozilgan / ustoz (egasi) / admin
  *  - receipt  — qo'lda o'tkazma cheki: admin yoki hisob egasi (subscription_invoices, zaxira — payments orqali buyurtma mijozi)
+ *  - review   — «Ishimni baholang» fayli (ish / javob videosi): talaba / ustoz / admin
  */
 export interface PrivateFile {
   url: string;
@@ -102,6 +103,13 @@ export async function resolvePrivateFile(kind: PrivateFileKind, id: string, v: V
       const mat = (l.materials ?? [])[index];
       if (!mat || poster) throw NOT_FOUND();
       return { url: mat.url, name: mat.name };
+    }
+    case "review": {
+      // «Ishimni baholang»: 0 — talabaning ishi, 1 — ustoz javob videosi; faqat talaba / ustoz / admin
+      const { resolveWorkReviewFile } = await import("@/lib/mentorship/work-review");
+      const a = await resolveWorkReviewFile(ownerId, index, { id: v.sub, admin: v.role === "admin" });
+      if (!a) throw NOT_FOUND();
+      return pick([a], 0, poster);
     }
   }
 }

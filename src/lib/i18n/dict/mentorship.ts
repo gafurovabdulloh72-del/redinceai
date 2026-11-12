@@ -89,7 +89,7 @@ export function secondsTr(til: Locale, n: number): string {
   return til === "ru" ? `${n} ${ruPlural(n, ["секунда", "секунды", "секунд"])}` : `${n} soniya`;
 }
 
-const PURCHASE_RU: Record<PurchaseType, string> = { course: "Курс", ticket: "Билет на эфир", sub: "Месячная подписка", consult: "Консультация" };
+const PURCHASE_RU: Record<PurchaseType, string> = { course: "Курс", ticket: "Билет на эфир", sub: "Месячная подписка", consult: "Консультация", review: "Разбор работы" };
 export function purchaseLabelTr(til: Locale, t: PurchaseType): string {
   return til === "ru" ? PURCHASE_RU[t] : PURCHASE_LABEL[t];
 }
@@ -705,4 +705,85 @@ export const MK = {
   inviteLead: { uz: (p: number) => `Havolangiz orqali xarid qilgan do'stingiz ${p}% chegirma oladi, siz esa shuncha kredit — keyingi xaridingizga.`, ru: (p: number) => `Друг, купивший по вашей ссылке, получит скидку ${p}%, а вы — столько же кредита на следующую покупку.` },
   inviteStats: { uz: (n: number, bal: string) => `Taklif qilinganlar: ${n} · Kredit balansi: ${bal}`, ru: (n: number, bal: string) => `Приглашено: ${n} · Баланс кредита: ${bal}` },
   printPdf: { uz: "Chop etish / PDF", ru: "Печать / PDF" } satisfies Tr,
+};
+
+/* ------------------------------------------------------------------ */
+/* «Ishimni baholang» — pullik asinxron ish sharhi (2026-11-12)         */
+/* ------------------------------------------------------------------ */
+const daysUz = (n: number) => `${n} kun`;
+const daysRu = (n: number) => `${n} ${ruPlural(n, ["день", "дня", "дней"])}`;
+export const WR = {
+  /* Ustoz sahifasidagi karta va so'rov varag'i */
+  title: { uz: "Ishimni baholang", ru: "Оцените мою работу" } satisfies Tr,
+  offer: { uz: (price: string, d: number) => `${price} · ${daysUz(d)} ichida`, ru: (price: string, d: number) => `${price} · за ${daysRu(d)}` },
+  cardLead: { uz: "Ishingizni yuboring — ustoz uni ko'rib, yozma sharh va aniq maslahatlar qaytaradi.", ru: "Отправьте работу — наставник посмотрит её и вернёт письменный разбор с конкретными советами." } satisfies Tr,
+  send: { uz: "Ishimni yuborish", ru: "Отправить работу" } satisfies Tr,
+  ownerNote: { uz: "Bu sizning xizmatingiz — talabalar shu kartani ko'radi.", ru: "Это ваша услуга — студенты видят эту карточку." } satisfies Tr,
+  configure: { uz: "Sozlash", ru: "Настроить" } satisfies Tr,
+  workLink: { uz: "Ish havolasi", ru: "Ссылка на работу" } satisfies Tr,
+  workLinkPh: { uz: "https://… (YouTube, Behance, Google Drive)", ru: "https://… (YouTube, Behance, Google Drive)" } satisfies Tr,
+  or: { uz: "yoki", ru: "или" } satisfies Tr,
+  uploadFile: { uz: "Fayl yuklash", ru: "Загрузить файл" } satisfies Tr,
+  fileHint: { uz: "Video, rasm, PDF yoki ZIP", ru: "Видео, изображение, PDF или ZIP" } satisfies Tr,
+  uploading: { uz: "Yuklanmoqda…", ru: "Загрузка…" } satisfies Tr,
+  removeFile: { uz: "Faylni olib tashlash", ru: "Удалить файл" } satisfies Tr,
+  note: { uz: "Nimaga e'tibor qaratsin?", ru: "На что обратить внимание?" } satisfies Tr,
+  notePh: { uz: "Masalan: montaj ritmi, rang, ovoz, kompozitsiya…", ru: "Например: ритм монтажа, цвет, звук, композиция…" } satisfies Tr,
+  needWork: { uz: "Havola kiriting yoki fayl yuklang", ru: "Укажите ссылку или загрузите файл" } satisfies Tr,
+  httpsOnly: { uz: "Havola https:// bilan boshlanishi kerak", ru: "Ссылка должна начинаться с https://" } satisfies Tr,
+  next: { uz: "Davom etish — to'lov", ru: "Продолжить — оплата" } satisfies Tr,
+  sendFree: { uz: "Bepul yuborish", ru: "Отправить бесплатно" } satisfies Tr,
+  sent: { uz: "So'rov ustozga yuborildi", ru: "Запрос отправлен наставнику" } satisfies Tr,
+  failed: { uz: "Yuborib bo'lmadi", ru: "Не удалось отправить" } satisfies Tr,
+
+  /* Ustoz sozlamasi */
+  settingsTitle: { uz: "«Ishimni baholang» xizmati", ru: "Услуга «Оцените мою работу»" } satisfies Tr,
+  settingsLead: { uz: "Talaba ishini yuboradi, siz yozma (xohlasangiz video) sharh qaytarasiz. To'lov platforma orqali, daromad «Daromad» bo'limiga tushadi.", ru: "Студент отправляет работу, вы возвращаете письменный (по желанию видео) разбор. Оплата через платформу, доход — в разделе «Доход»." } satisfies Tr,
+  enable: { uz: "Xizmatni yoqish", ru: "Включить услугу" } satisfies Tr,
+  price: { uz: "Narx (so'm)", ru: "Цена (сум)" } satisfies Tr,
+  priceHint: { uz: "0 — bepul, aks holda 5 000 – 5 000 000", ru: "0 — бесплатно, иначе 5 000 – 5 000 000" } satisfies Tr,
+  days: { uz: "Javob muddati (kun)", ru: "Срок ответа (дней)" } satisfies Tr,
+  about: { uz: "Nimani baholaysiz", ru: "Что вы оцениваете" } satisfies Tr,
+  aboutPh: { uz: "Masalan: reels montaji, rang korreksiyasi, logotip va brending…", ru: "Например: монтаж reels, цветокоррекция, логотип и брендинг…" } satisfies Tr,
+  save: { uz: "Saqlash", ru: "Сохранить" } satisfies Tr,
+  saved: { uz: "Saqlandi", ru: "Сохранено" } satisfies Tr,
+  notSaved: { uz: "Saqlab bo'lmadi", ru: "Не удалось сохранить" } satisfies Tr,
+
+  /* Ustoz kutish ro'yxati */
+  inboxTitle: { uz: "Ish sharhlari", ru: "Разборы работ" } satisfies Tr,
+  inboxLead: { uz: "Talabalar yuborgan ishlar — muddatigacha sharh yozing.", ru: "Работы студентов — напишите разбор до срока." } satisfies Tr,
+  waitingN: { uz: (n: number) => `${n} ta javob kutmoqda`, ru: (n: number) => `${n} ${ruPlural(n, ["ждёт", "ждут", "ждут"])} ответа` },
+  noWaiting: { uz: "Hozircha javob kutayotgan ish yo'q.", ru: "Пока нет работ, ожидающих ответа." } satisfies Tr,
+  due: { uz: (d: string) => `Muddat: ${d}`, ru: (d: string) => `Срок: ${d}` },
+  overdue: { uz: "Muddati o'tgan", ru: "Срок истёк" } satisfies Tr,
+  openWork: { uz: "Faylni ochish", ru: "Открыть файл" } satisfies Tr,
+  openLink: { uz: "Havolani ochish", ru: "Открыть ссылку" } satisfies Tr,
+  studentNote: { uz: "Talaba izohi", ru: "Комментарий студента" } satisfies Tr,
+  answerPh: { uz: "Sharhingiz: nima yaxshi chiqqan, nimani yaxshilash kerak, aniq maslahatlar…", ru: "Ваш разбор: что получилось, что улучшить, конкретные советы…" } satisfies Tr,
+  addVideo: { uz: "Video javob (ixtiyoriy)", ru: "Видеоответ (необязательно)" } satisfies Tr,
+  videoOnly: { uz: "Faqat video fayl (MP4, WebM, MOV)", ru: "Только видеофайл (MP4, WebM, MOV)" } satisfies Tr,
+  sendAnswer: { uz: "Sharhni yuborish", ru: "Отправить разбор" } satisfies Tr,
+  answered: { uz: "Sharh yuborildi", ru: "Разбор отправлен" } satisfies Tr,
+  minChars: { uz: (n: number) => `Sharh kamida ${n} belgi bo'lsin`, ru: (n: number) => `Разбор — минимум ${n} символов` },
+  recentDone: { uz: "Javob berilganlar", ru: "С ответом" } satisfies Tr,
+  waitingCard: { uz: (n: number) => `${n} ta ish sharhi javob kutmoqda`, ru: (n: number) => `${n} ${ruPlural(n, ["разбор ждёт", "разбора ждут", "разборов ждут"])} ответа` },
+  waitingCardHint: { uz: "Vazifalar bo'limida ko'rib, sharh yozing", ru: "Посмотрите и ответьте в разделе «Задания»" } satisfies Tr,
+
+  /* Talaba ro'yxati */
+  myTitle: { uz: "Ish sharhlarim", ru: "Мои разборы работ" } satisfies Tr,
+  status: {
+    pending_payment: { uz: "To'lov kutilmoqda", ru: "Ожидает оплаты" },
+    waiting: { uz: "Ustoz ko'rib chiqmoqda", ru: "Наставник смотрит" },
+    done: { uz: "Sharh tayyor", ru: "Разбор готов" },
+    refunded: { uz: "Qaytarilgan", ru: "Возвращено" },
+    cancelled: { uz: "Bekor qilingan", ru: "Отменено" },
+  } satisfies Record<string, Tr>,
+  pay: { uz: "To'lash", ru: "Оплатить" } satisfies Tr,
+  cancel: { uz: "Bekor qilish", ru: "Отменить" } satisfies Tr,
+  cancelQ: { uz: "So'rovni bekor qilasizmi?", ru: "Отменить запрос?" } satisfies Tr,
+  cancelled: { uz: "So'rov bekor qilindi", ru: "Запрос отменён" } satisfies Tr,
+  mentorResponse: { uz: "Ustoz sharhi", ru: "Разбор наставника" } satisfies Tr,
+  expectedBy: { uz: (d: string) => `${d} gacha javob beriladi`, ru: (d: string) => `Ответ до ${d}` },
+  yourWork: { uz: "Sizning ishingiz", ru: "Ваша работа" } satisfies Tr,
+  error: { uz: "Xatolik", ru: "Ошибка" } satisfies Tr,
 };

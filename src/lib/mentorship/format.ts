@@ -68,8 +68,26 @@ export const MIN_PAYOUT = 100_000;
 export const SLOT_HOLD_MS = 20 * 60_000;
 export const SUB_DAYS = 30;
 
-export type PurchaseType = "course" | "ticket" | "sub" | "consult";
-export const PURCHASE_LABEL: Record<PurchaseType, string> = { course: "Kurs", ticket: "Efir chiptasi", sub: "Oylik obuna", consult: "Konsultatsiya" };
+export type PurchaseType = "course" | "ticket" | "sub" | "consult" | "review";
+export const PURCHASE_LABEL: Record<PurchaseType, string> = { course: "Kurs", ticket: "Efir chiptasi", sub: "Oylik obuna", consult: "Konsultatsiya", review: "Ish sharhi" };
+
+/**
+ * «Ishimni baholang» chegaralari (klientga xavfsiz). Narx konsultatsiya bilan bir xil uslubda: 0 (bepul) yoki
+ * 5 000 – 5 000 000 so'm; javob muddati 1–14 kun.
+ */
+export const WORK_REVIEW = {
+  priceMin: 5_000,
+  priceMax: 5_000_000,
+  daysMin: 1,
+  daysMax: 14,
+  aboutMax: 400,
+  noteMax: 1500,
+  responseMin: 20,
+  responseMax: 5000,
+  /** Bitta talabada bir vaqtda to'lanmagan so'rovlar chegarasi */
+  openMax: 5,
+} as const;
+export type WorkReviewStatus = "pending_payment" | "waiting" | "done" | "refunded" | "cancelled";
 
 /** Kurs tili yorlig'i (courses.language) */
 export const COURSE_LANGUAGES = [

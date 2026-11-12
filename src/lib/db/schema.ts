@@ -2228,6 +2228,11 @@ export const mentors = sqliteTable(
     subPrice: integer("sub_price").notNull().default(0),
     /** Tavsiya (referral) chegirmasi foizi: yangi talaba shu foiz chegirma oladi, tavsiya qilgan — shuncha kredit */
     refPercent: integer("ref_percent").notNull().default(10),
+    /** «Ishimni baholang» (2026-11-12): pullik asinxron ish sharhi — yoqilgan/narx (so'm, 0 = bepul)/tavsif/necha kunda javob */
+    reviewEnabled: integer("review_enabled", { mode: "boolean" }).notNull().default(false),
+    reviewPrice: integer("review_price").notNull().default(0),
+    reviewAbout: text("review_about").notNull().default(""),
+    reviewDays: integer("review_days").notNull().default(3),
     coursesCount: integer("courses_count").notNull().default(0),
     studentsCount: integer("students_count").notNull().default(0),
     rating: real("rating").notNull().default(0),
@@ -2473,7 +2478,7 @@ export const mentorEarnings = sqliteTable(
       .notNull()
       .references(() => mentors.id, { onDelete: "cascade" }),
     invoiceId: text("invoice_id").notNull(),
-    kind: text("kind", { enum: ["course", "ticket", "sub", "consult"] }).notNull(),
+    kind: text("kind", { enum: ["course", "ticket", "sub", "consult", "review"] }).notNull(),
     title: text("title").notNull().default(""),
     gross: integer("gross").notNull(),
     fee: integer("fee").notNull(),
@@ -2805,6 +2810,47 @@ export const livePollVotes = sqliteTable(
   },
   (t) => [uniqueIndex("live_poll_votes_pair_idx").on(t.pollId, t.userId)],
 );
+
+/**
+ * «Ishimni baholang» (2026-11-12): talaba ustozga ishini (havola yoki yuklangan fayl) yuboradi, to'laydi — ustoz yozma
+ * (+ixtiyoriy video) sharh qaytaradi. To'lov mavjud xarid oqimi orqali (`subscription_invoices` meta.kind="purchase",
+ * type="review", itemId = shu qator id'si). Holat: pending_payment → waiting (to'langan/bepul) → done | refunded | cancelled.
+ * Fayllar xom manzil bilan saqlanadi, klientga faqat `/api/media/review/<id>_<0|1>` orqali chiqadi (0 — ish, 1 — javob videosi).
+ */
+export const workReviews = sqliteTable(
+  "work_reviews",
+  {
+    id: text("id").primaryKey(),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => mentors.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invoiceId: text("invoice_id"),
+    status: text("status", { enum: ["pending_payment", "waiting", "done", "refunded", "cancelled"] }).notNull().default("pending_payment"),
+    /** So'rov paytidagi narx va muddat (ustoz keyin o'zgartirsa ham shu qoladi) */
+    price: integer("price").notNull().default(0),
+    days: integer("days").notNull().default(3),
+    workUrl: text("work_url"),
+    workFile: text("work_file", { mode: "json" }).$type<FileAttachment | null>(),
+    note: text("note").notNull().default(""),
+    response: text("response").notNull().default(""),
+    responseVideo: text("response_video", { mode: "json" }).$type<FileAttachment | null>(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+    dueAt: integer("due_at", { mode: "timestamp_ms" }),
+    answeredAt: integer("answered_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("work_reviews_mentor_idx").on(t.mentorId, t.status), index("work_reviews_user_idx").on(t.userId, t.createdAt)],
+);
+
+export const workReviewsRelations = relations(workReviews, ({ one }) => ({
+  mentor: one(mentors, { fields: [workReviews.mentorId], references: [mentors.id] }),
+  user: one(users, { fields: [workReviews.userId], references: [users.id] }),
+}));
 
 export const mentorSlotsRelations = relations(mentorSlots, ({ one }) => ({
   mentor: one(mentors, { fields: [mentorSlots.mentorId], references: [mentors.id] }),

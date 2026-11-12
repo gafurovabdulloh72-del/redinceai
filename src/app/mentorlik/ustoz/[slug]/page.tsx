@@ -18,6 +18,7 @@ import { MS, categoryLabelTr, formatSomTr, lessonsTr, levelLabelTr, mentorBadgeL
 import { getMentorPageBySlug } from "@/lib/mentorship/service";
 import { Recordings } from "@/components/live/Recordings";
 import { BuyButton, RefCapture } from "@/components/mentorship/PurchaseDialog";
+import { WorkReviewCard } from "@/components/mentorship/WorkReview";
 import { mentorBadges } from "@/lib/mentorship/growth";
 import { listRoadmaps, listShowcase } from "@/lib/mentorship/learning";
 import { listSlots, myConsults } from "@/lib/mentorship/purchases";
@@ -232,6 +233,11 @@ export default async function MentorChannelPage({ params, searchParams }: { para
             </article>
           ))}
         </section>
+      )}
+
+      {/* «Ishimni baholang» — pullik ish sharhi (ustoz yoqqan bo'lsa) */}
+      {profile.isApproved && profile.review.enabled && (
+        <WorkReviewCard mentorId={profile.id} price={profile.review.price} days={profile.review.days} about={profile.review.about} loggedIn={Boolean(user)} isOwner={isOwner} settingsHref="/kabinet/mentorlik/sahifa#ish-sharhi-sozlama" />
       )}
 
       <nav className="no-scrollbar -mx-4 mt-7 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" aria-label={tr(til, MS.mentorTabsAria)}>

@@ -588,6 +588,8 @@ export interface MentorProfile {
   studentsCount: number;
   rating: number;
   reviewsCount: number;
+  /** «Ishimni baholang» taklifi (o'chiq bo'lsa enabled=false) */
+  review: { enabled: boolean; price: number; about: string; days: number };
 }
 
 async function toProfile(m: typeof mentors.$inferSelect & { user: { name: string; avatarUrl: string | null } }): Promise<MentorProfile> {
@@ -613,6 +615,7 @@ async function toProfile(m: typeof mentors.$inferSelect & { user: { name: string
     studentsCount: m.studentsCount,
     rating: m.rating,
     reviewsCount: m.reviewsCount,
+    review: { enabled: m.reviewEnabled, price: m.reviewPrice, about: m.reviewAbout, days: m.reviewDays },
   };
 }
 

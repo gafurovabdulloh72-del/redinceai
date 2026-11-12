@@ -13,6 +13,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { MK, categoryLabelTr } from "@/lib/i18n/dict/mentorship";
 import type { MentorProfile } from "@/lib/mentorship/service";
+import { WorkReviewSettings } from "@/components/mentorship/WorkReview";
 import { cn } from "@/lib/utils";
 
 /** Saytda ko'rsatiladigan kadr nisbatlari (mentor sahifasi va katalog bilan bir xil) */
@@ -316,6 +317,7 @@ export function MentorStudio({ mentor, courses, admin = false }: { mentor: Mento
       </header>
       <MentorStats mentor={mentor} courses={courses} />
       <MentorPageForm mentor={mentor} />
+      <WorkReviewSettings mentorId={mentor.id} initial={mentor.review} />
       <MentorSections mentor={mentor} courses={courses} admin={admin} />
     </div>
   );

@@ -16,7 +16,7 @@ import { authIkm } from "./totp";
  *  exp     — unix soniya
  * Kalit AUTH_SECRET'dan HKDF bilan alohida maqsad uchun chiqariladi (sessiya kaliti bilan aralashmaydi).
  */
-export type MediaKind = "lesson" | "live" | "dm" | "group" | "order" | "orderfile" | "material" | "receipt";
+export type MediaKind = "lesson" | "live" | "dm" | "group" | "order" | "orderfile" | "material" | "receipt" | "review";
 const TTL_SEC = 15 * 60;
 
 function key(): Buffer {
