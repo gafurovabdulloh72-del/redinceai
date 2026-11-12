@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const B='http://127.0.0.1:3000';
+const b = await chromium.launch();
+const c = await b.newContext({ viewport:{width:1440,height:900}, deviceScaleFactor:2 }); const p = await c.newPage();
+await p.request.post(B+'/api/auth/login',{data:{email:'ijodkor.demo2@example.com',password:'Demo-parol-2026!'},headers:{origin:B}});
+await p.goto(B+'/kabinet/profil',{waitUntil:'domcontentloaded'}); await p.waitForTimeout(3500);
+await p.getByText('Mutaxassis profili').first().click(); await p.waitForTimeout(2000);
+await p.evaluate(()=>document.querySelectorAll('nextjs-portal').forEach(e=>e.remove()));
+await p.screenshot({ path: 'd/kprofil-mut.png' }); console.log('ok');
+const g = await (await b.newContext({ viewport:{width:1440,height:900}, deviceScaleFactor:2 })).newPage();
+await g.goto(B+'/auth/royxat',{waitUntil:'domcontentloaded'}); await g.waitForTimeout(3000);
+await g.getByText('Men mutaxassisman').first().click(); await g.waitForTimeout(1200);
+const btn = g.getByRole('button', { name: /Davom|Keyingi/ }).first(); if (await btn.count()) await btn.click(); await g.waitForTimeout(1500);
+await g.screenshot({ path: 'd/auth-craft.png' }); console.log('ok2');
+await b.close();
