@@ -131,10 +131,16 @@ window.setup=()=>{
   S2b.el.style.left=(RC.x-NW/2)+'px';S2b.el.style.top=(RC.y+44)+'px';
   // S5 qatori: matn + badge + (keyin) so'z
   const tw=S5.el.offsetWidth;insW=ins.el.offsetWidth;S5base={tw,gap:26,bw:146};ins.el.style.width='0px';
-  ev(.1,'swell');ev(2.72,'whip',{g:.7});ev(2.3,'riser',{d:.5});
-  {let tt=2.75,dt=.11;while(tt<3.42){ev(tt,'tick');tt+=dt;dt=Math.max(.035,dt*.85)}}ev(3.45,'impact',{g:1});
-  ev(5.2,'whoosh',{g:.5});ev(5.5,'whoosh',{g:.55});ev(7.0,'whoosh',{g:.6});ev(7.05,'whoosh',{g:.5});ev(7.2,'pop',{g:.6});ev(7.3,'pop',{g:.45});
-  ev(8.45,'whip',{g:.8});ev(10.65,'whip',{g:.85});ev(11.05,'whoosh',{g:.4});ev(11.15,'slot',{d:.4});ev(11.75,'slot',{d:.3});ev(12.7,'slot',{d:.3});ev(13.5,'whoosh',{g:.35});ev(14.5,'impact',{g:.35});ev(15.95,'pop',{g:.7});ev(16.25,'pop',{g:.7});
+  ev(.1,'swell');ev(1.2,'click',{g:.45,ping:1500});ev(1.6,'click',{g:.35,ping:1900});
+  ev(2.25,'riser',{d:.5});ev(2.72,'whip',{g:.75});
+  {let tt=2.75,dt=.11,k=0;while(tt<3.42){ev(tt,'tick',{k:k});tt+=dt;dt=Math.max(.035,dt*.85);k=Math.min(1,k+.07)}}ev(3.45,'impact',{g:1});
+  ev(4.0,'click',{g:.4,ping:1400});ev(4.7,'click',{g:.4,ping:1800});ev(5.15,'whoosh',{g:.45});
+  ev(5.5,'whoosh',{g:.5});ev(5.62,'click',{g:.5,ping:1300});ev(6.05,'click',{g:.25,ping:2000});
+  ev(7.0,'whoosh',{g:.65});ev(7.05,'whoosh',{g:.5});ev(7.2,'pop',{g:.6});ev(7.3,'pop',{g:.45});ev(7.25,'shimmer',{d:.8,g:.5});
+  ev(8.45,'whip',{g:.85});ev(8.6,'glitch',{d:.18,g:.35});ev(8.9,'click',{g:.35,ping:1600});
+  ev(10.6,'whip',{g:.8});ev(10.75,'shimmer',{d:1.0,g:.7});
+  ev(11.15,'chirp',{g:.5});ev(11.2,'slot',{d:.35});ev(11.75,'slot',{d:.28});ev(12.7,'slot',{d:.28});ev(13.5,'whoosh',{g:.35});ev(13.55,'click',{g:.3,ping:2100});
+  ev(14.5,'impact',{g:.6});ev(14.5,'ding',{g:.7,root:220});ev(14.65,'click',{g:.35,ping:1500});ev(15.95,'pop',{g:.7});ev(16.25,'pop',{g:.7});ev(16.25,'shutter',{g:.25});
   window.EVENTS=EVENTS.sort((a,b)=>a.t-b.t)};
 
 window.renderAt=t=>{
