@@ -116,6 +116,11 @@ export interface TelegramButton {
   data?: string;
   /** Mini App havolasi (faqat https) — Telegram ichida ochiladi */
   webApp?: string;
+  /**
+   * Inline ulashish: bosilganda Telegram chat tanlash oynasini ochadi va xabar maydoniga `@bot <matn>` ni o'zi yozib qo'yadi.
+   * Telegram `@` dan keyin faqat ILGARI ishlatilgan inline botlarni taklif qiladi — birinchi marta shu tugma eng oson yo'l.
+   */
+  switchInline?: string;
 }
 /** Doimiy klaviatura tugmasi: matn yoki Mini App ochadigan tugma */
 export type ReplyButton = string | { text: string; webApp: string } | { text: string; requestContact: true };
@@ -151,7 +156,17 @@ export function replyMarkup(opts: SendOpts): Record<string, unknown> | null {
   const keyboard: TelegramButton[][] | null = opts.keyboard ?? (opts.button ? [[{ text: opts.button.text, url: opts.button.url }]] : null);
   if (keyboard)
     return {
-      inline_keyboard: keyboard.map((row) => row.map((b) => (b.webApp ? { text: wellFormed(b.text), web_app: { url: b.webApp } } : b.url ? { text: wellFormed(b.text), url: b.url } : { text: wellFormed(b.text), callback_data: b.data ?? "noop" }))),
+      inline_keyboard: keyboard.map((row) =>
+        row.map((b) =>
+          b.webApp
+            ? { text: wellFormed(b.text), web_app: { url: b.webApp } }
+            : b.url
+              ? { text: wellFormed(b.text), url: b.url }
+              : b.switchInline !== undefined
+                ? { text: wellFormed(b.text), switch_inline_query: b.switchInline }
+                : { text: wellFormed(b.text), callback_data: b.data ?? "noop" },
+        ),
+      ),
     };
   if (opts.replyKeyboard)
     return {

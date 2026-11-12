@@ -24,7 +24,7 @@ import { handleApplicationCallback, handleEmployerApplications, handleMyApplicat
 import { handleDmCallback, handleDmMedia, handleDmText, handleMessages } from "@/lib/telegram-bot/dm";
 import { handleSupportCallback, handleSupportMedia, handleSupportText, startSupport, type SupportSender } from "@/lib/telegram-bot/support";
 import { handleAdminBlock, handleAdminUnblock, sendAdminTrap } from "@/lib/telegram-bot/admin-security";
-import { handleInlineQuery } from "@/lib/telegram-bot/inline";
+import { handleInlineQuery, prefetchInline } from "@/lib/telegram-bot/inline";
 import { handleContactBuyStart, handleContactPayCallback } from "@/lib/telegram-bot/contact-pay";
 import { botLang, L, type BotLang } from "@/lib/telegram-bot/lang";
 import { gateEnabled, gateExempt, handleGateCheck, isChannelMember, rememberGatedStart, sendJoinGate, takeGatedStart } from "@/lib/telegram-bot/gate";
@@ -605,18 +605,26 @@ async function handleInline(iq: NonNullable<TelegramUpdate["inline_query"]>): Pr
   const id = iq.id != null ? String(iq.id) : "";
   if (!userId || !id) return;
   const empty = (extra: Record<string, unknown> = {}) => telegramApi("answerInlineQuery", { inline_query_id: id, results: [], cache_time: 5, is_personal: true, ...extra });
-  if (await botLimited(userId, "tgInline")) {
+  // Qidiruv tekshiruvlar bilan PARALLEL boshlanadi (natija faqat hamma tekshiruvdan o'tsa yuboriladi); tekshiruvlarning o'zi ham
+  // bir vaqtda ketadi — ilgari har biri navbat bilan bazaga borgani uchun javob sekin chiqardi
+  prefetchInline(iq.query);
+  const [limited, meRow, member] = await Promise.all([
+    botLimited(userId, "tgInline"),
+    accountOf(userId),
+    gateEnabled() ? isChannelMember(userId) : Promise.resolve(true),
+  ]);
+  if (limited) {
     await empty({ cache_time: 30 });
     return;
   }
-  const me = (await accountOf(userId)) ?? null;
+  const me = meRow ?? null;
   const lang = await resolveLang(userId, me, iq.from?.language_code);
   if (me?.isBanned) {
     await empty();
     return;
   }
   // Majburiy obuna: a'zo bo'lmagan foydalanuvchiga natija o'rniga botga o'tish tugmasi (u yerda darvoza chiqadi)
-  if (gateEnabled() && !(await isChannelMember(userId)) && !(await adminByChat(userId))) {
+  if (!member && !(await adminByChat(userId))) {
     await empty({ button: { text: L(lang, "Avval kanalga obuna bo'ling", "Сначала подпишитесь на канал"), start_parameter: GATE_START } });
     return;
   }
@@ -628,10 +636,14 @@ export async function POST(req: Request) {
   try {
     const update = (await req.json()) as TelegramUpdate;
     // Telegram javobni vaqtida olmasa update'ni qayta yuboradi — takrori ikkinchi marta bajarilmaydi
+    // Inline so'rov — takror tekshiruvisiz (har harf alohida so'rov; takror javob berilsa Telegram o'zi rad etadi, bazaga yozish shart emas)
+    if (update?.inline_query) {
+      await handleInline(update.inline_query);
+      return Response.json({ ok: true });
+    }
     if (typeof update?.update_id === "number" && !(await firstSeenUpdate(update.update_id))) return Response.json({ ok: true });
     if (update?.my_chat_member) await handleMyChatMember(update.my_chat_member);
     else if (update?.pre_checkout_query) await handlePreCheckout(update.pre_checkout_query);
-    else if (update?.inline_query) await handleInline(update.inline_query);
     else {
       // Chatdan xabar/tugma keldi — foydalanuvchi botni bloklamagan: «yetib bo'lmaydigan» belgisi (bo'lsa) olinadi
       const activeChat = update?.message?.chat?.type === "private" ? update.message.chat.id : update?.callback_query?.message?.chat?.type === "private" ? update.callback_query.message.chat.id : null;

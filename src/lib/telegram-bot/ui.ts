@@ -248,6 +248,7 @@ export async function sendWelcome(chatId: string, me: BotAccount | null, firstNa
         { text: L(lang, "🌐 Saytni ochish", "🌐 Открыть сайт"), url: `${site()}/` },
         { text: L(lang, "❓ Yordam", "❓ Помощь"), data: "menu:help" },
       ],
+      [shareInlineButton(lang)],
     ],
   });
 }
@@ -263,8 +264,12 @@ export async function sendApp(chatId: string, lang: BotLang = "uz"): Promise<voi
 }
 
 /** Yordam ostidagi tugmalar: qo'llab-quvvatlashga yozish (`sup:start`) va til (`lng:menu`); ulanmagan chatga — «akkauntingiz bormi?» ham */
+/** «Chatga ijodkor yuborish» — inline rejimni bir bosishda ochadi (bot nomini qo'lda yozish shart emas) */
+export const shareInlineButton = (lang: BotLang, q = ""): TelegramButton => ({ text: L(lang, "📤 Chatga ijodkor yuborish", "📤 Отправить специалиста в чат"), switchInline: q });
+
 function helpKeyboard(linked: boolean, lang: BotLang): TelegramButton[][] {
   return [
+    [shareInlineButton(lang)],
     [{ text: L(lang, "✍️ Qo'llab-quvvatlashga yozish", "✍️ Написать в поддержку"), data: "sup:start" }],
     [{ text: L(lang, "🌐 Til / Язык", "🌐 Язык / Til"), data: "lng:menu" }],
     ...(linked ? [] : ACCOUNT_QUESTION_ROWS(lang)),

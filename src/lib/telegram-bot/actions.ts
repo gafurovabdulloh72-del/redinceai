@@ -547,7 +547,12 @@ export async function handleSearch(chatId: string, qRaw: string, lang?: BotLang)
   );
   const hint = buy.length ? `\n\n${L(lang, "Kontaktni (telefon, Telegram, Instagram) ochish uchun pastdagi tugmani bosing.", "Чтобы открыть контакт (телефон, Telegram, Instagram), нажмите кнопку ниже.")}` : "";
   await sendTelegram(chatId, `${L(lang, `🔎 <b>«${escapeTelegramHtml(q)}»</b> bo'yicha ijodkorlar`, `🔎 Специалисты по запросу <b>«${escapeTelegramHtml(q)}»</b>`)}\n\n${lines.join("\n\n")}${hint}`, {
-    keyboard: [...buy, [app ? { text: L(lang, "Hammasini ilovada ko'rish", "Все — в приложении"), webApp: app } : { text: L(lang, "Hammasini ko'rish", "Показать все"), url: `${s}/qidiruv?q=${encodeURIComponent(q)}` }]],
+    keyboard: [
+      ...buy,
+      [app ? { text: L(lang, "Hammasini ilovada ko'rish", "Все — в приложении"), webApp: app } : { text: L(lang, "Hammasini ko'rish", "Показать все"), url: `${s}/qidiruv?q=${encodeURIComponent(q)}` }],
+      // Shu natijalarni boshqa chatga ulashish — `@bot <so'z>` tayyor yozilgan holda ochiladi
+      [{ text: L(lang, "📤 Do'stga yuborish", "📤 Отправить другу"), switchInline: q.slice(0, 60) }],
+    ],
   });
 }
 
