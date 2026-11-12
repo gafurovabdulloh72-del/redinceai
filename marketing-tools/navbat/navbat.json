@@ -8,6 +8,14 @@
 "url": "https://kasbegalari.vercel.app/mutaxassislar"
 },
 {
+"id": "f_dars_test",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPZavUsS8Y7l_fHsz2qFUVewPq2tL0AAtkZaxuME7FLmJAdRwABMTI5AQADAgADdwADPQQ",
+"caption": "<b>Dars testi: bilimingizni tekshirib, keyingi darsga o'ting</b>\n\nUstoz darsga test qo'shgan bo'lsa, dars sahifasida «Test» bo'limi chiqadi. Testdan o'tmaguningizcha dars tugatilgan hisoblanmaydi.\n\n1. Chap menyuda «Mentorlik» bo'limiga kiring va yozilgan kursingizdagi darsni oching.\n2. Video ostidagi «Test» bo'limini tanlang.\n3. Har savolga javob belgilang va «Tekshirish» tugmasini bosing. O'tish foizi test tepasida yozilgan.\n4. O'tgach «Tugatdim» tugmasini bosing, dars tugatilgan deb belgilanadi.\n\nO'tmasangiz, «Avval dars testidan o'ting» degan eslatma chiqadi. Qayta urinib ko'rish mumkin.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_vg_ovoz",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOPavUqu-LCfAPHPNZjg5KDhKVbmVwAAooZaxuME7FLJKUEVTlGgLoBAAMCAAN3AAM9BA",
@@ -22,6 +30,14 @@
 "caption": "<b>Bezovta qilayotgan odamni bloklang</b>\n\nKimdir keraksiz xabar yozsa yoki izohlarda bezovta qilsa, uni bloklang.\n\n1. O'sha odamning profilini oching.\n2. «Bloklash» tugmasini bosing va tasdiqlang.\n3. U endi sizga yoza olmaydi, izoh va reaksiya qoldira olmaydi.\n4. Bloklanganlar ro'yxati: Kabinet → «Xavfsizlik» → «Bloklanganlar».\n\nU yerdan istalgan payt blokdan chiqarishingiz mumkin.\n\n#maxfiylik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔐 Xavfsizlik",
 "url": "https://kasbegalari.vercel.app/kabinet/xavfsizlik"
+},
+{
+"id": "f_uy_vazifa",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPaavUsTM9FSA-C55cz0R8NQQF_KeUAAtoZaxuME7FLfAX1mLZE568BAAMCAAN3AAM9BA",
+"caption": "<b>Uy vazifasini topshirish va ustoz bahosini olish</b>\n\nBa'zi darslarda amaliy topshiriq bor. Ishingizni shu yerning o'zida yuborasiz, ustoz baho va izoh qoldiradi.\n\n1. Kursdagi darsni oching va «Vazifa» bo'limiga o'ting.\n2. «Uy vazifasi» matnini o'qing, javobingizni, havolani yoki izohni yozing.\n3. Kerak bo'lsa «Fayl biriktirish» bilan faylni qo'shing va «Topshirish» tugmasini bosing.\n4. Holat «Ustoz ko'rib chiqmoqda…» bo'lib turadi, keyin «Baholandi» yoki «Qayta ishlash kerak» chiqadi.\n\nQayta ishlash so'ralsa, tuzatib «Qayta yuborish» tugmasini bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_vg_yoruglik",
@@ -40,6 +56,14 @@
 "url": "https://kasbegalari.vercel.app/"
 },
 {
+"id": "f_sertifikat",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPbavUsTfXtVpmoSjFWOhJEjQnAeuEAAtsZaxuME7FLOe6v9PndMhIBAAMCAAN3AAM9BA",
+"caption": "<b>Kursni tugatib sertifikat olish</b>\n\nKursning barcha darslarini (testlari bilan) tugatsangiz, sizga sertifikat beriladi. Uning alohida sahifasi va raqami bor.\n\n1. Kursdagi har bir darsni ko'rib, «Tugatdim» tugmasini bosing. Test bo'lsa, avval undan o'ting.\n2. Oxirgi dars tugagach, dars sahifasida «Kurs tugatildi» degan havola paydo bo'ladi.\n3. Sertifikat sahifasida ismingiz, kurs nomi, berilgan sana va «Sertifikat raqami» ko'rsatiladi.\n4. «Chop etish / PDF» tugmasi bilan uni faylga saqlang yoki havolasini ulashing.\n\nSertifikat havolasini ochgan odam uning haqiqiyligini sahifaning o'zida ko'radi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_vg_tayyorgarlik",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOTavUqwJ-Thc1lTDRu8hfJYmuXD5wAAo4ZaxuME7FLLGVCMS6CeN8BAAMCAAN3AAM9BA",
@@ -54,6 +78,14 @@
 "caption": "<b>Yangi ijodkorlar uchun «Birinchi qadamlar»</b>\n\nRo'yxatdan o'tganingizdan keyin bosh sahifada qadamlar ro'yxati chiqadi. Uni oxirigacha bajarsangiz, profil mijozga tayyor bo'ladi.\n\n1. Bosh sahifaning tepasida «Birinchi qadamlar» kartasini toping.\n2. Har qadam yonidagi «Boshlash» kerakli sahifani ochadi.\n3. Bajarilgan qadamlar belgilanib, chiziq to'lib boradi.\n4. Hozir vaqtingiz bo'lmasa, «Keyinroq»ni bosing.\n\nQadamlar: profil, rasm, tavsif, birinchi ish, birinchi post, jamoa va Telegram.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🚀 Bosh sahifa",
 "url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "f_dars_eslatma",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPcavUsT7nPLyecahn1oR4wME79A_cAAtwZaxuME7FLeOomGlyPZMcBAAMCAAN3AAM9BA",
+"caption": "<b>Dars videosiga vaqt belgisi bilan eslatma yozish</b>\n\nDarsni ko'rayotib muhim joyni yozib qo'yish mumkin. Eslatma videodagi vaqt bilan saqlanadi va faqat sizga ko'rinadi.\n\n1. Kursdagi darsni oching va videoni qo'ying.\n2. Video ostidagi «Eslatmalar» bo'limiga o'ting.\n3. «Eslatma yozing…» maydoniga matn yozing. Yozish boshlangan paytdagi video vaqti saqlanadi.\n4. «Saqlash» tugmasini bosing. Keyin eslatmadagi vaqtni bossangiz, video shu joyga o'tadi.\n\nKeraksiz eslatmani o'chirish tugmasi bilan olib tashlaysiz.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_vg_broll",
@@ -72,6 +104,14 @@
 "url": "https://kasbegalari.vercel.app/kabinet/profil"
 },
 {
+"id": "f_dars_pleyer",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPdavUsULOyOMTa9Dvk4CwISYX-7MwAAt0ZaxuME7FLvp7THTW9kDoBAAMCAAN3AAM9BA",
+"caption": "<b>Dars pleyeri: tezlik, vaqt belgilari va «Keyingi dars»</b>\n\nDars videosini o'zingizga qulay sur'atda ko'rish mumkin. Video tugaganda keyingi darsga o'zi o'tadi.\n\n1. Kursdagi darsni oching.\n2. Video ostidagi «Tezlik:» qatoridan 0.75 dan 2 gacha tezlikni tanlang.\n3. Ustoz vaqt belgilarini qo'shgan bo'lsa, ro'yxatdagi mavzuni bosing, video o'sha joyga o'tadi.\n4. Video tugagach «Keyingi dars» sanog'i chiqadi. Kerak bo'lmasa «Bekor qilish» yoki «Avto-o'tishni o'chirish»ni bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_vg_zatvor",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOXavUqxR5gBx0L7vKjg_EiqKZKZLgAApIZaxuME7FLIrMmtskpJqoBAAMCAAN3AAM9BA",
@@ -86,6 +126,14 @@
 "caption": "<b>Oylik hisobotni yuklab oling</b>\n\nBir oylik buyurtma, to'lov va obuna tushumlarini bitta hisobotda ko'rasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Hisobot».\n2. Joriy yoki o'tgan oyni tanlang.\n3. «CSV» tugmasi jadval faylini yuklaydi: Excel yoki Google Sheets'da ochiladi.\n4. «Chop etish / PDF» hisobotni PDF qilib saqlaydi.\n\nSoliq yoki o'zingiz uchun hisob yuritishda qulay.\n\n#hisob\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📄 Hisobot",
 "url": "https://kasbegalari.vercel.app/kabinet/hisobot"
+},
+{
+"id": "f_kurs_saqlash",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPeavUsUQcr8AbYXxXSyEUZDda2bEMAAt4ZaxuME7FL9bspoVbvqTsBAAMCAAN3AAM9BA",
+"caption": "<b>Kursni saqlab qo'yish va keyin topish</b>\n\nYoqqan kursga hozir yozilmasangiz ham, uni saqlab qo'yasiz. Saqlangan kurslar kabinetda alohida turadi.\n\n1. Chap menyuda «Mentorlik» bo'limiga kiring va kursni oching.\n2. Kurs sahifasidagi «Kursni saqlash» tugmasini bosing.\n3. Keyin «Yana» → «Kabinet» → «Saqlangan postlar» sahifasida «Kurslar» bo'limini oching.\n4. Saqlashni bekor qilish uchun kurs sahifasida «Saqlanganlardan olish» tugmasini bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_vg_stabil",
@@ -104,6 +152,14 @@
 "url": "https://kasbegalari.vercel.app/vakansiyalar"
 },
 {
+"id": "f_konsultatsiya",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPfavUsUzUMCOWIJ9EnZmQd2rV_5REAAt8ZaxuME7FL18g9gOJye74BAAMCAAN3AAM9BA",
+"caption": "<b>Ustoz bilan 1:1 konsultatsiya band qilish</b>\n\nBa'zi ustozlar shaxsiy konsultatsiya uchun vaqt ochadi. Vaqtni tanlab to'laysiz, belgilangan soatda video qo'ng'iroq saytning o'zida ochiladi.\n\n1. Chap menyuda «Mentorlik» bo'limiga kiring va ustoz sahifasini oching.\n2. «1:1» bo'limini tanlang (ustoz bo'sh vaqt qo'shgan bo'lsa ko'rinadi).\n3. Qulay vaqtni topib «Band qilish» tugmasini bosing va to'lovni bajaring.\n4. Belgilangan vaqtda «Mening konsultatsiyalarim» ro'yxatidan «Ochish» → «Konsultatsiyaga kirish»ni bosing.\n\nVaqt Toshkent vaqti bo'yicha ko'rsatiladi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_vg_toy",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAObavUqy1PG0lbkdc2siqpAJcUzBZQAApcZaxuME7FLu7Lj-p8uFWEBAAMCAAN3AAM9BA",
@@ -118,6 +174,14 @@
 "caption": "<b>Saytning istalgan joyiga bir zumda</b>\n\nKompyuterda ishlasangiz, menyularni aylanmasdan kerakli sahifaga tezkor qidiruv orqali o'ting.\n\n1. Klaviaturada Ctrl + K bosing (Mac'da ⌘K).\n2. Yoki bosh sahifaning o'ng tomonidagi qidiruv qatorini bosing.\n3. Ijodkor ismi, vakansiya, jamoa yoki sahifa nomini yozing.\n4. Strelkalar bilan tanlab, Enter bilan oching.\n\nOchilganda «Tez o'tish» ro'yxati ham chiqadi: katalog, vakansiyalar, kabinet.\n\n#tezkor\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "⌨️ Saytni ochish",
 "url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "f_tavsiya",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPgavUsVUaYf0bdg-thpdCypOHWq-MAAuAZaxuME7FLVGrUwI5RbJ0BAAMCAAN3AAM9BA",
+"caption": "<b>Do'stingizni kursga taklif qilib, kredit olish</b>\n\nPullik kurs sahifasida shaxsiy taklif havolangiz bo'ladi. Do'stingiz u orqali xarid qilsa chegirma oladi, siz esa keyingi xaridingiz uchun kredit olasiz.\n\n1. Saytga kiring va chap menyudagi «Mentorlik» bo'limidan pullik kursni oching.\n2. «Do'stingizni taklif qiling» kartasini toping (ustoz tavsiya chegirmasini yoqgan bo'lsa chiqadi).\n3. Havolani bosib nusxalang va do'stingizga yuboring.\n4. Kartada «Taklif qilinganlar» va «Kredit balansi» ko'rinadi. Kredit xarid oynasida «Kredit» qatorida hisobga olinadi.\n\nChegirma foizini kurs ustozi belgilaydi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kurslar",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_vg_vertikal",
@@ -136,6 +200,14 @@
 "url": "https://kasbegalari.vercel.app/"
 },
 {
+"id": "f_mentor_dars",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPhavUsVnnLJ_pSH5S2_2cw3nFDNUEAAuEZaxuME7FLDR7dkle2hJwBAAMCAAN3AAM9BA",
+"caption": "<b>Ustozlar uchun: darsga video, test va uy vazifasi qo'shish</b>\n\nTasdiqlangan ustoz kursini kabinetda to'ldiradi: dars, material, test va vazifa bitta oynada qo'shiladi.\n\n1. «Yana» → «Kabinet» → «Mentorlik»ga kiring va «Bo'limlar» ro'yxatidan kursni oching.\n2. «Dars qo'shish»ni bosing: dars nomi, «Video yuklash», kerak bo'lsa «Bepul namuna» belgisi.\n3. «Materiallar» → «Fayl qo'shish», «Video vaqt belgilari», «Test qo'shish» va «Uy vazifasi»ni to'ldiring.\n4. «Qo'shish»ni bosing. Darslar tartibini tutqichdan sudrab yoki «Yuqoriga» / «Pastga» bilan o'zgartiring.\n5. Kurs tayyor bo'lgach «Chop etish» tugmasini bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Kabinet",
+"url": "https://kasbegalari.vercel.app/kabinet/mentorlik"
+},
+{
 "id": "tip_mt_birinchi_variant",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOfavUq0J96lIeZEQQROtd1E4Mew3sAApsZaxuME7FLkvABiifjaLEBAAMCAAN3AAM9BA",
@@ -150,6 +222,14 @@
 "caption": "<b>TOP reyting va hafta faollari</b>\n\nFaol ijodkorlar reytingda ko'rinadi. Har oy g'oliblar e'lon qilinadi.\n\n1. Chap menyuda «Yana» → «TOP reyting».\n2. «Hafta faollari» ro'yxatida hafta yoki oy bo'yicha tanlang.\n3. Kasb va hudud bo'yicha filtrlang.\n4. Kirgan bo'lsangiz, o'z o'rningizni ko'rasiz.\n\nOylik TOP-3 g'oliblariga keyingi oy oxirigacha Pro sovg'a qilinadi.\n\n#top\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🏆 TOP reyting",
 "url": "https://kasbegalari.vercel.app/top"
+},
+{
+"id": "f_mentor_daromad",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPiavUsVxxL5MCrJhjf7L-OGw3PRHAAAuIZaxuME7FLtGAkgY3MnX0BAAMCAAN3AAM9BA",
+"caption": "<b>Ustozlar uchun: daromadni ko'rish va kartaga yechish</b>\n\nKurs, chipta va konsultatsiya sotuvidan tushgan pul ustoz kabinetidagi «Daromad» sahifasida jamlanadi.\n\n1. «Yana» → «Kabinet» → «Mentorlik» → «Daromad» bo'limini oching.\n2. «Yechishga tayyor», «Ushlab turilmoqda» va «Yechib olingan» summalarini ko'rasiz.\n3. «Pulni kartaga yechish» blokida «Karta raqami»ni kiriting va «Yechish» tugmasini bosing.\n4. So'rov yuborilgach administrator pulni kartangizga o'tkazadi.\n\nHar sotuvdan 15% komissiya olinadi, pul 7 kun ushlab turiladi. Yechish uchun kamida 100 000 so'm kerak.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💰 Daromad",
+"url": "https://kasbegalari.vercel.app/kabinet/mentorlik/daromad"
 },
 {
 "id": "tip_mt_papka",
@@ -168,6 +248,14 @@
 "url": "https://kasbegalari.vercel.app/rezyumelar"
 },
 {
+"id": "f_efir_boshlash",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPjavUsWEUnqnXLvYWtqc7-oy8vUesAAuMZaxuME7FLubfSuBB_R84BAAMCAAN3AAM9BA",
+"caption": "<b>Ustozlar uchun: jonli efir boshlash</b>\n\nUstoz o'z sahifasidan saytning ichida jonli efir ochadi. Efirni pullik qilish, kutish xonasi va kod qo'yish mumkin.\n\n1. Ustoz sahifangizni oching va «Efirlar» bo'limida «Efir boshlash» tugmasini bosing.\n2. «Efir mavzusi»ni yozing. Pullik efir uchun «Chipta, so'm (ixtiyoriy)» maydoniga narx kiriting.\n3. Kerak bo'lsa «Kutish xonasi» belgisini qo'ying va «Kod (ixtiyoriy)» maydoniga efir kodini yozing.\n4. «Boshlash»ni bosing, kamera va mikrofonni tanlab «Efirga chiqish» tugmasini bosing.\n\nKutish xonasidagilarni «Boshqaruv» → «Navbat» bo'limida kiritasiz yoki rad etasiz.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_mt_proxy",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOjavUq1XYOvQxf0d3ICf3nJ031CNUAAp8ZaxuME7FLxD5F0iktUoUBAAMCAAN3AAM9BA",
@@ -181,6 +269,14 @@
 "photo": "AgACAgIAAxkDAAOkavUq1tXUIHNeFwjQkAO6fQxG_6YAAqAZaxuME7FLAsEGMUHLiakBAAMCAAN3AAM9BA",
 "caption": "<b>Mentorlikda kurs topish</b>\n\nTajribali ustozlardan montaj, videografiya, dizayn va boshqa yo'nalishlarda o'rganing.\n\n1. Chap menyuda «Mentorlik»ni oching.\n2. Qidiruvga kurs nomi yoki mavzuni yozing.\n3. Yo'nalishni tanlang: videomontaj, videografiya, grafik dizayn va boshqalar.\n4. Narx va daraja bo'yicha filtrlang: bepul, boshlang'ich, o'rta, professional.\n5. Kurs sahifasida bepul namuna darsni ko'rib, keyin yoziling.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "f_efir_qol",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPkavUsWoIOaPu6Q5CvI6hsoBJ4ylcAAuQZaxuME7FLqdXc7LghgEwBAAMCAAN3AAM9BA",
+"caption": "<b>Efirda qo'l ko'tarib, so'z olish</b>\n\nEfirni tomosha qilayotganda gapirmoqchi bo'lsangiz, qo'l ko'tarasiz. Boshlovchi ruxsat bersa, mikrofoningiz yoqiladi.\n\n1. Ustoz sahifasidagi «Efirlar» bo'limida «Tomosha qilish» tugmasini bosing.\n2. Pastki paneldagi «Qo'l» tugmasini bosing. Boshlovchi ro'yxatda belgingizni ko'radi.\n3. Boshlovchi «Gapirsin»ni bossa, sizga xabar chiqadi. «Mikrofon» tugmasi bilan ovozni yoqing.\n4. Qo'lni qaytarish uchun «Tushirish» tugmasini bosing.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
 "url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
@@ -200,6 +296,14 @@
 "url": "https://kasbegalari.vercel.app/mutaxassislar"
 },
 {
+"id": "f_efir_sifat",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPlavUsW5HpKMKRRdBK9440EuJIEDUAAuUZaxuME7FLBt-oCZ5BfYUBAAMCAAN3AAM9BA",
+"caption": "<b>Efir videosi sifatini o'zingiz tanlang</b>\n\nInternet sekin bo'lsa yoki trafikni tejamoqchi bo'lsangiz, efir video sifatini qo'lda tanlash mumkin.\n\n1. Efirga kiring va pastki paneldagi «Sifat» tugmasini bosing.\n2. Menyudan tanlang: «Avto» (internetga qarab), «Yuqori», «O'rta» yoki «Past» (tejamkor).\n3. Tanlov keyingi efirlar uchun ham shu qurilmada saqlanib qoladi.\n4. Ekranda «Internet sekin» belgisi chiqsa, «Past»ni tanlab ko'ring.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_mt_ovoz_balans",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOnavUq2u_ZDmW6hsukYAj5oRkboM8AAqMZaxuME7FLoO8RHrR8ZEwBAAMCAAN3AAM9BA",
@@ -214,6 +318,14 @@
 "caption": "<b>Buyurtma sehrgari: 4 qadamda mos ijodkor</b>\n\nQaysi mutaxassis kerakligini bilmasangiz ham, sehrgar savollar orqali mos ijodkorlarni topib beradi.\n\n1. «Mutaxassislar» sahifasida «Buyurtma sehrgari»ni bosing.\n2. 1-qadam: yo'nalish va kasbni tanlang.\n3. 2-qadam: taxminiy summani belgilang, aniq narx keyin kelishiladi.\n4. 3-qadam: hudud yoki masofaviy ish.\n5. 4-qadam: muddat. Shundan keyin mos ijodkorlar ro'yxati chiqadi.\n\n#mijoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🪄 Buyurtma sehrgari",
 "url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "f_efir_savol",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPmavUsXXf_AAG1Zhqhw03iuPXovz_TAALmGWsbjBOxS_4uXpIirVWbAQADAgADdwADPQQ",
+"caption": "<b>Efirda ustozga savol berish va so'rovnomada qatnashish</b>\n\nEfir chatidan tashqari alohida savollar ro'yxati bor. Boshqalar savolingizga ovoz beradi, ustoz javob berganini belgilaydi.\n\n1. Efirda pastki paneldagi «Savollar» tugmasini bosing.\n2. «Ustozga savol…» maydoniga savolingizni yozib yuboring.\n3. Boshqalarning savolini ko'tarish uchun yonidagi strelkani bosing.\n4. «So'rovnoma» bo'limida boshlovchi bergan savolga javob variantini tanlang.\n\nBoshlovchi «Yangi so'rovnoma» tugmasi bilan so'rovnoma ochadi va uni yopadi.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_mt_rang",
@@ -232,12 +344,36 @@
 "url": "https://kasbegalari.vercel.app/kabinet/chat"
 },
 {
+"id": "f_efir_xonalar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPnavUsXkkzDjqEGlRFCMpwgC9bzykAAucZaxuME7FL2Qw-JKO_IlMBAAMCAAN3AAM9BA",
+"caption": "<b>Efirda ishtirokchilarni kichik xonalarga bo'lish</b>\n\nAmaliy mashg'ulotda ishtirokchilarni guruhlarga ajratib, alohida gaplashtirish mumkin. Xona ochilganda har kim o'z xonasiga ko'chadi.\n\n1. Efirda pastki paneldagi «Boshqaruv» tugmasini bosing va «Xonalar» bo'limini oching.\n2. «Nechta» maydoniga 2 dan 10 gacha son kiriting va «Yaratish»ni bosing.\n3. «Avtomatik» tugmasi bilan ishtirokchilarni xonalarga taqsimlang.\n4. «Ochish»ni bosing. Hammani umumiy efirga qaytarish uchun «Yopish»ni bosing.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
 "id": "tip_mt_eksport",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOravUq38BafzLXfwENmeHj82ym_LAAAqcZaxuME7FLcyP8_iMraFABAAMCAAN3AAM9BA",
 "caption": "<b>Ijtimoiy tarmoq uchun eksport sozlamalari</b>\n\nPlatforma faylni qayta siqadi, shuning uchun eksport sozlamalari sifatga to'g'ridan-to'g'ri ta'sir qiladi.\n\n1. Kodek: H.264 yoki H.265, kadr tezligi asl materialdagidek qolsin.\n2. Vertikal video uchun 1080x1920, gorizontal uchun 1920x1080 tanlang.\n3. Ovozni AAC, 48 kHz formatida chiqaring.\n4. Fayl nomiga mijoz, loyiha va versiyani yozing.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "▶️ Reels",
 "url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "muqova",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBA2r1LfWGMgtR8KFoVkIEL_FG9_S_AAIDGmsbjBOxS1ibcsiXeF2mAQADAgADdwADPQQ",
+"caption": "<b>Profil muqovasini qo'ying</b>\n\nMuqova profilingiz tepasidagi katta rasm. Mijoz profilni ochganda birinchi shuni ko'radi.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Profil».\n2. «Mutaxassis profili» bo'limida «Muqova»ni tanlang.\n3. «Rasm yuklash» bilan eng yaxshi kadringizni yuklang yoki rasm havolasini qo'ying.\n4. «Saqlash»ni bosing.\n\nKeng, sifatli va ishingizni ko'rsatadigan kadr tanlang.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profil",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
+},
+{
+"id": "f_efir_hammuallif",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPoavUsYMvdBz-YX5iHk2HY_yPy6m4AAugZaxuME7FLwTwcFyU04mgBAAMCAAN3AAM9BA",
+"caption": "<b>Efirga hammuallif tayinlash</b>\n\nKatta efirda boshlovchiga yordamchi kerak bo'ladi. Hammuallif navbatni boshqaradi va ishtirokchilarga so'z beradi.\n\n1. Efirda pastki paneldagi «Odamlar» tugmasini bosing.\n2. Ro'yxatdan kerakli odamni toping.\n3. Uning yonidagi «Hammuallif qilish» tugmasini bosing.\n4. Olib tashlash uchun xuddi shu joydagi «Hammuallifni olib tashlash»ni bosing.\n\nHammuallifni faqat efirni boshlagan odam tayinlaydi.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔴 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
 "id": "tip_mt_subtitr",
@@ -248,12 +384,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "username",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBBWr1LfidR7Qmr6yBGnEa2KD7OP9DAAIFGmsbjBOxSxXoXI8DligkAQADAgADdwADPQQ",
+"caption": "<b>Chat taxallusi: sizga yozish uchun qisqa havola</b>\n\nTaxallus o'rnatsangiz, sizga sayt chatida yozish uchun tayyor havola paydo bo'ladi. Uni bio yoki xabarga qo'yasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Profil».\n2. «Akkaunt» bo'limida «Chat taxallusi» maydonini toping.\n3. Lotin harflari, raqam va chiziqchadan taxallus yozing.\n4. Ostida havola chiqadi: «Nusxalash» bilan oling.\n5. «Saqlash»ni bosing.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profil",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
+},
+{
+"id": "f_guruh_taklif",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPpavUsYSaodDaym4I5ZrfwYeIRaq0AAukZaxuME7FLV-_86xrNNmUBAAMCAAN3AAM9BA",
+"caption": "<b>Guruhga taklif havolasi: muddat, limit va QR</b>\n\nGuruh yoki kanal egasi taklif havolasini yaratib, uning amal qilish muddati va necha marta ishlashini belgilaydi.\n\n1. Chap menyuda «Chat»ga kiring va guruhingizni oching.\n2. Yuqoridagi tishli g'ildirak («Sozlash») belgisini bosing.\n3. «Taklif havolasi» bo'limida havolani yarating va «Havolani nusxalash»ni bosing.\n4. «Amal qilish muddati»: 24 soat, 7 kun yoki Cheksiz. «Necha marta ishlaydi»: 10, 50 marta yoki Cheksiz.\n5. QR tugmasi bilan havolani telefon kamerasiga ko'rsating. Tarqalib ketsa, yangilang.\n\nYangilangan havoladan keyin eskisi ishlamay qoladi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👥 Jamoalar",
+"url": "https://kasbegalari.vercel.app/jamoalar"
+},
+{
 "id": "tip_dz_logo_format",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOtavUq4rTWqObwRW8KReNtLv4jITsAAqkZaxuME7FLV1klNbYHgN8BAAMCAAN3AAM9BA",
 "caption": "<b>Logotipni topshirishda qaysi formatlar kerak</b>\n\nMijoz logotipni sayt, bosma va ijtimoiy tarmoqda ishlatadi. To'liq to'plam keyingi savollarni oldini oladi.\n\n1. Vektor fayllar: SVG, PDF va AI yoki EPS.\n2. Shaffof fonli PNG fayllar, bir nechta o'lchamda.\n3. Uch variant: rangli, oq va qora.\n4. Ranglar kodi (HEX, RGB, CMYK) va shriftlar nomi yozilgan qisqa qo'llanma.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "emailbild",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBB2r1Lfqdt2VuCVALQ1mtAaAbKhiDAAIHGmsbjBOxS_Wp19uQRILQAQADAgADdwADPQQ",
+"caption": "<b>Emailga bildirishnoma kelsinmi</b>\n\nMuhim hodisalar sayt va Telegramdan tashqari pochtangizga ham kelishi mumkin. Buni o'zingiz yoqib-o'chirasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Profil».\n2. «Akkaunt» bo'limida «Email bildirishnomalar» kalitini toping.\n3. Yoqilgan bo'lsa, muhim xabarlar emailga ham keladi.\n4. «Turlar bo'yicha sozlash» orqali qaysilari kelishini tanlang.\n\n#sozlama\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profil",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
+},
+{
+"id": "f_guruh_mavzu",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPqavUsYqLmD2ZLqPHceocpKWTFhVMAAuoZaxuME7FLqpm8nMwXORwBAAMCAAN3AAM9BA",
+"caption": "<b>Guruh chatida mavzular ochish</b>\n\nKatta guruhda suhbat aralashib ketmasligi uchun mavzular ochiladi. Har mavzuning o'z xabarlari bo'ladi, umumiy suhbat «Umumiy»da qoladi.\n\n1. Chap menyuda «Chat»ga kiring va o'zingiz boshqaradigan guruhni oching.\n2. Xabarlar tepasidagi qatorda «+» («Yangi mavzu») tugmasini bosing.\n3. «Mavzu nomi»ni yozib «Qo'shish»ni bosing.\n4. Mavzu nomini bosib uning ichida yozing. «Umumiy» bosilsa umumiy suhbatga qaytasiz.\n\nMavzu o'chirilsa, undagi xabarlar «Umumiy»ga o'tadi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👥 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
 },
 {
 "id": "tip_dz_brif",
@@ -264,12 +432,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "narx",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBCWr1Lf0SOftXsgli6Z-XkE3AcyoOAAIJGmsbjBOxS1SXKK8FqiyVAQADAgADdwADPQQ",
+"caption": "<b>Narxni so'm yoki dollarda belgilang</b>\n\nProfilda xizmat narxingizni ko'rsating. Sayt tajriba va hududingizga qarab tavsiya narxini ham chiqaradi.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Profil».\n2. «Mutaxassis profili» → «Narx» bo'limini oching.\n3. «Valyuta»: so'm yoki dollarni tanlang.\n4. Minimal va maksimal narxni yozing.\n5. Ostidagi «Bozor tavsiyasi»ga qarab solishtiring va saqlang.\n\nDollar tanlansa, sayt so'mdagi narxni kurs bo'yicha o'zi hisoblaydi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profil",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
+},
+{
+"id": "f_guruh_xabar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPravUsY-ezVd8-u8uhbTlwTHL6U_4AAusZaxuME7FL2upchicPg4sBAAMCAAN3AAM9BA",
+"caption": "<b>Guruh chatida javob, reaksiya, tahrir va qadash</b>\n\nGuruhdagi har xabarning o'z menyusi bor. U yerdan javob berasiz, reaksiya qo'yasiz yoki o'z xabaringizni tuzatasiz.\n\n1. Guruh chatida xabar yonidagi «⋯» tugmasini bosing.\n2. Menyu tepasidagi emojilardan birini tanlab reaksiya qo'ying yoki «Javob berish»ni bosing.\n3. O'z xabaringizni «Tahrirlash» bilan 3 soat ichida o'zgartirasiz, «O'chirish» esa doim mumkin.\n4. Guruh boshqaruvchisi «Qadash» bilan muhim xabarni chat tepasiga qo'yadi.\n\nEski xabarni topish uchun yuqoridagi lupa («Xabarlardan qidirish») belgisini bosing.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👥 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
+},
+{
 "id": "tip_dz_shrift",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOvavUq5BPpO6aYGIUuktIoW1t_I6QAAqsZaxuME7FLg7bIVWa342MBAAMCAAN3AAM9BA",
 "caption": "<b>Shrift juftligini tanlash</b>\n\nIkki to'g'ri tanlangan shrift dizaynni tartibli qiladi. Uchinchi va to'rtinchisi esa odatda chalkashlik keltiradi.\n\n1. Bir loyihada ikki shrift yetarli: sarlavha va asosiy matn uchun.\n2. Kontrast tanlang: serifli sarlavha va serifsiz matn yoki aksincha.\n3. O'zbekcha harflar va apostrof to'g'ri chiqishini, kerak bo'lsa kirillni ham tekshiring.\n4. Tijoriy loyihada shrift litsenziyasini aniqlang.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
 "url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "dashboard",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBC2r1LgABvKuHXrR05jUz9ezbHGbNTAACCxprG4wTsUsnbLsDOF1TSQEAAwIAA3cAAz0E",
+"caption": "<b>Kabinetning bosh sahifasi</b>\n\nKabinetni ochganda bugungi holat bir sahifada turadi: yangi xabarlar, ko'rishlar va bajarilmagan vazifalar.\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. «Bugun» blokida o'qilmagan bildirishnoma va vazifalar.\n3. Ostida profil ko'rishlar, reyting va obunachilar soni.\n4. «Profilni to'ldiring» ro'yxati qolgan qadamlarni ko'rsatadi.\n\n#kabinet\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🗂 Kabinet",
+"url": "https://kasbegalari.vercel.app/kabinet"
+},
+{
+"id": "f_guruh_qoidalar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPsavUsZUCDHQF33h20-LI737mRUJwAAuwZaxuME7FLaRPzfEgRQPsBAAMCAAN3AAM9BA",
+"caption": "<b>Guruh qoidalari va xush kelibsiz matnini yozish</b>\n\nGuruh egasi qoidalarni yozib qo'yadi, yangi a'zoga esa salomlashuv matni bildirishnoma bo'lib boradi.\n\n1. Chap menyuda «Chat»ga kiring, guruhni oching va «Sozlash» (tishli g'ildirak) belgisini bosing.\n2. «Qoidalar» maydoniga qoidalarni yozing: «- » bilan ro'yxat, **qalin** matn ishlaydi.\n3. «Xush kelibsiz matni» maydoniga yangi a'zoga boradigan xabarni yozing.\n4. «Saqlash» tugmasini bosing.\n\nQoidalar bo'sh qolsa, umumiy qoidalar ko'rsatiladi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👥 Jamoalar",
+"url": "https://kasbegalari.vercel.app/jamoalar"
 },
 {
 "id": "tip_dz_bosma",
@@ -280,12 +480,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "faollik",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBDWr1LgLWgDeaTIvjGTmxHWsK1tKgAAINGmsbjBOxS8X30m7GLPKIAQADAgADdwADPQQ",
+"caption": "<b>Kim izoh va reaksiya qoldirganini ko'ring</b>\n\nPostlaringizga kim yozgani va reaksiya bildirgani kabinetda bitta ro'yxatda jamlanadi.\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. Sahifa pastidagi «Faollik» blokiga tushing.\n3. Izohlar, reaksiyalar va yangi obunachilar shu yerda.\n4. Qatorni bossangiz, o'sha post ochiladi.\n\n#kabinet\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🗂 Kabinet",
+"url": "https://kasbegalari.vercel.app/kabinet"
+},
+{
+"id": "f_dm_tahrir",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPtavUsZmXUFTZsC_-0k2uOYmbkFaEAAu0ZaxuME7FLj-q1OuSpem4BAAMCAAN3AAM9BA",
+"caption": "<b>Shaxsiy xabarni tahrirlash va o'chirish</b>\n\nYuborgan xabaringizda xato bo'lsa, uni tuzatish mumkin. O'chirishda o'zingiz uchun yoki ikki tomon uchun tanlaysiz.\n\n1. Chap menyuda «Chat»ga kiring va suhbatni oching.\n2. O'z xabaringiz yonidagi «⋯» (Xabar amallari) tugmasini bosing.\n3. «Tahrirlash»ni tanlang, matnni o'zgartirib yuboring. Xabar yonida «tahrirlangan» yozuvi chiqadi.\n4. O'chirish uchun «Men uchun o'chirish» yoki «Hamma uchun o'chirish»ni tanlang.\n\nTahrirlash yuborilgandan keyin 3 soat ichida mumkin, o'chirish esa doim.\n\n#chat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
+},
+{
 "id": "tip_dz_taqdimot",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOxavUq55S-rHuHnhI5h2Ky-8E4nRsAAq0ZaxuME7FLmPTqHfZ6Ip0BAAMCAAN3AAM9BA",
 "caption": "<b>Dizayn konsepsiyasini mijozga taqdim etish</b>\n\nOq fonda turgan logotipni tasavvur qilish qiyin. Mijoz natijani hayotda qanday ko'rinishini ko'rishi kerak.\n\n1. Har variantni mockupda ko'rsating: vizitka, peshtaxta, ilova ikonkasi.\n2. Ikki yoki uch variantdan ko'p bermang.\n3. Har variant ostiga uning g'oyasini bir-ikki gapda yozing.\n4. O'zingiz tavsiya qiladigan variantni ochiq ayting va sababini tushuntiring.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "obunalar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBD2r1LgUs8cSzwx_MmIMB0bR_8EHoAAIPGmsbjBOxS0NU2KbpqTjXAQADAgADdwADPQQ",
+"caption": "<b>Obunachilar va obunalaringiz ro'yxati</b>\n\nSizni kim kuzatayotganini va o'zingiz kimlarni kuzatayotganingizni bir sahifada ko'rasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Obunalar».\n2. «Obunachilar»: sizga obuna bo'lganlar.\n3. «Obunalar»: siz obuna bo'lganlar.\n4. «So'rovlar»: profilingiz yopiq bo'lsa, obuna so'rovlari.\n\nObuna bo'lganlaringiz postlari bosh sahifadagi «Obunalarim»da chiqadi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👥 Obunalar",
+"url": "https://kasbegalari.vercel.app/kabinet/obunalar"
+},
+{
+"id": "f_dm_javob",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPuavUsaH-CnYEaWPPK0Qq7owb-wJgAAu4ZaxuME7FL9fWiPijFWmkBAAMCAAN3AAM9BA",
+"caption": "<b>Xabarga javob, reaksiya va boshqa suhbatga yo'naltirish</b>\n\nSuhbat uzun bo'lsa, aynan qaysi xabarga javob berayotganingizni ko'rsatish qulay. Kerakli xabarni boshqa odamga ham yuborasiz.\n\n1. «Chat»da suhbatni oching va xabar yonidagi «⋯» tugmasini bosing.\n2. Menyu tepasidagi emojilardan birini bosib reaksiya qo'ying.\n3. «Javob»ni tanlang: xabar iqtibos bo'lib yozish maydoni ustida turadi.\n4. «Yo'naltirish»ni tanlab, xabarni boshqa suhbatga yuboring.\n\nIqtibosni bossangiz, chat asl xabarga o'tadi.\n\n#chat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
 },
 {
 "id": "tip_dz_ierarxiya",
@@ -296,12 +528,44 @@
 "url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
+"id": "saqlangan",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBEWr1LgiNoHmxRmr5z630VH5v3ApaAAIRGmsbjBOxS4GzWVtZY8RMAQADAgADdwADPQQ",
+"caption": "<b>Saqlangan postlar va kurslar</b>\n\nKeyin qaytib ko'rmoqchi bo'lgan post va kurslarni saqlab qo'ying.\n\n1. Post ostidagi saqlash belgisini bosing.\n2. Kursni kurs sahifasidagi saqlash tugmasi bilan saqlaysiz.\n3. Chap menyuda «Yana» → «Kabinet» → «Saqlangan postlar».\n4. «Postlar» va «Kurslar» tablari alohida.\n\n#saqlash\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔖 Saqlanganlar",
+"url": "https://kasbegalari.vercel.app/kabinet/saqlanganlar"
+},
+{
+"id": "f_qongiroq",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPvavUsaT2c67NQ4gPBBtWVDDfQHA4AAu8ZaxuME7FLpioOdgMMGwIBAAMCAAN3AAM9BA",
+"caption": "<b>Saytdan ovozli va video qo'ng'iroq qilish</b>\n\nChatdagi suhbatdoshga yoki guruhga telefon raqamisiz qo'ng'iroq qilasiz. Qo'ng'iroq chat tarixida karta bo'lib qoladi.\n\n1. «Chat»da suhbatni yoki guruhni oching.\n2. Yuqoridagi trubka («Ovozli qo'ng'iroq») yoki kamera («Video qo'ng'iroq») belgisini bosing.\n3. Suhbatdosh «Qabul qilish»ni bosgach, gaplashasiz. «Kamera», «Ekran» va ovoz tugmalari pastda.\n4. «Kichraytirish» bilan qo'ng'iroq davomida chatdan foydalaning, «Tugatish» bilan yakunlang.\n\nBrauzer kamera va mikrofonga ruxsat so'raydi, ruxsat bering.\n\n#chat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📞 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
+},
+{
 "id": "tip_dz_keys",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAOzavUq6eAmzAulKEqmlQLOeegtzaYAAq8ZaxuME7FLpPnc4ev8yR4BAAMCAAN3AAM9BA",
 "caption": "<b>Portfolioga dizayn keysini qanday yozish</b>\n\nFaqat yakuniy rasm ishingizning yarmini ko'rsatadi. Qisqa hikoya mijozga qanday fikrlashingizni tushuntiradi.\n\n1. Vazifani bir gapda yozing: mijoz kim va unga nima kerak edi.\n2. Jarayondan 2-3 bosqichni ko'rsating: eskiz, variantlar, tanlov.\n3. Yakuniy natijani mockupda va real ishlatilgan joyida bering.\n4. Mijoz ruxsat bersa, uning qisqa fikrini qo'shing.\n\nKeyslaringizni portfolio bo'limiga joylasangiz, ular profilingizda ko'rinadi.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "sevimli",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBE2r1LgobgoxURV16Lt-vnfhUvDiwAAITGmsbjBOxSwLtMkYrYrsmAQADAgADdwADPQQ",
+"caption": "<b>Yoqqan ijodkorlarni sevimlilarga qo'shing</b>\n\nMijozlar uchun: bir nechta ijodkorni ko'rib chiqayotgan bo'lsangiz, yoqqanlarini sevimlilarga yig'ing.\n\n1. Katalogda ijodkor profilini oching.\n2. Yurak belgisini bosing.\n3. Chap menyuda «Yana» → «Kabinet» → «Sevimlilar».\n4. Tanlaganlaringizni bir joyda taqqoslaysiz.\n\nRo'yxat bo'sh bo'lsa, «Xaritadan tanlash» bilan hudud bo'yicha qidiring.\n\n#mijoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔎 Mutaxassislar",
+"url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "f_dm_tezjavob",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPwavUsasiMc17SfmZghYMsPjwBDOAAAvAZaxuME7FLglgy4r_lQdUBAAMCAAN3AAM9BA",
+"caption": "<b>Mutaxassislar uchun: tez javoblar</b>\n\nMijozlarga tez-tez yoziladigan gaplar uchun tayyor matnlar bor. Bir bosishda yozish maydoniga tushadi, keyin tahrirlab yuborasiz.\n\n1. «Chat»da mijoz bilan suhbatni oching.\n2. Yozish maydoni yonidagi «+» («Yana») tugmasini bosing.\n3. «Tez javoblar» ro'yxatidan kerakli matnni tanlang, masalan salomlashuv yoki narx va muddatni aniqlash.\n4. Matnni kerakli joyda o'zgartiring va yuboring.\n\nShu menyuda «Ctrl+Enter bilan yuborish» rejimini ham yoqasiz.\n\n#chat\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Chat",
+"url": "https://kasbegalari.vercel.app/kabinet/chat"
 },
 {
 "id": "tip_ft_portret",
@@ -312,12 +576,44 @@
 "url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
+"id": "qidiruvsaq",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBFWr1Lg0LoXTv9cLTq6w6oxMI6lt5AAIVGmsbjBOxS8IyEq5uLDbJAQADAgADdwADPQQ",
+"caption": "<b>Katalogdagi qidiruvni saqlab qo'ying</b>\n\nMijozlar uchun: bir xil filtrlarni har safar qayta qo'ymaslik uchun qidiruvni saqlang.\n\n1. «Mutaxassislar» katalogida kasb, hudud va narx filtrlarini qo'ying.\n2. Qidiruvni saqlang.\n3. Chap menyuda «Yana» → «Kabinet» → «Saqlangan qidiruvlar».\n4. Saqlangan qidiruvni bir bosishda qayta oching.\n\n#mijoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔎 Mutaxassislar",
+"url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "f_story_musiqa",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPxavUsbAtoMV7mRRXwgBI03Yc2otgAAvEZaxuME7FLgGDheiGcNJcBAAMCAAN3AAM9BA",
+"caption": "<b>Story'ga musiqa qo'shish</b>\n\nStory'ga qo'shiq qo'shsangiz, ko'rgan odam uni eshitadi. Qo'shiqni qidirib topasiz yoki o'z faylingizni yuklaysiz.\n\n1. Bosh sahifadagi story qatorida «+» («Yangi story») tugmasini bosing.\n2. Rasm yoki video tanlang va «Musiqa qo'shish»ni bosing.\n3. «Qo'shiq yoki ijrochi qidiring» maydoniga nom yozing, «Eshitish» bilan tekshirib tanlang.\n4. O'z qo'shig'ingiz bo'lsa «O'z faylingizni yuklash»ni bosing (MP3, M4A yoki OGG).\n5. «Story'da ulashish» tugmasini bosing.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎵 Asosiy",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
 "id": "tip_ft_mahsulot",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO1avUq7HKhbigKR0kEunf1wwUXNZQAArEZaxuME7FLFzEfgnBPiPgBAAMCAAN3AAM9BA",
 "caption": "<b>Mahsulot suratini uyda olish</b>\n\nOnlayn do'kon uchun toza mahsulot surati oddiy jihozlar bilan ham chiqadi. Asosiysi, yorug'lik va fon.\n\n1. Oq qog'ozni stol va devor orasida bukib, burchaksiz fon yasang.\n2. Bitta katta yumshoq yorug'lik ishlating: deraza yoki soyabonli chiroq.\n3. Kamerani shtativga qo'yib, diafragmani f/8 atrofida tanlang.\n4. Suratga olishdan oldin mahsulotdagi chang va barmoq izlarini arting.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "bildfiltr",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBF2r1Lg_yovua41R2wiWbxBiTrhFaAAIXGmsbjBOxS6EZacdev3OsAQADAgADdwADPQQ",
+"caption": "<b>Bildirishnomalarni tartibga keltiring</b>\n\nBildirishnomalar ko'payib ketsa, faqat o'qilmaganlarini yoki kerakli turini ko'rsating.\n\n1. Chap menyuda «Bildirishnomalar»ni oching.\n2. «O'qilmagan» tabi faqat yangilarini ko'rsatadi.\n3. Turlar bo'yicha tablar ham bor, masalan «Ijtimoiy».\n4. «Hammasini o'qilgan deb belgilash» bilan ro'yxatni tozalang.\n\n#sozlama\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔔 Bildirishnomalar",
+"url": "https://kasbegalari.vercel.app/kabinet/bildirishnomalar"
+},
+{
+"id": "f_story_stiker",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPyavUsbXkUmUEIY8r2GaxEvX6EGzUAAvIZaxuME7FL20KtV_FUHfcBAAMCAAN3AAM9BA",
+"caption": "<b>Story stikerlari: so'rovnoma, savol, hisoblagich, havola</b>\n\nStory'ga bitta interaktiv stiker qo'shish mumkin. Obunachilar ovoz beradi, savol yuboradi yoki havolaga o'tadi.\n\n1. Bosh sahifadagi story qatorida «+» tugmasini bosing va rasm yoki video tanlang.\n2. Stikerlardan birini tanlang: «So'rovnoma», «Savol», «Hisoblagich» yoki «Havola».\n3. Maydonlarni to'ldiring: savol va variantlar, hisoblagich nomi va sanasi yoki havola manzili.\n4. «Story'da ulashish»ni bosing.\n\nSavol stikeriga kelgan javoblar faqat sizga ko'rinadi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "✨ Asosiy",
+"url": "https://kasbegalari.vercel.app/"
 },
 {
 "id": "tip_ft_raw",
@@ -328,12 +624,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "vakfiltr",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBGWr1LhK9mSm0YP1YdynWN18_MECCAAIZGmsbjBOxSztPAAE3q_hQIgEAAwIAA3cAAz0E",
+"caption": "<b>Vakansiyalarni tez filtrlash</b>\n\nKerakli ishni uzun ro'yxatdan qidirmang: filtrlar bilan bir necha bosishda toping.\n\n1. Chap menyuda «Vakansiyalar»ni oching.\n2. Kasb guruhini tanlang: IT, Dizayn, Video, Marketing va boshqalar.\n3. «Masofaviy» va «Yangi (48 soat)» filtrlarini qo'shing.\n4. Maosh bo'yicha: 3, 5 yoki 10 mln+, yoki «Maosh ko'rsatilgan».\n5. «Saralash»: yangi, maosh yoki ariza soni bo'yicha.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💼 Vakansiyalar",
+"url": "https://kasbegalari.vercel.app/vakansiyalar"
+},
+{
+"id": "f_story_korganlar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAPzavUsb9NGSIxXU1t9pb624THh4QsAAvMZaxuME7FLZtTlNqIF4nABAAMCAAN3AAM9BA",
+"caption": "<b>Story'ni kim ko'rgani va javob yozish</b>\n\nO'z story'ingizni kim ko'rganini bilasiz. Boshqaning story'siga esa javob yoki tez reaksiya yuborasiz, u shaxsiy xabarga tushadi.\n\n1. Bosh sahifadagi story qatorida o'z doirangizni («Sizniki») oching.\n2. Pastdagi ko'z belgisi va «ko'rdi» yozuvini bosing: «Ko'rganlar» ro'yxati ochiladi.\n3. Boshqaning story'sida pastdagi «...ga javob…» maydoniga yozib yuboring.\n4. Javob maydonini bossangiz, tepasida tez reaksiya emojilari chiqadi. Bittasini tanlasangiz, u ham xabarga ketadi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👀 Asosiy",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
 "id": "tip_ft_saralash",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO3avUq7v5pnxm5q6ZKmLHHJgbS5REAArMZaxuME7FLLP3IrLUCdX8BAAMCAAN3AAM9BA",
 "caption": "<b>Fotosessiyadan keyin suratlarni tez saralash</b>\n\nYuzlab kadr ichidan eng yaxshisini topish uchun tartib kerak. Bosqichma-bosqich saralash vaqtni tejaydi.\n\n1. Birinchi o'tishda faqat fokus va ochiq ko'zlarga qarang, qolganini chetga surib qo'ying.\n2. Yaxshi kadrlarga yulduzcha yoki rang belgisi bering.\n3. Bir-biriga o'xshash kadrlar ichidan bittasini qoldiring.\n4. Mijozga faqat tanlangan to'plamni yuboring, xom kadrlarni bermang.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
 "url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "qidiruvtab",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBG2r1LhRU7p_AICFsDUVDhH4i77fnAAIbGmsbjBOxS7XlNfnff0y4AQADAgADdwADPQQ",
+"caption": "<b>Bitta qidiruvda ish, post va ijodkor</b>\n\n«Qidiruv» bo'limi portfolio ishlari, postlar, ijodkorlar, jamoalar va vakansiyalarni birga qidiradi.\n\n1. Chap menyuda «Qidiruv»ni oching.\n2. So'z yozing, masalan «to'y montaj» yoki «logo animatsiya».\n3. Natijani tablar bilan ajrating: Videolar, Ishlar, Postlar.\n4. Yoki Ijodkorlar, Jamoalar, Vakansiyalar.\n\n#qidiruv\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔎 Qidiruv",
+"url": "https://kasbegalari.vercel.app/qidiruv"
+},
+{
+"id": "f_story_toplam",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP0avUscM5JjypBH45CJdA2xz797YEAAvQZaxuME7FLlUTrrMAupWQBAAMCAAN3AAM9BA",
+"caption": "<b>Story to'plami: eng yaxshi story'larni profilda saqlash</b>\n\nStory 24 soatdan keyin yo'qoladi, lekin uni profilingizdagi to'plamga qo'shib qo'yasiz. To'plamlar profil tepasida doira bo'lib turadi.\n\n1. Chap menyuda «Profil»ni bosing.\n2. Story doiralari qatoridagi «Yangi» tugmasini bosing.\n3. «Nomi (masalan, Ishlarim)» maydoniga nom yozing va «Yaratish»ni bosing.\n4. To'plamni oching, «Story qo'shish»ni bosing va «Arxivdan tanlang» oynasidan story'ni tanlang.\n\nTo'plamni o'chirish tugmasi ochilgan to'plam tepasida turadi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "⭐ Kabinet",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
 },
 {
 "id": "tip_ft_poza",
@@ -344,12 +672,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "mehmon",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBHWr1LhcNjfqr6YeMVcYjWNc5KQYqAAIdGmsbjBOxS2yOTW0qWP6RAQADAgADdwADPQQ",
+"caption": "<b>Profilingizni mijoz ko'zi bilan ko'ring</b>\n\nO'z profilingizni tahrirlayotganda mijozga aynan nima ko'rinishini tekshirib turing.\n\n1. Chap menyuning pastidagi «Profil»ni bosing.\n2. «Mehmon ko'zi bilan» tugmasini bosing.\n3. Profil kirmagan odamga qanday ko'rinsa, shunday ochiladi.\n4. Kamchilik bo'lsa, «Profilni tahrirlash» bilan tuzating.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profilim",
+"url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "f_reels_tab",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP1avUscRpkV3XbAzfCfjoQ3nFs-ykAAvUZaxuME7FLfcGkIvMej2IBAAMCAAN3AAM9BA",
+"caption": "<b>Reels: «Siz uchun», «Yangi» va «Top hafta»</b>\n\nReels bo'limida ijodkorlarning video va rasmli ishlari ketma-ket ochiladi. Yoqqan ijodkorga shu yerning o'zidan yozasiz.\n\n1. Chap menyuda «Reels»ni bosing.\n2. Tepadagi bo'limlardan birini tanlang: «Siz uchun», «Yangi» yoki «Top hafta».\n3. Keyingi videoga o'tish uchun yuqoriga suring. Bosish pauza qiladi, yana bosish davom ettiradi.\n4. Yoqqan ishning ostida «Ijodkorga yozish» tugmasini bosing, to'g'ridan-to'g'ri chat ochiladi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎬 Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
 "id": "tip_ft_topshirish",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO5avUq8f50QJzdzySAG5urhjO6ZKAAArUZaxuME7FLoEk-cB_q89EBAAMCAAN3AAM9BA",
 "caption": "<b>Mijozga suratlarni topshirish tartibi</b>\n\nTopshirish ham xizmatning bir qismi. Tartibli to'plam mijozda yaxshi taassurot qoldiradi.\n\n1. Ikki to'plam tayyorlang: internet uchun kichik va bosma uchun to'liq o'lcham.\n2. Fayllarni tartib raqami va sana bilan nomlang.\n3. Havolani bering va u qancha muddat ochiq turishini yozing.\n4. Asl fayllarni o'zingizda qancha saqlashingizni oldindan aytib qo'ying.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "profildako",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBH2r1LhmCOhTb0Q6uGI059tXHaMV2AAIfGmsbjBOxS3ppyz3mgdM2AQADAgADdwADPQQ",
+"caption": "<b>Postlaringiz profilda qanday turadi</b>\n\nKabinetda joylagan postlaringiz ommaviy profilingizda Instagram uslubidagi to'rda chiqadi.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Postlarim».\n2. «Profilda ko'rish» tugmasini bosing.\n3. Profilda «Postlar», «Videolar» va «Ishlar» tablari bor.\n4. Postni bossangiz, katta oynada ochiladi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🗒 Postlarim",
+"url": "https://kasbegalari.vercel.app/kabinet/postlar"
+},
+{
+"id": "f_post_reaksiya",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP2avUsc-CNYcCDiqWAdMc-FzeYQngAAvYZaxuME7FLMWm-rqbhxt8BAAMCAAN3AAM9BA",
+"caption": "<b>Postga yurakdan boshqa reaksiya qo'yish</b>\n\nPostga oddiy yurakdan tashqari yana besh xil reaksiya bor. Kim qanday reaksiya qo'yganini ham ko'rasiz.\n\n1. Lentadagi post ostidagi yurak tugmasini toping. Bir bosish yurak qo'yadi.\n2. Kompyuterda sichqonchani tugma ustida ushlab turing, telefonda tugmani uzoq bosing.\n3. Tanlang: Yoqdi, Zo'r, Qoyil, Kulgili, Voy yoki Ma'qul.\n4. Reaksiyalar sonini bossangiz, «Kim reaksiya qo'ydi» ro'yxati ochiladi.\n\nTelefonda rasmga ikki marta bosish ham yurak qo'yadi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "❤️ Lenta",
+"url": "https://kasbegalari.vercel.app/"
 },
 {
 "id": "tip_ft_kompozitsiya",
@@ -360,6 +720,22 @@
 "url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
+"id": "proafzal",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBIWr1Lhy0085t-PBzZXn4iJC8_nnqAAIhGmsbjBOxSxIEp1EZx1JuAQADAgADdwADPQQ",
+"caption": "<b>Pro tarifi nimalar beradi</b>\n\nPro'ga o'tishdan oldin aynan nimaga ega bo'lishingizni Kabinet → «Obuna» sahifasida ko'rasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Obuna».\n2. «Pro nimalar beradi» ro'yxatini o'qing.\n3. Katalogda yuqoriroq o'rin, yangi e'lonlar Telegramga, ko'proq post va portfolio.\n4. «Rejani tanlang» bo'limida Pro yoki Max'ni tanlang.\n\nBepul sinov davrida limitlar Standart'niki bo'ladi.\n\n#tariflar\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💳 Obuna",
+"url": "https://kasbegalari.vercel.app/kabinet/obuna"
+},
+{
+"id": "f_izoh",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP3avUsdJKu3URULqWRLh7Rhkmr2ckAAvcZaxuME7FLI2TxBzZQZSUBAAMCAAN3AAM9BA",
+"caption": "<b>Izohga yurak bosish, javob yozish va tahrirlash</b>\n\nPost ostidagi izohlar bilan ham ishlash mumkin: yoqqaniga yurak bosasiz, aniq odamga javob yozasiz, o'z izohingizni tuzatasiz.\n\n1. Post ostidagi «Izohlar» tugmasini bosing.\n2. Izoh yonidagi kichik yurakni bosing, muallifga bildirishnoma boradi.\n3. Izoh ostidagi «Javob»ni bosing, yozish maydonida kimga javob berayotganingiz ko'rinadi.\n4. O'z izohingizni «Tahrirlash» bilan 15 daqiqa ichida o'zgartirasiz yoki «O'chirish»ni bosasiz.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Lenta",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
 "id": "tip_mo_easing",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO7avUq88lp6i8pBkXUz7mqzvpxfRQAArcZaxuME7FLyiaUedIHUHkBAAMCAAN3AAM9BA",
@@ -368,11 +744,43 @@
 "url": "https://kasbegalari.vercel.app/mentorlik"
 },
 {
+"id": "tolovlar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBI2r1Lh4xDPszegX3WoD-vILmTlJ0AAIjGmsbjBOxS5J4_3imNzuIAQADAgADdwADPQQ",
+"caption": "<b>Balans va pul chiqarish</b>\n\nBuyurtmalardan tushgan pul kabinetdagi «To'lovlar» sahifasida turadi.\n\n1. Chap menyuda «Yana» → «Kabinet» → «To'lovlar».\n2. «Balans» blokida chiqarish mumkin bo'lgan summa ko'rinadi.\n3. «Pul chiqarish» bo'limida kartaga so'rov yuborasiz.\n4. Sahifada balans qanday shakllanishi ham tushuntirilgan.\n\n#hisob\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💰 To'lovlar",
+"url": "https://kasbegalari.vercel.app/kabinet/tolovlar"
+},
+{
+"id": "f_lenta_sozlash",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP4avUsdRtXHuZW7ICgwPA3tKAS9NAAAvgZaxuME7FLVBaMS1ceSZ8BAAMCAAN3AAM9BA",
+"caption": "<b>Lentani o'zingizga moslash: «Qiziq emas» va muallifni yashirish</b>\n\nLentada sizga kerak bo'lmagan post yoki muallif chiqsa, uni bir bosishda yashirasiz.\n\n1. Bosh sahifadagi lentada postning «⋯» menyusini oching.\n2. Faqat shu postni olib tashlash uchun «Qiziq emas»ni tanlang.\n3. Shu odamning postlarini ko'rmaslik uchun «... postlarini yashirish»ni tanlang.\n4. Adashib bossangiz, chiqqan qatordagi «Bekor qilish»ni bosing.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🧹 Lenta",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
 "id": "tip_mo_logo",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO8avUq9K41pIf0dlasac7rb8cyMWUAArgZaxuME7FL7P5TrjHJGvUBAAMCAAN3AAM9BA",
 "caption": "<b>Logotip animatsiyasi uchun 4 qoida</b>\n\nLogotip animatsiyasi videoning boshida yoki oxirida turadi va ko'p marta takrorlanadi. Qisqa va toza bo'lgani yaxshi.\n\n1. Davomiyligi 3-5 soniya atrofida bo'lsin.\n2. Harakat brend xarakteriga mos kelsin: jiddiy kompaniyaga sakrovchi harakat to'g'ri kelmaydi.\n3. Oxirgi kadrda logotip to'liq va toza tursin.\n4. Shaffof fonli versiya va ovoz effektli versiyani ham bering.\n\n#motion\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "▶️ Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "arizalarim",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBJWr1LiGam1vEwyUn-pLwTaZ3A8REAAIlGmsbjBOxS6tRGIDjAXtgAQADAgADdwADPQQ",
+"caption": "<b>Arizalaringiz holatini kuzating</b>\n\nVakansiyalarga yuborgan arizalaringiz va ularning holati bitta sahifada turadi.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Arizalarim».\n2. Tablar: Barchasi, Faol, Qabul, Rad etilgan.\n3. Ish beruvchi javob bersa, bildirishnoma keladi.\n4. Kerak bo'lsa arizani «Qaytarib olish» mumkin.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💼 Arizalarim",
+"url": "https://kasbegalari.vercel.app/kabinet/arizalarim"
+},
+{
+"id": "f_ulashish",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP5avUsd9LKQS5Ts9Mf1AkBD4oatwgAAvkZaxuME7FLrFBoyHGglyYBAAMCAAN3AAM9BA",
+"caption": "<b>Postni bir nechta odamga birdan yuborish</b>\n\nReels yoki post oynasidagi ulashish tugmasi bilan ishni chatdagi odamlarga, Telegram'ga yoki havola qilib yuborasiz.\n\n1. Reels'da yoki ochilgan postda «Ulashish» tugmasini bosing.\n2. So'nggi suhbatlaringizdan bir nechta odamni belgilang yoki «Qidirish» maydonida ism yozing.\n3. Xohlasangiz «Xabar yozing…» maydoniga izoh qo'shib «Yuborish»ni bosing.\n4. «Havola» tugmasi manzilni nusxalaydi, «Telegram» Telegram orqali ulashadi.\n\n#post\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📤 Reels",
 "url": "https://kasbegalari.vercel.app/lenta"
 },
 {
@@ -384,12 +792,44 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "nomzodlar",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBJ2r1LiRngP3XG2kZIIkqnTRHwn-IAAInGmsbjBOxS1oLo_kI23JVAQADAgADdwADPQQ",
+"caption": "<b>Vakansiyangizga kelgan nomzodlar</b>\n\nIsh beruvchilar uchun: arizalarni ko'rish va boshqarish kabinetdagi «Vakansiyalar» bo'limida.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Vakansiyalar».\n2. Vakansiya qatoridagi «Nomzodlar»ni oching.\n3. Arizalarni ko'rib, holatini belgilang.\n4. «Nusxa» bilan shunga o'xshash yangi e'lonni tez tuzasiz.\n\nNomzodning email va telefoni faqat sizga, ya'ni ariza olgan ish beruvchiga ko'rinadi.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💼 Vakansiyalarim",
+"url": "https://kasbegalari.vercel.app/kabinet/vakansiyalar"
+},
+{
+"id": "f_bot_royxat",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP6avUseO5lk4gVewfFKhQScJLSXHQAAvoZaxuME7FLaio7WVyqQRUBAAMCAAN3AAM9BA",
+"caption": "<b>Telegram botda ro'yxatdan o'tish</b>\n\nSaytga kirmasdan, botning o'zida savol-javob orqali hisob ochish mumkin. Bot bir nechta qisqa savol beradi.\n\n1. @kasb_egalari_bot ga /royxat yozing.\n2. Kimligingizni tanlang: «Mijoz» yoki «Mutaxassis». Keyin ismingizni yozing.\n3. Mutaxassis bo'lsangiz yo'nalish, kasb, tajriba va hududni tugmalar bilan tanlaysiz.\n4. Telefon uchun «📱 Raqamni ulashish» yoki «⏭ O'tkazib yuborish»ni bosing.\n5. Ma'lumotlarni tekshirib «✅ Tasdiqlash» tugmasini bosing.\n\nHisobingiz bo'lsa, «Ha, akkauntim bor» tugmasi bilan uni Telegram'ga ulaysiz.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🤖 Ro'yxat",
+"url": "https://kasbegalari.vercel.app/auth/royxat"
+},
+{
 "id": "tip_mo_storyboard",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO-avUq95q1pBJqAAFeiLDbDpW31RhfAAK6GWsbjBOxS_-A4d8LM66sAQADAgADdwADPQQ",
 "caption": "<b>Animatsiyadan oldin storyboard va animatik</b>\n\nBatafsil animatsiya ustida haftalab ishlab, keyin g'oyani o'zgartirish og'ir. Avval oddiy versiyada kelishib oling.\n\n1. Har sahnani oddiy eskiz bilan chizing.\n2. Eskizlarni ovoz yoki musiqa ostiga qo'yib, vaqtni belgilang.\n3. Shu animatikni mijozga ko'rsatib tasdiqlating.\n4. Tasdiqdan keyingina detal va effektlar ustida ishlang.\n\n#motion\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
 "url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "lentatab",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBKWr1LidaN6QaZJnK6rBecSGM7H08AAIpGmsbjBOxS0TOwWL_r7-ZAQADAgADdwADPQQ",
+"caption": "<b>Lentada faqat obunalaringiz postlari</b>\n\nBosh sahifa lentasida ikki tab bor. Kuzatayotgan odamlaringiz postlarini alohida ko'rishingiz mumkin.\n\n1. Saytning bosh sahifasini oching.\n2. «Hammasi» tabida barcha ijodkorlarning postlari.\n3. «Obunalarim» tabida faqat siz obuna bo'lganlarning postlari.\n4. Obuna bo'lish uchun ijodkor profilidagi tugmani bosing.\n\n#lenta\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🏠 Bosh sahifa",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "f_bot_post",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP7avUseY-qsntZwKRE4y4C-C_tel0AAvsZaxuME7FL7NlEwacpfpgBAAMCAAN3AAM9BA",
+"caption": "<b>Bot orqali lentaga post yoki story joylash</b>\n\nTelefoningizdagi rasm yoki videoni botga yuborsangiz, bot uni profilingizga post yoki story qilib joylaydi.\n\n1. @kasb_egalari_bot ga rasm yoki video yuboring. Rasm ostidagi izoh post matni bo'ladi.\n2. Bot «Qayerga joylaymiz?» deb so'raydi.\n3. «✅ Post qilish» yoki «📖 Story qilish» tugmasini bosing. Matnni almashtirish uchun «✍️ Izohni o'zgartirish».\n4. Joylangach bot «Postni ochish» havolasini yuboradi.\n\nBu imkoniyat mutaxassislar uchun. Fayl 20 MB dan katta bo'lsa, uni saytda «Yaratish» orqali yuklang.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📸 Postlarim",
+"url": "https://kasbegalari.vercel.app/kabinet/postlar"
 },
 {
 "id": "tip_mo_matn",
@@ -400,12 +840,44 @@
 "url": "https://kasbegalari.vercel.app/lenta"
 },
 {
+"id": "yordam",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBK2r1Lik3XG4ZDAXR634l0UUv2h_jAAIrGmsbjBOxS31kAj9yR1rFAQADAgADdwADPQQ",
+"caption": "<b>Savolingizga javobni «Yordam»dan toping</b>\n\nSayt bo'yicha ko'p savollarning javobi «Yordam» markazida yozilgan.\n\n1. Chap menyuda «Yana» → «Yordam».\n2. Qidiruvga savolingizni yozing, masalan «obuna» yoki «pul chiqarish».\n3. Bo'limlar: mijozlar, mutaxassislar, jamoalar, vakansiyalar, xavfsizlik.\n4. Javob topmasangiz, sahifa pastida Telegram orqali yozish mumkin.\n\n#yordam\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "❓ Yordam",
+"url": "https://kasbegalari.vercel.app/yordam"
+},
+{
+"id": "f_bot_ilova",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP8avUsexizzeaAp1u1lqsFoaeqYmcAAvwZaxuME7FLT2C8ChON3ecBAAMCAAN3AAM9BA",
+"caption": "<b>Saytni Telegram ichida ilova sifatida ochish</b>\n\nKasb Egalari'ni Telegram'dan chiqmasdan ochish mumkin. Ilova Telegram hisobingiz orqali kiradi.\n\n1. @kasb_egalari_bot ni oching va pastki menyudagi «📱 Ilovani ochish» tugmasini bosing yoki /ilova yozing.\n2. Hisobingiz Telegram'ga ulangan bo'lsa, ilova o'zi kiradi.\n3. Ulanmagan bo'lsa «Kasb Egalari'da akkauntingiz bormi?» savoli chiqadi.\n4. «Ha, akkauntim bor» → «Akkauntni ulash» yoki «Yo'q, ro'yxatdan o'taman» tugmasini tanlang.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📱 Asosiy",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
 "id": "tip_smm_reja",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAPAavUq-eQLBS590fOJ67-Psb3YqAMAArwZaxuME7FLIA5nMc3IwdsBAAMCAAN3AAM9BA",
 "caption": "<b>Bir oylik kontent rejasini tuzish</b>\n\nHar kuni «bugun nima joylaymiz» deb o'ylash ko'p vaqt oladi. Oylik reja ishni tinch va bashorat qilinadigan qiladi.\n\n1. Sahifa uchun 3-4 ta doimiy rubrika tanlang.\n2. Haftalik jadval tuzing: qaysi kuni qaysi rubrika chiqadi.\n3. Bir kunda bir nechta post uchun suratga oling.\n4. Matnlarni oldindan yozib, mijoz bilan bir marta kelishib oling.\n5. Oy oxirida natijani ko'rib, rejani to'g'rilang.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💼 Vakansiyalar",
 "url": "https://kasbegalari.vercel.app/vakansiyalar"
+},
+{
+"id": "ustozbol",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBLWr1LizeP8Kyug_0K9sKafXXQn7dAAItGmsbjBOxSwpr2psdqKKMAQADAgADdwADPQQ",
+"caption": "<b>Ustoz bo'lib kurs ochish</b>\n\nTajribangizni o'rgatmoqchi bo'lsangiz, Mentorlik bo'limida ustoz bo'lib kurs ochishingiz mumkin.\n\n1. Chap menyuda «Mentorlik»ni oching.\n2. «Ustoz bo'lish» tugmasini bosing va arizani to'ldiring.\n3. Administrator arizani ko'rib chiqadi.\n4. Tasdiqlangach, kurs va darslar qo'shasiz.\n\nBatafsil: kanal mundarijasidagi «Ustoz bo'lish» yo'riqnomasi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "f_tg_kirish",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP9avUsfCp8FFnNg7_fXAvPMhWBUswAAv0ZaxuME7FLPX_oydNafEsBAAMCAAN3AAM9BA",
+"caption": "<b>Saytga «Telegram bilan kirish»</b>\n\nParol eslamasdan, Telegram orqali saytga kirish mumkin. Sayt kod beradi, siz uni botda tasdiqlaysiz.\n\n1. Kirish sahifasida «Telegram bilan kirish» tugmasini bosing.\n2. Ekranda 6 xonali kod chiqadi. «Botni ochish»ni bosing.\n3. Botdagi xabarda kod va qurilmani tekshirib «✅ Ha, bu men»ni bosing.\n4. Saytga qayting: hisob nomi chiqadi, «Bu menman» tugmasini bosing.\n\nKod 5 daqiqa amal qiladi. Kodni o'zingiz so'ramagan bo'lsangiz, botda «Yo'q»ni bosing.\n\n#xavfsizlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔐 Kirish",
+"url": "https://kasbegalari.vercel.app/auth/kirish"
 },
 {
 "id": "tip_smm_hook",
@@ -416,6 +888,22 @@
 "url": "https://kasbegalari.vercel.app/lenta"
 },
 {
+"id": "portfoliotahrir",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBL2r1Li5HNqI84g12UcqtX9EBqV4kAAIvGmsbjBOxSxANK6MriAj7AQADAgADdwADPQQ",
+"caption": "<b>Portfolio ishini tahrirlash yoki o'chirish</b>\n\nPortfoliodagi ishning nomi, tavsifi yoki muqovasini istalgan payt o'zgartirasiz.\n\n1. Chap menyuda «Yana» → «Kabinet» → «Portfolio».\n2. Ish kartasidagi qalam belgisi: tahrirlash.\n3. Savat belgisi: ishni o'chirish.\n4. Yangi ish uchun «Ish qo'shish» tugmasi.\n\nEng kuchli ishlaringizni ko'rinarli qiling, zaiflarini olib tashlang.\n\n#portfolio\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🗂 Portfolio",
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "f_parol_tiklash",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP-avUsfaE2vKouVBqwpdicKVcvFfoAAv4ZaxuME7FLOwzY8opzA14BAAMCAAN3AAM9BA",
+"caption": "<b>Parolni unutdingizmi? Tiklash yo'li</b>\n\nParolni eslay olmasangiz, emailingizga yangi parol o'rnatish havolasi yuboriladi.\n\n1. Kirish sahifasida «Parolni unutdingizmi?» havolasini bosing.\n2. Hisobingiz emailini yozib «Havola yuborish» tugmasini bosing.\n3. Pochtangizdagi xatdagi havolani oching. Xat kelmasa «Spam» papkasini tekshiring.\n4. «Yangi parol» va «Parolni takrorlang» maydonlarini to'ldirib «Parolni saqlash»ni bosing.\n\nHavola 1 soat amal qiladi. Eskirsa, «Yangi havola so'rash»ni bosing.\n\n#xavfsizlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔑 Tiklash",
+"url": "https://kasbegalari.vercel.app/auth/parol-tiklash"
+},
+{
 "id": "tip_smm_hisobot",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAPCavUq_AoSkyXOsoYq20JkHEXdE04AAr4ZaxuME7FLvYPKXF6rp9oBAAMCAAN3AAM9BA",
@@ -424,11 +912,27 @@
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
+"id": "f_konkurs",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAP_avUsf9ZJTJ0Gt7qSrvwwA7LvxO8AAv8ZaxuME7FLDJoMUtnOzW8BAAMCAAN3AAM9BA",
+"caption": "<b>Ijod konkursida qatnashish va ovoz berish</b>\n\nKonkursga o'z ishingizni qo'shasiz, hamjamiyat ovoz beradi. G'olib bosh sahifada e'lon qilinadi.\n\n1. Chap menyuda «Yana» → «Konkurs»ni oching va ochiq konkursni tanlang.\n2. «Ishtirok etish» tugmasini bosing va profilingizdagi rasm yoki videoli ommaviy postni tanlang.\n3. Boshqalar ishiga ovoz berish uchun yoqqan ish ostidagi yurakni bosing.\n4. Ovoz bitta, lekin uni boshqa ishga ko'chirish mumkin. O'z ishingizga ovoz berib bo'lmaydi.\n\nMos post bo'lmasa, avval profilingizga rasmli yoki videoli post joylang.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🏆 Konkurs",
+"url": "https://kasbegalari.vercel.app/konkurs"
+},
+{
 "id": "tip_smm_izoh",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAPDavUq_TedpvKyWMQ5jBzsmWibXK0AAr8ZaxuME7FLiEAAAc2m9roZAQADAgADdwADPQQ",
 "caption": "<b>Izoh va xabarlarga javob berish qoidalari</b>\n\nSahifadagi javoblar brendning ovozi hisoblanadi. Qoidalarni mijoz bilan ishning boshida kelishib oling.\n\n1. Javob berish muddatini kelishing: masalan, ish kuni davomida.\n2. Salbiy izohni o'chirmang, xushmuomala javob berib suhbatni shaxsiy xabarga o'tkazing.\n3. Tez-tez beriladigan savollarga tayyor javob shablonlarini yozing.\n4. Qaysi masalalarni mijozning o'ziga o'tkazishni oldindan belgilang.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "f_maslahat_javob",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBAAFq9SyAgfJJR3YFp1sMaBWXd9dUSQADGmsbjBOxSzxrQY2WkfjiAQADAgADdwADPQQ",
+"caption": "<b>Maslahatda javob yozish va «Eng foydali» belgisi</b>\n\n«Maslahat» bo'limida boshqalar savoliga tajribangizdan javob yozasiz. Yaxshi javoblar belgilanadi va profilingizga belgi olib keladi.\n\n1. Chap menyuda «Yana» → «Maslahat»ni oching va savolni tanlang.\n2. «Javobingiz» maydoniga aniq maslahat yozib «Javob yuborish»ni bosing. Har savolga bitta javob yoziladi.\n3. Boshqalarning foydali javobini «Foydali» tugmasi bilan belgilang.\n4. Savol egasi eng yaxshi javobni «Eng foydali» deb belgilaydi.\n\n3 ta javobingiz «Eng foydali» deb belgilansa, profilingizda «Faol maslahatchi» belgisi chiqadi.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💡 Maslahat",
 "url": "https://kasbegalari.vercel.app/savollar"
 },
 {
@@ -440,12 +944,28 @@
 "url": "https://kasbegalari.vercel.app/kabinet/portfolio"
 },
 {
+"id": "f_xarita_yaqin",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBAWr1LIJZsKbtgf8cTNPA-DkHn2heAAIBGmsbjBOxS6RirYN7fAAB_gEAAwIAA3cAAz0E",
+"caption": "<b>Xaritada «Menga yaqin» ijodkorlarni topish</b>\n\nXarita bo'limi joylashuvingiz bo'yicha hududingizni aniqlab, shu hududdagi ijodkorlarni ko'rsatadi.\n\n1. Chap menyuda «Xarita»ni bosing.\n2. Filtrlar qatoridagi «Menga yaqin» tugmasini bosing.\n3. Brauzer joylashuvni so'raganda ruxsat bering.\n4. «Siz ... hududidasiz» degan yozuv chiqadi va ro'yxat shu hudud bo'yicha ko'rsatiladi.\n\nRuxsat bermasangiz, hududni xaritaning o'zidan bosib tanlaysiz.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📍 Xarita",
+"url": "https://kasbegalari.vercel.app/xarita"
+},
+{
 "id": "tip_smm_kirish",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAPFavUrAAHlEUwbLUUIMfFMMIoJlVwYAALBGWsbjBOxS21To5KK8jrWAQADAgADdwADPQQ",
 "caption": "<b>Mijoz akkauntiga xavfsiz kirish</b>\n\nParolni chatda olish ikki tomon uchun ham xavfli. Rasmiy rollar orqali ishlash ancha ishonchli.\n\n1. Mijozdan parol so'ramang, Meta Business Suite orqali rol berishini so'rang.\n2. O'z akkauntingizda ikki bosqichli himoyani yoqing.\n3. Faqat ishingiz uchun kerakli huquqlarni oling.\n4. Hamkorlik tugaganda rolingizni olib tashlashni mijozga eslating.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
 "url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "f_tajriba",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBAmr1LINfMWEU1vZly-uHAAGhL1oUigACAhprG4wTsUsRizQ3Ktvr1QEAAwIAA3cAAz0E",
+"caption": "<b>Profilga ish tajribasi, ta'lim va sertifikatlarni qo'shish</b>\n\nQayerda ishlagansiz va nimani o'qigansiz, profilingizda «Haqida» bo'limi ostida chiqadi. Sertifikatlar ham alohida ko'rinadi.\n\n1. «Yana» → «Kabinet» → «Profil» → «Mutaxassis profili» bo'limini oching.\n2. «Tajriba va ta'lim» qismida «Tajriba qo'shish»: lavozim, kompaniya, yillar va qisqa tavsif.\n3. «Ta'lim qo'shish» bilan muassasa va yo'nalishni yozing.\n4. «Sertifikatlar va litsenziyalar» qismida «Sertifikat qo'shish»: nomi, kim bergan, yil, havola.\n5. «Saqlash» tugmasini bosing.\n\nTugash yilini bo'sh qoldirsangiz, «hozirgacha» deb ko'rsatiladi.\n\n#profil\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profil",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
 },
 {
 "id": "tip_3d_render",
@@ -598,5 +1118,225 @@
 "caption": "<b>Tahrirlar to'xtamay qolsa nima qilish</b>\n\nBir-ikkita tahrir odatiy hol. Ular cheksiz davom etsa, tinch ohangda kelishuvga qaytish kerak.\n\n1. Boshidagi brif va kelishilgan tahrirlar sonini mijozga eslating.\n2. Barcha izohlarni bitta ro'yxatga yig'ib, bir bosqichda bajaring.\n3. Kelishilgandan ortiq tahrirning narxini ochiq ayting.\n4. Ohangni xotirjam saqlang va har kelishuvni yozma tasdiqlating.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
 "url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_vg_lokatsiya",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBBGr1Lff4sf2-pGSGlkI7_t56DJW_AAIEGmsbjBOxS4GWKmzpGpHNAQADAgADdwADPQQ",
+"caption": "<b>Syomka joyini oldindan ko'rib chiqish</b>\n\nJoyni bir kun oldin ko'rib chiqsangiz, syomka kuni kutilmagan muammolar kamayadi. Borganingizda shu narsalarni tekshiring.\n\n1. Syomka bo'ladigan soatda boring va quyosh qaysi tomondan tushishini ko'ring.\n2. Rozetkalar qayerdaligini va qancha uzaytirgich kerakligini yozib oling.\n3. Xonada ovoz qanday eshitilishini tinglang: ko'cha shovqini, aks-sado, konditsioner.\n4. Telefonda bir necha kadr olib, burchaklarni oldindan tanlab qo'ying.\n5. Mashina qo'yish joyi va uskunani olib kirish yo'lini aniqlang.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_vg_oqbalans",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBBmr1LflX08tHc4jEDFP0fS-hshHzAAIGGmsbjBOxS6LleerepHNMAQADAgADdwADPQQ",
+"caption": "<b>Oq balansni qo'lda sozlash</b>\n\nAvtomatik oq balans kadrdan kadrga o'zgarib, montajda ranglarni bir xil qilishni qiyinlashtiradi. Qo'lda sozlash bir necha soniya oladi.\n\n1. Kunduzgi yorug'likda 5600 K atrofidan, cho'g'lanma lampada 3200 K atrofidan boshlang.\n2. Aniq natija uchun oq yoki kulrang kartani qahramon turgan joyga qo'yib, o'lchov oling.\n3. Yorug'lik manbalari aralash bo'lsa, bittasini tanlang yoki boshqasini o'chiring.\n4. Bitta sahna davomida oq balansni o'zgartirmang.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_vg_tadbir",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBCGr1LfwBhu00YTWFuTDKqLe_mS2NAAIIGmsbjBOxS77W4BIBOhFEAQADAgADdwADPQQ",
+"caption": "<b>Konferensiya va tadbirni suratga olish rejasi</b>\n\nTadbirda takrorlanmaydigan lahzalar ko'p. Dastur bilan oldindan tanishib, kerakli paytda kerakli joyda turish muhim.\n\n1. Tashkilotchidan tadbir dasturini so'rang va asosiy chiqishlarni belgilab qo'ying.\n2. Sahna oldida shtativli kamerani butun chiqish uchun qoldiring, ikkinchi kamera bilan zalni oling.\n3. Ovozni tadbir pultidan alohida liniya orqali yozib olishni oldindan kelishing.\n4. Tanaffuslarda mehmonlar, stendlar va detallarni B-roll uchun oling.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_mt_yorliq",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBCmr1Lf4JsWIsKVSmfES-Ra1EVUZhAAIKGmsbjBOxS5hN90aa35sMAQADAgADdwADPQQ",
+"caption": "<b>Klaviatura yorliqlari bilan montajni tezlashtirish</b>\n\nSichqoncha bilan qilinadigan har amal bir necha soniya oladi. Kun davomida yuzlab marta takrorlanganda bu soatlarga yig'iladi.\n\n1. Eng ko'p ishlatadigan beshta amalni yozib chiqing: kesish, o'chirish, siljitish, belgi qo'yish, o'ynatish.\n2. Shu amallarga chap qo'l bemalol yetadigan tugmalarni bering.\n3. J, K, L tugmalari bilan oldinga va orqaga o'ynatishni odat qiling.\n4. Yorliqlar to'plamini faylga saqlang: boshqa kompyuterda ham shu sozlama bilan ishlaysiz.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_mt_jlcut",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBDGr1LgGnBgZUoh8HSJ1n5H0G3GHiAAIMGmsbjBOxSz3Wqmy7nOkJAQADAgADdwADPQQ",
+"caption": "<b>J-cut va L-cut: suhbatni silliq ulash</b>\n\nOvoz va tasvir bir vaqtda kesilsa, suhbat sakrab ketganday tuyuladi. Ovozni tasvirdan biroz oldin yoki keyin almashtirish o'tishni yumshatadi.\n\n1. J-cut: keyingi kadr ovozi tasvirdan oldin boshlanadi va tomoshabin yangi sahnaga tayyorlanadi.\n2. L-cut: oldingi kadr ovozi yangi tasvir ustida davom etadi.\n3. Intervyuda savol beruvchining ovozi ustiga javob beruvchining yuzini qo'ying.\n4. Siljishni qisqa tuting: yarim soniyadan bir soniyagacha yetarli.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "▶️ Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "tip2_mt_musiqa",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBDmr1LgPvGrhyzeEEJk_pQ4ISN9NEAAIOGmsbjBOxS7elUGbeCmSNAQADAgADdwADPQQ",
+"caption": "<b>Montaj uchun musiqa tanlash</b>\n\nMusiqa videoning tezligi va kayfiyatini belgilaydi. Uni montajdan oldin tanlasangiz, kesimlarni ritmga moslash osonlashadi.\n\n1. Mijozdan kayfiyatni bildiradigan ikki-uch namuna trek so'rang.\n2. Ritmi aniq eshitiladigan, nutq bilan to'qnashmaydigan trekni tanlang.\n3. Litsenziyasi aniq kutubxonadan foydalaning va litsenziya faylini loyiha papkasida saqlang.\n4. Trekni video uzunligiga moslab kesing, tugashi tabiiy eshitilsin.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_dz_palitra",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBEGr1Lgby8Qk0PgNPhi9iXUq-vQvIAAIQGmsbjBOxS-E6VTTsI7imAQADAgADdwADPQQ",
+"caption": "<b>Rang palitrasini tanlash: 60-30-10 qoidasi</b>\n\nRanglar ko'payib ketsa, dizayn tartibsiz ko'rinadi. Oddiy nisbat bilan muvozanatni saqlash oson.\n\n1. Asosiy rang yuzaning taxminan 60 foizini egallaydi: odatda fon yoki neytral rang.\n2. Ikkinchi rang 30 foiz: bloklar, sarlavhalar, ikkinchi darajali elementlar.\n3. Urg'u rangi 10 foiz: tugma, belgi va eng muhim joy.\n4. Palitrani oq-qora rejimda tekshiring: ranglar orasida yorug'lik farqi yetarli bo'lsin.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_dz_banner",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBEmr1LgkhSI9VwuslDDqVH_GptDntAAISGmsbjBOxS1MrqNFvBjNwAQADAgADdwADPQQ",
+"caption": "<b>Ijtimoiy tarmoq bannerida matn joylashuvi</b>\n\nBanner lentada bir lahzada ko'rinadi. Matn qisqa va o'qiladigan bo'lsa, xabar yetib boradi.\n\n1. Bitta asosiy fikr qoldiring: sarlavha va bitta qo'shimcha qator.\n2. Matnni chetlardan uzoqroq joylang: ilova interfeysi chetlarni yopib qo'yishi mumkin.\n3. Dizaynni telefon ekranida haqiqiy o'lchamda ko'rib chiqing.\n4. Fon tasviri ustidagi matn uchun qoraytirilgan qatlam yoki tekis plashka ishlating.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📁 Portfolio qo'shish",
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "tip2_dz_mockup",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBFGr1LgsJVpYV_ob1xz8QVcLExxpbAAIUGmsbjBOxSyPY8uI8LBIgAQADAgADdwADPQQ",
+"caption": "<b>Mockup bilan dizaynni jonli ko'rsatish</b>\n\nTekis faylni ko'rgan mijoz natijani tasavvur qilishga qiynaladi. Mockup dizaynni haqiqiy muhitda ko'rsatadi.\n\n1. Ishga mos mockup tanlang: qadoq, vizitka, vitrina yoki telefon ekrani.\n2. Yorug'lik va soyasi tabiiy ko'rinadigan, sifatli shablonni ishlating.\n3. Bitta ishni ikki-uch xil muhitda ko'rsating.\n4. Mockup litsenziyasi tijorat maqsadida foydalanishga ruxsat berishini tekshiring.\n\nTayyor mockuplarni portfolio bo'limiga joylasangiz, ular profilingizda ko'rinadi.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📁 Portfolio qo'shish",
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "tip2_ft_tungi",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBFmr1Lg4mt8FEew9XOY2IqeM8Iv1yAAIWGmsbjBOxSyRQu8G0pZ_bAQADAgADdwADPQQ",
+"caption": "<b>Kechki va tungi suratga olish: 4 maslahat</b>\n\nYorug'lik kam bo'lganda suratda shovqin va xiralik paydo bo'ladi. To'g'ri sozlama bilan tungi shahar ham toza chiqadi.\n\n1. Shtativ yoki mustahkam tayanch ishlating va taymer bilan tushiring.\n2. ISO ni imkon qadar past tuting, yorug'likni uzunroq ekspozitsiya bilan yig'ing.\n3. Quyosh botgandan keyingi ko'k soatda osmon hali rangli bo'ladi: shu vaqtdan foydalaning.\n4. Fokusni qo'lda, yorqin nuqtaga qarab sozlang.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_ft_ovqat",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBGGr1LhB7VPamxRQm8_v48nwhjq3tAAIYGmsbjBOxS268XhkgmD1NAQADAgADdwADPQQ",
+"caption": "<b>Ovqat suratini ishtahali qilish</b>\n\nKafe va restoran uchun suratda taom yangi va issiq ko'rinishi kerak. Tayyorgarlik va yorug'lik buni hal qiladi.\n\n1. Taomni pishishi bilan suratga oling: vaqt o'tgach u quriydi va jilosini yo'qotadi.\n2. Yon tomondan tushadigan deraza yorug'ligi teksturani yaxshi ko'rsatadi.\n3. Burchakni taomga qarab tanlang: pitsa va salat tepadan, burger va ichimlik yon tomondan.\n4. Fonda ortiqcha narsa qoldirmang, bir-ikkita mos detal yetarli.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📁 Portfolio qo'shish",
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "tip2_ft_interyer",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBGmr1LhPIq_U2N2WsGSqOkW9a0PycAAIaGmsbjBOxSxPkuylWcr0qAQADAgADdwADPQQ",
+"caption": "<b>Interyer suratga olish: xona keng va tekis chiqishi uchun</b>\n\nKvartira, ofis yoki mehmonxona suratida chiziqlar qiyshaymasligi va xona yorug' ko'rinishi muhim.\n\n1. Kamerani ko'krak balandligida, tekis holatda ushlang: vertikal chiziqlar to'g'ri qoladi.\n2. Barcha chiroqlarni yoqing va pardalarni oching.\n3. Juda keng linzadan ehtiyot bo'ling: chetdagi mebel cho'zilib ketadi.\n4. Yorug' deraza va qorong'i burchak uchun bir necha ekspozitsiyada suratga olib, keyin birlashtiring.\n\n#foto\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_smm_stories",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBHGr1LhbOMO5Db2WdSdbVcnT0RXbNAAIcGmsbjBOxS-Vz8z6R_qI3AQADAgADdwADPQQ",
+"caption": "<b>Stories orqali auditoriya bilan muloqot</b>\n\nStories sahifaning eng jonli qismi. Obunachilar fikr bildira oladigan formatlar ularni sahifaga yaqinlashtiradi.\n\n1. So'rovnoma va savol stikerlarini haftada bir necha marta ishlating.\n2. Kelgan javoblarni keyingi storiesda ko'rsating: odamlar o'zini eshitilgan his qiladi.\n3. Tayyor natija bilan birga ish jarayoni va sahna ortini ham ko'rsating.\n4. Muhim storieslarni mavzu bo'yicha doimiy to'plamlarga joylang.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "▶️ Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "tip2_smm_raqobat",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBHmr1LhgkLJWf2WbpCHhnOAkRj7GZAAIeGmsbjBOxS1brIwkV1jVJAQADAgADdwADPQQ",
+"caption": "<b>Raqobatchilar sahifasini tahlil qilish</b>\n\nMijoz sahifasini boshlashdan oldin shu sohadagi 3-5 ta sahifani ko'rib chiqing. Bu nima ishlashini tez tushunishga yordam beradi.\n\n1. Har sahifada eng ko'p izoh va ulashish olgan postlarni yozib chiqing.\n2. Ular qaysi formatlarni ishlatishini belgilang: reels, karusel, stories.\n3. Izohlarda mijozlar nimadan shikoyat qilishiga e'tibor bering.\n4. Natijani jadvalga yig'ib, mijozga takliflar bilan ko'rsating.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_smm_vaqt",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBIGr1Lht4_qadD3VeCKfmVI3BOQ5QAAIgGmsbjBOxS-PjNcFQAiPvAQADAgADdwADPQQ",
+"caption": "<b>Post joylash vaqtini o'z statistikangiz bo'yicha tanlash</b>\n\nHar sahifaning auditoriyasi turli vaqtda faol bo'ladi. Eng aniq javobni sahifaning o'z statistikasi beradi.\n\n1. Statistika bo'limida obunachilar faol bo'lgan soat va kunlarni ko'ring.\n2. Ikki hafta davomida bir xil turdagi postlarni turli vaqtda joylab sinang.\n3. Har post uchun birinchi soatdagi qamrovni yozib boring.\n4. Eng yaxshi natija bergan ikki-uch vaqtni kontent rejasiga qo'shing.\n\n#smm\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_mo_musiqa",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBImr1Lh1zHswa0W0e9IWdW0S3iCvGAAIiGmsbjBOxS3_x0KtvtlAFAQADAgADdwADPQQ",
+"caption": "<b>Animatsiyani musiqa ritmiga moslash</b>\n\nHarakat musiqa zarbalariga tushganda animatsiya yaxlit ko'rinadi. Buning uchun trekni oldindan belgilab olish kerak.\n\n1. Musiqani animatsiyadan oldin tanlang va loyihaga birinchi bo'lib qo'shing.\n2. Trekni o'ynatib turib, zarbalar ustiga markerlar qo'ying.\n3. Asosiy o'tishlar va urg'uli harakatlarni markerlarga moslang.\n4. Har zarbaga harakat qo'ymang: tinch joylar ham kerak.\n\n#motion\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "▶️ Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "tip2_mo_ui",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBJGr1LiCA55rGaQHAjos4Tf2O_WtdAAIkGmsbjBOxS3XTLOThmhRjAQADAgADdwADPQQ",
+"caption": "<b>Interfeys animatsiyasida davomiylikni tanlash</b>\n\nIlova ichidagi animatsiya foydalanuvchini kutdirmasligi kerak. Davomiylikni element hajmi va bosib o'tadigan masofasiga qarab tanlang.\n\n1. Tugma va kichik belgilar uchun qisqa vaqt: taxminan 100-200 millisekund.\n2. Oyna, menyu va katta panellar uchun biroz uzunroq: 250-400 millisekund.\n3. Ochilishda harakat sekinlashib tugasin, yopilishda tezlashib ketsin.\n4. Dasturchiga davomiylik va easing qiymatlarini aniq raqamlarda yozib bering.\n\n#motion\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_ov_diktor",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBJmr1LiMaUZ8cZGCQ7cpdDtHS-qqUAAImGmsbjBOxS6EpU7eAypnvAQADAgADdwADPQQ",
+"caption": "<b>Diktor matnini yozuvga tayyorlash</b>\n\nMatn oldindan tayyorlansa, yozuv tez o'tadi va takror olishlar kamayadi.\n\n1. Matnni ovoz chiqarib o'qib, talaffuzi qiyin so'zlarni belgilang.\n2. Nomlar, raqamlar va xorijiy so'zlarning o'qilishini mijoz bilan kelishing.\n3. Uzun gaplarni bo'ling va nafas olish joylarini belgilab qo'ying.\n4. Video davomiyligi aniq bo'lsa, matnni sekundomer bilan o'qib tekshiring.\n\n#ovoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_ux_bosish",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBKGr1LiWojvBtNs3qyIAuvGPqPbDnAAIoGmsbjBOxSxUjOqm-yMXFAQADAgADdwADPQQ",
+"caption": "<b>Mobil interfeysda bosish maydonlari</b>\n\nKichik tugmani barmoq bilan bosish qiyin: foydalanuvchi xato bosadi va asabiylashadi. Bir necha oddiy qoida buning oldini oladi.\n\n1. Bosiladigan elementni kamida 44x44 punkt qiling: Apple va Google qo'llanmalari shunga yaqin o'lchamni tavsiya qiladi.\n2. Yonma-yon tugmalar orasida bo'sh joy qoldiring.\n3. Asosiy amallarni ekranning pastki qismiga, bosh barmoq yetadigan joyga qo'ying.\n4. Prototipni haqiqiy telefonda bir qo'l bilan sinab ko'ring.\n\n#uiux\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_kp_mahsulot",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBKmr1LigHfANv68AX_HFVR01BUQXHAAIqGmsbjBOxS1zcSiklnz2SAQADAgADdwADPQQ",
+"caption": "<b>Onlayn do'kon uchun mahsulot tavsifi</b>\n\nXaridor mahsulotni ushlab ko'ra olmaydi, uning o'rnini tavsif bosadi. Yaxshi tavsif savollarga oldindan javob beradi.\n\n1. Birinchi gapda mahsulot kimga va nima uchun kerakligini ayting.\n2. O'lcham, material, rang va to'plamga nima kirishini alohida ro'yxatda bering.\n3. Xususiyatni foyda bilan bog'lang: «suv o'tkazmaydi» yoniga «yomg'irda ham kiyish mumkin» deb yozing.\n4. Sotuvchidan xaridorlar beradigan savollarni so'rab, javobini tavsifga qo'shing.\n\n#kopirayter\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📁 Portfolio qo'shish",
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+},
+{
+"id": "tip2_fr_birinchi",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBLGr1LipoK2Gb01gH33BCD9LkpeGLAAIsGmsbjBOxS0l0IO81SYvkAQADAgADdwADPQQ",
+"caption": "<b>Birinchi mijozni topish: boshlash uchun 5 qadam</b>\n\nTajriba kam bo'lganda birinchi buyurtma eng qiyini. Kichik va aniq qadamlardan boshlang.\n\n1. Profilingizni to'ldiring: kasb, hudud, qisqa tavsif va aniq rasm.\n2. Tayyor ishingiz bo'lmasa, o'zingiz uchun 2-3 ta namuna loyiha bajarib portfolioga qo'ying.\n3. Tanishlaringizga nima ish qilishingizni aniq ayting: tavsiyalar shu yerdan boshlanadi.\n4. Vakansiyalarni har kuni ko'rib chiqing va har biriga moslashtirilgan javob yozing.\n5. Birinchi ishni puxta bajaring va tugagach sharh so'rang.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profilni to'ldirish",
+"url": "https://kasbegalari.vercel.app/kabinet/profil"
+},
+{
+"id": "tip2_fr_kun",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBLmr1Li20amYF65mtpv5T7rx6S2ljAAIuGmsbjBOxS3aUvfiSePs_AQADAgADdwADPQQ",
+"caption": "<b>Uyda ishlaganda kunni rejalashtirish</b>\n\nFrilanserda ish va dam olish orasidagi chegara tez yo'qoladi. Oddiy kun tartibi ikkalasini ham saqlaydi.\n\n1. Har kuni bir xil soatda ishni boshlang va tugating.\n2. Kunning eng tetik soatlarini eng murakkab ishga ajrating.\n3. Xabar va qo'ng'iroqlarga javob berish uchun kuniga ikki-uch aniq vaqt belgilang.\n4. Ertangi kunning uchta asosiy vazifasini kechqurun yozib qo'ying.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_fr_tolov",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBMGr1Li-hnpAhB_n8kqtspmgn7oClAAIwGmsbjBOxS7PLDzw901E1AQADAgADdwADPQQ",
+"caption": "<b>Kechikkan to'lovni muloyim eslatish</b>\n\nTo'lov kechiksa, asabiylashish vaziyatni yaxshilamaydi. Aniq va xotirjam xabar munosabatni saqlab, ishni joyidan siljitadi.\n\n1. Muddat o'tgan kuni qisqa eslatma yuboring: ish nomi, summa va kelishilgan sana.\n2. To'lov rekvizitlarini xabar ichida yana bir bor yozing.\n3. Javob bo'lmasa, bir necha kundan keyin qo'ng'iroq qiling va aniq sanani so'rang.\n4. Keyingi loyihalarda avans va bosqichli to'lovni oldindan kelishib oling.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "tip2_fr_bosqich",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBMWr1LjHvTKRLR4603BWmDkF_doG8AAIxGmsbjBOxS0ihl_eh7s5yAQADAgADdwADPQQ",
+"caption": "<b>Katta loyihani bosqichlarga bo'lish</b>\n\nUzoq loyihada yo'nalishni yo'qotish oson. Bosqichlar ishni nazorat qilishni ham, mijoz bilan kelishishni ham osonlashtiradi.\n\n1. Loyihani 3-5 ta mantiqiy bosqichga bo'ling: masalan, konsepsiya, qoralama, yakuniy variant.\n2. Har bosqich uchun natija va muddatni yozma kelishing.\n3. Keyingi bosqichga mijoz tasdig'idan keyin o'ting.\n4. To'lovni ham bosqichlarga bog'lang.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎓 Mentorlik",
+"url": "https://kasbegalari.vercel.app/mentorlik"
+},
+{
+"id": "tip2_fr_charchoq",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBMmr1LjIg0M2u8xic849aXFUwEsbEAAIyGmsbjBOxSw1N2HAx9hH-AQADAgADdwADPQQ",
+"caption": "<b>Charchoqdan saqlanish: frilanser uchun 4 odat</b>\n\nBuyurtma ko'p bo'lgan davrda dam olishni keyinga surish oson. Uzoq vaqt shunday ishlash sifatga ham, sog'liqqa ham ta'sir qiladi.\n\n1. Haftada kamida bir kunni butunlay ishsiz qoldiring.\n2. Har bir-bir yarim soatda ekrandan uzoqlashib, qisqa tanaffus qiling.\n3. Ulgurmaydigan buyurtmani xushmuomalalik bilan rad eting yoki muddatini suring.\n4. Ish joyini dam olish joyidan ajrating, iloji bo'lsa alohida xonada ishlang.\n\n#frilans\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💬 Savol berish",
+"url": "https://kasbegalari.vercel.app/savollar"
+},
+{
+"id": "v_stat",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBM2r1Ly6ReSgfL36jcFiRBw3OJIdIAAJ_owACjBOxS5qGwLJzS85uPQQ",
+"dur": 37,
+"cover": "AgACAgIAAxUHavSOi_iw1BJHKoqY-esUQGdcs0IAAtcgaxuzgKBLpYs63_PmupMBAAMCAAN5AAM9BA",
+"caption": "<b>Post statistikasi: postingiz qanday ishlaganini ko'ring</b>\n\nHar bir post uchun alohida hisobot bor. Qaysi post yaxshi ishlaganini ko'rib, keyingisini shunga qarab qilasiz.\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. Kabinet menyusida «Postlarim»ni oching.\n3. Post kartasining o'ng burchagidagi «⋯» tugmasini bosing.\n4. «Statistika»ni tanlang.\n5. Ko'rishlar va noyob ko'ruvchilar: necha marta va nechta alohida odam ko'rgani.\n6. Faollik: har 100 ko'rishga nechta reaksiya va izoh to'g'ri kelgani.\n7. Reaksiyalar: qaysi biri qancha bosilgani.\n8. Eng faol izohchilar: postni eng ko'p muhokama qilganlar.\n\nVideodagi raqamlar sinov postidan olingan, sizda o'z postingiz natijasi chiqadi.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📊 Postlarim",
+"url": "https://kasbegalari.vercel.app/kabinet/postlar"
+},
+{
+"id": "v_kontakt",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBNGr1LzHUyyYC0ENvzwSZCWg1EyfwAAKAowACjBOxS8RCIE2EVR-sPQQ",
+"dur": 29,
+"cover": "AgACAgIAAxUHavUvMdH4GJBACu0d_6hPdtEZfJ4AAjMaaxuME7FLDjVkdbI2iW8BAAMCAAN5AAM9BA",
+"caption": "<b>Kontakt rejimi: telefoningiz qanday ochilishini o'zingiz tanlaysiz</b>\n\nSaytda telefon, Telegram, Instagram va email ochiq turmaydi. Ikki rejimdan birini tanlaysiz:\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. Kabinet menyusida «Kontaktlar»ni oching.\n3. «Kontaktim qanday ochiladi» bo'limini o'qing.\n4. «Kontaktim sotilsin»: mijoz ishlaringizni ko'rib, kontaktni platforma orqali ochadi.\n5. «Faqat portfolio»: kontakt umuman ko'rsatilmaydi, mijoz sayt chati orqali yozadi.\n6. Kontaktingizni kim ochganini «Kontaktimni olganlar» ro'yxatida ko'rasiz, sizga bildirishnoma ham keladi.\n\nKontakt narxini administrator tajriba darajasiga qarab belgilaydi.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔒 Kontakt rejimi",
+"url": "https://kasbegalari.vercel.app/kabinet/kontaktlar"
 }
 ]
