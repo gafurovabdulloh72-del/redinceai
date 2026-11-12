@@ -11,5 +11,5 @@ const n = Math.round(dur * FPS);
 for (let i = 0; i < n; i++) { await p.evaluate(t => window.renderAt(t), i / FPS); await p.screenshot({ path: path.join(fr, String(i).padStart(4, '0') + '.jpg'), type: 'jpeg', quality: 93 }); if (i % 90 === 0) console.log('kadr', i, '/', n); }
 await b.close();
 execFileSync('python3', [path.join(HERE, 'synth.py'), path.join(HERE, 'events.json'), String(dur), path.join(HERE, 'neon.wav')], { stdio: 'inherit' });
-execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(fr, '%04d.jpg'), '-i', path.join(HERE, 'neon.wav'), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-af', 'loudnorm=I=-18:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', '-shortest', '-movflags', '+faststart', path.join(HERE, (process.env.OUT||'neon-pack.mp4'))]);
+execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(fr, '%04d.jpg'), '-i', path.join(HERE, 'neon.wav'), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', '-shortest', '-movflags', '+faststart', path.join(HERE, (process.env.OUT||'neon-pack.mp4'))]);
 console.log('DONE', dur);
