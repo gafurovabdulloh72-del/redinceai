@@ -38,5 +38,9 @@
 "filtr": 115,
 "f_efir_sifat": 116,
 "tip_mt_ovoz_balans": 117,
-"sehrgar": 118
+"sehrgar": 118,
+"f_efir_savol": 129,
+"tip_mt_rang": 130,
+"chatmenu": 131,
+"f_efir_xonalar": 132
 }
