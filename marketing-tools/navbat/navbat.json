@@ -1912,5 +1912,27 @@
 "caption": "<b>«Yaratish» tugmasi: yangi narsa bir joydan</b>\n\nPost, jamoa, vakansiya yoki e'lon joylash uchun sahifama-sahifa yurish shart emas: hammasi bitta menyuda.\n\n1. Chap menyuda «Yaratish» tugmasini bosing.\n2. «Post joylash»: matn, rasm yoki video profil lentangizga.\n3. «Guruh yoki kanal ochish»: hamjamiyat, muhokama, efirlar.\n4. «Vakansiya joylash»: ish e'loni.\n5. «E'lon berish»: loyiha uchun ijodkor topish.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "➕ Saytni ochish",
 "url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "v-ulashish",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBuWr1g0GuGXaY5QABWKdlmBAELytN3wACQ6cAAowTsUtW_KHEibYuyT0E",
+"dur": 18,
+"cover": "AgACAgIAAxUHavWDQXA2a2n9TPaaTqMLOpyvITgAAkQcaxuME7FL5dYRyXWaAAEnAQADAgADeQADPQQ",
+"caption": "<b>Postni chatda yoki Telegramda ulashish</b>\n\nYoqqan postni do'stingizga yoki mijozga bir necha bosishda yuborasiz.\n\n1. Post ostidagi «Ulashish» belgisini bosing.\n2. Menyuda uch usul bor: «Havolani nusxalash», «Telegram orqali», «Xabarda yuborish».\n3. «Xabarda yuborish»ni tanlang: so'nggi suhbatlaringiz chiqadi.\n4. Kerakli odamni bosing: post suhbatga darhol xabar bo'lib boradi.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🏠 Lenta",
+"url": "https://kasbegalari.vercel.app/"
+},
+{
+"id": "m_kasblar",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBumr1g3w8KuhFCZmJ4DOM9UorUZ82AAJFpwACjBOxS-UC4GbuAw1IPQQ",
+"dur": 7,
+"cover": "AgACAgIAAxUHavWDfLUbpjZRtiza_MRru4QWpfgAAkUcaxuME7FLfEdHFbr7a_0BAAMCAAN3AAM9BA",
+"caption": "<b>Saytda 11 yo'nalish va 94 kasb</b>\n\nKasb Egalari faqat videograf va dizaynerlar uchun emas. Ro'yxatdan o'tishda kasbingizni shu guruhlardan tanlaysiz.\n\n1. Video va animatsiya (10), Dizayn va brending (12), Foto va retush (6).\n2. 3D, arxitektura va o'yin (8), Audio va musiqa (7), Dasturlash va IT (12).\n3. Marketing va SMM (10), Yozuv va tarjima (8), Biznes va boshqaruv (10).\n4. Ma'lumotlar va AI (6), Ta'lim va murabbiylik (5).\n\nMijoz katalogda kasb va hudud bo'yicha qidiradi, shuning uchun kasbni aniq tanlang.\n\n#kasblar\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔎 Mutaxassislar",
+"url": "https://kasbegalari.vercel.app/mutaxassislar",
+"w": 1080,
+"h": 1350
 }
 ]
