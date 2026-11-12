@@ -1338,5 +1338,45 @@
 "caption": "<b>Kontakt rejimi: telefoningiz qanday ochilishini o'zingiz tanlaysiz</b>\n\nSaytda telefon, Telegram, Instagram va email ochiq turmaydi. Ikki rejimdan birini tanlaysiz:\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. Kabinet menyusida «Kontaktlar»ni oching.\n3. «Kontaktim qanday ochiladi» bo'limini o'qing.\n4. «Kontaktim sotilsin»: mijoz ishlaringizni ko'rib, kontaktni platforma orqali ochadi.\n5. «Faqat portfolio»: kontakt umuman ko'rsatilmaydi, mijoz sayt chati orqali yozadi.\n6. Kontaktingizni kim ochganini «Kontaktimni olganlar» ro'yxatida ko'rasiz, sizga bildirishnoma ham keladi.\n\nKontakt narxini administrator tajriba darajasiga qarab belgilaydi.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔒 Kontakt rejimi",
 "url": "https://kasbegalari.vercel.app/kabinet/kontaktlar"
+},
+{
+"id": "v-mehmon",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBNWr1MOrDvLKpcsdJYaJDTereG8t1AAKMowACjBOxS15DuhUFZuehPQQ",
+"dur": 15,
+"cover": "AgACAgIAAxUHavUw6qBFOdAh4SjFD0vXo_PVT4wAAjUaaxuME7FLLaLq5KQW1QcBAAMCAAN5AAM9BA",
+"caption": "<b>Profilingizni mijoz ko'zi bilan tekshiring</b>\n\nProfil tayyormi yoki yo'qmi, buni mijoz ko'radigan ko'rinishda tekshirish eng oson.\n\n1. Chap menyuning pastidagi «Profil»ni bosing.\n2. «Mehmon ko'zi bilan» tugmasini bosing.\n3. Profil kirmagan odamga qanday ko'rinsa, shunday ochiladi.\n4. Tavsif, ishlar va postlarni ko'rib chiqing. Kontaktlar ochiq turmaydi.\n\nKamchilik topsangiz, «Profilni tahrirlash» bilan tuzating.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "👤 Profilim",
+"url": "https://kasbegalari.vercel.app/mutaxassislar"
+},
+{
+"id": "v-saqlash",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBNmr1MOxZ4SG2y3lBl2rRFkmw90uQAAKNowACjBOxS4ZZrbyoxJswPQQ",
+"dur": 20,
+"cover": "AgACAgIAAxUHavUw7C_KWhGy9BFCY-_1bOWE2kEAAjYaaxuME7FLOiW0o0a1IwsBAAMCAAN5AAM9BA",
+"caption": "<b>Postni saqlab, keyin topish</b>\n\nFoydali postni yo'qotmaslik uchun saqlab qo'ying. Saqlanganlar kabinetda bitta joyda turadi.\n\n1. Post ostidagi o'ng tomondagi saqlash belgisini bosing.\n2. Chap menyuda «Yana» → «Kabinet».\n3. «Saqlangan postlar» bo'limini oching.\n4. Postlar va kurslar alohida tablarda.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🔖 Saqlanganlar",
+"url": "https://kasbegalari.vercel.app/kabinet/saqlanganlar"
+},
+{
+"id": "v-toplam",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBN2r1MO_OIS3Gvnm-mthaFfUCC2WNAAKOowACjBOxS_62H4fpuHSYPQQ",
+"dur": 23,
+"cover": "AgACAgIAAxUHavUw72EooIpupLGz9M04qVrZw-MAAjcaaxuME7FLPFSvksRxtTEBAAMCAAN5AAM9BA",
+"caption": "<b>Postlarni to'plamlarga ajratish</b>\n\nIlhom uchun postlarni mavzu bo'yicha yig'ing: rang, kadr, montaj g'oyalari.\n\n1. Post kartasidagi «⋯» tugmasini bosing.\n2. «To'plamga qo'shish»ni tanlang.\n3. Mavjud to'plamni tanlang yoki yangisini yarating.\n4. Barcha to'plamlar: Kabinet → «To'plamlar».\n\nOmmaviy to'plamni havola orqali ulashish mumkin.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🗂 To'plamlar",
+"url": "https://kasbegalari.vercel.app/kabinet/toplamlar"
+},
+{
+"id": "v-sehrgar",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBOGr1MPGWs7WhlnXCwgEVrIDO-0REAAKQowACjBOxSz6A93Jnk1qkPQQ",
+"dur": 19,
+"cover": "AgACAgIAAxUHavUw8dytXsbb6sfBWnMP2l1hlOYAAjgaaxuME7FLLYDzVErboCkBAAMCAAN5AAM9BA",
+"caption": "<b>Buyurtma sehrgari: qaysi ijodkor kerakligini bilmasangiz</b>\n\nMijozlar uchun: sehrgar 4 ta savol bilan mos ijodkorlarni topib beradi.\n\n1. Chap menyuda «Mutaxassislar»ni oching.\n2. «Buyurtma sehrgari» tugmasini bosing.\n3. Yo'nalishni, keyin aniq kasbni tanlang.\n4. Taxminiy summa, hudud yoki masofaviy ish va muddatni belgilang.\n5. Oxirida mos ijodkorlar ro'yxati chiqadi.\n\n#mijoz\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🪄 Buyurtma sehrgari",
+"url": "https://kasbegalari.vercel.app/mutaxassislar"
 }
 ]
