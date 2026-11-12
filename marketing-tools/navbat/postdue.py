@@ -26,7 +26,7 @@ for x in left[:max(0, need)]:
     d = {"chat_id": CH, "caption": x["caption"], "parse_mode": "HTML", "reply_markup": kb, "disable_notification": "true"}
     if x["kind"] == "photo": d["photo"] = x["photo"]; r = call("sendPhoto", d)
     else:
-        d.update({"video": x["video"], "supports_streaming": "true", "duration": str(x["dur"]), "width": "1920", "height": "1080"})
+        d.update({"video": x["video"], "supports_streaming": "true", "duration": str(x["dur"]), "width": str(x.get("w", 1920)), "height": str(x.get("h", 1080))})
         if x.get("cover"): d["cover"] = x["cover"]
         r = call("sendVideo", d)
     if r.get("ok"): posted[x["id"]] = r["result"]["message_id"]; json.dump(posted, open(pp, "w"), indent=0); print("ok", x["id"], posted[x["id"]])
