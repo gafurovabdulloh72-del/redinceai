@@ -824,14 +824,6 @@
 "url": "https://kasbegalari.vercel.app/"
 },
 {
-"id": "f_bot_post",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAP7avUseY-qsntZwKRE4y4C-C_tel0AAvsZaxuME7FL7NlEwacpfpgBAAMCAAN3AAM9BA",
-"caption": "<b>Bot orqali lentaga post yoki story joylash</b>\n\nTelefoningizdagi rasm yoki videoni botga yuborsangiz, bot uni profilingizga post yoki story qilib joylaydi.\n\n1. @kasb_egalari_bot ga rasm yoki video yuboring. Rasm ostidagi izoh post matni bo'ladi.\n2. Bot «Qayerga joylaymiz?» deb so'raydi.\n3. «✅ Post qilish» yoki «📖 Story qilish» tugmasini bosing. Matnni almashtirish uchun «✍️ Izohni o'zgartirish».\n4. Joylangach bot «Postni ochish» havolasini yuboradi.\n\nBu imkoniyat mutaxassislar uchun. Fayl 20 MB dan katta bo'lsa, uni saytda «Yaratish» orqali yuklang.\n\n#bot\nRo'yxatdan o'tish: @kasb_egalari_bot",
-"btn": "📸 Postlarim",
-"url": "https://kasbegalari.vercel.app/kabinet/postlar"
-},
-{
 "id": "tip_mo_matn",
 "kind": "photo",
 "photo": "AgACAgIAAxkDAAO_avUq-KPnggkaXhk-UOilDI6095UAArsZaxuME7FLggoXmbYKCPEBAAMCAAN3AAM9BA",
