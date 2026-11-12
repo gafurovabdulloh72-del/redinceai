@@ -1,0 +1,10 @@
+<b>Mos e'lonlarga kuniga 50 tagacha taklif</b>
+
+E'lonlarga kuniga yuboriladigan takliflar soni tarifga bog'liq: Standart 5, Pro 20, Max 50 ta.
+
+Pro va Max'da kasbingizga mos yangi e'lon Telegramga darhol keladi, Max'da birinchi bo'lib.
+
+Tariflar: saytdagi «Narxlar» sahifasi yoki Kabinet → «Obuna».
+
+#tariflar
+Ro'yxatdan o'tish: @kasb_egalari_bot

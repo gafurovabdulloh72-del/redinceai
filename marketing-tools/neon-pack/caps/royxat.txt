@@ -1,0 +1,10 @@
+<b>Ro'yxatdan o'tish 3 qadam</b>
+
+1. Rol: mijoz yoki mutaxassis.
+2. Mutaxassis uchun kasb, tajriba va hudud.
+3. Hisob: ism, email va parol.
+
+Telegram bilan ham kirish mumkin. Botning o'zida ham ro'yxatdan o'tsa bo'ladi: @kasb_egalari_bot ga /royxat deb yozing.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

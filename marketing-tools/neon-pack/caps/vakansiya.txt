@@ -1,0 +1,8 @@
+<b>Onlayn kasblar uchun vakansiyalar</b>
+
+«Vakansiyalar» bo'limida 11 ta yo'nalish bor: IT, dizayn, video, marketing, kontent, sotuv, moliya, ta'lim, boshqaruv, data/AI va boshqa. Masofaviy, gibrid yoki ofis formatini tanlaysiz.
+
+Vakansiyaga ariza yuboring yoki rezyume joylang. Ish beruvchi sizga chat orqali yozadi.
+
+#vakansiya
+Ro'yxatdan o'tish: @kasb_egalari_bot

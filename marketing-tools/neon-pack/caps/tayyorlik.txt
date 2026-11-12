@@ -1,0 +1,8 @@
+<b>Profilingiz necha foiz tayyor?</b>
+
+Kabinetda profil tayyorligi foizda ko'rinadi. Halqa ostida keyingi qadamlar chiqadi: profil rasmi, o'zingiz haqingizda (80+ belgi), portfolioda kamida 3 ta ish, email tasdiqlash, ikki bosqichli himoya (2FA) va boshqalar.
+
+Har bir qadam bosilsa, kerakli bo'lim ochiladi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

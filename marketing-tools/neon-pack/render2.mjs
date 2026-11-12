@@ -18,7 +18,7 @@ for (let i = 0; i < n; i++) { await p.evaluate(t => window.renderAt(t), i / FPS)
 await b.close();
 execFileSync('python3', [path.join(HERE, 'psynth2.py'), path.join(work, 'events.json'), String(dur), path.join(work, 'a.wav')], { stdio: 'inherit' });
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(work, '%05d.jpg'), '-i', path.join(work, 'a.wav'),
-  '-vf', 'tmix=frames=2:weights=1 1', '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS),
   '-af', 'loudnorm=I=-15:TP=-1.2:LRA=9', '-ar', '48000', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', path.join(HERE, out)]);
 fs.rmSync(work, { recursive: true, force: true });
 console.log('DONE', out, dur);

@@ -1,0 +1,8 @@
+<b>Eng yaxshi ishlaringiz bir joyda</b>
+
+Portfolioga rasm, video yoki havola qo'shasiz, mijoz ularni profilingizda ko'radi. Ishlar soni tarifga bog'liq: Standart 12, Pro 30, Max 60 ta.
+
+Ish qo'shish: Kabinet → «Portfolio» → «Ish qo'shish».
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

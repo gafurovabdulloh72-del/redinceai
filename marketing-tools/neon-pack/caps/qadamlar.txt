@@ -1,0 +1,8 @@
+<b>Profilni 7 qadamda to'g'ri boshlang</b>
+
+Yangi ijodkor bosh sahifada «Birinchi qadamlar» kartasini ko'radi: profil, rasm, o'zingiz haqingizda, birinchi portfolio ishi, birinchi post, jamoaga qo'shilish va Telegramni ulash.
+
+Har qadam yonida «Boshlash» tugmasi bor. Karta dastlabki 45 kun ko'rinadi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot
