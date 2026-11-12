@@ -10,6 +10,8 @@ import { getMentorForUser } from "@/lib/mentorship/service";
 import { MentorNav } from "@/components/mentorship/MentorNav";
 import { listSubmissionsForMentor } from "@/lib/mentorship/learning";
 import { SubmissionsReview } from "@/components/mentorship/SubmissionsReview";
+import { WorkReviewInbox } from "@/components/mentorship/WorkReview";
+import { listMentorWorkReviews } from "@/lib/mentorship/work-review";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,11 +27,13 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
   if (!m?.isApproved && user.role !== "admin") redirect("/kabinet/mentorlik");
   const sp = await searchParams;
   const all = sp.all === "1";
-  const items = await listSubmissionsForMentor(user.id, user.role === "admin", all ? "all" : "pending");
+  const [items, reviews] = await Promise.all([listSubmissionsForMentor(user.id, user.role === "admin", all ? "all" : "pending"), listMentorWorkReviews(user.id, user.role === "admin")]);
   return (
     <div>
       <MentorNav active="vazifalar" />
       <div className="space-y-5">
+        {/* «Ishimni baholang» — pullik ish sharhlari tepada (muddatli, talaba to'lagan) */}
+        <WorkReviewInbox waiting={reviews.waiting} done={reviews.done} />
         <header>
           <h1 className="font-display text-[24px] font-extrabold leading-tight tracking-tight text-fg max-sm:hidden">{tr(til, MK.tasksTitle)}</h1>
           <p className="mt-0.5 text-[13px] text-fg-3 max-sm:hidden">{tr(til, MK.tasksLead)}</p>

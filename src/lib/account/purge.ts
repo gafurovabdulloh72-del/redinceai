@@ -29,6 +29,7 @@ import {
   userBlocks,
   vacancies,
   watchLater,
+  workReviews,
 } from "@/lib/db/schema";
 
 /**
@@ -123,10 +124,14 @@ export async function purgeAccountData(userId: string, telegramChatId: string | 
     }),
   );
 
+  // «Ishimni baholang»: to'lanmagan so'rovlar bekor qilinadi (ustozga yetib bormagan); to'langan/javob berilganlar — tarix, qoladi
+  await step("workReviews", () => db.update(workReviews).set({ status: "cancelled" }).where(and(eq(workReviews.userId, userId), eq(workReviews.status, "pending_payment"))));
+
   // Ustozlik: o'quvchisiz ustoz sahifasi yopiladi (o'quvchisi/hisob-kitobi bor ustoz bu yergacha kelmaydi — `mentorBlocksDeletion`)
   await step("mentor", async () => {
     const m = await db.query.mentors.findFirst({ where: eq(mentors.userId, userId), columns: { id: true } });
     if (!m) return;
+    await db.update(mentors).set({ reviewEnabled: false }).where(eq(mentors.id, m.id));
     await db.update(courses).set({ isPublished: false }).where(eq(courses.mentorId, m.id));
     await db.update(mentors).set({ isApproved: false }).where(eq(mentors.id, m.id));
   });
@@ -161,6 +166,13 @@ export async function mentorBlocksDeletion(userId: string): Promise<boolean> {
     .where(and(eq(mentorEarnings.mentorId, m.id), inArray(mentorEarnings.status, ["pending", "available"])))
     .limit(1);
   if (money) return true;
+  // Javob kutayotgan (to'langan) ish sharhi — talaba pul to'lagan, javob olmay qolmasin
+  const [review] = await db
+    .select({ id: workReviews.id })
+    .from(workReviews)
+    .where(and(eq(workReviews.mentorId, m.id), eq(workReviews.status, "waiting")))
+    .limit(1);
+  if (review) return true;
   const [payout] = await db
     .select({ id: mentorPayouts.id })
     .from(mentorPayouts)

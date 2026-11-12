@@ -16,6 +16,7 @@ import {
   referralRewards,
   subscriptionInvoices,
   users,
+  workReviews,
   type SubscriptionInvoice,
 } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
@@ -96,6 +97,15 @@ export async function quoteItem(type: PurchaseType, id: string, buyerId: string)
     if (!m || !m.isApproved || m.subPrice <= 0) throw new ApiError(404, "Bu ustozda obuna yo'q");
     if (m.userId === buyerId) throw new ApiError(400, "O'zingizga obuna bo'lolmaysiz");
     return { type, itemId: id, mentorId: m.id, mentorUserId: m.userId, title: `Oylik obuna — ${m.user.name}`, base: m.subPrice };
+  }
+  if (type === "review") {
+    // «Ishimni baholang»: id = work_reviews qatori (talabaning o'zi yaratgan, hali to'lanmagan); narx so'rov paytida qotirilgan
+    const r = await db.query.workReviews.findFirst({ where: eq(workReviews.id, id), with: { mentor: { columns: { id: true, userId: true, isApproved: true, reviewEnabled: true }, with: { user: { columns: { name: true } } } } } });
+    if (!r || r.userId !== buyerId) throw new ApiError(404, "So'rov topilmadi");
+    if (r.mentor.userId === buyerId) throw new ApiError(400, "O'z xizmatingizdan foydalana olmaysiz");
+    if (r.status !== "pending_payment") throw new ApiError(409, "Bu so'rov allaqachon to'langan yoki yopilgan");
+    if (!r.mentor.isApproved || !r.mentor.reviewEnabled) throw new ApiError(404, "Ustoz hozir ish sharhi qabul qilmaydi");
+    return { type, itemId: id, mentorId: r.mentor.id, mentorUserId: r.mentor.userId, title: `Ish sharhi — ${r.mentor.user.name}`, base: r.price };
   }
   const slot = await db.query.mentorSlots.findFirst({ where: eq(mentorSlots.id, id), with: { mentor: { columns: { id: true, userId: true } } } });
   if (!slot || slot.status === "cancelled" || slot.startsAt.getTime() < Date.now()) throw new ApiError(404, "Bu vaqt endi mavjud emas");
@@ -297,6 +307,15 @@ async function grantAccess(tx: Tx, type: PurchaseType, itemId: string, userId: s
     else await tx.insert(mentorSubs).values({ id: uid(), userId, mentorId, until });
   } else if (type === "consult" && invoiceId) {
     await tx.update(mentorSlots).set({ status: "booked", bookedBy: userId, heldUntil: null }).where(and(eq(mentorSlots.id, itemId), eq(mentorSlots.invoiceId, invoiceId)));
+  } else if (type === "review") {
+    // CAS: faqat to'lanmagan so'rov «kutilmoqda»ga o'tadi; muddat so'rovda qotirilgan kun soni bo'yicha shu paytdan sanaladi
+    const r = await tx.query.workReviews.findFirst({ where: and(eq(workReviews.id, itemId), eq(workReviews.userId, userId)), columns: { days: true } });
+    if (!r) return;
+    const now = Date.now();
+    await tx
+      .update(workReviews)
+      .set({ status: "waiting", paidAt: new Date(now), dueAt: new Date(now + r.days * 86_400_000), invoiceId: invoiceId ?? null })
+      .where(and(eq(workReviews.id, itemId), eq(workReviews.userId, userId), eq(workReviews.status, "pending_payment")));
   }
 }
 
@@ -333,6 +352,9 @@ export async function revokePurchase(tx: Tx, inv: SubscriptionInvoice): Promise<
       if (cur) await tx.update(mentorSubs).set({ until: new Date(Math.max(Date.now(), cur.until.getTime() - SUB_DAYS * 86_400_000)) }).where(eq(mentorSubs.id, cur.id));
     } else if (m.type === "consult") {
       await tx.update(mentorSlots).set({ status: "open", invoiceId: null, bookedBy: null, heldUntil: null }).where(eq(mentorSlots.invoiceId, inv.id));
+    } else if (m.type === "review") {
+      // Javob berilgan bo'lsa ham «qaytarilgan» bo'ladi (javob matni saqlanadi — tarix); ustoz kutish ro'yxatidan chiqadi
+      await tx.update(workReviews).set({ status: "refunded" }).where(and(eq(workReviews.id, m.itemId), eq(workReviews.userId, inv.userId), inArray(workReviews.status, ["waiting", "done"])));
     }
   }
   /**
@@ -363,6 +385,12 @@ export async function revokePurchase(tx: Tx, inv: SubscriptionInvoice): Promise<
 
 /** To'lovdan keyin bildirishnomalar (tranzaksiyadan tashqarida) */
 export async function afterPaid(buyerId: string, mentorUserId: string, type: PurchaseType, title: string, amount: number, invoiceId: string | null): Promise<void> {
+  if (type === "review") {
+    // Ish sharhi: talabaga — so'rov ustozga ketdi; ustozga — yangi so'rov (sayt + Telegram), havola kutish ro'yxatiga
+    await notify(buyerId, "subscription_paid", amount ? `To'lov qabul qilindi: ${formatPrice(amount)}` : "So'rovingiz ustozga yuborildi", "Ishingiz ustozga yuborildi — javob tayyor bo'lganda xabar beramiz.", "/kabinet/mentorlik#ish-sharhlari").catch(() => undefined);
+    await notify(mentorUserId, "subscription_paid", "Yangi ish sharhi so'rovi", `${title}${amount ? ` — ${formatPrice(amount)}` : ""}. Talaba ishini ko'rib, sharh yozing.`, "/kabinet/mentorlik/vazifalar", { skipMail: true }).catch(() => undefined);
+    return;
+  }
   const href = type === "ticket" ? "/mentorlik" : "/kabinet/mentorlik";
   await notify(buyerId, "subscription_paid", amount ? `To'lov qabul qilindi: ${formatPrice(amount)}` : "Kirish ochildi", `${title} — endi sizga ochiq.`, invoiceId ? purchaseHref(invoiceId) : href).catch(() => undefined);
   await notify(mentorUserId, "subscription_paid", amount ? `Yangi sotuv: ${formatPrice(amount)}` : "Yangi talaba", `${title}${amount ? ` — daromadingiz 7 kundan keyin yechishga ochiladi.` : ""}`, "/kabinet/mentorlik/daromad", { skipMail: true }).catch(() => undefined);

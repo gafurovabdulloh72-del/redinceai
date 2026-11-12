@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const purchaseTypeSchema = z.enum(["course", "ticket", "sub", "consult"]);
+export const purchaseTypeSchema = z.enum(["course", "ticket", "sub", "consult", "review"]);
 export const purchaseQuoteSchema = z.object({
   type: purchaseTypeSchema,
   id: z.string().min(1).max(80),

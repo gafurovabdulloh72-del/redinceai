@@ -15,8 +15,8 @@ import type { FileAttachment } from "@/lib/db/schema";
  *
  * Bu fayl DB'siz — DTO quruvchilar (dm.ts, groups/service.ts, …) aylanma importsiz foydalanadi.
  */
-export type PrivateFileKind = "dm" | "group" | "order" | "orderfile" | "material" | "receipt";
-export const PRIVATE_FILE_KINDS: readonly PrivateFileKind[] = ["dm", "group", "order", "orderfile", "material", "receipt"];
+export type PrivateFileKind = "dm" | "group" | "order" | "orderfile" | "material" | "receipt" | "review";
+export const PRIVATE_FILE_KINDS: readonly PrivateFileKind[] = ["dm", "group", "order", "orderfile", "material", "receipt", "review"];
 
 export const isPrivateFileKind = (k: string): k is PrivateFileKind => (PRIVATE_FILE_KINDS as readonly string[]).includes(k);
 
