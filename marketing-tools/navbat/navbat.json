@@ -1398,5 +1398,45 @@
 "caption": "<b>Vakansiyalarni filtrlab, xabardor bo'lish</b>\n\nKerakli ishni filtr bilan toping va shunga o'xshash yangilari chiqsa, xabar oling.\n\n1. Chap menyuda «Vakansiyalar»ni oching.\n2. Kasb guruhini tanlang, masalan «Video».\n3. «Masofaviy» filtrini qo'shing.\n4. «Xabardor qil» tugmasini bosing.\n\nVakansiyaga ariza yuborish to'lovsiz.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💼 Vakansiyalar",
 "url": "https://kasbegalari.vercel.app/vakansiyalar"
+},
+{
+"id": "v-hisobot",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBO2r1MaRzWOCCVffo4XxtHtAebc7WAAKZowACjBOxS24fM8ahrYMgPQQ",
+"dur": 20,
+"cover": "AgACAgIAAxUHavUxo5t0K1y6iQ5ciabUrRQN4lEAAjsaaxuME7FLkIYUNEop4SgBAAMCAAN5AAM9BA",
+"caption": "<b>Oylik hisobotni yuklab olish</b>\n\nBir oylik tushumlarni jadval yoki PDF ko'rinishida olasiz.\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. «Hisobot» bo'limini oching.\n3. Oyni tanlang.\n4. «CSV» jadval faylini yuklaydi, «Chop etish / PDF» hujjat qiladi.\n\n#hisob\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📄 Hisobot",
+"url": "https://kasbegalari.vercel.app/kabinet/hisobot"
+},
+{
+"id": "v-top",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBPGr1Mab-Dr6X6RGcxv_TRhgwxomTAAKaowACjBOxSz1lcyACnd1SPQQ",
+"dur": 20,
+"cover": "AgACAgIAAxUHavUxprqK4OFx3TvS6aQQiupJy3kAAjwaaxuME7FL2lHkflwC4AgBAAMCAAN5AAM9BA",
+"caption": "<b>TOP reyting va hafta faollari</b>\n\nSaytdagi faol ijodkorlar reytingi har kuni yangilanadi.\n\n1. Chap menyuda «Yana» → «TOP reyting».\n2. «Hafta faollari» ro'yxatini ko'ring.\n3. Hafta yoki oy bo'yicha tanlang.\n4. Kasb va hudud filtri bilan o'z o'rningizni toping.\n\nOylik TOP-3 g'oliblariga Pro sovg'a qilinadi.\n\n#top\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🏆 TOP reyting",
+"url": "https://kasbegalari.vercel.app/top"
+},
+{
+"id": "v-nomzod",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBPWr1McR4_1C3vgw_MHKle_hzlw5lAAKbowACjBOxSz81LVmtbwk5PQQ",
+"dur": 19,
+"cover": "AgACAgIAAxUHavUxxMh-NVMF893LKrLbw_r3musAAj0aaxuME7FL-QTtnwIYy4QBAAMCAAN5AAM9BA",
+"caption": "<b>Ish beruvchilar uchun: kelgan arizalarni ko'rish</b>\n\nVakansiyangizga kelgan arizalar kabinetda bitta ro'yxatda turadi.\n\n1. Chap menyuda «Yana» → «Kabinet».\n2. «Vakansiyalar» bo'limini oching.\n3. Vakansiya qatoridagi «Nomzodlar»ni bosing.\n4. Arizani ko'rib chiqing: qisqa xat, rezyume va aloqa.\n\nNomzodning email va telefoni faqat ariza olgan ish beruvchiga ko'rinadi.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "💼 Vakansiyalarim",
+"url": "https://kasbegalari.vercel.app/kabinet/vakansiyalar"
+},
+{
+"id": "v-rezyumelar",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBPmr1MfhMuXleLWOXXItf3Sn7pXacAAKdowACjBOxSxTqDbFBPlxkPQQ",
+"dur": 24,
+"cover": "AgACAgIAAxUHavUx-Pk052t_wL9MtDD3JHnAD7sAAj4aaxuME7FLrsjA-sVC69UBAAMCAAN5AAM9BA",
+"caption": "<b>Ish beruvchilar uchun: rezyumelardan nomzod topish</b>\n\nVakansiya joylab kutish shart emas. Ish qidirayotgan mutaxassislarni o'zingiz toping.\n\n1. Chap menyuda «Vakansiyalar» → «Rezyumelar».\n2. Lavozim yoki ko'nikma yozing, masalan «motion».\n3. Tajriba, format va hudud bo'yicha filtrlang.\n4. Rezyumeni oching: tajriba, ko'nikmalar va havolalar.\n5. Nomzodga sayt chati orqali yozing.\n\nOmmaviy rezyumelarda kontakt ko'rinmaydi.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "📋 Rezyumelar",
+"url": "https://kasbegalari.vercel.app/rezyumelar"
 }
 ]
