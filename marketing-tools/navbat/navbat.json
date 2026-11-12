@@ -129,19 +129,27 @@
 },
 {
 "id": "f_kurs_saqlash",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPeavUsUQcr8AbYXxXSyEUZDda2bEMAAt4ZaxuME7FL9bspoVbvqTsBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Kursni saqlab qo'yish va keyin topish</b>\n\nYoqqan kursga hozir yozilmasangiz ham, uni saqlab qo'yasiz. Saqlangan kurslar kabinetda alohida turadi.\n\n1. Chap menyuda «Mentorlik» bo'limiga kiring va kursni oching.\n2. Kurs sahifasidagi «Kursni saqlash» tugmasini bosing.\n3. Keyin «Yana» → «Kabinet» → «Saqlangan postlar» sahifasida «Kurslar» bo'limini oching.\n4. Saqlashni bekor qilish uchun kurs sahifasida «Saqlanganlardan olish» tugmasini bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Kurslar",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBRWr1f6CicVT7Uf5r_JFMcoK0LFrLAAKXpgACjBOxSzOHYV8kIXYxPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_oIOJrWDg5VID6Y-IdwABBJ6qAAKmG2sbjBOxSyErco_Zh_sqAQADAgADdwADPQQ"
 },
 {
 "id": "tip_vg_stabil",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOZavUqyK7orbw-jCiGnAlDTG12AAE1AAKUGWsbjBOxS5fVagSctpqmAQADAgADdwADPQQ",
+"kind": "video",
 "caption": "<b>Stabilizatorsiz silliq kadr olishning 4 usuli</b>\n\nGimbal har doim ham yoningizda bo'lmaydi. Tana holatini to'g'rilash bilan ham ancha tekis tasvir olish mumkin.\n\n1. Tirsaklarni tanaga bosing va kamerani ko'krak darajasida ushlang.\n2. Yurganda tizzani bukib, tovondan oyoq uchiga yumshoq qadam tashlang.\n3. Bo'yin tasmasini oldinga tortib taranglang: u qo'shimcha tayanch beradi.\n4. Keng burchakli linza ishlating va montajda yengil raqamli stabilizatsiya qo'shing.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "▶️ Reels",
-"url": "https://kasbegalari.vercel.app/lenta"
+"url": "https://kasbegalari.vercel.app/lenta",
+"video": "BAACAgIAAxkDAAIBRmr1f6IYnzaSuy7U_M9FXB4wSylyAAKYpgACjBOxS1mwaC-ubK58PQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_oq2ffQsHhWwo3SQoK6EdWbIAAqcbaxuME7FLAUVp5YRI4e8BAAMCAAN3AAM9BA"
 },
 {
 "id": "xabardor",
@@ -153,19 +161,27 @@
 },
 {
 "id": "f_konsultatsiya",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPfavUsUzUMCOWIJ9EnZmQd2rV_5REAAt8ZaxuME7FL18g9gOJye74BAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Ustoz bilan 1:1 konsultatsiya band qilish</b>\n\nBa'zi ustozlar shaxsiy konsultatsiya uchun vaqt ochadi. Vaqtni tanlab to'laysiz, belgilangan soatda video qo'ng'iroq saytning o'zida ochiladi.\n\n1. Chap menyuda «Mentorlik» bo'limiga kiring va ustoz sahifasini oching.\n2. «1:1» bo'limini tanlang (ustoz bo'sh vaqt qo'shgan bo'lsa ko'rinadi).\n3. Qulay vaqtni topib «Band qilish» tugmasini bosing va to'lovni bajaring.\n4. Belgilangan vaqtda «Mening konsultatsiyalarim» ro'yxatidan «Ochish» → «Konsultatsiyaga kirish»ni bosing.\n\nVaqt Toshkent vaqti bo'yicha ko'rsatiladi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBR2r1f6X1v_mppaApNR3x6e2TlLexAAKZpgACjBOxS8u7s3oB2AjKPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_pH8R8hCVEoduHzYke69lE-sAAqgbaxuME7FLbHVX2Q2xPYMBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_vg_toy",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAObavUqy1PG0lbkdc2siqpAJcUzBZQAApcZaxuME7FLu7Lj-p8uFWEBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>To'y syomkasida muhim lahzalarni boy bermaslik</b>\n\nTo'yda takroriy kadr bo'lmaydi. Tayyorgarlik va jamoa bilan kelishuv bu yerda texnikadan ham muhimroq.\n\n1. Oldindan tadbir dasturini va har bir qism vaqtini so'rab oling.\n2. Boshlovchi bilan kelishing: muhim lahzadan oldin sizga ishora bersin.\n3. Ikkinchi kamerani shtativda umumiy planga qo'yib, uzluksiz yozdiring.\n4. Xotira kartalarini kun davomida almashtiring, to'lganlarini alohida saqlang.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💼 Vakansiyalar",
-"url": "https://kasbegalari.vercel.app/vakansiyalar"
+"url": "https://kasbegalari.vercel.app/vakansiyalar",
+"video": "BAACAgIAAxkDAAIBSGr1f6fHSRjGJOztv-d1RR6u9mIkAAKapgACjBOxS8NvNaCogetbPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_p4zFxP5_MnIN7X0etqVtK3EAAqkbaxuME7FLlH89E4dbSbkBAAMCAAN3AAM9BA"
 },
 {
 "id": "cmdk",
@@ -177,19 +193,27 @@
 },
 {
 "id": "f_tavsiya",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPgavUsVUaYf0bdg-thpdCypOHWq-MAAuAZaxuME7FLVGrUwI5RbJ0BAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Do'stingizni kursga taklif qilib, kredit olish</b>\n\nPullik kurs sahifasida shaxsiy taklif havolangiz bo'ladi. Do'stingiz u orqali xarid qilsa chegirma oladi, siz esa keyingi xaridingiz uchun kredit olasiz.\n\n1. Saytga kiring va chap menyudagi «Mentorlik» bo'limidan pullik kursni oching.\n2. «Do'stingizni taklif qiling» kartasini toping (ustoz tavsiya chegirmasini yoqgan bo'lsa chiqadi).\n3. Havolani bosib nusxalang va do'stingizga yuboring.\n4. Kartada «Taklif qilinganlar» va «Kredit balansi» ko'rinadi. Kredit xarid oynasida «Kredit» qatorida hisobga olinadi.\n\nChegirma foizini kurs ustozi belgilaydi.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Kurslar",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBSWr1f6kcb7Na5On9pgVvGT1oPrQDAAKbpgACjBOxS8kcp5TWgLgCPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_qaFwcCMXgEuccefehTVUMZkAAqobaxuME7FLGRAdIb_oJIMBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_vg_vertikal",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOdavUqzsKTQQJ8CqI-efi-bXHz9msAApkZaxuME7FLNO1mpsHltVEBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Vertikal video uchun kadr qurish</b>\n\nTelefon ekranida pastki va yon qismlarni matn hamda tugmalar yopadi. Kadrni shunga moslab quring.\n\n1. Asosiy obyektni markazga va kadrning yuqori uchdan biriga joylang.\n2. Pastki qismga muhim detal qo'ymang: u yerda izoh va tugmalar turadi.\n3. Gorizontal formatda ham kerak bo'lsa, 4K da yozib vertikal kadrni keyin kesib oling.\n4. Kamerada xavfsiz zona to'rini yoqib, har kadrni tekshiring.\n\nTayyor vertikal ishlaringizni Reels bo'limiga joylab, tomoshabin javobini ko'rishingiz mumkin.\n\n#videograf\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "▶️ Reels",
-"url": "https://kasbegalari.vercel.app/lenta"
+"url": "https://kasbegalari.vercel.app/lenta",
+"video": "BAACAgIAAxkDAAIBSmr1f6vTMyF3UglGVRox4TXcZu2cAAKcpgACjBOxSyH5z94y_CnXPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_q6veNfx6e2BeVnvAhH23O3UAAqwbaxuME7FLZZg04TKQl6ABAAMCAAN3AAM9BA"
 },
 {
 "id": "fikr",
@@ -201,19 +225,27 @@
 },
 {
 "id": "f_mentor_dars",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPhavUsVnnLJ_pSH5S2_2cw3nFDNUEAAuEZaxuME7FLDR7dkle2hJwBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Ustozlar uchun: darsga video, test va uy vazifasi qo'shish</b>\n\nTasdiqlangan ustoz kursini kabinetda to'ldiradi: dars, material, test va vazifa bitta oynada qo'shiladi.\n\n1. «Yana» → «Kabinet» → «Mentorlik»ga kiring va «Bo'limlar» ro'yxatidan kursni oching.\n2. «Dars qo'shish»ni bosing: dars nomi, «Video yuklash», kerak bo'lsa «Bepul namuna» belgisi.\n3. «Materiallar» → «Fayl qo'shish», «Video vaqt belgilari», «Test qo'shish» va «Uy vazifasi»ni to'ldiring.\n4. «Qo'shish»ni bosing. Darslar tartibini tutqichdan sudrab yoki «Yuqoriga» / «Pastga» bilan o'zgartiring.\n5. Kurs tayyor bo'lgach «Chop etish» tugmasini bosing.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Kabinet",
-"url": "https://kasbegalari.vercel.app/kabinet/mentorlik"
+"url": "https://kasbegalari.vercel.app/kabinet/mentorlik",
+"video": "BAACAgIAAxkDAAIBS2r1f66RJjlv7w5vHT07Z-gHEUIaAAKdpgACjBOxS-Ds1JpEJEEePQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_rWfZ18FZXQABON_67vtTX7ogAAKtG2sbjBOxS34H1uZq2iPxAQADAgADdwADPQQ"
 },
 {
 "id": "tip_mt_birinchi_variant",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOfavUq0J96lIeZEQQROtd1E4Mew3sAApsZaxuME7FLkvABiifjaLEBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Mijozga birinchi variantni qanday ko'rsatish</b>\n\nBirinchi variantni to'g'ri taqdim etsangiz, tahrirlar soni kamayadi va izohlar aniq keladi.\n\n1. Rang va ovoz hali yakuniy emasligini oldindan yozib qo'ying.\n2. Faylni suv belgisi bilan va past sifatda yuboring.\n3. Izohlarni vaqt kodi bilan yozishni so'rang: «01:24 da kadr uzun».\n4. Barcha izohlar bitta odamdan va bitta ro'yxatda kelishini kelishib oling.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBTGr1f7By1s6QCEB3sG2jlIrHWvu-AAKepgACjBOxS_69F0Ji82YGPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_sGuChFgJxgtv-WkSuaDTzVIAAq4baxuME7FL5wZPEsRdAjgBAAMCAAN3AAM9BA"
 },
 {
 "id": "top",
@@ -225,19 +257,27 @@
 },
 {
 "id": "f_mentor_daromad",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPiavUsVxxL5MCrJhjf7L-OGw3PRHAAAuIZaxuME7FLtGAkgY3MnX0BAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Ustozlar uchun: daromadni ko'rish va kartaga yechish</b>\n\nKurs, chipta va konsultatsiya sotuvidan tushgan pul ustoz kabinetidagi «Daromad» sahifasida jamlanadi.\n\n1. «Yana» → «Kabinet» → «Mentorlik» → «Daromad» bo'limini oching.\n2. «Yechishga tayyor», «Ushlab turilmoqda» va «Yechib olingan» summalarini ko'rasiz.\n3. «Pulni kartaga yechish» blokida «Karta raqami»ni kiriting va «Yechish» tugmasini bosing.\n4. So'rov yuborilgach administrator pulni kartangizga o'tkazadi.\n\nHar sotuvdan 15% komissiya olinadi, pul 7 kun ushlab turiladi. Yechish uchun kamida 100 000 so'm kerak.\n\n#mentorlik\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💰 Daromad",
-"url": "https://kasbegalari.vercel.app/kabinet/mentorlik/daromad"
+"url": "https://kasbegalari.vercel.app/kabinet/mentorlik/daromad",
+"video": "BAACAgIAAxkDAAIBTWr1f7I4sD4t3Y9_EzohvrPKYiuUAAKfpgACjBOxSyrZOSPL_C2TPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_supb46zsB1j9hGpWWbzJllwAAq8baxuME7FLvtsOtdKlyK0BAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_papka",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOhavUq0-VpHv9XT9VqFhSNwDQcLVIAAp0ZaxuME7FLMjitEAqZINMBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Loyiha papkalarini tartibli saqlash</b>\n\nBir oydan keyin eski loyihaga qaytsangiz, tartibli papka soatlab qidiruvdan qutqaradi.\n\n1. Har loyihada bir xil papkalar oching: 01_Footage, 02_Audio, 03_Music, 04_Graphics, 05_Project, 06_Export.\n2. Fayl nomiga sana va versiyani yozing: 2026-11-12_klip_v3.\n3. Proxy fayllarni alohida papkada saqlang, ularni keyin o'chirish oson bo'ladi.\n4. Loyiha tugagach, ishlatilmagan materialni tozalab arxivlang.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBTmr1f7Rx8rSLslACpE1djhqpy5K3AAKgpgACjBOxSx70S6mIJgssPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_tL0y50h-hqMlTVlpq8PDKc8AArEbaxuME7FL6ihCw_MUI_4BAAMCAAN3AAM9BA"
 },
 {
 "id": "rezyumelar",
@@ -249,19 +289,27 @@
 },
 {
 "id": "f_efir_boshlash",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPjavUsWEUnqnXLvYWtqc7-oy8vUesAAuMZaxuME7FLubfSuBB_R84BAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Ustozlar uchun: jonli efir boshlash</b>\n\nUstoz o'z sahifasidan saytning ichida jonli efir ochadi. Efirni pullik qilish, kutish xonasi va kod qo'yish mumkin.\n\n1. Ustoz sahifangizni oching va «Efirlar» bo'limida «Efir boshlash» tugmasini bosing.\n2. «Efir mavzusi»ni yozing. Pullik efir uchun «Chipta, so'm (ixtiyoriy)» maydoniga narx kiriting.\n3. Kerak bo'lsa «Kutish xonasi» belgisini qo'ying va «Kod (ixtiyoriy)» maydoniga efir kodini yozing.\n4. «Boshlash»ni bosing, kamera va mikrofonni tanlab «Efirga chiqish» tugmasini bosing.\n\nKutish xonasidagilarni «Boshqaruv» → «Navbat» bo'limida kiritasiz yoki rad etasiz.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBT2r1f7fNlep4c05L9koAAUclje1XMAACoaYAAowTsUtajCIO7pY1wz0E",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_tuellLuRqxMrz6LKas6lbbIAArIbaxuME7FL2ZGrlv1_X-ABAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_proxy",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOjavUq1XYOvQxf0d3ICf3nJ031CNUAAp8ZaxuME7FLxD5F0iktUoUBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Kuchsiz kompyuterda 4K montaj: proxy bilan ishlash</b>\n\n4K material sekin kompyuterda qotib qoladi. Proxy yengil nusxa bo'lib, montajni silliq qiladi, eksport esa asl fayldan chiqadi.\n\n1. Materialni import qilgach, proxy yaratish funksiyasini yoqing.\n2. Proxy uchun yengil kodek tanlang: ProRes Proxy yoki DNxHR LB.\n3. Montaj paytida proxy rejimida ishlang, rang tuzatishda asl faylga o'ting.\n4. Eksportdan oldin asl fayllar ulanganini tekshiring.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBUGr1f7kSbv60tDgKNfd0hNZ4YRjZAAKjpgACjBOxS2DVhvC7it0mPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_ubucZCVka4Vv1_KZ6tabBjoAArMbaxuME7FL-mXuU0-dFwYBAAMCAAN3AAM9BA"
 },
 {
 "id": "mentorkat",
@@ -273,19 +321,27 @@
 },
 {
 "id": "f_efir_qol",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPkavUsWoIOaPu6Q5CvI6hsoBJ4ylcAAuQZaxuME7FLqdXc7LghgEwBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Efirda qo'l ko'tarib, so'z olish</b>\n\nEfirni tomosha qilayotganda gapirmoqchi bo'lsangiz, qo'l ko'tarasiz. Boshlovchi ruxsat bersa, mikrofoningiz yoqiladi.\n\n1. Ustoz sahifasidagi «Efirlar» bo'limida «Tomosha qilish» tugmasini bosing.\n2. Pastki paneldagi «Qo'l» tugmasini bosing. Boshlovchi ro'yxatda belgingizni ko'radi.\n3. Boshlovchi «Gapirsin»ni bossa, sizga xabar chiqadi. «Mikrofon» tugmasi bilan ovozni yoqing.\n4. Qo'lni qaytarish uchun «Tushirish» tugmasini bosing.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBUWr1f7vi_jIoDQ0gr1WTJ-0zq8bYAAKkpgACjBOxSw3OM_EJftx3PQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_u2JBZAHks1dxiM1QbYk7dtQAArQbaxuME7FLncRFwv2eHrIBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_ritm",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOlavUq2NO_OJ39dT4kZFGQtr8NnDQAAqEZaxuME7FLJHo17-PQ5qkBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Montaj ritmi: kesimni qayerda qilish</b>\n\nTomoshabin yaxshi kesimni sezmaydi, yomonini darhol sezadi. Shu to'rt usul kesimlarni ko'zga tashlanmaydigan qiladi.\n\n1. Harakat o'rtasida kesing: qo'l ko'tarilayotganda keyingi kadrga o'ting.\n2. J va L kesimlardan foydalaning: ovoz tasvirdan biroz oldin yoki keyin o'tsin.\n3. Kesimlarni musiqa urg'usiga moslang, lekin har urg'uga emas.\n4. Bir xil uzunlikdagi kadrlarni ketma-ket qo'ymang, ritmni almashtirib turing.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBUmr1f72j22q1YfZsx3QjiY44QxRqAAKlpgACjBOxS06C1-dyfghlPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_vb9H6aYYhhcWhWDHDsVJxusAArUbaxuME7FLFORKg0HdtCABAAMCAAN3AAM9BA"
 },
 {
 "id": "filtr",
@@ -297,19 +353,27 @@
 },
 {
 "id": "f_efir_sifat",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPlavUsW5HpKMKRRdBK9440EuJIEDUAAuUZaxuME7FLBt-oCZ5BfYUBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Efir videosi sifatini o'zingiz tanlang</b>\n\nInternet sekin bo'lsa yoki trafikni tejamoqchi bo'lsangiz, efir video sifatini qo'lda tanlash mumkin.\n\n1. Efirga kiring va pastki paneldagi «Sifat» tugmasini bosing.\n2. Menyudan tanlang: «Avto» (internetga qarab), «Yuqori», «O'rta» yoki «Past» (tejamkor).\n3. Tanlov keyingi efirlar uchun ham shu qurilmada saqlanib qoladi.\n4. Ekranda «Internet sekin» belgisi chiqsa, «Past»ni tanlab ko'ring.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBU2r1f7-B9_madvjKUGIP3vHYwAq2AAKmpgACjBOxS-TLjN4PUPJuPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_v7SPDcCztd1sdaUpRp2oXkoAArYbaxuME7FLnWsLkJY88dgBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_ovoz_balans",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOnavUq2u_ZDmW6hsukYAj5oRkboM8AAqMZaxuME7FLoO8RHrR8ZEwBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Nutq, musiqa va effektlar: ovoz balansi</b>\n\nMusiqa nutqni bosib ketsa, video qancha chiroyli bo'lmasin, tomoshabin charchaydi. Balansni shu tartibda sozlang.\n\n1. Nutqni eng baland va eng aniq qatlam qiling, darajasini butun video bo'ylab tekislang.\n2. Gap boshlanganda musiqani pasaytiring (ducking), pauzada qaytaring.\n3. Effekt ovozlarini nutqdan past, musiqa bilan bir darajada ushlang.\n4. Oxirida quloqchinda va telefon dinamigida tinglab tekshiring.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBVGr1f8I023xnsJcPHWO8LO9CRokxAAKnpgACjBOxS0vC96ohDrBJPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_wZsGOsUFT-c5tist4DXIMbQAArcbaxuME7FLl0Ik5oaSbeYBAAMCAAN3AAM9BA"
 },
 {
 "id": "sehrgar",
@@ -321,19 +385,27 @@
 },
 {
 "id": "f_efir_savol",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPmavUsXXf_AAG1Zhqhw03iuPXovz_TAALmGWsbjBOxS_4uXpIirVWbAQADAgADdwADPQQ",
+"kind": "video",
 "caption": "<b>Efirda ustozga savol berish va so'rovnomada qatnashish</b>\n\nEfir chatidan tashqari alohida savollar ro'yxati bor. Boshqalar savolingizga ovoz beradi, ustoz javob berganini belgilaydi.\n\n1. Efirda pastki paneldagi «Savollar» tugmasini bosing.\n2. «Ustozga savol…» maydoniga savolingizni yozib yuboring.\n3. Boshqalarning savolini ko'tarish uchun yonidagi strelkani bosing.\n4. «So'rovnoma» bo'limida boshlovchi bergan savolga javob variantini tanlang.\n\nBoshlovchi «Yangi so'rovnoma» tugmasi bilan so'rovnoma ochadi va uni yopadi.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBVWr1f8S-oCOlSPV0Y7TcRtriEt3SAAKopgACjBOxS7knFtmLST8RPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_xC70DZcMlcNIKbtb0UF6B4AAArgbaxuME7FLHm7M2YHZHe8BAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_rang",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOpavUq3SW82bE8vLe2XvGrja3bWuoAAqUZaxuME7FLahgLKkA7dzkBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Rang tuzatish va grading: ish tartibi</b>\n\nUslubni darhol qo'yish qulay tuyuladi, lekin tartibni buzsangiz kadrlar bir-biriga mos kelmaydi.\n\n1. Avval ekspozitsiya va oq balansni to'g'rilang.\n2. Keyin bir sahnadagi kadrlarni bir-biriga moslang.\n3. Shundan so'ng uslub qo'shing: LUT yoki o'z rang sxemangiz.\n4. Oxirida teri rangini vektorskop bilan tekshiring.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBVmr1f8b6Rhu7lwJQuhPMWuqGkxf_AAKppgACjBOxS6E96IekYcslPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_xkmGD1MOdGDQRm7wUR_qdy8AArkbaxuME7FLJAABs7z1oQSrAQADAgADdwADPQQ"
 },
 {
 "id": "chatmenu",
@@ -345,19 +417,27 @@
 },
 {
 "id": "f_efir_xonalar",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPnavUsXkkzDjqEGlRFCMpwgC9bzykAAucZaxuME7FL2Qw-JKO_IlMBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Efirda ishtirokchilarni kichik xonalarga bo'lish</b>\n\nAmaliy mashg'ulotda ishtirokchilarni guruhlarga ajratib, alohida gaplashtirish mumkin. Xona ochilganda har kim o'z xonasiga ko'chadi.\n\n1. Efirda pastki paneldagi «Boshqaruv» tugmasini bosing va «Xonalar» bo'limini oching.\n2. «Nechta» maydoniga 2 dan 10 gacha son kiriting va «Yaratish»ni bosing.\n3. «Avtomatik» tugmasi bilan ishtirokchilarni xonalarga taqsimlang.\n4. «Ochish»ni bosing. Hammani umumiy efirga qaytarish uchun «Yopish»ni bosing.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBV2r1f8hSOUz25YIF9gdHwLqiBpJeAAKrpgACjBOxS5xztVS3O38gPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_yGSi20p_a46QTvf1l2WnMnsAArobaxuME7FLF83Uq8mFFRMBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_eksport",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOravUq38BafzLXfwENmeHj82ym_LAAAqcZaxuME7FLcyP8_iMraFABAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Ijtimoiy tarmoq uchun eksport sozlamalari</b>\n\nPlatforma faylni qayta siqadi, shuning uchun eksport sozlamalari sifatga to'g'ridan-to'g'ri ta'sir qiladi.\n\n1. Kodek: H.264 yoki H.265, kadr tezligi asl materialdagidek qolsin.\n2. Vertikal video uchun 1080x1920, gorizontal uchun 1920x1080 tanlang.\n3. Ovozni AAC, 48 kHz formatida chiqaring.\n4. Fayl nomiga mijoz, loyiha va versiyani yozing.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "▶️ Reels",
-"url": "https://kasbegalari.vercel.app/lenta"
+"url": "https://kasbegalari.vercel.app/lenta",
+"video": "BAACAgIAAxkDAAIBWGr1f8raQ67dTEbSc43uYIWatjRDAAKspgACjBOxS7AeiZ6fkJ53PQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_ylFz82RqYt-AWph95r0h7WsAArsbaxuME7FL7YyYxAHk_kkBAAMCAAN3AAM9BA"
 },
 {
 "id": "muqova",
@@ -369,19 +449,27 @@
 },
 {
 "id": "f_efir_hammuallif",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPoavUsYMvdBz-YX5iHk2HY_yPy6m4AAugZaxuME7FLwTwcFyU04mgBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Efirga hammuallif tayinlash</b>\n\nKatta efirda boshlovchiga yordamchi kerak bo'ladi. Hammuallif navbatni boshqaradi va ishtirokchilarga so'z beradi.\n\n1. Efirda pastki paneldagi «Odamlar» tugmasini bosing.\n2. Ro'yxatdan kerakli odamni toping.\n3. Uning yonidagi «Hammuallif qilish» tugmasini bosing.\n4. Olib tashlash uchun xuddi shu joydagi «Hammuallifni olib tashlash»ni bosing.\n\nHammuallifni faqat efirni boshlagan odam tayinlaydi.\n\n#efir\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🔴 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBWWr1f81FhFq6GCJVgu30ELvvXyN0AAKtpgACjBOxSw3gS8YIiejEPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_zHXr3OUOrM9ZlBy9Jx39WMkAArwbaxuME7FLoBLTZE4LlCIBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_mt_subtitr",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOsavUq4Lo-Apyycfo6d0_9igIifp8AAqgZaxuME7FL4xTP0Y9orWMBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Subtitrlarni o'qiladigan qilish</b>\n\nIjtimoiy tarmoqda videoni ovozsiz ko'radiganlar bor. Subtitr ular uchun asosiy matn bo'lib qoladi.\n\n1. Bir ekranda ikki qatordan ko'p matn bermang.\n2. Har qatorni qisqa tuting: taxminan 35-42 belgi.\n3. Matn ostiga yarim shaffof fon yoki kontur qo'shing.\n4. Subtitrni xavfsiz zonaga joylang va ekranda kamida bir soniya tursin.\n\n#montaj\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBWmr1f89mHLUV129_aDs-rqE210GBAAKvpgACjBOxS8sHJ8jRZnUVPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_zxHbb71jxE8TPbULBC2SrQIAAr0baxuME7FLVwYw3P6RzmEBAAMCAAN3AAM9BA"
 },
 {
 "id": "username",
@@ -393,19 +481,27 @@
 },
 {
 "id": "f_guruh_taklif",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPpavUsYSaodDaym4I5ZrfwYeIRaq0AAukZaxuME7FLV-_86xrNNmUBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Guruhga taklif havolasi: muddat, limit va QR</b>\n\nGuruh yoki kanal egasi taklif havolasini yaratib, uning amal qilish muddati va necha marta ishlashini belgilaydi.\n\n1. Chap menyuda «Chat»ga kiring va guruhingizni oching.\n2. Yuqoridagi tishli g'ildirak («Sozlash») belgisini bosing.\n3. «Taklif havolasi» bo'limida havolani yarating va «Havolani nusxalash»ni bosing.\n4. «Amal qilish muddati»: 24 soat, 7 kun yoki Cheksiz. «Necha marta ishlaydi»: 10, 50 marta yoki Cheksiz.\n5. QR tugmasi bilan havolani telefon kamerasiga ko'rsating. Tarqalib ketsa, yangilang.\n\nYangilangan havoladan keyin eskisi ishlamay qoladi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "👥 Jamoalar",
-"url": "https://kasbegalari.vercel.app/jamoalar"
+"url": "https://kasbegalari.vercel.app/jamoalar",
+"video": "BAACAgIAAxkDAAIBW2r1f9Eoajh01Yds9uPjWa_Z2GQtAAKwpgACjBOxS-Ga1fGUMrToPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_0ePvruG6BY-i8mjh5LyRJ8wAAr4baxuME7FL_jAUl-4g6lQBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_dz_logo_format",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOtavUq4rTWqObwRW8KReNtLv4jITsAAqkZaxuME7FLV1klNbYHgN8BAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Logotipni topshirishda qaysi formatlar kerak</b>\n\nMijoz logotipni sayt, bosma va ijtimoiy tarmoqda ishlatadi. To'liq to'plam keyingi savollarni oldini oladi.\n\n1. Vektor fayllar: SVG, PDF va AI yoki EPS.\n2. Shaffof fonli PNG fayllar, bir nechta o'lchamda.\n3. Uch variant: rangli, oq va qora.\n4. Ranglar kodi (HEX, RGB, CMYK) va shriftlar nomi yozilgan qisqa qo'llanma.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📁 Portfolio qo'shish",
-"url": "https://kasbegalari.vercel.app/kabinet/portfolio"
+"url": "https://kasbegalari.vercel.app/kabinet/portfolio",
+"video": "BAACAgIAAxkDAAIBXGr1f9NlUflzkgSPb2Dsm4-jk5VJAAKxpgACjBOxSwoRWT-C7SU6PQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_03NjRNsYPw-CWo3wjVJ9SagAAr8baxuME7FLreXyulO6nX8BAAMCAAN3AAM9BA"
 },
 {
 "id": "emailbild",
@@ -417,19 +513,27 @@
 },
 {
 "id": "f_guruh_mavzu",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPqavUsYqLmD2ZLqPHceocpKWTFhVMAAuoZaxuME7FLqpm8nMwXORwBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Guruh chatida mavzular ochish</b>\n\nKatta guruhda suhbat aralashib ketmasligi uchun mavzular ochiladi. Har mavzuning o'z xabarlari bo'ladi, umumiy suhbat «Umumiy»da qoladi.\n\n1. Chap menyuda «Chat»ga kiring va o'zingiz boshqaradigan guruhni oching.\n2. Xabarlar tepasidagi qatorda «+» («Yangi mavzu») tugmasini bosing.\n3. «Mavzu nomi»ni yozib «Qo'shish»ni bosing.\n4. Mavzu nomini bosib uning ichida yozing. «Umumiy» bosilsa umumiy suhbatga qaytasiz.\n\nMavzu o'chirilsa, undagi xabarlar «Umumiy»ga o'tadi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "👥 Chat",
-"url": "https://kasbegalari.vercel.app/kabinet/chat"
+"url": "https://kasbegalari.vercel.app/kabinet/chat",
+"video": "BAACAgIAAxkDAAIBXWr1f9XYmK6KMWAYEGEfoXCUIZ1DAAKypgACjBOxSz_PrhMEyUUtPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_1e5NIaynNemYXuscpR9_kWIAAsAbaxuME7FLapxHxOvSwwMBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_dz_brif",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOuavUq4y88omqmxCscdQyzFk5CXZEAAqoZaxuME7FLbEzHhPahSIEBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Dizayn brifida so'raladigan 5 savol</b>\n\nBir soatlik suhbat bir haftalik qayta ishlashdan arzon tushadi. Ishni boshlashdan oldin shularni aniqlang.\n\n1. Bu dizayn kim uchun va u qayerda ishlatiladi?\n2. Qaysi ranglar, uslub yoki namunalar mijozga yoqadi, qaysilari yoqmaydi?\n3. Raqobatchilar kim va ulardan qanday farq qilish kerak?\n4. Natija qaysi formatda kerak?\n5. Muddat qachon va nechta tahrir kiritilgan?\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBXmr1f9iyYKK-k64z1mPwpszqCTy5AAK0pgACjBOxS-2uijqQrHZRPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_2C-PVmFpFylOAzhNubnERfYAAsEbaxuME7FLq8vA7aBe-YgBAAMCAAN3AAM9BA"
 },
 {
 "id": "narx",
@@ -441,19 +545,27 @@
 },
 {
 "id": "f_guruh_xabar",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPravUsY-ezVd8-u8uhbTlwTHL6U_4AAusZaxuME7FL2upchicPg4sBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Guruh chatida javob, reaksiya, tahrir va qadash</b>\n\nGuruhdagi har xabarning o'z menyusi bor. U yerdan javob berasiz, reaksiya qo'yasiz yoki o'z xabaringizni tuzatasiz.\n\n1. Guruh chatida xabar yonidagi «⋯» tugmasini bosing.\n2. Menyu tepasidagi emojilardan birini tanlab reaksiya qo'ying yoki «Javob berish»ni bosing.\n3. O'z xabaringizni «Tahrirlash» bilan 3 soat ichida o'zgartirasiz, «O'chirish» esa doim mumkin.\n4. Guruh boshqaruvchisi «Qadash» bilan muhim xabarni chat tepasiga qo'yadi.\n\nEski xabarni topish uchun yuqoridagi lupa («Xabarlardan qidirish») belgisini bosing.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "👥 Chat",
-"url": "https://kasbegalari.vercel.app/kabinet/chat"
+"url": "https://kasbegalari.vercel.app/kabinet/chat",
+"video": "BAACAgIAAxkDAAIBX2r1f9p1qOGzMbP8qETqTRuanhjkAAK1pgACjBOxSy_Yy7JA68lpPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_2gnnR6NBZsxsSPdsuvyqz7oAAsIbaxuME7FLoXAW023LTasBAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_dz_shrift",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOvavUq5BPpO6aYGIUuktIoW1t_I6QAAqsZaxuME7FLg7bIVWa342MBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Shrift juftligini tanlash</b>\n\nIkki to'g'ri tanlangan shrift dizaynni tartibli qiladi. Uchinchi va to'rtinchisi esa odatda chalkashlik keltiradi.\n\n1. Bir loyihada ikki shrift yetarli: sarlavha va asosiy matn uchun.\n2. Kontrast tanlang: serifli sarlavha va serifsiz matn yoki aksincha.\n3. O'zbekcha harflar va apostrof to'g'ri chiqishini, kerak bo'lsa kirillni ham tekshiring.\n4. Tijoriy loyihada shrift litsenziyasini aniqlang.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "🎓 Mentorlik",
-"url": "https://kasbegalari.vercel.app/mentorlik"
+"url": "https://kasbegalari.vercel.app/mentorlik",
+"video": "BAACAgIAAxkDAAIBYGr1f92cvXbAMIGmcCUK2ilzJno8AAK2pgACjBOxS6CpOA3pkKW_PQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_3dspe2GBtzop_2DXB8BT6rQAAsMbaxuME7FLyqzrgBdWUoYBAAMCAAN3AAM9BA"
 },
 {
 "id": "dashboard",
@@ -465,19 +577,27 @@
 },
 {
 "id": "f_guruh_qoidalar",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAPsavUsZUCDHQF33h20-LI737mRUJwAAuwZaxuME7FLaRPzfEgRQPsBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Guruh qoidalari va xush kelibsiz matnini yozish</b>\n\nGuruh egasi qoidalarni yozib qo'yadi, yangi a'zoga esa salomlashuv matni bildirishnoma bo'lib boradi.\n\n1. Chap menyuda «Chat»ga kiring, guruhni oching va «Sozlash» (tishli g'ildirak) belgisini bosing.\n2. «Qoidalar» maydoniga qoidalarni yozing: «- » bilan ro'yxat, **qalin** matn ishlaydi.\n3. «Xush kelibsiz matni» maydoniga yangi a'zoga boradigan xabarni yozing.\n4. «Saqlash» tugmasini bosing.\n\nQoidalar bo'sh qolsa, umumiy qoidalar ko'rsatiladi.\n\n#jamoa\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "👥 Jamoalar",
-"url": "https://kasbegalari.vercel.app/jamoalar"
+"url": "https://kasbegalari.vercel.app/jamoalar",
+"video": "BAACAgIAAxkDAAIBYWr1f-1-dhZCc_rmFOa7IpPJgTxUAAK3pgACjBOxSx5wNZkNWbvjPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_7dek7Uq_CHE0Y8k69tPBc3wAAsQbaxuME7FLXBwvkBQZNm4BAAMCAAN3AAM9BA"
 },
 {
 "id": "tip_dz_bosma",
-"kind": "photo",
-"photo": "AgACAgIAAxkDAAOwavUq5nWDrdOdPyVdgpQJFZkJFr0AAqwZaxuME7FLO9hIXM6AJrgBAAMCAAN3AAM9BA",
+"kind": "video",
 "caption": "<b>Bosmaga fayl tayyorlash: 5 qoida</b>\n\nEkranda chiroyli ko'ringan maket bosmada xira yoki kesilgan chiqishi mumkin. Matbaaga yuborishdan oldin tekshiring.\n\n1. Rang rejimini CMYK ga o'tkazing.\n2. Rasmlar ruxsati kamida 300 dpi bo'lsin.\n3. Har tomondan 3 mm bleed qo'shing, muhim matnni chetdan uzoqroq joylang.\n4. Matnlarni egri chiziqqa aylantiring yoki shriftlarni faylga qo'shing.\n5. Talablarni matbaaning o'zidan oldindan so'rang.\n\n#dizayn\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "💬 Savol berish",
-"url": "https://kasbegalari.vercel.app/savollar"
+"url": "https://kasbegalari.vercel.app/savollar",
+"video": "BAACAgIAAxkDAAIBYmr1f_Ag5crqJ0n4v2yH1J2eGT1SAAK4pgACjBOxS-7RQTy0RYQmPQQ",
+"dur": 7,
+"w": 1080,
+"h": 1350,
+"cover": "AgACAgIAAxUHavV_8A6WHKFveT-I3Rgs9-qGElgAAsUbaxuME7FLVS_vQepUZL4BAAMCAAN3AAM9BA"
 },
 {
 "id": "faollik",

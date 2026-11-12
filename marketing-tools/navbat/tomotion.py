@@ -7,12 +7,17 @@ def call(m, d, files={}):
     a = ["curl", "-sS", "-m", "300", "-X", "POST", f"{A}/{m}"]
     for k, v in d.items(): a += ["--form-string", f"{k}={v}"]
     for k, v in files.items(): a += ["-F", f"{k}=@{v}"]
-    return json.loads(subprocess.run(a, capture_output=True, text=True).stdout)
-M = sys.argv[1]; qp = os.path.join(HERE, "navbat.json"); pp = os.path.join(HERE, "posted.json"); n = 0
+    out = subprocess.run(a, capture_output=True, text=True).stdout
+    try: return json.loads(out)
+    except Exception: return {"ok": False, "description": "javob JSON emas: " + out[:80]}
+M = sys.argv[1]
+import glob, re
+DONE = set(m.group(1) for f in glob.glob(os.path.join(M, "rlog*.txt")) for m in re.finditer(r"^ok (\S+)", open(f).read(), re.M))
+qp = os.path.join(HERE, "navbat.json"); pp = os.path.join(HERE, "posted.json"); n = 0
 for x in json.load(open(qp)):
     posted = json.load(open(pp)) if os.path.exists(pp) else {}
     v, c = os.path.join(M, f"m-{x['id']}.mp4"), os.path.join(M, f"mc-{x['id']}.jpg")
-    if x["kind"] != "photo" or x["id"] in posted or not os.path.exists(v): continue
+    if x["kind"] != "photo" or x["id"] in posted or x["id"] not in DONE or not os.path.exists(v): continue
     r = call("sendVideo", {"chat_id": OWNER, "disable_notification": "true", "supports_streaming": "true", "width": "1080", "height": "1350", "duration": "7"}, {"video": v, "cover": c})
     if not r.get("ok"): print("XATO", x["id"], r.get("description")); continue
     call("deleteMessage", {"chat_id": OWNER, "message_id": str(r["result"]["message_id"])})
