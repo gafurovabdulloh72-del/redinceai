@@ -82,7 +82,7 @@ export const KABINET_NAV = {
     "E'lonlarim": { uz: "E'lonlarim", ru: "Мои объявления" },
     "Profil": { uz: "Profil", ru: "Профиль" },
     "Daromad va sozlamalar": { uz: "Daromad va sozlamalar", ru: "Доход и настройки" },
-    "Talabalar vazifalari": { uz: "Talabalar vazifalari", ru: "Задания студентов" },
+    "Talabalar vazifalari": { uz: "O'quvchilar", ru: "Ученики" },
     "Tahlil": { uz: "Tahlil", ru: "Аналитика" },
     "Mentorlik sahifam": { uz: "Mentorlik sahifam", ru: "Моя страница ментора" },
     "Mentorlik": { uz: "Mentorlik", ru: "Менторство" },

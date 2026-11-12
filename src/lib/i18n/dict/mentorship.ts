@@ -597,7 +597,7 @@ export const MK = {
   opensAt: { uz: (d: string) => `${d} da ochiladi`, ru: (d: string) => `откроется ${d}` },
 
   /* Vazifalar */
-  tasksTitle: { uz: "Talabalar vazifalari", ru: "Задания студентов" } satisfies Tr,
+  tasksTitle: { uz: "O'quvchilar ishi", ru: "Работы учеников" } satisfies Tr,
   tasksLead: { uz: "Yuborilgan ishlarni baholang va izoh qoldiring", ru: "Оцените присланные работы и оставьте комментарий" } satisfies Tr,
   ungraded: { uz: "Baholanmagan", ru: "Без оценки" } satisfies Tr,
   all: { uz: "Hammasi", ru: "Все" } satisfies Tr,
