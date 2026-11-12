@@ -1438,5 +1438,23 @@
 "caption": "<b>Ish beruvchilar uchun: rezyumelardan nomzod topish</b>\n\nVakansiya joylab kutish shart emas. Ish qidirayotgan mutaxassislarni o'zingiz toping.\n\n1. Chap menyuda «Vakansiyalar» → «Rezyumelar».\n2. Lavozim yoki ko'nikma yozing, masalan «motion».\n3. Tajriba, format va hudud bo'yicha filtrlang.\n4. Rezyumeni oching: tajriba, ko'nikmalar va havolalar.\n5. Nomzodga sayt chati orqali yozing.\n\nOmmaviy rezyumelarda kontakt ko'rinmaydi.\n\n#ish\nRo'yxatdan o'tish: @kasb_egalari_bot",
 "btn": "📋 Rezyumelar",
 "url": "https://kasbegalari.vercel.app/rezyumelar"
+},
+{
+"id": "v-reels",
+"kind": "video",
+"video": "BAACAgIAAxkDAAIBP2r1MsYbbe9eatEd2r_34tfTRBC2AAKgowACjBOxSxMk-sY9wi-KPQQ",
+"dur": 20,
+"cover": "AgACAgIAAxUHavUyxiBS3lnvgPy5ho5a-v1JFM4AAj8aaxuME7FLSvbNFKpOO_ABAAMCAAN5AAM9BA",
+"caption": "<b>Reels: uch xil lenta</b>\n\nReels bo'limida ijodkorlarning qisqa videolari. Ularni uch xil tartibda ko'rasiz.\n\n1. Chap menyuda «Reels»ni oching.\n2. «Siz uchun»: sizga mos videolar.\n3. «Yangi»: eng so'nggi joylanganlar.\n4. «Top hafta»: hafta davomida eng ko'p ko'rilganlar.\n5. Video yoqsa, «Ijodkorga yozish» bilan muallifga yozing.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "🎬 Reels",
+"url": "https://kasbegalari.vercel.app/lenta"
+},
+{
+"id": "yaratish",
+"kind": "photo",
+"photo": "AgACAgIAAxkDAAIBQGr1Muw-eLFMSPdVrpyeLOdF5_7ZAAJAGmsbjBOxS80XCokzfmO-AQADAgADdwADPQQ",
+"caption": "<b>«Yaratish» tugmasi: yangi narsa bir joydan</b>\n\nPost, jamoa, vakansiya yoki e'lon joylash uchun sahifama-sahifa yurish shart emas: hammasi bitta menyuda.\n\n1. Chap menyuda «Yaratish» tugmasini bosing.\n2. «Post joylash»: matn, rasm yoki video profil lentangizga.\n3. «Guruh yoki kanal ochish»: hamjamiyat, muhokama, efirlar.\n4. «Vakansiya joylash»: ish e'loni.\n5. «E'lon berish»: loyiha uchun ijodkor topish.\n\n#yoriqnoma\nRo'yxatdan o'tish: @kasb_egalari_bot",
+"btn": "➕ Saytni ochish",
+"url": "https://kasbegalari.vercel.app/"
 }
 ]
