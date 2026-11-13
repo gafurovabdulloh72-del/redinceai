@@ -10,3 +10,4 @@ docs
 audit-final
 Dockerfile
 docker-compose.yml
+apps/

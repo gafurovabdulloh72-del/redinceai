@@ -1611,3 +1611,30 @@ test("Kechikkan ish sharhi: begona 404, muddat o'tmagan 409, talaba qaytarishni 
     await cleanupTemp([mentorUser.email, stranger.email]);
   }
 });
+
+test("Kompyuter ilovasiga kirish: mehmon 401, kod faqat ilova UA'si + to'g'ri verifier bilan, bir martalik; assetlinks — JSON", async () => {
+  const { createHash, randomBytes } = await import("node:crypto");
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const guest = await fetch(`${BASE}/api/auth/ilova`, { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN }, body: JSON.stringify({ challenge }) });
+  assert.equal(guest.status, 401, `mehmon → 401 (keldi: ${guest.status})`);
+  const bad = await req("sp", "/api/auth/ilova", { method: "POST", body: JSON.stringify({ challenge: "qisqa" }) });
+  assert.equal(bad.status, 422, `yaroqsiz challenge → 422 (keldi: ${bad.status})`);
+  const r = await req("sp", "/api/auth/ilova", { method: "POST", body: JSON.stringify({ challenge }) });
+  assert.equal(r.status, 200, `kod (keldi: ${r.status})`);
+  const code = new URL((await r.json()).data.url).searchParams.get("code");
+  const UA = "Mozilla/5.0 KasbEgalariDesktop/1.0.0";
+  const go = (v, ua) => fetch(`${BASE}/api/auth/ilova/kirish?code=${encodeURIComponent(code)}&v=${v}`, { redirect: "manual", headers: ua ? { "user-agent": ua } : {} });
+  const plain = await go(verifier, "Mozilla/5.0 Chrome/130");
+  assert.match(plain.headers.get("location") ?? "", /reason=ilova/, "oddiy brauzer bilan almashtirib bo'lmaydi");
+  const wrong = await go(randomBytes(32).toString("base64url"), UA);
+  assert.match(wrong.headers.get("location") ?? "", /reason=ilova/, "noto'g'ri verifier rad");
+  const okRes = await go(verifier, UA);
+  assert.equal(okRes.headers.get("location"), "/", "to'g'ri verifier → sessiya");
+  assert.ok((okRes.headers.getSetCookie?.() ?? []).some((c) => c.startsWith("redince_session=") || c.includes("session")), "sessiya cookie berildi");
+  const again = await go(verifier, UA);
+  assert.match(again.headers.get("location") ?? "", /reason=ilova/, "kod bir martalik");
+  const al = await fetch(`${BASE}/.well-known/assetlinks.json`);
+  assert.equal(al.status, 200);
+  assert.ok(Array.isArray(await al.json()), "assetlinks — massiv");
+});

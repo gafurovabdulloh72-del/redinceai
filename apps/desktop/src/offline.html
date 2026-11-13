@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'">
+<title>Kasb Egalari</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fafaf8; --fg:#1a1a1c; --fg3:#6b6b70; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0a0a0b; --fg:#f6f4ee; --fg3:#9a9aa0; } }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  *, *::before, *::after { box-sizing:border-box; }
+  main { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; }
+  .tile { width:64px; height:64px; border-radius:16px; background:#1a1a1c; display:grid; place-items:center; }
+  h1 { font-size:20px; margin:20px 0 6px; }
+  p { color:var(--fg3); margin:0; max-width:340px; }
+  button { margin-top:22px; height:44px; padding:0 24px; border:0; border-radius:999px; background:var(--fg); color:var(--bg); font:600 15px system-ui,sans-serif; cursor:pointer; }
+  small { margin-top:12px; color:var(--fg3); font-size:12.5px; min-height:18px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="tile"><svg width="34" height="34" viewBox="0 0 550 700"><path transform="translate(0 700) scale(1 -1)" d="M70 0V700H196V313H214L378 496H542L313 256L550 0H388L214 197H196V0Z" fill="#f6f4ee"/></svg></div>
+  <h1>Internet aloqasi yo'q</h1>
+  <p>Kasb Egalari serverga ulana olmadi. Internetni tekshiring — aloqa tiklanishi bilan sahifa o'zi ochiladi.</p>
+  <button id="retry" type="button">Qayta urinish</button>
+  <small id="hint"></small>
+</main>
+<script>
+  const to = new URLSearchParams(location.search).get("to") || "";
+  const ok = /^https:\/\//.test(to);
+  const go = () => { if (ok) location.replace(to); };
+  document.getElementById("retry").onclick = go;
+  window.addEventListener("online", go);
+  let n = 15;
+  const hint = document.getElementById("hint");
+  setInterval(() => { n -= 1; hint.textContent = n > 0 ? n + " soniyadan keyin qayta urinadi" : ""; if (n <= 0) { n = 15; if (navigator.onLine) go(); } }, 1000);
+</script>
+</body>
+</html>

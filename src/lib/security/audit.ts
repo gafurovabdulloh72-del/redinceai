@@ -7,6 +7,7 @@ import { clientIp } from "./request";
 /** Ma'lum harakatlar va ularning o'zbekcha nomlari (admin jurnali uchun) */
 export const AUDIT_ACTION_LABEL: Record<string, string> = {
   login_success: "Kirish",
+  desktop_link: "Kompyuter ilovasiga kirish kodi",
   login_failed: "Kirish muvaffaqiyatsiz",
   register: "Ro'yxatdan o'tish",
   logout: "Chiqish",

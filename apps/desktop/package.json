@@ -1,0 +1,66 @@
+{
+  "name": "kasb-egalari-desktop",
+  "productName": "Kasb Egalari",
+  "version": "1.0.0",
+  "description": "Kasb Egalari — kompyuter ilovasi (sayt bilan bir xil hisob)",
+  "author": "Kasb Egalari",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "uz.kasbegalari.desktop",
+    "productName": "Kasb Egalari",
+    "copyright": "© Kasb Egalari",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["src/**/*", "assets/**/*", "config.json", "package.json"],
+    "protocols": [{ "name": "Kasb Egalari", "schemes": ["kasbegalari"] }],
+    "artifactName": "KasbEgalari-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Kasb Egalari",
+      "artifactName": "KasbEgalari-Setup-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }],
+      "category": "public.app-category.social-networking",
+      "icon": "build/icon.png",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Video qo'ng'iroq va jonli efir uchun kamera kerak.",
+        "NSMicrophoneUsageDescription": "Qo'ng'iroq, ovozli xabar va jonli efir uchun mikrofon kerak."
+      }
+    },
+    "dmg": { "artifactName": "KasbEgalari-${version}-mac.${ext}" },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Network",
+      "icon": "build/icon.png",
+      "maintainer": "Kasb Egalari"
+    },
+    "publish": null
+  }
+}

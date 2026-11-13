@@ -1,0 +1,160 @@
+name: Ilovalar (Android + kompyuter)
+
+# Android (TWA: .aab — Google Play uchun, .apk — to'g'ridan-to'g'ri o'rnatish) va kompyuter ilovalari
+# (Windows .exe, macOS .dmg, Linux .AppImage/.deb). Yo'riqnoma: docs/ILOVALAR.md
+#  - apps/** o'zgarsa — yig'ish tekshiruvi (natija Actions → Artifacts'da 14 kun);
+#  - `app-v1.2.3` tegi yoki qo'lda ishga tushirish (versiya bilan) — GitHub Release'ga fayllar yuklanadi.
+on:
+  push:
+    branches: [main, claude/quirky-volta-tzlqwh]
+    paths: ["apps/**", ".github/workflows/apps.yml"]
+    tags: ["app-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versiya (masalan 1.0.1). Bo'sh — release yaratilmaydi"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERSION: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/app-v') && github.ref_name) || '' }}
+
+jobs:
+  android:
+    name: Android (TWA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Versiya
+        run: |
+          V="${VERSION#app-v}"; V="${V:-1.0.0}"
+          echo "TWA_ARGS=-PtwaVersionName=$V -PtwaVersionCode=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Versiya: $V (kod ${{ github.run_number }})"
+      - name: Imzo kaliti (ANDROID_KEYSTORE_B64 siri bo'lsa)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Imzolangan release yig'iladi"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 siri yo'q — faqat sinov (debug) APK yig'iladi. docs/ILOVALAR.md"
+          fi
+      - name: Yig'ish
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          chmod +x gradlew
+          if [ -n "$ANDROID_KEYSTORE_FILE" ]; then
+            ./gradlew --no-daemon $TWA_ARGS assembleRelease bundleRelease
+          else
+            ./gradlew --no-daemon $TWA_ARGS assembleDebug
+          fi
+          mkdir -p out
+          find app/build/outputs -name '*.apk' -exec cp {} out/ \;
+          find app/build/outputs -name '*.aab' -exec cp {} out/ \;
+          cd out && for f in *; do mv "$f" "KasbEgalari-${f}"; done; ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: apps/android/out/*
+          retention-days: 14
+
+  desktop:
+    name: Kompyuter (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    defaults:
+      run:
+        working-directory: apps/desktop
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - name: Versiya
+        if: env.VERSION != ''
+        run: npm version "${VERSION#app-v}" --no-git-tag-version --allow-same-version
+      - name: Yig'ish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS: Apple sertifikati (CSC_LINK) bo'lmasa — ad-hoc imzo (Gatekeeper «noma'lum ishlab chiquvchi» deydi)
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          EXTRA=""
+          if [ "$RUNNER_OS" = "macOS" ] && [ -z "$CSC_LINK" ]; then
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            EXTRA="-c.mac.identity=-"
+          fi
+          npx electron-builder --publish never $EXTRA
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.yml
+            apps/desktop/dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    if: needs.android.result == 'success' && needs.desktop.result == 'success' && (inputs.version != '' || startsWith(github.ref, 'refs/tags/app-v'))
+    needs: [android, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Teg
+        run: |
+          V="${VERSION#app-v}"
+          echo "TAG=app-v$V" >> "$GITHUB_ENV"
+          ls -la files
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Kasb Egalari ilovalari ${{ env.TAG }}
+          body: |
+            **Windows:** `KasbEgalari-Setup-…-x64.exe`
+            **macOS:** `KasbEgalari-…-mac.dmg` (birinchi ochishda: o'ng tugma → «Open»)
+            **Linux:** `.AppImage` yoki `.deb`
+            **Android:** `.apk` (to'g'ridan-to'g'ri o'rnatish) · `.aab` (Google Play Console'ga yuklash)
+          files: files/*
+          fail_on_unmatched_files: false

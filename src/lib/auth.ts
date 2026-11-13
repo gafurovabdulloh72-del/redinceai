@@ -363,6 +363,44 @@ export async function verifyTwoFactorTicket(ticket: string): Promise<TwoFactorTi
   }
 }
 
+/**
+ * KOMPYUTER ILOVASI (Electron) uchun kirish kodi (2026-11-13). Google o'z sahifasini ichki oynada (webview) ochishga ruxsat
+ * bermaydi — ilova tizim brauzerini ochadi, foydalanuvchi u yerda kiradi, brauzer `kasbegalari://auth?code=…` bilan
+ * ilovaga qaytaradi. PKCE naqshi: ilova tasodifiy `verifier` yaratadi va brauzerga faqat uning SHA-256 xeshini
+ * (`challenge`) beradi; kod faqat shu verifier bilan almashtiriladi — kimdir havolani o'g'irlab yoki o'z challenge'i
+ * bilan qurbonga yuborsa ham, kod qurbonning kompyuteridagi ilovaga boradi, unga emas. Kod 2 daqiqa, bir martalik.
+ */
+function desktopKey(): Uint8Array {
+  return new Uint8Array(hkdfSync("sha256", secret(), "redince", "desktop-code-v1", 32));
+}
+
+export const DESKTOP_CHALLENGE_RE = /^[A-Za-z0-9_-]{43}$/;
+
+export async function createDesktopCode(user: Pick<User, "id" | "sessionVersion">, challenge: string): Promise<string> {
+  return new SignJWT({ sv: user.sessionVersion, ch: challenge, typ: "desk" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(user.id)
+    .setJti(randomBytes(12).toString("base64url"))
+    .setIssuedAt()
+    .setExpirationTime("2m")
+    .sign(desktopKey());
+}
+
+/** Imzo + muddat + verifier tekshiruvi (bir martalikni chaqiruvchi `tryConsume(desktopUsed:<jti>)` bilan ta'minlaydi) */
+export async function verifyDesktopCode(code: string, verifier: string): Promise<{ sub: string; sv: number; jti: string } | null> {
+  try {
+    const { payload } = await jwtVerify(code, desktopKey(), { algorithms: ["HS256"] });
+    if (!payload.sub || payload.typ !== "desk" || typeof payload.jti !== "string" || typeof payload.ch !== "string") return null;
+    const { createHash, timingSafeEqual } = await import("node:crypto");
+    const got = Buffer.from(createHash("sha256").update(verifier).digest("base64url"));
+    const want = Buffer.from(payload.ch);
+    if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+    return { sub: payload.sub, sv: typeof payload.sv === "number" ? payload.sv : 0, jti: payload.jti };
+  } catch {
+    return null;
+  }
+}
+
 /** Faqat JWT'dagi ma'lumot (bazaga murojaat qilmaydi). Bitta so'rov ichida keshlanadi. */
 export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const store = await cookies();

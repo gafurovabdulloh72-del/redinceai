@@ -1,0 +1,62 @@
+plugins {
+    id "com.android.application"
+}
+
+/*
+ * Kasb Egalari — Android ilovasi (TWA: Trusted Web Activity). Sayt Chrome dvigatelida, manzil panelisiz, to'liq
+ * ekranda ochiladi; hisob, chat, to'lov — hammasi saytdagidek. Sayt tomoni: /.well-known/assetlinks.json
+ * (env ANDROID_CERT_SHA256). Imzo: CI'da ANDROID_KEYSTORE_* sirlari (apps/android/README.md).
+ */
+def host = project.property("twaHost")
+def launchUrl = "https://${host}/?source=android"
+
+android {
+    namespace "uz.kasbegalari.app"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "uz.kasbegalari.app"
+        minSdk 23
+        targetSdk 36
+        versionCode Integer.parseInt(project.property("twaVersionCode").toString())
+        versionName project.property("twaVersionName").toString()
+
+        manifestPlaceholders = [hostName: host]
+        resValue "string", "launchUrl", launchUrl
+        resValue "string", "hostName", host
+        resValue "string", "assetStatements",
+            "[{ \\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://${host}\\\"}}]"
+    }
+
+    signingConfigs {
+        release {
+            def ks = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "kasbegalari"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv("ANDROID_KEYSTORE_FILE")) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        resValues true
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.5.0"
+}

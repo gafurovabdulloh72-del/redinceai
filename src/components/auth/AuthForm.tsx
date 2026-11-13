@@ -83,6 +83,7 @@ export function AuthForm({ mode, next, defaultRole = "client", defaultIntent, sk
     : reason === "google_cancel" ? tr(til, AUTH.google.cancel)
     : reason === "google_unverified" ? tr(til, AUTH.google.unverified)
     : reason === "google_err" ? tr(til, AUTH.google.error)
+    : reason === "ilova" ? tr(til, AUTH.google.desktop)
     : null;
   const context = contextFor(til, mode, target, reason);
 

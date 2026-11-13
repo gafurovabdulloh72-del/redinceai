@@ -213,6 +213,7 @@ export const AUTH = {
     cancel: { uz: "Google kirishi bekor qilindi.", ru: "Вход через Google отменён." },
     error: { uz: "Google orqali kirishda xatolik. Qayta urinib ko'ring yoki email bilan kiring.", ru: "Ошибка входа через Google. Попробуйте снова или войдите по email." },
     unverified: { uz: "Google emailingiz tasdiqlanmagan. Boshqa usulda kiring.", ru: "Ваш email в Google не подтверждён. Войдите другим способом." },
+    desktop: { uz: "Ilovaga kirish havolasi eskirgan. Ilovada «Google bilan davom etish»ni qaytadan bosing.", ru: "Ссылка для входа в приложение устарела. Нажмите «Продолжить с Google» в приложении ещё раз." },
   },
   submit: {
     registering: { uz: "Hisob yaratilmoqda…", ru: "Создаём аккаунт…" },
