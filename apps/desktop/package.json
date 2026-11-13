@@ -13,7 +13,7 @@
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
     "dist:linux": "electron-builder --linux",
-    "test": "node --test test/*.test.cjs"
+    "test": "node --test test/logic.test.cjs"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
@@ -26,12 +26,35 @@
     "appId": "uz.kasbegalari.desktop",
     "productName": "Kasb Egalari",
     "copyright": "© Kasb Egalari",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["src/**/*", "assets/**/*", "config.json", "package.json"],
-    "protocols": [{ "name": "Kasb Egalari", "schemes": ["kasbegalari"] }],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "config.json",
+      "package.json"
+    ],
+    "protocols": [
+      {
+        "name": "Kasb Egalari",
+        "schemes": [
+          "kasbegalari"
+        ]
+      }
+    ],
     "artifactName": "KasbEgalari-${version}-${os}-${arch}.${ext}",
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "build/icon.png"
     },
     "nsis": {
@@ -43,7 +66,20 @@
       "artifactName": "KasbEgalari-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
       "category": "public.app-category.social-networking",
       "icon": "build/icon.png",
       "hardenedRuntime": true,
@@ -54,13 +90,19 @@
         "NSMicrophoneUsageDescription": "Qo'ng'iroq, ovozli xabar va jonli efir uchun mikrofon kerak."
       }
     },
-    "dmg": { "artifactName": "KasbEgalari-${version}-mac.${ext}" },
+    "dmg": {
+      "artifactName": "KasbEgalari-${version}-mac.${ext}"
+    },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Network",
       "icon": "build/icon.png",
       "maintainer": "Kasb Egalari"
     },
     "publish": null
-  }
+  },
+  "homepage": "https://kasbegalari.vercel.app"
 }
