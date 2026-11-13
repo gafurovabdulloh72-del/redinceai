@@ -50,15 +50,16 @@ function styleA(){
   const rows=LIST.map(x=>el('div',`position:absolute;left:0;width:100%;height:${LH}px;display:flex;align-items:center;justify-content:center;font-family:Arc;font-weight:850;font-stretch:108%;font-size:104px;color:${INK}`,tape,x));
   const bar=el('div',`position:absolute;left:70px;right:70px;top:${960-LH/2}px;height:${LH}px;border:5px solid ${CO};border-radius:22px;box-sizing:border-box`);
   // yakun
-  const e1=el('div','position:absolute;left:0;width:100%;top:640px;text-align:center;font-family:Arc;font-weight:900;font-stretch:112%;font-size:118px;line-height:1;color:'+INK,null,'<span class="lw"><span>KASBINGIZNI</span></span><span class="lw"><span style="color:'+CO+'">TANLANG</span></span>');
-  const e2=el('div','position:absolute;left:0;width:100%;top:1060px;text-align:center;font-family:SG;font-weight:600;font-size:52px;color:'+INK,null,'kasbegalari.vercel.app');
-  const e3=el('div','position:absolute;left:0;width:100%;top:1150px;text-align:center;font-family:JBM;font-weight:500;text-transform:uppercase;letter-spacing:.14em;font-size:30px;color:#777',null,'Telegram · kasb_egalari_bot');
+  const e1=el('div','position:absolute;left:0;width:100%;top:560px;text-align:center;font-family:Arc;font-weight:900;font-stretch:112%;font-size:116px;line-height:1;color:'+INK,null,'<span class="lw"><span>KASBINGIZNI</span></span><span class="lw"><span>TANLANG VA</span></span><span class="lw"><span style="color:'+CO+'">ISH TOPING</span></span>');
+  const pill=el('div',`position:absolute;left:50%;top:1010px;padding:30px 54px;border-radius:999px;background:${CO};color:${CR};font-family:Arc;font-weight:800;font-stretch:108%;font-size:56px;white-space:nowrap;transform-origin:50% 50%;box-shadow:0 20px 50px rgba(255,90,54,.35)`,null,'IZOHLARDA <span style="display:inline-block;width:70px;height:70px;line-height:66px;border-radius:50%;background:#fafaf7;color:#ff5a36;text-align:center;vertical-align:middle;margin:0 10px">+</span> QOLDIRING');
+  const e2=el('div','position:absolute;left:0;width:100%;top:1250px;text-align:center;font-family:SG;font-weight:600;font-size:48px;color:'+INK,null,'kasbegalari.vercel.app');
+  const e3=el('div','position:absolute;left:0;width:100%;top:1330px;text-align:center;font-family:JBM;font-weight:500;text-transform:uppercase;letter-spacing:.14em;font-size:28px;color:#777',null,'Telegram · kasb_egalari_bot');
   const wF=mbF(),tF=mbF();
   WORDS.forEach(([w,t,acc])=>{ev(t,'click',{g:.75,ping:acc?1200:1700});if(acc)ev(t,'impact',{g:.45})});
   ev(.05,'bed',{bpm:100});ev(2.25,'whoosh',{g:.5});{let tt=2.4,dt=.1;while(tt<3.25){ev(tt,'tick');tt+=dt;dt=Math.max(.04,dt*.88)}}ev(3.3,'impact',{g:1});ev(3.45,'click',{g:.6});ev(3.65,'click',{g:.6});
   ev(5.15,'whip',{g:.8});for(let i=0;i<LIST.length;i++){ev(5.35+2.6*Math.pow(i/(LIST.length-1),2.2),'tick',{k:i/12})}ev(8.05,'pop',{g:.8});
-  ev(8.6,'whoosh',{g:.6});ev(8.75,'click',{g:.6});ev(9.0,'click',{g:.6});ev(9.6,'ding',{g:.7,root:261.6});
-  return {dur:11.6,render(t){
+  ev(8.6,'whoosh',{g:.6});ev(8.75,'click',{g:.6});ev(9.0,'click',{g:.6});ev(9.25,'click',{g:.7,ping:1200});ev(9.75,'pop',{g:.9});ev(10.0,'ding',{g:.7,root:261.6});ev(11.0,'pop',{g:.45});
+  return {dur:12.4,render(t){
     // 1) so'zlar
     let cur=null;for(const w of WORDS)if(t>=w[1])cur=w;
     const inWords=t<2.25;wordBox.style.display=inWords&&cur?'block':'none';
@@ -78,8 +79,10 @@ function styleA(){
         r.style.color=(d<.5&&i===LIST.length-1&&p>.98)?CO:INK;r.style.transform=`scale(${(1-Math.min(.25,d*.08)).toFixed(3)})`});
       tape.style.filter=tF.css(0,Math.min(18,v*.006));const bs=popS(pr(t,8.0,.45));bar.style.transform=`scale(${(lerp(1,1.04,bs>1?bs-1:0)).toFixed(3)})`;bar.style.opacity=eo(pr(t,5.2,.3))}
     // 4) yakun
-    const inE=t>=8.6;[e1,e2,e3].forEach(x=>x.style.display=inE?'block':'none');
-    if(inE){e1.querySelectorAll('.lw>span').forEach((s,i)=>maskIn(s,t,8.7+i*.25));[e2,e3].forEach((x,i)=>{const e=eo(pr(t,9.3+i*.2,.5));x.style.opacity=e;x.style.transform=`translateY(${(20*(1-e)).toFixed(1)}px)`})}
+    const inE=t>=8.6;[e1,e2,e3,pill].forEach(x=>x.style.display=inE?'block':'none');
+    if(inE){e1.querySelectorAll('.lw>span').forEach((s,i)=>maskIn(s,t,8.7+i*.25));
+      const pp=popS(pr(t,9.75,.5));const pulse=t>10.4?1+.035*Math.sin((t-10.4)*7):1;pill.style.transform=`translateX(-50%) scale(${(pp*pulse).toFixed(4)})`;pill.style.opacity=pp>0?1:0;
+      [e2,e3].forEach((x,i)=>{const e=eo(pr(t,10.2+i*.2,.5));x.style.opacity=e;x.style.transform=`translateY(${(20*(1-e)).toFixed(1)}px)`})}
   }};
 }
 
