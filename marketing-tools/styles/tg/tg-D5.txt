@@ -1,0 +1,8 @@
+<b>Yangi qurilmadan kirsa, xabar keladi</b>
+
+Hisobingizga yangi brauzer yoki qurilmadan kirilsa, sizga saytda, Telegramda va emailda xabar keladi.
+
+Bu siz bo'lmasangiz, parolni almashtiring va Kabinet → «Xavfsizlik»da barcha qurilmalardan chiqing.
+
+#xavfsizlik
+Ro'yxatdan o'tish: @kasb_egalari_bot

@@ -1,0 +1,8 @@
+<b>Kursni tugating, sertifikat oling</b>
+
+Mentorlik kursidagi barcha darslar va testlarni tugatgan o'quvchiga sertifikat beriladi. Uni PDF qilib chop etish mumkin.
+
+Kurslar: saytdagi «Mentorlik» bo'limi.
+
+#mentorlik
+Ro'yxatdan o'tish: @kasb_egalari_bot

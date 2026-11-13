@@ -1,0 +1,11 @@
+<b>Kabinet bir joyda</b>
+
+Menyu: barcha bo'limlar bitta ro'yxatda.
+Portfolio: rasm, video yoki havola.
+Profil: kasb, hudud va narx.
+Xavfsizlik: maxfiylik, bloklanganlar, parol va ikki bosqichli himoya.
+
+Telefonda Profil tabi kabinet menyusini ochadi.
+
+#yoriqnoma
+Ro'yxatdan o'tish: @kasb_egalari_bot

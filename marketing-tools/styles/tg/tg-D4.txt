@@ -1,0 +1,8 @@
+<b>Hisobingiz ikki qulfda</b>
+
+Ikki bosqichli himoya (2FA) yoqilsa, parol, Google yoki Telegram bilan kirishda ham autentifikator ilovadagi kod so'raladi.
+
+Yoqish: Kabinet → «Xavfsizlik».
+
+#xavfsizlik
+Ro'yxatdan o'tish: @kasb_egalari_bot

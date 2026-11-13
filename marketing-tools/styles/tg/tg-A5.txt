@@ -1,0 +1,8 @@
+<b>Postga 6 xil reaksiya</b>
+
+Postlarga oddiy yurakchadan tashqari 6 xil reaksiya bor: yoqdi, zo'r, qoyil, kulgili, voy va ma'qul. Kim qanday reaksiya qoldirganini ko'rish mumkin.
+
+Ishingizni joylang va obunachilardan fikr oling.
+
+#imkoniyat
+Ro'yxatdan o'tish: @kasb_egalari_bot

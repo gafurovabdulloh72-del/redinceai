@@ -1,0 +1,8 @@
+<b>Ishingiz arzonga ketmasin</b>
+
+Saytda mutaxassisning «dan» narxi kamida 200 000 so'm bo'ladi. Narxni so'mda yoki dollarda qo'yish mumkin, dollarda eng kami 20 $.
+
+Narx: Kabinet → «Profil» → mutaxassis profili.
+
+#imkoniyat
+Ro'yxatdan o'tish: @kasb_egalari_bot

@@ -1,0 +1,1 @@
+{"style": "B", "title": "kabinet bir joyda", "screens": ["k-menyu.png", "k-profil.png", "k-portf.png", "k-xavf.png"], "calls": [["Menyu", "barcha bo'limlar"], ["Profil", "kasb, hudud, narx"], ["Portfolio", "rasm, video, havola"], ["Xavfsizlik", "maxfiylik va 2FA"]]}
