@@ -48,12 +48,15 @@ export async function saveProgress(userId: string, postId: string, positionSec: 
   const dur = Math.max(0, Math.floor(durationSec));
   const done = dur > 0 && pos >= dur - 15;
   const now = new Date();
-  const existing = await db.query.videoProgress.findFirst({ where: and(eq(videoProgress.userId, userId), eq(videoProgress.postId, postId)), columns: { id: true } });
-  if (existing) {
-    await db.update(videoProgress).set({ positionSec: pos, durationSec: dur || undefined, done, updatedAt: now }).where(eq(videoProgress.id, existing.id));
-    return;
-  }
-  await db.insert(videoProgress).values({ id: uid(), userId, postId, positionSec: pos, durationSec: dur, done, updatedAt: now });
+  // Bitta so'rov bilan upsert: pleyer pauza + 15 s signalini deyarli bir vaqtda yuborsa ham noyob juftlik
+  // (user, post) buzilmaydi — ilgari «topilmadi → insert» oralig'ida ikkinchi so'rov UNIQUE xatosi bilan 500 berardi
+  await db
+    .insert(videoProgress)
+    .values({ id: uid(), userId, postId, positionSec: pos, durationSec: dur, done, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [videoProgress.userId, videoProgress.postId],
+      set: { positionSec: pos, ...(dur ? { durationSec: dur } : {}), done, updatedAt: now },
+    });
 }
 
 /** Bir nechta post uchun ko'rish holati — pleyer ochilganda «davom ettirish» joyi */
@@ -113,7 +116,8 @@ export async function toggleWatchLater(userId: string, postId: string): Promise<
     await db.delete(watchLater).where(eq(watchLater.id, existing.id));
     return { queued: false };
   }
-  await db.insert(watchLater).values({ id: uid(), userId, postId });
+  // Ikki marta tez bosilsa — ikkinchisi UNIQUE xatosi bermasin
+  await db.insert(watchLater).values({ id: uid(), userId, postId }).onConflictDoNothing();
   return { queued: true };
 }
 
@@ -231,7 +235,7 @@ export async function toggleInCollection(id: string, viewer: Viewer, postId: str
   // Ko'ra olmaydigan postni (ID'ni taxmin qilib) to'plamga qo'shib bo'lmaydi
   await assertCanViewPost(post, viewer);
   const [{ maxPos }] = await db.select({ maxPos: sql<number>`coalesce(max(${collectionItems.position}), -1)` }).from(collectionItems).where(eq(collectionItems.collectionId, c.id));
-  await db.insert(collectionItems).values({ id: uid(), collectionId: c.id, postId, position: Number(maxPos) + 1 });
+  await db.insert(collectionItems).values({ id: uid(), collectionId: c.id, postId, position: Number(maxPos) + 1 }).onConflictDoNothing();
   // Muqova faqat HAMMAGA ochiq postdan olinadi: to'plam ommaviy bo'lishi mumkin — pullik (obunachilarga) yoki
   // «yaqin do'stlar»/yopiq profil postining rasmi muqova orqali begonalarga chiqib ketmasin
   const publicPost = !post.subscribersOnly && (await canViewPost(post, null));

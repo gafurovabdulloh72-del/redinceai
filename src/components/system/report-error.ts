@@ -72,6 +72,19 @@ function bumpSession(n: number): void {
   }
 }
 
+const RELOAD_KEY = "ke-chunk-reload";
+/** Eskirgan JS bo'lagi — sahifani bir marta qayta yuklash (5 daqiqada ko'pi bilan bir marta, cheksiz aylanib qolmasin) */
+function reloadOnceForNewBuild(): void {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0) || 0;
+    if (Date.now() - last < 5 * 60_000) return;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch {
+    return; // sessionStorage yo'q — aylanib qolish xavfi bor, qayta yuklamaymiz
+  }
+  window.location.reload();
+}
+
 export function reportClientError(error: unknown, info: ClientErrorInfo = {}): void {
   try {
     if (typeof window === "undefined" || disabled) return;
@@ -80,6 +93,13 @@ export function reportClientError(error: unknown, info: ClientErrorInfo = {}): v
     const { name, message, stack } = normalize(error);
     const msg = message.trim();
     if (!msg) return;
+    // ViewTransition bekor qilinishi (tez ketma-ket o'tish) — zararsiz, xato emas
+    if (name === "AbortError" || /transition was skipped|transition was aborted/i.test(msg)) return;
+    // Yangi deploydan keyin eski tab o'chirilgan JS bo'lagini so'raydi — sahifani BIR MARTA yangilaymiz (yangi versiya yuklanadi)
+    if (name === "ChunkLoadError" || /loading (?:css )?chunk [\w-]+ failed|failed to fetch dynamically imported module|importing a module script failed/i.test(msg)) {
+      reloadOnceForNewBuild();
+      return;
+    }
     if (NOISE_SOURCE.test(stack) || NOISE_SOURCE.test(info.source ?? "") || NOISE_MESSAGE.some((re) => re.test(msg))) return;
 
     const key = `${msg}|${(stack.split("\n")[1] ?? "").trim()}`.slice(0, 300);

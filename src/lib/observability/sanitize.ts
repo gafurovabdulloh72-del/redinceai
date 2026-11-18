@@ -255,6 +255,8 @@ const NOISE_MESSAGE = [
   /^(?:aborterror|the (?:user|operation) (?:was )?aborted)/i,
   /load failed$|^failed to fetch$|^networkerror when attempting to fetch/i, // tarmoq uzilishi — xato emas
   /^cancelled$|^canceled$/i,
+  /transition was skipped|transition was aborted/i, // ViewTransition bekor qilindi — zararsiz
+  /loading (?:css )?chunk [\w-]+ failed|failed to fetch dynamically imported module/i, // eski tab yangi deploydan keyin (klient o'zi yangilanadi)
 ];
 export function isClientNoise(message: string, stack: string, source?: string | null): boolean {
   if (!message.trim()) return true;

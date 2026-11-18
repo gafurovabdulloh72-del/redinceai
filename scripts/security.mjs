@@ -1671,3 +1671,15 @@ test("Ishga tushirish sovg'asi: faqat admin yoqadi; o'tgan sana 422; aksiya o'ch
     await req("ad", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: before?.until > Date.now() ? before.until : 0 }) });
   }
 });
+
+test("Video holati: bir vaqtda kelgan so'rovlar 500 bermaydi (upsert), bitta qator qoladi", async () => {
+  const post = (await dbRun("SELECT id FROM posts WHERE group_id IS NULL AND (audience IS NULL OR audience = 'public') AND (subscribers_only IS NULL OR subscribers_only = 0) LIMIT 1")).rows[0];
+  if (!post) return;
+  const clId = (await (await req("cl", "/api/auth/me")).json()).data.id;
+  await dbRun("DELETE FROM video_progress WHERE user_id = ? AND post_id = ?", [clId, post.id]);
+  const rs = await Promise.all(Array.from({ length: 6 }, (_, i) => req("cl", `/api/posts/${post.id}/progress`, { method: "POST", body: JSON.stringify({ position: 10 + i, duration: 100 }) })));
+  for (const r of rs) assert.equal(r.status, 200, `parallel so'rov (keldi: ${r.status})`);
+  const n = (await dbRun("SELECT count(*) AS n FROM video_progress WHERE user_id = ? AND post_id = ?", [clId, post.id])).rows[0].n;
+  assert.equal(Number(n), 1, "bitta qator");
+  await dbRun("DELETE FROM video_progress WHERE user_id = ? AND post_id = ?", [clId, post.id]);
+});
