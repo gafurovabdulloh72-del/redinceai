@@ -111,6 +111,7 @@ export async function GET(req: Request) {
     challengesClosed: 0,
     workReviewsReminded: 0,
     workReviewsEscalated: 0,
+    launchGifts: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -274,6 +275,14 @@ export async function GET(req: Request) {
     counts.workReviewsEscalated = w.escalated;
   } catch (e) {
     counts.errors.push(`ishSharh: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (t) Ishga tushirish sovg'asi: aksiya faol bo'lsa — hali olmagan mutaxassislarga 1 yil Max (profil boshqa yo'l bilan ochilgan bo'lsa ham)
+  try {
+    const { grantLaunchGiftToAll } = await import("@/lib/subscriptions/launch-gift");
+    counts.launchGifts = await grantLaunchGiftToAll();
+  } catch (e) {
+    counts.errors.push(`sovga: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (o) Oylik TOP: oyning oxirgi kunida g'oliblar e'lon qilinadi va premium beriladi (lib/top.ts; boshqa kunlarda bo'sh)

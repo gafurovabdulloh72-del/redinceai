@@ -457,6 +457,7 @@ export const platformSettingsSchema = z.object({
   contactPriceExpert: z.coerce.number().int().min(0).max(50_000_000).optional(),
   autoVerifySpecialists: z.coerce.number().int().min(0).max(1).optional(),
   courseRefundDays: z.coerce.number().int().min(0).max(30).optional(),
+  launchGiftUntil: z.coerce.number().int().min(0).max(4_102_444_800_000).optional(),
 });
 
 export const orderSchema = z.object({

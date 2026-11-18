@@ -316,6 +316,8 @@ export const specialists = sqliteTable(
     awardPremiumUntil: integer("award_premium_until", { mode: "timestamp_ms" }),
     /** To'langan obuna tarifi (Pro tarif tizimi, 2026-11-03): pro | max — subscriptionUntil bilan birga amal qiladi */
     subscriptionTier: text("subscription_tier", { enum: ["pro", "max"] }).notNull().default("pro"),
+    /** Ishga tushirish sovg'asi (1 yil Max) berilgan vaqt — bir kishiga bir marta (lib/subscriptions/launch-gift.ts) */
+    giftGrantedAt: integer("gift_granted_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

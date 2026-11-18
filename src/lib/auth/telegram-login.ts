@@ -235,6 +235,8 @@ export async function createTelegramAccount(chatId: string, s: TelegramSignup): 
     });
     const { notifyAdminsNewSpecialist } = await import("@/lib/telegram-bot/admin");
     await notifyAdminsNewSpecialist(spId).catch(() => undefined);
+    const { grantLaunchGift } = await import("@/lib/subscriptions/launch-gift");
+    await grantLaunchGift(spId).catch(() => undefined);
   }
   await joinOfficialChannels(id).catch(() => undefined);
   return { userId: id, role: s.role, name, isNew: true };

@@ -200,6 +200,8 @@ export const PLATFORM_DEFAULTS = {
   autoVerifySpecialists: 0,
   // Mentorlik kursi uchun «N kun ichida pulni qaytarish kafolati» belgisi (0 — ko'rsatilmaydi). Qaytarish o'zi admin panelida
   courseRefundDays: 0,
+  // ISHGA TUSHIRISH SOVG'ASI: shu vaqtgacha (ms) har bir mutaxassisga bir marta 1 yil Max bepul; 0 — aksiya o'chiq
+  launchGiftUntil: 0,
 } as const;
 
 /* ------------------------------------------------------------------ */

@@ -1,3 +1,4 @@
+import { LaunchGiftBanner } from "@/components/subscription/LaunchGiftBanner";
 import type { Metadata } from "next";
 import { SHELL } from "@/lib/i18n/dict/shell";
 import Link from "next/link";
@@ -82,6 +83,7 @@ export default async function PricingPage() {
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">{NARX.intro[til](SITE.name)}</p>
       </header>
+      <LaunchGiftBanner til={til} />
 
       {/* ---------- Tarif kartalari (Oddiy · Pro · Pro yillik) ---------- */}
       <section aria-label={tr(til, NARX.plansAria)} className="mx-auto mt-10 max-w-6xl">

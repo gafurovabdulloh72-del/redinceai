@@ -62,6 +62,8 @@ import { AdminReviews, type AdminReviewRow } from "@/components/admin/AdminRevie
 import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admin/AdminSpecialistsTable";
 import { AutoVerifyToggle } from "@/components/admin/AutoVerifyToggle";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
+import { LaunchGiftCard } from "@/components/admin/LaunchGiftCard";
+import { launchGiftStats } from "@/lib/subscriptions/launch-gift";
 import { Avatar, Badge, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { ORDER_STATUS_LABEL, REGIONS, type OrderStatus } from "@/lib/constants";
@@ -662,6 +664,7 @@ export default async function AdminPage() {
         <section id="sozlamalar" className={SECTION} aria-labelledby="h-sozlamalar">
           <AdminSectionHeading title={<span id="h-sozlamalar">Sozlamalar</span>} description="Komissiya, limitlar va obuna. Foiz narx belgilanganda buyurtmaga muhrlanadi; har bir o'zgarish tarixda va audit jurnalida." />
           <div className="max-w-3xl space-y-4">
+            <LaunchGiftCard initial={await launchGiftStats()} />
             <PlatformSettingsForm initial={settings} history={settingsHistory} />
             <SpamFilterPanel />
           </div>

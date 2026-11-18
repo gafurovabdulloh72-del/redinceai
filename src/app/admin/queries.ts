@@ -18,6 +18,7 @@ const ADMIN_PAYMENT_LABELS: Record<string, string> = {
  */
 const ADMIN_TOOL_LABELS: Record<string, string> = {
   admin_error_resolved: "Admin: xato hal qilindi",
+  admin_launch_gift: "Admin: 1 yil Max sovg'asi hammaga berildi",
   admin_error_reopened: "Admin: xato qayta ochildi",
   admin_error_deleted: "Admin: xato yozuvi o'chirildi",
   admin_errors_cleared: "Admin: xatolar jurnali tozalandi",

@@ -82,6 +82,9 @@ export const PUT = handler(async (req) => {
   // Admin botiga «yangi mutaxassis — tasdiqlang» (Telegram tugmasi bilan)
   const { notifyAdminsNewSpecialist } = await import("@/lib/telegram-bot/admin");
   await notifyAdminsNewSpecialist(id).catch(() => undefined);
+  // Ishga tushirish aksiyasi faol bo'lsa — 1 yil Max sovg'a (lib/subscriptions/launch-gift.ts)
+  const { grantLaunchGift } = await import("@/lib/subscriptions/launch-gift");
+  await grantLaunchGift(id).catch(() => undefined);
 
   // Mijoz → mutaxassis: rolni yangilaymiz va cookie'ni qayta beramiz (JWT'da eski rol qolmasin)
   if (user.role === "client") {

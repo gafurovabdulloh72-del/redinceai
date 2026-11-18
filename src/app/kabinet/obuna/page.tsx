@@ -1,3 +1,4 @@
+import { LaunchGiftBanner } from "@/components/subscription/LaunchGiftBanner";
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
@@ -188,6 +189,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       />
 
       {result && <InvoiceResult inv={result} />}
+      {specialist.giftGrantedAt && specialist.subscriptionUntil && specialist.subscriptionUntil.getTime() > now.getTime() && <LaunchGiftBanner til={await getLocale()} mode="owner" giftedUntil={specialist.subscriptionUntil} />}
 
       {/* Holat */}
       <section aria-labelledby="sub-status" className="mt-6 grid gap-4 lg:grid-cols-5">

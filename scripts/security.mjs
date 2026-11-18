@@ -1638,3 +1638,36 @@ test("Kompyuter ilovasiga kirish: mehmon 401, kod faqat ilova UA'si + to'g'ri ve
   assert.equal(al.status, 200);
   assert.ok(Array.isArray(await al.json()), "assetlinks — massiv");
 });
+
+test("Ishga tushirish sovg'asi: faqat admin yoqadi; o'tgan sana 422; aksiya o'chiq bo'lsa hammaga berish 409; yoqilganda Max 1 yil, ikki marta berilmaydi", async () => {
+  const notAdmin = await req("sp", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: Date.now() + 86_400_000 }) });
+  assert.ok(notAdmin.status === 401 || notAdmin.status === 403, `admin emas → 401/403 (keldi: ${notAdmin.status})`);
+  if (!ADMIN_PASSWORD) return;
+  const before = (await (await req("ad", "/api/admin/sovga")).json()).data;
+  try {
+    const past = await req("ad", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: Date.now() - 1000 }) });
+    assert.equal(past.status, 422, `o'tgan sana → 422 (keldi: ${past.status})`);
+    await req("ad", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: 0 }) });
+    const off = await req("ad", "/api/admin/sovga", { method: "POST", body: JSON.stringify({ action: "grant_all" }) });
+    assert.equal(off.status, 409, `aksiya o'chiq → 409 (keldi: ${off.status})`);
+    const on = await req("ad", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: Date.now() + 7 * 86_400_000 }) });
+    assert.equal(on.status, 200);
+    const spId = (await (await req("sp", "/api/auth/me")).json()).data.id;
+    const row0 = (await dbRun("SELECT s.id, s.gift_granted_at, s.subscription_until, s.subscription_tier FROM specialists s WHERE s.user_id = ?", [spId])).rows[0];
+    // Sinov uchun demo mutaxassisni «olmagan» holatga keltiramiz, keyin qaytaramiz
+    await dbRun("UPDATE specialists SET gift_granted_at = NULL WHERE id = ?", [row0.id]);
+    const g = await req("ad", "/api/admin/sovga", { method: "POST", body: JSON.stringify({ action: "grant_all" }) });
+    assert.equal(g.status, 200, `hammaga berish (keldi: ${g.status})`);
+    const row = (await dbRun("SELECT gift_granted_at, subscription_until, subscription_tier FROM specialists WHERE id = ?", [row0.id])).rows[0];
+    assert.ok(row.gift_granted_at, "sovg'a belgisi qo'yildi");
+    assert.equal(row.subscription_tier, "max", "tarif Max");
+    assert.ok(Number(row.subscription_until) > Date.now() + 360 * 86_400_000, "muddat ~1 yil");
+    const again = await (await req("ad", "/api/admin/sovga", { method: "POST", body: JSON.stringify({ action: "grant_all" }) })).json();
+    const stillSame = (await dbRun("SELECT gift_granted_at FROM specialists WHERE id = ?", [row0.id])).rows[0];
+    assert.equal(String(stillSame.gift_granted_at), String(row.gift_granted_at), "ikkinchi marta berilmaydi");
+    assert.ok(again.data.granted >= 0);
+    await dbRun("UPDATE specialists SET gift_granted_at = ?, subscription_until = ?, subscription_tier = ? WHERE id = ?", [row0.gift_granted_at, row0.subscription_until, row0.subscription_tier, row0.id]);
+  } finally {
+    await req("ad", "/api/admin/sovga", { method: "PATCH", body: JSON.stringify({ until: before?.until > Date.now() ? before.until : 0 }) });
+  }
+});
