@@ -4,7 +4,7 @@ import json, os, subprocess, time
 from datetime import datetime, timezone, timedelta
 HERE = os.path.dirname(os.path.abspath(__file__)); T = os.environ["MARKETING_BOT_TOKEN"]; CH = os.environ["MARKETING_CHANNEL"]; A = f"https://api.telegram.org/bot{T}"
 TZ = timezone(timedelta(hours=5)); MAX_RUN = 8
-JADVAL = [("2026-11-12 09:30", "2026-11-12 23:00", 48), ("2026-11-13 08:00", "2026-11-13 23:00", 67), ("2026-11-14 08:00", "2026-11-14 23:00", 67)]
+JADVAL = [("2026-11-12 00:00", "2026-11-12 00:01", 114), ("2026-11-19 09:00", "2026-11-19 22:00", 17), ("2026-11-20 09:00", "2026-11-20 22:00", 17), ("2026-11-21 09:00", "2026-11-21 22:00", 17), ("2026-11-22 09:00", "2026-11-22 22:00", 17)]  # 1-oyna: 12-14-noyabrda chiqqan 114 ta
 def ts(s): return datetime.strptime(s, "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
 def target(now):
     t = 0
