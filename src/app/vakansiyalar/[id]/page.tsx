@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { BadgeCheck, Pencil, Users, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { ApplyForm } from "@/components/vacancies/ApplyForm";
+import { SourceApplyCard, SourceLine, SourceText } from "@/components/vacancies/SourceVacancy";
 import { StickyCta } from "@/components/ui/StickyCta";
 import { SaveVacancyButton } from "@/components/vacancies/SaveVacancyButton";
 import { VacancyCard } from "@/components/vacancies/VacancyCard";
@@ -65,7 +66,8 @@ export default async function VacancyPage({ params }: { params: Params }) {
   const [resume, similar, fromEmployer] = await Promise.all([
     user ? getResume(user.id) : Promise.resolve(null),
     raw ? similarVacancies(raw, 3) : Promise.resolve([]),
-    raw ? employerVacancies(raw, 3) : Promise.resolve([]),
+    // Kanaldan olingan e'londa «ish beruvchining boshqa vakansiyalari» yo'q — muallif tizim hisobi
+    raw && !raw.sourceId ? employerVacancies(raw, 3) : Promise.resolve([]),
     v.isOwner || isBotUserAgent(hdrs.get("user-agent")) ? Promise.resolve() : bumpVacancyView(v.id),
   ]);
   const closed = v.status !== "open" || v.expired;
@@ -88,7 +90,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
         datePosted: new Date(v.createdAt).toISOString(),
         validThrough: v.expiresAt ? new Date(v.expiresAt).toISOString() : undefined,
         employmentType: EMPLOYMENT_SCHEMA[v.employment],
-        hiringOrganization: { "@type": "Organization", name: v.company || v.author.name },
+        hiringOrganization: { "@type": "Organization", name: v.company || v.source?.name || v.author.name },
         identifier: { "@type": "PropertyValue", name: "Kasb Egalari", value: v.id },
         url: `${SITE_URL}/vakansiyalar/${v.id}`,
         directApply: !v.applyUrl,
@@ -151,12 +153,21 @@ export default async function VacancyPage({ params }: { params: Params }) {
             </div>
             <h1 className="display-xl mt-4 text-[28px] text-fg sm:text-[38px]">{v.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13.5px] text-fg-2">
-              <Link href={employerHref} className="inline-flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
-                <Avatar name={v.author.name} src={v.author.avatarUrl} size={20} decorative />
-                {v.company || v.author.name}
-                {v.author.emailVerified && <BadgeCheck size={14} className="text-success-text" aria-label={tr(til, VAK_DETAL.emailVerified)} />}
-              </Link>
-              {v.company && <span className="text-fg-3">{v.author.name}</span>}
+              {v.source ? (
+                <>
+                  {v.company && <span className="font-semibold text-fg">{v.company}</span>}
+                  <SourceLine source={v.source} til={til} />
+                </>
+              ) : (
+                <>
+                  <Link href={employerHref} className="inline-flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
+                    <Avatar name={v.author.name} src={v.author.avatarUrl} size={20} decorative />
+                    {v.company || v.author.name}
+                    {v.author.emailVerified && <BadgeCheck size={14} className="text-success-text" aria-label={tr(til, VAK_DETAL.emailVerified)} />}
+                  </Link>
+                  {v.company && <span className="text-fg-3">{v.author.name}</span>}
+                </>
+              )}
               <span className="text-fg-3" suppressHydrationWarning>
                 {timeAgoLabel(til, v.createdAt)}
               </span>
@@ -168,7 +179,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
           </header>
 
           <Section title={tr(til, VAK_DETAL.tasksTitle)}>
-            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg-2">{v.description}</p>
+            {v.source ? <SourceText text={v.description} /> : <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg-2">{v.description}</p>}
           </Section>
           {reqLines.length > 0 && (
             <Section title={tr(til, VAK_DETAL.requirementsTitle)}>
@@ -213,7 +224,9 @@ export default async function VacancyPage({ params }: { params: Params }) {
                 </Link>
               </div>
             </div>
-          ) : closed ? null : (
+          ) : closed ? null : v.source ? (
+            <SourceApplyCard source={v.source} til={til} />
+          ) : (
             <ApplyForm vacancyId={v.id} loggedIn={Boolean(user)} hasResume={Boolean(resume)} resumeTitle={resume?.title} initialMine={v.myApplication} applyUrl={v.applyUrl} screening={v.screening} quizAnswered={v.quizAnswered} />
           )}
           {!v.isOwner && (
@@ -278,10 +291,14 @@ export default async function VacancyPage({ params }: { params: Params }) {
       {/* Telefon: pastda yopishqoq «Ariza yuborish» — forma sahifa oxirida, ko'rinmay qolmasin (Udemy/HeadHunter odati). fixed emas — sticky */}
       {!v.isOwner && !closed && !v.myApplication && (
         <StickyCta targetId="ariza">
-          <a href="#ariza" className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]">
+          <a
+            href={v.source ? v.source.url : "#ariza"}
+            {...(v.source ? { target: "_blank", rel: "noopener noreferrer nofollow" } : {})}
+            className="btn-accent press flex h-12 items-center justify-between rounded-full px-5 text-[15px] font-semibold shadow-[var(--shadow-3)]"
+          >
             <span className="truncate">{salary}</span>
             <span className="inline-flex items-center gap-1.5">
-              {tr(til, VAK_DETAL.apply)} <ArrowRight size={16} />
+              {v.source ? (til === "ru" ? "Исходный пост" : "Asl e'lon") : tr(til, VAK_DETAL.apply)} <ArrowRight size={16} />
             </span>
           </a>
         </StickyCta>

@@ -1,0 +1,31 @@
+name: Kanallardan vakansiya
+
+# Ochiq Telegram kanallaridan vakansiya importi (lib/vacancies/import.ts) — har 15 daqiqada saytdagi
+# /api/cron/vakansiya-import ni chaqiradi. Sirlar: PROD_URL (masalan https://kasbegalari.vercel.app) va CRON_SECRET
+# (Vercel'dagi bilan bir xil). Sirlar bo'lmasa jim o'tadi. GitHub jadvali ba'zan bir necha daqiqa kechikadi — bu normal.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: vacancy-import
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Importni ishga tushirish
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$PROD_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::PROD_URL yoki CRON_SECRET siri yo'q — o'tkazib yuborildi (docs/VAKANSIYA-IMPORT.md)"
+            exit 0
+          fi
+          code=$(curl -sS -o out.json -w '%{http_code}' -m 90 -X POST -H "Authorization: Bearer $CRON_SECRET" "${PROD_URL%/}/api/cron/vakansiya-import" || echo 000)
+          echo "HTTP $code"; head -c 1500 out.json || true; echo
+          if [ "$code" != "200" ]; then echo "::warning::Import javobi $code"; fi

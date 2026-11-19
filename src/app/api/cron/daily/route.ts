@@ -112,6 +112,8 @@ export async function GET(req: Request) {
     workReviewsReminded: 0,
     workReviewsEscalated: 0,
     launchGifts: 0,
+    vacancyImported: 0,
+    vacancyImportPurged: 0,
     scheduledPublished: 0,
     scheduledFailed: 0,
     digests: null as { due: number; sent: number; skipped: number } | null,
@@ -275,6 +277,16 @@ export async function GET(req: Request) {
     counts.workReviewsEscalated = w.escalated;
   } catch (e) {
     counts.errors.push(`ishSharh: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // (u) Vakansiya importi: ochiq Telegram kanallari (asosiy jadval — har 15 daqiqa, GitHub Actions; bu kunlik zaxira) + eski jurnal
+  try {
+    const { runVacancyImport, purgeVacancyImports } = await import("@/lib/vacancies/import");
+    const r = await runVacancyImport({ budgetMs: 25_000 });
+    counts.vacancyImported = r.published + r.pending;
+    counts.vacancyImportPurged = await purgeVacancyImports(now);
+  } catch (e) {
+    counts.errors.push(`vakImport: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (t) Ishga tushirish sovg'asi: aksiya faol bo'lsa — hali olmagan mutaxassislarga 1 yil Max (profil boshqa yo'l bilan ochilgan bo'lsa ham)

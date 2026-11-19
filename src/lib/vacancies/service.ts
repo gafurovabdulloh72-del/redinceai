@@ -45,6 +45,8 @@ export interface VacancyCard {
   createdAt: number;
   expiresAt: number | null;
   author: UserMini;
+  /** Telegram kanaldan olingan e'lon: manba nomi, @kanal, asl post (null — saytda e'lon qilingan) */
+  source: { name: string; channel: string; url: string } | null;
 }
 
 export interface VacancyView extends VacancyCard {
@@ -168,6 +170,7 @@ function toCard(v: Vacancy, author: UserMini): VacancyCard {
     createdAt: v.createdAt.getTime(),
     expiresAt: v.expiresAt?.getTime() ?? null,
     author,
+    source: v.sourceId && v.sourceUrl ? { name: v.sourceName || `@${v.sourceChannel ?? ""}`, channel: v.sourceChannel ?? "", url: v.sourceUrl } : null,
   };
 }
 
@@ -253,7 +256,8 @@ export async function getVacancyView(id: string, viewer: Viewer): Promise<Vacanc
     applyClicks: isOwner ? v.applyClicks : 0,
     isOwner,
     myApplication: mine ? { id: mine.id, status: mine.status, createdAt: mine.createdAt.getTime() } : null,
-    canApply: Boolean(viewer) && !isOwner && v.status === "open" && !expired && !mine,
+    // Kanaldan olingan e'londa ariza sayt orqali emas — asl postdagi kontaktga
+    canApply: Boolean(viewer) && !isOwner && v.status === "open" && !expired && !mine && !v.sourceId,
     expired,
     savedByMe: Boolean(saved),
     screening: publicScreening(v.screening),
@@ -315,6 +319,8 @@ export async function remindExpiringVacancies(now = Date.now(), dry = false): Pr
       gt(vacancies.expiresAt, new Date(now)),
       lte(vacancies.expiresAt, new Date(now + VACANCY_EXPIRE_REMIND_DAYS * 86_400_000)),
       isNull(vacancies.expireRemindedAt),
+      // Kanaldan olingan e'lonning saytda egasi yo'q — eslatma tizim hisobiga ketmasin
+      isNull(vacancies.sourceId),
     ),
     columns: { id: true, authorId: true, title: true, expiresAt: true },
     limit: 200,
@@ -519,6 +525,8 @@ export async function listApplicants(vacancyId: string): Promise<ApplicantView[]
 export async function applyToVacancy(v: Vacancy, userId: string, coverLetter: string, rawAnswers: ScreeningAnswers = { q: {}, quiz: {} }): Promise<Application> {
   if (v.authorId === userId) throw new ApiError(400, "O'z vakansiyangizga ariza bera olmaysiz");
   if (v.status !== "open" || isExpired(v)) throw new ApiError(409, "Bu vakansiya yopilgan yoki muddati o'tgan");
+  // Telegram kanaldan olingan e'lon: saytda egasi yo'q — ariza asl postdagi kontakt orqali
+  if (v.sourceId) throw new ApiError(409, "Bu e'lon Telegram kanalidan olingan — asl postdagi kontakt orqali murojaat qiling");
   const hasQuiz = Boolean(v.screening?.quiz.length);
   const [existing, resume, author, attempt] = await Promise.all([
     db.query.applications.findFirst({ where: and(eq(applications.vacancyId, v.id), eq(applications.userId, userId)) }),

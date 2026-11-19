@@ -63,6 +63,7 @@ import { AdminSpecialistsTable, type PendingSpecialist } from "@/components/admi
 import { AutoVerifyToggle } from "@/components/admin/AutoVerifyToggle";
 import { PlatformSettingsForm } from "@/components/admin/PlatformSettingsForm";
 import { LaunchGiftCard } from "@/components/admin/LaunchGiftCard";
+import { AdminVacancySources } from "@/components/admin/AdminVacancySources";
 import { launchGiftStats } from "@/lib/subscriptions/launch-gift";
 import { Avatar, Badge, type BadgeTone } from "@/components/ui";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
@@ -283,7 +284,7 @@ export default async function AdminPage() {
   const adminTabs = [
     { key: "navbat", label: "Navbat", count: pendingRows.length + disputeRows.length + openPayouts + openReports, ids: ["tasdiqlash", "nizolar", "payoutlar", "shikoyatlar", "mentorlar"] },
     { key: "moliya", label: "Moliya", count: finance.manualPending + fraud.total, ids: ["tolovlar", "moliya", "analitika", "shubhali", "tolov-sozlamalari"] },
-    { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "xabar"] },
+    { key: "kontent", label: "Kontent", ids: ["moderatsiya", "sharhlar", "efirlar", "vakansiya-manbalari", "xabar"] },
     { key: "odamlar", label: "Odamlar", ids: ["foydalanuvchilar", "faollik"] },
     // Belgi — ochiq xatolar soni (AdminErrors amal bajarilganda `admin-tab-count` hodisasi bilan jonli yangilaydi)
     { key: "tizim", label: "Tizim", count: openErrors, ids: TIZIM_NAV.map(([id]) => id) },
@@ -499,6 +500,12 @@ export default async function AdminPage() {
         <section id="efirlar" className={SECTION} aria-labelledby="h-efirlar">
           <AdminSectionHeading title={<span id="h-efirlar">Efirlar kalendari</span>} description="Barcha kanal va jamoalardagi jonli efir e'lonlari — kelgusi va o'tgan 7 kun." />
           <AdminEvents />
+        </section>
+
+        {/* ---------- Vakansiya manbalari (2026-11-19) ---------- */}
+        <section id="vakansiya-manbalari" className={SECTION} aria-labelledby="h-vak-manba">
+          <AdminSectionHeading title={<span id="h-vak-manba">Kanallardan vakansiya</span>} description="Ochiq Telegram kanallaridagi vakansiyalar AI bilan saralanib saytga joylanadi — matn o'zgarishsiz, manba va asl postga havola bilan." />
+          <AdminVacancySources />
         </section>
 
         {/* ---------- Ommaviy xabar ---------- */}

@@ -1988,6 +1988,11 @@ export const vacancies = sqliteTable(
     viewCount: integer("view_count").notNull().default(0),
     /** Tashqi ariza havolasi (applyUrl) bosilishlari — faqat egasiga ko'rinadi */
     applyClicks: integer("apply_clicks").notNull().default(0),
+    /** Tashqi Telegram kanaldan avtomatik olingan e'lon (lib/vacancies/import.ts): manba kanal nomi, @username, asl post havolasi */
+    sourceId: text("source_id"),
+    sourceName: text("source_name"),
+    sourceChannel: text("source_channel"),
+    sourceUrl: text("source_url"),
     /** Shu vaqtdan keyin ro'yxatda chiqmaydi (VACANCY_TTL_DAYS); egasi uzaytira oladi */
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     /** Muddat tugashi haqida egasiga eslatma yuborilgan vaqt (cron, bir marta; uzaytirilganda tozalanadi) */
@@ -2000,6 +2005,61 @@ export const vacancies = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("vacancies_status_idx").on(t.status), index("vacancies_profession_idx").on(t.profession), index("vacancies_author_idx").on(t.authorId)],
+);
+
+/**
+ * VAKANSIYA MANBALARI (2026-11-19): ochiq Telegram kanallari — `t.me/s/<username>` sahifasidan yangi postlar o'qiladi,
+ * AI vakansiyani ajratadi va matn O'ZGARISHSIZ, manba bilan joylanadi (lib/vacancies/import.ts).
+ */
+export const vacancySources = sqliteTable(
+  "vacancy_sources",
+  {
+    id: text("id").primaryKey(),
+    /** Kanal username'i (kichik harf, @ siz) */
+    username: text("username").notNull(),
+    /** Kanal nomi (sahifadan olinadi) */
+    title: text("title").notNull().default(""),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    /** auto — darhol joylanadi; review — admin tasdiqlaydi */
+    mode: text("mode", { enum: ["auto", "review"] }).notNull().default("review"),
+    /** JSON: faqat shu kasblar (bo'sh — hammasi, «boshqa»dan tashqari) */
+    professions: text("professions", { mode: "json" }).$type<string[]>().notNull().default([]),
+    lastPostId: integer("last_post_id"),
+    lastCheckedAt: integer("last_checked_at", { mode: "timestamp_ms" }),
+    lastError: text("last_error"),
+    importedCount: integer("imported_count").notNull().default(0),
+    skippedCount: integer("skipped_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("vacancy_sources_username_idx").on(t.username)],
+);
+
+/** Har bir ko'rilgan post (takror ishlov berilmasin, admin rad etilganini ko'rsin) */
+export const vacancyImports = sqliteTable(
+  "vacancy_imports",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => vacancySources.id, { onDelete: "cascade" }),
+    postId: integer("post_id").notNull(),
+    /** Normallashgan matn xeshi — boshqa kanaldagi bir xil e'lon takror joylanmaydi */
+    textHash: text("text_hash").notNull(),
+    /** published — saytda; pending — admin tasdig'ini kutmoqda; skipped — vakansiya emas/kasb mos emas; duplicate — takror */
+    status: text("status", { enum: ["published", "pending", "skipped", "duplicate", "rejected"] }).notNull(),
+    reason: text("reason").notNull().default(""),
+    text: text("text").notNull().default(""),
+    /** AI ajratgan maydonlar (tasdiqlashda ishlatiladi) */
+    parsed: text("parsed", { mode: "json" }).$type<Record<string, unknown> | null>(),
+    postedAt: integer("posted_at", { mode: "timestamp_ms" }),
+    vacancyId: text("vacancy_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex("vacancy_imports_post_idx").on(t.sourceId, t.postId), index("vacancy_imports_hash_idx").on(t.textHash), index("vacancy_imports_status_idx").on(t.status, t.createdAt)],
 );
 
 /** Rezyume — har bir foydalanuvchida bittadan; ommaviy bo'lsa /rezyumelar katalogida chiqadi */

@@ -63,7 +63,7 @@ const SKILLS: Record<ProfessionSlug, string[]> = {
   boshqa: ["Kommunikatsiya", "Mas'uliyat", "Kompyuter savodxonligi"],
 };
 
-const TITLES: Record<ProfessionSlug, string> = {
+export const TITLES: Record<ProfessionSlug, string> = {
   video: "Video montajchi",
   dizayn: "Grafik dizayner",
   dasturlash: "Dasturchi",
@@ -99,11 +99,11 @@ const QUIZ: Partial<Record<ProfessionSlug, Array<{ text: string; options: string
   data: [{ text: "SQL'da natijani saralash uchun qaysi ifoda ishlatiladi?", options: ["GROUP BY", "ORDER BY", "WHERE", "JOIN"], correct: 1 }],
 };
 
-function detectProfession(brief: string): ProfessionSlug {
+export function detectProfession(brief: string): ProfessionSlug {
   for (const [slug, re] of KEYWORDS) if (re.test(brief)) return slug;
   return "boshqa";
 }
-function detectExperience(b: string): VacancyDraft["experience"] {
+export function detectExperience(b: string): VacancyDraft["experience"] {
   const m = /(\d+)\s*\+?\s*yil/i.exec(b);
   if (m) {
     const n = Number(m[1]);
@@ -113,7 +113,7 @@ function detectExperience(b: string): VacancyDraft["experience"] {
   if (/senior|katta tajriba/i.test(b)) return "senior";
   return "junior";
 }
-function detectFormat(b: string): VacancyDraft["format"] {
+export function detectFormat(b: string): VacancyDraft["format"] {
   if (/gibrid|hybrid/i.test(b)) return "hybrid";
   if (/masofa|remote|onlayn|online|uydan|удал[её]н/i.test(b)) return "remote";
   if (/ofis|office|joyida|filial|studiya/i.test(b)) return "office";
@@ -121,7 +121,7 @@ function detectFormat(b: string): VacancyDraft["format"] {
   if (detectRegion(b)) return "office";
   return "remote";
 }
-function detectEmployment(b: string): VacancyDraft["employment"] {
+export function detectEmployment(b: string): VacancyDraft["employment"] {
   if (/amaliyot|stajyor|stajirovka|internship/i.test(b)) return "internship";
   if (/yarim stavka|part[- ]?time|kuniga \d soat/i.test(b)) return "part";
   if (/loyiha|freelance|frilans|bir martalik|proyekt/i.test(b)) return "project";

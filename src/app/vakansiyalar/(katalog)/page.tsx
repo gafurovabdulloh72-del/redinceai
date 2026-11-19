@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
+import { maybeRunVacancyImport } from "@/lib/vacancies/import";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Briefcase, Plus, Search, SlidersHorizontal } from "lucide-react";
@@ -42,6 +44,8 @@ function alertName(til: Locale, f: VacancyFilter): string {
 /** Vakansiyalar katalogi — barcha onlayn kasblar; filtr GET forma (JS'siz ishlaydi) + kasb va tez chiplar */
 export default async function VacanciesPage({ searchParams }: { searchParams: Promise<Raw> }) {
   const til = await getLocale();
+  // Kanallardan vakansiya: tashqi jadval ishlamay qolsa ham sahifa ochilganda (15 daqiqada ko'pi bilan bir marta) — javobdan keyin
+  after(() => maybeRunVacancyImport());
   const f = parseFilter(flat(await searchParams));
   const [result, counts, user] = await Promise.all([listVacancies(f), vacancyCountsByProfession(), getCurrentUser()]);
   const query = toQuery(f);

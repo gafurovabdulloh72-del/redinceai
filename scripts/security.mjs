@@ -1683,3 +1683,20 @@ test("Video holati: bir vaqtda kelgan so'rovlar 500 bermaydi (upsert), bitta qat
   assert.equal(Number(n), 1, "bitta qator");
   await dbRun("DELETE FROM video_progress WHERE user_id = ? AND post_id = ?", [clId, post.id]);
 });
+
+test("Kanallardan vakansiya: admin emas 403, cron sirsiz 401, kanal e'loniga sayt orqali ariza yo'q (409)", async () => {
+  const r = await req("sp", "/api/admin/vakansiya-manbalari");
+  assert.equal(r.status, 403, `admin emas → 403 (keldi: ${r.status})`);
+  const c = await fetch(`${BASE}/api/cron/vakansiya-import`, { method: "POST" });
+  assert.equal(c.status, 401, `cron sirsiz → 401 (keldi: ${c.status})`);
+  const author = (await dbRun("SELECT id FROM users WHERE role = 'admin' LIMIT 1")).rows[0];
+  const id = `sec-vimp-${Date.now()}`;
+  await dbRun("INSERT INTO vacancies (id, author_id, title, profession, description, status, source_id, source_name, source_channel, source_url, created_at, updated_at, expires_at) VALUES (?, ?, 'Sinov', 'video', 'Sinov matni', 'open', 'src-test', 'Kanal', 'kanal_test', 'https://t.me/kanal_test/1', ?, ?, ?)", [id, author.id, Date.now(), Date.now(), Date.now() + 86_400_000]);
+  try {
+    const a = await req("cl", `/api/vakansiyalar/${id}/ariza`, { method: "POST", body: JSON.stringify({ coverLetter: "Salom, men tayyorman" }) });
+    assert.equal(a.status, 409, `kanal e'loniga ariza → 409 (keldi: ${a.status})`);
+  } finally {
+    await dbRun("DELETE FROM applications WHERE vacancy_id = ?", [id]).catch(() => undefined);
+    await dbRun("DELETE FROM vacancies WHERE id = ?", [id]).catch(() => undefined);
+  }
+});

@@ -18,6 +18,11 @@ const ADMIN_PAYMENT_LABELS: Record<string, string> = {
  */
 const ADMIN_TOOL_LABELS: Record<string, string> = {
   admin_error_resolved: "Admin: xato hal qilindi",
+  admin_vacancy_source_add: "Admin: vakansiya manbasi qo'shildi",
+  admin_vacancy_source_update: "Admin: vakansiya manbasi o'zgartirildi",
+  admin_vacancy_source_delete: "Admin: vakansiya manbasi o'chirildi",
+  admin_vacancy_import_publish: "Admin: kanal e'loni joylandi",
+  admin_vacancy_import_reject: "Admin: kanal e'loni rad etildi",
   admin_launch_gift: "Admin: 1 yil Max sovg'asi hammaga berildi",
   admin_error_reopened: "Admin: xato qayta ochildi",
   admin_error_deleted: "Admin: xato yozuvi o'chirildi",

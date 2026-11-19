@@ -36,8 +36,9 @@ export async function VacancyCard({ v, className, headingLevel = "h2", href }: {
         </Link>
       </Heading>
       <p className="mt-1 flex min-w-0 items-center gap-1 text-[13px] text-fg-2">
-        <span className="truncate">{v.company || v.author.name}</span>
-        {v.author.emailVerified && <BadgeCheck size={13} className="shrink-0 text-success-text" aria-label={tr(til, VAK_KARTA.emailVerified)} />}
+        <span className="truncate" data-no-auto={v.source ? "" : undefined}>{v.source ? v.company || v.source.name : v.company || v.author.name}</span>
+        {v.source && <span className="shrink-0 rounded bg-[#229ED9]/12 px-1.5 py-px text-[10.5px] font-bold text-[#1c8cc4]">TG</span>}
+        {!v.source && v.author.emailVerified && <BadgeCheck size={13} className="shrink-0 text-success-text" aria-label={tr(til, VAK_KARTA.emailVerified)} />}
         <span className="shrink-0 text-fg-4">· {professionLabelTr(til, v.profession, true)}</span>
       </p>
 
