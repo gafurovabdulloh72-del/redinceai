@@ -2284,3 +2284,22 @@ html[data-motion="reduce"] img[data-img-loading] { animation: none; }
   right: -6px;
   clip-path: path("M0 0 C0 7 2 11 10 14 L0 14 Z");
 }
+
+/* PORTFOLIO SAYT (/p/<slug>, `data-showcase`): ijodkor vitrinasi — ilova qobig'i (yon menyu, telefon panellari, kapsula, main paddingi) yashirin */
+html:has([data-showcase]) .m-topbar,
+html:has([data-showcase]) .m-tabbar,
+html:has([data-showcase]) .side-rail,
+html:has([data-showcase]) .shell-capsule,
+html:has([data-showcase]) [data-back-to-top] {
+  display: none;
+}
+html:has([data-showcase]) .app-shell {
+  padding-left: 0;
+}
+html:has([data-showcase]) main {
+  padding: 0 !important;
+  max-width: none;
+}
+html:has([data-showcase]) body {
+  background: #120e0c;
+}

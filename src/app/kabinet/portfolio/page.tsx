@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { ButtonLink, EmptyState } from "@/components/ui";
+import { ShowcaseLinkCard } from "@/components/portfolio/ShowcaseLinkCard";
 import { PortfolioManager, type PortfolioItemDTO } from "@/components/kabinet/PortfolioManager";
 import { getCurrentUser, loginRedirectPath } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -53,7 +54,10 @@ export default async function PortfolioPage() {
       </header>
 
       {sp ? (
+        <>
+        <ShowcaseLinkCard path={`/p/${sp.slug}`} til={til} />
         <PortfolioManager items={items} max={MAX_ITEMS} publicHref={`/mutaxassislar/${sp.slug}#portfolio`} />
+        </>
       ) : (
         <EmptyState
           icon={Sparkles}

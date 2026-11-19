@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { createHash } from "node:crypto";
 import {
   MessageCircle,
+  MonitorPlay,
   Activity,
   AlertTriangle,
   ArrowRight,
@@ -656,6 +657,12 @@ export default async function SpecialistPage({ params, searchParams }: { params:
                 </ButtonLink>
               )}
               {!isOwner && <FavoriteButton specialistId={sp.id} variant="outline" size="md" />}
+              {/* Portfolio sayt (/p/<slug>) — ishlar bitta vitrina sahifada; ishlar bo'lsa yoki egasiga */}
+              {(isOwner || (raw.portfolio.length > 0 && !privateLocked)) && (
+                <ButtonLink href={`/p/${sp.slug}`} variant="outline" size="md" className="min-w-0 !px-3" aria-label={til === "ru" ? "Сайт-портфолио" : "Portfolio sayt"}>
+                  <MonitorPlay size={15} /> <span className="max-sm:hidden">{til === "ru" ? "Портфолио" : "Portfolio"}</span>
+                </ButtonLink>
+              )}
               <ShareButton title={`${sp.user.name} — ${sp.title}`} url={shortUrl ?? undefined} qrDownloadHref={qrHref} size="md" variant="outline" iconOnly />
             </li>
           </ul>

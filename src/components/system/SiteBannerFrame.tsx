@@ -14,7 +14,7 @@ import { BANNER_COOKIE, BANNER_STORAGE_KEY } from "./banner-keys";
  * Texnik ishlar chizig'i bu qoidadan MUSTASNO (SiteBanner) — u qisqa muddatli va yozish baribir yopiq.
  * Yangi shunday sahifa qo'shsangiz (balandligi `100dvh`dan hisoblangan) — yo'lini shu ro'yxatga yozing.
  */
-const FIT_SCREENS = ["/kabinet/chat"] as const;
+const FIT_SCREENS = ["/kabinet/chat", "/p"] as const;
 
 /**
  * E'lon chizig'ini yopish («×»). Yopilgan versiya `localStorage`da eslab qolinadi — admin e'lonni o'zgartirsa

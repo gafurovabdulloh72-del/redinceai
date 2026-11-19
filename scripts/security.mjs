@@ -1700,3 +1700,14 @@ test("Kanallardan vakansiya: admin emas 403, cron sirsiz 401, kanal e'loniga say
     await dbRun("DELETE FROM vacancies WHERE id = ?", [id]).catch(() => undefined);
   }
 });
+
+test("Portfolio sayt (/p/<slug>): mavjud bo'lmagani 404, sahifada kontakt (telefon/email) chiqmaydi", async () => {
+  const miss = await fetch(`${BASE}/p/yoq-odam-${Date.now()}`);
+  assert.equal(miss.status, 404, `yo'q ijodkor → 404 (keldi: ${miss.status})`);
+  const row = (await dbRun("SELECT s.slug FROM specialists s JOIN users u ON u.id = s.user_id WHERE u.is_banned = 0 LIMIT 1")).rows[0];
+  if (!row) return;
+  const r = await fetch(`${BASE}/p/${row.slug}`);
+  assert.equal(r.status, 200);
+  const html = await r.text();
+  assert.ok(!/\+998\s?\d{2}/.test(html) && !/mailto:/.test(html), "kontakt chiqmaydi");
+});
