@@ -179,6 +179,10 @@ export default async function VacancyPage({ params }: { params: Params }) {
           </header>
 
           <Section title={tr(til, VAK_DETAL.tasksTitle)}>
+            {v.source?.image && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={v.source.image} alt={v.title} loading="lazy" className="mb-4 w-full max-w-[520px] rounded-[var(--r-md)] border border-line object-contain" />
+            )}
             {v.source ? <SourceText text={v.description} /> : <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg-2">{v.description}</p>}
           </Section>
           {reqLines.length > 0 && (
@@ -207,7 +211,20 @@ export default async function VacancyPage({ params }: { params: Params }) {
         </div>
 
         <aside id="ariza" className="min-w-0 scroll-mt-20 space-y-4 lg:sticky lg:top-24 lg:col-span-4">
-          {v.isOwner ? (
+          {v.source ? (
+            <>
+              <SourceApplyCard source={v.source} til={til} />
+              {/* Admin: kanal e'loni — «Nomzodlar» yo'q (ariza sayt orqali emas), faqat tahrirlash */}
+              {v.isOwner && (
+                <div className="flex items-center justify-between gap-2 rounded-[var(--r-sm)] border border-dashed border-line-2 px-3.5 py-2.5 text-[12.5px] text-fg-3">
+                  <span>{til === "ru" ? "Вы админ" : "Siz adminsiz"} · {VAK_DETAL.ownerViews[til](v.viewCount)}</span>
+                  <Link href={`/vakansiyalar/${v.id}/tahrir`} className="inline-flex items-center gap-1 font-semibold text-fg hover:underline">
+                    <Pencil size={13} /> {tr(til, VAK_DETAL.edit)}
+                  </Link>
+                </div>
+              )}
+            </>
+          ) : v.isOwner ? (
             <div className="card m-flat p-5">
               <p className="text-[15px] font-semibold text-fg">{tr(til, VAK_DETAL.yourVacancy)}</p>
               <p className="mt-1 text-[13px] text-fg-3">
@@ -224,9 +241,7 @@ export default async function VacancyPage({ params }: { params: Params }) {
                 </Link>
               </div>
             </div>
-          ) : closed ? null : v.source ? (
-            <SourceApplyCard source={v.source} til={til} />
-          ) : (
+          ) : closed ? null : (
             <ApplyForm vacancyId={v.id} loggedIn={Boolean(user)} hasResume={Boolean(resume)} resumeTitle={resume?.title} initialMine={v.myApplication} applyUrl={v.applyUrl} screening={v.screening} quizAnswered={v.quizAnswered} />
           )}
           {!v.isOwner && (

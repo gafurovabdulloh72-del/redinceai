@@ -1993,6 +1993,8 @@ export const vacancies = sqliteTable(
     sourceName: text("source_name"),
     sourceChannel: text("source_channel"),
     sourceUrl: text("source_url"),
+    /** Postdagi rasm (afisha) — o'z saqlashimizga ko'chirilgan nusxa */
+    sourceImage: text("source_image"),
     /** Shu vaqtdan keyin ro'yxatda chiqmaydi (VACANCY_TTL_DAYS); egasi uzaytira oladi */
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     /** Muddat tugashi haqida egasiga eslatma yuborilgan vaqt (cron, bir marta; uzaytirilganda tozalanadi) */

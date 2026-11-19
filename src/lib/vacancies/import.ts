@@ -1,16 +1,16 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, desc, eq, inArray, lt, or, isNull, sql } from "drizzle-orm";
-import { z } from "zod";
+import { and, desc, eq, inArray, isNotNull, lt, or, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, vacancies, vacancyImports, vacancySources } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
-import { geminiJson } from "@/lib/i18n/gemini";
-import { REGIONS, TERMS_VERSION } from "@/lib/constants";
+import { TERMS_VERSION } from "@/lib/constants";
 import { uid } from "@/lib/utils";
-import { PROFESSION_SLUGS, VACANCY_TTL_DAYS, VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
-import { TITLES, detectEmployment, detectExperience, detectFormat, detectProfession, detectRegion, detectSalary } from "./assistant";
-import { normalizeChannel, parseChannelPage, type ChannelPost } from "./telegram-channel";
+import { PROFESSION_SLUGS, VACANCY_TTL_DAYS, type ProfessionSlug } from "./format";
+import { TITLES, detectProfession } from "./assistant";
+import { classifyByKeywords, classifyPost, type Classified } from "./import-classify";
+export { classifyByKeywords, classifyPost, extractJobTitle, detectImportFormat, detectImportProfession, type Classified } from "./import-classify";
+import { TG_CDN_RE, normalizeChannel, parseChannelPage, type ChannelPost } from "./telegram-channel";
 
 /**
  * VAKANSIYA IMPORTI (2026-11-19): ochiq Telegram kanallaridan avtomatik vakansiya.
@@ -71,88 +71,6 @@ async function importAuthorId(): Promise<string> {
 /* ------------------------------------------------------------------ */
 /* Tasniflash (AI yoki kalit so'zlar)                                  */
 /* ------------------------------------------------------------------ */
-export interface Classified {
-  isVacancy: boolean;
-  reason: string;
-  title: string;
-  profession: ProfessionSlug;
-  format: "remote" | "hybrid" | "office";
-  employment: "full" | "part" | "project" | "internship";
-  experience: "none" | "junior" | "middle" | "senior";
-  regionSlug: string | null;
-  salaryMin: number | null;
-  salaryMax: number | null;
-  company: string;
-  source: "ai" | "keywords";
-}
-
-const VACANCY_RE = /vakans|вакан|ishga\s+(?:taklif|olamiz|olinadi|qabul)|xodim\s+(?:kerak|izla|qidir)|kerak\b|talab\s+qilinadi|izlayapmiz|qidiryapmiz|izlaymiz|требует|ищем|ищу\s+(?:монтаж|дизайн|smm)|в\s+команду|hiring|we\s+are\s+looking|#ish\b|#job/i;
-const RESUME_RE = /#?rezyume|#?резюме|ish\s+(?:qidiryapman|izlayapman|kerak\s+edi)|ищу\s+работу|portfolio(?:m|im)\s|xizmat(?:imni|lar)\s+taklif|buyurtma\s+qabul\s+qilaman|kurs(?:ga)?\s+(?:yozil|qabul)|reklama\s+uchun/i;
-
-export function classifyByKeywords(text: string): Classified {
-  const profession = detectProfession(text);
-  const format = detectFormat(text);
-  const isResume = RESUME_RE.test(text);
-  const isVacancy = !isResume && VACANCY_RE.test(text) && profession !== "boshqa";
-  const region = format === "remote" ? null : detectRegion(text);
-  const where = format === "remote" ? "masofaviy" : region ? (REGIONS.find((r) => r.slug === region)?.short ?? "") : "";
-  return {
-    isVacancy,
-    reason: isResume ? "Rezyume yoki xizmat e'loni" : !VACANCY_RE.test(text) ? "Vakansiya belgisi yo'q" : profession === "boshqa" ? "Kasb aniqlanmadi" : "Kalit so'zlar bo'yicha",
-    title: `${TITLES[profession]}${where ? ` (${where})` : ""}`.slice(0, VACANCY_TITLE_MAX),
-    profession,
-    format,
-    employment: detectEmployment(text),
-    experience: detectExperience(text),
-    regionSlug: region,
-    ...detectSalary(text),
-    company: "",
-    source: "keywords",
-  };
-}
-
-const aiSchema = z.object({
-  is_vacancy: z.boolean(),
-  reason: z.string().max(200).default(""),
-  title: z.string().trim().max(VACANCY_TITLE_MAX).default(""),
-  profession: z.enum(PROFESSION_SLUGS).default("boshqa"),
-  format: z.enum(["remote", "hybrid", "office"]).default("remote"),
-  employment: z.enum(["full", "part", "project", "internship"]).default("full"),
-  experience: z.enum(["none", "junior", "middle", "senior"]).default("junior"),
-  company: z.string().trim().max(80).default(""),
-});
-
-const SYSTEM = `Sen O'zbekistondagi «Kasb Egalari» ish platformasi uchun Telegram kanal postlarini saralovchisan.
-Post — ISH BERUVCHI xodim izlayotgan VAKANSIYA e'lonimi? Rezyume (odam o'zi ish qidirmoqda), xizmat/kurs/mahsulot reklamasi, yangilik, so'rovnoma — vakansiya EMAS.
-Vakansiya bo'lsa, maydonlarni ajrat. Matnni QAYTA YOZMA. title — qisqa lavozim nomi o'zbekcha lotin yozuvida (masalan «Video montajchi», «Grafik dizayner», «SMM menejer»), postdagi lavozimga mos.
-profession: ${PROFESSION_SLUGS.join(", ")} (video — montaj/videograf/motion/animatsiya; dizayn — grafik/UI/UX; marketing — SMM/target/reklama; kontent — kopirayter/tarjimon/ssenariy).
-format: remote (masofaviy/onlayn) | hybrid | office (joyida). employment: full | part | project (frilans/loyiha) | internship. experience: none | junior (≤1 yil) | middle (1–3) | senior (3+).
-company — postda ANIQ yozilgan kompaniya/studiya nomi, bo'lmasa "". O'ylab topma.
-Javob — FAQAT JSON: {"is_vacancy":bool,"reason":"qisqa sabab","title","profession","format","employment","experience","company"}.`;
-
-export async function classifyPost(text: string): Promise<Classified> {
-  const base = classifyByKeywords(text);
-  const raw = await geminiJson(SYSTEM, text.slice(0, 4000), { temperature: 0.1, timeoutMs: 15_000 });
-  const p = raw ? aiSchema.safeParse(raw) : null;
-  if (!p?.success) return base;
-  const d = p.data;
-  const region = d.format === "remote" ? null : detectRegion(text);
-  return {
-    isVacancy: d.is_vacancy,
-    reason: d.reason || (d.is_vacancy ? "AI: vakansiya" : "AI: vakansiya emas"),
-    title: (d.title || base.title).slice(0, VACANCY_TITLE_MAX),
-    profession: d.profession,
-    format: d.format,
-    employment: d.employment,
-    experience: d.experience,
-    regionSlug: region,
-    salaryMin: base.salaryMin,
-    salaryMax: base.salaryMax,
-    company: d.company,
-    source: "ai",
-  };
-}
-
 /* ------------------------------------------------------------------ */
 /* Kanal sahifasini o'qish                                             */
 /* ------------------------------------------------------------------ */
@@ -183,9 +101,29 @@ export async function fetchChannel(username: string) {
 /* ------------------------------------------------------------------ */
 type SourceRow = typeof vacancySources.$inferSelect;
 
-async function createImportedVacancy(src: Pick<SourceRow, "id" | "title" | "username">, post: { text: string; url: string }, c: Classified): Promise<string> {
+/** Postdagi rasmni Telegram CDN'dan o'z saqlashimizga ko'chirish (CDN manzili vaqtinchalik). Xato — null, e'lon rasmsiz chiqadi */
+async function importPhoto(url: string | null | undefined): Promise<string | null> {
+  if (!url || !TG_CDN_RE.test(url)) return null;
+  try {
+    const r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10_000), cache: "no-store" });
+    if (!r.ok) return null;
+    const len = Number(r.headers.get("content-length") ?? 0);
+    if (len > 6 * 1024 * 1024) return null;
+    const bytes = Buffer.from(await r.arrayBuffer());
+    if (bytes.length > 6 * 1024 * 1024) return null;
+    const { sniffImage, storeTelegramFile } = await import("@/lib/telegram-bot/media");
+    const kind = sniffImage(bytes);
+    if (!kind) return null;
+    return await storeTelegramFile(bytes, kind.mime, kind.ext);
+  } catch {
+    return null;
+  }
+}
+
+async function createImportedVacancy(src: Pick<SourceRow, "id" | "title" | "username">, post: { text: string; url: string; photo?: string | null }, c: Classified): Promise<string> {
   const now = new Date();
   const id = uid();
+  const image = await importPhoto(post.photo);
   await db.insert(vacancies).values({
     id,
     authorId: await importAuthorId(),
@@ -208,6 +146,7 @@ async function createImportedVacancy(src: Pick<SourceRow, "id" | "title" | "user
     sourceName: src.title || `@${src.username}`,
     sourceChannel: src.username,
     sourceUrl: post.url,
+    sourceImage: image,
     createdAt: now,
     updatedAt: now,
   });
@@ -233,7 +172,7 @@ async function processPost(src: SourceRow, post: ChannelPost): Promise<"publishe
   const status = !fits ? "skipped" : src.mode === "auto" ? "published" : "pending";
   const reason = !c.isVacancy ? c.reason : !fits ? `Kasb mos emas (${c.profession})` : c.reason;
   // Avval qator band qilinadi (parallel yugurishda ikki marta joylanmasin), keyin vakansiya
-  const ins = await db.insert(vacancyImports).values({ ...base, status, reason, parsed: c as unknown as Record<string, unknown> }).onConflictDoNothing();
+  const ins = await db.insert(vacancyImports).values({ ...base, status, reason, parsed: { ...c, photo: post.photo } as unknown as Record<string, unknown> }).onConflictDoNothing();
   if (ins.rowsAffected === 0) return "skipped";
   if (status === "published") {
     const vid = await createImportedVacancy(src, post, c);
@@ -442,9 +381,12 @@ export async function decideImport(id: string, action: "publish" | "reject"): Pr
   if (claim.rowsAffected === 0) throw new ApiError(409, "Allaqachon joylangan");
   const src = await db.query.vacancySources.findFirst({ where: eq(vacancySources.id, row.sourceId) });
   if (!src) throw new ApiError(404, "Manba topilmadi");
-  const parsed = (row.parsed as unknown as Classified | null) ?? classifyByKeywords(row.text);
+  // AI tasnifi bo'lsa — u, aks holda yangi kalit so'z tahlili (eski parsed eskirgan bo'lishi mumkin)
+  const prev = row.parsed as unknown as Classified | null;
+  const parsed = prev?.source === "ai" ? prev : classifyByKeywords(row.text);
   const fixed: Classified = { ...parsed, profession: parsed.profession === "boshqa" ? detectProfession(row.text) : parsed.profession };
-  const vid = await createImportedVacancy(src, { text: row.text, url: `https://t.me/${src.username}/${row.postId}` }, fixed);
+  const photo = (row.parsed as { photo?: string | null } | null)?.photo ?? null;
+  const vid = await createImportedVacancy(src, { text: row.text, url: `https://t.me/${src.username}/${row.postId}`, photo }, fixed);
   await db.update(vacancyImports).set({ vacancyId: vid, reason: "Admin joyladi" }).where(eq(vacancyImports.id, id));
   await db.update(vacancySources).set({ importedCount: sql`${vacancySources.importedCount} + 1` }).where(eq(vacancySources.id, src.id));
   return { vacancyId: vid };
@@ -456,4 +398,30 @@ export async function purgeVacancyImports(now = Date.now()): Promise<number> {
     .delete(vacancyImports)
     .where(and(inArray(vacancyImports.status, ["skipped", "duplicate", "rejected"]), lt(vacancyImports.createdAt, new Date(now - 60 * 86_400_000))));
   return r.rowsAffected;
+}
+
+/**
+ * Saytdagi kanal e'lonlarini QAYTA TAHLIL qilish (admin tugmasi): lavozim, kasb, format, hudud, maosh, tajriba matndan
+ * qayta aniqlanadi. Matn, manba va rasm o'zgarmaydi. AI kaliti bo'lsa — AI bilan (ko'pi bilan `limit` ta), bo'lmasa kalit so'zlar.
+ */
+export async function reparseImportedVacancies(limit = 200): Promise<{ checked: number; changed: number }> {
+  const rows = await db
+    .select({ id: vacancies.id, description: vacancies.description, title: vacancies.title, profession: vacancies.profession, format: vacancies.format, regionSlug: vacancies.regionSlug })
+    .from(vacancies)
+    .where(isNotNull(vacancies.sourceId))
+    .orderBy(desc(vacancies.createdAt))
+    .limit(limit);
+  const started = Date.now();
+  let changed = 0;
+  let checked = 0;
+  for (const v of rows) {
+    if (Date.now() - started > 45_000) break;
+    checked += 1;
+    const c = process.env.GEMINI_API_KEY?.trim() ? await classifyPost(v.description) : classifyByKeywords(v.description);
+    const profession = c.profession === "boshqa" ? v.profession : c.profession;
+    const next = { title: c.title || v.title, profession, format: c.format, regionSlug: c.regionSlug, employment: c.employment, experience: c.experience, salaryMin: c.salaryMin, salaryMax: c.salaryMax, company: c.company };
+    if (next.title !== v.title || next.profession !== v.profession || next.format !== v.format || next.regionSlug !== v.regionSlug) changed += 1;
+    await db.update(vacancies).set({ ...next, updatedAt: new Date() }).where(eq(vacancies.id, v.id));
+  }
+  return { checked, changed };
 }

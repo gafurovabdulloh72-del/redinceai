@@ -106,6 +106,21 @@ export function AdminVacancySources() {
     }
   }
 
+  async function reparse() {
+    const ok = await confirm({ title: "E'lonlar qayta tahlil qilinsinmi?", text: "Saytdagi kanal e'lonlarining lavozimi, kasbi, formati va hududi matndan qayta aniqlanadi. Matn, manba va rasm o'zgarmaydi.", confirmLabel: "Qayta tahlil" });
+    if (!ok) return;
+    setBusy("reparse");
+    try {
+      const r = await call<{ checked: number; changed: number }>("POST", { action: "reparse" });
+      showToast(`Tekshirildi: ${r.checked} · tuzatildi: ${r.changed}`);
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Xatolik", "error");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function patch(s: Source, p: Partial<Pick<Source, "enabled" | "mode" | "professions">>) {
     setSources((list) => list?.map((x) => (x.id === s.id ? { ...x, ...p } : x)) ?? list);
     try {
@@ -169,7 +184,10 @@ export function AdminVacancySources() {
           <button type="button" disabled={busy === "add" || channels.trim().length < 3} onClick={() => void add()} className="btn-ink inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold disabled:opacity-50">
             {busy === "add" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Qo'shish
           </button>
-          <button type="button" disabled={!!busy || !sources?.length} onClick={() => void run()} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
+          <button type="button" disabled={!!busy || !sources?.length} onClick={() => void reparse()} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
+            {busy === "reparse" ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Qayta tahlil
+          </button>
+          <button type="button" disabled={!!busy || !sources?.length} onClick={() => void run()} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line-2 px-4 text-[13px] font-semibold text-fg-2 hover:text-fg disabled:opacity-50">
             {busy === "run" ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />} Hozir tekshirish
           </button>
         </div>

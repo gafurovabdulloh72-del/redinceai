@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
-import { addSources, decideImport, deleteSource, listImports, listSources, runVacancyImport, updateSource } from "@/lib/vacancies/import";
+import { addSources, decideImport, deleteSource, listImports, listSources, reparseImportedVacancies, runVacancyImport, updateSource } from "@/lib/vacancies/import";
 import { PROFESSION_SLUGS } from "@/lib/vacancies/format";
 
 export const maxDuration = 60;
@@ -15,6 +15,7 @@ export const maxDuration = 60;
 const postSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("add"), channels: z.string().trim().min(3).max(5000), mode: z.enum(["auto", "review"]).default("review") }),
   z.strictObject({ action: z.literal("run"), sourceId: z.string().max(40).optional() }),
+  z.strictObject({ action: z.literal("reparse") }),
   z.strictObject({ action: z.literal("decide"), id: z.string().min(1).max(40), decision: z.enum(["publish", "reject"]) }),
 ]);
 const patchSchema = z.strictObject({
@@ -40,6 +41,11 @@ export const POST = handler(async (req) => {
     const r = await addSources(input.channels, input.mode);
     if (!r.added.length && !r.existing.length) throw new ApiError(422, "Kanal nomi topilmadi — @kanal yoki t.me/kanal ko'rinishida yozing", { channels: "Masalan: @montaj_vakansiya" });
     await audit(session.sub, "admin_vacancy_source_add", { targetType: "vacancy_source", meta: { added: r.added, mode: input.mode } }, req);
+    return ok(r);
+  }
+  if (input.action === "reparse") {
+    const r = await reparseImportedVacancies();
+    await audit(session.sub, "admin_vacancy_reparse", { targetType: "vacancy_source", meta: r }, req);
     return ok(r);
   }
   if (input.action === "run") {

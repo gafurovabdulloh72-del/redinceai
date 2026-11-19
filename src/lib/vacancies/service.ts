@@ -46,7 +46,7 @@ export interface VacancyCard {
   expiresAt: number | null;
   author: UserMini;
   /** Telegram kanaldan olingan e'lon: manba nomi, @kanal, asl post (null — saytda e'lon qilingan) */
-  source: { name: string; channel: string; url: string } | null;
+  source: { name: string; channel: string; url: string; image: string | null } | null;
 }
 
 export interface VacancyView extends VacancyCard {
@@ -170,7 +170,7 @@ function toCard(v: Vacancy, author: UserMini): VacancyCard {
     createdAt: v.createdAt.getTime(),
     expiresAt: v.expiresAt?.getTime() ?? null,
     author,
-    source: v.sourceId && v.sourceUrl ? { name: v.sourceName || `@${v.sourceChannel ?? ""}`, channel: v.sourceChannel ?? "", url: v.sourceUrl } : null,
+    source: v.sourceId && v.sourceUrl ? { name: v.sourceName || `@${v.sourceChannel ?? ""}`, channel: v.sourceChannel ?? "", url: v.sourceUrl, image: v.sourceImage ?? null } : null,
   };
 }
 

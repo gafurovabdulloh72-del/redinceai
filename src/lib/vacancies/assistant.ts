@@ -36,7 +36,7 @@ export const draftInputSchema = z.object({
 /* ------------------------------------------------------------------ */
 /* Shablon (AI'siz)                                                    */
 /* ------------------------------------------------------------------ */
-const KEYWORDS: Array<[ProfessionSlug, RegExp]> = [
+export const KEYWORDS: Array<[ProfessionSlug, RegExp]> = [
   ["video", /montaj|video|operator|reels|motion|animats|kliper|premiere|after effects|davinci/i],
   ["dizayn", /dizayn|figma|logo|brending|\bui\b|\bux\b|ui\/ux|illustrator|photoshop|grafik/i],
   ["dasturlash", /dastur|frontend|backend|developer|react|python|javascript|php|flutter|mobil ilova|full ?stack|1c/i],

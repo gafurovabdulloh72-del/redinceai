@@ -23,6 +23,7 @@ const ADMIN_TOOL_LABELS: Record<string, string> = {
   admin_vacancy_source_delete: "Admin: vakansiya manbasi o'chirildi",
   admin_vacancy_import_publish: "Admin: kanal e'loni joylandi",
   admin_vacancy_import_reject: "Admin: kanal e'loni rad etildi",
+  admin_vacancy_reparse: "Admin: kanal e'lonlari qayta tahlil qilindi",
   admin_launch_gift: "Admin: 1 yil Max sovg'asi hammaga berildi",
   admin_error_reopened: "Admin: xato qayta ochildi",
   admin_error_deleted: "Admin: xato yozuvi o'chirildi",

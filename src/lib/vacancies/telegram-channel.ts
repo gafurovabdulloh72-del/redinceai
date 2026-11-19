@@ -15,6 +15,21 @@ export interface ChannelPost {
   url: string;
   /** Rasm/video bormi (faqat ma'lumot uchun) */
   hasMedia: boolean;
+  /** Postdagi birinchi rasm (Telegram CDN manzili — vaqtinchalik, import paytida o'z saqlashimizga ko'chiriladi) */
+  photo: string | null;
+}
+
+/** Faqat Telegram CDN hostlari (SSRF: boshqa manzil yuklab olinmaydi) */
+export const TG_CDN_RE = /^https:\/\/(?:cdn\d*\.(?:telesco\.pe|telegram-cdn\.org)|[a-z0-9-]+\.telesco\.pe)\/[^\s'"()<>]+$/i;
+
+function firstPhoto(part: string): string | null {
+  const re = /tgme_widget_message_photo_wrap[^>]*background-image:url\('([^']+)'\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(part))) {
+    const u = decodeEntities(m[1]).replace(/^\/\//, "https://");
+    if (TG_CDN_RE.test(u)) return u;
+  }
+  return null;
 }
 
 export interface ChannelPage {
@@ -113,6 +128,7 @@ export function parseChannelPage(html: string, username: string): ChannelPage {
       date,
       url: `https://t.me/${post[1]}/${id}`,
       hasMedia: /tgme_widget_message_(photo|video|document|roundvideo)/.test(part),
+      photo: firstPhoto(part),
     });
   }
   // Takrorlarni olib tashlash va eskisidan yangisiga tartiblash
