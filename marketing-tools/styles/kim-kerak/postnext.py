@@ -5,7 +5,7 @@ q = json.loads(Q.read_text())
 left = [k for k in q["queue"] if k not in q["posted"]]
 if not left: print("NAVBAT BO'SH"); sys.exit(0)
 k = left[0]
-r = subprocess.run(["python3", str(H.parent.parent / "instagram/igpost.py"), str(H / f"out/{k}.mp4"), str(H / f"caps/{k}.txt"), "8200"],
+r = subprocess.run(["python3", str(H.parent.parent / "instagram/igpost.py"), str(H / f"out/{k}.mp4"), str(H / f"caps/{k}.txt"), str(json.loads((H / f"{k}.json").read_text()).get("thumb_ms", 8200))],
                    capture_output=True, text=True, timeout=900)
 out = r.stdout + r.stderr
 pub = [l for l in out.splitlines() if l.startswith("publish")]

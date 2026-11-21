@@ -54,5 +54,7 @@ Ikki logo, ikki rang tuzatish, ikki kadr. «Izohga A yoki B yozing».
 ## Ishlab chiqarish
 
 - Qahramonlar: o'zimiz chizgan vektor qahramonlar (bepul, har videoda bir xil). Sinalgan: Gemini rasm (bepul limit 0), Higgsfield (kredit 0), Pollinations (xira, logo bilan) - yaramadi.
-- Animatsiya va ovoz: mavjud render + psynth vositalari.
+- Animatsiya: `styles/kim-kerak/kim.html` (CFG bilan), render `render-kim.mjs` (HTML=kim.html), fon musiqa/SFX psynth2.
+- OVOZ (2026-11-21): Gemini TTS, ovoz Puck (seriyaning doimiy ovozi). `vo.py cfg.json`: butun matn BITTA so'rovda yozdiriladi (kuniga ~10 so'rov/model bepul), keyin harf soniga qarab DP bilan jumlalarga bo'linadi; video vaqt jadvali ovoz uzunligiga moslanadi; `vomix.py` ovoz paytida fonni pasaytiradi. Inglizcha uslub ko'rsatmasi QO'SHILMASIN (qisqa jumlada ovoz chiqarib o'qiydi). Model: gemini-3.1-flash-tts-preview (o'zbekcha 9/10), zaxira gemini-3.8-flash-tts. Tekshiruv: bo'laklar 1 s sukut bilan yopishtirilib Gemini'ga transkripsiya qildiriladi.
+- Navbat (kuniga 1 video, 19:43): restoran, ta'lim, shaxsiy brend, onlayn do'kon, YouTube kanal, o'quv markazi, podkast (`styles/kim-kerak/queue.json`, `postnext.py`).
 - Gemini bepul kalit: tayyor videoni tekshirish (montaj QC, ilgak kuchi).

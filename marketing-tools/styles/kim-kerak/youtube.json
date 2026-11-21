@@ -1,0 +1,106 @@
+{
+ "cardY": 640,
+ "slots": [
+  [
+   690,
+   1130
+  ],
+  [
+   910,
+   1130
+  ],
+  [
+   690,
+   1520
+  ],
+  [
+   910,
+   1520
+  ]
+ ],
+ "end1": "Kerakli ijodkorlar",
+ "end2": "bir joyda.",
+ "l1": "YouTube kanal",
+ "l2": "ochmoqchisiz.",
+ "main": {
+  "body": "#c0392b",
+  "hair": "cap",
+  "prop": "video",
+  "expr": "shock"
+ },
+ "counter": {
+  "kind": "screen",
+  "text": "0 ta video",
+  "x": 300,
+  "y": 700,
+  "rot": -4
+ },
+ "items": [
+  {
+   "name": "Ssenarist",
+   "prop": "script",
+   "color": "#7d8fa8",
+   "hair": "f"
+  },
+  {
+   "name": "Videograf",
+   "prop": "video",
+   "color": "#df7a5a",
+   "hair": "m"
+  },
+  {
+   "name": "Montajor",
+   "prop": "scissors",
+   "color": "#8b7fd1",
+   "hair": "bun"
+  },
+  {
+   "name": "Motion dizayner",
+   "prop": "motion",
+   "color": "#4fa3ad",
+   "hair": "cap"
+  }
+ ],
+ "done": "1-video tayyor!",
+ "voice": {
+  "hook": "YouTube kanal ochmoqchisiz.",
+  "done": "Birinchi video tayyor!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "topic": "youtube",
+ "vo": {
+  "hook": {
+   "file": "youtube-hook.wav",
+   "dur": 1.62
+  },
+  "kim": {
+   "file": "youtube-kim.wav",
+   "dur": 0.77
+  },
+  "i0": {
+   "file": "youtube-i0.wav",
+   "dur": 0.87
+  },
+  "i1": {
+   "file": "youtube-i1.wav",
+   "dur": 0.85
+  },
+  "i2": {
+   "file": "youtube-i2.wav",
+   "dur": 0.77
+  },
+  "i3": {
+   "file": "youtube-i3.wav",
+   "dur": 1.09
+  },
+  "done": {
+   "file": "youtube-done.wav",
+   "dur": 1.57
+  },
+  "end": {
+   "file": "youtube-end.wav",
+   "dur": 4.87
+  }
+ },
+ "thumb_ms": 9120
+}

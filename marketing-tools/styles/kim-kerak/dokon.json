@@ -1,0 +1,111 @@
+{
+ "cardY": 640,
+ "slots": [
+  [
+   690,
+   1130
+  ],
+  [
+   910,
+   1130
+  ],
+  [
+   690,
+   1520
+  ],
+  [
+   910,
+   1520
+  ]
+ ],
+ "end1": "Kerakli ijodkorlar",
+ "end2": "bir joyda.",
+ "l1": "Onlayn do'koningiz",
+ "l2": "ochilishiga 3 kun.",
+ "main": {
+  "body": "#3d7a6a",
+  "hair": "bun",
+  "prop": "bag"
+ },
+ "counter": {
+  "kind": "calendar",
+  "vals": [
+   3,
+   3,
+   2,
+   1,
+   1
+  ],
+  "x": 270,
+  "y": 590
+ },
+ "items": [
+  {
+   "name": "Mahsulot fotografi",
+   "prop": "camera",
+   "color": "#cfa24e",
+   "hair": "f"
+  },
+  {
+   "name": "Veb-dizayner",
+   "prop": "web",
+   "color": "#5f87d6",
+   "hair": "m"
+  },
+  {
+   "name": "Bot dasturchisi",
+   "prop": "bot",
+   "color": "#7d8fa8",
+   "hair": "cap",
+   "say": "Telegram bot dasturchisi"
+  },
+  {
+   "name": "SMM menejer",
+   "prop": "phone",
+   "color": "#e0875a",
+   "hair": "bun"
+  }
+ ],
+ "done": "Savdo boshlandi!",
+ "voice": {
+  "hook": "Onlayn do'koningiz ochilishiga uch kun qoldi.",
+  "done": "Savdo boshlandi!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "topic": "dokon",
+ "vo": {
+  "hook": {
+   "file": "dokon-hook.wav",
+   "dur": 2.82
+  },
+  "kim": {
+   "file": "dokon-kim.wav",
+   "dur": 0.61
+  },
+  "i0": {
+   "file": "dokon-i0.wav",
+   "dur": 1.31
+  },
+  "i1": {
+   "file": "dokon-i1.wav",
+   "dur": 1.03
+  },
+  "i2": {
+   "file": "dokon-i2.wav",
+   "dur": 1.61
+  },
+  "i3": {
+   "file": "dokon-i3.wav",
+   "dur": 0.91
+  },
+  "done": {
+   "file": "dokon-done.wav",
+   "dur": 1.41
+  },
+  "end": {
+   "file": "dokon-end.wav",
+   "dur": 4.99
+  }
+ },
+ "thumb_ms": 11440
+}

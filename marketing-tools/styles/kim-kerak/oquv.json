@@ -1,0 +1,105 @@
+{
+ "cardY": 640,
+ "slots": [
+  [
+   690,
+   1130
+  ],
+  [
+   910,
+   1130
+  ],
+  [
+   690,
+   1520
+  ],
+  [
+   910,
+   1520
+  ]
+ ],
+ "end1": "Kerakli ijodkorlar",
+ "end2": "bir joyda.",
+ "l1": "O'quv markazi",
+ "l2": "reklama qilmoqchi.",
+ "main": {
+  "body": "#6a4fa3",
+  "hair": "f",
+  "prop": "book"
+ },
+ "counter": {
+  "kind": "screen",
+  "text": "Reklama yo'q",
+  "x": 300,
+  "y": 700,
+  "rot": 4
+ },
+ "items": [
+  {
+   "name": "Videograf",
+   "prop": "video",
+   "color": "#df7a5a",
+   "hair": "cap"
+  },
+  {
+   "name": "Grafik dizayner",
+   "prop": "logo",
+   "color": "#d4709a",
+   "hair": "bun"
+  },
+  {
+   "name": "Kopirayter",
+   "prop": "pen",
+   "color": "#7d8fa8",
+   "hair": "m"
+  },
+  {
+   "name": "Targetolog",
+   "prop": "target",
+   "color": "#e0875a",
+   "hair": "f"
+  }
+ ],
+ "done": "Reklama tayyor!",
+ "voice": {
+  "hook": "O'quv markazingiz uchun reklama kerak.",
+  "done": "Reklama tayyor!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "topic": "oquv",
+ "vo": {
+  "hook": {
+   "file": "oquv-hook.wav",
+   "dur": 2.3
+  },
+  "kim": {
+   "file": "oquv-kim.wav",
+   "dur": 0.71
+  },
+  "i0": {
+   "file": "oquv-i0.wav",
+   "dur": 0.81
+  },
+  "i1": {
+   "file": "oquv-i1.wav",
+   "dur": 1.11
+  },
+  "i2": {
+   "file": "oquv-i2.wav",
+   "dur": 0.73
+  },
+  "i3": {
+   "file": "oquv-i3.wav",
+   "dur": 0.79
+  },
+  "done": {
+   "file": "oquv-done.wav",
+   "dur": 1.25
+  },
+  "end": {
+   "file": "oquv-end.wav",
+   "dur": 5.69
+  }
+ },
+ "thumb_ms": 9600
+}

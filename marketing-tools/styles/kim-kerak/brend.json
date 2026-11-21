@@ -62,5 +62,45 @@
  ],
  "done": "Post tayyor!",
  "end1": "Kerakli ijodkorlar",
- "end2": "bir joyda."
+ "end2": "bir joyda.",
+ "voice": {
+  "hook": "Shaxsiy brend. Nol obunachi.",
+  "done": "Post tayyor!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "vo": {
+  "hook": {
+   "file": "brend-hook.wav",
+   "dur": 2.3
+  },
+  "kim": {
+   "file": "brend-kim.wav",
+   "dur": 0.57
+  },
+  "i0": {
+   "file": "brend-i0.wav",
+   "dur": 1.01
+  },
+  "i1": {
+   "file": "brend-i1.wav",
+   "dur": 1.09
+  },
+  "i2": {
+   "file": "brend-i2.wav",
+   "dur": 1.03
+  },
+  "i3": {
+   "file": "brend-i3.wav",
+   "dur": 0.75
+  },
+  "done": {
+   "file": "brend-done.wav",
+   "dur": 0.83
+  },
+  "end": {
+   "file": "brend-end.wav",
+   "dur": 4.97
+  }
+ },
+ "thumb_ms": 9880
 }

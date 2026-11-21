@@ -15,7 +15,7 @@ const EVENTS=[]; const ev=(t,type,x)=>EVENTS.push(Object.assign({t:+t.toFixed(3)
 let C;
 
 // ——— vaqt jadvali ———
-const T0=.15, TK=1.25, TL=2.1, STEP=1.3;           // sarlavha, «Kim kerak?», ro'yxat, har kasb oralig'i
+const T0=.15, STEP=1.3; let TK=1.25, TL=2.1;           // sarlavha, «Kim kerak?», ro'yxat, har kasb oralig'i
 let TI, THAPPY, TEND, DUR;
 
 function face(expr, x){ // x: 0..1 «worry→happy» o'tishi
@@ -71,6 +71,20 @@ function prop(k){
      <circle cx="0" cy="-14" r="26" fill="${SKIN}" stroke="${INK}" stroke-width="4"/><path d="M-38 54 Q0 10 38 54Z" fill="#26324a"/>`;
   case 'laptop': return `<rect x="-90" y="-60" width="180" height="116" rx="12" fill="#2b2b30" stroke="${INK}" stroke-width="6"/><rect x="-76" y="-48" width="152" height="92" rx="6" fill="#cfe8ff"/>
      <path d="M-14 -22 L-14 22 L24 0Z" fill="${CORAL}"/><rect x="-116" y="56" width="232" height="20" rx="8" fill="#9a9aa0" stroke="${INK}" stroke-width="6"/>`;
+  case 'mic': return `<rect x="-26" y="-74" width="52" height="92" rx="26" fill="${INK}"/><path d="M-12 -50 H12 M-12 -30 H12 M-12 -10 H12" stroke="#666" stroke-width="5"/>
+     <path d="M-44 0 Q-44 48 0 48 Q44 48 44 0" fill="none" stroke="${INK}" stroke-width="7"/><path d="M0 48 V76 M-30 78 H30" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><circle cx="20" cy="-56" r="6" fill="${CORAL}"/>`;
+  case 'bag': return `<path d="M-60 -30 H60 L70 70 H-70 Z" fill="${CORAL}" stroke="${INK}" stroke-width="6"/><path d="M-30 -30 Q-30 -76 0 -76 Q30 -76 30 -30" fill="none" stroke="${INK}" stroke-width="7"/>
+     <path d="M-20 16 l14 14 l28 -30" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`;
+  case 'web': return `<rect x="-80" y="-62" width="160" height="124" rx="10" fill="#fff" stroke="${INK}" stroke-width="6"/><path d="M-80 -36 H80" stroke="${INK}" stroke-width="5"/>
+     <circle cx="-62" cy="-49" r="5" fill="${CORAL}"/><circle cx="-46" cy="-49" r="5" fill="#ffd36b"/><circle cx="-30" cy="-49" r="5" fill="#7aa45c"/>
+     <rect x="-62" y="-20" width="56" height="44" rx="4" fill="#cfe8ff"/><path d="M8 -14 H62 M8 4 H50 M8 22 H58" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><rect x="-62" y="34" width="60" height="18" rx="9" fill="${CORAL}"/>`;
+  case 'bot': return `<rect x="-70" y="-58" width="140" height="92" rx="22" fill="#5f87d6" stroke="${INK}" stroke-width="6"/><path d="M-30 34 L-44 66 L0 34Z" fill="#5f87d6" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+     <circle cx="-26" cy="-14" r="11" fill="#fff"/><circle cx="26" cy="-14" r="11" fill="#fff"/><path d="M-22 14 Q0 26 22 14" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/><path d="M0 -58 V-78" stroke="${INK}" stroke-width="6"/><circle cx="0" cy="-82" r="8" fill="${CORAL}"/>`;
+  case 'script': return `<path d="M-56 -70 H40 L60 -50 V70 H-56 Z" fill="#fff" stroke="${INK}" stroke-width="6"/><text x="-40" y="-34" font-size="22" font-weight="700" fill="${CORAL}">SSENARIY</text>
+     <path d="M-40 -6 H40 M-40 16 H30 M-40 38 H44" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>`;
+  case 'motion': return `<circle r="54" fill="#4fa3ad" stroke="${INK}" stroke-width="6"/><path d="M-14 -24 L-14 24 L26 0Z" fill="#fff"/><path d="M-90 -40 Q-70 -60 -60 -30 M70 40 Q90 20 96 50" fill="none" stroke="${CORAL}" stroke-width="7" stroke-linecap="round"/>`;
+  case 'book': return `<path d="M0 -50 Q-40 -66 -80 -50 V60 Q-40 44 0 60 Q40 44 80 60 V-50 Q40 -66 0 -50 Z" fill="#fff" stroke="${INK}" stroke-width="6"/><path d="M0 -50 V60" stroke="${INK}" stroke-width="5"/>
+     <path d="M-62 -24 H-18 M-62 -2 H-22 M18 -24 H62 M18 -2 H58" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="30" r="10" fill="${CORAL}"/>`;
   }
   return '';
 }
@@ -101,7 +115,7 @@ function counterIn(t){
      <rect x="-125" y="0" width="250" height="270" rx="22" fill="#fff" stroke="${INK}" stroke-width="7"/>
      <rect x="-125" y="0" width="250" height="72" rx="22" fill="${CORAL}" stroke="${INK}" stroke-width="7"/>
      <g transform="translate(0,165) scale(1,${sy}) translate(0,-165)">
-     ${happy?`<text x="0" y="190" font-size="54" font-weight="700" text-anchor="middle" fill="${CORAL}">${C.done}</text>`
+     ${happy?`<text x="0" y="190" font-size="${Math.min(54,Math.floor(220/(C.done.length*.56)))}" font-weight="700" text-anchor="middle" fill="${CORAL}">${C.done}</text>`
        :`<text x="0" y="200" font-size="130" font-weight="700" text-anchor="middle" fill="${INK}">${v}</text><text x="0" y="248" font-size="32" font-weight="700" text-anchor="middle" fill="#888">kun</text>`}
      </g></g>`;
   }
@@ -110,7 +124,7 @@ function counterIn(t){
   const pop=happy?back(pr(t,THAPPY,.4)):1;
   return `<g transform="translate(${c.x},${c.y}) rotate(${c.rot||0})">
     <rect x="-130" y="-30" width="260" height="${c.big?150:120}" rx="20" fill="#fff" stroke="${INK}" stroke-width="7"/>
-    <g transform="translate(0,${c.big?45:30}) scale(${pop})"><text x="0" y="12" font-size="${happy?Math.min(44,Math.floor(232/(txt.length*.56))):(c.size||52)}" font-weight="700" text-anchor="middle" fill="${happy?CORAL:INK}">${txt}</text></g></g>`;
+    <g transform="translate(0,${c.big?45:30}) scale(${pop})"><text x="0" y="12" font-size="${Math.min(happy?44:52,Math.floor(232/(txt.length*.56)))}" font-weight="700" text-anchor="middle" fill="${happy?CORAL:INK}">${txt}</text></g></g>`;
 }
 function card(t){
   const n=C.items.length, k=pr(t,TL,.5), x=lerp(1180,600,eo(k)), rot=lerp(16,4,eo(k));
@@ -168,8 +182,18 @@ function endCard(t){
     <text x="0" y="2" font-size="46" fill="#fff">kasbegalari.vercel.app</text></g></g>`;
 }
 window.setup=()=>{
-  C=window.CFG; const n=C.items.length;
-  TI=C.items.map((_,i)=>TL+.75+i*STEP); THAPPY=TI[n-1]+.9; TEND=THAPPY+1.7; DUR=TEND+4.2;
+  C=window.CFG; const n=C.items.length; const V=C.vo;
+  if(V){ // ovozga moslangan vaqt jadvali
+    const d=k=>V[k].dur;
+    TK=Math.max(1.25, .1+d('hook')+.15); TL=TK+d('kim')+.2;
+    TI=[TL+.6]; for(let i=1;i<n;i++) TI.push(TI[i-1]+Math.max(.95, d('i'+(i-1))+.3));
+    THAPPY=TI[n-1]+Math.max(.8, d('i'+(n-1))+.2); TEND=THAPPY+Math.max(1.3, d('done')+.5);
+    const tEndVo=TEND-.15; DUR=Math.max(TEND+3.5, tEndVo+d('end')+1.2);
+    ev(.1,'vo',{f:V.hook.file}); ev(TK,'vo',{f:V.kim.file}); TI.forEach((t,i)=>ev(t,'vo',{f:V['i'+i].file}));
+    ev(THAPPY+.05,'vo',{f:V.done.file}); ev(tEndVo,'vo',{f:V.end.file});
+  } else {
+    TI=C.items.map((_,i)=>TL+.75+i*STEP); THAPPY=TI[n-1]+.9; TEND=THAPPY+1.7; DUR=TEND+4.2;
+  }
   ev(0,'bed',{bpm:104}); ev(T0,'whoosh'); ev(TK,'stamp'); ev(TL,'paper');
   TI.forEach((t,i)=>{ev(t,'click',{ping:1500+i*220}); ev(t+.25,'pop'); if(C.counter.kind==='calendar') ev(t+.25,'tick',{k:i});});
   ev(THAPPY,'ding',{root:262}); ev(THAPPY+.05,'shimmer'); ev(TEND,'whip'); ev(TEND+1.0,'impact',{g:.5});

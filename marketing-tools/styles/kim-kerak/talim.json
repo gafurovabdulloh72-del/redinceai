@@ -61,5 +61,45 @@
  ],
  "done": "1-dars tayyor!",
  "end1": "Kerakli ijodkorlar",
- "end2": "bir joyda."
+ "end2": "bir joyda.",
+ "voice": {
+  "hook": "Onlayn kurs ochmoqchisiz.",
+  "done": "Birinchi dars tayyor!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "vo": {
+  "hook": {
+   "file": "talim-hook.wav",
+   "dur": 1.6
+  },
+  "kim": {
+   "file": "talim-kim.wav",
+   "dur": 0.53
+  },
+  "i0": {
+   "file": "talim-i0.wav",
+   "dur": 0.65
+  },
+  "i1": {
+   "file": "talim-i1.wav",
+   "dur": 0.65
+  },
+  "i2": {
+   "file": "talim-i2.wav",
+   "dur": 1.43
+  },
+  "i3": {
+   "file": "talim-i3.wav",
+   "dur": 0.71
+  },
+  "done": {
+   "file": "talim-done.wav",
+   "dur": 1.51
+  },
+  "end": {
+   "file": "talim-end.wav",
+   "dur": 5.13
+  }
+ },
+ "thumb_ms": 8720
 }

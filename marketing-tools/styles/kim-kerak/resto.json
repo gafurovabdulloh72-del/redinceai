@@ -67,5 +67,45 @@
  ],
  "done": "Ochildi!",
  "end1": "Kerakli ijodkorlar",
- "end2": "bir joyda."
+ "end2": "bir joyda.",
+ "voice": {
+  "hook": "Restoran ochilishiga uch kun qoldi.",
+  "done": "Ochildi!",
+  "end": "Kerakli ijodkorlar bir joyda. Hudud va kasb bo'yicha bitta saytda izlang."
+ },
+ "vo": {
+  "hook": {
+   "file": "resto-hook.wav",
+   "dur": 2.12
+  },
+  "kim": {
+   "file": "resto-kim.wav",
+   "dur": 0.65
+  },
+  "i0": {
+   "file": "resto-i0.wav",
+   "dur": 1.05
+  },
+  "i1": {
+   "file": "resto-i1.wav",
+   "dur": 1.05
+  },
+  "i2": {
+   "file": "resto-i2.wav",
+   "dur": 0.65
+  },
+  "i3": {
+   "file": "resto-i3.wav",
+   "dur": 0.95
+  },
+  "done": {
+   "file": "resto-done.wav",
+   "dur": 0.61
+  },
+  "end": {
+   "file": "resto-end.wav",
+   "dur": 4.69
+  }
+ },
+ "thumb_ms": 9570
 }

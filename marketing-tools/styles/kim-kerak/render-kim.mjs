@@ -17,6 +17,7 @@ const n = Math.round(dur * FPS);
 for (let i = 0; i < n; i++) { await p.evaluate(t => window.renderAt(t), i / FPS); await p.screenshot({ path: path.join(work, String(i).padStart(5, '0') + '.jpg'), type: 'jpeg', quality: 93 }); }
 await b.close();
 execFileSync('python3', [path.join(HERE, '..', 'psynth2.py'), path.join(work, 'events.json'), String(dur), path.join(work, 'a.wav')], { stdio: 'inherit' });
+if (evs.some(e => e.type === 'vo')) execFileSync('python3', [path.join(HERE, 'vomix.py'), path.join(work, 'events.json'), path.join(work, 'a.wav'), path.join(HERE, 'vo')], { stdio: 'inherit' });
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(work, '%05d.jpg'), '-i', path.join(work, 'a.wav'),
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS),
   '-af', 'loudnorm=I=-15:TP=-1.2:LRA=9', '-ar', '48000', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', path.join(HERE, out)]);
