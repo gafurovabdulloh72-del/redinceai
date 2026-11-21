@@ -10,7 +10,7 @@ r = subprocess.run(["python3", str(H.parent.parent / "instagram/igpost.py"), str
 out = r.stdout + r.stderr
 pub = [l for l in out.splitlines() if l.startswith("publish")]
 print("\n".join(pub) or out[-600:])
-if pub and '"id"' in pub[-1]:
+if pub and "'id'" in pub[-1]:
     q["posted"][k] = {"at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5))).isoformat(timespec="minutes"), "res": pub[-1][:200]}
     Q.write_text(json.dumps(q, ensure_ascii=False, indent=1)); print("OK", k, "qoldi:", len(left) - 1)
 else: print("XATO", k); sys.exit(1)
