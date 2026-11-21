@@ -23,6 +23,7 @@
     "fake-telegram": "node scripts/fake-telegram-api.mjs 8099"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
     "@aws-sdk/client-s3": "^3.1152.0",
     "@aws-sdk/s3-request-presigner": "^3.1152.0",
     "@libsql/client": "^0.15.0",

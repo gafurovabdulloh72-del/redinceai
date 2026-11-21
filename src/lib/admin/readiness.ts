@@ -343,6 +343,12 @@ export async function launchReadiness(): Promise<ReadinessReport> {
     else add({ key: "gemini", group: "qoshimcha", status: "warn", optional: true, title, detail: "Kalit yo'q — AI o'rniga tayyor shablonlar ishlaydi (yangi matnlar ruschaga o'girilmaydi)", fix: "Google AI Studio'dan kalit olib GEMINI_API_KEY ga qo'ying." });
   });
 
+  await guard("claude", "qoshimcha", "Claude AI (ANTHROPIC_API_KEY)", () => {
+    const title = "Claude AI (ANTHROPIC_API_KEY)";
+    if (set("ANTHROPIC_API_KEY")) add({ key: "claude", group: "qoshimcha", status: "ok", title, detail: "Ulangan — kanallardan kelgan vakansiyalarni Claude saralaydi" });
+    else add({ key: "claude", group: "qoshimcha", status: "warn", optional: true, title, detail: "Kalit yo'q — kanal vakansiyalari matn qoidalari bilan saralanadi", fix: "console.anthropic.com → API keys'dan kalit olib Vercel'da ANTHROPIC_API_KEY ga qo'ying." });
+  });
+
   await guard("seo", "qoshimcha", "Qidiruv tizimlari tasdig'i", () => {
     const title = "Qidiruv tizimlari tasdig'i";
     const gsc = set("GOOGLE_SITE_VERIFICATION");

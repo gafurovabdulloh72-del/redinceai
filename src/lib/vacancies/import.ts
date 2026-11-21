@@ -9,6 +9,7 @@ import { uid } from "@/lib/utils";
 import { PROFESSION_SLUGS, VACANCY_TTL_DAYS, type ProfessionSlug } from "./format";
 import { TITLES, detectProfession } from "./assistant";
 import { classifyByKeywords, classifyPost, type Classified } from "./import-classify";
+import { isClaudeConfigured } from "@/lib/ai/claude";
 export { classifyByKeywords, classifyPost, extractJobTitle, detectImportFormat, detectImportProfession, type Classified } from "./import-classify";
 import { TG_CDN_RE, normalizeChannel, parseChannelPage, type ChannelPost } from "./telegram-channel";
 
@@ -195,6 +196,7 @@ export async function runVacancyImport(opts: { force?: boolean; sourceId?: strin
   const started = Date.now();
   const budget = opts.budgetMs ?? 45_000;
   const res: ImportRunResult = { sources: 0, checked: 0, published: 0, pending: 0, skipped: 0, errors: [] };
+  const ai = isClaudeConfigured();
   const due = new Date(Date.now() - CHECK_INTERVAL_MS);
   const rows = await db
     .select()
@@ -208,7 +210,7 @@ export async function runVacancyImport(opts: { force?: boolean; sourceId?: strin
     )
     .orderBy(sql`coalesce(${vacancySources.lastCheckedAt}, 0)`);
   for (const src of rows) {
-    if (Date.now() - started > budget) break;
+    if (Date.now() - started > budget - (ai ? 15_000 : 0)) break;
     res.sources += 1;
     // Band qilish: boshqa parallel yugurish shu kanalni bir vaqtda o'qimasin
     const claim = await db
@@ -227,20 +229,33 @@ export async function runVacancyImport(opts: { force?: boolean; sourceId?: strin
       let maxId = src.lastPostId ?? 0;
       let imported = 0;
       let skipped = 0;
-      for (const post of fresh) {
-        if (Date.now() - started > budget) break;
-        const seen = await db.query.vacancyImports.findFirst({ where: and(eq(vacancyImports.sourceId, src.id), eq(vacancyImports.postId, post.id)), columns: { id: true } });
-        if (!seen) {
-          const st = await processPost(src, post);
+      // Claude bilan har post bir necha soniya oladi: 3 tadan parallel, yangi bo'lakni faqat vaqt yetsa boshlaymiz
+      const step = ai ? 3 : 1;
+      const reserve = ai ? 15_000 : 0;
+      let done = true;
+      for (let i = 0; i < fresh.length; i += step) {
+        if (Date.now() - started > budget - reserve) {
+          done = false;
+          break;
+        }
+        const chunk = fresh.slice(i, i + step);
+        const states = await Promise.all(
+          chunk.map(async (post) => {
+            const seen = await db.query.vacancyImports.findFirst({ where: and(eq(vacancyImports.sourceId, src.id), eq(vacancyImports.postId, post.id)), columns: { id: true } });
+            return seen ? null : processPost(src, post);
+          }),
+        );
+        for (const st of states) {
+          if (!st) continue;
           res.checked += 1;
           if (st === "published") (res.published += 1), (imported += 1);
           else if (st === "pending") (res.pending += 1), (imported += 1);
           else (res.skipped += 1), (skipped += 1);
         }
-        maxId = Math.max(maxId, post.id);
+        maxId = Math.max(maxId, ...chunk.map((p) => p.id));
       }
-      // Birinchi o'qishda eski postlar ham «ko'rilgan» deb belgilanadi
-      if (src.lastPostId == null) maxId = Math.max(maxId, ...page.posts.map((p) => p.id), 0);
+      // Birinchi o'qishda eski postlar ham «ko'rilgan» deb belgilanadi (faqat hammasi ishlangan bo'lsa — aks holda keyingi yugurish davom ettiradi)
+      if (src.lastPostId == null && done) maxId = Math.max(maxId, ...page.posts.map((p) => p.id), 0);
       await db
         .update(vacancySources)
         .set({
@@ -264,7 +279,7 @@ export async function runVacancyImport(opts: { force?: boolean; sourceId?: strin
 export async function maybeRunVacancyImport(): Promise<void> {
   const { tryConsume } = await import("@/lib/security/rate-limit");
   if (!(await tryConsume("vacImportLazy", 15 * 60_000))) return;
-  await runVacancyImport({ budgetMs: 8_000 }).catch((e) => console.error("[vac-import]", e));
+  await runVacancyImport({ budgetMs: isClaudeConfigured() ? 25_000 : 8_000 }).catch((e) => console.error("[vac-import]", e));
 }
 
 /* ------------------------------------------------------------------ */
@@ -381,8 +396,9 @@ export async function decideImport(id: string, action: "publish" | "reject"): Pr
   if (claim.rowsAffected === 0) throw new ApiError(409, "Allaqachon joylangan");
   const src = await db.query.vacancySources.findFirst({ where: eq(vacancySources.id, row.sourceId) });
   if (!src) throw new ApiError(404, "Manba topilmadi");
-  // Har doim yangi matn tahlili (eski parsed eskirgan bo'lishi mumkin)
-  const parsed = classifyByKeywords(row.text);
+  // AI tasnifi bo'lsa — u, aks holda yangi matn tahlili (eski parsed eskirgan bo'lishi mumkin)
+  const prev = row.parsed as unknown as Classified | null;
+  const parsed = prev?.source === "ai" ? prev : classifyByKeywords(row.text);
   const fixed: Classified = { ...parsed, profession: parsed.profession === "boshqa" ? detectProfession(row.text) : parsed.profession };
   const photo = (row.parsed as { photo?: string | null } | null)?.photo ?? null;
   const vid = await createImportedVacancy(src, { text: row.text, url: `https://t.me/${src.username}/${row.postId}`, photo }, fixed);
@@ -401,7 +417,7 @@ export async function purgeVacancyImports(now = Date.now()): Promise<number> {
 
 /**
  * Saytdagi kanal e'lonlarini QAYTA TAHLIL qilish (admin tugmasi): lavozim, kasb, format, hudud, maosh, tajriba matndan
- * qayta aniqlanadi (AI'siz). Matn, manba va rasm o'zgarmaydi. Yangi kasb kanal filtriga (manba `professions`) kirmasa —
+ * qayta aniqlanadi (Claude kaliti bo'lsa — Claude, bo'lmasa matn qoidalari). Matn, manba va rasm o'zgarmaydi. Yangi kasb kanal filtriga (manba `professions`) kirmasa —
  * e'lon YOPILADI (masalan video kanal filtrida sotuv operatori qolmasin).
  */
 export async function reparseImportedVacancies(limit = 300): Promise<{ checked: number; changed: number; closed: number }> {
@@ -414,8 +430,21 @@ export async function reparseImportedVacancies(limit = 300): Promise<{ checked: 
   const sources = new Map((await db.select({ id: vacancySources.id, professions: vacancySources.professions }).from(vacancySources)).map((r) => [r.id, r.professions]));
   let changed = 0;
   let closed = 0;
+  let checked = 0;
+  const started = Date.now();
+  // Claude bilan — 4 tadan parallel, 50 s ichida ulgurganicha (qolganini keyingi bosish davom ettiradi)
+  const ai = isClaudeConfigured();
+  const classified = new Map<string, Classified>();
+  for (let i = 0; i < rows.length; i += ai ? 4 : rows.length) {
+    if (Date.now() - started > 50_000) break;
+    const chunk = rows.slice(i, i + (ai ? 4 : rows.length));
+    const res = await Promise.all(chunk.map((v) => (ai ? classifyPost(v.description) : Promise.resolve(classifyByKeywords(v.description)))));
+    chunk.forEach((v, k) => classified.set(v.id, res[k]));
+  }
   for (const v of rows) {
-    const c = classifyByKeywords(v.description);
+    const c = classified.get(v.id);
+    if (!c) continue;
+    checked += 1;
     const profession = c.profession === "boshqa" ? v.profession : c.profession;
     const allowed = sources.get(v.sourceId ?? "") ?? [];
     const outOfFilter = allowed.length > 0 && !allowed.includes(profession as ProfessionSlug);
@@ -425,5 +454,5 @@ export async function reparseImportedVacancies(limit = 300): Promise<{ checked: 
     if (close) closed += 1;
     await db.update(vacancies).set({ ...next, ...(close ? { status: "closed" as const } : {}), updatedAt: new Date() }).where(eq(vacancies.id, v.id));
   }
-  return { checked: rows.length, changed, closed };
+  return { checked, changed, closed };
 }

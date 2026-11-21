@@ -1,10 +1,12 @@
 import "server-only";
-import { VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
+import { z } from "zod";
+import { claudeJson, isClaudeConfigured } from "@/lib/ai/claude";
+import { PROFESSION_SLUGS, VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
 import { TITLES, detectEmployment, detectExperience, detectFormat, detectRegion, detectSalary } from "./assistant";
 
 /**
  * Kanal postini saralash (vakansiyami, lavozim, kasb, joy) — lib/vacancies/import.ts ishlatadi.
- * AI'siz: lavozim nomi postning o'zidan olinadi, kasb — avval lavozimdan, keyin matndagi rol so'zlaridan.
+ * Claude (ANTHROPIC_API_KEY) bo'lsa — Claude; bo'lmasa matn qoidalari: lavozim postning o'zidan, kasb — avval lavozimdan, keyin rol so'zlaridan.
  */
 export interface Classified {
   isVacancy: boolean;
@@ -166,10 +168,60 @@ export function classifyByKeywords(text: string): Classified {
   };
 }
 
-/**
- * Kanal postini saralash — AI ISHLATILMAYDI (foydalanuvchi qarori): hamma narsa matndan, oldindan aytib bo'ladigan qoidalar bilan.
- * Async imzo saqlangan (chaqiruvchilar o'zgarmasin).
- */
+/* ---------- Claude bilan saralash (ANTHROPIC_API_KEY bo'lsa) ---------- */
+const aiSchema = z.object({
+  is_vacancy: z.boolean(),
+  reason: z.string(),
+  title: z.string(),
+  profession: z.enum(PROFESSION_SLUGS),
+  format: z.enum(["remote", "hybrid", "office"]),
+  employment: z.enum(["full", "part", "project", "internship"]),
+  experience: z.enum(["none", "junior", "middle", "senior"]),
+  company: z.string(),
+});
+
+const SYSTEM = `Sen O'zbekistondagi «Kasb Egalari» ish platformasi uchun Telegram kanal postlarini saralovchisan.
+Post — ISH BERUVCHI xodim izlayotgan VAKANSIYA e'lonimi? Rezyume (odam o'zi ish qidirmoqda), xizmat/kurs/mahsulot reklamasi, yangilik, so'rovnoma, bir nechta vakansiyalar dayjesti havolalari — vakansiya EMAS.
+Matnni QAYTA YOZMA, faqat maydonlarni ajrat.
+title — postda yozilgan LAVOZIMNING O'ZI, qisqa, o'zbekcha lotin yozuvida (masalan «SMM menejer», «Video montajchi», «Sotuv operatori»). Shahar/format/maoshni sarlavhaga qo'shma.
+profession — ASOSIY lavozim bo'yicha (vazifalar ichida boshqa kasb tilga olinsa ham — masalan SMM menejer vazifasida «montaj» bo'lsa ham marketing):
+- video: video montajchi, videograf, mobilograf, video/kamera operatori, motion dizayner, animator
+- dizayn: grafik dizayner, UI/UX, illyustrator
+- marketing: SMM, marketolog, target, reklama, SEO
+- kontent: kopirayter, tarjimon, ssenariynavis, jurnalist, kontent-menejer
+- sotuv: sotuv menejeri/operatori, call-markaz operatori, sotuvchi, kassir, konsultant
+- dasturlash: dasturchi, developer, tester
+- moliya: buxgalter, moliyachi, ekonomist
+- talim: o'qituvchi, repetitor, trener
+- data: analitik, data, AI/ML
+- boshqaruv: menejer/rahbar, HR, administrator, assistent, ombor, kuryer, haydovchi
+- boshqa: qolganlari.
+DIQQAT: «operator» yolg'iz — bu sotuv/call-markaz (video emas); video faqat «video operator», «kamera operator» bo'lsa.
+format: remote (faqat aniq «masofaviy/onlayn/uydan» deyilsa) | hybrid | office (manzil, «offline», ofis yoki joyida ishlash ko'rsatilsa; aniq bo'lmasa ham office).
+employment: full | part | project (frilans/loyiha) | internship. experience: none | junior (≤1 yil) | middle (1–3) | senior (3+).
+company — postda ANIQ yozilgan kompaniya/studiya nomi, bo'lmasa "". O'ylab topma.
+reason — o'zbekcha qisqa sabab (bir jumla).`;
+
+/** Kanal postini saralash: Claude kaliti bo'lsa — Claude, bo'lmasa (yoki javob bo'lmasa) matn qoidalari */
 export async function classifyPost(text: string): Promise<Classified> {
-  return classifyByKeywords(text);
+  const base = classifyByKeywords(text);
+  if (!isClaudeConfigured()) return base;
+  const d = await claudeJson(SYSTEM, text.slice(0, 6000), aiSchema, { timeoutMs: 40_000, maxTokens: 1024 });
+  if (!d) return base;
+  const place = detectImportFormat(text);
+  const title = d.title.trim().slice(0, VACANCY_TITLE_MAX);
+  return {
+    isVacancy: d.is_vacancy,
+    reason: (d.reason || (d.is_vacancy ? "AI: vakansiya" : "AI: vakansiya emas")).slice(0, 200),
+    title: title.length >= 3 ? title : base.title,
+    profession: d.profession,
+    format: d.format,
+    employment: d.employment,
+    experience: d.experience,
+    regionSlug: d.format === "remote" ? null : place.regionSlug,
+    salaryMin: base.salaryMin,
+    salaryMax: base.salaryMax,
+    company: d.company.trim().slice(0, 80),
+    source: "ai",
+  };
 }
