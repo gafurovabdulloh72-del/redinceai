@@ -13,7 +13,7 @@ let LT=[], TEND, DUR; const T_TITLE=.1;
 function wrap(text, max){ const w=text.split(' '); const out=[]; let cur='';
   for(const x of w){ if((cur+' '+x).trim().length>max){ out.push(cur.trim()); cur=x; } else cur+=' '+x; } if(cur.trim()) out.push(cur.trim()); return out; }
 function bubble(t, i){
-  const L=C.lines[i], t0=LT[i], t1=(i+1<LT.length?LT[i+1]:TEND);
+  const L=C.lines[i], t0=LT[i], t1=(i+1<LT.length?LT[i+1]:TEND); if(!L.text) return '';
   const k=pr(t,t0-.05,.25), out=pr(t,t1-.05,.2); if(k<=0||out>=1) return '';
   const lines=wrap(L.text, 17), fs=58, lh=72, h=40+lines.length*lh, w=Math.max(...lines.map(s=>s.length))*fs*.56+70;
   const left=L.who==='c', x=left?140:1020-w, y=960-h;
@@ -35,7 +35,9 @@ function person(t, who, x){
   const talk=talkAt(t, who), blink=mood==='happy'?0:blinkAt(t, who==='c'?0:1.3);
   const k=pr(t,.0,.4), breathe=Math.sin(t*3+(who==='c'?0:1))*4;
   const dir=who==='c'?1:-1, hop=(mood==='shock')?Math.max(0,Math.sin(Math.PI*cl((t-(LT[C.lines.findIndex(L=>L.mood==='shock')]||99))/.35)))*40:0;
-  return `<g transform="translate(${x},${1240-hop+lerp(160,0,eo(k))}) scale(1.2)" opacity="${cl(k*3)}">
+  const di=C.lines.findIndex(L=>L.mood==='dead'), fall=(who==='d'&&di>=0)?eo(pr(t,LT[di]+.15,.55)):0;
+  const fallBounce=fall>0?Math.abs(Math.sin(Math.PI*pr(t,LT[di]+.7,.3)))*12:0;
+  return `<g transform="translate(${x+fall*40},${1240-hop+lerp(160,0,eo(k))+fall*430-fallBounce}) rotate(${fall*24}) scale(1.2)" opacity="${cl(k*3)}">
    <path d="M-130 ${340+breathe} Q-130 160 0 140 Q130 160 130 ${340+breathe} L130 820 L-130 820 Z" fill="${P.body}" stroke="${INK}" stroke-width="7"/>
    ${head(P.hair, mood, sweat, '', talk, blink)}
    ${P.prop?`<g transform="translate(${dir*150},${300+breathe}) rotate(${dir*8})">${prop(P.prop)}</g>`:''}</g>`;
@@ -46,7 +48,7 @@ function counterBadge(t){
   if(!v) return '';
   // eski qiymatdan yangisiga tez aylanish
   let prev=0; C.lines.forEach((L,i)=>{ if(L.rev!=null && LT[i]<tv) prev=L.rev; });
-  const roll=pr(t,tv,.5), shown=Math.round(lerp(prev,v,eo(roll))), pop=1+.18*Math.sin(Math.PI*roll);
+  const roll=pr(t,tv,.5), shown=Math.round(lerp(prev,v,eo(roll))), pop=1+.18*Math.sin(Math.PI*roll)+(v>47?Math.sin(t*40)*.03:0);
   const hot=v>=40;
   return `<g transform="translate(540,560) scale(${pop}) rotate(-3)">
    <rect x="-210" y="-62" width="420" height="110" rx="20" fill="${hot?CORAL:'#fff8d6'}" stroke="${INK}" stroke-width="6"/>
@@ -71,8 +73,8 @@ window.setup=()=>{
   C.lines.forEach((L,i)=>{ const v=V['l'+i]; LT.push(t);
     if(v){ ev(t,'vo',{f:v.file}); if(v.env) SPEAK.push({t0:t,env:v.env,who:L.who}); }
     if(L.rev!=null){ ev(t,'pop',{g:.9}); for(let j=1;j<8;j++) ev(t+j*.06,'tick',{k:j%3}); } else ev(t,'click',{ping:L.who==='c'?1500:1900});
-    if(L.mood==='shock') ev(t,'stamp');
-    t+= (v?v.dur:1.4) + (L.pause!=null?L.pause:.35); });
+    if(L.mood==='shock') ev(t,'stamp'); if(L.mood==='dead'){ ev(t+.6,'impact',{g:.7}); ev(t+.15,'whoosh'); }
+    t+= (v?v.dur:(L.hold||1.4)) + (L.pause!=null?L.pause:.35); });
   TEND=t+.2; DUR=TEND+2.9;
   ev(0,'bed',{bpm:96}); ev(T_TITLE,'whoosh'); ev(TEND,'whip'); ev(TEND+1.0,'impact',{g:.5});
   window.DUR=DUR; window.EVENTS=EVENTS.sort((a,b)=>a.t-b.t);

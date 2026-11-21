@@ -15,6 +15,8 @@ function talkMouth(a, happy){ const ry=5+24*a, rx=happy?30:22;
 function face(expr, x, talk=0, blink=0){
   if(expr==='happy') return `<path d="M-52 2 Q-38 -14 -24 2 M24 2 Q38 -14 52 2" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
    ${talk>.04?talkMouth(talk,true):`<path d="M-38 48 Q0 96 38 48 Z" fill="${INK}"/><path d="M-22 70 Q0 84 22 70" fill="none" stroke="#ff8a7a" stroke-width="8" stroke-linecap="round"/>`}`;
+  if(expr==='dead') return `<path d="M-52 -10 L-24 18 M-24 -10 L-52 18 M24 -10 L52 18 M52 -10 L24 18" stroke="${INK}" stroke-width="8" stroke-linecap="round"/>
+   <path d="M-34 66 Q-22 54 -10 66 Q2 78 14 66 Q26 54 38 66" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`;
   if(expr==='shock') return `${eyes(12,blink)}
    <path d="M-56 -30 L-20 -40 M56 -30 L20 -40" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><ellipse cx="0" cy="64" rx="17" ry="21" fill="${INK}"/>`;
   return `${eyes(11,blink)}
