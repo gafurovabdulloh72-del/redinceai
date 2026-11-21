@@ -45,6 +45,8 @@ Bir qahramon (restoran egasi yoki kurs muallifi), sanoq: 3 kun → logo yo'q, 2 
 - «Do'stim 50 mingga qilardi» → dizaynerning yuzi. Oxiri: «Saytda xizmat narxi kamida 200 000 so'm».
 - «Mijoz: "birinchi variant yaxshi ekan"».
 
+Amalda (2026-11-21): `styles/kim-kerak/pov.html` + `vo2.py` (Gemini multi-speaker: Mijoz=Kore, Dizayner=Charon, bitta so'rov), nutq pufakchalari, lip-sync, tahrir hisoblagichi. Videolar: `pov-kichik` (47-tahrir), `pov-narx` («Do'stim 50 mingga qilardi», oxiri: saytda narx kamida 200 000 so'm, `src/lib/pricing.ts` PRICE_MIN).
+
 ### 4. «15 soniyada ijodkor» (haqiqiy ijtimoiy isbot)
 Saytdagi ijodkorning 3 ta ishi + ismi + shahri. Faqat ruxsat bilan.
 
@@ -56,5 +58,7 @@ Ikki logo, ikki rang tuzatish, ikki kadr. «Izohga A yoki B yozing».
 - Qahramonlar: o'zimiz chizgan vektor qahramonlar (bepul, har videoda bir xil). Sinalgan: Gemini rasm (bepul limit 0), Higgsfield (kredit 0), Pollinations (xira, logo bilan) - yaramadi.
 - Animatsiya: `styles/kim-kerak/kim.html` (CFG bilan), render `render-kim.mjs` (HTML=kim.html), fon musiqa/SFX psynth2.
 - OVOZ (2026-11-21): Gemini TTS, ovoz Puck (seriyaning doimiy ovozi). `vo.py cfg.json`: butun matn BITTA so'rovda yozdiriladi (kuniga ~10 so'rov/model bepul), keyin harf soniga qarab DP bilan jumlalarga bo'linadi; video vaqt jadvali ovoz uzunligiga moslanadi; `vomix.py` ovoz paytida fonni pasaytiradi. Inglizcha uslub ko'rsatmasi QO'SHILMASIN (qisqa jumlada ovoz chiqarib o'qiydi). Model: gemini-3.1-flash-tts-preview (o'zbekcha 9/10), zaxira gemini-3.8-flash-tts. Tekshiruv: bo'laklar 1 s sukut bilan yopishtirilib Gemini'ga transkripsiya qildiriladi.
-- Navbat (kuniga 1 video, 19:43): restoran, ta'lim, shaxsiy brend, onlayn do'kon, YouTube kanal, o'quv markazi, podkast (`styles/kim-kerak/queue.json`, `postnext.py`).
+- Navbat (kuniga 1 video, 19:43): restoran, ta'lim, POV kichik o'zgarish, shaxsiy brend, onlayn do'kon, POV narx, YouTube, o'quv markazi, podkast (`styles/kim-kerak/queue.json`, `postnext.py`).
+- Jonlantirish: ko'z qisish, ovoz konvertiga mos og'iz (`envgen.py` → cfg.vo[k].env), kasb egasi o'z nomini aytayotganda og'zi ochiladi, asosiy qahramon «done» qatorini aytadi; minilar joyida qimirlaydi.
+- Statistika: `instagram/igstats.py` (ko'rish/qamrov/like/izoh/saqlash/ulashish, kunlik tarix `instagram/stats.json`). Mavzu tanlash shu raqamlarga qarab.
 - Gemini bepul kalit: tayyor videoni tekshirish (montaj QC, ilgak kuchi).

@@ -18,15 +18,17 @@ let C;
 const T0=.15, STEP=1.3; let TK=1.25, TL=2.1;           // sarlavha, «Kim kerak?», ro'yxat, har kasb oralig'i
 let TI, THAPPY, TEND, DUR;
 
-function face(expr, x){ // x: 0..1 «worry→happy» o'tishi
-  const blink = 0;
+function eyes(r, blink){ const sy=1-blink*.9; return `<ellipse cx="-38" cy="5" rx="${r}" ry="${r*sy}" fill="${INK}"/><ellipse cx="38" cy="5" rx="${r}" ry="${r*sy}" fill="${INK}"/>`; }
+function talkMouth(a, happy){ const ry=5+24*a, rx=happy?30:22;
+  return `<ellipse cx="0" cy="${62+ry*.2}" rx="${rx}" ry="${ry}" fill="${INK}"/>${a>.35?`<ellipse cx="0" cy="${62+ry*.75}" rx="${rx*.55}" ry="${ry*.35}" fill="#ff8a7a"/>`:''}`; }
+function face(expr, x, talk=0, blink=0){
   if(expr==='happy') return `<path d="M-52 2 Q-38 -14 -24 2 M24 2 Q38 -14 52 2" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
-   <path d="M-38 48 Q0 96 38 48 Z" fill="${INK}"/><path d="M-22 70 Q0 84 22 70" fill="none" stroke="#ff8a7a" stroke-width="8" stroke-linecap="round"/>`;
-  if(expr==='shock') return `<circle cx="-38" cy="5" r="12" fill="${INK}"/><circle cx="38" cy="5" r="12" fill="${INK}"/>
+   ${talk>.04?talkMouth(talk,true):`<path d="M-38 48 Q0 96 38 48 Z" fill="${INK}"/><path d="M-22 70 Q0 84 22 70" fill="none" stroke="#ff8a7a" stroke-width="8" stroke-linecap="round"/>`}`;
+  if(expr==='shock') return `${eyes(12,blink)}
    <path d="M-56 -30 L-20 -40 M56 -30 L20 -40" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><ellipse cx="0" cy="64" rx="17" ry="21" fill="${INK}"/>`;
-  return `<circle cx="-38" cy="5" r="11" fill="${INK}"/><circle cx="38" cy="5" r="11" fill="${INK}"/>
+  return `${eyes(11,blink)}
    <path d="M-58 -28 L-20 -18 M58 -28 L20 -18" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
-   <path d="M-30 70 Q0 50 30 70" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`;
+   ${talk>.04?talkMouth(talk,false):`<path d="M-30 70 Q0 50 30 70" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`}`;
 }
 const HAIR={
  m:`<path d="M-102 -10 Q-110 -120 0 -126 Q112 -120 102 -10 Q85 -78 0 -72 Q-80 -78 -102 -10Z" fill="${INK}"/>`,
@@ -37,11 +39,11 @@ const HAIR={
 const HAT_CHEF=`<path d="M-80 -95 Q-120 -190 -40 -190 Q0 -250 40 -190 Q120 -190 80 -95 Z" fill="#fff" stroke="${INK}" stroke-width="7"/>
 <rect x="-82" y="-110" width="164" height="40" rx="6" fill="#fff" stroke="${INK}" stroke-width="7"/>`;
 
-function head(hair, expr, sweat, hat){
+function head(hair, expr, sweat, hat, talk=0, blink=0){
   return `<rect x="-20" y="80" width="40" height="70" fill="#f1c39d" stroke="${INK}" stroke-width="6"/>
   <ellipse cx="0" cy="0" rx="105" ry="115" fill="${SKIN}" stroke="${INK}" stroke-width="7"/>${HAIR[hair]||''}
   <circle cx="-62" cy="40" r="15" fill="#ffb3a7" opacity=".6"/><circle cx="62" cy="40" r="15" fill="#ffb3a7" opacity=".6"/>
-  ${face(expr)}${hat||''}
+  ${face(expr,0,talk,blink)}${hat||''}
   ${sweat>0?`<path transform="translate(102,${-50+sweat*30})" d="M0 0 q12 22 0 34 q-12 -12 0 -34z" fill="#7fc8f8" stroke="${INK}" stroke-width="4" opacity="${1-sweat*.6}"/>`:''}`;
 }
 // ——— asboblar (kasb belgisi) ———
@@ -89,12 +91,15 @@ function prop(k){
   return '';
 }
 // kichik kasb egasi (kirib kelish: x 0..1)
-function mini(it, x, y, s, k){
+const SPEAK=[]; // [{t0, env, who}]
+function talkAt(t, who){ for(const s of SPEAK){ if(s.who!==who) continue; const i=Math.floor((t-s.t0)*50); if(i>=0&&i<s.env.length) return s.env[i]; } return 0; }
+function blinkAt(t, off){ const p=(t+off)%3.4; return p<.13?Math.sin(Math.PI*p/.13):0; }
+function mini(it, x, y, s, k, t=0, i=0){
   const p=back(cl(k)), sc=s*lerp(.2,1,p), op=cl(k*3);
-  const bob=Math.sin((k*6))*0;
-  return `<g transform="translate(${x},${y+lerp(120,0,eo(cl(k)))}) scale(${sc})" opacity="${op}">
+  const settle=cl((k-1)*1e9), bob=settle?Math.sin(t*3.6+i*1.7)*7:0, sway=settle?Math.sin(t*2.3+i)*2.5:0;
+  return `<g transform="translate(${x},${y+bob+lerp(120,0,eo(cl(k)))}) scale(${sc}) rotate(${sway})" opacity="${op}">
    <path d="M-95 300 Q-95 150 0 135 Q95 150 95 300 L95 400 L-95 400Z" fill="${it.color}" stroke="${INK}" stroke-width="7"/>
-   <g transform="scale(.82)">${head(it.hair||'m','happy',0,'')}</g>
+   <g transform="scale(.82)">${head(it.hair||'m','happy',0,'',talkAt(t,'i'+i),0)}</g>
    <g transform="translate(90,250) rotate(-8)">${prop(it.prop)}</g>
   </g>`;
 }
@@ -150,7 +155,7 @@ function mainChar(t){
   return `<g transform="translate(${300+shake},${1200-jump+lerp(200,0,eo(k))}) scale(${sc})" opacity="${cl(k*3)}">
    <path d="M-130 ${340+breathe} Q-130 160 0 140 Q130 160 130 ${340+breathe} L130 820 L-130 820 Z" fill="${m.body}" stroke="${INK}" stroke-width="7"/>
    ${m.apron?`<path d="M-80 200 L80 200 L95 700 L-95 700 Z" fill="#fff" stroke="${INK}" stroke-width="6"/><circle cx="0" cy="260" r="10" fill="${CORAL}"/>`:''}
-   ${head(m.hair, expr, sweat, m.hat?HAT_CHEF:'')}
+   ${head(m.hair, expr, sweat, m.hat?HAT_CHEF:'', talkAt(t,'main'), happy?0:blinkAt(t,.7))}
    ${m.prop?`<g transform="translate(150,${300+breathe}) rotate(${happy?-14:6})">${prop(m.prop)}</g>`:''}
   </g>`;
 }
@@ -189,8 +194,8 @@ window.setup=()=>{
     TI=[TL+.6]; for(let i=1;i<n;i++) TI.push(TI[i-1]+Math.max(.95, d('i'+(i-1))+.3));
     THAPPY=TI[n-1]+Math.max(.8, d('i'+(n-1))+.2); TEND=THAPPY+Math.max(1.3, d('done')+.5);
     const tEndVo=TEND-.15; DUR=Math.max(TEND+3.5, tEndVo+d('end')+1.2);
-    ev(.1,'vo',{f:V.hook.file}); ev(TK,'vo',{f:V.kim.file}); TI.forEach((t,i)=>ev(t,'vo',{f:V['i'+i].file}));
-    ev(THAPPY+.05,'vo',{f:V.done.file}); ev(tEndVo,'vo',{f:V.end.file});
+    ev(.1,'vo',{f:V.hook.file}); ev(TK,'vo',{f:V.kim.file}); TI.forEach((t,i)=>{ev(t,'vo',{f:V['i'+i].file}); if(V['i'+i].env) SPEAK.push({t0:t,env:V['i'+i].env,who:'i'+i});});
+    ev(THAPPY+.05,'vo',{f:V.done.file}); if(V.done.env) SPEAK.push({t0:THAPPY+.05,env:V.done.env,who:'main'}); ev(tEndVo,'vo',{f:V.end.file});
   } else {
     TI=C.items.map((_,i)=>TL+.75+i*STEP); THAPPY=TI[n-1]+.9; TEND=THAPPY+1.7; DUR=TEND+4.2;
   }
@@ -201,7 +206,7 @@ window.setup=()=>{
 };
 window.renderAt=(t)=>{
   const pos=C.slots;
-  let minis=''; C.items.forEach((it,i)=>{const k=pr(t,TI[i]+.2,.45); if(k>0) minis+=mini(it,pos[i][0],pos[i][1],.8,k);});
+  let minis=''; C.items.forEach((it,i)=>{const k=pr(t,TI[i]-.25,.4); if(k>0) minis+=mini(it,pos[i][0],pos[i][1],.8,k,t,i);});
   const hideMain=pr(t,TEND-.2,.35);
   document.getElementById('root').innerHTML=`<svg width="1080" height="1920" viewBox="0 0 1080 1920">${bg()}${title(t)}
    <g opacity="${1-hideMain}">${counter(t)}${card(t)}</g>${mainChar(t)}${minis}${confetti(t)}${endCard(t)}</svg>`;

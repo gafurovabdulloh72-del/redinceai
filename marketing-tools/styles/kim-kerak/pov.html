@@ -1,0 +1,86 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:SG;src:url(../SpaceGrotesk.woff2) format('woff2');font-weight:300 700}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#fbf8ef;font-family:SG,Arial,sans-serif}
+#root{position:absolute;inset:0}
+</style></head><body><div id="root"></div>
+<script src="common.js"></script>
+<script>
+// «POV: ijodkor» seriyasi: mijoz (chapda) va ijodkor (o'ngda) dialogi, ikki ovoz, nutq pufakchalari, lip-sync.
+// CFG: {topic, title1, title2, lines:[{who:'c'|'d', text, say?, rev?, mood?}], counter?:{label}, client:{body,hair,prop}, designer:{body,hair,prop},
+//       end1, end2, sub1, sub2, vo:{l0:{file,dur,env},...}}
+let LT=[], TEND, DUR; const T_TITLE=.1;
+function wrap(text, max){ const w=text.split(' '); const out=[]; let cur='';
+  for(const x of w){ if((cur+' '+x).trim().length>max){ out.push(cur.trim()); cur=x; } else cur+=' '+x; } if(cur.trim()) out.push(cur.trim()); return out; }
+function bubble(t, i){
+  const L=C.lines[i], t0=LT[i], t1=(i+1<LT.length?LT[i+1]:TEND);
+  const k=pr(t,t0-.05,.25), out=pr(t,t1-.05,.2); if(k<=0||out>=1) return '';
+  const lines=wrap(L.text, 17), fs=58, lh=72, h=40+lines.length*lh, w=Math.max(...lines.map(s=>s.length))*fs*.56+70;
+  const left=L.who==='c', x=left?140:1020-w, y=960-h;
+  const sc=lerp(.6,1,back(k))*(1-out*.2), ox=left?x+60:x+w-60, oy=y+h;
+  const tail=left?`M${x+50} ${y+h-4} L${x+30} ${y+h+40} L${x+100} ${y+h-4}Z`:`M${x+w-50} ${y+h-4} L${x+w-30} ${y+h+40} L${x+w-100} ${y+h-4}Z`;
+  const fill=left?'#fff':INK, tc=left?INK:'#fff';
+  return `<g transform="translate(${ox},${oy}) scale(${sc}) translate(${-ox},${-oy})" opacity="${cl(k*3)*(1-out)}">
+   <path d="${tail}" fill="${fill}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+   <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="34" fill="${fill}" stroke="${INK}" stroke-width="6"/>
+   <path d="${tail}" fill="${fill}" stroke="none" transform="translate(0,-8)"/>
+   <text font-size="${fs}" font-weight="700" fill="${tc}">${lines.map((s,j)=>`<tspan x="${x+35}" y="${y+20+lh*(j+1)-12}">${s}</tspan>`).join('')}</text></g>`;
+}
+function person(t, who, x){
+  const P=who==='c'?C.client:C.designer; let mood='worry', sweat=0;
+  // ijodkor kayfiyati: oxirgi «mood» qatoridan
+  let cur=null; C.lines.forEach((L,i)=>{ if(t<LT[i]) return; if(who==='d'&&L.mood) cur=L.mood; if(who==='c'&&L.cmood) cur=L.cmood; });
+  mood = cur || (who==='c'?'happy':'worry');
+  if(who==='d' && mood==='worry') sweat=(t*1.3)%1;
+  const talk=talkAt(t, who), blink=mood==='happy'?0:blinkAt(t, who==='c'?0:1.3);
+  const k=pr(t,.0,.4), breathe=Math.sin(t*3+(who==='c'?0:1))*4;
+  const dir=who==='c'?1:-1, hop=(mood==='shock')?Math.max(0,Math.sin(Math.PI*cl((t-(LT[C.lines.findIndex(L=>L.mood==='shock')]||99))/.35)))*40:0;
+  return `<g transform="translate(${x},${1240-hop+lerp(160,0,eo(k))}) scale(1.2)" opacity="${cl(k*3)}">
+   <path d="M-130 ${340+breathe} Q-130 160 0 140 Q130 160 130 ${340+breathe} L130 820 L-130 820 Z" fill="${P.body}" stroke="${INK}" stroke-width="7"/>
+   ${head(P.hair, mood, sweat, '', talk, blink)}
+   ${P.prop?`<g transform="translate(${dir*150},${300+breathe}) rotate(${dir*8})">${prop(P.prop)}</g>`:''}</g>`;
+}
+function counterBadge(t){
+  if(!C.counter) return '';
+  let v=0, tv=0; C.lines.forEach((L,i)=>{ if(L.rev!=null && t>=LT[i]) { v=L.rev; tv=LT[i]; } });
+  if(!v) return '';
+  // eski qiymatdan yangisiga tez aylanish
+  let prev=0; C.lines.forEach((L,i)=>{ if(L.rev!=null && LT[i]<tv) prev=L.rev; });
+  const roll=pr(t,tv,.5), shown=Math.round(lerp(prev,v,eo(roll))), pop=1+.18*Math.sin(Math.PI*roll);
+  const hot=v>=40;
+  return `<g transform="translate(540,560) scale(${pop}) rotate(-3)">
+   <rect x="-210" y="-62" width="420" height="110" rx="20" fill="${hot?CORAL:'#fff8d6'}" stroke="${INK}" stroke-width="6"/>
+   <text x="0" y="14" font-size="54" font-weight="700" text-anchor="middle" fill="${hot?'#fff':INK}">${C.counter.label}: ${shown}</text></g>`;
+}
+function title(t){
+  const a=pr(t,T_TITLE,.35), out=pr(t,TEND-.2,.35);
+  return `<g opacity="${a*(1-out)}" transform="translate(150,${290+lerp(40,0,eo(a))})">
+   <text font-size="84" font-weight="700"><tspan x="0" y="0" fill="${INK}">${C.title1}</tspan><tspan x="0" y="96" fill="${CORAL}">${C.title2}</tspan></text></g>`;
+}
+function endCard(t){
+  const k=pr(t,TEND,.5); if(k<=0) return '';
+  const k2=pr(t,TEND+.45,.5), k3=pr(t,TEND+.9,.5);
+  return `<g text-anchor="middle" font-weight="700">
+   <g opacity="${k}" transform="translate(540,${250+lerp(50,0,eo(k))})"><text font-size="80" fill="${INK}"><tspan x="0" y="0">${C.end1}</tspan><tspan x="0" y="94">${C.end2}</tspan></text></g>
+   <g opacity="${k2}" transform="translate(540,${470+lerp(30,0,eo(k2))})"><text font-size="46" fill="#666"><tspan x="0" y="0">${C.sub1}</tspan><tspan x="0" y="60">${C.sub2}</tspan></text></g>
+   <g opacity="${k3}" transform="translate(540,690) scale(${lerp(.8,1,back(k3))})"><rect x="-310" y="-64" width="620" height="100" rx="50" fill="${CORAL}" stroke="${INK}" stroke-width="6"/>
+    <text x="0" y="2" font-size="46" fill="#fff">kasbegalari.vercel.app</text></g></g>`;
+}
+window.setup=()=>{
+  C=window.CFG; const V=C.vo||{}; let t=.5;
+  C.lines.forEach((L,i)=>{ const v=V['l'+i]; LT.push(t);
+    if(v){ ev(t,'vo',{f:v.file}); if(v.env) SPEAK.push({t0:t,env:v.env,who:L.who}); }
+    if(L.rev!=null){ ev(t,'pop',{g:.9}); for(let j=1;j<8;j++) ev(t+j*.06,'tick',{k:j%3}); } else ev(t,'click',{ping:L.who==='c'?1500:1900});
+    if(L.mood==='shock') ev(t,'stamp');
+    t+= (v?v.dur:1.4) + (L.pause!=null?L.pause:.35); });
+  TEND=t+.2; DUR=TEND+2.9;
+  ev(0,'bed',{bpm:96}); ev(T_TITLE,'whoosh'); ev(TEND,'whip'); ev(TEND+1.0,'impact',{g:.5});
+  window.DUR=DUR; window.EVENTS=EVENTS.sort((a,b)=>a.t-b.t);
+};
+window.renderAt=(t)=>{
+  const hide=pr(t,TEND-.2,.35);
+  let bubbles=''; C.lines.forEach((_,i)=>bubbles+=bubble(t,i));
+  document.getElementById('root').innerHTML=`<svg width="1080" height="1920" viewBox="0 0 1080 1920">${bg()}${title(t)}
+   <g opacity="${1-hide}">${counterBadge(t)}${bubbles}</g>${person(t,'c',250)}${person(t,'d',830)}${endCard(t)}</svg>`;
+};
+</script></body></html>
