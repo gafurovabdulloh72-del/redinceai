@@ -27,14 +27,18 @@ Xulosa:
 ## Seriyalar va ssenariylar
 
 ### 1. «Kim kerak?» (eng ko'p ko'rilgan formatning davomi, mijoz tomoni)
-Chizilgan qahramonlar, daftar varag'i foni.
-- To'y: «To'yga 2 hafta qoldi. Kim kerak?» → videograf, fotograf, taklifnoma dizayneri, klip montajchisi chiqadi → «Hammasini hudud bo'yicha bitta saytda izlang».
-- Biznes ochish: logo dizayneri, SMM, menyu dizayneri, reklama videografi.
-- Tug'ilgan kun, YouTube kanal ochish, onlayn do'kon.
+Chizilgan qahramonlar, daftar varag'i foni. Asosiy mavzular: ta'lim, shaxsiy brend, restoran/kafe, biznes. To'y kam (oyiga ko'pi bilan 1 marta).
+Kasb nomlari saytdagi haqiqiy kasblar ro'yxatidan (`src/lib/categories.ts`).
+- Ta'lim: «Onlayn kurs ochmoqchisiz. Kim kerak?» → Videograf, Montajor, Prezentatsiya dizayner, Targetolog.
+- Shaxsiy brend: «Shaxsiy brend. 0 obunachi. Kim kerak?» → Portret fotograf, Reels yaratuvchi, Logo dizayner, Kopirayter.
+- Restoran: «Restoran ochilishiga 3 kun. Kim kerak?» → Ovqat (mahsulot) fotografi, Menyu (poligrafiya) dizayneri, Videograf, SMM menejer.
+- Keyingilar: o'quv markazi reklamasi, repetitor o'z kanalini ochadi, onlayn do'kon, kafe menyusini yangilash, ekspert podkasti (Podkast muharriri, Ovoz rejissyori).
+- Oxirgi kadr: «Hudud va kasb bo'yicha bitta saytda izlang».
 Caption: «Sizga yana kim kerak bo'ldi? Izohda yozing.»
+Birinchi kadrlar generatori: `styles/kim-kerak/frames.py`.
 
 ### 2. «Ochilishiga 3 kun» (185 ko'rishli formatning seriyasi)
-Bir qahramon, sanoq: 3 kun → logo yo'q, 2 kun → menyu yo'q, 1 kun → Instagram uchun video yo'q. Yechim: katalogda hudud va kasb bo'yicha qidiradi.
+Bir qahramon (restoran egasi yoki kurs muallifi), sanoq: 3 kun → logo yo'q, 2 kun → menyu yo'q, 1 kun → Instagram uchun video yo'q. Yechim: katalogda hudud va kasb bo'yicha qidiradi.
 
 ### 3. POV: ijodkor hayoti (ijodkor tomoni, hazil)
 - «Mijoz: "kichkina o'zgarish"» → 47-tahrir.
@@ -49,6 +53,6 @@ Ikki logo, ikki rang tuzatish, ikki kadr. «Izohga A yoki B yozing».
 
 ## Ishlab chiqarish
 
-- Qahramonlar: AI rasm (Gemini kaliti kerak, rasm yaratish pullik) yoki o'zimiz chizgan vektor qahramonlar (bepul).
+- Qahramonlar: o'zimiz chizgan vektor qahramonlar (bepul, har videoda bir xil). Sinalgan: Gemini rasm (bepul limit 0), Higgsfield (kredit 0), Pollinations (xira, logo bilan) - yaramadi.
 - Animatsiya va ovoz: mavjud render + psynth vositalari.
 - Gemini bepul kalit: tayyor videoni tekshirish (montaj QC, ilgak kuchi).
