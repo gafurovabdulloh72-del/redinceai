@@ -1,0 +1,66 @@
+{
+ "topic": "brend",
+ "l1": "Shaxsiy brend.",
+ "l2": "0 obunachi.",
+ "main": {
+  "body": "#26324a",
+  "hair": "m",
+  "prop": "phone",
+  "expr": "shock"
+ },
+ "counter": {
+  "kind": "screen",
+  "text": "Post yo'q",
+  "x": 300,
+  "y": 700,
+  "rot": 4
+ },
+ "cardY": 640,
+ "slots": [
+  [
+   690,
+   1130
+  ],
+  [
+   910,
+   1130
+  ],
+  [
+   690,
+   1520
+  ],
+  [
+   910,
+   1520
+  ]
+ ],
+ "items": [
+  {
+   "name": "Portret fotograf",
+   "prop": "portrait",
+   "color": "#cfa24e",
+   "hair": "f"
+  },
+  {
+   "name": "Reels yaratuvchi",
+   "prop": "video",
+   "color": "#df7a5a",
+   "hair": "cap"
+  },
+  {
+   "name": "Logo dizayner",
+   "prop": "logo",
+   "color": "#d4709a",
+   "hair": "bun"
+  },
+  {
+   "name": "Kopirayter",
+   "prop": "pen",
+   "color": "#7d8fa8",
+   "hair": "m"
+  }
+ ],
+ "done": "Post tayyor!",
+ "end1": "Kerakli ijodkorlar",
+ "end2": "bir joyda."
+}

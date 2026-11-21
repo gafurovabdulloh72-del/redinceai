@@ -1,0 +1,185 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:SG;src:url(../SpaceGrotesk.woff2) format('woff2');font-weight:300 700}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#fbf8ef;font-family:SG,Arial,sans-serif}
+#root{position:absolute;inset:0}
+</style></head><body><div id="root"></div>
+<script>
+// «Kim kerak?» seriyasi: daftar varag'i, chizilgan qahramon, ro'yxat belgilanadi, kasb egalari paydo bo'ladi.
+// CFG: {topic, l1, l2, items:[{name, prop, color}], main:{body, hair, hat?, prop}, counter:{kind, from|text...}, done, end1, end2}
+const INK='#1a1a1c', CORAL='#ff5a36', SKIN='#f6cfaa', PAPER='#fbf8ef';
+const cl=x=>x<0?0:x>1?1:x, pr=(t,a,d)=>cl((t-a)/d);
+const eo=x=>1-Math.pow(1-x,3), back=x=>{const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const lerp=(a,b,x)=>a+(b-a)*x;
+const EVENTS=[]; const ev=(t,type,x)=>EVENTS.push(Object.assign({t:+t.toFixed(3),type},x||{}));
+let C;
+
+// ——— vaqt jadvali ———
+const T0=.15, TK=1.25, TL=2.1, STEP=1.3;           // sarlavha, «Kim kerak?», ro'yxat, har kasb oralig'i
+let TI, THAPPY, TEND, DUR;
+
+function face(expr, x){ // x: 0..1 «worry→happy» o'tishi
+  const blink = 0;
+  if(expr==='happy') return `<path d="M-52 2 Q-38 -14 -24 2 M24 2 Q38 -14 52 2" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
+   <path d="M-38 48 Q0 96 38 48 Z" fill="${INK}"/><path d="M-22 70 Q0 84 22 70" fill="none" stroke="#ff8a7a" stroke-width="8" stroke-linecap="round"/>`;
+  if(expr==='shock') return `<circle cx="-38" cy="5" r="12" fill="${INK}"/><circle cx="38" cy="5" r="12" fill="${INK}"/>
+   <path d="M-56 -30 L-20 -40 M56 -30 L20 -40" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><ellipse cx="0" cy="64" rx="17" ry="21" fill="${INK}"/>`;
+  return `<circle cx="-38" cy="5" r="11" fill="${INK}"/><circle cx="38" cy="5" r="11" fill="${INK}"/>
+   <path d="M-58 -28 L-20 -18 M58 -28 L20 -18" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
+   <path d="M-30 70 Q0 50 30 70" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`;
+}
+const HAIR={
+ m:`<path d="M-102 -10 Q-110 -120 0 -126 Q112 -120 102 -10 Q85 -78 0 -72 Q-80 -78 -102 -10Z" fill="${INK}"/>`,
+ f:`<path d="M-108 60 Q-130 -125 0 -128 Q130 -125 108 60 Q100 -60 0 -70 Q-95 -60 -108 60Z" fill="#3a2418"/>`,
+ cap:`<path d="M-102 -20 Q-100 -125 0 -128 Q100 -125 102 -20 Z" fill="#2f6f8f"/><path d="M60 -40 L170 -30 L160 -10 L70 -15Z" fill="#2f6f8f"/>`,
+ bun:`<path d="M-106 40 Q-125 -120 0 -124 Q125 -120 106 40 Q96 -60 0 -66 Q-92 -60 -106 40Z" fill="#5a3a22"/><circle cx="0" cy="-130" r="38" fill="#5a3a22"/>`,
+};
+const HAT_CHEF=`<path d="M-80 -95 Q-120 -190 -40 -190 Q0 -250 40 -190 Q120 -190 80 -95 Z" fill="#fff" stroke="${INK}" stroke-width="7"/>
+<rect x="-82" y="-110" width="164" height="40" rx="6" fill="#fff" stroke="${INK}" stroke-width="7"/>`;
+
+function head(hair, expr, sweat, hat){
+  return `<rect x="-20" y="80" width="40" height="70" fill="#f1c39d" stroke="${INK}" stroke-width="6"/>
+  <ellipse cx="0" cy="0" rx="105" ry="115" fill="${SKIN}" stroke="${INK}" stroke-width="7"/>${HAIR[hair]||''}
+  <circle cx="-62" cy="40" r="15" fill="#ffb3a7" opacity=".6"/><circle cx="62" cy="40" r="15" fill="#ffb3a7" opacity=".6"/>
+  ${face(expr)}${hat||''}
+  ${sweat>0?`<path transform="translate(102,${-50+sweat*30})" d="M0 0 q12 22 0 34 q-12 -12 0 -34z" fill="#7fc8f8" stroke="${INK}" stroke-width="4" opacity="${1-sweat*.6}"/>`:''}`;
+}
+// ——— asboblar (kasb belgisi) ———
+function prop(k){
+  switch(k){
+  case 'camera': return `<rect x="-62" y="-40" width="124" height="84" rx="14" fill="${INK}"/><rect x="-30" y="-56" width="44" height="20" rx="5" fill="${INK}"/>
+     <circle cx="0" cy="2" r="30" fill="#5b6b80" stroke="#fff" stroke-width="6"/><circle cx="40" cy="-24" r="7" fill="${CORAL}"/>`;
+  case 'video': return `<rect x="-70" y="-38" width="104" height="76" rx="12" fill="${INK}"/><path d="M34 -10 L72 -32 L72 32 L34 10Z" fill="${INK}"/>
+     <circle cx="-48" cy="-56" r="20" fill="none" stroke="${INK}" stroke-width="8"/><circle cx="0" cy="-56" r="20" fill="none" stroke="${INK}" stroke-width="8"/><circle cx="-50" cy="-14" r="8" fill="${CORAL}"/>`;
+  case 'menu': return `<rect x="-52" y="-70" width="104" height="140" rx="8" fill="#fff" stroke="${INK}" stroke-width="6"/>
+     <text x="0" y="-36" font-size="24" font-weight="700" text-anchor="middle" fill="${CORAL}">MENYU</text>
+     <path d="M-34 -10 H34 M-34 14 H24 M-34 38 H30" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>`;
+  case 'phone': return `<rect x="-42" y="-74" width="84" height="148" rx="16" fill="${INK}"/><rect x="-34" y="-62" width="68" height="120" rx="8" fill="#fff"/>
+     <path d="M0 22 C-30 0 -22 -30 0 -16 C22 -30 30 0 0 22Z" fill="${CORAL}"/>`;
+  case 'slides': return `<rect x="-70" y="-56" width="140" height="96" rx="8" fill="#fff" stroke="${INK}" stroke-width="6"/>
+     <rect x="-52" y="-2" width="20" height="28" fill="${CORAL}"/><rect x="-24" y="-22" width="20" height="48" fill="#7aa45c"/><rect x="4" y="-36" width="20" height="62" fill="#5f87d6"/>
+     <path d="M0 40 L0 70 M-30 76 L30 76" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>`;
+  case 'target': return `<circle r="56" fill="#fff" stroke="${INK}" stroke-width="6"/><circle r="36" fill="${CORAL}"/><circle r="18" fill="#fff"/><circle r="7" fill="${INK}"/>
+     <path d="M70 -70 L4 -4" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M70 -70 l-4 22 l22 -4z" fill="${INK}"/>`;
+  case 'scissors': return `<rect x="-70" y="10" width="140" height="40" rx="8" fill="#fff" stroke="${INK}" stroke-width="5"/>
+     <rect x="-62" y="18" width="40" height="24" rx="4" fill="#8b7fd1"/><rect x="-16" y="18" width="34" height="24" rx="4" fill="${CORAL}"/><rect x="24" y="18" width="38" height="24" rx="4" fill="#4fa3ad"/>
+     <circle cx="-22" cy="-40" r="16" fill="none" stroke="${INK}" stroke-width="7"/><circle cx="22" cy="-40" r="16" fill="none" stroke="${INK}" stroke-width="7"/><path d="M-12 -28 L20 0 M12 -28 L-20 0" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`;
+  case 'pen': return `<rect x="-58" y="-62" width="116" height="124" rx="10" fill="#fff" stroke="${INK}" stroke-width="6"/>
+     <text x="0" y="16" font-size="64" font-weight="700" text-anchor="middle" fill="${INK}">Aa</text><path d="M30 40 L70 -10 L84 2 L44 52 L26 58Z" fill="${CORAL}" stroke="${INK}" stroke-width="5"/>`;
+  case 'logo': return `<rect x="-58" y="-58" width="116" height="116" rx="26" fill="${INK}"/><text x="0" y="22" font-size="70" font-weight="700" text-anchor="middle" fill="#fff">A</text><circle cx="30" cy="-26" r="10" fill="${CORAL}"/>`;
+  case 'portrait': return `<rect x="-60" y="-70" width="120" height="140" rx="10" fill="#fff" stroke="${INK}" stroke-width="6"/>
+     <circle cx="0" cy="-14" r="26" fill="${SKIN}" stroke="${INK}" stroke-width="4"/><path d="M-38 54 Q0 10 38 54Z" fill="#26324a"/>`;
+  case 'laptop': return `<rect x="-90" y="-60" width="180" height="116" rx="12" fill="#2b2b30" stroke="${INK}" stroke-width="6"/><rect x="-76" y="-48" width="152" height="92" rx="6" fill="#cfe8ff"/>
+     <path d="M-14 -22 L-14 22 L24 0Z" fill="${CORAL}"/><rect x="-116" y="56" width="232" height="20" rx="8" fill="#9a9aa0" stroke="${INK}" stroke-width="6"/>`;
+  }
+  return '';
+}
+// kichik kasb egasi (kirib kelish: x 0..1)
+function mini(it, x, y, s, k){
+  const p=back(cl(k)), sc=s*lerp(.2,1,p), op=cl(k*3);
+  const bob=Math.sin((k*6))*0;
+  return `<g transform="translate(${x},${y+lerp(120,0,eo(cl(k)))}) scale(${sc})" opacity="${op}">
+   <path d="M-95 300 Q-95 150 0 135 Q95 150 95 300 L95 400 L-95 400Z" fill="${it.color}" stroke="${INK}" stroke-width="7"/>
+   <g transform="scale(.82)">${head(it.hair||'m','happy',0,'')}</g>
+   <g transform="translate(90,250) rotate(-8)">${prop(it.prop)}</g>
+  </g>`;
+}
+function counter(t){
+  const pulse=t<1.8?1+Math.max(0,Math.sin(t*9))*.07*(1-t/1.8):1;
+  return `<g transform="translate(${C.counter.x},${C.counter.y}) scale(${pulse}) translate(${-C.counter.x},${-C.counter.y})">${counterIn(t)}</g>`;
+}
+function counterIn(t){
+  const c=C.counter, n=C.items.length;
+  // qaysi holat: boshida «from», har kasb bilan kamayadi, oxirida done
+  let idx=0; for(let i=0;i<n;i++) if(t>=TI[i]+.25) idx=i+1;
+  const happy=t>=THAPPY;
+  if(c.kind==='calendar'){
+    const vals=c.vals; const v=happy?null:vals[Math.min(idx, vals.length-1)];
+    const flip=happy?pr(t,THAPPY,.3):(idx>0?pr(t,TI[idx-1]+.25,.25):1);
+    const sy=Math.abs(Math.cos(Math.PI*(1-eo(flip))/2))||.02;
+    return `<g transform="translate(${c.x},${c.y}) rotate(6) scale(.85)">
+     <rect x="-125" y="0" width="250" height="270" rx="22" fill="#fff" stroke="${INK}" stroke-width="7"/>
+     <rect x="-125" y="0" width="250" height="72" rx="22" fill="${CORAL}" stroke="${INK}" stroke-width="7"/>
+     <g transform="translate(0,165) scale(1,${sy}) translate(0,-165)">
+     ${happy?`<text x="0" y="190" font-size="54" font-weight="700" text-anchor="middle" fill="${CORAL}">${C.done}</text>`
+       :`<text x="0" y="200" font-size="130" font-weight="700" text-anchor="middle" fill="${INK}">${v}</text><text x="0" y="248" font-size="32" font-weight="700" text-anchor="middle" fill="#888">kun</text>`}
+     </g></g>`;
+  }
+  // screen: qurilma ekranida matn (0 obunachi → done)
+  const txt=happy?C.done:c.text;
+  const pop=happy?back(pr(t,THAPPY,.4)):1;
+  return `<g transform="translate(${c.x},${c.y}) rotate(${c.rot||0})">
+    <rect x="-130" y="-30" width="260" height="${c.big?150:120}" rx="20" fill="#fff" stroke="${INK}" stroke-width="7"/>
+    <g transform="translate(0,${c.big?45:30}) scale(${pop})"><text x="0" y="12" font-size="${happy?Math.min(44,Math.floor(232/(txt.length*.56))):(c.size||52)}" font-weight="700" text-anchor="middle" fill="${happy?CORAL:INK}">${txt}</text></g></g>`;
+}
+function card(t){
+  const n=C.items.length, k=pr(t,TL,.5), x=lerp(1180,600,eo(k)), rot=lerp(16,4,eo(k));
+  const outK=pr(t,TEND-.1,.4);
+  let rows='';
+  C.items.forEach((it,i)=>{
+    const on=pr(t,TI[i],.25);
+    rows+=`<text x="28" y="${70+i*66}" font-size="${it.name.length>18?28:34}" font-weight="700" fill="${INK}" opacity="${1-on*.45}">${it.name}</text>`;
+    if(on>0) rows+=`<path d="M372 ${52+i*66} l14 16 l28 -34" fill="none" stroke="${CORAL}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="70" stroke-dashoffset="${70*(1-eo(on))}"/>`;
+    else rows+=`<text x="380" y="${70+i*66}" font-size="38" font-weight="700" fill="${CORAL}">?</text>`;
+    if(on>0) rows+=`<path d="M24 ${58+i*66} H${24+330*eo(on)}" stroke="${INK}" stroke-width="4" opacity=".5"/>`;
+  });
+  return `<g transform="translate(${x+outK*600},${C.cardY}) rotate(${rot})"><rect width="440" height="${40+66*n}" rx="16" fill="#fff8d6" stroke="${INK}" stroke-width="6"/>${rows}</g>`;
+}
+function mainChar(t){
+  const m=C.main, k=pr(t,0,.45), happy=t>=THAPPY;
+  const jump=happy?Math.sin(Math.PI*cl((t-THAPPY)/.45))*60:0;
+  const breathe=Math.sin(t*3.2)*4;
+  const sweat=happy?0:((t*1.1)%1);
+  const expr=happy?'happy':(m.expr||'worry');
+  const shake=(t>TK&&t<TK+.35)?Math.sin(t*90)*6*(1-pr(t,TK,.35)):0;
+  const sc=1.22*lerp(.85,1,back(k));
+  return `<g transform="translate(${300+shake},${1200-jump+lerp(200,0,eo(k))}) scale(${sc})" opacity="${cl(k*3)}">
+   <path d="M-130 ${340+breathe} Q-130 160 0 140 Q130 160 130 ${340+breathe} L130 820 L-130 820 Z" fill="${m.body}" stroke="${INK}" stroke-width="7"/>
+   ${m.apron?`<path d="M-80 200 L80 200 L95 700 L-95 700 Z" fill="#fff" stroke="${INK}" stroke-width="6"/><circle cx="0" cy="260" r="10" fill="${CORAL}"/>`:''}
+   ${head(m.hair, expr, sweat, m.hat?HAT_CHEF:'')}
+   ${m.prop?`<g transform="translate(150,${300+breathe}) rotate(${happy?-14:6})">${prop(m.prop)}</g>`:''}
+  </g>`;
+}
+function confetti(t){
+  const k=pr(t,THAPPY,1.4); if(k<=0||k>=1) return '';
+  let s=''; for(let i=0;i<36;i++){const a=i*2.39, sp=300+((i*97)%260), x=300+Math.cos(a)*sp*eo(k), y=900+Math.sin(a)*sp*eo(k)*.7+k*k*500;
+    s+=`<rect x="${x}" y="${y}" width="16" height="26" rx="4" fill="${[CORAL,'#ffd36b','#7aa45c','#5f87d6'][i%4]}" transform="rotate(${i*40+k*600} ${x} ${y})" opacity="${1-k}"/>`;}
+  return s;
+}
+function bg(){
+  let s=`<rect width="1080" height="1920" fill="${PAPER}"/>`;
+  for(let y=0;y<1920;y+=64) s+=`<rect y="${y}" width="1080" height="2" fill="#dfe7f1"/>`;
+  return s+`<rect x="110" width="3" height="1920" fill="#f2a8a0"/>`;
+}
+function title(t){
+  const a=pr(t,T0,.35), b=pr(t,TK,.3), out=pr(t,TEND-.2,.35);
+  const sb=lerp(2.4,1,back(b));
+  return `<g opacity="${1-out}"><g transform="translate(150,${300+lerp(40,0,eo(a))})" opacity="${a}">
+    <text font-size="88" font-weight="700" fill="${INK}"><tspan x="0" y="0">${C.l1}</tspan><tspan x="0" y="96">${C.l2}</tspan></text></g>
+   <g transform="translate(150,500) scale(${sb})" opacity="${cl(b*2.5)}"><text x="0" y="0" font-size="96" font-weight="700" fill="${CORAL}">Kim kerak?</text></g></g>`;
+}
+function endCard(t){
+  const k=pr(t,TEND,.5); if(k<=0) return '';
+  const k2=pr(t,TEND+.45,.5), k3=pr(t,TEND+.9,.5);
+  return `<g text-anchor="middle" font-weight="700">
+   <g opacity="${k}" transform="translate(540,${250+lerp(50,0,eo(k))})"><text font-size="80" fill="${INK}"><tspan x="0" y="0">${C.end1}</tspan><tspan x="0" y="94">${C.end2}</tspan></text></g>
+   <g opacity="${k2}" transform="translate(540,${470+lerp(30,0,eo(k2))})"><text font-size="46" fill="#666"><tspan x="0" y="0">Hudud va kasb bo'yicha</tspan><tspan x="0" y="60">bitta saytda izlang</tspan></text></g>
+   <g opacity="${k3}" transform="translate(540,${690}) scale(${lerp(.8,1,back(k3))})"><rect x="-310" y="-64" width="620" height="100" rx="50" fill="${CORAL}" stroke="${INK}" stroke-width="6"/>
+    <text x="0" y="2" font-size="46" fill="#fff">kasbegalari.vercel.app</text></g></g>`;
+}
+window.setup=()=>{
+  C=window.CFG; const n=C.items.length;
+  TI=C.items.map((_,i)=>TL+.75+i*STEP); THAPPY=TI[n-1]+.9; TEND=THAPPY+1.7; DUR=TEND+4.2;
+  ev(0,'bed',{bpm:104}); ev(T0,'whoosh'); ev(TK,'stamp'); ev(TL,'paper');
+  TI.forEach((t,i)=>{ev(t,'click',{ping:1500+i*220}); ev(t+.25,'pop'); if(C.counter.kind==='calendar') ev(t+.25,'tick',{k:i});});
+  ev(THAPPY,'ding',{root:262}); ev(THAPPY+.05,'shimmer'); ev(TEND,'whip'); ev(TEND+1.0,'impact',{g:.5});
+  window.DUR=DUR; window.EVENTS=EVENTS.sort((a,b)=>a.t-b.t);
+};
+window.renderAt=(t)=>{
+  const pos=C.slots;
+  let minis=''; C.items.forEach((it,i)=>{const k=pr(t,TI[i]+.2,.45); if(k>0) minis+=mini(it,pos[i][0],pos[i][1],.8,k);});
+  const hideMain=pr(t,TEND-.2,.35);
+  document.getElementById('root').innerHTML=`<svg width="1080" height="1920" viewBox="0 0 1080 1920">${bg()}${title(t)}
+   <g opacity="${1-hideMain}">${counter(t)}${card(t)}</g>${mainChar(t)}${minis}${confetti(t)}${endCard(t)}</svg>`;
+};
+</script></body></html>
