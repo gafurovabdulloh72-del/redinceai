@@ -5,7 +5,7 @@ Matn o'zgarmaydi; har e'londa «Manba: Kanal nomi» va asl postga havola turadi;
 
 ## Qanday ishlaydi
 1. Har 15 daqiqada `https://t.me/s/<kanal>` sahifasi o'qiladi (oxirgi ~20 post). Faqat **ochiq** kanallar.
-2. AI (Gemini, `GEMINI_API_KEY`) postni saralaydi: ish beruvchining vakansiyasimi, qaysi kasb, format, hudud, maosh.
+2. Post MATNDAN (AI'siz) saralanadi: ish beruvchining vakansiyasimi, lavozim, kasb (lavozim nomidagi rol so'zi: «Sotuv operatori» → sotuv, «Video operator» → video), format, hudud, maosh.
    Kalit bo'lmasa — kalit so'zlar bo'yicha (aniqligi pastroq). Rezyume, kurs/xizmat reklamasi o'tkazib yuboriladi.
 3. Mos bo'lsa — manba rejimiga qarab: **Darhol** joylanadi yoki **Tasdiq bilan** admin navbatiga tushadi.
 4. Bir xil matn boshqa kanaldan kelsa — takror deb tashlanadi. Vakansiya 30 kundan keyin yopiladi.
@@ -17,7 +17,7 @@ Matn o'zgarmaydi; har e'londa «Manba: Kanal nomi» va asl postga havola turadi;
 - **GitHub → Settings → Secrets → Actions**: `PROD_URL` = `https://kasbegalari.vercel.app`, `CRON_SECRET` = Vercel'dagi bilan bir xil.
   Shundan keyin `.github/workflows/vacancy-import.yml` har 15 daqiqada ishlaydi.
   Sirlar bo'lmasa ham ishlaydi, lekin sekinroq: vakansiyalar sahifasi ochilganda (15 daqiqada ko'pi bilan bir marta) va kunlik cron'da.
-- **Vercel**: `GEMINI_API_KEY` (Google AI Studio, bepul limit yetadi).
+- AI kaliti shart emas (import AI ishlatmaydi).
 
 ## Kanal egasi so'rasa
 Kanal qatoridagi 🗑 → «Vakansiyalari bilan o'chirish» — kanal va undan olingan barcha vakansiyalar o'chadi.

@@ -107,12 +107,12 @@ export function AdminVacancySources() {
   }
 
   async function reparse() {
-    const ok = await confirm({ title: "E'lonlar qayta tahlil qilinsinmi?", text: "Saytdagi kanal e'lonlarining lavozimi, kasbi, formati va hududi matndan qayta aniqlanadi. Matn, manba va rasm o'zgarmaydi.", confirmLabel: "Qayta tahlil" });
+    const ok = await confirm({ title: "E'lonlar qayta tahlil qilinsinmi?", text: "Saytdagi kanal e'lonlarining lavozimi, kasbi, formati va hududi matndan qayta aniqlanadi. Matn, manba va rasm o'zgarmaydi. Kasbi kanal filtriga kirmaydigan e'lonlar yopiladi.", confirmLabel: "Qayta tahlil" });
     if (!ok) return;
     setBusy("reparse");
     try {
-      const r = await call<{ checked: number; changed: number }>("POST", { action: "reparse" });
-      showToast(`Tekshirildi: ${r.checked} · tuzatildi: ${r.changed}`);
+      const r = await call<{ checked: number; changed: number; closed: number }>("POST", { action: "reparse" });
+      showToast(`Tekshirildi: ${r.checked} · tuzatildi: ${r.changed}${r.closed ? ` · yopildi: ${r.closed}` : ""}`);
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Xatolik", "error");

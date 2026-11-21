@@ -1,12 +1,10 @@
 import "server-only";
-import { z } from "zod";
-import { geminiJson } from "@/lib/i18n/gemini";
-import { PROFESSION_SLUGS, VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
-import { KEYWORDS, TITLES, detectEmployment, detectExperience, detectFormat, detectProfession, detectRegion, detectSalary } from "./assistant";
+import { VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
+import { TITLES, detectEmployment, detectExperience, detectFormat, detectRegion, detectSalary } from "./assistant";
 
 /**
  * Kanal postini saralash (vakansiyami, lavozim, kasb, joy) — lib/vacancies/import.ts ishlatadi.
- * AI (Gemini) bo'lmasa kalit so'zlar: lavozim nomi postning o'zidan olinadi, kasb — avval lavozimdan.
+ * AI'siz: lavozim nomi postning o'zidan olinadi, kasb — avval lavozimdan, keyin matndagi rol so'zlaridan.
  */
 export interface Classified {
   isVacancy: boolean;
@@ -72,31 +70,62 @@ export function extractJobTitle(text: string): string | null {
   return null;
 }
 
-/** Saytdagi shablon kalit so'zlariga qo'shimcha: ruscha va kanal e'lonlarida ko'p uchraydigan so'zlar */
-const EXTRA_KEYWORDS: Array<[ProfessionSlug, RegExp]> = [
-  ["video", /mobilograf|videograf|operator|монтаж|видео|мобилограф|оператор|моушн|анимац/i],
-  ["dizayn", /дизайн|иллюстрат|верстальщик|motion\s+dizayn/i],
-  ["marketing", /таргет|smm|маркетолог|реклам|контент[\s-]*менеджер/i],
-  ["kontent", /копирайт|переводчик|сценар|журналист|kopirayter|copywriter/i],
-  ["dasturlash", /программист|разработчик|developer|frontend|backend/i],
+/**
+ * KASB — AI'siz, faqat matndan. Har kasbning LAVOZIM so'zlari (rol nomlari) bor.
+ * 1) Lavozim nomida (qavs ichidagisiz) eng OLDIN uchragan rol — asosiy kasb: «Marketolog (SMM + video kreativ)» → marketing.
+ * 2) Lavozimdan topilmasa — butun matnda rol so'zlari SONI bo'yicha (sarlavha qatorlari og'irroq).
+ * «Operator» yolg'iz — sotuv/call-markaz operatori; video faqat «video/kamera/mobil operator» bo'lsa.
+ */
+const ROLE_RULES: Array<[ProfessionSlug, RegExp]> = [
+  ["sotuv", /sotuv|savdo|sotuvchi|kassir|konsultant|maslahatchi|call[\s-]*cent|kol[\s-]*sent|колл[\s-]*центр|operator|оператор|продаж|продавец|кассир|telemarket|qo'ng'iroq\s+qil|mijozlar\s+bilan\s+ishlash|менеджер\s+по\s+работе\s+с\s+клиент/],
+  ["video", /\bvideo|видео|montaj|монтаж|videograf|mobilograf|мобилограф|kameraman|kamera\s*man|reels|motion|моушн|animat|анимац|kliper|premiere|after\s*effects|davinci|youtube\s+kanal/],
+  ["dizayn", /dizayn|дизайн|figma|logo|brending|\bui\b|\bux\b|illustrat|иллюстрат|photoshop|grafik|верстальщик/],
+  ["marketing", /marketolog|marketing|маркетолог|маркетинг|\bsmm|smm\b|target|таргет|reklama|реклам|\bseo\b|brend\s+menejer/],
+  ["kontent", /kopirayt|copywrit|копирайт|tarjim|переводчик|kontent|контент|maqola|ssenariy|сценар|jurnalist|журналист|matn\s+yoz/],
+  ["dasturlash", /dasturchi|dastur|программист|разработчик|developer|frontend|backend|full\s*stack|react|python|javascript|php|flutter|mobil\s+ilova/],
+  ["moliya", /buxgalter|бухгалтер|moliya|финанс|hisobchi|auditor|аудитор|ekonomist|экономист/],
+  ["talim", /o'qituvchi|oqituvchi|учитель|преподават|repetitor|репетитор|ustoz|trener|тренер/],
+  ["data", /analitik|аналитик|data|ma'lumotlar|power\s*bi|\bsql\b|machine\s+learning|sun'iy\s+intellekt/],
+  ["boshqaruv", /assistent|ассистент|loyiha\s+menejer|project\s+manager|\bhr\b|kadrlar|рекрутер|ofis\s+menejer|administrator|администратор|rahbar|руководител|direktor|директор|sekretar|секретар|kurer|курьер|haydovchi|водител|omborchi|кладовщик/],
 ];
-function detectProfessionPlus(t: string): ProfessionSlug {
-  const base = detectProfession(t);
-  if (base !== "boshqa") return base;
-  for (const [slug, re] of EXTRA_KEYWORDS) if (re.test(t)) return slug;
-  return "boshqa";
+
+/** Kichik harf, o'zbekcha apostroflar bir xil, «video operator» → «videograf» (sotuv operatoridan ajratish) */
+function normRoles(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[ʻʼ`’‘]/g, "'")
+    .replace(/(?:video|kamera|mobil|dron|kino|tele)[\s-]*operator\S*/g, " videograf ")
+    .replace(/(?:видео|кино|теле)?[\s-]*оператор\S*\s+(?:видео|съ[её]мк|камер)\S*/g, " videograf ")
+    .replace(/видеооператор\S*/g, " videograf ");
 }
 
-/** Kasb: avval lavozim nomidan, bo'lmasa matndagi kalit so'zlar SONI bo'yicha (birinchi uchragan emas — «montaj sifati» SMM'ni video qilib qo'ymasin) */
+/** Matnda birinchi uchragan rolning kasbi (lavozim nomi uchun) */
+function firstRole(text: string): ProfessionSlug | null {
+  const t = normRoles(text);
+  let best: ProfessionSlug | null = null;
+  let at = Infinity;
+  for (const [slug, re] of ROLE_RULES) {
+    const m = re.exec(t);
+    if (m && m.index < at) (best = slug), (at = m.index);
+  }
+  return best;
+}
+
+/** Kasb: avval lavozim nomidan (qavssiz, keyin qavs bilan), bo'lmasa matndagi rol so'zlari SONI bo'yicha */
 export function detectImportProfession(text: string, title: string | null): ProfessionSlug {
   if (title) {
-    const t = detectProfessionPlus(title);
-    if (t !== "boshqa") return t;
+    const main = firstRole(title.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")) ?? firstRole(title);
+    if (main) return main;
   }
+  const lines = text.split("\n").filter((l) => l.trim());
+  const head = normRoles(lines.slice(0, 3).join("\n"));
+  const body = normRoles(text);
   let best: ProfessionSlug = "boshqa";
   let bestN = 0;
-  for (const [slug, re] of [...KEYWORDS, ...EXTRA_KEYWORDS]) {
-    const n = (text.match(new RegExp(re.source, "gi")) ?? []).length;
+  for (const [slug, re] of ROLE_RULES) {
+    const g = new RegExp(re.source, "g");
+    // Birinchi 3 qatordagi so'z uch baravar og'ir (odatda lavozim shu yerda)
+    const n = (body.match(g) ?? []).length + 2 * (head.match(g) ?? []).length;
     if (n > bestN) (best = slug), (bestN = n);
   }
   return best;
@@ -137,46 +166,10 @@ export function classifyByKeywords(text: string): Classified {
   };
 }
 
-const aiSchema = z.object({
-  is_vacancy: z.boolean(),
-  reason: z.string().max(200).default(""),
-  title: z.string().trim().max(VACANCY_TITLE_MAX).default(""),
-  profession: z.enum(PROFESSION_SLUGS).default("boshqa"),
-  format: z.enum(["remote", "hybrid", "office"]).default("remote"),
-  employment: z.enum(["full", "part", "project", "internship"]).default("full"),
-  experience: z.enum(["none", "junior", "middle", "senior"]).default("junior"),
-  company: z.string().trim().max(80).default(""),
-});
-
-const SYSTEM = `Sen O'zbekistondagi «Kasb Egalari» ish platformasi uchun Telegram kanal postlarini saralovchisan.
-Post — ISH BERUVCHI xodim izlayotgan VAKANSIYA e'lonimi? Rezyume (odam o'zi ish qidirmoqda), xizmat/kurs/mahsulot reklamasi, yangilik, so'rovnoma — vakansiya EMAS.
-Vakansiya bo'lsa, maydonlarni ajrat. Matnni QAYTA YOZMA. title — postda yozilgan LAVOZIMNING O'ZI, qisqa, o'zbekcha lotin yozuvida (masalan «SMM menejer», «Video montajchi», «Grafik dizayner»); matnda boshqa kasblar tilga olinsa ham (masalan SMM vazifalari ichida «montaj») — asosiy lavozimni ol.
-profession: ${PROFESSION_SLUGS.join(", ")} (video — montaj/videograf/motion/animatsiya; dizayn — grafik/UI/UX; marketing — SMM/target/reklama; kontent — kopirayter/tarjimon/ssenariy).
-format: remote (faqat aniq «masofaviy/onlayn/uydan» deyilsa) | hybrid | office (manzil, «offline», ofis yoki joyida ishlash ko'rsatilsa). employment: full | part | project (frilans/loyiha) | internship. experience: none | junior (≤1 yil) | middle (1–3) | senior (3+).
-company — postda ANIQ yozilgan kompaniya/studiya nomi, bo'lmasa "". O'ylab topma.
-Javob — FAQAT JSON: {"is_vacancy":bool,"reason":"qisqa sabab","title","profession","format","employment","experience","company"}.`;
-
+/**
+ * Kanal postini saralash — AI ISHLATILMAYDI (foydalanuvchi qarori): hamma narsa matndan, oldindan aytib bo'ladigan qoidalar bilan.
+ * Async imzo saqlangan (chaqiruvchilar o'zgarmasin).
+ */
 export async function classifyPost(text: string): Promise<Classified> {
-  const base = classifyByKeywords(text);
-  const raw = await geminiJson(SYSTEM, text.slice(0, 4000), { temperature: 0.1, timeoutMs: 15_000 });
-  const p = raw ? aiSchema.safeParse(raw) : null;
-  if (!p?.success) return base;
-  const d = p.data;
-  const place = detectImportFormat(text);
-  const region = d.format === "remote" ? null : place.regionSlug;
-  return {
-    isVacancy: d.is_vacancy,
-    reason: d.reason || (d.is_vacancy ? "AI: vakansiya" : "AI: vakansiya emas"),
-    title: (d.title || base.title).slice(0, VACANCY_TITLE_MAX),
-    profession: d.profession,
-    format: d.format,
-    employment: d.employment,
-    experience: d.experience,
-    regionSlug: region,
-    salaryMin: base.salaryMin,
-    salaryMax: base.salaryMax,
-    company: d.company,
-    source: "ai",
-  };
+  return classifyByKeywords(text);
 }
-

@@ -381,9 +381,8 @@ export async function decideImport(id: string, action: "publish" | "reject"): Pr
   if (claim.rowsAffected === 0) throw new ApiError(409, "Allaqachon joylangan");
   const src = await db.query.vacancySources.findFirst({ where: eq(vacancySources.id, row.sourceId) });
   if (!src) throw new ApiError(404, "Manba topilmadi");
-  // AI tasnifi bo'lsa — u, aks holda yangi kalit so'z tahlili (eski parsed eskirgan bo'lishi mumkin)
-  const prev = row.parsed as unknown as Classified | null;
-  const parsed = prev?.source === "ai" ? prev : classifyByKeywords(row.text);
+  // Har doim yangi matn tahlili (eski parsed eskirgan bo'lishi mumkin)
+  const parsed = classifyByKeywords(row.text);
   const fixed: Classified = { ...parsed, profession: parsed.profession === "boshqa" ? detectProfession(row.text) : parsed.profession };
   const photo = (row.parsed as { photo?: string | null } | null)?.photo ?? null;
   const vid = await createImportedVacancy(src, { text: row.text, url: `https://t.me/${src.username}/${row.postId}`, photo }, fixed);
@@ -402,26 +401,29 @@ export async function purgeVacancyImports(now = Date.now()): Promise<number> {
 
 /**
  * Saytdagi kanal e'lonlarini QAYTA TAHLIL qilish (admin tugmasi): lavozim, kasb, format, hudud, maosh, tajriba matndan
- * qayta aniqlanadi. Matn, manba va rasm o'zgarmaydi. AI kaliti bo'lsa — AI bilan (ko'pi bilan `limit` ta), bo'lmasa kalit so'zlar.
+ * qayta aniqlanadi (AI'siz). Matn, manba va rasm o'zgarmaydi. Yangi kasb kanal filtriga (manba `professions`) kirmasa —
+ * e'lon YOPILADI (masalan video kanal filtrida sotuv operatori qolmasin).
  */
-export async function reparseImportedVacancies(limit = 200): Promise<{ checked: number; changed: number }> {
+export async function reparseImportedVacancies(limit = 300): Promise<{ checked: number; changed: number; closed: number }> {
   const rows = await db
-    .select({ id: vacancies.id, description: vacancies.description, title: vacancies.title, profession: vacancies.profession, format: vacancies.format, regionSlug: vacancies.regionSlug })
+    .select({ id: vacancies.id, description: vacancies.description, title: vacancies.title, profession: vacancies.profession, format: vacancies.format, regionSlug: vacancies.regionSlug, status: vacancies.status, sourceId: vacancies.sourceId })
     .from(vacancies)
     .where(isNotNull(vacancies.sourceId))
     .orderBy(desc(vacancies.createdAt))
     .limit(limit);
-  const started = Date.now();
+  const sources = new Map((await db.select({ id: vacancySources.id, professions: vacancySources.professions }).from(vacancySources)).map((r) => [r.id, r.professions]));
   let changed = 0;
-  let checked = 0;
+  let closed = 0;
   for (const v of rows) {
-    if (Date.now() - started > 45_000) break;
-    checked += 1;
-    const c = process.env.GEMINI_API_KEY?.trim() ? await classifyPost(v.description) : classifyByKeywords(v.description);
+    const c = classifyByKeywords(v.description);
     const profession = c.profession === "boshqa" ? v.profession : c.profession;
+    const allowed = sources.get(v.sourceId ?? "") ?? [];
+    const outOfFilter = allowed.length > 0 && !allowed.includes(profession as ProfessionSlug);
     const next = { title: c.title || v.title, profession, format: c.format, regionSlug: c.regionSlug, employment: c.employment, experience: c.experience, salaryMin: c.salaryMin, salaryMax: c.salaryMax, company: c.company };
     if (next.title !== v.title || next.profession !== v.profession || next.format !== v.format || next.regionSlug !== v.regionSlug) changed += 1;
-    await db.update(vacancies).set({ ...next, updatedAt: new Date() }).where(eq(vacancies.id, v.id));
+    const close = outOfFilter && v.status === "open";
+    if (close) closed += 1;
+    await db.update(vacancies).set({ ...next, ...(close ? { status: "closed" as const } : {}), updatedAt: new Date() }).where(eq(vacancies.id, v.id));
   }
-  return { checked, changed };
+  return { checked: rows.length, changed, closed };
 }
