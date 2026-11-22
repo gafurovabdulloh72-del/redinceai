@@ -168,5 +168,7 @@
 "v-mehmon": 274,
 "v-saqlash": 275,
 "v-toplam": 276,
-"v-sehrgar": 277
+"v-sehrgar": 277,
+"v-tema": 278,
+"v-vakfiltr": 279
 }
