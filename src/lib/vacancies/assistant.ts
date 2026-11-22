@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { geminiJson } from "@/lib/i18n/gemini";
+import { claudeJson, isClaudeConfigured } from "@/lib/ai/claude";
 import { REGIONS } from "@/lib/constants";
 import { PROFESSION_SLUGS, VACANCY_DESC_MAX, VACANCY_REQ_MAX, VACANCY_SKILLS_MAX, VACANCY_TITLE_MAX, type ProfessionSlug } from "./format";
 import { SCREEN_Q_MAX, SCREEN_QUIZ_MAX, newScreenId, type Screening } from "./screening";
@@ -8,7 +9,7 @@ import { SCREEN_Q_MAX, SCREEN_QUIZ_MAX, newScreenId, type Screening } from "./sc
 /**
  * «MENGA VAKANSIYA YARAT» (2026-11-09, ISH ON g'oyasi): ish beruvchi talabni erkin yozadi → loyiha: sarlavha, tavsif,
  * talablar, ko'nikmalar, format/bandlik/tajriba + anketa savollari va test. Ish beruvchi TAHRIRLAYDI va o'zi e'lon qiladi.
- * GEMINI_API_KEY bo'lsa — AI; bo'lmasa (yoki AI xato qilsa) — kalit so'zlarga asoslangan shablon (hech qachon bo'sh qaytmaydi).
+ * ANTHROPIC_API_KEY (Claude) yoki GEMINI_API_KEY bo'lsa — AI; bo'lmasa (yoki AI xato qilsa) — kalit so'zlarga asoslangan shablon (hech qachon bo'sh qaytmaydi).
  */
 export interface VacancyDraft {
   title: string;
@@ -209,7 +210,7 @@ function templateDraft(brief: string, prof?: ProfessionSlug): VacancyDraft {
 }
 
 /* ------------------------------------------------------------------ */
-/* AI (Gemini)                                                         */
+/* AI (Claude → Gemini)                                                */
 /* ------------------------------------------------------------------ */
 const aiSchema = z.object({
   title: z.string().trim().min(5).max(VACANCY_TITLE_MAX),
@@ -227,6 +228,20 @@ const aiSchema = z.object({
     .default([]),
 });
 
+/** Claude strukturali javobi uchun cheklovsiz sxema (cheklovlar keyin `aiSchema` bilan tekshiriladi) */
+const claudeDraftSchema = z.object({
+  title: z.string(),
+  profession: z.enum(PROFESSION_SLUGS),
+  description: z.string(),
+  requirements: z.string(),
+  skills: z.array(z.string()),
+  experience: z.enum(["none", "junior", "middle", "senior"]),
+  format: z.enum(["remote", "hybrid", "office"]),
+  employment: z.enum(["full", "part", "project", "internship"]),
+  questions: z.array(z.string()),
+  quiz: z.array(z.object({ text: z.string(), options: z.array(z.string()), correct: z.number().int() })),
+});
+
 const SYSTEM = `Sen «Kasb Egalari» (O'zbekiston) platformasida ish beruvchiga vakansiya e'lonini tayyorlab beruvchi HR yordamchisisan.
 Ish beruvchi talabni erkin yozadi. Sen O'ZBEK tilida (lotin yozuvi, apostrof ' bilan) professional, qisqa va aniq e'lon loyihasini tuzasan.
 Qoidalar: faqat talabda aytilgan yoki kasbga odatiy narsalarni yoz, maosh/kompaniya nomini o'ylab TOPMA; tavsif 600–1500 belgi (vazifalar, shartlar, taklif qilinadigan narsalar, ro'yxatlar "- " bilan); talablar 3–6 band "- " bilan; ko'nikmalar 4–8 ta qisqa (vosita/texnologiya nomlari);
@@ -235,7 +250,9 @@ profession quyidagilardan biri: ${PROFESSION_SLUGS.join(", ")}. experience: none
 Javob — FAQAT JSON obyekt: {"title","profession","description","requirements","skills":[],"experience","format","employment","questions":[],"quiz":[{"text","options":[],"correct"}]}.`;
 
 export async function draftVacancy(brief: string, profession?: ProfessionSlug | ""): Promise<VacancyDraft> {
-  const raw = await geminiJson(SYSTEM, `Talab:\n${brief}${profession ? `\nKasb yo'nalishi: ${profession}` : ""}`);
+  const user = `Talab:\n${brief}${profession ? `\nKasb yo'nalishi: ${profession}` : ""}`;
+  // Claude kaliti bo'lsa — Claude, aks holda Gemini (ikkalasi ham yo'q — shablon)
+  const raw = isClaudeConfigured() ? await claudeJson(SYSTEM, user, claudeDraftSchema, { timeoutMs: 50_000, maxTokens: 6000 }) : await geminiJson(SYSTEM, user);
   const parsed = raw ? aiSchema.safeParse(raw) : null;
   if (parsed?.success) {
     const d = parsed.data;

@@ -1,4 +1,6 @@
 import "server-only";
+import { z } from "zod";
+import { claudeJson, isClaudeConfigured } from "@/lib/ai/claude";
 
 /**
  * Gemini orqali uz→ru tarjima (avtomatik RU qatlam uchun). Env: GEMINI_API_KEY (Google AI Studio, bepul tarif),
@@ -7,13 +9,27 @@ import "server-only";
  */
 const HOST = "https://generativelanguage.googleapis.com";
 
+/** AI tarjima bormi: Claude (ANTHROPIC_API_KEY) — birinchi, bo'lmasa Gemini */
 export function isAutoTranslateConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+  return isClaudeConfigured() || Boolean(process.env.GEMINI_API_KEY?.trim());
 }
+
+const translateSchema = z.object({ items: z.array(z.string()) });
 
 const SYSTEM = `Ты переводчик интерфейса веб-приложения «Kasb Egalari» (Узбекистан: маркетплейс видеографов/монтажёров/дизайнеров, соцсеть, курсы наставников, эфиры, вакансии). Переведи КАЖДУЮ строку с узбекского (латиница) на русский. Стиль: коротко, как в интерфейсе, обращение на «вы», кнопки — инфинитив («Сохранить»). Термины: mutaxassis → специалист, ijodkor → автор, mijoz → заказчик, buyurtma → заказ, efir → эфир, ustoz → наставник, jamoa → сообщество, taklif → отклик, e'lon → объявление, so'm → сум, Kasb Egalari — без перевода. Плейсхолдеры вида {x} или $\{x} сохраняй без изменений. Если строка не узбекская — верни её без изменений. Ответ — ТОЛЬКО JSON-массив строк той же длины и порядка, без пояснений.`;
 
 export async function geminiTranslate(texts: string[]): Promise<string[] | null> {
+  if (texts.length === 0) return null;
+  if (isClaudeConfigured()) {
+    const d = await claudeJson(
+      SYSTEM.replace("Ответ — ТОЛЬКО JSON-массив строк той же длины и порядка, без пояснений.", "Ответ — JSON-объект {\"items\": [...]}: массив строк той же длины и порядка."),
+      JSON.stringify(texts),
+      translateSchema,
+      { timeoutMs: 25_000, maxTokens: 4096 },
+    );
+    if (d && d.items.length === texts.length) return d.items;
+    return null;
+  }
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key || texts.length === 0) return null;
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";

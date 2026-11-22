@@ -337,10 +337,11 @@ export async function launchReadiness(): Promise<ReadinessReport> {
   });
 
   /* ----------------------------- Qo'shimcha ---------------------------- */
-  await guard("gemini", "qoshimcha", "AI (GEMINI_API_KEY)", () => {
-    const title = "AI (GEMINI_API_KEY)";
-    if (isAutoTranslateConfigured()) add({ key: "gemini", group: "qoshimcha", status: "ok", title, detail: "Ulangan — avto-tarjima va vakansiya yordamchisi AI bilan ishlaydi" });
-    else add({ key: "gemini", group: "qoshimcha", status: "warn", optional: true, title, detail: "Kalit yo'q — AI o'rniga tayyor shablonlar ishlaydi (yangi matnlar ruschaga o'girilmaydi)", fix: "Google AI Studio'dan kalit olib GEMINI_API_KEY ga qo'ying." });
+  await guard("gemini", "qoshimcha", "AI tarjima va vakansiya yordamchisi", () => {
+    const title = "AI tarjima va vakansiya yordamchisi";
+    if (set("ANTHROPIC_API_KEY")) add({ key: "gemini", group: "qoshimcha", status: "ok", title, detail: "Claude bilan ishlaydi — avto-tarjima va «Menga vakansiya yarat»" });
+    else if (isAutoTranslateConfigured()) add({ key: "gemini", group: "qoshimcha", status: "ok", title, detail: "Gemini bilan ishlaydi — avto-tarjima va vakansiya yordamchisi" });
+    else add({ key: "gemini", group: "qoshimcha", status: "warn", optional: true, title, detail: "Kalit yo'q — AI o'rniga tayyor shablonlar ishlaydi (yangi matnlar ruschaga o'girilmaydi)", fix: "Vercel'ga ANTHROPIC_API_KEY (Claude) yoki GEMINI_API_KEY qo'ying." });
   });
 
   await guard("claude", "qoshimcha", "Claude AI (ANTHROPIC_API_KEY)", () => {

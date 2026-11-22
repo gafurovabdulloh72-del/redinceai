@@ -1,3 +1,4 @@
+export const maxDuration = 60;
 import { handler, ok, parseBody, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { draftInputSchema, draftVacancy } from "@/lib/vacancies/assistant";

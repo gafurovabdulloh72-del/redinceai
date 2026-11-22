@@ -1,3 +1,4 @@
+export const maxDuration = 60;
 import { z } from "zod";
 import { handler, ok, parseBody } from "@/lib/api";
 import { enforceLimit, clientIp } from "@/lib/security/rate-limit";
