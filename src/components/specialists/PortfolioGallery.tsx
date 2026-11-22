@@ -334,6 +334,9 @@ function Lightbox({
             </div>
           ) : pair ? (
             <BeforeAfter before={pair} after={item.url} title={item.title} />
+          ) : item.type === "video" && /\.(?:mp4|webm|mov)(?:$|\?|#)/i.test(item.url) ? (
+            // Saytga yuklangan video fayl — shu yerning o'zida o'ynaydi
+            <video key={item.id} src={item.url} poster={item.thumbnailUrl ?? undefined} controls autoPlay playsInline className="max-h-[78vh] w-full max-w-3xl rounded-[var(--r-lg)] bg-black" />
           ) : item.type === "video" ? (
             <a href={item.url} target="_blank" rel="noreferrer noopener" className="card card-hover flex aspect-video w-full max-w-2xl flex-col items-center justify-center gap-3 !rounded-[var(--r-lg)] text-fg">
               <span className="btn-ink flex h-14 w-14 items-center justify-center rounded-full">

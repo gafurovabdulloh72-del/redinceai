@@ -9,6 +9,7 @@ import { cn, hashHue, youtubeId } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr, type Locale, type Tr } from "@/lib/i18n";
 import { FORMA, PORTF as P } from "@/lib/i18n/dict/kabinet-forms";
+import { uploadAttachment } from "@/components/chat/attachments";
 
 /* ------------------------------------------------------------------ */
 /* Turlar                                                              */
@@ -878,6 +879,7 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const urlRef = useRef<HTMLInputElement>(null);
 
@@ -903,6 +905,29 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  /** Video fayl: R2/Blob'ga to'g'ridan-to'g'ri (katta fayl ham), muqova — birinchi kadr */
+  const uploadVideoFile = async (file: File) => {
+    setError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      const att = await uploadAttachment(file, { docs: true, onProgress: (r) => setProgress(Math.min(99, Math.round(r * 100))) });
+      if (!/^video\//.test(att.type ?? "") && !/\.(?:mp4|webm|mov)(?:$|\?)/i.test(att.url)) {
+        setError(tr(til, P.videoUploadHint));
+        return;
+      }
+      setProgress(100);
+      setUrl(att.url);
+      if (att.poster && !thumbnailUrl.trim()) setThumbnailUrl(att.poster);
+      if (!title.trim()) setTitle(file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").slice(0, 100));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr(til, FORMA.networkError));
+    } finally {
+      setUploading(false);
+      if (videoRef.current) videoRef.current.value = "";
     }
   };
 
@@ -1021,6 +1046,24 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
                   />
                 </>
               )}
+              {type === "video" && (
+                <>
+                  <Button type="button" variant="outline" size="md" onClick={() => videoRef.current?.click()} disabled={uploading} className="shrink-0">
+                    {uploading ? <Spinner /> : <Play size={15} />} {uploading ? `${progress}%` : tr(til, P.uploadVideo)}
+                  </Button>
+                  <input
+                    ref={videoRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                    className="sr-only"
+                    aria-label={tr(til, P.uploadVideoAria)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void uploadVideoFile(f);
+                    }}
+                  />
+                </>
+              )}
             </div>
             {/* Yuklash jarayoni */}
             {(uploading || (progress > 0 && progress < 100)) && (
@@ -1031,7 +1074,13 @@ function AddForm({ onAdded, onClose }: { onAdded: () => void; onClose?: () => vo
                 <p className="mt-1 text-[12px] text-fg-3">{progress < 100 ? P.uploadingPct[til](progress) : tr(til, P.processing)}</p>
               </div>
             )}
-            {errors.url ? <p className="field-error">{errors.url}</p> : type === "image" && !uploading && <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.imageHint)}</p>}
+            {errors.url ? (
+              <p className="field-error">{errors.url}</p>
+            ) : type === "image" && !uploading ? (
+              <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.imageHint)}</p>
+            ) : type === "video" && !uploading ? (
+              <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.videoUploadHint)}</p>
+            ) : null}
           </div>
 
           {/* Muqova (video/havola uchun) */}

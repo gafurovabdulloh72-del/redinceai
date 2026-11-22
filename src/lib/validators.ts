@@ -340,11 +340,14 @@ export const portfolioTagsSchema = z
     });
   });
 
+/** Disk rejimida (dev/VPS) saytga yuklangan video fayl manzili — faqat portfolio «video» turida */
+const UPLOAD_VIDEO_RE = /^\/uploads\/[\w-]+\.(?:mp4|webm|mov)$/i;
+
 export const portfolioItemSchema = z
   .object({
     title: z.string().trim().min(2).max(100),
     type: z.enum(["image", "video", "link"]),
-    url: httpUrl,
+    url: z.string().trim().max(500).refine((v) => HTTP_OR_UPLOAD_RE.test(v) || UPLOAD_VIDEO_RE.test(v), URL_MSG),
     thumbnailUrl: optionalImageUrl,
     description: z.string().trim().max(500).optional().or(z.literal("")),
     tags: portfolioTagsSchema.optional(),
@@ -354,6 +357,7 @@ export const portfolioItemSchema = z
   // "Rasm" turidagi ishning manzili rasm sifatida ko'rsatiladi — https bo'lishi shart
   .refine((d) => d.type !== "image" || IMAGE_URL_RE.test(d.url), { message: IMAGE_URL_MSG, path: ["url"] })
   .refine((d) => d.type !== "image" || !isOwnPageUrl(d.url), { message: OWN_PAGE_MSG, path: ["url"] })
+  .refine((d) => d.type === "video" || !UPLOAD_VIDEO_RE.test(d.url), { message: URL_MSG, path: ["url"] })
   .refine((d) => !d.beforeUrl || d.type === "image", { message: "Oldin/keyin juftligi faqat rasm turidagi ish uchun", path: ["beforeUrl"] });
 
 /** Portfolio ishini tahrirlash (PATCH /api/portfolio/[id]): turi va manzili o'zgarmaydi; tags/beforeUrl berilmasa tegilmaydi */
