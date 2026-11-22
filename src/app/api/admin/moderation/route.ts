@@ -12,11 +12,12 @@ const PREPAYMENT_RE = /(oldindan\s*to['’ʻ]?lov|avans|предоплат|де�
 const CONTACT_RE = /(@[a-z0-9_]{5,}|\+?998[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|t\.me\/)/i;
 type VacancyFlag = "prepayment" | "contact";
 
-function vacancyFlags(v: { title: string; description: string; requirements: string; company: string }): VacancyFlag[] {
+function vacancyFlags(v: { title: string; description: string; requirements: string; company: string; sourceId: string | null }): VacancyFlag[] {
   const text = `${v.title}\n${v.company}\n${v.description}\n${v.requirements}`;
   const flags: VacancyFlag[] = [];
   if (PREPAYMENT_RE.test(text)) flags.push("prepayment");
-  if (CONTACT_RE.test(`${v.description}\n${v.requirements}`)) flags.push("contact");
+  // Kanal e'lonida kontakt — tabiiy (ariza asl postda), bayroq qo'yilmaydi
+  if (!v.sourceId && CONTACT_RE.test(`${v.description}\n${v.requirements}`)) flags.push("contact");
   return flags;
 }
 
@@ -46,7 +47,7 @@ export const GET = handler(async (req) => {
       orderBy: [desc(vacancies.createdAt)],
       limit: 100,
       // vacancies jadvalida users bilan relation yo'q — muallif alohida so'rov bilan
-      columns: { id: true, authorId: true, title: true, company: true, profession: true, description: true, requirements: true, status: true, applicationsCount: true, viewCount: true, expiresAt: true, createdAt: true, applyUrl: true },
+      columns: { id: true, authorId: true, title: true, company: true, profession: true, description: true, requirements: true, status: true, applicationsCount: true, viewCount: true, expiresAt: true, createdAt: true, applyUrl: true, sourceId: true, sourceName: true, sourceChannel: true },
     }),
   ]);
   const authorIds = [...new Set(vacancyRows.map((v) => v.authorId))];
@@ -79,7 +80,8 @@ export const GET = handler(async (req) => {
       viewCount: v.viewCount,
       createdAt: v.createdAt.getTime(),
       expiresAt: v.expiresAt?.getTime() ?? null,
-      externalApply: Boolean(v.applyUrl),
+      externalApply: Boolean(v.applyUrl) && !v.sourceId,
+      source: v.sourceId ? { name: v.sourceName ?? "", channel: v.sourceChannel ?? "" } : null,
       flags: vacancyFlags(v),
       author: authors.get(v.authorId) ?? null,
     })),

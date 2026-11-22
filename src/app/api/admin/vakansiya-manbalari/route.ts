@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { audit } from "@/lib/security/audit";
+import { isClaudeConfigured } from "@/lib/ai/claude";
 import { addSources, decideImport, deleteSource, listImports, listSources, reparseImportedVacancies, runVacancyImport, updateSource } from "@/lib/vacancies/import";
 import { PROFESSION_SLUGS } from "@/lib/vacancies/format";
 
@@ -31,7 +32,7 @@ export const GET = handler(async (req) => {
   const q = new URL(req.url).searchParams.get("imports");
   const status = q === "published" || q === "skipped" || q === "all" ? q : "pending";
   const [sources, imports] = await Promise.all([listSources(), listImports(status)]);
-  return ok({ sources, imports, aiEnabled: Boolean(process.env.GEMINI_API_KEY?.trim()) });
+  return ok({ sources, imports, aiEnabled: isClaudeConfigured() });
 });
 
 export const POST = handler(async (req) => {

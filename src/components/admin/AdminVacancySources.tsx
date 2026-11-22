@@ -163,7 +163,7 @@ export function AdminVacancySources() {
     <div className="space-y-5">
       {!ai && (
         <p className="rounded-[var(--r-sm)] border border-warning-text/30 bg-warning-soft px-4 py-3 text-[13px] text-fg">
-          AI kaliti (<code>GEMINI_API_KEY</code>) yo'q — postlar kalit so'zlar bo'yicha saralanmoqda. Aniqroq bo'lishi uchun Vercel'ga kalit qo'shing.
+          Claude kaliti (<code>ANTHROPIC_API_KEY</code>) yo'q — postlar matn qoidalari bilan saralanmoqda. Aniqroq bo'lishi uchun Vercel'ga kalit qo'shing.
         </p>
       )}
 

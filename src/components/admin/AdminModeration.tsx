@@ -41,6 +41,8 @@ interface VacancyRow {
   createdAt: number;
   expiresAt: number | null;
   externalApply: boolean;
+  /** Telegram kanalidan avtomatik olingan e'lon */
+  source: { name: string; channel: string } | null;
   flags: Array<"prepayment" | "contact">;
   author: { id: string; name: string; email: string; isBanned: boolean } | null;
 }
@@ -292,9 +294,10 @@ export function AdminModeration() {
                     </Link>
                     <Badge tone={v.status === "open" ? (v.expired ? "neutral" : "success") : "neutral"}>{v.status === "open" ? (v.expired ? "Muddati o'tgan" : "Ochiq") : "Yopilgan"}</Badge>
                     {v.externalApply && <Badge tone="info">Tashqi ariza</Badge>}
+                    {v.source && <Badge tone="info">Kanaldan · @{v.source.channel}</Badge>}
                   </p>
                   <p className="truncate text-[12px] text-fg-3">
-                    {v.company || "Shaxs"} · {v.applicationsCount} ariza · {v.viewCount} ko&apos;rish · {formatDateTime(v.createdAt)} · {v.author ? `${v.author.name} (${v.author.email})` : "—"}
+                    {v.company || "Shaxs"} · {v.applicationsCount} ariza · {v.viewCount} ko&apos;rish · {formatDateTime(v.createdAt)} · {v.source ? `Manba: ${v.source.name || "@" + v.source.channel}` : v.author ? `${v.author.name} (${v.author.email})` : "—"}
                   </p>
                   {v.flags.length > 0 && (
                     <p className="mt-1 flex flex-wrap gap-1.5">
