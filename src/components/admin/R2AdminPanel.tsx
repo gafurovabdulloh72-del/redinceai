@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, CircleAlert, Database, RefreshCw, TriangleAlert } from "lucide-react";
+import { StorageUsagePanel } from "./StorageUsagePanel";
 
 type Backend = "r2" | "blob" | "disk" | "none";
 
@@ -165,6 +166,7 @@ export function R2AdminPanel() {
       </div>
 
       {st.backend !== "r2" && <R2Guide missing={st.r2Missing} />}
+      {st.backend === "r2" && <StorageUsagePanel />}
     </div>
   );
 }

@@ -1711,3 +1711,15 @@ test("Portfolio sayt (/p/<slug>): mavjud bo'lmagani 404, sahifada kontakt (telef
   const html = await r.text();
   assert.ok(!/\+998\s?\d{2}/.test(html) && !/mailto:/.test(html), "kontakt chiqmaydi");
 });
+
+test("Saqlash hisobi: mehmon va oddiy foydalanuvchi /api/admin/r2/hisob ni ko'ra olmaydi", async () => {
+  const guest = await fetch(`${BASE}/api/admin/r2/hisob`);
+  assert.ok(guest.status === 401 || guest.status === 403, `mehmon → 401/403 (keldi: ${guest.status})`);
+  const sp = await req("sp", "/api/admin/r2/hisob");
+  assert.ok(sp.status === 401 || sp.status === 403, `mutaxassis → 401/403 (keldi: ${sp.status})`);
+  if (!ADMIN_PASSWORD) return;
+  const ad = await req("ad", "/api/admin/r2/hisob");
+  assert.equal(ad.status, 200);
+  const j = await ad.json();
+  assert.ok("usage" in j.data && "db" in j.data, "javob shakli");
+});

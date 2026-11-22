@@ -1,5 +1,6 @@
 import { showToast } from "@/components/ui/toast";
 import type { FileAttachment } from "@/lib/db/schema";
+import { faststart } from "@/lib/media/faststart";
 
 /**
  * Biriktirmalar (buyurtma, chat xabari, sharh rasmlari) — klient va server uchun umumiy sof yordamchilar.
@@ -225,6 +226,12 @@ type PresignResponse = { ok: true; data: { mode: "r2"; uploadUrl: string; public
  * Ikkalasi ham sozlanmagan muhitda (dev) oddiy /api/upload orqali yuklanadi.
  */
 async function uploadVideo(file: File, p: UploadProgressOpts = {}, forceExt?: string): Promise<string> {
+  // «Faststart»: mundarija (moov) fayl oxirida bo'lsa boshiga ko'chiriladi — video yuklanib bo'lmasdan o'ynay boshlaydi.
+  // Qayta kodlanmaydi (sifat/hajm o'zgarmaydi); xato yoki tushunarsiz faylda asl fayl ketadi.
+  if (/\.(?:mp4|m4v|mov)$/i.test(file.name) || /^video\/(?:mp4|quicktime)$/.test(file.type)) {
+    const fixed = await faststart(file);
+    if (fixed !== file) file = new File([fixed], file.name, { type: file.type, lastModified: file.lastModified });
+  }
   const ext = forceExt ?? (VIDEO_EXT_RE.exec(file.name)?.[1] ?? (file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4")).toLowerCase();
 
   // Hajmni BARCHA yo'ldan (R2/Blob/disk) oldin tekshiramiz — katta fayl 60 s qotib turmasin, darhol aniq xabar
