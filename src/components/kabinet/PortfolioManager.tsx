@@ -626,7 +626,7 @@ export function PortfolioManager({ items, max = 30, publicHref }: { items: Portf
 /* ------------------------------------------------------------------ */
 /* Kartadagi tahrirlash formasi (sarlavha, tavsif, muqova)             */
 /* ------------------------------------------------------------------ */
-type Editable = Pick<PortfolioItemDTO, "title" | "description" | "thumbnailUrl" | "tags" | "beforeUrl">;
+type Editable = Pick<PortfolioItemDTO, "title" | "url" | "description" | "thumbnailUrl" | "tags" | "beforeUrl">;
 
 /** Teglar kiritish (F61): Enter/vergul bilan qo'shish, chipni bosib olib tashlash, 5 tagacha */
 function TagInput({ id, value, onChange, error }: { id: string; value: string[]; onChange: (next: string[]) => void; error?: string }) {
@@ -742,11 +742,36 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
   const [thumbnailUrl, setThumbnailUrl] = useState(item.type === "image" || item.thumbnailUrl === autoThumb ? "" : (item.thumbnailUrl ?? ""));
   const [tags, setTags] = useState<string[]>(item.tags);
   const [beforeUrl, setBeforeUrl] = useState(item.beforeUrl ?? "");
+  const [videoUrl, setVideoUrl] = useState(item.url);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const uid = `pe-${item.id}`;
+
+  /** Videoni almashtirish: yangi fayl yuklanadi, muqova — yangi videoning birinchi kadri */
+  const replaceVideo = async (file: File) => {
+    setError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      const att = await uploadAttachment(file, { docs: true, onProgress: (r) => setProgress(Math.min(99, Math.round(r * 100))) });
+      if (!/^video\//.test(att.type ?? "") && !/\.(?:mp4|webm|mov)(?:$|\?)/i.test(att.url)) {
+        setError(tr(til, P.videoUploadHint));
+        return;
+      }
+      setVideoUrl(att.url);
+      setThumbnailUrl(att.poster ?? "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr(til, FORMA.networkError));
+    } finally {
+      setUploading(false);
+      if (videoRef.current) videoRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -767,6 +792,7 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
           description: description.trim(),
           tags,
           ...(item.type === "image" ? { beforeUrl: beforeUrl.trim() } : { thumbnailUrl: thumbnailUrl.trim() }),
+          ...(item.type === "video" && videoUrl.trim() !== item.url ? { url: videoUrl.trim() } : {}),
         }),
       });
       const json = (await res.json()) as ApiResponse<Editable & { id: string }>;
@@ -775,7 +801,7 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
         if (json.fields) setErrors(json.fields);
         return;
       }
-      onSaved({ title: json.data.title, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl, tags: json.data.tags, beforeUrl: json.data.beforeUrl });
+      onSaved({ title: json.data.title, url: json.data.url, description: json.data.description, thumbnailUrl: json.data.thumbnailUrl, tags: json.data.tags, beforeUrl: json.data.beforeUrl });
     } catch {
       setError(tr(til, FORMA.networkRetry));
     } finally {
@@ -811,6 +837,31 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
           <span className="shrink-0 text-[12px] tabular-nums text-fg-4">{description.length}/500</span>
         </div>
       </div>
+      {item.type === "video" && (
+        <div>
+          <label htmlFor={`${uid}-video`} className="field-label">
+            {tr(til, P.videoLink)}
+          </label>
+          <div className="flex flex-col gap-2">
+            <input id={`${uid}-video`} className="field" type="url" inputMode="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} maxLength={500} aria-invalid={Boolean(errors.url)} />
+            <Button type="button" variant="outline" size="sm" className="!h-10" onClick={() => videoRef.current?.click()} disabled={uploading || busy}>
+              {uploading ? <Spinner /> : <Play size={14} />} {uploading ? `${progress}%` : tr(til, P.replaceVideo)}
+            </Button>
+            <input
+              ref={videoRef}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+              className="sr-only"
+              aria-label={tr(til, P.replaceVideo)}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void replaceVideo(f);
+              }}
+            />
+          </div>
+          {errors.url ? <p className="field-error">{errors.url}</p> : videoUrl.trim() !== item.url && <p className="mt-1 text-[12px] text-fg-4">{tr(til, P.videoReplacedHint)}</p>}
+        </div>
+      )}
       {item.type !== "image" && (
         <div>
           <label htmlFor={`${uid}-thumb`} className="field-label">
@@ -828,7 +879,7 @@ function EditForm({ item, onSaved, onCancel }: { item: PortfolioItemDTO; onSaved
         </p>
       )}
       <div className="mt-auto flex items-center gap-2">
-        <Button type="submit" size="sm" variant="accent" className="!h-10 flex-1" disabled={busy}>
+        <Button type="submit" size="sm" variant="accent" className="!h-10 flex-1" disabled={busy || uploading}>
           {busy ? <Spinner /> : tr(til, FORMA.save)}
         </Button>
         <Button type="button" size="sm" variant="outline" className="!h-10" onClick={onCancel} disabled={busy}>

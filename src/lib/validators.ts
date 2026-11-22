@@ -363,6 +363,8 @@ export const portfolioItemSchema = z
 /** Portfolio ishini tahrirlash (PATCH /api/portfolio/[id]): turi va manzili o'zgarmaydi; tags/beforeUrl berilmasa tegilmaydi */
 export const portfolioEditSchema = z.object({
   title: z.string().trim().min(2).max(100),
+  /** Faqat «video» turidagi ish: videoni almashtirish (yangi fayl yoki havola); berilmasa tegilmaydi */
+  url: z.string().trim().max(500).refine((v) => HTTP_OR_UPLOAD_RE.test(v) || UPLOAD_VIDEO_RE.test(v), URL_MSG).optional(),
   description: z.string().trim().max(500).optional().or(z.literal("")),
   thumbnailUrl: optionalImageUrl,
   tags: portfolioTagsSchema.optional(),

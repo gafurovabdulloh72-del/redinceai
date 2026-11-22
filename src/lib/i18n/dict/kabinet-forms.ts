@@ -431,6 +431,8 @@ export const PORTF = {
   typeVideo: { uz: "Video", ru: "Видео" } satisfies Tr,
   typeVideoHint: { uz: "Videoni kompyuter/telefondan yuklang yoki YouTube/Vimeo havolasini qo'ying — profilda shu yerning o'zida o'ynaydi.", ru: "Загрузите видео с компьютера/телефона или вставьте ссылку YouTube/Vimeo — воспроизводится прямо в профиле." } satisfies Tr,
   uploadVideo: { uz: "Video yuklash", ru: "Загрузить видео" } satisfies Tr,
+  replaceVideo: { uz: "Videoni almashtirish", ru: "Заменить видео" } satisfies Tr,
+  videoReplacedHint: { uz: "Yangi video «Saqlash» bosilgach almashtiriladi.", ru: "Новое видео заменит старое после «Сохранить»." } satisfies Tr,
   uploadVideoAria: { uz: "Portfolio videosini yuklash", ru: "Загрузить видео в портфолио" } satisfies Tr,
   videoUploadHint: { uz: "MP4, WebM yoki MOV. Muqova videoning birinchi kadridan avtomatik olinadi.", ru: "MP4, WebM или MOV. Обложка берётся из первого кадра автоматически." } satisfies Tr,
   typeVideoPh: { uz: "https://youtube.com/watch?v=… yoki https://vimeo.com/…", ru: "https://youtube.com/watch?v=… или https://vimeo.com/…" } satisfies Tr,

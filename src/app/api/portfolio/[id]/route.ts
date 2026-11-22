@@ -6,7 +6,7 @@ import { portfolioEditSchema } from "@/lib/validators";
 import { youtubeId } from "@/lib/utils";
 import { enforceEditLimit, renumberPortfolio } from "../_shared";
 
-/** Tahrirlash: sarlavha, tavsif va muqova (video/havola uchun). Turi va manzili o'zgarmaydi — kerak bo'lsa yangi ish qo'shiladi */
+/** Tahrirlash: sarlavha, tavsif va muqova (video/havola uchun). Turi o'zgarmaydi; manzil faqat «video» turida almashtiriladi */
 const editSchema = portfolioEditSchema;
 
 export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> }) => {
@@ -22,14 +22,26 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
   if (item.specialist.userId !== session.sub && session.role !== "admin") throw new ApiError(403, "Ruxsat yo'q");
   await enforceEditLimit(session.sub);
 
+  // Videoni almashtirish (faqat video turida). Yangi video — eski muqova yaroqsiz: yangisi berilmasa YouTube'dan yoki bo'sh
+  let url = item.url;
+  if (input.url !== undefined && input.url !== item.url) {
+    if (item.type !== "video") throw new ApiError(422, "Manzilni faqat video turidagi ishda almashtirish mumkin", { url: "Faqat video turidagi ish uchun" });
+    url = input.url;
+  }
+  const urlChanged = url !== item.url;
+
   // Muqova: rasm turida — rasmning o'zi; video — berilgani yoki YouTube muqovasi; havola — berilgani yoki yo'q
   let thumbnailUrl: string | null = item.thumbnailUrl;
+  if (urlChanged && input.thumbnailUrl === undefined) {
+    const yt = youtubeId(url);
+    thumbnailUrl = yt ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : null;
+  }
   if (input.thumbnailUrl !== undefined) {
     const given = input.thumbnailUrl.trim();
     if (item.type === "image") thumbnailUrl = item.url;
     else if (given) thumbnailUrl = given;
     else if (item.type === "video") {
-      const yt = youtubeId(item.url);
+      const yt = youtubeId(url);
       thumbnailUrl = yt ? `https://i.ytimg.com/vi/${yt}/hqdefault.jpg` : null;
     } else thumbnailUrl = null;
   }
@@ -43,9 +55,9 @@ export const PATCH = handler(async (req, ctx: { params: Promise<{ id: string }> 
 
   await db
     .update(portfolioItems)
-    .set({ title: input.title, description, thumbnailUrl, tags, beforeUrl })
+    .set({ title: input.title, url, description, thumbnailUrl, tags, beforeUrl })
     .where(eq(portfolioItems.id, id));
-  return ok({ id, title: input.title, description, thumbnailUrl, tags, beforeUrl });
+  return ok({ id, title: input.title, url, description, thumbnailUrl, tags, beforeUrl });
 });
 
 export const DELETE = handler(async (_req, ctx: { params: Promise<{ id: string }> }) => {
