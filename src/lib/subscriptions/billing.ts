@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { specialists, subscriptionInvoices, type SubscriptionInvoice } from "@/lib/db/schema";
+import { specialists, subscriptionInvoices, users, type SubscriptionInvoice } from "@/lib/db/schema";
 import { ApiError } from "@/lib/api";
 import { SUBSCRIPTION_INVOICE_PREFIX, SUBSCRIPTION_PLANS, type PaymentProvider } from "@/lib/constants";
 import { notify, notifyAdmins } from "@/lib/notifications";
@@ -310,11 +310,19 @@ export async function markInvoicePaid(id: string, extra: InvoicePaidExtra = {}):
   if (isContactUnlock(row)) await afterContactPaidInvoice(row).catch((e) => console.error("[contact:after]", e));
   if (isPurchase(row)) await afterPaidInvoice(row).catch((e) => console.error("[purchase:after]", e));
   if (sp && row.periodEnd) {
+    // Aniq, ikki tilli matn: ilgari «Obuna to'landi» avtomatik tarjimada «Подписка оформлена» («rasmiylashtirildi») bo'lib,
+    // foydalanuvchi obunani hali o'zi rasmiylashtirishi kerak deb tushunardi
+    const owner = await db.query.users.findFirst({ where: eq(users.id, sp.userId), columns: { lang: true } });
+    const ru = owner?.lang === "ru";
+    const tier = (row.meta as { tier?: string } | null)?.tier === "max" ? "Max" : "Pro";
+    const price = new Intl.NumberFormat("ru-RU").format(row.amount).replace(/\u00a0/g, " ");
     await notify(
       sp.userId,
       "subscription_paid",
-      `Obuna to'landi: ${formatPrice(row.amount)}`,
-      `${(row.meta as { tier?: string } | null)?.tier === "max" ? "Max" : "Pro"} — ${row.months} oylik obuna faollashtirildi, ${formatDate(row.periodEnd)} gacha. Profilingiz katalog va xaritada ko'rinadi, yangi buyurtma va takliflar ochiq.`,
+      ru ? "✅ Ваша подписка активна!" : "✅ Obunangiz faol!",
+      ru
+        ? `Подписка ${tier} на ${row.months} мес. активирована. До ${formatDate(row.periodEnd, "ru")} вам доступны все возможности: профиль виден в каталоге и на карте, новые заказы и предложения открыты. Оплачено: ${price} сум.`
+        : `${tier} tarifidagi ${row.months} oylik obunangiz faollashtirildi. Endi ${formatDate(row.periodEnd)} gacha barcha imkoniyatlardan foydalanishingiz mumkin: profilingiz katalog va xaritada ko'rinadi, yangi buyurtma va takliflar ochiq. To'lov: ${price} so'm.`,
       invoiceHref(row.id),
     );
   }
