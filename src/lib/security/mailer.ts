@@ -57,6 +57,15 @@ async function getTransport(): Promise<SmtpTransport> {
   return transport;
 }
 
+/** Admin diagnostikasi uchun SMTP xatosining qisqa, sirsiz ko'rinishi: kod + server javobi (parol/token hech qachon kirmaydi) */
+function smtpErrorDetail(e: unknown): string {
+  if (!e || typeof e !== "object") return "noma'lum";
+  const x = e as { code?: string; responseCode?: number; response?: string; command?: string; message?: string };
+  const pass = process.env.SMTP_PASS?.replace(/\s+/g, "") ?? "";
+  const raw = [x.code, x.responseCode, x.command, (x.response || x.message || "").slice(0, 200)].filter(Boolean).join(" · ");
+  return pass ? raw.split(pass).join("***") : raw;
+}
+
 async function underSmtpDailyLimit(): Promise<boolean> {
   const limit = Math.max(1, Number(process.env.SMTP_DAILY_LIMIT || 400));
   try {
@@ -69,7 +78,7 @@ async function underSmtpDailyLimit(): Promise<boolean> {
   }
 }
 
-export async function sendMail(msg: MailMessage): Promise<{ sent: boolean; reason?: string }> {
+export async function sendMail(msg: MailMessage): Promise<{ sent: boolean; reason?: string; detail?: string }> {
   const provider = mailProvider();
   if (!provider) {
     if (process.env.NODE_ENV !== "production") {
@@ -91,7 +100,7 @@ export async function sendMail(msg: MailMessage): Promise<{ sent: boolean; reaso
     } catch (e) {
       transport = null; // keyingi urinishda ulanish yangidan
       console.error("[mail] SMTP xatosi", e instanceof Error ? e.message.slice(0, 300) : e);
-      return { sent: false, reason: "smtp" };
+      return { sent: false, reason: "smtp", detail: smtpErrorDetail(e) };
     }
   }
   try {

@@ -30,7 +30,10 @@ export const POST = handler(async (req) => {
       lang,
     }),
   );
-  await audit(session.sub, "admin_mail_test", { meta: { sent: r.sent, reason: r.reason ?? null, provider: mailProvider() } }, req);
-  if (!r.sent) throw new ApiError(502, REASONS[r.reason ?? ""] ?? `Xat yuborilmadi (${r.reason ?? "noma'lum"})`);
+  await audit(session.sub, "admin_mail_test", { meta: { sent: r.sent, reason: r.reason ?? null, detail: r.detail ?? null, provider: mailProvider() } }, req);
+  if (!r.sent) {
+    const base = REASONS[r.reason ?? ""] ?? `Xat yuborilmadi (${r.reason ?? "noma'lum"})`;
+    throw new ApiError(502, r.detail ? `${base}. Gmail javobi: ${r.detail}` : base);
+  }
   return ok({ sent: true, to: me.email.replace(/^(.).*(@.*)$/, "$1***$2") });
 });
