@@ -92,6 +92,15 @@ try {
   console.warn("⚠ backfill-signup-via.ts bajarilmadi (deploy davom etadi):", e instanceof Error ? e.message : e);
 }
 
+// Demo (seed) obuna to'lovlari (2026-11-23): prod'ga birinchi deployda seed bilan tushgan 2 ta soxta «to'langan» hisob
+// (provider_txn_id `payme-seed-sub-1`, `click-seed-sub-2`) admin «Obunalar» tushumini sun'iy ko'paytirardi — o'chiriladi (idempotent)
+try {
+  const del = await client.execute("delete from subscription_invoices where provider_txn_id like '%-seed-sub-%'");
+  if (del.rowsAffected) console.log(`✓ Demo obuna to'lovlari o'chirildi: ${del.rowsAffected}`);
+} catch (e) {
+  console.warn("⚠ Demo obuna to'lovlarini o'chirib bo'lmadi:", e instanceof Error ? e.message : e);
+}
+
 // Tariflar (2026-11-03): Pro narxi 49 000 so'm. Eski standart 50 000 saqlangan bo'lsa (admin o'zgartirmagan) — 49 000 ga
 // o'tkaziladi. Boshqa qiymatga (admin qo'lda belgilagan) tegilmaydi. Max narxi yo'q bo'lsa standart 79 000 kod'dan olinadi.
 try {
