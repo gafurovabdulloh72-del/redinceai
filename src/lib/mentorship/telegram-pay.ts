@@ -1,4 +1,5 @@
 import "server-only";
+import { ensurePayAmount, smsAutoActive } from "@/lib/payments/sms-auto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { enrollments, subscriptionInvoices, users, type SubscriptionInvoice } from "@/lib/db/schema";
@@ -190,13 +191,15 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
       const back = pageButton(L(lang, "Holatni ko'rish", "Статус оплаты"), purchaseHref(inv.id));
       if (method === "manual") {
         const req = await manualRequisites();
+        const pay = await ensurePayAmount(inv);
+        const autoNote = (await smsAutoActive()) ? L(lang, `\n\n⚡️ Aynan <b>${formatSom(pay)}</b> o'tkazsangiz (so'migacha), to'lov 1–2 daqiqada o'zi tasdiqlanadi — chek shart emas.`, `\n\n⚡️ Если переведёте ровно <b>${formatSom(pay)}</b> (до сума), оплата подтвердится сама за 1–2 минуты — чек не нужен.`) : "";
         await sendTelegram(
           chatId,
           L(
             lang,
-            `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatSom(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator ko'rib tasdiqlaydi va kirish avtomatik ochiladi.`,
-            `💳 <b>Перевод на карту</b>\nСумма: <b>${formatSom(inv.amount)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор проверит и подтвердит, доступ откроется автоматически.`,
-          ),
+            `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatSom(pay)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator ko'rib tasdiqlaydi va kirish avtomatik ochiladi.`,
+            `💳 <b>Перевод на карту</b>\nСумма: <b>${formatSom(pay)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор проверит и подтвердит, доступ откроется автоматически.`,
+          ) + autoNote,
           { keyboard: [[back]] },
         );
         return true;

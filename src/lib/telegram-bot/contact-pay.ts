@@ -1,4 +1,5 @@
 import "server-only";
+import { ensurePayAmount, smsAutoActive } from "@/lib/payments/sms-auto";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -105,13 +106,15 @@ export async function handleContactPayCallback(chatId: string, data: string, ans
     const backBtn = pageButton(L(lang, "Holatni ko'rish", "Статус оплаты"), contactHref(inv.id));
     if (provider === "manual") {
       const req = await manualRequisites();
+      const pay = await ensurePayAmount(inv);
+      const autoNote = (await smsAutoActive()) ? L(lang, `\n\n⚡️ Aynan <b>${formatPrice(pay)}</b> o'tkazsangiz (so'migacha), to'lov 1–2 daqiqada o'zi tasdiqlanadi — chek shart emas.`, `\n\n⚡️ Если переведёте ровно <b>${formatPrice(pay)}</b> (до сума), оплата подтвердится сама за 1–2 минуты — чек не нужен.`) : "";
       await sendTelegram(
         chatId,
         L(
           lang,
-          `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatPrice(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator tasdiqlagach kontakt avtomatik ochiladi va shu yerga keladi.`,
-          `💳 <b>Перевод на карту</b>\nСумма: <b>${formatPrice(inv.amount)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор подтвердит, и контакт откроется автоматически прямо здесь.`,
-        ),
+          `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatPrice(pay)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator tasdiqlagach kontakt avtomatik ochiladi va shu yerga keladi.`,
+          `💳 <b>Перевод на карту</b>\nСумма: <b>${formatPrice(pay)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор подтвердит, и контакт откроется автоматически прямо здесь.`,
+        ) + autoNote,
         { keyboard: [[backBtn]] },
       );
       return true;

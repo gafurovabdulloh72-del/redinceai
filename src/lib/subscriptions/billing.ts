@@ -75,6 +75,7 @@ export function toInvoiceView(i: SubscriptionInvoice): InvoiceView {
     createdAt: i.createdAt.getTime(),
     attempted: i.providerTxnId != null,
     tier: (i.meta as { tier?: string } | null)?.tier === "max" ? "max" : "pro",
+    payAmount: typeof (i.meta as { payAmount?: unknown } | null)?.payAmount === "number" ? ((i.meta as { payAmount: number }).payAmount) : i.amount,
   };
 }
 

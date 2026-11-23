@@ -1,4 +1,5 @@
 import { LaunchGiftBanner } from "@/components/subscription/LaunchGiftBanner";
+import { payAmountFor, smsAutoActive } from "@/lib/payments/sms-auto";
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n/server";
 import { tr } from "@/lib/i18n";
@@ -170,6 +171,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   // Tarix: provayderga yetib bormagan (avtomatik yopilgan) bekor hisoblar ko'rsatilmaydi
   const history = overview.invoices.filter((i) => i.state !== "created" && (i.state !== "cancelled" || i.attempted));
   const openManual = overview.invoices.find((i) => i.provider === "manual" && i.state === "created") ?? null;
+  // Avtomatik SMS tasdig'i: ochiq o'tkazma hisobiga noyob summa (birinchi ko'rsatilganda beriladi)
+  const autoConfirm = await smsAutoActive();
+  if (openManual) openManual.payAmount = (await payAmountFor(openManual.id)) ?? openManual.amount;
   const pendingManual = overview.invoices.find((i) => i.provider === "manual" && i.state === "pending") ?? null;
   const paidInvoices = overview.invoices.filter((i) => i.state === "paid");
   const paidCount = paidInvoices.length;
@@ -274,6 +278,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           untilByMonths={untilByMonths}
           openManual={openManual}
           pendingManual={pendingManual}
+          autoConfirm={autoConfirm}
           ctaLabel={renew}
         />
       </section>

@@ -17,6 +17,8 @@ interface CheckoutData {
   provider: PaymentProvider;
   months: number;
   amount: number;
+  payAmount?: number;
+  autoConfirm?: boolean;
   state: InvoiceView["state"];
   redirectUrl: string | null;
   manual: { card: string; name: string } | null;
@@ -49,6 +51,7 @@ export function SubscriptionCheckout({
   untilByMonths,
   openManual,
   pendingManual,
+  autoConfirm = false,
   ctaLabel,
 }: {
   plans: PlanView[];
@@ -61,6 +64,8 @@ export function SubscriptionCheckout({
   untilByMonths: Record<number, number>;
   openManual: InvoiceView | null;
   pendingManual: InvoiceView | null;
+  /** Kartaga o'tkazma bank SMS'i orqali avtomatik tasdiqlanadi (noyob summa) */
+  autoConfirm?: boolean;
   ctaLabel: string;
 }) {
   const router = useRouter();
@@ -73,8 +78,9 @@ export function SubscriptionCheckout({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [manualInvoice, setManualInvoice] = useState<{ id: string; amount: number; months: number; tier: "pro" | "max" } | null>(
-    openManual ? { id: openManual.id, amount: openManual.amount, months: openManual.months, tier: openManual.tier ?? "pro" } : null,
+    openManual ? { id: openManual.id, amount: openManual.payAmount ?? openManual.amount, months: openManual.months, tier: openManual.tier ?? "pro" } : null,
   );
+  const [auto, setAuto] = useState(autoConfirm);
   const [copied, setCopied] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState("");
 
@@ -83,6 +89,23 @@ export function SubscriptionCheckout({
     const t = window.setTimeout(() => setCopied(false), 2000);
     return () => window.clearTimeout(t);
   }, [copied]);
+
+  // Avtomatik tasdiqlash: o'tkazma kelishi bilan hisob «to'langan» bo'ladi — holatni kuzatib, natija sahifasiga o'tamiz
+  const watchId = auto && provider === "manual" ? manualInvoice?.id : undefined;
+  useEffect(() => {
+    if (!watchId) return;
+    const t = window.setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const r = await fetch(`/api/subscription/invoices/${encodeURIComponent(watchId)}`, { cache: "no-store" }).catch(() => null);
+      const j = (await r?.json().catch(() => null)) as ApiResponse<InvoiceView> | null;
+      if (j?.ok && j.data.state === "paid") {
+        window.clearInterval(t);
+        router.replace(`/kabinet/obuna?invoice=${encodeURIComponent(watchId)}`);
+        router.refresh();
+      }
+    }, 5000);
+    return () => window.clearInterval(t);
+  }, [watchId, router]);
 
   const plan = plans.find((p) => p.months === months) ?? plans[0];
   const until = untilByMonths[months];
@@ -112,7 +135,8 @@ export function SubscriptionCheckout({
           router.refresh();
           return;
         }
-        setManualInvoice({ id: d.invoiceId, amount: d.amount, months: d.months, tier });
+        setManualInvoice({ id: d.invoiceId, amount: d.payAmount ?? d.amount, months: d.months, tier });
+        if (typeof d.autoConfirm === "boolean") setAuto(d.autoConfirm);
         return;
       }
       if (d.redirectUrl) {
@@ -304,9 +328,19 @@ export function SubscriptionCheckout({
         {/* O'tkazma rekvizitlari */}
         {showManual && manualInvoice && (
           <div className="mt-5 border-t border-line pt-4">
-            <p className="text-[13px] leading-relaxed text-fg-2">
-              Quyidagi kartaga aniq <span className="font-semibold text-fg">{formatPrice(manualInvoice.amount)}</span> o&apos;tkazing, so&apos;ng «To&apos;ladim» tugmasini bosing. Administrator o&apos;tkazmani tekshirib, obunani faollashtiradi.
-            </p>
+            {auto ? (
+              <div className="rounded-[var(--r-md)] border border-accent/40 bg-accent/[0.06] p-4">
+                <p className="text-[12px] font-semibold text-fg-2">Aynan shu summani o&apos;tkazing:</p>
+                <p className="mt-1 font-display text-[26px] font-bold tabular-nums text-fg">{formatPrice(manualInvoice.amount)}</p>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-fg-2">
+                  Summa sizga maxsus — so&apos;migacha aynan shunday o&apos;tkazsangiz, to&apos;lov <span className="font-semibold text-fg">1–2 daqiqada o&apos;zi tasdiqlanadi</span> va obuna faollashadi. Boshqa summa o&apos;tkazilsa — chekni yuklab «To&apos;ladim» bosing, administrator tekshiradi.
+                </p>
+              </div>
+            ) : (
+              <p className="text-[13px] leading-relaxed text-fg-2">
+                Quyidagi kartaga aniq <span className="font-semibold text-fg">{formatPrice(manualInvoice.amount)}</span> o&apos;tkazing, so&apos;ng «To&apos;ladim» tugmasini bosing. Administrator o&apos;tkazmani tekshirib, obunani faollashtiradi.
+              </p>
+            )}
             {manual ? (
               <div className="mt-3 flex flex-col gap-3 rounded-[var(--r-md)] border border-line bg-surface-2 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">

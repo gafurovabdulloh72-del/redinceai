@@ -647,6 +647,54 @@ test("Promokod: «1 marta» 100% kod ikki hisobdan BIR VAQTDA — faqat bittasig
   }
 });
 
+/* ------------------------- Kartaga o'tkazma: bank SMS'i orqali avtomatik tasdiqlash ------------------------- */
+
+test("SMS avto-tasdiq: kalitsiz 401, admin API faqat adminga; faqat noyob summaga aynan teng kirim hisobni to'laydi", async (t) => {
+  const bad = await fetch(BASE + "/api/tolov/sms", { method: "POST", headers: { "X-Sms-Key": "notogri-kalit-1234567890", "Content-Type": "application/json" }, body: JSON.stringify({ text: "Popolnenie 49 017.00 UZS" }) });
+  assert.equal(bad.status, 401, `kalitsiz: ${bad.status}`);
+  assert.equal((await req("sp", "/api/admin/sms-tolov")).status, 403, "mutaxassis admin API'si");
+  assert.equal((await fetch(BASE + "/api/admin/sms-tolov")).status, 401, "mehmon admin API'si");
+  if (!COOKIES.ad) return;
+
+  const saved = (await dbRun("SELECT key, value FROM platform_settings WHERE key IN ('smsAutoEnabled','smsAutoKeyHash','platformCard')")).rows;
+  const sp = (await dbRun("SELECT s.id, s.subscription_until, s.subscription_tier FROM specialists s JOIN users u ON u.id = s.user_id WHERE u.email = 'mutaxassis@redince.uz'")).rows[0];
+  if (!sp) return t.skip("demo mutaxassis yo'q");
+  const cardRow = saved.find((r) => r.key === "platformCard");
+  if (!cardRow || JSON.parse(cardRow.value) === "") await dbRun("INSERT INTO platform_settings (key, value) VALUES ('platformCard', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [JSON.stringify("8600 0000 0000 0000")]);
+  let invoiceId = null;
+  try {
+    const rot = await (await req("ad", "/api/admin/sms-tolov", { method: "POST", body: JSON.stringify({ action: "rotate" }) })).json();
+    const key = rot.data.key;
+    assert.ok(key && key.length >= 16, "kalit qaytdi");
+    await req("ad", "/api/admin/sms-tolov", { method: "POST", body: JSON.stringify({ action: "enable" }) });
+
+    const co = await (await req("sp", "/api/subscription/checkout", { method: "POST", body: JSON.stringify({ months: 1, provider: "manual" }) })).json();
+    assert.ok(co.ok, `checkout: ${JSON.stringify(co).slice(0, 200)}`);
+    invoiceId = co.data.invoiceId;
+    const pay = co.data.payAmount;
+    assert.ok(co.data.autoConfirm === true && pay > co.data.amount && pay - co.data.amount < 1000, `noyob summa: ${pay} / ${co.data.amount}`);
+
+    const sms = (text) => fetch(BASE + "/api/tolov/sms", { method: "POST", headers: { "X-Sms-Key": key, "Content-Type": "application/json" }, body: JSON.stringify({ text }) }).then((r) => r.json());
+    const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    assert.equal((await sms(`Popolnenie ${fmt(pay + 1)}.00 UZS Balans: 9 999 999.00 UZS`)).data.status, "ignored", "boshqa summa e'tiborsiz");
+    assert.equal((await sms(`Oplata ${fmt(pay)}.00 UZS`)).data.status, "ignored", "chiqim e'tiborsiz");
+    assert.equal((await sms(`Balans: ${fmt(pay)}.00 UZS`)).data.status, "ignored", "qoldiq summasi e'tiborsiz");
+    let st = (await dbRun("SELECT state FROM subscription_invoices WHERE id = ?", [invoiceId])).rows[0].state;
+    assert.equal(st, "created", "hisob hali to'lanmagan");
+    assert.equal((await sms(`HUMOCARD *1234: popolnenie ${fmt(pay)}.00 UZS; Balans: 5 000 000.00 UZS`)).data.status, "matched", "aynan summa — tasdiqlandi");
+    st = (await dbRun("SELECT state FROM subscription_invoices WHERE id = ?", [invoiceId])).rows[0].state;
+    assert.equal(st, "paid", "hisob to'landi");
+    assert.equal((await sms(`popolnenie ${fmt(pay)}.00 UZS`)).data.status, "ignored", "takror SMS — ikkinchi marta to'lanmaydi");
+  } finally {
+    if (invoiceId) await dbRun("DELETE FROM subscription_invoices WHERE id = ?", [invoiceId]).catch(() => undefined);
+    await dbRun("DELETE FROM notifications WHERE href LIKE ?", [`%${invoiceId}%`]).catch(() => undefined);
+    await dbRun("UPDATE specialists SET subscription_until = ?, subscription_tier = ? WHERE id = ?", [sp.subscription_until, sp.subscription_tier, sp.id]).catch(() => undefined);
+    await dbRun("DELETE FROM platform_settings WHERE key IN ('smsAutoEnabled','smsAutoKeyHash')").catch(() => undefined);
+    for (const r of saved) await dbRun("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [r.key, r.value]).catch(() => undefined);
+    if (!cardRow) await dbRun("DELETE FROM platform_settings WHERE key = 'platformCard'").catch(() => undefined);
+  }
+});
+
 /* ------------------------- Email sinov xati (admin) ------------------------- */
 
 test("Email sinov xati: mehmon 401, mutaxassis 403; admin — sozlangan bo'lsa 200, bo'lmasa 502", async () => {

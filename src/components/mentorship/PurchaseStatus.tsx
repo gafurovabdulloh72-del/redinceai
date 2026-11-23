@@ -10,7 +10,7 @@ import { tr } from "@/lib/i18n";
 import { MS, formatSomTr } from "@/lib/i18n/dict/mentorship";
 import { ReceiptUpload } from "@/components/payments/ReceiptUpload";
 
-type St = { state: "created" | "pending" | "paid" | "cancelled" | "refunded"; provider: "payme" | "click" | "manual"; amount: number; title: string; type: string; itemId: string; redirectUrl: string | null; manual: { card: string; name: string } | null; sent: boolean };
+type St = { state: "created" | "pending" | "paid" | "cancelled" | "refunded"; provider: "payme" | "click" | "manual"; amount: number; title: string; type: string; itemId: string; redirectUrl: string | null; manual: { card: string; name: string } | null; sent: boolean; payAmount?: number; autoConfirm?: boolean };
 
 /** To'lovdan keyingi sahifa: holatni kuzatadi (Payme/Click qaytgach), o'tkazma uchun rekvizit va «To'ladim» */
 /** apiBase — xarid turi: mentorlik (standart) yoki kontakt ochish (`/api/kontakt/tolov`) */
@@ -80,6 +80,17 @@ export function PurchaseStatus({ id, next, apiBase = "/api/mentorlik/tolov" }: {
               <p className="mt-4 text-[14px] text-fg-3">{tr(til, MS.awaitingConfirm)}</p>
             ) : (
               <>
+                {s.autoConfirm && s.payAmount && (
+                  <div className="mt-4 rounded-[12px] border border-accent/40 bg-accent/[0.06] p-3 text-left">
+                    <p className="text-[12px] font-semibold text-fg-2">{til === "ru" ? "Переведите ровно эту сумму:" : "Aynan shu summani o'tkazing:"}</p>
+                    <p className="mt-0.5 text-[22px] font-bold tabular-nums text-fg">{formatSomTr(til, s.payAmount)}</p>
+                    <p className="mt-1 text-[12.5px] leading-relaxed text-fg-2">
+                      {til === "ru"
+                        ? "Сумма уникальна — при переводе точно до сума оплата подтвердится сама за 1–2 минуты. Иначе загрузите чек и нажмите «Я оплатил»."
+                        : "Summa sizga maxsus — so'migacha aynan shunday o'tkazsangiz, to'lov 1–2 daqiqada o'zi tasdiqlanadi. Aks holda chekni yuklab «To'ladim» bosing."}
+                    </p>
+                  </div>
+                )}
                 {s.manual && (
                   <div className="mt-4 rounded-[12px] bg-surface-2 p-3 text-left text-[14px]">
                     <p className="text-fg-3">{tr(til, MS.transferTo)}</p>

@@ -80,4 +80,6 @@ export interface InvoiceView {
   attempted: boolean;
   /** Tarif: pro | max (eski hisoblar — pro) */
   tier?: "pro" | "max";
+  /** Qo'lda o'tkazma: aynan shu summa o'tkaziladi (avtomatik SMS tasdig'i uchun noyob) */
+  payAmount?: number;
 }

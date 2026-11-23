@@ -20,6 +20,7 @@ import { AdminRateLimits } from "@/components/admin/AdminRateLimits";
 import { SpamFilterPanel } from "@/components/admin/SpamFilterPanel";
 import { DemoCleanButton } from "@/components/admin/DemoCleanButton";
 import { PaymentProvidersPanel } from "@/components/admin/PaymentProvidersPanel";
+import { SmsAutoPanel } from "@/components/admin/SmsAutoPanel";
 import { UsersPanel } from "@/components/admin/UsersPanel";
 import { AdminBroadcast } from "@/components/admin/AdminBroadcast";
 import { TelegramAdminPanel } from "@/components/admin/TelegramAdminPanel";
@@ -479,6 +480,7 @@ export default async function AdminPage() {
         <section id="tolov-sozlamalari" className={SECTION} aria-labelledby="h-tolov-tizimlari">
           <AdminSectionHeading title={<span id="h-tolov-tizimlari">To&apos;lov tizimlari</span>} description="Payme va Click kalitlari holati avtomatik tekshiriladi; qo'lda o'tkazma kartasi shu yerdan sozlanadi." />
           <PaymentProvidersPanel />
+          <SmsAutoPanel />
         </section>
           </div>
           <div>

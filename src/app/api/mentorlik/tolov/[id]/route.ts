@@ -3,6 +3,7 @@ import { ApiError, handler, ok, parseBody, requireSession } from "@/lib/api";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { siteOrigin } from "@/lib/payments/config";
 import { buildInvoiceRedirectUrl, loadInvoice, manualRequisites, markInvoiceSent } from "@/lib/subscriptions/billing";
+import { ensurePayAmount, smsAutoActive } from "@/lib/payments/sms-auto";
 import { isPurchase, purchaseMeta } from "@/lib/mentorship/purchases";
 import { assertOwnUploads } from "@/app/api/orders/_lib/attachments";
 import { IMAGE_URL_RE } from "@/components/chat/attachments";
@@ -26,6 +27,8 @@ export const GET = handler(async (req, ctx: Ctx) => {
     state: inv.state,
     provider: inv.provider,
     amount: inv.amount,
+    payAmount: inv.provider === "manual" ? await ensurePayAmount(inv) : inv.amount,
+    autoConfirm: inv.provider === "manual" && (inv.state === "created" || inv.state === "pending") ? await smsAutoActive() : false,
     title: m.title,
     type: m.type,
     itemId: m.itemId,

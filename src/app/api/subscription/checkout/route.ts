@@ -6,6 +6,7 @@ import { siteOrigin } from "@/lib/payments/config";
 import { enforceLimit } from "@/lib/security/rate-limit";
 import { buildInvoiceRedirectUrl, createInvoice, invoiceHref, manualRequisites } from "@/lib/subscriptions/billing";
 import { subscriptionCheckoutSchema } from "@/lib/subscriptions/schemas";
+import { ensurePayAmount, smsAutoActive } from "@/lib/payments/sms-auto";
 
 /**
  * Obuna to'lovini boshlash (faqat mutaxassis): {months, provider} → hisob ('created', yoki ochig'i qayta ishlatiladi)
@@ -29,6 +30,9 @@ export const POST = handler(async (req) => {
       provider: invoice.provider,
       months: invoice.months,
       amount: invoice.amount,
+      /** Qo'lda o'tkazmada aynan shu summa o'tkaziladi (avtomatik tasdiqlash yoqilgan bo'lsa noyob, narx + 1…999 so'm) */
+      payAmount: invoice.provider === "manual" ? await ensurePayAmount(invoice) : invoice.amount,
+      autoConfirm: invoice.provider === "manual" ? await smsAutoActive() : false,
       state: invoice.state,
       reused,
       redirectUrl,
