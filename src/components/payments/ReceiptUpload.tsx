@@ -6,7 +6,7 @@ import { Paperclip, X } from "lucide-react";
 import { Spinner } from "@/components/ui";
 
 /**
- * O'tkazma cheki (skrinshot) biriktirish — ixtiyoriy, lekin admin tasdiqlashini tezlashtiradi.
+ * O'tkazma cheki (skrinshot) biriktirish — MAJBURIY: server cheksiz «To'ladim»ni 422 bilan rad etadi.
  * Rasm /api/upload orqali yuklanadi, URL ota-komponentga qaytadi («To'ladim» so'rovi bilan ketadi).
  */
 export function ReceiptUpload({ value, onChange, disabled }: { value: string; onChange: (url: string) => void; disabled?: boolean }) {
@@ -67,7 +67,7 @@ export function ReceiptUpload({ value, onChange, disabled }: { value: string; on
           onClick={() => inputRef.current?.click()}
           className="inline-flex min-h-10 items-center gap-2 rounded-full border border-dashed border-line-2 px-4 text-[13px] font-semibold text-fg-2 transition hover:border-fg hover:text-fg disabled:opacity-50"
         >
-          {busy ? <Spinner /> : <Paperclip size={14} />} {busy ? "Yuklanmoqda…" : "Chek skrinshotini biriktirish (tavsiya)"}
+          {busy ? <Spinner /> : <Paperclip size={14} />} {busy ? "Yuklanmoqda…" : "Chek skrinshotini biriktirish (majburiy)"}
         </button>
       )}
       {error && <p className="mt-1.5 text-[12.5px] font-semibold text-danger-text">{error}</p>}

@@ -197,7 +197,7 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
             `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatSom(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator ko'rib tasdiqlaydi va kirish avtomatik ochiladi.`,
             `💳 <b>Перевод на карту</b>\nСумма: <b>${formatSom(inv.amount)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор проверит и подтвердит, доступ откроется автоматически.`,
           ),
-          { keyboard: [[{ text: L(lang, "Chek yubora olmayman — «To'ladim»", "Не могу отправить чек — «Я оплатил»"), data: `bd:${inv.id}` }], [back]] },
+          { keyboard: [[back]] },
         );
         return true;
       }
@@ -212,9 +212,9 @@ export async function handlePayCallback(chatId: string, data: string, answer: (t
       await answer(L(lang, "Hisob topilmadi", "Счёт не найден"));
       return true;
     }
-    await markInvoiceSent(inv, user.id);
-    await answer(L(lang, "Yuborildi ✓", "Отправлено ✓"));
-    await sendTelegram(chatId, L(lang, `⏳ O'tkazma tasdiqlashni kutmoqda: <b>${escapeTelegramHtml(invoiceTitle(inv))}</b>. Tasdiqlangach xabar beramiz. Chek rasmi bo'lsa — shu yerga yuborsangiz, tekshirish tezlashadi.`, `⏳ Перевод ожидает подтверждения: <b>${escapeTelegramHtml(invoiceTitle(inv))}</b>. Сообщим, как только подтвердят. Если есть фото чека — отправьте его сюда, проверка пройдёт быстрее.`));
+    // Chek MAJBURIY: «To'ladim» tugmasi endi faqat chek so'raydi (eski xabarlardagi tugma uchun)
+    await answer(L(lang, "Chek rasmini yuboring", "Отправьте фото чека"));
+    await sendTelegram(chatId, L(lang, `🧾 <b>${escapeTelegramHtml(invoiceTitle(inv))}</b> — o'tkazma <b>chek rasmisiz tasdiqlanmaydi</b>. Bank ilovasidagi chek skrinshotini yoki PDF faylini shu chatga yuboring.`, `🧾 <b>${escapeTelegramHtml(invoiceTitle(inv))}</b> — перевод <b>без фото чека не подтверждается</b>. Отправьте в этот чат скриншот чека из банковского приложения или PDF.`));
   } catch (e) {
     await answer((await errorText(e, lang, "Xatolik — saytdan urinib ko'ring", "Ошибка — попробуйте на сайте")).slice(0, 180));
   }

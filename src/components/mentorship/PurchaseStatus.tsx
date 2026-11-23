@@ -8,6 +8,7 @@ import { showToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { tr } from "@/lib/i18n";
 import { MS, formatSomTr } from "@/lib/i18n/dict/mentorship";
+import { ReceiptUpload } from "@/components/payments/ReceiptUpload";
 
 type St = { state: "created" | "pending" | "paid" | "cancelled" | "refunded"; provider: "payme" | "click" | "manual"; amount: number; title: string; type: string; itemId: string; redirectUrl: string | null; manual: { card: string; name: string } | null; sent: boolean };
 
@@ -17,6 +18,7 @@ export function PurchaseStatus({ id, next, apiBase = "/api/mentorlik/tolov" }: {
   const til = useLocale();
   const [s, setS] = useState<St | null>(null);
   const [busy, setBusy] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState("");
   const timer = useRef<number>(0);
 
   async function load() {
@@ -41,7 +43,7 @@ export function PurchaseStatus({ id, next, apiBase = "/api/mentorlik/tolov" }: {
   async function sent() {
     setBusy(true);
     try {
-      const r = await fetch(`${apiBase}/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sent" }) });
+      const r = await fetch(`${apiBase}/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sent", receiptUrl }) });
       if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error || tr(til, MS.error));
       showToast(tr(til, MS.thanksAdmin), "success");
       await load();
@@ -85,7 +87,10 @@ export function PurchaseStatus({ id, next, apiBase = "/api/mentorlik/tolov" }: {
                     <p className="text-fg-3">{s.manual.name}</p>
                   </div>
                 )}
-                <button type="button" disabled={busy} onClick={() => void sent()} className="btn-accent mt-4 inline-flex h-11 w-full items-center justify-center gap-2 text-[14px] font-semibold">
+                <div className="text-left">
+                  <ReceiptUpload value={receiptUrl} onChange={setReceiptUrl} disabled={busy} />
+                </div>
+                <button type="button" disabled={busy || !receiptUrl} onClick={() => void sent()} className="btn-accent mt-4 inline-flex h-11 w-full items-center justify-center gap-2 text-[14px] font-semibold">
                   {busy && <Loader2 size={15} className="animate-spin" />} {tr(til, MS.iPaid)}
                 </button>
               </>

@@ -112,7 +112,7 @@ export async function handleContactPayCallback(chatId: string, data: string, ans
           `💳 <b>Karta o'tkazmasi</b>\nSumma: <b>${formatPrice(inv.amount)}</b>\nKarta: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nQabul qiluvchi: ${escapeTelegramHtml(req?.name ?? "—")}\n\nO'tkazgach <b>chek rasmini yoki PDF faylini shu yerga yuboring</b> — administrator tasdiqlagach kontakt avtomatik ochiladi va shu yerga keladi.`,
           `💳 <b>Перевод на карту</b>\nСумма: <b>${formatPrice(inv.amount)}</b>\nКарта: <code>${escapeTelegramHtml(req?.card ?? "—")}</code>\nПолучатель: ${escapeTelegramHtml(req?.name ?? "—")}\n\nПосле перевода <b>отправьте сюда фото чека или PDF</b> — администратор подтвердит, и контакт откроется автоматически прямо здесь.`,
         ),
-        { keyboard: [[{ text: L(lang, "Chek yubora olmayman — «To'ladim»", "Не могу отправить чек — «Я оплатил»"), data: `bd:${inv.id}` }], [backBtn]] },
+        { keyboard: [[backBtn]] },
       );
       return true;
     }

@@ -647,6 +647,39 @@ test("Promokod: «1 marta» 100% kod ikki hisobdan BIR VAQTDA — faqat bittasig
   }
 });
 
+/* ------------------------- Qo'lda o'tkazma: chek MAJBURIY ------------------------- */
+
+test("Qo'lda o'tkazma: chek rasmisiz «To'ladim» — 422, chek bilan — o'tadi", async (t) => {
+  // Lokal bazada karta sozlanmagan bo'lishi mumkin — vaqtincha qo'yamiz va oxirida qaytaramiz
+  const prev = (await dbRun("SELECT value FROM platform_settings WHERE key = 'platformCard'")).rows[0]?.value;
+  const hasCard = typeof prev === "string" && JSON.parse(prev) !== "";
+  if (!hasCard) await dbRun("INSERT INTO platform_settings (key, value) VALUES ('platformCard', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [JSON.stringify("8600 0000 0000 0000")]);
+  t.after(async () => {
+    if (hasCard) return;
+    if (prev === undefined) await dbRun("DELETE FROM platform_settings WHERE key = 'platformCard'").catch(() => undefined);
+    else await dbRun("UPDATE platform_settings SET value = ? WHERE key = 'platformCard'", [prev]).catch(() => undefined);
+  });
+  const co = await req("sp", "/api/subscription/checkout", { method: "POST", body: JSON.stringify({ months: 1, provider: "manual" }) });
+  if (co.status !== 200 && co.status !== 201) return t.skip(`checkout: ${co.status} ${(await co.text()).slice(0, 160)}`);
+  const id = (await co.json())?.data?.invoiceId;
+  if (!id) return t.skip("hisob id yo'q");
+  try {
+    const bare = await req("sp", `/api/subscription/invoices/${id}`, { method: "PATCH", body: JSON.stringify({ action: "sent" }) });
+    assert.equal(bare.status, 422, `cheksiz: ${bare.status}`);
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    const fd = new FormData();
+    fd.append("file", new Blob([png], { type: "image/png" }), "sec-receipt.png");
+    const up = await fetch(BASE + "/api/upload", { method: "POST", headers: { Origin: ORIGIN, Cookie: COOKIES.sp }, body: fd });
+    assert.equal(up.status, 201, `yuklash: ${up.status}`);
+    const url = (await up.json()).data.url;
+    const ok = await req("sp", `/api/subscription/invoices/${id}`, { method: "PATCH", body: JSON.stringify({ action: "sent", receiptUrl: url }) });
+    assert.equal(ok.status, 200, `chek bilan: ${ok.status}`);
+  } finally {
+    await dbRun("DELETE FROM subscription_invoices WHERE id = ?", [id]).catch(() => undefined);
+    await dbRun("DELETE FROM notifications WHERE link LIKE ?", [`%${id}%`]).catch(() => undefined);
+  }
+});
+
 /* ------------------------- 7-AUDIT: yuklama manzili fayl saqlangan joyga mos bo'lishi shart ------------------------- */
 
 // Egalik fayl NOMI bo'yicha tekshiriladi, yuklama naqshi esa har qanday Blob do'konini o'tkazadi: foydalanuvchi faylni bizga

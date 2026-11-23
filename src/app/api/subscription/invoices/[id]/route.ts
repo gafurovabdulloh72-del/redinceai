@@ -43,6 +43,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   if (action === "sent") {
     // Ixtiyoriy chek skrinshoti: faqat rasm va faqat shu foydalanuvchi yuklagan fayl
     const receiptUrl = input.receiptUrl || null;
+    if (!receiptUrl) throw new ApiError(422, "O'tkazma chekini (skrinshot) biriktiring — cheksiz to'lov tasdiqlanmaydi", { receiptUrl: "Chek rasmini biriktiring" });
     if (receiptUrl) {
       if (!IMAGE_URL_RE.test(receiptUrl)) throw new ApiError(422, "Chek rasm bo'lishi kerak (JPG, PNG, WEBP)", { receiptUrl: "Chek rasm bo'lishi kerak" });
       await assertOwnUploads(session.sub, [receiptUrl], [], "receiptUrl");

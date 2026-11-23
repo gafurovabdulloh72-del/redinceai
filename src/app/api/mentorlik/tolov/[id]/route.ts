@@ -43,6 +43,7 @@ export const PATCH = handler(async (req, ctx: Ctx) => {
   const input = await parseBody(req, z.object({ action: z.literal("sent"), receiptUrl: z.string().max(500).nullish() }));
   const inv = await own(id, session);
   const receiptUrl = input.receiptUrl || null;
+  if (!receiptUrl) throw new ApiError(422, "O'tkazma chekini (skrinshot) biriktiring — cheksiz to'lov tasdiqlanmaydi", { receiptUrl: "Chek rasmini biriktiring" });
   if (receiptUrl) {
     if (!IMAGE_URL_RE.test(receiptUrl)) throw new ApiError(422, "Chek rasm bo'lishi kerak", { receiptUrl: "Rasm bo'lsin" });
     await assertOwnUploads(session.sub, [receiptUrl], [], "receiptUrl");

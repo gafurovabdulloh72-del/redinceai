@@ -212,7 +212,7 @@ export function CheckoutPanel({ payment, providers, isPayer }: { payment: Paymen
                 <p className="inline-flex items-center gap-1.5 text-[12px] text-fg-3">
                   <ShieldCheck size={14} className="text-success" /> Pul eskrouda — ish qabul qilingach mutaxassisga o'tadi
                 </p>
-                <Button variant="accent" size="lg" onClick={markSent} disabled={busy || !payment.card} className="w-full sm:w-auto">
+                <Button variant="accent" size="lg" onClick={markSent} disabled={busy || !payment.card || !receiptUrl} className="w-full sm:w-auto">
                   {busy ? <Spinner /> : <CheckCircle2 size={18} />} To'ladim
                 </Button>
               </div>
