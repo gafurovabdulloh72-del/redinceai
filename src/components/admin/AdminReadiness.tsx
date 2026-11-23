@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Ago } from "@/components/ui/Ago";
 import { CheckCircle2, ChevronDown, CircleDashed, RefreshCw, TriangleAlert, Wrench, XCircle } from "lucide-react";
 import { adminApi, errText } from "@/components/admin/admin-api";
+import { showToast } from "@/components/ui/toast";
 import { cn, timeAgo } from "@/lib/utils";
 
 /**
@@ -195,6 +196,7 @@ export function AdminReadiness() {
                           </p>
                           <p className={cn("mt-0.5 break-words text-[12.5px] leading-relaxed", c.status === "fail" ? "text-danger-text" : "text-fg-3")}>{c.detail}</p>
                         </div>
+                        {c.key === "email" && c.status === "ok" && <MailTestButton />}
                         {canToggle && (
                           <button type="button" onClick={() => toggle(c.key)} aria-expanded={open.has(c.key)} aria-controls={`tayyorlik-${c.key}`} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-semibold text-fg-2 transition-colors hover:bg-fg/6 hover:text-fg">
                             <span className="max-[430px]:sr-only">Tuzatish</span>
@@ -217,5 +219,26 @@ export function AdminReadiness() {
         })
       )}
     </div>
+  );
+}
+
+/** Email sozlangan bo'lsa — adminning o'z emailiga sinov xati (POST /api/admin/email-sinov) */
+function MailTestButton() {
+  const [busy, setBusy] = useState(false);
+  async function send() {
+    setBusy(true);
+    try {
+      const d = await adminApi<{ to: string }>("/api/admin/email-sinov", { method: "POST" });
+      showToast(`Sinov xati yuborildi: ${d.to} — pochtangizni (Spam papkasini ham) tekshiring`, "success");
+    } catch (e) {
+      showToast(errText(e, "Xat yuborilmadi"), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" disabled={busy} onClick={() => void send()} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-line-2 px-3 text-[12px] font-semibold text-fg-2 transition-colors hover:text-fg disabled:opacity-50">
+      {busy ? <RefreshCw size={12} className="animate-spin" aria-hidden="true" /> : null} Sinov xat
+    </button>
   );
 }

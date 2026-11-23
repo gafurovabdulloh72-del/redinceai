@@ -10,7 +10,7 @@ import { siteUrl } from "@/lib/security/site";
 type Ctx = { params: Promise<{ id: string }> };
 
 const REASON: Record<string, string> = {
-  not_configured: "Email xizmati sozlanmagan (RESEND_API_KEY / MAIL_FROM) va foydalanuvchiga Telegram ulanmagan",
+  not_configured: "Email xizmati sozlanmagan (Gmail SMTP yoki Resend) va foydalanuvchiga Telegram ulanmagan",
   no_real_email: "Hisob Telegram orqali ochilgan (haqiqiy email yo'q) va Telegram boti ishlamayapti yoki chat uzilgan",
   network: "Email xizmatiga ulanib bo'lmadi",
 };

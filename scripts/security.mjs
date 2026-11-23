@@ -647,6 +647,18 @@ test("Promokod: «1 marta» 100% kod ikki hisobdan BIR VAQTDA — faqat bittasig
   }
 });
 
+/* ------------------------- Email sinov xati (admin) ------------------------- */
+
+test("Email sinov xati: mehmon 401, mutaxassis 403; admin — sozlangan bo'lsa 200, bo'lmasa 502", async () => {
+  const guest = await fetch(BASE + "/api/admin/email-sinov", { method: "POST", headers: { Origin: ORIGIN } });
+  assert.equal(guest.status, 401, `mehmon: ${guest.status}`);
+  const sp = await req("sp", "/api/admin/email-sinov", { method: "POST" });
+  assert.equal(sp.status, 403, `mutaxassis: ${sp.status}`);
+  if (!COOKIES.ad) return; // admin sessiyasi yo'q — qolgan qismi o'tkaziladi
+  const ad = await req("ad", "/api/admin/email-sinov", { method: "POST" });
+  assert.ok([200, 502].includes(ad.status), `admin: ${ad.status}`);
+});
+
 /* ------------------------- Qo'lda o'tkazma: chek MAJBURIY ------------------------- */
 
 test("Qo'lda o'tkazma: chek rasmisiz «To'ladim» — 422, chek bilan — o'tadi", async (t) => {

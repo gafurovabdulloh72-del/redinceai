@@ -12,23 +12,93 @@ function escapeHtml(s: string) {
 }
 
 /**
- * Email yuborish: RESEND_API_KEY + MAIL_FROM bo'lsa Resend REST API orqali (kutubxonasiz),
- * aks holda dev rejimida xat matni server konsoliga chiqadi (productionda jim o'tkaziladi).
+ * Email provayderi (2026-11-23):
+ *  1) RESEND_API_KEY + MAIL_FROM — Resend REST API (o'z domeni tasdiqlangan bo'lsa);
+ *  2) SMTP_USER + SMTP_PASS — SMTP (standart Gmail: smtp.gmail.com:465; Gmail'da 2 bosqichli tasdiq + «App password»).
+ *     Gmail kuniga ~500 xat beradi — oshsa hisob vaqtincha bloklanadi, shuning uchun SMTP_DAILY_LIMIT (standart 400)
+ *     bazadagi hisoblagich bilan cheklanadi; limitdan keyingi xatlar jim tashlanadi (sayt + Telegram bildirishnomasi baribir boradi).
+ *  Hech biri bo'lmasa — dev'da xat konsolga chiqadi, productionda jim o'tadi.
  */
+export type MailProvider = "resend" | "smtp" | null;
+
+export function mailProvider(): MailProvider {
+  if (process.env.RESEND_API_KEY?.trim() && process.env.MAIL_FROM?.trim()) return "resend";
+  if (process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim()) return "smtp";
+  return null;
+}
+
+export function isMailConfigured(): boolean {
+  return mailProvider() !== null;
+}
+
+/** Jo'natuvchi: MAIL_FROM yoki «Kasb Egalari <SMTP_USER>» (Gmail boshqa manzildan yuborishga ruxsat bermaydi) */
+function smtpFrom(): string {
+  const user = process.env.SMTP_USER!.trim();
+  const from = process.env.MAIL_FROM?.trim();
+  if (from && from.toLowerCase().includes(user.toLowerCase())) return from;
+  return `Kasb Egalari <${user}>`;
+}
+
+type SmtpTransport = { sendMail: (m: Record<string, unknown>) => Promise<unknown> };
+let transport: SmtpTransport | null = null;
+async function getTransport(): Promise<SmtpTransport> {
+  if (transport) return transport;
+  const nodemailer = (await import("nodemailer")).default;
+  const port = Number(process.env.SMTP_PORT || 465);
+  transport = nodemailer.createTransport({
+    host: process.env.SMTP_HOST?.trim() || "smtp.gmail.com",
+    port,
+    secure: port === 465,
+    auth: { user: process.env.SMTP_USER!.trim(), pass: process.env.SMTP_PASS!.replace(/\s+/g, "") },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  }) as unknown as SmtpTransport;
+  return transport;
+}
+
+async function underSmtpDailyLimit(): Promise<boolean> {
+  const limit = Math.max(1, Number(process.env.SMTP_DAILY_LIMIT || 400));
+  try {
+    const { rateLimit } = await import("./rate-limit");
+    await rateLimit("smtpDaily", limit, 24 * 3_600_000);
+    return true;
+  } catch (e) {
+    if (e && typeof e === "object" && "status" in e && (e as { status: number }).status === 429) return false;
+    return true; // hisoblagich ishlamasa ham xat ketaversin
+  }
+}
+
 export async function sendMail(msg: MailMessage): Promise<{ sent: boolean; reason?: string }> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM;
-  if (!key || !from) {
+  const provider = mailProvider();
+  if (!provider) {
     if (process.env.NODE_ENV !== "production") {
-      console.log(`\n[mail] (RESEND_API_KEY/MAIL_FROM yo'q — konsolga)\n  To: ${msg.to}\n  Subject: ${msg.subject}\n${msg.text.split("\n").map((l) => `  ${l}`).join("\n")}\n`);
+      console.log(`\n[mail] (email sozlanmagan — konsolga)\n  To: ${msg.to}\n  Subject: ${msg.subject}\n${msg.text.split("\n").map((l) => `  ${l}`).join("\n")}\n`);
     }
     return { sent: false, reason: "not_configured" };
+  }
+  // Placeholder manzillarga (Telegram hisoblari) xat yuborilmaydi
+  if (/@(?:telegram\.local|[\w.-]+\.internal)$/i.test(msg.to)) return { sent: false, reason: "no_address" };
+  if (provider === "smtp") {
+    if (!(await underSmtpDailyLimit())) {
+      console.warn("[mail] SMTP kunlik limiti tugadi — xat yuborilmadi");
+      return { sent: false, reason: "daily_limit" };
+    }
+    try {
+      const t = await getTransport();
+      await t.sendMail({ from: smtpFrom(), to: msg.to, subject: msg.subject, html: msg.html, text: msg.text });
+      return { sent: true };
+    } catch (e) {
+      transport = null; // keyingi urinishda ulanish yangidan
+      console.error("[mail] SMTP xatosi", e instanceof Error ? e.message.slice(0, 300) : e);
+      return { sent: false, reason: "smtp" };
+    }
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: process.env.MAIL_FROM, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
     });
     if (!res.ok) {
       console.error("[mail] Resend xatosi", res.status, await res.text().catch(() => ""));

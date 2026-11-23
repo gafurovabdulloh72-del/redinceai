@@ -36,7 +36,8 @@ va baza migratsiyasi siyosatini tushuntiradi. Asosiy yo'l — **Vercel + Turso**
 | `PLATFORM_CARD` | yo'q | `8600 1234 5678 9012` | Qo'lda o'tkazma uchun karta (admin tasdiqlaydi). Bo'sh bo'lsa bu usul chiqmaydi. |
 | `PLATFORM_CARD_NAME` | yo'q | `REDINCE MChJ` | Karta egasi nomi. |
 | `INDEXNOW_KEY` | tavsiya | `openssl rand -hex 16` | IndexNow (Yandex/Bing tez indekslash): kunlik cron o'zgargan sahifalarni darhol bildiradi; kalit fayli `/indexnow-key.txt` avtomatik. Bo'lmasa jim o'tadi (12-bo'lim). |
-| `RESEND_API_KEY` | tavsiya | `re_…` | Parol tiklash, email tasdiqlash, bildirishnoma xatlari. Bo'lmasa xat server konsoliga yoziladi. |
+| `SMTP_USER` / `SMTP_PASS` | tavsiya | `siz@gmail.com` / 16 belgili App password | Email Gmail orqali (domen shart emas). Gmail'da 2 bosqichli tasdiq → myaccount.google.com/apppasswords. Ixtiyoriy: `SMTP_HOST` (standart smtp.gmail.com), `SMTP_PORT` (465), `SMTP_DAILY_LIMIT` (400). Tekshirish: Admin → Tizim → Tayyorlik → Email → «Sinov xat». |
+| `RESEND_API_KEY` | ixtiyoriy | `re_…` | O'z domeni bo'lsa Gmail o'rniga (MAIL_FROM bilan). Parol tiklash, email tasdiqlash, bildirishnoma xatlari. Bo'lmasa xat server konsoliga yoziladi. |
 | `MAIL_FROM` | Resend bilan | `Redince <no-reply@redince.uz>` | Jo'natuvchi (domen Resend'da tasdiqlangan bo'lsin). |
 | `TELEGRAM_BOT_TOKEN` | yo'q | `123456789:AA…` | Telegram bot tokeni (BotFather). Bo'lmasa Telegram integratsiyasi butunlay o'chiq (11-bo'lim). |
 | `TELEGRAM_BOT_USERNAME` | Telegram bilan | `kasbegalari_bot` | Bot username (@belgisisiz) — hisobni ulash deep-link'i uchun. |

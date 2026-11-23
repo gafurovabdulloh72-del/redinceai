@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { isMailConfigured } from "@/lib/security/mailer";
 import { db } from "@/lib/db";
 import { auditLogs, rateLimits, sessions, users } from "@/lib/db/schema";
 import { handler, ok, requireSession } from "@/lib/api";
@@ -64,7 +65,7 @@ export const GET = handler(async () => {
     cron: { lastRunAt: cronAt, errors: cronErrors, stale: cronAt ? now - cronAt > 36 * 60 * 60 * 1000 : true },
     rateLimit: { active: Number(rlActive), top: rlTop.map((r) => ({ prefix: r.prefix, keys: Number(r.n), hits: Number(r.hits ?? 0) })) },
     telegram: { enabled: isTelegramEnabled(), username: telegramBotUsername() },
-    email: { configured: Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM) },
+    email: { configured: isMailConfigured() },
     sessions: { active: Number(activeSessions) },
     users: { total: Number(usersTotal) },
     livekit: { configured: Boolean(LIVEKIT_WS_URL && process.env.LIVEKIT_API_KEY), usage: livekit, egress },

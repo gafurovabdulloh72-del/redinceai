@@ -199,7 +199,7 @@ export function AdminBroadcast() {
             <span className="text-fg-3">(email bildirishnomani o'chirganlarga bormaydi; Resend kvotasini hisobga oling)</span>
             {counts && !counts.emailConfigured && (
               <span className="mt-1 block text-[12.5px] font-semibold text-warning-text">
-                Email hali sozlanmagan — Vercel'da RESEND_API_KEY va MAIL_FROM yo'q, shuning uchun xat chiqmaydi. Xabar sayt bildirishnomasi + Telegram orqali boradi.
+                Email hali sozlanmagan — Vercel'da SMTP_USER/SMTP_PASS (Gmail) yoki RESEND_API_KEY yo'q, shuning uchun xat chiqmaydi. Xabar sayt bildirishnomasi + Telegram orqali boradi.
               </span>
             )}
           </span>

@@ -1,4 +1,5 @@
 import { eq, ne, sql } from "drizzle-orm";
+import { isMailConfigured } from "@/lib/security/mailer";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notifications, users } from "@/lib/db/schema";
@@ -58,7 +59,7 @@ export const GET = handler(async () => {
     specialists: channelStat(active.filter((r) => r.role === "specialist")),
     clients: channelStat(active.filter((r) => r.role === "client")),
     /** Email kanali sozlanganmi (Resend) — bo'lmasa UI katakchani o'chirib, sababini aytadi */
-    emailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM),
+    emailConfigured: isMailConfigured(),
     telegramEnabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
   });
 });

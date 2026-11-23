@@ -1,4 +1,5 @@
 import "server-only";
+import { mailProvider } from "@/lib/security/mailer";
 import { desc, eq, like, or, sql } from "drizzle-orm";
 import { db, dbUrl } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
@@ -265,12 +266,12 @@ export async function launchReadiness(): Promise<ReadinessReport> {
   });
 
   /* ------------------------------- Aloqa ------------------------------- */
-  await guard("email", "aloqa", "Email (Resend)", () => {
-    const title = "Email (Resend)";
-    const key = set("RESEND_API_KEY");
-    const from = set("MAIL_FROM");
-    if (key && from) add({ key: "email", group: "aloqa", status: "ok", title, detail: "Sozlangan" });
-    else add({ key: "email", group: "aloqa", status: hard, title, detail: `${!key && !from ? "Sozlanmagan" : !key ? "RESEND_API_KEY yo'q" : "MAIL_FROM yo'q"} — parol tiklash, email tasdiqlash va bildirishnoma xatlari yuborilmaydi`, fix: "resend.com'da domenni tasdiqlang; RESEND_API_KEY va MAIL_FROM=\"Kasb Egalari <no-reply@domeningiz>\" qo'ying." });
+  await guard("email", "aloqa", "Email", () => {
+    const title = "Email";
+    const provider = mailProvider();
+    if (provider === "resend") add({ key: "email", group: "aloqa", status: "ok", title, detail: "Sozlangan (Resend)" });
+    else if (provider === "smtp") add({ key: "email", group: "aloqa", status: "ok", title, detail: `Sozlangan (SMTP${/gmail/i.test(process.env.SMTP_HOST || "smtp.gmail.com") ? " · Gmail" : ""}, kuniga ${Math.max(1, Number(process.env.SMTP_DAILY_LIMIT || 400))} tagacha)` });
+    else add({ key: "email", group: "aloqa", status: hard, title, detail: "Sozlanmagan — parol tiklash, email tasdiqlash va bildirishnoma xatlari yuborilmaydi", fix: "Gmail: hisobda 2 bosqichli tasdiqni yoqing → myaccount.google.com/apppasswords da «App password» yarating → Vercel'da SMTP_USER=gmail manzilingiz va SMTP_PASS=16 belgili parol → Redeploy. (Yoki o'z domeni bo'lsa: Resend — RESEND_API_KEY + MAIL_FROM.)" });
   });
 
   await guard("telegram", "aloqa", "Telegram bot", async () => {

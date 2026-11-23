@@ -1,4 +1,5 @@
 import "server-only";
+import { isMailConfigured } from "@/lib/security/mailer";
 import { after } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -141,7 +142,7 @@ export async function sendBroadcast(input: BroadcastInput, actorId: string, via:
   await Promise.race([all, sleep(Math.max(0, hooks.waitMs ?? 20_000))]);
 
   const st = channelStat(targets);
-  const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
+  const emailConfigured = isMailConfigured();
   const snapshot = { ...tally };
   const channels = { site: sent, telegram: snapshot.delivered, email: input.email && emailConfigured ? st.email : 0 };
   await audit(actorId, "admin_broadcast", { meta: { audience: input.audience, sent, email: Boolean(input.email), title: input.title, channels, telegram: snapshot, via } }, req).catch(() => undefined);
